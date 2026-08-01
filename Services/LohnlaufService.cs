@@ -722,6 +722,123 @@ public class LohnlaufService
     }
 
     /// <summary>
+    /// Beim Definitiv-Abschluss: Download-Link (kein PDF-Anhang) an Behörden,
+    /// bei denen die Lohnabtretung «Lohnausweis an Behörde» aktiviert ist
+    /// (Walter 30.07.2026). Fire-and-Forget vom Controller — eigene DI-Scope.
+    /// </summary>
+    public async Task TrySendLohnausweisLinksToBehoerdenAsync(int periodeId)
+    {
+        const int expiryDays = 90;
+        try
+        {
+            var periode = await _db.PayrollPerioden.FirstOrDefaultAsync(p => p.Id == periodeId);
+            if (periode == null) return;
+
+            var year = periode.Year;
+            var periodFrom = periode.PeriodFrom;
+            var periodTo = periode.PeriodTo;
+
+            var empIds = await _db.PayrollSnapshots
+                .Where(s => s.PayrollPeriodeId == periodeId && s.Status != "STORNIERT")
+                .Select(s => s.EmployeeId)
+                .Distinct()
+                .ToListAsync();
+            if (empIds.Count == 0) return;
+
+            // Abtretungen mit Flag, die die Periode überlappen und Behörde mit E-Mail haben.
+            var assignments = await _db.EmployeeLohnAssignments
+                .Include(a => a.Behoerde)
+                .Include(a => a.Employee)
+                .Where(a => empIds.Contains(a.EmployeeId)
+                         && a.LohnausweisAnBehoerde
+                         && a.ValidFrom <= periodTo
+                         && (a.ValidTo == null || a.ValidTo >= periodFrom)
+                         && a.Behoerde != null
+                         && a.Behoerde.Email != null
+                         && a.Behoerde.Email != "")
+                .ToListAsync();
+            if (assignments.Count == 0) return;
+
+            var cfg = await _emailSvc.GetEffectiveConfigAsync();
+            var siteBase = string.IsNullOrWhiteSpace(cfg.SiteUrl)
+                ? "https://onecrew.ch"
+                : cfg.SiteUrl.TrimEnd('/');
+
+            int sent = 0, skipped = 0;
+            foreach (var a in assignments)
+            {
+                try
+                {
+                    // Ohne Jahres-Snapshots kein sinnvoller Lohnausweis.
+                    var yearStart = new DateOnly(year, 1, 1);
+                    var yearEnd = new DateOnly(year, 12, 31);
+                    var hasSnapshots = await _db.PayrollSnapshots
+                        .AnyAsync(s => s.EmployeeId == a.EmployeeId
+                                    && s.Periode != null
+                                    && s.Periode.PeriodFrom >= yearStart
+                                    && s.Periode.PeriodFrom <= yearEnd
+                                    && s.Status != "STORNIERT");
+                    if (!hasSnapshots) { skipped++; continue; }
+
+                    var email = a.Behoerde!.Email!.Trim();
+                    if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
+
+                    // Vorherige Tokens derselben Abtretung+Jahr widerrufen (Re-Abschluss).
+                    var oldTokens = await _db.LohnausweisShareTokens
+                        .Where(t => t.EmployeeLohnAssignmentId == a.Id
+                                 && t.Year == year
+                                 && t.RevokedAt == null)
+                        .ToListAsync();
+                    foreach (var ot in oldTokens)
+                        ot.RevokedAt = DateTime.Now;
+
+                    var (token, hash) = ShareTokenUtil.NewToken();
+                    var expiresAt = DateTime.Now.AddDays(expiryDays);
+                    _db.LohnausweisShareTokens.Add(new LohnausweisShareToken
+                    {
+                        EmployeeId = a.EmployeeId,
+                        BehoerdeId = a.BehoerdeId,
+                        EmployeeLohnAssignmentId = a.Id,
+                        PayrollPeriodeId = periodeId,
+                        Year = year,
+                        TokenHash = hash,
+                        ExpiresAt = expiresAt,
+                        CreatedAt = DateTime.Now,
+                    });
+                    await _db.SaveChangesAsync();
+
+                    var url = $"{siteBase}/lohnausweis/{token}";
+                    var maName = $"{a.Employee?.FirstName} {a.Employee?.LastName}".Trim();
+                    if (string.IsNullOrWhiteSpace(maName)) maName = "Mitarbeiter/in";
+
+                    await _emailSvc.SendLohnausweisBehoerdeNotificationAsync(
+                        email,
+                        a.Behoerde.Name,
+                        maName,
+                        year,
+                        url,
+                        expiresAt);
+                    sent++;
+                    await Task.Delay(500);
+                }
+                catch (Exception mex)
+                {
+                    Console.Error.WriteLine(
+                        $"[LohnlaufService] Lohnausweis-Link an Behörde (Assignment {a.Id}) fehlgeschlagen: {mex.Message}");
+                }
+            }
+            Console.Error.WriteLine(
+                $"[LohnlaufService] Lohnausweis-Behörden-Links Periode {periodeId}: {sent} gesendet, {skipped} übersprungen.");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(
+                $"[LohnlaufService] Lohnausweis-Behörden-Versand fehlgeschlagen für Periode {periodeId}: {ex.Message}");
+            Console.Error.WriteLine(ex.StackTrace);
+        }
+    }
+
+    /// <summary>
     /// Entfernt alle Lohnzettel einer Periode aus den MA-Postfächern.
     /// Wird beim Wieder-Öffnen einer definitiv abgeschlossenen Periode
     /// aufgerufen (z.B. Korrekturbedarf entdeckt nachdem MA bereits den

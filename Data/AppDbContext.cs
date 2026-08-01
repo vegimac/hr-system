@@ -64,6 +64,7 @@ public class AppDbContext : DbContext
     public DbSet<CompanyProfileSsl> CompanyProfileSsls => Set<CompanyProfileSsl>();
     public DbSet<FamilienzulagenTarif> FamilienzulagenTarife => Set<FamilienzulagenTarif>();
     public DbSet<EmployeeLohnAssignment> EmployeeLohnAssignments => Set<EmployeeLohnAssignment>();
+    public DbSet<LohnausweisShareToken> LohnausweisShareTokens => Set<LohnausweisShareToken>();
     public DbSet<AbsenzTyp> AbsenzTypen => Set<AbsenzTyp>();
     public DbSet<EmployeeArbeitslosigkeit> EmployeeArbeitslosigkeiten => Set<EmployeeArbeitslosigkeit>();
     public DbSet<SocialInsuranceRate> SocialInsuranceRates => Set<SocialInsuranceRate>();
@@ -1479,12 +1480,37 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ReferenzAmt).HasColumnName("referenz_amt").HasMaxLength(100);
             entity.Property(e => e.ZahlungsReferenz).HasColumnName("zahlungs_referenz").HasMaxLength(50);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.LohnausweisAnBehoerde).HasColumnName("lohnausweis_an_behoerde");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_employee_lohn_assignment_period");
+        });
+
+        // ── LohnausweisShareToken (Walter 30.07.2026) ──────────────────────
+        modelBuilder.Entity<LohnausweisShareToken>(entity =>
+        {
+            entity.ToTable("lohnausweis_share_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.EmployeeLohnAssignmentId).HasColumnName("employee_lohn_assignment_id");
+            entity.Property(e => e.PayrollPeriodeId).HasColumnName("payroll_periode_id");
+            entity.Property(e => e.Year).HasColumnName("year");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("ux_lohnausweis_share_token_hash");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Assignment).WithMany().HasForeignKey(e => e.EmployeeLohnAssignmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── PayrollLohnAbtretungEntry ───────────────────────────────────────
