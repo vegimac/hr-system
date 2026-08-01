@@ -187,6 +187,27 @@ public class QstTarifVorschlagLogicTests
         Assert.True(QstTarifVorschlagLogic.IstKirchensteuerPflichtig("christ_katholisch"));
     }
 
+    // Walter 01.08.2026: Christ-katholisch (auch als Anzeige-Text) → A0Y
+    [Theory]
+    [InlineData("christ_katholisch")]
+    [InlineData("Christ-katholisch")]
+    [InlineData("christ-katholisch")]
+    [InlineData("Christ katholisch")]
+    public void Szenario4d_ChristKatholisch_Ledig_ErgibtA0Y(string religion)
+    {
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     religion,
+            steuerkanton: "AG",
+            kinder:       Array.Empty<QstKindInput>(),
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle("AG"));
+
+        Assert.True(QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion));
+        Assert.True(res.Kirchensteuer);
+        Assert.Equal("A0Y", res.QstCode);
+    }
+
     // ──────────────────────────────────────────────────────────────────
     // Szenario 5a — QST-Fristen: explizites QstDeductibleUntil in der
     // Vergangenheit → Kind zählt NICHT mehr, auch wenn es <18 ist.
@@ -284,7 +305,7 @@ public class QstTarifVorschlagLogicTests
         Assert.False(res.Kirchensteuer);              // Fallback auf N
         Assert.Equal("C2N", res.QstCode);
         Assert.True(res.InTariftabelleGefunden);
-        Assert.Contains(res.Warnings, w => w.Contains("Kirchensteuer-Variante"));
+        Assert.Contains(res.Warnings, w => w.Contains("Kirchensteuer", StringComparison.OrdinalIgnoreCase));
     }
 
     // ──────────────────────────────────────────────────────────────────

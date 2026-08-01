@@ -262,17 +262,46 @@ public static class QstTarifVorschlagLogic
     }
 
     /// <summary>
-    /// Konfession-Mapping aus der MA-Maske. Walter-Werte:
-    /// evangelisch_reformiert, roemisch_katholisch, christ_katholisch → ja.
-    /// Alles andere (juedisch, andere, keine, NULL …) → nein.
+    /// Konfession-Mapping aus der MA-Maske (Walter-Vorgabe):
+    /// evangelisch-reformiert / römisch-katholisch / christ-katholisch → ja
+    /// (= QST-Code mit Y, z.B. A0Y). Alles andere (keine, andere, jüdisch, …) → nein.
+    ///
+    /// Robust gegen Anzeige-Texte und Trennzeichen («Christ-katholisch»,
+    /// «christ katholisch», Umlaute) — sonst landet ein korrekter Stammdaten-
+    /// Eintrag fälschlich bei A0N.
     /// </summary>
     public static bool IstKirchensteuerPflichtig(string? religion)
     {
         if (string.IsNullOrWhiteSpace(religion)) return false;
-        var r = religion.Trim().ToLowerInvariant();
-        return r == "evangelisch_reformiert"
-            || r == "roemisch_katholisch"
-            || r == "christ_katholisch";
+        // Normalisieren: Kleinbuchstaben, Umlaute, alles Nicht-Buchstaben weg.
+        var r = religion.Trim().ToLowerInvariant()
+            .Replace('ä', 'a').Replace('ö', 'o').Replace('ü', 'u')
+            .Replace('é', 'e');
+        var compact = new string(r.Where(char.IsLetterOrDigit).ToArray());
+
+        // Explizit keine Kirchensteuer
+        if (compact is "keine" or "kein" or "none" or "konfessionslos"
+            or "andere" or "other" or "juedisch" or "judisch" or "muslimisch"
+            or "islamisch")
+            return false;
+
+        // Die drei kirchensteuerpflichtigen Konfessionen (Code + Freitext)
+        if (compact is "evangelischreformiert" or "evangreformiert"
+            or "reformiert" or "evangelisch")
+            return true;
+        if (compact is "roemischkatholisch" or "romischkatholisch"
+            or "roemkatholisch" or "romkatholisch")
+            return true;
+        if (compact is "christkatholisch" or "christkath")
+            return true;
+
+        // Fallback: enthält «katholisch» oder «evangelisch»/«reformiert»
+        // (deckt z.B. «Christ-katholisch» / Tippvarianten ab)
+        if (compact.Contains("katholisch") || compact.Contains("evangelisch")
+            || compact.Contains("reformiert"))
+            return true;
+
+        return false;
     }
 
     /// <summary>

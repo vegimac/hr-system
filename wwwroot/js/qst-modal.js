@@ -193,19 +193,30 @@ function qstRenderVorschlagBanner() {
     const sel = document.getElementById('qstTarifCode');
     if (!v) { hint.innerHTML = ''; return; }
     const manual = sel?.value || '';
-    const passt  = manual && manual === v.tarifCode;
-    const headerColor = passt ? '#16a34a' : '#6b7280';
-    const headerIcon  = passt ? '✓' : 'ℹ';
+    const formCode = (document.getElementById('qstCode')?.value || '').toString().trim().toUpperCase();
+    const vorschlagCode = (v.qstCode || '').toString().trim().toUpperCase();
+    const codeDiff = !!(vorschlagCode && formCode && formCode !== vorschlagCode);
+    const passt  = manual && manual === v.tarifCode && !codeDiff;
+    const headerColor = passt ? '#16a34a' : (codeDiff ? '#b45309' : '#6b7280');
+    const headerIcon  = passt ? '✓' : (codeDiff ? '⚠' : 'ℹ');
     const begr   = v.begruendung ? `<div style="color:#475569;margin-top:2px">${v.begruendung}</div>` : '';
     const warns  = (v.warnings && v.warnings.length)
         ? `<div style="color:#b45309;margin-top:2px">⚠ ${v.warnings.map(w => w.replace(/"/g,'&quot;')).join(' · ')}</div>`
         : '';
-    const choice = (manual && manual !== v.tarifCode)
+    const choice = (manual && manual !== v.tarifCode && !codeDiff)
         ? `<div style="color:#94a3b8;margin-top:2px">Du hast bewusst <b>${manual}</b> gewählt.</div>`
+        : '';
+    // Walter 01.08.2026: bei Abweichung (z.B. Konfession → A0Y, Eintrag noch A0N)
+    // Ein-Klick-Übernahme — sonst bleibt der falsche Code stehen.
+    const applyBtn = codeDiff
+        ? `<div style="margin-top:6px"><button type="button" onclick="qstApplyServerVorschlagToForm()"
+            style="background:#3f3f3f;color:#fff;border:none;padding:6px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">
+            Vorschlag ${v.qstCode} übernehmen</button>
+            <span style="color:#64748b;font-size:11px;margin-left:8px">Aktuell im Formular: ${formCode || '–'}</span></div>`
         : '';
     hint.innerHTML =
         `<div style="color:${headerColor};font-weight:600">${headerIcon} Server-Vorschlag: <b>${v.qstCode}</b> (Tarif ${v.tarifCode}${v.tarifBezeichnung ? ' — ' + v.tarifBezeichnung : ''})</div>` +
-        begr + warns + choice;
+        begr + warns + choice + applyBtn;
 }
 
 // Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
