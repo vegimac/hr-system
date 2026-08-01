@@ -1383,44 +1383,26 @@ function loadUebersichtTab() {
     // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
     // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    // Probezeit neben L-GAV (Walter 31.07.2026):
-    //   Zeile wie L-GAV-Titel: «Probezeit bis TT.MM.JJJJ»
-    //   darunter bei offen: rot «offen» + Button «→ eintragen» in derselben Zeile
-    let pzStatusLine = '';
-    if (pzAktiv) {
-        if (pz1Ok) {
-            pzStatusLine = `<div class="ov-anst-pz-line"><span class="ov-anst-pz-status ok">✓ erledigt</span></div>`;
-        } else {
-            pzStatusLine = `<div class="ov-anst-pz-line">
-                <span class="ov-anst-pz-status open">offen</span>
-                <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
-                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>
-            </div>`;
-        }
-    }
-    // Probezeit nur anzeigen solange noch aktiv (Ende ≥ heute) — abgelaufen
-    // komplett ausblenden (Walter 31.07.2026; war vorher oft sichtbar weil
-    // nur der Status an pzAktiv hing, der Titel aber am Datum).
-    const pzVisible = !!(pzEnde && pzAktiv);
-    const lgavPzCell = `<div class="ov-pf ov-anst-lgav-pz">
-            <div class="ov-anst-lgav-pz-head">
-                <div class="ov-pfl">L-GAV</div>
-                ${pzVisible ? `<div class="ov-anst-pz-title" title="Probezeit">Probezeit bis ${pzEnde}</div>` : ''}
-            </div>
-            <div class="ov-anst-lgav-pz-body">
-                <div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div>
-                ${pzVisible ? pzStatusLine : ''}
-            </div>
-        </div>`;
-    // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
-    //   Zeile 1: Eintritt | Austritt | L-GAV + Probezeit
-    //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
+    // Probezeit wieder kompakt im Kartenkopf (Walter Aug 2026): eine ruhige
+    // Zeile rechts neben «Anstellung» — nicht mehr in die L-GAV-Zelle gestopft.
+    const pzStatus = !pzAktiv
+        ? null
+        : pz1Ok
+            ? `<span class="ov-anst-pz-status ok">✓ erledigt</span>`
+            : `<span class="ov-anst-pz-status open">offen</span>
+               <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
+                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
+    const pzHeader = (pzEnde && pzAktiv)
+        ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzStatus ? ` · ${pzStatus}` : ''}</span>`
+        : '';
+    // Layout: Zeile 1 Eintritt | Austritt | L-GAV
+    //         Zeile 2 Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
     // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
             ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${lgavPzCell}
+            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
             <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
@@ -1434,7 +1416,7 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
             <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
         </div>`,
-        `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+        `${pzHeader}<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
     //    aus dem frueheren Personal-Tab lebt jetzt HIER (einzige Instanz,

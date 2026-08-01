@@ -4241,7 +4241,7 @@
             margin-bottom: 0;
             min-width: 0;
         }
-        /* Zeile 1 (Eintritt/Austritt/Probezeit): normale Lesestärke */
+        /* Zeile 1 (Eintritt/Austritt/L-GAV): normale Lesestärke */
         .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfl {
             margin-bottom: 1px;
         }
@@ -4250,6 +4250,35 @@
             line-height: 28px;
             min-height: 28px;
         }
+        /* Probezeit kompakt im Anstellung-Kartenkopf (neben Titel) */
+        .ov-anst-pz {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            max-width: min(380px, 48vw);
+            line-height: 1.25;
+        }
+        .ov-anst-pz-status { font-weight: 650; }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        body.theme-dark .ov-anst-pz { color: #94a3b8; }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
             min-width: 0;
