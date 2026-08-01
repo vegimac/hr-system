@@ -26,6 +26,19 @@ dotnet build
 
 DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem Server.
 
+### Deploy-Befehl IMMER mitliefern (Walter-Vorgabe 01.08.2026, ABSOLUT)
+
+Walter deployt **nicht selbst** und muss den Befehl **nie** nachfragen müssen.
+Nach **jeder** Änderung (Backend und/oder Frontend), sobald commit+push fertig sind,
+steht am Ende der Antwort **immer** der komplette Copy-Paste-Block — ohne Ausnahme,
+ohne «falls nötig», ohne abgekürztes `./deploy.sh`:
+
+```bash
+cd /Users/Walter/projects/hr-system && git fetch origin && git checkout <AKTUELLER-BRANCH> && git pull origin <AKTUELLER-BRANCH> && ./deploy.sh
+```
+
+Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name jeweils den aktuellen Feature-Branch einsetzen (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
+
 ## Architektur-Big-Picture
 
 ### Schichten
