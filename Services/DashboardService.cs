@@ -1305,41 +1305,51 @@ public class DashboardService
                     continue;   // Nachweise vollständig + aktuell (Ablauf ggf. oben gemeldet)
                 }
 
-                // Drei konfigurierbare Kategorien (Walter 19.07.2026):
-                //  • night_work_untersuch_fehlt — kein aktuelles Datum (kein Untersuch)
-                //  • night_work_exam_expiring   — Zeugnis abgelaufen (auch doku-pflichtig)
-                //  • night_work_exam_fehlt      — Scan und/oder Ausnahmeregelung fehlen
-                //    (Datum kann vorhanden sein — zählt erst mit verknüpftem Dokument)
+                // Getrennte Kategorien (Walter 31.07.2026):
+                //  • night_work_untersuch_fehlt — kein aktuelles Datum (kein Untersuch) → Kritisch
+                //  • night_work_exam_expiring   — Zeugnis abgelaufen → konfigurierbar
+                //  • night_work_exam_fehlt      — nur Arztzeugnis-Scan fehlt → Kritisch
+                //  • night_work_ausnahme_fehlt  — nur Ausnahmeregelung fehlt → Wichtig
+                // Beide Dokument-Lücken können parallel als eigene Todos erscheinen.
                 string subtitleBase =
                     $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber}"
                     + (nw.MaxNightsInSixWeeks > 0
                         ? $" · {nw.MaxNightsInSixWeeks} Nächte in den letzten 6 Wochen"
                         : " · Nachtarbeit geplant (Datum erfasst)");
 
-                // Fehlende-Nachweise-Suffix (Arztzeugnis-Scan und/oder Ausnahmeregelung).
-                string fehlendeNachweise =
-                      (!hasArztDoc && !hasChecklist) ? "Arztzeugnis und Ausnahmeregelung fehlen"
-                    : (!hasArztDoc)                  ? "Arztzeugnis fehlt"
-                    : (!hasChecklist)                ? "Ausnahmeregelung fehlt"
-                    :                                  "";
-
-                if (examExpired)
+                void MeldeAusnahmeFehlt()
                 {
-                    if (!Enabled("night_work_exam_expiring")) continue;
-                    // Abgelaufen: Scan-Hinweis redundant; Ausnahme zusätzlich nennen.
-                    string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    if (hasChecklist || !Enabled("night_work_ausnahme_fehlt")) return;
                     alerts.Add(new DashboardAlert
                     {
-                        Category = "night_work_exam_expiring",
-                        Severity = Severity("night_work_exam_expiring", -(abgelaufenSeit ?? 0), "warning", "critical"),
-                        Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen",
-                        Subtitle = subtitleBase + (extra != null ? $" · {extra}" : "") + hinweis45,
-                        DueDate   = emp.NightWorkExamValidUntil,
-                        DaysUntil = abgelaufenSeit != null ? -abgelaufenSeit.Value : -1,
+                        Category = "night_work_ausnahme_fehlt",
+                        Severity = SeverityState("night_work_ausnahme_fehlt", "warning"),
+                        Title    = "Nachtarbeit-Ausnahmeregelung fehlt",
+                        Subtitle = subtitleBase + hinweis45,
                         EmployeeId     = emp.Id,
                         EmployeeNumber = emp.EmployeeNumber,
                         EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
                     });
+                }
+
+                if (examExpired)
+                {
+                    if (Enabled("night_work_exam_expiring"))
+                    {
+                        alerts.Add(new DashboardAlert
+                        {
+                            Category = "night_work_exam_expiring",
+                            Severity = Severity("night_work_exam_expiring", -(abgelaufenSeit ?? 0), "warning", "critical"),
+                            Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit ?? 0} Tag(en) abgelaufen",
+                            Subtitle = subtitleBase + hinweis45,
+                            DueDate   = emp.NightWorkExamValidUntil,
+                            DaysUntil = abgelaufenSeit != null ? -abgelaufenSeit.Value : -1,
+                            EmployeeId     = emp.Id,
+                            EmployeeNumber = emp.EmployeeNumber,
+                            EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                        });
+                    }
+                    MeldeAusnahmeFehlt();
                     continue;
                 }
 
@@ -1347,34 +1357,39 @@ public class DashboardService
                 // (Datum ohne Scan → unten «Arztzeugnis fehlt», nicht hier.)
                 if (!dateCurrent && !hasArztDoc)
                 {
-                    if (!Enabled("night_work_untersuch_fehlt")) continue;
-                    string? extra = hasChecklist ? null : "Ausnahmeregelung fehlt";
+                    if (Enabled("night_work_untersuch_fehlt"))
+                    {
+                        alerts.Add(new DashboardAlert
+                        {
+                            Category = "night_work_untersuch_fehlt",
+                            Severity = SeverityState("night_work_untersuch_fehlt", "critical"),
+                            Title    = "Nacht Untersuch fehlt",
+                            Subtitle = subtitleBase + hinweis45,
+                            EmployeeId     = emp.Id,
+                            EmployeeNumber = emp.EmployeeNumber,
+                            EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
+                        });
+                    }
+                    MeldeAusnahmeFehlt();
+                    continue;
+                }
+
+                // Arztzeugnis-Scan fehlt (Datum ggf. aus easy@work vorhanden).
+                if (!examAccepted && Enabled("night_work_exam_fehlt"))
+                {
                     alerts.Add(new DashboardAlert
                     {
-                        Category = "night_work_untersuch_fehlt",
-                        Severity = SeverityState("night_work_untersuch_fehlt", "critical"),
-                        Title    = "Nacht Untersuch fehlt",
-                        Subtitle = subtitleBase + (extra != null ? $" · {extra}" : "") + hinweis45,
+                        Category = "night_work_exam_fehlt",
+                        Severity = SeverityState("night_work_exam_fehlt", "critical"),
+                        Title    = "Nachtarbeit-Arztzeugnis fehlt",
+                        Subtitle = subtitleBase + hinweis45,
                         EmployeeId     = emp.Id,
                         EmployeeNumber = emp.EmployeeNumber,
                         EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
                     });
-                    continue;
                 }
 
-                // Datum und/oder Scan vorhanden, aber Nachweis unvollständig
-                // (typisch: easy@work-Datum ohne verknüpften Scan).
-                if (!Enabled("night_work_exam_fehlt")) continue;
-                alerts.Add(new DashboardAlert
-                {
-                    Category = "night_work_exam_fehlt",
-                    Severity = SeverityState("night_work_exam_fehlt", "critical"),
-                    Title    = "Nachtarbeit-Nachweise fehlen",
-                    Subtitle = subtitleBase + " · " + fehlendeNachweise + hinweis45,
-                    EmployeeId     = emp.Id,
-                    EmployeeNumber = emp.EmployeeNumber,
-                    EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
-                });
+                MeldeAusnahmeFehlt();
             }
         }
 

@@ -91,7 +91,8 @@ const DASH_CATEGORY_META = {
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
     night_work_untersuch_fehlt: { label: 'Nacht Untersuch fehlt', icon: '🌙', color: '#991b1b' },
-    night_work_exam_fehlt:  { i18nKey: 'dash.cat.nightWorkExam',    label: 'Nachtarbeit-Nachweise', icon: '🌙', color: '#92400e' },
+    night_work_exam_fehlt:  { label: 'Nachtarbeit-Arztzeugnis fehlt', icon: '🌙', color: '#991b1b' },
+    night_work_ausnahme_fehlt: { label: 'Nachtarbeit-Ausnahmeregelung fehlt', icon: '🌙', color: '#92400e' },
     night_work_exam_expiring: { i18nKey: 'dash.cat.nightWorkExpiring', label: 'Nachtarbeit-Bewilligung läuft ab', icon: '🌙', color: '#92400e' },
     night_work_exam_mismatch: { label: 'Nachtarbeit-Enddatum in easy@work falsch', icon: '🌙', color: '#991b1b' },
     lohn_provisorisch:      { i18nKey: 'dash.cat.payrollOpen',      label: 'Lohnlauf',               icon: '💰', color: '#6b6152' },
@@ -372,6 +373,7 @@ function renderDashTodoRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_ausnahme_fehlt'
                                    || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch'
                                    || a.category === 'probation_end')
@@ -510,6 +512,7 @@ function dashTodoOnClick(a) {
             case 'anniversary':
             case 'night_work_untersuch_fehlt':
             case 'night_work_exam_fehlt':
+            case 'night_work_ausnahme_fehlt':
             case 'night_work_exam_expiring':
             case 'night_work_exam_mismatch': return `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`;
             default:                    return `onclick="dashOpenEmployee(${a.employeeId})"`;
@@ -664,6 +667,7 @@ function renderDashAlertRow(a) {
                                    || a.category === 'anniversary'
                                    || a.category === 'night_work_untersuch_fehlt'
                                    || a.category === 'night_work_exam_fehlt'
+                                   || a.category === 'night_work_ausnahme_fehlt'
                                    || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch'
                                    || a.category === 'probation_end')
