@@ -863,12 +863,28 @@ public class SaldoVortragImportController : ControllerBase
         if (cell is null) return null;
         try
         {
+            decimal? raw = null;
             if (cell.CellType == CellType.Numeric)
-                return Convert.ToDecimal(cell.NumericCellValue);
-            var s = (cell.ToString() ?? "").Replace("'", "").Replace(" ", "").Trim();
-            if (string.IsNullOrEmpty(s)) return null;
-            return decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : (decimal?)null;
+                raw = Convert.ToDecimal(cell.NumericCellValue);
+            else
+            {
+                var s = (cell.ToString() ?? "").Replace("'", "").Replace(" ", "").Trim();
+                if (string.IsNullOrEmpty(s)) return null;
+                if (decimal.TryParse(s, NumberStyles.Any, CultureInfo.InvariantCulture, out var v))
+                    raw = v;
+            }
+            return SnapNearZero(raw);
         }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// Jasper/Excel liefert oft Float-Müll wie −5.48e-16 statt 0 → Anzeige «−0.00».
+    /// Alles unter 0.005 (nach 2-Stellen-Rundung 0.00) auf exakt 0 setzen.
+    /// </summary>
+    private static decimal? SnapNearZero(decimal? v)
+    {
+        if (v is null) return null;
+        return Math.Abs(v.Value) < 0.005m ? 0m : v;
     }
 }
