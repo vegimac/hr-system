@@ -265,9 +265,11 @@ public class StundenkontrollePdfService
     private sealed record SaldiBlock(
         decimal StundenVortrag,
         decimal StundenIst,
+        decimal StundenBezug,
         decimal StundenSaldo,
         decimal NachtVortrag,
         decimal NachtIst,
+        decimal NachtBezug,
         decimal NachtSaldo,
         decimal FerienTageVortrag,
         decimal FerienTageAccrual,
@@ -285,9 +287,14 @@ public class StundenkontrollePdfService
         decimal ThirteenAccrual,
         decimal ThirteenBezug,
         decimal ThirteenSaldo,
+        decimal FeiertagGeldAuszahlung,
+        decimal AuszahlungLohn,
         bool ShowThirteen,
         bool ShowFerienGeld,
-        bool ShowFeiertag);
+        bool ShowFeiertag,
+        bool ShowFeiertagGeld,
+        bool ShowAuszahlung,
+        bool IsFlex);
 
     private static List<DayRow> BuildDayRows(
         DateOnly from,
@@ -378,7 +385,7 @@ public class StundenkontrollePdfService
         string model)
     {
         var modelU = (model ?? "").ToUpperInvariant();
-        bool show13 = modelU is "MTP" or "FIX" or "FIX-M";
+        bool isFlex = modelU == "FLEX";
         bool showFerienGeld = modelU is "FLEX" or "MTP";
         bool showFeiertag = modelU is "FIX" or "FIX-M";
 
@@ -386,30 +393,52 @@ public class StundenkontrollePdfService
         {
             var s = slip.Value;
             var payout13 = GetDecimal(s, "thirteenthPayout") ?? 0;
+            var monthly13 = GetDecimal(s, "thirteenthMonthly") ?? 0;
+            var acc13     = GetDecimal(s, "thirteenthAccumulated") ?? 0;
             decimal tVortrag, tAccrual, tBezug, tSaldo;
             if (payout13 > 0)
             {
+                // Auszahlung (MTP/FIX Auszahlungsmonat oder FLEX monatlich).
                 tVortrag = GetDecimal(s, "thirteenthPrevForDisplay") ?? 0;
                 tAccrual = GetDecimal(s, "thirteenthAccrualForDisplay") ?? 0;
-                tBezug   = payout13;
-                tSaldo   = 0;
+                if (tAccrual <= 0) tAccrual = isFlex ? payout13 : monthly13;
+                tBezug = payout13;
+                tSaldo = isFlex ? 0 : acc13;
             }
             else
             {
-                var monthly = GetDecimal(s, "thirteenthMonthly") ?? 0;
-                var acc     = GetDecimal(s, "thirteenthAccumulated") ?? 0;
-                tVortrag = Math.Max(0, Math.Round(acc - monthly, 2));
-                tAccrual = monthly;
+                tVortrag = Math.Max(0, Math.Round(acc13 - monthly13, 2));
+                tAccrual = monthly13;
                 tBezug   = 0;
-                tSaldo   = acc;
+                tSaldo   = acc13;
             }
+
+            // 13. ML: MTP/FIX/FIX-M immer; FLEX wenn dieser Monat ausbezahlt/akkumuliert.
+            bool show13 = modelU is "MTP" or "FIX" or "FIX-M"
+                       || (isFlex && (payout13 > 0 || monthly13 > 0 || acc13 > 0 || tAccrual > 0));
+
+            var worked = GetDecimal(s, "workedHours") ?? istHours;
+            // FLEX: gestempelte Stunden werden mit dem Lohn ausbezahlt → Bezug,
+            // kein Stundensaldo. MTP/FIX: Zuwachs = Ist, Bezug nur bei Saldo-Auszahlung (hier 0).
+            decimal stundenBezug = isFlex ? worked : 0;
+            decimal stundenSaldo = isFlex
+                ? 0
+                : (GetDecimal(s, "neuerHourSaldo") ?? curr?.HourSaldo ?? 0);
+
+            var nachtBezug = GetDecimal(s, "nachtKompStunden") ?? 0;
+            var feiertagGeld = FindLohnLineBetrag(s, "Feiertagentschädigung");
+            var auszahlung = GetDecimal(s, "auszahlungsbetrag")
+                          ?? GetDecimal(s, "nettolohn")
+                          ?? 0;
 
             return new SaldiBlock(
                 StundenVortrag: GetDecimal(s, "vormonatHourSaldo") ?? prev?.HourSaldo ?? 0,
-                StundenIst:     GetDecimal(s, "workedHours") ?? istHours,
-                StundenSaldo:   GetDecimal(s, "neuerHourSaldo") ?? curr?.HourSaldo ?? 0,
+                StundenIst:     worked,
+                StundenBezug:   stundenBezug,
+                StundenSaldo:   stundenSaldo,
                 NachtVortrag:   GetDecimal(s, "vormonatNachtSaldo") ?? prev?.NachtSaldo ?? 0,
-                NachtIst:       GetDecimal(s, "nightBonus") ?? istNight,
+                NachtIst:       GetDecimal(s, "nightBonus") ?? Math.Round(istNight * 0.10m, 2),
+                NachtBezug:     nachtBezug,
                 NachtSaldo:     GetDecimal(s, "neuerNachtSaldo") ?? curr?.NachtSaldo ?? 0,
                 FerienTageVortrag: GetDecimal(s, "vormonatFerienTage") ?? prev?.FerienTageSaldo ?? 0,
                 FerienTageAccrual: GetDecimal(s, "ferienTageAccrual") ?? 0,
@@ -427,10 +456,15 @@ public class StundenkontrollePdfService
                 ThirteenAccrual: tAccrual,
                 ThirteenBezug:   tBezug,
                 ThirteenSaldo:   tSaldo,
+                FeiertagGeldAuszahlung: feiertagGeld,
+                AuszahlungLohn: auszahlung,
                 ShowThirteen: show13,
                 ShowFerienGeld: showFerienGeld || (GetDecimal(s, "ferienGeldSaldoNeu") ?? 0) != 0
                                              || (GetDecimal(s, "ferienGeldAccrual") ?? 0) != 0,
-                ShowFeiertag: showFeiertag || (GetDecimal(s, "feiertagTageSaldoNeu") ?? 0) != 0);
+                ShowFeiertag: showFeiertag || (GetDecimal(s, "feiertagTageSaldoNeu") ?? 0) != 0,
+                ShowFeiertagGeld: isFlex && feiertagGeld > 0,
+                ShowAuszahlung: auszahlung > 0,
+                IsFlex: isFlex);
         }
 
         // Ohne Slip: Nacht-Saldo = 10 % der Nachtstunden (wie PayrollCalculationEngine).
@@ -438,9 +472,11 @@ public class StundenkontrollePdfService
         return new SaldiBlock(
             StundenVortrag: prev?.HourSaldo ?? 0,
             StundenIst:     istHours,
-            StundenSaldo:   curr?.HourSaldo ?? (prev?.HourSaldo ?? 0),
+            StundenBezug:   isFlex ? istHours : 0,
+            StundenSaldo:   isFlex ? 0 : (curr?.HourSaldo ?? (prev?.HourSaldo ?? 0)),
             NachtVortrag:   prev?.NachtSaldo ?? 0,
             NachtIst:       nachtKomp,
+            NachtBezug:     0,
             NachtSaldo:     curr?.NachtSaldo ?? Math.Round((prev?.NachtSaldo ?? 0) + nachtKomp, 2),
             FerienTageVortrag: prev?.FerienTageSaldo ?? 0,
             FerienTageAccrual: 0,
@@ -458,9 +494,34 @@ public class StundenkontrollePdfService
             ThirteenAccrual: curr?.ThirteenthMonthMonthly ?? 0,
             ThirteenBezug:   0,
             ThirteenSaldo:   curr?.ThirteenthMonthAccumulated ?? prev?.ThirteenthMonthAccumulated ?? 0,
-            ShowThirteen: show13,
+            FeiertagGeldAuszahlung: 0,
+            AuszahlungLohn: 0,
+            ShowThirteen: modelU is "MTP" or "FIX" or "FIX-M",
             ShowFerienGeld: showFerienGeld,
-            ShowFeiertag: showFeiertag);
+            ShowFeiertag: showFeiertag,
+            ShowFeiertagGeld: false,
+            ShowAuszahlung: false,
+            IsFlex: isFlex);
+    }
+
+    /// <summary>Sucht eine Lohnpositions-Zeile im Slip nach Bezeichnung-Substring.</summary>
+    private static decimal FindLohnLineBetrag(JsonElement slip, string bezeichnungContains)
+    {
+        if (!slip.TryGetProperty("lohnLines", out var lines) || lines.ValueKind != JsonValueKind.Array)
+            return 0;
+        decimal sum = 0;
+        foreach (var line in lines.EnumerateArray())
+        {
+            var bez = line.TryGetProperty("bezeichnung", out var b) ? b.GetString() : null;
+            if (string.IsNullOrEmpty(bez)) continue;
+            if (bez.Contains(bezeichnungContains, StringComparison.OrdinalIgnoreCase)
+                && line.TryGetProperty("betrag", out var betrag)
+                && betrag.ValueKind == JsonValueKind.Number)
+            {
+                sum += betrag.GetDecimal();
+            }
+        }
+        return sum;
     }
 
     private static List<string> BuildCompanyHeader(CompanyProfile c)
@@ -533,30 +594,30 @@ public class StundenkontrollePdfService
             Head("Bezug");
             Head("Saldo");
 
-            // Stunden — bei FLEX kein Stundensaldo-Vortrag (nur Ist anzeigen)
-            var modelU = (model ?? "").ToUpperInvariant();
-            if (modelU is "MTP" or "FIX" or "FIX-M")
-            {
-                CellL("Stunden (Überstunden)");
-                CellR(Num(s.StundenVortrag));
-                CellR(Num(s.StundenIst));
-                CellR("—");
-                CellR(Num(s.StundenSaldo), bold: true);
-            }
-            else
+            // Stunden: FLEX → mit Lohn ausbezahlt (Bezug = Ist, Saldo 0).
+            // MTP/FIX → Überstunden-Saldo (Bezug nur bei Auszahlung aus Saldo).
+            if (s.IsFlex)
             {
                 CellL("Stunden (effektiv)");
                 CellR("—");
                 CellR(Num(s.StundenIst));
-                CellR("—");
-                CellR(Num(s.StundenIst), bold: true);
+                CellR(s.StundenBezug > 0 ? Num(s.StundenBezug) : "—");
+                CellR(Num(s.StundenSaldo), bold: true);
+            }
+            else
+            {
+                CellL("Stunden (Überstunden)");
+                CellR(Num(s.StundenVortrag));
+                CellR(Num(s.StundenIst));
+                CellR(s.StundenBezug > 0 ? Num(s.StundenBezug) : "—");
+                CellR(Num(s.StundenSaldo), bold: true);
             }
 
             // Saldo = Kompensationsstunden (10 % der Nachtstunden), analog Lohnzettel.
             CellL("Nacht-Komp. (h, 10%)");
             CellR(Num(s.NachtVortrag));
             CellR(Num(s.NachtIst));
-            CellR("—");
+            CellR(s.NachtBezug > 0 ? Num(s.NachtBezug) : "—");
             CellR(Num(s.NachtSaldo), bold: true);
 
             CellL("Ferien (Tage)");
@@ -572,6 +633,16 @@ public class StundenkontrollePdfService
                 CellR(Num(s.FeiertagAccrual));
                 CellR(s.FeiertagBezug > 0 ? Num(s.FeiertagBezug) : "—");
                 CellR(Num(s.FeiertagSaldo), bold: true);
+            }
+
+            // FLEX: Feiertagentschädigung wird monatlich mit dem Lohn ausbezahlt.
+            if (s.ShowFeiertagGeld)
+            {
+                CellL("Feiertag-Geld (CHF)");
+                CellR("—");
+                CellR(Chf(s.FeiertagGeldAuszahlung));
+                CellR(Chf(s.FeiertagGeldAuszahlung));
+                CellR(Chf(0), bold: true);
             }
 
             if (s.ShowFerienGeld)
@@ -590,6 +661,16 @@ public class StundenkontrollePdfService
                 CellR(Chf(s.ThirteenAccrual));
                 CellR(s.ThirteenBezug > 0 ? Chf(s.ThirteenBezug) : "—");
                 CellR(Chf(s.ThirteenSaldo), bold: true);
+            }
+
+            // Lohnauszahlung (Netto an MA) — was mit diesem Lohnlauf ausbezahlt wird.
+            if (s.ShowAuszahlung)
+            {
+                CellL("Lohnauszahlung (CHF)");
+                CellR("—");
+                CellR("—");
+                CellR(Chf(s.AuszahlungLohn));
+                CellR("—");
             }
         });
     }
