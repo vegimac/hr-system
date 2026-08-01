@@ -682,7 +682,8 @@ public class EasyAtWorkEmployeeSyncService
 
             var activeAt = DateOnly.FromDateTime(DateTime.Today);
             var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader);
-            var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, cpId);
+            // Verträge: Sperre erst bei Definitiv abgeschlossen (Walter 01.08.2026).
+            var firstAllowed = await _editLock.GetFirstAllowedDateForContractsAsync(cpId);
 
             // STRICT (Walter 08.07.2026): überlappende AKTIVE Verträge in easy@work
             // → KEIN Vertragsimport für diesen MA. Historische Überlappungen egal.
@@ -2250,9 +2251,10 @@ public class EasyAtWorkEmployeeSyncService
             //    easy@work werden als Employment-Versionen ge-upsertet. Walter 23.06.2026.
             if (timelineWork.Count > 0 || bankWork.Count > 0)
             {
-                // Abschluss-Schutz: Verträge in einer abgeschlossenen/in-Verarbeitung
-                // Lohnperiode dieser Filiale werden nicht importiert (Walter 29.06.2026).
-                var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, req.CompanyProfileId);
+                // Abschluss-Schutz: Verträge erst gesperrt wenn Definitiv
+                // abgeschlossen (DTA) — während Kontrolle (provisorisch) noch erlaubt
+                // (Walter 01.08.2026, präzisiert gegenüber 29.06.2026).
+                var firstAllowed = await _editLock.GetFirstAllowedDateForContractsAsync(req.CompanyProfileId);
                 foreach (var (temp, teawId, tJgId, tJgCode, tIsKader, tEawTo) in timelineWork)
                 {
                     var tContracts = ContractsFor(teawId);
@@ -2791,18 +2793,16 @@ public class EasyAtWorkEmployeeSyncService
             if (existing == null)
                 existing = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
 
-            // Abschluss-Schutz (Walter-Vorgabe 29.06.2026): Verträge/Segmente,
-            // deren Start in einer bereits abgeschlossenen bzw. in-Verarbeitung
-            // Lohnperiode liegt (Start < FirstAllowedDate der Filiale), werden
-            // NICHT importiert. Ein bereits vorhandenes Segment wird unangetastet
-            // gelassen (matched, damit es nicht gekappt wird); ein fehlendes wird
-            // mit einer klaren Meldung übersprungen. Greift für Filial-Sync UND
-            // Einzel-MA-Sync gleichermassen.
+            // Abschluss-Schutz (Walter 29.06.2026 / präzisiert 01.08.2026):
+            // Verträge/Segmente mit Start vor FirstAllowedDate (nur Definitiv
+            // «abgeschlossen») werden NICHT importiert. Während provisorisch
+            // (Kontrolle vor DTA) ist Import erlaubt. Vorhandenes Segment bleibt
+            // unangetastet (matched); fehlendes → klare Skip-Meldung.
             if (firstAllowedDate.HasValue && seg.Start < firstAllowedDate.Value)
             {
                 if (existing != null) matched.Add(existing);
                 else skippedContracts?.Add(
-                    $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen geschlossener Lohnperiode nicht importiert werden.");
+                    $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen abgeschlossener Lohnperiode nicht importiert werden.");
                 continue;
             }
 

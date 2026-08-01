@@ -21,16 +21,18 @@ public class EmploymentsController : ControllerBase
     }
 
     /// <summary>
-    /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026):
-    /// Ein Vertrag gilt als „in Lohnlauf verwendet", wenn sein
-    /// ContractStartDate VOR dem FirstAllowedDate der Filiale liegt.
+    /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026,
+    /// präzisiert 01.08.2026): Ein Vertrag gilt als „in Lohnlauf verwendet",
+    /// wenn sein ContractStartDate VOR dem FirstAllowedDate der Filiale liegt.
     /// Editieren/Löschen ist dann gesperrt — stattdessen muss ein NEUER
     /// Vertrag (POST) mit ContractStartDate >= FirstAllowedDate angelegt
     /// werden; der offene wird automatisch beendet.
-    /// admin/superuser werden im Service bypassed.
+    ///
+    /// Sperre erst bei Definitiv <c>abgeschlossen</c> (DTA) — während
+    /// provisorisch_abgeschlossen (Kontrolle) bleiben Vertragsänderungen möglich.
     /// </summary>
     private async Task<DateOnly?> GetFirstAllowedAsync(int companyProfileId)
-        => await _editLock.GetFirstAllowedDateAsync(User, companyProfileId);
+        => await _editLock.GetFirstAllowedDateForContractsAsync(companyProfileId);
 
     private static bool IsInLohnVerwendet(Employment e, DateOnly? firstAllowed)
     {
