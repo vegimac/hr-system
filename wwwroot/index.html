@@ -4559,12 +4559,14 @@
             <!-- BEHÖRDEN -->
             <div class="page liquid-mask fixhead" id="page-behoerden">
                 <div class="sticky-page-head fh-page-head">
-                <div class="page-header">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title">Behörden</h1>
                         <p class="page-sub">Betreibungsämter, Sozialämter und andere Empfänger von Lohnabtretungen</p>
                     </div>
-                    <button class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
+                    </div>
                 </div>
                 <div class="fh-cols-head-wrap">
                     <table class="fh-table fh-table-head" aria-hidden="true">
