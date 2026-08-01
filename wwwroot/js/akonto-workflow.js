@@ -935,41 +935,37 @@ function akWfSelectMa(id) {
 }
 
 function _akWfApplyZulagenLock() {
-    // Walter-Vorgabe 19.05.2026: Zulagen/Abzüge sind nur in bestimmten Phasen
-    // editierbar — sonst Edit-Buttons ausblenden + Lock-Hinweis anzeigen.
+    // Walter-Vorgabe 01.08.2026: Zulagen/Abzüge (inkl. QST-Korrektur) bleiben
+    // bis zum Definitiv-Abschluss editierbar. Akonto AUSBEZAHLT darf den
+    // Definitivlauf nicht blocken — sonst keine Vormonats-Korrekturen mehr.
     //
-    // Status-Matrix (Walter-Vorgabe 19.05.2026 — Stand nach 22:30 Korrektur):
-    //   Akonto:    OFFEN/IN_BEARBEITUNG_GF         → jeder darf
-    //              BEI_HR / HR_FREIGEGEBEN         → nur admin/superuser
-    //                                                (HR darf bis zum DTA-Klick
-    //                                                noch Zulagen erfassen +
-    //                                                MA zurückziehen!)
-    //              AUSBEZAHLT                      → niemand
-    //   Definitiv: offen                           → jeder darf
-    //              provisorisch_abgeschlossen      → nur admin/superuser
-    //              abgeschlossen                   → niemand
-    //
-    // Walter-Bug 19.05.2026: vorher schloss HR_FREIGEGEBEN sofort — Walter
-    // konnte aber nach „HR-Final" noch keine Korrekturen mehr machen, bevor
-    // er auf „Akonto auszahlen (DTA)" klickt. Jetzt locked nur AUSBEZAHLT.
+    //   Akonto-Tab:    OFFEN / IN_BEARBEITUNG_GF → jeder
+    //                  BEI_HR / HR_FREIGEGEBEN   → nur HR
+    //                  AUSBEZAHLT                → niemand (Akonto fertig)
+    //   Definitiv-Tab: offen                     → jeder
+    //                  provisorisch_abgeschlossen → nur HR
+    //                  abgeschlossen             → niemand
     const akStatus = _akWfData?.akontoStatus || 'OFFEN';
-    const defStatus = window._currentLohnPeriode?.status || 'offen';
+    const defStatus = window._currentLohnPeriode?.status
+                   || window._lohnWfData?.status
+                   || 'offen';
     const isHr = _akIsHr();
+    const mode = (typeof _akWfMode !== 'undefined' && _akWfMode) ? _akWfMode : 'akonto';
 
     const akGf       = (akStatus === 'OFFEN' || akStatus === 'IN_BEARBEITUNG_GF');
     const akHrPhase  = (akStatus === 'BEI_HR' || akStatus === 'HR_FREIGEGEBEN');
     const akCanEdit  = akGf || (akHrPhase && isHr);
     const defOpen    = (defStatus === 'offen');
     const defCanEdit = defOpen || (defStatus === 'provisorisch_abgeschlossen' && isHr);
-    // Strengste Sperre gewinnt: beide Quellen müssen erlauben damit Edit ok.
-    const canEdit = akCanEdit && defCanEdit;
+    // Aktiver Tab entscheidet — Akonto-Auszahlung sperrt Definitiv nicht.
+    const canEdit = mode === 'definitiv' ? defCanEdit : akCanEdit;
 
-    // Lock-Hinweis: priorisiere den restriktiveren Status für die Anzeige
     let lockMsg = '';
     if (defStatus === 'abgeschlossen')                                lockMsg = '🔒 Lohn definitiv abgeschlossen — keine Änderungen möglich';
-    else if (akStatus === 'AUSBEZAHLT')                               lockMsg = '🔒 Akonto ausbezahlt — keine Änderungen möglich';
-    else if (akHrPhase && !isHr)                                       lockMsg = '🔒 Bei HR — keine Änderungen möglich';
-    else if (defStatus === 'provisorisch_abgeschlossen' && !isHr)     lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+    else if (mode !== 'definitiv' && akStatus === 'AUSBEZAHLT')       lockMsg = '🔒 Akonto ausbezahlt — Zulagen im Definitiv-Tab erfassen';
+    else if (mode !== 'definitiv' && akHrPhase && !isHr)              lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+    else if (mode === 'definitiv' && defStatus === 'provisorisch_abgeschlossen' && !isHr)
+                                                                      lockMsg = '🔒 Bei HR — keine Änderungen möglich';
 
     // „+ Erfassen"-Buttons togglen (beide Tabs)
     document.querySelectorAll(
