@@ -291,8 +291,8 @@ public class RosterAbsenceImportController : ControllerBase
                 HoursCredited = hours,
                 Prozent       = 100m,
                 Notes         = $"Import Dienstplan {DateTime.Now:dd.MM.yyyy}",
-                CreatedAt     = DateTime.UtcNow,
-                UpdatedAt     = DateTime.UtcNow,
+                CreatedAt     = DateTime.Now,
+                UpdatedAt     = DateTime.Now,
             });
             created++;
         }
