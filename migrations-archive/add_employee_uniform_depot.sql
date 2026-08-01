@@ -57,7 +57,7 @@ SELECT e.id, 50, 'EINBEHALTEN', 'BACKFILL',
    AND e.is_payroll_excluded IS NOT TRUE
    AND e.entry_date IS NOT NULL
    AND e.entry_date < DATE '2026-07-01'
-   AND (e.is_active IS TRUE OR e.exit_date IS NULL OR e.exit_date >= DATE '2026-07-01')
+   -- auch Ausgetretene (Korrekturlohn) — Filter auf aktiv entfernt
    AND NOT EXISTS (
        SELECT 1 FROM employee_uniform_depot d WHERE d.employee_id = e.id
    );

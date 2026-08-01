@@ -35,6 +35,100 @@ async function lzInit(empId, compId, year, month) {
     } catch { _lzLohnpositionen = []; }
 
     await lzLoad();
+    await lzLoadDepotRefund();
+}
+
+/** Depot-Refund-Box im Zulagen-Panel (Korrekturlohn / Austritt). */
+async function lzLoadDepotRefund() {
+    const box = document.getElementById('lohnDepotRefundBox');
+    if (!box) return;
+    box.style.display = 'none';
+    box.innerHTML = '';
+    const empId = _lzCurrentEmpId;
+    if (!empId) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/uniform-depot`, { headers: ah(), cache: 'no-store' });
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d || !d.status) {
+            // Kein Depot — bei Korrektur-MA Hinweis + Sofort-Anlegen möglich
+            if (_lohnIsCorrection(empId)) {
+                box.style.display = 'block';
+                box.innerHTML = `<div style="background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 12px;font-size:12px;color:#64748b">
+                    Kein Uniformen-Depot vorhanden.
+                    <button type="button" onclick="lzEnsureDepotAndRefund()" style="margin-left:8px;background:#3f3f3f;color:#fff;border:none;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer">Depot CHF 50 anlegen + zurückzahlen</button>
+                </div>`;
+            }
+            return;
+        }
+        const bal = Number(d.balance || 0);
+        if (d.status === 'ZURUECKBEZAHLT') {
+            box.style.display = 'block';
+            box.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;color:#166534;font-weight:600">
+                Uniformen-Depot bereits zurückbezahlt${d.refundPeriode ? ' (' + d.refundPeriode + ')' : ''}
+            </div>`;
+            return;
+        }
+        if (d.status === 'VERFALLEN') {
+            box.style.display = 'block';
+            box.innerHTML = `<div style="background:#fee2e2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:12px;color:#991b1b;font-weight:600">
+                Uniformen-Depot verfallen — kein Refund
+            </div>`;
+            return;
+        }
+        if (d.status === 'EINBEHALTEN' && bal > 0) {
+            box.style.display = 'block';
+            if (d.returnConfirmed === true) {
+                box.innerHTML = `<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px 12px;font-size:12px;color:#166534">
+                    <strong>Depot-Refund bereit:</strong> CHF ${bal.toFixed(2)} erscheint automatisch auf dem Slip (Uniform zurück).
+                </div>`;
+            } else {
+                box.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e">
+                    <div style="font-weight:700;margin-bottom:6px">Uniformen-Depot CHF ${bal.toFixed(2)} einbehalten</div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button type="button" onclick="lzSetDepotReturn(true)"
+                            style="background:#3f3f3f;color:#fff;border:none;padding:6px 11px;border-radius:9px;font-size:11.5px;font-weight:600;cursor:pointer">Uniform zurück → +${bal.toFixed(2)} Refund</button>
+                        <button type="button" onclick="lzSetDepotReturn(false)"
+                            style="background:rgba(255,255,255,0.7);color:#3f3f3f;border:1px solid #cbd5e1;padding:6px 11px;border-radius:9px;font-size:11.5px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
+                    </div>
+                </div>`;
+            }
+        }
+    } catch { /* best-effort */ }
+}
+
+async function lzSetDepotReturn(returned) {
+    const empId = _lzCurrentEmpId;
+    if (!empId) return;
+    if (!confirm(returned
+        ? 'Uniform zurückgegeben — CHF 50 als Refund auf den Slip setzen?'
+        : 'Uniform NICHT zurück — Depot verfällt?')) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/uniform-depot/return`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ returned: !!returned }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || err.error || 'Speichern fehlgeschlagen');
+            return;
+        }
+        await lzLoadDepotRefund();
+        if (_lzCurrentEmpId && _lzCurrentCompId && _lzCurrentYear && _lzCurrentMonth) {
+            loadLohnSlip(_lzCurrentEmpId, _lzCurrentCompId, _lzCurrentYear, _lzCurrentMonth);
+        }
+        if (typeof showToast === 'function') {
+            showToast(returned ? 'Depot-Refund auf Slip' : 'Depot verfällt', 'success');
+        }
+    } catch (e) {
+        alert('Netzwerkfehler: ' + (e?.message || e));
+    }
+}
+
+/** Kein Depot vorhanden → anlegen + sofort als zurück markieren (API). */
+async function lzEnsureDepotAndRefund() {
+    await lzSetDepotReturn(true);
 }
 
 async function lzLoad() {

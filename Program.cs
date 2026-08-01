@@ -1641,6 +1641,7 @@ using (var scope = app.Services.CreateScope())
           );
 
         -- Backfill: Eintritt vor 01.07.2026 → Depot 50 ohne Lohn-Abzug
+        -- Auch bereits Ausgetretene (Korrekturlohn / Nachzahlung) — Walter Aug 2026.
         INSERT INTO employee_uniform_depot
             (employee_id, balance, status, charged_periode, bemerkung, created_at, updated_at)
         SELECT e.id, 50, 'EINBEHALTEN', 'BACKFILL',
@@ -1651,9 +1652,6 @@ using (var scope = app.Services.CreateScope())
            AND COALESCE(e.is_payroll_excluded, false) = false
            AND e.entry_date IS NOT NULL
            AND e.entry_date < DATE '2026-07-01'
-           AND (COALESCE(e.is_active, false) = true
-                OR e.exit_date IS NULL
-                OR e.exit_date >= DATE '2026-07-01')
            AND NOT EXISTS (
                SELECT 1 FROM employee_uniform_depot d WHERE d.employee_id = e.id
            );

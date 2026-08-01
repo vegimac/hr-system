@@ -1001,6 +1001,8 @@
                                     <div style="font-weight:600;font-size:13px;color:#475569">Zulagen &amp; Abzüge</div>
                                     <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                 </div>
+                                <!-- Depot-Refund-Hinweis (Korrekturlohn / Austritt) -->
+                                <div id="lohnDepotRefundBox" style="display:none;padding:10px 18px;border-bottom:1px solid #f1f5f9"></div>
                                 <div id="lohnZulagenList" style="padding:0 18px"></div>
                                 <!-- Walter 19.05.2026: das Erfassungs-Formular wurde
                                      aus dieser Card ausgelagert in einen globalen Modal
@@ -7223,7 +7225,7 @@
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260801a"></script>
 <script src="js/contracts-edit.js?v=20260720a"></script>
-<script src="js/payroll.js?v=20260801e"></script>
+<script src="js/payroll.js?v=20260801f"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260704p"></script>

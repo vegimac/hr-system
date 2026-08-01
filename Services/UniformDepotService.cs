@@ -159,8 +159,20 @@ public class UniformDepotService
             .FirstOrDefaultAsync(d => d.EmployeeId == employeeId);
         if (depot is null)
         {
-            // Kein Depot → nichts zu entscheiden (MA ohne Einbehalt)
-            return;
+            // Korrekturlohn-Nachzug: historisch einbehaltenes Depot fehlt
+            // (Backfill übersprang früher Ausgetretene) → bei «zurück» anlegen.
+            if (!returned) return;
+            depot = new EmployeeUniformDepot
+            {
+                EmployeeId     = employeeId,
+                Balance        = DepotBetrag,
+                Status         = "EINBEHALTEN",
+                ChargedPeriode = "BACKFILL",
+                Bemerkung      = "Nachträglich angelegt für Depot-Refund (Korrekturlohn)",
+                CreatedAt      = DateTime.Now,
+                UpdatedAt      = DateTime.Now,
+            };
+            _db.EmployeeUniformDepots.Add(depot);
         }
         if (depot.Status != "EINBEHALTEN") return;
 
@@ -180,10 +192,10 @@ public class UniformDepotService
     public async Task<int> BackfillAsync()
     {
         var cutoff = BackfillEntryBefore.ToDateTime(TimeOnly.MinValue);
+        // Auch Ausgetretene — sonst fehlt das Depot beim Korrekturlohn (Qazimi).
         var empIds = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden && !e.IsPayrollExcluded
-                     && e.EntryDate != null && e.EntryDate < cutoff
-                     && (e.IsActive || e.ExitDate == null || e.ExitDate >= cutoff))
+                     && e.EntryDate != null && e.EntryDate < cutoff)
             .Select(e => e.Id)
             .ToListAsync();
 
