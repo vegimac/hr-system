@@ -3063,6 +3063,9 @@ public class PayrollCalculationEngine
             decimal zulagenExtraTotal = 0;
             var lohnposAbzugLines = new List<object>();
             decimal lohnposAbzugTotal = 0;
+            // Feiertags-Bemessungsgrundlage aus Lohnpositions-Flags
+            // (z.B. 65.2 Korrektur UVG Versicherung → L-GAV 2.27 %).
+            decimal feiertagBasisExact = 0m;
 
             foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
             {
@@ -3071,10 +3074,12 @@ public class PayrollCalculationEngine
                 bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                             || lp.BvgPflichtig || lp.QstPflichtig;
                 string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
+                if (lp.ZaehltAlsBasisFeiertag) feiertagBasisExact += b;
                 if (anyFlag)
                 {
                     zulagenSvLines.Add(new {
                         bezeichnung = bez,
+                        code = lp.Code,
                         anzahl = (decimal?)null, prozent = (decimal?)null,
                         basis = (decimal?)null, betrag = b
                     });
@@ -3087,7 +3092,7 @@ public class PayrollCalculationEngine
                 }
                 else
                 {
-                    zulagenExtraLines.Add(new { bezeichnung = bez, betrag = b });
+                    zulagenExtraLines.Add(new { bezeichnung = bez, code = lp.Code, betrag = b });
                     zulagenExtraTotal += b;
                 }
             }
@@ -3124,6 +3129,39 @@ public class PayrollCalculationEngine
             var lohnLines = new List<object>(zulagenSvLines);
             decimal totalLohn = zulagenSvTotal;
             var abzugLines = new List<object>();
+
+            // Feiertagsentschädigung (L-GAV Art. 18) — nur Stundenlohn-Modelle
+            // mit laufender %-Auszahlung (FLEX/MTP). FIX führt Feiertage als Tage-Saldo.
+            // Beispiel Qazimi: 65.2 = 344 → Feiertag 2.27 % = 7.80 (AHV-pflichtig).
+            var modelCorr = emp.EmploymentModel ?? "";
+            bool isHourlyFeiertag = string.Equals(modelCorr, "FLEX", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(modelCorr, "UTP", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(modelCorr, "MTP", StringComparison.OrdinalIgnoreCase);
+            decimal holidayPctCorr = company.DefaultHolidayPercent ?? 0m;
+            if (isHourlyFeiertag && holidayPctCorr > 0 && feiertagBasisExact > 0)
+            {
+                decimal feiertagEntExact = feiertagBasisExact * holidayPctCorr / 100m;
+                decimal feiertagEnt = Math.Round(feiertagEntExact, 2);
+                if (feiertagEnt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "Feiertagentschädigung",
+                        code = "195.2",
+                        anzahl = (decimal?)null,
+                        prozent = (decimal?)holidayPctCorr,
+                        basis = (decimal?)Math.Round(feiertagBasisExact, 2),
+                        betrag = feiertagEnt,
+                        accrued = (decimal?)feiertagEnt
+                    });
+                    totalLohn += feiertagEnt;
+                    // Feiertagsentschädigung = AHV-pflichtiger Lohn (im Gegensatz zum UVG-Taggeld)
+                    deltaAhv  += feiertagEnt;
+                    deltaNbuv += feiertagEnt;
+                    deltaKtg  += feiertagEnt;
+                    deltaBvg  += feiertagEnt;
+                    deltaQst  += feiertagEnt;
+                }
+            }
 
             // SV-Regeln (Alter), ohne QST-Auto — Korrekturen kommen manuell (565 etc.).
             int? employeeAge = employee.DateOfBirth.HasValue

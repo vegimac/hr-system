@@ -1659,6 +1659,72 @@ using (var scope = app.Services.CreateScope())
            );
     ");
 
+    // ── Korrektur UVG/KTG Lohnpositionen (Mirus 65.1/65.2/75.1/75.2) ─────
+    // Walter Aug 2026: SWICA-Nachzahlung (z.B. Qazimi CHF 344) als eigene
+    // Lohnarten mit SV-Flags + Feiertags-Basis. Altes «65»/«75» (ABZUG
+    // Festlohn-Kürzung FIX) bleibt unangetastet.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition (
+            code, bezeichnung, kategorie, typ,
+            ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+            lohnausweis_code, dreijehnter_ml_pflichtig,
+            zaehlt_als_basis_feiertag, zaehlt_als_basis_ferien, zaehlt_als_basis_13ml,
+            lohnausweisfeld, lohnausweis_kreuz, statistik_code,
+            nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
+            bvg_auf_100_rechnen, position_13ml, zaehlt_fuer_tagessatz,
+            sort_order, is_active, created_at
+        )
+        SELECT v.code, v.bezeichnung, v.kategorie, 'ZULAGE',
+               v.ahv, v.nbuv, v.ktg, v.bvg, v.qst,
+               v.la_code, false,
+               true, false, v.ml13,
+               '1', false, v.stat,
+               true, true,
+               true, 0, true,
+               v.sort_order, true, CURRENT_TIMESTAMP
+          FROM (VALUES
+            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall',
+             true,  true,  true,  true, true,  'I', true,  'I', 651),
+            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall',
+             false, false, false, true, true,  'Y', false, '0', 652),
+            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit',
+             true,  true,  true,  true, true,  'I', true,  'I', 751),
+            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit',
+             false, false, false, true, true,  'Y', false, '0', 752)
+          ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, stat, sort_order)
+         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+        UPDATE lohnposition AS lp
+           SET bezeichnung               = v.bezeichnung,
+               kategorie                 = v.kategorie,
+               typ                       = 'ZULAGE',
+               ahv_alv_pflichtig         = v.ahv,
+               nbuv_pflichtig            = v.nbuv,
+               ktg_pflichtig             = v.ktg,
+               bvg_pflichtig             = v.bvg,
+               qst_pflichtig             = v.qst,
+               lohnausweis_code          = v.la_code,
+               zaehlt_als_basis_feiertag = true,
+               zaehlt_als_basis_ferien   = false,
+               zaehlt_als_basis_13ml     = v.ml13,
+               bvg_auf_100_rechnen       = true,
+               zaehlt_fuer_tagessatz     = true,
+               nicht_im_vertrag_drucken  = true,
+               sort_order                = v.sort_order,
+               is_active                 = true
+          FROM (VALUES
+            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall',
+             true,  true,  true,  true, true,  'I', true,  651),
+            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall',
+             false, false, false, true, true,  'Y', false, 652),
+            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit',
+             true,  true,  true,  true, true,  'I', true,  751),
+            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit',
+             false, false, false, true, true,  'Y', false, 752)
+          ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, sort_order)
+         WHERE lp.code = v.code;
+    ");
+
     // ── Lohnposition: ZaehltAlsBasis13ml-Default für Standard-Positionen ──
     // Damit der 13.-ML-Akkumulator die regulären Lohnarten (Festlohn,
     // Stundenlohn, Karenz etc.) automatisch in die Basis nimmt. Wirkt nur,
@@ -1676,8 +1742,10 @@ using (var scope = app.Services.CreateScope())
             '50',     -- Ausbezahlte Feiertage (UTP)
             '60',     -- Unfall (Karenzentschädigung)
             '65',     -- Korrektur Unfall
+            '65.1',   -- Korrektur UVG Karenz AHV
             '70',     -- Krankheit (Karenzentschädigung)
             '75',     -- Korrektur Krankheit
+            '75.1',   -- Korrektur KTG Karenz AHV
             '195.3'   -- Ferien-Geld-Auszahlung
         )
           AND zaehlt_als_basis_13ml = false;
