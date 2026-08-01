@@ -37,3 +37,12 @@ Absicht — Fibu ist der Rolle `buchhaltung` (und admin) vorbehalten.
 
 **Wohin gehen die Zahlen danach?**
 Aktuell als PDF für die manuelle Erfassung; ein direkter Abacus-Export ist als Ausbaustufe vorgesehen.
+
+**Wo ist die GF-Übersicht (kompakte Saldo-Liste)?**
+Im [Lohnlauf](#lohnlauf) (Definitiv-Aktionszeile), nicht im Fibu-Menü. Im Fibu-Menü liegt die ausführliche Buchhaltungs-Liste.
+
+**Kontoplan — wie ändere ich ein Konto?**
+Admin → System → **Kontoplan (Fibu)** → Lohnart suchen → Soll-/Gegenkonto inline anpassen.
+
+**Alte Periode ohne Codes im Journal?**
+Admin kann im Lohnlauf „Codes nachtragen" bzw. Snapshots neu berechnen — nur nach Absprache, damit eingefrorene Beträge nicht verrutschen.

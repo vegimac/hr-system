@@ -1,85 +1,74 @@
 # Willkommen bei OneCrew
 
-Schön, dass du da bist. Diese Hilfe ist deine Anlaufstelle, wenn du irgendwo nicht mehr weiter weisst.
-
-💡 **Hinweis:** Die Kapitelliste links zeigt nur die Programmteile, zu denen **deine Rolle** berechtigt ist. Wenn dir hier ein Link nichts anzeigt, gehört der Bereich nicht zu deinem Zugang.
+Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfacher Sprache. Links siehst du nur die Kapitel, die **zu deiner Rolle** passen.
 
 ## Was möchtest du tun?
 
-Die häufigsten Aufgaben — Klick führt direkt zur passenden Hilfe-Seite:
+| Aufgabe | Hilfe |
+|---|---|
+| Den Tag starten, offene Punkte abarbeiten | [Dashboard & To-dos](#dashboard) |
+| Neuen MA aus easy@work holen / Stammdaten pflegen | [Mitarbeiter](#mitarbeiter) |
+| Lohn, Pensum oder Modell ändern | [Verträge](#vertraege) |
+| Monatlichen Lohn machen (Akonto / Definitiv) | [Lohnlauf](#lohnlauf) |
+| Quellensteuer erfassen | [Quellensteuer](#qst) |
+| Krankheit, Ferien, Unfall eintragen | [Absenzen & Kalender](#absenzen) |
+| Dokument hochladen oder Posteingang sortieren | [Dokumente & Posteingang](#dokumente) |
+| Geburtstags-Gruss / Wertschätzung senden | [Moments](#moments) |
+| Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
+| Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
+| Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
+| Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |
+| Filial-Einstellungen, Akonto-%, Mindestlohn Stadt | [Filialen](#filialen) |
+| System-Karten, SV-Sätze, Benutzer … | [System (Admin)](#system) |
+| Neue Filiale migrieren | [Neue Filiale importieren](#onboarding) |
+| easy@work Sync verstehen | [easy@work](#easyatwork) |
+| MA-Postfach erklären (Passwort, Face ID) | [MA-Postfach](#postfach-ma) |
+| Wer darf was? | [Rollen](#rollen) |
+| Schnell jemanden finden | [Globale Suche](#suche) |
 
-- **Einen neuen Mitarbeiter anlegen** → [Mitarbeiter](#mitarbeiter)
-- **Probezeitgespräch / Verwarnung / Zeugnis** → [Mitarbeiter](#mitarbeiter) (Tab Restaurant Admin)
-- **Den monatlichen Lohnlauf machen** → [Lohnlauf](#lohnlauf)
-- **Einen Vertrag ändern (Lohn, Pensum, Beendigung)** → [Verträge](#vertraege)
-- **Arbeitsvertrag per SMS an den MA schicken** → [SMS & Vertrags-Link](#sms)
-- **Geburtstags-/Jubiläums-Gruss senden** → [Moments](#moments)
-- **Quellensteuer erfassen** → [Quellensteuer](#qst)
-- **Ein Dokument hochladen oder anschauen** → [Dokumente & Posteingang](#dokumente)
-- **Fibu-Journal / Saldo-Liste ziehen** → [Buchhaltung (Fibu)](#fibu)
-- **Wer hat wann was geändert?** → [Aktivitäts-Log](#audit)
-- **Mirus-Änderungsmail an Sachbearbeiter** → [Mirus-Änderungsmail](#mirus-digest)
-- **Einen Mitarbeiter oder ein Dokument blitzschnell finden** → [Globale Suche](#suche)
-- **Wer darf was im Programm?** → [Rollen & Berechtigungen](#rollen)
+## Drei Tricks, die den Tag retten
 
-## Drei Tricks die dir den Tag retten
+1. **⌘K (Mac) / Ctrl-K (Windows)** — Globale Suche. Name, MA-Nr, Dokument — Klick = direkt am Ziel.
+2. **❓ oben rechts** — Hilfe zur **Seite, auf der du gerade bist**.
+3. **Filiale links oben** — steuert fast alle Listen. Wechsle dort, bevor du suchst.
 
-**1. ⌘K (Mac) bzw. Ctrl-K (Windows)** — Globale Suche von überall. Tippe einen Namen, eine MA-Nummer, ein Dokument-Stichwort. Klick auf das Resultat = direkt am Ziel.
+## So ist das Programm aufgebaut
 
-**2. Das ❓ oben rechts** — Du bekommst die Hilfe zu **genau der Seite**, auf der du gerade bist. Bist du im Lohnlauf? Lohnlauf-Hilfe. Bist du in den Mitarbeitern? Mitarbeiter-Hilfe.
+**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse …) liegen im Tab **Restaurant Admin**.
 
-**3. Dunkelmodus** — Der Mond-Knopf oben rechts. Schont die Augen wenn du abends noch arbeitest.
+**Verträge** sagen, wie viel jemand verdient. Bei Änderungen legst du einen **neuen** Vertrag an (nicht den alten überschreiben).
 
-## So funktioniert das Programm — der grosse Überblick
+**Lohnlauf** passiert **zweimal** pro Monat:
+- **Akonto** (Mitte Monat) — Vorschuss
+- **Definitiv** (Ende Monat) — endgültiger Lohnzettel
 
-**Mitarbeiter** sind der Mittelpunkt: jede Person hat Stammdaten, Verträge, Familie, Bank, Dokumente. Du verwaltest sie über den **Mitarbeiter-Tab**. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse, Postfach-Passwort, Onboarding-QR, Face ID) liegen im Tab **Restaurant Admin**. Schwangerschaft/Mutterschaft steckt unter **Familie / Schwanger**.
+Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
-**Verträge** definieren, wie viel ein MA verdient. Pro MA gibt's eine Versionsgeschichte — wenn der Lohn steigt, legst du einen neuen Vertrag an, statt den alten zu überschreiben. So kann das System rückwirkend Lohnzettel korrekt nachrechnen.
+**Quellensteuer** wird geprüft — fehlt ein Tarif bei Pflicht, sperrt der Lohnlauf.
 
-**Lohnlauf** passiert zweimal pro Periode:
-- **Akonto** (Mitte Monat) — Voraus-Zahlung, basierend auf bisher gestempelten Stunden bzw. Festlohn.
-- **Definitiv** (Ende Monat) — endgültiger Lohnzettel mit allen Korrekturen.
+**Dokumente** liegen in der Personalakte. **Posteingang** ist die Eingangs-Schale der Filiale / HR / Buchhaltung.
 
-Beides folgt dem **4-Augen-Prinzip**: zuerst gibt der Geschäftsführer pro MA frei, dann bestätigt HR, dann geht das DTA-File zur Bank.
+**Stempelzeiten** kommen nur aus **easy@work** (lesen im Programm, korrigieren in easy@work).
 
-**Quellensteuer** wird automatisch geprüft — wenn ein MA QST-pflichtig ist aber nichts erfasst, sperrt das System den Lohnlauf, bis du einen Tarif setzt.
+## Die vier Vertragsmodelle (30 Sekunden)
 
-**Dokumente** sortierst du in Kategorien ein. PDF, Bild und Word/Excel werden direkt im Browser angezeigt — keine Software runterladen.
+| Modell | Kurz |
+|---|---|
+| **FLEX** | Stundenlohn, flexibel |
+| **MTP** | Stundenlohn mit Garantie-Stunden/Woche |
+| **FIX** | Monatslohn mit Pensum |
+| **FIX-M** | Management-Festlohn |
 
-**Posteingang** ist deine Eingangs-Schale: jede Filiale hat eine eigene, plus eine für HR und eine für Buchhaltung. Du nimmst Dokumente entgegen und sortierst sie zu MA.
+**Periode = immer Kalendermonat** (1. bis letzter Tag).
 
-**Moments** — persönliche Grüsse (Geburtstag, Jubiläum, Wertschätzung) per SMS-Einmal-Link ans Handy des MA. Nur mit dessen Freigabe, keine sensiblen Inhalte.
-
-**SMS-Versand** — läuft über eCall (F24 Schweiz). Damit gehen Moments, Postfach-Hinweise und der Arbeitsvertrag-Link direkt aufs Handy. Solange die Test-Umleitung aktiv ist, landen alle SMS auf der Test-Nummer.
-
-**Stempelzeiten** kommen ausschliesslich über die **easy@work-Schnittstelle** (automatischer täglicher Sync + manueller Sync). Im Programm sind sie nur lesbar — Korrekturen macht man in easy@work. **Verfügbarkeit** (wann der MA einsetzbar ist) wird ebenfalls aus easy@work gespiegelt.
-
-**Auswertungen** — unter HR findest du u.a. den **Altersstruktur-Report** über alle Filialen (PDF).
-
-**Aktivitäts-Log** (nur Admin) — zeigt alle Änderungen mit User, Zeit und Detail. Dein Sicherheitsnetz.
-
-**Mirus-Änderungsmail** — Mo–Fr 06:00 geht an Sachbearbeiter mit dem Flag «Mirus-Änderungsmail» eine Liste lohnkritischer Änderungen (Adresse, Vertrag, Lohn, Bewilligung, QST, Familie …). Details: [Mirus-Änderungsmail](#mirus-digest).
-
-## Wichtige Konzepte in 30 Sekunden
-
-**Vertragsmodelle:**
-
-- **FLEX** — Stundenlohn, keine Garantie. Aushilfen, flexible Einsätze.
-- **MTP** — Stundenlohn mit garantierten Wochenstunden.
-- **FIX** — Fixes Pensum, Monatslohn. Klassisches Anstellungsverhältnis.
-- **FIX-M** — Management. Festlohn, keine Stunden-Garantie nötig.
-
-**Periode = Kalendermonat.** Immer. Vom 1. bis zum letzten Tag.
-
-**Edit-Sperre:** Wenn der Lohnlauf einer Periode läuft, sind Stempelzeiten, Absenzen, Verträge etc. **dieser Periode gesperrt** — damit niemand dem Lohnlauf unter den Füssen Daten ändert. Erst nach Abschluss (oder Reset durch den Admin) wieder editierbar.
+**Edit-Sperre:** Läuft der Lohnlauf schon bei HR oder ist er abgeschlossen, sind lohnrelevante Daten dieser Periode gesperrt — Details: [Edit-Sperre](#edit-sperre).
 
 ## Wenn du nicht weiterweisst
 
-- **Roter Banner** auf einer Seite? → Klick drauf, der Text sagt was zu tun ist.
-- **Dashboard** zeigt dir alle offenen Probleme der gewählten Filiale auf einer Liste.
-- **Globale Suche ⌘K** findet alles, auch wenn du nicht mehr weisst, wo es war.
-- **❓ Hilfe** auf der aktuellen Seite — du landest dort, wo die Antwort steht.
+- Roter Banner → Text lesen, oft mit Sprung-Button
+- [Dashboard](#dashboard) zeigt die offenen Probleme der Filiale
+- ⌘K finden, ❓ Hilfe zur aktuellen Seite
 
 ---
 
-> Diese Hilfe-Texte liegen als Markdown-Dateien unter `wwwroot/help/`. Stand: Juli 2026 (Mirus-Änderungsmail Mo–Fr, Restaurant Admin inkl. Arbeits Aufforderung, Probezeit, Verfügbarkeit, Mutterschaft, Altersstruktur). Wenn du etwas siehst, das verbessert werden sollte — sag Bescheid.
+> Stand: Juli 2026. Fehlt etwas oder ist etwas unklar — sag Bescheid, wir ergänzen.

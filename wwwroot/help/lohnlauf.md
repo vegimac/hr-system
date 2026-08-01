@@ -56,9 +56,29 @@ Manchmal lässt sich der Lohnlauf nicht abschliessen. Drei häufige Gründe:
 
 🚫 **„Mindestlohn unterschritten"** — Ein MA verdient weniger als der L-GAV erlaubt. Geh in den Vertrag, hebe den Lohn auf den Mindestlohn an. Wenn der L-GAV gerade gestiegen ist, hilft der **„Verträge anpassen"**-Banner auf dem Dashboard.
 
-🚫 **„QST-Pflicht offen"** — MA müsste Quellensteuer zahlen aber kein Tarif erfasst. Lösung: im MA-Detail → QST-Tab → **„🔴 Höchsten Tarif erfassen"** klicken (dauert 3 Sekunden).
+🚫 **„QST-Pflicht offen"** — MA müsste Quellensteuer zahlen aber kein Tarif erfasst. Lösung: im MA-Detail → Tab **Bewilligung QST Bank** → **„🔴 Höchsten Tarif erfassen"** (dauert 3 Sekunden).
 
 🚫 **„Lohnsumme fehlt"** — Vertrag hat keinen Lohn-Betrag (z.B. FLEX ohne Stundenlohn). Vertrag öffnen, Lohn nachtragen.
+
+## Status kurz (Akonto)
+
+| Periode | Was passiert |
+|---|---|
+| **OFFEN** | Noch nichts — „Akonto vorbereiten" |
+| **IN_BEARBEITUNG_GF** | GF gibt pro MA frei |
+| **BEI_HR** | HR bestätigt pro MA; GF gesperrt |
+| **HR_FREIGEGEBEN** | Alle HR-bestätigt — DTA möglich |
+| **AUSBEZAHLT** | Fertig (DTA bestätigt) |
+
+## Status kurz (Definitiv)
+
+| Periode | Was passiert |
+|---|---|
+| **offen** | GF bestätigt pro MA |
+| **provisorisch_abgeschlossen** | Bei HR; Listen/Fibu möglich |
+| **abgeschlossen** | DTA + Lohnzettel versendet |
+
+Mehr zum Schutz der Daten: [Edit-Sperre](#edit-sperre). Akonto-% und Termine: [Filialen](#filialen).
 
 ## Geschäftsführer-Sicht vs. HR-Sicht
 
@@ -112,9 +132,14 @@ Sollte nicht mehr passieren — die Spalten sind jetzt so kompakt, dass alles in
 **Kann ich den Lohnzettel als PDF exportieren?**
 Ja — im HR-Tab kannst du pro MA das **Lohnbeleg-PDF** generieren. Es geht automatisch beim Definitiv-Abschluss ins MA-Postfach.
 
+## Lohnperioden (Admin)
+
+Unter **System → Lohnperioden** (oder Perioden-Modul): Perioden anlegen, Bemerkung, Akonto zurücksetzen, Definitiv wieder öffnen, DTA erneut laden. Resets nur **bis zum Auszahlungsdatum** und nur mit Bestätigung „DTA bei der Bank storniert".
+
 ## Häufige Stolpersteine
 
-- **Definitiv ist gesperrt obwohl Akonto durch ist** → Status-Sicht: ist Akonto wirklich „Ausbezahlt" oder noch „HR-freigegeben"? Erst nach DTA-Klick wechselt der Status final.
+- **Definitiv ist gesperrt obwohl Akonto durch ist** → Status-Sicht: ist Akonto wirklich „Ausbezahlt" oder noch „HR-freigegeben"? Erst nach DTA-Klick wechselt der Status final. Auch gesperrt, solange Akonto noch läuft (nicht OFFEN und nicht AUSBEZAHLT).
 - **„An HR senden" fehlt** → Sind alle MA freigegeben? Ein einziger nicht-bestätigter MA blockiert den Versand.
 - **HR-Buttons fehlen für mich** → du bist als `user` eingeloggt (GF-Rolle). HR-Bestätigung und DTA macht jemand mit Rolle `superuser` oder `buchhaltung`.
-- **Falscher Bank-Empfänger** → MA-Bank-Tab → Bankverbindung anpassen. Bei abweichendem Empfänger (z.B. Revolut) auch die Adresse vollständig ausfüllen, sonst lehnt die Bank die SEPA-Zahlung ab.
+- **Falscher Bank-Empfänger** → MA → Bewilligung QST Bank → Bank anpassen. Bei abweichendem Empfänger auch die Adresse vollständig ausfüllen.
+- **Daten lassen sich nicht mehr ändern** → [Edit-Sperre](#edit-sperre).

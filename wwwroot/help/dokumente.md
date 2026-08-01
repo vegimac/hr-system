@@ -139,8 +139,16 @@ Geht nicht direkt — ein Dokument gehört genau einem MA. Workaround: lade es m
 **Wo sehe ich alle Dokumente einer Filiale?**
 Globale Suche **⌘K** mit Dateiname oder Bemerkung. Oder einzeln durch die MA scrollen — der Audit-Modus hält den Filter.
 
+## Kontrolle & Admin (kurz)
+
+- **HR → Kontrolle → Lücken** — fehlende Pflicht-Dokumente (Ehepartner, Nachtarbeit …)
+- **HR → Dok-Upload-Protokoll** — wer hat wann hochgeladen
+- **System → Dokument-Struktur** — Kategorien und Typen pflegen
+- **System → Dokumenten-Audit** — verdächtige Dateinamen (falsche Filiale?)
+- **System → d.velop Import** — Massenimport alter Akten — siehe [Onboarding](#onboarding)
+
 ## Häufige Stolpersteine
 
 - **Vorschau zeigt „HTTP 404"** → die Datei existiert in der DB aber nicht physisch auf dem Server. Wende dich an Admin — meistens nach einem Backup-Restore-Problem.
 - **Office-Datei zeigt „Datei wird umgewandelt..."** dauert ewig → LibreOffice-Service hat sich aufgehängt. Server-Neustart hilft.
-- **Datei beim Hochladen rejected** → meist Pfad-Problem mit Sonderzeichen oder zu lange Dateinamen. Datei umbenennen (ohne `/`, `\`, `:`, `?`, `*`, `"` , `<`, `>`, `|`).
+- **Datei beim Hochladen rejected** → meist Pfad-Problem mit Sonderzeichen oder zu lange Dateinamen. Datei umbenennen (ohne `/`, `\`, `:`, `?`, `*`, Sonderzeichen).
