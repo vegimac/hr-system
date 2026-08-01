@@ -279,10 +279,17 @@ public class DashboardService
             var dueDate = em.ProbationEndDate!.Value;
             var days = (dueDate.Date - now).Days;
             var endeTxt = FormatWeekdayDateDe(dueDate);
+            // Walter 31.07.2026: wenn Probezeitgespräch erledigt (Datum + Protokoll),
+            // «Probezeit endet …» nur noch als Information — nie Wichtig/Kritisch.
+            var gespraechErledigt = em.Employee!.ProbezeitGespraech1Am.HasValue
+                                 && em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+            var sev = gespraechErledigt
+                ? "info"
+                : Severity("probation_end", days, "info", "warning");
             alerts.Add(new DashboardAlert
             {
                 Category = "probation_end",
-                Severity = Severity("probation_end", days, "info", "warning"),
+                Severity = sev,
                 Title    = days == 0
                     ? $"Probezeit endet heute · {endeTxt}"
                     : days == 1
@@ -292,7 +299,7 @@ public class DashboardService
                          : days == 1 ? "alert.probation.ends_tomorrow"
                          : "alert.probation.ends_in_days",
                 TitleArgs = new Dictionary<string, object> { ["days"] = days, ["ende"] = endeTxt },
-                Subtitle = $"{em.Employee!.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
+                Subtitle = $"{em.Employee.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
                     ["name"] = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim(),
