@@ -1360,7 +1360,7 @@ public class EasyAtWorkController : ControllerBase
         }
         // Gemeinsamer Mapper mit dem echten Sync (Walter 01.08.2026: E=Getrennt).
         static string? Marital(string? v)
-            => Services.EasyAtWork.EasyAtWorkEmployeeSyncService.MapMaritalStatus(v);
+            => EasyAtWorkEmployeeSyncService.MapMaritalStatus(v);
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
         var today = DateOnly.FromDateTime(DateTime.Today);
