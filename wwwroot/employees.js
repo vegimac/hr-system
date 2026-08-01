@@ -12523,18 +12523,20 @@ function renderUniformDepotTab(el, d) {
     const refund = d.refundPeriode
         ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Rückerstattet in Periode ${esc(d.refundPeriode)}</div>`
         : '';
-    const ret = d.returnConfirmed === true
-        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Uniform zurückgegeben → Refund erscheint automatisch auf dem (Korrektur-)Lohnzettel</div>'
-        : d.returnConfirmed === false
-            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
-            : '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>';
-    const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
     // Rückgabe-Entscheidung nur bei Austritt (letzter Lohn / Korrektur) —
     // nicht bei aktiven MA die gerade den Eintritts-Abzug haben.
     const emp = (typeof allEmployees !== 'undefined' && allEmployees)
         ? allEmployees.find(x => x.id === (selectedEmployeeId || window.activeEmpId))
         : null;
     const hasExit = !!(emp?.exitDate || emp?.ExitDate);
+    const ret = d.returnConfirmed === true
+        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Uniform zurückgegeben → Refund erscheint automatisch auf dem (Korrektur-)Lohnzettel</div>'
+        : d.returnConfirmed === false
+            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
+            : (hasExit
+                ? '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>'
+                : '');
+    const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
     const canDecide = hasExit && d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
     const actions = canDecide ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
