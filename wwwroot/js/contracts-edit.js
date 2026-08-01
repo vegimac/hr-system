@@ -295,16 +295,16 @@ async function checkCeMinimumWage() {
     let preHints = '';
     if (isMtp) {
         if (!Number.isFinite(guaranteed) || guaranteed <= 0) {
-            preHints += `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.mtpHoursMissing')}</div>`;
+            preHints += `<div class="ce-hint warn">${_t('vt.compl.mtpHoursMissing')}</div>`;
         } else {
-            if (guaranteed < 17) preHints += `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.mtpMin17')}</div>`;
-            if (guaranteed >= 33) preHints += `<div style="color:#6b6152;font-size:11.5px">${_t('vt.compl.mtpMax33')}</div>`;
+            if (guaranteed < 17) preHints += `<div class="ce-hint warn">${_t('vt.compl.mtpMin17')}</div>`;
+            if (guaranteed >= 33) preHints += `<div class="ce-hint">${_t('vt.compl.mtpMax33')}</div>`;
         }
     }
 
     // Wenn Ausbildung/Funktion/Beginn fehlen, dezenten Hinweis im Mindestlohn-Bereich
     if (!jobGroupCode || !educationLevelCode || !startDate) {
-        infoEl.innerHTML = `<div style="color:#94a3b8;font-size:11.5px">${_t('vt.compl.qualMissing')}</div>`;
+        infoEl.innerHTML = `<div class="ce-hint">${_t('vt.compl.qualMissing')}</div>`;
         if (preHints) resultEl.innerHTML = preHints;
         return;
     }
@@ -337,7 +337,7 @@ async function checkCeMinimumWage() {
             body: JSON.stringify(body)
         });
         if (!res.ok) {
-            infoEl.innerHTML = `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.serviceUnavail')}</div>`;
+            infoEl.innerHTML = `<div class="ce-hint warn">${_t('vt.compl.serviceUnavail')}</div>`;
             if (preHints) resultEl.innerHTML = preHints;
             return;
         }
@@ -347,22 +347,22 @@ async function checkCeMinimumWage() {
         // ──────── Mindestlohn-Info (oben, immer angezeigt sobald Quali da) ────────
         const noRule = cr.status === 'NO_RULE';
         if (noRule) {
-            infoEl.innerHTML = `<div style="padding:8px 12px;border-radius:6px;background:#fffbeb;border:1px solid #fde68a;color:#92400e;font-size:11.5px">${_t('vt.compl.noRule')}</div>`;
+            infoEl.innerHTML = `<div class="ce-mw-info"><span class="ce-mw-k">${_t('vt.compl.noRule')}</span></div>`;
         } else {
-            let infoHtml = `<div style="padding:8px 12px;border-radius:6px;background:#f6f3ee;border:1px solid #e5e0d6;color:#5a5348;font-size:12px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">`;
-            infoHtml += `<div style="font-weight:700;color:#6b7280">${_t('vt.compl.headline')}</div>`;
+            let infoHtml = `<div class="ce-mw-info">`;
+            infoHtml += `<span class="ce-mw-k">${_t('vt.compl.headline')}</span>`;
             if (!isFix && cr.minimumHourlyRate != null) {
-                infoHtml += `<div>${_t('vt.compl.hourlyFrom')} <strong>CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</strong>/h</div>`;
+                infoHtml += `<span>${_t('vt.compl.hourlyFrom')} <strong>CHF ${Number(cr.minimumHourlyRate).toFixed(2)}</strong>/h</span>`;
             }
             if (isFix && cr.minimumMonthlySalaryFte != null) {
                 const p = cr.employmentPercentage ?? pensum ?? 100;
-                infoHtml += `<div>${_t('vt.compl.monthlyFteFrom')} <strong>CHF ${Number(cr.minimumMonthlySalaryFte).toFixed(2)}</strong>`;
+                infoHtml += `<span>${_t('vt.compl.monthlyFteFrom')} <strong>CHF ${Number(cr.minimumMonthlySalaryFte).toFixed(2)}</strong>`;
                 if (p < 100 && cr.minimumMonthlySalary != null) {
-                    infoHtml += ` <span style="color:#475569">(${p}% = CHF ${Number(cr.minimumMonthlySalary).toFixed(2)})</span>`;
+                    infoHtml += ` <span class="ce-mw-meta">(${p}% = CHF ${Number(cr.minimumMonthlySalary).toFixed(2)})</span>`;
                 }
-                infoHtml += `</div>`;
+                infoHtml += `</span>`;
             }
-            infoHtml += `<div style="color:#64748b;font-size:11px">${_t('vt.compl.validFrom')} ${new Date(startDate).toLocaleDateString('de-CH')}</div>`;
+            infoHtml += `<span class="ce-mw-meta">${_t('vt.compl.validFrom')} ${new Date(startDate).toLocaleDateString('de-CH')}</span>`;
             infoHtml += `</div>`;
             infoEl.innerHTML = infoHtml;
         }
@@ -403,26 +403,23 @@ async function checkCeMinimumWage() {
         const ok = cr.status === 'OK' || cr.status === 'ok';
         const underpaid = cr.status === 'UNDERPAID' || cr.status === 'underpaid';
         const overpaid = ok && Number(cr.difference ?? 0) > 0;
-        const color = underpaid ? '#dc2626' : '#15803d';
-        const bg    = underpaid ? '#fef2f2' : '#f0fdf4';
-        const border= underpaid ? '#fecaca' : '#bbf7d0';
 
         let html = preHints;
-        html += `<div style="padding:10px 14px;border-radius:6px;background:${bg};border:1px solid ${border};font-size:12px">`;
-        html += `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">`;
-        html += `<div style="font-weight:700;color:${color}">${
+        html += `<div class="ce-compl-card ${underpaid ? 'bad' : 'ok'}">`;
+        html += `<div class="ce-compl-top">`;
+        html += `<div class="ce-compl-title">${
             underpaid ? _t('vt.compl.tooLow')
                       : overpaid ? _t('vt.compl.aboveMin')
                                  : _t('vt.compl.ok')}</div>`;
         if (underpaid) {
-            html += `<button onclick="applyCeMinimumWage()" style="background:#dc2626;color:#fff;border:none;border-radius:5px;padding:4px 10px;font-size:11.5px;cursor:pointer;font-weight:600">${_t('vt.compl.applyMin')}</button>`;
+            html += `<button type="button" class="ce-compl-apply" onclick="applyCeMinimumWage()">${_t('vt.compl.applyMin')}</button>`;
         }
         html += `</div>`;
 
         // Vergleichs-Grid: Mindestwert vs. aktueller Wert
         const colMin = _t('vt.compl.colMin');
         const colCur = _t('vt.compl.colCurrent');
-        html += `<div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:4px 16px;font-size:11.5px;color:#475569">`;
+        html += `<div class="ce-compl-grid">`;
         if (!isFix) {
             html += `<div>${_t('vt.compl.lblHourly')}</div>`;
             html += `<div>${colMin} <strong>CHF ${cr.minimumHourlyRate != null ? Number(cr.minimumHourlyRate).toFixed(2) : '–'}</strong></div>`;
@@ -431,22 +428,22 @@ async function checkCeMinimumWage() {
         if (isFix && cr.minimumMonthlySalary != null) {
             const p = cr.employmentPercentage ?? pensum ?? 100;
             html += `<div>${_t('vt.compl.lblMonthly')}</div>`;
-            html += `<div>${colMin} <strong>CHF ${Number(cr.minimumMonthlySalary).toFixed(2)}</strong>${p < 100 && cr.minimumMonthlySalaryFte != null ? `<span style="color:#94a3b8"> (${p}% von ${Number(cr.minimumMonthlySalaryFte).toFixed(2)})</span>` : ''}</div>`;
+            html += `<div>${colMin} <strong>CHF ${Number(cr.minimumMonthlySalary).toFixed(2)}</strong>${p < 100 && cr.minimumMonthlySalaryFte != null ? `<span class="ce-mw-meta"> (${p}% von ${Number(cr.minimumMonthlySalaryFte).toFixed(2)})</span>` : ''}</div>`;
             html += `<div>${colCur} <strong>CHF ${cr.currentMonthlySalary != null ? Number(cr.currentMonthlySalary).toFixed(2) : '–'}</strong></div>`;
         }
         if (cr.difference != null && cr.difference !== 0) {
             html += `<div>${_t('vt.compl.lblDiff')}</div>`;
-            html += `<div style="grid-column:span 2;color:${underpaid ? '#dc2626' : '#6b6152'};font-weight:600">CHF ${Number(cr.difference).toFixed(2)} ${underpaid ? _t('vt.compl.diffLow') : _t('vt.compl.diffHigh')}</div>`;
+            html += `<div style="grid-column:span 2;font-weight:650">CHF ${Number(cr.difference).toFixed(2)} ${underpaid ? _t('vt.compl.diffLow') : _t('vt.compl.diffHigh')}</div>`;
         }
         html += `</div>`;
 
         if (cr.warningMessage) {
-            html += `<div style="margin-top:6px;font-size:11.5px;color:#475569;font-style:italic">${cr.warningMessage}</div>`;
+            html += `<div class="ce-hint">${cr.warningMessage}</div>`;
         }
         html += `</div>`;
         resultEl.innerHTML = html;
     } catch (e) {
-        infoEl.innerHTML = `<div style="color:#92400e;font-size:11.5px">${_t('vt.compl.serviceErr', { msg: e.message })}</div>`;
+        infoEl.innerHTML = `<div class="ce-hint warn">${_t('vt.compl.serviceErr', { msg: e.message })}</div>`;
         if (preHints) resultEl.innerHTML = preHints;
     }
 }

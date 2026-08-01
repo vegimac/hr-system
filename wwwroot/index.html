@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260801g">
+    <link rel="stylesheet" href="css/app.css?v=20260801h">
 </head>
 <body>
 
@@ -7224,7 +7224,7 @@
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260801a"></script>
-<script src="js/contracts-edit.js?v=20260801a"></script>
+<script src="js/contracts-edit.js?v=20260801b"></script>
 <script src="js/payroll.js?v=20260801k"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
@@ -8196,210 +8196,140 @@
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil. ce-lbl/ce-inp werden auf
      weisse Wert-Box angeglichen, Sektionen mit emp-section-title-Streifen,
      graue Card-Wrapper analog Familien-Modal. -->
-<div id="contractEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px">
-    <div class="ma-modal-box" style="margin:auto;font-size:12.5px;max-width:1080px">
-        <div class="ma-modal-head">
+<!-- Vertrag bearbeiten — Look wie MA-Übersicht (eine ruhige Glasfläche,
+     keine Box-in-Box-Beige-Karten). IDs/Handler unverändert. -->
+<div id="contractEditModal" class="ce-overlay" style="display:none">
+    <div class="ma-modal-box ce-modal-box">
+        <div class="ma-modal-head ce-modal-head">
             <div>
                 <div id="ceModalTitle" class="ma-modal-title" data-i18n="vt.modal.editTitle">Vertrag bearbeiten</div>
                 <div id="ceModalSub" class="ma-modal-sub"></div>
             </div>
             <button class="ma-modal-close" onclick="closeContractEditModal()">✕</button>
         </div>
-        <div class="ma-modal-body">
+        <div class="ma-modal-body ce-modal-body">
             <input type="hidden" id="ceContractId">
             <input type="hidden" id="ceEmployeeId">
 
-            <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.startDate">Vertragsbeginn *</label>
-                    <input type="date" id="ceStartDate" class="ce-inp" onchange="checkCeMinimumWage()">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.model">Vertragsmodell *</label>
-                    <select id="ceEmploymentModel" class="ce-inp" onchange="onCeModelChange()">
-                        <option value="FLEX" data-i18n="vt.modal.modelUtp">FLEX – Stundenlohn (flexibel)</option>
-                        <option value="MTP" data-i18n="vt.modal.modelMtp">MTP – Mindest-Teilzeitpensum</option>
-                        <option value="FIX" data-i18n="vt.modal.modelFix">FIX – Festpensum</option>
-                        <option value="FIX-M" data-i18n="vt.modal.modelFixM">FIX-M – Management</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.contractType">Vertragstyp</label>
-                    <select id="ceContractType" class="ce-inp" onchange="onCeContractTypeChange()">
-                        <option value="unbefristet" data-i18n="vt.modal.contractType.openEnded">unbefristet</option>
-                        <option value="befristet" data-i18n="vt.modal.contractType.fixed">befristet</option>
-                    </select>
-                </div>
-                <div id="ceEndDateWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
-                    <input type="date" id="ceEndDate" class="ce-inp">
-                </div>
-                <div style="grid-column:span 2">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Stellenbezeichnung</label>
-                    <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Crew, Shift Coordinator">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.probation">Probezeit (Monate)</label>
-                    <input type="number" id="ceProbationMonths" class="ce-inp" min="0" max="12">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.active">Aktiv</label>
-                    <select id="ceIsActive" class="ce-inp">
-                        <option value="true" data-i18n="vt.modal.statusActive">Aktiv</option>
-                        <option value="false" data-i18n="vt.modal.statusInactive">Inaktiv</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Qualifikation & Mindestlohn — ZUERST Ausbildung + Funktion, damit Mindestlohn vor der Lohn-Eingabe sichtbar ist -->
-            <div class="emp-section-title" data-i18n="vt.modal.section.qualif">Qualifikation &amp; Mindestlohn</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.eduLevel">Gastronomische Ausbildung *</label>
-                    <select id="ceEducationLevel" class="ce-inp" onchange="checkCeMinimumWage()">
-                        <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.jobGroup">Funktionsgruppe *</label>
-                    <select id="ceJobGroup" class="ce-inp" onchange="checkCeMinimumWage()">
-                        <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
-                    </select>
-                </div>
-            </div>
-            <div id="ceMinimumWageInfo" style="margin-bottom:14px;font-size:12px"></div>
-
-            <!-- Lohn -->
-            <div class="emp-section-title" data-i18n="vt.modal.section.salary">Lohn &amp; Pensum</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div id="ceHourlyWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.hourly">Stundenlohn (CHF)</label>
-                    <input type="number" id="ceHourlyRate" class="ce-inp" step="0.01" oninput="checkCeMinimumWage()">
-                </div>
-                <div id="ceFteWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.fte">Monatslohn 100% (FTE)</label>
-                    <input type="number" id="ceMonthlySalaryFte" class="ce-inp" step="0.01" oninput="onCeFteChange()">
-                </div>
-                <div id="ceMonthlyWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.monthlyAtPensum">Monatslohn (Pensum)</label>
-                    <input type="number" id="ceMonthlySalary" class="ce-inp" step="0.01" readonly style="background:#faf8f5;color:#8b8b8b">
-                </div>
-                <div id="cePensumWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
-                    <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
-                </div>
-                <div id="ceWeeklyWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
-                    <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
-                </div>
-                <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — NBU-Befreiung UVG Art. 1a;
-                     HTML war bei Branch-Merge verloren, JS/Backend blieben. -->
-                <div id="ceTeilzeitUnter8hWrap">
-                    <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
-                    <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
-                        <input type="hidden" id="ceTeilzeitUnter8h" value="false">
-                        <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
-                        <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
+                <div class="ce-grid ce-grid-4">
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.startDate">Vertragsbeginn *</label>
+                        <input type="date" id="ceStartDate" class="ce-inp" onchange="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.model">Vertragsmodell *</label>
+                        <select id="ceEmploymentModel" class="ce-inp" onchange="onCeModelChange()">
+                            <option value="FLEX" data-i18n="vt.modal.modelUtp">FLEX – Stundenlohn (flexibel)</option>
+                            <option value="MTP" data-i18n="vt.modal.modelMtp">MTP – Mindest-Teilzeitpensum</option>
+                            <option value="FIX" data-i18n="vt.modal.modelFix">FIX – Festpensum</option>
+                            <option value="FIX-M" data-i18n="vt.modal.modelFixM">FIX-M – Management</option>
+                        </select>
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.contractType">Vertragstyp</label>
+                        <select id="ceContractType" class="ce-inp" onchange="onCeContractTypeChange()">
+                            <option value="unbefristet" data-i18n="vt.modal.contractType.openEnded">unbefristet</option>
+                            <option value="befristet" data-i18n="vt.modal.contractType.fixed">befristet</option>
+                        </select>
+                    </div>
+                    <div class="ce-field" id="ceEndDateWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
+                        <input type="date" id="ceEndDate" class="ce-inp">
+                    </div>
+                    <div class="ce-field ce-span-2">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Stellenbezeichnung</label>
+                        <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Crew, Shift Coordinator">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.probation">Probezeit (Monate)</label>
+                        <input type="number" id="ceProbationMonths" class="ce-inp" min="0" max="12">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.active">Aktiv</label>
+                        <select id="ceIsActive" class="ce-inp">
+                            <option value="true" data-i18n="vt.modal.statusActive">Aktiv</option>
+                            <option value="false" data-i18n="vt.modal.statusInactive">Inaktiv</option>
+                        </select>
                     </div>
                 </div>
-                <div id="ceGuaranteedWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
-                    <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
-                </div>
-                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px;background:#fdf1ee;border:1px solid #ecc8bf;border-radius:9px;padding:6px 10px">
-                    <input type="checkbox" id="ceEasyAtWorkManualOverride" style="width:16px;height:16px;accent-color:#dc2626">
-                    <label for="ceEasyAtWorkManualOverride" style="font-size:12px;color:#b91c1c;font-weight:700;cursor:pointer">
-                        easy@work Block – lokal nicht überschreiben
-                    </label>
-                    <span style="font-size:11px;color:#991b1b">Bei easy@work-Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
-                </div>
-                <!-- Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %,
-                     13. ML % aus dem Vertrag entfernt — kommen jetzt aus der
-                     Filiale (CompanyProfile.Default*) + altersaware Engine. -->
-            </div>
+            </section>
 
-            <!-- Lohn-Check (Vergleich Aktuell vs. Mindest) -->
-            <div id="ceComplianceResult" style="margin-bottom:12px;font-size:12px"></div>
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.qualif">Qualifikation &amp; Mindestlohn</div>
+                <div class="ce-grid ce-grid-2">
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.eduLevel">Gastronomische Ausbildung *</label>
+                        <select id="ceEducationLevel" class="ce-inp" onchange="checkCeMinimumWage()">
+                            <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
+                        </select>
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.jobGroup">Funktionsgruppe *</label>
+                        <select id="ceJobGroup" class="ce-inp" onchange="checkCeMinimumWage()">
+                            <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="ceMinimumWageInfo" class="ce-mw-slot"></div>
+            </section>
 
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.salary">Lohn &amp; Pensum</div>
+                <div class="ce-grid ce-grid-4">
+                    <div class="ce-field" id="ceHourlyWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.hourly">Stundenlohn (CHF)</label>
+                        <input type="number" id="ceHourlyRate" class="ce-inp" step="0.01" oninput="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-field" id="ceFteWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.fte">Monatslohn 100% (FTE)</label>
+                        <input type="number" id="ceMonthlySalaryFte" class="ce-inp" step="0.01" oninput="onCeFteChange()">
+                    </div>
+                    <div class="ce-field" id="ceMonthlyWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.monthlyAtPensum">Monatslohn (Pensum)</label>
+                        <input type="number" id="ceMonthlySalary" class="ce-inp ce-inp-ro" step="0.01" readonly>
+                    </div>
+                    <div class="ce-field" id="cePensumWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
+                        <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
+                    </div>
+                    <div class="ce-field" id="ceWeeklyWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
+                        <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                    </div>
+                    <!-- < 8 h nur bei FLEX — NBU-Befreiung UVG Art. 1a -->
+                    <div class="ce-field" id="ceTeilzeitUnter8hWrap">
+                        <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
+                        <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
+                            <input type="hidden" id="ceTeilzeitUnter8h" value="false">
+                            <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
+                            <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+                        </div>
+                    </div>
+                    <div class="ce-field" id="ceGuaranteedWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
+                        <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-eaw ce-span-4">
+                        <input type="checkbox" id="ceEasyAtWorkManualOverride" class="ce-eaw-cb">
+                        <div class="ce-eaw-text">
+                            <label for="ceEasyAtWorkManualOverride">easy@work Block – lokal nicht überschreiben</label>
+                            <span>Bei Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="ceComplianceResult" class="ce-compl-slot"></div>
         </div>
-        <div class="ma-modal-foot">
-            <div id="ceErrorMsg" class="ma-foot-left" style="color:#dc2626;font-size:12px"></div>
-            <button class="btn btn-outline" onclick="closeContractEditModal()" data-i18n="vt.modal.btn.cancel">Abbrechen</button>
-            <button class="btn btn-primary" onclick="saveContractEdit()" id="ceSaveBtn" data-i18n="vt.modal.btn.save">Speichern</button>
+        <div class="ma-modal-foot ce-modal-foot">
+            <div id="ceErrorMsg" class="ma-foot-left ce-error"></div>
+            <button type="button" class="ce-btn ce-btn-ghost" onclick="closeContractEditModal()" data-i18n="vt.modal.btn.cancel">Abbrechen</button>
+            <button type="button" class="ce-btn ce-btn-primary" onclick="saveContractEdit()" id="ceSaveBtn" data-i18n="vt.modal.btn.save">Speichern</button>
         </div>
     </div>
 </div>
-<style>
-/* Walter-Vorgabe 08.07.2026: Vertrags-Modal im modernen Familie-Modal-Look
-   (Liquid Glass) — warme Off-White-Karten (#f6f3ee, Rand #e7e1d8, Radius 14),
-   weisse Inputs mit warmem Rand statt Blau-Grau. Logik/IDs unverändert. */
-#contractEditModal .ce-lbl { font-size:9.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em;padding-left:2px;line-height:1.2 }
-#contractEditModal .ce-inp { width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(60,55,48,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
-#contractEditModal .ce-inp:hover { border-color:#c9bfb0;box-shadow:0 2px 4px rgba(60,55,48,0.12) }
-#contractEditModal .ce-inp:focus { border-color:#c9bfb0;box-shadow:0 0 0 3px rgba(180,165,140,.14) }
-/* Sektions-Titel wie im Familie-Modal: ruhig, ohne Balken/Grossbuchstaben */
-#contractEditModal .emp-section-title {
-    background: transparent !important;
-    border-left: none !important;
-    border-radius: 0 !important;
-    color: #364152 !important;
-    text-transform: none !important;
-    letter-spacing: -.01em !important;
-    font-size: 12px !important;
-    font-weight: 760 !important;
-    padding: 0 0 0 3px !important;
-    margin: 14px 0 5px !important;
-}
-/* < 8 h-Schieber wie L-GAV (emp-yesno-toggle) — Modal liegt ausserhalb
-   #page-mitarbeiter, daher eigene Regeln (Walter 31.07.2026). */
-#contractEditModal #ceTeilzeitUnter8hWrap {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    min-width: 0;
-}
-#contractEditModal .emp-yesno-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 3px;
-    border: 1px solid rgba(60,55,48,.16);
-    border-radius: 15px;
-    background: #f0ece4;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
-    min-height: 27px;
-    box-sizing: border-box;
-}
-#contractEditModal .emp-yesno-toggle button {
-    border: 0;
-    border-radius: 12px;
-    background: transparent;
-    color: #8b8b8b;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 760;
-    line-height: 1;
-    padding: 6px 12px;
-    cursor: pointer;
-}
-#contractEditModal .emp-yesno-toggle button.active {
-    background: #3f3f3f;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(60,55,48,.18);
-}
-body.theme-dark #contractEditModal .emp-yesno-toggle {
-    background: rgba(255,255,255,.08);
-    border-color: rgba(122,145,165,.28);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-}
-body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
-body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
-    background: #e8e4dc;
-    color: #1a1a1a;
-    box-shadow: 0 4px 12px rgba(0,0,0,.22);
-}
-</style>
 
 <div class="modal-bg" id="vtImportModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
     <div class="modal" style="max-width:520px;width:90%">
