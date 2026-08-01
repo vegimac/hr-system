@@ -131,13 +131,13 @@ Wichtig: `PayrollCalculations` ist statisch und seiteneffektfrei (alle Daten als
 
 | Modell | Ferien | Feiertag | 13. ML |
 |---|---|---|---|
-| **FLEX** | Saldo (CHF, „Ferien-Geld") — NICHT monatlich ausbezahlt | **Monatlich ausbezahlt** | **Monatlich ausbezahlt** |
-| **MTP** | Saldo (Tage) — Auszahlung NUR nach Vorgaben (`PayrollPeriodeConfig.thirteenthMonthPayoutMonths` etc.) | **Monatlich ausbezahlt** | Saldo, Auszahlung NUR nach Vorgaben |
+| **FLEX** | **Saldo Tage + Saldo CHF (Ferien-Geld)** — beides mit Vormonats-Saldo. Bei Bezug: Auszahlung anteilig aus dem Pott (wie MTP). Nicht monatlich ausbezahlt. | **Monatlich ausbezahlt** | **Monatlich ausbezahlt** |
+| **MTP** | Saldo (Tage) + Ferien-Geld (CHF); Auszahlung bei Bezug aus dem Pott | **Monatlich ausbezahlt** | Saldo, Auszahlung NUR nach Vorgaben |
 | **FIX** / **FIX-M** | Saldo (Tage) — KEINE Auszahlung, nur akkumulieren | Saldo (Tage) — KEINE Auszahlung, nur akkumulieren | Saldo (CHF), Auszahlung NUR nach Vorgaben. 13. ML zusätzlich oben in der Lohnpositionen-Liste anzeigen (Akkumulation transparent). |
 
-**Sozialleistungs-Abzug:** wird ERST bei der tatsächlichen Auszahlung von Ferien oder 13. ML angewendet — NICHT beim monatlichen Akkumulieren in den Saldo. Daher beim Austritt eines FLEX-MA (Ferien-Geld-Auszahlung) und beim Auszahlungsmonat eines MTP/FIX-M (13. ML) jeweils AHV/ALV/NBU/KTG/LGAV auf den Auszahlungsbetrag rechnen.
+**Sozialleistungs-Abzug:** wird ERST bei der tatsächlichen Auszahlung von Ferien oder 13. ML angewendet — NICHT beim monatlichen Akkumulieren in den Saldo. Daher beim Ferien-Bezug eines FLEX/MTP-MA (Ferien-Geld-Auszahlung aus dem Pott) und beim Auszahlungsmonat eines MTP/FIX-M (13. ML) jeweils AHV/ALV/NBU/KTG/LGAV auf den Auszahlungsbetrag rechnen.
 
-**MTP-Ferien-Auszahlung bei Bezug (Walter-Vorgabe, 09.05.2026):** Bei einem MTP-MA werden im Bezugsmonat von Ferientagen die garantierten Stunden gekürzt (Sollstunden- und Festlohn-Reduktion ist korrekt — so funktioniert das MTP-Modell). Die Ferien-Auszahlung erfolgt anteilsmässig **aus dem Pott**, der den **aktuellen Monat einschliesst**:
+**FLEX/MTP-Ferien-Auszahlung bei Bezug (Walter-Vorgabe 09.05.2026, FLEX bestätigt 01.08.2026):** FLEX führt wie MTP **Vormonats-Saldo Ferien-Tage und Ferien-Geld**. Die Auszahlung erfolgt anteilsmässig **aus dem Pott**, der den **aktuellen Monat einschliesst** (`CalcFerienGeld` / MTP-Block):
 
 ```
 Pott CHF   = Vormonats-Ferien-Geld + Ferienentschädigung diesen Monat
@@ -146,7 +146,7 @@ Tagessatz  = Pott CHF / Pott Tage
 Auszahlung = Tagessatz × bezogene Tage diesen Monat
 ```
 
-Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CHF/Tag, bei 6 bezogenen Tagen → 600 CHF Auszahlung. Cap = Pott CHF (kein Vorbezug). Ferien-Geld-Saldo neu = Pott − Auszahlung. Logik in `PayrollController.cs` im MTP-Block (`mtpFerienAuszahlungBetrag`).
+Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CHF/Tag, bei 6 bezogenen Tagen → 600 CHF Auszahlung. Cap = Pott CHF (kein Vorbezug). Ferien-Geld-Saldo neu = Pott − Auszahlung. Ferien-Tage-Saldo neu = Vormonat + Accrual − bezogen. Bei MTP zusätzlich: Garantie-Festlohn im Bezugsmonat um die Ferientage gekürzt.
 
 **Ferien-Tagessatz je Modell (Walter-Vorgabe 26.05.2026, ABSOLUT):** der Tagessatz, mit dem im Lohnzettel die bezogenen Ferientage bewertet werden, hängt am Vertragsmodell. Krankheit/Unfall ist davon AUSGENOMMEN — dort gilt `KtgTagessatzService` (eigene Formel, hier nicht anrühren).
 
@@ -162,7 +162,7 @@ Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CH
   ```
   Kalenderbasis, weil der Monatslohn unabhängig von der Anzahl Tage im Monat ist. Wird in `PayrollCalculationEngine.cs` (`fixTagessatz`) UND `FibuJournalService.cs` (RST Ferien/Feiertage) konsistent so gerechnet — die beiden Stellen MÜSSEN gleichlauten.
 
-- **FLEX**: kein eigener Ferien-Tagessatz — Ferien-Geld wird monatlich als % auf Brutto akkumuliert und beim Bezug (selten, nur bei Austritt) als CHF ausbezahlt.
+- **FLEX**: kein eigener fester Ferien-Tagessatz — Ferien-Geld wird monatlich als % auf Brutto akkumuliert; beim Bezug gilt der **Pott-Tagessatz** (Pott CHF / Pott Tage, inkl. Vormonats-Saldo Tage+Geld).
 
 Beim Bau neuer Lohn-Logik mit „Tagessatz" daher IMMER zuerst klären: Modell + Zweck (Ferien vs. Krank/Unfall) — und dann eine der drei Formeln oben nehmen, nicht improvisieren.
 

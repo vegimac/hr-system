@@ -89,15 +89,15 @@ Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen i
 ## Stunden, Saldi, Rückstellungen — kurz erklärt
 
 - **Nacht-Saldo** (in Stunden) — Nachtstunden werden gesammelt, kein direkter Geld-Wert. Der MA kompensiert sie irgendwann mit Ruhetag.
-- **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen.
-- **Ferien-Geld (CHF)** — bei FLEX/MTP: Ferienanspruch in CHF (Saldo). Beim Bezug bzw. Austritt wird das ausbezahlt — nicht monatlich bei FLEX.
+- **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen (auch bei FLEX, inkl. Vormonats-Saldo).
+- **Ferien-Geld (CHF)** — bei FLEX/MTP: Ferienanspruch in CHF (Saldo, inkl. Vormonat). Beim Bezug Auszahlung anteilig aus dem Pott (Pott CHF / Pott Tage × bezogene Tage) — nicht monatlich.
 - **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. FLEX-MA kriegen den 13. monatlich anteilig.
 
 ## Häufige Fragen
 
 **Wer kriegt was und wann?**
-- FLEX: Ferien-Geld als **Saldo** (CHF, Auszahlung typisch beim Austritt), Feiertag und 13. ML **monatlich**.
-- MTP: Ferien als Tage-Saldo (Auszahlung bei Bezug aus dem Pott), Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
+- FLEX: Ferien-Tage **und** Ferien-Geld als Saldo (mit Vormonat); bei Bezug Auszahlung aus dem Pott. Feiertag und 13. ML **monatlich**.
+- MTP: Ferien-Tage + Ferien-Geld (Auszahlung bei Bezug aus dem Pott), Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
 - FIX/FIX-M: Ferien- und Feiertag-Tage akkumulieren (keine monatliche Auszahlung), 13. ML nach Vorgabe.
 
 **Was ist der „Jahresausgleich" im Dezember-Lohnzettel?**
