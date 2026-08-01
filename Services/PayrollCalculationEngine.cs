@@ -2117,7 +2117,7 @@ public class PayrollCalculationEngine
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
-                            bezeichnung = "13. Monatslohn (Rückstellung Probezeit)",
+                            bezeichnung = "13. Monatslohn (Probe.Z. Rückstellung)",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)Math.Round(basis13, 2),
