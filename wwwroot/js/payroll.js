@@ -27,13 +27,12 @@ async function lzInit(empId, compId, year, month) {
     if (akWfP) akWfP.style.display = 'block';
     lzCloseForm();
 
-    // Lohnpositionen für Dropdown einmalig laden
-    if (_lzLohnpositionen.length === 0) {
-        try {
-            const res = await fetch('/api/lohn-zulag-typen', { headers: ah() });
-            _lzLohnpositionen = res.ok ? await res.json() : [];
-        } catch { _lzLohnpositionen = []; }
-    }
+    // Lohnpositionen für Dropdown laden (immer frisch — neue Codes wie 65.2
+    // nach Deploy/Seed sonst unsichtbar bis Hard-Reload).
+    try {
+        const res = await fetch('/api/lohn-zulag-typen', { headers: ah(), cache: 'no-store' });
+        _lzLohnpositionen = res.ok ? await res.json() : [];
+    } catch { _lzLohnpositionen = []; }
 
     await lzLoad();
 }

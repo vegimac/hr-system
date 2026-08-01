@@ -35,7 +35,7 @@ INSERT INTO lohnposition (
      '1', FALSE, 'I',
      TRUE, TRUE,
      TRUE, 0, TRUE,
-     651, TRUE, CURRENT_TIMESTAMP),
+     66, TRUE, CURRENT_TIMESTAMP),
 
     -- 65.2 Versicherungs-Taggeld UVG — nur BVG + QST (Screenshot Mirus / Qazimi)
     ('65.2', 'Korrektur UVG Taggeld Versicherung', 'Korrektur Unfall', 'ZULAGE',
@@ -45,7 +45,7 @@ INSERT INTO lohnposition (
      '1', FALSE, '0',
      TRUE, TRUE,
      TRUE, 0, TRUE,
-     652, TRUE, CURRENT_TIMESTAMP),
+     67, TRUE, CURRENT_TIMESTAMP),
 
     -- 75.1 Karenz-Korrektur KTG — voll SV
     ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit', 'ZULAGE',
@@ -55,7 +55,7 @@ INSERT INTO lohnposition (
      '1', FALSE, 'I',
      TRUE, TRUE,
      TRUE, 0, TRUE,
-     751, TRUE, CURRENT_TIMESTAMP),
+     76, TRUE, CURRENT_TIMESTAMP),
 
     -- 75.2 Versicherungs-Taggeld KTG — nur BVG + QST
     ('75.2', 'Korrektur KTG Taggeld Versicherung', 'Korrektur Krankheit', 'ZULAGE',
@@ -65,7 +65,7 @@ INSERT INTO lohnposition (
      '1', FALSE, '0',
      TRUE, TRUE,
      TRUE, 0, TRUE,
-     752, TRUE, CURRENT_TIMESTAMP)
+     77, TRUE, CURRENT_TIMESTAMP)
 ON CONFLICT (code) DO UPDATE SET
     bezeichnung               = EXCLUDED.bezeichnung,
     kategorie                 = EXCLUDED.kategorie,
