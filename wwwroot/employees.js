@@ -12529,15 +12529,22 @@ function renderUniformDepotTab(el, d) {
             ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
             : '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>';
     const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
-    // Nachträgliche Entscheidung (z.B. Austritt schon erfasst, Korrekturlohn jetzt)
-    const canDecide = d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
+    // Rückgabe-Entscheidung nur bei Austritt (letzter Lohn / Korrektur) —
+    // nicht bei aktiven MA die gerade den Eintritts-Abzug haben.
+    const emp = (typeof allEmployees !== 'undefined' && allEmployees)
+        ? allEmployees.find(x => x.id === (selectedEmployeeId || window.activeEmpId))
+        : null;
+    const hasExit = !!(emp?.exitDate || emp?.ExitDate);
+    const canDecide = hasExit && d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
     const actions = canDecide ? `
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
             <button type="button" onclick="setUniformDepotReturn(true)"
                 style="background:#3f3f3f;color:#fff;border:none;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Uniform zurück → Refund</button>
             <button type="button" onclick="setUniformDepotReturn(false)"
                 style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid #cbd5e1;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
-        </div>` : '';
+        </div>` : (d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0 && !hasExit
+        ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:10px">Rückgabe/Verfall wird beim <strong>Austritt</strong> (letzter Lohn) entschieden.</div>`
+        : '');
     el.innerHTML = `
         <div style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">

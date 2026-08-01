@@ -38,7 +38,24 @@ async function lzInit(empId, compId, year, month) {
     await lzLoadDepotRefund();
 }
 
-/** Depot-Refund-Box im Zulagen-Panel (Korrekturlohn / Austritt). */
+/** MA-Cache aus loadLohnList (u.a. exitDate für Depot-UI). */
+let _lohnEmpById = {};
+
+/** Depot-Refund-UI nur bei Austritt / Korrekturlohn / letztem Lohn. */
+function _lzIsExitOrLastPayroll(empId) {
+    if (_lohnIsCorrection(empId)) return true;
+    const emp = _lohnEmpById[empId];
+    const exitIso = emp?.exitDate || null;
+    if (!exitIso) return false;
+    const y = _lzCurrentYear, m = _lzCurrentMonth;
+    if (!y || !m) return false;
+    // Letzter Lohn = Austritt liegt in oder vor dieser Periode
+    const periodEnd = new Date(y, m, 0); // letzter Tag des Monats
+    const exit = new Date(exitIso + 'T00:00:00');
+    return !isNaN(exit) && exit <= periodEnd;
+}
+
+/** Depot-Refund-Box im Zulagen-Panel — nur Austritt / letzter Lohn / Korrektur. */
 async function lzLoadDepotRefund() {
     const box = document.getElementById('lohnDepotRefundBox');
     if (!box) return;
@@ -46,6 +63,8 @@ async function lzLoadDepotRefund() {
     box.innerHTML = '';
     const empId = _lzCurrentEmpId;
     if (!empId) return;
+    // Aktive MA ohne Austritt: Abzug läuft still im Slip, keine Refund-Buttons
+    if (!_lzIsExitOrLastPayroll(empId)) return;
     try {
         const res = await fetch(`/api/employees/${empId}/uniform-depot`, { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
@@ -84,7 +103,7 @@ async function lzLoadDepotRefund() {
                 </div>`;
             } else {
                 box.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;font-size:12px;color:#92400e">
-                    <div style="font-weight:700;margin-bottom:6px">Uniformen-Depot CHF ${bal.toFixed(2)} einbehalten</div>
+                    <div style="font-weight:700;margin-bottom:6px">Uniformen-Depot CHF ${bal.toFixed(2)} — letzter Lohn / Austritt</div>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                         <button type="button" onclick="lzSetDepotReturn(true)"
                             style="background:#3f3f3f;color:#fff;border:none;padding:6px 11px;border-radius:9px;font-size:11.5px;font-weight:600;cursor:pointer">Uniform zurück → +${bal.toFixed(2)} Refund</button>
@@ -813,6 +832,16 @@ async function loadLohnList() {
             const nb = ((b.firstName ?? '') + ' ' + (b.lastName ?? '')).trim().toLowerCase();
             return na.localeCompare(nb, 'de');
         });
+
+        // Cache für Depot-UI (Austritt / letzter Lohn)
+        _lohnEmpById = {};
+        for (const e of active) {
+            const exitRaw = e.exitDate || e.ExitDate || null;
+            _lohnEmpById[e.id] = {
+                ...e,
+                exitDate: exitRaw ? String(exitRaw).slice(0, 10) : null,
+            };
+        }
 
         // Status-Zähler: bezieht sich auf die aktiven MAs in dieser Filiale.
         // "Bestätigt" zählt jeden MA der in der Liste mit ✓ markiert ist
