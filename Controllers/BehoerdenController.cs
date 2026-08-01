@@ -63,8 +63,8 @@ public class BehoerdenController : ControllerBase
             Bic       = dto.Bic?.Trim(),
             BankName  = dto.BankName?.Trim(),
             IsActive  = dto.IsActive ?? true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now
         };
         _db.Behoerden.Add(entry);
         await _db.SaveChangesAsync();
@@ -100,7 +100,7 @@ public class BehoerdenController : ControllerBase
         entry.Bic       = dto.Bic?.Trim();
         entry.BankName  = dto.BankName?.Trim();
         entry.IsActive  = dto.IsActive ?? true;
-        entry.UpdatedAt = DateTime.UtcNow;
+        entry.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(MapToDto(entry));
     }
@@ -116,7 +116,7 @@ public class BehoerdenController : ControllerBase
         if (referenziert)
         {
             entry.IsActive  = false;
-            entry.UpdatedAt = DateTime.UtcNow;
+            entry.UpdatedAt = DateTime.Now;
             await _db.SaveChangesAsync();
             return Ok(new { softDeleted = true });
         }

@@ -183,8 +183,32 @@ public class SaldoVortragImportController : ControllerBase
         if (dto.Rows is null || dto.Rows.Count == 0)
             return BadRequest(new { error = "Keine Zeilen zum Speichern." });
 
+        // Spalten-Typ absichern (gleicher timestamptz-Bug wie Stunden-Import).
+        await _db.Database.ExecuteSqlRawAsync(@"
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                      AND column_name = 'created_at' AND udt_name = 'timestamptz'
+                ) THEN
+                    ALTER TABLE public.lohn_zulage
+                        ALTER COLUMN created_at TYPE timestamp without time zone
+                        USING (created_at AT TIME ZONE 'Europe/Zurich');
+                END IF;
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                      AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+                ) THEN
+                    ALTER TABLE public.lohn_zulage
+                        ALTER COLUMN updated_at TYPE timestamp without time zone
+                        USING (updated_at AT TIME ZONE 'Europe/Zurich');
+                END IF;
+            END $$;");
+
         // Vortrag-Lohnpositionen 905 (Ferien-Geld CHF) + 906 (13. ML CHF) laden.
-        var lps = await _db.Lohnpositionen
+        var lps = await _db.Lohnpositionen.AsNoTracking()
             .Where(l => l.Kategorie == "Saldo-Vortrag" && (l.Code == "905" || l.Code == "906"))
             .ToDictionaryAsync(l => l.Code, l => l);
 
@@ -238,6 +262,7 @@ public class SaldoVortragImportController : ControllerBase
                 }
 
                 var betrag = Math.Round(value, 2);
+                var nowLocal = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                 if (ex == null)
                 {
                     _db.LohnZulagen.Add(new LohnZulage
@@ -247,8 +272,8 @@ public class SaldoVortragImportController : ControllerBase
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
                         Bemerkung      = "Migrations-Vortrag aus Mirus Saldomethode (CHF)",
-                        CreatedAt      = DateTime.Now,
-                        UpdatedAt      = DateTime.Now
+                        CreatedAt      = nowLocal,
+                        UpdatedAt      = nowLocal
                     });
                     created++;
                 }
@@ -256,7 +281,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.Now;
+                    ex.UpdatedAt = nowLocal;
                     updated++;
                 }
             }
@@ -531,12 +556,42 @@ public class SaldoVortragImportController : ControllerBase
         Dictionary<string, Lohnposition> lps;
         try
         {
-            var lpList = await _db.Lohnpositionen
+            // Kategorie per SQL — kein Tracking von lohnposition (sonst kann
+            // ein timestamptz-created_at beim SaveChanges mitreinrutschen).
+            await _db.Database.ExecuteSqlRawAsync(@"
+                UPDATE lohnposition
+                   SET kategorie = 'Saldo-Vortrag'
+                 WHERE code IN ('901','902','903','904')
+                   AND COALESCE(kategorie, '') <> 'Saldo-Vortrag'");
+
+            // Belt-and-suspenders: lohn_zulage-Spalten auf without time zone
+            // (falls Startup-Migration noch nicht gegriffen hat).
+            await _db.Database.ExecuteSqlRawAsync(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                          AND column_name = 'created_at' AND udt_name = 'timestamptz'
+                    ) THEN
+                        ALTER TABLE public.lohn_zulage
+                            ALTER COLUMN created_at TYPE timestamp without time zone
+                            USING (created_at AT TIME ZONE 'Europe/Zurich');
+                    END IF;
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                          AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+                    ) THEN
+                        ALTER TABLE public.lohn_zulage
+                            ALTER COLUMN updated_at TYPE timestamp without time zone
+                            USING (updated_at AT TIME ZONE 'Europe/Zurich');
+                    END IF;
+                END $$;");
+
+            var lpList = await _db.Lohnpositionen.AsNoTracking()
                 .Where(l => codes.Contains(l.Code))
                 .ToListAsync();
-            // Kategorie nachziehen falls Alt-Daten ohne «Saldo-Vortrag»
-            foreach (var lp in lpList.Where(l => l.Kategorie != "Saldo-Vortrag"))
-                lp.Kategorie = "Saldo-Vortrag";
             lps = lpList.GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
         }
         catch (Exception ex)
@@ -602,6 +657,8 @@ public class SaldoVortragImportController : ControllerBase
                 }
 
                 var betrag = Math.Round(value.Value, 2);
+                // Kind=Unspecified — passt zu timestamp without time zone (Walter TIME-Regel).
+                var nowLocal = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                 if (ex == null)
                 {
                     _db.LohnZulagen.Add(new LohnZulage
@@ -611,8 +668,8 @@ public class SaldoVortragImportController : ControllerBase
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
                         Bemerkung      = "Migrations-Vortrag aus Mirus Monatsblatt",
-                        CreatedAt      = DateTime.Now,
-                        UpdatedAt      = DateTime.Now
+                        CreatedAt      = nowLocal,
+                        UpdatedAt      = nowLocal
                     });
                     created++;
                 }
@@ -620,7 +677,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.Now;
+                    ex.UpdatedAt = nowLocal;
                     updated++;
                 }
             }

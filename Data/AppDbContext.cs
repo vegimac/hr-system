@@ -1468,8 +1468,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(20);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
         });
 
         // ── EmployeeLohnAssignment ─────────────────────────────────────────
@@ -1714,7 +1714,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZaehltFuerTagessatz).HasColumnName("zaehlt_fuer_tagessatz").HasDefaultValue(true);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.Code).HasDatabaseName("IX_lohnposition_code").IsUnique();
         });
 
