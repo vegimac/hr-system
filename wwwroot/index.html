@@ -8293,6 +8293,16 @@
                     <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
                     <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
                 </div>
+                <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — NBU-Befreiung UVG Art. 1a;
+                     HTML war bei Branch-Merge verloren, JS/Backend blieben. -->
+                <div id="ceTeilzeitUnter8hWrap">
+                    <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
+                    <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
+                        <input type="hidden" id="ceTeilzeitUnter8h" value="false">
+                        <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
+                        <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+                    </div>
+                </div>
                 <div id="ceGuaranteedWrap" style="display:none">
                     <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                     <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
