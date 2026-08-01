@@ -2117,7 +2117,7 @@ public class PayrollCalculationEngine
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
-                            bezeichnung = "13. Monatslohn (Probezeit – akkumuliert)",
+                            bezeichnung = "13. Monatslohn (Rückstellung Probezeit)",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)Math.Round(basis13, 2),
@@ -2146,7 +2146,7 @@ public class PayrollCalculationEngine
                     if (prevThirteenth > 0)
                     {
                         lohnLines.Add(new {
-                            bezeichnung = "13. Monatslohn (Saldo-Nachzahlung Probezeit)",
+                            bezeichnung = "13. Monatslohn (Nachzahlung nach Probezeit)",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)null,
                             basis       = (decimal?)null,
