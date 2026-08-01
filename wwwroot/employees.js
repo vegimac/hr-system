@@ -7458,12 +7458,11 @@ async function loadAbsenzenTab(employeeId) {
         const activeEmp = selectedEmployee?.employments?.find(e => e.isActive)
                        ?? selectedEmployee?.employments?.[0];
         const cpId      = activeEmp?.companyProfileId;
-        // Fallback für Lock-Lookup: wenn der MA keinen Vertrag mit
-        // companyProfileId hat (Legacy-Daten / Phantom-MA), nimm den global
-        // gewählten Filial-Selektor — sonst greift die Sperre nicht.
-        const cpIdForLock = cpId || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
 
-        const [absRes, karenzKrankRes, karenzUnfallRes, sperrRes, lockState] = await Promise.all([
+        // Soft-Lock kommt serverseitig pro Absenz als inLohnVerwendet
+        // (nur Status «abgeschlossen») — kein hard firstAllowedDate mehr
+        // (der sperrte schon bei provisorisch/HR/Akonto).
+        const [absRes, karenzKrankRes, karenzUnfallRes, sperrRes] = await Promise.all([
             fetch(`/api/absences/employee/${employeeId}`, { headers: ah() }),
             cpId
                 ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=KRANK`, { headers: ah() })
@@ -7472,11 +7471,6 @@ async function loadAbsenzenTab(employeeId) {
                 ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=UNFALL`, { headers: ah() })
                 : Promise.resolve(null),
             fetch(`/api/absences/employee/${employeeId}/sperrfrist`, { headers: ah() }),
-            // Lohnlauf-Sperre: pro Filiale FirstAllowedDate holen — pro Absenz
-            // wird entschieden ob Edit/Delete-Buttons gezeigt werden.
-            cpIdForLock && window.lohnEditLock
-                ? window.lohnEditLock.loadState(cpIdForLock)
-                : Promise.resolve(null),
         ]);
         if (!absRes.ok) throw new Error();
         const absences         = await absRes.json();
@@ -7484,7 +7478,7 @@ async function loadAbsenzenTab(employeeId) {
         const karenzKrankHist  = karenzKrankRes  && karenzKrankRes.ok  ? await karenzKrankRes.json()  : [];
         const karenzUnfallHist = karenzUnfallRes && karenzUnfallRes.ok ? await karenzUnfallRes.json() : [];
         const sperrfrist       = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
-        renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, lockState, karenzUnfallHist);
+        renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, karenzUnfallHist);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
@@ -7586,7 +7580,7 @@ function analyzeAbsenceCritical(absences) {
     return reasonsById;
 }
 
-function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, lockState = null, karenzUnfallHist = []) {
+function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, karenzUnfallHist = []) {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
@@ -7651,14 +7645,13 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                    </button>`
                 : '';
 
-            // Lohnlauf-Sperre: Absenz liegt in einer in-Verarbeitung-Periode
-            // wenn DateFrom ODER DateTo vor dem firstAllowedDate liegt.
-            const firstAllowed = lockState && lockState.firstAllowedDate;
-            const isLocked     = firstAllowed && (a.dateFrom < firstAllowed || a.dateTo < firstAllowed);
+            // Soft-Lock (Walter Aug 2026): nur wenn Definitiv «abgeschlossen»
+            // (DTA) — Flag kommt vom Server (inLohnVerwendet).
+            const isLocked = !!a.inLohnVerwendet;
             // Walter-Vorgabe 09.06.2026 (final): nur ⋮-Menü, kein extra Stift —
             // Bearbeiten + Löschen leben im Menü.
             const actionsHtml  = isLocked
-                ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                ? `<span title="Diese Absenz liegt in einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                 : `<div class="dok-menu-wrap">
                        <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
                        <div class="dok-menu" id="absMenu-${a.id}">
