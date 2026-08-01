@@ -3764,6 +3764,9 @@ async function deleteQstEntry(entryId) {
         if (typeof selectEmployee === 'function') {
             await selectEmployee(selectedEmployeeId);
         }
+        if (typeof reloadLohnAfterQstChange === 'function') {
+            reloadLohnAfterQstChange(selectedEmployeeId);
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -5360,7 +5363,7 @@ async function saveEmpEdit() {
             renderEmployeeDetail(selectedEmployee);
 
             // Konfession geändert → QST Kirchensteuer wurde serverseitig
-            // nachgezogen (Walter 01.08.2026). Kurz zurückmelden.
+            // nachgezogen (Walter 01.08.2026). Kurz zurückmelden + Lohn neu laden.
             if (religionChanged) {
                 try {
                     const qr = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/current`, { headers: ah() });
@@ -5372,6 +5375,9 @@ async function saveEmpEdit() {
                         }
                     }
                 } catch { /* toast best-effort */ }
+                if (typeof reloadLohnAfterQstChange === 'function') {
+                    reloadLohnAfterQstChange(selectedEmployeeId);
+                }
             }
         }
     } catch {

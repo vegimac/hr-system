@@ -686,6 +686,10 @@ async function saveQstEntry() {
     // Tab im Hintergrund aktualisieren
     if (typeof loadQuellensteuerTab === 'function' && qstCurrentEmployeeId)
         loadQuellensteuerTab(qstCurrentEmployeeId);
+    // Offenen Lohnzettel neu rechnen (sonst QST-Änderung erst nach Seitenwechsel sichtbar)
+    if (typeof reloadLohnAfterQstChange === 'function' && qstCurrentEmployeeId) {
+        reloadLohnAfterQstChange(qstCurrentEmployeeId);
+    }
     // Modal nach kurzer Erfolgsmeldung automatisch schließen
     setTimeout(() => {
         if (typeof closeQstModal === 'function') closeQstModal();

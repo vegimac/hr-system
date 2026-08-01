@@ -1170,6 +1170,58 @@ function highlightLohnEmp(row) {
 // Antwort die neuere → Button-State zeigt den falschen MA.
 let _lohnSlipReqToken = 0;
 
+/**
+ * Nach QST-/Konfessions-Änderung den offenen Lohnzettel neu rechnen
+ * (Walter 01.08.2026) — sonst muss man aus Lohn raus und wieder rein.
+ * Best-effort: nur wenn derselbe MA gerade im Definitiv- oder Akonto-Slip steht.
+ */
+async function reloadLohnAfterQstChange(employeeId) {
+    if (employeeId == null) return;
+    const empId = Number(employeeId);
+    if (!empId) return;
+
+    try {
+        const fromLz = _lzCurrentEmpId != null && Number(_lzCurrentEmpId) === empId
+            && _lzCurrentCompId && _lzCurrentYear && _lzCurrentMonth;
+        const fromSlip = lohnCurrentSlip && Number(lohnCurrentSlip.employeeId) === empId
+            && lohnCurrentSlip.companyId && lohnCurrentSlip.year && lohnCurrentSlip.month;
+        if (fromLz) {
+            await loadLohnSlip(_lzCurrentEmpId, _lzCurrentCompId, _lzCurrentYear, _lzCurrentMonth);
+        } else if (fromSlip) {
+            await loadLohnSlip(
+                lohnCurrentSlip.employeeId,
+                lohnCurrentSlip.companyId,
+                lohnCurrentSlip.year,
+                lohnCurrentSlip.month
+            );
+        } else if (_lohnSelectedEmpId != null && Number(_lohnSelectedEmpId) === empId) {
+            const cidRaw = document.getElementById('lohnBranchSelect')?.value;
+            const cid = parseInt(cidRaw) || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+            const year = parseInt(document.getElementById('lohnYearSelect')?.value);
+            const month = parseInt(document.getElementById('lohnMonthSelect')?.value);
+            if (cid && year && month) {
+                await loadLohnSlip(empId, cid, year, month);
+            }
+        }
+    } catch (e) {
+        console.warn('Lohn-Reload Definitiv nach QST:', e);
+    }
+
+    try {
+        if (typeof akWfLoadDetail === 'function'
+            && typeof _akWfSelectedId !== 'undefined' && _akWfSelectedId
+            && typeof _akWfData !== 'undefined' && _akWfData
+            && Array.isArray(_akWfData.zahlungen)) {
+            const z = _akWfData.zahlungen.find(x => x.id === _akWfSelectedId);
+            if (z && Number(z.employeeId) === empId) {
+                await akWfLoadDetail(_akWfSelectedId);
+            }
+        }
+    } catch (e) {
+        console.warn('Lohn-Reload Akonto nach QST:', e);
+    }
+}
+
 async function loadLohnSlip(employeeId, companyId, year, month) {
     document.getElementById('lohnSlipCard').style.display  = 'none';
     document.getElementById('lohnSlipEmpty').style.display = 'flex';
