@@ -12846,7 +12846,7 @@ function _raTilesHtml() {
     // Reihenfolge Bewerbung zuerst (Walter 28.07.2026).
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${encodeURI(img)}?v=20260728e" alt="" loading="lazy">
+            <img src="img/${encodeURI(img)}?v=20260730g" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
@@ -12858,6 +12858,7 @@ function _raTilesHtml() {
         ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
+        ${tile('Aufforderung.png', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}

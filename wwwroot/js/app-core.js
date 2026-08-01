@@ -973,6 +973,7 @@ function showPage(name) {
     if (name === 'qst-anmeldung') qstaInit();
     if (name === 'lohnausweis') laInit();
     if (name === 'kuendigung') kuendigungInit();
+    if (name === 'aufforderung-arbeit') aufforderungArbeitInit();
     if (name === 'zwischenverdienst') zviInit();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();
@@ -1112,6 +1113,8 @@ function onBranchChange() {
     } else if (currentPageName === 'kuendigung') {
         // Kündigung-Page folgt dem globalen Filial-Selektor (MA-Liste neu filtern).
         kuRenderEmpList();
+    } else if (currentPageName === 'aufforderung-arbeit') {
+        if (typeof aaRenderEmpList === 'function') aaRenderEmpList();
     } else if (currentPageName === 'zeugnis-doc') {
         // Dokument-Seite (Zeugnisse/Verwarnung) folgt dem Filial-Selektor.
         if (typeof zdRenderEmpList === 'function') zdRenderEmpList();
