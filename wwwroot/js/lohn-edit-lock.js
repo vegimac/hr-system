@@ -7,6 +7,9 @@
 //   await lohnEditLock.loadState(branchId)
 //       → {firstAllowedDate, reason} oder {firstAllowedDate:null, reason:null}
 //
+//   await lohnEditLock.loadState(branchId, { mode: 'contracts' })
+//       → weiche Sperre (nur Definitiv abgeschlossen) — QST/Verträge/Familienzulagen
+//
 //   lohnEditLock.renderBanner(containerEl, state)
 //       → setzt einen gelben Banner in containerEl (oder versteckt ihn)
 //
@@ -16,39 +19,53 @@
 //   lohnEditLock.isLockedResponse(response)
 //       → erkennt 409 LOHN_EDIT_LOCKED, zeigt Toast, gibt true zurück
 //
-// Cache pro Branch (5 Sekunden) damit die GETs nicht jeden Klick auslösen.
+// Cache pro Branch+Mode (5 Sekunden) damit die GETs nicht jeden Klick auslösen.
 // ════════════════════════════════════════════════════════════════════
 (function () {
-    const _cache = new Map(); // branchId → {state, ts}
+    const _cache = new Map(); // cacheKey → {state, ts}
     const TTL_MS = 5000;
 
-    async function loadState(branchId) {
-        if (!branchId) return { firstAllowedDate: null, reason: null };
-        const hit = _cache.get(branchId);
+    function _cacheKey(branchId, mode) {
+        return String(branchId) + '|' + (mode || 'default');
+    }
+
+    async function loadState(branchId, opts) {
+        if (!branchId) return { firstAllowedDate: null, reason: null, mode: 'default' };
+        const mode = (opts && opts.mode) || 'default';
+        const key = _cacheKey(branchId, mode);
+        const hit = _cache.get(key);
         if (hit && (Date.now() - hit.ts) < TTL_MS) return hit.state;
 
         try {
-            const r = await fetch(`/api/lohn-edit-lock/first-allowed-date?branchId=${branchId}`, {
+            let url = `/api/lohn-edit-lock/first-allowed-date?branchId=${branchId}`;
+            if (mode && mode !== 'default') url += `&mode=${encodeURIComponent(mode)}`;
+            const r = await fetch(url, {
                 headers: { Authorization: 'Bearer ' + (localStorage.hrToken || '') },
                 cache: 'no-store'
             });
-            if (!r.ok) return { firstAllowedDate: null, reason: null };
+            if (!r.ok) return { firstAllowedDate: null, reason: null, mode };
             const data = await r.json();
             const state = {
                 firstAllowedDate: data.firstAllowedDate || null,
-                reason:           data.reason || null
+                reason:           data.reason || null,
+                mode:             data.mode || mode
             };
-            _cache.set(branchId, { state, ts: Date.now() });
+            _cache.set(key, { state, ts: Date.now() });
             return state;
         } catch (e) {
             console.warn('lohnEditLock.loadState failed:', e);
-            return { firstAllowedDate: null, reason: null };
+            return { firstAllowedDate: null, reason: null, mode };
         }
     }
 
     function invalidateCache(branchId) {
-        if (branchId) _cache.delete(branchId);
-        else _cache.clear();
+        if (branchId) {
+            for (const k of [..._cache.keys()]) {
+                if (k.startsWith(String(branchId) + '|')) _cache.delete(k);
+            }
+        } else {
+            _cache.clear();
+        }
     }
 
     function _fmtDate(iso) {

@@ -134,17 +134,18 @@ public class LohnEditLockService
     }
 
     /// <summary>
-    /// FirstAllowed für VERTRÄGE + QUELLENSTEUER / easy@work-Vertrags-Sync
-    /// (Walter-Vorgabe 01.08.2026, QST analog 01.08.2026).
+    /// FirstAllowed für VERTRÄGE + QUELLENSTEUER + FAMILIENZULAGEN /
+    /// easy@work-Vertrags-Sync (Walter-Vorgabe 01.08.2026).
     ///
     /// Sperre erst wenn der DEFINITIV-Lauf wirklich <c>abgeschlossen</c> ist
     /// (DTA erstellt, Lohn final). Während <c>provisorisch_abgeschlossen</c>
     /// (HR-Kontrolle) und im gesamten Akonto-Strang bleiben Änderungen möglich —
-    /// genau dafür ist die Kontrolle da (z.B. falschen QST-Ansatz korrigieren
-    /// oder befristet → unbefristet nachziehen, bevor der DTA rausgeht).
+    /// genau dafür ist die Kontrolle da (z.B. falschen QST-Ansatz korrigieren,
+    /// Kinderzulage für den offenen Definitiv-Monat nachtragen, oder befristet
+    /// → unbefristet nachziehen, bevor der DTA rausgeht).
     ///
-    /// Absenzen/Zulagen/Bank behalten die strengere <see cref="GetFirstAllowedDateAsync"/>-
-    /// Regel (inkl. provisorisch).
+    /// Absenzen / wiederkehrende Lohnzulagen / Bank behalten die strengere
+    /// <see cref="GetFirstAllowedDateAsync"/>-Regel (inkl. provisorisch + Akonto).
     /// </summary>
     public async Task<DateOnly?> GetFirstAllowedDateForContractsAsync(int companyProfileId)
     {

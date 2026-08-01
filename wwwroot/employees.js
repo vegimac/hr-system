@@ -5862,6 +5862,7 @@ async function openAllowanceModal(existing) {
         return;
     }
     const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    const isNew = !d.id;
     document.getElementById('alId').value            = d.id ?? '';
     document.getElementById('alValidFrom').value     = d.validFrom ?? '';
     document.getElementById('alValidTo').value       = d.validTo   ?? '';
@@ -5869,7 +5870,8 @@ async function openAllowanceModal(existing) {
     document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
     document.getElementById('alTarifSatzNr').value   = (d.tarifSatzNr ?? '').toString();
     document.getElementById('alNote').value          = d.note ?? '';
-    document.getElementById('alError').textContent   = '';
+    const errEl = document.getElementById('alError');
+    if (errEl) { errEl.textContent = ''; errEl.style.color = '#dc2626'; }
     document.getElementById('alTarifHint').textContent = '';
     const lblInfo = document.getElementById('alTarifInfoLbl');
     if (lblInfo) lblInfo.textContent = '';
@@ -5894,10 +5896,30 @@ async function openAllowanceModal(existing) {
         }
     }
     document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
+
+    // Lohnlauf-Sperre (weich, wie QST): Gültig-ab nicht in definitiv
+    // abgeschlossene Monate. FAK-Entscheid oft älter (z.B. 01.01.2025) —
+    // für den offenen Definitiv-Monat auf FirstAllowed hochsetzen.
+    const vfInp = document.getElementById('alValidFrom');
+    if (window.lohnEditLock && vfInp && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+        const state = await window.lohnEditLock.loadState(fixedCompanyProfileId, { mode: 'contracts' });
+        window.lohnEditLock.applyToDateInput(vfInp, state);
+        if (isNew && state.firstAllowedDate) {
+            const orig = vfInp.value;
+            if (!orig || orig < state.firstAllowedDate) {
+                vfInp.value = state.firstAllowedDate;
+                if (orig && orig < state.firstAllowedDate && errEl) {
+                    errEl.style.color = '#92400e';
+                    errEl.textContent =
+                        `Gültig ab ${window.lohnEditLock.fmtDate(orig)} liegt in einer abgeschlossenen Lohnperiode — auf ${window.lohnEditLock.fmtDate(state.firstAllowedDate)} gesetzt (frühester offener Definitiv-Monat). Der FAK-Entscheid kann älter sein; für den offenen Lohn reicht das.`;
+                }
+            }
+        }
+    }
+
     document.getElementById('allowanceModal').style.display = 'flex';
 
     // ValidFrom-Wechsel → Optionen neu laden (Tarif-Version könnte abweichen).
-    const vfInp = document.getElementById('alValidFrom');
     if (vfInp && !vfInp.dataset.alBound) {
         vfInp.addEventListener('change', () => alLoadTarifOptionsAndPreselect());
         vfInp.dataset.alBound = '1';
@@ -6177,10 +6199,29 @@ async function saveAllowance() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                if (window.lohnEditLock) await window.lohnEditLock.handleResponse(res);
+                err.style.color = '#dc2626';
+                err.textContent = body.message || 'Lohnlauf-Sperre — Datum liegt in einer abgeschlossenen Periode.';
+                if (body.firstAllowedDate) {
+                    const vf = document.getElementById('alValidFrom');
+                    if (vf) {
+                        vf.min = body.firstAllowedDate;
+                        if (!vf.value || vf.value < body.firstAllowedDate) {
+                            vf.value = body.firstAllowedDate;
+                            await alLoadTarifOptionsAndPreselect();
+                        }
+                    }
+                }
+                return;
+            }
+        }
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
-            err.textContent = e.error || 'Fehler beim Speichern.';
+            err.style.color = '#dc2626';
+            err.textContent = e.message || e.error || 'Fehler beim Speichern.';
             return;
         }
         closeAllowanceModal();
