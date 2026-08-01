@@ -56,6 +56,10 @@ Knopf **„⬇ CSV-Export"** lädt die aktuelle Filter-Auswahl als CSV herunter 
 
 Einträge älter als **6 Monate** werden automatisch gelöscht. Das Programm macht das jede Nacht selbst. Konfigurierbar in `appsettings.json` falls du länger aufbewahren willst.
 
+## Zusammenhang mit der Mirus-Änderungsmail
+
+Die morgendliche **[Mirus-Änderungsmail](#mirus-digest)** an die Sachbearbeiter liest genau dieses Aktivitäts-Log — gefiltert auf lohnkritische Entitäten (Stammdaten, Adresse, Vertrag, Bank, QST, Bewilligung, Familie …). Wenn etwas in der Mail fehlt, siehst du hier, ob die Änderung überhaupt protokolliert wurde.
+
 ## Wofür brauche ich das im Alltag?
 
 **Szenario 1: „Jemand hat einen Lohn geändert, aber wer?"**

@@ -43,6 +43,10 @@ Das 4-Augen-Prinzip: GF bereitet vor und gibt frei, HR bestätigt und sendet. Ad
 
 **employee** — sieht nichts vom Programm. Logt sich auf einer separaten Postfach-Seite ein und sieht nur seine eigenen Lohnzettel + Mitteilungen.
 
+## Mirus-Änderungsmail (Sachbearbeiter)
+
+In der Benutzerverwaltung kannst du pro User das Flag **«Mirus-Änderungsmail»** setzen. Diese Personen bekommen Mo–Fr 06:00 die lohnkritischen OneCrew-Änderungen per E-Mail (für die Nachpflege in Mirus). Details: [Mirus-Änderungsmail](#mirus-digest).
+
 ## Filial-Beschränkung
 
 Bei `user` und `buchhaltung` regelt die Tabelle **Benutzerverwaltung → User-Filialen-Zugang**, welche Filialen er sieht. Admin und Superuser sehen immer alle Filialen.
