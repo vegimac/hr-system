@@ -713,13 +713,16 @@ public class SaldoVortragImportController : ControllerBase
                 //   Stunden: enthält «(Abw.)» / «Komp.» und KEIN «Soll»
                 if (TryFindLabelCell(row, "Saldo", out int saldoCol))
                 {
+                    // Tage-Header: «Soll» / «Zus. Tage» (Sursee col 61, Oftringen col 54)
+                    // Stunden-Header: «(Abw.)» / «Komp.» ohne «Soll» (col 71 bzw. 63)
                     bool looksLikeDays = CellTextEquals(row, "Soll")
                                       || CellTextEquals(row, "Zus. Tage");
                     bool looksLikeHours = !looksLikeDays
                                       && (CellTextEquals(row, "(Abw.)")
                                           || CellTextEquals(row, "Komp.")
-                                          || CellTextEquals(row, "Komp"));
-                    if (looksLikeDays) hoursSaldoCol = saldoCol;
+                                          || CellTextEquals(row, "Komp")
+                                          || CellTextEquals(row, "Soll Netto"));
+                    if (looksLikeHours) hoursSaldoCol = saldoCol;
                     else if (looksLikeDays) daysSaldoCol = saldoCol;
                     else
                     {
@@ -735,13 +738,13 @@ public class SaldoVortragImportController : ControllerBase
                 if (string.IsNullOrEmpty(lab)) continue;
 
                 if (lab == "Überstunden")
-                    stunden = ReadSaldo(row, hoursSaldoCol ?? daysSaldoCol, preferredFallback: 71, altFallback: 63);
+                    stunden = ReadSaldo(row, hoursSaldoCol, preferredFallbacks: new[] { 71, 63, 54 });
                 else if (lab == "Zeitzuschlag")
-                    nacht = ReadSaldo(row, hoursSaldoCol ?? daysSaldoCol, preferredFallback: 71, altFallback: 63);
+                    nacht = ReadSaldo(row, hoursSaldoCol, preferredFallbacks: new[] { 71, 63, 54 });
                 else if (lab == "Ferien")
-                    ferien = ReadSaldo(row, daysSaldoCol, preferredFallback: 61, altFallback: 63);
+                    ferien = ReadSaldo(row, daysSaldoCol, preferredFallbacks: new[] { 61, 54, 63 });
                 else if (lab == "Feier" || lab.StartsWith("Feier", StringComparison.Ordinal))
-                    feier = ReadSaldo(row, daysSaldoCol, preferredFallback: 61, altFallback: 63);
+                    feier = ReadSaldo(row, daysSaldoCol, preferredFallbacks: new[] { 61, 54, 63 });
             }
 
             result.Add(new ParsedStundenRow(nr, name, stunden, nacht, ferien, feier));
@@ -840,16 +843,19 @@ public class SaldoVortragImportController : ControllerBase
         return "";
     }
 
-    private static decimal? ReadSaldo(IRow row, int? detectedCol, int preferredFallback, int altFallback)
+    private static decimal? ReadSaldo(IRow row, int? detectedCol, int[] preferredFallbacks)
     {
         if (detectedCol is int dc)
         {
             var v = ReadDecimalNullable(row.GetCell(dc));
             if (v is not null) return v;
         }
-        var a = ReadDecimalNullable(row.GetCell(preferredFallback));
-        if (a is not null) return a;
-        return ReadDecimalNullable(row.GetCell(altFallback));
+        foreach (var c in preferredFallbacks)
+        {
+            var v = ReadDecimalNullable(row.GetCell(c));
+            if (v is not null) return v;
+        }
+        return null;
     }
 
     private static decimal? ReadDecimalNullable(ICell? cell)
