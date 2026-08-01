@@ -53,8 +53,13 @@ public class PayrollCalculationEngine
         _qstCheck       = qstCheck;
     }
 
-    public async Task<IActionResult> CalculateAsync(int employeeId, int year, int month, int companyProfileId)
+    public async Task<IActionResult> CalculateAsync(
+        int employeeId, int year, int month, int companyProfileId,
+        bool isCorrection = false)
     {
+      if (isCorrection)
+          return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
+
       try {
         // ── Stammdaten laden ───────────────────────────────────────────────
         var employee = await _db.Employees
@@ -3007,6 +3012,254 @@ public class PayrollCalculationEngine
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
         };
+    }
+
+    /// <summary>
+    /// Korrektur-/Sonderlohn für ausgetretene MA (Walter Aug 2026).
+    /// Kein Stempel/Absenz/Saldo-Fortschreibung — nur manuelle LohnZulagen
+    /// der Periode + ggf. Uniformen-Depot-Refund. Letzter Vertrag der Filiale
+    /// dient nur als Kontext (Modell/Alter).
+    /// </summary>
+    private async Task<IActionResult> CalculateCorrectionAsync(
+        int employeeId, int year, int month, int companyProfileId)
+    {
+        try
+        {
+            var employee = await _db.Employees
+                .Include(e => e.Employments)
+                .FirstOrDefaultAsync(e => e.Id == employeeId);
+            if (employee is null) return new NotFoundObjectResult("Mitarbeiter nicht gefunden.");
+            if (employee.IsPayrollExcluded)
+                return new BadRequestObjectResult(new { message = "Dieser Mitarbeiter ist als «Kein Lohn» markiert." });
+
+            var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
+            if (company is null) return new NotFoundObjectResult("Filiale nicht gefunden.");
+
+            var (periodFrom, periodTo) = CalcPeriod(year, month);
+
+            // Letzter Vertrag dieser Filiale (auch abgelaufen) — Kontext für Modell/Alter.
+            var emp = employee.Employments
+                .Where(e => e.CompanyProfileId == companyProfileId)
+                .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefault();
+            if (emp is null)
+                return new NotFoundObjectResult(
+                    "Kein Vertrag in dieser Filiale gefunden — Korrekturlohn nicht möglich.");
+
+            // Kein LGAV / kein 1.-Lohn-Depot-Charge bei Korrektur (nur Refund möglich).
+            string periodeStr = $"{year:D4}-{month:D2}";
+            var zulagen = await _db.LohnZulagen
+                .Include(z => z.Lohnposition)
+                .Where(z => z.EmployeeId == employeeId && z.Periode == periodeStr)
+                .Where(z => z.Lohnposition != null && z.Lohnposition.Kategorie != "Saldo-Vortrag")
+                .OrderBy(z => z.Lohnposition!.SortOrder)
+                .ThenBy(z => z.CreatedAt)
+                .ToListAsync();
+
+            var zulagenSvLines = new List<object>();
+            decimal zulagenSvTotal = 0;
+            decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+            var zulagenExtraLines = new List<object>();
+            decimal zulagenExtraTotal = 0;
+            var lohnposAbzugLines = new List<object>();
+            decimal lohnposAbzugTotal = 0;
+
+            foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
+            {
+                decimal b = Math.Round(z.Betrag, 2);
+                var lp = z.Lohnposition!;
+                bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
+                            || lp.BvgPflichtig || lp.QstPflichtig;
+                string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
+                if (anyFlag)
+                {
+                    zulagenSvLines.Add(new {
+                        bezeichnung = bez,
+                        anzahl = (decimal?)null, prozent = (decimal?)null,
+                        basis = (decimal?)null, betrag = b
+                    });
+                    zulagenSvTotal += b;
+                    if (lp.AhvAlvPflichtig) deltaAhv  += b;
+                    if (lp.NbuvPflichtig)   deltaNbuv += b;
+                    if (lp.KtgPflichtig)    deltaKtg  += b;
+                    if (lp.BvgPflichtig)    deltaBvg  += b;
+                    if (lp.QstPflichtig)    deltaQst  += b;
+                }
+                else
+                {
+                    zulagenExtraLines.Add(new { bezeichnung = bez, betrag = b });
+                    zulagenExtraTotal += b;
+                }
+            }
+
+            foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ABZUG"))
+            {
+                decimal b = Math.Round(z.Betrag, 2);
+                var lp = z.Lohnposition!;
+                lohnposAbzugLines.Add(new {
+                    bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
+                    code = lp.Code,
+                    prozent = (decimal?)null,
+                    basis = (decimal?)null,
+                    betrag = -b
+                });
+                lohnposAbzugTotal += b;
+            }
+
+            // Uniformen-Depot-Refund (auch Monate nach Austritt)
+            var (depotRefund, depotAmt, depotLabel) =
+                await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+            if (depotRefund && depotAmt > 0)
+            {
+                lohnposAbzugLines.Add(new {
+                    bezeichnung = depotLabel ?? "Uniformen-Depot Rückerstattung",
+                    code = UniformDepotService.LohnpositionCode,
+                    prozent = (decimal?)null,
+                    basis = (decimal?)null,
+                    betrag = depotAmt
+                });
+                lohnposAbzugTotal -= depotAmt;
+            }
+
+            var lohnLines = new List<object>(zulagenSvLines);
+            decimal totalLohn = zulagenSvTotal;
+            var abzugLines = new List<object>();
+
+            // SV-Regeln (Alter), ohne QST-Auto — Korrekturen kommen manuell (565 etc.).
+            int? employeeAge = employee.DateOfBirth.HasValue
+                ? year - employee.DateOfBirth.Value.Year : null;
+            bool ueberRef = employee.DateOfBirth.HasValue
+                && PayrollCalculations.HatReferenzalterErreicht(
+                    employee.Gender, employee.DateOfBirth.Value, year, month);
+            int? effectiveAge = employeeAge;
+            if (ueberRef && (effectiveAge == null || effectiveAge < 65))
+                effectiveAge = 65;
+
+            var globalRates = await _db.SocialInsuranceRates
+                .Where(r => r.IsActive
+                         && r.ValidFrom <= periodTo
+                         && (r.ValidTo == null || r.ValidTo >= periodFrom)
+                         && !(r.Rate == 0 && r.RateEmployer != null))
+                .ToListAsync();
+            globalRates = globalRates
+                .GroupBy(r => new { r.Code, r.MinAge, r.MaxAge, r.EmploymentModelCode, r.OnlyQuellensteuer, r.BasisType })
+                .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
+                .OrderBy(r => r.SortOrder)
+                .ToList();
+
+            List<DeductionRule> allRules = globalRates.Any()
+                ? globalRates.Select(r => new DeductionRule
+                {
+                    Id = -r.Id, CompanyProfileId = companyProfileId,
+                    CategoryCode = r.Code, CategoryName = r.Name, Name = r.Name,
+                    Type = "percent", Rate = r.Rate, RateEmployer = r.RateEmployer,
+                    BasisType = r.BasisType, MinAge = r.MinAge, MaxAge = r.MaxAge,
+                    FreibetragMonthly = r.FreibetragMonthly,
+                    CoordinationDeduction = r.CoordinationDeduction,
+                    MaxBaseMonthly = r.MaxBaseMonthly,
+                    MaxBaseFlatMonthly = r.MaxBaseFlatMonthly,
+                    MinBaseMonthly = r.MinBaseMonthly,
+                    EntryThresholdYearly = r.EntryThresholdYearly,
+                    OnlyQuellensteuer = r.OnlyQuellensteuer,
+                    EmploymentModelCode = r.EmploymentModelCode,
+                    ValidFrom = r.ValidFrom, SortOrder = r.SortOrder, IsActive = true,
+                }).ToList()
+                : BuildSwissStandardDeductions(companyProfileId);
+
+            string? empModelCode = emp.EmploymentModel;
+            var deductions = allRules
+                .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
+                         && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
+                         && !r.OnlyQuellensteuer
+                         && (r.EmploymentModelCode == null
+                             || string.Equals(r.EmploymentModelCode, empModelCode, StringComparison.OrdinalIgnoreCase))
+                         && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)
+                         && !(ueberRef && (string.Equals(r.CategoryCode, "ALV", StringComparison.OrdinalIgnoreCase)
+                                        || string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase))))
+                .ToList();
+
+            var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
+
+            // Saldi unverändert durchreichen (kein Accrual bei Korrektur)
+            var (prevYear, prevMonth) = PrevPeriod(year, month);
+            var prevSaldo = await _db.PayrollSaldos
+                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
+                                       && s.PeriodYear == prevYear
+                                       && s.PeriodMonth == prevMonth
+                                       && s.CompanyProfileId == companyProfileId);
+            // Falls kein Vormonat: aktueller Saldo dieser Periode (falls schon vorhanden)
+            var curSaldo = await _db.PayrollSaldos
+                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
+                                       && s.PeriodYear == year
+                                       && s.PeriodMonth == month
+                                       && s.CompanyProfileId == companyProfileId);
+            decimal h  = curSaldo?.HourSaldo ?? prevSaldo?.HourSaldo ?? 0;
+            decimal n  = curSaldo?.NachtSaldo ?? prevSaldo?.NachtSaldo ?? 0;
+            decimal fg = curSaldo?.FerienGeldSaldo ?? prevSaldo?.FerienGeldSaldo ?? 0;
+            decimal ft = curSaldo?.FerienTageSaldo ?? prevSaldo?.FerienTageSaldo ?? 0;
+            decimal fe = curSaldo?.FeiertagTageSaldo ?? prevSaldo?.FeiertagTageSaldo ?? 0;
+            decimal t13 = curSaldo?.ThirteenthMonthAccumulated ?? prevSaldo?.ThirteenthMonthAccumulated ?? 0;
+
+            var bankAccounts = await _db.EmployeeBankAccounts
+                .Where(b => b.EmployeeId == employeeId
+                         && b.ValidFrom <= periodTo
+                         && (b.ValidTo == null || b.ValidTo >= periodFrom))
+                .OrderByDescending(b => b.IsHauptbank)
+                .ThenBy(b => b.ValidFrom)
+                .ToListAsync();
+            if (bankAccounts.Count == 0)
+            {
+                var heute = DateOnly.FromDateTime(DateTime.Today);
+                bankAccounts = await _db.EmployeeBankAccounts
+                    .Where(b => b.EmployeeId == employeeId
+                             && b.ValidFrom <= heute
+                             && (b.ValidTo == null || b.ValidTo >= heute))
+                    .OrderByDescending(b => b.IsHauptbank)
+                    .ToListAsync();
+            }
+
+            var existingPeriod = await _db.PayrollPerioden
+                .Where(p => p.CompanyProfileId == companyProfileId
+                         && p.Year == year && p.Month == month)
+                .FirstOrDefaultAsync();
+
+            var result = BuildResult(
+                employee, emp, company, year, month, periodFrom, periodTo,
+                lohnLines, abzugLines, deductions, totalLohn, svBases,
+                zulagenExtraLines, zulagenExtraTotal,
+                new List<object>(), 0m,
+                lohnposAbzugLines, lohnposAbzugTotal,
+                new SaldoBlock(
+                    VormonatHourSaldo: h, NeuerHourSaldo: h,
+                    WorkedHours: 0, SollStunden: 0, Mehrstunden: 0, AbsenzGutschrift: 0,
+                    NightHours: 0, NightBonus: 0, NachtKompStunden: 0,
+                    VormonatNachtSaldo: n, NeuerNachtSaldo: n,
+                    VacationWeeks: 5,
+                    VormonatFerienTage: ft, FerienTageAccrual: 0, FerienTageGenommen: 0, FerienTageSaldoNeu: ft,
+                    VormonatFerienGeld: fg, FerienGeldSaldoNeu: fg, FerienGeldAuszahlung: 0,
+                    VormonatFeiertagTage: fe, FeiertagTageAccrual: 0, FeiertagTageGenommen: 0, FeiertagTageSaldoNeu: fe,
+                    ThirteenthPct: 0, PrevThirteenth: t13, Basis13ml: 0
+                ),
+                new List<EmployeeLohnAssignment>(),
+                bankAccounts,
+                usingDefaultDeductions: !globalRates.Any(),
+                periodeFooterText: existingPeriod?.PdfFooterText,
+                akontoBereitsAusbezahlt: 0m,
+                akontoBereitsAusbezahltDatum: null,
+                ytdSvBasesDezember: null);
+
+            // isCorrection-Flag auf Result setzen (BuildResult ist anonym)
+            var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var node = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(result, opts))!;
+            node["isCorrection"] = true;
+            node["periodLabel"] = $"Korrektur {month:00}/{year}";
+            return new OkObjectResult(node);
+        }
+        catch (Exception ex)
+        {
+            return new ObjectResult(new { error = "CORRECTION_FAILED", message = ex.Message })
+                { StatusCode = 500 };
+        }
     }
 
     /// <summary>

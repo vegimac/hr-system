@@ -118,7 +118,10 @@ public record ConfirmPayrollDto(
     // Walter-Vorgabe 20.05.2026: einzige GF-Entscheidung, die der Server beim
     // autoritativen Nachrechnen nicht selbst ableiten kann — Ferien-Kürzung
     // (Art. 329b OR) anwenden ja/nein. Alle Geldbeträge rechnet der Server selbst.
-    bool ApplyFerienKuerzung = false);
+    bool ApplyFerienKuerzung = false,
+    // Walter Aug 2026: Korrektur-/Sonderlohn für ausgetretene MA — ohne
+    // Akonto-/Mindestlohn-/QST-Sperren, Engine-Modus isCorrection.
+    bool IsCorrection = false);
 
 public record LohnAbtretungConfirmDto(int AssignmentId, decimal Betrag);
 

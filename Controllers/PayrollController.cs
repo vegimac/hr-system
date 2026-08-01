@@ -254,16 +254,99 @@ public class PayrollController : HrControllerBase
     }
 
     // GET /api/payroll/calculate?employeeId=X&year=Y&month=M&companyProfileId=Z
+    // Optional: isCorrection=true → Korrektur-/Sonderlohn (ausgetretene MA).
     [HttpGet("calculate")]
     public async Task<IActionResult> Calculate(
         [FromQuery] int employeeId,
         [FromQuery] int year,
         [FromQuery] int month,
-        [FromQuery] int companyProfileId)
+        [FromQuery] int companyProfileId,
+        [FromQuery] bool isCorrection = false)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
-        return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+        return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId, isCorrection);
+    }
+
+    /// <summary>
+    /// Kandidaten für Korrekturlohn: MA mit Vertrag in der Filiale, die in
+    /// der Periode keinen laufenden Vertrag mehr haben (ausgetreten / inaktiv).
+    /// Flaggt zusätzlich offene Zulagen / Depot-Refund.
+    /// </summary>
+    [HttpGet("correction-candidates")]
+    public async Task<IActionResult> CorrectionCandidates(
+        [FromQuery] int companyProfileId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var (periodFrom, periodTo) = CalcPeriod(year, month);
+        var periodFromDt = periodFrom.ToDateTime(TimeOnly.MinValue);
+        var periodToDt   = periodTo.ToDateTime(TimeOnly.MinValue);
+        var periodeStr   = $"{year:D4}-{month:D2}";
+
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsPayrollExcluded)
+            .Where(e => e.Employments.Any(x => x.CompanyProfileId == companyProfileId))
+            .Select(e => new
+            {
+                e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.IsActive, e.ExitDate,
+                LastEmp = e.Employments
+                    .Where(x => x.CompanyProfileId == companyProfileId)
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .Select(x => new { x.EmploymentModel, x.ContractStartDate, x.ContractEndDate })
+                    .FirstOrDefault(),
+                HasOverlap = e.Employments.Any(x =>
+                    x.CompanyProfileId == companyProfileId
+                    && x.ContractStartDate <= periodToDt
+                    && (x.ContractEndDate == null || x.ContractEndDate >= periodFromDt)),
+            })
+            .ToListAsync();
+
+        // Nur MA ohne laufenden Vertrag in der Periode (= Kandidaten)
+        var candidates = emps
+            .Where(e => e.LastEmp != null && !e.HasOverlap)
+            .ToList();
+
+        var candIds = candidates.Select(c => c.Id).ToList();
+        var zulagenEmpIds = await _db.LohnZulagen.AsNoTracking()
+            .Where(z => candIds.Contains(z.EmployeeId) && z.Periode == periodeStr)
+            .Select(z => z.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        var zulagenSet = zulagenEmpIds.ToHashSet();
+
+        var depotEmpIds = await _db.EmployeeUniformDepots.AsNoTracking()
+            .Where(d => candIds.Contains(d.EmployeeId)
+                     && d.Status == "EINBEHALTEN"
+                     && d.Balance > 0
+                     && d.ReturnConfirmed == true)
+            .Select(d => d.EmployeeId)
+            .ToListAsync();
+        var depotSet = depotEmpIds.ToHashSet();
+
+        var result = candidates
+            .OrderBy(e => e.FirstName ?? "").ThenBy(e => e.LastName ?? "")
+            .Select(e => new
+            {
+                id = e.Id,
+                firstName = e.FirstName,
+                lastName = e.LastName,
+                employeeNumber = e.EmployeeNumber,
+                isActive = e.IsActive,
+                exitDate = e.ExitDate.HasValue
+                    ? DateOnly.FromDateTime(e.ExitDate.Value).ToString("yyyy-MM-dd")
+                    : null,
+                employmentModel = e.LastEmp!.EmploymentModel,
+                hasZulagen = zulagenSet.Contains(e.Id),
+                hasPendingDepotRefund = depotSet.Contains(e.Id)
+                    && e.ExitDate.HasValue
+                    && DateOnly.FromDateTime(e.ExitDate.Value) <= periodTo,
+            });
+
+        return Ok(result);
     }
 
     // GET /api/payroll/sollstunden-report?companyProfileId=X&year=Y&month=M
@@ -931,11 +1014,13 @@ public class PayrollController : HrControllerBase
         // OFFEN (= Akonto nie gestartet) bleibt erlaubt — Walter kann den
         // Akonto-Workflow bewusst überspringen und direkt definitiv abrechnen
         // (z.B. für Vor-Akonto-Perioden oder Filialen ohne Akonto-Termin).
+        // Korrekturlohn (IsCorrection) ist davon ausgenommen — kein Akonto-Bezug.
         var akontoPeriode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
                                    && p.Year  == dto.Year
                                    && p.Month == dto.Month);
-        if (akontoPeriode != null
+        if (!dto.IsCorrection
+            && akontoPeriode != null
             && akontoPeriode.AkontoStatus != "AUSBEZAHLT"
             && akontoPeriode.AkontoStatus != "OFFEN")
         {
@@ -963,7 +1048,8 @@ public class PayrollController : HrControllerBase
         // (Art. 329b OR) — kommt als Flag dto.ApplyFerienKuerzung und wird hier
         // mit dem server-berechneten Vorschlag reproduziert. Geldbeträge
         // (Brutto/Netto/SV/QST) sind von dieser Entscheidung NICHT betroffen.
-        var calcAction = await _calcEngine.CalculateAsync(dto.EmployeeId, dto.Year, dto.Month, dto.CompanyProfileId);
+        var calcAction = await _calcEngine.CalculateAsync(
+            dto.EmployeeId, dto.Year, dto.Month, dto.CompanyProfileId, dto.IsCorrection);
         if (calcAction is not OkObjectResult okCalc || okCalc.Value is null)
             return calcAction;   // Berechnungs-Fehler (NotFound/BadRequest) 1:1 durchreichen
 
@@ -979,12 +1065,13 @@ public class PayrollController : HrControllerBase
         // aus dem in der Periode gültigen Vertrag genommen (server-autoritativ,
         // nicht aus dem Request). Greift auch wenn ein NEUER Mindestlohn rückwirkend
         // ab einem Datum gilt, das in diese Periode fällt.
+        // Korrekturlohn: kein laufender Vertrag → Sperren überspringen.
         var (mwFrom, mwTo) = CalcPeriod(dto.Year, dto.Month);
         var mwFromDt = mwFrom.ToDateTime(TimeOnly.MinValue);
         var mwToDt   = mwTo.ToDateTime(TimeOnly.MinValue);
         // DateTime-Vergleich (NICHT DateOnly.FromDateTime — in EF/Npgsql nicht
         // SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
-        var mwEmp = await _db.Employments
+        var mwEmp = dto.IsCorrection ? null : await _db.Employments
             .Include(e => e.JobGroup)   // FK-Code für Mindestlohn-Lookup (Walter 26.05.2026)
             .Where(e => e.EmployeeId == dto.EmployeeId
                      && e.IsActive
@@ -1020,9 +1107,13 @@ public class PayrollController : HrControllerBase
         // Befreiung, kein CH/C-Ehepartner) UND es keine gültige QST-Erfassung
         // am Periodenende gibt → Lohnlauf blocken. Walter's Schweizer Praxis:
         // lieber höchsten Tarif erfassen als gar nichts.
-        var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
-        if (qstChk.IsPflichtOffen)
-            return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+        // Korrekturlohn: keine QST-Pflicht-Sperre (manuelle Positionen).
+        if (!dto.IsCorrection)
+        {
+            var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
+            if (qstChk.IsPflichtOffen)
+                return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+        }
 
         decimal SrvDec(string key)
         {

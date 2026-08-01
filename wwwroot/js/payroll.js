@@ -290,6 +290,24 @@ function lzReset() {
 // ausgewählten MA gescrollt (nicht umgeordnet).
 let _lohnSelectedEmpId = null;
 
+// Korrekturlohn für Ausgetretene (Walter Aug 2026): manuell hinzugefügte
+// MA-IDs pro Filiale+Periode (sessionStorage). Zusätzlich werden Kandidaten
+// mit offenen Zulagen / Depot-Refund automatisch eingeblendet.
+let _lohnCorrectionIds = new Set();
+function _lohnCorrKey(cid, y, m) { return `lohnCorr_${cid}_${y}_${m}`; }
+function _lohnCorrLoad(cid, y, m) {
+    try {
+        const raw = sessionStorage.getItem(_lohnCorrKey(cid, y, m));
+        _lohnCorrectionIds = new Set(raw ? JSON.parse(raw).map(Number) : []);
+    } catch { _lohnCorrectionIds = new Set(); }
+}
+function _lohnCorrSave(cid, y, m) {
+    sessionStorage.setItem(_lohnCorrKey(cid, y, m), JSON.stringify([..._lohnCorrectionIds]));
+}
+function _lohnIsCorrection(empId) {
+    return _lohnCorrectionIds.has(Number(empId));
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // Definitiv-Workflow Single-Source-of-Truth (Walter-Vorgabe 20.05.2026)
 // ══════════════════════════════════════════════════════════════════════
@@ -590,14 +608,47 @@ async function loadLohnList() {
                     })
                     .sort((a, b) => (b.contractStartDate || '') > (a.contractStartDate || '') ? 1 : -1)[0];
                 if (!emp) return null;
-                return { ...e, employmentModel: emp.employmentModel, empObj: emp };
+                return { ...e, employmentModel: emp.employmentModel, empObj: emp, isCorrection: false };
             })
             .filter(Boolean);
+
+        // Korrekturlohn: manuell hinzugefügte + Kandidaten mit Zulagen/Depot-Refund
+        _lohnCorrLoad(cid, y, m);
+        try {
+            const cRes = await fetch(
+                `/api/payroll/correction-candidates?companyProfileId=${cid}&year=${y}&month=${m}`,
+                { headers: ah() });
+            if (cRes.ok) {
+                const cands = await cRes.json();
+                const activeIds = new Set(active.map(a => a.id));
+                for (const c of cands) {
+                    const auto = c.hasZulagen || c.hasPendingDepotRefund;
+                    if (!_lohnCorrectionIds.has(c.id) && !auto) continue;
+                    if (activeIds.has(c.id)) continue;
+                    if (auto) _lohnCorrectionIds.add(c.id);
+                    active.push({
+                        id: c.id,
+                        firstName: c.firstName,
+                        lastName: c.lastName,
+                        employeeNumber: c.employeeNumber,
+                        isActive: c.isActive,
+                        exitDate: c.exitDate,
+                        employmentModel: c.employmentModel,
+                        empObj: null,
+                        isCorrection: true,
+                        isPayrollExcluded: false,
+                        employments: [],
+                    });
+                    activeIds.add(c.id);
+                }
+                _lohnCorrSave(cid, y, m);
+            }
+        } catch { /* best-effort */ }
 
         // ── _lohnWfData füllen: EINZIGE Quelle für die Statusbar ──────────────
         // Counts werden auf die aktiven MA dieser Filiale bezogen (Denominator
         // = activeTotal) — ein Snapshot eines inzwischen inaktiven MA bläht den
-        // Counter nicht auf.
+        // Counter nicht auf. Korrektur-MA zählen mit (sonst fehlt Confirm-Button).
         _lohnWfData = {
             status:      _pData?.status || 'offen',
             periode:     _pData,
@@ -712,18 +763,21 @@ async function loadLohnList() {
                 ? `<button title="Quellensteuer bearbeiten" onclick="event.stopPropagation();openQstModal(${e.id},${JSON.stringify({firstName:e.firstName,lastName:e.lastName,zipCode:e.zipCode,city:e.city,nationalityCode:e.nationalityRef?.code??e.nationality,permitTypeName:e.permitType?.name,zivilstand:e.zivilstand})})"
                        style="background:none;border:1px solid #cbd5e1;border-radius:6px;padding:2px 7px;font-size:11px;cursor:pointer;color:#475569;flex-shrink:0">QST</button>`
                 : '';
+            const corrBadge = e.isCorrection
+                ? `<span title="Korrekturlohn (ausgetreten)" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:4px">Korr.</span>`
+                : '';
             row.innerHTML = `
                 <div style="width:34px;height:34px;border-radius:50%;background:${statusBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${statusFg};flex-shrink:0">
                     ${statusIcon}
                 </div>
                 <div style="flex:1;min-width:0">
                     <!-- Walter-Vorgabe 07.06.2026: Namen umbrechen statt mit „…" abkürzen. -->
-                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${e.firstName} ${e.lastName}${mwIcon}</div>
-                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor};word-break:break-word">${statusText}</div>
+                    <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${e.firstName} ${e.lastName}${corrBadge}${mwIcon}</div>
+                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor};word-break:break-word">${statusText}${e.isCorrection && e.exitDate ? ' · ausgetreten ' + (e.exitDate.slice(8,10)+'.'+e.exitDate.slice(5,7)+'.'+e.exitDate.slice(0,4)) : ''}</div>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
                     <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center">${modelDisplay(e.employmentModel)}</span>
-                    <span style="width:38px;display:flex;justify-content:flex-end">${qstBtnHtml}</span>
+                    <span style="width:38px;display:flex;justify-content:flex-end">${e.isCorrection ? '' : qstBtnHtml}</span>
                 </div>`;
             listEl.appendChild(row);
         });
@@ -796,6 +850,41 @@ function showLohnVertragInfo(emp) {
     ].filter(t => t.panel);
     const perPanel = document.getElementById('lohnPeriodToolbar');
     if (targets.length === 0) return;
+
+    if (!emp) {
+        targets.forEach(t => {
+            if (t.empty) t.empty.style.display = 'block';
+            t.panel.style.display = 'none';
+        });
+        return;
+    }
+
+    // Korrekturlohn: kein laufender Vertrag — kompakte Info statt leerem Panel
+    if (emp.isCorrection) {
+        const exit = emp.exitDate
+            ? emp.exitDate.slice(8,10)+'.'+emp.exitDate.slice(5,7)+'.'+emp.exitDate.slice(0,4)
+            : '–';
+        const modelLabel = { FLEX:'Stundenlohn (FLEX)', MTP:'Mindestpensum (MTP)', FIX:'Festlohn (FIX)', 'FIX-M':'Management (FIX-M)' };
+        targets.forEach(t => {
+            if (t.nameEl) t.nameEl.innerHTML = `${escHtml(emp.firstName||'')} ${escHtml(emp.lastName||'')}
+                <span style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px;background:#fef3c7;color:#92400e">Korrekturlohn</span>`;
+            if (t.infoEl) t.infoEl.innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px">
+                    <div>Personal-Nr.: <b style="color:#374151">${escHtml(emp.employeeNumber||'–')}</b></div>
+                    <div>Modell: <b style="color:#374151">${escHtml(modelLabel[emp.employmentModel]||emp.employmentModel||'–')}</b></div>
+                    <div>Austritt: <b style="color:#374151">${exit}</b></div>
+                    <div style="grid-column:1/-1;color:#92400e;font-size:12px">Nur manuelle Zulagen/Abzüge (+ Depot-Refund)</div>
+                </div>`;
+            if (t.empty) t.empty.style.display = 'none';
+            t.panel.style.display = 'block';
+        });
+        ['lohnStundenCard', 'akWfStundenCard'].forEach(id => {
+            const c = document.getElementById(id);
+            if (c) c.style.display = 'none';
+        });
+        if (perPanel) perPanel.style.display = 'block';
+        return;
+    }
 
     const contract = (emp.employments || [])
         .filter(c => c.isActive)
@@ -934,7 +1023,9 @@ async function loadLohnSlip(employeeId, companyId, year, month) {
         // Cache-Buster + cache:no-store damit Browser nach Absenz-/Stempelzeit-
         // Änderungen NICHT den alten gecachten Lohnzettel zurückgibt.
         const ts = Date.now();
-        const res  = await fetch(`/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${companyId}&_=${ts}`,
+        const isCorr = _lohnIsCorrection(employeeId);
+        const corrQ = isCorr ? '&isCorrection=true' : '';
+        const res  = await fetch(`/api/payroll/calculate?employeeId=${employeeId}&year=${year}&month=${month}&companyProfileId=${companyId}${corrQ}&_=${ts}`,
                                   { headers: ah(), cache: 'no-store' });
         if (!res.ok) {
             const text = await res.text();
@@ -965,10 +1056,10 @@ async function loadLohnSlip(employeeId, companyId, year, month) {
             // lohnCurrentSlip==null sauber ab; die Statusbar bleibt sichtbar.
             return;
         }
-        lohnCurrentSlip = { ...slip, employeeId, companyId, year, month };
+        lohnCurrentSlip = { ...slip, employeeId, companyId, year, month, isCorrection: !!(slip.isCorrection || isCorr) };
         // Stale-Antwort verwerfen, falls inzwischen ein neuer Aufruf läuft.
         if (myToken !== _lohnSlipReqToken) return;
-        renderLohnSlip(slip);
+        renderLohnSlip(lohnCurrentSlip);
         // Button-Sichtbarkeit kommt AUSSCHLIESSLICH aus _lohnWfRenderStatusBar
         // (gespeist aus _lohnWfData). loadLohnSlip toggelt keine Buttons mehr —
         // das war die Quelle der wiederkehrenden „Button fehlt / verdeckt"-Bugs
@@ -1168,8 +1259,11 @@ function renderLohnSlip(s, targetEl) {
     const _qstSprung = _mwWarn && _mwWarn.problem === 'QST_OFFEN'
         ? `<div style="margin-top:6px"><button onclick="window.activeEmpId=${_lohnSelectedEmpId};showPage('mitarbeiter');setTimeout(()=>switchEmpTab('quellensteuer'),250)" style="background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">→ QST im MA-Tab erfassen</button></div>`
         : '';
-    const _mwBanner = _mwWarn
+    const _mwBanner = (_mwWarn && !s.isCorrection)
         ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div>${_qstSprung}</div>`
+        : '';
+    const _corrBanner = s.isCorrection
+        ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">Korrekturlohn / Sonderlohn<span style="font-weight:400;display:block;margin-top:2px">Nur manuelle Zulagen/Abzüge (+ Depot-Refund). Keine Stempelzeiten, Absenzen oder Saldo-Fortschreibung.</span></div>`
         : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
@@ -1203,6 +1297,7 @@ function renderLohnSlip(s, targetEl) {
 
     mount.innerHTML = `
     <div class="ls-wrap" style="padding-top:2px;padding-bottom:3px">
+        ${_corrBanner}
         ${_mwBanner}
         <!-- Header-Div und Sektion-Titel (Lohn, Abzüge) weggelassen
              (Walter-Vorgabe 01.06.2026): Periode/Filiale stehen bereits
@@ -1621,11 +1716,13 @@ async function saveLohnSaldo() {
 async function confirmLohn() {
     if (!lohnCurrentSlip) return;
     const s = lohnCurrentSlip;
+    const isCorr = !!(s.isCorrection || _lohnIsCorrection(s.employeeId));
 
     // Lohnproblem-Sperre (Walter 20./21./26.05.2026): unter L-GAV ODER ohne
     // Lohnsumme ODER QST-Pflicht offen → Bestätigen blockiert. Server blockt
     // zusätzlich mit 409; dies ist nur die freundliche UX davor.
-    const _lohnProb = _lohnMwUnderpaid[s.employeeId];
+    // Korrekturlohn: keine Mindestlohn-/QST-Sperre.
+    const _lohnProb = !isCorr ? _lohnMwUnderpaid[s.employeeId] : null;
     if (_lohnProb) {
         let head = 'Bestätigen gesperrt — Mindestlohn unterschritten.';
         let hint = 'Bitte zuerst den Lohn im Vertrag erfassen/korrigieren.';
@@ -1680,12 +1777,13 @@ async function confirmLohn() {
                 // oben dienen nur noch als Referenz. Die EINZIGE Entscheidung,
                 // die der Server braucht: ob die Ferien-Kürzung angewendet wurde.
                 applyFerienKuerzung:         !!s.ferienKuerzungAngewendet,
+                isCorrection:                isCorr,
                 lohnAbtretungen:             (s.lohnAbtretungen ?? []).map(l => ({ assignmentId: l.assignmentId, betrag: l.betrag }))
             })
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error(err.message || 'Fehler beim Bestätigen');
+            throw new Error(err.message || err.error || 'Fehler beim Bestätigen');
         }
         const result = await res.json();
         // Walter-Vorgabe 20.05.2026: flüssig wie Akonto — KEIN voller
@@ -1694,7 +1792,7 @@ async function confirmLohn() {
         // Banner-Counter aktualisieren, dann zum nächsten MA springen.
         // Single-Refresh (analog Akonto): _lohnWfData + Liste + Statusbar neu.
         await lohnWfRefresh();
-        showToast('Lohn bestätigt ✓', 'success');
+        showToast(isCorr ? 'Korrekturlohn bestätigt ✓' : 'Lohn bestätigt ✓', 'success');
         // Zum nächsten unbestätigten MA springen. Wenn keiner mehr offen ist,
         // bleibt der aktuelle MA selektiert — die Statusbar zeigt jetzt „↶ Wieder
         // eröffnen" (alles aus _lohnWfData, kein stale Button mehr möglich).
@@ -2732,6 +2830,120 @@ async function lohnPdfSaveToDocsSubmit() {
         status.textContent = 'Netzwerkfehler: ' + (e?.message || e); status.style.color = '#b91c1c';
     } finally {
         submit.disabled = false;
+    }
+}
+
+// ═══ Korrekturlohn-Picker (Walter Aug 2026) ═══════════════════════════════
+async function openLohnCorrectionPicker() {
+    const cid = parseInt(document.getElementById('lohnBranchSelect')?.value || fixedCompanyProfileId || 0);
+    const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
+    if (!cid) { alert('Bitte zuerst eine Filiale wählen.'); return; }
+
+    let modal = document.getElementById('lohnCorrectionModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'lohnCorrectionModal';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:32px 16px';
+        modal.innerHTML = `
+        <div class="ma-modal-box narrow" style="margin:auto;max-width:480px">
+            <div class="ma-modal-head">
+                <div>
+                    <div class="ma-modal-title">Korrekturlohn hinzufügen</div>
+                    <div class="ma-modal-sub">Ausgetretene MA dieser Filiale — Sonder-/Nachzahlung</div>
+                </div>
+                <button class="ma-modal-close" onclick="closeLohnCorrectionPicker()">✕</button>
+            </div>
+            <div class="ma-modal-body">
+                <input type="text" id="lohnCorrSearch" class="ma-input" placeholder="Suchen…" oninput="filterLohnCorrList()" style="margin-bottom:10px">
+                <div id="lohnCorrList" style="max-height:360px;overflow-y:auto"></div>
+            </div>
+            <div class="ma-modal-foot">
+                <button class="btn btn-outline" onclick="closeLohnCorrectionPicker()">Schliessen</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeLohnCorrectionPicker(); });
+    }
+
+    const listEl = document.getElementById('lohnCorrList');
+    listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Lade…</div>';
+    modal.style.display = 'flex';
+    document.getElementById('lohnCorrSearch').value = '';
+
+    try {
+        const res = await fetch(
+            `/api/payroll/correction-candidates?companyProfileId=${cid}&year=${y}&month=${m}`,
+            { headers: ah() });
+        if (!res.ok) throw new Error(await res.text());
+        const cands = await res.json();
+        window._lohnCorrCandidates = cands;
+        renderLohnCorrList(cands);
+    } catch (e) {
+        listEl.innerHTML = `<div style="padding:16px;color:#dc2626;font-size:13px">Fehler: ${e.message || e}</div>`;
+    }
+}
+
+function closeLohnCorrectionPicker() {
+    const modal = document.getElementById('lohnCorrectionModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function filterLohnCorrList() {
+    const q = (document.getElementById('lohnCorrSearch')?.value || '').trim().toLowerCase();
+    const all = window._lohnCorrCandidates || [];
+    const filtered = !q ? all : all.filter(c =>
+        `${c.firstName||''} ${c.lastName||''} ${c.employeeNumber||''}`.toLowerCase().includes(q));
+    renderLohnCorrList(filtered);
+}
+
+function renderLohnCorrList(list) {
+    const el = document.getElementById('lohnCorrList');
+    if (!el) return;
+    if (!list.length) {
+        el.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;font-size:13px">Keine ausgetretenen MA gefunden</div>';
+        return;
+    }
+    el.innerHTML = list.map(c => {
+        const exit = c.exitDate
+            ? c.exitDate.slice(8,10)+'.'+c.exitDate.slice(5,7)+'.'+c.exitDate.slice(0,4)
+            : '–';
+        const flags = [
+            c.hasPendingDepotRefund ? '<span style="font-size:10px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:8px">Depot-Refund</span>' : '',
+            c.hasZulagen ? '<span style="font-size:10px;background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:8px">Zulagen</span>' : '',
+            _lohnIsCorrection(c.id) ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:8px">bereits in Liste</span>' : '',
+        ].filter(Boolean).join(' ');
+        return `<button type="button" onclick="addLohnCorrectionMa(${c.id})"
+            style="display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:10px 12px;border:none;border-bottom:1px solid #f1f5f9;background:transparent;cursor:pointer">
+            <div>
+                <div style="font-weight:600;font-size:13px;color:#1a1a1a">${escHtml(c.firstName||'')} ${escHtml(c.lastName||'')}</div>
+                <div style="font-size:11px;color:#94a3b8">${escHtml(c.employeeNumber||'')} · ausgetreten ${exit} · ${escHtml(c.employmentModel||'')}</div>
+            </div>
+            <div style="display:flex;gap:4px;flex-shrink:0">${flags}</div>
+        </button>`;
+    }).join('');
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function addLohnCorrectionMa(empId) {
+    const cid = parseInt(document.getElementById('lohnBranchSelect')?.value || fixedCompanyProfileId || 0);
+    const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
+    _lohnCorrectionIds.add(Number(empId));
+    _lohnCorrSave(cid, y, m);
+    closeLohnCorrectionPicker();
+    _lohnSelectedEmpId = Number(empId);
+    window.activeEmpId = Number(empId);
+    await loadLohnList();
+    // Nach Rebuild auswählen + Slip laden
+    const row = document.querySelector(`#lohnEmpList .lohn-emp-row[data-emp-id="${empId}"]`);
+    if (row) row.click();
+    else {
+        lzInit(empId, cid, y, m);
+        loadLohnSlip(empId, cid, y, m);
     }
 }
 
