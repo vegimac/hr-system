@@ -5194,7 +5194,7 @@
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Stunden-Saldi Import (Mirus Monatsblatt)</h1>
-                        <p class="page-sub">Mirus «Monatsblatt» (XLS) — pro MA Zeitsaldo («Überstunden»), Nacht («Zeitzuschlag»), Ferien-Tage und Feiertag-Tage als Vortrag-Eröffnung für den ersten Lohnlauf.</p>
+                        <p class="page-sub">Schlussaldo Vormonat (Mirus-Monatsblatt) → Startsaldo Folgemonat (erster Lohnlauf). Pro MA: Zeitsaldo, Nacht, Ferien-Tage, Feiertag-Tage.</p>
                     </div>
                 </div>
                 <div id="svhImpAlert" style="margin-bottom:12px"></div>
@@ -5206,7 +5206,7 @@
                         <ol style="margin:0;padding-left:20px">
                             <li>Gehe in <b>Mirus → Auswertungen</b>.</li>
                             <li>Wähle die Auswertung <b>Arbeitszeit</b>.</li>
-                            <li>Wähle <b>Monatsblatt</b> und den gewünschten <b>Monat</b> (z.B. Juni als Vormonat für den ersten Juli-Lohn).</li>
+                            <li>Wähle <b>Monatsblatt</b> und den <b>Vormonat</b> (dessen Schlussaldo du brauchst — z.B. Juni).</li>
                             <li>Kreuze an: <b>Stundenkontrolle</b>, <b>Freitage</b>, <b>Ferientage</b>, <b>Feiertage</b>.</li>
                             <li>Klicke auf <b>Drucken</b>.</li>
                             <li>Wähle <b>Vorschau</b>.</li>
@@ -5220,17 +5220,18 @@
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
                         <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode</label>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Startsaldo-Periode (Folgemonat)</label>
                             <input type="month" id="svhImpPeriode" value="2026-07"
-                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white"
+                                   title="Folgemonat = erster Lohnlauf. Schlussaldo aus dem Mirus-Vormonat wird hier als Startsaldo gespeichert.">
                         </div>
                         <button class="btn btn-primary" onclick="svhImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svhImpCommitBtn" onclick="svhImpCommit()" disabled>Import bestätigen</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
+                        <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Monatsblatt Juni hochladen, Periode <b>Juli</b> wählen.<br>
                         <b>Importiert:</b> «Überstunden» → Zeitsaldo (901) · «Zeitzuschlag» → Nacht (904) · «Ferien» → Ferien-Tage (903) · «Feier» → Feiertag-Tage (902).<br>
                         <b>Match:</b> per <b>Personalnummer</b>. Filiale aus dem Hauptmenü.<br>
-                        <b>Migrations-Periode:</b> erster Monat im neuen System (z.B. Juli 2026, wenn das Monatsblatt Juni-Endsaldo ist).<br>
                         <b>Wirkung:</b> Idempotent — Vortrag 901/902/903/904 werden überschrieben. CHF-Codes 905/906 bleiben unangetastet (separater Import «CHF-Saldi»).
                     </div>
                 </div>
@@ -5499,7 +5500,7 @@
                             </div>
                         </div>
                         <div class="admin-card-title">Stunden-Saldi (Mirus Monatsblatt)</div>
-                        <div class="admin-card-desc">Mirus: Auswertungen → Arbeitszeit → Monatsblatt (Monat wählen) → Stundenkontrolle / Freitage / Ferientage / Feiertage ankreuzen → Drucken → Vorschau → Excel speichern. Import: Zeitsaldo, Nacht, Ferien-Tage, Feiertag-Tage.</div>
+                        <div class="admin-card-desc">Schlussaldo Vormonat (Mirus-Monatsblatt) als Startsaldo Folgemonat. Mirus: Auswertungen → Arbeitszeit → Monatsblatt → Stundenkontrolle / Freitage / Ferientage / Feiertage → Drucken → Vorschau → Excel. Import: Zeitsaldo, Nacht, Ferien-/Feiertag-Tage.</div>
                     </div>
 
                     <div class="admin-card" onclick="showPage('mirus-address-compare')">
