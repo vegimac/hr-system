@@ -471,13 +471,16 @@ public class PayrollCalculationEngine
         decimal thirteenthPct = company.DefaultThirteenthSalaryPercent  ?? 0;
 
         // ── Probezeit-Sperre für 13. ML (L-GAV Art. 12 Ziffer 2) ───────────
-        // Während der Probezeit besteht kein Anspruch auf 13. ML (entfällt
-        // bei Auflösung in Probezeit). Daher in keiner Vertragsart auszahlen,
-        // auch nicht in MTP/FIX-Auszahlungsmonaten. Stattdessen akkumulieren —
-        // und beim ersten Lohn nach Probezeit-Ende nachzahlen (UTP)
-        // bzw. beim nächsten Auszahlungsmonat (MTP/FIX/FIX-M).
-        bool isInProbation = emp.ProbationEndDate.HasValue
-                          && DateOnly.FromDateTime(emp.ProbationEndDate.Value) >= periodTo;
+        // Während der Probezeit: akkumulieren, nicht auszahlen.
+        // Am Periodenende bestanden (ProbezeitEnde == Periodenende) → für
+        // diesen Lohn freigeben / nachzahlen. Verfall NUR wenn Austritt in
+        // dieser Periode und Austritt ≤ ProbezeitEnde — befristetes Ende
+        // NACH der Probezeit lässt den Saldo stehen (Walter 01.08.2026).
+        DateOnly? probationEnd13 = emp.ProbationEndDate.HasValue
+            ? DateOnly.FromDateTime(emp.ProbationEndDate.Value) : null;
+        DateOnly? austritt13 = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
+        var (isInProbation, thirteenthForfeited) = ResolveThirteenthProbationStatus(
+            probationEnd13, austritt13, periodFrom, periodToFull);
 
         // ── Ferien-% Auto-Upgrade ab definierter Alters-Schwelle (CH-GAV-Standard 50) ──
         // Mitarbeiter ab vollendetem Lebensjahr X (Walter-Vorgabe 06.06.2026:
@@ -1844,7 +1847,8 @@ public class PayrollCalculationEngine
             // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
             // pro Lohnposition in der Admin-UI ob sie zählt.
             // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
-            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company, month) && !isInProbation;
+            // Verfall (Austritt ≤ Probezeit) sticht Auszahlungsmonat.
+            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company, month) && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterMtp = 0;
             decimal thirteenthPctForSaldo  = thirteenthPct;   // Wird akkumuliert …
             decimal prevThirteenthForSaldo = prevThirteenth;
@@ -1856,7 +1860,25 @@ public class PayrollCalculationEngine
             decimal? thirteenthPrevForDisplay     = null;
             decimal? thirteenthAccrualForDisplay  = null;
             decimal? thirteenthPayoutForDisplay   = null;
-            if (thirteenthPct > 0 && isPayoutMonthMtp)
+            if (thirteenthForfeited && thirteenthPct > 0)
+            {
+                decimal currentAccrual = Math.Round(mtp13BasisExact * thirteenthPct / 100m, 2);
+                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                if (forfeitedAmt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)thirteenthPct,
+                        basis       = (decimal?)mtp13Basis,
+                        betrag      = 0m,
+                        accrued     = (decimal?)forfeitedAmt
+                    });
+                }
+                thirteenthPctForSaldo  = 0;
+                prevThirteenthForSaldo = 0;
+            }
+            else if (thirteenthPct > 0 && isPayoutMonthMtp)
             {
                 // MTP-Auszahlung: prevThirteenth (aufgelaufener Saldo bis
                 // Vormonat) + currentAccrual (aktueller Monat). Saldo wird
@@ -2168,14 +2190,8 @@ public class PayrollCalculationEngine
             totalLohn += zulagenSvTotal;
 
             // ── 13. Monatslohn (FLEX) ───────────────────────────────────────
-            // Standard: monatlich auszahlen. Basis = Summe aller Lohnpositionen
-            // mit Flag «Basis für 13. Monatslohn» (ZaehltAlsBasis13ml = true).
-            //
-            // Probezeit-Regel (L-GAV Art. 12 Ziffer 2, Walter 01.08.2026):
-            // während Probezeit KEIN Auszahlungsanspruch → in 13.-Saldo
-            // akkumulieren (mitführen). Erster Lohn NACH Probezeit-Ende:
-            // aufgelaufenen Saldo sofort nachzahlen + aktuellen Monat wieder
-            // monatlich auszahlen. Danach kein stehender 13.-Saldo mehr.
+            // Standard: monatlich. Probezeit → Saldo. Am Periodenende bestanden
+            // → nachzahlen + monatlich. Austritt ≤ ProbezeitEnde → Verfall.
             decimal dreizehnterUtp = 0;
             decimal prevThirteenthForSaldoUtp = 0;
             decimal basis13ForSaldoUtp = 0;
@@ -2190,11 +2206,25 @@ public class PayrollCalculationEngine
                 decimal currentAccrualExact = basis13Exact * thirteenthPct / 100m;
                 decimal currentAccrual = Math.Round(currentAccrualExact, 2);
 
-                if (isInProbation)
+                if (thirteenthForfeited)
                 {
-                    // Akkumulieren, nicht auszahlen. Saldo-Math wie MTP:
-                    // PrevThirteenth = Vormonat, Basis13ml × pct = Monatszuwachs
-                    // → BuildResult: accumulated = prev + monthly.
+                    // Verfall: Pott + Monatszuwachs entfallen (kein SV, Saldo 0).
+                    decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrualExact, 2);
+                    if (forfeitedAmt > 0)
+                    {
+                        lohnLines.Add(new {
+                            bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                            anzahl      = (decimal?)null,
+                            prozent     = (decimal?)thirteenthPct,
+                            basis       = (decimal?)basis13,
+                            betrag      = 0m,
+                            accrued     = (decimal?)forfeitedAmt
+                        });
+                    }
+                }
+                else if (isInProbation)
+                {
+                    // Akkumulieren, nicht auszahlen.
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
@@ -2212,7 +2242,7 @@ public class PayrollCalculationEngine
                 }
                 else
                 {
-                    // Aktueller Monat: regulär monatlich.
+                    // Bestanden (auch am Periodenende) → monatlich + Nachzahlung.
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
@@ -2225,7 +2255,6 @@ public class PayrollCalculationEngine
                         });
                         totalLohn += currentAccrual;
                     }
-                    // Saldo aus vorheriger Probezeit jetzt nachzahlen.
                     if (prevThirteenth > 0)
                     {
                         lohnLines.Add(new {
@@ -2237,13 +2266,12 @@ public class PayrollCalculationEngine
                             accrued     = (decimal?)prevThirteenth
                         });
                         totalLohn += prevThirteenth;
-                        // Saldo-Zeile im Slip: Vormonat-Pott → bezogen → 0
                         thirteenthPrevForDisplayUtp = prevThirteenth;
                         thirteenthAccrualForDisplayUtp = 0m;
                         thirteenthPayoutForDisplayUtp = prevThirteenth;
                     }
                     dreizehnterUtp = Math.Round(currentAccrual + prevThirteenth, 2);
-                    prevThirteenthForSaldoUtp = 0;   // Saldo geleert
+                    prevThirteenthForSaldoUtp = 0;
                 }
             }
 
@@ -2726,7 +2754,8 @@ public class PayrollCalculationEngine
             // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
             // pro Lohnposition in der Admin-UI ob sie zählt.
             // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
-            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company, month) && !isInProbation;
+            // Verfall (Austritt ≤ Probezeit) sticht Auszahlungsmonat.
+            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company, month) && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterFix = 0;
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
@@ -2736,7 +2765,25 @@ public class PayrollCalculationEngine
             decimal? fix13PrevForDisplay    = null;
             decimal? fix13AccrualForDisplay = null;
             decimal? fix13PayoutForDisplay  = null;
-            if (thirteenthPct > 0 && isPayoutMonthFix)
+            if (thirteenthForfeited && thirteenthPct > 0)
+            {
+                decimal currentAccrual = Math.Round(fix13BasisExact * thirteenthPct / 100m, 2);
+                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                if (forfeitedAmt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)thirteenthPct,
+                        basis       = (decimal?)fix13Basis,
+                        betrag      = 0m,
+                        accrued     = (decimal?)forfeitedAmt
+                    });
+                }
+                thirteenthPctForSaldoFix  = 0;
+                prevThirteenthForSaldoFix = 0;
+            }
+            else if (thirteenthPct > 0 && isPayoutMonthFix)
             {
                 // FIX/FIX-M-Auszahlung: identisches Splitting wie MTP. Aktueller
                 // Monatsanteil und Saldo-Auszahlung als getrennte Lohnposition-

@@ -640,6 +640,49 @@ public static class PayrollCalculations
     }
 
     /// <summary>
+    /// L-GAV Art. 12 Ziff. 2 / Walter 01.08.2026 — Probezeit vs. 13. ML:
+    /// <list type="bullet">
+    /// <item><b>InProbation</b>: ProbezeitEnde &gt; Periodenende (Kalendermonat).
+    /// Am Periodenende bestanden → für diesen Lohn NICHT mehr in Probezeit
+    /// (Saldo auszahlen / monatlich freigeben).</item>
+    /// <item><b>Forfeited</b>: Austritt liegt in dieser Periode UND
+    /// Austritt ≤ ProbezeitEnde → 13.-Saldo verfällt. Befristetes
+    /// Vertragsende NACH der Probezeit zählt nicht als Verfall.</item>
+    /// </list>
+    /// </summary>
+    public static (bool InProbation, bool Forfeited) ResolveThirteenthProbationStatus(
+        DateOnly? probationEnd,
+        DateOnly? austritt,
+        DateOnly periodFrom,
+        DateOnly periodToFull)
+    {
+        bool forfeited = probationEnd.HasValue
+                      && austritt.HasValue
+                      && austritt.Value <= probationEnd.Value
+                      && austritt.Value >= periodFrom
+                      && austritt.Value <= periodToFull;
+
+        bool inProbation = !forfeited
+                        && probationEnd.HasValue
+                        && probationEnd.Value > periodToFull;
+
+        return (inProbation, forfeited);
+    }
+
+    /// <summary>Frühestes Austrittsdatum aus MA.ExitDate / Vertrag.ContractEndDate.</summary>
+    public static DateOnly? ResolveAustrittDate(DateTime? employeeExitDate, DateTime? contractEndDate)
+    {
+        DateOnly? a = employeeExitDate.HasValue
+            ? DateOnly.FromDateTime(employeeExitDate.Value) : null;
+        if (contractEndDate.HasValue)
+        {
+            var ce = DateOnly.FromDateTime(contractEndDate.Value);
+            if (a == null || ce < a) a = ce;
+        }
+        return a;
+    }
+
+    /// <summary>
     /// Ermittelt den satzbestimmenden Bruttolohn für die Quellensteuer nach
     /// Schweizer ESTV-Wegleitung (Kreisschreiben 45):
     ///
