@@ -42,6 +42,7 @@ Geldbeträge schreibt nur `/api/payroll/confirm` (server-autoritativ via `Calcul
 
 ## 4–6. Stempel, Absenzen, Ferien-/Feiertag-Tage
 
+- **Stempel-Dauer sekundengenau:** `TotalHours = Round((TimeOut − TimeIn).TotalHours, 2)` inkl. Sekunden aus easy@work. Die UI zeigt nur **HH:mm** — deshalb kann «11:49–16:22» als **4.56** stehen, obwohl 4 h 33 min = 4.55 wären (z.B. Ende 16:22:36).
 - `nightBonus = nightHours × 0.10` (Zeit, kein CHF)
 - Absenz-Stunden: `Tage × weeklyH / divisor × %` (divisor 7 oder 5)
 - Ferien-Accrual: `(vacationWeeks × 7) / 12`

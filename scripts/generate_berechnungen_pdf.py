@@ -270,11 +270,25 @@ MTP Soll pro-rata:   guaranteedH / 7 × shortPeriodDays
     # ── 4 Stempel / Nacht ──────────────────────────────────────────────
     story.append(Paragraph("4. Stempelzeiten & Nacht", S["h1"]))
     story.append(hr())
+    story.append(Paragraph("4.1 Dauer pro Stempel (Sekunden-genau)", S["h2"]))
+    story.append(Paragraph(
+        "Die Anzeige zeigt nur <b>HH:mm</b> (Sekunden ausgeblendet). Gerechnet wird "
+        "mit der vollen Uhrzeit inkl. Sekunden aus easy@work — deshalb kann "
+        "«11:49–16:22» als 4.56 erscheinen, obwohl 4 h 33 min = 4.55 wären "
+        "(z.B. tatsächliches Ende 16:22:36 → 4.56 h).",
+        S["body"],
+    ))
     story.append(formula_box("""
-workedHours  = Σ timeEntries.TotalHours in Periode
-nightHours   = Schnitt Stempelintervall × Nachtfenster [nightStart, nightEnd)
-               (über Mitternacht = 2 Fenster; Round 2 Dezimalen)
-nightBonus   = nightHours × 0.10          ← Zeitzuschlag, kein CHF
+TotalHours   = Round( (TimeOut − TimeIn).TotalHours , 2 )
+               // inkl. Sekunden; Anzeige UI nur HH:mm (stempelFmtTime)
+DurationHours = Round( TotalHours − NightHours , 2 )
+workedHours   = Σ timeEntries.TotalHours in Periode
+""", S))
+    story.append(Paragraph("4.2 Nachtzuschlag (Zeit)", S["h2"]))
+    story.append(formula_box("""
+nightHours    = Schnitt Stempelintervall × Nachtfenster [nightStart, nightEnd)
+                (über Mitternacht = 2 Fenster; Round 2 Dezimalen)
+nightBonus    = nightHours × 0.10          ← Zeitzuschlag, kein CHF
 nachtSaldoNeu = vorMonatNacht + nightBonus − nachtKompStunden
 
 FLEX Nacht-Komp-Auszahlung (AbsenzTyp UtpAuszahlung):
@@ -282,7 +296,7 @@ FLEX Nacht-Komp-Auszahlung (AbsenzTyp UtpAuszahlung):
 """, S))
     story.append(Paragraph(
         "Stempelzeiten sind read-only (easy@work-API). Nacht-Saldo wird für alle Modelle "
-        "im Lohnzettel angezeigt.",
+        "im Lohnzettel angezeigt. Code: EasyAtWorkTimepunchSyncService.",
         S["body"],
     ))
 
@@ -676,6 +690,7 @@ Import Mirus-Monatsblatt: Codes 901 Zeitsaldo, 904 Nacht, 903 Ferien-Tage, 902 F
         "FLEX: Feiertag + 13. ML monatlich; Ferien nur als CHF-Saldo (Pott bei Bezug).",
         "MTP/FIX: 13. ML und Ferien-Geld erst bei Auszahlung SV-wirksam.",
         "Rundung: exakt rechnen → Round Zeile → Round05 nur Netto/Auszahlung.",
+        "Stempel-Total: Sekunden-genau aus TimeOut−TimeIn, Round 2 Dez.; UI zeigt nur HH:mm.",
         "Akonto ≠ Definitiv: MTP-Akonto auf Garantie; FIX grob, dann Slip-Sync.",
         "Stichtag für Compliance = älteste offene Periode, nie «heute».",
         "DTA: nie Beträge ≤ 0; leeres DTA wird abgelehnt.",
