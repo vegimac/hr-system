@@ -1694,34 +1694,20 @@ using (var scope = app.Services.CreateScope())
           ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, stat, sort_order)
          WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
 
+        -- Bestehende Zeilen: nur Name/Kategorie/Sortierung pflegen —
+        -- SV-/Basis-Flags bewusst NICHT überschreiben (Walter kann sie in der UI anpassen).
         UPDATE lohnposition AS lp
-           SET bezeichnung               = v.bezeichnung,
-               kategorie                 = v.kategorie,
-               typ                       = 'ZULAGE',
-               ahv_alv_pflichtig         = v.ahv,
-               nbuv_pflichtig            = v.nbuv,
-               ktg_pflichtig             = v.ktg,
-               bvg_pflichtig             = v.bvg,
-               qst_pflichtig             = v.qst,
-               lohnausweis_code          = v.la_code,
-               zaehlt_als_basis_feiertag = true,
-               zaehlt_als_basis_ferien   = false,
-               zaehlt_als_basis_13ml     = v.ml13,
-               bvg_auf_100_rechnen       = true,
-               zaehlt_fuer_tagessatz     = true,
-               nicht_im_vertrag_drucken  = true,
-               sort_order                = v.sort_order,
-               is_active                 = true
+           SET bezeichnung = v.bezeichnung,
+               kategorie   = v.kategorie,
+               typ         = 'ZULAGE',
+               sort_order  = v.sort_order,
+               is_active   = true
           FROM (VALUES
-            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall',
-             true,  true,  true,  true, true,  'I', true,  651),
-            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall',
-             false, false, false, true, true,  'Y', false, 652),
-            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit',
-             true,  true,  true,  true, true,  'I', true,  751),
-            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit',
-             false, false, false, true, true,  'Y', false, 752)
-          ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, sort_order)
+            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall', 651),
+            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall', 652),
+            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit', 751),
+            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit', 752)
+          ) AS v(code, bezeichnung, kategorie, sort_order)
          WHERE lp.code = v.code;
     ");
 
