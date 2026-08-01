@@ -4371,6 +4371,7 @@
             display: flex;
             align-items: center;
         }
+        .ov-vmenu { align-self: center; }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
         .ov-anst-row:last-child { margin-bottom: 2px; }

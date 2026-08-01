@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260801f">
+    <link rel="stylesheet" href="css/app.css?v=20260801g">
 </head>
 <body>
 
@@ -1828,14 +1828,14 @@
                         </div>
                         <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
                             <button type="button" class="kz-menu-item" onclick="showPage('kuendigung')">1&nbsp;·&nbsp;Kündigung</button>
-                            <button type="button" class="kz-menu-item" onclick="showPage('aufforderung-arbeit')">6&nbsp;·&nbsp;Arbeits Aufforderung</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('arbeitszeugnis')">2&nbsp;·&nbsp;Arbeitszeugnis</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('zwischen')">3&nbsp;·&nbsp;Zwischenzeugnis</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('best')">4&nbsp;·&nbsp;Arbeitsbestätigung</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('verwarnung')">5&nbsp;·&nbsp;Verwarnung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">6&nbsp;·&nbsp;Kündigungsrückzug</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">7&nbsp;·&nbsp;Kündigungsbestätigung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">8&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
+                            <button type="button" class="kz-menu-item" onclick="showPage('aufforderung-arbeit')">6&nbsp;·&nbsp;Arbeits Aufforderung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">7&nbsp;·&nbsp;Kündigungsrückzug</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">8&nbsp;·&nbsp;Kündigungsbestätigung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
                         </div>
                     </div>
 
@@ -7224,7 +7224,7 @@
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260801a"></script>
-<script src="js/contracts-edit.js?v=20260720a"></script>
+<script src="js/contracts-edit.js?v=20260801a"></script>
 <script src="js/payroll.js?v=20260801k"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
@@ -8350,6 +8350,54 @@
     font-weight: 760 !important;
     padding: 0 0 0 3px !important;
     margin: 14px 0 5px !important;
+}
+/* < 8 h-Schieber wie L-GAV (emp-yesno-toggle) — Modal liegt ausserhalb
+   #page-mitarbeiter, daher eigene Regeln (Walter 31.07.2026). */
+#contractEditModal #ceTeilzeitUnter8hWrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 0;
+}
+#contractEditModal .emp-yesno-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid rgba(60,55,48,.16);
+    border-radius: 15px;
+    background: #f0ece4;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+    min-height: 27px;
+    box-sizing: border-box;
+}
+#contractEditModal .emp-yesno-toggle button {
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #8b8b8b;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+#contractEditModal .emp-yesno-toggle button.active {
+    background: #3f3f3f;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(60,55,48,.18);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(122,145,165,.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
+body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
+    background: #e8e4dc;
+    color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0,0,0,.22);
 }
 </style>
 
