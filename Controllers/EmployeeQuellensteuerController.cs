@@ -9,11 +9,12 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Quellensteuer-Einträge pro Mitarbeiter (mit Historie).
 ///
-/// Walter-Vorgabe 17.05.2026: Sobald ein QST-Eintrag in einem Lohnlauf
-/// verwendet wurde (= ValidFrom liegt vor dem FirstAllowedDate der Filiale),
-/// darf er nicht mehr editiert oder gelöscht werden. Stattdessen muss ein
-/// NEUER Eintrag mit aktuellem ValidFrom erfasst werden — der alte bleibt
-/// unverändert bestehen (gleiches Pattern wie bei EmployeeBankAccounts).
+/// Walter-Vorgabe 01.08.2026: QST bleibt während Akonto und HR-Kontrolle
+/// (provisorisch_abgeschlossen) editierbar — genau dort wird der Ansatz
+/// oft noch korrigiert. Gesperrt erst wenn der DEFINITIV-Lauf
+/// <c>abgeschlossen</c> ist (DTA erstellt). Dann: ValidFrom vor dem
+/// FirstAllowedDate → nicht mehr editieren/löschen, sondern NEUEN Eintrag
+/// anlegen (Versionierung, gleiches Soft-Lock wie Verträge).
 /// </summary>
 [ApiController]
 [Route("api/employees/{employeeId:int}/quellensteuer")]
@@ -37,6 +38,12 @@ public class EmployeeQuellensteuerController : ControllerBase
             .Select(x => (int?)x.CompanyProfileId)
             .FirstOrDefaultAsync();
 
+    /// <summary>Soft-Lock wie Verträge: erst ab Definitiv abgeschlossen.</summary>
+    private async Task<DateOnly?> GetQstFirstAllowedAsync(int? branchId)
+        => branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
+            : null;
+
     private static bool IsInLohnVerwendet(EmployeeQuellensteuer q, DateOnly? firstAllowed)
         => firstAllowed.HasValue && q.ValidFrom < firstAllowed.Value;
 
@@ -59,8 +66,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
         q.IsGrenzgaenger, q.IsWochenaufenthalter,
         q.CreatedAt, q.UpdatedAt,
-        // True wenn ValidFrom < FirstAllowedDate (Filiale hat schon einen
-        // Lohnlauf für diese oder eine spätere Periode laufen lassen).
+        // True wenn ValidFrom < FirstAllowedDate (Definitiv der Periode
+        // abgeschlossen / DTA erstellt — Soft-Lock wie Verträge).
         inLohnVerwendet = firstAllowed.HasValue && q.ValidFrom < firstAllowed.Value
     };
 
@@ -97,10 +104,8 @@ public class EmployeeQuellensteuerController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll(int employeeId)
     {
-        var branchId = await GetEmployeeBranchAsync(employeeId);
-        var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
-            : null;
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
 
         var entries = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId)
@@ -175,18 +180,17 @@ public class EmployeeQuellensteuerController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeQuellensteuer dto)
     {
-        // Walter-Vorgabe 17.05.2026: ValidFrom darf nicht rückwirkend in einer
-        // in-Verarbeitung-Periode liegen. Frühester gültiger Beginn = FirstAllowedDate.
+        // Soft-Lock (Walter 01.08.2026): ValidFrom darf nicht rückwirkend in
+        // einer DEFINITIV abgeschlossenen Periode liegen. Während HR-Kontrolle
+        // (provisorisch) und Akonto bleibt Anlegen möglich.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
-        var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
-            : null;
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         if (firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
         {
             return Conflict(new
             {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. " +
+                message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer definitiv abgeschlossenen Lohnperiode. " +
                                    $"Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
@@ -218,19 +222,16 @@ public class EmployeeQuellensteuerController : ControllerBase
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
-        // Lohnlauf-Sperre: QST-Eintrag der bereits in einem Lohnlauf verwendet
-        // wurde, ist tabu für Edit. Stattdessen einen neuen Eintrag ab dem
-        // nächsten freien Datum anlegen — der schliesst den alten automatisch.
+        // Soft-Lock: Edit tabu erst nach Definitiv-Abschluss (DTA). Davor
+        // (inkl. HR-Kontrolle) korrigierbar. Danach: neuen Eintrag anlegen.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
-        var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
-            : null;
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         if (IsInLohnVerwendet(entry, firstAllowed))
         {
             return Conflict(new
             {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet. " +
+                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) gehört zu einer definitiv abgeschlossenen Lohnperiode. " +
                                    $"Bitte über '+ Neuer Eintrag' einen neuen QST-Eintrag erfassen.",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
@@ -288,17 +289,15 @@ public class EmployeeQuellensteuerController : ControllerBase
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
-        // Lohnlauf-Sperre: kein Löschen wenn schon in einem Lohnlauf verwendet.
+        // Soft-Lock: Löschen erst nach Definitiv-Abschluss gesperrt.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
-        var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
-            : null;
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         if (IsInLohnVerwendet(entry, firstAllowed))
         {
             return Conflict(new
             {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) gehört zu einer definitiv abgeschlossenen Lohnperiode und kann nicht gelöscht werden.",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
         }

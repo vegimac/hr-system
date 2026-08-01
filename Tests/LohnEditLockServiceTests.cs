@@ -335,4 +335,18 @@ public class LohnEditLockServiceTests
         // Strenger Absenz-/Zulagen-Lock greift weiterhin:
         Assert.Equal(new DateOnly(2026, 8, 1), await svc.GetFirstAllowedDateAsync(User("user"), 58));
     }
+
+    // QST nutzt denselben Soft-Lock wie Verträge (Walter 01.08.2026):
+    // während provisorisch_abgeschlossen (HR-Kontrolle) editierbar.
+    [Fact]
+    public async Task QstSoftLock_Provisorisch_DoesNotLock()
+    {
+        using var db = NewDb();
+        db.PayrollPerioden.Add(Periode(58, 2026, 7, "provisorisch_abgeschlossen", "AUSBEZAHLT"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        Assert.Null(await svc.GetFirstAllowedDateForContractsAsync(58));
+        Assert.Equal(new DateOnly(2026, 8, 1), await svc.GetFirstAllowedDateAsync(User("user"), 58));
+    }
 }

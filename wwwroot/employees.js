@@ -3649,7 +3649,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                     </div>
                 </div>
                 ${e.inLohnVerwendet
-                    ? `<span title="Dieser QST-Eintrag wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                    ? `<span title="Dieser QST-Eintrag gehört zu einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                     : `<div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
                         <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="qstMenu-${e.id}">
