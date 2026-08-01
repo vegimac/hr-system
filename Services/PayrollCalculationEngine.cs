@@ -2053,8 +2053,10 @@ public class PayrollCalculationEngine
                 });
             }
 
+            // Pott inkl. aktueller Monat (Walter 01.08.2026) — gleiche Formel wie MTP.
+            // Parameter tageAccrual = monatliche Ferien-Tage-Gutschrift (nicht Saldo neu).
             (ferienGeldAuszahlung, ferienGeldSaldoNeu) = CalcFerienGeld(
-                vormonatFerienGeld, ferienEnt, vormonatFerienTage, ferienTageSaldoNeu,
+                vormonatFerienGeld, ferienEnt, vormonatFerienTage, ferienTageAccrual,
                 ferienTageGenommen, ref lohnLines, ref totalLohn, vacationPct, lohnBrutto);
 
             // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert

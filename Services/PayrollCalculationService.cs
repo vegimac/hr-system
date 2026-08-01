@@ -22,23 +22,37 @@ public static class PayrollCalculations
     /// Akkumuliert Ferienentschädigung und berechnet Auszahlung bei Ferienbezug.
     /// Gibt (auszahlung, neuerSaldo) zurück.
     /// </summary>
+    /// <summary>
+    /// FLEX Ferien-Geld-Auszahlung bei Bezug (Walter-Vorgabe, analog MTP-Pott
+    /// 09.05.2026 / Fix 01.08.2026). Der Pott schliesst den aktuellen Monat ein:
+    ///   Pott CHF  = Vormonats-Ferien-Geld + Ferienentschädigung diesen Monat
+    ///   Pott Tage = Vormonats-Tage-Saldo + Ferien-Tage-Accrual diesen Monat
+    ///   Tagessatz = Pott CHF / Pott Tage
+    ///   Auszahlung = Tagessatz × bezogene Tage, gedeckelt auf Pott CHF
+    ///
+    /// Früher nur Vormonat (<c>prevTage &gt; 0</c>) — dadurch fehlte der Bezug
+    /// komplett, wenn noch kein Vormonats-Saldo da war (z.B. nach Vertrags-
+    /// Korrektur / erstem Lohnlauf mit Ferien im selben Monat).
+    /// </summary>
     public static (decimal auszahlung, decimal neuerSaldo) CalcFerienGeld(
         decimal prevGeld, decimal accrual,
-        decimal prevTage, decimal neuTageSaldo,
+        decimal prevTage, decimal tageAccrual,
         decimal tageGenommen,
         ref List<object> lohnLines, ref decimal totalLohn,
         decimal vacationPct, decimal basis)
     {
-        // Neuer Saldo = Vormonat + Zuwachs (Auszahlung wird danach abgezogen)
-        decimal neu = Math.Round(prevGeld + accrual, 2);
+        _ = vacationPct;
+        _ = basis;
+
+        decimal pottChf  = Math.Round(prevGeld + accrual, 2);
+        decimal pottTage = prevTage + tageAccrual;
         decimal ausz = 0;
 
-        if (tageGenommen > 0 && prevTage > 0)
+        if (tageGenommen > 0 && pottTage > 0 && pottChf > 0)
         {
-            // Proportionaler Anteil des akkumulierten Guthabens (2 Dezimalen;
-            // finale 0.05-Rundung passiert erst auf Brutto/Netto/Auszahlung).
-            ausz = Math.Round(prevGeld * (tageGenommen / prevTage), 2);
-            ausz = Math.Min(ausz, prevGeld); // nie mehr als Guthaben
+            decimal tagessatz = pottChf / pottTage;
+            ausz = Math.Round(tagessatz * tageGenommen, 2);
+            if (ausz > pottChf) ausz = pottChf; // Cap: kein Vorbezug über den Pott
             if (ausz > 0)
             {
                 lohnLines.Add(new
@@ -51,10 +65,10 @@ public static class PayrollCalculations
                     accrued     = (decimal?)0m    // reine Saldo-Auszahlung, keine neue Akkumulation
                 });
                 totalLohn += ausz;
-                neu = Math.Round(neu - ausz, 2);
             }
         }
 
+        decimal neu = Math.Round(pottChf - ausz, 2);
         return (ausz, neu);
     }
 
