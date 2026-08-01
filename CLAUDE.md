@@ -2,23 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
----
-
-## ⚠ ACHTUNG TIME — ZUERST LESEN (Walter, ABSOLUT, wiederkehrend)
-
-**Bevor du irgendein C#-/DB-Feld mit Datum/Zeit anfasst oder neu anlegst:**
-
-| | Pflicht |
-|---|---|
-| Schreiben | immer `DateTime.Now` — **nie** `DateTime.UtcNow` |
-| PostgreSQL | immer `timestamp without time zone` — **nie** `timestamptz` / `TIMESTAMPTZ` |
-| EF-Mapping | `.HasColumnType("timestamp without time zone")` auf jedem `DateTime`-Property |
-| Model-Default | `= DateTime.Now` |
-
-Sonst: HTTP 500 beim Speichern (Npgsql lehnt `Kind=Local` auf `timestamptz` ab) — oft nur leeres «Fehler:» im UI. Schon mehrfach passiert (Zusatzadresse, Absenz, Absenz-Typ-Nachrechnung). Checklist auch in `.cursor/rules/achtung-timestamp.mdc`.
-
----
-
 ## Was das ist
 
 Schweizer HR/Lohnabrechnungs-System für Schaub Restaurants GmbH (McDonald's-Franchise mit 6 Filialen). Live unter `test.hr-srgmbh.ch`. ASP.NET Core 8 + EF Core + PostgreSQL + Single-Page-HTML/JS-Frontend (kein Build-Step).
@@ -55,6 +38,18 @@ cd /Users/Walter/projects/hr-system && git fetch origin && git checkout <AKTUELL
 ```
 
 Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name jeweils den aktuellen Feature-Branch einsetzen (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
+
+### NUR EIN aktiver Feature-Branch (Walter-Vorgabe 01.08.2026, ABSOLUT)
+
+Walter arbeitet **immer nur mit einem Branch** — sonst liegen Fixes verstreut und er
+weiss nicht, welchen Befehl er deployen soll.
+
+- **Aktiver Branch** (alles Neue hier rein): `cursor/stundenkontrolle-monatsblatt-3bcf`
+- Keine parallelen Feature-Branches für Folge-Fixes öffnen.
+- Folge-Arbeit = weiter auf diesem Branch committen + pushen + denselben Deploy-Befehl.
+- Alte offene PRs/Branches nur noch mergen **in diesen einen Branch**, nicht parallel weiterbauen.
+- Sinn von Branches allgemein: parallel entwickeln ohne `main` zu spoilern. Bei Walter
+  (ein Deployer, ein Live-System) bringt Parallelität nur Chaos → **ein Branch reicht**.
 
 ## Architektur-Big-Picture
 
