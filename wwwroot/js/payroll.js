@@ -383,6 +383,7 @@ function _lohnWfRenderStatusBar() {
 
     // Gemeinsame Buttons
     const pdfBtn = `<button class="btn btn-outline btn-sm" onclick="exportLohnPdf()">PDF</button>`;
+    const skBtn  = `<button class="btn btn-outline btn-sm" onclick="exportStundenkontrollePdf()" title="Monatsblatt: Stunden kontrollieren und unterschreiben">Std.-Kontrolle</button>`;
     const footerHasText = !!(d.periode?.pdfFooterText && d.periode.pdfFooterText.trim());
     const bemBtn = (isOffen || isProv)
         ? `<button class="btn btn-outline btn-sm" onclick="openPeriodeBemerkungModal()" style="color:${footerHasText ? '#15803d' : '#64748b'};font-size:11px">${footerHasText ? '✏️ Bemerkung' : '＋ Bemerkung'}</button>`
@@ -413,7 +414,7 @@ function _lohnWfRenderStatusBar() {
     switch (d.status) {
         case 'offen':
             // GF-Phase: jeden MA bestätigen, dann an HR senden.
-            actions = `${perMaConfirm}${perMaReopen}${pdfBtn}
+            actions = `${perMaConfirm}${perMaReopen}${pdfBtn}${skBtn}
                 <button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`;
             break;
         case 'provisorisch_abgeschlossen':
@@ -426,12 +427,13 @@ function _lohnWfRenderStatusBar() {
                     isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()',      { title: 'Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung)' }) : '',
                     isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Lohnzettel der Periode neu berechnen — Reparatur bei inkonsistenten Snapshots' }) : '',
                 ];
-                actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}
+                actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}${skBtn}
                     ${buildMoreMenu(moreItems)}
                     <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
                     <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
             } else {
                 const moreItemsGf = [
+                    menuItem('📅 Stundenkontrolle', 'exportStundenkontrollePdf()', { title: 'Monatsblatt: Stunden kontrollieren und unterschreiben' }),
                     menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
                 ];
                 actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309') + buildMoreMenu(moreItemsGf);
@@ -446,7 +448,7 @@ function _lohnWfRenderStatusBar() {
                 isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()', { title: 'Wartung' }) : '',
                 isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Reparatur' }) : '',
             ];
-            actions = `${pdfBtn}
+            actions = `${pdfBtn}${skBtn}
                 ${buildMoreMenu(moreItemsFinal)}
                 ${lockPill('🔒 Abgeschlossen — Admin-Reopen via Lohnperioden-Modul', '#dcfce7', '#15803d')}`;
             break;
@@ -2428,7 +2430,7 @@ async function lohnLohnbelegeDispatch() {
         `Bank-Ausführungsdatum: ${dateDe}\n\n` +
         'Mit JA passiert folgendes (alles atomic):\n' +
         '• Periode → "abgeschlossen", alle Lohnzettel eingefroren\n' +
-        '• Lohnzettel landen im MA-Postfach\n' +
+        '• Lohnzettel + Stundenkontrolle (Monatsblatt zur Unterschrift) landen im MA-Postfach\n' +
         '• E-Mail-Benachrichtigung an MA (Test-Modus: Mails an Test-Redirect-Adresse)\n' +
         `• Bank-Ausführungsdatum ${dateDe} wird in der Periode hinterlegt\n` +
         '• Anschliessend wird das DTA-XML automatisch heruntergeladen\n\n' +
@@ -2612,6 +2614,27 @@ async function exportLohnPdf() {
         document.getElementById('lohnPdfModal').style.display = 'block';
     } catch(e) {
         alert('Netzwerkfehler: ' + e.message);
+    }
+}
+
+// Monatsblatt Stundenkontrolle (Walter 01.08.2026): MA kontrolliert Stunden
+// und unterschreibt. Beim Definitiv-Versand landet das Blatt mit dem Lohnzettel
+// im MA-Postfach. Vorschau hier im Lohnlauf.
+async function exportStundenkontrollePdf() {
+    if (!lohnCurrentSlip) {
+        alert('Bitte zuerst einen Mitarbeiter wählen.');
+        return;
+    }
+    const s = lohnCurrentSlip;
+    const name = (s.employeeName || 'MA').replace(/\s+/g, '_');
+    const filename = `Stundenkontrolle_${name}_${s.year}-${String(s.month).padStart(2, '0')}.pdf`;
+    try {
+        await previewUrlFetch(
+            `/api/payroll/stundenkontrolle-pdf?employeeId=${s.employeeId}&year=${s.year}&month=${s.month}&companyProfileId=${s.companyId}`,
+            filename,
+            typeof ah === 'function' ? ah() : {});
+    } catch (e) {
+        alert('Stundenkontrolle konnte nicht erstellt werden: ' + (e.message || e));
     }
 }
 
