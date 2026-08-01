@@ -7218,7 +7218,7 @@
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
-<script src="js/austritt.js?v=20260715e"></script>
+<script src="js/austritt.js?v=20260801a"></script>
 <script src="js/contracts-edit.js?v=20260720a"></script>
 <script src="js/payroll.js?v=20260801b"></script>
 <script src="js/fibu.js?v=20260704p"></script>
@@ -7537,7 +7537,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260801e"></script>
+<script src="employees.js?v=20260801f"></script>
 <script src="js/aufforderung-arbeit.js?v=20260801a"></script>
 
             <div class="page liquid-mask" id="page-aufforderung-arbeit">
@@ -7920,6 +7920,22 @@
             <div id="terminateSummary" style="display:none;margin-top:10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:10px 12px">
                 <div style="font-size:10.5px;font-weight:800;color:#5a5348;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;padding:4px 0 4px 10px;border-left:4px solid #1a1a1a;background:linear-gradient(to right,#ece9e2 0%,#f6f3ee 60%,transparent 90%);border-radius:3px 3px 0 0" data-i18n="austritt.preview.title">📊 Austritts-Vorschau (Punktlandung)</div>
                 <div id="terminateSummaryBody" style="font-size:12px;color:#334155"></div>
+            </div>
+
+            <!-- Uniformen-Depot Entscheidung (Walter Aug 2026) — sichtbar wenn Depot EINBEHALTEN -->
+            <div id="terminateUniformBlock" style="display:none;margin-top:12px;background:#fff;border:1px solid #e7e1d8;border-radius:14px;padding:12px 14px">
+                <div style="font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:6px">👕 Uniformen-Depot CHF 50</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.45">
+                    Wurde die Uniform vollständig zurückgegeben? Bei Ja wird das Depot in der letzten Abrechnung rückerstattet; bei Nein verfällt es (kein Refund).
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer;background:#faf8f5;font-size:12.5px;color:#3f3f3f">
+                        <input type="radio" name="terminateUniformReturn" value="1" style="accent-color:#3f3f3f"> Ja, zurückgegeben → Refund
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer;background:#faf8f5;font-size:12.5px;color:#3f3f3f">
+                        <input type="radio" name="terminateUniformReturn" value="0" style="accent-color:#3f3f3f"> Nein → Depot verfällt
+                    </label>
+                </div>
             </div>
 
             <div id="terminateAlert" style="margin-top:10px"></div>

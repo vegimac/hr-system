@@ -11,13 +11,18 @@ namespace HrSystem.Controllers;
 [Route("api/[controller]")]
 public class EmploymentsController : ControllerBase
 {
-    private readonly AppDbContext        _context;
-    private readonly LohnEditLockService _editLock;
+    private readonly AppDbContext         _context;
+    private readonly LohnEditLockService  _editLock;
+    private readonly UniformDepotService  _uniformDepot;
 
-    public EmploymentsController(AppDbContext context, LohnEditLockService editLock)
+    public EmploymentsController(
+        AppDbContext context,
+        LohnEditLockService editLock,
+        UniformDepotService uniformDepot)
     {
-        _context  = context;
-        _editLock = editLock;
+        _context      = context;
+        _editLock     = editLock;
+        _uniformDepot = uniformDepot;
     }
 
     /// <summary>
@@ -376,6 +381,8 @@ public class EmploymentsController : ControllerBase
         decimal ferienSaldoStichtag = lastSaldo?.FerienTageSaldo ?? 0;
         decimal ferienErwarteterSaldoBeiAustritt = Math.Round(ferienSaldoStichtag + ferienAnspruchRest, 2);
 
+        var uniformDepot = await _uniformDepot.GetDtoAsync(employment.EmployeeId);
+
         return Ok(new
         {
             employmentId       = id,
@@ -403,7 +410,9 @@ public class EmploymentsController : ControllerBase
             ferienAnspruchJahr,
             // Neue, klar interpretierbare Felder für die Anzeige:
             ferienAnspruchRest,                   // zusätzlicher Anspruch in der Restzeit
-            ferienErwarteterSaldoBeiAustritt      // Saldo + Rest = was bei Austritt offen bleibt
+            ferienErwarteterSaldoBeiAustritt,     // Saldo + Rest = was bei Austritt offen bleibt
+            // Uniformen-Depot (Walter Aug 2026)
+            uniformDepot
         });
     }
 
@@ -412,7 +421,16 @@ public class EmploymentsController : ControllerBase
     // Hinweis: CH-Recht verlangt i.d.R. Austritt auf Monatsende — Frontend
     // schlägt das vor. Wenn der Austrittstag mitten in der Lohnperiode
     // liegt, rechnet PayrollController automatisch eine Kurzperiode.
-    public class TerminateDto { public DateTime ExitDate { get; set; } }
+    public class TerminateDto
+    {
+        public DateTime ExitDate { get; set; }
+        /// <summary>
+        /// Uniform zurückgegeben? true = Depot wird bei letzter Abrechnung
+        /// rückerstattet; false = Depot verfällt (kein Refund). Pflicht wenn
+        /// der MA ein EINBEHALTEN-Depot hat.
+        /// </summary>
+        public bool? UniformZurueckgegeben { get; set; }
+    }
 
     [HttpPost("{id:int}/terminate")]
     public async Task<IActionResult> Terminate(int id, [FromBody] TerminateDto dto)
@@ -447,6 +465,17 @@ public class EmploymentsController : ControllerBase
             });
         }
 
+        // Uniformen-Depot: Entscheidung Pflicht wenn Depot EINBEHALTEN ist.
+        var depot = await _context.EmployeeUniformDepots.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.EmployeeId == employment.EmployeeId
+                                   && d.Status == "EINBEHALTEN"
+                                   && d.Balance > 0);
+        if (depot != null && dto.UniformZurueckgegeben is null)
+            return BadRequest(new {
+                error = "UNIFORM_DEPOT_ENTSCHEIDUNG",
+                message = "Bitte angeben, ob die Uniform zurückgegeben wurde (Depot CHF 50)."
+            });
+
         employment.ContractEndDate = exit;
 
         // Employee.ExitDate spiegeln, damit der MA in Übersichten als
@@ -458,6 +487,14 @@ public class EmploymentsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        if (depot != null && dto.UniformZurueckgegeben is bool returned)
+        {
+            var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            int? uid = int.TryParse(uidStr, out var u) ? u : null;
+            await _uniformDepot.SetReturnDecisionAsync(employment.EmployeeId, returned, uid);
+        }
+
         return Ok(new {
             employment,
             message = $"Austritt per {exit:dd.MM.yyyy} erfasst."

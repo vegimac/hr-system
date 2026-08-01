@@ -150,6 +150,7 @@ public class EditLockEndpointAuditTests
         ["PregnancyController"]                    = "Mutterschafts-Tracking pro MA (Melde-/Termin-/Geburtsdatum; Fristen live bei GET berechnet) — fliesst NICHT in den Lohnlauf (kein Payroll-Service liest EmployeePregnancies); die lohnrelevante Absenz läuft über AbsencesController (dort ist der Lock)",
         ["EmployeeAddressesController"]            = "Adresse — gehört NICHT in den Lock (postalisch, Lohn-irrelevant)",
         ["EmployeeAccountController"]              = "MA-Postfach-Account — Login-Sachen, nicht Lohn",
+        ["EmployeeUniformDepotController"]         = "Uniformen-Depot Stammdaten + Rückgabe-Entscheidung + Admin-Backfill — Abzug/Refund läuft über Lohnlauf (Engine/Confirm), kein datum-basiertes Lohn-Edit",
         ["EmployeesController"]                    = "MA-Stammdaten (Name, Telefon, AHV-Nr) — gehört NICHT in Lock; lohnrelevante Felder sind in EmploymentsController",
         ["EmployeeNumberAliasController"]          = "Alte Personalnummern (Identitäts-/Stammdaten) — gehört NICHT in Lock, kein Lohn-Datum",
         ["EmployeeMergeController"]                = "Einmalige Duplikat-Bereinigung (admin) — Stammdaten-Zusammenführung, kein Lohn-Datum",

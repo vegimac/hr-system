@@ -1156,6 +1156,17 @@ function renderEmployeeDetail(emp) {
 
         <!-- TAB: Zulagen & Abzüge -->
         <div class="emp-tab-content" id="emp-tab-zulagen">
+            <!-- Uniformen-Depot (Walter Aug 2026) -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Uniformen-Depot</span>
+                <span style="font-size:11px;font-weight:400;color:#94a3b8">CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt</span>
+            </div>
+            <div id="uniformDepotContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
             <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
@@ -1874,6 +1885,7 @@ function switchEmpTab(tab) {
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.
+        if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);
@@ -12477,6 +12489,58 @@ async function deletePermitHistoryEntry(entryId) {
 // rechnet BVG_ZUSATZ-Beiträge NUR wenn am Periodenanfang eine offene
 // Mitgliedschaft existiert.
 let _bvgZusatzCache = [];
+
+async function loadUniformDepotTab(employeeId) {
+    const el = document.getElementById('uniformDepotContent');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/uniform-depot`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
+        renderUniformDepotTab(el, await res.json());
+    } catch {
+        el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
+    }
+}
+
+function renderUniformDepotTab(el, d) {
+    if (!d || !d.status) {
+        el.innerHTML = `<div style="padding:14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;color:#64748b;font-size:12.5px;line-height:1.5">
+            Noch kein Depot — beim <strong>1. Lohn</strong> werden automatisch CHF 50 abgezogen und hier als einbehaltenes Depot geführt.
+        </div>`;
+        return;
+    }
+    const bal = Number(d.balance || 0).toFixed(2);
+    const statusMap = {
+        EINBEHALTEN:    { label: 'Einbehalten', color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
+        ZURUECKBEZAHLT: { label: 'Zurückbezahlt', color: '#166534', bg: '#dcfce7', border: '#86efac' },
+        VERFALLEN:      { label: 'Verfallen', color: '#991b1b', bg: '#fee2e2', border: '#fecaca' },
+    };
+    const st = statusMap[d.status] || { label: d.status, color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' };
+    const charged = d.chargedPeriode === 'BACKFILL'
+        ? 'Backfill (Eintritt vor 01.07.2026)'
+        : (d.chargedPeriode || '–');
+    const refund = d.refundPeriode
+        ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Rückerstattet in Periode ${esc(d.refundPeriode)}</div>`
+        : '';
+    const ret = d.returnConfirmed === true
+        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Austritt: Uniform zurückgegeben → Refund bei Abrechnung</div>'
+        : d.returnConfirmed === false
+            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Austritt: nicht ordentlich → Depot verfällt</div>'
+            : '';
+    const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
+    el.innerHTML = `
+        <div style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                    <div style="font-size:15px;font-weight:700;color:#1a1a1a">CHF ${bal}</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Belastet: ${esc(charged)}</div>
+                    ${refund}${ret}${bem}
+                </div>
+                <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
+            </div>
+        </div>`;
+}
 
 async function loadBvgZusatzTab(employeeId) {
     const el = document.getElementById('bvgZusatzContent');

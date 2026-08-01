@@ -246,12 +246,20 @@ public class FibuJournalService
                         else if (!string.IsNullOrEmpty(code))
                         {
                             // Lohnpos-Abzug (z.B. LGAV "600.24") → Position.SubPos.
+                            // Walter Aug 2026: positiver Slip-Betrag = Rückerstattung
+                            // (Uniformen-Depot) → Konten tauschen (2021→1920).
                             var parts = code!.Split('.');
                             if (int.TryParse(parts[0], out var pos))
                             {
                                 int? sub = parts.Length > 1 && int.TryParse(parts[1], out var sp) ? sp : (int?)null;
                                 var m = FindAn1920(pos, sub);
-                                if (m != null) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, abzug);
+                                if (m != null)
+                                {
+                                    if (betrag > 0)
+                                        Add(m.Gegenkonto, m.Fibukonto, m.Bezeichnung + " Rückerstattung", abzug);
+                                    else
+                                        Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, abzug);
+                                }
                                 else ohneCodes++;
                             }
                             else ohneCodes++;

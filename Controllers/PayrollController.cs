@@ -24,6 +24,7 @@ public class PayrollController : HrControllerBase
     private readonly KtgTagessatzService _ktgService;
     private readonly KarenzService _karenz;
     private readonly LgavBeitragService _lgav;
+    private readonly UniformDepotService _uniformDepot;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly PayrollPdfService _payrollPdf;
     private readonly StundenkontrollePdfService _stundenkontrollePdf;
@@ -40,6 +41,7 @@ public class PayrollController : HrControllerBase
         KtgTagessatzService ktgService,
         KarenzService karenz,
         LgavBeitragService lgav,
+        UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
         PayrollPdfService payrollPdf,
         StundenkontrollePdfService stundenkontrollePdf,
@@ -54,6 +56,7 @@ public class PayrollController : HrControllerBase
         _ktgService     = ktgService;
         _karenz         = karenz;
         _lgav           = lgav;
+        _uniformDepot   = uniformDepot;
         _ferienKuerzung = ferienKuerzung;
         _payrollPdf     = payrollPdf;
         _stundenkontrollePdf = stundenkontrollePdf;
@@ -1206,6 +1209,10 @@ public class PayrollController : HrControllerBase
         }
 
         await _db.SaveChangesAsync();
+
+        // Uniformen-Depot: nach Confirm Status setzen (Refund / Verfall).
+        await _uniformDepot.ApplyAfterConfirmAsync(dto.EmployeeId, dto.Year, dto.Month);
+
         return Ok(new { snapshotId = snapshot.Id, message = "Lohn bestätigt und gespeichert." });
     }
 

@@ -13,6 +13,11 @@ async function openTerminateModal(employeeId, employmentId, startDate) {
     const alert  = document.getElementById('terminateAlert');
     const _t = (k) => (window.i18n ? window.i18n.t(k) : k);
     if (alert) alert.innerHTML = '';
+    // Uniform-Depot-Radios zurücksetzen
+    document.querySelectorAll('input[name="terminateUniformReturn"]').forEach(r => { r.checked = false; });
+    const uniBlock = document.getElementById('terminateUniformBlock');
+    if (uniBlock) uniBlock.style.display = 'none';
+    terminateCtx.hasUniformDepot = false;
     // Default: Ende aktueller Monat (timezone-sicher als YYYY-MM-DD bauen,
     // toISOString() würde wegen UTC-Konvertierung einen Tag abziehen).
     const now = new Date();
@@ -116,6 +121,12 @@ async function doLoadTerminateSummary(exitDate) {
         }
         const s = await res.json();
         body.innerHTML = renderTerminateSummary(s);
+        // Uniformen-Depot: Block zeigen wenn EINBEHALTEN mit Saldo
+        const uni = s.uniformDepot;
+        const uniBlock = document.getElementById('terminateUniformBlock');
+        const hasDepot = !!(uni && uni.status === 'EINBEHALTEN' && Number(uni.balance) > 0);
+        terminateCtx.hasUniformDepot = hasDepot;
+        if (uniBlock) uniBlock.style.display = hasDepot ? '' : 'none';
     } catch (e) {
         body.innerHTML = `<div style="color:#dc2626">${_t('austritt.err.network', { msg: e.message })}</div>`;
     }
@@ -199,7 +210,17 @@ function renderTerminateSummary(s) {
         ? `<div style="background:#f6f3ee;border:1px solid #e5e0d6;color:#6b6152;padding:6px 10px;border-radius:6px;font-size:10px;margin-bottom:10px">${_t('austritt.info.balanceFrom', { month: String(s.saldoQuelleMonth).padStart(2,'0'), year: s.saldoQuelleYear, status: s.saldoQuelleStatus ? _t('austritt.info.statusSuffix', { status: s.saldoQuelleStatus }) : '' })}</div>`
         : '';
 
-    return noSaldo + saldoInfo + stundenBlock + ferienBlock + restBlock;
+    // Uniformen-Depot Hinweis in der Vorschau
+    let depotBlock = '';
+    if (s.uniformDepot && s.uniformDepot.status === 'EINBEHALTEN' && Number(s.uniformDepot.balance) > 0) {
+        depotBlock = `
+        <div style="margin-top:10px;padding:8px 10px;background:#fff;border:1px solid #e7e1d8;border-radius:8px;font-size:12px;color:#3f3f3f">
+            <strong>Uniformen-Depot:</strong> CHF ${Number(s.uniformDepot.balance).toFixed(2)} einbehalten
+            — Entscheidung unten treffen (Rückerstattung oder Verfall).
+        </div>`;
+    }
+
+    return noSaldo + saldoInfo + stundenBlock + ferienBlock + restBlock + depotBlock;
 }
 
 async function saveTerminate() {
@@ -212,11 +233,24 @@ async function saveTerminate() {
     }
     const exitDate = dateEl.value;
     const { employmentId, employeeId } = terminateCtx;
+
+    let uniformZurueckgegeben = undefined;
+    if (terminateCtx.hasUniformDepot) {
+        const sel = document.querySelector('input[name="terminateUniformReturn"]:checked');
+        if (!sel) {
+            alert.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px">Bitte angeben, ob die Uniform zurückgegeben wurde (Depot CHF 50).</div>`;
+            return;
+        }
+        uniformZurueckgegeben = sel.value === '1';
+    }
+
     try {
+        const body = { exitDate };
+        if (uniformZurueckgegeben !== undefined) body.uniformZurueckgegeben = uniformZurueckgegeben;
         const res = await fetch(`/api/employments/${employmentId}/terminate`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ exitDate })
+            body: JSON.stringify(body)
         });
         // Lohnlauf-Sperre: zeigt die Backend-Meldung direkt im Alert-Block.
         if (res.status === 409) {

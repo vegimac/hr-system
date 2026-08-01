@@ -29,6 +29,7 @@ public class PayrollCalculationEngine
     private readonly KtgTagessatzService _ktgService;
     private readonly KarenzService _karenz;
     private readonly LgavBeitragService _lgav;
+    private readonly UniformDepotService _uniformDepot;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly QstPflichtCheckService _qstCheck;
 
@@ -38,6 +39,7 @@ public class PayrollCalculationEngine
         KtgTagessatzService ktgService,
         KarenzService karenz,
         LgavBeitragService lgav,
+        UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
         QstPflichtCheckService qstCheck)
     {
@@ -46,6 +48,7 @@ public class PayrollCalculationEngine
         _ktgService     = ktgService;
         _karenz         = karenz;
         _lgav           = lgav;
+        _uniformDepot   = uniformDepot;
         _ferienKuerzung = ferienKuerzung;
         _qstCheck       = qstCheck;
     }
@@ -753,6 +756,10 @@ public class PayrollCalculationEngine
         // damit der neu angelegte Abzug in dieser Periode mit berechnet wird.
         await _lgav.EnsureAsync(employee, emp, company, year, month, periodFrom, periodTo);
 
+        // Uniformen-Depot CHF 50 beim 1. Lohn (Walter Aug 2026) — idempotent,
+        // schreibt LohnZulage 600.32 + employee_uniform_depot vor dem Laden.
+        await _uniformDepot.EnsureChargeAsync(employee, year, month);
+
         // ── Zulagen & Abzüge für diese Periode laden ──────────────────────
         // Einmalige Einträge (manuell pro Periode erfasst) + wiederkehrende
         // Einträge (Mitarbeiter-Stammdaten) werden zusammengeführt und gleich
@@ -1212,6 +1219,23 @@ public class PayrollCalculationEngine
                 betrag      = -b
             });
             lohnposAbzugTotal += b;
+        }
+
+        // Uniformen-Depot Rückerstattung (Walter Aug 2026): positiver Betrag
+        // in abzugLines (= Auszahlung) wenn Austritt + Uniform zurückgegeben.
+        // Status-Wechsel erst bei Confirm (ApplyAfterConfirmAsync).
+        var (depotRefund, depotAmt, depotLabel) =
+            await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+        if (depotRefund && depotAmt > 0)
+        {
+            lohnposAbzugLines.Add(new {
+                bezeichnung = depotLabel ?? "Uniformen-Depot Rückerstattung",
+                code        = UniformDepotService.LohnpositionCode,
+                prozent     = (decimal?)null,
+                basis       = (decimal?)null,
+                betrag      = depotAmt   // positiv = Refund (Fibu tauscht Konten)
+            });
+            lohnposAbzugTotal -= depotAmt; // reduziert totalAbzuege → höherer Netto
         }
 
         // Info-Hinweis bei NBU-Befreiung (Walter-Vorgabe 09.06.2026 / 31.07.2026):

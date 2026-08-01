@@ -56,6 +56,7 @@ public class AppDbContext : DbContext
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
+    public DbSet<EmployeeUniformDepot> EmployeeUniformDepots => Set<EmployeeUniformDepot>();
     public DbSet<PregnancyRule>     PregnancyRules     => Set<PregnancyRule>();
     public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
@@ -1292,6 +1293,31 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom })
                   .HasDatabaseName("ix_bvg_member_emp_period");
+        });
+
+        // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────
+        modelBuilder.Entity<EmployeeUniformDepot>(entity =>
+        {
+            entity.ToTable("employee_uniform_depot");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Balance).HasColumnName("balance").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.ChargedPeriode).HasColumnName("charged_periode").HasMaxLength(20);
+            entity.Property(e => e.RefundPeriode).HasColumnName("refund_periode").HasMaxLength(20);
+            entity.Property(e => e.ReturnConfirmed).HasColumnName("return_confirmed");
+            entity.Property(e => e.ReturnConfirmedAt).HasColumnName("return_confirmed_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ReturnConfirmedBy).HasColumnName("return_confirmed_by");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => e.EmployeeId).IsUnique()
+                  .HasDatabaseName("ux_employee_uniform_depot_emp");
         });
 
         // ── Mutterschafts-Modul (Walter 10.06.2026) ────────────────────────
