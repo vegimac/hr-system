@@ -206,7 +206,7 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         dto.Id         = 0;
         dto.EmployeeId = employeeId;
-        dto.CreatedAt  = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        dto.CreatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         dto.UpdatedAt  = dto.CreatedAt;
 
         _db.EmployeeQuellensteuer.Add(dto);
@@ -275,7 +275,7 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.IsGrenzgaenger             = dto.IsGrenzgaenger;
         entry.IsWochenaufenthalter       = dto.IsWochenaufenthalter;
 
-        entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+        entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         await _db.SaveChangesAsync();
         return Ok(entry);

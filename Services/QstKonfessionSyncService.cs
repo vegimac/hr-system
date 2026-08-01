@@ -1,6 +1,7 @@
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace HrSystem.Services;
 
@@ -13,11 +14,16 @@ public class QstKonfessionSyncService
 {
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
+    private readonly ILogger<QstKonfessionSyncService> _log;
 
-    public QstKonfessionSyncService(AppDbContext db, LohnEditLockService editLock)
+    public QstKonfessionSyncService(
+        AppDbContext db,
+        LohnEditLockService editLock,
+        ILogger<QstKonfessionSyncService> log)
     {
         _db       = db;
         _editLock = editLock;
+        _log      = log;
     }
 
     public sealed record SyncResult(
@@ -62,7 +68,8 @@ public class QstKonfessionSyncService
             : null;
 
         var inLohn = firstAllowed.HasValue && open.ValidFrom < firstAllowed.Value;
-        var now    = DateTime.Now;
+        // Unspecified: Spalte ist timestamp without time zone (kein Kind-Zwang).
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         if (!inLohn)
         {
@@ -99,17 +106,46 @@ public class QstKonfessionSyncService
     }
 
     /// <summary>
-    /// Baut {Tarif}{Kinder}{Y|N}. Tarif bevorzugt aus TarifCode, sonst
-    /// aus dem bisherigen QstCode (erstes Zeichen).
+    /// Best-effort Variante: Fehler werden geloggt, nie nach oben geworfen —
+    /// der MA-Stammdaten-Save darf wegen QST-Nachzug nicht scheitern.
+    /// </summary>
+    public async Task<SyncResult?> TrySyncAsync(int employeeId, string? newReligion)
+    {
+        try
+        {
+            return await SyncAsync(employeeId, newReligion);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex,
+                "QST-Kirchensteuer-Nachzug für MA {EmployeeId} fehlgeschlagen (Konfession «{Religion}»).",
+                employeeId, newReligion ?? "");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Baut {Tarif}{Kinder}{Y|N}. Tarif = ein Buchstabe (A/B/C/H/…).
     /// </summary>
     public static string RebuildQstCode(
         string? tarifCode, int anzahlKinder, bool kirchensteuer, string? previousQstCode)
     {
-        var tarif = !string.IsNullOrWhiteSpace(tarifCode)
-            ? tarifCode.Trim().ToUpperInvariant()
-            : (!string.IsNullOrWhiteSpace(previousQstCode)
-                ? previousQstCode.Trim()[..1].ToUpperInvariant()
-                : "A");
+        string tarif;
+        if (!string.IsNullOrWhiteSpace(tarifCode))
+            tarif = tarifCode.Trim().ToUpperInvariant();
+        else if (!string.IsNullOrWhiteSpace(previousQstCode))
+            tarif = previousQstCode.Trim().ToUpperInvariant();
+        else
+            tarif = "A";
+
+        // Nur der Tarifbuchstabe — falls irgendwo der volle Code (C2N) in
+        // tarif_code liegt, sonst würde «C2N2Y» entstehen.
+        tarif = new string(tarif.TakeWhile(char.IsLetter).ToArray());
+        if (string.IsNullOrEmpty(tarif))
+            tarif = "A";
+        else
+            tarif = tarif[..1];
+
         var kinder = Math.Max(0, anzahlKinder);
         return $"{tarif}{kinder}{(kirchensteuer ? "Y" : "N")}";
     }

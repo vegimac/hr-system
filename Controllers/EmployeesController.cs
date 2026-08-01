@@ -800,8 +800,9 @@ public class EmployeesController : ControllerBase
         await _postfach.SyncActiveStateAsync(employee);
 
         // Offenen QST-Eintrag an die (ggf. neue) Konfession anpassen.
+        // TrySync: Fehler dort dürfen den MA-Save nicht mehr killen.
         if (religionInPayload)
-            await _qstKonfessionSync.SyncAsync(employee.Id, employee.Religion);
+            await _qstKonfessionSync.TrySyncAsync(employee.Id, employee.Religion);
 
         return Ok(employee);
     }

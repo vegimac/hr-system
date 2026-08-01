@@ -13,6 +13,7 @@ public class QstKonfessionSyncTests
     [InlineData("C", 2, false, "C2Y", "C2N")]
     [InlineData("A", 0, true,  "A0N", "A0Y")]
     [InlineData(null, 2, true, "C2N", "C2Y")] // Tarif aus bisherigem Code
+    [InlineData("C2N", 2, true, "C2N", "C2Y")] // voller Code fälschlich in tarif_code
     public void RebuildQstCode_FlipsKircheLetter(
         string? tarif, int kinder, bool kirche, string previous, string expected)
     {

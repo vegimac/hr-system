@@ -1674,8 +1674,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HasHigherIncomeThanPartner).HasColumnName("has_higher_income_than_partner");
             entity.Property(e => e.IsGrenzgaenger).HasColumnName("is_grenzgaenger");
             entity.Property(e => e.IsWochenaufenthalter).HasColumnName("is_wochenaufenthalter");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // TIMESTAMP (= without time zone) — ohne HasColumnType mappt Npgsql 8
+            // DateTime als timestamptz und SaveChanges scheitert beim Schreiben.
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom }).HasDatabaseName("IX_emp_qst_emp_valid");
         });
