@@ -3705,7 +3705,8 @@
         }
         .ov-wrap {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
             gap: 7px;
             padding: 2px 2px 4px;
         }
@@ -4227,13 +4228,13 @@
             overflow: hidden; min-width: 0;
         }
         /* Anstellung (Walter 26.07.2026):
-           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles.
-           Kündigung etwas kompakter als Personalien, aber gut bedienbar. */
+           Zeile 1 Eintritt|Austritt|L-GAV · Zeile 2 Kündigung inkl. Grund
+           · Zeile 3 Probezeit. Nachtarbeit daneben schmaler. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto);
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto);
             grid-template-rows: auto auto auto;
-            gap: 4px 12px;
+            gap: 6px 14px;
             align-items: start;
             min-width: 0;
         }
@@ -4241,16 +4242,25 @@
             margin-bottom: 0;
             min-width: 0;
         }
-        /* Zeile 1 (Eintritt/Austritt/L-GAV): normale Lesestärke */
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfl {
+        /* Zeile 1 (Eintritt/Austritt): normale Lesestärke */
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfl {
             margin-bottom: 1px;
         }
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfv {
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfv {
             font-size: 14px;
             line-height: 28px;
             min-height: 28px;
         }
-        /* Probezeit kompakt im Anstellung-Kartenkopf (neben Titel) */
+        /* Probezeit unter Kündigung (volle Breite) */
+        .ov-anst-pz-row {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 8px;
+            min-height: 22px;
+            padding-top: 1px;
+        }
         .ov-anst-pz {
             font-size: 11.5px;
             font-weight: 600;
@@ -4259,7 +4269,6 @@
             align-items: center;
             flex-wrap: wrap;
             gap: 4px 6px;
-            max-width: min(380px, 48vw);
             line-height: 1.25;
         }
         .ov-anst-pz-status { font-weight: 650; }
@@ -4331,16 +4340,18 @@
             font-weight: 600;
         }
         .ov-anst-grid .ov-anst-kuend select.ov-softin {
-            max-width: 172px;
+            max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV + < 8 h kompakt auf der untersten Zeile */
+        /* L-GAV rechts neben Austritt */
         .ov-anst-grid .ov-anst-tog .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
         }
         .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 26px;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
         }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
@@ -9902,9 +9913,11 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
         .nw-row1 { gap: 8px; }
         .nw-row2 { gap: 6px; }
         .nw-row3 { gap: 5px; }
+        /* Schmalere Nachtarbeit-Karte: Aktions-Buttons umbrechen */
         .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
             justify-content: flex-end;
+            flex-wrap: wrap;
             gap: 5px;
         }
         .nw-col-menu {
