@@ -1262,6 +1262,7 @@ public class PayrollCalculationEngine
             ("Unfall (Karenzentschädigung)",      "60"),
             ("Unfall (Taggeld 80%)",              "60.2"),
             ("Unfall (Taggeld",                   "60.2"),
+            ("Unbezahlter Urlaub",                "110"),
             ("Feiertagentschädigung",             "_feiertag_ent"),
             ("Ferienentschädigung-Auszahlung",    "_ferien_ausz"),
             ("Ferienentschädigung",               "_ferien_ent"),
@@ -1526,6 +1527,21 @@ public class PayrollCalculationEngine
                 });
                 totalLohn += festlohnArbeitBetrag;
                 AddAmount("10", festlohnExact);
+            }
+
+            // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auch auf dem
+            // Lohnzettel aufführen (Info-Zeile). Der Festlohn ist oben bereits
+            // um die UU-Stunden gekürzt — hier keine zweite CHF-Kürzung.
+            if (mtpUnbezUrlaubTage > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = "Unbezahlter Urlaub",
+                    anzahl  = (decimal?)Math.Round(mtpUnbezUrlaubTage, 2),
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)null,
+                    betrag  = 0m,
+                    accrued = (decimal?)0m
+                });
             }
 
             // Hinweis: MTP Ferien-Auszahlung wird weiter unten verbucht
@@ -2018,6 +2034,21 @@ public class PayrollCalculationEngine
 
             lohnLines.Add(new { bezeichnung = "Stundenlohn", anzahl = (decimal?)workedHoursAnzeige, prozent = (decimal?)null, basis = (decimal?)hourlyRate, betrag = lohnBrutto, accrued = (decimal?)lohnBrutto });
             totalLohn += lohnBrutto;
+
+            // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auf dem Lohnzettel
+            // aufführen. Bei FLEX keine CHF-Wirkung (ungestempelt = unbezahlt),
+            // aber die Tage müssen sichtbar sein (Transparenz / Kontrolle).
+            if (unbezUrlaubTageFerien > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = "Unbezahlter Urlaub",
+                    anzahl  = (decimal?)Math.Round(unbezUrlaubTageFerien, 2),
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)null,
+                    betrag  = 0m,
+                    accrued = (decimal?)0m
+                });
+            }
 
             if (nachtKompBrutto > 0)
             {
