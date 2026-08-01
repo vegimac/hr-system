@@ -179,6 +179,7 @@ builder.Services.AddScoped<QstPflichtCheckService>();
 // neue QST-Einträge den passenden Tarif + Kinderzahl + Kirchensteuer aus
 // Stammdaten ableitet und gegen die offizielle ESTV-Tariftabelle prüft.
 builder.Services.AddScoped<QstTarifVorschlagService>();
+builder.Services.AddScoped<QstKonfessionSyncService>();
 // FAK-Tarif-Auflösung: pro Periode Kinderzulagen-Betrag aus Tarif + Alter (Walter 28.05.2026)
 builder.Services.AddScoped<FamilienzulagenResolverService>();
 builder.Services.AddScoped<WageAdjustmentService>();

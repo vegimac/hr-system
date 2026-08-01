@@ -16,11 +16,16 @@ public class EmployeesController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly EmployeePostfachService _postfach;
+    private readonly QstKonfessionSyncService _qstKonfessionSync;
 
-    public EmployeesController(AppDbContext context, EmployeePostfachService postfach)
+    public EmployeesController(
+        AppDbContext context,
+        EmployeePostfachService postfach,
+        QstKonfessionSyncService qstKonfessionSync)
     {
         _context = context;
         _postfach = postfach;
+        _qstKonfessionSync = qstKonfessionSync;
     }
 
     /// <summary>
@@ -633,7 +638,16 @@ public class EmployeesController : ControllerBase
         // ── Erweiterte Zivilstand-Angaben (allgemein) ────────────────────
         if (dto.MaritalStatusSinceSet) employee.MaritalStatusSince = dto.MaritalStatusSince;
         if (dto.SeparatedSinceSet)     employee.SeparatedSince     = dto.SeparatedSince;
-        if (dto.Religion is not null) employee.Religion = dto.Religion == "" ? null : dto.Religion;
+        // Konfession → QST Kirchensteuer nachziehen (Walter 01.08.2026).
+        // Sync läuft bei jedem Save der Religion mit (auch wenn der Wert
+        // gleich bleibt) — fängt nachträgliche Korrekturen und bereits
+        // gespeicherte, noch nicht nachgezogene QST-Einträge ab.
+        bool religionInPayload = false;
+        if (dto.Religion is not null)
+        {
+            employee.Religion = dto.Religion == "" ? null : dto.Religion;
+            religionInPayload = true;
+        }
         if (dto.LetterSalutation is not null) employee.LetterSalutation = dto.LetterSalutation == "" ? null : dto.LetterSalutation;
         if (dto.PlaceOfOrigin   is not null) employee.PlaceOfOrigin   = dto.PlaceOfOrigin   == "" ? null : dto.PlaceOfOrigin;
 
@@ -784,6 +798,10 @@ public class EmployeesController : ControllerBase
         // Greift jetzt nur noch wenn Walter den Haken bewusst geändert hat —
         // beim reinen ExitDate-Setzen bleibt das Postfach offen.
         await _postfach.SyncActiveStateAsync(employee);
+
+        // Offenen QST-Eintrag an die (ggf. neue) Konfession anpassen.
+        if (religionInPayload)
+            await _qstKonfessionSync.SyncAsync(employee.Id, employee.Religion);
 
         return Ok(employee);
     }

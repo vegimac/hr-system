@@ -31,6 +31,24 @@ window._showValidationToast = function(msg) {
     window._validation_toast_timer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
 };
 
+/** Neutraler Info-Toast (Kohle) — z.B. QST nach Konfessions-Änderung. */
+function _showQstSyncToast(msg) {
+    let el = document.getElementById('_qst_sync_toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '_qst_sync_toast';
+        el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);'
+            + 'background:#3f3f3f;color:#fff;padding:10px 18px;border-radius:12px;'
+            + 'font-size:13px;font-weight:650;z-index:9999;box-shadow:0 10px 24px rgba(60,55,48,0.22);'
+            + 'opacity:0;transition:opacity .15s';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(window._qst_sync_toast_timer);
+    window._qst_sync_toast_timer = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+}
+
 window.validateZip = function(el) {
     // Schweizer PLZ = 4-stellig numerisch.
     const before = el.value;
@@ -5268,6 +5286,9 @@ async function saveEmpEdit() {
         letterSalutation:      (formVal('ef-letterSalutation', 'ov-letterSalutation') || '').trim() || null,
         placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
     };
+    const religionBefore = emp.religion || '';
+    const religionAfter  = empPayload.religion || '';
+    const religionChanged = religionBefore !== religionAfter;
 
     // "Kein Lohn"-Flag — nur senden wenn der Toggle im Formular existiert
     // (= aktueller User ist admin; sonst rendert das Feld nicht).
@@ -5337,6 +5358,21 @@ async function saveEmpEdit() {
                 renderEmployeeList(list);
             }
             renderEmployeeDetail(selectedEmployee);
+
+            // Konfession geändert → QST Kirchensteuer wurde serverseitig
+            // nachgezogen (Walter 01.08.2026). Kurz zurückmelden.
+            if (religionChanged) {
+                try {
+                    const qr = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/current`, { headers: ah() });
+                    if (qr.ok) {
+                        const qst = await qr.json();
+                        if (qst && qst.qstCode) {
+                            const kirche = qst.kirchensteuer ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
+                            _showQstSyncToast(`QST nachgezogen: ${qst.qstCode} · ${kirche}`);
+                        }
+                    }
+                } catch { /* toast best-effort */ }
+            }
         }
     } catch {
         alert('Verbindungsfehler beim Speichern.');
