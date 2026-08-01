@@ -711,7 +711,8 @@ Import Mirus-Monatsblatt: Codes 901 Zeitsaldo, 904 Nacht, 903 Ferien-Tage, 902 F
         "Services/LgavBeitragService.cs — L-GAV-Beitrag<br/>"
         "Services/FibuJournalService.cs — RST Ferien/Feiertag/13.<br/>"
         "Services/StundenkontrollePdfService.cs — Monatsblatt<br/>"
-        "Services/FerienKuerzungService.cs — Art. 329b OR",
+        "Services/FerienKuerzungService.cs — Art. 329b OR<br/>"
+        "Services/EasyAtWork/EasyAtWorkTimepunchSyncService.cs — Stempel TotalHours (Sekunden)",
         S["small"],
     ))
     story.append(Spacer(1, 4 * mm))
