@@ -72,7 +72,8 @@ public class SaldoVortragController : ControllerBase
     /// </summary>
     private static bool IsRelevantForModel(string saldoCode, string model) => model switch
     {
-        "FLEX"   => saldoCode is CodeFerienTage or CodeFerienGeld,
+        // FLEX: 13.-Saldo (906) nur Probezeit — Vortrag erlauben (Walter 01.08.2026)
+        "FLEX"   => saldoCode is CodeFerienTage or CodeFerienGeld or CodeDreizehnter,
         "MTP"   => saldoCode is CodeZeit or CodeFerienTage or CodeNacht or CodeFerienGeld or CodeDreizehnter,
         "FIX"   => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,
         "FIX-M" => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,

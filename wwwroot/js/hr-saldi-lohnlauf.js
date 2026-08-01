@@ -1135,7 +1135,9 @@ async function svLoadPeriodenForBranch(companyProfileId) {
 // FIX/FIX-M haben das Ferien-Geld im Festlohn drin.
 // Nacht-Saldo: nur MTP/FIX/FIX-M (UTP trackt keine Stunden).
 const SV_FIELD_RELEVANCE = {
-    'FLEX':   { zeit: false, feiertag: false, ferien: true, nacht: false, feriengeld: true,  dreizehnter: false },
+    // FLEX: 13.-Saldo nur Probezeit — Vortrag trotzdem erlauben (Migration /
+    // Nachzug), Engine leert ihn nach Probezeit-Ende automatisch.
+    'FLEX':   { zeit: false, feiertag: false, ferien: true, nacht: false, feriengeld: true,  dreizehnter: true  },
     'MTP':   { zeit: true,  feiertag: false, ferien: true, nacht: true,  feriengeld: true,  dreizehnter: true  },
     'FIX':   { zeit: true,  feiertag: true,  ferien: true, nacht: true,  feriengeld: false, dreizehnter: true  },
     'FIX-M': { zeit: true,  feiertag: true,  ferien: true, nacht: true,  feriengeld: false, dreizehnter: true  }

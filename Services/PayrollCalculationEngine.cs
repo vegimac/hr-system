@@ -2167,15 +2167,22 @@ public class PayrollCalculationEngine
             lohnLines.AddRange(zulagenSvLines);
             totalLohn += zulagenSvTotal;
 
-            // ── 13. Monatslohn (UTP) ────────────────────────────────────────
+            // ── 13. Monatslohn (FLEX) ───────────────────────────────────────
             // Standard: monatlich auszahlen. Basis = Summe aller Lohnpositionen
-            // mit Flag "Basis für 13. Monatslohn" (ZaehltAlsBasis13ml = true).
+            // mit Flag «Basis für 13. Monatslohn» (ZaehltAlsBasis13ml = true).
             //
-            // Probezeit-Regel (L-GAV Art. 12 Ziffer 2): während Probezeit NICHT
-            // auszahlen, in Saldo akkumulieren. Beim ersten Lohn nach Probezeit-
-            // Ende den aufgelaufenen Saldo + aktuellen Monat zusammen ausschütten.
+            // Probezeit-Regel (L-GAV Art. 12 Ziffer 2, Walter 01.08.2026):
+            // während Probezeit KEIN Auszahlungsanspruch → in 13.-Saldo
+            // akkumulieren (mitführen). Erster Lohn NACH Probezeit-Ende:
+            // aufgelaufenen Saldo sofort nachzahlen + aktuellen Monat wieder
+            // monatlich auszahlen. Danach kein stehender 13.-Saldo mehr.
             decimal dreizehnterUtp = 0;
-            decimal prevThirteenthForSaldoUtp = prevThirteenth;
+            decimal prevThirteenthForSaldoUtp = 0;
+            decimal basis13ForSaldoUtp = 0;
+            decimal thirteenthPctForSaldoUtp = 0;
+            decimal? thirteenthPrevForDisplayUtp = null;
+            decimal? thirteenthAccrualForDisplayUtp = null;
+            decimal? thirteenthPayoutForDisplayUtp = null;
             if (thirteenthPct > 0)
             {
                 decimal basis13Exact = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
@@ -2185,7 +2192,9 @@ public class PayrollCalculationEngine
 
                 if (isInProbation)
                 {
-                    // Akkumulieren, nicht auszahlen.
+                    // Akkumulieren, nicht auszahlen. Saldo-Math wie MTP:
+                    // PrevThirteenth = Vormonat, Basis13ml × pct = Monatszuwachs
+                    // → BuildResult: accumulated = prev + monthly.
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
@@ -2197,7 +2206,9 @@ public class PayrollCalculationEngine
                             accrued     = (decimal?)currentAccrual
                         });
                     }
-                    prevThirteenthForSaldoUtp = Math.Round(prevThirteenth + currentAccrualExact, 2);
+                    prevThirteenthForSaldoUtp = prevThirteenth;
+                    basis13ForSaldoUtp = basis13Exact;
+                    thirteenthPctForSaldoUtp = thirteenthPct;
                 }
                 else
                 {
@@ -2226,6 +2237,10 @@ public class PayrollCalculationEngine
                             accrued     = (decimal?)prevThirteenth
                         });
                         totalLohn += prevThirteenth;
+                        // Saldo-Zeile im Slip: Vormonat-Pott → bezogen → 0
+                        thirteenthPrevForDisplayUtp = prevThirteenth;
+                        thirteenthAccrualForDisplayUtp = 0m;
+                        thirteenthPayoutForDisplayUtp = prevThirteenth;
                     }
                     dreizehnterUtp = Math.Round(currentAccrual + prevThirteenth, 2);
                     prevThirteenthForSaldoUtp = 0;   // Saldo geleert
@@ -2407,11 +2422,8 @@ public class PayrollCalculationEngine
             var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
-            // UTP: 13. ML standardmässig monatlich ausbezahlt. Während Probezeit
-            // wandert er aber in den Saldo (siehe oben) — daher prevThirteenth-
-            // Forwarding via prevThirteenthForSaldoUtp und ThirteenthPct
-            // gesetzt, damit beim nächsten Periodenwechsel die Saldo-Vortrag-
-            // Logik funktioniert.
+            // FLEX: 13. ML standardmässig monatlich. Während Probezeit → Saldo
+            // (Basis13ml + PrevThirteenth); Nachzahlung leert den Saldo.
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesUtp,
@@ -2441,10 +2453,14 @@ public class PayrollCalculationEngine
                     FeiertagTageAccrual:  feiertagTageAccrual,
                     FeiertagTageGenommen: feiertagTageGenommen,
                     FeiertagTageSaldoNeu: feiertagTageSaldoNeu,
-                    ThirteenthPct:        isInProbation ? thirteenthPct : 0m,
+                    ThirteenthPct:        thirteenthPctForSaldoUtp,
                     PrevThirteenth:       prevThirteenthForSaldoUtp,
+                    ThirteenthPrevForDisplay:    thirteenthPrevForDisplayUtp,
+                    ThirteenthAccrualForDisplay: thirteenthAccrualForDisplayUtp,
+                    ThirteenthPayout:            thirteenthPayoutForDisplayUtp,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
-                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage),
+                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
+                    Basis13ml:            basis13ForSaldoUtp),
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,

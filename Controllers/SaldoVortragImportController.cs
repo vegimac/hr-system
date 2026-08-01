@@ -30,7 +30,7 @@ namespace HrSystem.Controllers;
 /// Vortrag-Codes (901-904) bleiben UNANGETASTET (anders als
 /// SaldoVortragController.Upsert, der alle 6 Felder auf einmal setzt).
 /// Vertragsmodell-Relevanz (Walter-Vorgabe): 905 nur für UTP/MTP,
-/// 906 für MTP/FIX/FIX-M (irrelevant für UTP).
+/// 906 für FLEX (Probezeit) + MTP/FIX/FIX-M.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -301,8 +301,8 @@ public class SaldoVortragImportController : ControllerBase
 
     private static bool IsRelevant905(string model) =>   // Ferien-Geld CHF
         model == "FLEX" || model == "MTP";
-    private static bool IsRelevant906(string model) =>   // 13. ML CHF
-        model == "MTP" || model == "FIX" || model == "FIX-M";
+    private static bool IsRelevant906(string model) =>   // 13. ML CHF (FLEX: Probezeit)
+        model == "FLEX" || model == "MTP" || model == "FIX" || model == "FIX-M";
 
     // ── XLS-Parser ───────────────────────────────────────────────────────────
 

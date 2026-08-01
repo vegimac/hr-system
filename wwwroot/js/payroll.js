@@ -1692,7 +1692,15 @@ function renderLohnSlip(s, targetEl) {
             const showFerienTage = true;                   // alle
             const showFeiertag   = isFixModel;             // FIX/FIX-M
             const showFerienGeld = isUtpOrMtp;             // UTP/MTP
-            const show13Saldo    = !isUtp;                 // MTP/FIX/FIX-M
+            // FLEX: 13.-Saldo NUR während Probezeit (Rückstellung) bzw. im
+            // Nachzahlungsmonat — sonst monatlich ausbezahlt, kein stehender Saldo
+            // (Walter 01.08.2026 / L-GAV Art. 12 Ziff. 2).
+            const flex13Active = isUtp && (
+                (Number(s.thirteenthAccumulated) || 0) > 0
+                || (Number(s.thirteenthMonthly) || 0) > 0
+                || (Number(s.thirteenthPayout) || 0) > 0
+            );
+            const show13Saldo    = !isUtp || flex13Active; // MTP/FIX/FIX-M + FLEX Probezeit
 
             const hasSaldi = showNacht || showFerienTage || showFeiertag || showFerienGeld || show13Saldo;
             if (!hasSaldi) return '';
@@ -1804,13 +1812,16 @@ function renderLohnSlip(s, targetEl) {
             // Display-Werte explizit, damit nach dem Saldo-Reset alle vier
             // Spalten weiterhin nachvollziehbar sind.
             if (show13Saldo) {
+                const label13 = isUtp
+                    ? 'Rückst. 13. Monatslohn Probezeit (CHF)'
+                    : 'Rückst. 13. Monatslohn (CHF)';
                 const payout = s.thirteenthPayout ?? 0;
                 if (payout > 0) {
-                    // Auszahlungsmonat: Werte aus *ForDisplay nehmen
+                    // Auszahlungsmonat / Nachzahlung nach Probezeit
                     const prevDisp    = s.thirteenthPrevForDisplay ?? 0;
                     const accrualDisp = s.thirteenthAccrualForDisplay ?? 0;
                     rows.push(`<tr>
-                        <td class="ls-desc" style="color:#64748b">Rückst. 13. Monatslohn (CHF)</td>
+                        <td class="ls-desc" style="color:#64748b">${label13}</td>
                         <td class="ls-num" style="color:#64748b;white-space:nowrap">${fmt(prevDisp)}</td>
                         <td class="ls-num">${pos(accrualDisp)}</td>
                         <td class="ls-num">${neg(payout)}</td>
@@ -1822,7 +1833,7 @@ function renderLohnSlip(s, targetEl) {
                     const accumulated = s.thirteenthAccumulated ?? 0;
                     const prev        = Math.round((accumulated - monthly) * 100) / 100;
                     rows.push(`<tr>
-                        <td class="ls-desc" style="color:#64748b">Rückst. 13. Monatslohn (CHF)</td>
+                        <td class="ls-desc" style="color:#64748b">${label13}</td>
                         <td class="ls-num" style="color:#64748b;white-space:nowrap">${fmt(prev < 0 ? 0 : prev)}</td>
                         <td class="ls-num">${pos(monthly)}</td>
                         <td class="ls-num"><span style="color:#cbd5e1">—</span></td>

@@ -15,9 +15,9 @@ namespace HrSystem.Services;
 ///   • Buchhaltung (GenerateBuchhaltungAsync): alle Saldi pro MA + Brutto/Netto
 ///     + IBAN + Summenzeile. Belegt die Verbuchung; spätere Abacus-Schnittstelle
 ///     (Lohnposition → Konto) kommt separat.
-///   • GF (GenerateGfAsync): kompakte Übersicht der Saldi pro MA. Bei UTP bleibt
-///     die 13.-ML-Spalte leer — der 13. wird bei UTP monatlich ausbezahlt, es gibt
-///     also keinen Rückstellungs-Saldo.
+///   • GF (GenerateGfAsync): kompakte Übersicht der Saldi pro MA. Bei FLEX ist
+///     die 13.-ML-Spalte normalerweise «—» (monatlich ausbezahlt); während der
+///     Probezeit wird der Rückstellungs-Saldo ausgewiesen (Walter 01.08.2026).
 /// </summary>
 public class LohnSaldoListePdfService
 {
@@ -232,8 +232,9 @@ public class LohnSaldoListePdfService
                             void cell(Action<QuestPDF.Infrastructure.IContainer> content) =>
                                 content(table.Cell().Background(bg).PaddingVertical(2.5f).PaddingHorizontal(2)
                                     .BorderBottom(0.3f).BorderColor("#CCCCCC"));
-                            // UTP: kein 13.-ML-Saldo (monatlich ausbezahlt) → "—"
-                            var dreizehntStr = r.Model == "FLEX" ? "—" : ChfOrDash(r.Dreizehnter);
+                            // FLEX: 13.-Saldo nur während Probezeit (>0), sonst «—»
+                            var dreizehntStr = r.Model == "FLEX" && r.Dreizehnter == 0
+                                ? "—" : ChfOrDash(r.Dreizehnter);
                             cell(x => x.Text(r.PersonalNr).FontSize(8f));
                             cell(x => x.Text($"{r.FirstName} {r.LastName}".Trim()).FontSize(8f));
                             cell(x => x.Text(r.Model.Length > 0 ? r.Model : "—").FontSize(8f).FontColor(Muted));
@@ -252,7 +253,8 @@ public class LohnSaldoListePdfService
                         decimal sBrutto = rows.Sum(r => r.Brutto);
                         decimal sNetto  = rows.Sum(r => r.Netto);
                         decimal sFerien = rows.Sum(r => r.FerienGeld);
-                        decimal s13     = rows.Where(r => r.Model != "FLEX").Sum(r => r.Dreizehnter);
+                        // FLEX nur wenn Probezeit-Rückstellung (>0), sonst 0
+                        decimal s13     = rows.Sum(r => r.Dreizehnter);
                         void sumLabel(int span, string txt) =>
                             table.Cell().ColumnSpan((uint)span).PaddingTop(4).PaddingHorizontal(2)
                                 .BorderTop(1).BorderColor(Dark).Text(txt).Bold().FontSize(8.5f);
@@ -288,7 +290,7 @@ public class LohnSaldoListePdfService
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  GF-Übersicht — kompakte Saldi pro MA, UTP ohne 13. ML
+    //  GF-Übersicht — kompakte Saldi pro MA (FLEX-13 nur bei Probezeit-Saldo)
     // ════════════════════════════════════════════════════════════════════════
     public async Task<byte[]> GenerateGfAsync(int companyProfileId, int year, int month)
     {
@@ -346,7 +348,8 @@ public class LohnSaldoListePdfService
                             void cell(Action<QuestPDF.Infrastructure.IContainer> content) =>
                                 content(table.Cell().Background(bg).PaddingVertical(3).PaddingHorizontal(3)
                                     .BorderBottom(0.3f).BorderColor("#CCCCCC"));
-                            var dreizehntStr = r.Model == "FLEX" ? "—" : ChfOrDash(r.Dreizehnter);
+                            var dreizehntStr = r.Model == "FLEX" && r.Dreizehnter == 0
+                                ? "—" : ChfOrDash(r.Dreizehnter);
                             cell(x => x.Text(r.PersonalNr).FontSize(8.5f));
                             cell(x => x.Text($"{r.FirstName} {r.LastName}".Trim()).FontSize(8.5f));
                             cell(x => x.Text(r.Model.Length > 0 ? r.Model : "—").FontSize(8.5f).FontColor(Muted));
@@ -360,7 +363,7 @@ public class LohnSaldoListePdfService
                     });
 
                     col.Item().PaddingTop(8).Text(
-                        "Hinweis: Bei UTP wird der 13. Monatslohn monatlich ausbezahlt — daher kein Rückstellungs-Saldo.")
+                        "Hinweis: Bei FLEX wird der 13. Monatslohn monatlich ausbezahlt — Rückstellungs-Saldo nur während der Probezeit (L-GAV Art. 12 Ziff. 2).")
                         .FontSize(8f).FontColor(Muted).Italic();
                 });
 
