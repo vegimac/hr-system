@@ -181,8 +181,43 @@ public class MirusAddressCompareController : ControllerBase
             .GroupBy(e => NormNumber(e.EmployeeNumber!))
             .ToDictionary(g => g.Key, g => g.ToList());
 
+        // Walter 30.07.2026: Vergleich auch gegen «Weitere Adressen» und
+        // Lohnabtretungs-Behörden (Lohnabgabe). Steht die Mirus-Adresse dort,
+        // gilt sie als korrekt → keine Abweichung.
+        var branchEmpIds = branchEmps.Select(e => e.Id).ToList();
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var zusatzRows = await _db.EmployeeAddresses.AsNoTracking()
+            .Where(a => branchEmpIds.Contains(a.EmployeeId))
+            .Select(a => new ZusatzRow(
+                a.EmployeeId, a.AddressType, a.Description,
+                a.Street, a.Street2, a.ZipCode, a.City,
+                a.Phone, a.Phone2, a.Email))
+            .ToListAsync(ct);
+        var lohnRows = await _db.EmployeeLohnAssignments.AsNoTracking()
+            .Where(x => branchEmpIds.Contains(x.EmployeeId)
+                     && x.ValidFrom <= today
+                     && (x.ValidTo == null || x.ValidTo >= today))
+            .Select(x => new LohnAbgabeRow(
+                x.EmployeeId,
+                x.Bezeichnung,
+                x.Behoerde != null ? x.Behoerde.Name : "",
+                x.Behoerde != null ? x.Behoerde.Adresse1 : null,
+                x.Behoerde != null ? x.Behoerde.Adresse2 : null,
+                x.Behoerde != null ? x.Behoerde.Adresse3 : null,
+                x.Behoerde != null ? x.Behoerde.Plz : null,
+                x.Behoerde != null ? x.Behoerde.Ort : null,
+                x.Behoerde != null ? x.Behoerde.Telefon : null,
+                x.Behoerde != null ? x.Behoerde.Email : null))
+            .ToListAsync(ct);
+        var zusatzByEmp = zusatzRows.GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var lohnByEmp = lohnRows.GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         var allPlz = mirusRows.Select(r => NormPlz(r.Zip))
             .Concat(branchEmps.Select(e => NormPlz(e.ZipCode)))
+            .Concat(zusatzRows.Select(a => NormPlz(a.ZipCode)))
+            .Concat(lohnRows.Select(a => NormPlz(a.Plz)))
             .Where(p => p.Length == 4)
             .Distinct()
             .ToList();
@@ -260,26 +295,51 @@ public class MirusAddressCompareController : ControllerBase
             cr.OcPhone2 = oc.Phone2;
             cr.OcEmail = oc.Email;
 
-            AddDiff(cr, "Strasse", oc.Street, m.Street, compareStreet: true);
-            AddDiff(cr, "PLZ", oc.ZipCode, m.Zip, comparePlz: true);
-            AddDiff(cr, "Ort", oc.City, m.City, compareCity: true);
-            AddDiff(cr, "Telefon", oc.PhoneMobile, m.Phone1, comparePhone: true);
-            if (!IsBlank(m.Phone2) || !IsBlank(oc.Phone2))
-                AddDiff(cr, "Telefon 2", oc.Phone2, m.Phone2, comparePhone: true);
-            AddDiff(cr, "E-Mail", oc.Email, m.Email, compareEmail: true);
+            var sources = BuildContactSources(oc, zusatzByEmp, lohnByEmp);
+
+            AddDiffAny(cr, "Strasse", sources.Select(s => s.Street), m.Street, compareStreet: true);
+            AddDiffAny(cr, "PLZ", sources.Select(s => s.Zip), m.Zip, comparePlz: true);
+            AddDiffAny(cr, "Ort", sources.Select(s => s.City), m.City, compareCity: true);
+            AddDiffAny(cr, "Telefon",
+                sources.SelectMany(s => new[] { s.Phone1, s.Phone2 }),
+                m.Phone1, comparePhone: true);
+            if (!IsBlank(m.Phone2) || sources.Any(s => !IsBlank(s.Phone2)))
+            {
+                AddDiffAny(cr, "Telefon 2",
+                    sources.SelectMany(s => new[] { s.Phone1, s.Phone2 }),
+                    m.Phone2, comparePhone: true);
+            }
+            AddDiffAny(cr, "E-Mail", sources.Select(s => s.Email), m.Email, compareEmail: true);
             if (!IsBlank(m.EmailKontakt)
                 && !EqEmail(m.EmailKontakt, m.Email)
-                && !EqEmail(m.EmailKontakt, oc.Email))
+                && !sources.Any(s => EqEmail(m.EmailKontakt, s.Email)))
             {
                 cr.Diffs.Add(new FieldDiff
                 {
                     Field = "E-Mail Kontakt (nur Mirus)",
-                    OneCrew = oc.Email,
+                    OneCrew = BlankDash(oc.Email),
                     Mirus = m.EmailKontakt
                 });
             }
 
-            cr.PlzChecks.Add(CheckPlzOrt("OneCrew", oc.ZipCode, oc.City, ortMap));
+            // Block-Match: Mirus-Kontakt entspricht einer Zusatzadresse / Lohnabgabe
+            // (auch wenn PLZ/Ort in Mirus leicht abweichen, z.B. ORS-Zentrale vs. Zahlstelle).
+            var altHit = sources
+                .Where(s => !s.IsMain)
+                .FirstOrDefault(s => AltCoversMirus(s, m));
+            if (altHit != null && cr.Diffs.Count > 0)
+            {
+                cr.Diffs.Clear();
+                ApplyMatchedSourceDisplay(cr, altHit);
+            }
+            else if (altHit != null && MainDiffersFromMirus(oc, m))
+            {
+                // Keine Feld-Diffs mehr (per-Feld schon gedeckt), aber Haupt ≠ Mirus
+                // → Hinweis, dass die Übereinstimmung über Zusatz/Lohnabgabe kommt.
+                ApplyMatchedSourceDisplay(cr, altHit);
+            }
+
+            cr.PlzChecks.Add(CheckPlzOrt("OneCrew", cr.OcZip, cr.OcCity, ortMap));
             cr.PlzChecks.Add(CheckPlzOrt("Mirus", m.Zip, m.City, ortMap));
 
             cr.Status = cr.Diffs.Count > 0 ? "DIFF" : "OK";
@@ -465,6 +525,183 @@ public class MirusAddressCompareController : ControllerBase
         string? Street, string? ZipCode, string? City,
         string? PhoneMobile, string? Phone2, string? Email);
 
+    /// <summary>Eine bekannte Kontakt-/Adressquelle (Haupt, Weitere Adresse, Lohnabgabe).</summary>
+    private sealed record ContactSource(
+        string Label,
+        string? Street,
+        string? Zip,
+        string? City,
+        string? Phone1,
+        string? Phone2,
+        string? Email,
+        bool IsMain);
+
+    private sealed record ZusatzRow(
+        int EmployeeId, string AddressType, string? Description,
+        string? Street, string? Street2, string? ZipCode, string? City,
+        string? Phone, string? Phone2, string? Email);
+
+    private sealed record LohnAbgabeRow(
+        int EmployeeId, string Bezeichnung, string BehoerdeName,
+        string? Adresse1, string? Adresse2, string? Adresse3,
+        string? Plz, string? Ort, string? Telefon, string? Email);
+
+    private static List<ContactSource> BuildContactSources(
+        OcEmp oc,
+        Dictionary<int, List<ZusatzRow>> zusatzByEmp,
+        Dictionary<int, List<LohnAbgabeRow>> lohnByEmp)
+    {
+        var list = new List<ContactSource>
+        {
+            new("Hauptadresse", oc.Street, oc.ZipCode, oc.City,
+                oc.PhoneMobile, oc.Phone2, oc.Email, IsMain: true)
+        };
+
+        if (zusatzByEmp.TryGetValue(oc.Id, out var zusatz))
+        {
+            foreach (var a in zusatz)
+            {
+                var street = CombineStreet(a.Street, a.Street2);
+                var typ = string.IsNullOrWhiteSpace(a.AddressType) ? "Adresse" : a.AddressType.Trim();
+                var label = string.IsNullOrWhiteSpace(a.Description)
+                    ? $"Weitere Adresse ({typ})"
+                    : $"Weitere Adresse ({typ}: {a.Description.Trim()})";
+                list.Add(new ContactSource(label, street, a.ZipCode, a.City,
+                    a.Phone, a.Phone2, a.Email, IsMain: false));
+            }
+        }
+
+        if (lohnByEmp.TryGetValue(oc.Id, out var lohn))
+        {
+            foreach (var a in lohn)
+            {
+                var street = FirstNonBlank(a.Adresse1, a.Adresse2, a.Adresse3);
+                // Falls Zeile 1 nur «c/o …» ist und Zeile 2 die Strasse hat: kombinieren
+                if (!IsBlank(a.Adresse1) && !IsBlank(a.Adresse2)
+                    && !EqLoose(a.Adresse1, a.Adresse2))
+                    street = CombineStreet(a.Adresse1, a.Adresse2);
+                var bName = string.IsNullOrWhiteSpace(a.BehoerdeName) ? "Behörde" : a.BehoerdeName.Trim();
+                var bez = string.IsNullOrWhiteSpace(a.Bezeichnung) ? "" : a.Bezeichnung.Trim();
+                var label = string.IsNullOrEmpty(bez)
+                    ? $"Lohnabgabe ({bName})"
+                    : $"Lohnabgabe ({bName} — {bez})";
+                list.Add(new ContactSource(label, street, a.Plz, a.Ort,
+                    a.Telefon, null, a.Email, IsMain: false));
+            }
+        }
+
+        return list;
+    }
+
+    private static string? CombineStreet(string? a, string? b)
+    {
+        if (IsBlank(a)) return NullIfBlank(b);
+        if (IsBlank(b)) return a!.Trim();
+        return $"{a!.Trim()} / {b!.Trim()}";
+    }
+
+    private static string? FirstNonBlank(params string?[] vals)
+        => vals.Select(NullIfBlank).FirstOrDefault(v => v != null);
+
+    private static void ApplyMatchedSourceDisplay(CompareRow cr, ContactSource src)
+    {
+        cr.OcStreet = src.Street;
+        cr.OcZip = src.Zip;
+        cr.OcCity = src.City;
+        cr.OcPhone = src.Phone1;
+        cr.OcPhone2 = src.Phone2;
+        cr.OcEmail = src.Email;
+        var note = $"Mirus entspricht «{src.Label}» — nicht als Abweichung (Hauptadresse kann abweichen).";
+        cr.Note = string.IsNullOrWhiteSpace(cr.Note) ? note : $"{cr.Note} {note}";
+    }
+
+    private static bool MainDiffersFromMirus(OcEmp oc, MirusRow m)
+    {
+        if (!IsBlank(m.Street) && !EqStreet(oc.Street, m.Street) && !SoftStreetMatch(oc.Street, m.Street))
+            return true;
+        if (!IsBlank(m.Zip) && NormPlz(oc.ZipCode) != NormPlz(m.Zip)) return true;
+        if (!IsBlank(m.City) && NormCity(oc.City) != NormCity(m.City)) return true;
+        if (!IsBlank(m.Phone1) && !EqPhone(oc.PhoneMobile, m.Phone1) && !EqPhone(oc.Phone2, m.Phone1))
+            return true;
+        if (!IsBlank(m.Email) && !EqEmail(oc.Email, m.Email)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Zusatzadresse / Lohnabgabe deckt den Mirus-Kontakt ab:
+    /// volle Adresse, oder Kontakt (Tel/E-Mail) plus passende/ähnliche Strasse.
+    /// </summary>
+    private static bool AltCoversMirus(ContactSource s, MirusRow m)
+    {
+        bool streetEq = EqStreet(s.Street, m.Street) || SoftStreetMatch(s.Street, m.Street);
+        bool plzEq = NormPlz(s.Zip).Length > 0 && NormPlz(s.Zip) == NormPlz(m.Zip);
+        bool cityEq = NormCity(s.City).Length > 0 && NormCity(s.City) == NormCity(m.City);
+        if (streetEq && plzEq && cityEq) return true;
+
+        bool phoneOk =
+            (!IsBlank(m.Phone1) && (EqPhone(s.Phone1, m.Phone1) || EqPhone(s.Phone2, m.Phone1)))
+         || (!IsBlank(m.Phone2) && (EqPhone(s.Phone1, m.Phone2) || EqPhone(s.Phone2, m.Phone2)));
+        bool emailOk =
+            (!IsBlank(m.Email) && EqEmail(s.Email, m.Email))
+         || (!IsBlank(m.EmailKontakt) && EqEmail(s.Email, m.EmailKontakt));
+
+        if ((phoneOk || emailOk) && streetEq) return true;
+        // Gleiche Kontaktperson (Tel+Mail) bei verwandter Strasse (z.B. ORS)
+        if (phoneOk && emailOk && SoftStreetMatch(s.Street, m.Street)) return true;
+        return false;
+    }
+
+    private static void AddDiffAny(
+        CompareRow cr, string field, IEnumerable<string?> ocCandidates, string? mirus,
+        bool compareStreet = false, bool comparePlz = false, bool comparePhone = false,
+        bool compareEmail = false, bool compareCity = false)
+    {
+        var cands = ocCandidates.ToList();
+        if (cands.All(IsBlank) && IsBlank(mirus)) return;
+
+        foreach (var oc in cands)
+        {
+            bool same;
+            if (comparePhone) same = EqPhone(oc, mirus);
+            else if (compareEmail) same = EqEmail(oc, mirus);
+            else if (comparePlz) same = NormPlz(oc).Length > 0 && NormPlz(oc) == NormPlz(mirus);
+            else if (compareStreet) same = EqStreet(oc, mirus) || SoftStreetMatch(oc, mirus);
+            else if (compareCity)
+            {
+                var na = NormCity(oc);
+                var nb = NormCity(mirus);
+                same = na.Length > 0 && na == nb;
+            }
+            else same = EqLoose(oc, mirus);
+
+            if (same) return;
+        }
+
+        var display = cands.FirstOrDefault(c => !IsBlank(c));
+        cr.Diffs.Add(new FieldDiff
+        {
+            Field = field,
+            OneCrew = BlankDash(display),
+            Mirus = BlankDash(mirus)
+        });
+    }
+
+    /// <summary>
+    /// Weicher Strassen-Vergleich: eine Seite enthält die andere (ab 8 Zeichen),
+    /// z.B. «c/o ORS Service AG» ⊂ «c/o ORS Service AG / Lyssachstrasse 23».
+    /// </summary>
+    private static bool SoftStreetMatch(string? a, string? b)
+    {
+        var aa = CollapseWs(a).ToLowerInvariant();
+        var bb = CollapseWs(b).ToLowerInvariant();
+        if (aa.Length == 0 || bb.Length == 0) return false;
+        if (aa == bb) return true;
+        const int minLen = 8;
+        if (aa.Length >= minLen && bb.Contains(aa, StringComparison.Ordinal)) return true;
+        if (bb.Length >= minLen && aa.Contains(bb, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
     private static List<MirusRow> ParseAdressliste(Stream stream, string fileName)
     {
         IWorkbook wb = fileName.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase)
@@ -638,6 +875,9 @@ public class MirusAddressCompareController : ControllerBase
 
     /// <summary>Test-Hook für NormCity (Kantons-Suffix-Toleranz).</summary>
     public static string NormCityForTest(string? s) => NormCity(s);
+
+    /// <summary>Test-Hook für SoftStreetMatch (Zusatzadresse / Lohnabgabe).</summary>
+    public static bool SoftStreetMatchForTest(string? a, string? b) => SoftStreetMatch(a, b);
 
     private static bool EqLoose(string? a, string? b)
     {

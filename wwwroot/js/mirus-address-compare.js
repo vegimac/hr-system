@@ -226,7 +226,7 @@ function macRowCard(r) {
                <tbody>${diffs}</tbody>
            </table>`
         : (r.status === 'OK'
-            ? `<div style="margin-top:8px;font-size:12.5px;color:#15803d">✓ Adresse / Telefon / E-Mail identisch</div>`
+            ? `<div style="margin-top:8px;font-size:12.5px;color:#15803d">✓ Adresse / Telefon / E-Mail stimmen überein (Hauptadresse, Weitere Adresse oder Lohnabgabe)</div>`
             : '');
 
     const plzBits = (r.plzChecks || []).filter(p => p.status && p.status !== 'OK' && p.status !== 'EMPTY').map(p => {

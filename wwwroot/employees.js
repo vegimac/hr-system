@@ -10944,8 +10944,7 @@ function renderEmployeeAddressesList(el, list) {
         const contactLine = [a.phone, a.email].filter(Boolean).join(' · ');
         if (contactLine) lines.push(contactLine);
 
-        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 26.07.2026):
-        // feste 40px-Zeile — max. 2 sichtbar inkl. Scroll (CSS).
+        // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 26.07.2026).
         return `<div class="emp-addr-row" data-addr-id="${id}">
             <span class="emp-addr-type">${a.addressType || a.AddressType || 'Adresse'}</span>
             <span class="emp-addr-text">
