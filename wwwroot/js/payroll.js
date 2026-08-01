@@ -1880,8 +1880,9 @@ async function confirmLohn() {
             })
         });
         if (!res.ok) {
-            const err = await res.json().catch(() => ({ message: res.statusText }));
-            throw new Error(err.message || err.error || 'Fehler beim Bestätigen');
+            const err = await res.json().catch(() => ({}));
+            const detail = err.message || err.title || err.error || res.statusText || ('HTTP ' + res.status);
+            throw new Error('Fehler beim Bestätigen: ' + detail);
         }
         const result = await res.json();
         // Walter-Vorgabe 20.05.2026: flüssig wie Akonto — KEIN voller

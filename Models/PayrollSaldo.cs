@@ -63,8 +63,8 @@ public class PayrollSaldo
     /// <summary>"draft" oder "finalized"</summary>
     public string Status { get; set; } = "draft";
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public Employee? Employee { get; set; }
 }

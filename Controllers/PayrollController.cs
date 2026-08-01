@@ -153,7 +153,7 @@ public class PayrollController : HrControllerBase
             if (!changed) continue;
 
             s.SlipJson  = existing.ToJsonString();
-            s.UpdatedAt = DateTime.UtcNow;
+            s.UpdatedAt = DateTime.Now;
             updated++;
         }
         await _db.SaveChangesAsync();
@@ -1156,6 +1156,10 @@ public class PayrollController : HrControllerBase
                                    && s.PeriodYear    == dto.Year
                                    && s.PeriodMonth   == dto.Month
                                    && s.CompanyProfileId == dto.CompanyProfileId);
+        // Walter-Vorgabe 30.06.2026: DateTime.Now, NIE UtcNow — Spalten sind
+        // timestamp without time zone. Korrekturlohn legt oft erstmals Snapshot/
+        // Saldo an → UtcNow war hier der «ewige Wurm» (Npgsql 500).
+        var nowTs = DateTime.Now;
         if (saldo is null)
         {
             saldo = new PayrollSaldo
@@ -1164,7 +1168,7 @@ public class PayrollController : HrControllerBase
                 CompanyProfileId = dto.CompanyProfileId,
                 PeriodYear       = dto.Year,
                 PeriodMonth      = dto.Month,
-                CreatedAt        = DateTime.UtcNow
+                CreatedAt        = nowTs
             };
             _db.PayrollSaldos.Add(saldo);
         }
@@ -1180,7 +1184,7 @@ public class PayrollController : HrControllerBase
         saldo.GrossAmount                = srvGross;
         saldo.NetAmount                  = srvNet;
         saldo.Status                     = "confirmed";
-        saldo.UpdatedAt                  = DateTime.UtcNow;
+        saldo.UpdatedAt                  = nowTs;
 
         // 3) Snapshot speichern / aktualisieren
         if (snapshot is null)
@@ -1190,7 +1194,7 @@ public class PayrollController : HrControllerBase
                 PayrollPeriodeId = dto.PayrollPeriodeId,
                 EmployeeId       = dto.EmployeeId,
                 CompanyProfileId = dto.CompanyProfileId,
-                CreatedAt        = DateTime.UtcNow
+                CreatedAt        = nowTs
             };
             _db.PayrollSnapshots.Add(snapshot);
         }
@@ -1203,7 +1207,7 @@ public class PayrollController : HrControllerBase
         snapshot.QstBetrag              = srvQst;
         snapshot.ThirteenthAccumulated  = srv13Acc;
         snapshot.FerienGeldSaldo        = srvFerGeld;
-        snapshot.UpdatedAt              = DateTime.UtcNow;
+        snapshot.UpdatedAt              = nowTs;
 
         // 4-Augen-Workflow Walter-Vorgabe 19.05.2026 — Confirm = GF-Freigabe
         // pro MA. HR_BESTAETIGT bleibt unverändert wenn schon weitergerollt
@@ -1216,7 +1220,6 @@ public class PayrollController : HrControllerBase
         if (snapshot.Status == "BERECHNET" || string.IsNullOrEmpty(snapshot.Status))
         {
             var actorId = GetUserIdOrNull();
-            var nowLoc = DateTime.Now;
             // akontoPeriode = PayrollPeriode dieser Filiale/Periode (oben geladen)
             if (dto.IsCorrection
                 && akontoPeriode != null
@@ -1224,15 +1227,15 @@ public class PayrollController : HrControllerBase
                 && (User.IsInRole("admin") || User.IsInRole("superuser") || User.IsInRole("buchhaltung")))
             {
                 snapshot.Status = "HR_BESTAETIGT";
-                snapshot.GfFreigegebenAt ??= nowLoc;
+                snapshot.GfFreigegebenAt ??= nowTs;
                 snapshot.GfFreigegebenBy ??= actorId;
-                snapshot.HrBestaetigtAt = nowLoc;
+                snapshot.HrBestaetigtAt = nowTs;
                 snapshot.HrBestaetigtBy = actorId;
             }
             else
             {
                 snapshot.Status = "FREIGEGEBEN_GF";
-                snapshot.GfFreigegebenAt = nowLoc;
+                snapshot.GfFreigegebenAt = nowTs;
                 snapshot.GfFreigegebenBy = actorId;
             }
         }
@@ -1277,7 +1280,7 @@ public class PayrollController : HrControllerBase
             if (laOld != null)
             {
                 laOld.BereitsAbgezogen = Math.Max(0, Math.Round(laOld.BereitsAbgezogen - old.Betrag, 2));
-                laOld.UpdatedAt        = DateTime.UtcNow;
+                laOld.UpdatedAt        = nowTs;
             }
             _db.PayrollLohnAbtretungEntries.Remove(old);
         }
@@ -1296,7 +1299,7 @@ public class PayrollController : HrControllerBase
 
                 decimal vorher = la.BereitsAbgezogen;
                 la.BereitsAbgezogen = Math.Round(vorher + betrag, 2);
-                la.UpdatedAt        = DateTime.UtcNow;
+                la.UpdatedAt        = nowTs;
 
                 _db.PayrollLohnAbtretungEntries.Add(new PayrollLohnAbtretungEntry
                 {
@@ -1315,7 +1318,7 @@ public class PayrollController : HrControllerBase
                     Betrag                   = betrag,
                     BereitsAbgezogenVorher   = vorher,
                     BereitsAbgezogenNachher  = la.BereitsAbgezogen,
-                    CreatedAt                = DateTime.UtcNow
+                    CreatedAt                = nowTs
                 });
             }
         }
@@ -1402,7 +1405,7 @@ public class PayrollController : HrControllerBase
 
             string altStatus = saldo.Status ?? "(null)";
             saldo.Status    = "draft";
-            saldo.UpdatedAt = DateTime.UtcNow;
+            saldo.UpdatedAt = DateTime.Now;
             await _db.SaveChangesAsync();
             return Ok(new {
                 message  = $"Saldo zurückgesetzt (vorheriger Status: '{altStatus}'). Kein Snapshot gefunden — vermutlich Altbestand. Bitte Lohn neu prüfen und bestätigen.",
@@ -1420,7 +1423,7 @@ public class PayrollController : HrControllerBase
             if (la != null)
             {
                 la.BereitsAbgezogen = Math.Max(0, Math.Round(la.BereitsAbgezogen - old.Betrag, 2));
-                la.UpdatedAt        = DateTime.UtcNow;
+                la.UpdatedAt        = DateTime.Now;
             }
             _db.PayrollLohnAbtretungEntries.Remove(old);
         }
@@ -1429,7 +1432,7 @@ public class PayrollController : HrControllerBase
         if (saldo != null)
         {
             saldo.Status    = "draft";
-            saldo.UpdatedAt = DateTime.UtcNow;
+            saldo.UpdatedAt = DateTime.Now;
         }
 
         // 7) Snapshot löschen — sonst zählt der MA in loadLohnList weiter als
@@ -1462,9 +1465,9 @@ public class PayrollController : HrControllerBase
             return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet FREIGEGEBEN_GF)." });
 
         snap.Status         = "HR_BESTAETIGT";
-        snap.HrBestaetigtAt = DateTime.UtcNow;
+        snap.HrBestaetigtAt = DateTime.Now;
         snap.HrBestaetigtBy = GetUserIdOrNull();
-        snap.UpdatedAt      = DateTime.UtcNow;
+        snap.UpdatedAt      = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { snap.Id, snap.Status, snap.HrBestaetigtAt });
     }
@@ -1487,7 +1490,7 @@ public class PayrollController : HrControllerBase
         snap.Status         = "FREIGEGEBEN_GF";
         snap.HrBestaetigtAt = null;
         snap.HrBestaetigtBy = null;
-        snap.UpdatedAt      = DateTime.UtcNow;
+        snap.UpdatedAt      = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { snap.Id, snap.Status });
     }

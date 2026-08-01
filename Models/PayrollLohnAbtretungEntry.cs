@@ -51,7 +51,7 @@ public class PayrollLohnAbtretungEntry
     public string?   DtaExportRef       { get; set; }
 
     public string?  Bemerkung { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     // ── Navigation (optional) ──────────────────────────────────────────
     public PayrollSnapshot?         Snapshot   { get; set; }
