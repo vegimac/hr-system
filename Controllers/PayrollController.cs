@@ -1209,11 +1209,32 @@ public class PayrollController : HrControllerBase
         // pro MA. HR_BESTAETIGT bleibt unverändert wenn schon weitergerollt
         // (re-confirm während HR-Phase würde sonst HR-Bestätigung verlieren).
         // Hier nur „neu" oder von BERECHNET kommend → FREIGEGEBEN_GF.
+        // Korrekturlohn in bereits provisorischer Periode (Walter Aug 2026):
+        // ein Klick von HR setzt direkt HR_BESTAETIGT — sonst bliebe der
+        // Nachzügler nach Confirm noch auf FREIGEGEBEN_GF und bräuchte
+        // einen zweiten Klick, obwohl die Periode schon bei HR ist.
         if (snapshot.Status == "BERECHNET" || string.IsNullOrEmpty(snapshot.Status))
         {
-            snapshot.Status = "FREIGEGEBEN_GF";
-            snapshot.GfFreigegebenAt = DateTime.UtcNow;
-            snapshot.GfFreigegebenBy = GetUserIdOrNull();
+            var actorId = GetUserIdOrNull();
+            var nowLoc = DateTime.Now;
+            // akontoPeriode = PayrollPeriode dieser Filiale/Periode (oben geladen)
+            if (dto.IsCorrection
+                && akontoPeriode != null
+                && string.Equals(akontoPeriode.Status, "provisorisch_abgeschlossen", StringComparison.OrdinalIgnoreCase)
+                && (User.IsInRole("admin") || User.IsInRole("superuser") || User.IsInRole("buchhaltung")))
+            {
+                snapshot.Status = "HR_BESTAETIGT";
+                snapshot.GfFreigegebenAt ??= nowLoc;
+                snapshot.GfFreigegebenBy ??= actorId;
+                snapshot.HrBestaetigtAt = nowLoc;
+                snapshot.HrBestaetigtBy = actorId;
+            }
+            else
+            {
+                snapshot.Status = "FREIGEGEBEN_GF";
+                snapshot.GfFreigegebenAt = nowLoc;
+                snapshot.GfFreigegebenBy = actorId;
+            }
         }
 
         // Akonto-Bereits-Ausbezahlt-Feld pflegen (Walter-Vorgabe 17.05.2026):

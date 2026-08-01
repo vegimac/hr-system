@@ -479,10 +479,14 @@ function _lohnWfRenderStatusBar() {
     // Snapshot-Status des aktuell selektierten MA → bestimmt die per-MA-Buttons.
     const selStatus = (d.snapByEmp && _lohnSelectedEmpId != null
         && d.snapByEmp[_lohnSelectedEmpId]?.status) || 'BERECHNET';
+    const isCorrSel = _lohnSelectedEmpId != null && _lohnIsCorrection(_lohnSelectedEmpId);
 
-    // ─ GF Per-MA-Aktionen (nur in offener Periode) ─
-    const perMaConfirm = (isOffen && selStatus === 'BERECHNET')
-        ? `<button class="btn btn-primary btn-sm" onclick="confirmLohn()">✓ Lohn bestätigen</button>` : '';
+    // ─ GF Per-MA-Aktionen (offen) + Korrekturlohn auch in HR-Phase (Walter Aug 2026) ─
+    // Nachträgliche Korrektur (UVG/Depot) kommt oft erst wenn die Periode
+    // schon bei HR ist — sonst wäre Bestätigen unmöglich ohne «Zurück an GF».
+    const canConfirmCorrInHr = isCorrSel && isProv && isHr && selStatus === 'BERECHNET';
+    const perMaConfirm = ((isOffen && selStatus === 'BERECHNET') || canConfirmCorrInHr)
+        ? `<button class="btn btn-primary btn-sm" onclick="confirmLohn()">${isCorrSel ? '✓ Korrekturlohn bestätigen' : '✓ Lohn bestätigen'}</button>` : '';
     const perMaReopen = (isOffen && selStatus === 'FREIGEGEBEN_GF')
         ? `<button class="btn btn-outline btn-sm" onclick="reopenLohn()" style="color:#b91c1c;border-color:#fecaca">↶ Wieder eröffnen</button>` : '';
 
@@ -538,7 +542,8 @@ function _lohnWfRenderStatusBar() {
                     isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()',      { title: 'Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung)' }) : '',
                     isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Lohnzettel der Periode neu berechnen — Reparatur bei inkonsistenten Snapshots' }) : '',
                 ];
-                actions = `${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}${skBtn}
+                // perMaConfirm: Korrekturlohn nachträglich in HR-Phase bestätigen
+                actions = `${perMaConfirm}${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}${skBtn}
                     ${buildMoreMenu(moreItems)}
                     <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
                     <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
