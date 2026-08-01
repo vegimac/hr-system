@@ -12524,11 +12524,20 @@ function renderUniformDepotTab(el, d) {
         ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Rückerstattet in Periode ${esc(d.refundPeriode)}</div>`
         : '';
     const ret = d.returnConfirmed === true
-        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Austritt: Uniform zurückgegeben → Refund bei Abrechnung</div>'
+        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Uniform zurückgegeben → Refund erscheint automatisch auf dem (Korrektur-)Lohnzettel</div>'
         : d.returnConfirmed === false
-            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Austritt: nicht ordentlich → Depot verfällt</div>'
-            : '';
+            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
+            : '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>';
     const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
+    // Nachträgliche Entscheidung (z.B. Austritt schon erfasst, Korrekturlohn jetzt)
+    const canDecide = d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
+    const actions = canDecide ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button type="button" onclick="setUniformDepotReturn(true)"
+                style="background:#3f3f3f;color:#fff;border:none;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Uniform zurück → Refund</button>
+            <button type="button" onclick="setUniformDepotReturn(false)"
+                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid #cbd5e1;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
+        </div>` : '';
     el.innerHTML = `
         <div style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -12539,7 +12548,35 @@ function renderUniformDepotTab(el, d) {
                 </div>
                 <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
             </div>
+            ${actions}
         </div>`;
+}
+
+async function setUniformDepotReturn(returned) {
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId) return;
+    const msg = returned
+        ? 'Uniform zurückgegeben — CHF 50 erscheinen als Refund auf dem nächsten (Korrektur-)Lohnzettel. Fortfahren?'
+        : 'Uniform NICHT zurück — Depot verfällt, kein Refund. Fortfahren?';
+    if (!confirm(msg)) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/uniform-depot/return`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ returned: !!returned }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || err.error || 'Speichern fehlgeschlagen');
+            return;
+        }
+        await loadUniformDepotTab(empId);
+        if (typeof showToast === 'function') {
+            showToast(returned ? 'Uniform zurück → Refund bereit' : 'Depot wird verfallen', 'success');
+        }
+    } catch (e) {
+        alert('Netzwerkfehler: ' + (e?.message || e));
+    }
 }
 
 async function loadBvgZusatzTab(employeeId) {
