@@ -3905,12 +3905,13 @@
             min-height: 0;
             align-content: start;
         }
-        /* Verträge + Saldi-Tabelle (Walter 19.07.2026) — Verträge breiter. */
+        /* Verträge + Stundenbox: gleiche Spaltenbreite wie Anstellung/Nachtarbeit
+           (Walter Aug 2026) — rechte Kante Nachtarbeit = rechte Kante Saldi. */
         .ov-vertraege-ktg {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: minmax(0, 1.5fr) minmax(340px, 400px);
-            gap: 8px;
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            gap: 7px;
             min-width: 0;
             align-items: stretch;
         }
