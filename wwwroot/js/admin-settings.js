@@ -80,6 +80,7 @@ function openBehoerdeModal(existing) {
     document.getElementById('beKontaktpersonRolle').value = d.kontaktpersonRolle ?? '';
     document.getElementById('beErreichbarkeit').value     = d.erreichbarkeit     ?? '';
     document.getElementById('beTelefon').value   = d.telefon ?? '';
+    document.getElementById('beHandy').value     = d.handy ?? '';
     document.getElementById('beEmail').value     = d.email ?? '';
     document.getElementById('beWebseite').value  = d.webseite ?? '';
     const ibanEl   = document.getElementById('beIban');
@@ -176,6 +177,7 @@ async function saveBehoerde() {
         plz:                document.getElementById('bePlz').value.trim()     || null,
         ort:                document.getElementById('beOrt').value.trim()     || null,
         telefon:            document.getElementById('beTelefon').value.trim() || null,
+        handy:              document.getElementById('beHandy').value.trim()   || null,
         email:              document.getElementById('beEmail').value.trim()   || null,
         kontaktperson:      document.getElementById('beKontaktperson').value.trim()      || null,
         kontaktpersonRolle: document.getElementById('beKontaktpersonRolle').value.trim() || null,

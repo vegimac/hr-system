@@ -1447,6 +1447,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Plz).HasColumnName("plz").HasMaxLength(10);
             entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(100);
             entity.Property(e => e.Telefon).HasColumnName("telefon").HasMaxLength(30);
+            entity.Property(e => e.Handy).HasColumnName("handy").HasMaxLength(30);
             entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
             entity.Property(e => e.Kontaktperson).HasColumnName("kontaktperson").HasMaxLength(150);
             entity.Property(e => e.KontaktpersonRolle).HasColumnName("kontaktperson_rolle").HasMaxLength(100);

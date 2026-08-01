@@ -1707,7 +1707,8 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS kontaktperson       VARCHAR(150),
             ADD COLUMN IF NOT EXISTS kontaktperson_rolle VARCHAR(100),
             ADD COLUMN IF NOT EXISTS erreichbarkeit      VARCHAR(150),
-            ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300);
+            ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300),
+            ADD COLUMN IF NOT EXISTS handy               VARCHAR(30);
     ");
 
     // Familienzulagen pro Familienmitglied, zeitlich versioniert (Von/Bis/Monatsbetrag).
