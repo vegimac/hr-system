@@ -2287,12 +2287,9 @@ public class EasyAtWorkEmployeeSyncService
                 if (exitChanged) await _db.SaveChangesAsync(ct);
 
                 // Probezeit wenn noch KEINE auf irgendeinem Vertrag (Walter 02.08.2026):
-                // Früher nur bei genau 1 Vertrag — dann fehlte sie bei Sync-Splits
-                // (z.B. Dora Mustedanagic: 1-Tages-Vertrag 27.7. + offen ab 28.7.).
-                // Neu: sobald irgendwo schon ProbationEndDate steht → unangetastet
-                // (Idempotent / manuell Gesetztes bleibt). Sonst auf dem offenen
-                // Vertrag setzen (Fallback: frühester Start). Dauer = Filial-
-                // Probezeit − 1 Tag (14 = Tage, 1/2/3 = Monate).
+                // Entscheidend = erste Stempelzeit ab Eintrittsdatum (sonst Eintritt
+                // provisorisch). Auch bei Sync-Splits (1-Tages-Vertrag + offen).
+                // Idempotent: sobald irgendwo ProbationEndDate steht → unangetastet.
                 var branchProb = await _db.CompanyProfiles
                     .Where(c => c.Id == req.CompanyProfileId)
                     .Select(c => c.ProbationMonths)
@@ -2314,28 +2311,31 @@ public class EasyAtWorkEmployeeSyncService
                                   ?? emps.OrderBy(e => e.ContractStartDate).First();
 
                         // Regel „befristet → keine Probezeit" (Walter 30.06.2026):
-                        // vorbereitet, AKTUELL aber NICHT AKTIV — die laufenden
-                        // befristeten Verträge behalten ihre Probezeit. Bei Bedarf
-                        // SkipProbationForBefristet auf true setzen.
+                        // vorbereitet, AKTUELL aber NICHT AKTIV.
                         const bool SkipProbationForBefristet = false;
                         var istBefristet = string.Equals(target.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
                                            || target.ContractEndDate.HasValue;
                         if (SkipProbationForBefristet && istBefristet) continue;
-                        var contractStart = DateOnly.FromDateTime(target.ContractStartDate);
 
-                        // Basis = erste Stempelzeit (1. Arbeitstag), falls schon
-                        // vorhanden → Probezeit direkt verankert (kein Warten auf den
-                        // Stempel-Sync). Sonst provisorisch ab Vertragsbeginn; der
-                        // Stempel-Sync verankert später.
-                        var firstStamp = await _db.EmployeeTimeEntries
-                            .Where(t => t.EmployeeId == eid)
+                        var contractStart = DateOnly.FromDateTime(target.ContractStartDate);
+                        var entryDt = await _db.Employees.AsNoTracking()
+                            .Where(e => e.Id == eid)
+                            .Select(e => e.EntryDate)
+                            .FirstOrDefaultAsync(ct);
+                        DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
+                        var reference = ProbationAnchor.ReferenceStart(entry, contractStart);
+
+                        // Erste Stempelzeit ab Eintritt (= 1. Arbeitstag).
+                        var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == eid);
+                        if (entry.HasValue)
+                            stampQ = stampQ.Where(t => t.EntryDate >= entry.Value);
+                        var firstStamp = await stampQ
                             .OrderBy(t => t.EntryDate)
                             .Select(t => (DateOnly?)t.EntryDate)
                             .FirstOrDefaultAsync(ct);
-                        var basis = firstStamp ?? contractStart;
-                        var ende = branchProb.Value == 14
-                            ? basis.AddDays(14).AddDays(-1)
-                            : basis.AddMonths(branchProb.Value).AddDays(-1);
+
+                        var basis = firstStamp ?? reference;
+                        var ende = ProbationAnchor.ComputeEnd(basis, branchProb.Value);
                         target.ProbationEndDate      = ende.ToDateTime(TimeOnly.MinValue);
                         target.ProbationPeriodMonths = branchProb.Value == 14 ? null : branchProb.Value;
 
@@ -2347,8 +2347,8 @@ public class EasyAtWorkEmployeeSyncService
                                 EmploymentId         = target.Id,
                                 EventDate            = firstStamp.Value,
                                 EventType            = "ANKER",
-                                DeltaDays            = ProbationAnchor.Delta(contractStart, firstStamp.Value),
-                                Grund                = ProbationAnchor.Grund(contractStart, firstStamp.Value),
+                                DeltaDays            = ProbationAnchor.Delta(reference, firstStamp.Value),
+                                Grund                = ProbationAnchor.Grund(reference, firstStamp.Value),
                                 ProbezeitEndeNachher = ende,
                                 CreatedAt            = DateTime.Now,   // Spalte ist timestamp WITHOUT time zone → keine UTC-Kind
                             });

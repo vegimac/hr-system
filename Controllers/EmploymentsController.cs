@@ -203,9 +203,9 @@ public class EmploymentsController : ControllerBase
         const bool SkipProbationForBefristet = false;
         var istBefristet = string.Equals(employment.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
                            || employment.ContractEndDate.HasValue;
-        // Walter 02.08.2026: nicht nur Erstvertrag — auch wenn Sync/Import schon
-        // einen Kurz-Vertrag angelegt hat ohne Probezeit (z.B. 1 Tag + Folgetag
-        // offen). Sobald irgendein Vertrag Probezeit hat → nichts setzen.
+        // Walter 02.08.2026: nicht nur Erstvertrag — auch Sync-Split ohne Probezeit.
+        // Provisorische Basis = Eintrittsdatum (sonst Vertragsbeginn); Anker an
+        // erster Stempelzeit ab Eintritt macht der Stempel-Sync.
         var hatBereitsProbezeit = await _context.Employments
             .AnyAsync(e => e.EmployeeId == employment.EmployeeId && e.ProbationEndDate != null);
         if (!hatBereitsProbezeit && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
@@ -214,7 +214,12 @@ public class EmploymentsController : ControllerBase
                 .Where(c => c.Id == employment.CompanyProfileId.Value)
                 .Select(c => c.ProbationMonths)
                 .FirstOrDefaultAsync();
-            var probEnd = ComputeProbationEndDate(employment.ContractStartDate, branchProb);
+            var entryDt = await _context.Employees.AsNoTracking()
+                .Where(e => e.Id == employment.EmployeeId)
+                .Select(e => e.EntryDate)
+                .FirstOrDefaultAsync();
+            var basis = entryDt ?? employment.ContractStartDate;
+            var probEnd = ComputeProbationEndDate(basis, branchProb);
             if (probEnd.HasValue)
             {
                 employment.ProbationEndDate      = probEnd.Value;

@@ -1175,15 +1175,13 @@ public class EasyAtWorkTimepunchSyncService
     }
 
     /// <summary>
-    /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026).
+    /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026,
+    /// präzisiert 02.08.2026): erste Stempelzeit ab Eintrittsdatum.
     /// Geht ALLE noch NICHT verankerten Probezeiten durch (ProbationEndDate gesetzt,
-    /// ProbationStartDate == null) — so wird auch ein MA erfasst, dessen Stempel
-    /// schon in einem früheren Lauf importiert wurden. Pro MA nur, wenn er GENAU
-    /// EINEN Vertrag hat:
-    ///   • erste Stempelzeit (min EntryDate) suchen — fehlt sie, später erneut
-    ///   • Probezeit-Ende um (erste Stempelzeit − Vertragsbeginn) verschieben
+    /// ProbationStartDate == null) — auch bei mehreren Verträgen (Sync-Split).
+    ///   • erste Stempelzeit ≥ Eintritt suchen — fehlt sie, später erneut
+    ///   • Probezeit-Ende um (erste Stempelzeit − Eintritt/Beginn) verschieben
     ///   • ProbationStartDate setzen (= Anker, läuft danach nie mehr)
-    ///   • ANKER-Zeile in employment_probation_log mit Status-Grund schreiben
     /// Idempotent: ist der Anker einmal gesetzt, passiert nichts mehr.
     /// </summary>
     private async Task AnchorProbationFromFirstStampAsync(AutoSyncResult res, CancellationToken ct)
@@ -1197,21 +1195,26 @@ public class EasyAtWorkTimepunchSyncService
 
         foreach (var emp in candidates)
         {
-            // Nur bei GENAU einem Vertrag (keine Historie).
-            var contractCount = await _db.Employments.CountAsync(e => e.EmployeeId == emp.EmployeeId, ct);
-            if (contractCount != 1) continue;
+            var entryDt = await _db.Employees.AsNoTracking()
+                .Where(e => e.Id == emp.EmployeeId)
+                .Select(e => e.EntryDate)
+                .FirstOrDefaultAsync(ct);
+            DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
 
-            // Erste Stempelzeit (frühester Arbeitstag) des MA.
-            var firstStamp = await _db.EmployeeTimeEntries
-                .Where(t => t.EmployeeId == emp.EmployeeId)
+            // Erste Stempelzeit ab Eintritt (Walter: entscheidend für Probezeit).
+            var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == emp.EmployeeId);
+            if (entry.HasValue)
+                stampQ = stampQ.Where(t => t.EntryDate >= entry.Value);
+            var firstStamp = await stampQ
                 .OrderBy(t => t.EntryDate)
                 .Select(t => (DateOnly?)t.EntryDate)
                 .FirstOrDefaultAsync(ct);
             if (firstStamp == null) continue;
 
             var contractStart = DateOnly.FromDateTime(emp.ContractStartDate);
-            var delta = ProbationAnchor.Delta(contractStart, firstStamp.Value);
-            var grund = ProbationAnchor.Grund(contractStart, firstStamp.Value);
+            var reference = ProbationAnchor.ReferenceStart(entry, contractStart);
+            var delta = ProbationAnchor.Delta(reference, firstStamp.Value);
+            var grund = ProbationAnchor.Grund(reference, firstStamp.Value);
 
             var neuesEnde = DateOnly.FromDateTime(emp.ProbationEndDate.Value).AddDays(delta);
             emp.ProbationEndDate   = neuesEnde.ToDateTime(TimeOnly.MinValue);
