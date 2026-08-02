@@ -2866,8 +2866,23 @@ async function savePeriodeBemerkung(periodeId, text) {
             body: JSON.stringify({ text })
         });
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'Fehler'); }
+        const j = await res.json().catch(() => ({}));
+        // Cache sofort aktualisieren — sonst zeigt das Modal den alten Text
+        // und man denkt, Speichern habe nicht gegriffen.
+        if (window._currentLohnPeriode && window._currentLohnPeriode.id === periodeId) {
+            window._currentLohnPeriode.pdfFooterText = j.pdfFooterText ?? (text || null);
+        }
         showToast('Bemerkung gespeichert ✓', 'success');
         await lohnWfRefresh();
+        // Bestätigte Lohnzettel tragen die Fussnote im SlipJson — ohne
+        // Recompute bleibt der alte Text auf PDF/Belegen sichtbar.
+        const hasSnaps = !!(_lohnWfData && (
+            (_lohnWfData.gfConfirmed | 0) + (_lohnWfData.hrConfirmed | 0) > 0
+            || Object.keys(_lohnWfData.snapByEmp || {}).length > 0
+        ));
+        if (hasSnaps && typeof currentUser !== 'undefined' && currentUser?.role === 'admin') {
+            showToast('Hinweis: Für bestehende Lohnzettel «♻️ Snapshots neu berechnen» ausführen, damit die neue Bemerkung auf den PDFs erscheint.', 'info');
+        }
     } catch(e) { alert(e.message); }
 }
 

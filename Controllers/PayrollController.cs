@@ -211,8 +211,20 @@ public class PayrollController : HrControllerBase
 
         var total = await _db.PayrollSnapshots
             .CountAsync(s => s.PayrollPeriodeId == periode.Id && s.Status != "STORNIERT");
-        var updated = await _snapshotRecompute.RecomputeAsync(companyProfileId, year, month);
-        return Ok(new { updated, total });
+        try
+        {
+            var updated = await _snapshotRecompute.RecomputeAsync(companyProfileId, year, month);
+            return Ok(new { updated, total });
+        }
+        catch (Exception ex)
+        {
+            // Klartext statt nacktem 500 — typisch war UtcNow auf
+            // timestamp without time zone (behoben 02.08.2026).
+            return StatusCode(500, new {
+                error = "RECOMPUTE_FAILED",
+                message = ex.GetBaseException().Message
+            });
+        }
     }
 
     /// <summary>
