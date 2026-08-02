@@ -19,8 +19,9 @@ public class PayrollSaldo
     public decimal HourSaldo { get; set; } = 0;
 
     /// <summary>
-    /// Nacht-Zeitzuschlag-Saldo: akkumulierte Kompensationsstunden aus Nachtarbeit (10% je Nachtstunde).
-    /// Wird monatlich weitergegeben; sinkt wenn NACHT_KOMP-Absenzen eingetragen werden.
+    /// Nacht-Zeitzuschlag-Saldo (alle Modelle inkl. FLEX): 10% je Nachtstunde.
+    /// Wird monatlich weitergegeben; Bezug nur via NACHT_KOMP (bezahlter Freitag,
+    /// 1/5 Wochenstunden) bzw. Auszahlung bei Austritt — nie als laufender Zuschlag.
     /// </summary>
     public decimal NachtSaldo { get; set; } = 0;
 

@@ -8468,20 +8468,34 @@ async function calcAbsHoursPreview() {
     let hours = 0;
     let hint  = '';
 
+    // Nacht-Kompensation = bezahlter Freitag (1/5 Wochenstunden), für ALLE
+    // Modelle inkl. FLEX. Nachtzuschlag selbst wird nie ausbezahlt (nur Saldo);
+    // Ausnahme Austritt. Walter 02.08.2026.
+    if (reduziertSaldo === 'NACHT_STUNDEN') {
+        hours = count * (weeklyH / 5) * pFactor;
+        const saldoHint = empModel === 'FLEX'
+            ? 'bezahlter Freitag als Stundenlohn, Nacht-Saldo sinkt'
+            : 'bezahlter Freitag (Ist-Stunden), Nacht-Saldo sinkt';
+        hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
+        // Warnung ab > 9 h (mehr als ein typischer Komp-Tag bei 42h-Woche).
+        if (hours > 9) {
+            hint += `<br><span class="abs-hours-label" style="color:#b45309;font-weight:600">⚠ Mehr als 9 Stunden Kompensation — üblich ist 1 bezahlter Freitag (1/5 Wochenarbeitszeit). Bitte prüfen.</span>`;
+        }
+        previewEl.innerHTML = hint;
+        previewEl.dataset.hours = hours.toFixed(2);
+        previewEl.dataset.nachtKompOver9 = hours > 9 ? '1' : '';
+        return;
+    }
+
     // FLEX: nur Typen mit UtpAuszahlung-Flag bekommen etwas
     if (empModel === 'FLEX' && !utpAuszahlung) {
         previewEl.innerHTML = '<span class="abs-hours-label">FLEX: keine automatische Stundengutschrift für diesen Typ — kann pro Absenz-Typ aktiviert werden (Systemeinstellungen → Absenz-Typen → „UTP als Stundenlohn auszahlen")</span>';
         previewEl.dataset.hours = '0';
+        previewEl.dataset.nachtKompOver9 = '';
         return;
     }
 
-    if (reduziertSaldo === 'NACHT_STUNDEN') {
-        hours = count * (weeklyH / 5) * pFactor;
-        const saldoHint = empModel === 'FLEX'
-            ? 'als Stundenlohn ausbezahlt, Nacht-Saldo sinkt entsprechend'
-            : 'wird zu Ist-Stunden addiert, Nacht-Saldo sinkt entsprechend';
-        hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
-    } else if (type === 'UNBEZ_URLAUB') {
+    if (type === 'UNBEZ_URLAUB') {
         // Walter-Vorgabe 27.06.2026: Unbezahlter Urlaub wird NICHT ausbezahlt.
         // Im Lohnlauf wird stattdessen der Festlohn (FIX/FIX-M, Tagessatz 12/365)
         // bzw. die garantierten Soll-Stunden (MTP, 1/7) um diese Tage gekürzt;
@@ -8519,6 +8533,7 @@ async function calcAbsHoursPreview() {
 
     previewEl.innerHTML = hint;
     previewEl.dataset.hours = hours.toFixed(2);
+    previewEl.dataset.nachtKompOver9 = '';
 }
 
 async function saveAbsence() {
@@ -8561,6 +8576,17 @@ async function saveAbsence() {
     const workedDays   = getAbsWorkedDays();
     const hoursPreview = document.getElementById('absHoursPreview');
     const hours        = parseFloat(hoursPreview?.dataset.hours ?? '0');
+
+    // Walter 02.08.2026: Nacht-Komp. > 9 h → Warnung (üblich = 1 bezahlter Freitag).
+    if ((type === 'NACHT_KOMP' || hoursPreview?.dataset.nachtKompOver9 === '1') && hours > 9) {
+        const ok = confirm(
+            `Nacht-Kompensation umfasst ${hours.toFixed(2)} h (mehr als 9 h).\n\n` +
+            `Üblich ist ein bezahlter Freitag = 1/5 der Wochenarbeitszeit. ` +
+            `Der Nachtzuschlag selbst wird nicht ausbezahlt (nur über Komp. / bei Austritt).\n\n` +
+            `Trotzdem speichern?`
+        );
+        if (!ok) return;
+    }
 
     let prozent = Number(document.getElementById('absProzent')?.value ?? 100);
     if (!Number.isFinite(prozent) || prozent <= 0) prozent = 100;

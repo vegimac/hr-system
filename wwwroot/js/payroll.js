@@ -1714,8 +1714,9 @@ function renderLohnSlip(s, targetEl) {
             const neg = (v) => v > 0 ? `<span style="color:#dc2626;white-space:nowrap">−${fmtNum(v)}</span>` : `<span style="color:#cbd5e1">—</span>`;
             const rows = [];
 
-            // ── Nacht-Saldo (MTP, FIX, FIX-M) ───────────────────────────
-            // Immer anzeigen für relevante Vertragstypen — auch wenn Saldo 0.
+            // ── Nacht-Saldo (alle Modelle inkl. FLEX) ───────────────────
+            // Zeitzuschlag 10% → Saldo; Bezug nur via bezahlter Freitag
+            // (NACHT_KOMP, 1/5 WoStd) bzw. Auszahlung bei Austritt.
             if (showNacht) {
                 rows.push(`<tr>
                     <td class="ls-desc" style="color:#5b21b6">Nacht-Saldo (Stunden)</td>
