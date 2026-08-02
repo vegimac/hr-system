@@ -126,16 +126,20 @@ public class PayrollPdfService
 
                     // ── Stunden-Übersicht (MTP/FIX) ──
                     col.Item().PaddingTop(10).Element(e => RenderStundenBlock(e, slip));
+                });
 
-                    // ── Saldi + Bank + Bemerkung im Content (Walter 02.08.2026):
-                    // Früher im page.Footer → riesige Leerstelle bis Seitenende.
-                    // Jetzt direkt unter dem Lohnblock, mit kontrollierten Abständen.
-                    // Keine horizontalen Trennstriche mehr (wirkte «old fashioned»).
-                    col.Item().PaddingTop(14).Element(e => RenderSaldiBlock(e, slip));
-                    col.Item().PaddingTop(16).Element(e => RenderAuszahlungBlock(e, slip));
+                // ── Footer fix unten (Walter 02.08.2026): Saldi + Bank + Bemerkung.
+                // Oberer Teil (Lohn/Abzüge) bleibt flexibel im Content; der untere
+                // Block klebt am Seitenende. Keine Trennstriche. Ca. 3 Zeilen
+                // Abstand zwischen Bankinfo und Bemerkung.
+                page.Footer().Column(fcol =>
+                {
+                    fcol.Item().Element(e => RenderSaldiBlock(e, slip));
+                    fcol.Item().PaddingTop(12).Element(e => RenderAuszahlungBlock(e, slip));
                     if (!string.IsNullOrWhiteSpace(footerText))
                     {
-                        col.Item().PaddingTop(14)
+                        // ~3 Zeilen (9.5pt × 1.2 × 3 ≈ 34pt)
+                        fcol.Item().PaddingTop(34)
                             .Text(footerText)
                             .FontSize(8.5f).FontColor(Dark).Italic();
                     }
