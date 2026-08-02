@@ -481,6 +481,14 @@ public class PayrollCalculationEngine
         DateOnly? austritt13 = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
         var (isInProbation, thirteenthForfeited) = ResolveThirteenthProbationStatus(
             probationEnd13, austritt13, periodFrom, periodToFull);
+        // FLEX-Saldi-Zeile zeigen während Probezeit, im Bestands-Monat
+        // (ProbezeitEnde in dieser Periode) und bei Verfall — auch wenn 0.00
+        // (sonst «sehe den 13. Saldo nicht», Walter 02.08.2026).
+        bool probationEndsThisPeriod = probationEnd13.HasValue
+            && probationEnd13.Value >= periodFrom
+            && probationEnd13.Value <= periodToFull;
+        bool showFlexThirteenthSaldo = isUTP
+            && (isInProbation || thirteenthForfeited || probationEndsThisPeriod);
 
         // ── Ferien-% Auto-Upgrade ab definierter Alters-Schwelle (CH-GAV-Standard 50) ──
         // Mitarbeiter ab vollendetem Lebensjahr X (Walter-Vorgabe 06.06.2026:
@@ -2488,7 +2496,10 @@ public class PayrollCalculationEngine
                     ThirteenthPayout:            thirteenthPayoutForDisplayUtp,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
-                    Basis13ml:            basis13ForSaldoUtp),
+                    Basis13ml:            basis13ForSaldoUtp,
+                    IsInProbation:        isInProbation,
+                    ThirteenthForfeited:  thirteenthForfeited,
+                    ShowFlexThirteenthSaldo: showFlexThirteenthSaldo),
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,

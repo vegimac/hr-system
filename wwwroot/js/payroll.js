@@ -1692,11 +1692,15 @@ function renderLohnSlip(s, targetEl) {
             const showFerienTage = true;                   // alle
             const showFeiertag   = isFixModel;             // FIX/FIX-M
             const showFerienGeld = isUtpOrMtp;             // UTP/MTP
-            // FLEX: 13.-Saldo NUR während Probezeit (Rückstellung) bzw. im
-            // Nachzahlungsmonat — sonst monatlich ausbezahlt, kein stehender Saldo
-            // (Walter 01.08.2026 / L-GAV Art. 12 Ziff. 2).
+            // FLEX: 13.-Saldo während Probezeit / Bestandsmonat / Verfall
+            // (Backend-Flag) — sonst monatlich ausbezahlt, kein stehender Saldo.
+            // Flag auch bei 0.00 setzen, sonst ist die Zeile unsichtbar
+            // (Walter 02.08.2026).
             const flex13Active = isUtp && (
-                (Number(s.thirteenthAccumulated) || 0) > 0
+                !!s.showFlexThirteenthSaldo
+                || !!s.isInProbation
+                || !!s.thirteenthForfeited
+                || (Number(s.thirteenthAccumulated) || 0) > 0
                 || (Number(s.thirteenthMonthly) || 0) > 0
                 || (Number(s.thirteenthPayout) || 0) > 0
             );
@@ -1812,9 +1816,11 @@ function renderLohnSlip(s, targetEl) {
             // Display-Werte explizit, damit nach dem Saldo-Reset alle vier
             // Spalten weiterhin nachvollziehbar sind.
             if (show13Saldo) {
-                const label13 = isUtp
+                let label13 = isUtp
                     ? 'Rückst. 13. Monatslohn Probezeit (CHF)'
                     : 'Rückst. 13. Monatslohn (CHF)';
+                if (isUtp && s.thirteenthForfeited)
+                    label13 = '13. Monatslohn verfallen — Probezeit (CHF)';
                 const payout = s.thirteenthPayout ?? 0;
                 if (payout > 0) {
                     // Auszahlungsmonat / Nachzahlung nach Probezeit

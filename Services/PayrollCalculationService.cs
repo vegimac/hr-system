@@ -488,6 +488,12 @@ public static class PayrollCalculations
             thirteenthPayout            = saldo.ThirteenthPayout,
             thirteenthPrevForDisplay    = saldo.ThirteenthPrevForDisplay,
             thirteenthAccrualForDisplay = saldo.ThirteenthAccrualForDisplay,
+            isInProbation               = saldo.IsInProbation,
+            thirteenthForfeited         = saldo.ThirteenthForfeited,
+            showFlexThirteenthSaldo     = saldo.ShowFlexThirteenthSaldo,
+            probationEndDate            = emp.ProbationEndDate.HasValue
+                ? DateOnly.FromDateTime(emp.ProbationEndDate.Value).ToString("yyyy-MM-dd")
+                : null,
 
             // Modell
             employmentModel = emp.EmploymentModel,
