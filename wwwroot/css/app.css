@@ -3724,7 +3724,7 @@
             overflow-y: auto;
             height: 100%;
             align-content: stretch;
-            grid-template-rows: max-content minmax(150px, auto) minmax(110px, 1fr);
+            grid-template-rows: max-content minmax(150px, auto) minmax(130px, 1fr);
         }
         .ov-wrap {
             display: grid;
@@ -3947,7 +3947,7 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
             height: 100%;
-            min-height: 120px;
+            min-height: 140px;
             max-height: none;
             overflow: visible;
             align-self: stretch;

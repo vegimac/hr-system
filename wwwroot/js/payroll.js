@@ -1091,6 +1091,13 @@ function showLohnVertragInfo(emp) {
         alterStr = `${age} J. (am ${periodStart.toLocaleDateString('de-CH')})`;
     }
 
+    // Probezeit im Lohn-Kopf nur wenn sie in der Periode noch läuft:
+    // Probezeitende >= Periodenbeginn (Walter 02.08.2026).
+    const pzEndeIso = contract.probationEndDate
+        ? String(contract.probationEndDate).slice(0, 10) : null;
+    const periodStartIso = `${periodYear}-${String(periodMonth).padStart(2, '0')}-01`;
+    const pzInPeriode = !!(pzEndeIso && pzEndeIso >= periodStartIso);
+
     const nameHtml = `${emp.firstName} ${emp.lastName}
         <span class="${modelClass(contract.employmentModel)}" style="margin-left:8px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:8px">${modelLabel[contract.employmentModel]||modelDisplay(contract.employmentModel)}</span>`;
     const infoHtml = `
@@ -1102,16 +1109,7 @@ function showLohnVertragInfo(emp) {
             ${contract.employmentPercentage ? `<div>Pensum: <b style="color:#374151">${contract.employmentPercentage}%</b></div>` : ''}
             <div>Vertrag seit: <b style="color:#374151">${fmt(contract.contractStartDate)}</b></div>
             <div title="Alter zum Periodenbeginn — relevant für Ferienanspruch (5/6 Wochen) und Alters-Mindestlöhne">Alter: <b style="color:#374151">${alterStr}</b></div>
-            ${(() => {
-                // Nur wenn Probezeit in der Lohnperiode noch läuft:
-                // Probezeitende >= Periodenbeginn (Walter 02.08.2026).
-                const pzEnde = contract.probationEndDate
-                    ? String(contract.probationEndDate).slice(0, 10) : null;
-                const periodStartIso = `${periodYear}-${String(periodMonth).padStart(2, '0')}-01`;
-                return (pzEnde && pzEnde >= periodStartIso)
-                    ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>`
-                    : '';
-            })()}
+            ${pzInPeriode ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>` : ''}
         </div>`;
     targets.forEach(t => {
         if (t.nameEl) t.nameEl.innerHTML = nameHtml;
