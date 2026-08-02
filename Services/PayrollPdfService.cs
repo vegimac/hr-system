@@ -126,20 +126,16 @@ public class PayrollPdfService
 
                     // ── Stunden-Übersicht (MTP/FIX) ──
                     col.Item().PaddingTop(10).Element(e => RenderStundenBlock(e, slip));
-                });
 
-                // ── Footer: Saldi + Auszahlung + horizontale Linie + Periode-Bemerkung ──
-                // Saldi und Auszahlung werden in den Footer-Bereich gerendert,
-                // damit sie auch bei kurzem Lohnzettel ganz unten an der Seite
-                // direkt über der Trennlinie und der Periode-Bemerkung stehen.
-                page.Footer().Column(fcol =>
-                {
-                    fcol.Item().Element(e => RenderSaldiBlock(e, slip));
-                    fcol.Item().PaddingTop(8).Element(e => RenderAuszahlungBlock(e, slip));
+                    // ── Saldi + Bank + Bemerkung im Content (Walter 02.08.2026):
+                    // Früher im page.Footer → riesige Leerstelle bis Seitenende.
+                    // Jetzt direkt unter dem Lohnblock, mit kontrollierten Abständen.
+                    // Keine horizontalen Trennstriche mehr (wirkte «old fashioned»).
+                    col.Item().PaddingTop(14).Element(e => RenderSaldiBlock(e, slip));
+                    col.Item().PaddingTop(16).Element(e => RenderAuszahlungBlock(e, slip));
                     if (!string.IsNullOrWhiteSpace(footerText))
                     {
-                        fcol.Item()
-                            .BorderTop(0.5f).BorderColor(Dark).PaddingTop(4)
+                        col.Item().PaddingTop(14)
                             .Text(footerText)
                             .FontSize(8.5f).FontColor(Dark).Italic();
                     }
@@ -199,10 +195,10 @@ public class PayrollPdfService
                     if (betr.HasValue) totalLohn += betr.Value;
                 }
 
-                // Total Lohn
-                Cell(t.Cell().BorderTop(0.5f).BorderColor(Dark), "Total Lohn", left: true, bold: true);
-                t.Cell().ColumnSpan(4).BorderTop(0.5f).BorderColor(Dark).Text("");
-                Cell(t.Cell().BorderTop(0.5f).BorderColor(Dark), CHF(totalLohn), right: true, bold: true);
+                // Total Lohn (ohne Trennstrich — Walter 02.08.2026)
+                Cell(t.Cell().PaddingTop(4), "Total Lohn", left: true, bold: true);
+                t.Cell().ColumnSpan(4).PaddingTop(4).Text("");
+                Cell(t.Cell().PaddingTop(4), CHF(totalLohn), right: true, bold: true);
             }
 
             // Abzüge
@@ -226,9 +222,9 @@ public class PayrollPdfService
                 }
 
                 var totalAbz = GetDecimal(slip, "totalDeductions");
-                Cell(t.Cell().BorderTop(0.5f).BorderColor(Dark), "Total Abzüge", left: true, bold: true);
-                t.Cell().ColumnSpan(4).BorderTop(0.5f).BorderColor(Dark).Text("");
-                Cell(t.Cell().BorderTop(0.5f).BorderColor(Dark),
+                Cell(t.Cell().PaddingTop(4), "Total Abzüge", left: true, bold: true);
+                t.Cell().ColumnSpan(4).PaddingTop(4).Text("");
+                Cell(t.Cell().PaddingTop(4),
                     totalAbz.HasValue ? "-" + CHF(Math.Abs(totalAbz.Value)) : "",
                     right: true, bold: true, color: Red);
             }
@@ -243,7 +239,7 @@ public class PayrollPdfService
 
         c.Column(col =>
         {
-            col.Item().BorderTop(1f).BorderColor(Dark).PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem().Text("Nettolohn").Bold().FontSize(11f);
                 r.AutoItem().Text(CHF(nettolohn)).Bold().FontSize(11f);
@@ -266,7 +262,7 @@ public class PayrollPdfService
                 }
             }
 
-            col.Item().PaddingTop(4).BorderTop(1f).BorderColor(Dark).PaddingTop(4).Row(r =>
+            col.Item().PaddingTop(8).Row(r =>
             {
                 r.RelativeItem().Text("Auszahlungsbetrag").Bold().FontSize(11f);
                 r.AutoItem().Text(CHF(auszahlungsbetrag)).Bold().FontSize(11f);
@@ -469,8 +465,7 @@ public class PayrollPdfService
                 cd.RelativeColumn(1);   // Betrag
             });
 
-            // Kein Tabellen-Header, kein Total — auf User-Wunsch nur die
-            // Empfänger-Zeilen, kompakt direkt vor der Footer-Trennlinie.
+            // Kein Tabellen-Header, kein Total — nur Empfänger-Zeilen.
             // Schrift kleiner (8.5pt), Beträge nicht fett — reine Info.
             foreach (var entry in empfaenger.Value.EnumerateArray())
             {
