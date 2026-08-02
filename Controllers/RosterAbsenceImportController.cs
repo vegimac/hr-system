@@ -32,7 +32,9 @@ namespace HrSystem.Controllers;
 ///
 /// Endpoints:
 ///   POST /api/imports/roster-absences/preview → parsen + matchen, kein Schreiben
-///   POST /api/imports/roster-absences/commit  → ausgewählte Spans als Absence anlegen
+///   POST /api/imports/roster-absences/commit  → ausgewählte Spans anlegen ODER
+///     bei gleicher Absenz-Art mit geänderten Grenzen/Stunden korrigieren
+///     (Walter 02.08.2026 — Korrekturen aus Mirus nicht mehr als Überlappung blockieren).
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -87,9 +89,11 @@ public class RosterAbsenceImportController : ControllerBase
         public string? DbLastName      { get; set; }
         public string? EmploymentModel { get; set; }
 
-        // OK | NO_MATCH | AMBIGUOUS | UNKNOWN_CODE | DUPLICATE
+        // OK | UPDATE | NO_MATCH | AMBIGUOUS | UNKNOWN_CODE | DUPLICATE
         public string  Status { get; set; } = "OK";
         public string? Note   { get; set; }
+        /// <summary>Bei Status UPDATE: Id der zu ersetzenden bestehenden Absenz.</summary>
+        public int?    ExistingAbsenceId { get; set; }
     }
 
     // Kompakte MA-Liste der Filiale für den manuellen Picker (NO_MATCH/AMBIGUOUS).
@@ -167,7 +171,7 @@ public class RosterAbsenceImportController : ControllerBase
             TotalRows  = spans.Count,
             Matched    = spans.Count(r => r.EmployeeId != null),
             NoMatch    = spans.Count(r => r.Status == "NO_MATCH" || r.Status == "AMBIGUOUS"),
-            Importable = spans.Count(r => r.Status == "OK" && r.EmployeeId != null),
+            Importable = spans.Count(r => (r.Status == "OK" || r.Status == "UPDATE") && r.EmployeeId != null),
             PeriodFrom = periodFrom,
             PeriodTo   = periodTo,
             BranchEmployees = employees
@@ -221,7 +225,7 @@ public class RosterAbsenceImportController : ControllerBase
         var absenzTypen = await _db.AbsenzTypen.ToListAsync();
         var profile     = await _db.CompanyProfiles.FirstOrDefaultAsync(p => p.Id == companyProfileId);
 
-        int created = 0, skipped = 0, duplicates = 0, lockedSkipped = 0;
+        int created = 0, updated = 0, skipped = 0, duplicates = 0, lockedSkipped = 0;
         var lockedMsgs = new List<string>();
 
         foreach (var r in spans)
@@ -247,26 +251,49 @@ public class RosterAbsenceImportController : ControllerBase
             var df = DateOnly.Parse(r.DateFrom);
             var dt = DateOnly.Parse(r.DateTo);
 
-            // Überlappung: pro Tag nur EINE Absenz — egal welcher Typ
-            // (Walter 26.07.2026). Auch gegen bereits in diesem Commit
-            // vorgemerkte Zeilen prüfen (Batch).
-            bool dup = await _db.Absences.AnyAsync(a =>
-                   a.EmployeeId == emp.Id
-                && a.DateFrom   <= dt
-                && a.DateTo     >= df);
-            if (!dup)
-            {
-                dup = _db.Absences.Local.Any(a =>
-                       a.EmployeeId == emp.Id
-                    && a.DateFrom   <= dt
-                    && a.DateTo     >= df);
-            }
-            if (dup) { duplicates++; continue; }
+            var activeEmp = emp.Employments.FirstOrDefault(e => e.IsActive)
+                         ?? emp.Employments.FirstOrDefault();
+            var typCfg     = absenzTypen.FirstOrDefault(t => t.Code == r.AbsenceType);
+            var workedDays = ComputeWorkedDays(r.AbsenceType, r.Days);
+            var hours      = ComputeHours(r.AbsenceType, activeEmp?.EmploymentModel ?? "",
+                                          typCfg, profile, activeEmp, workedDays.Count);
+            var workedJson = System.Text.Json.JsonSerializer.Serialize(workedDays);
 
-            // Per-Periode-Sperre (Walter-Vorgabe 27.06.2026): KEINE Absenz in eine
-            // bereits abgeschlossene / in Verarbeitung befindliche Lohnperiode
-            // importieren. Offene/nie verarbeitete Perioden bleiben erlaubt.
-            var lockCheck = await _editLock.CheckRangePeriodAsync(User, companyProfileId, df, dt);
+            // Bestehende Überlappungen (DB + bereits in diesem Commit angelegte/geänderte).
+            var overlaps = await _db.Absences
+                .Where(a => a.EmployeeId == emp.Id && a.DateFrom <= dt && a.DateTo >= df)
+                .ToListAsync();
+            foreach (var local in _db.Absences.Local
+                .Where(a => a.EmployeeId == emp.Id && a.DateFrom <= dt && a.DateTo >= df))
+            {
+                if (!overlaps.Contains(local)) overlaps.Add(local);
+            }
+
+            var classify = RosterAbsenceImportLogic.Classify(
+                r.AbsenceType, df, dt, hours,
+                overlaps.Select(a => new RosterAbsenceImportLogic.ExistingAbs(
+                    a.Id, a.AbsenceType, a.DateFrom, a.DateTo, a.HoursCredited)));
+
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.TypeConflict
+                || classify.Kind == RosterAbsenceImportLogic.OverlapKind.ExactDuplicate)
+            {
+                duplicates++;
+                continue;
+            }
+
+            // Per-Periode-Sperre (Walter-Vorgabe 27.06.2026). Bei Korrektur:
+            // alter UND neuer Zeitraum müssen freigegeben sein.
+            var lockFrom = df;
+            var lockTo   = dt;
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.Correction
+                && classify.SameTypeOverlaps.Count > 0)
+            {
+                var minOld = classify.SameTypeOverlaps.Min(a => a.DateFrom);
+                var maxOld = classify.SameTypeOverlaps.Max(a => a.DateTo);
+                if (minOld < lockFrom) lockFrom = minOld;
+                if (maxOld > lockTo)   lockTo   = maxOld;
+            }
+            var lockCheck = await _editLock.CheckRangePeriodAsync(User, companyProfileId, lockFrom, lockTo);
             if (lockCheck.Locked)
             {
                 lockedSkipped++;
@@ -274,12 +301,33 @@ public class RosterAbsenceImportController : ControllerBase
                 continue;
             }
 
-            var activeEmp = emp.Employments.FirstOrDefault(e => e.IsActive)
-                         ?? emp.Employments.FirstOrDefault();
-            var typCfg     = absenzTypen.FirstOrDefault(t => t.Code == r.AbsenceType);
-            var workedDays = ComputeWorkedDays(r.AbsenceType, r.Days);
-            var hours      = ComputeHours(r.AbsenceType, activeEmp?.EmploymentModel ?? "",
-                                          typCfg, profile, activeEmp, workedDays.Count);
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.Correction
+                && classify.Primary != null)
+            {
+                var sameType = overlaps
+                    .Where(a => string.Equals(a.AbsenceType, r.AbsenceType, StringComparison.OrdinalIgnoreCase))
+                    .OrderBy(a => a.DateFrom).ThenBy(a => a.Id)
+                    .ToList();
+                var primary = classify.Primary.Id != 0
+                    ? sameType.FirstOrDefault(a => a.Id == classify.Primary.Id)
+                    : null;
+                primary ??= sameType.First();
+
+                primary.AbsenceType   = r.AbsenceType;
+                primary.DateFrom      = df;
+                primary.DateTo        = dt;
+                primary.WorkedDays    = workedJson;
+                primary.HoursCredited = hours;
+                primary.Prozent       = 100m;
+                primary.Notes         = $"Import Dienstplan {DateTime.Now:dd.MM.yyyy} (Korrektur)";
+                primary.UpdatedAt     = DateTime.Now;
+
+                foreach (var extra in sameType.Where(a => !ReferenceEquals(a, primary)))
+                    _db.Absences.Remove(extra);
+
+                updated++;
+                continue;
+            }
 
             _db.Absences.Add(new Absence
             {
@@ -287,21 +335,21 @@ public class RosterAbsenceImportController : ControllerBase
                 AbsenceType   = r.AbsenceType,
                 DateFrom      = df,
                 DateTo        = dt,
-                WorkedDays    = System.Text.Json.JsonSerializer.Serialize(workedDays),
+                WorkedDays    = workedJson,
                 HoursCredited = hours,
                 Prozent       = 100m,
                 Notes         = $"Import Dienstplan {DateTime.Now:dd.MM.yyyy}",
-                CreatedAt     = DateTime.UtcNow,
-                UpdatedAt     = DateTime.UtcNow,
+                CreatedAt     = DateTime.Now,
+                UpdatedAt     = DateTime.Now,
             });
             created++;
         }
 
         await _db.SaveChangesAsync();
-        _log.LogInformation("[RosterAbsenceImport] Filiale={CP} erstellt={Created}, Dubletten={Dup}, übersprungen={Skip}, gesperrt={Locked}",
-            companyProfileId, created, duplicates, skipped, lockedSkipped);
+        _log.LogInformation("[RosterAbsenceImport] Filiale={CP} erstellt={Created}, korrigiert={Updated}, Dubletten={Dup}, übersprungen={Skip}, gesperrt={Locked}",
+            companyProfileId, created, updated, duplicates, skipped, lockedSkipped);
 
-        return Ok(new { created, duplicates, skipped, lockedSkipped, lockedMessages = lockedMsgs });
+        return Ok(new { created, updated, duplicates, skipped, lockedSkipped, lockedMessages = lockedMsgs });
     }
 
     // ── MA-Pool ─────────────────────────────────────────────────────────────
@@ -364,20 +412,40 @@ public class RosterAbsenceImportController : ControllerBase
 
     // Markiert Spans die sich mit einer bereits erfassten Absenz überschneiden
     // ODER innerhalb der Import-Datei denselben Kalendertag doppelt belegen
-    // (Walter 26.07.2026: pro Tag nur eine Absenz, typ-unabhängig).
+    // (Walter 26.07.2026: pro Tag nur eine Absenz).
+    // Walter 02.08.2026: gleicher Typ + geänderte Grenzen/Stunden → UPDATE
+    // (Korrektur), nicht DUPLICATE. Identisch → DUPLICATE («schon erfasst»).
+    // Anderer Typ auf denselben Tagen → DUPLICATE (hart).
     private async Task FlagDuplicatesAsync(List<PreviewRow> spans)
     {
         var matched = spans.Where(s => s.EmployeeId != null && s.Status == "OK").ToList();
         if (matched.Count == 0) return;
 
         var empIds = matched.Select(s => s.EmployeeId!.Value).Distinct().ToList();
-        var existing = await _db.Absences
+        var existingRaw = await _db.Absences
             .Where(a => empIds.Contains(a.EmployeeId))
-            .Select(a => new { a.EmployeeId, a.AbsenceType, a.DateFrom, a.DateTo })
+            .Select(a => new
+            {
+                a.EmployeeId,
+                a.Id,
+                a.AbsenceType,
+                a.DateFrom,
+                a.DateTo,
+                a.HoursCredited
+            })
             .ToListAsync();
+        var existingByEmp = existingRaw
+            .Select(a => new
+            {
+                a.EmployeeId,
+                Abs = new RosterAbsenceImportLogic.ExistingAbs(
+                    a.Id, a.AbsenceType, a.DateFrom, a.DateTo, a.HoursCredited)
+            })
+            .ToList();
 
-        // Innerhalb der Datei: frühere OK-Zeilen blockieren spätere Überlappungen.
+        // Innerhalb der Datei: frühere OK/UPDATE-Zeilen blockieren spätere Überlappungen.
         var accepted = new List<(int EmpId, DateOnly From, DateOnly To, string Type)>();
+        var claimedIds = new HashSet<int>();
 
         foreach (var r in matched.OrderBy(x => x.RowNum))
         {
@@ -385,13 +453,55 @@ public class RosterAbsenceImportController : ControllerBase
             var dt = DateOnly.Parse(r.DateTo);
             var empId = r.EmployeeId!.Value;
 
-            var dbHit = existing.FirstOrDefault(a => a.EmployeeId == empId
-                                                  && a.DateFrom <= dt && a.DateTo >= df);
-            if (dbHit != null)
+            var empExisting = existingByEmp
+                .Where(a => a.EmployeeId == empId && !claimedIds.Contains(a.Abs.Id))
+                .Select(a => a.Abs)
+                .ToList();
+
+            var classify = RosterAbsenceImportLogic.Classify(
+                r.AbsenceType ?? "", df, dt, r.HoursCredited, empExisting);
+
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.TypeConflict)
+            {
+                var c = classify.ConflictWith!;
+                r.Status = "DUPLICATE";
+                r.Note   = $"Überlappung mit bestehender Absenz «{c.AbsenceType}» "
+                         + $"{c.DateFrom:dd.MM.yyyy}–{c.DateTo:dd.MM.yyyy} — pro Tag nur eine Absenz.";
+                continue;
+            }
+
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.ExactDuplicate)
             {
                 r.Status = "DUPLICATE";
-                r.Note   = $"Überlappung mit bestehender Absenz «{dbHit.AbsenceType}» "
-                         + $"{dbHit.DateFrom:dd.MM.yyyy}–{dbHit.DateTo:dd.MM.yyyy} — pro Tag nur eine Absenz.";
+                r.Note   = "Bereits erfasst — identischer Zeitraum und Typ.";
+                continue;
+            }
+
+            if (classify.Kind == RosterAbsenceImportLogic.OverlapKind.Correction
+                && classify.Primary != null)
+            {
+                // Datei-interne Kollision zuerst (z.B. zwei Korrekturen auf denselben Tagen).
+                var fileHitUpd = accepted.FirstOrDefault(a => a.EmpId == empId
+                                                           && a.From <= dt && a.To >= df);
+                if (fileHitUpd.EmpId != 0)
+                {
+                    r.Status = "DUPLICATE";
+                    r.Note   = $"Überlappung mit anderer Zeile in dieser Datei («{fileHitUpd.Type}» "
+                             + $"{fileHitUpd.From:dd.MM.yyyy}–{fileHitUpd.To:dd.MM.yyyy}) — pro Tag nur eine Absenz.";
+                    continue;
+                }
+
+                r.Status = "UPDATE";
+                r.ExistingAbsenceId = classify.Primary.Id;
+                r.Note   = $"Korrektur: ersetzt «{classify.Primary.AbsenceType}» "
+                         + $"{classify.Primary.DateFrom:dd.MM.yyyy}–{classify.Primary.DateTo:dd.MM.yyyy}"
+                         + (classify.SameTypeOverlaps.Count > 1
+                             ? $" (+{classify.SameTypeOverlaps.Count - 1} weitere)"
+                             : "")
+                         + $" → {df:dd.MM.yyyy}–{dt:dd.MM.yyyy}.";
+                foreach (var o in classify.SameTypeOverlaps)
+                    claimedIds.Add(o.Id);
+                accepted.Add((empId, df, dt, r.AbsenceType ?? "?"));
                 continue;
             }
 
