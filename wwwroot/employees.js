@@ -9132,10 +9132,29 @@ function openLohnAssignmentModal(existing) {
     const zrEl = document.getElementById('laZahlungsReferenz');
     zrEl.value = existing?.zahlungsReferenz ?? '';
     validateZahlungsReferenz(zrEl);   // initiales Live-Feedback (falls Wert vorhanden)
-    document.getElementById('laBemerkung').value        = existing?.bemerkung ?? '';
+    // Neu: Bemerkung default = Name, Vorname, AHV (Walter 02.08.2026).
+    // Bestehende Einträge behalten ihren gespeicherten Text.
+    document.getElementById('laBemerkung').value = existing
+        ? (existing.bemerkung ?? '')
+        : laDefaultBemerkung();
     const laCb = document.getElementById('laLohnausweisAnBehoerde');
     if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
     laOnBehoerdeChange();
+}
+
+/** Default-Bemerkung für neue Lohnabtretung: «Name, Vorname, AHV». */
+function laDefaultBemerkung() {
+    const emp = (typeof selectedEmployee !== 'undefined' && selectedEmployee) ? selectedEmployee : null;
+    if (!emp) return '';
+    const last  = (emp.lastName  || '').trim();
+    const first = (emp.firstName || '').trim();
+    const ahv   = (emp.socialSecurityNumber || emp.ahvNumber || emp.ahvNummer || '').trim();
+    const parts = [];
+    if (last)  parts.push(last);
+    if (first) parts.push(first);
+    let text = parts.join(', ');
+    if (ahv) text = text ? `${text}, ${ahv}` : ahv;
+    return text;
 }
 
 async function laOnBehoerdeChange() {
