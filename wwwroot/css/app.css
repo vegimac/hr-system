@@ -3566,6 +3566,28 @@
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
+        /* Probezeit-Badge: Status + «eintragen» (Walter 02.08.2026) */
+        .emp-hbadge.hb-prob {
+            gap: 6px;
+            align-items: center;
+        }
+        .emp-hpz-status { font-weight: 750; }
+        .emp-hpz-status.open { color: #9f1239; }
+        .emp-hpz-status.ok { color: #166534; }
+        .emp-hpz-btn {
+            margin: 0 0 0 2px;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        .emp-hpz-btn:hover { background: #1a1a1a; }
         /* Vertrags-Zeile OHNE Huellen-Pille (Walter 17.07.2026: die drei
            Zeilen links buendig — die 10px-Innenpolsterung der hellen Pille
            rueckte den Chip optisch ein). Chip + Text starten flush bei 0. */
@@ -3735,11 +3757,11 @@
             padding-top: 6px;
             flex-shrink: 0;
         }
-        /* 2 Zusatzadress-Zeilen immer reserviert (Walter 02.08.2026) —
-           auch leer; Platz von Verträge/Saldi. Max. 2 sichtbar, Rest scrollt. */
+        /* 1 Zusatzadress-Zeile immer reserviert (Walter 02.08.2026) —
+           auch leer; 2. Zeile nur bei Bedarf (scroll). */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
-            min-height: calc(2 * 40px + 4px);
-            height: calc(2 * 40px + 4px);
+            min-height: 40px;
+            height: 40px;
             max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
@@ -3748,6 +3770,9 @@
             flex-direction: column;
             gap: 4px;
             flex-shrink: 0;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent:has(.emp-addr-row:nth-child(2)) {
+            height: calc(2 * 40px + 4px);
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
             flex: 0 0 40px;
@@ -4043,9 +4068,9 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: 2 Zeilen fest reserviert (auch leer — Walter 02.08.2026) */
+        /* Zusatzadressen: 1 Zeile fest reserviert (auch leer — Walter 02.08.2026) */
         #otherAddressesContent {
-            min-height: calc(2 * 40px + 4px);
+            min-height: 40px;
             max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;

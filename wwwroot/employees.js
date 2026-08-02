@@ -970,8 +970,20 @@ function renderEmployeeDetail(emp) {
         const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
         _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
     }
-    if (_hcActive?.probationEndDate && String(_hcActive.probationEndDate).slice(0, 10) >= _hcToday)
-        _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcActive.probationEndDate)}</span>`);
+    // Probezeit-Badge oben: Datum + Status + «eintragen»
+    // (Walter 02.08.2026) — nicht mehr in der Anstellung-Karte.
+    const _hcPzEnde = _hcActive?.probationEndDate
+        ? String(_hcActive.probationEndDate).slice(0, 10) : null;
+    const _hcPzAktiv = !!( _hcPzEnde && _hcPzEnde >= _hcToday);
+    const _hcPz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
+    if (_hcPzAktiv) {
+        const pzStatus = _hcPz1Ok
+            ? `<span class="emp-hpz-status ok">✓ erledigt</span>`
+            : `<span class="emp-hpz-status open">offen</span>
+               <button type="button" class="emp-hpz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
+                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
+        _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcPzEnde)} · ${pzStatus}</span>`);
+    }
     if (emp.isPayrollExcluded)
         _hcBadges.push(`<span class="emp-hbadge hb-inak">⛔ MA ohne Lohn</span>`);
     // Zusatz-Angabe je Modell (Walter 17.07.2026): FIX/FIX-M = Pensum %,
@@ -1393,36 +1405,15 @@ function loadUebersichtTab() {
     //    untereinander ganz rechts —
     //    Eintritt | Austritt | L-GAV
     //    Gekündigt am | Kündigung per | < 8 h / Wo. ──
-    const pzEnde = emp.probationEndDate ? formatDate(emp.probationEndDate) : null;
-    // Probezeitgespräch nur solange die Probezeit läuft (Walter 21.07.2026).
-    const pzAktiv = !!(emp.probationEndDate &&
-        new Date(String(emp.probationEndDate).slice(0, 10)) >= new Date(new Date().toDateString()));
-    // Erledigt nur mit Gesprächsdatum UND Protokoll-Verknüpfung
-    // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
-    // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
-    const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    // Layout (Walter 02.08.2026): Zeile 1 kompakt
-    //   Eintritt | Austritt | Probezeit … | L-GAV (rechts)
+    // Layout (Walter 02.08.2026): Probezeit nur noch als Badge im MA-Kopf.
+    //   Zeile 1: Eintritt | Austritt | L-GAV (rechts)
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
     // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
-    const pzStatus = !pzAktiv
-        ? null
-        : pz1Ok
-            ? `<span class="ov-anst-pz-status ok">✓ erledigt</span>`
-            : `<span class="ov-anst-pz-status open">offen</span>
-               <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
-                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
-    // Platz in Zeile 1 immer reservieren (auch ohne aktive Probezeit) —
-    // sonst springt die Anstellung-Karte beim MA-Wechsel (Walter Aug 2026).
-    const pzInline = (pzEnde && pzAktiv)
-        ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzStatus ? ` · ${pzStatus}` : ''}</span>`
-        : `<span class="ov-anst-pz ov-anst-pz-empty" aria-hidden="true">&nbsp;</span>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
             <div class="ov-anst-top">
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
-                <div class="ov-anst-pz-slot">${pzInline}</div>
                 <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             </div>
             <div class="ov-anst-kuend-row">
@@ -1441,7 +1432,6 @@ function loadUebersichtTab() {
             </div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
-
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
     //    aus dem frueheren Personal-Tab lebt jetzt HIER (einzige Instanz,
     //    keine DOM-ID-Dubletten): Status mit Ablauf-Warnung, Drucken-Buttons,
