@@ -4239,45 +4239,47 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung (Walter 26.07.2026):
-           Zeile 1 Eintritt|Austritt|L-GAV · Zeile 2 Kündigung inkl. Grund
-           · Zeile 3 Probezeit. Nachtarbeit daneben schmaler. */
+        /* Anstellung (Walter 02.08.2026):
+           Zeile 1 Eintritt|Austritt|Probezeit|L-GAV · Zeile 2 Kündigung.
+           Eintritt/Austritt nur so breit wie die Daten brauchen. */
         .ov-anst-grid {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(110px, auto) minmax(110px, auto);
-            grid-template-rows: auto auto auto;
-            gap: 6px 14px;
-            align-items: start;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
             min-width: 0;
         }
-        .ov-anst-grid > .ov-pf {
+        .ov-anst-top {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: flex-end;
+            gap: 8px 14px;
+            min-width: 0;
+        }
+        .ov-anst-datum {
+            flex: 0 0 auto;
+            width: 7.6em;
             margin-bottom: 0;
             min-width: 0;
         }
-        /* Zeile 1 (Eintritt/Austritt): normale Lesestärke */
-        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfl {
+        .ov-anst-datum .ov-pfl {
             margin-bottom: 1px;
         }
-        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfv {
+        .ov-anst-datum .ov-pfv {
             font-size: 14px;
             line-height: 28px;
             min-height: 28px;
+            white-space: nowrap;
         }
-        /* Probezeit unter Kündigung — Höhe immer reserviert (kein Springen) */
-        .ov-anst-pz-row {
-            grid-column: 1 / -1;
+        /* Probezeit direkt nach Austritt — restlicher Platz bis L-GAV */
+        .ov-anst-pz-slot {
+            flex: 1 1 auto;
+            min-width: 0;
             display: flex;
             align-items: center;
-            flex-wrap: wrap;
-            gap: 6px 8px;
-            min-height: 26px;
-            height: 26px;
-            padding-top: 1px;
-            box-sizing: border-box;
-        }
-        .ov-anst-pz-row-empty {
-            visibility: hidden;
-            pointer-events: none;
+            min-height: 28px;
+            padding-bottom: 0;
+            overflow: hidden;
         }
         .ov-anst-pz {
             font-size: 11.5px;
@@ -4288,6 +4290,11 @@
             flex-wrap: wrap;
             gap: 4px 6px;
             line-height: 1.25;
+            min-height: 26px;
+        }
+        .ov-anst-pz-empty {
+            visibility: hidden;
+            pointer-events: none;
         }
         .ov-anst-pz-status { font-weight: 650; }
         .ov-anst-pz-status.open { color: #9f1239; }
@@ -4306,6 +4313,17 @@
             flex-shrink: 0;
         }
         body.theme-dark .ov-anst-pz { color: #94a3b8; }
+        .ov-anst-kuend-row {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+            gap: 6px 14px;
+            align-items: start;
+            min-width: 0;
+        }
+        .ov-anst-kuend-row > .ov-pf {
+            margin-bottom: 0;
+            min-width: 0;
+        }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
             min-width: 0;
@@ -4361,7 +4379,12 @@
             max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV rechts neben Austritt */
+        /* L-GAV rechts in Zeile 1 */
+        .ov-anst-top .ov-anst-tog {
+            flex: 0 0 auto;
+            margin-left: auto;
+            margin-bottom: 0;
+        }
         .ov-anst-grid .ov-anst-tog .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;

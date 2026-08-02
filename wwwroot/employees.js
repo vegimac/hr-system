@@ -1401,10 +1401,9 @@ function loadUebersichtTab() {
     // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
     // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
     const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    // Layout wie 31.07.2026 (676e7f9): Anstellung breiter, Nachtarbeit schmaler.
-    //   Zeile 1: Eintritt | Austritt | L-GAV
+    // Layout (Walter 02.08.2026): Zeile 1 kompakt
+    //   Eintritt | Austritt | Probezeit … | L-GAV (rechts)
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
-    //   Zeile 3: Probezeit (nur solange aktiv)
     // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
     const pzStatus = !pzAktiv
         ? null
@@ -1413,30 +1412,33 @@ function loadUebersichtTab() {
             : `<span class="ov-anst-pz-status open">offen</span>
                <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
-    // Platz immer reservieren (auch ohne aktive Probezeit) — sonst springt
-    // die Anstellung-Karte beim MA-Wechsel (Walter Aug 2026).
-    const pzRow = (pzEnde && pzAktiv)
-        ? `<div class="ov-anst-pz-row"><span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzStatus ? ` · ${pzStatus}` : ''}</span></div>`
-        : `<div class="ov-anst-pz-row ov-anst-pz-row-empty" aria-hidden="true"></div>`;
+    // Platz in Zeile 1 immer reservieren (auch ohne aktive Probezeit) —
+    // sonst springt die Anstellung-Karte beim MA-Wechsel (Walter Aug 2026).
+    const pzInline = (pzEnde && pzAktiv)
+        ? `<span class="ov-anst-pz" title="Probezeit">Probezeit bis ${pzEnde}${pzStatus ? ` · ${pzStatus}` : ''}</span>`
+        : `<span class="ov-anst-pz ov-anst-pz-empty" aria-hidden="true">&nbsp;</span>`;
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
-            ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
-            ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
-            <div class="ov-pf ov-anst-tog" aria-hidden="true"></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
-            <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
-            <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung durch</div>
-            <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
-                <option value="">—</option>
-                <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
-                <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
-            </select></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
-            <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
-            ${pzRow}
+            <div class="ov-anst-top">
+                <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
+                <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
+                <div class="ov-anst-pz-slot">${pzInline}</div>
+                <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+            </div>
+            <div class="ov-anst-kuend-row">
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
+                <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
+                <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung durch</div>
+                <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
+                    <option value="">—</option>
+                    <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
+                    <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+                </select></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
+                <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
+            </div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
