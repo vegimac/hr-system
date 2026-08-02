@@ -1390,14 +1390,17 @@ function loadUebersichtTab() {
                 : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
             <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
         </div>
-        ${emp.isPayrollExcluded ? '' : `
-        <div class="ov-addrsep">
-            <span class="ov-pfl" style="margin-bottom:0">${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#a2acb8">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
-            <button class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>
-        </div>
-        <div id="otherAddressesContent"></div>`}
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+
+    // Weitere Adressen = eigene Box unten (Walter 02.08.2026) — nutzt den
+    // freien Platz unter Verträge/Saldi; Hauptadresse bleibt in Personalien.
+    const kAddr = emp.isPayrollExcluded ? '' : _ovCard(
+        _t('ma.section.otherAddresses', 'Weitere Adressen'),
+        null, '',
+        `<div class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</div>
+         <div id="otherAddressesContent"></div>`,
+        `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>`);
 
     // ── Karte Anstellung (Walter 17.07.2026): L-GAV/<8h-Toggles +
     //    Kuendigungs-Daten mit Auto-Fristberechnung.
@@ -1533,13 +1536,11 @@ function loadUebersichtTab() {
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
-    // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
-    // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
-    // darunter Anstellung | Nachtarbeit, dann Vertraege + Saldi-Tabelle.
+    // Personalien · Anstellung|Nachtarbeit · Verträge|Saldi · Weitere Adressen
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div>`}</div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded)
