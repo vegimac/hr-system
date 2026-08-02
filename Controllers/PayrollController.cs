@@ -916,7 +916,7 @@ public class PayrollController : HrControllerBase
             },
             isQuellensteuer,
             engineWillBerechnen = isQuellensteuer && qst != null,
-            buildVersion = "2026-05-26-qst-fix"   // Walter — wenn dieser Text im JSON steht, läuft der neue Code
+            buildVersion = "2026-08-02-qst-period-overlap"   // Walter — wenn dieser Text im JSON steht, läuft der neue Code
         });
     }
 
