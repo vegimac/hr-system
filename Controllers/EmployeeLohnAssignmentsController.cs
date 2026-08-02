@@ -44,6 +44,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var entries = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
             .Where(a => a.EmployeeId == employeeId)
             .OrderBy(a => a.ValidFrom)
             .ToListAsync();
@@ -74,6 +75,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         {
             EmployeeId       = dto.EmployeeId,
             BehoerdeId       = dto.BehoerdeId,
+            BehoerdeSachbearbeiterId = dto.BehoerdeSachbearbeiterId,
             Bezeichnung      = dto.Bezeichnung?.Trim() ?? "Lohnpfändung",
             Freigrenze       = Math.Round(dto.Freigrenze, 2),
             Zielbetrag       = Math.Round(dto.Zielbetrag, 2),
@@ -92,6 +94,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var saved = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
             .FirstAsync(a => a.Id == entry.Id);
         return Ok(MapToDto(saved, firstAllowed));
     }
@@ -119,6 +122,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         if (err != null) return BadRequest(err);
 
         entry.BehoerdeId       = dto.BehoerdeId;
+        entry.BehoerdeSachbearbeiterId = dto.BehoerdeSachbearbeiterId;
         entry.Bezeichnung      = dto.Bezeichnung?.Trim() ?? "Lohnpfändung";
         entry.Freigrenze       = Math.Round(dto.Freigrenze, 2);
         entry.Zielbetrag       = Math.Round(dto.Zielbetrag, 2);
@@ -134,6 +138,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var reloaded = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
             .FirstAsync(a => a.Id == entry.Id);
         return Ok(MapToDto(reloaded, firstAllowedU));
     }
@@ -177,6 +182,14 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         }
         var exists = await _db.Behoerden.AnyAsync(b => b.Id == dto.BehoerdeId);
         if (!exists) return "Unbekannte Behörde.";
+        if (dto.BehoerdeSachbearbeiterId.HasValue)
+        {
+            var sbOk = await _db.BehoerdeSachbearbeiter.AnyAsync(s =>
+                s.Id == dto.BehoerdeSachbearbeiterId.Value
+                && s.BehoerdeId == dto.BehoerdeId
+                && s.IsActive);
+            if (!sbOk) return "Sachbearbeiter gehört nicht zu dieser Behörde oder ist inaktiv.";
+        }
         return null;
     }
 
@@ -187,6 +200,9 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         behoerdeId       = a.BehoerdeId,
         behoerdeName     = a.Behoerde?.Name,
         behoerdeTyp      = a.Behoerde?.Typ,
+        behoerdeSachbearbeiterId = a.BehoerdeSachbearbeiterId,
+        sachbearbeiterName       = a.Sachbearbeiter?.Name,
+        sachbearbeiterEmail      = a.Sachbearbeiter?.Email,
         bezeichnung      = a.Bezeichnung,
         freigrenze       = a.Freigrenze,
         zielbetrag       = a.Zielbetrag,
@@ -214,5 +230,6 @@ public record LohnAssignmentDto(
     string? ReferenzAmt,
     string? ZahlungsReferenz,
     string? Bemerkung,
-    bool    LohnausweisAnBehoerde = false
+    bool    LohnausweisAnBehoerde = false,
+    int?    BehoerdeSachbearbeiterId = null
 );

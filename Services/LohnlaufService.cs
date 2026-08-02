@@ -745,17 +745,17 @@ public class LohnlaufService
                 .ToListAsync();
             if (empIds.Count == 0) return;
 
-            // Abtretungen mit Flag, die die Periode überlappen und Behörde mit E-Mail haben.
+            // Abtretungen mit Flag, die die Periode überlappen.
+            // E-Mail: zuerst Sachbearbeiter, sonst Behörden-Zentrale (Walter 02.08.2026).
             var assignments = await _db.EmployeeLohnAssignments
                 .Include(a => a.Behoerde)
+                .Include(a => a.Sachbearbeiter)
                 .Include(a => a.Employee)
                 .Where(a => empIds.Contains(a.EmployeeId)
                          && a.LohnausweisAnBehoerde
                          && a.ValidFrom <= periodTo
                          && (a.ValidTo == null || a.ValidTo >= periodFrom)
-                         && a.Behoerde != null
-                         && a.Behoerde.Email != null
-                         && a.Behoerde.Email != "")
+                         && a.Behoerde != null)
                 .ToListAsync();
             if (assignments.Count == 0) return;
 
@@ -780,7 +780,7 @@ public class LohnlaufService
                                     && s.Status != "STORNIERT");
                     if (!hasSnapshots) { skipped++; continue; }
 
-                    var email = a.Behoerde!.Email!.Trim();
+                    var email = (a.Sachbearbeiter?.Email ?? a.Behoerde!.Email ?? "").Trim();
                     if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
 
                     // Vorherige Tokens derselben Abtretung+Jahr widerrufen (Re-Abschluss).
@@ -813,11 +813,12 @@ public class LohnlaufService
 
                     await _emailSvc.SendLohnausweisBehoerdeNotificationAsync(
                         email,
-                        a.Behoerde.Name,
+                        a.Behoerde!.Name,
                         maName,
                         year,
                         url,
-                        expiresAt);
+                        expiresAt,
+                        a.Sachbearbeiter?.Name);
                     sent++;
                     await Task.Delay(500);
                 }

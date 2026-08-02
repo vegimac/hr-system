@@ -8985,7 +8985,7 @@ function renderLohnAssignmentsList(el, list) {
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
                 ${statusPill}
                 <span style="font-weight:600;color:#0f172a;font-size:13.5px;flex:1">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
-                <span style="font-size:12px;color:#64748b">${esc(a.behoerdeName ?? '—')}</span>
+                <span style="font-size:12px;color:#64748b">${esc(a.behoerdeName ?? '—')}${a.sachbearbeiterName ? ` · <span style="color:#475569">${esc(a.sachbearbeiterName)}</span>` : ''}</span>
                 <button onclick='openLohnAssignmentModal(${aJson})' title="Bearbeiten"
                         style="background:#fff;border:1px solid #94a3b8;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✎</button>
                 <button onclick="deleteLohnAssignment(${a.id})" title="Löschen"
@@ -9028,11 +9028,14 @@ function renderLohnAssignmentsList(el, list) {
     el.innerHTML = toolbar + cards;
 }
 
+let _laSbCache = {}; // behoerdeId → [{id,name,email,…}]
+
 function openLohnAssignmentModal(existing) {
     const modal = document.getElementById('lohnAssignmentModal');
     if (!modal) return;
     modal.style.display = 'flex';
     modal.dataset.editId = existing?.id ?? '';
+    modal.dataset.pendingSbId = existing?.behoerdeSachbearbeiterId ?? '';
     document.getElementById('laModalTitle').textContent = existing ? 'Lohnabtretung bearbeiten' : 'Lohnabtretung erfassen';
 
     // Behörden-Dropdown
@@ -9054,6 +9057,32 @@ function openLohnAssignmentModal(existing) {
     document.getElementById('laBemerkung').value        = existing?.bemerkung ?? '';
     const laCb = document.getElementById('laLohnausweisAnBehoerde');
     if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
+    laOnBehoerdeChange();
+}
+
+async function laOnBehoerdeChange() {
+    const sel = document.getElementById('laBehoerdeSel');
+    const sbSel = document.getElementById('laSachbearbeiterSel');
+    const modal = document.getElementById('lohnAssignmentModal');
+    if (!sel || !sbSel) return;
+    const behoerdeId = parseInt(sel.value, 10) || 0;
+    const pending = modal?.dataset.pendingSbId || '';
+    sbSel.innerHTML = '<option value="">— keiner / zentrale Behörden-E-Mail —</option>';
+    if (!behoerdeId) return;
+    try {
+        if (!_laSbCache[behoerdeId]) {
+            const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter`, { headers: ah() });
+            _laSbCache[behoerdeId] = res.ok ? await res.json() : [];
+        }
+        const list = _laSbCache[behoerdeId] || [];
+        for (const s of list) {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.email ? `${s.name} (${s.email})` : s.name;
+            sbSel.appendChild(opt);
+        }
+        if (pending) sbSel.value = pending;
+    } catch { /* ignore */ }
 }
 
 function closeLohnAssignmentModal() {
@@ -9065,6 +9094,8 @@ async function saveLohnAssignment() {
     const modal = document.getElementById('lohnAssignmentModal');
     const editId = modal?.dataset.editId;
     const behoerdeId  = parseInt(document.getElementById('laBehoerdeSel').value);
+    const sbRaw       = document.getElementById('laSachbearbeiterSel')?.value;
+    const behoerdeSachbearbeiterId = sbRaw ? parseInt(sbRaw, 10) : null;
     const bezeichnung = document.getElementById('laBezeichnung').value.trim() || 'Lohnpfändung';
     const freigrenze  = parseFloat(document.getElementById('laFreigrenze').value) || 0;
     const zielbetragStr = document.getElementById('laZielbetrag').value;
@@ -9079,8 +9110,13 @@ async function saveLohnAssignment() {
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
     if (lohnausweisAnBehoerde) {
         const b = (_laBehoerden || []).find(x => x.id === behoerdeId);
-        if (b && !String(b.email || '').trim()) {
-            alert('Die gewählte Behörde hat keine E-Mail-Adresse. Bitte unter Behörden pflegen, bevor «Lohnausweis an Behörde» aktiviert wird.');
+        const sbList = _laSbCache[behoerdeId] || [];
+        const sb = behoerdeSachbearbeiterId
+            ? sbList.find(x => x.id === behoerdeSachbearbeiterId)
+            : null;
+        const mail = (sb?.email || b?.email || '').trim();
+        if (!mail) {
+            alert('Für «Lohnausweis an Behörde» braucht der gewählte Sachbearbeiter oder die Behörde eine E-Mail-Adresse.');
             return;
         }
     }
@@ -9096,6 +9132,7 @@ async function saveLohnAssignment() {
     const body = {
         employeeId: selectedEmployeeId,
         behoerdeId,
+        behoerdeSachbearbeiterId: behoerdeSachbearbeiterId || null,
         bezeichnung,
         freigrenze,
         zielbetrag,

@@ -62,6 +62,7 @@ public class AppDbContext : DbContext
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
+    public DbSet<BehoerdeSachbearbeiter> BehoerdeSachbearbeiter => Set<BehoerdeSachbearbeiter>();
     public DbSet<CompanyProfileSsl> CompanyProfileSsls => Set<CompanyProfileSsl>();
     public DbSet<FamilienzulagenTarif> FamilienzulagenTarife => Set<FamilienzulagenTarif>();
     public DbSet<EmployeeLohnAssignment> EmployeeLohnAssignments => Set<EmployeeLohnAssignment>();
@@ -1497,6 +1498,30 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasMany(e => e.Sachbearbeiter).WithOne(s => s.Behoerde)
+                  .HasForeignKey(s => s.BehoerdeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── BehoerdeSachbearbeiter (Walter 02.08.2026) ─────────────────────
+        modelBuilder.Entity<BehoerdeSachbearbeiter>(entity =>
+        {
+            entity.ToTable("behoerde_sachbearbeiter");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(150);
+            entity.Property(e => e.Rolle).HasColumnName("rolle").HasMaxLength(100);
+            entity.Property(e => e.Telefon).HasColumnName("telefon").HasMaxLength(30);
+            entity.Property(e => e.Handy).HasColumnName("handy").HasMaxLength(30);
+            entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
+            entity.Property(e => e.Erreichbarkeit).HasColumnName("erreichbarkeit").HasMaxLength(150);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.BehoerdeId).HasDatabaseName("idx_behoerde_sachbearbeiter_behoerde");
         });
 
         // ── EmployeeLohnAssignment ─────────────────────────────────────────
@@ -1507,6 +1532,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.BehoerdeSachbearbeiterId).HasColumnName("behoerde_sachbearbeiter_id");
             entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(100);
             entity.Property(e => e.Freigrenze).HasColumnName("freigrenze").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Zielbetrag).HasColumnName("zielbetrag").HasColumnType("numeric(10,2)");
@@ -1525,8 +1551,13 @@ public class AppDbContext : DbContext
                 .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId);
+            entity.HasOne(e => e.Sachbearbeiter).WithMany()
+                  .HasForeignKey(e => e.BehoerdeSachbearbeiterId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_employee_lohn_assignment_period");
+            entity.HasIndex(e => e.BehoerdeSachbearbeiterId)
+                  .HasDatabaseName("idx_emp_lohn_assignment_sb");
         });
 
         // ── LohnausweisShareToken (Walter 30.07.2026) ──────────────────────

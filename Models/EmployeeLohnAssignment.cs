@@ -18,6 +18,12 @@ public class EmployeeLohnAssignment
     public int      EmployeeId       { get; set; }
     public int      BehoerdeId       { get; set; }
 
+    /// <summary>
+    /// Optionaler Sachbearbeiter aus dem Behörden-Stamm (Walter 02.08.2026).
+    /// Zahlung bleibt an der Behörde; Lohnausweis-Mail geht an dessen E-Mail.
+    /// </summary>
+    public int?     BehoerdeSachbearbeiterId { get; set; }
+
     /// <summary>Freitext, z. B. "Lohnpfändung" oder "Vorschuss Sozialamt".</summary>
     public string   Bezeichnung      { get; set; } = "Lohnpfändung";
 
@@ -61,4 +67,5 @@ public class EmployeeLohnAssignment
 
     public Employee? Employee        { get; set; }
     public Behoerde? Behoerde        { get; set; }
+    public BehoerdeSachbearbeiter? Sachbearbeiter { get; set; }
 }

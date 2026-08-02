@@ -32,17 +32,22 @@ async function loadBehoerden() {
             const address = [b.adresse1, b.adresse2, b.adresse3, `${b.plz||''} ${b.ort||''}`.trim()].filter(Boolean).join(', ');
             // Steueramt: statt IBAN den Sachbearbeiter zeigen
             const isSteuer = b.typ === 'STEUERAMT';
+            const sbCount = b.sachbearbeiterCount || 0;
+            const sbNames = Array.isArray(b.sachbearbeiterNames) ? b.sachbearbeiterNames : [];
+            const sbLine = sbCount > 0
+                ? `<div style="font-size:11px;color:#475569;margin-top:2px">${sbNames.map(n => escHtml(n)).join(', ')}${sbCount > sbNames.length ? ` <span style="color:#94a3b8">+${sbCount - sbNames.length}</span>` : ''}</div>`
+                : '';
             const detailCol = isSteuer
                 ? (b.kontaktperson
-                    ? `<div style="font-size:12px">${b.kontaktperson}${b.kontaktpersonRolle ? ` <span style="color:#94a3b8">· ${b.kontaktpersonRolle}</span>` : ''}</div>${b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : ''}`
+                    ? `<div style="font-size:12px">${escHtml(b.kontaktperson)}${b.kontaktpersonRolle ? ` <span style="color:#94a3b8">· ${escHtml(b.kontaktpersonRolle)}</span>` : ''}</div>${b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : ''}`
                     : (b.kantonCode ? `<span style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</span>` : '<span style="color:#cbd5e1">—</span>'))
-                : (b.qrIban && b.qrIban !== b.iban
+                : ((b.qrIban && b.qrIban !== b.iban
                     ? `<div style="font-family:monospace;font-size:11px">${b.iban || '—'}</div><div style="font-family:monospace;font-size:11px;color:#6d28d9">QR: ${b.qrIban}</div>`
-                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`);
+                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`) + sbLine);
             return `<tr style="${!b.isActive ? 'opacity:0.5;' : ''}border-bottom:1px solid #f1f5f9">
-                <td style="padding:10px 14px;font-weight:500">${b.name}</td>
+                <td style="padding:10px 14px;font-weight:500">${escHtml(b.name)}</td>
                 <td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;${typBadge[b.typ] ?? typBadge.ANDERE}">${typLabel[b.typ] ?? b.typ}</span></td>
-                <td style="padding:10px 14px;color:#64748b">${address || '—'}</td>
+                <td style="padding:10px 14px;color:#64748b">${escHtml(address) || '—'}</td>
                 <td style="padding:10px 14px">${detailCol}</td>
                 <td style="padding:10px 14px;text-align:center">
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;${b.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${b.isActive ? 'Aktiv' : 'Inaktiv'}</span>
@@ -61,6 +66,10 @@ async function loadBehoerden() {
     } catch(e) {
         tbody.innerHTML = `<tr><td colspan="6" style="color:#dc2626;padding:14px">Fehler: ${e.message}</td></tr>`;
     }
+}
+
+function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function openBehoerdeModal(existing) {
@@ -94,6 +103,121 @@ function openBehoerdeModal(existing) {
     document.getElementById('beIsActive').checked = d.isActive ?? true;
     // Felder typ-abhängig ein-/ausblenden (Kanton-Pflicht, Bank-Block ausblenden bei Steueramt)
     onBehoerdeTypChange();
+    refreshBeSbSection();
+}
+
+function refreshBeSbSection() {
+    const id = document.getElementById('beId')?.value;
+    const sec  = document.getElementById('beSbSection');
+    const hint = document.getElementById('beSbHintNew');
+    if (!sec || !hint) return;
+    if (id) {
+        sec.style.display = 'block';
+        hint.style.display = 'none';
+        loadBeSachbearbeiter(parseInt(id, 10));
+    } else {
+        sec.style.display = 'none';
+        hint.style.display = 'block';
+        const list = document.getElementById('beSbList');
+        if (list) list.innerHTML = '';
+    }
+}
+
+async function loadBeSachbearbeiter(behoerdeId) {
+    const list = document.getElementById('beSbList');
+    if (!list || !behoerdeId) return;
+    list.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:6px 0">Lade…</div>';
+    try {
+        const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter?includeInactive=true`, { headers: ah() });
+        if (!res.ok) { list.innerHTML = '<div style="color:#dc2626;font-size:12px">Fehler beim Laden</div>'; return; }
+        const rows = await res.json();
+        if (!rows.length) {
+            list.innerHTML = '<div style="font-size:12px;color:#94a3b8;font-style:italic;padding:4px 0">Noch keine Sachbearbeiter — z.B. für ORS pro Fall einen erfassen.</div>';
+            return;
+        }
+        list.innerHTML = rows.map(s => {
+            const contact = [s.email, s.telefon, s.handy].filter(Boolean).map(escHtml).join(' · ');
+            const sJson = JSON.stringify(s).replace(/'/g, '&#39;');
+            return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa;${!s.isActive ? 'opacity:.55;' : ''}">
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;color:#0f172a;font-size:13px">${escHtml(s.name)}${s.rolle ? ` <span style="font-weight:400;color:#94a3b8">· ${escHtml(s.rolle)}</span>` : ''}${!s.isActive ? ' <span style="font-size:10px;color:#64748b">(inaktiv)</span>' : ''}</div>
+                    ${contact ? `<div style="font-size:11.5px;color:#64748b;margin-top:2px">${contact}</div>` : '<div style="font-size:11px;color:#b45309;margin-top:2px">⚠ keine E-Mail</div>'}
+                </div>
+                <button type="button" class="dok-menu-btn" onclick='openBeSbModal(${sJson})' title="Bearbeiten" style="flex-shrink:0">✎</button>
+                <button type="button" class="dok-menu-btn" onclick="deleteBeSb(${behoerdeId},${s.id},'${escHtml(s.name).replace(/'/g,"\\'")}')" title="Löschen" style="flex-shrink:0;color:#dc2626">✕</button>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        list.innerHTML = `<div style="color:#dc2626;font-size:12px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function openBeSbModal(existing) {
+    const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    const behoerdeId = document.getElementById('beId')?.value;
+    if (!behoerdeId) { alert('Bitte die Behörde zuerst speichern.'); return; }
+    document.getElementById('beSbModal').style.display = 'flex';
+    document.getElementById('beSbModalTitle').textContent = d.id ? 'Sachbearbeiter bearbeiten' : 'Neuer Sachbearbeiter';
+    document.getElementById('beSbId').value = d.id ?? '';
+    document.getElementById('beSbName').value = d.name ?? '';
+    document.getElementById('beSbRolle').value = d.rolle ?? '';
+    document.getElementById('beSbErreichbarkeit').value = d.erreichbarkeit ?? '';
+    document.getElementById('beSbTelefon').value = d.telefon ?? '';
+    document.getElementById('beSbHandy').value = d.handy ?? '';
+    document.getElementById('beSbEmail').value = d.email ?? '';
+    document.getElementById('beSbBemerkung').value = d.bemerkung ?? '';
+    document.getElementById('beSbIsActive').checked = d.isActive ?? true;
+}
+
+function closeBeSbModal() {
+    const m = document.getElementById('beSbModal');
+    if (m) m.style.display = 'none';
+}
+
+async function saveBeSb() {
+    const behoerdeId = document.getElementById('beId')?.value;
+    if (!behoerdeId) return;
+    const id = document.getElementById('beSbId').value;
+    const name = document.getElementById('beSbName').value.trim();
+    if (!name) { alert('Bitte Name eingeben.'); return; }
+    const body = {
+        name,
+        rolle: document.getElementById('beSbRolle').value.trim() || null,
+        telefon: document.getElementById('beSbTelefon').value.trim() || null,
+        handy: document.getElementById('beSbHandy').value.trim() || null,
+        email: document.getElementById('beSbEmail').value.trim() || null,
+        erreichbarkeit: document.getElementById('beSbErreichbarkeit').value.trim() || null,
+        bemerkung: document.getElementById('beSbBemerkung').value.trim() || null,
+        isActive: document.getElementById('beSbIsActive').checked
+    };
+    try {
+        const url = id
+            ? `/api/behoerden/${behoerdeId}/sachbearbeiter/${id}`
+            : `/api/behoerden/${behoerdeId}/sachbearbeiter`;
+        const res = await fetch(url, {
+            method: id ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) { alert('Fehler: ' + await res.text()); return; }
+        closeBeSbModal();
+        loadBeSachbearbeiter(parseInt(behoerdeId, 10));
+        loadBehoerden();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+async function deleteBeSb(behoerdeId, id, name) {
+    if (!confirm(`Sachbearbeiter «${name}» löschen?\n\nFalls in einer Lohnabtretung verwendet: wird nur deaktiviert.`)) return;
+    try {
+        const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter/${id}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        loadBeSachbearbeiter(behoerdeId);
+        loadBehoerden();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 // Bei Typ=STEUERAMT: Kanton ist Pflicht, Bankverbindung wird ausgeblendet.
@@ -205,6 +329,15 @@ async function saveBehoerde() {
         if (!res.ok) {
             const err = await res.text();
             alert('Fehler: ' + err);
+            return;
+        }
+        const saved = await res.json();
+        // Neu angelegt: Modal offen lassen → sofort SB-Stamm pflegen (ORS-Fall).
+        if (!id && saved?.id) {
+            document.getElementById('beId').value = saved.id;
+            document.getElementById('beModalTitle').textContent = 'Behörde bearbeiten';
+            refreshBeSbSection();
+            loadBehoerden();
             return;
         }
         closeBehoerdeModal();
