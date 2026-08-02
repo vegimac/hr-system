@@ -2,6 +2,7 @@
 // LOHNABTRETUNGEN — HR-Hub Liste (Walter 02.08.2026)
 // Filiale = globaler Sidebar-Selektor (inkl. «Alle Filialen»).
 // Sortierung Vorname. Dokument-Pflicht wie Bewilligungen.
+// Zeilen-Klick → MA-Tab «Zulagen» + Lohnabtretung öffnen.
 // ══════════════════════════════════════════════
 
 async function laListInit() {
@@ -60,23 +61,28 @@ async function laListInit() {
             const inactive = r.isActive ? '' : 'opacity:.55;';
             const dokCell = r.dokumentId
                 ? `<button type="button" title="${esc(r.dokumentName || 'Dokument')} anschauen"
-                           onclick="laListOpenDok(${r.employeeId},${r.dokumentId})"
+                           onclick="event.stopPropagation();laListOpenDok(${r.employeeId},${r.dokumentId})"
                            style="background:#dcfce7;color:#166534;border:1px solid #86efac;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">👁 Doku</button>`
-                : `<button type="button" title="Im MA-Tab Beleg verknüpfen"
-                           onclick="laListOpenMa(${r.employeeId})"
+                : `<button type="button" title="Zur Lohnabtretung — Beleg verknüpfen"
+                           onclick="event.stopPropagation();laListOpenAssignment(${r.employeeId},${r.id})"
                            style="background:#fff;color:#991b1b;border:1px dashed #fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">🔗 fehlt</button>`;
-            return `<tr style="border-bottom:1px solid #f1f5f9;${inactive}">
+            return `<tr class="la-list-row" style="border-bottom:1px solid #f1f5f9;cursor:pointer;${inactive}"
+                        title="Zur Lohnabtretung im MA-Dossier"
+                        onmouseover="this.style.background='rgba(59,130,246,.06)'"
+                        onmouseout="this.style.background=''"
+                        onclick="laListOpenAssignment(${r.employeeId},${r.id})">
                 <td style="padding:9px 12px;font-variant-numeric:tabular-nums">${esc(r.employeeNumber)}</td>
                 <td style="padding:9px 12px;font-weight:500">${esc(r.firstName)}</td>
                 <td style="padding:9px 12px">${esc(r.lastName)}</td>
-                <td style="padding:9px 12px">${esc(r.behoerdeName)}</td>
+                <td style="padding:9px 12px;color:#1d4ed8;font-weight:500;text-decoration:underline;text-underline-offset:2px">${esc(r.behoerdeName)}</td>
                 <td style="padding:9px 12px">${esc(r.sachbearbeiterName) || '<span style="color:#cbd5e1">—</span>'}</td>
                 <td style="padding:9px 12px;font-size:12px;color:#475569">${esc(r.sachbearbeiterTelefon) || '—'}</td>
                 <td style="padding:9px 12px;font-size:12px;color:#475569">${esc(r.sachbearbeiterEmail) || '—'}</td>
                 <td style="padding:9px 12px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px">${fmt(r.freigrenze)}</td>
-                <td style="padding:9px 8px;text-align:right;white-space:nowrap">
+                <td style="padding:9px 8px;text-align:right;white-space:nowrap" onclick="event.stopPropagation()">
                     ${dokCell}
-                    <button type="button" class="dok-menu-btn" title="Zum MA" onclick="laListOpenMa(${r.employeeId})">→</button>
+                    <button type="button" class="dok-menu-btn" title="Zur Lohnabtretung"
+                            onclick="laListOpenAssignment(${r.employeeId},${r.id})">→</button>
                 </td>
             </tr>`;
         }).join('');
@@ -89,16 +95,41 @@ function escHtmlLa(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
 }
 
-function laListOpenMa(empId) {
+/** MA öffnen → Tab Zulagen → passende Lohnabtretung im Modal. */
+async function laListOpenAssignment(empId, assignmentId) {
+    if (!empId) return;
     window.activeEmpId = empId;
     if (typeof showPage === 'function') showPage('mitarbeiter');
-    // Nach Seitenwechsel: Zulagen-Tab mit Lohnabtretung öffnen
-    setTimeout(() => {
-        if (typeof selectEmployee === 'function') selectEmployee(empId);
-        setTimeout(() => {
-            if (typeof switchEmpTab === 'function') switchEmpTab('zulagen');
-        }, 200);
-    }, 80);
+    await new Promise(r => setTimeout(r, 40));
+    try {
+        if (typeof selectEmployee === 'function') await selectEmployee(empId);
+    } catch { /* weiter */ }
+    if (typeof switchEmpTab === 'function') switchEmpTab('zulagen');
+    // Tab-Inhalt sicher fertig laden (Behörden-Cache + Liste), dann Modal.
+    try {
+        if (typeof loadLohnAssignmentsTab === 'function') {
+            await loadLohnAssignmentsTab(empId);
+        } else {
+            await new Promise(r => setTimeout(r, 220));
+        }
+    } catch { /* weiter */ }
+    const block = document.getElementById('lohnAssignmentsContent');
+    if (block && typeof block.scrollIntoView === 'function') {
+        block.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (!assignmentId || typeof openLohnAssignmentModal !== 'function') return;
+    try {
+        const res = await fetch(`/api/employee-lohn-assignments/${empId}`, { headers: ah() });
+        if (!res.ok) return;
+        const list = await res.json();
+        const a = (list || []).find(x => Number(x.id) === Number(assignmentId));
+        if (a) openLohnAssignmentModal(a);
+    } catch { /* best-effort */ }
+}
+
+/** @deprecated Alias — alte Aufrufer */
+function laListOpenMa(empId, assignmentId) {
+    return laListOpenAssignment(empId, assignmentId);
 }
 
 async function laListOpenDok(empId, dokId) {
@@ -113,3 +144,5 @@ async function laListOpenDok(empId, dokId) {
 }
 
 window.laListInit = laListInit;
+window.laListOpenAssignment = laListOpenAssignment;
+window.laListOpenMa = laListOpenMa;
