@@ -657,14 +657,16 @@ public class EasyAtWorkEmployeeSyncService
             var custId = matchedCustomerId!.Value;
             var cpId   = mappings.First(m => m.EasyAtWorkCustomerId == custId).CompanyProfileId;
 
-            // Performance (Walter 22.07.2026): die drei unabhängigen API-Calls
-            // parallel laden statt sequenziell (HttpClient ist thread-sicher;
-            // _db wird hier nicht berührt).
+            // Performance (Walter 22.07.2026): unabhängige API-Calls parallel
+            // laden (HttpClient thread-sicher; _db wird hier nicht berührt).
             var contractsTask = _client.GetContractsAsync(custId, eaw.Id, ct);
             var ratesTask     = _client.GetPayRatesAsync(custId, eaw.Id, ct);
             var positionsTask = _client.GetPositionsAsync(custId, eaw.Id, ct);
+            var typesTask     = _client.GetContractTypesByIdAsync(custId, ct);
             var contracts = (await contractsTask)?.Data ?? new();
             var rates     = (await ratesTask)?.Data ?? new();
+            try { ApplyContractTypeNames(contracts, await typesTask); }
+            catch (Exception ex) { result.Notes.Add($"Contract-Types nicht abrufbar ({ex.Message})."); }
 
             // Funktion/JobGroup (Kader-Flag → Modell) aus /positions.
             string? posName = null;
@@ -1260,6 +1262,9 @@ public class EasyAtWorkEmployeeSyncService
         if (!req.SkipDetailCalls)
         {
             var custId0 = mapping.EasyAtWorkCustomerId;
+            Dictionary<int, string> previewTypesById = new();
+            try { previewTypesById = await _client.GetContractTypesByIdAsync(custId0, ct); }
+            catch (Exception ex) { _log.LogDebug(ex, "Contract-Types Vorschau Customer {Id} nicht abrufbar", custId0); }
             using var sem = new SemaphoreSlim(10);
             var pfTasks = eawEmps.Select(async eaw =>
             {
@@ -1283,7 +1288,13 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     catch { }
                     // STRICT: Verträge + Tarife für die Fehlerprüfung in der Vorschau.
-                    try { detailCache.Contracts[eaw.Id] = (await _client.GetContractsAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
+                    try
+                    {
+                        var cl = (await _client.GetContractsAsync(custId0, eaw.Id, ct))?.Data ?? new();
+                        ApplyContractTypeNames(cl, previewTypesById);
+                        detailCache.Contracts[eaw.Id] = cl;
+                    }
+                    catch { }
                     try { detailCache.Rates[eaw.Id]     = (await _client.GetPayRatesAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
                 }
                 finally { sem.Release(); }
@@ -1821,8 +1832,12 @@ public class EasyAtWorkEmployeeSyncService
             var contractsRawByEaw = new ConcurrentDictionary<int, List<EawContract>>();
             var ratesRawByEaw     = new ConcurrentDictionary<int, List<EawPayRate>>();
             var positionByEaw = new ConcurrentDictionary<int, string?>();
+            // Vertragstyp-Katalog einmal pro Filiale (type_id → Name). Walter 02.08.2026.
+            Dictionary<int, string> contractTypesById = new();
             if (rowsToProcess.Count > 0 && !req.SkipContracts)
             {
+                try { contractTypesById = await _client.GetContractTypesByIdAsync(mapping.EasyAtWorkCustomerId, ct); }
+                catch (Exception ex) { _log.LogWarning(ex, "Contract-Types für Customer {Id} nicht abrufbar — Fallback Stunden-Heuristik", mapping.EasyAtWorkCustomerId); }
                 using var sem = new SemaphoreSlim(10);
                 // Fortschritt für den asynchronen Hintergrund-Import (Walter 29.06.2026):
                 // diese easy@work-Detail-Calls (Verträge/Lohn/Position pro MA) sind der
@@ -1842,7 +1857,12 @@ public class EasyAtWorkEmployeeSyncService
                             // übersprungen werden (Walter-Vorgabe 23.06.2026), auch nicht
                             // bei SkipDetailCalls. Ohne diese Endpunkte gäbe es keine
                             // Timeline und alte falsche Verträge blieben unkorrigiert.
-                            try { contractsRawByEaw[eawId] = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
+                            try
+                            {
+                                var cl = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new();
+                                ApplyContractTypeNames(cl, contractTypesById);
+                                contractsRawByEaw[eawId] = cl;
+                            }
                             catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawId); contractsRawByEaw[eawId] = new(); }
                             try { ratesRawByEaw[eawId] = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
                             catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawId); ratesRawByEaw[eawId] = new(); }
@@ -2409,10 +2429,29 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
+    /// Füllt <see cref="EawContract.Type"/> aus dem Customer-Katalog, wenn die
+    /// API nur <c>type_id</c> liefert (häufig). Ohne Name greift sonst die
+    /// 17h-Heuristik und macht MTP mit 17 Std fälschlich zu FLEX.
+    /// </summary>
+    public static void ApplyContractTypeNames(
+        IEnumerable<EawContract>? contracts,
+        IReadOnlyDictionary<int, string>? typesById)
+    {
+        if (contracts == null || typesById == null || typesById.Count == 0) return;
+        foreach (var c in contracts)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Type)) continue;
+            if (c.TypeId is int id && typesById.TryGetValue(id, out var name)
+                && !string.IsNullOrWhiteSpace(name))
+                c.Type = name.Trim();
+        }
+    }
+
+    /// <summary>
     /// Liefert (a) den am Stichtag <paramref name="asOf"/> gültigen Vertrag (current)
     /// und (b) optional einen zukünftig startenden Vertrag (future, From &gt; asOf).
     /// Best-effort: Fehlschläge lassen Felder leer. Mapping: amount_type month → FIX;
-    /// hour + Type MTP/TPM → MTP; hour sonst → UTP. Lohnsatz = der am jeweiligen
+    /// hour + Type MTP/TPM → MTP; hour sonst → FLEX. Lohnsatz = der am jeweiligen
     /// Datum gültige (jüngster Pay-Rate mit From ≤ Datum). Walter-Vorgabe 22.06.2026.
     /// </summary>
     private async Task<(HistContractInfo current, HistContractInfo? future)> BuildHistContractInfoAsync(
@@ -2422,6 +2461,12 @@ public class EasyAtWorkEmployeeSyncService
         List<EawPayRate>  rates     = new();
         try { contracts = (await _client.GetContractsAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
         catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
+        try
+        {
+            var types = await _client.GetContractTypesByIdAsync(customerId, ct);
+            ApplyContractTypeNames(contracts, types);
+        }
+        catch (Exception ex) { _log.LogDebug(ex, "Contract-Types für Customer {Id} nicht abrufbar", customerId); }
         try { rates = (await _client.GetPayRatesAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
         catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
 
@@ -2438,7 +2483,8 @@ public class EasyAtWorkEmployeeSyncService
     /// Reine Mapping-Logik easy@work-Vertrag + Pay-Rates → <see cref="HistContractInfo"/>
     /// (API-frei, statisch, unit-testbar). Walter-Vorgabe 23.06.2026.
     ///   • Modell aus amount_type: "month"/"percent" → FIX (Monatslohn), "week"/"hour"
-    ///     → Stundenlohn (MTP wenn Typ MTP/TPM oder Wochenstunden > 17, sonst UTP).
+    ///     → Stundenlohn (MTP wenn Typ MTP/TPM; sonst FLEX. Stunden &gt; 17 nur Fallback
+    ///     wenn Typ fehlt — MTP mit 17 Std bleibt MTP, sobald Type/type_id bekannt).
     ///   • FIX/FIX-M: MonthlySalary = effektiver Pensumslohn aus easy@work,
     ///     MonthlySalaryFte = 100%-Lohn (effektiv / Pensum × 100).
     ///   • Lohnsatz ≤ 1.00 = Platzhalter ("kein Lohn") → ignoriert.
@@ -2472,8 +2518,9 @@ public class EasyAtWorkEmployeeSyncService
             //   amount_type "month"/"percent" → FIX (Monatslohn; "percent" = Pensum-
             //                                   Monatslohnvertrag, KEIN Stundenlohn)
             //   amount_type "week"/"hour"      → Stundenlohn:
-            //       Typ MTP/TPM  ODER  Wochenstunden (amount) > 17  → MTP
-            //       sonst (z.B. amount 17, der UTP-Default)         → UTP
+            //       Typ MTP/TPM → MTP (auch bei 17 Std/Woche — Walter 02.08.2026)
+            //       Typ Flex/leer + amount ≤ 17 → FLEX; amount > 17 nur Fallback-MTP
+            //         wenn Typ fehlt (nie Typ ignorieren zugunsten der Stunden)
             // Leeres amount_type → Contract-Type Fix/Full ⇒ month, sonst week.
             if (string.IsNullOrEmpty(amt))
                 amt = (typ.Contains("FIX") || typ.Contains("FULL")) ? "month" : "week";
@@ -2502,8 +2549,13 @@ public class EasyAtWorkEmployeeSyncService
             else
             {
                 var wochenStd = c.Amount ?? c.WeekHours;
-                bool isMtp = typ.Contains("MTP") || typ.Contains("TPM")
-                             || (wochenStd.HasValue && wochenStd.Value > 17m);
+                // Typ ist führend. Stunden-Heuristik nur wenn Typ leer/unbekannt —
+                // MTP mit 17 Std/Woche darf NICHT zu FLEX werden (Fall 580046).
+                bool typSagtMtp = typ.Contains("MTP") || typ.Contains("TPM");
+                bool typSagtFlex = typ.Contains("FLEX") || typ == "UTP";
+                bool isMtp = typSagtMtp
+                             || (!typSagtFlex && string.IsNullOrEmpty(typ)
+                                 && wochenStd.HasValue && wochenStd.Value > 17m);
                 info.EmploymentModel = isMtp ? "MTP" : "FLEX";
                 info.SalaryType = "hourly";
             }

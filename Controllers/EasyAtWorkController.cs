@@ -1273,6 +1273,12 @@ public class EasyAtWorkController : ControllerBase
         var resourceId = emp.Id;
 
         var contracts = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        try
+        {
+            var types = await _client.GetContractTypesByIdAsync(mapping.EasyAtWorkCustomerId, ct);
+            Services.EasyAtWork.EasyAtWorkEmployeeSyncService.ApplyContractTypeNames(contracts, types);
+        }
+        catch { /* Fallback: Stunden-Heuristik wenn Katalog fehlt */ }
         var rates     = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
         var positions = (await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
         var props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct);
