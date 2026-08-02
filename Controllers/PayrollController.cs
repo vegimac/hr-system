@@ -1088,23 +1088,23 @@ public class PayrollController : HrControllerBase
     {
         if (!await CanAccessBranchAsync(dto.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
-        // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026): sobald der Akonto-Lauf
-        // für diese Periode begonnen wurde, muss er erst AUSBEZAHLT sein, bevor
-        // der Definitivlohn bestätigt werden darf. Sonst wäre die Restzahlungs-
-        // Berechnung (Netto − Akonto) instabil — der Akonto-Betrag könnte sich
-        // ja noch ändern. Backend-Guard ist hier die zweite Verteidigungslinie;
-        // das Frontend versteckt den Bestätigen-Button bereits (#lohnDefinitivLockBanner).
-        //
-        // OFFEN (= Akonto nie gestartet) bleibt erlaubt — Walter kann den
-        // Akonto-Workflow bewusst überspringen und direkt definitiv abrechnen
-        // (z.B. für Vor-Akonto-Perioden oder Filialen ohne Akonto-Termin).
+        // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026, Ausnahme 01./02.08.2026):
+        // sobald der Akonto-Lauf begonnen wurde, muss er AUSBEZAHLT oder OFFEN
+        // sein, bevor Definitiv bestätigt wird. Ausnahme: Definitiv ist bereits
+        // provisorisch_abgeschlossen / abgeschlossen — dann darf ein versehentlich
+        // gestarteter Akonto den laufenden Definitiv nicht mehr blockieren
+        // (Frontend: _checkDefinitivLock — gleiche Regel).
         // Korrekturlohn (IsCorrection) ist davon ausgenommen — kein Akonto-Bezug.
         var akontoPeriode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
                                    && p.Year  == dto.Year
                                    && p.Month == dto.Month);
+        var defAlreadyRunning = akontoPeriode != null
+            && (akontoPeriode.Status == "provisorisch_abgeschlossen"
+                || akontoPeriode.Status == "abgeschlossen");
         if (!dto.IsCorrection
             && akontoPeriode != null
+            && !defAlreadyRunning
             && akontoPeriode.AkontoStatus != "AUSBEZAHLT"
             && akontoPeriode.AkontoStatus != "OFFEN")
         {

@@ -273,8 +273,14 @@ async function _checkDefinitivLock() {
             const pd = await rDef.json();
             defStatus = (pd && (pd.status || pd.Status)) || 'offen';
         }
-        // Definitiv bereits weiter → kein Lock (Akonto-Hinweis wäre nur störend).
-        if (defStatus === 'provisorisch_abgeschlossen' || defStatus === 'abgeschlossen') {
+        // Definitiv bereits weiter → kein Lock. Zusätzlich Cache aus
+        // _lohnWfData (Statusleiste zeigt «Provisorisch abgeschlossen») —
+        // falls /current kurz fehlschlägt, darf der Banner nicht wieder
+        // auftauchen und den laufenden Definitiv blockieren.
+        const wfStatus = (typeof _lohnWfData !== 'undefined' && _lohnWfData)
+            ? (_lohnWfData.status || '') : '';
+        if (defStatus === 'provisorisch_abgeschlossen' || defStatus === 'abgeschlossen'
+            || wfStatus === 'provisorisch_abgeschlossen' || wfStatus === 'abgeschlossen') {
             banner.style.display = 'none';
             return;
         }
