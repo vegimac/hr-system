@@ -6253,7 +6253,7 @@
                 <div style="font-size:11px;color:#64748b;margin:-2px 0 8px;line-height:1.4">
                     Zahlung geht an die Behörden-IBAN. Lohnausweis/Korrespondenz an den am MA gewählten Sachbearbeiter.
                 </div>
-                <div id="beSbList" style="display:flex;flex-direction:column;gap:6px;max-height:122px;overflow-y:auto;padding-right:2px"></div>
+                <div id="beSbList" class="be-sb-list" style="display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 6px 4px 2px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"></div>
             </div>
             <div id="beSbHintNew" style="display:none;font-size:11.5px;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.45">
                 Nach dem ersten Speichern kannst du hier Sachbearbeiter mit Kontaktangaben ergänzen (z.B. ORS: mehrere SB, eine IBAN).
@@ -6369,6 +6369,8 @@
 #behoerdeModal .be-lbl { font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px }
 #behoerdeModal .be-inp { width:100%;border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:12.5px;line-height:1.3;background:#fff;box-sizing:border-box }
 #behoerdeModal .be-inp:focus { outline:none;border-color:#1a1a1a;box-shadow:0 0 0 2px rgba(60,55,48,.15) }
+#behoerdeModal .be-sb-list { scrollbar-gutter: stable; }
+body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1e293b; }
 </style>
 
 <!-- ═══════════════ ALV-DATEN MODAL ═══════════════ -->
