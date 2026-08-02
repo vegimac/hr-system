@@ -221,7 +221,10 @@ public class PayrollPdfService
                     Cell(t.Cell(), betr.HasValue ? "-" + CHF(Math.Abs(betr.Value)) : "", right: true, color: Red);
                 }
 
-                var totalAbz = GetDecimal(slip, "totalDeductions");
+                // Slip-Feld heisst totalAbzuege (nicht totalDeductions) —
+                // sonst blieb die Betrags-Spalte leer (Walter 02.08.2026).
+                var totalAbz = GetDecimal(slip, "totalAbzuege")
+                            ?? GetDecimal(slip, "totalDeductions");
                 Cell(t.Cell().PaddingTop(4), "Total Abzüge", left: true, bold: true);
                 t.Cell().ColumnSpan(4).PaddingTop(4).Text("");
                 Cell(t.Cell().PaddingTop(4),
