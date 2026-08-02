@@ -102,12 +102,13 @@ function laListOpenMa(empId) {
 }
 
 async function laListOpenDok(empId, dokId) {
-    if (typeof previewUrlFetch === 'function') {
-        await previewUrlFetch(`/api/documents/${dokId}/preview`, 'Dokument.pdf', ah());
-        return;
-    }
+    // Backend-Route: /api/documents/preview/{id} — NICHT …/{id}/preview (404).
     if (typeof qstOpenBefreiungsDok === 'function') {
         qstOpenBefreiungsDok(empId, dokId);
+        return;
+    }
+    if (typeof previewUrlFetch === 'function') {
+        await previewUrlFetch(`/api/documents/preview/${dokId}`, 'Dokument.pdf', ah());
     }
 }
 
