@@ -3716,20 +3716,19 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0;
-            /* Walter 26.07.2026: Viewport füllen. Walter 30.07.2026: Zeile 1
-               Personalien = max-content. Walter 02.08.2026: Zeile 4 =
-               eigene Box «Weitere Adressen» (freier Platz unten). */
+            /* Walter 02.08.2026: gleiche Abstände; Verträge/Saldi wachsen
+               (1fr); Weitere Adressen unten fix inhaltshoch. */
             overflow-x: hidden;
             overflow-y: auto;
             height: 100%;
             align-content: stretch;
-            grid-template-rows: max-content minmax(150px, auto) auto auto;
+            grid-template-rows: max-content minmax(140px, auto) minmax(160px, 1fr) auto;
         }
         .ov-wrap {
             display: grid;
             /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
             grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
-            gap: 7px;
+            gap: 10px; /* gleiche Abstände zwischen allen Boxen */
             /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
             padding: 2px 2px 8px;
         }
@@ -3970,22 +3969,22 @@
             grid-column: 1 / -1;
             display: grid;
             grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
-            gap: 7px;
+            gap: 10px; /* wie .ov-wrap */
             min-width: 0;
             align-items: stretch;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
-            height: auto;
-            min-height: 0;
+            height: 100%;
+            min-height: 160px;
             max-height: none;
-            overflow: visible;
-            align-self: start;
+            overflow: hidden;
+            align-self: stretch;
         }
-        /* Verträge/Saldi: inhaltshoch — kein Leerraum unten (Walter 02.08.2026) */
+        /* Verträge/Saldi füllen die mittlere Flex-Zeile (Walter 02.08.2026) */
         .ov-vertraege-ktg > .ov-card {
             min-height: 0;
-            height: auto;
+            height: 100%;
             overflow: hidden;
             display: flex;
             flex-direction: column;
@@ -4002,15 +4001,15 @@
         }
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
         .ov-vertraege-ktg > .ov-card > .ov-vlist {
-            flex: 0 1 auto;
-            min-height: 36px; /* 1 Vertragszeile; mehr scrollt */
+            flex: 1 1 auto;
+            min-height: calc(2 * 36px + 3px); /* mind. 2 Vertragszeilen */
             height: auto;
-            max-height: calc(2 * 36px + 3px);
+            max-height: none;
             overflow-y: auto;
         }
         .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
         .ov-vertraege-ktg > .ov-card > .ov-saldi-slot {
-            flex: 0 1 auto; min-height: 0; overflow: hidden;
+            flex: 1 1 auto; min-height: 0; overflow: hidden;
         }
         .ov-saldi-card {
             padding: 6px 10px 8px !important;
@@ -8094,7 +8093,13 @@
         /* ── Lohnabrechnung ─────────────────────────────────── */
         .lohn-emp-row { display:flex;align-items:center;gap:10px;padding:6px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:background .12s; }
         .lohn-emp-row:hover { background:#f8fafc; }
-        .lohn-emp-active { background:#f6f3ee !important; border-left:3px solid #3f3f3f; padding-left:11px !important; }
+        /* Auswahl klar sichtbar auch auf hellen Monitoren (Walter 02.08.2026) */
+        .lohn-emp-active {
+            background: #ddd5c8 !important;
+            border-left: 3px solid #3f3f3f !important;
+            padding-left: 11px !important;
+            box-shadow: inset 0 0 0 1px rgba(60,55,48,0.10);
+        }
         /* Akonto-Modus: Definitivlauf-spezifische Elemente hart verstecken.
            Walter-Bug-Fix 16.05.2026 — die Definitivlauf-Loader (loadLohnSlip,
            loadLohnPeriodBanner) laufen async parallel zum Akonto-Init und
@@ -9882,35 +9887,38 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
             color: var(--dlg-text-soft);
         }
 
-        /* ══ Auswahl in Auswahl-Listen deutlicher (Walter-Vorgabe 10.07.2026, v2) ══
-           Dezent statt Balken: die selektierte Zeile bekommt nur einen etwas
-           dunkleren Hintergrund und SCHWARZE, FETTE Schrift — kein Seitenbalken,
-           kein Schatten (Walter: «das Zeichen links ist too much»). Gilt app-weit:
-           Mitarbeiter (inkl. Liquid, auch graue Inaktiv-Zeilen), Verträge/
-           Dok-Struktur, Lohnlauf Definitiv + Akonto. */
+        /* ══ Auswahl in Listen klar sichtbar (Walter 02.08.2026) ══
+           War zu blass (rgba 0.13) — auf manchen Monitoren unsichtbar.
+           Jetzt: warmer Kohle-Hintergrund + linker Rand + fette Schrift.
+           Gilt: Mitarbeiter, Verträge/Dok-Struktur, Lohnlauf Definitiv+Akonto. */
         .emp-list-item.active,
         .dokstruktur-row.active,
         .lohn-emp-active,
+        .lohn-emp-row.lohn-emp-active,
         #page-mitarbeiter.liquid-employee .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: rgba(60,55,48,0.13) !important;
-            border-left-color: transparent !important;
-            box-shadow: none !important;
+            background: #ddd5c8 !important;
+            border-left: 3px solid #3f3f3f !important;
+            box-shadow: inset 0 0 0 1px rgba(60,55,48,0.10) !important;
             color: #000 !important;
             font-weight: 700;
         }
         .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .emp-list-item.active {
             opacity: 1 !important;   /* Inaktiv-Zeilen haben inline opacity:0.65 */
+            padding-left: 11px !important;
         }
+        .lohn-emp-row.lohn-emp-active { padding-left: 11px !important; }
         .emp-list-item.active .emp-list-name,
         #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
         .lohn-emp-active .lohn-emp-name,
+        .lohn-emp-row.lohn-emp-active .lohn-emp-name,
         .dokstruktur-row.active {
             color: #000 !important;
             font-weight: 800 !important;
         }
-        .emp-list-item.active .emp-list-nr { color: #3f3f3f !important; }
+        .emp-list-item.active .emp-list-nr,
+        .lohn-emp-active .lohn-emp-nr { color: #3f3f3f !important; }
         body.theme-dark .emp-list-item.active,
         body.theme-dark .dokstruktur-row.active,
         body.theme-dark .lohn-emp-active,
