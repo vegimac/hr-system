@@ -630,13 +630,34 @@ public class PayrollController : HrControllerBase
         var ferAbsByEmp = ferAbs.GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
 
         // Nachtstunden aus den Stempelzeiten (Jan..Stichtag) — für ALLE Modelle.
-        var nightByEmp = (await _db.EmployeeTimeEntries.AsNoTracking()
-                .Where(t => empIds.Contains(t.EmployeeId)
-                         && t.EntryDate >= yearStartD && t.EntryDate <= stichEnd)
-                .GroupBy(t => t.EmployeeId)
-                .Select(g => new { EmployeeId = g.Key, Night = g.Sum(t => t.NightHours ?? 0m) })
-                .ToListAsync())
-            .ToDictionary(x => x.EmployeeId, x => x.Night);
+        // Pro MA filtern wir unten ggf. ab Vortrags-Monat (904), damit Mirus-
+        // Schlussaldo und Stempelzeiten nicht doppelt zählen (Walter 02.08.2026).
+        var nightEntries = await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => empIds.Contains(t.EmployeeId)
+                     && t.EntryDate >= yearStartD && t.EntryDate <= stichEnd
+                     && (t.NightHours ?? 0m) != 0m)
+            .Select(t => new { t.EmployeeId, t.EntryDate, Night = t.NightHours ?? 0m })
+            .ToListAsync();
+        var nightEntriesByEmp = nightEntries
+            .GroupBy(t => t.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Vortrag Nacht-Saldo (904) — Migrations-Eröffnung aus Monatsblatt.
+        var vortrag904Raw = await _db.LohnZulagen.AsNoTracking()
+            .Where(z => empIds.Contains(z.EmployeeId)
+                     && z.Lohnposition != null
+                     && z.Lohnposition.Code == "904"
+                     && z.Lohnposition.Kategorie == "Saldo-Vortrag")
+            .Select(z => new { z.EmployeeId, z.Periode, z.Betrag })
+            .ToListAsync();
+        // Pro MA: jüngster Vortrag mit Periode ≤ Stichtag-Monat.
+        var stichPeriode = $"{year}-{month:D2}";
+        var vortrag904ByEmp = vortrag904Raw
+            .Where(v => !string.IsNullOrEmpty(v.Periode) && string.CompareOrdinal(v.Periode, stichPeriode) <= 0)
+            .GroupBy(v => v.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.Periode).First());
 
         // Anzahl gearbeitete NÄCHTE über die letzten 12 Monate ab Stichtag
         // (Walter-Vorgabe 20.06.2026, ArG-Nachtarbeit-Kontrolle): rollendes Fenster,
@@ -704,7 +725,19 @@ public class PayrollController : HrControllerBase
                 if (isFix) feiertagAnspruch += 0.5m * frac;
             }
 
-            // ── Bezug: FERIEN-Tage + Feiertag-Tage + Nacht-Komp-Stunden Jan..Stichtag ──
+            // ── Nacht-Vortrag (904) + Fenster ab Vortrags-Monat ───────────
+            decimal nachtVortrag = 0m;
+            string? nachtVortragPeriode = null;
+            DateOnly nachtFrom = yearStartD;
+            if (vortrag904ByEmp.TryGetValue(e.EmployeeId, out var v904))
+            {
+                var basis = ResolveNachtReportBasis(yearStartD, stichEnd, v904.Periode, v904.Betrag);
+                nachtFrom = basis.NightFrom;
+                nachtVortrag = basis.Vortrag;
+                nachtVortragPeriode = v904.Periode;
+            }
+
+            // ── Bezug: FERIEN-Tage + Feiertag-Tage + Nacht-Komp-Stunden ──
             decimal bezug = 0m;
             decimal feiertagBezug = 0m;
             decimal nachtKomp = 0m;
@@ -715,15 +748,19 @@ public class PayrollController : HrControllerBase
                 feiertagBezug = fa.Where(a => a.AbsenceType == "FEIERTAG")
                           .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd)
                                     * ((a.Prozent > 0 ? a.Prozent : 100m) / 100m));
+                // Nacht-Komp nur im Fenster ab Vortrag (sonst Doppelzählung).
                 nachtKomp = fa.Where(a => a.AbsenceType == "NACHT_KOMP")
-                          .Sum(a => ScaleAbsenceHoursToPeriod(a, yearStartD, stichEnd));
+                          .Sum(a => ScaleAbsenceHoursToPeriod(a, nachtFrom, stichEnd));
             }
 
-            // ── Nacht-Saldo (Stunden, alle Modelle): Nachtstunden × 10% Zeit-
-            //    zuschlag, reduziert durch Nacht-Kompensation. ──
-            decimal nachtStd      = nightByEmp.TryGetValue(e.EmployeeId, out var nh) ? nh : 0m;
+            // ── Nacht-Saldo (Stunden, alle Modelle inkl. FLEX):
+            //    Vortrag + Nachtstunden×10% − Nacht-Kompensation. ──
+            decimal nachtStd = 0m;
+            if (nightEntriesByEmp.TryGetValue(e.EmployeeId, out var nEnts))
+                nachtStd = nEnts.Where(t => t.EntryDate >= nachtFrom && t.EntryDate <= stichEnd)
+                                .Sum(t => t.Night);
             decimal nachtZuschlag = Math.Round(nachtStd * 0.10m, 2);
-            decimal nachtSaldo    = Math.Round(nachtZuschlag - nachtKomp, 2);
+            decimal nachtSaldo    = Math.Round(nachtVortrag + nachtZuschlag - nachtKomp, 2);
 
             // ── Anzahl Nächte (rollende 12 Monate, ArG-Kontrolle) ──
             int naechteReal = 0, datenMonate = 0;
@@ -788,11 +825,13 @@ public class PayrollController : HrControllerBase
                 feiertagAnspruch = isFix ? (decimal?)Math.Round(feiertagAnspruch, 2) : null,
                 feiertagBezug    = isFix ? (decimal?)Math.Round(feiertagBezug, 2) : null,
                 feiertagSaldo    = isFix ? (decimal?)Math.Round(feiertagAnspruch - feiertagBezug, 2) : null,
-                // Nacht-Saldo in Stunden (alle Modelle).
-                nachtStunden  = Math.Round(nachtStd, 2),
-                nachtZuschlag = nachtZuschlag,
-                nachtKomp     = Math.Round(nachtKomp, 2),
-                nachtSaldo    = nachtSaldo,
+                // Nacht-Saldo in Stunden (alle Modelle inkl. FLEX).
+                nachtVortrag        = Math.Round(nachtVortrag, 2),
+                nachtVortragPeriode = nachtVortragPeriode,
+                nachtStunden        = Math.Round(nachtStd, 2),
+                nachtZuschlag       = nachtZuschlag,
+                nachtKomp           = Math.Round(nachtKomp, 2),
+                nachtSaldo          = nachtSaldo,
                 // Anzahl Nächte (rollende 12 Monate) — nur noch Info, NICHT mehr Warnkriterium.
                 naechteJahr   = naechteJahr,
                 naechteReal   = naechteReal,

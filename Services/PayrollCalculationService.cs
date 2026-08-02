@@ -689,6 +689,34 @@ public static class PayrollCalculations
     }
 
     /// <summary>
+    /// Ferien/Nacht-Report: Vortrag 904 (Monatsblatt-Schlussaldo) + Stempelzeiten
+    /// ab Vortrags-Monat — sonst Doppelzählung der Mirus-Vormonate.
+    /// Vortrag-Periode «YYYY-MM» = Eröffnung für diesen Monat (= Mirus-Saldo Vormonat).
+    /// Walter 02.08.2026.
+    /// </summary>
+    public static (DateOnly NightFrom, decimal Vortrag) ResolveNachtReportBasis(
+        DateOnly yearStart,
+        DateOnly stichEnd,
+        string? vortragPeriode,
+        decimal vortragBetrag)
+    {
+        if (string.IsNullOrWhiteSpace(vortragPeriode)
+            || vortragPeriode.Length != 7
+            || vortragPeriode[4] != '-'
+            || !int.TryParse(vortragPeriode.AsSpan(0, 4), out int vy)
+            || !int.TryParse(vortragPeriode.AsSpan(5, 2), out int vm)
+            || vm < 1 || vm > 12)
+        {
+            return (yearStart, 0m);
+        }
+
+        var vStart = new DateOnly(vy, vm, 1);
+        if (vStart > stichEnd) return (yearStart, 0m);
+        if (vStart < yearStart) return (yearStart, vortragBetrag);
+        return (vStart, vortragBetrag);
+    }
+
+    /// <summary>
     /// Ermittelt den satzbestimmenden Bruttolohn für die Quellensteuer nach
     /// Schweizer ESTV-Wegleitung (Kreisschreiben 45):
     ///

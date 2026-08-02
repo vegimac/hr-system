@@ -166,7 +166,16 @@ function ferRender() {
             ${valCell(r.nachtStunden)}
             ${valCell(r.nachtZuschlag)}
             ${valCell(r.nachtKomp)}
-            ${nachtSaldoCell(r.nachtSaldo)}
+            ${(() => {
+                const cell = nachtSaldoCell(r.nachtSaldo);
+                if (!(r.nachtVortrag && Math.abs(r.nachtVortrag) > 0.001)) return cell;
+                const vFmt = Number(r.nachtVortrag).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+                const per = r.nachtVortragPeriode
+                    ? ` (Vortrag ${String(r.nachtVortragPeriode).slice(5,7)}.${String(r.nachtVortragPeriode).slice(0,4)})`
+                    : '';
+                const tip = `Vortrag ${vFmt} h${per} + Zuschlag − Komp`;
+                return cell.replace('<td ', `<td title="${tip}" `);
+            })()}
         </tr>`;
     }).join('');
 
