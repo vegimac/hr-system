@@ -260,14 +260,20 @@ public class PayrollCalculationEngine
         // Vorher prüfte die Engine NUR (1) und das Legacy-Feld `QuellensteuerBefreitAb`
         // — ein MA mit C-Ausweis oder Schweizer Ehepartner bekam ungerechtfertigt
         // QST abgezogen.
-        var qstPflicht = await _qstCheck.CheckAsync(employeeId, periodFrom);
+        // Stichtag = Periodenende: bei Eintritt mitten im Monat (z.B. 2.7.)
+        // ist die QST-Erfassung oft ab Eintrittsdatum gültig — am 1. des
+        // Monats noch nicht. ConfirmPayroll/Freigeben prüfen ebenfalls periodTo.
+        var qstPflicht = await _qstCheck.CheckAsync(employeeId, periodTo);
 
         EmployeeQuellensteuer? qstEinstellung = null;
         if (qstPflicht.IsQstPflichtig)
         {
+            // Überlappung mit der Lohnperiode (nicht nur gültig am 1.):
+            // ValidFrom 2.7. muss im Juli-Lauf greifen (Walter 02.08.2026,
+            // Ana Petkovic 580104 — sonst keine QST-Zeile trotz Erfassung).
             qstEinstellung = await _db.EmployeeQuellensteuer
                 .Where(q => q.EmployeeId == employeeId
-                         && q.ValidFrom  <= periodFrom
+                         && q.ValidFrom <= periodTo
                          && (q.ValidTo == null || q.ValidTo >= periodFrom))
                 .OrderByDescending(q => q.ValidFrom)
                 .FirstOrDefaultAsync();

@@ -888,9 +888,11 @@ public class PayrollController : HrControllerBase
             && (!emp.QstBefreiungGueltigBis.HasValue
                 || emp.QstBefreiungGueltigBis.Value >= periodFrom);
 
+        // Diagnostik analog Engine: Überlappung mit der Periode (nicht nur am 1.)
+        var periodTo = periodFrom.AddMonths(1).AddDays(-1);
         var qst = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId
-                     && q.ValidFrom <= periodFrom
+                     && q.ValidFrom <= periodTo
                      && (q.ValidTo == null || q.ValidTo >= periodFrom))
             .OrderByDescending(q => q.ValidFrom)
             .FirstOrDefaultAsync();
