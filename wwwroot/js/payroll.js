@@ -1102,7 +1102,16 @@ function showLohnVertragInfo(emp) {
             ${contract.employmentPercentage ? `<div>Pensum: <b style="color:#374151">${contract.employmentPercentage}%</b></div>` : ''}
             <div>Vertrag seit: <b style="color:#374151">${fmt(contract.contractStartDate)}</b></div>
             <div title="Alter zum Periodenbeginn — relevant für Ferienanspruch (5/6 Wochen) und Alters-Mindestlöhne">Alter: <b style="color:#374151">${alterStr}</b></div>
-            ${contract.probationEndDate ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>` : ''}
+            ${(() => {
+                // Nur wenn Probezeit in der Lohnperiode noch läuft:
+                // Probezeitende >= Periodenbeginn (Walter 02.08.2026).
+                const pzEnde = contract.probationEndDate
+                    ? String(contract.probationEndDate).slice(0, 10) : null;
+                const periodStartIso = `${periodYear}-${String(periodMonth).padStart(2, '0')}-01`;
+                return (pzEnde && pzEnde >= periodStartIso)
+                    ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>`
+                    : '';
+            })()}
         </div>`;
     targets.forEach(t => {
         if (t.nameEl) t.nameEl.innerHTML = nameHtml;
