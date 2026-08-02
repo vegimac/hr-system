@@ -39,6 +39,17 @@ cd /Users/Walter/projects/hr-system && git fetch origin && git checkout <AKTUELL
 
 Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name jeweils den aktuellen Feature-Branch einsetzen (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
 
+### EIN aktiver Deploy-Branch (Walter-Vorgabe 02.08.2026, ABSOLUT)
+
+Solange Walter einen Feature-Branch deployt und testet, gilt:
+
+1. **Alle Folge-Fixes und Folge-Features laufen auf DEMSELBEN Branch** — kein neuer `cursor/…-3bcf` von `main` abzweigen «für das nächste Thema».
+2. **Nie parallel zwei Deploy-Branches** für denselben Live-Test. Neuer Branch von `main` erst, wenn der aktuelle in `main` gemergt ist ODER Walter explizit «neuer Branch» sagt.
+3. **Vor jedem Fix prüfen:** liegt der Fix schon auf dem aktiven Deploy-Branch? (z.B. Timestamp-Fix Absenz war schon auf `cursor/stundenkontrolle-monatsblatt-3bcf` — ein frischer Branch von `main` hat ihn gefehlt → 500 «wie UTP»).
+4. Aktueller Deploy-Branch steht im Deploy-Befehl am Antwortende — **nur dieser** Name.
+
+Grund: getrennte Branches von veraltetem `main` erzeugen Schein-Bugs (fehlende Fixes) und Deploy-Chaos.
+
 ### NUR EIN aktiver Feature-Branch (Walter-Vorgabe 01.08.2026, ABSOLUT)
 
 Walter arbeitet **immer nur mit einem Branch** — sonst liegen Fixes verstreut und er
