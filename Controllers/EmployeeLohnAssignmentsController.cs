@@ -194,7 +194,7 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         entry.BehoerdeId       = dto.BehoerdeId;
         entry.BehoerdeSachbearbeiterId = dto.BehoerdeSachbearbeiterId;
-        entry.DokumentId            = dto.DokumentId;
+        // Dokument nur via PATCH …/dokument — Edit-Modal überschreibt den Beleg nicht.
         entry.Bezeichnung      = dto.Bezeichnung?.Trim() ?? "Lohnpfändung";
         entry.Freigrenze       = Math.Round(dto.Freigrenze, 2);
         entry.Zielbetrag       = Math.Round(dto.Zielbetrag, 2);
@@ -214,6 +214,44 @@ public class EmployeeLohnAssignmentsController : ControllerBase
             .Include(a => a.Dokument)
             .FirstAsync(a => a.Id == entry.Id);
         return Ok(MapToDto(reloaded, firstAllowedU));
+    }
+
+    /// <summary>
+    /// Nur Dokument verknüpfen/lösen (Walter 02.08.2026) — auch wenn die
+    /// Abtretung schon im Lohnlauf verwendet wurde (Beleg nachreichen).
+    /// Body: { dokumentId: number|null }
+    /// </summary>
+    [HttpPatch("{id:int}/dokument")]
+    public async Task<IActionResult> SetDokument(int id, [FromBody] SetLaDokumentDto dto)
+    {
+        var entry = await _db.EmployeeLohnAssignments.FindAsync(id);
+        if (entry == null) return NotFound();
+
+        if (dto.DokumentId is null || dto.DokumentId <= 0)
+        {
+            entry.DokumentId = null;
+        }
+        else
+        {
+            var dokOk = await _db.EmployeeDokumente.AnyAsync(d =>
+                d.Id == dto.DokumentId.Value && d.EmployeeId == entry.EmployeeId);
+            if (!dokOk)
+                return BadRequest(new { message = "Dokument nicht gefunden oder gehört nicht zu diesem Mitarbeiter." });
+            entry.DokumentId = dto.DokumentId;
+        }
+        entry.UpdatedAt = DateTime.Now;
+        await _db.SaveChangesAsync();
+
+        var branchId = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        var reloaded = await _db.EmployeeLohnAssignments
+            .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
+            .FirstAsync(a => a.Id == entry.Id);
+        return Ok(MapToDto(reloaded, firstAllowed));
     }
 
     [HttpDelete("{id:int}")]
@@ -263,12 +301,15 @@ public class EmployeeLohnAssignmentsController : ControllerBase
                 && s.IsActive);
             if (!sbOk) return "Sachbearbeiter gehört nicht zu dieser Behörde oder ist inaktiv.";
         }
-        // Dokument Pflicht — sonst könnte jemand ohne Beleg Lohn abzweigen.
-        if (!dto.DokumentId.HasValue || dto.DokumentId.Value <= 0)
-            return "Bitte das Abtretungs-/Pfändungsdokument verknüpfen — ohne Dokument ist die Lohnabtretung ungültig.";
-        var dokOk = await _db.EmployeeDokumente.AnyAsync(d =>
-            d.Id == dto.DokumentId.Value && d.EmployeeId == dto.EmployeeId);
-        if (!dokOk) return "Dokument nicht gefunden oder gehört nicht zu diesem Mitarbeiter.";
+        // Dokument optional beim Anlegen/Bearbeiten — Verknüpfung läuft über
+        // PATCH …/dokument (Bewilligungen-Muster). Ohne Beleg greift die
+        // Abtretung im Lohnlauf trotzdem nicht (Engine filtert DokumentId).
+        if (dto.DokumentId.HasValue && dto.DokumentId.Value > 0)
+        {
+            var dokOk = await _db.EmployeeDokumente.AnyAsync(d =>
+                d.Id == dto.DokumentId.Value && d.EmployeeId == dto.EmployeeId);
+            if (!dokOk) return "Dokument nicht gefunden oder gehört nicht zu diesem Mitarbeiter.";
+        }
         return null;
     }
 
@@ -316,3 +357,5 @@ public record LohnAssignmentDto(
     int?    BehoerdeSachbearbeiterId = null,
     int?    DokumentId = null
 );
+
+public record SetLaDokumentDto(int? DokumentId);

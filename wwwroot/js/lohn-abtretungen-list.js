@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════
 // LOHNABTRETUNGEN — HR-Hub Liste (Walter 02.08.2026)
 // Filiale = globaler Sidebar-Selektor. Sortierung Vorname.
+// Dokument-Pflicht: Badge / 👁 Doku analog Bewilligungen.
 // ══════════════════════════════════════════════
 
 async function laListInit() {
@@ -15,8 +16,9 @@ async function laListInit() {
         ? allBranches.find(b => b.id === cid)
         : null;
     if (banner) {
-        banner.textContent = branch
-            ? `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''}`
+        const missingHint = '';
+        banner.innerHTML = branch
+            ? `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''}${missingHint}`
             : 'Bitte oben links eine Filiale wählen.';
     }
     if (!cid) {
@@ -36,26 +38,35 @@ async function laListInit() {
             tbody.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Lohnabtretungen in dieser Filiale</td></tr>';
             return;
         }
+        const missing = list.filter(r => !r.hasDokument).length;
+        if (banner && branch) {
+            const badge = missing === 0
+                ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac">📄 Doku ✓</span>`
+                : `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">● ${missing} ohne Dokument</span>`;
+            banner.innerHTML = `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''} ${badge}`;
+        }
         const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const fmt = (n) => (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         tbody.innerHTML = list.map(r => {
-            const warn = !r.hasDokument
-                ? '<span title="Ohne Dokument im Lohnlauf unwirksam" style="color:#b45309;font-size:11px;margin-left:4px">⚠</span>'
-                : '';
             const inactive = r.isActive ? '' : 'opacity:.55;';
+            const dokCell = r.dokumentId
+                ? `<button type="button" title="${esc(r.dokumentName || 'Dokument')} anschauen"
+                           onclick="laListOpenDok(${r.employeeId},${r.dokumentId})"
+                           style="background:#dcfce7;color:#166534;border:1px solid #86efac;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">👁 Doku</button>`
+                : `<button type="button" title="Im MA-Tab Beleg verknüpfen"
+                           onclick="laListOpenMa(${r.employeeId})"
+                           style="background:#fff;color:#991b1b;border:1px dashed #fca5a5;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">🔗 fehlt</button>`;
             return `<tr style="border-bottom:1px solid #f1f5f9;${inactive}">
                 <td style="padding:9px 12px;font-variant-numeric:tabular-nums">${esc(r.employeeNumber)}</td>
                 <td style="padding:9px 12px;font-weight:500">${esc(r.firstName)}</td>
                 <td style="padding:9px 12px">${esc(r.lastName)}</td>
-                <td style="padding:9px 12px">${esc(r.behoerdeName)}${warn}</td>
+                <td style="padding:9px 12px">${esc(r.behoerdeName)}</td>
                 <td style="padding:9px 12px">${esc(r.sachbearbeiterName) || '<span style="color:#cbd5e1">—</span>'}</td>
                 <td style="padding:9px 12px;font-size:12px;color:#475569">${esc(r.sachbearbeiterTelefon) || '—'}</td>
                 <td style="padding:9px 12px;font-size:12px;color:#475569">${esc(r.sachbearbeiterEmail) || '—'}</td>
                 <td style="padding:9px 12px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px">${fmt(r.freigrenze)}</td>
                 <td style="padding:9px 8px;text-align:right;white-space:nowrap">
-                    ${r.dokumentId
-                        ? `<button type="button" class="dok-menu-btn" title="Dokument" onclick="laListOpenDok(${r.employeeId},${r.dokumentId})">📄</button>`
-                        : ''}
+                    ${dokCell}
                     <button type="button" class="dok-menu-btn" title="Zum MA" onclick="laListOpenMa(${r.employeeId})">→</button>
                 </td>
             </tr>`;
@@ -72,6 +83,13 @@ function escHtmlLa(s) {
 function laListOpenMa(empId) {
     window.activeEmpId = empId;
     if (typeof showPage === 'function') showPage('mitarbeiter');
+    // Nach Seitenwechsel: Zulagen-Tab mit Lohnabtretung öffnen
+    setTimeout(() => {
+        if (typeof selectEmployee === 'function') selectEmployee(empId);
+        setTimeout(() => {
+            if (typeof switchEmpTab === 'function') switchEmpTab('zulagen');
+        }, 200);
+    }, 80);
 }
 
 async function laListOpenDok(empId, dokId) {

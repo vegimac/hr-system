@@ -2184,7 +2184,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
     }
     if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
           'night_work_exam', 'night_work_ausnahme',
-          'probezeit_gespraech1', 'probezeit_gespraech2'].includes(kind)) return;
+          'probezeit_gespraech1', 'probezeit_gespraech2',
+          'lohn_assignment'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2203,6 +2204,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'spouse'              ? ['spouse', 'spouse_permit']
                       : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
                           ? ['probezeitgespraech', 'probezeit_gespraech']
+                      : kind === 'lohn_assignment'     ? ['lohnabtretung', 'pfaendung', 'pfändung']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2212,6 +2214,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'night_work_ausnahme' ? /(ausnahme|nacht|tag.{0,3}nacht|anlage)/i
                        : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
                            ? /(probezeit)/i
+                       : kind === 'lohn_assignment'
+                           ? /(pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2257,6 +2261,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'night_work_ausnahme' ? 'Nachtarbeit: Ausnahmeregelung verknüpfen'
                    : kind === 'probezeit_gespraech1' ? 'Probezeitgespräch 1: Protokoll verknüpfen'
                    : kind === 'probezeit_gespraech2' ? 'Probezeitgespräch 2: Protokoll verknüpfen'
+                   : kind === 'lohn_assignment'     ? 'Lohnabtretung: Beleg-Dokument verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -2270,6 +2275,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                         ? 'Wähle die unterschriebene Ausnahmeregelung Tag-/Nachtarbeit des MA. Oder lade ein neues Dokument hoch.'
                         : (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2')
                             ? 'Wähle das ausgefüllte Probezeitgespräch-Protokoll (Typ «Probezeitgespräch» unter Mitarbeiterentwicklung). Oder lade ein neues hoch.'
+                        : kind === 'lohn_assignment'
+                            ? 'Wähle das Abtretungs-/Pfändungsdokument — ohne Beleg ist die Lohnabtretung im Lohnlauf unwirksam. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -2386,7 +2393,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         defaultKatId: defaultTyp?._katId || null,
         spouseFamilyMemberId: extra?.spouseFamilyMemberId || null,
         // Walter 14.06.2026: für kind='permit_history' der konkrete History-Eintrag.
-        permitHistoryId: extra?.permitHistoryId || null
+        permitHistoryId: extra?.permitHistoryId || null,
+        // Walter 02.08.2026: Lohnabtretung-Beleg.
+        lohnAssignmentId: extra?.lohnAssignmentId || null
     };
 }
 
@@ -2461,6 +2470,11 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!historyId) { alert('Bewilligungs-Eintrag-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/permit-history/${historyId}/dokument`;
             body = JSON.stringify({ dokumentId });
+        } else if (kind === 'lohn_assignment') {
+            const laId = ctx.lohnAssignmentId;
+            if (!laId) { alert('Lohnabtretungs-ID fehlt.'); return; }
+            url  = `/api/employee-lohn-assignments/${laId}/dokument`;
+            body = JSON.stringify({ dokumentId });
         } else if (kind === 'spouse') {
             const famId = ctx.spouseFamilyMemberId;
             if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
@@ -2509,6 +2523,9 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if (kind === 'permit_history') {
             if (typeof loadPermitHistory === 'function') loadPermitHistory(empId);
             if (typeof selectEmployee === 'function') selectEmployee(empId);
+        }
+        if (kind === 'lohn_assignment' && typeof loadLohnAssignmentsTab === 'function') {
+            loadLohnAssignmentsTab(empId);
         }
         // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
@@ -8936,13 +8953,26 @@ async function loadLohnAssignmentsTab(employeeId) {
 }
 
 function renderLohnAssignmentsList(el, list) {
-    // Walter-Vorgabe 27.05.2026: MA-Maske-Stil — pro Eintrag ein grauer
-    // Card-Container mit weissen Wert-Boxen (analog Familie-Tab).
+    // Walter 02.08.2026: Dokument-Pflicht wie Bewilligungen —
+    // «🔗 Doku verknüpfen» (gestrichelt) / «👁 Doku» (grün) + Header-Badge.
     const fmt = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
+    const missingDok = list.filter(a => !a.dokumentId).length;
+    const allOk = list.length > 0 && missingDok === 0;
+    const headerBadge = list.length === 0
+        ? ''
+        : (allOk
+            ? `<span title="Alle Einträge haben einen Beleg"
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac">📄 Doku ✓</span>`
+            : `<span title="${missingDok} Eintrag/Einträge ohne Beleg — im Lohnlauf unwirksam"
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">● Dokument-Pflicht</span>`);
 
     const toolbar = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0;margin-bottom:10px">
+        <span style="display:inline-flex;align-items:center;gap:8px">
+            Lohnabtretungen
+            ${headerBadge}
+        </span>
         <button class="btn-emp-add" onclick="openLohnAssignmentModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Lohnabtretung erfassen
@@ -8951,7 +8981,7 @@ function renderLohnAssignmentsList(el, list) {
 
     if (!list.length) {
         el.innerHTML = toolbar + `
-        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
+        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
             Keine Lohnabtretungen erfasst.
         </div>`;
         return;
@@ -8961,78 +8991,118 @@ function renderLohnAssignmentsList(el, list) {
     list.forEach(a => {
         const activeNow = a.validFrom <= today && (!a.validTo || a.validTo >= today);
         const fertig    = a.zielbetrag > 0 && a.bereitsAbgezogen >= a.zielbetrag;
-        let statusPill;
-        if (fertig)         statusPill = '<span title="Zielbetrag erreicht" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#cffafe;color:#0e7490">✓ erledigt</span>';
-        else if (activeNow) statusPill = '<span title="Aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#dcfce7;color:#166534">● aktiv</span>';
-        else                statusPill = '<span title="Nicht aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#f1f5f9;color:#64748b">○ inaktiv</span>';
+        const hasDok    = !!a.dokumentId;
+        const wirksam   = hasDok && activeNow && !fertig;
 
-        const zielbetragVal = a.zielbetrag > 0 ? fmt(a.zielbetrag) + ' CHF' : '<span style="color:#16a34a;font-weight:600">offen</span>';
+        let statusPill;
+        if (fertig)         statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#cffafe;color:#0e7490">✓ erledigt</span>';
+        else if (wirksam)   statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#dcfce7;color:#166534">● aktiv</span>';
+        else if (activeNow && !hasDok)
+                            statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#fee2e2;color:#991b1b">● Dokument-Pflicht</span>';
+        else                statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#f1f5f9;color:#64748b">○ inaktiv</span>';
+
+        const okBadge = hasDok
+            ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;display:inline-block"></span>Alles in Ordnung</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;display:inline-block"></span>Dokument-Pflicht</span>';
+
+        const zielbetragVal = a.zielbetrag > 0 ? fmt(a.zielbetrag) + ' CHF' : 'offen';
         const fortschritt = a.zielbetrag > 0
             ? `Bisher ${fmt(a.bereitsAbgezogen)} von ${fmt(a.zielbetrag)} CHF`
             : `Bisher ${fmt(a.bereitsAbgezogen)} CHF · unbegrenzt`;
         const bisStr = a.validTo
             ? formatDate(a.validTo)
-            : '<span style="color:#16a34a;font-weight:600">Widerruf</span>';
+            : 'bis Widerruf';
         const refParts = [];
         if (a.referenzAmt)       refParts.push(esc(a.referenzAmt));
-        if (a.zahlungsReferenz)  refParts.push('<span style="font-family:ui-monospace,Menlo,Consolas,monospace">' + esc(a.zahlungsReferenz) + '</span>');
+        if (a.zahlungsReferenz)  refParts.push(esc(a.zahlungsReferenz));
         if (a.bemerkung)         refParts.push(esc(a.bemerkung));
-        const refHtml = refParts.length ? refParts.join(' · ') : '<span style="color:#94a3b8">–</span>';
-        const aJson = JSON.stringify(a).replace(/'/g,"&#39;");
+        const refHtml = refParts.length ? refParts.join(' · ') : '';
+        const aJson = JSON.stringify(a).replace(/'/g, '&#39;');
+
+        const rowBorder = !hasDok
+            ? '1.5px solid #fca5a5'
+            : (wirksam ? '1.5px solid #16a34a' : '1px solid #e2e8f0');
+        const rowBg = !hasDok
+            ? '#fef2f2'
+            : (wirksam ? '#f0fdf4' : '#fafafa');
+
+        const dokBtn = hasDok
+            ? `<button type="button" onclick="qstOpenBefreiungsDok(${a.employeeId || selectedEmployeeId}, ${a.dokumentId})"
+                   style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
+                   title="${esc(a.dokumentName || 'Dokument')} anschauen">
+                   👁 Doku
+               </button>`
+            : `<button type="button" onclick="laOpenDokuModal(${a.id})"
+                   style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
+                   🔗 Doku verknüpfen
+               </button>`;
 
         cards += `
-        <div style="background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.62);border-radius:12px;padding:9px 12px 11px;margin-bottom:6px;box-shadow:0 8px 20px rgba(86,76,63,.08)">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-                ${statusPill}
-                <span style="font-weight:600;color:#0f172a;font-size:13.5px;flex:1">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
-                <span style="font-size:12px;color:#64748b">${esc(a.behoerdeName ?? '—')}${a.sachbearbeiterName ? ` · <span style="color:#475569">${esc(a.sachbearbeiterName)}</span>` : ''}</span>
-                <button onclick='openLohnAssignmentModal(${aJson})' title="Bearbeiten"
-                        style="background:#fff;border:1px solid #94a3b8;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✎</button>
-                <button onclick="deleteLohnAssignment(${a.id})" title="Löschen"
-                        style="background:#fff;border:1px solid #fca5a5;color:#dc2626;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✕</button>
+        <div style="padding:10px 12px;border:${rowBorder};border-radius:8px;background:${rowBg};margin-bottom:6px;display:flex;align-items:flex-start;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                    <span style="font-weight:700;color:#0f172a;font-size:13.5px">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
+                    ${statusPill}
+                    ${okBadge}
+                </div>
+                <div style="font-size:12px;color:#475569;margin-bottom:2px">
+                    ${esc(a.behoerdeName ?? '—')}${a.sachbearbeiterName ? ` · ${esc(a.sachbearbeiterName)}` : ''}
+                    ${a.lohnausweisAnBehoerde ? ' · <span style="color:#64748b">Lohnausweis an SB</span>' : ''}
+                </div>
+                <div style="font-size:11.5px;color:#64748b">
+                    ${formatDate(a.validFrom)} – ${bisStr}
+                    · Freigrenze ${fmt(a.freigrenze)} · Ziel ${zielbetragVal}
+                </div>
+                <div style="font-size:11.5px;color:#64748b;margin-top:2px">${fortschritt}</div>
+                ${refHtml ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px">${refHtml}</div>` : ''}
             </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px">
-                <div class="emp-field">
-                    <div class="emp-field-label">Freigrenze (CHF)</div>
-                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${fmt(a.freigrenze)}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Zielbetrag</div>
-                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${zielbetragVal}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Ab</div>
-                    <div class="emp-field-value">${formatDate(a.validFrom)}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Bis</div>
-                    <div class="emp-field-value">${bisStr}</div>
-                </div>
-                <div class="emp-field" style="grid-column:span 2">
-                    <div class="emp-field-label">Fortschritt</div>
-                    <div class="emp-field-value">${fortschritt}</div>
-                </div>
-                <div class="emp-field" style="grid-column:span 2">
-                    <div class="emp-field-label">Referenz / Bemerkung</div>
-                    <div class="emp-field-value">${refHtml}</div>
-                </div>
-                <div class="emp-field" style="grid-column:span 4">
-                    <div class="emp-field-label">Beleg-Dokument</div>
-                    <div class="emp-field-value" style="font-size:12.5px">
-                        ${a.dokumentId
-                            ? `<button type="button" onclick="qstOpenBefreiungsDok(${a.employeeId || selectedEmployeeId}, ${a.dokumentId})"
-                                       style="background:#fff;border:1px solid #94a3b8;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer">📄 ${esc(a.dokumentName || 'Dokument')}</button>`
-                            : `<span style="color:#b45309;font-weight:600">⚠ kein Dokument — im Lohnlauf unwirksam</span>`}
-                        ${a.lohnausweisAnBehoerde
-                            ? ` <span style="color:#64748b;margin-left:8px">· Lohnausweis-Link an SB</span>`
-                            : ''}
-                    </div>
+            ${dokBtn}
+            <div class="dok-menu-wrap" style="flex-shrink:0">
+                <button class="dok-menu-btn" onclick="laToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                <div class="dok-menu" id="laMenu-${a.id}">
+                    <button class="dok-menu-item" onclick='openLohnAssignmentModal(${aJson})'>Bearbeiten</button>
+                    ${hasDok
+                        ? `<button class="dok-menu-item" onclick="laOpenDokuModal(${a.id})">Doku ersetzen</button>
+                           <button class="dok-menu-item" onclick="laUnlinkDokument(${a.id})">Verknüpfung aufheben</button>`
+                        : `<button class="dok-menu-item" onclick="laOpenDokuModal(${a.id})">Doku verknüpfen</button>`}
+                    <button class="dok-menu-item danger" onclick="deleteLohnAssignment(${a.id})">Löschen</button>
                 </div>
             </div>
         </div>`;
     });
 
     el.innerHTML = toolbar + cards;
+}
+
+function laToggleMenu(event, id) { rowMenuToggle(event, 'la', id); }
+
+function laOpenDokuModal(lohnAssignmentId) {
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId || !lohnAssignmentId) return;
+    openAusweisDokuModal(empId, 'lohn_assignment', { lohnAssignmentId });
+}
+
+async function laUnlinkDokument(lohnAssignmentId) {
+    rowMenuCloseAll();
+    if (!lohnAssignmentId) return;
+    if (!(await liquidConfirm('Dokument-Verknüpfung wirklich aufheben?\n\nOhne Beleg greift die Lohnabtretung im Lohnlauf nicht mehr.'))) return;
+    try {
+        const res = await fetch(`/api/employee-lohn-assignments/${lohnAssignmentId}/dokument`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: null })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || 'Verknüpfung konnte nicht aufgehoben werden.');
+            return;
+        }
+        if (typeof loadLohnAssignmentsTab === 'function') {
+            loadLohnAssignmentsTab(selectedEmployeeId || window.activeEmpId);
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 let _laSbCache = {}; // behoerdeId → [{id,name,email,…}]
@@ -9066,50 +9136,6 @@ function openLohnAssignmentModal(existing) {
     const laCb = document.getElementById('laLohnausweisAnBehoerde');
     if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
     laOnBehoerdeChange();
-    laLoadDokumente(existing?.dokumentId ?? null);
-}
-
-async function laLoadDokumente(selectedDokId) {
-    const sel = document.getElementById('laDokumentSel');
-    if (!sel) return;
-    sel.innerHTML = '<option value="">– Dokumente laden … –</option>';
-    if (!selectedEmployeeId) {
-        sel.innerHTML = '<option value="">– kein Mitarbeiter –</option>';
-        return;
-    }
-    try {
-        const res = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
-        let alle = res.ok ? await res.json() : [];
-        if (!Array.isArray(alle)) alle = [];
-        // Pfändung/Abtretung-ähnliche oben
-        const isLaLike = (d) => {
-            const t = ((d.dokumentTypName || '') + ' ' + (d.kategorieName || '') + ' ' + (d.bemerkung || '')).toLowerCase();
-            return /pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso/.test(t);
-        };
-        alle.sort((a, b) => {
-            const af = isLaLike(a) ? 0 : 1;
-            const bf = isLaLike(b) ? 0 : 1;
-            if (af !== bf) return af - bf;
-            return String(b.erstelltAm || b.hochgeladenAm || '')
-                .localeCompare(String(a.erstelltAm || a.hochgeladenAm || ''));
-        });
-        const selId = selectedDokId != null ? Number(selectedDokId) : null;
-        if (!alle.length) {
-            sel.innerHTML = '<option value="">– keine Dokumente im Dossier — zuerst hochladen –</option>';
-            return;
-        }
-        sel.innerHTML = '<option value="">— Dokument wählen (Pflicht) —</option>' +
-            alle.map(d => {
-                const typ = d.dokumentTypName ? `${d.dokumentTypName} · ` : '';
-                const name = d.bemerkung || d.filenameOriginal || 'Dokument';
-                const dt = d.erstelltAm || d.hochgeladenAm
-                    ? ' · ' + formatDate(d.erstelltAm || d.hochgeladenAm) : '';
-                const mark = isLaLike(d) ? '★ ' : '';
-                return `<option value="${d.id}" ${selId === d.id ? 'selected' : ''}>${mark}${esc(typ + name)}${dt}</option>`;
-            }).join('');
-    } catch {
-        sel.innerHTML = '<option value="">– Fehler beim Laden –</option>';
-    }
 }
 
 async function laOnBehoerdeChange() {
@@ -9158,14 +9184,8 @@ async function saveLohnAssignment() {
     const refZahlung  = document.getElementById('laZahlungsReferenz').value.trim() || null;
     const bem         = document.getElementById('laBemerkung').value.trim() || null;
     const lohnausweisAnBehoerde = !!document.getElementById('laLohnausweisAnBehoerde')?.checked;
-    const dokRaw = document.getElementById('laDokumentSel')?.value || '';
-    const dokumentId = dokRaw ? parseInt(dokRaw, 10) : null;
 
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
-    if (!dokumentId) {
-        alert('Bitte das Abtretungs-/Pfändungsdokument verknüpfen.\n\nOhne Dokument ist die Lohnabtretung ungültig und greift im Lohnlauf nicht.');
-        return;
-    }
     if (lohnausweisAnBehoerde) {
         const sbList = _laSbCache[behoerdeId] || [];
         const sb = behoerdeSachbearbeiterId
@@ -9189,7 +9209,6 @@ async function saveLohnAssignment() {
         employeeId: selectedEmployeeId,
         behoerdeId,
         behoerdeSachbearbeiterId: behoerdeSachbearbeiterId || null,
-        dokumentId,
         bezeichnung,
         freigrenze,
         zielbetrag,
@@ -9207,8 +9226,13 @@ async function saveLohnAssignment() {
         const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { const err = await res.text(); alert('Fehler beim Speichern: ' + err); return; }
+        const saved = await res.json().catch(() => null);
         closeLohnAssignmentModal();
-        loadLohnAssignmentsTab(selectedEmployeeId);
+        await loadLohnAssignmentsTab(selectedEmployeeId);
+        // Neu angelegt ohne Beleg → sofort Verknüpfungs-Dialog (Bewilligungen-Muster).
+        if (!editId && saved?.id && !saved.dokumentId) {
+            laOpenDokuModal(saved.id);
+        }
     } catch(e) {
         alert('Verbindungsfehler: ' + e.message);
     }
