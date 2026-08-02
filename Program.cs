@@ -596,6 +596,32 @@ using (var scope = app.Services.CreateScope())
                     ALTER COLUMN updated_at TYPE timestamp without time zone
                     USING (updated_at AT TIME ZONE 'Europe/Zurich');
             END IF;
+
+            -- Absenzen (Walter 31.07.2026): Speichern scheiterte mit 500,
+            -- analog Zusatzadresse — created_at/updated_at noch timestamptz
+            -- (Npgsql + DateTime.Now = Kind=Local).
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'absence'
+                  AND column_name = 'created_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE absence
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'absence'
+                  AND column_name = 'updated_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE absence
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
         END $$;
     ");
 
