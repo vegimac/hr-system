@@ -9037,6 +9037,7 @@ function openLohnAssignmentModal(existing) {
     modal.dataset.editId = existing?.id ?? '';
     modal.dataset.pendingSbId = existing?.behoerdeSachbearbeiterId ?? '';
     document.getElementById('laModalTitle').textContent = existing ? 'Lohnabtretung bearbeiten' : 'Lohnabtretung erfassen';
+    _laSbCache = {}; // frischer SB-Stamm (nach Behörden-Pflege)
 
     // Behörden-Dropdown
     const sel = document.getElementById('laBehoerdeSel');
