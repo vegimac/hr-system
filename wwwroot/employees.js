@@ -1393,13 +1393,14 @@ function loadUebersichtTab() {
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
-    // Weitere Adressen = eigene Box unten (Walter 02.08.2026) — nutzt den
-    // freien Platz unter Verträge/Saldi; Hauptadresse bleibt in Personalien.
+    // Weitere Adressen = eigene Box unten (Walter 02.08.2026).
+    // Titelzeile: «Weitere Adressen» [(n)] · Beschreibung (Walter 02.08.2026).
     const kAddr = emp.isPayrollExcluded ? '' : _ovCard(
-        _t('ma.section.otherAddresses', 'Weitere Adressen'),
+        `<span id="ovAddrCardTitle">${_t('ma.section.otherAddresses', 'Weitere Adressen')}</span>` +
+        `<span id="ovAddrCardCount" class="ov-addr-count"></span>` +
+        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span>`,
         null, '',
-        `<div class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</div>
-         <div id="otherAddressesContent"></div>`,
+        `<div id="otherAddressesContent"></div>`,
         `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>`);
 
     // ── Karte Anstellung (Walter 17.07.2026): L-GAV/<8h-Toggles +
@@ -11026,10 +11027,18 @@ async function loadEmployeeAddressesTab(employeeId) {
     }
 }
 
+function _ovUpdateAddrCardCount(n) {
+    // Anzahl nur bei >1 neben dem Titel: «Weitere Adressen (2)» (Walter 02.08.2026).
+    const countEl = document.getElementById('ovAddrCardCount');
+    if (countEl) countEl.textContent = n > 1 ? ` (${n})` : '';
+}
+
 function renderEmployeeAddressesList(el, list) {
     if (!Array.isArray(list) || list.length === 0) {
         // Kein Hinweis-Text (Walter 17.07.2026): keine Adressen = leer.
         el.innerHTML = '';
+        if (el.closest?.('.ov-addr-full') || el.id === 'otherAddressesContent')
+            _ovUpdateAddrCardCount(0);
         return;
     }
     const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
@@ -11061,6 +11070,7 @@ function renderEmployeeAddressesList(el, list) {
         </div>`;
     }).join('');
     el.innerHTML = rows;
+    _ovUpdateAddrCardCount(list.length);
 }
 
 let _empAddrEditing = null;  // null = neu, sonst die zu editierende Adresse
