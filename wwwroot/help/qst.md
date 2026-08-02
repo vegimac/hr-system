@@ -53,7 +53,7 @@ Klick auf **„+ Neue QST-Erfassung"** ODER bearbeite den vorgeschlagenen Tarif.
 - **QST-Gemeinde + BFS-Nr.** — kommt aus der Hauptadresse.
 - **Tarif-Code** — siehe unten.
 - **Anzahl Kinder** — abzugsberechtigte Kinder.
-- **Kirchensteuer Ja/Nein**.
+- **Kirchensteuer Ja/Nein** — hängt oft an der **Konfession** des MA: ändert sich die Konfession, passt das System das Kirchensteuer-Flag (Y/N) mit an.
 
 Das System bildet daraus automatisch den **QST-Code**, z.B. `B1N` = Verheiratet, 1 Kind, ohne Kirchensteuer.
 
@@ -94,7 +94,7 @@ Erfass den Ehepartner im **Familie-Tab** mit allen Angaben (Nationalität, Bewil
 - Der Prozentsatz wird **automatisch** aus dem ESTV-Tarif gerechnet.
 - Auch wenn das Ergebnis CHF 0.00 ist (kommt bei niedrigem Lohn vor), erscheint die Zeile — damit du sehen kannst, dass es geprüft wurde.
 
-💡 **Mindestbetrag pro Kanton:** manche Kantone (z.B. Luzern mit 13 CHF) ziehen einen Mindestbetrag, auch wenn der Tarif rechnerisch 0 ergibt.
+💡 **Mindestbetrag pro Kanton:** kommt aus der **ESTV-Tariftabelle** (nicht fest verdrahtet) — z.B. LU oft 13 CHF, AG CHF 2.00. Auch wenn der Tarif rechnerisch 0 ergibt, kann der Sockel greifen.
 
 ## Versionen — wenn sich was ändert
 
@@ -110,12 +110,16 @@ So bleibt die Historie sauber — frühere Lohnzettel werden mit dem damals gül
 
 **Sidebar → HR → QST-Anmeldung** generiert ein PDF, das du dem Kanton schickst, wenn ein MA eintritt oder austritt. Templates sind hinterlegt für SO, AG, ZH, BE. Andere Kantone können wir auf Anfrage hinzufügen. Mehr zum HR-Bereich: [HR-Hub](#hr-hub).
 
-## Lohnlauf-Sperre
+## Lohnlauf-Sperre & Editieren
 
 ⚠️ **Wenn QST-pflichtig aber keine Erfassung:**
 - Dashboard zeigt rote Card mit MA-Name → Klick führt direkt in den QST-Tab.
 - Im Lohnlauf erscheint die MA-Zeile mit ⚠ und Banner „QST-Pflicht offen — Bestätigen gesperrt".
 - Bestätigen geht erst, wenn du einen Tarif erfasst oder die Befreiung dokumentiert hast.
+
+**Editieren während dem Lohnlauf:** QST-Tarife bleiben änderbar bis der Definitivlauf **abgeschlossen** ist (weich — siehe [Edit-Sperre](#edit-sperre)). Nach dem Speichern lädt der offene Lohnzettel die Berechnung oft automatisch neu.
+
+**Eintritt mitten im Monat:** Der gültige Tarif am Periodenbeginn / Eintritt wird trotzdem geladen — Kurzperiode und QST greifen zusammen.
 
 ## Häufige Fragen
 

@@ -62,7 +62,7 @@ Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
 **Periode = immer Kalendermonat** (1. bis letzter Tag).
 
-**Edit-Sperre:** Läuft der Lohnlauf schon bei HR oder ist er abgeschlossen, sind lohnrelevante Daten dieser Periode gesperrt — Details: [Edit-Sperre](#edit-sperre).
+**Edit-Sperre:** Es gibt zwei Stufen — hart (Akonto bei HR / Definitiv provisorisch) und weich (erst bei Definitiv abgeschlossen, z.B. Absenzen/QST/Verträge). Details: [Edit-Sperre](#edit-sperre).
 
 ## Wenn du nicht weiterweisst
 

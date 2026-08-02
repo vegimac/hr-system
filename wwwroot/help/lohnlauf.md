@@ -34,9 +34,12 @@ Du wechselst zwischen den beiden über die **Tab-Bar oben** im Lohn-Modul. Die W
 
 Funktioniert fast gleich wie Akonto, aber:
 
-- **Akonto muss vorher abgeschlossen sein** (Status „Ausbezahlt"). Sonst ist der Definitivlauf gesperrt.
-- Der Definitivlauf **verrechnet die Akonto-Zahlung** automatisch — du siehst beim MA eine zusätzliche Zeile „Akonto-Vorauszahlung vom xx.xx.xxxx".
-- Beim DTA-Versand werden zusätzlich **Lohnzettel-PDFs ins MA-Postfach** gelegt und (optional) per E-Mail benachrichtigt.
+- **Akonto-Status muss passen:** Definitiv ist gesperrt, solange Akonto **läuft** (`IN_BEARBEITUNG_GF` / `BEI_HR` / `HR_FREIGEGEBEN`). Erlaubt ist:
+  - Akonto **AUSBEZAHLT** (Normalfall — Vorauszahlung wird verrechnet), oder
+  - Akonto **OFFEN** (Akonto bewusst übersprungen — z.B. kein Akonto-Termin / Legacy).
+- Das System **startet Akonto nicht mehr automatisch**. Wenn du schon im Definitiv arbeitest, bleibst du dort — kein stiller Wechsel zurück zum Akonto-Tab.
+- Der Definitivlauf **verrechnet eine ausbezahlte Akonto-Zahlung** automatisch — Zeile „Akonto-Vorauszahlung vom xx.xx.xxxx".
+- Beim DTA-Versand landen **Lohnzettel + Stundenkontrolle (Monatsblatt)** im MA-Postfach; optional E-Mail-Hinweis.
 
 ## Was zeigt mir der Lohnzettel?
 
@@ -45,10 +48,11 @@ Auf der rechten Seite, wenn du einen MA wählst, siehst du den vollständigen Lo
 - **Lohn** — Festlohn, Stunden, Ferien-Auszahlung, 13. ML usw.
 - **Abzüge** — AHV/IV/EO (5.3 %), ALV (1.1 %), NBU, KTG, BVG, Quellensteuer, LGAV.
 - **Nettolohn** — Lohn minus Abzüge.
-- **Weitere Zahlungen / Abzüge** — Familienzulagen (Kinderzulage etc.), Lohnabtretungen (nur mit verknüpftem Beleg — siehe [Lohnabtretungen](#lohnabtretungen)).
+- **Weitere Zahlungen / Abzüge** — Familienzulagen, Lohnabtretungen (nur mit Beleg — [Lohnabtretungen](#lohnabtretungen)), Uniformen-Depot, Korrekturen.
 - **Auszahlungsbetrag** — was geht effektiv an die Bank.
 - **Stunden-Übersicht** (bei MTP/FIX/FIX-M): Soll · Ist · Differenz · Saldo.
-- **Saldi** (Nacht-Saldo, Ferien-Tage, Ferien-Geld, 13.-ML-Rückstellung).
+- **Saldi** — Nacht-Saldo (**alle Modelle inkl. FLEX**), Ferien-Tage, Ferien-Geld, 13.-ML-Rückstellung.
+- **Unbezahlter Urlaub** — Info-Zeile auf dem Zettel (FLEX/MTP); bei MTP ist der Festlohn bereits gekürzt.
 
 ## Was bedeuten die Sperren?
 
@@ -93,9 +97,35 @@ Das System zeigt dir je nach Rolle nur die Buttons, die du auch benutzen darfst.
 
 ## Listen & Auswertungen zum Abschluss
 
-Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen in der Aktionszeile zwei Saldo-Listen bereit: **„📊 Buchhaltung"** (alle Saldi, Brutto/Netto, IBAN, Summenzeile) und **„📋 GF-Übersicht"** (kompakt). Das **Fibu-Journal** und die Buchhaltungs-Saldo-Liste für die Finanzbuchhaltung liegen im eigenen [Fibu-Bereich](#fibu) (Rollen buchhaltung + admin).
+Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen in der Aktionszeile u.a.:
+
+- **📊 Buchhaltung** / **📋 GF-Übersicht** — Saldo-Listen
+- **Std.-Kontrolle** — Monatsblatt Stundenkontrolle (zur Unterschrift); beim Abschluss mit dem Lohnzettel ins [MA-Postfach](#postfach-ma)
+- **Fibu-Journal** / Buchhaltungs-Saldo → eigener [Fibu-Bereich](#fibu)
 
 💡 **DTA-Hinweis:** MA mit Auszahlungsbetrag 0.00 (z.B. FLEX ohne gestempelte Stunden) erscheinen bewusst **nicht** im DTA-File — Banken lehnen Aufträge mit Null-Zeilen ab. Lohnzettel und Abschluss sind davon nicht betroffen.
+
+## Uniformen-Depot (CHF 50)
+
+Beim **ersten Lohn** wird automatisch **CHF 50** als Uniformen-Depot einbehalten (Status «einbehalten»).
+
+Bei **Austritt / letztem Lohn**:
+
+- Uniform zurück → **Refund** auf dem (Korrektur-)Lohnzettel
+- Nicht zurück → Depot **verfällt** (kein Refund)
+
+Entscheidung: im Kündigungs-/Austritts-Flow **oder** nachträglich im MA-Tab **Zulagen → Uniformen-Depot** (Buttons nur bei Austrittsdatum / letztem Lohn). Details: [Kündigung & Austritt](#austritt).
+
+## Korrekturlohn (ausgetretene MA)
+
+Für Nachzahlungen / Korrekturen nach Austritt:
+
+1. Im Lohn-Modul **«+ Korrektur»** → ausgetretenen MA wählen (aktive Filialwechsler sind ausgeschlossen)
+2. Korrektur-Slip wie ein normaler Lohnzettel — inkl. spezieller Positionen:
+   - **UVG/KTG-Korrektur** Codes `65.1` / `65.2` / `75.1` / `75.2`
+   - **QST-Korrektur Vormonate** Lohnart **565**
+   - ggf. Depot-Refund
+3. Bestätigen auch in der HR-Phase möglich (wie Definitiv)
 
 ## Notfälle: Periode wieder öffnen
 
@@ -108,16 +138,18 @@ Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen i
 
 ## Stunden, Saldi, Rückstellungen — kurz erklärt
 
-- **Nacht-Saldo** (in Stunden) — Nachtstunden werden gesammelt, kein direkter Geld-Wert. Der MA kompensiert sie irgendwann mit Ruhetag.
-- **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen (auch bei FLEX, inkl. Vormonats-Saldo).
-- **Ferien-Geld (CHF)** — bei FLEX/MTP: Ferienanspruch in CHF (Saldo, inkl. Vormonat). Beim Bezug Auszahlung anteilig aus dem Pott (Pott CHF / Pott Tage × bezogene Tage) — nicht monatlich.
-- **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. FLEX-MA kriegen den 13. monatlich anteilig.
+- **Nacht-Saldo** (Stunden) — für **alle Modelle inkl. FLEX**. Kein Geld, Kompensation mit Ruhetag. Soft-Warnung, wenn die Kompensation **> 9 h** wäre. Vortrag aus Mirus-Monatsblatt (Code 904) gilt auch für FLEX.
+- **Ferien-Saldo (Tage)** — offene Ferientage (auch FLEX, inkl. Vormonat).
+- **Ferien-Geld (CHF)** — FLEX/MTP: Saldo inkl. Vormonat. Bezug = Auszahlung aus dem **Pott** (Vormonat + aktueller Monat), anteilig Tage × Tagessatz, gedeckelt auf Pott-CHF.
+- **13. ML / Probezeit:**
+  - MTP/FIX/FIX-M: monatlich ansammeln, Auszahlung nach Vorgabe (meist Nov/Dez).
+  - **FLEX während Probezeit:** der 13. wird als Saldo mitgeführt (Bezeichnung z.B. «Rückstellung Probezeit» / «Probe.Z. Rückstellung») — **nicht** ausbezahlt. Nach bestandener Probezeit (Stichtag = Periodenende) Nachzahlung + danach monatlich. **Verfall** nur, wenn der Austritt noch **während** der Probezeit liegt.
 
 ## Häufige Fragen
 
 **Wer kriegt was und wann?**
-- FLEX: Ferien-Tage **und** Ferien-Geld als Saldo (mit Vormonat); bei Bezug Auszahlung aus dem Pott. Feiertag und 13. ML **monatlich**.
-- MTP: Ferien-Tage + Ferien-Geld (Auszahlung bei Bezug aus dem Pott), Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
+- FLEX: Ferien-Tage **und** Ferien-Geld als Saldo (mit Vormonat); bei Bezug Auszahlung aus dem Pott. Feiertag monatlich. **13. ML:** während Probezeit nur Saldo; danach monatlich (siehe oben).
+- MTP: Ferien-Tage + Ferien-Geld (Bezug aus dem Pott), Feiertag monatlich, 13. ML nach Vorgabe (meist November/Dezember).
 - FIX/FIX-M: Ferien- und Feiertag-Tage akkumulieren (keine monatliche Auszahlung), 13. ML nach Vorgabe.
 
 **Was ist der „Jahresausgleich" im Dezember-Lohnzettel?**
@@ -138,8 +170,9 @@ Unter **System → Lohnperioden** (oder Perioden-Modul): Perioden anlegen, Bemer
 
 ## Häufige Stolpersteine
 
-- **Definitiv ist gesperrt obwohl Akonto durch ist** → Status-Sicht: ist Akonto wirklich „Ausbezahlt" oder noch „HR-freigegeben"? Erst nach DTA-Klick wechselt der Status final. Auch gesperrt, solange Akonto noch läuft (nicht OFFEN und nicht AUSBEZAHLT).
+- **Definitiv ist gesperrt** → Akonto noch in Bearbeitung / bei HR / HR-freigegeben? Dann warten oder Akonto abschliessen. Bei Akonto **OFFEN** oder **AUSBEZAHLT** darf Definitiv laufen. Der Akonto-Sperr-Banner erscheint nicht, wenn der Definitivlauf dieser Periode schon läuft.
 - **„An HR senden" fehlt** → Sind alle MA freigegeben? Ein einziger nicht-bestätigter MA blockiert den Versand.
 - **HR-Buttons fehlen für mich** → du bist als `user` eingeloggt (GF-Rolle). HR-Bestätigung und DTA macht jemand mit Rolle `superuser` oder `buchhaltung`.
 - **Falscher Bank-Empfänger** → MA → Bewilligung QST Bank → Bank anpassen. Bei abweichendem Empfänger auch die Adresse vollständig ausfüllen.
-- **Daten lassen sich nicht mehr ändern** → [Edit-Sperre](#edit-sperre).
+- **Daten lassen sich nicht mehr ändern** → [Edit-Sperre](#edit-sperre) (hart vs. weich beachten).
+- **Depot / Korrektur fehlt** → Uniformen-Depot im Zulagen-Tab oder Korrekturlohn «+ Korrektur»; aktive Filialwechsler nicht im Korrektur-Picker.

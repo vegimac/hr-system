@@ -10,7 +10,7 @@ Absenzen (Krankheit, Unfall, Ferien, Militär …) beeinflussen den Lohn. Stempe
 2. Speichern — Stunden werden berechnet
 3. Bei Krankheit/Unfall siehst du **Karenz** und den **KTG/UVG-Tagessatz** (Regeln A/B)
 
-💡 Solange der Lohnlauf der Periode gesperrt ist, kannst du Absenzen dieser Periode nicht mehr ändern — siehe [Edit-Sperre](#edit-sperre).
+💡 Absenzen einer Periode sind erst gesperrt, wenn der **Definitivlauf abgeschlossen** ist (nicht schon bei Akonto oder «provisorisch»). Details: [Edit-Sperre](#edit-sperre).
 
 ## Absenzkalender
 
@@ -26,6 +26,8 @@ Wenn Absenzen noch im **Mirus-Dienstplan** (XLS) stehen:
 2. Datei wählen, Filiale prüfen
 3. Vorschau: welche Zeilen werden zu Krankheit / Unfall / Ferien …
 4. Commit nur wenn die Zuordnung stimmt
+
+**Überlappung gleicher Art:** Liegt schon eine Absenz derselben Art und der Import korrigiert Daten/Zeiten, übernimmt das System die Korrektur (statt die Zeile still zu überspringen). Anderer Typ / echte Überschneidung bleibt Konflikt.
 
 Danach erscheinen die Einträge im Absenzen-Tab des MA und im Lohnlauf.
 
@@ -45,3 +47,6 @@ Nein. Nur in **easy@work**, dann Sync abwarten oder MA synchronisieren.
 
 **Ferien bei MTP/FIX — was passiert im Lohn?**
 Sollstunden / Festlohn werden gekürzt; Auszahlung je nach Modell aus dem Ferien-Pott bzw. als Tage-Saldo. Details im [Lohnlauf](#lohnlauf).
+
+**Unbezahlter Urlaub?**
+Erscheint auf dem Lohnzettel als Info-Zeile (FLEX/MTP). Bei MTP ist der Festlohn bereits um die UU-Tage gekürzt.

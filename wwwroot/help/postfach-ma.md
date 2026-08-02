@@ -31,5 +31,5 @@ Im Mitarbeiter → Tab **Restaurant Admin**:
 ## Tipps
 
 - Phantom-MA („MA ohne Lohn") haben **kein** persönliches Postfach.
-- Lohnzettel werden beim **Definitiv-Abschluss** ins Postfach gelegt (plus optional E-Mail-Hinweis).
+- Beim **Definitiv-Abschluss** landen **Lohnzettel** und **Stundenkontrolle (Monatsblatt)** zur Unterschrift im Postfach (plus optional E-Mail-Hinweis).
 - Niemals das Passwort eines anderen Users teilen — nur Reset über die Kachel.

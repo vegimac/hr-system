@@ -32,6 +32,8 @@ Ablauf typisch: Formular ausfüllen → PDF-Vorschau → Drucken / Speichern →
 - Setze den MA **nicht selbst auf inaktiv**, solange der Austrittsmonat noch nicht durch den Lohnlauf ist — das System macht das zum richtigen Zeitpunkt.
 - Im Austrittsmonat rechnet der Lohnlauf **Kurzperiode** (anteilig) und Ferien-Rest / Ferien-Geld je nach Modell.
 - **Akonto:** Wenn das Vertragsende ≤ Periodenende ist, gibt es **kein Akonto** mehr für diesen MA.
+- **Uniformen-Depot CHF 50:** beim Austritt entscheiden — Uniform zurück → Refund auf dem letzten / Korrektur-Lohnzettel; sonst verfällt das Depot. Nachträglich: MA → Zulagen → Uniformen-Depot.
+- Nachzahlungen nach Austritt: Lohn → **«+ Korrektur»** (Korrekturlohn). Siehe [Lohnlauf](#lohnlauf).
 - Nach dem Austritt: Zeugnis, Arbeitsbestätigung, ggf. Austritts-Feedback-Link.
 
 ## Probezeit
