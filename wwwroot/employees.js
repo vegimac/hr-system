@@ -9110,14 +9110,12 @@ async function saveLohnAssignment() {
 
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
     if (lohnausweisAnBehoerde) {
-        const b = (_laBehoerden || []).find(x => x.id === behoerdeId);
         const sbList = _laSbCache[behoerdeId] || [];
         const sb = behoerdeSachbearbeiterId
             ? sbList.find(x => x.id === behoerdeSachbearbeiterId)
             : null;
-        const mail = (sb?.email || b?.email || '').trim();
-        if (!mail) {
-            alert('Für «Lohnausweis an Behörde» braucht der gewählte Sachbearbeiter oder die Behörde eine E-Mail-Adresse.');
+        if (!sb || !String(sb.email || '').trim()) {
+            alert('Für «Lohnausweis an Behörde» bitte einen Sachbearbeiter mit E-Mail wählen (Stamm unter Behörden).');
             return;
         }
     }
