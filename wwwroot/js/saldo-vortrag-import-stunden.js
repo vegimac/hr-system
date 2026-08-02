@@ -83,9 +83,13 @@ function svhImpRenderPreview() {
     const fmt = (v) => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => (s == null ? '' : String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])));
 
+    // Pool = MA mit Vertrag in Vortrag-Monat ODER Folgemonat (auch Austritte).
     const empOptions = ['<option value="">— bitte wählen —</option>']
         .concat((data.branchEmployees || [])
-            .map(e => `<option value="${e.id}">${esc(e.firstName)} ${esc(e.lastName)}${e.employeeNumber ? ' · ' + esc(e.employeeNumber) : ''}${e.employmentModel ? ' [' + esc(e.employmentModel) + ']' : ''}</option>`))
+            .map(e => {
+                const inaktiv = e.isActive === false ? ' [Austritt]' : '';
+                return `<option value="${e.id}">${esc(e.firstName)} ${esc(e.lastName)}${e.employeeNumber ? ' · ' + esc(e.employeeNumber) : ''}${e.employmentModel ? ' [' + esc(e.employmentModel) + ']' : ''}${inaktiv}</option>`;
+            }))
         .join('');
 
     document.getElementById('svhImpSummary').innerHTML = `

@@ -52,7 +52,14 @@ public class SaldoVortragImportController : ControllerBase
         decimal StundenChf         // col M (idx 12) — informativ, nicht importiert
     );
 
-    public record BranchEmployee(int Id, string FirstName, string LastName, string? EmployeeNumber, string? EmploymentModel);
+    /// <summary>
+    /// MA für Match/Picker. <paramref name="IsActive"/> = Employee.IsActive
+    /// (false z.B. nach Austritt — trotzdem im Pool wenn Vertrag die
+    /// Vortrag-/Lohnperiode überlappt).
+    /// </summary>
+    public record BranchEmployee(
+        int Id, string FirstName, string LastName, string? EmployeeNumber,
+        string? EmploymentModel, bool IsActive = true);
 
     public record AnalyzeRow(
         int     RowNumber,
@@ -119,20 +126,10 @@ public class SaldoVortragImportController : ControllerBase
             return BadRequest(new { error = "Datei konnte nicht gelesen werden: " + ex.Message });
         }
 
-        // Branch-MA laden (aktiv, mit Vertrag in dieser Filiale).
-        var branchEmps = await _db.Employees
-            .Where(e => e.IsActive && e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
-            .Select(e => new BranchEmployee(
-                e.Id,
-                e.FirstName ?? "",
-                e.LastName ?? "",
-                e.EmployeeNumber,
-                e.Employments
-                    .Where(em => em.IsActive && em.CompanyProfileId == companyProfileId)
-                    .OrderByDescending(em => em.ContractStartDate)
-                    .Select(em => em.EmploymentModel)
-                    .FirstOrDefault()))
-            .ToListAsync();
+        // Branch-MA: Vertrag überlappt Vortrag-Monat ODER Folgemonat
+        // (nicht nur Employee.IsActive heute — Austritte Ende Juli brauchen
+        // noch Juni-Saldi für den Juli-Lohnlauf).
+        var branchEmps = await LoadBranchEmployeesForVortragAsync(companyProfileId, periode);
 
         var sortedEmps = branchEmps
             .OrderBy(b => b.FirstName, StringComparer.OrdinalIgnoreCase)
@@ -238,11 +235,8 @@ public class SaldoVortragImportController : ControllerBase
             var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
             if (emp is null) { skipped++; hinweise.Add($"MA-ID {row.EmployeeId} nicht gefunden — übersprungen ({row.OriginalName})."); continue; }
 
-            var activeEmp = emp.Employments
-                .Where(e => e.IsActive)
-                .OrderByDescending(e => e.ContractStartDate)
-                .FirstOrDefault();
-            var model = (activeEmp?.EmploymentModel ?? "").ToUpperInvariant();
+            var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
+            var model = NormalizeModel(modelEmp?.EmploymentModel);
 
             UpsertCode("905", lps["905"], row.FerienGeldChf,  IsRelevant905(model));
             UpsertCode("906", lps["906"], row.DreizehnterChf, IsRelevant906(model));
@@ -497,25 +491,15 @@ public class SaldoVortragImportController : ControllerBase
         try { rows = ParseMonatsblatt(file); }
         catch (Exception ex) { return BadRequest(new { error = "Datei konnte nicht gelesen werden: " + ex.Message }); }
 
-        // Branch-MA (für Match per Personalnummer + Picker bei NO_MATCH).
-        var branchEmps = await _db.Employees
-            .Where(e => e.IsActive && e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
-            .Select(e => new BranchEmployee(
-                e.Id,
-                e.FirstName ?? "",
-                e.LastName ?? "",
-                e.EmployeeNumber,
-                e.Employments
-                    .Where(em => em.IsActive && em.CompanyProfileId == companyProfileId)
-                    .OrderByDescending(em => em.ContractStartDate)
-                    .Select(em => em.EmploymentModel)
-                    .FirstOrDefault()))
-            .ToListAsync();
+        // Branch-MA: Vertrag überlappt Vortrag-Monat ODER Folgemonat
+        // (Walter 02.08.2026 — z.B. Austritt 31.7. braucht Juni-Saldi).
+        var branchEmps = await LoadBranchEmployeesForVortragAsync(companyProfileId, periode);
 
         // Match per Personalnummer (exakte Übereinstimmung).
         var byNumber = branchEmps
             .Where(b => !string.IsNullOrEmpty(b.EmployeeNumber))
-            .ToDictionary(b => b.EmployeeNumber!.Trim(), b => b);
+            .GroupBy(b => b.EmployeeNumber!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var analyzeRows = new List<StundenAnalyzeRow>();
         foreach (var r in rows)
@@ -628,9 +612,10 @@ public class SaldoVortragImportController : ControllerBase
             var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
             if (emp is null) { skipped++; hinweise.Add($"MA-ID {row.EmployeeId} nicht gefunden ({row.OriginalName})."); continue; }
 
-            var activeEmp = emp.Employments.Where(e => e.IsActive)
-                .OrderByDescending(e => e.ContractStartDate).FirstOrDefault();
-            var model = NormalizeModel(activeEmp?.EmploymentModel);
+            // Modell aus Vertrag, der die Vortrag-/Lohnperiode überlappt —
+            // nicht nur IsActive (sonst fehlt Modell bei Austritt in der Periode).
+            var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
+            var model = NormalizeModel(modelEmp?.EmploymentModel);
 
             UpsertSaldo("901", lps["901"], row.StundenSaldo,       IsRelevant901(model));
             UpsertSaldo("904", lps["904"], row.NachtSaldo,         IsRelevant904(model));
@@ -696,6 +681,88 @@ public class SaldoVortragImportController : ControllerBase
         }
 
         return Ok(new CommitResult(created, updated, skipped, hinweise));
+    }
+
+    /// <summary>
+    /// Vortrag-Periode YYYY-MM → Fenster [1. des Monats … letzter Tag Folgemonat].
+    /// Beispiel Juni-Vortrag für Juli-Lohnlauf: 01.06.–31.07.
+    /// </summary>
+    private static bool TryParseVortragWindow(string periode, out DateOnly from, out DateOnly to)
+    {
+        from = default;
+        to = default;
+        if (string.IsNullOrEmpty(periode) || periode.Length != 7 || periode[4] != '-')
+            return false;
+        if (!int.TryParse(periode.AsSpan(0, 4), out int y)
+            || !int.TryParse(periode.AsSpan(5, 2), out int m)
+            || m < 1 || m > 12)
+            return false;
+        from = new DateOnly(y, m, 1);
+        to = from.AddMonths(2).AddDays(-1);
+        return true;
+    }
+
+    /// <summary>
+    /// Filial-MA mit Vertrag, der Vortrag-Monat ODER Folgemonat überlappt.
+    /// Kein Filter auf Employee.IsActive — Austritte in der Lohnperiode
+    /// brauchen den Vortrag noch (Walter 02.08.2026, MA 104004).
+    /// </summary>
+    private async Task<List<BranchEmployee>> LoadBranchEmployeesForVortragAsync(
+        int companyProfileId, string periode)
+    {
+        if (!TryParseVortragWindow(periode, out var winFrom, out var winTo))
+        {
+            winFrom = DateOnly.MinValue;
+            winTo = DateOnly.MaxValue;
+        }
+        var winFromDt = winFrom.ToDateTime(TimeOnly.MinValue);
+        var winToDt   = winTo.ToDateTime(TimeOnly.MinValue);
+
+        var rows = await _db.Employees.AsNoTracking()
+            .Where(e => e.Employments.Any(em =>
+                em.CompanyProfileId == companyProfileId
+                && em.ContractStartDate <= winToDt
+                && (em.ContractEndDate == null || em.ContractEndDate >= winFromDt)))
+            .Select(e => new
+            {
+                e.Id,
+                FirstName = e.FirstName ?? "",
+                LastName  = e.LastName ?? "",
+                e.EmployeeNumber,
+                e.IsActive,
+                Model = e.Employments
+                    .Where(em => em.CompanyProfileId == companyProfileId
+                              && em.ContractStartDate <= winToDt
+                              && (em.ContractEndDate == null || em.ContractEndDate >= winFromDt))
+                    .OrderByDescending(em => em.ContractStartDate)
+                    .Select(em => em.EmploymentModel)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return rows
+            .Select(e => new BranchEmployee(
+                e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.Model, e.IsActive))
+            .ToList();
+    }
+
+    private static Employment? FindEmploymentForVortrag(
+        IEnumerable<Employment> employments, int companyProfileId, string periode)
+    {
+        if (!TryParseVortragWindow(periode, out var winFrom, out var winTo))
+            return employments
+                .Where(e => e.CompanyProfileId == companyProfileId)
+                .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefault();
+
+        var winFromDt = winFrom.ToDateTime(TimeOnly.MinValue);
+        var winToDt   = winTo.ToDateTime(TimeOnly.MinValue);
+        return employments
+            .Where(e => e.CompanyProfileId == companyProfileId
+                     && e.ContractStartDate <= winToDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= winFromDt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefault();
     }
 
     /// <summary>Legacy «UTP» → FLEX (Rename 08.07.2026).</summary>

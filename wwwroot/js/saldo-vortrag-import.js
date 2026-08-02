@@ -83,7 +83,10 @@ function svImpRenderPreview() {
     // Picker-Optionen einmal bauen
     const empOptions = ['<option value="">— bitte wählen —</option>']
         .concat((data.branchEmployees || [])
-            .map(e => `<option value="${e.id}">${escHtml(e.firstName)} ${escHtml(e.lastName)}${e.employeeNumber ? ' · ' + escHtml(e.employeeNumber) : ''}${e.employmentModel ? ' [' + escHtml(e.employmentModel) + ']' : ''}</option>`))
+            .map(e => {
+                const inaktiv = e.isActive === false ? ' [Austritt]' : '';
+                return `<option value="${e.id}">${escHtml(e.firstName)} ${escHtml(e.lastName)}${e.employeeNumber ? ' · ' + escHtml(e.employeeNumber) : ''}${e.employmentModel ? ' [' + escHtml(e.employmentModel) + ']' : ''}${inaktiv}</option>`;
+            }))
         .join('');
 
     const summaryHtml = `
