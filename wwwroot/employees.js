@@ -1503,15 +1503,17 @@ function loadUebersichtTab() {
     const vRows = contracts.map(c => {
         const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
+        const pensum = empContractPensumText(c);
         const lohn = empContractWageText(c);
         const actions = _empContractActionsHtml(emp, c, contracts);
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
+        const metaExtra = [pensum, lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         return `<div class="ov-vrow${laufend ? '' : ' archiv'}">
             <span class="ov-vdot${laufend ? ' g' : ''}"></span>
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
-            <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
+            <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
@@ -1610,18 +1612,20 @@ function renderEmpContractList(emp) {
         const from = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const to = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const title = c.jobTitle || c.jobGroupCode || c.position || 'Vertrag';
+        const pensum = empContractPensumText(c);
         const wage = empContractWageText(c);
         const active = _empContractIsEnded(c)
             ? `<span class="emp-contract-status">archiviert</span>`
             : `<span class="emp-contract-status active">aktiv</span>`;
         const actions = _empContractActionsHtml(emp, c, contracts);
+        const metaExtra = [pensum, wage].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
                 <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
                 ${active}
             </div>
-            <div class="emp-contract-meta">${from} – ${to}${wage ? ' · ' + esc(wage) : ''}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
+            <div class="emp-contract-meta">${from} – ${to}${metaExtra}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
             <div class="emp-contract-actions">${actions}</div>
         </div>`;
     }).join('');
@@ -1649,6 +1653,25 @@ function empContractWageText(c) {
     if (c.hourlyRate != null) return `CHF ${fmt(c.hourlyRate)}/h`;
     if (c.monthlySalaryFte != null) return `CHF ${fmt(c.monthlySalaryFte)} / 100%`;
     if (c.monthlySalary != null) return `CHF ${fmt(c.monthlySalary)} / Mt.`;
+    return '';
+}
+
+// FIX/FIX-M → Pensum «80%»; MTP → Wochenstunden «25/Wo» (Walter 02.08.2026).
+function empContractPensumText(c) {
+    const m = (c.employmentModel || '').toUpperCase();
+    if (m === 'FIX' || m === 'FIX-M') {
+        if (c.employmentPercentage == null || c.employmentPercentage === '') return '';
+        const n = Number(c.employmentPercentage);
+        if (!Number.isFinite(n)) return '';
+        return `${Number.isInteger(n) ? n : n.toLocaleString('de-CH', { maximumFractionDigits: 2 })}%`;
+    }
+    if (m === 'MTP') {
+        const h = c.guaranteedHoursPerWeek ?? c.weeklyHours;
+        if (h == null || h === '') return '';
+        const n = Number(h);
+        if (!Number.isFinite(n)) return '';
+        return `${Number.isInteger(n) ? n : n.toLocaleString('de-CH', { maximumFractionDigits: 2 })}/Wo`;
+    }
     return '';
 }
 
