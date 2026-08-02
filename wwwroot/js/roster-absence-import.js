@@ -328,7 +328,10 @@ async function rosterImportCommit() {
         });
         if (!r.ok) {
             let errMsg = 'HTTP ' + r.status;
-            try { const j = await r.json(); errMsg = j.error || errMsg; } catch {}
+            try {
+                const j = await r.json();
+                errMsg = j.message || j.error || errMsg;
+            } catch {}
             alert('Fehler: ' + errMsg);
             btn.disabled = false;
             btn.textContent = 'Absenzen erfassen';

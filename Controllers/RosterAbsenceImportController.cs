@@ -345,7 +345,20 @@ public class RosterAbsenceImportController : ControllerBase
             created++;
         }
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "[RosterAbsenceImport] Speichern fehlgeschlagen Filiale={CP}", companyProfileId);
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return StatusCode(500, new
+            {
+                error = "SAVE_FAILED",
+                message = "Absenzen konnten nicht gespeichert werden: " + detail
+            });
+        }
         _log.LogInformation("[RosterAbsenceImport] Filiale={CP} erstellt={Created}, korrigiert={Updated}, Dubletten={Dup}, übersprungen={Skip}, gesperrt={Locked}",
             companyProfileId, created, updated, duplicates, skipped, lockedSkipped);
 
@@ -556,7 +569,10 @@ public class RosterAbsenceImportController : ControllerBase
         int count = workedDayCount;
         if (count <= 0) return 0m;
 
-        // MTP/UTP bei FERIEN oder FEIERTAG → keine Stunden-Gutschrift.
+        // Legacy-Alias: employment_model «UTP» → FLEX (Rename 08.07.2026).
+        if (empModel == "UTP") empModel = "FLEX";
+
+        // MTP/FLEX bei FERIEN oder FEIERTAG → keine Stunden-Gutschrift.
         if ((empModel == "MTP" || empModel == "FLEX")
             && (absenceType == "FERIEN" || absenceType == "FEIERTAG"))
             return 0m;
@@ -567,7 +583,7 @@ public class RosterAbsenceImportController : ControllerBase
         string basisStunden   = typCfg?.BasisStunden    ?? "BETRIEB";
         string? reduziertSaldo = typCfg?.ReduziertSaldo;
 
-        // UTP ohne UtpAuszahlung-Flag → keine automatische Gutschrift.
+        // FLEX ohne UtpAuszahlung-Flag → keine automatische Gutschrift.
         if (empModel == "FLEX" && !utpAuszahlung) return 0m;
 
         decimal betriebWeekly = profile?.NormalWeeklyHours ?? 42m;
