@@ -5234,7 +5234,7 @@ async function saveEmpEdit() {
         email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
         zipCode:      _zipRaw || null,
-        city:         easyWorkLocked ? (emp.city || null) : (document.getElementById('ef-city')?.value || null),
+        city:         easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null),
         country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
         cantonCode:   easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null),
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
