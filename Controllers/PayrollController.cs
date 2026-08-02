@@ -1421,7 +1421,20 @@ public class PayrollController : HrControllerBase
             }
         }
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Klartext statt nacktem 500 — typisch war timestamptz + DateTime.Now
+            // auf employee_lohn_assignment.updated_at (Lohnabtretung).
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return StatusCode(500, new {
+                error = "CONFIRM_FAILED",
+                message = $"Lohn-Bestätigung fehlgeschlagen: {detail}"
+            });
+        }
 
         // Uniformen-Depot: nach Confirm Status setzen (Refund / Verfall).
         await _uniformDepot.ApplyAfterConfirmAsync(dto.EmployeeId, dto.Year, dto.Month);

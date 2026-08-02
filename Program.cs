@@ -1481,6 +1481,28 @@ using (var scope = app.Services.CreateScope())
                     ALTER COLUMN created_at TYPE timestamp without time zone
                     USING (created_at AT TIME ZONE 'Europe/Zurich');
             END IF;
+
+            -- Lohnabtretung (Walter 02.08.2026): Definitiv-Confirm mit aktiver
+            -- Abtretung scheiterte mit 500 — updated_at war noch timestamptz,
+            -- Confirm schreibt DateTime.Now (Kind=Local) auf bereits_abgezogen.
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'employee_lohn_assignment'
+                  AND column_name = 'created_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.employee_lohn_assignment
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'employee_lohn_assignment'
+                  AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.employee_lohn_assignment
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
         END $$;
     ");
 

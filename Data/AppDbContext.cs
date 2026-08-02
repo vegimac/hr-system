@@ -1517,8 +1517,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZahlungsReferenz).HasColumnName("zahlungs_referenz").HasMaxLength(50);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.LohnausweisAnBehoerde).HasColumnName("lohnausweis_an_behoerde");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // Walter 02.08.2026: timestamp without time zone + DateTime.Now —
+            // timestamptz + Local → Npgsql 500 beim Lohn-Confirm (BereitsAbgezogen).
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })

@@ -2022,7 +2022,7 @@ async function confirmLohn() {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            const detail = err.message || err.title || err.error || res.statusText || ('HTTP ' + res.status);
+            const detail = err.message || err.detail || err.title || err.error || res.statusText || ('HTTP ' + res.status);
             throw new Error('Fehler beim Bestätigen: ' + detail);
         }
         const result = await res.json();
