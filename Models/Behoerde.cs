@@ -52,11 +52,18 @@ public class Behoerde
     public string? QrIban     { get; set; }
 
     /// <summary>
-    /// Kontoinhaber für pain.001 Cdtr.Nm — wenn die IBAN auf eine andere
-    /// juristische Person lautet als <see cref="Name"/> (z.B. ORS Burgdorf
-    /// → Kontoinhaber «ORS Service AG Zürich»). Leer = Name der Behörde.
+    /// Legacy-Freitext (vor FK). DTA bevorzugt
+    /// <see cref="KontoinhaberBehoerdeId"/>; Freitext nur noch Fallback.
     /// </summary>
     public string? Kontoinhaber { get; set; }
+
+    /// <summary>
+    /// Andere Behörde als Kontoinhaber/Zahlungsempfänger für den DTA
+    /// (Walter 02.08.2026) — z.B. ORS Burgdorf → ORS Service AG Zürich.
+    /// Name + Adresse/PLZ/Ort kommen von der gewählten Behörde. Seltene Ausnahme.
+    /// </summary>
+    public int? KontoinhaberBehoerdeId { get; set; }
+    public Behoerde? KontoinhaberBehoerde { get; set; }
 
     public string? Bic        { get; set; }
     public string? BankName   { get; set; }

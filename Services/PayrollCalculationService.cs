@@ -290,8 +290,10 @@ public static class PayrollCalculations
                 typ           = "BEHOERDE",
                 behoerdeId    = la.BehoerdeId,
                 label         = $"{la.Bezeichnung} an {amtName}",
-                // Cdtr.Nm im DTA: Kontoinhaber falls gesetzt (ORS Burgdorf → Zürich)
-                kontoinhaber  = la.Behoerde?.Kontoinhaber,
+                // DTA Cdtr: verknüpfte Kontoinhaber-Behörde (ORS Burgdorf → Zürich)
+                kontoinhaberBehoerdeId = la.Behoerde?.KontoinhaberBehoerdeId,
+                kontoinhaber  = la.Behoerde?.KontoinhaberBehoerde?.Name
+                             ?? la.Behoerde?.Kontoinhaber,
                 iban          = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
                 bankName      = la.Behoerde?.BankName,
                 referenz = !string.IsNullOrWhiteSpace(la.ZahlungsReferenz)

@@ -1494,11 +1494,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
             entity.Property(e => e.QrIban).HasColumnName("qr_iban").HasMaxLength(34);
             entity.Property(e => e.Kontoinhaber).HasColumnName("kontoinhaber").HasMaxLength(200);
+            entity.Property(e => e.KontoinhaberBehoerdeId).HasColumnName("kontoinhaber_behoerde_id");
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(20);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.KontoinhaberBehoerde)
+                  .WithMany()
+                  .HasForeignKey(e => e.KontoinhaberBehoerdeId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.KontoinhaberBehoerdeId)
+                  .HasDatabaseName("idx_behoerde_kontoinhaber_behoerde");
             entity.HasMany(e => e.Sachbearbeiter).WithOne(s => s.Behoerde)
                   .HasForeignKey(s => s.BehoerdeId).OnDelete(DeleteBehavior.Cascade);
         });

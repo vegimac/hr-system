@@ -46,7 +46,13 @@ public class BehoerdenController : ControllerBase
                 webseite           = b.Webseite,
                 iban               = b.Iban,
                 qrIban             = b.QrIban,
-                kontoinhaber       = b.Kontoinhaber,
+                kontoinhaber       = b.KontoinhaberBehoerde != null
+                    ? b.KontoinhaberBehoerde.Name
+                    : b.Kontoinhaber,
+                kontoinhaberBehoerdeId   = b.KontoinhaberBehoerdeId,
+                kontoinhaberBehoerdeName = b.KontoinhaberBehoerde != null
+                    ? b.KontoinhaberBehoerde.Name
+                    : null,
                 bic                = b.Bic,
                 bankName           = b.BankName,
                 isActive           = b.IsActive,
@@ -66,7 +72,9 @@ public class BehoerdenController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var b = await _db.Behoerden.FindAsync(id);
+        var b = await _db.Behoerden
+            .Include(x => x.KontoinhaberBehoerde)
+            .FirstOrDefaultAsync(x => x.Id == id);
         if (b == null) return NotFound();
         return Ok(MapToDto(b));
     }
@@ -74,7 +82,7 @@ public class BehoerdenController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] BehoerdeDto dto)
     {
-        var err = Validate(dto);
+        var err = await ValidateAsync(dto);
         if (err != null) return BadRequest(err);
 
         var entry = new Behoerde
@@ -96,7 +104,8 @@ public class BehoerdenController : ControllerBase
             Webseite           = dto.Webseite?.Trim(),
             Iban      = NormalizeIban(dto.Iban),
             QrIban    = NormalizeIban(dto.QrIban),
-            Kontoinhaber = string.IsNullOrWhiteSpace(dto.Kontoinhaber) ? null : dto.Kontoinhaber.Trim(),
+            Kontoinhaber = null, // UI: nur noch FK auf andere Behörde
+            KontoinhaberBehoerdeId = dto.KontoinhaberBehoerdeId,
             Bic       = dto.Bic?.Trim(),
             BankName  = dto.BankName?.Trim(),
             IsActive  = dto.IsActive ?? true,
@@ -105,6 +114,7 @@ public class BehoerdenController : ControllerBase
         };
         _db.Behoerden.Add(entry);
         await _db.SaveChangesAsync();
+        await _db.Entry(entry).Reference(e => e.KontoinhaberBehoerde).LoadAsync();
         return Ok(MapToDto(entry));
     }
 
@@ -114,7 +124,7 @@ public class BehoerdenController : ControllerBase
         var entry = await _db.Behoerden.FindAsync(id);
         if (entry == null) return NotFound();
 
-        var err = Validate(dto);
+        var err = await ValidateAsync(dto, id);
         if (err != null) return BadRequest(err);
 
         entry.Name      = dto.Name.Trim();
@@ -134,12 +144,14 @@ public class BehoerdenController : ControllerBase
         entry.Webseite           = dto.Webseite?.Trim();
         entry.Iban      = NormalizeIban(dto.Iban);
         entry.QrIban    = NormalizeIban(dto.QrIban);
-        entry.Kontoinhaber = string.IsNullOrWhiteSpace(dto.Kontoinhaber) ? null : dto.Kontoinhaber.Trim();
+        entry.Kontoinhaber = null;
+        entry.KontoinhaberBehoerdeId = dto.KontoinhaberBehoerdeId;
         entry.Bic       = dto.Bic?.Trim();
         entry.BankName  = dto.BankName?.Trim();
         entry.IsActive  = dto.IsActive ?? true;
         entry.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
+        await _db.Entry(entry).Reference(e => e.KontoinhaberBehoerde).LoadAsync();
         return Ok(MapToDto(entry));
     }
 
@@ -249,7 +261,7 @@ public class BehoerdenController : ControllerBase
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────
-    private static string? Validate(BehoerdeDto dto)
+    private async Task<string?> ValidateAsync(BehoerdeDto dto, int? selfId = null)
     {
         if (string.IsNullOrWhiteSpace(dto.Name)) return "Name ist erforderlich.";
         if (dto.Typ != null
@@ -263,6 +275,14 @@ public class BehoerdenController : ControllerBase
         if (string.Equals(dto.Typ, "STEUERAMT", StringComparison.OrdinalIgnoreCase)
             && string.IsNullOrWhiteSpace(dto.KantonCode))
             return "Kanton-Code ist bei STEUERAMT erforderlich (z.B. LU, AG).";
+        if (dto.KontoinhaberBehoerdeId.HasValue)
+        {
+            if (selfId.HasValue && dto.KontoinhaberBehoerdeId.Value == selfId.Value)
+                return "Kontoinhaber darf nicht dieselbe Behörde sein — bitte die Hauptstelle wählen (z.B. ORS Zürich).";
+            var ok = await _db.Behoerden.AnyAsync(b =>
+                b.Id == dto.KontoinhaberBehoerdeId.Value && b.IsActive);
+            if (!ok) return "Gewählte Kontoinhaber-Behörde nicht gefunden oder inaktiv.";
+        }
         return null;
     }
 
@@ -305,7 +325,9 @@ public class BehoerdenController : ControllerBase
         webseite           = b.Webseite,
         iban               = b.Iban,
         qrIban             = b.QrIban,
-        kontoinhaber       = b.Kontoinhaber,
+        kontoinhaber       = b.KontoinhaberBehoerde?.Name ?? b.Kontoinhaber,
+        kontoinhaberBehoerdeId   = b.KontoinhaberBehoerdeId,
+        kontoinhaberBehoerdeName = b.KontoinhaberBehoerde?.Name,
         bic                = b.Bic,
         bankName           = b.BankName,
         isActive           = b.IsActive,
@@ -349,7 +371,8 @@ public record BehoerdeDto(
     string? Bic,
     string? BankName,
     bool?   IsActive,
-    string? Kontoinhaber = null
+    string? Kontoinhaber = null,
+    int?    KontoinhaberBehoerdeId = null
 );
 
 public record BehoerdeSachbearbeiterDto(

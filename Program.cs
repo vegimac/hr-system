@@ -2082,7 +2082,11 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS erreichbarkeit      VARCHAR(150),
             ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300),
             ADD COLUMN IF NOT EXISTS handy               VARCHAR(30),
-            ADD COLUMN IF NOT EXISTS kontoinhaber        VARCHAR(200);
+            ADD COLUMN IF NOT EXISTS kontoinhaber        VARCHAR(200),
+            ADD COLUMN IF NOT EXISTS kontoinhaber_behoerde_id INTEGER
+                REFERENCES behoerde(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_behoerde_kontoinhaber_behoerde
+            ON behoerde(kontoinhaber_behoerde_id);
     ");
 
     // Sachbearbeiter-Stamm pro Behörde (Walter 02.08.2026) — Zahlung an Behörde,

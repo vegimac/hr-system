@@ -1046,7 +1046,8 @@ public class PayrollCalculationEngine
         // Nur mit verknüpftem Dokument gültig (Walter 02.08.2026) —
         // verhindert Lohn-Abzweig ohne Beleg.
         var lohnAssignments = await _db.EmployeeLohnAssignments
-            .Include(la => la.Behoerde)
+            .Include(la => la.Behoerde!)
+                .ThenInclude(b => b.KontoinhaberBehoerde)
             .Where(la => la.EmployeeId == employeeId
                       && la.DokumentId != null
                       && la.ValidFrom <= periodTo

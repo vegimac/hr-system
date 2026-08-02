@@ -37,9 +37,10 @@ async function loadBehoerden() {
             const sbLine = sbCount > 0
                 ? `<div style="font-size:11px;color:#475569;margin-top:2px">${sbNames.map(n => escHtml(n)).join(', ')}${sbCount > sbNames.length ? ` <span style="color:#94a3b8">+${sbCount - sbNames.length}</span>` : ''}</div>`
                 : '';
-            // Steueramt: Kanton + SB; sonst IBAN + Kontoinhaber + SB-Namen.
-            const kontoLine = (!isSteuer && b.kontoinhaber)
-                ? `<div style="font-size:11px;color:#475569;margin-top:2px">Kontoinhaber: <span style="font-weight:600">${escHtml(b.kontoinhaber)}</span></div>`
+            // Steueramt: Kanton + SB; sonst IBAN + Kontoinhaber-Behörde + SB-Namen.
+            const kiName = b.kontoinhaberBehoerdeName || b.kontoinhaber;
+            const kontoLine = (!isSteuer && kiName)
+                ? `<div style="font-size:11px;color:#475569;margin-top:2px">Kontoinhaber: <span style="font-weight:600">${escHtml(kiName)}</span></div>`
                 : '';
             const detailCol = isSteuer
                 ? ((b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : '') + (sbLine || '<span style="color:#cbd5e1">—</span>'))
@@ -105,14 +106,38 @@ function openBehoerdeModal(existing) {
     qrIbanEl.value = d.qrIban ?? '';
     validateIbanField(ibanEl,   'beIbanHint',   'IBAN');
     validateIbanField(qrIbanEl, 'beQrIbanHint', 'QR-IBAN');
-    const kiEl = document.getElementById('beKontoinhaber');
-    if (kiEl) kiEl.value = d.kontoinhaber ?? '';
     document.getElementById('beBic').value       = d.bic ?? '';
     document.getElementById('beBankName').value  = d.bankName ?? '';
     document.getElementById('beIsActive').checked = d.isActive ?? true;
     // Felder typ-abhängig ein-/ausblenden (Kanton-Pflicht, Bank-Block ausblenden bei Steueramt)
     onBehoerdeTypChange();
     refreshBeSbSection();
+    fillBeKontoinhaberSelect(d.id || null, d.kontoinhaberBehoerdeId || null);
+}
+
+/** Andere Behörden als Kontoinhaber (DTA Cdtr) — z.B. ORS Burgdorf → Zürich. */
+async function fillBeKontoinhaberSelect(selfId, selectedId) {
+    const sel = document.getElementById('beKontoinhaberBehoerde');
+    if (!sel) return;
+    const keep = selectedId != null ? String(selectedId) : '';
+    sel.innerHTML = '<option value="">— dieselbe Behörde (Name + Adresse) —</option>';
+    try {
+        const res = await fetch('/api/behoerden', { headers: ah() });
+        const list = res.ok ? await res.json() : [];
+        const self = selfId != null ? Number(selfId) : null;
+        (list || [])
+            .filter(b => b && b.id !== self)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'))
+            .forEach(b => {
+                const addr = [b.plz, b.ort].filter(Boolean).join(' ');
+                const opt = document.createElement('option');
+                opt.value = String(b.id);
+                opt.textContent = addr ? `${b.name} (${addr})` : b.name;
+                if (keep && String(b.id) === keep) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        if (keep && !sel.value) sel.value = keep; // falls inaktiv/nicht in Liste
+    } catch { /* ignore */ }
 }
 
 function refreshBeSbSection() {
@@ -168,7 +193,10 @@ async function loadBeSachbearbeiter(behoerdeId) {
                         webseite: document.getElementById('beWebseite').value.trim() || null,
                         iban: document.getElementById('beIban').value.trim() || null,
                         qrIban: document.getElementById('beQrIban').value.trim() || null,
-                        kontoinhaber: document.getElementById('beKontoinhaber')?.value.trim() || null,
+                        kontoinhaberBehoerdeId: (() => {
+                            const v = document.getElementById('beKontoinhaberBehoerde')?.value;
+                            return v ? parseInt(v, 10) : null;
+                        })(),
                         bic: document.getElementById('beBic').value.trim() || null,
                         bankName: document.getElementById('beBankName').value.trim() || null,
                         isActive: document.getElementById('beIsActive').checked
@@ -366,7 +394,10 @@ async function saveBehoerde() {
         webseite:           document.getElementById('beWebseite').value.trim()           || null,
         iban:               ibanRaw   || null,
         qrIban:             qrIbanRaw || null,
-        kontoinhaber:       typ === 'STEUERAMT' ? null : (document.getElementById('beKontoinhaber')?.value.trim() || null),
+        kontoinhaberBehoerdeId: typ === 'STEUERAMT' ? null : (() => {
+            const v = document.getElementById('beKontoinhaberBehoerde')?.value;
+            return v ? parseInt(v, 10) : null;
+        })(),
         bic:                typ === 'STEUERAMT' ? null : (document.getElementById('beBic').value.trim()      || null),
         bankName:           typ === 'STEUERAMT' ? null : (document.getElementById('beBankName').value.trim() || null),
         isActive:           document.getElementById('beIsActive').checked

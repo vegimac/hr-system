@@ -328,8 +328,9 @@ public class LohnlaufService
         if (behoerdenAgg.Count == 0)
             throw new InvalidOperationException("Keine Lohnabtretungen in dieser Periode — Behörden-DTA leer.");
 
-        // Pro IBAN: Behörde-Stammdaten. Bei geteilter IBAN (ORS Burgdorf =
-        // ORS Zürich) gewinnt der explizite Kontoinhaber für Cdtr.Nm.
+        // Pro IBAN: Behörde-Stammdaten. Bei geteilter IBAN (ORS Burgdorf →
+        // Kontoinhaber-Behörde ORS Zürich) Cdtr = verknüpfte Behörde
+        // (Name + Adresse/PLZ/Ort).
         var allBehoerden = await _db.Behoerden
             .Where(b => b.IsActive)
             .ToListAsync();
@@ -341,23 +342,23 @@ public class LohnlaufService
             var matches = allBehoerden
                 .Where(b => NormalizeIban(b.QrIban ?? b.Iban ?? "") == key)
                 .ToList();
-            // Prefer Behörde mit gesetztem Kontoinhaber (ORS-Fall).
-            var beh = matches.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.Kontoinhaber))
+            // Prefer Behörde mit Kontoinhaber-Verknüpfung (ORS-Fall).
+            var beh = matches.FirstOrDefault(b => b.KontoinhaberBehoerdeId != null)
+                   ?? matches.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.Kontoinhaber))
                    ?? matches.FirstOrDefault();
 
-            var cdtrName = !string.IsNullOrWhiteSpace(beh?.Kontoinhaber)
-                ? beh!.Kontoinhaber!.Trim()
-                : (beh?.Name ?? agg.Label);
+            Behoerde? cdtr = null;
+            if (beh?.KontoinhaberBehoerdeId is int kid)
+                cdtr = allBehoerden.FirstOrDefault(b => b.Id == kid);
+            if (cdtr == null && !string.IsNullOrWhiteSpace(beh?.Kontoinhaber))
+            {
+                var ki = beh!.Kontoinhaber!.Trim();
+                cdtr = allBehoerden.FirstOrDefault(b =>
+                    string.Equals((b.Name ?? "").Trim(), ki, StringComparison.OrdinalIgnoreCase));
+            }
+            cdtr ??= beh;
 
-            // Adresse: wenn Kontoinhaber gesetzt und eine Behörde denselben
-            // Namen trägt (z.B. ORS Zürich), deren Adresse nehmen — sonst die
-            // matched Behörde (Burgdorf mit Kontoinhaber-Feld).
-            var addrSrc = allBehoerden.FirstOrDefault(b =>
-                              string.Equals(
-                                  (b.Name ?? "").Trim(),
-                                  cdtrName,
-                                  StringComparison.OrdinalIgnoreCase))
-                       ?? beh;
+            var cdtrName = cdtr?.Name ?? agg.Label;
 
             // Zusatz-Info im RmtInf: betroffene MA, falls > 1
             string rmtInf;
@@ -376,12 +377,12 @@ public class LohnlaufService
                 EndToEndId:         $"BH{periode.Year}{periode.Month:D2}-{idx++}",
                 Amount:             Math.Round(agg.Total, 2),
                 CreditorName:       cdtrName,
-                CreditorStreet:     addrSrc?.Adresse1,
-                CreditorPostalCode: addrSrc?.Plz,
-                CreditorCity:       addrSrc?.Ort,
+                CreditorStreet:     cdtr?.Adresse1,
+                CreditorPostalCode: cdtr?.Plz,
+                CreditorCity:       cdtr?.Ort,
                 CreditorCountry:    "CH",
                 CreditorIban:       key,
-                CreditorBic:        addrSrc?.Bic ?? beh?.Bic,
+                CreditorBic:        cdtr?.Bic ?? beh?.Bic,
                 RemittanceInfo:     rmtInf
             ));
         }
