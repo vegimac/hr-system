@@ -37,30 +37,19 @@ ohne «falls nötig», ohne abgekürztes `./deploy.sh`:
 cd /Users/Walter/projects/hr-system && git fetch origin && git checkout <AKTUELLER-BRANCH> && git pull origin <AKTUELLER-BRANCH> && ./deploy.sh
 ```
 
-Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name jeweils den aktuellen Feature-Branch einsetzen (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
+Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name = **nur** der aktive Feature-Branch unten (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
 
-### EIN aktiver Deploy-Branch (Walter-Vorgabe 02.08.2026, ABSOLUT)
-
-Solange Walter einen Feature-Branch deployt und testet, gilt:
-
-1. **Alle Folge-Fixes und Folge-Features laufen auf DEMSELBEN Branch** — kein neuer `cursor/…-3bcf` von `main` abzweigen «für das nächste Thema».
-2. **Nie parallel zwei Deploy-Branches** für denselben Live-Test. Neuer Branch von `main` erst, wenn der aktuelle in `main` gemergt ist ODER Walter explizit «neuer Branch» sagt.
-3. **Vor jedem Fix prüfen:** liegt der Fix schon auf dem aktiven Deploy-Branch? (z.B. Timestamp-Fix Absenz war schon auf `cursor/stundenkontrolle-monatsblatt-3bcf` — ein frischer Branch von `main` hat ihn gefehlt → 500 «wie UTP»).
-4. Aktueller Deploy-Branch steht im Deploy-Befehl am Antwortende — **nur dieser** Name.
-
-Grund: getrennte Branches von veraltetem `main` erzeugen Schein-Bugs (fehlende Fixes) und Deploy-Chaos.
-
-### NUR EIN aktiver Feature-Branch (Walter-Vorgabe 01.08.2026, ABSOLUT)
+### NUR EIN aktiver Feature-Branch (Walter-Vorgabe 01.08.2026, verschärft 02.08.2026, ABSOLUT)
 
 Walter arbeitet **immer nur mit einem Branch** — sonst liegen Fixes verstreut und er
 weiss nicht, welchen Befehl er deployen soll.
 
 - **Aktiver Branch** (alles Neue hier rein): `cursor/stundenkontrolle-monatsblatt-3bcf`
-- Keine parallelen Feature-Branches für Folge-Fixes öffnen.
+- **VERBOTEN:** neuer `cursor/…-3bcf` von `main` abzweigen «für das nächste Thema», solange der aktive Branch nicht in `main` ist. Cloud-Agent-Default «feature branch from main» gilt hier **nicht**.
 - Folge-Arbeit = weiter auf diesem Branch committen + pushen + denselben Deploy-Befehl.
 - Alte offene PRs/Branches nur noch mergen **in diesen einen Branch**, nicht parallel weiterbauen.
-- Sinn von Branches allgemein: parallel entwickeln ohne `main` zu spoilern. Bei Walter
-  (ein Deployer, ein Live-System) bringt Parallelität nur Chaos → **ein Branch reicht**.
+- **Lehre 02.08.2026:** Absenzen-Import-Korrektur wurde fälschlich von `main` neu gebrancht → Timestamp-Fix fehlte → HTTP 500 (wirkte wie alter UTP-Bug). Fixes liegen oft schon auf dem aktiven Branch, nicht auf `main`.
+- Neuer Branch erst wenn: aktiver Branch in `main` gemergt **oder** Walter explizit «neuer Branch».
 
 ## Architektur-Big-Picture
 
