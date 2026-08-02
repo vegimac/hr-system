@@ -46,6 +46,7 @@ public class BehoerdenController : ControllerBase
                 webseite           = b.Webseite,
                 iban               = b.Iban,
                 qrIban             = b.QrIban,
+                kontoinhaber       = b.Kontoinhaber,
                 bic                = b.Bic,
                 bankName           = b.BankName,
                 isActive           = b.IsActive,
@@ -95,6 +96,7 @@ public class BehoerdenController : ControllerBase
             Webseite           = dto.Webseite?.Trim(),
             Iban      = NormalizeIban(dto.Iban),
             QrIban    = NormalizeIban(dto.QrIban),
+            Kontoinhaber = string.IsNullOrWhiteSpace(dto.Kontoinhaber) ? null : dto.Kontoinhaber.Trim(),
             Bic       = dto.Bic?.Trim(),
             BankName  = dto.BankName?.Trim(),
             IsActive  = dto.IsActive ?? true,
@@ -132,6 +134,7 @@ public class BehoerdenController : ControllerBase
         entry.Webseite           = dto.Webseite?.Trim();
         entry.Iban      = NormalizeIban(dto.Iban);
         entry.QrIban    = NormalizeIban(dto.QrIban);
+        entry.Kontoinhaber = string.IsNullOrWhiteSpace(dto.Kontoinhaber) ? null : dto.Kontoinhaber.Trim();
         entry.Bic       = dto.Bic?.Trim();
         entry.BankName  = dto.BankName?.Trim();
         entry.IsActive  = dto.IsActive ?? true;
@@ -302,6 +305,7 @@ public class BehoerdenController : ControllerBase
         webseite           = b.Webseite,
         iban               = b.Iban,
         qrIban             = b.QrIban,
+        kontoinhaber       = b.Kontoinhaber,
         bic                = b.Bic,
         bankName           = b.BankName,
         isActive           = b.IsActive,
@@ -344,7 +348,8 @@ public record BehoerdeDto(
     string? QrIban,
     string? Bic,
     string? BankName,
-    bool?   IsActive
+    bool?   IsActive,
+    string? Kontoinhaber = null
 );
 
 public record BehoerdeSachbearbeiterDto(

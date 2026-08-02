@@ -2081,7 +2081,8 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS kontaktperson_rolle VARCHAR(100),
             ADD COLUMN IF NOT EXISTS erreichbarkeit      VARCHAR(150),
             ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300),
-            ADD COLUMN IF NOT EXISTS handy               VARCHAR(30);
+            ADD COLUMN IF NOT EXISTS handy               VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS kontoinhaber        VARCHAR(200);
     ");
 
     // Sachbearbeiter-Stamm pro Behörde (Walter 02.08.2026) — Zahlung an Behörde,

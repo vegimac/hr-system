@@ -37,12 +37,15 @@ async function loadBehoerden() {
             const sbLine = sbCount > 0
                 ? `<div style="font-size:11px;color:#475569;margin-top:2px">${sbNames.map(n => escHtml(n)).join(', ')}${sbCount > sbNames.length ? ` <span style="color:#94a3b8">+${sbCount - sbNames.length}</span>` : ''}</div>`
                 : '';
-            // Steueramt: Kanton + SB; sonst IBAN + SB-Namen.
+            // Steueramt: Kanton + SB; sonst IBAN + Kontoinhaber + SB-Namen.
+            const kontoLine = (!isSteuer && b.kontoinhaber)
+                ? `<div style="font-size:11px;color:#475569;margin-top:2px">Kontoinhaber: <span style="font-weight:600">${escHtml(b.kontoinhaber)}</span></div>`
+                : '';
             const detailCol = isSteuer
                 ? ((b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : '') + (sbLine || '<span style="color:#cbd5e1">—</span>'))
                 : ((b.qrIban && b.qrIban !== b.iban
                     ? `<div style="font-family:monospace;font-size:11px">${b.iban || '—'}</div><div style="font-family:monospace;font-size:11px;color:#6d28d9">QR: ${b.qrIban}</div>`
-                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`) + sbLine);
+                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`) + kontoLine + sbLine);
             return `<tr style="${!b.isActive ? 'opacity:0.5;' : ''}border-bottom:1px solid #f1f5f9">
                 <td style="padding:10px 14px;font-weight:500">${escHtml(b.name)}</td>
                 <td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;${typBadge[b.typ] ?? typBadge.ANDERE}">${typLabel[b.typ] ?? b.typ}</span></td>
@@ -102,6 +105,8 @@ function openBehoerdeModal(existing) {
     qrIbanEl.value = d.qrIban ?? '';
     validateIbanField(ibanEl,   'beIbanHint',   'IBAN');
     validateIbanField(qrIbanEl, 'beQrIbanHint', 'QR-IBAN');
+    const kiEl = document.getElementById('beKontoinhaber');
+    if (kiEl) kiEl.value = d.kontoinhaber ?? '';
     document.getElementById('beBic').value       = d.bic ?? '';
     document.getElementById('beBankName').value  = d.bankName ?? '';
     document.getElementById('beIsActive').checked = d.isActive ?? true;
@@ -163,6 +168,7 @@ async function loadBeSachbearbeiter(behoerdeId) {
                         webseite: document.getElementById('beWebseite').value.trim() || null,
                         iban: document.getElementById('beIban').value.trim() || null,
                         qrIban: document.getElementById('beQrIban').value.trim() || null,
+                        kontoinhaber: document.getElementById('beKontoinhaber')?.value.trim() || null,
                         bic: document.getElementById('beBic').value.trim() || null,
                         bankName: document.getElementById('beBankName').value.trim() || null,
                         isActive: document.getElementById('beIsActive').checked
@@ -360,6 +366,7 @@ async function saveBehoerde() {
         webseite:           document.getElementById('beWebseite').value.trim()           || null,
         iban:               ibanRaw   || null,
         qrIban:             qrIbanRaw || null,
+        kontoinhaber:       typ === 'STEUERAMT' ? null : (document.getElementById('beKontoinhaber')?.value.trim() || null),
         bic:                typ === 'STEUERAMT' ? null : (document.getElementById('beBic').value.trim()      || null),
         bankName:           typ === 'STEUERAMT' ? null : (document.getElementById('beBankName').value.trim() || null),
         isActive:           document.getElementById('beIsActive').checked

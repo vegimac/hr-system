@@ -51,6 +51,13 @@ public class Behoerde
     /// <summary>QR-IBAN für QR-Rechnung (falls abweichend von Iban).</summary>
     public string? QrIban     { get; set; }
 
+    /// <summary>
+    /// Kontoinhaber für pain.001 Cdtr.Nm — wenn die IBAN auf eine andere
+    /// juristische Person lautet als <see cref="Name"/> (z.B. ORS Burgdorf
+    /// → Kontoinhaber «ORS Service AG Zürich»). Leer = Name der Behörde.
+    /// </summary>
+    public string? Kontoinhaber { get; set; }
+
     public string? Bic        { get; set; }
     public string? BankName   { get; set; }
 

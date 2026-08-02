@@ -287,10 +287,13 @@ public static class PayrollCalculations
             });
 
             auszahlungEmpfaenger.Add(new {
-                typ      = "BEHOERDE",
-                label    = $"{la.Bezeichnung} an {amtName}",
-                iban     = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
-                bankName = la.Behoerde?.BankName,
+                typ           = "BEHOERDE",
+                behoerdeId    = la.BehoerdeId,
+                label         = $"{la.Bezeichnung} an {amtName}",
+                // Cdtr.Nm im DTA: Kontoinhaber falls gesetzt (ORS Burgdorf → Zürich)
+                kontoinhaber  = la.Behoerde?.Kontoinhaber,
+                iban          = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
+                bankName      = la.Behoerde?.BankName,
                 referenz = !string.IsNullOrWhiteSpace(la.ZahlungsReferenz)
                               ? la.ZahlungsReferenz
                               : la.ReferenzAmt,

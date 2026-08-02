@@ -1493,6 +1493,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Webseite).HasColumnName("webseite").HasMaxLength(300);
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
             entity.Property(e => e.QrIban).HasColumnName("qr_iban").HasMaxLength(34);
+            entity.Property(e => e.Kontoinhaber).HasColumnName("kontoinhaber").HasMaxLength(200);
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(20);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);

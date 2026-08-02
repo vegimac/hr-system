@@ -328,8 +328,8 @@ public class LohnlaufService
         if (behoerdenAgg.Count == 0)
             throw new InvalidOperationException("Keine Lohnabtretungen in dieser Periode — Behörden-DTA leer.");
 
-        // Pro Behörde IBAN: hole vollständige Behörde-Stammdaten
-        var ibansOfInterest = behoerdenAgg.Keys.ToList();
+        // Pro IBAN: Behörde-Stammdaten. Bei geteilter IBAN (ORS Burgdorf =
+        // ORS Zürich) gewinnt der explizite Kontoinhaber für Cdtr.Nm.
         var allBehoerden = await _db.Behoerden
             .Where(b => b.IsActive)
             .ToListAsync();
@@ -338,8 +338,26 @@ public class LohnlaufService
         int idx = 0;
         foreach (var (key, agg) in behoerdenAgg)
         {
-            var beh = allBehoerden.FirstOrDefault(b =>
-                NormalizeIban(b.QrIban ?? b.Iban ?? "") == key);
+            var matches = allBehoerden
+                .Where(b => NormalizeIban(b.QrIban ?? b.Iban ?? "") == key)
+                .ToList();
+            // Prefer Behörde mit gesetztem Kontoinhaber (ORS-Fall).
+            var beh = matches.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.Kontoinhaber))
+                   ?? matches.FirstOrDefault();
+
+            var cdtrName = !string.IsNullOrWhiteSpace(beh?.Kontoinhaber)
+                ? beh!.Kontoinhaber!.Trim()
+                : (beh?.Name ?? agg.Label);
+
+            // Adresse: wenn Kontoinhaber gesetzt und eine Behörde denselben
+            // Namen trägt (z.B. ORS Zürich), deren Adresse nehmen — sonst die
+            // matched Behörde (Burgdorf mit Kontoinhaber-Feld).
+            var addrSrc = allBehoerden.FirstOrDefault(b =>
+                              string.Equals(
+                                  (b.Name ?? "").Trim(),
+                                  cdtrName,
+                                  StringComparison.OrdinalIgnoreCase))
+                       ?? beh;
 
             // Zusatz-Info im RmtInf: betroffene MA, falls > 1
             string rmtInf;
@@ -357,13 +375,13 @@ public class LohnlaufService
             payments.Add(new Iso20022PainService.PaymentInstruction(
                 EndToEndId:         $"BH{periode.Year}{periode.Month:D2}-{idx++}",
                 Amount:             Math.Round(agg.Total, 2),
-                CreditorName:       beh?.Name ?? agg.Label,
-                CreditorStreet:     beh?.Adresse1,
-                CreditorPostalCode: beh?.Plz,
-                CreditorCity:       beh?.Ort,
+                CreditorName:       cdtrName,
+                CreditorStreet:     addrSrc?.Adresse1,
+                CreditorPostalCode: addrSrc?.Plz,
+                CreditorCity:       addrSrc?.Ort,
                 CreditorCountry:    "CH",
                 CreditorIban:       key,
-                CreditorBic:        beh?.Bic,
+                CreditorBic:        addrSrc?.Bic ?? beh?.Bic,
                 RemittanceInfo:     rmtInf
             ));
         }
