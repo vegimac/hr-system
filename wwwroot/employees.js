@@ -9016,11 +9016,18 @@ function renderLohnAssignmentsList(el, list) {
                     <div class="emp-field-label">Referenz / Bemerkung</div>
                     <div class="emp-field-value">${refHtml}</div>
                 </div>
-                ${a.lohnausweisAnBehoerde
-                    ? `<div class="emp-field" style="grid-column:span 4">
-                           <div class="emp-field-value" style="font-size:12px;color:#475569">📄 Lohnausweis-Link an Behörde beim Definitiv-Abschluss</div>
-                       </div>`
-                    : ''}
+                <div class="emp-field" style="grid-column:span 4">
+                    <div class="emp-field-label">Beleg-Dokument</div>
+                    <div class="emp-field-value" style="font-size:12.5px">
+                        ${a.dokumentId
+                            ? `<button type="button" onclick="qstOpenBefreiungsDok(${a.employeeId || selectedEmployeeId}, ${a.dokumentId})"
+                                       style="background:#fff;border:1px solid #94a3b8;border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer">📄 ${esc(a.dokumentName || 'Dokument')}</button>`
+                            : `<span style="color:#b45309;font-weight:600">⚠ kein Dokument — im Lohnlauf unwirksam</span>`}
+                        ${a.lohnausweisAnBehoerde
+                            ? ` <span style="color:#64748b;margin-left:8px">· Lohnausweis-Link an SB</span>`
+                            : ''}
+                    </div>
+                </div>
             </div>
         </div>`;
     });
@@ -9059,6 +9066,50 @@ function openLohnAssignmentModal(existing) {
     const laCb = document.getElementById('laLohnausweisAnBehoerde');
     if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
     laOnBehoerdeChange();
+    laLoadDokumente(existing?.dokumentId ?? null);
+}
+
+async function laLoadDokumente(selectedDokId) {
+    const sel = document.getElementById('laDokumentSel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">– Dokumente laden … –</option>';
+    if (!selectedEmployeeId) {
+        sel.innerHTML = '<option value="">– kein Mitarbeiter –</option>';
+        return;
+    }
+    try {
+        const res = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
+        let alle = res.ok ? await res.json() : [];
+        if (!Array.isArray(alle)) alle = [];
+        // Pfändung/Abtretung-ähnliche oben
+        const isLaLike = (d) => {
+            const t = ((d.dokumentTypName || '') + ' ' + (d.kategorieName || '') + ' ' + (d.bemerkung || '')).toLowerCase();
+            return /pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso/.test(t);
+        };
+        alle.sort((a, b) => {
+            const af = isLaLike(a) ? 0 : 1;
+            const bf = isLaLike(b) ? 0 : 1;
+            if (af !== bf) return af - bf;
+            return String(b.erstelltAm || b.hochgeladenAm || '')
+                .localeCompare(String(a.erstelltAm || a.hochgeladenAm || ''));
+        });
+        const selId = selectedDokId != null ? Number(selectedDokId) : null;
+        if (!alle.length) {
+            sel.innerHTML = '<option value="">– keine Dokumente im Dossier — zuerst hochladen –</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">— Dokument wählen (Pflicht) —</option>' +
+            alle.map(d => {
+                const typ = d.dokumentTypName ? `${d.dokumentTypName} · ` : '';
+                const name = d.bemerkung || d.filenameOriginal || 'Dokument';
+                const dt = d.erstelltAm || d.hochgeladenAm
+                    ? ' · ' + formatDate(d.erstelltAm || d.hochgeladenAm) : '';
+                const mark = isLaLike(d) ? '★ ' : '';
+                return `<option value="${d.id}" ${selId === d.id ? 'selected' : ''}>${mark}${esc(typ + name)}${dt}</option>`;
+            }).join('');
+    } catch {
+        sel.innerHTML = '<option value="">– Fehler beim Laden –</option>';
+    }
 }
 
 async function laOnBehoerdeChange() {
@@ -9068,7 +9119,7 @@ async function laOnBehoerdeChange() {
     if (!sel || !sbSel) return;
     const behoerdeId = parseInt(sel.value, 10) || 0;
     const pending = modal?.dataset.pendingSbId || '';
-    sbSel.innerHTML = '<option value="">— keiner / zentrale Behörden-E-Mail —</option>';
+    sbSel.innerHTML = '<option value="">— Sachbearbeiter wählen —</option>';
     if (!behoerdeId) return;
     try {
         if (!_laSbCache[behoerdeId]) {
@@ -9107,8 +9158,14 @@ async function saveLohnAssignment() {
     const refZahlung  = document.getElementById('laZahlungsReferenz').value.trim() || null;
     const bem         = document.getElementById('laBemerkung').value.trim() || null;
     const lohnausweisAnBehoerde = !!document.getElementById('laLohnausweisAnBehoerde')?.checked;
+    const dokRaw = document.getElementById('laDokumentSel')?.value || '';
+    const dokumentId = dokRaw ? parseInt(dokRaw, 10) : null;
 
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
+    if (!dokumentId) {
+        alert('Bitte das Abtretungs-/Pfändungsdokument verknüpfen.\n\nOhne Dokument ist die Lohnabtretung ungültig und greift im Lohnlauf nicht.');
+        return;
+    }
     if (lohnausweisAnBehoerde) {
         const sbList = _laSbCache[behoerdeId] || [];
         const sb = behoerdeSachbearbeiterId
@@ -9132,6 +9189,7 @@ async function saveLohnAssignment() {
         employeeId: selectedEmployeeId,
         behoerdeId,
         behoerdeSachbearbeiterId: behoerdeSachbearbeiterId || null,
+        dokumentId,
         bezeichnung,
         freigrenze,
         zielbetrag,

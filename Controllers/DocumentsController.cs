@@ -195,6 +195,9 @@ public class DocumentsController : ControllerBase
         var pregnancyDokIds = await _db.EmployeePregnancies.AsNoTracking()
             .Where(p => p.EmployeeId == employeeId && p.ArztbestaetigungDokumentId != null)
             .Select(p => p.ArztbestaetigungDokumentId!.Value).ToListAsync();
+        var lohnAbtDokIds = await _db.EmployeeLohnAssignments.AsNoTracking()
+            .Where(a => a.EmployeeId == employeeId && a.DokumentId != null)
+            .Select(a => a.DokumentId!.Value).ToListAsync();
 
         var linkedMap = new Dictionary<int, List<string>>();
         void AddLink(int? docId, string label)
@@ -213,6 +216,7 @@ public class DocumentsController : ControllerBase
         foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
         foreach (var fid in familyDocIds) AddLink(fid, "Ehepartner-Beleg");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
+        foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");
 
         var result = docs.Select(d => new {
             d.Id, d.EmployeeId, d.dokumentTypId, d.dokumentTypName, d.kategorieId, d.kategorieName,
@@ -1148,6 +1152,8 @@ public class DocumentsController : ControllerBase
             blockers.Add("Ehepartner-Ausweis");
         if (await _db.EmployeePregnancies.AnyAsync(p => p.ArztbestaetigungDokumentId == id))
             blockers.Add("Arztbestätigung errechneter Termin (Mutterschaft)");
+        if (await _db.EmployeeLohnAssignments.AnyAsync(a => a.DokumentId == id))
+            blockers.Add("Lohnabtretung / Pfändung");
 
         if (blockers.Count > 0)
         {

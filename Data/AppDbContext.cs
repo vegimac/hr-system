@@ -1533,6 +1533,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
             entity.Property(e => e.BehoerdeSachbearbeiterId).HasColumnName("behoerde_sachbearbeiter_id");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(100);
             entity.Property(e => e.Freigrenze).HasColumnName("freigrenze").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Zielbetrag).HasColumnName("zielbetrag").HasColumnType("numeric(10,2)");
@@ -1554,10 +1555,15 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Sachbearbeiter).WithMany()
                   .HasForeignKey(e => e.BehoerdeSachbearbeiterId)
                   .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Dokument).WithMany()
+                  .HasForeignKey(e => e.DokumentId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_employee_lohn_assignment_period");
             entity.HasIndex(e => e.BehoerdeSachbearbeiterId)
                   .HasDatabaseName("idx_emp_lohn_assignment_sb");
+            entity.HasIndex(e => e.DokumentId)
+                  .HasDatabaseName("idx_emp_lohn_assignment_dokument");
         });
 
         // ── LohnausweisShareToken (Walter 30.07.2026) ──────────────────────

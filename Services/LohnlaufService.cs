@@ -753,6 +753,7 @@ public class LohnlaufService
                 .Include(a => a.Employee)
                 .Where(a => empIds.Contains(a.EmployeeId)
                          && a.LohnausweisAnBehoerde
+                         && a.DokumentId != null
                          && a.ValidFrom <= periodTo
                          && (a.ValidTo == null || a.ValidTo >= periodFrom)
                          && a.Behoerde != null)

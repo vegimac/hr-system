@@ -1956,6 +1956,12 @@
                         </div>
                         <ul>
                             <li>AHV-Anmeldung / -Abmeldung</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('lohn-abtretungen')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>Lohnabtretungen</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
@@ -4560,6 +4566,50 @@
                     </div>
                 </div>
                 </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
+            </div>
+
+            <!-- LOHNABTRETUNGEN (HR-Hub → Behörden-Korrespondenz) -->
+            <div class="page liquid-mask fixhead" id="page-lohn-abtretungen">
+                <div class="sticky-page-head fh-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">Lohnabtretungen</h1>
+                        <p class="page-sub">Alle Abtretungen der gewählten Filiale — Zahlung an Behörde, Kontakt über Sachbearbeiter</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')">← HR</button>
+                    </div>
+                </div>
+                <div id="laListBranchBanner" style="font-size:13px;color:#475569;margin:0 0 10px;padding:8px 12px;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.62);border-radius:10px"></div>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col style="width:9%"><col style="width:11%"><col style="width:12%">
+                            <col style="width:16%"><col style="width:12%"><col style="width:12%">
+                            <col style="width:16%"><col style="width:8%"><col style="width:4%">
+                        </colgroup>
+                        <thead><tr>
+                            <th>MA-Nr.</th><th>Vorname</th><th>Name</th>
+                            <th>Abtretung an Behörde</th><th>Sachbearbeiter</th><th>Telefon</th>
+                            <th>E-Mail</th><th class="fh-th-center">Freibetrag</th><th></th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                <div class="card fh-list-card">
+                    <div class="fh-list-scroll">
+                        <table class="fh-table fh-table-body">
+                            <colgroup>
+                                <col style="width:9%"><col style="width:11%"><col style="width:12%">
+                                <col style="width:16%"><col style="width:12%"><col style="width:12%">
+                                <col style="width:16%"><col style="width:8%"><col style="width:4%">
+                            </colgroup>
+                            <tbody id="laListTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
             </div>
 
             <!-- BEHÖRDEN -->
@@ -7228,7 +7278,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260802a"></script>
+<script src="js/app-core.js?v=20260802b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7279,6 +7329,7 @@
 <script src="js/payroll-perioden.js?v=20260704p"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260802c"></script>
+<script src="js/lohn-abtretungen-list.js?v=20260802a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260722u"></script>
@@ -7590,7 +7641,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260802h"></script>
+<script src="employees.js?v=20260802j"></script>
 <script src="js/aufforderung-arbeit.js?v=20260801a"></script>
 
             <div class="page liquid-mask" id="page-aufforderung-arbeit">
@@ -7850,7 +7901,7 @@
                 <div class="ma-field" style="grid-column:1 / -1">
                     <div class="ma-field-label">Sachbearbeiter <span class="opt">(für Lohnmeldung / Lohnausweis-Mail)</span></div>
                     <select id="laSachbearbeiterSel" class="ma-select">
-                        <option value="">— keiner / zentrale Behörden-E-Mail —</option>
+                        <option value="">— Sachbearbeiter wählen —</option>
                     </select>
                     <div id="laSbHint" style="font-size:11px;color:#64748b;margin-top:3px">Zahlung geht an die Behörden-IBAN; Mail an den gewählten SB.</div>
                 </div>
@@ -7873,6 +7924,18 @@
                 <div class="ma-field" style="grid-column:span 2">
                     <div class="ma-field-label">Gültig bis <span class="opt">(leer = bis Widerruf)</span></div>
                     <input type="date" id="laValidTo" class="ma-input">
+                </div>
+            </div>
+
+            <div class="emp-section-title">Beleg-Dokument <span style="font-weight:400;color:#b45309">(Pflicht)</span></div>
+            <div class="ma-grid cols-1">
+                <div class="ma-field">
+                    <div class="ma-field-label">Abtretungs-/Pfändungsdokument aus dem MA-Dossier</div>
+                    <select id="laDokumentSel" class="ma-select"></select>
+                    <div style="font-size:11px;color:#64748b;margin-top:3px;line-height:1.4">
+                        Ohne verknüpftes Dokument greift die Abtretung im Lohnlauf <b>nicht</b> — verhindert Abzweigen ohne Beleg.
+                        Dokument zuerst im Tab «Dokumente» hochladen.
+                    </div>
                 </div>
             </div>
 

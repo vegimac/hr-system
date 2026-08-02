@@ -2108,6 +2108,12 @@ using (var scope = app.Services.CreateScope())
             REFERENCES behoerde_sachbearbeiter(id) ON DELETE SET NULL;
         CREATE INDEX IF NOT EXISTS idx_emp_lohn_assignment_sb
             ON employee_lohn_assignment(behoerde_sachbearbeiter_id);
+        -- Pflicht-Dokument an Lohnabtretung (Walter 02.08.2026)
+        ALTER TABLE employee_lohn_assignment
+            ADD COLUMN IF NOT EXISTS dokument_id INTEGER
+            REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_emp_lohn_assignment_dokument
+            ON employee_lohn_assignment(dokument_id);
     ");
 
     // Familienzulagen pro Familienmitglied, zeitlich versioniert (Von/Bis/Monatsbetrag).

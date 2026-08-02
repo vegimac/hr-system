@@ -1043,9 +1043,12 @@ public class PayrollCalculationEngine
         // ── Lohnabtretungen (Lohnpfändung / Sozialamt) laden ─────────────
         // Aktive Zuweisungen für diesen Mitarbeiter im Perioden-Zeitraum.
         // Werden nach Netto vom Lohn abgezogen.
+        // Nur mit verknüpftem Dokument gültig (Walter 02.08.2026) —
+        // verhindert Lohn-Abzweig ohne Beleg.
         var lohnAssignments = await _db.EmployeeLohnAssignments
             .Include(la => la.Behoerde)
             .Where(la => la.EmployeeId == employeeId
+                      && la.DokumentId != null
                       && la.ValidFrom <= periodTo
                       && (la.ValidTo == null || la.ValidTo >= periodFrom))
             .OrderBy(la => la.ValidFrom)

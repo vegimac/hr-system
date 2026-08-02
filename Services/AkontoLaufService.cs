@@ -150,8 +150,10 @@ public class AkontoLaufService
                      && t.EntryDate >= periodFrom
                      && t.EntryDate <= stichtag)
             .ToListAsync();
+        // Nur mit Dokument gültig (Walter 02.08.2026) — analog Definitivlauf.
         var assignments = await _db.EmployeeLohnAssignments
             .Where(la => empIds.Contains(la.EmployeeId)
+                      && la.DokumentId != null
                       && la.ValidFrom <= periodTo
                       && (la.ValidTo == null || la.ValidTo >= periodFrom))
             .ToListAsync();

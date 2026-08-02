@@ -957,6 +957,7 @@ function showPage(name) {
     }
     if (name === 'absenz-typen') loadAbsenzTypen();
     if (name === 'behoerden')    loadBehoerden();
+    if (name === 'lohn-abtretungen' && typeof laListInit === 'function') laListInit();
     if (name === 'dokumentstruktur') loadDokumentStruktur();
     if (name === 'dvelop-import') { if (typeof dvelopResetUi === 'function') dvelopResetUi(); dvelopLoadEmployees(); if (typeof dvApiLoadSettings === 'function') dvApiLoadSettings(); }
     if (name === 'permit-import') permitImportInit();
@@ -1135,6 +1136,8 @@ function onBranchChange() {
     } else if (currentPageName === 'zwischenverdienst') {
         // RAV-Zwischenverdienst folgt dem globalen Filial-Selektor.
         zviInit();
+    } else if (currentPageName === 'lohn-abtretungen') {
+        if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {
         // Saldi-Vortrag MA-Liste neu rendern (Filial-Filter).
         svInit();

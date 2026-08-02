@@ -24,6 +24,12 @@ public class EmployeeLohnAssignment
     /// </summary>
     public int?     BehoerdeSachbearbeiterId { get; set; }
 
+    /// <summary>
+    /// Pflicht-Beleg (Pfändungs-/Abtretungsdokument) aus dem MA-Dossier
+    /// (Walter 02.08.2026). Ohne Dokument gilt die Abtretung NICHT im Lohnlauf.
+    /// </summary>
+    public int?     DokumentId { get; set; }
+
     /// <summary>Freitext, z. B. "Lohnpfändung" oder "Vorschuss Sozialamt".</summary>
     public string   Bezeichnung      { get; set; } = "Lohnpfändung";
 
@@ -68,4 +74,5 @@ public class EmployeeLohnAssignment
     public Employee? Employee        { get; set; }
     public Behoerde? Behoerde        { get; set; }
     public BehoerdeSachbearbeiter? Sachbearbeiter { get; set; }
+    public EmployeeDokument? Dokument { get; set; }
 }
