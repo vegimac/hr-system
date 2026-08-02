@@ -430,7 +430,8 @@ public class SaldoVortragImportController : ControllerBase
     // Sursee Juni-2026: Name/PNr col 14, Stunden-Saldo col 71, Tage-Saldo
     // col 61). Der Parser findet Anker + Saldo-Spalte dynamisch.
     // „Stunden" (FLEX-Ist) ≠ „Überstunden" — wird bewusst ignoriert.
-    // Match per Personalnummer. Relevanz: 901/904 MTP/FIX/FIX-M; 902 FIX/FIX-M;
+    // Match per Personalnummer. Relevanz: 901 MTP/FIX/FIX-M; 904 alle Modelle
+    // inkl. FLEX (Nacht-Saldo wird auch bei FLEX geführt); 902 FIX/FIX-M;
     // 903 alle Modelle. Codes 905/906 (CHF) bleiben unangetastet.
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -644,7 +645,7 @@ public class SaldoVortragImportController : ControllerBase
                 if (!relevant)
                 {
                     // Modell hat diesen Saldo nicht → bestehenden Eintrag entfernen
-                    // (z.B. FLEX hat keinen Stunden-/Nacht-/Feiertag-Saldo).
+                    // (z.B. FLEX hat keinen Zeitsaldo 901 / Feiertag-Tage 902).
                     if (ex != null) _db.LohnZulagen.Remove(ex);
                     return;
                 }
@@ -706,12 +707,18 @@ public class SaldoVortragImportController : ControllerBase
 
     private static bool IsRelevant901(string model) =>    // Zeitsaldo (Stunden)
         model is "MTP" or "FIX" or "FIX-M";
-    private static bool IsRelevant904(string model) =>    // Nacht-Saldo
-        model is "MTP" or "FIX" or "FIX-M";
+    // Nacht-Saldo: auch FLEX — Engine akkumuliert Zeitzuschlag für alle Modelle
+    // (Walter 02.08.2026: Monatsblatt-Vortrag 0.41 bei Miteva fehlte wegen FLEX-Skip).
+    private static bool IsRelevant904(string model) =>
+        model is "FLEX" or "MTP" or "FIX" or "FIX-M";
     private static bool IsRelevant902(string model) =>    // Feiertag-Tage
         model is "FIX" or "FIX-M";
     private static bool IsRelevant903(string model) =>    // Ferien-Tage
         model is "FLEX" or "MTP" or "FIX" or "FIX-M";
+
+    /// <summary>Öffentlich für Unit-Tests (Relevanz-Matrix Nacht-Vortrag).</summary>
+    public static bool IsNachtVortragRelevantForModel(string model) =>
+        IsRelevant904(NormalizeModel(model));
 
     /// <summary>
     /// Parser für das Mirus «Monatsblatt» / «Abrechnung individuelle Position»
