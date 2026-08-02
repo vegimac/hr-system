@@ -6,11 +6,12 @@
 //   2) /api/imports/roster-absences/preview parst + konsolidiert + matcht MA
 //   3) Vorschau-Tabelle: pro Absenz-Span eine Zeile (MA, Typ, Zeitraum, Tage,
 //      Stunden, Status). NO_MATCH/AMBIGUOUS → manueller MA-Picker.
-//   4) Commit → /api/imports/roster-absences/commit legt die Absence-Records an
+//   4) Commit → /api/imports/roster-absences/commit legt Absence-Records an
+//      oder korrigiert bestehende (gleicher Typ, geänderter Zeitraum/Stunden)
 //
 // Codes im Plan: FE = Ferien, KR = Krankheit, UN = Unfall. Konsekutive gleiche
-// Tage werden zu einer Absenz zusammengefasst. Dubletten (gleiche Absenz schon
-// erfasst) werden erkannt und nicht erneut importiert.
+// Tage werden zu einer Absenz zusammengefasst. Identische Dubletten werden
+// übersprungen; Korrekturen (UPDATE) sind wählbar.
 
 let _raRows = [];
 let _raFile = null;
@@ -147,7 +148,7 @@ function renderRosterImportPreview(data) {
             return _raManualRow(r, idx);
         }
         const bg = _raRowBg(r.status);
-        const checkable = r.status === 'OK' && r.employeeId != null;
+        const checkable = (r.status === 'OK' || r.status === 'UPDATE') && r.employeeId != null;
         const cb = checkable
             ? `<input type="checkbox" class="raSel" data-row="${r.rowNum}" checked
                        onchange="rosterImportUpdateCommitBtn()"
@@ -261,6 +262,7 @@ function rosterImportUpdateCommitBtn() {
 function _raRowBg(status) {
     if (status === 'DUPLICATE')    return '#f8fafc';
     if (status === 'UNKNOWN_CODE') return '#fffbeb';
+    if (status === 'UPDATE')       return '#f6f3ee';
     if (status === 'OK')           return '#f0fdf4';
     return 'white';
 }
@@ -274,6 +276,7 @@ function _raTypeBadge(type) {
 function _raStatusBadge(s) {
     const map = {
         'OK':           ['bereit',       '#dcfce7', '#15803d'],
+        'UPDATE':       ['Korrektur',    '#f6f3ee', '#3f3f3f'],
         'NO_MATCH':     ['MA fehlt',     '#fee2e2', '#b91c1c'],
         'AMBIGUOUS':    ['Mehrdeutig',   '#fef3c7', '#854d0e'],
         'DUPLICATE':    ['schon erfasst','#f1f5f9', '#475569'],
@@ -339,9 +342,10 @@ async function rosterImportCommit() {
                    <ul style="margin:6px 0 0;padding-left:18px">${(data.lockedMessages || []).map(m => `<li>${m}</li>`).join('')}</ul>
                </div>`
             : '';
+        const upd = data.updated || 0;
         document.getElementById('rosterImportAlert').innerHTML = `
             <div style="padding:14px 18px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:9px;font-size:14px">
-                <b>Import:</b> ${data.created} Absenzen erfasst${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}.${locked > 0 ? '' : ' Fenster wird in 2 Sekunden geschlossen…'}
+                <b>Import:</b> ${data.created} Absenzen erfasst${upd > 0 ? `, ${upd} korrigiert` : ''}${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}.${locked > 0 ? '' : ' Fenster wird in 2 Sekunden geschlossen…'}
             </div>${lockedNote}`;
         document.getElementById('rosterImportPreview').innerHTML = '';
         document.getElementById('rosterImportSummary').innerHTML = '';
