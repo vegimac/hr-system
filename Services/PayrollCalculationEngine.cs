@@ -2998,74 +2998,43 @@ public class PayrollCalculationEngine
         if (satzBrutto < bruttolohn) satzBrutto = bruttolohn;
 
         decimal qstBetrag;
+        decimal? satzPct;
 
         if (einstellung.Prozentsatz.HasValue)
         {
             // Manuell überschriebener Prozentsatz — direkt auf IST-Brutto.
             qstBetrag = Math.Round(bruttolohn * einstellung.Prozentsatz.Value / 100m, 2);
+            satzPct = einstellung.Prozentsatz;
         }
         else
         {
-            // Dynamisch aus ESTV-Tarifdatei: Steuersatz wird zum SATZBESTIMMENDEN
-            // Lohn ermittelt, danach auf den IST-Brutto angewendet. So zahlt
-            // ein Stundenlöhner mit 13h/Mt nicht 0% (weil Brutto unter QST-Mindest),
-            // sondern den Satz seines Vollzeit-Äquivalents.
-            decimal? satzPctTarif = _tarifService.GetSteuersatzProzent(
+            // Dynamisch aus ESTV-Tarifdatei: Steuersatz + Mindeststeuer (Pos 46–54)
+            // zum SATZBESTIMMENDEN Lohn, Betrag auf IST-Brutto (ESTV 4.4:
+            // wenn IST × Satz < Mindeststeuer → Mindeststeuer).
+            // So zahlt ein Stundenlöhner mit 13h/Mt nicht 0.00, wenn die
+            // Stufe eine Mindeststeuer hat (AG CHF 2, LU CHF 13, …).
+            var qstCalc = _tarifService.Berechne(
                 einstellung.Steuerkanton,
                 einstellung.TarifCode,
                 einstellung.AnzahlKinder,
                 einstellung.Kirchensteuer,
-                satzBrutto);
-            if (satzPctTarif is null) return null;
-            qstBetrag = Math.Round(bruttolohn * satzPctTarif.Value / 100m, 2);
-        }
+                satzbestimmenderBruttoCHF: satzBrutto,
+                istBruttoCHF: bruttolohn);
+            if (qstCalc is null) return null;
+            qstBetrag = qstCalc.SteuerbetragCHF;
 
-        // ── Kantonaler Mindestbetrag ──────────────────────────────────────
-        // Manche Kantone (z.B. LU) schreiben einen monatlichen Mindestabzug
-        // vor: wenn überhaupt QST anfällt, mindestens X CHF/Monat.
-        // Quelle für LU: steuern.lu.ch — "Der monatliche Mindestabzug
-        // beträgt CHF 13.00".
-        // WICHTIG: Mindestbetrag wird VOR dem "qstBetrag <= 0"-Return angewendet,
-        // damit auch bei sehr niedrigen IST-Brutto (= 0% in der Tarif-Tabelle
-        // bei den ersten Stufen) der Mindestbetrag greift, solange der MA
-        // QST-pflichtig ist (nicht-CH-Nationalität, nicht befreit).
-        var mindest = _tarifService.GetMindestbetrag(einstellung.Steuerkanton);
-        if (mindest.HasValue && qstBetrag < mindest.Value && bruttolohn > 0)
-        {
-            qstBetrag = mindest.Value;
+            // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
+            // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.
+            if (qstCalc.MindeststeuerAngewendet && bruttolohn > 0)
+                satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+            else
+                satzPct = qstCalc.SteuersatzPct;
         }
 
         // Walter-Vorgabe 27.05.2026: bei QST-pflichtigem MA mit erfasstem Tarif
-        // IMMER eine Zeile zeigen — auch bei 0.00 (z.B. C3-Tarif bei niedrigem
-        // Brutto → 0% laut ESTV-Tabelle). Sonst denkt der GF, die QST sei
-        // „nicht berechnet" und sucht den Bug, der gar keiner ist.
+        // IMMER eine Zeile zeigen — auch bei 0.00 (Tarif ohne Mindeststeuer und
+        // 0%-Stufe). Sonst denkt der GF, die QST sei «nicht berechnet».
         if (qstBetrag < 0) qstBetrag = 0;
-
-        // Satz für Anzeige (best-effort; null wenn kein Tarif). Gilt der
-        // satzbestimmende Brutto, weil der Aufzulisten-Steuersatz auf dem
-        // Lohnzettel der ist, der für die Berechnung verwendet wurde.
-        // Falls Mindestbetrag gegriffen hat, weicht der effektive Satz
-        // (= qstBetrag/bruttolohn) ggf. vom Tarif-Satz ab — dann zeigen
-        // wir den effektiven, damit's auf dem Lohnzettel rechnerisch stimmt.
-        decimal? satzPct;
-        if (einstellung.Prozentsatz.HasValue)
-        {
-            satzPct = einstellung.Prozentsatz;
-        }
-        else if (mindest.HasValue && qstBetrag == mindest.Value && bruttolohn > 0)
-        {
-            // Mindestbetrag aktiv → Satz aus Mindestbetrag/Brutto
-            satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
-        }
-        else
-        {
-            satzPct = _tarifService.GetSteuersatzProzent(
-                einstellung.Steuerkanton,
-                einstellung.TarifCode,
-                einstellung.AnzahlKinder,
-                einstellung.Kirchensteuer,
-                satzBrutto);
-        }
 
         string qstCode     = einstellung.QstCode ?? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}";
 
