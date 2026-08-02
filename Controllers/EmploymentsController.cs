@@ -203,9 +203,12 @@ public class EmploymentsController : ControllerBase
         const bool SkipProbationForBefristet = false;
         var istBefristet = string.Equals(employment.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
                            || employment.ContractEndDate.HasValue;
-        var istErstvertrag = !await _context.Employments
-            .AnyAsync(e => e.EmployeeId == employment.EmployeeId);
-        if (istErstvertrag && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
+        // Walter 02.08.2026: nicht nur Erstvertrag — auch wenn Sync/Import schon
+        // einen Kurz-Vertrag angelegt hat ohne Probezeit (z.B. 1 Tag + Folgetag
+        // offen). Sobald irgendein Vertrag Probezeit hat → nichts setzen.
+        var hatBereitsProbezeit = await _context.Employments
+            .AnyAsync(e => e.EmployeeId == employment.EmployeeId && e.ProbationEndDate != null);
+        if (!hatBereitsProbezeit && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
         {
             var branchProb = await _context.CompanyProfiles
                 .Where(c => c.Id == employment.CompanyProfileId.Value)
