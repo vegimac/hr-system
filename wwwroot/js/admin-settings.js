@@ -223,6 +223,18 @@ async function loadBeSachbearbeiter(behoerdeId) {
                 <button type="button" class="dok-menu-btn" onclick="deleteBeSb(${behoerdeId},${s.id},'${escHtml(s.name).replace(/'/g,"\\'")}')" title="Löschen" style="flex-shrink:0;color:#dc2626">✕</button>
             </div>`;
         }).join('');
+        // Scroll im Listen-Container behalten (Modal-Backdrop sonst „stiehlt" Wheel).
+        if (!list._beSbWheelBound) {
+            list.addEventListener('wheel', (e) => {
+                const el = list;
+                if (el.scrollHeight <= el.clientHeight + 1) return;
+                const atTop = el.scrollTop <= 0;
+                const atBot = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+                if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBot)) return;
+                e.stopPropagation();
+            }, { passive: true });
+            list._beSbWheelBound = true;
+        }
     } catch (e) {
         list.innerHTML = `<div style="color:#dc2626;font-size:12px">${escHtml(e.message)}</div>`;
     }
