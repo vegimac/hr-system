@@ -34,30 +34,35 @@ public class EmployeeLohnAssignmentsController : ControllerBase
             .FirstOrDefaultAsync();
 
     // GET /api/employee-lohn-assignments?companyProfileId=…
-    // HR-Hub-Liste: alle Abtretungen der Filiale, sortiert nach Vorname.
+    // HR-Hub-Liste: Abtretungen der Filiale — ohne companyProfileId = alle
+    // Filialen (Sidebar «Alle Filialen»), sortiert nach Vorname.
     [HttpGet]
-    public async Task<IActionResult> ListByBranch([FromQuery] int companyProfileId)
+    public async Task<IActionResult> ListByBranch([FromQuery] int? companyProfileId = null)
     {
-        if (companyProfileId <= 0)
-            return BadRequest(new { error = "companyProfileId erforderlich." });
-
         var today = DateOnly.FromDateTime(DateTime.Now);
 
         // MA mit Vertrag in dieser Filiale (auch ausgetreten — Abtretung kann
-        // noch relevant sein).
-        var empIdsAtBranch = await _db.Employments.AsNoTracking()
-            .Where(e => e.CompanyProfileId == companyProfileId)
-            .Select(e => e.EmployeeId)
-            .Distinct()
-            .ToListAsync();
+        // noch relevant sein). Ohne Filter: alle MA mit Abtretung.
+        List<int>? empIdsAtBranch = null;
+        if (companyProfileId is > 0)
+        {
+            empIdsAtBranch = await _db.Employments.AsNoTracking()
+                .Where(e => e.CompanyProfileId == companyProfileId.Value)
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToListAsync();
+        }
 
-        var rows = await _db.EmployeeLohnAssignments.AsNoTracking()
+        var q = _db.EmployeeLohnAssignments.AsNoTracking()
             .Include(a => a.Employee)
             .Include(a => a.Behoerde)
             .Include(a => a.Sachbearbeiter)
             .Include(a => a.Dokument)
-            .Where(a => empIdsAtBranch.Contains(a.EmployeeId))
-            .ToListAsync();
+            .AsQueryable();
+        if (empIdsAtBranch != null)
+            q = q.Where(a => empIdsAtBranch.Contains(a.EmployeeId));
+
+        var rows = await q.ToListAsync();
 
         // Sortierung Vorname → Nachname (Walter-Konvention).
         rows = rows

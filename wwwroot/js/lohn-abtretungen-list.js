@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // LOHNABTRETUNGEN — HR-Hub Liste (Walter 02.08.2026)
-// Filiale = globaler Sidebar-Selektor. Sortierung Vorname.
-// Dokument-Pflicht: Badge / 👁 Doku analog Bewilligungen.
+// Filiale = globaler Sidebar-Selektor (inkl. «Alle Filialen»).
+// Sortierung Vorname. Dokument-Pflicht wie Bewilligungen.
 // ══════════════════════════════════════════════
 
 async function laListInit() {
@@ -12,38 +12,47 @@ async function laListInit() {
     const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
         ? fixedCompanyProfileId
         : null;
-    const branch = (typeof allBranches !== 'undefined' && Array.isArray(allBranches))
+    const branch = (typeof allBranches !== 'undefined' && Array.isArray(allBranches) && cid)
         ? allBranches.find(b => b.id === cid)
         : null;
+    const allBranchesMode = !cid;
+
     if (banner) {
-        const missingHint = '';
-        banner.innerHTML = branch
-            ? `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''}${missingHint}`
-            : 'Bitte oben links eine Filiale wählen.';
-    }
-    if (!cid) {
-        tbody.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Filiale gewählt</td></tr>';
-        return;
+        banner.innerHTML = allBranchesMode
+            ? 'Filiale: Alle Filialen'
+            : (branch
+                ? `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''}`
+                : 'Filiale unbekannt');
     }
 
     tbody.innerHTML = '<tr><td colspan="9" style="padding:20px;text-align:center;color:#94a3b8">Lade…</td></tr>';
     try {
-        const res = await fetch(`/api/employee-lohn-assignments?companyProfileId=${cid}`, { headers: ah() });
+        const url = allBranchesMode
+            ? '/api/employee-lohn-assignments'
+            : `/api/employee-lohn-assignments?companyProfileId=${cid}`;
+        const res = await fetch(url, { headers: ah() });
         if (!res.ok) {
             tbody.innerHTML = '<tr><td colspan="9" style="padding:14px;color:#dc2626">Fehler beim Laden</td></tr>';
             return;
         }
         const list = await res.json();
         if (!list.length) {
-            tbody.innerHTML = '<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Lohnabtretungen in dieser Filiale</td></tr>';
+            tbody.innerHTML = `<tr><td colspan="9" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">${
+                allBranchesMode
+                    ? 'Keine Lohnabtretungen erfasst'
+                    : 'Keine Lohnabtretungen in dieser Filiale'
+            }</td></tr>`;
             return;
         }
         const missing = list.filter(r => !r.hasDokument).length;
-        if (banner && branch) {
+        if (banner) {
+            const scope = allBranchesMode
+                ? 'Filiale: Alle Filialen'
+                : `Filiale: ${branch?.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch?.branchName || branch?.companyName || ''}`;
             const badge = missing === 0
                 ? `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac">📄 Doku ✓</span>`
                 : `<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">● ${missing} ohne Dokument</span>`;
-            banner.innerHTML = `Filiale: ${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName || ''} ${badge}`;
+            banner.innerHTML = `${scope} ${badge}`;
         }
         const esc = (s) => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
         const fmt = (n) => (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
