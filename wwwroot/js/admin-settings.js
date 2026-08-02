@@ -128,14 +128,22 @@ async function bePlzLookup(rawPlz) {
             return;
         }
         if (locs.length === 1) {
-            ortEl.value = locs[0].gemeindename;
-            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${locs[0].gemeindename} (${locs[0].kantonskuerzel})</span>`;
+            const ortName = (typeof stripCityCantonSuffix === 'function'
+                ? stripCityCantonSuffix(locs[0].ortschaftsname || locs[0].gemeindename)
+                : (locs[0].ortschaftsname || locs[0].gemeindename));
+            ortEl.value = ortName;
+            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}</span>`;
             if (list) list.innerHTML = '';
             return;
         }
         // Mehrere Treffer → Datalist mit Vorschlägen, Ort bleibt leer/aktuell
         if (list) {
-            list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
+            list.innerHTML = locs.map(l => {
+                const n = (typeof stripCityCantonSuffix === 'function'
+                    ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
+                    : (l.ortschaftsname || l.gemeindename));
+                return `<option value="${n}"></option>`;
+            }).join('');
         }
         if (hint) hint.innerHTML = `<span style="color:#6b6152">${locs.length} Gemeinden — bitte im Ort-Feld auswählen oder tippen.</span>`;
     } catch { /* still */ }

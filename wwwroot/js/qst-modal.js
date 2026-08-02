@@ -27,7 +27,9 @@ async function openQstModal(employeeId, employeeData) {
 
     // Stammdaten anzeigen
     const permitName = employeeData?.permitTypeName ?? employeeData?.permitType ?? '–';
-    const wohnort    = [employeeData?.zipCode, employeeData?.city].filter(Boolean).join(' ') || '–';
+    const wohnortCity = (typeof stripCityCantonSuffix === 'function')
+        ? stripCityCantonSuffix(employeeData?.city) : (employeeData?.city || '');
+    const wohnort    = [employeeData?.zipCode, wohnortCity].filter(Boolean).join(' ') || '–';
     const nat        = employeeData?.nationalityCode ?? employeeData?.nationality ?? '–';
     const zivil      = employeeData?.zivilstand ?? employeeData?.maritalStatus ?? '–';
     const kantonCode = employeeData?.cantonCode;

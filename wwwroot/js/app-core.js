@@ -19,6 +19,20 @@ function modelDisplay(m) {
     return m === 'UTP' ? 'FLEX' : (m || '');
 }
 
+// Ortschaft ohne Kantons-Suffix anzeigen/speichern (Walter 02.08.2026):
+// «Sursee (LU)» / «Sursee LU» → «Sursee». Kanton gehört ins eigene Feld.
+function stripCityCantonSuffix(s) {
+    let t = String(s || '').trim();
+    if (!t) return '';
+    const paren = t.match(/^(.*?)\s*\(([A-Za-z]{2})\)\s*$/);
+    if (paren) t = paren[1].trim();
+    const parts = t.split(/\s+/).filter(Boolean);
+    if (parts.length > 1 && /^[A-Za-z]{2}$/.test(parts[parts.length - 1]))
+        t = parts.slice(0, -1).join(' ');
+    return t;
+}
+window.stripCityCantonSuffix = stripCityCantonSuffix;
+
 // ── CHF-Beträge immer mit 2 Nachkommastellen anzeigen (Walter 08.07.2026) ──
 // Gilt für alle <input type="number" step="0.01"> (= CHF-/Betragsfelder).
 // WICHTIG: es wird nur AUFGEFÜLLT (20.4 → 20.40, 150 → 150.00), NIE gerundet —

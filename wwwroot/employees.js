@@ -1295,8 +1295,7 @@ function loadUebersichtTab() {
     //    ov-Inputs spiegeln ihre Werte beim Speichern in die (versteckten)
     //    ef-*-Inputs des Personal-Tabs und rufen saveEmpEdit() — derselbe
     //    geprüfte Save-Pfad, keine doppelten DOM-IDs. ──
-    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-        + (emp.cantonCode ? ' ' + emp.cantonCode : '');
+    const adresse = [emp.street, [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     // Edit-Felder im TEXT-Look (Walter 17.07.2026: grosse Input-Kaesten
     // zerstoerten die ruhige Karte): sehen aus wie Werte, nur mit dezenter
     // gestrichelter Unterlinie — erst bei Fokus wird der Rahmen sichtbar.
@@ -1335,9 +1334,9 @@ function loadUebersichtTab() {
             </div>
             <div class="ov-pf ov-pf-ortkt">
                 <div class="ov-ortkt">
-                    <div class="ov-pf ov-pf-city" title="${esc(emp.city || '')}">
+                    <div class="ov-pf ov-pf-city" title="${esc(stripCityCantonSuffix(emp.city) || '')}">
                         <div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
-                        <div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div>
+                        <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
                     </div>
                     <div class="ov-pf ov-pf-kt">
                         <div class="ov-pfl">Kt.</div>
@@ -3784,7 +3783,7 @@ async function openQstFromTab(entryId) {
         emp.permitType
             ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
             : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : '–'));
-    setTxt('qstWohnortDisplay',   [emp.zipCode, emp.city].filter(Boolean).join(' ') || '–');
+        setTxt('qstWohnortDisplay',   [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' ') || '–');
     // Nationalität immer als Volltext (Walter-Vorgabe 14.05.2026) — der
     // Backend liefert nationalityName als Klartext (AppText → ISO-Tabelle).
     setTxt('qstNatDisplay',       emp.nationalityName ?? emp.nationality ?? '–');
@@ -4049,7 +4048,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             let addrBadge = '';
             if (m.alternativeAddress) {
                 const a = m.alternativeAddress;
-                const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
+                const ort = [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' ');
                 const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
@@ -4817,7 +4816,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
-        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(stripCityCantonSuffix(emp.city))}" ${ewInput}>`)}
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
     </div>
@@ -5039,9 +5038,11 @@ async function plzLookup(rawPlz) {
     // Eindeutiger Treffer → automatisch setzen
     if (locs.length === 1) {
         const l = locs[0];
-        cityInput.value   = l.gemeindename;
+        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
+        cityInput.value   = ortName;
         kantonSelect.value = l.kantonskuerzel;
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+        // Ortschaft ohne Kanton in Klammern (Walter 02.08.2026)
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
         return;
     }
 
@@ -5065,23 +5066,25 @@ function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
 
     const dl = document.createElement('datalist');
     dl.id = dlId;
+    const locName = l => stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
     dl.innerHTML = locs.map(l => {
         const bfs = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
-        return `<option value="${esc(l.gemeindename)}" data-kanton="${l.kantonskuerzel}" data-bfs="${bfs}">${l.kantonskuerzel}</option>`;
+        return `<option value="${esc(locName(l))}" data-kanton="${l.kantonskuerzel}" data-bfs="${bfs}"></option>`;
     }).join('');
     cityEl.setAttribute('list', dlId);
     cityEl.parentElement?.appendChild(dl);
 
     // Wenn aktueller Wert schon einer der Treffer ist → Kanton/BFS sofort syncen
-    const pre = locs.find(l => l.gemeindename === cityEl.value);
+    const pre = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
     if (pre) {
         if (cantonEl) cantonEl.value = pre.kantonskuerzel;
         if (bfsEl)    bfsEl.value    = pre.bfsNr ?? pre.bfsNumber ?? pre.bfs_number ?? '';
+        cityEl.value = locName(pre);
     }
 
     // Bei jeder Änderung im Ort-Feld den Kanton aktualisieren falls Match
     cityEl.oninput = () => {
-        const match = locs.find(l => l.gemeindename === cityEl.value);
+        const match = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
         if (match) {
             if (cantonEl) cantonEl.value = match.kantonskuerzel;
             if (bfsEl)    bfsEl.value    = match.bfsNr ?? match.bfsNumber ?? match.bfs_number ?? '';
@@ -5090,7 +5093,7 @@ function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
 
     if (hint) {
         hint.innerHTML = pre
-            ? `<span style="color:#16a34a">✓ ${esc(pre.gemeindename)} (${pre.kantonskuerzel})</span>
+            ? `<span style="color:#16a34a">✓ ${esc(locName(pre))}</span>
                <span style="color:#94a3b8;font-size:11.5px;margin-left:6px">— ${locs.length} Gemeinden für PLZ ${plz}; Ort-Feld öffnen für andere Auswahl.</span>`
             : `<span style="color:#475569">PLZ ${plz} → ${locs.length} Gemeinden — im Ort-Feld auswählen oder frei tippen.</span>`;
     }
@@ -5622,7 +5625,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
     if (summaryEl && emp) {
         const parts = [
             emp.street,
-            [emp.zipCode, emp.city].filter(Boolean).join(' '),
+            [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' '),
             emp.country && emp.country.toLowerCase() !== 'schweiz' ? emp.country : null,
         ].filter(Boolean);
         summaryEl.textContent = parts.length ? parts.join(', ') : '— keine Hauptadresse erfasst —';
@@ -5641,7 +5644,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
                     const summary = [
                         a.description || null,
                         [a.street, a.houseNumber].filter(Boolean).join(' '),
-                        [a.zipCode, a.city].filter(Boolean).join(' '),
+                        [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' '),
                         a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : null,
                     ].filter(Boolean).join(' · ');
                     opt.textContent = summary || `Adresse #${a.id}`;
@@ -10988,10 +10991,11 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     }
     if (locs.length === 1) {
         const l = locs[0];
-        cityEl.value = l.gemeindename;
+        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
+        cityEl.value = ortName;
         if (cantonEl) cantonEl.value = l.kantonskuerzel;
         if (bfsEl) bfsEl.value = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
-        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
         return;
     }
     // Mehrere Treffer → Combobox im Ort-Feld via HTML5-<datalist>.
@@ -11016,6 +11020,7 @@ async function loadEmployeeAddressesTab(employeeId) {
         if (gen !== window._addrLoadGen) return;
         if (!res.ok) {
             els.forEach(el => { el.innerHTML = ''; });
+            _ovUpdateAddrCardCount(0);
             return;
         }
         const list = await res.json();
@@ -11024,6 +11029,7 @@ async function loadEmployeeAddressesTab(employeeId) {
     } catch {
         if (gen !== window._addrLoadGen) return;
         els.forEach(el => { el.innerHTML = ''; });
+        _ovUpdateAddrCardCount(0);
     }
 }
 
@@ -11048,8 +11054,9 @@ function renderEmployeeAddressesList(el, list) {
         if (a.description) lines.push(a.description);
         if (a.street)      lines.push(a.street + (a.street2 ? ' / ' + a.street2 : ''));
         if (a.poBox)       lines.push('Postfach ' + a.poBox);
-        const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
-        if (ort) lines.push(ort + (a.canton ? ' (' + a.canton + ')' : ''));
+        // Ortschaft ohne Kanton in Klammern (Walter 02.08.2026) — Kt. ist eigenes Feld.
+        const ort = [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' ');
+        if (ort) lines.push(ort);
         // Land nur anzeigen wenn es NICHT die Schweiz ist (Standard = "CH").
         // Beide Schreibweisen abfangen, falls noch Altdaten "Schweiz" enthalten.
         if (a.country && a.country !== 'CH' && a.country !== 'Schweiz') lines.push(a.country);
@@ -11110,7 +11117,7 @@ function openEmployeeAddressModal(existing) {
                 ${eField(_t('addr.field.street2','Strasse 2'), `<input id="empAddr-street2" class="ef-input" value="${esc(a.street2)}">`)}
                 ${eField(_t('addr.field.poBox','Postfach'),  `<input id="empAddr-poBox"   class="ef-input" value="${esc(a.poBox)}">`)}
                 ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
-                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(a.city)}" oninput="validateCity(this)">`)}
+                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(stripCityCantonSuffix(a.city))}" oninput="validateCity(this)">`)}
                 ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
                 ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
                 ${eField(_t('addr.field.country','Land'),    `<input id="empAddr-country" class="ef-input" value="${esc(a.country ?? 'CH')}">`)}
@@ -11199,7 +11206,7 @@ async function saveEmployeeAddress() {
         poBox:            val('empAddr-poBox') || null,
         bfsNumber:        val('empAddr-bfs') || null,
         zipCode:          val('empAddr-zip') || null,
-        city:             val('empAddr-city') || null,
+        city:             stripCityCantonSuffix(val('empAddr-city')) || null,
         canton:           val('empAddr-canton') || null,
         country:          val('empAddr-country') || 'CH',
         phone:            val('empAddr-phone') || null,
