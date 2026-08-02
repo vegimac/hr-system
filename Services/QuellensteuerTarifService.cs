@@ -65,21 +65,25 @@ public class QuellensteuerTarifService
 
     /// <summary>
     /// Kantonaler Mindestbetrag der monatlichen Quellensteuer.
-    /// Quelle: jeweilige Kantons-Wegleitung. Wenn QST überhaupt anfällt,
-    /// muss mindestens dieser Betrag abgezogen werden.
+    /// Quelle: jeweilige Kantons-Wegleitung / offizielle Tarifausgabe.
+    /// Wenn QST überhaupt anfällt (Brutto &gt; 0, Tarif erfasst), muss mindestens
+    /// dieser Betrag abgezogen werden — auch wenn der ESTV-%-Satz 0 ist
+    /// (tiefe Einkommensstufen speichern oft 0% + festen Frankenbetrag).
     ///
     /// Aktuell hinterlegt:
-    ///   LU — CHF 13.00/Monat (steuern.lu.ch: "Der monatliche Mindestabzug
-    ///        beträgt CHF 13.00")
+    ///   LU — CHF 13.00/Monat (steuern.lu.ch)
+    ///   AG — CHF  2.00/Monat (Tarifausgabe AG 2026: Stufen bis mind. ~1'600
+    ///        zeigen «CHF 2» bei Tarif A; gilt analog als Mindestabzug,
+    ///        Walter 02.08.2026 — Fall C2N mit Brutto ~1'369 zeigte sonst 0.00)
     ///
-    /// Andere Kantone: hier ergänzen sobald wir die offizielle Regel kennen.
-    /// Walter: bitte beim Test in jedem Kanton einmal mit Mirus vergleichen.
+    /// Andere Kantone: hier ergänzen sobald die offizielle Regel klar ist.
     /// </summary>
     public decimal? GetMindestbetrag(string kanton)
     {
         return kanton?.Trim().ToUpperInvariant() switch
         {
             "LU" => 13.00m,
+            "AG" =>  2.00m,
             _    => null
         };
     }
