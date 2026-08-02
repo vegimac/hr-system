@@ -5165,6 +5165,17 @@
                 <div class="card" style="padding:24px">
                     <!-- Filial-Banner aus globaler Sidebar. -->
                     <div id="svImpBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;padding:14px 16px 14px 18px;margin-bottom:16px;font-size:13px;color:#3f4d5e;line-height:1.75">
+                        <div style="font-weight:760;margin-bottom:8px;font-size:13.5px;color:#364152">📋 So holst du die Datei aus Mirus</div>
+                        <ol style="margin:0;padding-left:20px">
+                            <li>Gehe in <b>Mirus → Auswertungen</b>.</li>
+                            <li>Wähle <b>Auswertungen Lohn</b>.</li>
+                            <li>Wähle <b>Rückstellungsliste Saldomethode</b> (Periode = Vormonat, dessen Schlussaldo du brauchst — z.B. Juni).</li>
+                            <li>Klicke auf <b>Drucken</b>.</li>
+                            <li>Speichere als <b>Excel</b> (.xls / .xlsx).</li>
+                            <li>Lade die Datei hier hoch und wähle die <b>Migrations-Periode</b> (= Folgemonat / erster Lohnlauf, z.B. Juli).</li>
+                        </ol>
+                    </div>
                     <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:flex-end">
                         <div>
                             <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Saldomethode-Datei (XLS / XLSX)</label>
@@ -5172,18 +5183,19 @@
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
                         <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode</label>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode (Folgemonat)</label>
                             <input type="month" id="svImpPeriode" value="2026-01"
-                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white"
+                                   title="Folgemonat = erster Lohnlauf. Schlussaldo aus der Mirus-Liste wird hier als Startsaldo gespeichert.">
                         </div>
                         <button class="btn btn-primary" onclick="svImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svImpCommitBtn" onclick="svImpCommit()" disabled>Import bestätigen</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
-                        <b>Erwartete Datei:</b> Mirus „Rückstellungsliste Saldomethode" als .xls — Kostenstellen-Gruppen (z.B. „100 Crew Fix", „200 Crew Flex", „300 Management") mit MA-Zeilen.<br>
-                        <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus der Saldiübersicht in Stunden).<br>
-                        <b>Match:</b> Token-basiert auf Vor-/Nachname unter den MA der Sidebar-Filiale; bei Unklarheit oder fehlendem Match wird der MA manuell wählbar.<br>
-                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge derselben MA (905/906) werden überschrieben, nicht doppelt angelegt. Andere Vortrag-Codes (901–904, 907) bleiben unberührt. Vertragsmodell-Filter: 905 nur FLEX/MTP, 906 nur MTP/FIX/FIX-M.
+                        <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Liste Juni aus Mirus, Periode <b>Juli</b> wählen.<br>
+                        <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus dem Stunden-Saldi-Import).<br>
+                        <b>Match:</b> Token-basiert auf Vor-/Nachname unter den MA der Sidebar-Filiale (Vertrag in Vortrag-Monat oder Folgemonat, auch Austritte); bei Unklarheit manuell wählbar.<br>
+                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge 905/906 werden überschrieben. Codes 901–904 bleiben unberührt. 905 nur FLEX/MTP, 906 für FLEX (Probezeit) + MTP/FIX/FIX-M.
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
