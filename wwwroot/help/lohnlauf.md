@@ -45,7 +45,7 @@ Auf der rechten Seite, wenn du einen MA wählst, siehst du den vollständigen Lo
 - **Lohn** — Festlohn, Stunden, Ferien-Auszahlung, 13. ML usw.
 - **Abzüge** — AHV/IV/EO (5.3 %), ALV (1.1 %), NBU, KTG, BVG, Quellensteuer, LGAV.
 - **Nettolohn** — Lohn minus Abzüge.
-- **Weitere Zahlungen / Abzüge** — Familienzulagen (Kinderzulage etc.), Lohnabtretungen.
+- **Weitere Zahlungen / Abzüge** — Familienzulagen (Kinderzulage etc.), Lohnabtretungen (nur mit verknüpftem Beleg — siehe [Lohnabtretungen](#lohnabtretungen)).
 - **Auszahlungsbetrag** — was geht effektiv an die Bank.
 - **Stunden-Übersicht** (bei MTP/FIX/FIX-M): Soll · Ist · Differenz · Saldo.
 - **Saldi** (Nacht-Saldo, Ferien-Tage, Ferien-Geld, 13.-ML-Rückstellung).

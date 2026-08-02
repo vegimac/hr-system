@@ -80,7 +80,7 @@ Wann der MA einsetzbar ist. Daten aus easy@work (Einzel-Sync). Anzeige read-only
 ### Zulagen Abzüge Abtretung BVG
 - BVG-Zusatz-Mitgliedschaft (pro MA, versioniert)
 - Wiederkehrende Zulagen/Abzüge
-- Lohnabtretungen (Pfändung / Sozialamt)
+- **Lohnabtretungen** (Pfändung / Sozialamt) — Behörde + Sachbearbeiter wählen, Beleg verknüpfen (ohne Dokument greift die Abtretung im Lohn **nicht**). Bemerkung beim Erfassen vorausgefüllt mit Name, Vorname, AHV. Ausführlich: [Lohnabtretungen & Behörden](#lohnabtretungen)
 
 ### Dokumente
 Personalakte — siehe [Dokumente](#dokumente).
