@@ -1156,36 +1156,42 @@ public class EasyAtWorkTimepunchSyncService
 
         // Probezeit-Anker (Walter 29.06.2026): die Probezeit beginnt am tatsächlichen
         // 1. Arbeitstag (= erste Stempelzeit), nicht am Vertragsbeginn.
-        await AnchorProbationFromFirstStampAsync(res, ct);
+        // Beim Stempel-Sync: alle provisorischen (kein 4-Monats-Fenster).
+        await AnchorProbationFromFirstStampAsync(res, entryMin: null, ct);
 
         return res;
     }
 
     /// <summary>
-    /// <summary>
     /// On-Demand «Probezeiten nachführen» (Walter 29.06.2026, erweitert 02.08.2026):
     /// 1) Fehlende Probezeit anlegen (wenn noch kein Vertrag ProbationEndDate hat)
     ///    — Basis Eintritt / erste Stempelzeit ≥ Eintritt, Ziel = offener Vertrag.
     /// 2) Provisorische Probezeiten an erster Stempelzeit ≥ Eintritt verankern.
-    /// Ohne Stempel-Import (Import-Button bei 0 neuen Stempeln gesperrt).
+    /// Nur MA mit Eintritt in den letzten 4 Monaten (Walter 02.08.2026).
     /// </summary>
     public async Task<List<string>> RunProbationAnchorAsync(CancellationToken ct = default)
     {
         var res = new AutoSyncResult();
-        await SeedMissingProbationAsync(res, ct);
-        await AnchorProbationFromFirstStampAsync(res, ct);
+        // Lokalzeit — timestamp without time zone (Walter TIME-Regel).
+        var entryMin = DateOnly.FromDateTime(DateTime.Now.AddMonths(-4));
+        await SeedMissingProbationAsync(res, entryMin, ct);
+        await AnchorProbationFromFirstStampAsync(res, entryMin, ct);
         return res.Notes;
     }
 
     /// <summary>
     /// Legt Probezeit an, wo noch keine existiert (Sync-Split / Alt-Daten).
     /// Walter 02.08.2026: Basis = erste Stempelzeit ≥ Eintritt, sonst Eintritt.
+    /// Nur Eintritt ≥ <paramref name="entryMin"/> (Nachführen: max. 4 Monate).
     /// </summary>
-    private async Task SeedMissingProbationAsync(AutoSyncResult res, CancellationToken ct)
+    private async Task SeedMissingProbationAsync(AutoSyncResult res, DateOnly entryMin, CancellationToken ct)
     {
-        // Aktive MA mit mind. einem Vertrag, aber nirgends ProbationEndDate.
+        // Aktive MA mit Eintritt in Fenster, mind. einem Vertrag, nirgends ProbationEndDate.
+        var entryMinDt = entryMin.ToDateTime(TimeOnly.MinValue);
         var empIdsMissing = await _db.Employees.AsNoTracking()
             .Where(e => e.IsActive
+                     && e.EntryDate != null
+                     && e.EntryDate >= entryMinDt
                      && e.Employments.Any()
                      && !e.Employments.Any(em => em.ProbationEndDate != null))
             .Select(e => e.Id)
@@ -1263,14 +1269,11 @@ public class EasyAtWorkTimepunchSyncService
     /// <summary>
     /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026,
     /// präzisiert 02.08.2026): erste Stempelzeit ab Eintrittsdatum.
-    /// Geht ALLE noch NICHT verankerten Probezeiten durch (ProbationEndDate gesetzt,
-    /// ProbationStartDate == null) — auch bei mehreren Verträgen (Sync-Split).
-    ///   • erste Stempelzeit ≥ Eintritt suchen — fehlt sie, später erneut
-    ///   • Probezeit-Ende um (erste Stempelzeit − Eintritt/Beginn) verschieben
-    ///   • ProbationStartDate setzen (= Anker, läuft danach nie mehr)
-    /// Idempotent: ist der Anker einmal gesetzt, passiert nichts mehr.
+    /// <paramref name="entryMin"/>: beim Nachführen nur Eintritt ≥ diesem Datum
+    /// (4 Monate); beim Stempel-Sync <c>null</c> = alle provisorischen.
     /// </summary>
-    private async Task AnchorProbationFromFirstStampAsync(AutoSyncResult res, CancellationToken ct)
+    private async Task AnchorProbationFromFirstStampAsync(
+        AutoSyncResult res, DateOnly? entryMin, CancellationToken ct)
     {
         // Provisorische (noch nicht verankerte) Probezeiten — i.d.R. wenige.
         var candidates = await _db.Employments
@@ -1286,6 +1289,12 @@ public class EasyAtWorkTimepunchSyncService
                 .Select(e => e.EntryDate)
                 .FirstOrDefaultAsync(ct);
             DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
+
+            // Nachführen: nur Eintritt in den letzten 4 Monaten.
+            if (entryMin.HasValue)
+            {
+                if (!entry.HasValue || entry.Value < entryMin.Value) continue;
+            }
 
             // Erste Stempelzeit ab Eintritt (Walter: entscheidend für Probezeit).
             var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == emp.EmployeeId);
