@@ -927,10 +927,9 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
-    /// On-Demand: Probezeiten an die erste Stempelzeit verankern (Walter 29.06.2026),
-    /// unabhängig vom Stempel-Import (der Import-Button ist bei 0 neuen Stempeln
-    /// gesperrt → der Anker lief sonst nie). Geht alle noch nicht verankerten
-    /// Probezeiten durch und verschiebt das Ende auf den tatsächlichen 1. Arbeitstag.
+    /// On-Demand «Probezeiten nachführen» (Walter 29.06.2026 / 02.08.2026):
+    /// fehlende Probezeiten anlegen + an erster Stempelzeit ≥ Eintritt verankern.
+    /// Unabhängig vom Stempel-Import.
     /// </summary>
     [HttpPost("probation/anchor")]
     [Authorize(Roles = "admin,superuser")]
@@ -939,7 +938,7 @@ public class EasyAtWorkController : ControllerBase
         try
         {
             var notes = await _tpSync.RunProbationAnchorAsync(ct);
-            return Ok(new { anchored = notes.Count, notes });
+            return Ok(new { processed = notes.Count, anchored = notes.Count, notes });
         }
         catch (Exception ex)
         {

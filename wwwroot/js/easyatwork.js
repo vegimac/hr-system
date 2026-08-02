@@ -856,12 +856,11 @@ async function eawEmpDumpById() {
     }
 }
 
-// Probezeiten on-demand verankern (Walter 29.06.2026): unabhängig vom Stempel-
-// Import (dessen Button bei 0 neuen Stempeln gesperrt ist). Führt den Anker-Pass
-// direkt aus und zeigt, welche MA verankert wurden.
+// Probezeiten nachführen (Walter 29.06.2026 / 02.08.2026): fehlende anlegen
+// + an erster Stempelzeit ≥ Eintritt verankern. Unabhängig vom Stempel-Import.
 async function eawAnchorProbation() {
     const out = document.getElementById('eawSyncResult');
-    if (out) out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ Verankere Probezeiten…</div>`;
+    if (out) out.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ Führe Probezeiten nach…</div>`;
     try {
         const r = await fetch('/api/easywork/probation/anchor', { method: 'POST', headers: ah() });
         const j = await r.json().catch(() => ({}));
@@ -870,11 +869,12 @@ async function eawAnchorProbation() {
             return;
         }
         const notes = j.notes || [];
+        const n = j.processed ?? j.anchored ?? notes.length;
         if (out) out.innerHTML = `
             <div style="color:#166534;font-size:13px;padding:10px;background:#dcfce7;border:1px solid #bbf7d0;border-radius:8px">
-                ⚓ ${j.anchored || 0} Probezeit(en) verankert.
+                ⚓ ${n} Probezeit(en) nachgeführt (angelegt und/oder an 1. Stempelzeit ab Eintritt verankert).
             </div>
-            ${notes.length ? `<div style="margin-top:8px;color:#475569;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px">${notes.map(n => '• ' + escapeHtml(n)).join('<br>')}</div>` : ''}`;
+            ${notes.length ? `<div style="margin-top:8px;color:#475569;font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px;max-height:280px;overflow:auto">${notes.map(n => '• ' + escapeHtml(n)).join('<br>')}</div>` : '<div style="margin-top:8px;color:#64748b;font-size:12px">Nichts zu tun — alle aktiven MA haben bereits eine (verankerte) Probezeit, oder es fehlen Stempelzeiten/Filial-Probezeit-Dauer.</div>'}`;
     } catch (e) {
         if (out) out.innerHTML = `<div class="eaw-result eaw-result-err"><div class="eaw-result-title">Netzwerkfehler</div><div class="eaw-result-msg">${escapeHtml(String(e))}</div></div>`;
     }
