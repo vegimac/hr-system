@@ -4151,7 +4151,8 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: max-content minmax(150px, auto) minmax(150px, auto) auto auto;
+                grid-template-rows: max-content minmax(140px, auto) minmax(140px, auto) minmax(140px, 1fr) auto;
+                gap: 10px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -4159,10 +4160,10 @@
             .ov-vertraege-ktg { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
                 grid-row: 4;
-                height: auto;
-                min-height: 0;
+                height: 100%;
+                min-height: 140px;
                 max-height: none;
-                align-self: start;
+                align-self: stretch;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full {
                 grid-row: 5;
