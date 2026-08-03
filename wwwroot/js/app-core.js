@@ -931,8 +931,9 @@ function showPage(name) {
     if (name === 'aerzte' && typeof aerzteInit === 'function') aerzteInit();
     if (name === 'lohn') {
         // initLohnPage ist async (befüllt Periode-Selects). Modus wird DANACH
-        // automatisch je nach Akonto-Status der Periode gewählt (Walter 16.05.2026):
-        // Akonto noch nicht AUSBEZAHLT → Akonto-Modus, sonst Definitiv.
+        // automatisch je nach Status der Periode gewählt (Walter 16.05.2026 /
+        // präzisiert 03.08.2026): Definitiv schon provisorisch/abgeschlossen
+        // oder Akonto AUSBEZAHLT/UEBERSPRUNGEN → Definitiv; sonst Akonto.
         // _autoSelectLohnMode ruft setLohnMode mit dem richtigen Modus auf;
         // beides triggert weiter den Auto-Select des ersten MA (in akWfRefresh
         // bzw. loadLohnList).

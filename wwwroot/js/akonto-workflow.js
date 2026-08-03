@@ -192,12 +192,13 @@ function lohnTopRefresh() {
     _checkDefinitivLock();
 }
 
-// Walter 16.05.2026: beim Aufruf Lohnverwaltung soll automatisch der richtige
-// Modus aktiv sein. Logik:
-//   • Akonto-Lauf der aktuellen Periode noch nicht AUSBEZAHLT → Akonto-Modus
-//   • Akonto-Lauf AUSBEZAHLT (oder kein Akonto-Termin = OFFEN) → Definitiv-Modus
-// Nutzt die /status-Antwort für die aktuell in den Selects gewählte Periode.
-// Fallback bei Fehler / fehlenden Daten: persistierte Wahl (Default 'akonto').
+// Walter 16.05.2026 / präzisiert 03.08.2026: beim Aufruf Lohnverwaltung
+// automatisch der richtige Modus. Logik:
+//   • Definitiv schon provisorisch/abgeschlossen → Definitiv
+//   • Akonto AUSBEZAHLT / UEBERSPRUNGEN → Definitiv
+//   • Akonto Mid-flight (IN_BEARBEITUNG_GF / BEI_HR / HR_FREIGEGEBEN) → Akonto
+//   • Akonto OFFEN (noch nicht gestartet) → Akonto (Default Mitte Monat)
+// Fallback bei Fehler: persistierte Wahl.
 async function _autoSelectLohnMode() {
     const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) || null;
     const year     = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
@@ -209,7 +210,13 @@ async function _autoSelectLohnMode() {
                                   { headers: ah(), cache: 'no-store' });
             if (r.ok) {
                 const d = await r.json();
-                mode = (d.akontoStatus === 'AUSBEZAHLT') ? 'definitiv' : 'akonto';
+                const def = d.definitivStatus || 'offen';
+                const defAdvanced = def === 'provisorisch_abgeschlossen' || def === 'abgeschlossen';
+                const ak = d.akontoStatus || 'OFFEN';
+                if (defAdvanced || ak === 'AUSBEZAHLT' || ak === 'UEBERSPRUNGEN')
+                    mode = 'definitiv';
+                else
+                    mode = 'akonto';
             }
         } catch { /* Fallback bleibt _akWfMode */ }
     }

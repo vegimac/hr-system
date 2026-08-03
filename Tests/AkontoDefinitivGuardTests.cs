@@ -13,6 +13,7 @@ public class AkontoDefinitivGuardTests
     [InlineData("BEI_HR", "offen", false)]
     [InlineData("IN_BEARBEITUNG_GF", "provisorisch_abgeschlossen", true)]
     [InlineData("BEI_HR", "abgeschlossen", true)]
+    [InlineData("OFFEN", "provisorisch_abgeschlossen", true)]
     public void AkontoStrangFertig(string ak, string def, bool expected)
         => Assert.Equal(expected, AkontoDefinitivGuard.IsAkontoStrangFertig(ak, def));
 
@@ -22,5 +23,6 @@ public class AkontoDefinitivGuardTests
         Assert.False(AkontoDefinitivGuard.IsPeriodeKomplett("AUSBEZAHLT", "provisorisch_abgeschlossen"));
         Assert.True(AkontoDefinitivGuard.IsPeriodeKomplett("OFFEN", "abgeschlossen"));
         Assert.True(AkontoDefinitivGuard.IsPeriodeKomplett("IN_BEARBEITUNG_GF", "abgeschlossen"));
+        Assert.True(AkontoDefinitivGuard.IsPeriodeKomplett("UEBERSPRUNGEN", "abgeschlossen"));
     }
 }
