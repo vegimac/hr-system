@@ -1333,6 +1333,13 @@
                         <div class="admin-card-title">Datenaufbewahrung</div>
                         <div class="admin-card-desc">Stempelzeiten automatisch löschen (Aufbewahrung in Jahren)</div>
                     </div>
+                    <div class="admin-card" onclick="showPage('daten-fix')">
+                        <div class="admin-card-icon" style="background:#fee2e2;color:#991b1b">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                        </div>
+                        <div class="admin-card-title">Daten-Fix</div>
+                        <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
+                    </div>
                     <div class="admin-card" onclick="showPage('perioden')">
                         <div class="admin-card-icon" style="background:#fef3c7;color:#92400e">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1610,6 +1617,43 @@
                             <button class="btn btn-primary" onclick="saveRetentionYears()">Speichern</button>
                             <span id="retentionYearsMsg" style="font-size:12.5px"></span>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DATEN-FIX (Admin) — Personalnummer u.a. (Walter 03.08.2026) -->
+            <div class="page liquid-mask" id="page-daten-fix">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Daten-Fix</h1>
+                        <p class="page-sub">Admin-Korrekturen — bewusst kein Alltagswerkzeug für GF/HR</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:22px 24px;max-width:640px">
+                        <div style="font-weight:700;color:#0f172a;font-size:15px;margin-bottom:6px">Personalnummer ändern</div>
+                        <div style="font-size:13px;color:#64748b;margin-bottom:16px;line-height:1.55">
+                            Wenn in easy@work die Personalnummer korrigiert wurde und der Einzel-Sync die Person
+                            nicht mehr findet: hier die Nummer in OneCrew nachziehen.
+                            Geändert wird nur <b>employee.employee_number</b> (+ Postfach-Username).
+                            Die easy@work-ID bleibt. Kein Alias. Stempelzeiten hängen an der MA-ID.
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:5px">Aktuelle Nr. in OneCrew
+                                <input type="text" id="dfCurrentNumber" class="f-input" inputmode="numeric"
+                                       placeholder="z.B. 759934" style="font-variant-numeric:tabular-nums">
+                            </label>
+                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:5px">Neue Nr. (wie in easy@work)
+                                <input type="text" id="dfNewNumber" class="f-input" inputmode="numeric"
+                                       placeholder="z.B. 750103" style="font-variant-numeric:tabular-nums"
+                                       onkeydown="if(event.key==='Enter'){event.preventDefault();dfLoadPreview()}">
+                            </label>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+                            <button type="button" class="btn btn-outline" onclick="dfLoadPreview()">Prüfen</button>
+                            <span id="dfMsg" style="font-size:12.5px;color:#64748b"></span>
+                        </div>
+                        <div id="dfResult"></div>
                     </div>
                 </div>
             </div>
@@ -7154,7 +7198,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260729a"></script>
+<script src="js/app-core.js?v=20260803a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7205,6 +7249,7 @@
 <script src="js/payroll-perioden.js?v=20260704p"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260708flex"></script>
+<script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260722u"></script>
@@ -7219,7 +7264,7 @@
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260726d"></script>
 <script src="js/global-search.js?v=20260719b"></script>
-<script src="js/help-panel.js?v=20260726c"></script>
+<script src="js/help-panel.js?v=20260803a"></script>
 <script src="js/lohn-edit-lock.js?v=20260704p"></script>
 <script src="js/i18n.js?v=20260729a"></script>
 <!-- FAMILIEN MODAL -->

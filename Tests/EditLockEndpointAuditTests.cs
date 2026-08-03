@@ -47,6 +47,7 @@ public class EditLockEndpointAuditTests
         ["EcallController"]                = "eCall-SMS-Konfig + Test-Versand — keine Lohndaten",
         ["DvelopApiController"]            = "d.velop-API-Konfig + Read-only-Probe — keine Lohndaten",
         ["AppSettingsController"]          = "Globale App-Einstellung (Stempelzeiten-Aufbewahrung) — keine Lohndaten",
+        ["AdminDataFixController"]         = "Admin Daten-Fix (Personalnummer) — Stammdaten-Korrektur, kein datum-basiertes Lohn-Objekt; Audit via Interceptor",
 
         // Stammdaten / Lookups / Kataloge — Lohn-neutral
         ["BanksController"]                = "Bank-Stammdaten (SIX-Liste) — keine MA-Daten",
