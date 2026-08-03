@@ -8,14 +8,15 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Services;
 
 /// <summary>
-/// Täglicher Änderungsdigest für Mirus-Sachbearbeiter (Walter 23.07.2026).
+/// Änderungsdigest für Mirus-Sachbearbeiter (Walter 23.07.2026).
 /// Bis Mirus abgelöst ist: OneCrew pflegt Stammdaten/Verträge/Bank/QST/…,
 /// Stempelzeiten+Absenzen gehen schon automatisch. Die Sachbearbeiter
-/// brauchen morgens eine Mail mit lohnkritischen Änderungen der letzten 24 h.
+/// brauchen morgens (Mo–Fr 06:00) eine Mail mit lohnkritischen Änderungen
+/// seit dem letzten Werktag-Slot (Montag = Fr–Mo, sonst ca. 24 h).
 ///
 /// Empfänger: AppUser.ReceivesMirusChangeDigest + aktive E-Mail.
 /// Scope: Filialen aus user_branch_access (admin/superuser ohne UBA = alle).
-/// Quelle: audit_log (UTC), gefiltert auf Whitelist Entity/Feld.
+/// Quelle: audit_log, gefiltert auf Whitelist Entity/Feld.
 /// </summary>
 public class MirusChangeDigestService
 {
@@ -29,7 +30,7 @@ public class MirusChangeDigestService
         "Employee", "Employment", "EmployeeBankAccount", "EmployeeQuellensteuer",
         "EmployeePermitHistory", "EmployeeRecurringWage", "EmployeeLohnAssignment",
         "EmployeeFamilyMember", "FamilyMemberAllowance", "EmployeeBvgZusatzMember",
-        "LohnZulage"
+        "LohnZulage", "EmployeeAddress"
     };
     private static readonly HashSet<string> WatchedEntities = new(WatchedEntityList, StringComparer.Ordinal);
 
@@ -38,12 +39,13 @@ public class MirusChangeDigestService
         // FirstName/LastName bewusst NICHT — Mirus-Mail enthält nie MA-Namen (Walter 23.07.2026)
         "AhvNumber", "Street", "HouseNumber", "Zip", "City",
         "CantonCode", "Country", "Nationality", "NationalityId", "MaritalStatus",
-        "SeparatedSince", "Religion", "EntryDate", "ExitDate", "KuendigungPer",
-        "KuendigungDurch", "Austrittsgrund",
+        "MaritalStatusSince", "MaidenName", "SeparatedSince", "Religion",
+        "EntryDate", "ExitDate", "KuendigungAusgesprochenAm", "KuendigungPer",
+        "KuendigungDurch", "Austrittsgrund", "ZemisNumber", "PlaceOfOrigin",
         "IsActive", "IsPayrollExcluded", "QstBefreitDurchBehoerde",
         "QstBefreiungGueltigAb", "QstBefreiungGueltigBis", "LgavPflichtig",
         "TeilzeitUnter8hWoche", "IdPassDokumentId", "CAusweisDokumentId",
-        "BirthDate", "PhoneMobile", "Email", "Gender", "Salutation"
+        "BirthDate", "PhoneMobile", "Phone2", "Email", "Gender", "Salutation"
     };
 
     private static readonly HashSet<string> EmploymentFields = new(StringComparer.Ordinal)
@@ -60,17 +62,21 @@ public class MirusChangeDigestService
         ["Street"] = "Strasse", ["HouseNumber"] = "Hausnr.", ["Zip"] = "PLZ", ["City"] = "Ort",
         ["CantonCode"] = "Wohnkanton", ["Country"] = "Land", ["Nationality"] = "Nationalität",
         ["NationalityId"] = "Nationalität", ["MaritalStatus"] = "Zivilstand",
+        ["MaritalStatusSince"] = "Zivilstand seit", ["MaidenName"] = "Ledigname",
         ["SeparatedSince"] = "Getrennt seit", ["Religion"] = "Konfession",
-        ["EntryDate"] = "Eintritt", ["ExitDate"] = "Austritt", ["KuendigungPer"] = "Kündigung per",
+        ["EntryDate"] = "Eintritt", ["ExitDate"] = "Austritt",
+        ["KuendigungAusgesprochenAm"] = "Kündigung am", ["KuendigungPer"] = "Kündigung per",
         ["KuendigungDurch"] = "Kündigung durch",
         ["Austrittsgrund"] = "Austrittsgrund",
+        ["ZemisNumber"] = "ZEMIS-Nr.", ["PlaceOfOrigin"] = "Heimatort",
         ["IsActive"] = "Aktiv", ["IsPayrollExcluded"] = "MA ohne Lohn",
         ["QstBefreitDurchBehoerde"] = "QST Behörden-Befreiung",
         ["QstBefreiungGueltigAb"] = "Befreiung ab", ["QstBefreiungGueltigBis"] = "Befreiung bis",
         ["LgavPflichtig"] = "L-GAV pflichtig", ["TeilzeitUnter8hWoche"] = "Teilzeit &lt;8h/Wo",
         ["IdPassDokumentId"] = "Pass/ID-Dokument", ["CAusweisDokumentId"] = "C-Ausweis-Dokument",
         ["DokumentId"] = "Dokument",
-        ["BirthDate"] = "Geburtsdatum", ["PhoneMobile"] = "Mobile", ["Email"] = "E-Mail",
+        ["BirthDate"] = "Geburtsdatum", ["PhoneMobile"] = "Mobile",
+        ["Phone2"] = "Telefon 2", ["Email"] = "E-Mail",
         ["Gender"] = "Geschlecht", ["Salutation"] = "Anrede",
         ["EmploymentModelCode"] = "Vertragsmodell", ["HourlyRate"] = "Stundenlohn",
         ["MonthlySalary"] = "Monatslohn", ["MonthlySalaryFte"] = "Monatslohn 100%",
@@ -87,10 +93,17 @@ public class MirusChangeDigestService
         ["SteuerkantonName"] = "Steuerkanton", ["QstGemeinde"] = "Gemeinde",
         ["TarifCode"] = "Tarif", ["AnzahlKinder"] = "Kinder",
         ["Kirchensteuer"] = "Kirchensteuer", ["Kategorie"] = "Kategorie",
-        ["PermitTypeId"] = "Bewilligungstyp", ["Amount"] = "Betrag",
+        ["PermitTypeId"] = "Bewilligungstyp", ["PermitExpiryDate"] = "Bewilligung gültig bis",
+        ["Amount"] = "Betrag",
         ["Code"] = "Code", ["Betrag"] = "Betrag", ["Periode"] = "Periode",
         ["MonthlyAmount"] = "Monatsbetrag", ["AllowanceType"] = "Zulagenart",
-        ["MemberType"] = "Familienmitglied", ["LohnpositionId"] = "Lohnposition"
+        ["MemberType"] = "Familienmitglied", ["FamilyStatus"] = "Familienstand",
+        ["LivesInSwitzerland"] = "Wohnt in CH",
+        ["QstDeductibleFrom"] = "QST abziehbar ab", ["QstDeductibleUntil"] = "QST abziehbar bis",
+        ["LohnpositionId"] = "Lohnposition",
+        ["AddressType"] = "Adresstyp", ["ZipCode"] = "PLZ", ["Street2"] = "Adresszeile 2",
+        ["PoBox"] = "Postfach", ["Canton"] = "Kanton", ["Description"] = "Beschreibung",
+        ["IncamailDisabled"] = "Incamail aus"
     };
 
     private static readonly Dictionary<string, string> EntityTitles = new(StringComparer.Ordinal)
@@ -105,7 +118,8 @@ public class MirusChangeDigestService
         ["EmployeeFamilyMember"] = "Familie",
         ["FamilyMemberAllowance"] = "Familienzulage",
         ["EmployeeBvgZusatzMember"] = "BVG-Zusatz",
-        ["LohnZulage"] = "Perioden-Zulage/Abzug"
+        ["LohnZulage"] = "Perioden-Zulage/Abzug",
+        ["EmployeeAddress"] = "Weitere Adresse"
     };
 
     public MirusChangeDigestService(AppDbContext db, EmailService email, ILogger<MirusChangeDigestService> log)
@@ -124,8 +138,7 @@ public class MirusChangeDigestService
     public async Task<DigestRunResult> RunAsync(CancellationToken ct = default, DateTime? sinceUtc = null, DateTime? untilUtc = null)
     {
         // audit_log.created_at = timestamp without time zone, Schweizer Wanduhr.
-        // Fenster = letzte 24 h Europe/Zurich. Zusätzlich UTC-Wanduhr abdecken
-        // (ältere Audit-Zeilen vor dem Zurich-Fix). Nie Kind=Utc als Parameter.
+        // Fenster = seit letztem Werktag-06:00 (Mo deckt Fr–Mo ab). Nie Kind=Utc.
         var (since, until) = ResolveWindow(sinceUtc, untilUtc);
 
         var recipients = await _db.AppUsers.AsNoTracking()
@@ -357,6 +370,7 @@ public class MirusChangeDigestService
         var allowIds = new HashSet<int>();
         var bvgIds = new HashSet<int>();
         var zulIds = new HashSet<int>();
+        var addrIds = new HashSet<int>();
         // EmployeeIds aus JSON/Route — nötig wenn EntityId=0 und Child-Maps leer sind
         var empIdsFromAudit = new HashSet<int>();
 
@@ -379,6 +393,7 @@ public class MirusChangeDigestService
                 case "FamilyMemberAllowance": allowIds.Add(id); break;
                 case "EmployeeBvgZusatzMember": bvgIds.Add(id); break;
                 case "LohnZulage": zulIds.Add(id); break;
+                case "EmployeeAddress": addrIds.Add(id); break;
             }
         }
 
@@ -430,6 +445,10 @@ public class MirusChangeDigestService
             : (await _db.LohnZulagen.AsNoTracking()
                 .Where(b => zulIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
               .ToDictionary(b => b.Id, b => b.EmployeeId);
+        var addrMap = addrIds.Count == 0 ? new Dictionary<int, int>()
+            : (await _db.EmployeeAddresses.AsNoTracking()
+                .Where(b => addrIds.Contains(b.Id)).Select(b => new { b.Id, b.EmployeeId }).ToListAsync(ct))
+              .ToDictionary(b => b.Id, b => b.EmployeeId);
 
         // Alle betroffenen MA — inkl. JSON/Route (CREATE mit EntityId=0)
         var allEmpIds = new HashSet<int>(empIds);
@@ -444,6 +463,7 @@ public class MirusChangeDigestService
         foreach (var id in allowMap.Values) allEmpIds.Add(id);
         foreach (var id in bvgMap.Values) allEmpIds.Add(id);
         foreach (var id in zulMap.Values) allEmpIds.Add(id);
+        foreach (var id in addrMap.Values) allEmpIds.Add(id);
         allEmpIds.Remove(0);
 
         // Personalnummer + Name + Filiale erst NACH vollständiger ID-Auflösung laden
@@ -537,6 +557,9 @@ public class MirusChangeDigestService
                         break;
                     case "LohnZulage":
                         if (zulMap.TryGetValue(entityId, out var ze)) employeeId ??= ze;
+                        break;
+                    case "EmployeeAddress":
+                        if (addrMap.TryGetValue(entityId, out var ade)) employeeId ??= ade;
                         break;
                 }
             }
@@ -673,6 +696,27 @@ public class MirusChangeDigestService
                         : $"{title}: Dokument hinterlegt («{name}»)";
                 }
                 return $"{title}: neu erfasst";
+            }
+            if (a.EntityType == "EmployeeAddress")
+            {
+                if (flat != null && flat.TryGetValue("AddressType", out var at)
+                    && !string.IsNullOrWhiteSpace(at))
+                    return $"{title}: neu erfasst ({at})";
+                return $"{title}: neu erfasst";
+            }
+            if (a.EntityType == "EmployeeFamilyMember")
+            {
+                var bits = new List<string>();
+                if (flat != null)
+                {
+                    if (flat.TryGetValue("MemberType", out var mt) && !string.IsNullOrWhiteSpace(mt))
+                        bits.Add(mt);
+                    if (flat.TryGetValue("PermitTypeId", out var pt) && !string.IsNullOrWhiteSpace(pt) && pt != "0")
+                        bits.Add("mit Bewilligung");
+                }
+                return bits.Count > 0
+                    ? $"{title}: neu erfasst ({string.Join(", ", bits)})"
+                    : $"{title}: neu erfasst";
             }
             return $"{title}: neu erfasst";
         }
@@ -886,11 +930,11 @@ public class MirusChangeDigestService
             text.AppendLine();
         }
 
-        html.Append("<p style=\"color:#64748b;font-size:12.5px;margin-top:24px\">Stempelzeiten und Absenzen sind nicht enthalten — die laufen schon automatisch nach Mirus.<br>Diese Mail wird täglich um 06:00 an Empfänger mit dem Flag «Mirus-Änderungsmail» gesendet.</p>");
+        html.Append("<p style=\"color:#64748b;font-size:12.5px;margin-top:24px\">Stempelzeiten und Absenzen sind nicht enthalten — die laufen schon automatisch nach Mirus.<br>Diese Mail wird Mo–Fr um 06:00 an Empfänger mit dem Flag «Mirus-Änderungsmail» gesendet (Montag deckt Freitag–Montag ab).</p>");
         html.Append("</div>");
         text.AppendLine();
         text.AppendLine("Stempelzeiten/Absenzen sind nicht enthalten (laufen automatisch).");
-        text.AppendLine("Flag «Mirus-Änderungsmail» in der Benutzerverwaltung steuert den Empfang.");
+        text.AppendLine("Flag «Mirus-Änderungsmail» in der Benutzerverwaltung steuert den Empfang (Mo–Fr 06:00).");
 
         return (html.ToString(), text.ToString());
     }
@@ -911,8 +955,9 @@ public class MirusChangeDigestService
     }
 
     /// <summary>
-    /// Fenster letzte 24 h: Schweizer Wanduhr + UTC-Wanduhr (breiter),
-    /// damit Alt-Einträge vor dem Zurich-Fix nicht verloren gehen.
+    /// Fenster seit letztem Mo–Fr-06:00-Slot (Walter 30.07.2026):
+    /// Di–Fr ≈ 24 h, Mo = Fr 06:00–Mo (Wochenende mit abdecken).
+    /// Zusätzlich UTC-Wanduhr abdecken (Alt-Einträge vor dem Zurich-Fix).
     /// Ergebnis immer Kind=Unspecified für Npgsql.
     /// </summary>
     private static (DateTime Since, DateTime Until) ResolveWindow(DateTime? sinceUtc, DateTime? untilUtc)
@@ -920,18 +965,32 @@ public class MirusChangeDigestService
         if (sinceUtc.HasValue || untilUtc.HasValue)
         {
             var until = AsUnspecified(untilUtc ?? SwissNow());
-            var since = AsUnspecified(sinceUtc ?? until.AddHours(-24));
+            var since = AsUnspecified(sinceUtc ?? PreviousWeekday0600(until));
             return (since, until);
         }
 
         var nowZ = SwissNow();
         var nowUtcFace = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-        // bis = spätere Wanduhr, von = frühere von beiden − 24 h
         var untilW = nowZ >= nowUtcFace ? nowZ : nowUtcFace;
-        var sinceZ = nowZ.AddHours(-24);
-        var sinceU = nowUtcFace.AddHours(-24);
+        var sinceZ = PreviousWeekday0600(nowZ);
+        // gleiche Länge zurück auf der UTC-Wanduhr (Alt-Audit vor Zurich-Fix)
+        var spanHours = Math.Max(24, (nowZ - sinceZ).TotalHours);
+        var sinceU = nowUtcFace.AddHours(-spanHours);
         var sinceW = sinceZ <= sinceU ? sinceZ : sinceU;
         return (sinceW, untilW);
+    }
+
+    /// <summary>
+    /// Letzter Mo–Fr 06:00 strikt vor dem heutigen 06:00-Slot
+    /// (bei Lauf Mo 06:00 → Fr 06:00; bei Di 06:00 → Mo 06:00).
+    /// </summary>
+    public static DateTime PreviousWeekday0600(DateTime nowLocal)
+    {
+        var todaySlot = new DateTime(nowLocal.Year, nowLocal.Month, nowLocal.Day, 6, 0, 0, DateTimeKind.Unspecified);
+        var prev = todaySlot.AddDays(-1);
+        while (prev.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+            prev = prev.AddDays(-1);
+        return DateTime.SpecifyKind(prev, DateTimeKind.Unspecified);
     }
 
     private static DateTime SwissNow()

@@ -69,6 +69,7 @@ Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen
 | **Verwarnung** | Verwarnung erfassen, Formular, Liste der bisherigen Verwarnungen |
 | **Probezeit** | **Probezeit Gespräch**-PDF blanko; ein Gespräch mit Datum + Protokoll-Verknüpfung; Kündigung während der Probezeit |
 | **Arbeitszeugnis / Zwischenzeugnis / Arbeitsbestätigung** | Zeugnis-Modal öffnen und PDF erzeugen |
+| **Arbeits Aufforderung** | Formular «Aufforderung zur Arbeit» (bei unentschuldigtem Fernbleiben) — PDF erzeugen und ablegen |
 | **Postfach-Passwort** | Setzt das MA-Postfach-Passwort auf die Personalnummer zurück und hebt eine Login-Sperre auf |
 | **Onboarding-QR** | QR-Code für den ersten Postfach-Login des MA |
 | **Face ID zurücksetzen** | Löscht alle Passkeys/Face-ID-Geräte des MA — er meldet sich wieder mit Passwort an |
