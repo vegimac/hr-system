@@ -730,7 +730,15 @@ async function loadLohnList() {
         const periodEnd   = new Date(y, m, 0);                         // letzter Tag des Monats
         const periodStart = new Date(y, m - 1, 1);                     // erster Tag des Monats
         const active = emps
-            .filter(e => e.isActive && !e.isPayrollExcluded)
+            // Walter-Bug 03.08.2026 (Patricia Rei Rodrigues Sobreira, Austritt
+            // 31.07.): nach dem Austritt setzt der Sync isActive=false — der MA
+            // fiel damit aus seinem LETZTEN Lohnmonat. Analog zum Vertrags-Fix
+            // vom 31.05.2026 (Valmira Alili) gilt: massgeblich ist der Vertrag
+            // in der Periode, nicht das Aktiv-Flag. Inaktive MA bleiben drin,
+            // wenn ihr Austritt in oder nach der Periode liegt.
+            .filter(e => !e.isPayrollExcluded)
+            .filter(e => e.isActive
+                || (e.exitDate && new Date(String(e.exitDate).slice(0, 10)) >= periodStart))
             .map(e => {
                 // Vertrag für diese Filiale, der in der Periode gültig ist.
                 // Walter-Vorgabe 31.05.2026: KEIN v.isActive-Check mehr — bei Austritt
