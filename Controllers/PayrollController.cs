@@ -32,6 +32,7 @@ public class PayrollController : HrControllerBase
     private readonly LohnSaldoListePdfService _saldoListePdf;
     private readonly FibuJournalService _fibuJournal;
     private readonly SnapshotRecomputeService _snapshotRecompute;
+    private readonly AuswertungenReportPdfService _auswertungenPdf;
 
     public PayrollController(
         AppDbContext db,
@@ -46,7 +47,8 @@ public class PayrollController : HrControllerBase
         QstPflichtCheckService qstCheck,
         LohnSaldoListePdfService saldoListePdf,
         FibuJournalService fibuJournal,
-        SnapshotRecomputeService snapshotRecompute) : base(db)
+        SnapshotRecomputeService snapshotRecompute,
+        AuswertungenReportPdfService auswertungenPdf) : base(db)
     {
         _tarifService   = tarifService;
         _ktgService     = ktgService;
@@ -60,6 +62,7 @@ public class PayrollController : HrControllerBase
         _saldoListePdf  = saldoListePdf;
         _fibuJournal    = fibuJournal;
         _snapshotRecompute = snapshotRecompute;
+        _auswertungenPdf = auswertungenPdf;
     }
 
     // Buchungslisten (Fibu-Journal, Saldo-Listen) gibt es erst, wenn der
@@ -444,6 +447,37 @@ public class PayrollController : HrControllerBase
         });
     }
 
+    // GET /api/payroll/sollstunden-report/pdf — gleiche Daten wie JSON, A4 quer
+    // (Walter 03.08.2026).
+    [HttpGet("sollstunden-report/pdf")]
+    public async Task<IActionResult> SollstundenReportPdf(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month,
+        [FromQuery] string? stichtag = null)
+    {
+        var json = await SollstundenReport(companyProfileId, year, month, stichtag);
+        if (json is not OkObjectResult ok || ok.Value is null) return json;
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var payload = JsonSerializer.SerializeToElement(ok.Value, camel);
+        var rowList = payload.TryGetProperty("rows", out var rowsEl)
+            ? JsonSerializer.Deserialize<List<AuswertungenReportPdfService.SollRow>>(rowsEl.GetRawText(), camel)
+              ?? new List<AuswertungenReportPdfService.SollRow>()
+            : new List<AuswertungenReportPdfService.SollRow>();
+
+        var branch = await BranchLabelAsync(companyProfileId);
+        var pdf = _auswertungenPdf.GenerateSollstunden(
+            branch,
+            payload.GetProperty("periodFrom").GetString() ?? "",
+            payload.GetProperty("periodTo").GetString() ?? "",
+            payload.GetProperty("stichtag").GetString() ?? "",
+            payload.GetProperty("daysToStichtag").GetInt32(),
+            payload.GetProperty("daysInMonth").GetInt32(),
+            rowList);
+
+        var fname = $"Sollstunden_{year}-{month:D2}.pdf";
+        return File(pdf, "application/pdf", fname);
+    }
+
     // GET /api/payroll/ferien-report?companyProfileId=X&year=Y&month=M
     // Ferien-Anspruch pro MA in TAGEN, aufgelaufen von Januar bis und mit Stichtag-
     // Monat M. Walter-Vorgabe 20.06.2026: es gibt noch keine Ferien-Saldi — also
@@ -695,6 +729,44 @@ public class PayrollController : HrControllerBase
             count = rows.Count,
             rows
         });
+    }
+
+    // GET /api/payroll/ferien-report/pdf — A4 quer (Walter 03.08.2026).
+    [HttpGet("ferien-report/pdf")]
+    public async Task<IActionResult> FerienReportPdf(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        var json = await FerienReport(companyProfileId, year, month);
+        if (json is not OkObjectResult ok || ok.Value is null) return json;
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var payload = JsonSerializer.SerializeToElement(ok.Value, camel);
+        var rowList = payload.TryGetProperty("rows", out var rowsEl)
+            ? JsonSerializer.Deserialize<List<AuswertungenReportPdfService.FerienRow>>(rowsEl.GetRawText(), camel)
+              ?? new List<AuswertungenReportPdfService.FerienRow>()
+            : new List<AuswertungenReportPdfService.FerienRow>();
+
+        var branch = await BranchLabelAsync(companyProfileId);
+        var pdf = _auswertungenPdf.GenerateFerien(
+            branch, year, month,
+            payload.TryGetProperty("nachtWarnTotal", out var nw) ? nw.GetInt32() : 0,
+            rowList);
+
+        return File(pdf, "application/pdf", $"Ferien_Feiertage_Nacht_{year}-{month:D2}.pdf");
+    }
+
+    private async Task<string> BranchLabelAsync(int companyProfileId)
+    {
+        var b = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == companyProfileId)
+            .Select(c => new { c.RestaurantCode, c.City, c.BranchName, c.CompanyName })
+            .FirstOrDefaultAsync();
+        if (b is null) return $"Filiale {companyProfileId}";
+        var ort = !string.IsNullOrWhiteSpace(b.City) ? b.City
+            : (b.BranchName ?? b.CompanyName ?? "");
+        return string.IsNullOrWhiteSpace(b.RestaurantCode)
+            ? ort
+            : $"{b.RestaurantCode} — {ort}".Trim(' ', '—');
     }
 
     // Diagnose: zeigt was die QST-Engine-Logik intern ENTSCHEIDEN würde, ohne

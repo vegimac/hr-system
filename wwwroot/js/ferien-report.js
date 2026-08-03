@@ -69,6 +69,30 @@ async function ferLoad() {
     }
 }
 
+// PDF A4 quer — gleiche Filter wie die Bildschirmliste (Walter 03.08.2026).
+async function ferPdf() {
+    const cp = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    if (!cp) { alert('Bitte oben im Sidebar zuerst eine Filiale wählen.'); return; }
+    const year  = document.getElementById('ferYear')?.value;
+    const month = document.getElementById('ferMonth')?.value;
+    if (!year || !month) { alert('Jahr und Monat wählen.'); return; }
+    const url = `/api/payroll/ferien-report/pdf?companyProfileId=${cp}&year=${year}&month=${month}`;
+    const fname = `Ferien_Feiertage_Nacht_${year}-${String(month).padStart(2, '0')}.pdf`;
+    try {
+        if (typeof previewUrlFetch === 'function')
+            await previewUrlFetch(url, fname, ah());
+        else {
+            const r = await fetch(url, { headers: ah(), cache: 'no-store' });
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            const blob = await r.blob();
+            if (typeof previewFileModal === 'function') await previewFileModal(blob, fname);
+            else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fname);
+        }
+    } catch (e) {
+        alert('PDF fehlgeschlagen: ' + (e?.message || e));
+    }
+}
+
 function ferSort(key) {
     if (_ferSort && _ferSort.key === key) _ferSort.dir *= -1;
     else _ferSort = { key, dir: 1 };

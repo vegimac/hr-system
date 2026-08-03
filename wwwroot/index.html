@@ -3904,6 +3904,7 @@
                             <input type="date" id="sollStichtag" class="eaw-input" style="min-width:150px">
                         </label>
                         <button class="btn-primary" onclick="sollLoad()">🔄 Laden</button>
+                        <button type="button" class="btn btn-outline" onclick="sollPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
                         <span style="font-size:12px;color:#94a3b8">Stichtag = bis und mit diesem Tag · Filiale = Sidebar</span>
                     </div>
                     <div id="sollResult"></div>
@@ -3924,6 +3925,7 @@
                             <select id="ferMonth" class="eaw-input" style="min-width:130px"></select>
                         </label>
                         <button class="btn-primary" onclick="ferLoad()">🔄 Laden</button>
+                        <button type="button" class="btn btn-outline" onclick="ferPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
                         <span style="font-size:12px;color:#94a3b8">Anspruch Jan – Stichtag-Monat · Filiale = Sidebar</span>
                     </div>
                     <div id="ferResult"></div>
@@ -7211,8 +7213,8 @@
 <script src="js/warning-config.js?v=20260722u"></script>
 <script src="js/easyatwork.js?v=20260718a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
-<script src="js/sollstunden-report.js?v=20260720j"></script>
-<script src="js/ferien-report.js?v=20260708flex"></script>
+<script src="js/sollstunden-report.js?v=20260803a"></script>
+<script src="js/ferien-report.js?v=20260803a"></script>
 <script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
