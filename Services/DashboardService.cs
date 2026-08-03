@@ -279,10 +279,17 @@ public class DashboardService
             var dueDate = em.ProbationEndDate!.Value;
             var days = (dueDate.Date - now).Days;
             var endeTxt = FormatWeekdayDateDe(dueDate);
+            // Walter 31.07.2026: wenn Probezeitgespräch erledigt (Datum + Protokoll),
+            // «Probezeit endet …» nur noch als Information — nie Wichtig/Kritisch.
+            var gespraechErledigt = em.Employee!.ProbezeitGespraech1Am.HasValue
+                                 && em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+            var sev = gespraechErledigt
+                ? "info"
+                : Severity("probation_end", days, "info", "warning");
             alerts.Add(new DashboardAlert
             {
                 Category = "probation_end",
-                Severity = Severity("probation_end", days, "info", "warning"),
+                Severity = sev,
                 Title    = days == 0
                     ? $"Probezeit endet heute · {endeTxt}"
                     : days == 1
