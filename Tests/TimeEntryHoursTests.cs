@@ -29,6 +29,24 @@ public class TimeEntryHoursTests
     }
 
     [Fact]
+    public void Flex_Beispiel_116_59_Tag_Plus_9_01_Nacht()
+    {
+        // Walter 03.08.2026: Lohn zeigte 116.59 (nur Tag), Stempel-Total 125.60.
+        // FLEX-Stundenlohn muss Absolute Stunden (= Tag+Nacht) auszahlen.
+        var h = TimeEntryHours.AbsoluteHours(totalHours: 116.59m, durationHours: 116.59m, nightHours: 9.01m);
+        Assert.Equal(125.60m, h);
+        var e = new EmployeeTimeEntry
+        {
+            TimeIn = default, // kein brauchbares In/Out → Fallback
+            TimeOut = null,
+            TotalHours = 116.59m,
+            DurationHours = 116.59m,
+            NightHours = 9.01m,
+        };
+        Assert.Equal(125.60m, TimeEntryHours.AbsoluteHours(e));
+    }
+
+    [Fact]
     public void Sync_Correct_Total_Includes_Night()
     {
         var h = TimeEntryHours.AbsoluteHours(totalHours: 173.98m, durationHours: 155.98m, nightHours: 18m);
