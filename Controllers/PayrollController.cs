@@ -215,8 +215,8 @@ public class PayrollController : HrControllerBase
         }
         catch (Exception ex)
         {
-            // Klartext statt nacktem 500 — typisch war UtcNow auf
-            // timestamp without time zone (behoben 02.08.2026).
+            // Klartext statt nacktem 500. Snapshot/Saldo = timestamptz → UtcNow
+            // (nicht DateTime.Now/Local — das war der wiederkehrende Bug 03.08.2026).
             return StatusCode(500, new {
                 error = "RECOMPUTE_FAILED",
                 message = ex.GetBaseException().Message
