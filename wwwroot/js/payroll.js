@@ -2475,10 +2475,12 @@ async function lohnRecomputeSnapshots() {
         alert(`✓ ${j.updated ?? '?'} von ${j.total ?? '?'} Lohnzetteln neu berechnet.\n\n` +
               'Erstelle das Fibu-Journal neu — Konto 1920 sollte jetzt aufgehen.');
         if (typeof lohnWfRefresh === 'function') lohnWfRefresh();
-        // Live-Slip neu laden — zeigt die frischen IST-Stunden (Tag+Nacht).
+        // Live-Slip neu laden — zeigt die frischen Werte. WICHTIG: alle 4
+        // Parameter mitgeben — ohne Filiale/Jahr/Monat lehnt der Server die
+        // Anfrage ab («One or more validation errors», Walter-Bug 03.08.2026).
         if (typeof _lohnSelectedEmpId !== 'undefined' && _lohnSelectedEmpId
             && typeof loadLohnSlip === 'function') {
-            loadLohnSlip(_lohnSelectedEmpId);
+            loadLohnSlip(_lohnSelectedEmpId, parseInt(cid), y, m);
         }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
