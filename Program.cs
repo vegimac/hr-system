@@ -675,8 +675,9 @@ using (var scope = app.Services.CreateScope())
             ('birthday',               'Geburtstage',                           TRUE,    7, NULL, 'info',     NULL,       TRUE,  11),
             ('anniversary',            'Dienstjubiläen',                        TRUE,   30, NULL, 'info',     NULL,       TRUE,  12),
             ('night_work_exam_expiring','Nachtarbeit-Bewilligung läuft ab',     TRUE,   30,    7, 'warning',  'critical', TRUE,  13),
-            ('night_work_exam_fehlt',  'Nachtarbeit-Nachweise fehlen',          TRUE, NULL, NULL, 'critical', NULL,       FALSE, 14),
+            ('night_work_exam_fehlt',  'Nachtarbeit-Arztzeugnis fehlt',         TRUE, NULL, NULL, 'critical', NULL,       FALSE, 14),
             ('night_work_exam_mismatch','Nachtarbeit-Enddatum in easy@work falsch', TRUE, NULL, NULL, 'critical', NULL,   FALSE, 15),
+            ('night_work_ausnahme_fehlt','Nachtarbeit-Ausnahmeregelung fehlt',  TRUE, NULL, NULL, 'critical', NULL,       FALSE, 23),
             ('availability_missing',   'Verfügbarkeit fehlt',                    TRUE, NULL, NULL, 'warning',  NULL,       FALSE, 16),
             ('permit_missing',         'Aufenthaltsbewilligung fehlt',           TRUE, NULL, NULL, 'critical', NULL,       FALSE, 17),
             ('night_work_untersuch_fehlt', 'Nacht Untersuch fehlt',              TRUE, NULL, NULL, 'critical', NULL,       FALSE, 18),
@@ -715,6 +716,25 @@ using (var scope = app.Services.CreateScope())
             WHERE category = 'night_work_exam_expiring' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 50,  warn_color = 'none'
             WHERE category = 'night_work_exam_fehlt' AND todo_priority = 100 AND warn_color = 'none';
+        -- Walter 31.07.2026: Arztzeugnis und Ausnahmeregelung getrennt.
+        -- Alte Sammel-Kategorie einmalig umbenennen + Kritisch.
+        -- Walter 03.08.2026: Ausnahmeregelung ebenfalls Kritisch (nicht nur Wichtig).
+        UPDATE dashboard_warning_config
+           SET label = 'Nachtarbeit-Arztzeugnis fehlt',
+               severity_base = 'critical'
+         WHERE category = 'night_work_exam_fehlt'
+           AND label = 'Nachtarbeit-Nachweise fehlen';
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('night_work_ausnahme_fehlt', 'Nachtarbeit-Ausnahmeregelung fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 23, 52, 'none')
+        ON CONFLICT (category) DO NOTHING;
+        UPDATE dashboard_warning_config
+           SET label = 'Nachtarbeit-Ausnahmeregelung fehlt',
+               severity_base = 'critical'
+         WHERE category = 'night_work_ausnahme_fehlt'
+           AND (severity_base IS DISTINCT FROM 'critical'
+                OR label IS DISTINCT FROM 'Nachtarbeit-Ausnahmeregelung fehlt');
         UPDATE dashboard_warning_config SET todo_priority = 15,  warn_color = 'red'
             WHERE category = 'minimum_wage_violation' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 45,  warn_color = 'none'
