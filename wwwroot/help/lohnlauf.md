@@ -88,7 +88,8 @@ Sobald der Definitivlauf mindestens **provisorisch abgeschlossen** ist, stehen i
 
 ## Stunden, Saldi, Rückstellungen — kurz erklärt
 
-- **Nacht-Saldo** (in Stunden) — Nachtstunden werden gesammelt, kein direkter Geld-Wert. Der MA kompensiert sie irgendwann mit Ruhetag.
+- **Arbeitsstunden (IST)** — immer die **Totalstunden** (Tag + Nacht) aus den Stempeln. Nachtstunden sind also mitbezahlt; zusätzlich fliesst 10 % der Nachtstunden in den Nacht-Saldo. Krankheit/Unfall bei MTP kürzen das **Soll** (und den Festlohn), sie werden nicht zu den IST-Stunden addiert.
+- **Nacht-Saldo** (in Stunden) — 10 % der Nachtstunden werden gesammelt. Ab ca. 9 h Saldo erfasst man eine Absenz **Nacht-Kompensation**: die Stunden werden ausbezahlt und vom Nacht-Saldo abgezogen.
 - **Ferien-Saldo (Tage)** — wie viele Ferientage hat der MA noch offen.
 - **Ferien-Geld (CHF)** — bei FLEX/MTP: Ferienanspruch in CHF (Saldo). Beim Bezug bzw. Austritt wird das ausbezahlt — nicht monatlich bei FLEX.
 - **Rückstellung 13. ML** — bei MTP/FIX/FIX-M wird der 13. monatlich angesammelt und am Auszahlungsmonat (meist November oder Dezember) komplett ausbezahlt. FLEX-MA kriegen den 13. monatlich anteilig.
