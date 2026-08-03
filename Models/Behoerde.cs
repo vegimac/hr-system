@@ -27,6 +27,10 @@ public class Behoerde
     public string? Ort        { get; set; }
 
     public string? Telefon    { get; set; }
+
+    /// <summary>Handy-/Mobilnummer der Kontaktperson (Walter 30.07.2026).</summary>
+    public string? Handy      { get; set; }
+
     public string? Email      { get; set; }
 
     /// <summary>Sachbearbeiter/in als persönliche Kontaktperson, z.B. "Jana Hrdinka".</summary>

@@ -52,6 +52,7 @@ public class BehoerdenController : ControllerBase
             Plz       = dto.Plz?.Trim(),
             Ort       = dto.Ort?.Trim(),
             Telefon   = dto.Telefon?.Trim(),
+            Handy     = dto.Handy?.Trim(),
             Email     = dto.Email?.Trim(),
             Kontaktperson      = dto.Kontaktperson?.Trim(),
             KontaktpersonRolle = dto.KontaktpersonRolle?.Trim(),
@@ -88,6 +89,7 @@ public class BehoerdenController : ControllerBase
         entry.Plz       = dto.Plz?.Trim();
         entry.Ort       = dto.Ort?.Trim();
         entry.Telefon   = dto.Telefon?.Trim();
+        entry.Handy     = dto.Handy?.Trim();
         entry.Email     = dto.Email?.Trim();
         entry.Kontaktperson      = dto.Kontaktperson?.Trim();
         entry.KontaktpersonRolle = dto.KontaktpersonRolle?.Trim();
@@ -166,6 +168,7 @@ public class BehoerdenController : ControllerBase
         plz                = b.Plz,
         ort                = b.Ort,
         telefon            = b.Telefon,
+        handy              = b.Handy,
         email              = b.Email,
         kontaktperson      = b.Kontaktperson,
         kontaktpersonRolle = b.KontaktpersonRolle,
@@ -190,6 +193,7 @@ public record BehoerdeDto(
     string? Plz,
     string? Ort,
     string? Telefon,
+    string? Handy,
     string? Email,
     string? Kontaktperson,
     string? KontaktpersonRolle,

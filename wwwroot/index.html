@@ -6240,13 +6240,19 @@
                 </div>
                 <div>
                     <label class="be-lbl">Telefon</label>
-                    <input type="text" id="beTelefon" class="be-inp" placeholder="+41 41 228 57 35">
+                    <input type="text" id="beTelefon" class="be-inp" placeholder="+41 41 228 57 35"
+                           onblur="validatePhoneBlur(this)">
+                </div>
+                <div>
+                    <label class="be-lbl">Handy</label>
+                    <input type="text" id="beHandy" class="be-inp" placeholder="+41 79 123 45 67"
+                           onblur="validatePhoneBlur(this)">
                 </div>
                 <div>
                     <label class="be-lbl">E-Mail</label>
                     <input type="text" id="beEmail" class="be-inp" placeholder="jana.hrdinka@lu.ch">
                 </div>
-                <div>
+                <div style="grid-column:span 3">
                     <label class="be-lbl">Webseite <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
                     <input type="text" id="beWebseite" class="be-inp" placeholder="https://steuern.lu.ch">
                 </div>
@@ -7269,7 +7275,7 @@
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260731t"></script>
+<script src="js/admin-settings.js?v=20260803c"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
