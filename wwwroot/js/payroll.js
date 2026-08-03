@@ -940,8 +940,8 @@ async function loadLohnList() {
                     <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${e.firstName} ${e.lastName}${corrBadge}${mwIcon}</div>
                     <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
                         <div class="lohn-emp-nr" style="flex:1;min-width:0;font-size:11px;color:${statusTextColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${statusText}${e.isCorrection && e.exitDate ? ' · ausgetreten ' + (e.exitDate.slice(8,10)+'.'+e.exitDate.slice(5,7)+'.'+e.exitDate.slice(0,4)) : ''}</div>
-                        <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center;flex-shrink:0">${modelDisplay(e.employmentModel)}</span>
                         ${e.isCorrection ? '' : qstBtnHtml}
+                        <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center;flex-shrink:0">${modelDisplay(e.employmentModel)}</span>
                     </div>
                 </div>`;
             listEl.appendChild(row);
