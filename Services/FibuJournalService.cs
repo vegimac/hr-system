@@ -342,6 +342,26 @@ public class FibuJournalService
             }
         }
 
+        // Rundungsdifferenz automatisch ausgleichen (Walter 03.08.2026):
+        // Jede Slip-Zeile ist auf Rappen gerundet, das Netto zusaetzlich auf
+        // 0.05 — ueber viele MA bleibt auf 1920 ein Rest von wenigen Rappen.
+        // Bis CHF 2.00 wird er als eigene Zeile gegen den Personalaufwand
+        // ausgeglichen (Mirus kennt dafuer die Lohnart «Rundung»). Groessere
+        // Differenzen bleiben als Warnung stehen — die deuten auf einen
+        // echten Snapshot-/Code-Fehler hin und duerfen nicht stillschweigend
+        // weggebucht werden.
+        {
+            decimal preK1920 = acc.Values.Where(l => l.Soll  == "1920").Sum(l => l.Betrag)
+                             - acc.Values.Where(l => l.Gegen == "1920").Sum(l => l.Betrag);
+            if (preK1920 != 0 && Math.Abs(preK1920) <= 2.00m)
+            {
+                if (preK1920 < 0)
+                    Add("1920", "4000", "Rundungsdifferenz", Math.Abs(preK1920));
+                else
+                    Add("4000", "1920", "Rundungsdifferenz", preK1920);
+            }
+        }
+
         var lines = acc.Values
             .OrderBy(l => l.Soll).ThenBy(l => l.Gegen)
             .ToList();
