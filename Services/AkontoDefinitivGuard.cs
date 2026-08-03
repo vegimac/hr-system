@@ -37,37 +37,43 @@ public static class AkontoDefinitivGuard
            && IsAkontoStrangFertig(akontoStatus, definitivStatus);
 
     /// <summary>
-    /// Wenn Definitiv schon fortgeschritten und Akonto noch in einem
-    /// Zwischenstatus hängt → auf UEBERSPRUNGEN setzen, Vorbereitung
-    /// löschen, bezahlte Zeilen stornieren. Idempotent.
+    /// Wenn Definitiv schon fortgeschritten und Akonto noch nicht final
+    /// (OFFEN oder Zwischenstatus) → auf UEBERSPRUNGEN setzen.
+    /// Mid-flight: Vorbereitung löschen, bezahlte Zeilen stornieren.
+    /// OFFEN → nur Status-Label (keine Phantom-Zahlungen). Idempotent.
     /// </summary>
     public static async Task<bool> TryAbandonMidFlightAsync(
         AppDbContext db, PayrollPeriode periode, int? userId, string? userName = null,
         ILogger? log = null, CancellationToken ct = default)
     {
         if (!IsDefinitivAdvanced(periode.Status)) return false;
-        if (periode.AkontoStatus is "OFFEN" or "AUSBEZAHLT" or StatusUebersprungen)
+        if (periode.AkontoStatus is "AUSBEZAHLT" or StatusUebersprungen)
             return false;
 
-        var vorher = periode.AkontoStatus;
-        var zahlungen = await db.AkontoZahlungen
-            .Where(z => z.CompanyProfileId == periode.CompanyProfileId
-                     && z.PeriodYear == periode.Year
-                     && z.PeriodMonth == periode.Month)
-            .ToListAsync(ct);
-
+        var vorher = periode.AkontoStatus ?? "OFFEN";
         int geloescht = 0, storniert = 0;
-        foreach (var z in zahlungen)
+
+        // Nur Mid-flight hat Zahlungszeilen — OFFEN ist leer.
+        if (vorher != "OFFEN")
         {
-            if (z.Status == "AUSBEZAHLT")
+            var zahlungen = await db.AkontoZahlungen
+                .Where(z => z.CompanyProfileId == periode.CompanyProfileId
+                         && z.PeriodYear == periode.Year
+                         && z.PeriodMonth == periode.Month)
+                .ToListAsync(ct);
+
+            foreach (var z in zahlungen)
             {
-                z.Status = "STORNIERT";
-                storniert++;
-            }
-            else if (z.Status != "STORNIERT")
-            {
-                db.AkontoZahlungen.Remove(z);
-                geloescht++;
+                if (z.Status == "AUSBEZAHLT")
+                {
+                    z.Status = "STORNIERT";
+                    storniert++;
+                }
+                else if (z.Status != "STORNIERT")
+                {
+                    db.AkontoZahlungen.Remove(z);
+                    geloescht++;
+                }
             }
         }
 
@@ -94,7 +100,7 @@ public static class AkontoDefinitivGuard
 
         await db.SaveChangesAsync(ct);
         log?.LogInformation(
-            "[Akonto] Filiale={Cp} {Y}-{M}: Mid-flight Akonto «{Prev}» → UEBERSPRUNGEN (Definitiv={Def})",
+            "[Akonto] Filiale={Cp} {Y}-{M}: Akonto «{Prev}» → UEBERSPRUNGEN (Definitiv={Def})",
             periode.CompanyProfileId, periode.Year, periode.Month, vorher, periode.Status);
         return true;
     }
