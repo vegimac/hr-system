@@ -430,6 +430,8 @@ public class PayrollPeriodeController : ControllerBase
                 using var scope = _scopeFactory.CreateScope();
                 var bgSvc = scope.ServiceProvider.GetRequiredService<HrSystem.Services.LohnlaufService>();
                 await bgSvc.TrySendLohnzettelEmailsAsync(periodeIdSnapshot);
+                // Lohnausweis-Download-Links an Behörden (Lohnabtretung-Flag) — ebenfalls nur Link, kein PDF-Anhang.
+                await bgSvc.TrySendLohnausweisLinksToBehoerdenAsync(periodeIdSnapshot);
             }
             catch (Exception ex)
             {

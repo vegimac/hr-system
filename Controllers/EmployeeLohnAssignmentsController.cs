@@ -80,11 +80,12 @@ public class EmployeeLohnAssignmentsController : ControllerBase
             BereitsAbgezogen = 0,
             ValidFrom        = DateOnly.Parse(dto.ValidFrom),
             ValidTo          = string.IsNullOrWhiteSpace(dto.ValidTo) ? null : DateOnly.Parse(dto.ValidTo!),
-            ReferenzAmt      = dto.ReferenzAmt?.Trim(),
-            ZahlungsReferenz = dto.ZahlungsReferenz?.Trim(),
-            Bemerkung        = dto.Bemerkung?.Trim(),
-            CreatedAt        = DateTime.UtcNow,
-            UpdatedAt        = DateTime.UtcNow
+            ReferenzAmt           = dto.ReferenzAmt?.Trim(),
+            ZahlungsReferenz      = dto.ZahlungsReferenz?.Trim(),
+            Bemerkung             = dto.Bemerkung?.Trim(),
+            LohnausweisAnBehoerde = dto.LohnausweisAnBehoerde,
+            CreatedAt             = DateTime.Now,
+            UpdatedAt             = DateTime.Now
         };
         _db.EmployeeLohnAssignments.Add(entry);
         await _db.SaveChangesAsync();
@@ -124,10 +125,11 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         // BereitsAbgezogen NICHT überschreiben — nur im Confirm-Flow
         entry.ValidFrom        = DateOnly.Parse(dto.ValidFrom);
         entry.ValidTo          = string.IsNullOrWhiteSpace(dto.ValidTo) ? null : DateOnly.Parse(dto.ValidTo!);
-        entry.ReferenzAmt      = dto.ReferenzAmt?.Trim();
-        entry.ZahlungsReferenz = dto.ZahlungsReferenz?.Trim();
-        entry.Bemerkung        = dto.Bemerkung?.Trim();
-        entry.UpdatedAt        = DateTime.UtcNow;
+        entry.ReferenzAmt           = dto.ReferenzAmt?.Trim();
+        entry.ZahlungsReferenz      = dto.ZahlungsReferenz?.Trim();
+        entry.Bemerkung             = dto.Bemerkung?.Trim();
+        entry.LohnausweisAnBehoerde = dto.LohnausweisAnBehoerde;
+        entry.UpdatedAt             = DateTime.Now;
         await _db.SaveChangesAsync();
 
         var reloaded = await _db.EmployeeLohnAssignments
@@ -192,11 +194,12 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         restbetrag       = a.Zielbetrag > 0 ? Math.Max(0, a.Zielbetrag - a.BereitsAbgezogen) : (decimal?)null,
         validFrom        = a.ValidFrom.ToString("yyyy-MM-dd"),
         validTo          = a.ValidTo?.ToString("yyyy-MM-dd"),
-        referenzAmt      = a.ReferenzAmt,
-        zahlungsReferenz = a.ZahlungsReferenz,
-        bemerkung        = a.Bemerkung,
-        createdAt        = a.CreatedAt,
-        inLohnVerwendet  = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
+        referenzAmt           = a.ReferenzAmt,
+        zahlungsReferenz      = a.ZahlungsReferenz,
+        bemerkung             = a.Bemerkung,
+        lohnausweisAnBehoerde = a.LohnausweisAnBehoerde,
+        createdAt             = a.CreatedAt,
+        inLohnVerwendet       = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
     };
 }
 
@@ -210,5 +213,6 @@ public record LohnAssignmentDto(
     string? ValidTo,
     string? ReferenzAmt,
     string? ZahlungsReferenz,
-    string? Bemerkung
+    string? Bemerkung,
+    bool    LohnausweisAnBehoerde = false
 );

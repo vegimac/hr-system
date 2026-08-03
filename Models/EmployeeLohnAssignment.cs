@@ -50,8 +50,14 @@ public class EmployeeLohnAssignment
 
     public string?  Bemerkung        { get; set; }
 
-    public DateTime CreatedAt        { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt        { get; set; } = DateTime.UtcNow;
+    /// <summary>
+    /// Walter 30.07.2026: Beim Definitiv-Lohnabschluss einen Download-Link
+    /// für den Jahres-Lohnausweis an die Behörde-E-Mail senden (kein PDF-Anhang).
+    /// </summary>
+    public bool LohnausweisAnBehoerde { get; set; } = false;
+
+    public DateTime CreatedAt        { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt        { get; set; } = DateTime.Now;
 
     public Employee? Employee        { get; set; }
     public Behoerde? Behoerde        { get; set; }

@@ -8949,6 +8949,11 @@ function renderLohnAssignmentsList(el, list) {
                     <div class="emp-field-label">Referenz / Bemerkung</div>
                     <div class="emp-field-value">${refHtml}</div>
                 </div>
+                ${a.lohnausweisAnBehoerde
+                    ? `<div class="emp-field" style="grid-column:span 4">
+                           <div class="emp-field-value" style="font-size:12px;color:#475569">📄 Lohnausweis-Link an Behörde beim Definitiv-Abschluss</div>
+                       </div>`
+                    : ''}
             </div>
         </div>`;
     });
@@ -8980,6 +8985,8 @@ function openLohnAssignmentModal(existing) {
     zrEl.value = existing?.zahlungsReferenz ?? '';
     validateZahlungsReferenz(zrEl);   // initiales Live-Feedback (falls Wert vorhanden)
     document.getElementById('laBemerkung').value        = existing?.bemerkung ?? '';
+    const laCb = document.getElementById('laLohnausweisAnBehoerde');
+    if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
 }
 
 function closeLohnAssignmentModal() {
@@ -9000,8 +9007,16 @@ async function saveLohnAssignment() {
     const refAmt      = document.getElementById('laReferenzAmt').value.trim() || null;
     const refZahlung  = document.getElementById('laZahlungsReferenz').value.trim() || null;
     const bem         = document.getElementById('laBemerkung').value.trim() || null;
+    const lohnausweisAnBehoerde = !!document.getElementById('laLohnausweisAnBehoerde')?.checked;
 
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
+    if (lohnausweisAnBehoerde) {
+        const b = (_laBehoerden || []).find(x => x.id === behoerdeId);
+        if (b && !String(b.email || '').trim()) {
+            alert('Die gewählte Behörde hat keine E-Mail-Adresse. Bitte unter Behörden pflegen, bevor «Lohnausweis an Behörde» aktiviert wird.');
+            return;
+        }
+    }
     if (freigrenze < 0)     { alert('Freigrenze muss ≥ 0 sein.'); return; }
     if (zielbetrag < 0)     { alert('Zielbetrag muss ≥ 0 sein.'); return; }
     if (!from)              { alert('Bitte "Gültig ab"-Datum angeben.'); return; }
@@ -9021,7 +9036,8 @@ async function saveLohnAssignment() {
         validTo:   to || null,
         referenzAmt:      refAmt,
         zahlungsReferenz: refZahlung,
-        bemerkung: bem
+        bemerkung: bem,
+        lohnausweisAnBehoerde
     };
 
     try {

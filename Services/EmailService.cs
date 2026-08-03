@@ -278,4 +278,70 @@ Schaub HR (automatisch versendet — bitte nicht antworten)";
 
         await SendAsync(toEmail, firstName, subject, html, text);
     }
+
+    /// <summary>
+    /// Behörden-Mail mit Download-Link zum Jahres-Lohnausweis (Walter 30.07.2026).
+    /// KEIN PDF-Anhang — nur Link zur Landing-Page (Messaging-Preview-Schutz).
+    /// Sie-Form, da Empfänger eine Behörde ist.
+    /// </summary>
+    public async Task SendLohnausweisBehoerdeNotificationAsync(
+        string toEmail,
+        string? behoerdeName,
+        string employeeDisplayName,
+        int year,
+        string downloadUrl,
+        DateTime expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail)) return;
+
+        var subject = $"Lohnausweis {year} — {employeeDisplayName}";
+        var empf = string.IsNullOrWhiteSpace(behoerdeName) ? "Sehr geehrte Damen und Herren" : $"Sehr geehrte Damen und Herren ({behoerdeName.Trim()})";
+        var gueltig = expiresAt.ToString("dd.MM.yyyy");
+        var safeUrl = System.Net.WebUtility.HtmlEncode(downloadUrl);
+        var safeMa = System.Net.WebUtility.HtmlEncode(employeeDisplayName);
+
+        var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""UTF-8""></head>
+<body style=""font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;margin:0;padding:20px"">
+  <div style=""max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)"">
+    <div style=""background:linear-gradient(135deg,#3f3f3f 0%,#1a1a1a 100%);color:#fff;padding:24px 28px"">
+      <div style=""font-weight:700;font-size:14px;opacity:0.9"">Schaub Restaurants GmbH — HR</div>
+      <div style=""font-size:20px;font-weight:700;margin-top:6px"">Lohnausweis {year}</div>
+    </div>
+    <div style=""padding:24px 28px;color:#0f172a"">
+      <p style=""font-size:15px;margin:0 0 14px"">{System.Net.WebUtility.HtmlEncode(empf)},</p>
+      <p style=""font-size:14px;line-height:1.55;margin:0 0 18px"">
+        im Rahmen der Lohnabtretung stellen wir Ihnen den Jahres-Lohnausweis
+        <strong>{year}</strong> für <strong>{safeMa}</strong> zum Download bereit.
+      </p>
+      <p style=""text-align:center;margin:24px 0"">
+        <a href=""{safeUrl}"" style=""display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:14px"">
+          Lohnausweis herunterladen →
+        </a>
+      </p>
+      <p style=""font-size:12.5px;color:#64748b;line-height:1.5;margin:18px 0 0"">
+        Der Link ist bis <strong>{gueltig}</strong> gültig. Aus Datenschutzgründen
+        ist kein PDF angehängt — bitte öffnen Sie den Link und laden Sie das Dokument dort herunter.
+      </p>
+    </div>
+    <div style=""padding:14px 28px;background:#f8fafc;color:#94a3b8;font-size:11.5px;text-align:center;border-top:1px solid #e2e8f0"">
+      Diese Nachricht wurde automatisch von Schaub HR versendet — bitte nicht antworten.
+    </div>
+  </div>
+</body></html>";
+
+        var text = $@"{empf},
+
+im Rahmen der Lohnabtretung stellen wir Ihnen den Jahres-Lohnausweis {year}
+für {employeeDisplayName} zum Download bereit.
+
+Download: {downloadUrl}
+
+Der Link ist bis {gueltig} gültig. Aus Datenschutzgründen ist kein PDF angehängt.
+
+—
+Schaub HR (automatisch versendet — bitte nicht antworten)";
+
+        await SendAsync(toEmail, behoerdeName, subject, html, text);
+    }
 }
