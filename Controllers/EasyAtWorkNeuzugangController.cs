@@ -1,7 +1,9 @@
 using HrSystem.Data;
+using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
@@ -21,6 +23,7 @@ namespace HrSystem.Controllers;
 ///     versehentlicher Massen-Write.
 ///   - Zugänglich für admin/superuser/user/buchhaltung; user + buchhaltung
 ///     nur für ihre zugeteilten Filialen (CanAccessBranchAsync).
+///   - NEW-Personalnummern: harte Folge max+1…max+N (Walter 03.08.2026).
 ///
 /// Schreibpfad = derselbe EasyAtWorkEmployeeSyncService wie der Admin-Sync
 /// (inkl. Perioden-Schutz: Verträge in abgeschlossenen Perioden landen in
@@ -81,6 +84,8 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             .Select(r => $"{r.FirstName} {r.LastName} ({r.Number}): {r.Reason}".Trim())
             .ToList();
 
+        var seq = await BuildNumberSequenceInfoAsync(dto.CompanyProfileId, ct);
+
         return Ok(new
         {
             rows,
@@ -88,6 +93,7 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             countUpdate = res.CountUpdate,
             conflicts,
             notes = res.Notes,
+            numberSequence = seq,
         });
     }
 
@@ -101,6 +107,40 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (dto.SelectedNumbers == null || dto.SelectedNumbers.Count == 0)
             return BadRequest(new { error = "Bitte mindestens einen Mitarbeitenden auswählen." });
+
+        // Harte Nummernfolge nur für NEW (noch nicht in OneCrew). UPDATE bleibt frei.
+        var selected = dto.SelectedNumbers
+            .Select(n => (n ?? "").Trim())
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var existingNums = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden && e.EmployeeNumber != null && e.EmployeeNumber != "")
+            .Select(e => e.EmployeeNumber!)
+            .ToListAsync(ct);
+        var existingSet = new HashSet<string>(
+            existingNums.Select(n => n.Trim()),
+            StringComparer.OrdinalIgnoreCase);
+
+        var newSelected = selected.Where(n => !existingSet.Contains(n)).ToList();
+        if (newSelected.Count > 0)
+        {
+            var seq = await BuildNumberSequenceInfoAsync(dto.CompanyProfileId, ct);
+            if (!EmployeeNumberSequenceGuard.TryValidate(
+                    newSelected, seq.MaxExisting, out var msg, out var expected, out var received))
+            {
+                return Conflict(new
+                {
+                    error = "NUMBER_SEQUENCE_INVALID",
+                    message = msg,
+                    maxExisting = seq.MaxExisting,
+                    prefix = seq.Prefix,
+                    expected = expected.Select(x => x.ToString()).ToList(),
+                    received = received.Select(x => x.ToString()).ToList(),
+                });
+            }
+        }
 
         var res = await _empSync.CommitAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
         {
@@ -119,4 +159,21 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             notes = res.Notes,
         });
     }
+
+    private async Task<NumberSequenceInfo> BuildNumberSequenceInfoAsync(int companyProfileId, CancellationToken ct)
+    {
+        var restaurantCode = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == companyProfileId)
+            .Select(c => c.RestaurantCode)
+            .FirstOrDefaultAsync(ct);
+        var prefix = EmployeeNumberSequenceGuard.NormalizeRestaurantPrefix(restaurantCode);
+        var nums = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden && e.EmployeeNumber != null && e.EmployeeNumber != "")
+            .Select(e => e.EmployeeNumber!)
+            .ToListAsync(ct);
+        var max = EmployeeNumberSequenceGuard.FindMaxExisting(nums, prefix);
+        return new NumberSequenceInfo(prefix, max, restaurantCode);
+    }
+
+    private sealed record NumberSequenceInfo(string Prefix, long? MaxExisting, string? RestaurantCode);
 }

@@ -11505,6 +11505,12 @@ async function empContractEdit(employmentId, employeeId) {
 // ABER wenn der MA-Datensatz in easy@work in einem FREMDEN Restaurant gesperrt
 // ist (Franchise-Wechsler: gehört einem anderen Betreiber), sieht unsere API
 // ihn nicht. Dann bleibt der alte CSV-Import (easy@work-Export-Liste) der Weg.
+//
+// Personalnummern-Folge NEW (Walter 03.08.2026): ausgewählte NEU-Nummern müssen
+// exakt max+1…max+N sein (anschliessend an höchste Nr. der Filiale + untereinander).
+// Sonst gesamter Import gesperrt. Nur dieser Neuzugang-Pfad — nicht Admin-Sync.
+let _empEasyNumberSeq = null; // { maxExisting, prefix } aus Preview
+
 function empImportFromEasy() {
     const cpId0 = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
     if (!cpId0) { alert('Bitte zuerst oben in der Sidebar eine Filiale wählen.'); return; }
@@ -11582,12 +11588,14 @@ async function empImportFromEasyApi() {
             return;
         }
         const rows = j.rows || [];
+        _empEasyNumberSeq = j.numberSequence || null;
         if (!rows.length) {
             body.innerHTML = `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">✓ Alles aktuell — keine neuen MA und keine Änderungen bei aktiven MA.</div>`
                 + _empEasyNotes(j);
             return;
         }
         body.innerHTML = `
+            ${_empEasySeqBanner(j.numberSequence)}
             <div style="font-size:12.5px;color:#646464;margin-bottom:8px">${j.countNew} neu · ${j.countUpdate} mit Änderungen — abwählen, was (noch) nicht übernommen werden soll:</div>
             ${rows.map((x, i) => {
                 const isNew = x.status === 'NEW';
@@ -11601,7 +11609,7 @@ async function empImportFromEasyApi() {
                     ? `<div style="font-size:11.5px;color:#92400e;margin-top:2px">⚠ Möglicher Wiedereintritt (bestehende Nr. ${esc(x.reentryEmployeeNumber || '?')})</div>` : '';
                 return `
                 <label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(139,139,139,0.22);border-radius:10px;margin-bottom:6px;background:rgba(255,255,255,0.55);cursor:pointer">
-                    <input type="checkbox" class="empEasyRow" data-number="${esc(x.number || '')}" checked style="margin-top:3px;width:15px;height:15px" onchange="_empEasyCount()">
+                    <input type="checkbox" class="empEasyRow" data-number="${esc(x.number || '')}" data-status="${esc(x.status || '')}" checked style="margin-top:3px;width:15px;height:15px" onchange="_empEasyCount()">
                     <div style="min-width:0">
                         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                             <span style="font-weight:600;color:#3f3f3f;font-size:13.5px">${esc(((x.firstName||'') + ' ' + (x.lastName||'')).trim())}</span>
@@ -11613,15 +11621,59 @@ async function empImportFromEasyApi() {
                     </div>
                 </label>`;
             }).join('')}
+            <div id="empEasySeqWarn" style="display:none;background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:8px;white-space:pre-wrap"></div>
             ${_empEasyNotes(j)}`;
         foot.innerHTML = `
             <button onclick="document.getElementById('empEasyImportModal').style.display='none'"
                     style="padding:9px 16px;border:1px solid rgba(139,139,139,0.35);border-radius:12px;background:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;color:#646464">Abbrechen</button>
             <button id="empEasyCommitBtn" onclick="empEasyImportCommit(${cpId})"
                     style="padding:9px 18px;border:none;border-radius:12px;background:#3f3f3f;color:#fff;cursor:pointer;font-size:13.5px;font-weight:600">Ausgewählte importieren (${rows.length})</button>`;
+        _empEasyCount();
     } catch (e) {
         body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px">Netzwerkfehler: ${esc(e.message)}</div>`;
     }
+}
+
+function _empEasySeqBanner(seq) {
+    if (!seq) return '';
+    const max = seq.maxExisting != null ? String(seq.maxExisting) : '—';
+    const next = seq.maxExisting != null ? String(Number(seq.maxExisting) + 1) : 'erste Nummer der Filiale';
+    return `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#3f3f3f;margin-bottom:10px">
+        Letzte Nr. in OneCrew: <b style="font-family:monospace">${esc(max)}</b>
+        · Neue NEU-Nummern müssen fortlaufend anschliessen (nächste: <b style="font-family:monospace">${esc(next)}</b>${seq.maxExisting != null ? ', dann +1 …' : ''}).
+        Sonst ist der Import gesperrt — bitte in easy@work korrigieren.
+    </div>`;
+}
+
+/** Client-Spiegel der Server-Regel EmployeeNumberSequenceGuard (nur UX; Server entscheidet hart). */
+function _empEasyValidateNewSequence(newNumbers) {
+    if (!newNumbers || !newNumbers.length) return { ok: true, message: '' };
+    const parsed = [];
+    for (const raw of newNumbers) {
+        const n = String(raw || '').trim();
+        if (!/^\d+$/.test(n)) return { ok: false, message: `Personalnummer «${n}» ist nicht rein numerisch — Import gesperrt.` };
+        parsed.push(Number(n));
+    }
+    if (new Set(parsed).size !== parsed.length)
+        return { ok: false, message: 'Doppelte Personalnummern in der Auswahl — Import gesperrt.' };
+    parsed.sort((a, b) => a - b);
+    const max = _empEasyNumberSeq && _empEasyNumberSeq.maxExisting != null
+        ? Number(_empEasyNumberSeq.maxExisting) : null;
+    const expected = [];
+    if (max != null) {
+        for (let i = 1; i <= parsed.length; i++) expected.push(max + i);
+    } else {
+        for (let i = 0; i < parsed.length; i++) expected.push(parsed[0] + i);
+    }
+    const same = parsed.length === expected.length && parsed.every((v, i) => v === expected[i]);
+    if (same) return { ok: true, message: '' };
+    const letzte = max != null ? String(max) : '(keine)';
+    const erwartetTxt = expected.join(', ');
+    const erhaltenTxt = parsed.join(', ');
+    const message = parsed.length === 1
+        ? `Personalnummer muss direkt anschliessen. Letzte Nr. in OneCrew: ${letzte}. Erwartet: ${erwartetTxt}. Erhalten: ${erhaltenTxt}.`
+        : `Neue Personalnummern müssen fortlaufend an die letzte Nr. und untereinander anschliessen. Letzte Nr. in OneCrew: ${letzte}. Erwartet: ${erwartetTxt}. Erhalten: ${erhaltenTxt}.`;
+    return { ok: false, message };
 }
 
 function _empEasyNotes(j) {
@@ -11632,9 +11684,22 @@ function _empEasyNotes(j) {
 }
 
 function _empEasyCount() {
-    const n = document.querySelectorAll('#empEasyImportModal .empEasyRow:checked').length;
+    const checked = Array.from(document.querySelectorAll('#empEasyImportModal .empEasyRow:checked'));
+    const n = checked.length;
+    const newNums = checked.filter(el => el.dataset.status === 'NEW').map(el => el.dataset.number).filter(Boolean);
+    const seq = _empEasyValidateNewSequence(newNums);
+    const warn = document.getElementById('empEasySeqWarn');
+    if (warn) {
+        if (!seq.ok) { warn.style.display = 'block'; warn.textContent = '⛔ ' + seq.message; }
+        else { warn.style.display = 'none'; warn.textContent = ''; }
+    }
     const btn = document.getElementById('empEasyCommitBtn');
-    if (btn) { btn.textContent = `Ausgewählte importieren (${n})`; btn.disabled = n === 0; btn.style.opacity = n === 0 ? '0.5' : '1'; }
+    if (btn) {
+        btn.textContent = `Ausgewählte importieren (${n})`;
+        const block = n === 0 || !seq.ok;
+        btn.disabled = block;
+        btn.style.opacity = block ? '0.5' : '1';
+    }
 }
 
 async function empEasyImportCommit(cpId) {
@@ -11651,9 +11716,14 @@ async function empEasyImportCommit(cpId) {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || j.blocked) {
-            const msg = j.blocked
-                ? 'Import blockiert — Personalnummern-Kollision:\n' + (j.numberConflicts || []).join('\n')
-                : (j.error || j.message || ('Fehler HTTP ' + r.status));
+            let msg;
+            if (j.error === 'NUMBER_SEQUENCE_INVALID') {
+                msg = 'Import gesperrt — Personalnummern-Folge:\n' + (j.message || '');
+            } else if (j.blocked) {
+                msg = 'Import blockiert — Personalnummern-Kollision:\n' + (j.numberConflicts || []).join('\n');
+            } else {
+                msg = j.message || j.error || ('Fehler HTTP ' + r.status);
+            }
             body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap">✗ ${esc(msg)}</div>`;
             if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
             return;
