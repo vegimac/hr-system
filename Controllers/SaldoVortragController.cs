@@ -242,15 +242,15 @@ public class SaldoVortragController : ControllerBase
                     LohnpositionId  = lp.Id,
                     Betrag          = betrag,
                     Bemerkung       = "Migrations-Vortrag aus Vorsystem",
-                    CreatedAt       = DateTime.UtcNow,
-                    UpdatedAt       = DateTime.UtcNow
+                    CreatedAt       = DateTime.Now,
+                    UpdatedAt       = DateTime.Now
                 });
             }
             else
             {
                 entry.Periode   = dto.Periode;
                 entry.Betrag    = betrag;
-                entry.UpdatedAt = DateTime.UtcNow;
+                entry.UpdatedAt = DateTime.Now;
             }
         }
 

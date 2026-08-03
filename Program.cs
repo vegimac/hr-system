@@ -1367,6 +1367,31 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS lohnposition_id INTEGER REFERENCES lohnposition(id);
     ");
 
+    // lohn_zulage Zeitstempel: timestamp without time zone (Npgsql + DateTime.Now)
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'lohn_zulage' AND column_name = 'created_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE lohn_zulage
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'lohn_zulage' AND column_name = 'updated_at'
+                  AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE lohn_zulage
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+        END $$;
+    ");
+
     // ── Lohnposition: 13. ML Flag ─────────────────────────────────────────
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE lohnposition
@@ -1379,6 +1404,36 @@ using (var scope = app.Services.CreateScope())
         SET    dreijehnter_ml_pflichtig = true
         WHERE  kategorie = 'Bonus'
            AND dreijehnter_ml_pflichtig = false;
+    ");
+
+    // ── Saldo-Vortrag Lohnpositionen 901–906 (idempotent) ───────────────
+    // Braucht Monatsblatt-/CHF-Import + Saldi-Vortrag-Seite. Fehlende Codes
+    // führten beim Import zu HTTP 500 «Position fehlt».
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+             lohnausweis_code, sort_order, is_active)
+        SELECT
+            v.code, v.bezeichnung, 'Saldo-Vortrag', 'ZULAGE',
+            false, false, false, false, false,
+            NULL, v.sort_order, true
+        FROM (VALUES
+            ('901', 'Vortrag Zeitsaldo (Stunden)',        901),
+            ('902', 'Vortrag Feiertag-Saldo (Tage)',      902),
+            ('903', 'Vortrag Ferien-Saldo (Tage)',        903),
+            ('904', 'Vortrag Nacht-Saldo (Stunden)',      904),
+            ('905', 'Vortrag Ferien-Geld-Saldo (CHF)',    905),
+            ('906', 'Vortrag 13. Monatslohn-Saldo (CHF)', 906)
+        ) AS v(code, bezeichnung, sort_order)
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+        UPDATE lohnposition
+           SET kategorie = 'Saldo-Vortrag',
+               typ       = 'ZULAGE',
+               is_active = true
+         WHERE code IN ('901','902','903','904','905','906')
+           AND (kategorie IS DISTINCT FROM 'Saldo-Vortrag' OR is_active IS NOT TRUE);
     ");
 
     // ── Lohnposition: ZaehltAlsBasis13ml-Default für Standard-Positionen ──

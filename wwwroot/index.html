@@ -5233,20 +5233,32 @@
             <!-- ═══════════════ STUNDEN-SALDI IMPORT (Mirus Monatsblatt) ═══════════════
                  Walter-Vorgabe 26.05.2026: Eröffnungssaldi für Stunden + Nacht aus dem
                  Mirus „Monatsblatt" (JasperReports-XLS, Dezember vor dem ersten Lohn-
-                 lauf). Werte sind reine Dezimalstunden. Match per Personalnummer
-                 (robuster als Namen-Match). Codes 901 (Stunden) + 904 (Nacht). -->
+                 lauf). Werte: Std + Tage. Match per Personalnummer.
+                 Codes 901/904 (Std) + 903/902 (Tage). -->
             <div class="page" id="page-saldo-vortrag-import-stunden">
                 <div class="sticky-page-head">
                 <div class="page-header">
                     <div>
                         <h1 class="page-title">Stunden-Saldi Import (Mirus Monatsblatt)</h1>
-                        <p class="page-sub">Mirus „Monatsblatt &lt;Monat&gt; &lt;Jahr&gt;" (XLS) hochladen — pro MA werden Stunden-Saldo (aus „Überstunden") + Nacht-Saldo (aus „Zeitzuschlag") als Vortrag-Eröffnung gespeichert. Werte sind Dezimalstunden.</p>
+                        <p class="page-sub">Schlussaldo Vormonat (Mirus-Monatsblatt) → Startsaldo Folgemonat (erster Lohnlauf). Pro MA: Zeitsaldo, Nacht, Ferien-Tage, Feiertag-Tage.</p>
                     </div>
                 </div>
                 <div id="svhImpAlert" style="margin-bottom:12px"></div>
 
                 <div class="card" style="padding:24px">
                     <div id="svhImpBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;padding:14px 16px 14px 18px;margin-bottom:16px;font-size:13px;color:#3f4d5e;line-height:1.75">
+                        <div style="font-weight:760;margin-bottom:8px;font-size:13.5px;color:#364152">📋 So holst du das Monatsblatt aus Mirus</div>
+                        <ol style="margin:0;padding-left:20px">
+                            <li>Gehe in <b>Mirus → Auswertungen</b>.</li>
+                            <li>Wähle die Auswertung <b>Arbeitszeit</b>.</li>
+                            <li>Wähle <b>Monatsblatt</b> und den <b>Vormonat</b> (dessen Schlussaldo du brauchst — z.B. Juni).</li>
+                            <li>Kreuze an: <b>Stundenkontrolle</b>, <b>Freitage</b>, <b>Ferientage</b>, <b>Feiertage</b>.</li>
+                            <li>Klicke auf <b>Drucken</b>.</li>
+                            <li>Wähle <b>Vorschau</b>.</li>
+                            <li>Speichere als <b>Excel</b> und lade die Datei hier hoch.</li>
+                        </ol>
+                    </div>
                     <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:flex-end">
                         <div>
                             <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Monatsblatt-Datei (XLS / XLSX)</label>
@@ -5254,18 +5266,19 @@
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
                         <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode</label>
-                            <input type="month" id="svhImpPeriode" value="2026-01"
-                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Startsaldo-Periode (Folgemonat)</label>
+                            <input type="month" id="svhImpPeriode" value="2026-07"
+                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white"
+                                   title="Folgemonat = erster Lohnlauf. Schlussaldo aus dem Mirus-Vormonat wird hier als Startsaldo gespeichert.">
                         </div>
                         <button class="btn btn-primary" onclick="svhImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svhImpCommitBtn" onclick="svhImpCommit()" disabled>Import bestätigen</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
-                        <b>Erwartete Datei:</b> Mirus „Monatsblatt" (JasperReports-XLS) mit MA-Blöcken (Header „Personalnummer:" → Name + Nr) und Summary-Block je MA mit Zeilen „Überstunden" + „Zeitzuschlag" und Saldo in Spalte 64 (Excel: BL).<br>
-                        <b>Werte:</b> Dezimalstunden (Mirus-Konvention 1/100, kein hh:mm).<br>
-                        <b>Match:</b> per <b>Personalnummer</b> direkt — robust, kein Namen-Vergleich.<br>
-                        <b>Wirkung:</b> Idempotent — Vortrag 901 (Stunden) + 904 (Nacht) werden überschrieben. Codes 902/903/905/906 bleiben unangetastet. Vertragsmodell-Filter: 901+904 nur MTP/FIX/FIX-M (FLEX führt keinen Stunden-/Nacht-Saldo).
+                        <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Monatsblatt Juni hochladen, Periode <b>Juli</b> wählen.<br>
+                        <b>Importiert:</b> «Überstunden» → Zeitsaldo (901) · «Zeitzuschlag» → Nacht (904) · «Ferien» → Ferien-Tage (903) · «Feier» → Feiertag-Tage (902).<br>
+                        <b>Match:</b> per <b>Personalnummer</b>. Filiale aus dem Hauptmenü.<br>
+                        <b>Wirkung:</b> Idempotent — Vortrag 901/902/903/904 werden überschrieben. CHF-Codes 905/906 bleiben unangetastet (separater Import «CHF-Saldi»).
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -5533,7 +5546,7 @@
                             </div>
                         </div>
                         <div class="admin-card-title">Stunden-Saldi (Mirus Monatsblatt)</div>
-                        <div class="admin-card-desc">Mirus „Monatsblatt &lt;Monat&gt; &lt;Jahr&gt;" (XLS) → Stunden- + Nacht-Saldo (aus „Überstunden" + „Zeitzuschlag") als Vortrag pro MA. Match per Personalnummer. Einmalig vor dem ersten Lohnlauf.</div>
+                        <div class="admin-card-desc">Schlussaldo Vormonat (Mirus-Monatsblatt) als Startsaldo Folgemonat. Mirus: Auswertungen → Arbeitszeit → Monatsblatt → Stundenkontrolle / Freitage / Ferientage / Feiertage → Drucken → Vorschau → Excel. Import: Zeitsaldo, Nacht, Ferien-/Feiertag-Tage.</div>
                     </div>
 
                     <div class="admin-card" onclick="showPage('mirus-address-compare')">
@@ -7221,12 +7234,12 @@
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
 <script src="js/saldo-vortrag-import.js?v=20260704p"></script>
-<script src="js/saldo-vortrag-import-stunden.js?v=20260704p"></script>
+<script src="js/saldo-vortrag-import-stunden.js?v=20260803a"></script>
 <script src="js/mirus-address-compare.js?v=20260729c"></script>
 <script src="js/roster-absence-import.js?v=20260802a"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260803e"></script>
+<script src="js/akonto-workflow.js?v=20260803f"></script>>>>>>>> origin/cursor/monatsblatt-saldi-import-3bcf
 <script src="js/dok-audit.js?v=20260704p"></script>
 <script src="js/branches-detail.js?v=20260722a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>

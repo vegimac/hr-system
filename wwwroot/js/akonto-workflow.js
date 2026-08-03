@@ -197,7 +197,7 @@ function lohnTopRefresh() {
 //   • Definitiv schon provisorisch/abgeschlossen → Definitiv
 //   • Akonto AUSBEZAHLT / UEBERSPRUNGEN → Definitiv
 //   • Akonto Mid-flight (IN_BEARBEITUNG_GF / BEI_HR / HR_FREIGEGEBEN) → Akonto
-//   • Akonto OFFEN (noch nicht gestartet) → Akonto (Default Mitte Monat)
+//   • Akonto OFFEN (noch nicht gestartet) → Akonto (Default Mitte Monat)>>>>>>> origin/cursor/monatsblatt-saldi-import-3bcf
 // Fallback bei Fehler: persistierte Wahl.
 async function _autoSelectLohnMode() {
     const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) || null;
@@ -216,7 +216,7 @@ async function _autoSelectLohnMode() {
                 if (defAdvanced || ak === 'AUSBEZAHLT' || ak === 'UEBERSPRUNGEN')
                     mode = 'definitiv';
                 else
-                    mode = 'akonto';
+                    mode = 'akonto';>>>>>>> origin/cursor/monatsblatt-saldi-import-3bcf
             }
         } catch { /* Fallback bleibt _akWfMode */ }
     }
@@ -279,8 +279,9 @@ async function _checkDefinitivLock() {
                 <span style="font-size:22px">🔒</span>
                 <div style="flex:1;line-height:1.45">
                     <b>Definitivlauf für ${months[month]} ${year} ist gesperrt.</b><br>
-                    Akonto-Lauf hat den Status <b>${statusLabel}</b> — er muss zuerst <b>AUSBEZAHLT</b> sein,
-                    bevor der Definitivlohn bestätigt werden kann (sonst stimmt die Restzahlungs-Berechnung nicht).
+                    Akonto-Lauf hat den Status <b>${statusLabel}</b> — entweder Akonto zu Ende bringen
+                    (<b>AUSBEZAHLT</b>) oder als Admin unter Lohnperioden «↺ Akonto zurücksetzen»
+                    (dann bleibt Akonto <b>OFFEN</b> und Definitiv ist wieder erlaubt).
                 </div>
                 <button class="btn btn-primary" onclick="setLohnMode('akonto')">→ Zu Akonto wechseln</button>
             </div>`;
@@ -541,21 +542,12 @@ async function akWfRefresh() {
         // „+ Erfassen" / ✎ / 🗑 sichtbar obwohl der Lock greifen müsste.
         _akWfApplyZulagenLock();
 
-        // Auto-Vorbereiten (Walter-Vorgabe 20.05.2026): eine OFFENE Akonto-
-        // Periode ohne berechnete Zahlungen wird beim Öffnen automatisch
-        // vorbereitet — kein manueller „Akonto vorbereiten"-Klick mehr nötig,
-        // der Bildschirm füllt sich sofort. Fire-and-forget: akWfStart() ruft
-        // intern akWfRefresh() → danach ist der Status IN_BEARBEITUNG_GF und
-        // diese Bedingung greift nicht mehr (kein Loop). Schlägt akWfStart fehl
-        // (z.B. Sequenz-Sperre), bleibt der bereits gerenderte „Akonto
-        // vorbereiten"-Button als Fallback stehen. Der Stichtag wird in
-        // akWfStart automatisch ermittelt (Akonto-Termin / Tag 23).
-        if (_akWfData.akontoStatus === 'OFFEN'
-            && (_akWfData.zahlungen || []).length === 0
-            && !_akWfAutoStarting) {
-            _akWfAutoStarting = true;
-            Promise.resolve(akWfStart()).finally(() => { _akWfAutoStarting = false; });
-        }
+        // Auto-Vorbereiten ENTFERNT (Walter 01.08.2026): früher startete eine
+        // OFFENE Periode beim Öffnen still akWfStart() → IN_BEARBEITUNG_GF.
+        // Dadurch war Definitiv sofort wieder gesperrt, und ein Admin-Reset
+        // auf OFFEN wurde beim nächsten Lohnlauf-Besuch wieder rückgängig
+        // gemacht. Akonto muss jetzt bewusst über «📅 Akonto vorbereiten»
+        // gestartet werden — sonst bleibt OFFEN und Definitiv ist erlaubt.
     } catch (e) {
         if (bar) bar.innerHTML = _akWfAlert('Verbindungsfehler: ' + e.message, 'err');
     }
