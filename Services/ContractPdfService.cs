@@ -438,14 +438,20 @@ public class ContractPdfService
                                     "vom Arbeitgeber zur\u00fcckbehalten und erst beim tats\u00e4chlichen Ferienbezug " +
                                     "(im Verh\u00e4ltnis von deren Dauer zum ganzen j\u00e4hrlichen Ferienanspruch) ausbezahlt."));
                             }
-                            col.Item().PaddingTop(4).Element(c => P(c,
-                                "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
-                                "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
-                                "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
-                                "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
-                                "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
-                            col.Item().Element(c => P(c,
-                                "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
+                            // MTP (Walter 03.08.2026, wie Mirus-Original): 13.-ML- und
+                            // Kinderzulagen-Absatz stehen auf SEITE 2 nach der
+                            // «F\u00fcr jede dar\u00fcber hinaus»-Aufz\u00e4hlung — hier nur bei UTP.
+                            if (isUTP)
+                            {
+                                col.Item().PaddingTop(4).Element(c => P(c,
+                                    "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                                    "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                                    "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                                    "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
+                                    "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                                col.Item().Element(c => P(c,
+                                    "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
+                            }
                         }
                     }
                 });
@@ -489,6 +495,15 @@ public class ContractPdfService
                         col.Item().PaddingLeft(6).PaddingBottom(3).Element(c => P(c,
                             $"- Der Anspruch auf Feiertage wird mit einem Lohnzuschlag von {d.HolidayPercent:0.##}% " +
                             "abgegolten und monatlich ausbezahlt (Art. 18 L-GAV)."));
+                        // Wie Mirus-Original: direkt nach der Aufz\u00e4hlung (Walter 03.08.2026).
+                        col.Item().PaddingTop(4).Element(c => P(c,
+                            "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                            "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                            "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                            "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
+                            "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                        col.Item().PaddingBottom(3).Element(c => P(c,
+                            "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
                     }
 
                     // 8.
