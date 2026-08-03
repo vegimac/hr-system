@@ -458,14 +458,18 @@ public class ContractPdfService
                                     $"- Der Anspruch auf Feiertage wird mit einem Lohnzuschlag von {d.HolidayPercent:0.##}% " +
                                     "abgegolten und monatlich ausbezahlt (Art. 18 L-GAV)."));
                             }
-                            col.Item().PaddingTop(4).Element(c => P(c,
-                                "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
-                                "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
-                                "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
-                                "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
-                                "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
-                            col.Item().Element(c => P(c,
-                                "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
+                            // MTP: 13. ML + Kinderzulagen oben auf Seite 2 (Walter 03.08.2026)
+                            if (isUTP)
+                            {
+                                col.Item().PaddingTop(4).Element(c => P(c,
+                                    "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                                    "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                                    "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                                    "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
+                                    "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                                col.Item().Element(c => P(c,
+                                    "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
+                            }
                         }
                     }
                 });
@@ -488,10 +492,27 @@ public class ContractPdfService
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
                 // Zeilenabstand 1.12 (Walter 13.07.2026): kompensiert den auf
                 // 1.0 cm erhoehten oberen Rand — die Seite bleibt EINE Seite.
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9f).LineHeight(1.12f).FontColor(Dark));
+                // MTP: Seite 2 traegt zusaetzlich 13. ML + Kinderzulagen (Mirus-
+                // Reihenfolge) — leicht verdichtet, damit 8-12 + Unterschriften
+                // auf EINER Seite bleiben (Walter 03.08.2026). FIX/FLEX unveraendert.
+                page.DefaultTextStyle(s => s.FontFamily("Arial")
+                    .FontSize(isMTP ? 8.7f : 9f)
+                    .LineHeight(isMTP ? 1.05f : 1.12f)
+                    .FontColor(Dark));
                 page.Header().Image(BannerBytes).FitWidth();
                 page.Content().PaddingTop(2).Column(col =>
                 {
+                    if (isMTP)
+                    {
+                        col.Item().Element(c => P(c,
+                            "Der 13. Monatslohn und die Lohnabz\u00fcge richten sich nach Art. 12 und 13 L-GAV sowie " +
+                            "Kapitel 7.4 dem Reglement \u201eAllgemeinen Arbeitsbedigungen\u201c. Der Anspruch auf den " +
+                            "13. Monatslohn entf\u00e4llt, wenn das Arbeitsverh\u00e4ltnis im Rahmen der Probezeit " +
+                            "aufgel\u00f6st wird. Die Lohnauszahlung mit einer \u00fcbersichtlichen Lohnabrechnung erfolgt " +
+                            "monatlich sp\u00e4testens am 6. Tag des folgenden Monats."));
+                        col.Item().PaddingBottom(3).Element(c => P(c,
+                            "Kinderzulagen werden gem\u00e4ss den gesetzlichen Bestimmungen ausgerichtet."));
+                    }
 
                     // 8.
                     col.Item().Element(c => T(c, "8. Arbeitgeberweisungen, Hygiene"));
