@@ -82,6 +82,15 @@ public class AkontoWorkflowController : HrControllerBase
             .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
                                    && p.Year == year && p.Month == month);
 
+        // Auto-Heal (Walter 03.08.2026): Definitiv schon provisorisch/abgeschlossen
+        // und Akonto hängt noch in einem Zwischenstatus → UEBERSPRUNGEN.
+        // Sonst bleibt der Definitiv-Lock-Banner ewig stehen (sinnlos).
+        if (periode != null)
+        {
+            await AkontoDefinitivGuard.TryAbandonMidFlightAsync(
+                _db, periode, GetUserId(), userName: null, log: _log);
+        }
+
         // Auto-Heal (Walter 01.06.2026): wenn die Periode auf BEI_HR steht und
         // alle eligible MA bereits HR_BESTAETIGT/AUSBEZAHLT sind, springt sie
         // hier nachträglich auf HR_FREIGEGEBEN. Ineligible MA (ErrorReason
@@ -147,6 +156,7 @@ public class AkontoWorkflowController : HrControllerBase
 
         return Ok(new {
             akontoStatus       = periode?.AkontoStatus ?? "OFFEN",
+            definitivStatus    = periode?.Status ?? "offen",
             akontoGfStartedAt  = periode?.AkontoGfStartedAt,
             akontoGfStartedBy  = periode?.AkontoGfStartedBy,
             akontoGfSentAt     = periode?.AkontoGfSentAt,
@@ -206,6 +216,12 @@ public class AkontoWorkflowController : HrControllerBase
 
         if (periode.AkontoStatus == "AUSBEZAHLT")
             return StatusCode(409, new { error = "Periode ist bereits AUSBEZAHLT — Storno-Funktion nötig." });
+        // Walter 03.08.2026: Definitiv läuft/fertig → kein Akonto mehr anlegen.
+        if (AkontoDefinitivGuard.IsDefinitivAdvanced(periode.Status))
+            return StatusCode(409, new {
+                error = $"Definitivlauf ist bereits «{periode.Status}» — Akonto-Vorbereitung nicht mehr möglich. "
+                      + "Der Akonto-Strang gilt als erledigt."
+            });
         // Walter-Vorgabe 19.05.2026: HR (admin/superuser) darf während der
         // BEI_HR-Phase neu berechnen — z.B. nach Erfassen eines Vorschusses.
         // Die Re-Berechnung lässt FREIGEGEBEN_GF / HR_BESTAETIGT-Datensätze
@@ -311,9 +327,9 @@ public class AkontoWorkflowController : HrControllerBase
             removedStale++;
         }
 
-        // 5) Periode-Status setzen
+        // 5) Periode-Status setzen (OFFEN oder UEBERSPRUNGEN → wieder starten)
         var userId = GetUserId();
-        if (periode.AkontoStatus == "OFFEN")
+        if (periode.AkontoStatus is "OFFEN" or AkontoDefinitivGuard.StatusUebersprungen)
         {
             periode.AkontoStatus       = "IN_BEARBEITUNG_GF";
             periode.AkontoGfStartedAt  = DateTime.UtcNow;
@@ -1136,16 +1152,15 @@ public class AkontoWorkflowController : HrControllerBase
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
 
-        var oldest = await _db.PayrollPerioden
-            .Where(p => p.CompanyProfileId == companyProfileId
-                     && (p.AkontoStatus != "AUSBEZAHLT" || p.Status != "abgeschlossen"))
+        // Alle Perioden laden und in Memory filtern — Akonto fertig auch wenn
+        // Definitiv den Strang übernommen hat (UEBERSPRUNGEN / Definitiv advanced).
+        var all = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == companyProfileId)
             .OrderBy(p => p.Year).ThenBy(p => p.Month)
-            .Select(p => new {
-                p.Year, p.Month,
-                akontoStatus    = p.AkontoStatus,
-                definitivStatus = p.Status,
-            })
-            .FirstOrDefaultAsync();
+            .Select(p => new { p.Year, p.Month, akontoStatus = p.AkontoStatus, definitivStatus = p.Status })
+            .ToListAsync();
+        var oldest = all.FirstOrDefault(p =>
+            !AkontoDefinitivGuard.IsPeriodeKomplett(p.akontoStatus, p.definitivStatus));
         return Ok(oldest);
     }
 
@@ -1354,17 +1369,17 @@ public class AkontoWorkflowController : HrControllerBase
     private async Task<string?> CheckSequenceAsync(int companyProfileId, int year, int month)
     {
         var refMonth = year * 12 + month;
-        // Älteste frühere Periode, die noch nicht beide Stufen abgeschlossen hat.
-        var blocker = await _db.PayrollPerioden
+        var earlier = await _db.PayrollPerioden
             .Where(p => p.CompanyProfileId == companyProfileId
-                     && (p.Year * 12 + p.Month) < refMonth
-                     && (p.AkontoStatus != "AUSBEZAHLT" || p.Status != "abgeschlossen"))
+                     && (p.Year * 12 + p.Month) < refMonth)
             .OrderBy(p => p.Year).ThenBy(p => p.Month)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
+        var blocker = earlier.FirstOrDefault(p =>
+            !AkontoDefinitivGuard.IsPeriodeKomplett(p.AkontoStatus, p.Status));
         if (blocker is null) return null;
 
-        var akontoOffen = blocker.AkontoStatus != "AUSBEZAHLT";
-        var defOffen    = blocker.Status       != "abgeschlossen";
+        var akontoOffen = !AkontoDefinitivGuard.IsAkontoStrangFertig(blocker.AkontoStatus, blocker.Status);
+        var defOffen    = blocker.Status != "abgeschlossen";
         string was = (akontoOffen, defOffen) switch
         {
             (true,  true)  => "Akonto-Auszahlung + Definitivlauf stehen aus",

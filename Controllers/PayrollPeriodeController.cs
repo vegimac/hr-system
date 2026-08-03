@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -339,6 +340,10 @@ public class PayrollPeriodeController : ControllerBase
         await AddAuditAsync(periode.Id, GetUserId(), "PROVISORISCH_ABGESCHLOSSEN", null);
         await _db.SaveChangesAsync();
 
+        // Walter 03.08.2026: hängender Akonto-Zwischenstatus → UEBERSPRUNGEN
+        // (Definitiv hat übernommen — kein Lock-Banner mehr).
+        await AkontoDefinitivGuard.TryAbandonMidFlightAsync(_db, periode, GetUserId());
+
         // Vorab-PDF generieren + ins HR-Posteingang ablegen. Schlägt nicht
         // den Periode-Abschluss fehl wenn was schief geht — nur Console-Log.
         await _lohnlaufSvc.TrySendVorabPdfToHrAsync(periode.Id, GetUserId());
@@ -401,6 +406,8 @@ public class PayrollPeriodeController : ControllerBase
         await AddAuditAsync(periode.Id, GetUserId(), "DEFINITIV_ABGESCHLOSSEN",
                              $"Auszahlungsdatum: {auszahlung:dd.MM.yyyy}");
         await _db.SaveChangesAsync();
+
+        await AkontoDefinitivGuard.TryAbandonMidFlightAsync(_db, periode, GetUserId());
 
         // ── Auto-Versand: Lohnzettel pro MA ins persönliche Postfach ──
         // Wirft keine Exceptions raus (Try…) — wenn was schiefgeht wird's

@@ -28,6 +28,7 @@ let _akWfAutoStarting = false;  // In-Flight-Guard fürs Auto-Vorbereiten (Walte
 // Bedeutung der Status-Werte (Doppelmoppel zur Anzeige im UI)
 const _AK_STATUS = {
     OFFEN:             { label: 'Offen',                color: '#94a3b8', bg: '#f1f5f9' },
+    UEBERSPRUNGEN:     { label: 'Übersprungen (Definitiv)', color: '#64748b', bg: '#e2e8f0' },
     IN_BEARBEITUNG_GF: { label: 'In Bearbeitung (GF)',  color: '#92400e', bg: '#fef3c7' },
     BEI_HR:            { label: 'Bei HR',               color: '#6b6152', bg: '#ece9e2' },
     HR_FREIGEGEBEN:    { label: 'HR freigegeben',       color: '#15803d', bg: '#dcfce7' },
@@ -249,15 +250,17 @@ async function _checkDefinitivLock() {
                               { headers: ah(), cache: 'no-store' });
         if (!r.ok) { banner.style.display = 'none'; return; }
         const d = await r.json();
-        // OFFEN = Akonto wurde NIE gestartet (Walter überspringt den Workflow
-        // bewusst). AUSBEZAHLT = Akonto durch. Beide erlauben Definitivlauf.
-        // Nur die Zwischenstati IN_BEARBEITUNG_GF / BEI_HR / HR_FREIGEGEBEN
-        // blockieren — der Akonto-Lauf läuft gerade und sein Betrag könnte
-        // sich noch ändern.
-        const akontoFertig = d.akontoStatus === 'AUSBEZAHLT' || d.akontoStatus === 'OFFEN';
+        // Walter 03.08.2026: Sobald Definitiv schon läuft/fertig ist, kein Lock —
+        // Akonto gilt als erledigt (Server heilt Mid-flight → UEBERSPRUNGEN).
+        const defStatus = (typeof _lohnWfData !== 'undefined' && _lohnWfData?.status)
+            || d.definitivStatus || 'offen';
+        const defAdvanced = defStatus === 'provisorisch_abgeschlossen' || defStatus === 'abgeschlossen';
+        const akontoFertig = defAdvanced
+            || d.akontoStatus === 'AUSBEZAHLT'
+            || d.akontoStatus === 'OFFEN'
+            || d.akontoStatus === 'UEBERSPRUNGEN';
         if (akontoFertig) {
             banner.style.display = 'none';
-            // topDef-Sichtbarkeit überlassen wir loadLohnSlip (zeigt sich beim Slip-Render)
             return;
         }
         // Locked → Banner zeigen, Top-Action-Buttons hart verstecken
@@ -365,7 +368,15 @@ async function lohnSyncToOldestOpen(autoJump) {
 
         const months = ['', 'Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
         const offen = [];
-        if (oldest.akontoStatus    !== 'AUSBEZAHLT')    offen.push('Akonto');
+        // Akonto «offen» nur wenn wirklich noch ein Zwischenstatus läuft —
+        // OFFEN/UEBERSPRUNGEN/AUSBEZAHLT oder Definitiv schon fortgeschritten = erledigt.
+        const akFertig = oldest.akontoStatus === 'AUSBEZAHLT'
+            || oldest.akontoStatus === 'UEBERSPRUNGEN'
+            || oldest.akontoStatus === 'OFFEN'
+            || oldest.definitivStatus === 'provisorisch_abgeschlossen'
+            || oldest.definitivStatus === 'abgeschlossen';
+        // Banner: bei OFFEN (bewusst übersprungen) Akonto nicht als offen listen.
+        if (!akFertig) offen.push('Akonto');
         if (oldest.definitivStatus !== 'abgeschlossen') offen.push('Definitivlauf');
 
         const curY = parseInt(yInp.value, 10) || 0;
@@ -633,6 +644,9 @@ function _akWfRenderStatusBar() {
             actions = `<button class="btn btn-outline btn-sm" onclick="akWfDownloadDta()" style="color:#6b6152;border-color:#d0c8b8" title="pain.001-XML für die Bank">📥 DTA-File</button>
                        <button class="btn btn-outline btn-sm" onclick="akWfDownloadListePdf()" style="color:#6b6152;border-color:#d0c8b8" title="Akonto-Zahlungsliste als PDF (Begleitliste, Buchhaltungs-Beleg)">📄 Akonto-Liste</button>
                        <span class="ak-ausbezahlt-badge" style="font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:8px">🔒 Ausbezahlt ${_akFmtTs(d.akontoAusbezahltAt)} — Admin-Reopen via Lohnperioden-Modul</span>`;
+            break;
+        case 'UEBERSPRUNGEN':
+            actions = `<span style="color:#64748b;font-size:11.5px;font-weight:600;background:#e2e8f0;padding:3px 9px;border-radius:8px">Akonto übersprungen — Definitivlauf hat übernommen</span>`;
             break;
     }
 

@@ -852,29 +852,26 @@ public class PayrollController : HrControllerBase
     {
         if (!await CanAccessBranchAsync(dto.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
-        // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026): sobald der Akonto-Lauf
-        // für diese Periode begonnen wurde, muss er erst AUSBEZAHLT sein, bevor
-        // der Definitivlohn bestätigt werden darf. Sonst wäre die Restzahlungs-
-        // Berechnung (Netto − Akonto) instabil — der Akonto-Betrag könnte sich
-        // ja noch ändern. Backend-Guard ist hier die zweite Verteidigungslinie;
-        // das Frontend versteckt den Bestätigen-Button bereits (#lohnDefinitivLockBanner).
-        //
-        // OFFEN (= Akonto nie gestartet) bleibt erlaubt — Walter kann den
-        // Akonto-Workflow bewusst überspringen und direkt definitiv abrechnen
-        // (z.B. für Vor-Akonto-Perioden oder Filialen ohne Akonto-Termin).
+        // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026, präzisiert 03.08.2026):
+        // Solange Definitiv noch «offen» ist und Akonto in einem Zwischenstatus
+        // hängt, blockieren — sonst wäre Netto − Akonto instabil.
+        // Sobald Definitiv schon läuft/fertig ist, gilt Akonto als erledigt
+        // (kein Lock mehr; Mid-flight wird auf UEBERSPRUNGEN geheilt).
         var akontoPeriode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
                                    && p.Year  == dto.Year
                                    && p.Month == dto.Month);
-        if (akontoPeriode != null
-            && akontoPeriode.AkontoStatus != "AUSBEZAHLT"
-            && akontoPeriode.AkontoStatus != "OFFEN")
+        if (akontoPeriode != null)
         {
-            return Conflict(new {
-                error = $"Definitivlohn kann erst bestätigt werden, wenn der Akonto-Lauf "
-                      + $"für {dto.Month:00}/{dto.Year} AUSBEZAHLT ist "
-                      + $"(aktueller Akonto-Status: {akontoPeriode.AkontoStatus})."
-            });
+            await AkontoDefinitivGuard.TryAbandonMidFlightAsync(_db, akontoPeriode, GetUserIdOrNull());
+            if (!AkontoDefinitivGuard.IsAkontoStrangFertig(akontoPeriode.AkontoStatus, akontoPeriode.Status))
+            {
+                return Conflict(new {
+                    error = $"Definitivlohn kann erst bestätigt werden, wenn der Akonto-Lauf "
+                          + $"für {dto.Month:00}/{dto.Year} AUSBEZAHLT ist "
+                          + $"(aktueller Akonto-Status: {akontoPeriode.AkontoStatus})."
+                });
+            }
         }
 
         // 1) Snapshot-Schutz: abgeschlossene Periode → kein Update
