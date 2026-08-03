@@ -328,8 +328,9 @@ public class LohnlaufService
         if (behoerdenAgg.Count == 0)
             throw new InvalidOperationException("Keine Lohnabtretungen in dieser Periode — Behörden-DTA leer.");
 
-        // Pro Behörde IBAN: hole vollständige Behörde-Stammdaten
-        var ibansOfInterest = behoerdenAgg.Keys.ToList();
+        // Pro IBAN: Behörde-Stammdaten. Bei geteilter IBAN (ORS Burgdorf →
+        // Kontoinhaber-Behörde ORS Zürich) Cdtr = verknüpfte Behörde
+        // (Name + Adresse/PLZ/Ort).
         var allBehoerden = await _db.Behoerden
             .Where(b => b.IsActive)
             .ToListAsync();
@@ -338,8 +339,26 @@ public class LohnlaufService
         int idx = 0;
         foreach (var (key, agg) in behoerdenAgg)
         {
-            var beh = allBehoerden.FirstOrDefault(b =>
-                NormalizeIban(b.QrIban ?? b.Iban ?? "") == key);
+            var matches = allBehoerden
+                .Where(b => NormalizeIban(b.QrIban ?? b.Iban ?? "") == key)
+                .ToList();
+            // Prefer Behörde mit Kontoinhaber-Verknüpfung (ORS-Fall).
+            var beh = matches.FirstOrDefault(b => b.KontoinhaberBehoerdeId != null)
+                   ?? matches.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.Kontoinhaber))
+                   ?? matches.FirstOrDefault();
+
+            Behoerde? cdtr = null;
+            if (beh?.KontoinhaberBehoerdeId is int kid)
+                cdtr = allBehoerden.FirstOrDefault(b => b.Id == kid);
+            if (cdtr == null && !string.IsNullOrWhiteSpace(beh?.Kontoinhaber))
+            {
+                var ki = beh!.Kontoinhaber!.Trim();
+                cdtr = allBehoerden.FirstOrDefault(b =>
+                    string.Equals((b.Name ?? "").Trim(), ki, StringComparison.OrdinalIgnoreCase));
+            }
+            cdtr ??= beh;
+
+            var cdtrName = cdtr?.Name ?? agg.Label;
 
             // Zusatz-Info im RmtInf: betroffene MA, falls > 1
             string rmtInf;
@@ -357,13 +376,13 @@ public class LohnlaufService
             payments.Add(new Iso20022PainService.PaymentInstruction(
                 EndToEndId:         $"BH{periode.Year}{periode.Month:D2}-{idx++}",
                 Amount:             Math.Round(agg.Total, 2),
-                CreditorName:       beh?.Name ?? agg.Label,
-                CreditorStreet:     beh?.Adresse1,
-                CreditorPostalCode: beh?.Plz,
-                CreditorCity:       beh?.Ort,
+                CreditorName:       cdtrName,
+                CreditorStreet:     cdtr?.Adresse1,
+                CreditorPostalCode: cdtr?.Plz,
+                CreditorCity:       cdtr?.Ort,
                 CreditorCountry:    "CH",
                 CreditorIban:       key,
-                CreditorBic:        beh?.Bic,
+                CreditorBic:        cdtr?.Bic ?? beh?.Bic,
                 RemittanceInfo:     rmtInf
             ));
         }
@@ -745,17 +764,18 @@ public class LohnlaufService
                 .ToListAsync();
             if (empIds.Count == 0) return;
 
-            // Abtretungen mit Flag, die die Periode überlappen und Behörde mit E-Mail haben.
+            // Abtretungen mit Flag, die die Periode überlappen.
+            // E-Mail: zuerst Sachbearbeiter, sonst Behörden-Zentrale (Walter 02.08.2026).
             var assignments = await _db.EmployeeLohnAssignments
                 .Include(a => a.Behoerde)
+                .Include(a => a.Sachbearbeiter)
                 .Include(a => a.Employee)
                 .Where(a => empIds.Contains(a.EmployeeId)
                          && a.LohnausweisAnBehoerde
+                         && a.DokumentId != null
                          && a.ValidFrom <= periodTo
                          && (a.ValidTo == null || a.ValidTo >= periodFrom)
-                         && a.Behoerde != null
-                         && a.Behoerde.Email != null
-                         && a.Behoerde.Email != "")
+                         && a.Behoerde != null)
                 .ToListAsync();
             if (assignments.Count == 0) return;
 
@@ -780,7 +800,7 @@ public class LohnlaufService
                                     && s.Status != "STORNIERT");
                     if (!hasSnapshots) { skipped++; continue; }
 
-                    var email = a.Behoerde!.Email!.Trim();
+                    var email = (a.Sachbearbeiter?.Email ?? a.Behoerde!.Email ?? "").Trim();
                     if (string.IsNullOrWhiteSpace(email)) { skipped++; continue; }
 
                     // Vorherige Tokens derselben Abtretung+Jahr widerrufen (Re-Abschluss).
@@ -813,11 +833,12 @@ public class LohnlaufService
 
                     await _emailSvc.SendLohnausweisBehoerdeNotificationAsync(
                         email,
-                        a.Behoerde.Name,
+                        a.Behoerde!.Name,
                         maName,
                         year,
                         url,
-                        expiresAt);
+                        expiresAt,
+                        a.Sachbearbeiter?.Name);
                     sent++;
                     await Task.Delay(500);
                 }

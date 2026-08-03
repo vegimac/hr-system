@@ -75,8 +75,8 @@ public class PayrollSnapshot
     /// <summary>Notiz von HR (z.B. wenn HR mit Begründung zurückschickt).</summary>
     public string?   KommentarHr { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     public PayrollPeriode? Periode  { get; set; }
     public Employee?        Employee { get; set; }

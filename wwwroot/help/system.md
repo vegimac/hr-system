@@ -17,7 +17,7 @@ Die Sidebar **System** ist die Schaltzentrale. Nur Rolle **admin**. Hier pflegst
 | **QST-Tarife** | Kantonale Tarifdateien |
 | **Familienzulagen-Tarife** | FAK-Sätze |
 | **Absenz-Typen** | Katalog Krank/Ferien/… |
-| **Behörden** | Empfänger für Lohnabtretungen |
+| **Behörden** | Stamm für [Lohnabtretungen](#lohnabtretungen): Adresse, IBAN, Sachbearbeiter, optional Kontoinhaber = andere Behörde (für DTA, z.B. ORS Burgdorf → Zürich) |
 | **Ärzte** | Für Mutterschutz-Briefe |
 | **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
 | **Dokument-Struktur** | Kategorien und Dokumenttypen |

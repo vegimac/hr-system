@@ -30,7 +30,7 @@ namespace HrSystem.Controllers;
 /// Vortrag-Codes (901-904) bleiben UNANGETASTET (anders als
 /// SaldoVortragController.Upsert, der alle 6 Felder auf einmal setzt).
 /// Vertragsmodell-Relevanz (Walter-Vorgabe): 905 nur für UTP/MTP,
-/// 906 für MTP/FIX/FIX-M (irrelevant für UTP).
+/// 906 für FLEX (Probezeit) + MTP/FIX/FIX-M.
 /// </summary>
 [Authorize(Roles = "admin,superuser")]
 [ApiController]
@@ -52,7 +52,14 @@ public class SaldoVortragImportController : ControllerBase
         decimal StundenChf         // col M (idx 12) — informativ, nicht importiert
     );
 
-    public record BranchEmployee(int Id, string FirstName, string LastName, string? EmployeeNumber, string? EmploymentModel);
+    /// <summary>
+    /// MA für Match/Picker. <paramref name="IsActive"/> = Employee.IsActive
+    /// (false z.B. nach Austritt — trotzdem im Pool wenn Vertrag die
+    /// Vortrag-/Lohnperiode überlappt).
+    /// </summary>
+    public record BranchEmployee(
+        int Id, string FirstName, string LastName, string? EmployeeNumber,
+        string? EmploymentModel, bool IsActive = true);
 
     public record AnalyzeRow(
         int     RowNumber,
@@ -119,20 +126,10 @@ public class SaldoVortragImportController : ControllerBase
             return BadRequest(new { error = "Datei konnte nicht gelesen werden: " + ex.Message });
         }
 
-        // Branch-MA laden (aktiv, mit Vertrag in dieser Filiale).
-        var branchEmps = await _db.Employees
-            .Where(e => e.IsActive && e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
-            .Select(e => new BranchEmployee(
-                e.Id,
-                e.FirstName ?? "",
-                e.LastName ?? "",
-                e.EmployeeNumber,
-                e.Employments
-                    .Where(em => em.IsActive && em.CompanyProfileId == companyProfileId)
-                    .OrderByDescending(em => em.ContractStartDate)
-                    .Select(em => em.EmploymentModel)
-                    .FirstOrDefault()))
-            .ToListAsync();
+        // Branch-MA: Vertrag überlappt Vortrag-Monat ODER Folgemonat
+        // (nicht nur Employee.IsActive heute — Austritte Ende Juli brauchen
+        // noch Juni-Saldi für den Juli-Lohnlauf).
+        var branchEmps = await LoadBranchEmployeesForVortragAsync(companyProfileId, periode);
 
         var sortedEmps = branchEmps
             .OrderBy(b => b.FirstName, StringComparer.OrdinalIgnoreCase)
@@ -183,8 +180,32 @@ public class SaldoVortragImportController : ControllerBase
         if (dto.Rows is null || dto.Rows.Count == 0)
             return BadRequest(new { error = "Keine Zeilen zum Speichern." });
 
+        // Spalten-Typ absichern (gleicher timestamptz-Bug wie Stunden-Import).
+        await _db.Database.ExecuteSqlRawAsync(@"
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                      AND column_name = 'created_at' AND udt_name = 'timestamptz'
+                ) THEN
+                    ALTER TABLE public.lohn_zulage
+                        ALTER COLUMN created_at TYPE timestamp without time zone
+                        USING (created_at AT TIME ZONE 'Europe/Zurich');
+                END IF;
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                      AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+                ) THEN
+                    ALTER TABLE public.lohn_zulage
+                        ALTER COLUMN updated_at TYPE timestamp without time zone
+                        USING (updated_at AT TIME ZONE 'Europe/Zurich');
+                END IF;
+            END $$;");
+
         // Vortrag-Lohnpositionen 905 (Ferien-Geld CHF) + 906 (13. ML CHF) laden.
-        var lps = await _db.Lohnpositionen
+        var lps = await _db.Lohnpositionen.AsNoTracking()
             .Where(l => l.Kategorie == "Saldo-Vortrag" && (l.Code == "905" || l.Code == "906"))
             .ToDictionaryAsync(l => l.Code, l => l);
 
@@ -214,11 +235,8 @@ public class SaldoVortragImportController : ControllerBase
             var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
             if (emp is null) { skipped++; hinweise.Add($"MA-ID {row.EmployeeId} nicht gefunden — übersprungen ({row.OriginalName})."); continue; }
 
-            var activeEmp = emp.Employments
-                .Where(e => e.IsActive)
-                .OrderByDescending(e => e.ContractStartDate)
-                .FirstOrDefault();
-            var model = (activeEmp?.EmploymentModel ?? "").ToUpperInvariant();
+            var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
+            var model = NormalizeModel(modelEmp?.EmploymentModel);
 
             UpsertCode("905", lps["905"], row.FerienGeldChf,  IsRelevant905(model));
             UpsertCode("906", lps["906"], row.DreizehnterChf, IsRelevant906(model));
@@ -238,6 +256,7 @@ public class SaldoVortragImportController : ControllerBase
                 }
 
                 var betrag = Math.Round(value, 2);
+                var nowLocal = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                 if (ex == null)
                 {
                     _db.LohnZulagen.Add(new LohnZulage
@@ -247,8 +266,8 @@ public class SaldoVortragImportController : ControllerBase
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
                         Bemerkung      = "Migrations-Vortrag aus Mirus Saldomethode (CHF)",
-                        CreatedAt      = DateTime.Now,
-                        UpdatedAt      = DateTime.Now
+                        CreatedAt      = nowLocal,
+                        UpdatedAt      = nowLocal
                     });
                     created++;
                 }
@@ -256,7 +275,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.Now;
+                    ex.UpdatedAt = nowLocal;
                     updated++;
                 }
             }
@@ -276,8 +295,8 @@ public class SaldoVortragImportController : ControllerBase
 
     private static bool IsRelevant905(string model) =>   // Ferien-Geld CHF
         model == "FLEX" || model == "MTP";
-    private static bool IsRelevant906(string model) =>   // 13. ML CHF
-        model == "MTP" || model == "FIX" || model == "FIX-M";
+    private static bool IsRelevant906(string model) =>   // 13. ML CHF (FLEX: Probezeit)
+        model == "FLEX" || model == "MTP" || model == "FIX" || model == "FIX-M";
 
     // ── XLS-Parser ───────────────────────────────────────────────────────────
 
@@ -405,7 +424,8 @@ public class SaldoVortragImportController : ControllerBase
     // Sursee Juni-2026: Name/PNr col 14, Stunden-Saldo col 71, Tage-Saldo
     // col 61). Der Parser findet Anker + Saldo-Spalte dynamisch.
     // „Stunden" (FLEX-Ist) ≠ „Überstunden" — wird bewusst ignoriert.
-    // Match per Personalnummer. Relevanz: 901/904 MTP/FIX/FIX-M; 902 FIX/FIX-M;
+    // Match per Personalnummer. Relevanz: 901 MTP/FIX/FIX-M; 904 alle Modelle
+    // inkl. FLEX (Nacht-Saldo wird auch bei FLEX geführt); 902 FIX/FIX-M;
     // 903 alle Modelle. Codes 905/906 (CHF) bleiben unangetastet.
     // ══════════════════════════════════════════════════════════════════════════
 
@@ -471,25 +491,15 @@ public class SaldoVortragImportController : ControllerBase
         try { rows = ParseMonatsblatt(file); }
         catch (Exception ex) { return BadRequest(new { error = "Datei konnte nicht gelesen werden: " + ex.Message }); }
 
-        // Branch-MA (für Match per Personalnummer + Picker bei NO_MATCH).
-        var branchEmps = await _db.Employees
-            .Where(e => e.IsActive && e.Employments.Any(em => em.CompanyProfileId == companyProfileId))
-            .Select(e => new BranchEmployee(
-                e.Id,
-                e.FirstName ?? "",
-                e.LastName ?? "",
-                e.EmployeeNumber,
-                e.Employments
-                    .Where(em => em.IsActive && em.CompanyProfileId == companyProfileId)
-                    .OrderByDescending(em => em.ContractStartDate)
-                    .Select(em => em.EmploymentModel)
-                    .FirstOrDefault()))
-            .ToListAsync();
+        // Branch-MA: Vertrag überlappt Vortrag-Monat ODER Folgemonat
+        // (Walter 02.08.2026 — z.B. Austritt 31.7. braucht Juni-Saldi).
+        var branchEmps = await LoadBranchEmployeesForVortragAsync(companyProfileId, periode);
 
         // Match per Personalnummer (exakte Übereinstimmung).
         var byNumber = branchEmps
             .Where(b => !string.IsNullOrEmpty(b.EmployeeNumber))
-            .ToDictionary(b => b.EmployeeNumber!.Trim(), b => b);
+            .GroupBy(b => b.EmployeeNumber!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
 
         var analyzeRows = new List<StundenAnalyzeRow>();
         foreach (var r in rows)
@@ -531,12 +541,42 @@ public class SaldoVortragImportController : ControllerBase
         Dictionary<string, Lohnposition> lps;
         try
         {
-            var lpList = await _db.Lohnpositionen
+            // Kategorie per SQL — kein Tracking von lohnposition (sonst kann
+            // ein timestamptz-created_at beim SaveChanges mitreinrutschen).
+            await _db.Database.ExecuteSqlRawAsync(@"
+                UPDATE lohnposition
+                   SET kategorie = 'Saldo-Vortrag'
+                 WHERE code IN ('901','902','903','904')
+                   AND COALESCE(kategorie, '') <> 'Saldo-Vortrag'");
+
+            // Belt-and-suspenders: lohn_zulage-Spalten auf without time zone
+            // (falls Startup-Migration noch nicht gegriffen hat).
+            await _db.Database.ExecuteSqlRawAsync(@"
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                          AND column_name = 'created_at' AND udt_name = 'timestamptz'
+                    ) THEN
+                        ALTER TABLE public.lohn_zulage
+                            ALTER COLUMN created_at TYPE timestamp without time zone
+                            USING (created_at AT TIME ZONE 'Europe/Zurich');
+                    END IF;
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                          AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+                    ) THEN
+                        ALTER TABLE public.lohn_zulage
+                            ALTER COLUMN updated_at TYPE timestamp without time zone
+                            USING (updated_at AT TIME ZONE 'Europe/Zurich');
+                    END IF;
+                END $$;");
+
+            var lpList = await _db.Lohnpositionen.AsNoTracking()
                 .Where(l => codes.Contains(l.Code))
                 .ToListAsync();
-            // Kategorie nachziehen falls Alt-Daten ohne «Saldo-Vortrag»
-            foreach (var lp in lpList.Where(l => l.Kategorie != "Saldo-Vortrag"))
-                lp.Kategorie = "Saldo-Vortrag";
             lps = lpList.GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
         }
         catch (Exception ex)
@@ -572,9 +612,10 @@ public class SaldoVortragImportController : ControllerBase
             var emp = emps.FirstOrDefault(e => e.Id == row.EmployeeId);
             if (emp is null) { skipped++; hinweise.Add($"MA-ID {row.EmployeeId} nicht gefunden ({row.OriginalName})."); continue; }
 
-            var activeEmp = emp.Employments.Where(e => e.IsActive)
-                .OrderByDescending(e => e.ContractStartDate).FirstOrDefault();
-            var model = NormalizeModel(activeEmp?.EmploymentModel);
+            // Modell aus Vertrag, der die Vortrag-/Lohnperiode überlappt —
+            // nicht nur IsActive (sonst fehlt Modell bei Austritt in der Periode).
+            var modelEmp = FindEmploymentForVortrag(emp.Employments, dto.CompanyProfileId, dto.Periode);
+            var model = NormalizeModel(modelEmp?.EmploymentModel);
 
             UpsertSaldo("901", lps["901"], row.StundenSaldo,       IsRelevant901(model));
             UpsertSaldo("904", lps["904"], row.NachtSaldo,         IsRelevant904(model));
@@ -589,7 +630,7 @@ public class SaldoVortragImportController : ControllerBase
                 if (!relevant)
                 {
                     // Modell hat diesen Saldo nicht → bestehenden Eintrag entfernen
-                    // (z.B. FLEX hat keinen Stunden-/Nacht-/Feiertag-Saldo).
+                    // (z.B. FLEX hat keinen Zeitsaldo 901 / Feiertag-Tage 902).
                     if (ex != null) _db.LohnZulagen.Remove(ex);
                     return;
                 }
@@ -602,6 +643,8 @@ public class SaldoVortragImportController : ControllerBase
                 }
 
                 var betrag = Math.Round(value.Value, 2);
+                // Kind=Unspecified — passt zu timestamp without time zone (Walter TIME-Regel).
+                var nowLocal = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
                 if (ex == null)
                 {
                     _db.LohnZulagen.Add(new LohnZulage
@@ -611,8 +654,8 @@ public class SaldoVortragImportController : ControllerBase
                         LohnpositionId = lp.Id,
                         Betrag         = betrag,
                         Bemerkung      = "Migrations-Vortrag aus Mirus Monatsblatt",
-                        CreatedAt      = DateTime.Now,
-                        UpdatedAt      = DateTime.Now
+                        CreatedAt      = nowLocal,
+                        UpdatedAt      = nowLocal
                     });
                     created++;
                 }
@@ -620,7 +663,7 @@ public class SaldoVortragImportController : ControllerBase
                 {
                     ex.Periode   = dto.Periode;
                     ex.Betrag    = betrag;
-                    ex.UpdatedAt = DateTime.Now;
+                    ex.UpdatedAt = nowLocal;
                     updated++;
                 }
             }
@@ -640,6 +683,88 @@ public class SaldoVortragImportController : ControllerBase
         return Ok(new CommitResult(created, updated, skipped, hinweise));
     }
 
+    /// <summary>
+    /// Vortrag-Periode YYYY-MM → Fenster [1. des Monats … letzter Tag Folgemonat].
+    /// Beispiel Juni-Vortrag für Juli-Lohnlauf: 01.06.–31.07.
+    /// </summary>
+    private static bool TryParseVortragWindow(string periode, out DateOnly from, out DateOnly to)
+    {
+        from = default;
+        to = default;
+        if (string.IsNullOrEmpty(periode) || periode.Length != 7 || periode[4] != '-')
+            return false;
+        if (!int.TryParse(periode.AsSpan(0, 4), out int y)
+            || !int.TryParse(periode.AsSpan(5, 2), out int m)
+            || m < 1 || m > 12)
+            return false;
+        from = new DateOnly(y, m, 1);
+        to = from.AddMonths(2).AddDays(-1);
+        return true;
+    }
+
+    /// <summary>
+    /// Filial-MA mit Vertrag, der Vortrag-Monat ODER Folgemonat überlappt.
+    /// Kein Filter auf Employee.IsActive — Austritte in der Lohnperiode
+    /// brauchen den Vortrag noch (Walter 02.08.2026, MA 104004).
+    /// </summary>
+    private async Task<List<BranchEmployee>> LoadBranchEmployeesForVortragAsync(
+        int companyProfileId, string periode)
+    {
+        if (!TryParseVortragWindow(periode, out var winFrom, out var winTo))
+        {
+            winFrom = DateOnly.MinValue;
+            winTo = DateOnly.MaxValue;
+        }
+        var winFromDt = winFrom.ToDateTime(TimeOnly.MinValue);
+        var winToDt   = winTo.ToDateTime(TimeOnly.MinValue);
+
+        var rows = await _db.Employees.AsNoTracking()
+            .Where(e => e.Employments.Any(em =>
+                em.CompanyProfileId == companyProfileId
+                && em.ContractStartDate <= winToDt
+                && (em.ContractEndDate == null || em.ContractEndDate >= winFromDt)))
+            .Select(e => new
+            {
+                e.Id,
+                FirstName = e.FirstName ?? "",
+                LastName  = e.LastName ?? "",
+                e.EmployeeNumber,
+                e.IsActive,
+                Model = e.Employments
+                    .Where(em => em.CompanyProfileId == companyProfileId
+                              && em.ContractStartDate <= winToDt
+                              && (em.ContractEndDate == null || em.ContractEndDate >= winFromDt))
+                    .OrderByDescending(em => em.ContractStartDate)
+                    .Select(em => em.EmploymentModel)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+
+        return rows
+            .Select(e => new BranchEmployee(
+                e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.Model, e.IsActive))
+            .ToList();
+    }
+
+    private static Employment? FindEmploymentForVortrag(
+        IEnumerable<Employment> employments, int companyProfileId, string periode)
+    {
+        if (!TryParseVortragWindow(periode, out var winFrom, out var winTo))
+            return employments
+                .Where(e => e.CompanyProfileId == companyProfileId)
+                .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefault();
+
+        var winFromDt = winFrom.ToDateTime(TimeOnly.MinValue);
+        var winToDt   = winTo.ToDateTime(TimeOnly.MinValue);
+        return employments
+            .Where(e => e.CompanyProfileId == companyProfileId
+                     && e.ContractStartDate <= winToDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= winFromDt))
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefault();
+    }
+
     /// <summary>Legacy «UTP» → FLEX (Rename 08.07.2026).</summary>
     private static string NormalizeModel(string? model)
     {
@@ -649,12 +774,18 @@ public class SaldoVortragImportController : ControllerBase
 
     private static bool IsRelevant901(string model) =>    // Zeitsaldo (Stunden)
         model is "MTP" or "FIX" or "FIX-M";
-    private static bool IsRelevant904(string model) =>    // Nacht-Saldo
-        model is "MTP" or "FIX" or "FIX-M";
+    // Nacht-Saldo: auch FLEX — Engine akkumuliert Zeitzuschlag für alle Modelle
+    // (Walter 02.08.2026: Monatsblatt-Vortrag 0.41 bei Miteva fehlte wegen FLEX-Skip).
+    private static bool IsRelevant904(string model) =>
+        model is "FLEX" or "MTP" or "FIX" or "FIX-M";
     private static bool IsRelevant902(string model) =>    // Feiertag-Tage
         model is "FIX" or "FIX-M";
     private static bool IsRelevant903(string model) =>    // Ferien-Tage
         model is "FLEX" or "MTP" or "FIX" or "FIX-M";
+
+    /// <summary>Öffentlich für Unit-Tests (Relevanz-Matrix Nacht-Vortrag).</summary>
+    public static bool IsNachtVortragRelevantForModel(string model) =>
+        IsRelevant904(NormalizeModel(model));
 
     /// <summary>
     /// Parser für das Mirus «Monatsblatt» / «Abrechnung individuelle Position»

@@ -16,11 +16,18 @@ Arbeite die Karten **der Reihe nach** ab. Nach erfolgreichem Commit schliesst si
 | 5 | **Familienzulagen-Kontrolle** | Kinder + Zulagenbeträge prüfen/übernehmen |
 | 6 | **Stammdaten-Anreicherung** | GastroSocial-XLSX → AHV, Zivilstand, Sprache … |
 | 7 | **QST-Auswertung (Mirus)** | Tarifcodes aus Mirus |
-| 8 | **CHF-Saldi** | Ferien-Geld + 13. ML als Vortrag |
-| 9 | **Stunden-Saldi** | Zeit-Saldo + Nacht-Saldo |
+| 8 | **CHF-Saldi** | Mirus «Rückstellungsliste Saldomethode» → Ferien-Geld (905) + 13. ML (906) |
+| 9 | **Stunden-Saldi** | Mirus «Monatsblatt» → Zeitsaldo (901), Nacht (904, **auch FLEX**), Ferien-Tage (903), Feiertag-Tage (902) |
 | 10 | **Adress-/Kontakt-Vergleich** | Mirus vs. OneCrew (nur Kontrolle) |
 
 (Schritt 3 Bank-Import entfällt — IBAN kommt über easy@work.)
+
+## Saldi-Import — Praxis
+
+- **Vortrags- / Migrationsperiode** = die **älteste noch offene Lohnperiode** der Filiale (nicht «heute»).
+- MA-Pool folgt dieser Periode (wer damals aktiv war).
+- Vor dem Upload die Mirus-Schritte auf der Import-Seite beachten (welche Liste / welche Spalten).
+- Immer zuerst **Analysieren**, dann Commit. Bei NO_MATCH: manueller Picker.
 
 ## Tipps
 

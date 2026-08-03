@@ -22,6 +22,35 @@ function svImpInit() {
     document.getElementById('svImpPreview').innerHTML = '';
     const btn = document.getElementById('svImpCommitBtn');
     if (btn) btn.disabled = true;
+    // Migrations-Periode = älteste noch offene Lohnperiode der Filiale
+    // (gleicher Default wie Lohnlauf; Walter 02.08.2026).
+    svImpSetPeriodeFromOpenLohn(cpId);
+}
+
+/** Setzt #svImpPeriode auf YYYY-MM der ältesten offenen Lohnperiode. */
+async function svImpSetPeriodeFromOpenLohn(companyProfileId) {
+    const inp = document.getElementById('svImpPeriode');
+    if (!inp) return;
+    const ym = await _svImpResolveOpenPeriodeYm(companyProfileId);
+    if (ym) inp.value = ym;
+}
+
+async function _svImpResolveOpenPeriodeYm(companyProfileId) {
+    if (!companyProfileId) return null;
+    try {
+        const headers = (typeof ah === 'function')
+            ? ah()
+            : { 'Authorization': 'Bearer ' + (localStorage.getItem('hrToken') || '') };
+        const r = await fetch(`/api/payroll-perioden?companyProfileId=${companyProfileId}`, { headers });
+        if (!r.ok) return null;
+        const arr = await r.json();
+        const open = (arr || []).filter(p => p.status !== 'abgeschlossen');
+        if (open.length === 0) return null;
+        open.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+        const y = open[0].year;
+        const m = String(open[0].month).padStart(2, '0');
+        return `${y}-${m}`;
+    } catch { return null; }
 }
 
 function svImpShowAlert(msg, kind) {
@@ -83,7 +112,10 @@ function svImpRenderPreview() {
     // Picker-Optionen einmal bauen
     const empOptions = ['<option value="">— bitte wählen —</option>']
         .concat((data.branchEmployees || [])
-            .map(e => `<option value="${e.id}">${escHtml(e.firstName)} ${escHtml(e.lastName)}${e.employeeNumber ? ' · ' + escHtml(e.employeeNumber) : ''}${e.employmentModel ? ' [' + escHtml(e.employmentModel) + ']' : ''}</option>`))
+            .map(e => {
+                const inaktiv = e.isActive === false ? ' [Austritt]' : '';
+                return `<option value="${e.id}">${escHtml(e.firstName)} ${escHtml(e.lastName)}${e.employeeNumber ? ' · ' + escHtml(e.employeeNumber) : ''}${e.employmentModel ? ' [' + escHtml(e.employmentModel) + ']' : ''}${inaktiv}</option>`;
+            }))
         .join('');
 
     const summaryHtml = `

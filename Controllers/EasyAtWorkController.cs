@@ -927,10 +927,9 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
-    /// On-Demand: Probezeiten an die erste Stempelzeit verankern (Walter 29.06.2026),
-    /// unabhängig vom Stempel-Import (der Import-Button ist bei 0 neuen Stempeln
-    /// gesperrt → der Anker lief sonst nie). Geht alle noch nicht verankerten
-    /// Probezeiten durch und verschiebt das Ende auf den tatsächlichen 1. Arbeitstag.
+    /// On-Demand «Probezeiten nachführen» (Walter 29.06.2026 / 02.08.2026):
+    /// fehlende Probezeiten anlegen + an erster Stempelzeit ≥ Eintritt verankern.
+    /// Unabhängig vom Stempel-Import.
     /// </summary>
     [HttpPost("probation/anchor")]
     [Authorize(Roles = "admin,superuser")]
@@ -939,7 +938,7 @@ public class EasyAtWorkController : ControllerBase
         try
         {
             var notes = await _tpSync.RunProbationAnchorAsync(ct);
-            return Ok(new { anchored = notes.Count, notes });
+            return Ok(new { processed = notes.Count, anchored = notes.Count, notes });
         }
         catch (Exception ex)
         {
@@ -1274,6 +1273,12 @@ public class EasyAtWorkController : ControllerBase
         var resourceId = emp.Id;
 
         var contracts = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
+        try
+        {
+            var types = await _client.GetContractTypesByIdAsync(mapping.EasyAtWorkCustomerId, ct);
+            Services.EasyAtWork.EasyAtWorkEmployeeSyncService.ApplyContractTypeNames(contracts, types);
+        }
+        catch { /* Fallback: Stunden-Heuristik wenn Katalog fehlt */ }
         var rates     = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
         var positions = (await _client.GetPositionsAsync(mapping.EasyAtWorkCustomerId, resourceId, ct))?.Data ?? new();
         var props = await _client.GetAllPropertiesAsync(mapping.EasyAtWorkCustomerId, resourceId, ct);
@@ -1358,21 +1363,9 @@ public class EasyAtWorkController : ControllerBase
             if (s is "divers" or "diverse" or "andere" or "other" or "nonbinary" or "non-binary" or "x" or "d") return null;
             return null;
         }
+        // Gemeinsamer Mapper mit dem echten Sync (Walter 01.08.2026: E=Getrennt).
         static string? Marital(string? v)
-        {
-            var s = (v ?? "").Trim().ToLowerInvariant();
-            return s switch
-            {
-                "" or "unbekannt" or "unknown" => null,
-                "s" or "ledig" or "single" => "ledig",
-                "m" or "verheiratet" or "married" => "verheiratet",
-                "d" or "geschieden" or "divorced" => "geschieden",
-                "w" or "verwitwet" or "widowed" => "verwitwet",
-                "e" or "getrennt" or "separated" => "getrennt",
-                "p" or "eingetragene partnerschaft" or "eingetr. partnerschaft" or "registered partnership" => "eingetragene_partnerschaft",
-                _ => null
-            };
-        }
+            => EasyAtWorkEmployeeSyncService.MapMaritalStatus(v);
         static string Fmt(DateOnly? d) => d?.ToString("yyyy-MM-dd") ?? "";
 
         var today = DateOnly.FromDateTime(DateTime.Today);

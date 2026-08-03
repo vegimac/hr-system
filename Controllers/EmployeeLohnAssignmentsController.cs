@@ -10,7 +10,7 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Lohnabtretungen pro Mitarbeiter (Lohnpfändung, Vorschuss Sozialamt etc.).
 /// Werden in jedem Lohnlauf im Gültigkeitszeitraum automatisch vom Netto
-/// abgezogen.
+/// abgezogen — nur mit verknüpftem Dokument (Walter 02.08.2026).
 /// </summary>
 [Authorize]
 [ApiController]
@@ -33,6 +33,79 @@ public class EmployeeLohnAssignmentsController : ControllerBase
             .Select(x => (int?)x.CompanyProfileId)
             .FirstOrDefaultAsync();
 
+    // GET /api/employee-lohn-assignments?companyProfileId=…
+    // HR-Hub-Liste: Abtretungen der Filiale — ohne companyProfileId = alle
+    // Filialen (Sidebar «Alle Filialen»), sortiert nach Vorname.
+    [HttpGet]
+    public async Task<IActionResult> ListByBranch([FromQuery] int? companyProfileId = null)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+
+        // MA mit Vertrag in dieser Filiale (auch ausgetreten — Abtretung kann
+        // noch relevant sein). Ohne Filter: alle MA mit Abtretung.
+        List<int>? empIdsAtBranch = null;
+        if (companyProfileId is > 0)
+        {
+            empIdsAtBranch = await _db.Employments.AsNoTracking()
+                .Where(e => e.CompanyProfileId == companyProfileId.Value)
+                .Select(e => e.EmployeeId)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        var q = _db.EmployeeLohnAssignments.AsNoTracking()
+            .Include(a => a.Employee)
+            .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
+            .AsQueryable();
+        if (empIdsAtBranch != null)
+            q = q.Where(a => empIdsAtBranch.Contains(a.EmployeeId));
+
+        var rows = await q.ToListAsync();
+
+        // Sortierung Vorname → Nachname (Walter-Konvention).
+        rows = rows
+            .OrderBy(a => a.Employee?.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.Employee?.LastName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(a => a.ValidFrom)
+            .ToList();
+
+        var result = rows.Select(a =>
+        {
+            var isActive = a.ValidFrom <= today
+                        && (a.ValidTo == null || a.ValidTo >= today);
+            return new
+            {
+                id = a.Id,
+                employeeId = a.EmployeeId,
+                employeeNumber = a.Employee?.EmployeeNumber,
+                firstName = a.Employee?.FirstName,
+                lastName = a.Employee?.LastName,
+                behoerdeId = a.BehoerdeId,
+                behoerdeName = a.Behoerde?.Name,
+                behoerdeSachbearbeiterId = a.BehoerdeSachbearbeiterId,
+                sachbearbeiterName = a.Sachbearbeiter?.Name,
+                sachbearbeiterTelefon = a.Sachbearbeiter?.Telefon ?? a.Sachbearbeiter?.Handy,
+                sachbearbeiterEmail = a.Sachbearbeiter?.Email,
+                freigrenze = a.Freigrenze,
+                zielbetrag = a.Zielbetrag,
+                bereitsAbgezogen = a.BereitsAbgezogen,
+                bezeichnung = a.Bezeichnung,
+                validFrom = a.ValidFrom.ToString("yyyy-MM-dd"),
+                validTo = a.ValidTo?.ToString("yyyy-MM-dd"),
+                dokumentId = a.DokumentId,
+                dokumentName = a.Dokument?.Bemerkung
+                    ?? a.Dokument?.FilenameOriginal,
+                isActive,
+                hasDokument = a.DokumentId != null,
+                // Ohne Dokument im Lohnlauf unwirksam
+                wirksam = a.DokumentId != null && isActive
+            };
+        });
+        return Ok(result);
+    }
+
     // GET /api/employee-lohn-assignments/{employeeId}
     [HttpGet("{employeeId:int}")]
     public async Task<IActionResult> GetByEmployee(int employeeId)
@@ -44,6 +117,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var entries = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
             .Where(a => a.EmployeeId == employeeId)
             .OrderBy(a => a.ValidFrom)
             .ToListAsync();
@@ -74,6 +149,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         {
             EmployeeId       = dto.EmployeeId,
             BehoerdeId       = dto.BehoerdeId,
+            BehoerdeSachbearbeiterId = dto.BehoerdeSachbearbeiterId,
+            DokumentId            = dto.DokumentId,
             Bezeichnung      = dto.Bezeichnung?.Trim() ?? "Lohnpfändung",
             Freigrenze       = Math.Round(dto.Freigrenze, 2),
             Zielbetrag       = Math.Round(dto.Zielbetrag, 2),
@@ -92,6 +169,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var saved = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
             .FirstAsync(a => a.Id == entry.Id);
         return Ok(MapToDto(saved, firstAllowed));
     }
@@ -119,6 +198,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         if (err != null) return BadRequest(err);
 
         entry.BehoerdeId       = dto.BehoerdeId;
+        entry.BehoerdeSachbearbeiterId = dto.BehoerdeSachbearbeiterId;
+        // Dokument nur via PATCH …/dokument — Edit-Modal überschreibt den Beleg nicht.
         entry.Bezeichnung      = dto.Bezeichnung?.Trim() ?? "Lohnpfändung";
         entry.Freigrenze       = Math.Round(dto.Freigrenze, 2);
         entry.Zielbetrag       = Math.Round(dto.Zielbetrag, 2);
@@ -134,8 +215,48 @@ public class EmployeeLohnAssignmentsController : ControllerBase
 
         var reloaded = await _db.EmployeeLohnAssignments
             .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
             .FirstAsync(a => a.Id == entry.Id);
         return Ok(MapToDto(reloaded, firstAllowedU));
+    }
+
+    /// <summary>
+    /// Nur Dokument verknüpfen/lösen (Walter 02.08.2026) — auch wenn die
+    /// Abtretung schon im Lohnlauf verwendet wurde (Beleg nachreichen).
+    /// Body: { dokumentId: number|null }
+    /// </summary>
+    [HttpPatch("{id:int}/dokument")]
+    public async Task<IActionResult> SetDokument(int id, [FromBody] SetLaDokumentDto dto)
+    {
+        var entry = await _db.EmployeeLohnAssignments.FindAsync(id);
+        if (entry == null) return NotFound();
+
+        if (dto.DokumentId is null || dto.DokumentId <= 0)
+        {
+            entry.DokumentId = null;
+        }
+        else
+        {
+            var dokOk = await _db.EmployeeDokumente.AnyAsync(d =>
+                d.Id == dto.DokumentId.Value && d.EmployeeId == entry.EmployeeId);
+            if (!dokOk)
+                return BadRequest(new { message = "Dokument nicht gefunden oder gehört nicht zu diesem Mitarbeiter." });
+            entry.DokumentId = dto.DokumentId;
+        }
+        entry.UpdatedAt = DateTime.Now;
+        await _db.SaveChangesAsync();
+
+        var branchId = await GetEmployeeBranchAsync(entry.EmployeeId);
+        var firstAllowed = branchId.HasValue
+            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            : null;
+        var reloaded = await _db.EmployeeLohnAssignments
+            .Include(a => a.Behoerde)
+            .Include(a => a.Sachbearbeiter)
+            .Include(a => a.Dokument)
+            .FirstAsync(a => a.Id == entry.Id);
+        return Ok(MapToDto(reloaded, firstAllowed));
     }
 
     [HttpDelete("{id:int}")]
@@ -177,6 +298,23 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         }
         var exists = await _db.Behoerden.AnyAsync(b => b.Id == dto.BehoerdeId);
         if (!exists) return "Unbekannte Behörde.";
+        if (dto.BehoerdeSachbearbeiterId.HasValue)
+        {
+            var sbOk = await _db.BehoerdeSachbearbeiter.AnyAsync(s =>
+                s.Id == dto.BehoerdeSachbearbeiterId.Value
+                && s.BehoerdeId == dto.BehoerdeId
+                && s.IsActive);
+            if (!sbOk) return "Sachbearbeiter gehört nicht zu dieser Behörde oder ist inaktiv.";
+        }
+        // Dokument optional beim Anlegen/Bearbeiten — Verknüpfung läuft über
+        // PATCH …/dokument (Bewilligungen-Muster). Ohne Beleg greift die
+        // Abtretung im Lohnlauf trotzdem nicht (Engine filtert DokumentId).
+        if (dto.DokumentId.HasValue && dto.DokumentId.Value > 0)
+        {
+            var dokOk = await _db.EmployeeDokumente.AnyAsync(d =>
+                d.Id == dto.DokumentId.Value && d.EmployeeId == dto.EmployeeId);
+            if (!dokOk) return "Dokument nicht gefunden oder gehört nicht zu diesem Mitarbeiter.";
+        }
         return null;
     }
 
@@ -187,6 +325,11 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         behoerdeId       = a.BehoerdeId,
         behoerdeName     = a.Behoerde?.Name,
         behoerdeTyp      = a.Behoerde?.Typ,
+        behoerdeSachbearbeiterId = a.BehoerdeSachbearbeiterId,
+        sachbearbeiterName       = a.Sachbearbeiter?.Name,
+        sachbearbeiterEmail      = a.Sachbearbeiter?.Email,
+        dokumentId               = a.DokumentId,
+        dokumentName             = a.Dokument?.Bemerkung ?? a.Dokument?.FilenameOriginal,
         bezeichnung      = a.Bezeichnung,
         freigrenze       = a.Freigrenze,
         zielbetrag       = a.Zielbetrag,
@@ -199,7 +342,8 @@ public class EmployeeLohnAssignmentsController : ControllerBase
         bemerkung             = a.Bemerkung,
         lohnausweisAnBehoerde = a.LohnausweisAnBehoerde,
         createdAt             = a.CreatedAt,
-        inLohnVerwendet       = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value
+        inLohnVerwendet       = firstAllowed.HasValue && a.ValidFrom < firstAllowed.Value,
+        wirksam               = a.DokumentId != null
     };
 }
 
@@ -214,5 +358,9 @@ public record LohnAssignmentDto(
     string? ReferenzAmt,
     string? ZahlungsReferenz,
     string? Bemerkung,
-    bool    LohnausweisAnBehoerde = false
+    bool    LohnausweisAnBehoerde = false,
+    int?    BehoerdeSachbearbeiterId = null,
+    int?    DokumentId = null
 );
+
+public record SetLaDokumentDto(int? DokumentId);

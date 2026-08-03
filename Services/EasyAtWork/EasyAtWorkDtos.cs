@@ -163,15 +163,26 @@ public class EawEmployee
     [JsonPropertyName("updated_at")]   public DateTime? UpdatedAt  { get; set; }
 }
 
+/// <summary>Vertragstyp-Katalog eines Customers (GET …/contract_types).</summary>
+public class EawContractType
+{
+    [JsonPropertyName("id")]   public int     Id   { get; set; }
+    [JsonPropertyName("name")] public string? Name { get; set; }
+}
+
 /// <summary>Vertrag pro MA.</summary>
 public class EawContract
 {
     [JsonPropertyName("id")]           public int      Id           { get; set; }
     [JsonPropertyName("employee_id")]  public int      EmployeeId   { get; set; }
     [JsonPropertyName("title")]        public string?  Title        { get; set; }   // Funktion
-    [JsonPropertyName("type")]         public string?  Type         { get; set; }   // Vertragstyp
+    /// <summary>Typ-Name — oft leer; dann über <see cref="TypeId"/> + contract_types auflösen.</summary>
+    [JsonPropertyName("type")]         public string?  Type         { get; set; }
+    /// <summary>FK auf Customer-ContractType (z.B. 105 = MTP/TPM). Walter 02.08.2026.</summary>
+    [JsonPropertyName("type_id")]      public int?     TypeId       { get; set; }
     [JsonPropertyName("amount_type")]  public string?  AmountType   { get; set; }   // "week" / "month" / "hour"
-    [JsonPropertyName("amount")]       public decimal? Amount       { get; set; }   // bei "week": Wochenstunden (17=UTP, >17=MTP)
+    /// <summary>bei "week": Wochenstunden. Modell kommt aus Type/TypeId — NICHT aus 17h-Default.</summary>
+    [JsonPropertyName("amount")]       public decimal? Amount       { get; set; }
     [JsonPropertyName("week_hours")]   public decimal? WeekHours    { get; set; }
     [JsonPropertyName("percentage")]   public decimal? Percentage   { get; set; }
     // easy@work liefert Datum mal als "yyyy-MM-dd", mal als UTC-Timestamp — als

@@ -1156,37 +1156,124 @@ public class EasyAtWorkTimepunchSyncService
 
         // Probezeit-Anker (Walter 29.06.2026): die Probezeit beginnt am tatsächlichen
         // 1. Arbeitstag (= erste Stempelzeit), nicht am Vertragsbeginn.
-        await AnchorProbationFromFirstStampAsync(res, ct);
+        // Beim Stempel-Sync: alle provisorischen (kein 4-Monats-Fenster).
+        await AnchorProbationFromFirstStampAsync(res, entryMin: null, ct);
 
         return res;
     }
 
     /// <summary>
-    /// Öffentlicher On-Demand-Trigger für den Probezeit-Anker (Walter 29.06.2026):
-    /// führt den Anker-Pass aus, OHNE dass ein Stempel-Import nötig ist (der
-    /// Import-Button ist bei 0 neuen Stempeln gesperrt → der Anker lief sonst nie).
-    /// Liefert die Liste der verankerten MA als Klartext zurück.
+    /// On-Demand «Probezeiten nachführen» (Walter 29.06.2026, erweitert 02.08.2026):
+    /// 1) Fehlende Probezeit anlegen (wenn noch kein Vertrag ProbationEndDate hat)
+    ///    — Basis Eintritt / erste Stempelzeit ≥ Eintritt, Ziel = offener Vertrag.
+    /// 2) Provisorische Probezeiten an erster Stempelzeit ≥ Eintritt verankern.
+    /// Nur MA mit Eintritt in den letzten 4 Monaten (Walter 02.08.2026).
     /// </summary>
     public async Task<List<string>> RunProbationAnchorAsync(CancellationToken ct = default)
     {
         var res = new AutoSyncResult();
-        await AnchorProbationFromFirstStampAsync(res, ct);
+        // Lokalzeit — timestamp without time zone (Walter TIME-Regel).
+        var entryMin = DateOnly.FromDateTime(DateTime.Now.AddMonths(-4));
+        await SeedMissingProbationAsync(res, entryMin, ct);
+        await AnchorProbationFromFirstStampAsync(res, entryMin, ct);
         return res.Notes;
     }
 
     /// <summary>
-    /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026).
-    /// Geht ALLE noch NICHT verankerten Probezeiten durch (ProbationEndDate gesetzt,
-    /// ProbationStartDate == null) — so wird auch ein MA erfasst, dessen Stempel
-    /// schon in einem früheren Lauf importiert wurden. Pro MA nur, wenn er GENAU
-    /// EINEN Vertrag hat:
-    ///   • erste Stempelzeit (min EntryDate) suchen — fehlt sie, später erneut
-    ///   • Probezeit-Ende um (erste Stempelzeit − Vertragsbeginn) verschieben
-    ///   • ProbationStartDate setzen (= Anker, läuft danach nie mehr)
-    ///   • ANKER-Zeile in employment_probation_log mit Status-Grund schreiben
-    /// Idempotent: ist der Anker einmal gesetzt, passiert nichts mehr.
+    /// Legt Probezeit an, wo noch keine existiert (Sync-Split / Alt-Daten).
+    /// Walter 02.08.2026: Basis = erste Stempelzeit ≥ Eintritt, sonst Eintritt.
+    /// Nur Eintritt ≥ <paramref name="entryMin"/> (Nachführen: max. 4 Monate).
     /// </summary>
-    private async Task AnchorProbationFromFirstStampAsync(AutoSyncResult res, CancellationToken ct)
+    private async Task SeedMissingProbationAsync(AutoSyncResult res, DateOnly entryMin, CancellationToken ct)
+    {
+        // Aktive MA mit Eintritt in Fenster, mind. einem Vertrag, nirgends ProbationEndDate.
+        var entryMinDt = entryMin.ToDateTime(TimeOnly.MinValue);
+        var empIdsMissing = await _db.Employees.AsNoTracking()
+            .Where(e => e.IsActive
+                     && e.EntryDate != null
+                     && e.EntryDate >= entryMinDt
+                     && e.Employments.Any()
+                     && !e.Employments.Any(em => em.ProbationEndDate != null))
+            .Select(e => e.Id)
+            .ToListAsync(ct);
+        if (empIdsMissing.Count == 0) return;
+
+        var branchProbs = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.ProbationMonths != null)
+            .Select(c => new { c.Id, Months = c.ProbationMonths!.Value })
+            .ToDictionaryAsync(x => x.Id, x => x.Months, ct);
+
+        bool changed = false;
+        foreach (var eid in empIdsMissing)
+        {
+            var emps = await _db.Employments
+                .Where(e => e.EmployeeId == eid)
+                .ToListAsync(ct);
+            if (emps.Count == 0 || emps.Any(e => e.ProbationEndDate != null)) continue;
+
+            var target = emps.Where(e => e.ContractEndDate == null)
+                             .OrderBy(e => e.ContractStartDate)
+                             .FirstOrDefault()
+                      ?? emps.OrderBy(e => e.ContractStartDate).First();
+
+            if (!target.CompanyProfileId.HasValue
+                || !branchProbs.TryGetValue(target.CompanyProfileId.Value, out var branchProb))
+                continue;
+
+            var entryDt = await _db.Employees.AsNoTracking()
+                .Where(e => e.Id == eid)
+                .Select(e => e.EntryDate)
+                .FirstOrDefaultAsync(ct);
+            DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
+            var contractStart = DateOnly.FromDateTime(target.ContractStartDate);
+            var reference = ProbationAnchor.ReferenceStart(entry, contractStart);
+
+            var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == eid);
+            if (entry.HasValue)
+                stampQ = stampQ.Where(t => t.EntryDate >= entry.Value);
+            var firstStamp = await stampQ
+                .OrderBy(t => t.EntryDate)
+                .Select(t => (DateOnly?)t.EntryDate)
+                .FirstOrDefaultAsync(ct);
+
+            var basis = firstStamp ?? reference;
+            var ende = ProbationAnchor.ComputeEnd(basis, branchProb);
+            target.ProbationEndDate      = ende.ToDateTime(TimeOnly.MinValue);
+            target.ProbationPeriodMonths = branchProb == 14 ? null : branchProb;
+
+            if (firstStamp.HasValue)
+            {
+                target.ProbationStartDate = firstStamp.Value;
+                _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
+                {
+                    EmploymentId         = target.Id,
+                    EventDate            = firstStamp.Value,
+                    EventType            = "ANKER",
+                    DeltaDays            = ProbationAnchor.Delta(reference, firstStamp.Value),
+                    Grund                = ProbationAnchor.Grund(reference, firstStamp.Value),
+                    ProbezeitEndeNachher = ende,
+                    CreatedAt            = DateTime.Now,
+                });
+                res.Notes.Add($"Probezeit angelegt+verankert (MA #{eid}): {ProbationAnchor.Grund(reference, firstStamp.Value)}.");
+            }
+            else
+            {
+                res.Notes.Add($"Probezeit provisorisch angelegt (MA #{eid}): ab {reference:dd.MM.yyyy} bis {ende:dd.MM.yyyy} — wartet auf erste Stempelzeit.");
+            }
+            changed = true;
+        }
+
+        if (changed) await _db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Verankert die Probezeit am tatsächlichen 1. Arbeitstag (Walter 29.06.2026,
+    /// präzisiert 02.08.2026): erste Stempelzeit ab Eintrittsdatum.
+    /// <paramref name="entryMin"/>: beim Nachführen nur Eintritt ≥ diesem Datum
+    /// (4 Monate); beim Stempel-Sync <c>null</c> = alle provisorischen.
+    /// </summary>
+    private async Task AnchorProbationFromFirstStampAsync(
+        AutoSyncResult res, DateOnly? entryMin, CancellationToken ct)
     {
         // Provisorische (noch nicht verankerte) Probezeiten — i.d.R. wenige.
         var candidates = await _db.Employments
@@ -1197,21 +1284,32 @@ public class EasyAtWorkTimepunchSyncService
 
         foreach (var emp in candidates)
         {
-            // Nur bei GENAU einem Vertrag (keine Historie).
-            var contractCount = await _db.Employments.CountAsync(e => e.EmployeeId == emp.EmployeeId, ct);
-            if (contractCount != 1) continue;
+            var entryDt = await _db.Employees.AsNoTracking()
+                .Where(e => e.Id == emp.EmployeeId)
+                .Select(e => e.EntryDate)
+                .FirstOrDefaultAsync(ct);
+            DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
 
-            // Erste Stempelzeit (frühester Arbeitstag) des MA.
-            var firstStamp = await _db.EmployeeTimeEntries
-                .Where(t => t.EmployeeId == emp.EmployeeId)
+            // Nachführen: nur Eintritt in den letzten 4 Monaten.
+            if (entryMin.HasValue)
+            {
+                if (!entry.HasValue || entry.Value < entryMin.Value) continue;
+            }
+
+            // Erste Stempelzeit ab Eintritt (Walter: entscheidend für Probezeit).
+            var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == emp.EmployeeId);
+            if (entry.HasValue)
+                stampQ = stampQ.Where(t => t.EntryDate >= entry.Value);
+            var firstStamp = await stampQ
                 .OrderBy(t => t.EntryDate)
                 .Select(t => (DateOnly?)t.EntryDate)
                 .FirstOrDefaultAsync(ct);
             if (firstStamp == null) continue;
 
             var contractStart = DateOnly.FromDateTime(emp.ContractStartDate);
-            var delta = ProbationAnchor.Delta(contractStart, firstStamp.Value);
-            var grund = ProbationAnchor.Grund(contractStart, firstStamp.Value);
+            var reference = ProbationAnchor.ReferenceStart(entry, contractStart);
+            var delta = ProbationAnchor.Delta(reference, firstStamp.Value);
+            var grund = ProbationAnchor.Grund(reference, firstStamp.Value);
 
             var neuesEnde = DateOnly.FromDateTime(emp.ProbationEndDate.Value).AddDays(delta);
             emp.ProbationEndDate   = neuesEnde.ToDateTime(TimeOnly.MinValue);

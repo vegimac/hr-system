@@ -51,10 +51,27 @@ public class Behoerde
     /// <summary>QR-IBAN für QR-Rechnung (falls abweichend von Iban).</summary>
     public string? QrIban     { get; set; }
 
+    /// <summary>
+    /// Legacy-Freitext (vor FK). DTA bevorzugt
+    /// <see cref="KontoinhaberBehoerdeId"/>; Freitext nur noch Fallback.
+    /// </summary>
+    public string? Kontoinhaber { get; set; }
+
+    /// <summary>
+    /// Andere Behörde als Kontoinhaber/Zahlungsempfänger für den DTA
+    /// (Walter 02.08.2026) — z.B. ORS Burgdorf → ORS Service AG Zürich.
+    /// Name + Adresse/PLZ/Ort kommen von der gewählten Behörde. Seltene Ausnahme.
+    /// </summary>
+    public int? KontoinhaberBehoerdeId { get; set; }
+    public Behoerde? KontoinhaberBehoerde { get; set; }
+
     public string? Bic        { get; set; }
     public string? BankName   { get; set; }
 
     public bool    IsActive   { get; set; } = true;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    public ICollection<BehoerdeSachbearbeiter> Sachbearbeiter { get; set; }
+        = new List<BehoerdeSachbearbeiter>();
 }

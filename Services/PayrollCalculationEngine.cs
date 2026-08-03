@@ -29,6 +29,7 @@ public class PayrollCalculationEngine
     private readonly KtgTagessatzService _ktgService;
     private readonly KarenzService _karenz;
     private readonly LgavBeitragService _lgav;
+    private readonly UniformDepotService _uniformDepot;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly QstPflichtCheckService _qstCheck;
 
@@ -38,6 +39,7 @@ public class PayrollCalculationEngine
         KtgTagessatzService ktgService,
         KarenzService karenz,
         LgavBeitragService lgav,
+        UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
         QstPflichtCheckService qstCheck)
     {
@@ -46,12 +48,18 @@ public class PayrollCalculationEngine
         _ktgService     = ktgService;
         _karenz         = karenz;
         _lgav           = lgav;
+        _uniformDepot   = uniformDepot;
         _ferienKuerzung = ferienKuerzung;
         _qstCheck       = qstCheck;
     }
 
-    public async Task<IActionResult> CalculateAsync(int employeeId, int year, int month, int companyProfileId)
+    public async Task<IActionResult> CalculateAsync(
+        int employeeId, int year, int month, int companyProfileId,
+        bool isCorrection = false)
     {
+      if (isCorrection)
+          return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
+
       try {
         // ── Stammdaten laden ───────────────────────────────────────────────
         var employee = await _db.Employees
@@ -252,14 +260,20 @@ public class PayrollCalculationEngine
         // Vorher prüfte die Engine NUR (1) und das Legacy-Feld `QuellensteuerBefreitAb`
         // — ein MA mit C-Ausweis oder Schweizer Ehepartner bekam ungerechtfertigt
         // QST abgezogen.
-        var qstPflicht = await _qstCheck.CheckAsync(employeeId, periodFrom);
+        // Stichtag = Periodenende: bei Eintritt mitten im Monat (z.B. 2.7.)
+        // ist die QST-Erfassung oft ab Eintrittsdatum gültig — am 1. des
+        // Monats noch nicht. ConfirmPayroll/Freigeben prüfen ebenfalls periodTo.
+        var qstPflicht = await _qstCheck.CheckAsync(employeeId, periodTo);
 
         EmployeeQuellensteuer? qstEinstellung = null;
         if (qstPflicht.IsQstPflichtig)
         {
+            // Überlappung mit der Lohnperiode (nicht nur gültig am 1.):
+            // ValidFrom 2.7. muss im Juli-Lauf greifen (Walter 02.08.2026,
+            // Ana Petkovic 580104 — sonst keine QST-Zeile trotz Erfassung).
             qstEinstellung = await _db.EmployeeQuellensteuer
                 .Where(q => q.EmployeeId == employeeId
-                         && q.ValidFrom  <= periodFrom
+                         && q.ValidFrom <= periodTo
                          && (q.ValidTo == null || q.ValidTo >= periodFrom))
                 .OrderByDescending(q => q.ValidFrom)
                 .FirstOrDefaultAsync();
@@ -463,13 +477,24 @@ public class PayrollCalculationEngine
         decimal thirteenthPct = company.DefaultThirteenthSalaryPercent  ?? 0;
 
         // ── Probezeit-Sperre für 13. ML (L-GAV Art. 12 Ziffer 2) ───────────
-        // Während der Probezeit besteht kein Anspruch auf 13. ML (entfällt
-        // bei Auflösung in Probezeit). Daher in keiner Vertragsart auszahlen,
-        // auch nicht in MTP/FIX-Auszahlungsmonaten. Stattdessen akkumulieren —
-        // und beim ersten Lohn nach Probezeit-Ende nachzahlen (UTP)
-        // bzw. beim nächsten Auszahlungsmonat (MTP/FIX/FIX-M).
-        bool isInProbation = emp.ProbationEndDate.HasValue
-                          && DateOnly.FromDateTime(emp.ProbationEndDate.Value) >= periodTo;
+        // Während der Probezeit: akkumulieren, nicht auszahlen.
+        // Am Periodenende bestanden (ProbezeitEnde == Periodenende) → für
+        // diesen Lohn freigeben / nachzahlen. Verfall NUR wenn Austritt in
+        // dieser Periode und Austritt ≤ ProbezeitEnde — befristetes Ende
+        // NACH der Probezeit lässt den Saldo stehen (Walter 01.08.2026).
+        DateOnly? probationEnd13 = emp.ProbationEndDate.HasValue
+            ? DateOnly.FromDateTime(emp.ProbationEndDate.Value) : null;
+        DateOnly? austritt13 = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
+        var (isInProbation, thirteenthForfeited) = ResolveThirteenthProbationStatus(
+            probationEnd13, austritt13, periodFrom, periodToFull);
+        // FLEX-Saldi-Zeile zeigen während Probezeit, im Bestands-Monat
+        // (ProbezeitEnde in dieser Periode) und bei Verfall — auch wenn 0.00
+        // (sonst «sehe den 13. Saldo nicht», Walter 02.08.2026).
+        bool probationEndsThisPeriod = probationEnd13.HasValue
+            && probationEnd13.Value >= periodFrom
+            && probationEnd13.Value <= periodToFull;
+        bool showFlexThirteenthSaldo = isUTP
+            && (isInProbation || thirteenthForfeited || probationEndsThisPeriod);
 
         // ── Ferien-% Auto-Upgrade ab definierter Alters-Schwelle (CH-GAV-Standard 50) ──
         // Mitarbeiter ab vollendetem Lebensjahr X (Walter-Vorgabe 06.06.2026:
@@ -756,6 +781,10 @@ public class PayrollCalculationEngine
         // damit der neu angelegte Abzug in dieser Periode mit berechnet wird.
         await _lgav.EnsureAsync(employee, emp, company, year, month, periodFrom, periodTo);
 
+        // Uniformen-Depot CHF 50 beim 1. Lohn (Walter Aug 2026) — idempotent,
+        // schreibt LohnZulage 600.32 + employee_uniform_depot vor dem Laden.
+        await _uniformDepot.EnsureChargeAsync(employee, year, month);
+
         // ── Zulagen & Abzüge für diese Periode laden ──────────────────────
         // Einmalige Einträge (manuell pro Periode erfasst) + wiederkehrende
         // Einträge (Mitarbeiter-Stammdaten) werden zusammengeführt und gleich
@@ -1017,9 +1046,13 @@ public class PayrollCalculationEngine
         // ── Lohnabtretungen (Lohnpfändung / Sozialamt) laden ─────────────
         // Aktive Zuweisungen für diesen Mitarbeiter im Perioden-Zeitraum.
         // Werden nach Netto vom Lohn abgezogen.
+        // Nur mit verknüpftem Dokument gültig (Walter 02.08.2026) —
+        // verhindert Lohn-Abzweig ohne Beleg.
         var lohnAssignments = await _db.EmployeeLohnAssignments
-            .Include(la => la.Behoerde)
+            .Include(la => la.Behoerde!)
+                .ThenInclude(b => b.KontoinhaberBehoerde)
             .Where(la => la.EmployeeId == employeeId
+                      && la.DokumentId != null
                       && la.ValidFrom <= periodTo
                       && (la.ValidTo == null || la.ValidTo >= periodFrom))
             .OrderBy(la => la.ValidFrom)
@@ -1217,6 +1250,23 @@ public class PayrollCalculationEngine
             lohnposAbzugTotal += b;
         }
 
+        // Uniformen-Depot Rückerstattung (Walter Aug 2026): positiver Betrag
+        // in abzugLines (= Auszahlung) wenn Austritt + Uniform zurückgegeben.
+        // Status-Wechsel erst bei Confirm (ApplyAfterConfirmAsync).
+        var (depotRefund, depotAmt, depotLabel) =
+            await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+        if (depotRefund && depotAmt > 0)
+        {
+            lohnposAbzugLines.Add(new {
+                bezeichnung = depotLabel ?? "Uniformen-Depot Rückerstattung",
+                code        = UniformDepotService.LohnpositionCode,
+                prozent     = (decimal?)null,
+                basis       = (decimal?)null,
+                betrag      = depotAmt   // positiv = Refund (Fibu tauscht Konten)
+            });
+            lohnposAbzugTotal -= depotAmt; // reduziert totalAbzuege → höherer Netto
+        }
+
         // Info-Hinweis bei NBU-Befreiung (Walter-Vorgabe 09.06.2026 / 31.07.2026):
         // Flag am FLEX-Vertrag (Employment); Legacy-Fallback am MA.
         // 0-CHF-Zeile im Lohnzettel — code=null → keine Fibu-Buchung.
@@ -1265,6 +1315,7 @@ public class PayrollCalculationEngine
             ("Unfall (Karenzentschädigung)",      "60"),
             ("Unfall (Taggeld 80%)",              "60.2"),
             ("Unfall (Taggeld",                   "60.2"),
+            ("Unbezahlter Urlaub",                "110"),
             ("Feiertagentschädigung",             "_feiertag_ent"),
             ("Ferienentschädigung-Auszahlung",    "_ferien_ausz"),
             ("Ferienentschädigung",               "_ferien_ent"),
@@ -1532,6 +1583,21 @@ public class PayrollCalculationEngine
                 });
                 totalLohn += festlohnArbeitBetrag;
                 AddAmount("10", festlohnExact);
+            }
+
+            // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auch auf dem
+            // Lohnzettel aufführen (Info-Zeile). Der Festlohn ist oben bereits
+            // um die UU-Stunden gekürzt — hier keine zweite CHF-Kürzung.
+            if (mtpUnbezUrlaubTage > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = "Unbezahlter Urlaub",
+                    anzahl  = (decimal?)Math.Round(mtpUnbezUrlaubTage, 2),
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)null,
+                    betrag  = 0m,
+                    accrued = (decimal?)0m
+                });
             }
 
             // Hinweis: MTP Ferien-Auszahlung wird weiter unten verbucht
@@ -1805,7 +1871,8 @@ public class PayrollCalculationEngine
             // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
             // pro Lohnposition in der Admin-UI ob sie zählt.
             // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
-            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company, month) && !isInProbation;
+            // Verfall (Austritt ≤ Probezeit) sticht Auszahlungsmonat.
+            bool isPayoutMonthMtp = IsThirteenthPayoutMonth(company, month) && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterMtp = 0;
             decimal thirteenthPctForSaldo  = thirteenthPct;   // Wird akkumuliert …
             decimal prevThirteenthForSaldo = prevThirteenth;
@@ -1817,7 +1884,25 @@ public class PayrollCalculationEngine
             decimal? thirteenthPrevForDisplay     = null;
             decimal? thirteenthAccrualForDisplay  = null;
             decimal? thirteenthPayoutForDisplay   = null;
-            if (thirteenthPct > 0 && isPayoutMonthMtp)
+            if (thirteenthForfeited && thirteenthPct > 0)
+            {
+                decimal currentAccrual = Math.Round(mtp13BasisExact * thirteenthPct / 100m, 2);
+                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                if (forfeitedAmt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)thirteenthPct,
+                        basis       = (decimal?)mtp13Basis,
+                        betrag      = 0m,
+                        accrued     = (decimal?)forfeitedAmt
+                    });
+                }
+                thirteenthPctForSaldo  = 0;
+                prevThirteenthForSaldo = 0;
+            }
+            else if (thirteenthPct > 0 && isPayoutMonthMtp)
             {
                 // MTP-Auszahlung: prevThirteenth (aufgelaufener Saldo bis
                 // Vormonat) + currentAccrual (aktueller Monat). Saldo wird
@@ -2025,6 +2110,21 @@ public class PayrollCalculationEngine
             lohnLines.Add(new { bezeichnung = "Stundenlohn", anzahl = (decimal?)workedHoursAnzeige, prozent = (decimal?)null, basis = (decimal?)hourlyRate, betrag = lohnBrutto, accrued = (decimal?)lohnBrutto });
             totalLohn += lohnBrutto;
 
+            // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auf dem Lohnzettel
+            // aufführen. Bei FLEX keine CHF-Wirkung (ungestempelt = unbezahlt),
+            // aber die Tage müssen sichtbar sein (Transparenz / Kontrolle).
+            if (unbezUrlaubTageFerien > 0)
+            {
+                lohnLines.Add(new {
+                    bezeichnung = "Unbezahlter Urlaub",
+                    anzahl  = (decimal?)Math.Round(unbezUrlaubTageFerien, 2),
+                    prozent = (decimal?)null,
+                    basis   = (decimal?)null,
+                    betrag  = 0m,
+                    accrued = (decimal?)0m
+                });
+            }
+
             if (nachtKompBrutto > 0)
             {
                 lohnLines.Add(new {
@@ -2067,8 +2167,10 @@ public class PayrollCalculationEngine
                 });
             }
 
+            // Pott inkl. aktueller Monat (Walter 01.08.2026) — gleiche Formel wie MTP.
+            // Parameter tageAccrual = monatliche Ferien-Tage-Gutschrift (nicht Saldo neu).
             (ferienGeldAuszahlung, ferienGeldSaldoNeu) = CalcFerienGeld(
-                vormonatFerienGeld, ferienEnt, vormonatFerienTage, ferienTageSaldoNeu,
+                vormonatFerienGeld, ferienEnt, vormonatFerienTage, ferienTageAccrual,
                 ferienTageGenommen, ref lohnLines, ref totalLohn, vacationPct, lohnBrutto);
 
             // Manuelle Ferien-Geld-Saldo-Auszahlung (Code 195.3): reduziert
@@ -2111,15 +2213,16 @@ public class PayrollCalculationEngine
             lohnLines.AddRange(zulagenSvLines);
             totalLohn += zulagenSvTotal;
 
-            // ── 13. Monatslohn (UTP) ────────────────────────────────────────
-            // Standard: monatlich auszahlen. Basis = Summe aller Lohnpositionen
-            // mit Flag "Basis für 13. Monatslohn" (ZaehltAlsBasis13ml = true).
-            //
-            // Probezeit-Regel (L-GAV Art. 12 Ziffer 2): während Probezeit NICHT
-            // auszahlen, in Saldo akkumulieren. Beim ersten Lohn nach Probezeit-
-            // Ende den aufgelaufenen Saldo + aktuellen Monat zusammen ausschütten.
+            // ── 13. Monatslohn (FLEX) ───────────────────────────────────────
+            // Standard: monatlich. Probezeit → Saldo. Am Periodenende bestanden
+            // → nachzahlen + monatlich. Austritt ≤ ProbezeitEnde → Verfall.
             decimal dreizehnterUtp = 0;
-            decimal prevThirteenthForSaldoUtp = prevThirteenth;
+            decimal prevThirteenthForSaldoUtp = 0;
+            decimal basis13ForSaldoUtp = 0;
+            decimal thirteenthPctForSaldoUtp = 0;
+            decimal? thirteenthPrevForDisplayUtp = null;
+            decimal? thirteenthAccrualForDisplayUtp = null;
+            decimal? thirteenthPayoutForDisplayUtp = null;
             if (thirteenthPct > 0)
             {
                 decimal basis13Exact = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
@@ -2127,13 +2230,29 @@ public class PayrollCalculationEngine
                 decimal currentAccrualExact = basis13Exact * thirteenthPct / 100m;
                 decimal currentAccrual = Math.Round(currentAccrualExact, 2);
 
-                if (isInProbation)
+                if (thirteenthForfeited)
+                {
+                    // Verfall: Pott + Monatszuwachs entfallen (kein SV, Saldo 0).
+                    decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrualExact, 2);
+                    if (forfeitedAmt > 0)
+                    {
+                        lohnLines.Add(new {
+                            bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                            anzahl      = (decimal?)null,
+                            prozent     = (decimal?)thirteenthPct,
+                            basis       = (decimal?)basis13,
+                            betrag      = 0m,
+                            accrued     = (decimal?)forfeitedAmt
+                        });
+                    }
+                }
+                else if (isInProbation)
                 {
                     // Akkumulieren, nicht auszahlen.
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
-                            bezeichnung = "13. Monatslohn (Probezeit – akkumuliert)",
+                            bezeichnung = "13. Monatslohn (Probe.Z. Rückstellung)",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -2141,11 +2260,13 @@ public class PayrollCalculationEngine
                             accrued     = (decimal?)currentAccrual
                         });
                     }
-                    prevThirteenthForSaldoUtp = Math.Round(prevThirteenth + currentAccrualExact, 2);
+                    prevThirteenthForSaldoUtp = prevThirteenth;
+                    basis13ForSaldoUtp = basis13Exact;
+                    thirteenthPctForSaldoUtp = thirteenthPct;
                 }
                 else
                 {
-                    // Aktueller Monat: regulär monatlich.
+                    // Bestanden (auch am Periodenende) → monatlich + Nachzahlung.
                     if (currentAccrual > 0)
                     {
                         lohnLines.Add(new {
@@ -2158,11 +2279,10 @@ public class PayrollCalculationEngine
                         });
                         totalLohn += currentAccrual;
                     }
-                    // Saldo aus vorheriger Probezeit jetzt nachzahlen.
                     if (prevThirteenth > 0)
                     {
                         lohnLines.Add(new {
-                            bezeichnung = "13. Monatslohn (Saldo-Nachzahlung Probezeit)",
+                            bezeichnung = "13. Monatslohn (Nachzahlung nach Probezeit)",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)null,
                             basis       = (decimal?)null,
@@ -2170,9 +2290,12 @@ public class PayrollCalculationEngine
                             accrued     = (decimal?)prevThirteenth
                         });
                         totalLohn += prevThirteenth;
+                        thirteenthPrevForDisplayUtp = prevThirteenth;
+                        thirteenthAccrualForDisplayUtp = 0m;
+                        thirteenthPayoutForDisplayUtp = prevThirteenth;
                     }
                     dreizehnterUtp = Math.Round(currentAccrual + prevThirteenth, 2);
-                    prevThirteenthForSaldoUtp = 0;   // Saldo geleert
+                    prevThirteenthForSaldoUtp = 0;
                 }
             }
 
@@ -2351,11 +2474,8 @@ public class PayrollCalculationEngine
             var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
-            // UTP: 13. ML standardmässig monatlich ausbezahlt. Während Probezeit
-            // wandert er aber in den Saldo (siehe oben) — daher prevThirteenth-
-            // Forwarding via prevThirteenthForSaldoUtp und ThirteenthPct
-            // gesetzt, damit beim nächsten Periodenwechsel die Saldo-Vortrag-
-            // Logik funktioniert.
+            // FLEX: 13. ML standardmässig monatlich. Während Probezeit → Saldo
+            // (Basis13ml + PrevThirteenth); Nachzahlung leert den Saldo.
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
             var result = BuildResult(employee, emp, company, year, month, periodFrom, periodTo,
                 lohnLines, abzugLines, deductions, totalLohn, svBasesUtp,
@@ -2385,10 +2505,17 @@ public class PayrollCalculationEngine
                     FeiertagTageAccrual:  feiertagTageAccrual,
                     FeiertagTageGenommen: feiertagTageGenommen,
                     FeiertagTageSaldoNeu: feiertagTageSaldoNeu,
-                    ThirteenthPct:        isInProbation ? thirteenthPct : 0m,
+                    ThirteenthPct:        thirteenthPctForSaldoUtp,
                     PrevThirteenth:       prevThirteenthForSaldoUtp,
+                    ThirteenthPrevForDisplay:    thirteenthPrevForDisplayUtp,
+                    ThirteenthAccrualForDisplay: thirteenthAccrualForDisplayUtp,
+                    ThirteenthPayout:            thirteenthPayoutForDisplayUtp,
                     FerienKuerzungVorschlag:     kuerzungVorschlag,
-                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage),
+                    FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
+                    Basis13ml:            basis13ForSaldoUtp,
+                    IsInProbation:        isInProbation,
+                    ThirteenthForfeited:  thirteenthForfeited,
+                    ShowFlexThirteenthSaldo: showFlexThirteenthSaldo),
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
@@ -2654,7 +2781,8 @@ public class PayrollCalculationEngine
             // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
             // pro Lohnposition in der Admin-UI ob sie zählt.
             // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
-            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company, month) && !isInProbation;
+            // Verfall (Austritt ≤ Probezeit) sticht Auszahlungsmonat.
+            bool isPayoutMonthFix = IsThirteenthPayoutMonth(company, month) && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterFix = 0;
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
@@ -2664,7 +2792,25 @@ public class PayrollCalculationEngine
             decimal? fix13PrevForDisplay    = null;
             decimal? fix13AccrualForDisplay = null;
             decimal? fix13PayoutForDisplay  = null;
-            if (thirteenthPct > 0 && isPayoutMonthFix)
+            if (thirteenthForfeited && thirteenthPct > 0)
+            {
+                decimal currentAccrual = Math.Round(fix13BasisExact * thirteenthPct / 100m, 2);
+                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                if (forfeitedAmt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        anzahl      = (decimal?)null,
+                        prozent     = (decimal?)thirteenthPct,
+                        basis       = (decimal?)fix13Basis,
+                        betrag      = 0m,
+                        accrued     = (decimal?)forfeitedAmt
+                    });
+                }
+                thirteenthPctForSaldoFix  = 0;
+                prevThirteenthForSaldoFix = 0;
+            }
+            else if (thirteenthPct > 0 && isPayoutMonthFix)
             {
                 // FIX/FIX-M-Auszahlung: identisches Splitting wie MTP. Aktueller
                 // Monatsanteil und Saldo-Auszahlung als getrennte Lohnposition-
@@ -2868,74 +3014,43 @@ public class PayrollCalculationEngine
         if (satzBrutto < bruttolohn) satzBrutto = bruttolohn;
 
         decimal qstBetrag;
+        decimal? satzPct;
 
         if (einstellung.Prozentsatz.HasValue)
         {
             // Manuell überschriebener Prozentsatz — direkt auf IST-Brutto.
             qstBetrag = Math.Round(bruttolohn * einstellung.Prozentsatz.Value / 100m, 2);
+            satzPct = einstellung.Prozentsatz;
         }
         else
         {
-            // Dynamisch aus ESTV-Tarifdatei: Steuersatz wird zum SATZBESTIMMENDEN
-            // Lohn ermittelt, danach auf den IST-Brutto angewendet. So zahlt
-            // ein Stundenlöhner mit 13h/Mt nicht 0% (weil Brutto unter QST-Mindest),
-            // sondern den Satz seines Vollzeit-Äquivalents.
-            decimal? satzPctTarif = _tarifService.GetSteuersatzProzent(
+            // Dynamisch aus ESTV-Tarifdatei: Steuersatz + Mindeststeuer (Pos 46–54)
+            // zum SATZBESTIMMENDEN Lohn, Betrag auf IST-Brutto (ESTV 4.4:
+            // wenn IST × Satz < Mindeststeuer → Mindeststeuer).
+            // So zahlt ein Stundenlöhner mit 13h/Mt nicht 0.00, wenn die
+            // Stufe eine Mindeststeuer hat (AG CHF 2, LU CHF 13, …).
+            var qstCalc = _tarifService.Berechne(
                 einstellung.Steuerkanton,
                 einstellung.TarifCode,
                 einstellung.AnzahlKinder,
                 einstellung.Kirchensteuer,
-                satzBrutto);
-            if (satzPctTarif is null) return null;
-            qstBetrag = Math.Round(bruttolohn * satzPctTarif.Value / 100m, 2);
-        }
+                satzbestimmenderBruttoCHF: satzBrutto,
+                istBruttoCHF: bruttolohn);
+            if (qstCalc is null) return null;
+            qstBetrag = qstCalc.SteuerbetragCHF;
 
-        // ── Kantonaler Mindestbetrag ──────────────────────────────────────
-        // Manche Kantone (z.B. LU) schreiben einen monatlichen Mindestabzug
-        // vor: wenn überhaupt QST anfällt, mindestens X CHF/Monat.
-        // Quelle für LU: steuern.lu.ch — "Der monatliche Mindestabzug
-        // beträgt CHF 13.00".
-        // WICHTIG: Mindestbetrag wird VOR dem "qstBetrag <= 0"-Return angewendet,
-        // damit auch bei sehr niedrigen IST-Brutto (= 0% in der Tarif-Tabelle
-        // bei den ersten Stufen) der Mindestbetrag greift, solange der MA
-        // QST-pflichtig ist (nicht-CH-Nationalität, nicht befreit).
-        var mindest = _tarifService.GetMindestbetrag(einstellung.Steuerkanton);
-        if (mindest.HasValue && qstBetrag < mindest.Value && bruttolohn > 0)
-        {
-            qstBetrag = mindest.Value;
+            // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
+            // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.
+            if (qstCalc.MindeststeuerAngewendet && bruttolohn > 0)
+                satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
+            else
+                satzPct = qstCalc.SteuersatzPct;
         }
 
         // Walter-Vorgabe 27.05.2026: bei QST-pflichtigem MA mit erfasstem Tarif
-        // IMMER eine Zeile zeigen — auch bei 0.00 (z.B. C3-Tarif bei niedrigem
-        // Brutto → 0% laut ESTV-Tabelle). Sonst denkt der GF, die QST sei
-        // „nicht berechnet" und sucht den Bug, der gar keiner ist.
+        // IMMER eine Zeile zeigen — auch bei 0.00 (Tarif ohne Mindeststeuer und
+        // 0%-Stufe). Sonst denkt der GF, die QST sei «nicht berechnet».
         if (qstBetrag < 0) qstBetrag = 0;
-
-        // Satz für Anzeige (best-effort; null wenn kein Tarif). Gilt der
-        // satzbestimmende Brutto, weil der Aufzulisten-Steuersatz auf dem
-        // Lohnzettel der ist, der für die Berechnung verwendet wurde.
-        // Falls Mindestbetrag gegriffen hat, weicht der effektive Satz
-        // (= qstBetrag/bruttolohn) ggf. vom Tarif-Satz ab — dann zeigen
-        // wir den effektiven, damit's auf dem Lohnzettel rechnerisch stimmt.
-        decimal? satzPct;
-        if (einstellung.Prozentsatz.HasValue)
-        {
-            satzPct = einstellung.Prozentsatz;
-        }
-        else if (mindest.HasValue && qstBetrag == mindest.Value && bruttolohn > 0)
-        {
-            // Mindestbetrag aktiv → Satz aus Mindestbetrag/Brutto
-            satzPct = Math.Round(qstBetrag / bruttolohn * 100m, 2);
-        }
-        else
-        {
-            satzPct = _tarifService.GetSteuersatzProzent(
-                einstellung.Steuerkanton,
-                einstellung.TarifCode,
-                einstellung.AnzahlKinder,
-                einstellung.Kirchensteuer,
-                satzBrutto);
-        }
 
         string qstCode     = einstellung.QstCode ?? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}";
 
@@ -2956,6 +3071,292 @@ public class PayrollCalculationEngine
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
         };
+    }
+
+    /// <summary>
+    /// Korrektur-/Sonderlohn für ausgetretene MA (Walter Aug 2026).
+    /// Kein Stempel/Absenz/Saldo-Fortschreibung — nur manuelle LohnZulagen
+    /// der Periode + ggf. Uniformen-Depot-Refund. Letzter Vertrag der Filiale
+    /// dient nur als Kontext (Modell/Alter).
+    /// </summary>
+    private async Task<IActionResult> CalculateCorrectionAsync(
+        int employeeId, int year, int month, int companyProfileId)
+    {
+        try
+        {
+            var employee = await _db.Employees
+                .Include(e => e.Employments)
+                .FirstOrDefaultAsync(e => e.Id == employeeId);
+            if (employee is null) return new NotFoundObjectResult("Mitarbeiter nicht gefunden.");
+            if (employee.IsPayrollExcluded)
+                return new BadRequestObjectResult(new { message = "Dieser Mitarbeiter ist als «Kein Lohn» markiert." });
+
+            var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
+            if (company is null) return new NotFoundObjectResult("Filiale nicht gefunden.");
+
+            var (periodFrom, periodTo) = CalcPeriod(year, month);
+
+            // Letzter Vertrag dieser Filiale (auch abgelaufen) — Kontext für Modell/Alter.
+            var emp = employee.Employments
+                .Where(e => e.CompanyProfileId == companyProfileId)
+                .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefault();
+            if (emp is null)
+                return new NotFoundObjectResult(
+                    "Kein Vertrag in dieser Filiale gefunden — Korrekturlohn nicht möglich.");
+
+            // Kein LGAV / kein 1.-Lohn-Depot-Charge bei Korrektur (nur Refund möglich).
+            string periodeStr = $"{year:D4}-{month:D2}";
+            var zulagen = await _db.LohnZulagen
+                .Include(z => z.Lohnposition)
+                .Where(z => z.EmployeeId == employeeId && z.Periode == periodeStr)
+                .Where(z => z.Lohnposition != null && z.Lohnposition.Kategorie != "Saldo-Vortrag")
+                .OrderBy(z => z.Lohnposition!.SortOrder)
+                .ThenBy(z => z.CreatedAt)
+                .ToListAsync();
+
+            var zulagenSvLines = new List<object>();
+            decimal zulagenSvTotal = 0;
+            decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+            var zulagenExtraLines = new List<object>();
+            decimal zulagenExtraTotal = 0;
+            var lohnposAbzugLines = new List<object>();
+            decimal lohnposAbzugTotal = 0;
+            // Feiertags-Bemessungsgrundlage aus Lohnpositions-Flags
+            // (z.B. 65.2 Korrektur UVG Versicherung → L-GAV 2.27 %).
+            decimal feiertagBasisExact = 0m;
+
+            foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ZULAGE"))
+            {
+                decimal b = Math.Round(z.Betrag, 2);
+                var lp = z.Lohnposition!;
+                bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
+                            || lp.BvgPflichtig || lp.QstPflichtig;
+                string bez = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : "");
+                if (lp.ZaehltAlsBasisFeiertag) feiertagBasisExact += b;
+                if (anyFlag)
+                {
+                    zulagenSvLines.Add(new {
+                        bezeichnung = bez,
+                        code = lp.Code,
+                        anzahl = (decimal?)null, prozent = (decimal?)null,
+                        basis = (decimal?)null, betrag = b
+                    });
+                    zulagenSvTotal += b;
+                    if (lp.AhvAlvPflichtig) deltaAhv  += b;
+                    if (lp.NbuvPflichtig)   deltaNbuv += b;
+                    if (lp.KtgPflichtig)    deltaKtg  += b;
+                    if (lp.BvgPflichtig)    deltaBvg  += b;
+                    if (lp.QstPflichtig)    deltaQst  += b;
+                }
+                else
+                {
+                    zulagenExtraLines.Add(new { bezeichnung = bez, code = lp.Code, betrag = b });
+                    zulagenExtraTotal += b;
+                }
+            }
+
+            foreach (var z in zulagen.Where(z => z.Lohnposition!.Typ == "ABZUG"))
+            {
+                decimal b = Math.Round(z.Betrag, 2);
+                var lp = z.Lohnposition!;
+                lohnposAbzugLines.Add(new {
+                    bezeichnung = lp.Bezeichnung + (z.Bemerkung != null ? $" ({z.Bemerkung})" : ""),
+                    code = lp.Code,
+                    prozent = (decimal?)null,
+                    basis = (decimal?)null,
+                    betrag = -b
+                });
+                lohnposAbzugTotal += b;
+            }
+
+            // Uniformen-Depot-Refund (auch Monate nach Austritt)
+            var (depotRefund, depotAmt, depotLabel) =
+                await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+            if (depotRefund && depotAmt > 0)
+            {
+                lohnposAbzugLines.Add(new {
+                    bezeichnung = depotLabel ?? "Uniformen-Depot Rückerstattung",
+                    code = UniformDepotService.LohnpositionCode,
+                    prozent = (decimal?)null,
+                    basis = (decimal?)null,
+                    betrag = depotAmt
+                });
+                lohnposAbzugTotal -= depotAmt;
+            }
+
+            var lohnLines = new List<object>(zulagenSvLines);
+            decimal totalLohn = zulagenSvTotal;
+            var abzugLines = new List<object>();
+
+            // Feiertagsentschädigung (L-GAV Art. 18) — nur Stundenlohn-Modelle
+            // mit laufender %-Auszahlung (FLEX/MTP). FIX führt Feiertage als Tage-Saldo.
+            // Beispiel Qazimi: 65.2 = 344 → Feiertag 2.27 % = 7.80 (AHV-pflichtig).
+            var modelCorr = emp.EmploymentModel ?? "";
+            bool isHourlyFeiertag = string.Equals(modelCorr, "FLEX", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(modelCorr, "UTP", StringComparison.OrdinalIgnoreCase)
+                                 || string.Equals(modelCorr, "MTP", StringComparison.OrdinalIgnoreCase);
+            decimal holidayPctCorr = company.DefaultHolidayPercent ?? 0m;
+            if (isHourlyFeiertag && holidayPctCorr > 0 && feiertagBasisExact > 0)
+            {
+                decimal feiertagEntExact = feiertagBasisExact * holidayPctCorr / 100m;
+                decimal feiertagEnt = Math.Round(feiertagEntExact, 2);
+                if (feiertagEnt > 0)
+                {
+                    lohnLines.Add(new {
+                        bezeichnung = "Feiertagentschädigung",
+                        code = "195.2",
+                        anzahl = (decimal?)null,
+                        prozent = (decimal?)holidayPctCorr,
+                        basis = (decimal?)Math.Round(feiertagBasisExact, 2),
+                        betrag = feiertagEnt,
+                        accrued = (decimal?)feiertagEnt
+                    });
+                    totalLohn += feiertagEnt;
+                    // Feiertagsentschädigung = AHV-pflichtiger Lohn (im Gegensatz zum UVG-Taggeld)
+                    deltaAhv  += feiertagEnt;
+                    deltaNbuv += feiertagEnt;
+                    deltaKtg  += feiertagEnt;
+                    deltaBvg  += feiertagEnt;
+                    deltaQst  += feiertagEnt;
+                }
+            }
+
+            // SV-Regeln (Alter), ohne QST-Auto — Korrekturen kommen manuell (565 etc.).
+            int? employeeAge = employee.DateOfBirth.HasValue
+                ? year - employee.DateOfBirth.Value.Year : null;
+            bool ueberRef = employee.DateOfBirth.HasValue
+                && PayrollCalculations.HatReferenzalterErreicht(
+                    employee.Gender, employee.DateOfBirth.Value, year, month);
+            int? effectiveAge = employeeAge;
+            if (ueberRef && (effectiveAge == null || effectiveAge < 65))
+                effectiveAge = 65;
+
+            var globalRates = await _db.SocialInsuranceRates
+                .Where(r => r.IsActive
+                         && r.ValidFrom <= periodTo
+                         && (r.ValidTo == null || r.ValidTo >= periodFrom)
+                         && !(r.Rate == 0 && r.RateEmployer != null))
+                .ToListAsync();
+            globalRates = globalRates
+                .GroupBy(r => new { r.Code, r.MinAge, r.MaxAge, r.EmploymentModelCode, r.OnlyQuellensteuer, r.BasisType })
+                .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
+                .OrderBy(r => r.SortOrder)
+                .ToList();
+
+            List<DeductionRule> allRules = globalRates.Any()
+                ? globalRates.Select(r => new DeductionRule
+                {
+                    Id = -r.Id, CompanyProfileId = companyProfileId,
+                    CategoryCode = r.Code, CategoryName = r.Name, Name = r.Name,
+                    Type = "percent", Rate = r.Rate, RateEmployer = r.RateEmployer,
+                    BasisType = r.BasisType, MinAge = r.MinAge, MaxAge = r.MaxAge,
+                    FreibetragMonthly = r.FreibetragMonthly,
+                    CoordinationDeduction = r.CoordinationDeduction,
+                    MaxBaseMonthly = r.MaxBaseMonthly,
+                    MaxBaseFlatMonthly = r.MaxBaseFlatMonthly,
+                    MinBaseMonthly = r.MinBaseMonthly,
+                    EntryThresholdYearly = r.EntryThresholdYearly,
+                    OnlyQuellensteuer = r.OnlyQuellensteuer,
+                    EmploymentModelCode = r.EmploymentModelCode,
+                    ValidFrom = r.ValidFrom, SortOrder = r.SortOrder, IsActive = true,
+                }).ToList()
+                : BuildSwissStandardDeductions(companyProfileId);
+
+            string? empModelCode = emp.EmploymentModel;
+            var deductions = allRules
+                .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
+                         && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
+                         && !r.OnlyQuellensteuer
+                         && (r.EmploymentModelCode == null
+                             || string.Equals(r.EmploymentModelCode, empModelCode, StringComparison.OrdinalIgnoreCase))
+                         && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)
+                         && !(ueberRef && (string.Equals(r.CategoryCode, "ALV", StringComparison.OrdinalIgnoreCase)
+                                        || string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase))))
+                .ToList();
+
+            var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
+
+            // Saldi unverändert durchreichen (kein Accrual bei Korrektur)
+            var (prevYear, prevMonth) = PrevPeriod(year, month);
+            var prevSaldo = await _db.PayrollSaldos
+                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
+                                       && s.PeriodYear == prevYear
+                                       && s.PeriodMonth == prevMonth
+                                       && s.CompanyProfileId == companyProfileId);
+            // Falls kein Vormonat: aktueller Saldo dieser Periode (falls schon vorhanden)
+            var curSaldo = await _db.PayrollSaldos
+                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
+                                       && s.PeriodYear == year
+                                       && s.PeriodMonth == month
+                                       && s.CompanyProfileId == companyProfileId);
+            decimal h  = curSaldo?.HourSaldo ?? prevSaldo?.HourSaldo ?? 0;
+            decimal n  = curSaldo?.NachtSaldo ?? prevSaldo?.NachtSaldo ?? 0;
+            decimal fg = curSaldo?.FerienGeldSaldo ?? prevSaldo?.FerienGeldSaldo ?? 0;
+            decimal ft = curSaldo?.FerienTageSaldo ?? prevSaldo?.FerienTageSaldo ?? 0;
+            decimal fe = curSaldo?.FeiertagTageSaldo ?? prevSaldo?.FeiertagTageSaldo ?? 0;
+            decimal t13 = curSaldo?.ThirteenthMonthAccumulated ?? prevSaldo?.ThirteenthMonthAccumulated ?? 0;
+
+            var bankAccounts = await _db.EmployeeBankAccounts
+                .Where(b => b.EmployeeId == employeeId
+                         && b.ValidFrom <= periodTo
+                         && (b.ValidTo == null || b.ValidTo >= periodFrom))
+                .OrderByDescending(b => b.IsHauptbank)
+                .ThenBy(b => b.ValidFrom)
+                .ToListAsync();
+            if (bankAccounts.Count == 0)
+            {
+                var heute = DateOnly.FromDateTime(DateTime.Today);
+                bankAccounts = await _db.EmployeeBankAccounts
+                    .Where(b => b.EmployeeId == employeeId
+                             && b.ValidFrom <= heute
+                             && (b.ValidTo == null || b.ValidTo >= heute))
+                    .OrderByDescending(b => b.IsHauptbank)
+                    .ToListAsync();
+            }
+
+            var existingPeriod = await _db.PayrollPerioden
+                .Where(p => p.CompanyProfileId == companyProfileId
+                         && p.Year == year && p.Month == month)
+                .FirstOrDefaultAsync();
+
+            var result = BuildResult(
+                employee, emp, company, year, month, periodFrom, periodTo,
+                lohnLines, abzugLines, deductions, totalLohn, svBases,
+                zulagenExtraLines, zulagenExtraTotal,
+                new List<object>(), 0m,
+                lohnposAbzugLines, lohnposAbzugTotal,
+                new SaldoBlock(
+                    VormonatHourSaldo: h, NeuerHourSaldo: h,
+                    WorkedHours: 0, SollStunden: 0, Mehrstunden: 0, AbsenzGutschrift: 0,
+                    NightHours: 0, NightBonus: 0, NachtKompStunden: 0,
+                    VormonatNachtSaldo: n, NeuerNachtSaldo: n,
+                    VacationWeeks: 5,
+                    VormonatFerienTage: ft, FerienTageAccrual: 0, FerienTageGenommen: 0, FerienTageSaldoNeu: ft,
+                    VormonatFerienGeld: fg, FerienGeldSaldoNeu: fg, FerienGeldAuszahlung: 0,
+                    VormonatFeiertagTage: fe, FeiertagTageAccrual: 0, FeiertagTageGenommen: 0, FeiertagTageSaldoNeu: fe,
+                    ThirteenthPct: 0, PrevThirteenth: t13, Basis13ml: 0
+                ),
+                new List<EmployeeLohnAssignment>(),
+                bankAccounts,
+                usingDefaultDeductions: !globalRates.Any(),
+                periodeFooterText: existingPeriod?.PdfFooterText,
+                akontoBereitsAusbezahlt: 0m,
+                akontoBereitsAusbezahltDatum: null,
+                ytdSvBasesDezember: null);
+
+            // isCorrection-Flag auf Result setzen (BuildResult ist anonym)
+            var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            var node = System.Text.Json.Nodes.JsonNode.Parse(JsonSerializer.Serialize(result, opts))!;
+            node["isCorrection"] = true;
+            node["periodLabel"] = $"Korrektur {month:00}/{year}";
+            return new OkObjectResult(node);
+        }
+        catch (Exception ex)
+        {
+            return new ObjectResult(new { error = "CORRECTION_FAILED", message = ex.Message })
+                { StatusCode = 500 };
+        }
     }
 
     /// <summary>

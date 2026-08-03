@@ -16,6 +16,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 | Geburtstags-Gruss / Wertschätzung senden | [Moments](#moments) |
 | Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
 | Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
+| Lohnabtretung / Pfändung an Behörde | [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
 | Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |
 | Filial-Einstellungen, Akonto-%, Mindestlohn Stadt | [Filialen](#filialen) |
@@ -61,7 +62,7 @@ Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
 **Periode = immer Kalendermonat** (1. bis letzter Tag).
 
-**Edit-Sperre:** Läuft der Lohnlauf schon bei HR oder ist er abgeschlossen, sind lohnrelevante Daten dieser Periode gesperrt — Details: [Edit-Sperre](#edit-sperre).
+**Edit-Sperre:** Es gibt zwei Stufen — hart (Akonto bei HR / Definitiv provisorisch) und weich (erst bei Definitiv abgeschlossen, z.B. Absenzen/QST/Verträge). Details: [Edit-Sperre](#edit-sperre).
 
 ## Wenn du nicht weiterweisst
 
@@ -71,4 +72,4 @@ Beides mit **4-Augen-Prinzip**: zuerst GF pro MA, dann HR, dann DTA zur Bank.
 
 ---
 
-> Stand: Juli 2026. Fehlt etwas oder ist etwas unklar — sag Bescheid, wir ergänzen.
+> Stand: August 2026. Fehlt etwas oder ist etwas unklar — sag Bescheid, wir ergänzen.

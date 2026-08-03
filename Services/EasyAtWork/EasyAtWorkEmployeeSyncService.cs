@@ -657,14 +657,16 @@ public class EasyAtWorkEmployeeSyncService
             var custId = matchedCustomerId!.Value;
             var cpId   = mappings.First(m => m.EasyAtWorkCustomerId == custId).CompanyProfileId;
 
-            // Performance (Walter 22.07.2026): die drei unabhängigen API-Calls
-            // parallel laden statt sequenziell (HttpClient ist thread-sicher;
-            // _db wird hier nicht berührt).
+            // Performance (Walter 22.07.2026): unabhängige API-Calls parallel
+            // laden (HttpClient thread-sicher; _db wird hier nicht berührt).
             var contractsTask = _client.GetContractsAsync(custId, eaw.Id, ct);
             var ratesTask     = _client.GetPayRatesAsync(custId, eaw.Id, ct);
             var positionsTask = _client.GetPositionsAsync(custId, eaw.Id, ct);
+            var typesTask     = _client.GetContractTypesByIdAsync(custId, ct);
             var contracts = (await contractsTask)?.Data ?? new();
             var rates     = (await ratesTask)?.Data ?? new();
+            try { ApplyContractTypeNames(contracts, await typesTask); }
+            catch (Exception ex) { result.Notes.Add($"Contract-Types nicht abrufbar ({ex.Message})."); }
 
             // Funktion/JobGroup (Kader-Flag → Modell) aus /positions.
             string? posName = null;
@@ -682,7 +684,8 @@ public class EasyAtWorkEmployeeSyncService
 
             var activeAt = DateOnly.FromDateTime(DateTime.Today);
             var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader);
-            var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, cpId);
+            // Verträge: Sperre erst bei Definitiv abgeschlossen (Walter 01.08.2026).
+            var firstAllowed = await _editLock.GetFirstAllowedDateForContractsAsync(cpId);
 
             // STRICT (Walter 08.07.2026): überlappende AKTIVE Verträge in easy@work
             // → KEIN Vertragsimport für diesen MA. Historische Überlappungen egal.
@@ -1259,6 +1262,9 @@ public class EasyAtWorkEmployeeSyncService
         if (!req.SkipDetailCalls)
         {
             var custId0 = mapping.EasyAtWorkCustomerId;
+            Dictionary<int, string> previewTypesById = new();
+            try { previewTypesById = await _client.GetContractTypesByIdAsync(custId0, ct); }
+            catch (Exception ex) { _log.LogDebug(ex, "Contract-Types Vorschau Customer {Id} nicht abrufbar", custId0); }
             using var sem = new SemaphoreSlim(10);
             var pfTasks = eawEmps.Select(async eaw =>
             {
@@ -1282,7 +1288,13 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     catch { }
                     // STRICT: Verträge + Tarife für die Fehlerprüfung in der Vorschau.
-                    try { detailCache.Contracts[eaw.Id] = (await _client.GetContractsAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
+                    try
+                    {
+                        var cl = (await _client.GetContractsAsync(custId0, eaw.Id, ct))?.Data ?? new();
+                        ApplyContractTypeNames(cl, previewTypesById);
+                        detailCache.Contracts[eaw.Id] = cl;
+                    }
+                    catch { }
                     try { detailCache.Rates[eaw.Id]     = (await _client.GetPayRatesAsync(custId0, eaw.Id, ct))?.Data ?? new(); } catch { }
                 }
                 finally { sem.Release(); }
@@ -1820,8 +1832,12 @@ public class EasyAtWorkEmployeeSyncService
             var contractsRawByEaw = new ConcurrentDictionary<int, List<EawContract>>();
             var ratesRawByEaw     = new ConcurrentDictionary<int, List<EawPayRate>>();
             var positionByEaw = new ConcurrentDictionary<int, string?>();
+            // Vertragstyp-Katalog einmal pro Filiale (type_id → Name). Walter 02.08.2026.
+            Dictionary<int, string> contractTypesById = new();
             if (rowsToProcess.Count > 0 && !req.SkipContracts)
             {
+                try { contractTypesById = await _client.GetContractTypesByIdAsync(mapping.EasyAtWorkCustomerId, ct); }
+                catch (Exception ex) { _log.LogWarning(ex, "Contract-Types für Customer {Id} nicht abrufbar — Fallback Stunden-Heuristik", mapping.EasyAtWorkCustomerId); }
                 using var sem = new SemaphoreSlim(10);
                 // Fortschritt für den asynchronen Hintergrund-Import (Walter 29.06.2026):
                 // diese easy@work-Detail-Calls (Verträge/Lohn/Position pro MA) sind der
@@ -1841,7 +1857,12 @@ public class EasyAtWorkEmployeeSyncService
                             // übersprungen werden (Walter-Vorgabe 23.06.2026), auch nicht
                             // bei SkipDetailCalls. Ohne diese Endpunkte gäbe es keine
                             // Timeline und alte falsche Verträge blieben unkorrigiert.
-                            try { contractsRawByEaw[eawId] = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
+                            try
+                            {
+                                var cl = (await _client.GetContractsAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new();
+                                ApplyContractTypeNames(cl, contractTypesById);
+                                contractsRawByEaw[eawId] = cl;
+                            }
                             catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawId); contractsRawByEaw[eawId] = new(); }
                             try { ratesRawByEaw[eawId] = (await _client.GetPayRatesAsync(mapping.EasyAtWorkCustomerId, eawId, ct))?.Data ?? new(); }
                             catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawId); ratesRawByEaw[eawId] = new(); }
@@ -2250,9 +2271,10 @@ public class EasyAtWorkEmployeeSyncService
             //    easy@work werden als Employment-Versionen ge-upsertet. Walter 23.06.2026.
             if (timelineWork.Count > 0 || bankWork.Count > 0)
             {
-                // Abschluss-Schutz: Verträge in einer abgeschlossenen/in-Verarbeitung
-                // Lohnperiode dieser Filiale werden nicht importiert (Walter 29.06.2026).
-                var firstAllowed = await _editLock.GetFirstAllowedDateAsync(null, req.CompanyProfileId);
+                // Abschluss-Schutz: Verträge erst gesperrt wenn Definitiv
+                // abgeschlossen (DTA) — während Kontrolle (provisorisch) noch erlaubt
+                // (Walter 01.08.2026, präzisiert gegenüber 29.06.2026).
+                var firstAllowed = await _editLock.GetFirstAllowedDateForContractsAsync(req.CompanyProfileId);
                 foreach (var (temp, teawId, tJgId, tJgCode, tIsKader, tEawTo) in timelineWork)
                 {
                     var tContracts = ContractsFor(teawId);
@@ -2284,12 +2306,10 @@ public class EasyAtWorkEmployeeSyncService
                     if (await ApplyExitAfterContractSyncAsync(temp2, tEawTo2, ct)) exitChanged = true;
                 if (exitChanged) await _db.SaveChangesAsync(ct);
 
-                // Probezeit nur bei EINEM einzigen Vertrag (Walter 29.06.2026):
-                // Hat der MA GENAU einen Vertrag (keine Historie) und noch keine
-                // Probezeit, wird sie auf diesem Vertrag gesetzt = Beginn +
-                // Filial-Probezeit − 1 Tag (14 = 14 Tage, 1/2/3 = Monate). Bei
-                // MEHREREN Verträgen (Historie) wird NICHT rückwirkend gesetzt.
-                // Idempotent: Re-Sync ändert nichts, manuell Gesetztes bleibt.
+                // Probezeit wenn noch KEINE auf irgendeinem Vertrag (Walter 02.08.2026):
+                // Entscheidend = erste Stempelzeit ab Eintrittsdatum (sonst Eintritt
+                // provisorisch). Auch bei Sync-Splits (1-Tages-Vertrag + offen).
+                // Idempotent: sobald irgendwo ProbationEndDate steht → unangetastet.
                 var branchProb = await _db.CompanyProfiles
                     .Where(c => c.Id == req.CompanyProfileId)
                     .Select(c => c.ProbationMonths)
@@ -2300,48 +2320,55 @@ public class EasyAtWorkEmployeeSyncService
                     bool probChanged = false;
                     foreach (var eid in probEmpIds)
                     {
-                        // ALLE Verträge des MA zählen (filialübergreifend) — nur bei
-                        // genau einem greift die Probezeit.
                         var emps = await _db.Employments
                             .Where(e => e.EmployeeId == eid).ToListAsync(ct);
-                        if (emps.Count != 1 || emps[0].ProbationEndDate != null) continue;
-                        var only = emps[0];
-                        // Regel „befristet → keine Probezeit" (Walter 30.06.2026):
-                        // vorbereitet, AKTUELL aber NICHT AKTIV — die laufenden
-                        // befristeten Verträge behalten ihre Probezeit. Bei Bedarf
-                        // SkipProbationForBefristet auf true setzen.
-                        const bool SkipProbationForBefristet = false;
-                        var istBefristet = string.Equals(only.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
-                                           || only.ContractEndDate.HasValue;
-                        if (SkipProbationForBefristet && istBefristet) continue;
-                        var contractStart = DateOnly.FromDateTime(only.ContractStartDate);
+                        if (emps.Count == 0 || emps.Any(e => e.ProbationEndDate != null)) continue;
 
-                        // Basis = erste Stempelzeit (1. Arbeitstag), falls schon
-                        // vorhanden → Probezeit direkt verankert (kein Warten auf den
-                        // Stempel-Sync). Sonst provisorisch ab Vertragsbeginn; der
-                        // Stempel-Sync verankert später.
-                        var firstStamp = await _db.EmployeeTimeEntries
-                            .Where(t => t.EmployeeId == eid)
+                        // Ziel = offener Vertrag, sonst frühester Beginn.
+                        var target = emps.Where(e => e.ContractEndDate == null)
+                                         .OrderBy(e => e.ContractStartDate)
+                                         .FirstOrDefault()
+                                  ?? emps.OrderBy(e => e.ContractStartDate).First();
+
+                        // Regel „befristet → keine Probezeit" (Walter 30.06.2026):
+                        // vorbereitet, AKTUELL aber NICHT AKTIV.
+                        const bool SkipProbationForBefristet = false;
+                        var istBefristet = string.Equals(target.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
+                                           || target.ContractEndDate.HasValue;
+                        if (SkipProbationForBefristet && istBefristet) continue;
+
+                        var contractStart = DateOnly.FromDateTime(target.ContractStartDate);
+                        var entryDt = await _db.Employees.AsNoTracking()
+                            .Where(e => e.Id == eid)
+                            .Select(e => e.EntryDate)
+                            .FirstOrDefaultAsync(ct);
+                        DateOnly? entry = entryDt.HasValue ? DateOnly.FromDateTime(entryDt.Value) : null;
+                        var reference = ProbationAnchor.ReferenceStart(entry, contractStart);
+
+                        // Erste Stempelzeit ab Eintritt (= 1. Arbeitstag).
+                        var stampQ = _db.EmployeeTimeEntries.Where(t => t.EmployeeId == eid);
+                        if (entry.HasValue)
+                            stampQ = stampQ.Where(t => t.EntryDate >= entry.Value);
+                        var firstStamp = await stampQ
                             .OrderBy(t => t.EntryDate)
                             .Select(t => (DateOnly?)t.EntryDate)
                             .FirstOrDefaultAsync(ct);
-                        var basis = firstStamp ?? contractStart;
-                        var ende = branchProb.Value == 14
-                            ? basis.AddDays(14).AddDays(-1)
-                            : basis.AddMonths(branchProb.Value).AddDays(-1);
-                        only.ProbationEndDate      = ende.ToDateTime(TimeOnly.MinValue);
-                        only.ProbationPeriodMonths = branchProb.Value == 14 ? null : branchProb.Value;
+
+                        var basis = firstStamp ?? reference;
+                        var ende = ProbationAnchor.ComputeEnd(basis, branchProb.Value);
+                        target.ProbationEndDate      = ende.ToDateTime(TimeOnly.MinValue);
+                        target.ProbationPeriodMonths = branchProb.Value == 14 ? null : branchProb.Value;
 
                         if (firstStamp.HasValue)
                         {
-                            only.ProbationStartDate = firstStamp.Value;
+                            target.ProbationStartDate = firstStamp.Value;
                             _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
                             {
-                                EmploymentId         = only.Id,
+                                EmploymentId         = target.Id,
                                 EventDate            = firstStamp.Value,
                                 EventType            = "ANKER",
-                                DeltaDays            = ProbationAnchor.Delta(contractStart, firstStamp.Value),
-                                Grund                = ProbationAnchor.Grund(contractStart, firstStamp.Value),
+                                DeltaDays            = ProbationAnchor.Delta(reference, firstStamp.Value),
+                                Grund                = ProbationAnchor.Grund(reference, firstStamp.Value),
                                 ProbezeitEndeNachher = ende,
                                 CreatedAt            = DateTime.Now,   // Spalte ist timestamp WITHOUT time zone → keine UTC-Kind
                             });
@@ -2402,10 +2429,29 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
+    /// Füllt <see cref="EawContract.Type"/> aus dem Customer-Katalog, wenn die
+    /// API nur <c>type_id</c> liefert (häufig). Ohne Name greift sonst die
+    /// 17h-Heuristik und macht MTP mit 17 Std fälschlich zu FLEX.
+    /// </summary>
+    public static void ApplyContractTypeNames(
+        IEnumerable<EawContract>? contracts,
+        IReadOnlyDictionary<int, string>? typesById)
+    {
+        if (contracts == null || typesById == null || typesById.Count == 0) return;
+        foreach (var c in contracts)
+        {
+            if (!string.IsNullOrWhiteSpace(c.Type)) continue;
+            if (c.TypeId is int id && typesById.TryGetValue(id, out var name)
+                && !string.IsNullOrWhiteSpace(name))
+                c.Type = name.Trim();
+        }
+    }
+
+    /// <summary>
     /// Liefert (a) den am Stichtag <paramref name="asOf"/> gültigen Vertrag (current)
     /// und (b) optional einen zukünftig startenden Vertrag (future, From &gt; asOf).
     /// Best-effort: Fehlschläge lassen Felder leer. Mapping: amount_type month → FIX;
-    /// hour + Type MTP/TPM → MTP; hour sonst → UTP. Lohnsatz = der am jeweiligen
+    /// hour + Type MTP/TPM → MTP; hour sonst → FLEX. Lohnsatz = der am jeweiligen
     /// Datum gültige (jüngster Pay-Rate mit From ≤ Datum). Walter-Vorgabe 22.06.2026.
     /// </summary>
     private async Task<(HistContractInfo current, HistContractInfo? future)> BuildHistContractInfoAsync(
@@ -2415,6 +2461,12 @@ public class EasyAtWorkEmployeeSyncService
         List<EawPayRate>  rates     = new();
         try { contracts = (await _client.GetContractsAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
         catch (Exception ex) { _log.LogDebug(ex, "Verträge für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
+        try
+        {
+            var types = await _client.GetContractTypesByIdAsync(customerId, ct);
+            ApplyContractTypeNames(contracts, types);
+        }
+        catch (Exception ex) { _log.LogDebug(ex, "Contract-Types für Customer {Id} nicht abrufbar", customerId); }
         try { rates = (await _client.GetPayRatesAsync(customerId, eawEmployeeId, ct))?.Data ?? new(); }
         catch (Exception ex) { _log.LogDebug(ex, "Pay-Rates für easy@work-MA {Id} nicht abrufbar", eawEmployeeId); }
 
@@ -2431,7 +2483,8 @@ public class EasyAtWorkEmployeeSyncService
     /// Reine Mapping-Logik easy@work-Vertrag + Pay-Rates → <see cref="HistContractInfo"/>
     /// (API-frei, statisch, unit-testbar). Walter-Vorgabe 23.06.2026.
     ///   • Modell aus amount_type: "month"/"percent" → FIX (Monatslohn), "week"/"hour"
-    ///     → Stundenlohn (MTP wenn Typ MTP/TPM oder Wochenstunden > 17, sonst UTP).
+    ///     → Stundenlohn (MTP wenn Typ MTP/TPM; sonst FLEX. Stunden &gt; 17 nur Fallback
+    ///     wenn Typ fehlt — MTP mit 17 Std bleibt MTP, sobald Type/type_id bekannt).
     ///   • FIX/FIX-M: MonthlySalary = effektiver Pensumslohn aus easy@work,
     ///     MonthlySalaryFte = 100%-Lohn (effektiv / Pensum × 100).
     ///   • Lohnsatz ≤ 1.00 = Platzhalter ("kein Lohn") → ignoriert.
@@ -2465,8 +2518,9 @@ public class EasyAtWorkEmployeeSyncService
             //   amount_type "month"/"percent" → FIX (Monatslohn; "percent" = Pensum-
             //                                   Monatslohnvertrag, KEIN Stundenlohn)
             //   amount_type "week"/"hour"      → Stundenlohn:
-            //       Typ MTP/TPM  ODER  Wochenstunden (amount) > 17  → MTP
-            //       sonst (z.B. amount 17, der UTP-Default)         → UTP
+            //       Typ MTP/TPM → MTP (auch bei 17 Std/Woche — Walter 02.08.2026)
+            //       Typ Flex/leer + amount ≤ 17 → FLEX; amount > 17 nur Fallback-MTP
+            //         wenn Typ fehlt (nie Typ ignorieren zugunsten der Stunden)
             // Leeres amount_type → Contract-Type Fix/Full ⇒ month, sonst week.
             if (string.IsNullOrEmpty(amt))
                 amt = (typ.Contains("FIX") || typ.Contains("FULL")) ? "month" : "week";
@@ -2495,8 +2549,13 @@ public class EasyAtWorkEmployeeSyncService
             else
             {
                 var wochenStd = c.Amount ?? c.WeekHours;
-                bool isMtp = typ.Contains("MTP") || typ.Contains("TPM")
-                             || (wochenStd.HasValue && wochenStd.Value > 17m);
+                // Typ ist führend. Stunden-Heuristik nur wenn Typ leer/unbekannt —
+                // MTP mit 17 Std/Woche darf NICHT zu FLEX werden (Fall 580046).
+                bool typSagtMtp = typ.Contains("MTP") || typ.Contains("TPM");
+                bool typSagtFlex = typ.Contains("FLEX") || typ == "UTP";
+                bool isMtp = typSagtMtp
+                             || (!typSagtFlex && string.IsNullOrEmpty(typ)
+                                 && wochenStd.HasValue && wochenStd.Value > 17m);
                 info.EmploymentModel = isMtp ? "MTP" : "FLEX";
                 info.SalaryType = "hourly";
             }
@@ -2791,18 +2850,16 @@ public class EasyAtWorkEmployeeSyncService
             if (existing == null)
                 existing = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
 
-            // Abschluss-Schutz (Walter-Vorgabe 29.06.2026): Verträge/Segmente,
-            // deren Start in einer bereits abgeschlossenen bzw. in-Verarbeitung
-            // Lohnperiode liegt (Start < FirstAllowedDate der Filiale), werden
-            // NICHT importiert. Ein bereits vorhandenes Segment wird unangetastet
-            // gelassen (matched, damit es nicht gekappt wird); ein fehlendes wird
-            // mit einer klaren Meldung übersprungen. Greift für Filial-Sync UND
-            // Einzel-MA-Sync gleichermassen.
+            // Abschluss-Schutz (Walter 29.06.2026 / präzisiert 01.08.2026):
+            // Verträge/Segmente mit Start vor FirstAllowedDate (nur Definitiv
+            // «abgeschlossen») werden NICHT importiert. Während provisorisch
+            // (Kontrolle vor DTA) ist Import erlaubt. Vorhandenes Segment bleibt
+            // unangetastet (matched); fehlendes → klare Skip-Meldung.
             if (firstAllowedDate.HasValue && seg.Start < firstAllowedDate.Value)
             {
                 if (existing != null) matched.Add(existing);
                 else skippedContracts?.Add(
-                    $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen geschlossener Lohnperiode nicht importiert werden.");
+                    $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen abgeschlossener Lohnperiode nicht importiert werden.");
                 continue;
             }
 
@@ -4016,17 +4073,22 @@ public class EasyAtWorkEmployeeSyncService
         return (null, null, $"PLZ {plz} ist mehrdeutig ({string.Join(" / ", names)}) und Ort konnte nicht zugeordnet werden.");
     }
 
-    private static string? MapMaritalStatus(string? v)
+    /// <summary>
+    /// easy@work cf_marital_status → unser Code. Buchstaben: M/S/D/W/E/P
+    /// (E = Getrennt — fehlte bis 01.08.2026 und liess Sync still leer).
+    /// </summary>
+    public static string? MapMaritalStatus(string? v)
     {
         if (string.IsNullOrWhiteSpace(v)) return null;
         var s = v.Trim().ToLowerInvariant();
-        // easy@work-Einzelbuchstaben-Codes (cf_marital_status): M/S/D/W/P.
+        // easy@work-Einzelbuchstaben-Codes (cf_marital_status): M/S/D/W/E/P.
         switch (s)
         {
             case "m": return "verheiratet";
             case "s": return "ledig";
             case "d": return "geschieden";
             case "w": return "verwitwet";
+            case "e": return "getrennt";
             case "p": return "eingetragene_partnerschaft";
         }
         if (s.Contains("ledig") || s.Contains("single") || s.Contains("celibat")) return "ledig";

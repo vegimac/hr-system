@@ -15,9 +15,10 @@ Alle Schreiben an einem Ort — siehe [Kündigung & Austritt](#austritt).
 
 | Formular | Wofür |
 |---|---|
+| **Lohnabtretungen** | Übersicht aller Pfändungen/Sozialamts-Abtretungen — Zeilenklick öffnet die Abtretung beim MA. Details: [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | **Jahres-Lohnausweis** | ESTV Form 11 — pro MA und Jahr, Werte prüfen, PDF erzeugen |
 | **QST-Anmeldung** | Anmeldung beim Kanton (SO, AG, ZH, BE) — siehe auch [Quellensteuer](#qst) |
-| **RAV-Zwischenverdienst** | Formular für RAV |
+| **RAV-Zwischenverdienst** | Formular für RAV — Stunden: MTP = Garantie + Mehrstunden (Total = Summe), FLEX = Stempel; Ferienbezug nicht im Raster; Rundung erst am Schluss |
 | **BFS-LSE** | Lohnstrukturerhebung als CSV-Entwurf |
 | **Absenz-Auswertung** | Krank / Unfall / Mutterschaft usw. — mit Drilldown, Excel oder PDF |
 

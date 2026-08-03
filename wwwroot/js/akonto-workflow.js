@@ -223,16 +223,11 @@ async function _autoSelectLohnMode() {
     setLohnMode(mode);
 }
 
-// ── Definitiv-Lock (Walter 16.05.2026) ─────────────────────────────────────
+// ── Definitiv-Lock (Walter 16.05.2026, präzisiert 01.08.2026) ─────────────
 // Walter: "den definitiven lohnlauf erst bearbeitbar machen, wenn der akonto
-// lohnlauf durch ist". Sobald der User auf Definitivlauf wechselt oder die
-// Periode ändert, fragen wir den Akonto-Status für genau diese Periode +
-// Filiale ab. Solange AkontoStatus != AUSBEZAHLT:
-//   • prominent gelber Banner mit Erklärung + "Zu Akonto wechseln"-Button
-//   • Definitiv-Top-Action-Buttons (PDF / Bestätigen / Reopen) ausgeblendet
-//   • Hint-Text im linken Slip-Vertragspanel bleibt sichtbar (nur Anzeige)
-//   • "Lohn bestätigen" wäre Backend-seitig durch zukünftigen Guard ebenfalls
-//     geschützt — Frontend-Lock ist die erste Verteidigungslinie.
+// lohnlauf durch ist". Ausnahme: sobald der Definitivlauf dieser Periode
+// bereits provisorisch/abgeschlossen ist, kein Lock mehr — sonst blockiert
+// ein versehentlich gestarteter Akonto den schon laufenden Definitiv.
 async function _checkDefinitivLock() {
     const banner = document.getElementById('lohnDefinitivLockBanner');
     const topDef = document.getElementById('lohnTopActions');
@@ -270,7 +265,6 @@ async function _checkDefinitivLock() {
             banner.style.display = 'none';
             return;
         }
-        // Locked → Banner zeigen, Top-Action-Buttons hart verstecken
         const months = ['', 'Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
         const statusLabel = (_AK_STATUS[d.akontoStatus] || _AK_STATUS.OFFEN).label;
         banner.style.display = '';
@@ -279,9 +273,8 @@ async function _checkDefinitivLock() {
                 <span style="font-size:22px">🔒</span>
                 <div style="flex:1;line-height:1.45">
                     <b>Definitivlauf für ${months[month]} ${year} ist gesperrt.</b><br>
-                    Akonto-Lauf hat den Status <b>${statusLabel}</b> — entweder Akonto zu Ende bringen
-                    (<b>AUSBEZAHLT</b>) oder als Admin unter Lohnperioden «↺ Akonto zurücksetzen»
-                    (dann bleibt Akonto <b>OFFEN</b> und Definitiv ist wieder erlaubt).
+                    Akonto-Lauf hat den Status <b>${statusLabel}</b> — er muss zuerst <b>AUSBEZAHLT</b> sein
+                    (oder Admin setzt Akonto zurück auf OFFEN), bevor der Definitivlohn bestätigt werden kann.
                 </div>
                 <button class="btn btn-primary" onclick="setLohnMode('akonto')">→ Zu Akonto wechseln</button>
             </div>`;
@@ -546,8 +539,8 @@ async function akWfRefresh() {
         // OFFENE Periode beim Öffnen still akWfStart() → IN_BEARBEITUNG_GF.
         // Dadurch war Definitiv sofort wieder gesperrt, und ein Admin-Reset
         // auf OFFEN wurde beim nächsten Lohnlauf-Besuch wieder rückgängig
-        // gemacht. Akonto muss jetzt bewusst über «📅 Akonto vorbereiten»
-        // gestartet werden — sonst bleibt OFFEN und Definitiv ist erlaubt.
+        // gemacht. Akonto muss bewusst über «📅 Akonto vorbereiten» gestartet
+        // werden — sonst bleibt OFFEN und Definitiv ist erlaubt.
     } catch (e) {
         if (bar) bar.innerHTML = _akWfAlert('Verbindungsfehler: ' + e.message, 'err');
     }
@@ -933,41 +926,37 @@ function akWfSelectMa(id) {
 }
 
 function _akWfApplyZulagenLock() {
-    // Walter-Vorgabe 19.05.2026: Zulagen/Abzüge sind nur in bestimmten Phasen
-    // editierbar — sonst Edit-Buttons ausblenden + Lock-Hinweis anzeigen.
+    // Walter-Vorgabe 01.08.2026: Zulagen/Abzüge (inkl. QST-Korrektur) bleiben
+    // bis zum Definitiv-Abschluss editierbar. Akonto AUSBEZAHLT darf den
+    // Definitivlauf nicht blocken — sonst keine Vormonats-Korrekturen mehr.
     //
-    // Status-Matrix (Walter-Vorgabe 19.05.2026 — Stand nach 22:30 Korrektur):
-    //   Akonto:    OFFEN/IN_BEARBEITUNG_GF         → jeder darf
-    //              BEI_HR / HR_FREIGEGEBEN         → nur admin/superuser
-    //                                                (HR darf bis zum DTA-Klick
-    //                                                noch Zulagen erfassen +
-    //                                                MA zurückziehen!)
-    //              AUSBEZAHLT                      → niemand
-    //   Definitiv: offen                           → jeder darf
-    //              provisorisch_abgeschlossen      → nur admin/superuser
-    //              abgeschlossen                   → niemand
-    //
-    // Walter-Bug 19.05.2026: vorher schloss HR_FREIGEGEBEN sofort — Walter
-    // konnte aber nach „HR-Final" noch keine Korrekturen mehr machen, bevor
-    // er auf „Akonto auszahlen (DTA)" klickt. Jetzt locked nur AUSBEZAHLT.
+    //   Akonto-Tab:    OFFEN / IN_BEARBEITUNG_GF → jeder
+    //                  BEI_HR / HR_FREIGEGEBEN   → nur HR
+    //                  AUSBEZAHLT                → niemand (Akonto fertig)
+    //   Definitiv-Tab: offen                     → jeder
+    //                  provisorisch_abgeschlossen → nur HR
+    //                  abgeschlossen             → niemand
     const akStatus = _akWfData?.akontoStatus || 'OFFEN';
-    const defStatus = window._currentLohnPeriode?.status || 'offen';
+    const defStatus = window._currentLohnPeriode?.status
+                   || window._lohnWfData?.status
+                   || 'offen';
     const isHr = _akIsHr();
+    const mode = (typeof _akWfMode !== 'undefined' && _akWfMode) ? _akWfMode : 'akonto';
 
     const akGf       = (akStatus === 'OFFEN' || akStatus === 'IN_BEARBEITUNG_GF');
     const akHrPhase  = (akStatus === 'BEI_HR' || akStatus === 'HR_FREIGEGEBEN');
     const akCanEdit  = akGf || (akHrPhase && isHr);
     const defOpen    = (defStatus === 'offen');
     const defCanEdit = defOpen || (defStatus === 'provisorisch_abgeschlossen' && isHr);
-    // Strengste Sperre gewinnt: beide Quellen müssen erlauben damit Edit ok.
-    const canEdit = akCanEdit && defCanEdit;
+    // Aktiver Tab entscheidet — Akonto-Auszahlung sperrt Definitiv nicht.
+    const canEdit = mode === 'definitiv' ? defCanEdit : akCanEdit;
 
-    // Lock-Hinweis: priorisiere den restriktiveren Status für die Anzeige
     let lockMsg = '';
     if (defStatus === 'abgeschlossen')                                lockMsg = '🔒 Lohn definitiv abgeschlossen — keine Änderungen möglich';
-    else if (akStatus === 'AUSBEZAHLT')                               lockMsg = '🔒 Akonto ausbezahlt — keine Änderungen möglich';
-    else if (akHrPhase && !isHr)                                       lockMsg = '🔒 Bei HR — keine Änderungen möglich';
-    else if (defStatus === 'provisorisch_abgeschlossen' && !isHr)     lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+    else if (mode !== 'definitiv' && akStatus === 'AUSBEZAHLT')       lockMsg = '🔒 Akonto ausbezahlt — Zulagen im Definitiv-Tab erfassen';
+    else if (mode !== 'definitiv' && akHrPhase && !isHr)              lockMsg = '🔒 Bei HR — keine Änderungen möglich';
+    else if (mode === 'definitiv' && defStatus === 'provisorisch_abgeschlossen' && !isHr)
+                                                                      lockMsg = '🔒 Bei HR — keine Änderungen möglich';
 
     // „+ Erfassen"-Buttons togglen (beide Tabs)
     document.querySelectorAll(

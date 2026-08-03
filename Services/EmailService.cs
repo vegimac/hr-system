@@ -290,12 +290,27 @@ Schaub HR (automatisch versendet — bitte nicht antworten)";
         string employeeDisplayName,
         int year,
         string downloadUrl,
-        DateTime expiresAt)
+        DateTime expiresAt,
+        string? sachbearbeiterName = null)
     {
         if (string.IsNullOrWhiteSpace(toEmail)) return;
 
         var subject = $"Lohnausweis {year} — {employeeDisplayName}";
-        var empf = string.IsNullOrWhiteSpace(behoerdeName) ? "Sehr geehrte Damen und Herren" : $"Sehr geehrte Damen und Herren ({behoerdeName.Trim()})";
+        // Mit SB: persönlich z.Hd.; sonst allgemeine Behörden-Anrede.
+        string empf;
+        if (!string.IsNullOrWhiteSpace(sachbearbeiterName))
+        {
+            var sb = sachbearbeiterName.Trim();
+            empf = string.IsNullOrWhiteSpace(behoerdeName)
+                ? $"Sehr geehrte Damen und Herren, z.Hd. {sb}"
+                : $"Sehr geehrte Damen und Herren ({behoerdeName.Trim()}), z.Hd. {sb}";
+        }
+        else
+        {
+            empf = string.IsNullOrWhiteSpace(behoerdeName)
+                ? "Sehr geehrte Damen und Herren"
+                : $"Sehr geehrte Damen und Herren ({behoerdeName.Trim()})";
+        }
         var gueltig = expiresAt.ToString("dd.MM.yyyy");
         var safeUrl = System.Net.WebUtility.HtmlEncode(downloadUrl);
         var safeMa = System.Net.WebUtility.HtmlEncode(employeeDisplayName);

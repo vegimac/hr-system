@@ -27,6 +27,16 @@ Aktive/zukünftige Verträge mit Fehlern → **CONFLICT**, kein Import bis easy@
 - FLEX/MTP: Stunden **pro Woche** (nie „pro Monat")
 - Lohn Pflicht (Ausnahme FIX-M vertraulich — siehe [Verträge](#vertraege))
 - Keine überlappenden Verträge
+- **Vertragsart / `type_id` entscheidet MTP vs. FLEX** — nicht die Heuristik «17 h → FLEX». Stimmt das Modell nicht, zuerst in easy@work die Vertragsart prüfen.
+- Zivilstand-Code **E** = Getrennt (wird korrekt gespiegelt)
+
+## Probezeiten nachführen
+
+Im **easy@work-Modul** (Admin): Button **«⚓ Probezeiten nachführen»**.
+
+- Legt fehlende Probezeiten an und verankert sie an der **ersten Stempelzeit ab Eintritt** (auch bei Vertrags-Split im Sync)
+- Nur für MA mit **Eintritt ≤ 4 Monate** zurück (ältere Eintritte werden übersprungen)
+- In der MA-Übersicht / im Lohn-Kopf erscheint die Probezeit nur, solange sie in der Periode **aktiv** ist
 
 ## Admin: easy@work-Modul
 
@@ -36,6 +46,7 @@ Aktive/zukünftige Verträge mit Fehlern → **CONFLICT**, kein Import bis easy@
 - Syncs anstossen, Logs lesen
 - Diagnose-Dumps (z.B. Verfügbarkeit roh)
 - **MA zusammenführen** bei Dubletten
+- **Probezeiten nachführen** (siehe oben)
 
 ## Häufige Fragen
 
@@ -44,3 +55,5 @@ Aktive/zukünftige Verträge mit Fehlern → **CONFLICT**, kein Import bis easy@
 **Verfügbarkeit leer?** → In easy@work pflegen, dann Einzel-Sync am MA.
 
 **Lohn in easy@work leer bei FIX-M?** → Absichtlich möglich; Lohn nur in OneCrew setzen ([Verträge](#vertraege)).
+
+**MA wurde als FLEX statt MTP importiert?** → In easy@work `type_id` / Vertragsart MTP prüfen, dann Sync.

@@ -25,6 +25,34 @@ function svhImpInit() {
     document.getElementById('svhImpPreview').innerHTML = '';
     const btn = document.getElementById('svhImpCommitBtn');
     if (btn) btn.disabled = true;
+    // Startsaldo-Periode = älteste noch offene Lohnperiode (wie Lohnlauf /
+    // CHF-Import; Walter 02.08.2026).
+    svhImpSetPeriodeFromOpenLohn(cpId);
+}
+
+/** Setzt #svhImpPeriode auf YYYY-MM der ältesten offenen Lohnperiode. */
+async function svhImpSetPeriodeFromOpenLohn(companyProfileId) {
+    const inp = document.getElementById('svhImpPeriode');
+    if (!inp) return;
+    // Gleiche Logik wie CHF-Import (älteste status != abgeschlossen).
+    if (typeof _svImpResolveOpenPeriodeYm === 'function') {
+        const ym = await _svImpResolveOpenPeriodeYm(companyProfileId);
+        if (ym) inp.value = ym;
+        return;
+    }
+    if (!companyProfileId) return;
+    try {
+        const headers = (typeof ah === 'function')
+            ? ah()
+            : { 'Authorization': 'Bearer ' + (localStorage.getItem('hrToken') || '') };
+        const r = await fetch(`/api/payroll-perioden?companyProfileId=${companyProfileId}`, { headers });
+        if (!r.ok) return;
+        const arr = await r.json();
+        const open = (arr || []).filter(p => p.status !== 'abgeschlossen');
+        if (open.length === 0) return;
+        open.sort((a, b) => (a.year - b.year) || (a.month - b.month));
+        inp.value = `${open[0].year}-${String(open[0].month).padStart(2, '0')}`;
+    } catch { /* hardcodierter Default im HTML bleibt */ }
 }
 
 function svhImpShowAlert(msg, kind) {
@@ -83,9 +111,13 @@ function svhImpRenderPreview() {
     const fmt = (v) => (v === null || v === undefined) ? '—' : Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const esc = (s) => (s == null ? '' : String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])));
 
+    // Pool = MA mit Vertrag in Vortrag-Monat ODER Folgemonat (auch Austritte).
     const empOptions = ['<option value="">— bitte wählen —</option>']
         .concat((data.branchEmployees || [])
-            .map(e => `<option value="${e.id}">${esc(e.firstName)} ${esc(e.lastName)}${e.employeeNumber ? ' · ' + esc(e.employeeNumber) : ''}${e.employmentModel ? ' [' + esc(e.employmentModel) + ']' : ''}</option>`))
+            .map(e => {
+                const inaktiv = e.isActive === false ? ' [Austritt]' : '';
+                return `<option value="${e.id}">${esc(e.firstName)} ${esc(e.lastName)}${e.employeeNumber ? ' · ' + esc(e.employeeNumber) : ''}${e.employmentModel ? ' [' + esc(e.employmentModel) + ']' : ''}${inaktiv}</option>`;
+            }))
         .join('');
 
     document.getElementById('svhImpSummary').innerHTML = `

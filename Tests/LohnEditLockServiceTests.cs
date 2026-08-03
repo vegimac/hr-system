@@ -299,4 +299,54 @@ public class LohnEditLockServiceTests
         var first = await svc.GetFirstAllowedDateAsync(User("user"), 58);
         Assert.Null(first);
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Verträge (Walter 01.08.2026): Sperre erst bei Definitiv abgeschlossen
+    // ──────────────────────────────────────────────────────────────────
+
+    [Theory]
+    [InlineData("offen",                      false)]
+    [InlineData("provisorisch_abgeschlossen", false)]
+    [InlineData("abgeschlossen",              true)]
+    public async Task Contracts_OnlyDefinitivAbgeschlossen_Locks(string status, bool shouldLock)
+    {
+        using var db = NewDb();
+        db.PayrollPerioden.Add(Periode(58, 2026, 7, status, "OFFEN"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        var first = await svc.GetFirstAllowedDateForContractsAsync(58);
+
+        if (shouldLock)
+            Assert.Equal(new DateOnly(2026, 8, 1), first);
+        else
+            Assert.Null(first);
+    }
+
+    [Fact]
+    public async Task Contracts_AkontoInProcess_DoesNotLock()
+    {
+        using var db = NewDb();
+        db.PayrollPerioden.Add(Periode(58, 2026, 7, "offen", "BEI_HR"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        Assert.Null(await svc.GetFirstAllowedDateForContractsAsync(58));
+        // Strenger Absenz-/Zulagen-Lock greift weiterhin:
+        Assert.Equal(new DateOnly(2026, 8, 1), await svc.GetFirstAllowedDateAsync(User("user"), 58));
+    }
+
+    // QST nutzt denselben Soft-Lock wie Verträge (Walter 01.08.2026):
+    // während provisorisch_abgeschlossen (HR-Kontrolle) editierbar.
+    [Fact]
+    public async Task QstSoftLock_Provisorisch_DoesNotLock()
+    {
+        using var db = NewDb();
+        db.PayrollPerioden.Add(Periode(58, 2026, 7, "provisorisch_abgeschlossen", "AUSBEZAHLT"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        Assert.Null(await svc.GetFirstAllowedDateForContractsAsync(58));
+        Assert.Equal(new DateOnly(2026, 8, 1), await svc.GetFirstAllowedDateAsync(User("user"), 58));
+    }
 }

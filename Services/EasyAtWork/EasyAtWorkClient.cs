@@ -541,6 +541,34 @@ public class EasyAtWorkClient
         return res!;
     }
 
+    /// <summary>
+    /// Vertragstypen des Customers (Name zu type_id). Die MA-Contracts liefern oft
+    /// nur type_id ohne Name — ohne Katalog fällt die Klassifizierung fälschlich
+    /// auf die 17h-Heuristik (MTP mit 17 Std → FLEX). Walter 02.08.2026.
+    /// </summary>
+    public virtual async Task<Dictionary<int, string>> GetContractTypesByIdAsync(
+        int customerId, CancellationToken ct = default)
+    {
+        var map = new Dictionary<int, string>();
+        const int perPage = 200;
+        var page = 1;
+        while (true)
+        {
+            var res = await GetJsonAsync<EawPaginated<EawContractType>>(
+                $"customers/{customerId}/contract_types?per_page={perPage}&page={page}", ct);
+            var rows = res?.Data ?? new List<EawContractType>();
+            foreach (var t in rows)
+            {
+                if (t.Id <= 0 || string.IsNullOrWhiteSpace(t.Name)) continue;
+                map[t.Id] = t.Name!.Trim();
+            }
+            var last = res?.LastPage ?? page;
+            if (page >= last || rows.Count == 0) break;
+            page++;
+        }
+        return map;
+    }
+
     public virtual async Task<EawPaginated<EawPayRate>> GetPayRatesAsync(int customerId, int employeeId, CancellationToken ct = default)
     {
         var res = await GetJsonAsync<EawPaginated<EawPayRate>>(

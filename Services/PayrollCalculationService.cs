@@ -22,21 +22,39 @@ public static class PayrollCalculations
     /// Akkumuliert Ferienentschädigung und berechnet Auszahlung bei Ferienbezug.
     /// Gibt (auszahlung, neuerSaldo) zurück.
     /// </summary>
+    /// <summary>
+    /// FLEX Ferien-Geld-Auszahlung bei Bezug (Walter-Vorgabe, analog MTP-Pott
+    /// 09.05.2026 / Fix 01.08.2026). Der Pott schliesst den aktuellen Monat ein:
+    ///   Pott CHF  = Vormonats-Ferien-Geld + Ferienentschädigung diesen Monat
+    ///   Pott Tage = Vormonats-Tage-Saldo + Ferien-Tage-Accrual diesen Monat
+    ///   Tagessatz = Pott CHF / Pott Tage
+    ///   Auszahlung = Tagessatz × bezogene Tage, gedeckelt auf Pott CHF
+    ///
+    /// Früher nur Vormonat (<c>prevTage &gt; 0</c>) — dadurch fehlte der Bezug
+    /// komplett, wenn noch kein Vormonats-Saldo da war (z.B. nach Vertrags-
+    /// Korrektur / erstem Lohnlauf mit Ferien im selben Monat).
+    /// </summary>
     public static (decimal auszahlung, decimal neuerSaldo) CalcFerienGeld(
         decimal prevGeld, decimal accrual,
-        decimal prevTage, decimal neuTageSaldo,
+        decimal prevTage, decimal tageAccrual,
         decimal tageGenommen,
         ref List<object> lohnLines, ref decimal totalLohn,
         decimal vacationPct, decimal basis)
     {
-        // Walter 31.07.2026: Pott EXAKT rechnen — runden erst Auszahlung/Saldo.
-        decimal neuExakt = prevGeld + accrual;
-        decimal auszExakt = 0;
+        _ = vacationPct;
+        _ = basis;
 
-        if (tageGenommen > 0 && prevTage > 0)
+        // Pott inkl. aktueller Monat (01.08.2026) — EXAKT rechnen, runden erst am Schluss
+        // (Zwischenrundungen entfernt, Walter 31.07.2026).
+        decimal pottChfExakt = prevGeld + accrual;
+        decimal pottTage     = prevTage + tageAccrual;
+        decimal auszExakt    = 0m;
+
+        if (tageGenommen > 0 && pottTage > 0 && pottChfExakt > 0)
         {
-            auszExakt = prevGeld * (tageGenommen / prevTage);
-            if (auszExakt > prevGeld) auszExakt = prevGeld; // nie mehr als Guthaben
+            decimal tagessatz = pottChfExakt / pottTage;
+            auszExakt = tagessatz * tageGenommen;
+            if (auszExakt > pottChfExakt) auszExakt = pottChfExakt; // Cap: kein Vorbezug
             if (auszExakt > 0)
             {
                 decimal auszLine = Math.Round(auszExakt, 2);
@@ -50,11 +68,10 @@ public static class PayrollCalculations
                     accrued     = (decimal?)0m    // reine Saldo-Auszahlung, keine neue Akkumulation
                 });
                 totalLohn += auszLine;
-                neuExakt -= auszExakt;
             }
         }
 
-        return (Math.Round(auszExakt, 2), Math.Round(neuExakt, 2));
+        return (Math.Round(auszExakt, 2), Math.Round(pottChfExakt - auszExakt, 2));
     }
 
     public static object BuildResult(
@@ -270,10 +287,15 @@ public static class PayrollCalculations
             });
 
             auszahlungEmpfaenger.Add(new {
-                typ      = "BEHOERDE",
-                label    = $"{la.Bezeichnung} an {amtName}",
-                iban     = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
-                bankName = la.Behoerde?.BankName,
+                typ           = "BEHOERDE",
+                behoerdeId    = la.BehoerdeId,
+                label         = $"{la.Bezeichnung} an {amtName}",
+                // DTA Cdtr: verknüpfte Kontoinhaber-Behörde (ORS Burgdorf → Zürich)
+                kontoinhaberBehoerdeId = la.Behoerde?.KontoinhaberBehoerdeId,
+                kontoinhaber  = la.Behoerde?.KontoinhaberBehoerde?.Name
+                             ?? la.Behoerde?.Kontoinhaber,
+                iban          = la.Behoerde?.QrIban ?? la.Behoerde?.Iban,
+                bankName      = la.Behoerde?.BankName,
                 referenz = !string.IsNullOrWhiteSpace(la.ZahlungsReferenz)
                               ? la.ZahlungsReferenz
                               : la.ReferenzAmt,
@@ -471,6 +493,12 @@ public static class PayrollCalculations
             thirteenthPayout            = saldo.ThirteenthPayout,
             thirteenthPrevForDisplay    = saldo.ThirteenthPrevForDisplay,
             thirteenthAccrualForDisplay = saldo.ThirteenthAccrualForDisplay,
+            isInProbation               = saldo.IsInProbation,
+            thirteenthForfeited         = saldo.ThirteenthForfeited,
+            showFlexThirteenthSaldo     = saldo.ShowFlexThirteenthSaldo,
+            probationEndDate            = emp.ProbationEndDate.HasValue
+                ? DateOnly.FromDateTime(emp.ProbationEndDate.Value).ToString("yyyy-MM-dd")
+                : null,
 
             // Modell
             employmentModel = emp.EmploymentModel,
@@ -620,6 +648,77 @@ public static class PayrollCalculations
             1  => month == 12,
             _  => true   // 12 oder unbekannt → immer monatlich
         };
+    }
+
+    /// <summary>
+    /// L-GAV Art. 12 Ziff. 2 / Walter 01.08.2026 — Probezeit vs. 13. ML:
+    /// <list type="bullet">
+    /// <item><b>InProbation</b>: ProbezeitEnde &gt; Periodenende (Kalendermonat).
+    /// Am Periodenende bestanden → für diesen Lohn NICHT mehr in Probezeit
+    /// (Saldo auszahlen / monatlich freigeben).</item>
+    /// <item><b>Forfeited</b>: Austritt liegt in dieser Periode UND
+    /// Austritt ≤ ProbezeitEnde → 13.-Saldo verfällt. Befristetes
+    /// Vertragsende NACH der Probezeit zählt nicht als Verfall.</item>
+    /// </list>
+    /// </summary>
+    public static (bool InProbation, bool Forfeited) ResolveThirteenthProbationStatus(
+        DateOnly? probationEnd,
+        DateOnly? austritt,
+        DateOnly periodFrom,
+        DateOnly periodToFull)
+    {
+        bool forfeited = probationEnd.HasValue
+                      && austritt.HasValue
+                      && austritt.Value <= probationEnd.Value
+                      && austritt.Value >= periodFrom
+                      && austritt.Value <= periodToFull;
+
+        bool inProbation = !forfeited
+                        && probationEnd.HasValue
+                        && probationEnd.Value > periodToFull;
+
+        return (inProbation, forfeited);
+    }
+
+    /// <summary>Frühestes Austrittsdatum aus MA.ExitDate / Vertrag.ContractEndDate.</summary>
+    public static DateOnly? ResolveAustrittDate(DateTime? employeeExitDate, DateTime? contractEndDate)
+    {
+        DateOnly? a = employeeExitDate.HasValue
+            ? DateOnly.FromDateTime(employeeExitDate.Value) : null;
+        if (contractEndDate.HasValue)
+        {
+            var ce = DateOnly.FromDateTime(contractEndDate.Value);
+            if (a == null || ce < a) a = ce;
+        }
+        return a;
+    }
+
+    /// <summary>
+    /// Ferien/Nacht-Report: Vortrag 904 (Monatsblatt-Schlussaldo) + Stempelzeiten
+    /// ab Vortrags-Monat — sonst Doppelzählung der Mirus-Vormonate.
+    /// Vortrag-Periode «YYYY-MM» = Eröffnung für diesen Monat (= Mirus-Saldo Vormonat).
+    /// Walter 02.08.2026.
+    /// </summary>
+    public static (DateOnly NightFrom, decimal Vortrag) ResolveNachtReportBasis(
+        DateOnly yearStart,
+        DateOnly stichEnd,
+        string? vortragPeriode,
+        decimal vortragBetrag)
+    {
+        if (string.IsNullOrWhiteSpace(vortragPeriode)
+            || vortragPeriode.Length != 7
+            || vortragPeriode[4] != '-'
+            || !int.TryParse(vortragPeriode.AsSpan(0, 4), out int vy)
+            || !int.TryParse(vortragPeriode.AsSpan(5, 2), out int vm)
+            || vm < 1 || vm > 12)
+        {
+            return (yearStart, 0m);
+        }
+
+        var vStart = new DateOnly(vy, vm, 1);
+        if (vStart > stichEnd) return (yearStart, 0m);
+        if (vStart < yearStart) return (yearStart, vortragBetrag);
+        return (vStart, vortragBetrag);
     }
 
     /// <summary>

@@ -24,6 +24,7 @@ public class PayrollController : HrControllerBase
     private readonly KtgTagessatzService _ktgService;
     private readonly KarenzService _karenz;
     private readonly LgavBeitragService _lgav;
+    private readonly UniformDepotService _uniformDepot;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly PayrollPdfService _payrollPdf;
     private readonly StundenkontrollePdfService _stundenkontrollePdf;
@@ -41,6 +42,7 @@ public class PayrollController : HrControllerBase
         KtgTagessatzService ktgService,
         KarenzService karenz,
         LgavBeitragService lgav,
+        UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
         PayrollPdfService payrollPdf,
         StundenkontrollePdfService stundenkontrollePdf,
@@ -56,6 +58,7 @@ public class PayrollController : HrControllerBase
         _ktgService     = ktgService;
         _karenz         = karenz;
         _lgav           = lgav;
+        _uniformDepot   = uniformDepot;
         _ferienKuerzung = ferienKuerzung;
         _payrollPdf     = payrollPdf;
         _stundenkontrollePdf = stundenkontrollePdf;
@@ -227,6 +230,47 @@ public class PayrollController : HrControllerBase
         }
     }
 
+    /// <summary>
+    /// Uniformen-Depot CHF 50 für alle Erst-Löhne / Eintritte der Periode
+    /// nachziehen (Walter Aug 2026). Feature kam oft erst NACH der
+    /// Lohnbestätigung — legt LohnZulage 600.32 an und rechnet betroffene
+    /// Snapshots neu (Status bleibt). Idempotent.
+    /// </summary>
+    [HttpPost("ensure-uniform-depots")]
+    [Authorize(Roles = "admin,superuser,buchhaltung")]
+    public async Task<IActionResult> EnsureUniformDepots(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
+        if (periode != null && string.Equals(periode.Status, "abgeschlossen", StringComparison.OrdinalIgnoreCase))
+        {
+            return Conflict(new
+            {
+                error = "PERIODE_ABGESCHLOSSEN",
+                message = "Periode ist definitiv abgeschlossen — Depot-Nachzug nicht mehr möglich."
+            });
+        }
+
+        var (charged, employeeIds) = await _uniformDepot.EnsureChargesForPeriodAsync(companyProfileId, year, month);
+        int recomputed = 0;
+        if (charged > 0)
+            recomputed = await _snapshotRecompute.RecomputeAsync(companyProfileId, year, month);
+
+        return Ok(new
+        {
+            charged,
+            employeeIds,
+            recomputed,
+            message = charged > 0
+                ? $"Uniformen-Depot: {charged} Eintritt(e) nachgezogen, {recomputed} Snapshot(s) neu gerechnet."
+                : "Keine neuen Depot-Abzüge nötig."
+        });
+    }
+
     // ── Saldo-Listen zum Definitiv-Abschluss (Walter-Vorgabe 21.05.2026) ──────
     // Zwei PDFs pro Filiale + Periode, on-demand aus den persistierten
     // PayrollSaldo-Zeilen. „buchhaltung" = alle Saldi + Brutto/Netto + IBAN;
@@ -266,16 +310,103 @@ public class PayrollController : HrControllerBase
     }
 
     // GET /api/payroll/calculate?employeeId=X&year=Y&month=M&companyProfileId=Z
+    // Optional: isCorrection=true → Korrektur-/Sonderlohn (ausgetretene MA).
     [HttpGet("calculate")]
     public async Task<IActionResult> Calculate(
         [FromQuery] int employeeId,
         [FromQuery] int year,
         [FromQuery] int month,
-        [FromQuery] int companyProfileId)
+        [FromQuery] int companyProfileId,
+        [FromQuery] bool isCorrection = false)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
-        return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+        return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId, isCorrection);
+    }
+
+    /// <summary>
+    /// Kandidaten für Korrekturlohn: MA mit Vertrag in der Filiale, die in
+    /// der Periode keinen laufenden Vertrag mehr haben (ausgetreten / inaktiv).
+    /// Flaggt zusätzlich offene Zulagen / Depot-Refund.
+    /// </summary>
+    [HttpGet("correction-candidates")]
+    public async Task<IActionResult> CorrectionCandidates(
+        [FromQuery] int companyProfileId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var (periodFrom, periodTo) = CalcPeriod(year, month);
+        var periodFromDt = periodFrom.ToDateTime(TimeOnly.MinValue);
+        var periodToDt   = periodTo.ToDateTime(TimeOnly.MinValue);
+        var periodeStr   = $"{year:D4}-{month:D2}";
+
+        var emps = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsPayrollExcluded)
+            .Where(e => e.Employments.Any(x => x.CompanyProfileId == companyProfileId))
+            .Select(e => new
+            {
+                e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.IsActive, e.ExitDate,
+                LastEmp = e.Employments
+                    .Where(x => x.CompanyProfileId == companyProfileId)
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .Select(x => new { x.EmploymentModel, x.ContractStartDate, x.ContractEndDate })
+                    .FirstOrDefault(),
+                // Noch irgendwo im Unternehmen angestellt (inkl. Filialwechsel /
+                // GF anderer Filiale) → KEIN Korrekturlohn-Kandidat.
+                // Sonst taucht z.B. Alaa (GF Langenthal, früher Oftringen) in
+                // der Oftringen-Liste als «Korr.» auf.
+                HasOverlapAnywhere = e.Employments.Any(x =>
+                    x.ContractStartDate <= periodToDt
+                    && (x.ContractEndDate == null || x.ContractEndDate >= periodFromDt)),
+            })
+            .ToListAsync();
+
+        // Nur wirklich Ausgetretene: hatten Vertrag in dieser Filiale, und in
+        // der Periode nirgends mehr einen laufenden Vertrag.
+        var candidates = emps
+            .Where(e => e.LastEmp != null && !e.HasOverlapAnywhere)
+            .ToList();
+
+        var candIds = candidates.Select(c => c.Id).ToList();
+        var zulagenEmpIds = await _db.LohnZulagen.AsNoTracking()
+            .Where(z => candIds.Contains(z.EmployeeId) && z.Periode == periodeStr)
+            .Select(z => z.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        var zulagenSet = zulagenEmpIds.ToHashSet();
+
+        var depotEmpIds = await _db.EmployeeUniformDepots.AsNoTracking()
+            .Where(d => candIds.Contains(d.EmployeeId)
+                     && d.Status == "EINBEHALTEN"
+                     && d.Balance > 0
+                     && d.ReturnConfirmed == true)
+            .Select(d => d.EmployeeId)
+            .ToListAsync();
+        var depotSet = depotEmpIds.ToHashSet();
+
+        var result = candidates
+            .OrderBy(e => e.FirstName ?? "").ThenBy(e => e.LastName ?? "")
+            .Select(e => new
+            {
+                id = e.Id,
+                firstName = e.FirstName,
+                lastName = e.LastName,
+                employeeNumber = e.EmployeeNumber,
+                isActive = e.IsActive,
+                exitDate = e.ExitDate.HasValue
+                    ? DateOnly.FromDateTime(e.ExitDate.Value).ToString("yyyy-MM-dd")
+                    : null,
+                employmentModel = e.LastEmp!.EmploymentModel,
+                hasZulagen = zulagenSet.Contains(e.Id),
+                hasPendingDepotRefund = depotSet.Contains(e.Id)
+                    && e.ExitDate.HasValue
+                    && DateOnly.FromDateTime(e.ExitDate.Value) <= periodTo,
+            });
+
+        return Ok(result);
     }
 
     // GET /api/payroll/sollstunden-report?companyProfileId=X&year=Y&month=M
@@ -543,13 +674,34 @@ public class PayrollController : HrControllerBase
         var ferAbsByEmp = ferAbs.GroupBy(a => a.EmployeeId).ToDictionary(g => g.Key, g => g.ToList());
 
         // Nachtstunden aus den Stempelzeiten (Jan..Stichtag) — für ALLE Modelle.
-        var nightByEmp = (await _db.EmployeeTimeEntries.AsNoTracking()
-                .Where(t => empIds.Contains(t.EmployeeId)
-                         && t.EntryDate >= yearStartD && t.EntryDate <= stichEnd)
-                .GroupBy(t => t.EmployeeId)
-                .Select(g => new { EmployeeId = g.Key, Night = g.Sum(t => t.NightHours ?? 0m) })
-                .ToListAsync())
-            .ToDictionary(x => x.EmployeeId, x => x.Night);
+        // Pro MA filtern wir unten ggf. ab Vortrags-Monat (904), damit Mirus-
+        // Schlussaldo und Stempelzeiten nicht doppelt zählen (Walter 02.08.2026).
+        var nightEntries = await _db.EmployeeTimeEntries.AsNoTracking()
+            .Where(t => empIds.Contains(t.EmployeeId)
+                     && t.EntryDate >= yearStartD && t.EntryDate <= stichEnd
+                     && (t.NightHours ?? 0m) != 0m)
+            .Select(t => new { t.EmployeeId, t.EntryDate, Night = t.NightHours ?? 0m })
+            .ToListAsync();
+        var nightEntriesByEmp = nightEntries
+            .GroupBy(t => t.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // Vortrag Nacht-Saldo (904) — Migrations-Eröffnung aus Monatsblatt.
+        var vortrag904Raw = await _db.LohnZulagen.AsNoTracking()
+            .Where(z => empIds.Contains(z.EmployeeId)
+                     && z.Lohnposition != null
+                     && z.Lohnposition.Code == "904"
+                     && z.Lohnposition.Kategorie == "Saldo-Vortrag")
+            .Select(z => new { z.EmployeeId, z.Periode, z.Betrag })
+            .ToListAsync();
+        // Pro MA: jüngster Vortrag mit Periode ≤ Stichtag-Monat.
+        var stichPeriode = $"{year}-{month:D2}";
+        var vortrag904ByEmp = vortrag904Raw
+            .Where(v => !string.IsNullOrEmpty(v.Periode) && string.CompareOrdinal(v.Periode, stichPeriode) <= 0)
+            .GroupBy(v => v.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.Periode).First());
 
         // Anzahl gearbeitete NÄCHTE über die letzten 12 Monate ab Stichtag
         // (Walter-Vorgabe 20.06.2026, ArG-Nachtarbeit-Kontrolle): rollendes Fenster,
@@ -617,7 +769,19 @@ public class PayrollController : HrControllerBase
                 if (isFix) feiertagAnspruch += 0.5m * frac;
             }
 
-            // ── Bezug: FERIEN-Tage + Feiertag-Tage + Nacht-Komp-Stunden Jan..Stichtag ──
+            // ── Nacht-Vortrag (904) + Fenster ab Vortrags-Monat ───────────
+            decimal nachtVortrag = 0m;
+            string? nachtVortragPeriode = null;
+            DateOnly nachtFrom = yearStartD;
+            if (vortrag904ByEmp.TryGetValue(e.EmployeeId, out var v904))
+            {
+                var basis = ResolveNachtReportBasis(yearStartD, stichEnd, v904.Periode, v904.Betrag);
+                nachtFrom = basis.NightFrom;
+                nachtVortrag = basis.Vortrag;
+                nachtVortragPeriode = v904.Periode;
+            }
+
+            // ── Bezug: FERIEN-Tage + Feiertag-Tage + Nacht-Komp-Stunden ──
             decimal bezug = 0m;
             decimal feiertagBezug = 0m;
             decimal nachtKomp = 0m;
@@ -628,15 +792,19 @@ public class PayrollController : HrControllerBase
                 feiertagBezug = fa.Where(a => a.AbsenceType == "FEIERTAG")
                           .Sum(a => CountAbsenceDaysInPeriod(a, yearStartD, stichEnd)
                                     * ((a.Prozent > 0 ? a.Prozent : 100m) / 100m));
+                // Nacht-Komp nur im Fenster ab Vortrag (sonst Doppelzählung).
                 nachtKomp = fa.Where(a => a.AbsenceType == "NACHT_KOMP")
-                          .Sum(a => ScaleAbsenceHoursToPeriod(a, yearStartD, stichEnd));
+                          .Sum(a => ScaleAbsenceHoursToPeriod(a, nachtFrom, stichEnd));
             }
 
-            // ── Nacht-Saldo (Stunden, alle Modelle): Nachtstunden × 10% Zeit-
-            //    zuschlag, reduziert durch Nacht-Kompensation. ──
-            decimal nachtStd      = nightByEmp.TryGetValue(e.EmployeeId, out var nh) ? nh : 0m;
+            // ── Nacht-Saldo (Stunden, alle Modelle inkl. FLEX):
+            //    Vortrag + Nachtstunden×10% − Nacht-Kompensation. ──
+            decimal nachtStd = 0m;
+            if (nightEntriesByEmp.TryGetValue(e.EmployeeId, out var nEnts))
+                nachtStd = nEnts.Where(t => t.EntryDate >= nachtFrom && t.EntryDate <= stichEnd)
+                                .Sum(t => t.Night);
             decimal nachtZuschlag = Math.Round(nachtStd * 0.10m, 2);
-            decimal nachtSaldo    = Math.Round(nachtZuschlag - nachtKomp, 2);
+            decimal nachtSaldo    = Math.Round(nachtVortrag + nachtZuschlag - nachtKomp, 2);
 
             // ── Anzahl Nächte (rollende 12 Monate, ArG-Kontrolle) ──
             int naechteReal = 0, datenMonate = 0;
@@ -701,11 +869,13 @@ public class PayrollController : HrControllerBase
                 feiertagAnspruch = isFix ? (decimal?)Math.Round(feiertagAnspruch, 2) : null,
                 feiertagBezug    = isFix ? (decimal?)Math.Round(feiertagBezug, 2) : null,
                 feiertagSaldo    = isFix ? (decimal?)Math.Round(feiertagAnspruch - feiertagBezug, 2) : null,
-                // Nacht-Saldo in Stunden (alle Modelle).
-                nachtStunden  = Math.Round(nachtStd, 2),
-                nachtZuschlag = nachtZuschlag,
-                nachtKomp     = Math.Round(nachtKomp, 2),
-                nachtSaldo    = nachtSaldo,
+                // Nacht-Saldo in Stunden (alle Modelle inkl. FLEX).
+                nachtVortrag        = Math.Round(nachtVortrag, 2),
+                nachtVortragPeriode = nachtVortragPeriode,
+                nachtStunden        = Math.Round(nachtStd, 2),
+                nachtZuschlag       = nachtZuschlag,
+                nachtKomp           = Math.Round(nachtKomp, 2),
+                nachtSaldo          = nachtSaldo,
                 // Anzahl Nächte (rollende 12 Monate) — nur noch Info, NICHT mehr Warnkriterium.
                 naechteJahr   = naechteJahr,
                 naechteReal   = naechteReal,
@@ -800,9 +970,11 @@ public class PayrollController : HrControllerBase
             && (!emp.QstBefreiungGueltigBis.HasValue
                 || emp.QstBefreiungGueltigBis.Value >= periodFrom);
 
+        // Diagnostik analog Engine: Überlappung mit der Periode (nicht nur am 1.)
+        var periodTo = periodFrom.AddMonths(1).AddDays(-1);
         var qst = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId
-                     && q.ValidFrom <= periodFrom
+                     && q.ValidFrom <= periodTo
                      && (q.ValidTo == null || q.ValidTo >= periodFrom))
             .OrderByDescending(q => q.ValidFrom)
             .FirstOrDefaultAsync();
@@ -826,7 +998,7 @@ public class PayrollController : HrControllerBase
             },
             isQuellensteuer,
             engineWillBerechnen = isQuellensteuer && qst != null,
-            buildVersion = "2026-05-26-qst-fix"   // Walter — wenn dieser Text im JSON steht, läuft der neue Code
+            buildVersion = "2026-08-02-qst-period-overlap"   // Walter — wenn dieser Text im JSON steht, läuft der neue Code
         });
     }
 
@@ -1009,7 +1181,8 @@ public class PayrollController : HrControllerBase
             .FirstOrDefaultAsync(p => p.CompanyProfileId == dto.CompanyProfileId
                                    && p.Year  == dto.Year
                                    && p.Month == dto.Month);
-        if (akontoPeriode != null)
+        // Korrekturlohn (IsCorrection) ist davon ausgenommen — kein Akonto-Bezug.
+        if (!dto.IsCorrection && akontoPeriode != null)
         {
             await AkontoDefinitivGuard.TryAbandonMidFlightAsync(_db, akontoPeriode, GetUserIdOrNull());
             if (!AkontoDefinitivGuard.IsAkontoStrangFertig(akontoPeriode.AkontoStatus, akontoPeriode.Status))
@@ -1039,7 +1212,8 @@ public class PayrollController : HrControllerBase
         // (Art. 329b OR) — kommt als Flag dto.ApplyFerienKuerzung und wird hier
         // mit dem server-berechneten Vorschlag reproduziert. Geldbeträge
         // (Brutto/Netto/SV/QST) sind von dieser Entscheidung NICHT betroffen.
-        var calcAction = await _calcEngine.CalculateAsync(dto.EmployeeId, dto.Year, dto.Month, dto.CompanyProfileId);
+        var calcAction = await _calcEngine.CalculateAsync(
+            dto.EmployeeId, dto.Year, dto.Month, dto.CompanyProfileId, dto.IsCorrection);
         if (calcAction is not OkObjectResult okCalc || okCalc.Value is null)
             return calcAction;   // Berechnungs-Fehler (NotFound/BadRequest) 1:1 durchreichen
 
@@ -1055,12 +1229,13 @@ public class PayrollController : HrControllerBase
         // aus dem in der Periode gültigen Vertrag genommen (server-autoritativ,
         // nicht aus dem Request). Greift auch wenn ein NEUER Mindestlohn rückwirkend
         // ab einem Datum gilt, das in diese Periode fällt.
+        // Korrekturlohn: kein laufender Vertrag → Sperren überspringen.
         var (mwFrom, mwTo) = CalcPeriod(dto.Year, dto.Month);
         var mwFromDt = mwFrom.ToDateTime(TimeOnly.MinValue);
         var mwToDt   = mwTo.ToDateTime(TimeOnly.MinValue);
         // DateTime-Vergleich (NICHT DateOnly.FromDateTime — in EF/Npgsql nicht
         // SQL-übersetzbar → 500). ContractStartDate ist DateTime (date-mid).
-        var mwEmp = await _db.Employments
+        var mwEmp = dto.IsCorrection ? null : await _db.Employments
             .Include(e => e.JobGroup)   // FK-Code für Mindestlohn-Lookup (Walter 26.05.2026)
             .Where(e => e.EmployeeId == dto.EmployeeId
                      && e.IsActive
@@ -1096,9 +1271,13 @@ public class PayrollController : HrControllerBase
         // Befreiung, kein CH/C-Ehepartner) UND es keine gültige QST-Erfassung
         // am Periodenende gibt → Lohnlauf blocken. Walter's Schweizer Praxis:
         // lieber höchsten Tarif erfassen als gar nichts.
-        var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
-        if (qstChk.IsPflichtOffen)
-            return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+        // Korrekturlohn: keine QST-Pflicht-Sperre (manuelle Positionen).
+        if (!dto.IsCorrection)
+        {
+            var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
+            if (qstChk.IsPflichtOffen)
+                return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+        }
 
         decimal SrvDec(string key)
         {
@@ -1141,6 +1320,10 @@ public class PayrollController : HrControllerBase
                                    && s.PeriodYear    == dto.Year
                                    && s.PeriodMonth   == dto.Month
                                    && s.CompanyProfileId == dto.CompanyProfileId);
+        // Walter-Vorgabe 30.06.2026: DateTime.Now, NIE UtcNow — Spalten sind
+        // timestamp without time zone. Korrekturlohn legt oft erstmals Snapshot/
+        // Saldo an → UtcNow war hier der «ewige Wurm» (Npgsql 500).
+        var nowTs = DateTime.Now;
         if (saldo is null)
         {
             saldo = new PayrollSaldo
@@ -1149,7 +1332,7 @@ public class PayrollController : HrControllerBase
                 CompanyProfileId = dto.CompanyProfileId,
                 PeriodYear       = dto.Year,
                 PeriodMonth      = dto.Month,
-                CreatedAt        = DateTime.UtcNow
+                CreatedAt        = nowTs
             };
             _db.PayrollSaldos.Add(saldo);
         }
@@ -1165,7 +1348,7 @@ public class PayrollController : HrControllerBase
         saldo.GrossAmount                = srvGross;
         saldo.NetAmount                  = srvNet;
         saldo.Status                     = "confirmed";
-        saldo.UpdatedAt                  = DateTime.UtcNow;
+        saldo.UpdatedAt                  = nowTs;
 
         // 3) Snapshot speichern / aktualisieren
         if (snapshot is null)
@@ -1175,7 +1358,7 @@ public class PayrollController : HrControllerBase
                 PayrollPeriodeId = dto.PayrollPeriodeId,
                 EmployeeId       = dto.EmployeeId,
                 CompanyProfileId = dto.CompanyProfileId,
-                CreatedAt        = DateTime.UtcNow
+                CreatedAt        = nowTs
             };
             _db.PayrollSnapshots.Add(snapshot);
         }
@@ -1188,17 +1371,37 @@ public class PayrollController : HrControllerBase
         snapshot.QstBetrag              = srvQst;
         snapshot.ThirteenthAccumulated  = srv13Acc;
         snapshot.FerienGeldSaldo        = srvFerGeld;
-        snapshot.UpdatedAt              = DateTime.UtcNow;
+        snapshot.UpdatedAt              = nowTs;
 
         // 4-Augen-Workflow Walter-Vorgabe 19.05.2026 — Confirm = GF-Freigabe
         // pro MA. HR_BESTAETIGT bleibt unverändert wenn schon weitergerollt
         // (re-confirm während HR-Phase würde sonst HR-Bestätigung verlieren).
         // Hier nur „neu" oder von BERECHNET kommend → FREIGEGEBEN_GF.
+        // Korrekturlohn in bereits provisorischer Periode (Walter Aug 2026):
+        // ein Klick von HR setzt direkt HR_BESTAETIGT — sonst bliebe der
+        // Nachzügler nach Confirm noch auf FREIGEGEBEN_GF und bräuchte
+        // einen zweiten Klick, obwohl die Periode schon bei HR ist.
         if (snapshot.Status == "BERECHNET" || string.IsNullOrEmpty(snapshot.Status))
         {
-            snapshot.Status = "FREIGEGEBEN_GF";
-            snapshot.GfFreigegebenAt = DateTime.UtcNow;
-            snapshot.GfFreigegebenBy = GetUserIdOrNull();
+            var actorId = GetUserIdOrNull();
+            // akontoPeriode = PayrollPeriode dieser Filiale/Periode (oben geladen)
+            if (dto.IsCorrection
+                && akontoPeriode != null
+                && string.Equals(akontoPeriode.Status, "provisorisch_abgeschlossen", StringComparison.OrdinalIgnoreCase)
+                && (User.IsInRole("admin") || User.IsInRole("superuser") || User.IsInRole("buchhaltung")))
+            {
+                snapshot.Status = "HR_BESTAETIGT";
+                snapshot.GfFreigegebenAt ??= nowTs;
+                snapshot.GfFreigegebenBy ??= actorId;
+                snapshot.HrBestaetigtAt = nowTs;
+                snapshot.HrBestaetigtBy = actorId;
+            }
+            else
+            {
+                snapshot.Status = "FREIGEGEBEN_GF";
+                snapshot.GfFreigegebenAt = nowTs;
+                snapshot.GfFreigegebenBy = actorId;
+            }
         }
 
         // Akonto-Bereits-Ausbezahlt-Feld pflegen (Walter-Vorgabe 17.05.2026):
@@ -1241,7 +1444,7 @@ public class PayrollController : HrControllerBase
             if (laOld != null)
             {
                 laOld.BereitsAbgezogen = Math.Max(0, Math.Round(laOld.BereitsAbgezogen - old.Betrag, 2));
-                laOld.UpdatedAt        = DateTime.UtcNow;
+                laOld.UpdatedAt        = nowTs;
             }
             _db.PayrollLohnAbtretungEntries.Remove(old);
         }
@@ -1260,7 +1463,7 @@ public class PayrollController : HrControllerBase
 
                 decimal vorher = la.BereitsAbgezogen;
                 la.BereitsAbgezogen = Math.Round(vorher + betrag, 2);
-                la.UpdatedAt        = DateTime.UtcNow;
+                la.UpdatedAt        = nowTs;
 
                 _db.PayrollLohnAbtretungEntries.Add(new PayrollLohnAbtretungEntry
                 {
@@ -1279,12 +1482,29 @@ public class PayrollController : HrControllerBase
                     Betrag                   = betrag,
                     BereitsAbgezogenVorher   = vorher,
                     BereitsAbgezogenNachher  = la.BereitsAbgezogen,
-                    CreatedAt                = DateTime.UtcNow
+                    CreatedAt                = nowTs
                 });
             }
         }
 
-        await _db.SaveChangesAsync();
+        try
+        {
+            await _db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            // Klartext statt nacktem 500 — typisch war timestamptz + DateTime.Now
+            // auf employee_lohn_assignment.updated_at (Lohnabtretung).
+            var detail = ex.InnerException?.Message ?? ex.Message;
+            return StatusCode(500, new {
+                error = "CONFIRM_FAILED",
+                message = $"Lohn-Bestätigung fehlgeschlagen: {detail}"
+            });
+        }
+
+        // Uniformen-Depot: nach Confirm Status setzen (Refund / Verfall).
+        await _uniformDepot.ApplyAfterConfirmAsync(dto.EmployeeId, dto.Year, dto.Month);
+
         return Ok(new { snapshotId = snapshot.Id, message = "Lohn bestätigt und gespeichert." });
     }
 
@@ -1380,7 +1600,7 @@ public class PayrollController : HrControllerBase
             if (la != null)
             {
                 la.BereitsAbgezogen = Math.Max(0, Math.Round(la.BereitsAbgezogen - old.Betrag, 2));
-                la.UpdatedAt        = DateTime.UtcNow;
+                la.UpdatedAt        = DateTime.Now;
             }
             _db.PayrollLohnAbtretungEntries.Remove(old);
         }
@@ -1424,7 +1644,7 @@ public class PayrollController : HrControllerBase
         snap.Status         = "HR_BESTAETIGT";
         snap.HrBestaetigtAt = DateTime.UtcNow;
         snap.HrBestaetigtBy = GetUserIdOrNull();
-        snap.UpdatedAt      = DateTime.UtcNow;
+        snap.UpdatedAt      = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { snap.Id, snap.Status, snap.HrBestaetigtAt });
     }
@@ -1447,7 +1667,7 @@ public class PayrollController : HrControllerBase
         snap.Status         = "FREIGEGEBEN_GF";
         snap.HrBestaetigtAt = null;
         snap.HrBestaetigtBy = null;
-        snap.UpdatedAt      = DateTime.UtcNow;
+        snap.UpdatedAt      = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { snap.Id, snap.Status });
     }

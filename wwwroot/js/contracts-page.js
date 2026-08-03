@@ -94,7 +94,7 @@ function renderEmpDetail(emp, contracts, panel) {
                 ${empField('E-Mail', emp.email)}
                 ${empField('Telefon', emp.phone)}
                 ${empField('Adresse', emp.address)}
-                ${empField('PLZ / Ort', [emp.postalCode, emp.city].filter(Boolean).join(' '))}
+                ${empField('PLZ / Ort', [emp.postalCode, (typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(emp.city) : emp.city)].filter(Boolean).join(' '))}
                 ${empField('Region', emp.region)}
                 ${empField('Nationalität', emp.nationality?.name || '–')}
                 ${empField('AHV-Nummer', emp.ahvNumber)}

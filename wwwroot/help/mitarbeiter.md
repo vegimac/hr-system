@@ -41,11 +41,11 @@ Karten auf einen Blick:
 - **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, Probezeit bis, Probezeitgespräch-Status
 - **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme verknüpfen, SECO-Formulare drucken
 - **Verträge** — kompakte Liste + Saldi der Periode
-- **Weitere Adressen** — Korrespondenz, Sozialamt … (unten in der Personalien-Karte)
+- **Weitere Adressen** — eigene Box unter den Personalien (1 Zeile sichtbar, Rest scrollbar; Beschreibung neben dem Titel)
 
 ### Familie / Schwanger
 Ehepartner, Kinder, **Kinderzulagen** (versioniert).  
-Bei Frauen zusätzlich **Schwangerschaft / Mutterschaft**: Termin, Fahrplan, Formulare, Fristen. Aktive Schwangerschaft → Badge neben dem Namen.
+Bei Frauen zusätzlich **Schwangerschaft / Mutterschaft**: Termin, Fahrplan, Formulare, Fristen. Aktive Schwangerschaft → Badge neben dem Namen. Die **Arztbestätigung** kannst du mit dem errechneten Termin verknüpfen (Checkliste).
 
 💡 Ehepartner-Nationalität / C-Ausweis / Pass-Dokument beeinflussen die [Quellensteuer](#qst).
 
@@ -65,6 +65,7 @@ Icon-Kacheln für den Filial-Alltag:
 | **Probezeit** | Probezeit-Gespräch-PDF, Datum + Protokoll verknüpfen, Kündigung in Probezeit |
 | **Arbeitsbestätigung / Arbeitszeugnis / Zwischenzeugnis** | PDF erzeugen |
 | **Verwarnung** | Verwarnung erfassen + Formular |
+| **Arbeits Aufforderung** | Schriftliche Aufforderung zur Arbeit (HR-Menü Kündigung / Zeugnisse oder diese Kachel) |
 | **Absenzkalender** | Monatsübersicht der Filiale |
 | **Postfach-Passwort** | Reset auf Personalnummer + Login-Sperre weg |
 | **Onboarding-QR** | QR für ersten Postfach-Login |
@@ -80,9 +81,10 @@ Krankheit, Unfall, Ferien … — siehe [Absenzen](#absenzen).
 Wann der MA einsetzbar ist. Daten aus easy@work (Einzel-Sync). Anzeige read-only; manuelle Versionen bleiben erhalten.
 
 ### Zulagen Abzüge Abtretung BVG
+- **Uniformen-Depot** CHF 50 — beim 1. Lohn einbehalten; bei Austritt Refund oder Verfall (Buttons nur mit Austrittsdatum). Siehe [Lohnlauf](#lohnlauf) / [Austritt](#austritt).
 - BVG-Zusatz-Mitgliedschaft (pro MA, versioniert)
 - Wiederkehrende Zulagen/Abzüge
-- Lohnabtretungen (Pfändung / Sozialamt)
+- **Lohnabtretungen** (Pfändung / Sozialamt) — Behörde + Sachbearbeiter, Beleg verknüpfen (ohne Dokument unwirksam). Bemerkung-Default: Name, Vorname, AHV. → [Lohnabtretungen & Behörden](#lohnabtretungen)
 
 ### Dokumente
 Personalakte — siehe [Dokumente](#dokumente).

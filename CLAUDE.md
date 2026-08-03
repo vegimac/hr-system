@@ -43,6 +43,31 @@ dotnet build
 
 DB-Backup/Restore: siehe `RESTORE.md`. Backups laufen täglich um 03:00 auf dem Server.
 
+### Deploy-Befehl IMMER mitliefern (Walter-Vorgabe 01.08.2026, ABSOLUT)
+
+Walter deployt **nicht selbst** und muss den Befehl **nie** nachfragen müssen.
+Nach **jeder** Änderung (Backend und/oder Frontend), sobald commit+push fertig sind,
+steht am Ende der Antwort **immer** der komplette Copy-Paste-Block — ohne Ausnahme,
+ohne «falls nötig», ohne abgekürztes `./deploy.sh`:
+
+```bash
+cd /Users/Walter/projects/hr-system && git fetch origin && git checkout <AKTUELLER-BRANCH> && git pull origin <AKTUELLER-BRANCH> && ./deploy.sh
+```
+
+Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name = **nur** der aktive Feature-Branch unten (nie blind `main`). Gleiches gilt in PR-Beschreibungen.
+
+### NUR EIN aktiver Feature-Branch (Walter-Vorgabe 01.08.2026, verschärft 02.08.2026, ABSOLUT)
+
+Walter arbeitet **immer nur mit einem Branch** — sonst liegen Fixes verstreut und er
+weiss nicht, welchen Befehl er deployen soll.
+
+- **Aktiver Branch** (alles Neue hier rein): `cursor/stundenkontrolle-monatsblatt-3bcf`
+- **VERBOTEN:** neuer `cursor/…-3bcf` von `main` abzweigen «für das nächste Thema», solange der aktive Branch nicht in `main` ist. Cloud-Agent-Default «feature branch from main» gilt hier **nicht**.
+- Folge-Arbeit = weiter auf diesem Branch committen + pushen + denselben Deploy-Befehl.
+- Alte offene PRs/Branches nur noch mergen **in diesen einen Branch**, nicht parallel weiterbauen.
+- **Lehre 02.08.2026:** Absenzen-Import-Korrektur wurde fälschlich von `main` neu gebrancht → Timestamp-Fix fehlte → HTTP 500 (wirkte wie alter UTP-Bug). Fixes liegen oft schon auf dem aktiven Branch, nicht auf `main`.
+- Neuer Branch erst wenn: aktiver Branch in `main` gemergt **oder** Walter explizit «neuer Branch».
+
 ## Architektur-Big-Picture
 
 ### Schichten
@@ -148,13 +173,13 @@ Wichtig: `PayrollCalculations` ist statisch und seiteneffektfrei (alle Daten als
 
 | Modell | Ferien | Feiertag | 13. ML |
 |---|---|---|---|
-| **FLEX** | Saldo (CHF, „Ferien-Geld") — NICHT monatlich ausbezahlt | **Monatlich ausbezahlt** | **Monatlich ausbezahlt** |
-| **MTP** | Saldo (Tage) — Auszahlung NUR nach Vorgaben (`PayrollPeriodeConfig.thirteenthMonthPayoutMonths` etc.) | **Monatlich ausbezahlt** | Saldo, Auszahlung NUR nach Vorgaben |
+| **FLEX** | **Saldo Tage + Saldo CHF (Ferien-Geld)** — beides mit Vormonats-Saldo. Bei Bezug: Auszahlung anteilig aus dem Pott (wie MTP). Nicht monatlich ausbezahlt. | **Monatlich ausbezahlt** | **Monatlich ausbezahlt** |
+| **MTP** | Saldo (Tage) + Ferien-Geld (CHF); Auszahlung bei Bezug aus dem Pott | **Monatlich ausbezahlt** | Saldo, Auszahlung NUR nach Vorgaben |
 | **FIX** / **FIX-M** | Saldo (Tage) — KEINE Auszahlung, nur akkumulieren | Saldo (Tage) — KEINE Auszahlung, nur akkumulieren | Saldo (CHF), Auszahlung NUR nach Vorgaben. 13. ML zusätzlich oben in der Lohnpositionen-Liste anzeigen (Akkumulation transparent). |
 
-**Sozialleistungs-Abzug:** wird ERST bei der tatsächlichen Auszahlung von Ferien oder 13. ML angewendet — NICHT beim monatlichen Akkumulieren in den Saldo. Daher beim Austritt eines FLEX-MA (Ferien-Geld-Auszahlung) und beim Auszahlungsmonat eines MTP/FIX-M (13. ML) jeweils AHV/ALV/NBU/KTG/LGAV auf den Auszahlungsbetrag rechnen.
+**Sozialleistungs-Abzug:** wird ERST bei der tatsächlichen Auszahlung von Ferien oder 13. ML angewendet — NICHT beim monatlichen Akkumulieren in den Saldo. Daher beim Ferien-Bezug eines FLEX/MTP-MA (Ferien-Geld-Auszahlung aus dem Pott) und beim Auszahlungsmonat eines MTP/FIX-M (13. ML) jeweils AHV/ALV/NBU/KTG/LGAV auf den Auszahlungsbetrag rechnen.
 
-**MTP-Ferien-Auszahlung bei Bezug (Walter-Vorgabe, 09.05.2026):** Bei einem MTP-MA werden im Bezugsmonat von Ferientagen die garantierten Stunden gekürzt (Sollstunden- und Festlohn-Reduktion ist korrekt — so funktioniert das MTP-Modell). Die Ferien-Auszahlung erfolgt anteilsmässig **aus dem Pott**, der den **aktuellen Monat einschliesst**:
+**FLEX/MTP-Ferien-Auszahlung bei Bezug (Walter-Vorgabe 09.05.2026, FLEX bestätigt 01.08.2026):** FLEX führt wie MTP **Vormonats-Saldo Ferien-Tage und Ferien-Geld**. Die Auszahlung erfolgt anteilsmässig **aus dem Pott**, der den **aktuellen Monat einschliesst** (`CalcFerienGeld` / MTP-Block):
 
 ```
 Pott CHF   = Vormonats-Ferien-Geld + Ferienentschädigung diesen Monat
@@ -163,7 +188,7 @@ Tagessatz  = Pott CHF / Pott Tage
 Auszahlung = Tagessatz × bezogene Tage diesen Monat
 ```
 
-Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CHF/Tag, bei 6 bezogenen Tagen → 600 CHF Auszahlung. Cap = Pott CHF (kein Vorbezug). Ferien-Geld-Saldo neu = Pott − Auszahlung. Logik in `PayrollController.cs` im MTP-Block (`mtpFerienAuszahlungBetrag`).
+Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CHF/Tag, bei 6 bezogenen Tagen → 600 CHF Auszahlung. Cap = Pott CHF (kein Vorbezug). Ferien-Geld-Saldo neu = Pott − Auszahlung. Ferien-Tage-Saldo neu = Vormonat + Accrual − bezogen. Bei MTP zusätzlich: Garantie-Festlohn im Bezugsmonat um die Ferientage gekürzt.
 
 **Ferien-Tagessatz je Modell (Walter-Vorgabe 26.05.2026, ABSOLUT):** der Tagessatz, mit dem im Lohnzettel die bezogenen Ferientage bewertet werden, hängt am Vertragsmodell. Krankheit/Unfall ist davon AUSGENOMMEN — dort gilt `KtgTagessatzService` (eigene Formel, hier nicht anrühren).
 
@@ -179,7 +204,7 @@ Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CH
   ```
   Kalenderbasis, weil der Monatslohn unabhängig von der Anzahl Tage im Monat ist. Wird in `PayrollCalculationEngine.cs` (`fixTagessatz`) UND `FibuJournalService.cs` (RST Ferien/Feiertage) konsistent so gerechnet — die beiden Stellen MÜSSEN gleichlauten.
 
-- **FLEX**: kein eigener Ferien-Tagessatz — Ferien-Geld wird monatlich als % auf Brutto akkumuliert und beim Bezug (selten, nur bei Austritt) als CHF ausbezahlt.
+- **FLEX**: kein eigener fester Ferien-Tagessatz — Ferien-Geld wird monatlich als % auf Brutto akkumuliert; beim Bezug gilt der **Pott-Tagessatz** (Pott CHF / Pott Tage, inkl. Vormonats-Saldo Tage+Geld).
 
 Beim Bau neuer Lohn-Logik mit „Tagessatz" daher IMMER zuerst klären: Modell + Zweck (Ferien vs. Krank/Unfall) — und dann eine der drei Formeln oben nehmen, nicht improvisieren.
 
@@ -410,7 +435,7 @@ Auto-Import auseinander:
 | `DvelopImportController` | d.velop-ZIP für alte Personalakten | Sidebar „Systemeinstellungen → d.velop Import" |
 | `EmployeeStammdatenImportController` (`/api/imports/stammdaten`) | GastroSocial-BVG-XLSX → reichert AHV-Nr / Zivilstand / Sprache / Adresse / Konfession an. MA-Match: AHV → Name+Geb → Name allein. Namensvergleich ist **token-basiert** (`NameTokensMatch`) — fängt zusammengesetzte Nachnamen (Mädchenname+Ehename, „Trajkov Colic" vs. „Colic"), vertauschte Vor-/Nachnamen, Mittelnamen. Bei NO_MATCH/AMBIGUOUS liefert die Preview die `branchEmployees`-Liste → Frontend zeigt einen **manuellen MA-Picker** (Dropdown); Commit nimmt `manualMatches` (`"rowNum:empId,…"`) entgegen, manuelle Zuordnung gewinnt vor allen Auto-Matches. MA-Pool (Match + Picker) = Filial-MA **plus MA ganz ohne Vertrag** (Personaldossiers / Phantom-MA, keiner Filiale fest zugeordnet); inaktive MA im Picker mit `[inaktiv]` markiert | `js/stammdaten-import.js`, Page „Stammdaten-Import" |
 | `SaldoVortragImportController` (`/api/saldo-vortrag-import/chf/...`) | **CHF-Saldi Bulk-Import** (Walter-Vorgabe 26.05.2026): liest Mirus „Rückstellungsliste Saldomethode" (XLS, NPOI/HSSF) und schreibt pro MA `905 Ferien-Geld-CHF` (col K) + `906 13.-ML-CHF` (col G) als Vortrag in eine Migrations-Periode. Col M (Stunden in CHF) wird bewusst IGNORIERT — Stunden kommen aus dem Monatsblatt-Importer (Code 901). Endpoints: `chf/analyze` (Vorschau + Token-Matching gegen Filial-MA, NO_MATCH/AMBIGUOUS gehen in den manuellen Picker), `chf/commit` (Upsert nur für Codes 905/906 — andere Vortrag-Codes 901–904 bleiben UNANGETASTET, anders als `SaldoVortragController.Upsert`, der alle 6 Felder gleichzeitig setzt). Vertragsmodell-Relevanz: 905 nur FLEX/MTP, 906 nur MTP/FIX/FIX-M (analog `SaldoVortragController.IsRelevantForModel`). Bewusst KEIN LohnEditLockService-Check (admin-only, einmalige Migration); im Audit-Test whitelisted. Frontend: `js/saldo-vortrag-import.js?v=20260526a`, Page „CHF-Saldi (Mirus Saldomethode)" als Karte 7 im Onboarding-Hub „Neue Filiale importieren" | Sidebar „Neue Filiale importieren" → Karte 7 |
-| `SaldoVortragImportController` (`/api/saldo-vortrag-import/stunden/...`) | **Stunden-Saldi Bulk-Import** (Walter-Vorgabe 26.05.2026): liest Mirus „Monatsblatt &lt;Monat&gt; &lt;Jahr&gt;" (JasperReports-XLS) und schreibt pro MA `901 Zeitsaldo` (aus Zeile „Überstunden", Saldo col 63) + `904 Nacht-Saldo` (aus Zeile „Zeitzuschlag", Saldo col 63) als Vortrag. Werte sind reine Dezimalstunden (Mirus 1/100, kein hh:mm). **Match per Personalnummer** (col 12 der „Personalnummer:"-Ankerzeile) — robuster als Namen-Match; bei NO_MATCH greift derselbe manuelle Picker wie beim CHF-Importer. Endpoints: `stunden/analyze` + `stunden/commit` (Upsert nur 901/904, andere Vortrag-Codes 902/903/905/906 unangetastet). Vertragsmodell-Relevanz: 901+904 nur MTP/FIX/FIX-M (FLEX hat keinen Stunden-/Nacht-Saldo; bestehender Eintrag wird entfernt). Fehlt eine der beiden Saldo-Zeilen im Block (FLEX-MA haben typischerweise keine „Überstunden"-Zeile), bleibt der jeweilige Code unverändert (kein Upsert, kein Delete). Frontend: `js/saldo-vortrag-import-stunden.js?v=20260526a`, Page „Stunden-Saldi (Mirus Monatsblatt)" als Karte 8 im Onboarding-Hub. Audit-Test bereits whitelisted (selber Controller) | Sidebar „Neue Filiale importieren" → Karte 8 |
+| `SaldoVortragImportController` (`/api/saldo-vortrag-import/stunden/...`) | **Stunden-/Tage-Saldi Bulk-Import** (Walter-Vorgabe 26.05.2026, Ferien-Tage 01.08.2026): liest Mirus „Monatsblatt" (JasperReports-XLS, Spalten dynamisch) und schreibt pro MA `901 Zeitsaldo` («Überstunden»), `904 Nacht` («Zeitzuschlag»), `903 Ferien-Tage` («Ferien»), `902 Feiertag-Tage` («Feier»). **903 gilt für alle Modelle inkl. FLEX.** 901/904 nur MTP/FIX/FIX-M; 902 nur FIX/FIX-M. CHF 905/906 unangetastet (separater Import). Match per Personalnummer. Frontend: `js/saldo-vortrag-import-stunden.js`, Onboarding-Karte «Stunden-Saldi (Mirus Monatsblatt)» | Sidebar „Neue Filiale importieren" → Karte 9 |
 
 **Filial-Mismatch-Schutz:** Bei MA-Import + Stempelzeiten-Import erkennt das System ob die CSV/PDF zur falschen Filiale gehört (Personalnr-Präfix-Match). Beim Stempelzeiten-Import: Funktion `buildStzBranchMismatchWarning(data)` in `index.html`.
 

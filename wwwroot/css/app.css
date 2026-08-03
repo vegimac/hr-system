@@ -3566,6 +3566,28 @@
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
+        /* Probezeit-Badge: Status + «eintragen» (Walter 02.08.2026) */
+        .emp-hbadge.hb-prob {
+            gap: 6px;
+            align-items: center;
+        }
+        .emp-hpz-status { font-weight: 750; }
+        .emp-hpz-status.open { color: #9f1239; }
+        .emp-hpz-status.ok { color: #166534; }
+        .emp-hpz-btn {
+            margin: 0 0 0 2px;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 2px 8px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        .emp-hpz-btn:hover { background: #1a1a1a; }
         /* Vertrags-Zeile OHNE Huellen-Pille (Walter 17.07.2026: die drei
            Zeilen links buendig — die 10px-Innenpolsterung der hellen Pille
            rueckte den Chip optisch ein). Chip + Text starten flush bei 0. */
@@ -3694,24 +3716,21 @@
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
             flex: 1 1 auto; min-height: 0;
-            /* Walter 26.07.2026: Viewport füllen. Walter 30.07.2026: Zeile 1
-               (Personalien+Weitere Adressen) = max-content — darf nicht unter
-               Anstellung/Nachtarbeit schrumpfen. Kein Teil-Scale (wirkt uneinheitlich). */
+            /* Walter 02.08.2026: gleiche Abstände; Verträge/Saldi wachsen
+               (1fr); Weitere Adressen unten fix inhaltshoch. */
             overflow-x: hidden;
             overflow-y: auto;
             height: 100%;
             align-content: stretch;
-            /* Anstellung/Nachtarbeit kompakter (2 Zeilen) — 1 Adresszeile fix reserviert oben */
-            grid-template-rows: auto minmax(118px, auto) minmax(176px, 1fr);
+            grid-template-rows: max-content minmax(140px, auto) minmax(160px, 1fr) auto;
         }
         .ov-wrap {
             display: grid;
-            /* Anstellung / Nachtarbeit — Nachtarbeit etwas breiter, damit
-               4 Aktions-Buttons (mit Ausn. Reg.) in einer Zeile bleiben
-               (Walter 31.07.2026). */
-            grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1.15fr);
-            gap: 7px;
-            padding: 2px 2px 4px;
+            /* Anstellung breiter, Nachtarbeit schmaler (Walter 31.07.2026) */
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            gap: 10px; /* gleiche Abstände zwischen allen Boxen */
+            /* Knappes Boden-Padding — Schatten knapp sichtbar, ohne Leerraum */
+            padding: 2px 2px 8px;
         }
         /* Volle Breite (Walter 17.07.2026): Personalien & Adresse spannt
            ueber beide Spalten. */
@@ -3731,25 +3750,59 @@
             box-sizing: border-box;
             padding: 12px 14px 10px !important;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-addrsep {
-            margin-top: 6px;
-            padding-top: 6px;
-            flex-shrink: 0;
+        /* Weitere Adressen — eigene volle Breite unten (Walter 02.08.2026) */
+        .ov-addr-full {
+            grid-column: 1 / -1;
+            min-width: 0;
         }
-        /* Weitere Adressen: 1 Zeile immer reserviert (Walter 31.07.2026);
-           max. 2 sichtbar, ab der 3. Scroll. */
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
-            min-height: 40px; /* 1 Zeile fix — Layout springt nicht */
-            max-height: calc(2 * 40px + 4px);
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full {
+            grid-row: 4;
+            align-self: start;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card {
+            padding: 10px 14px 10px !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card > .ov-card-h {
+            font-size: 13.5px;
+            margin-bottom: 6px;
+            align-items: baseline;
+            gap: 8px;
+        }
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full > .ov-card > .ov-card-h > span:first-child {
+            display: inline-flex;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0 6px;
+            min-width: 0;
+            font-weight: 700;
+        }
+        .ov-addr-count {
+            font-weight: 700;
+            color: inherit;
+        }
+        .ov-addr-hint {
+            font-size: 11.5px;
+            font-weight: 500;
+            color: #a2acb8;
+            margin: 0;
+            line-height: 1.3;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        body.theme-dark .ov-addr-hint { color: rgba(210, 220, 232, 0.55); }
+        /* Box fix: immer 1 Adresszeile sichtbar, weitere scrollen (Walter 02.08.2026) */
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent {
+            min-height: 40px;
+            height: 40px;
+            max-height: 40px;
             overflow-x: hidden;
             overflow-y: auto;
-            margin-top: 4px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            flex-shrink: 0;
+            gap: 0;
         }
-        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
+        #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent .emp-addr-row {
             flex: 0 0 40px;
             height: 40px;
             box-sizing: border-box;
@@ -3778,7 +3831,8 @@
         /* Personalien: ein 5-Spalten-Raster über Z1–Z3 (Walter 19.07.2026)
            Z1: Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
            Z2: Briefanrede | Nickname | Sex | Konfession | —
-           Z3: Zivilstand | seit | Ledigname | Nationalität | ZEMIS */
+           Z3: Zivilstand | seit | Ledigname | Nationalität | ZEMIS
+           Zeilenabstand etwas luftiger (Walter 02.08.2026). */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned {
             display: grid;
             grid-template-columns:
@@ -3788,15 +3842,15 @@
                 minmax(140px, 1.2fr)   /* Tel2 / Sex / Nationalität */
                 minmax(150px, 1.25fr); /* — / AHV / ZEMIS */
             column-gap: 12px;
-            row-gap: 8px;
+            row-gap: 15px;
             align-items: start;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
         }
         /* Z1 vom Rest trennen */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf:nth-child(-n+5) {
-            padding-bottom: 7px;
+            padding-bottom: 11px;
             border-bottom: 1px solid rgba(90, 80, 65, 0.10);
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pers-aligned > .ov-pf {
             min-width: 0;
@@ -3909,24 +3963,25 @@
             min-height: 0;
             align-content: start;
         }
-        /* Verträge + Saldi-Tabelle (Walter 19.07.2026) — Verträge breiter. */
+        /* Verträge + Stundenbox: gleiche Spaltenbreite wie Anstellung/Nachtarbeit
+           (Walter Aug 2026) — rechte Kante Nachtarbeit = rechte Kante Saldi. */
         .ov-vertraege-ktg {
             grid-column: 1 / -1;
             display: grid;
-            grid-template-columns: minmax(0, 1.5fr) minmax(340px, 400px);
-            gap: 8px;
+            grid-template-columns: minmax(0, 1.65fr) minmax(260px, 0.9fr);
+            gap: 10px; /* wie .ov-wrap */
             min-width: 0;
             align-items: stretch;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
             grid-row: 3;
             height: 100%;
-            min-height: 180px;
+            min-height: 160px;
             max-height: none;
             overflow: hidden;
             align-self: stretch;
         }
-        /* Verträge/Saldi: Karten füllen die Zeile; Liste scrollt innen */
+        /* Verträge/Saldi füllen die mittlere Flex-Zeile (Walter 02.08.2026) */
         .ov-vertraege-ktg > .ov-card {
             min-height: 0;
             height: 100%;
@@ -3934,11 +3989,23 @@
             display: flex;
             flex-direction: column;
         }
+        /* Unterste Karten: Schatten nur leicht tiefer als Standard-Lift */
+        #page-mitarbeiter.liquid-employee .ov-vertraege-ktg > .ov-card {
+            box-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 20px rgba(90, 80, 65, 0.07),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 14px 28px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+        }
         .ov-vertraege-ktg > .ov-card > .ov-card-h { flex: 0 0 auto; }
         .ov-vertraege-ktg > .ov-card > .ov-vlist {
             flex: 1 1 auto;
-            min-height: calc(2 * 36px + 3px); /* 2 Vertragszeilen sichtbar */
+            min-height: calc(2 * 36px + 3px); /* mind. 2 Vertragszeilen */
             height: auto;
+            max-height: none;
+            overflow-y: auto;
         }
         .ov-vertraege-ktg > .ov-card > #ovSaldiContent,
         .ov-vertraege-ktg > .ov-card > .ov-saldi-slot {
@@ -4032,27 +4099,15 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: 1 Zeile immer reserviert; max. 2 sichtbar (Walter 31.07.2026) */
+        /* Zusatzadressen: 1 Zeile sichtbar, Rest scrollt (Walter 02.08.2026) */
         #otherAddressesContent {
-            max-height: calc(2 * 40px + 4px);
+            min-height: 40px;
+            max-height: 40px;
             overflow-x: hidden;
             overflow-y: auto;
-            min-height: 40px;
             display: flex;
             flex-direction: column;
-            gap: 4px;
-        }
-        /* Leer: Platz bleibt (kein Zusammenklappen) — dezenter Platzhalter-Rahmen */
-        #otherAddressesContent:empty {
-            display: flex;
-            border: 1px dashed #e5e0d6;
-            border-radius: 10px;
-            background: rgba(250, 248, 245, 0.55);
-            box-sizing: border-box;
-        }
-        body.theme-dark #otherAddressesContent:empty {
-            border-color: rgba(255, 255, 255, 0.12);
-            background: rgba(255, 255, 255, 0.03);
+            gap: 0;
         }
         .emp-addr-row {
             flex: 0 0 40px;
@@ -4087,7 +4142,7 @@
         }
         .emp-addr-actions { flex-shrink: 0; display: flex; gap: 6px; }
         body.theme-dark .emp-addr-type { background: rgba(255,255,255,.10); color: #cbd5e1; }
-        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent .emp-addr-row {
+        body.theme-dark #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full #otherAddressesContent .emp-addr-row {
             background: rgba(255,255,255,.04);
             border-color: rgba(255,255,255,.12);
         }
@@ -4096,7 +4151,8 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: auto minmax(118px, auto) minmax(118px, auto) minmax(176px, 1fr);
+                grid-template-rows: max-content minmax(140px, auto) minmax(140px, auto) minmax(140px, 1fr) auto;
+                gap: 10px;
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -4105,9 +4161,12 @@
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-vertraege-ktg {
                 grid-row: 4;
                 height: 100%;
-                min-height: 160px;
+                min-height: 140px;
                 max-height: none;
                 align-self: stretch;
+            }
+            #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-addr-full {
+                grid-row: 5;
             }
         }
         .ov-card {
@@ -4242,39 +4301,90 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung (Walter 31.07.2026): 2 Zeilen.
-           Z1 Eintritt|Austritt|L-GAV+Probezeit · Z2 Kündigung + Austrittsgrund.
-           < 8 h gehört zum FLEX-Vertrag, nicht hier. */
+        /* Anstellung (Walter 02.08.2026):
+           Zeile 1 Eintritt|Austritt|Probezeit|L-GAV · Zeile 2 Kündigung.
+           Eintritt/Austritt nur so breit wie die Daten brauchen. */
         .ov-anst-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: stretch;
+            min-width: 0;
+        }
+        .ov-anst-top {
+            display: flex;
+            flex-wrap: nowrap;
+            align-items: flex-end;
+            gap: 8px 14px;
+            min-width: 0;
+        }
+        .ov-anst-datum {
+            flex: 0 0 auto;
+            width: 7.6em;
+            margin-bottom: 0;
+            min-width: 0;
+        }
+        .ov-anst-datum .ov-pfl {
+            margin-bottom: 1px;
+        }
+        .ov-anst-datum .ov-pfv {
+            font-size: 14px;
+            line-height: 28px;
+            min-height: 28px;
+            white-space: nowrap;
+        }
+        /* Probezeit direkt nach Austritt — restlicher Platz bis L-GAV */
+        .ov-anst-pz-slot {
+            flex: 1 1 auto;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            min-height: 28px;
+            padding-bottom: 0;
+            overflow: hidden;
+        }
+        .ov-anst-pz {
+            font-size: 11.5px;
+            font-weight: 600;
+            color: #64748b;
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px 6px;
+            line-height: 1.25;
+            min-height: 26px;
+        }
+        .ov-anst-pz-empty {
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .ov-anst-pz-status { font-weight: 650; }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        body.theme-dark .ov-anst-pz { color: #94a3b8; }
+        .ov-anst-kuend-row {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(200px, 1.35fr) minmax(110px, auto);
-            grid-template-rows: auto auto;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
             gap: 6px 14px;
             align-items: start;
             min-width: 0;
         }
-        /* L-GAV + Probezeit: Spalte 3–4 in Zeile 1 */
-        .ov-anst-grid > .ov-anst-lgav-pz {
-            grid-column: 3 / 5;
-            grid-row: 1;
-            min-width: 0;
-        }
-        /* Kündigung + Austrittsgrund immer Zeile 2, ganz links → rechts */
-        .ov-anst-grid > .ov-anst-kuend {
-            grid-row: 2;
-        }
-        .ov-anst-grid > .ov-pf {
+        .ov-anst-kuend-row > .ov-pf {
             margin-bottom: 0;
             min-width: 0;
-        }
-        /* Zeile 1 (Eintritt/Austritt): normale Lesestärke */
-        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfl {
-            margin-bottom: 1px;
-        }
-        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfv {
-            font-size: 14px;
-            line-height: 28px;
-            min-height: 28px;
         }
         /* L-GAV + Probezeit nebeneinander (Walter 31.07.2026):
            Titelzeile: L-GAV links | Probezeit bis Datum rechts
@@ -4407,10 +4517,20 @@
             max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV-Label in der Kombi-Zelle */
-        .ov-anst-grid .ov-anst-lgav-pz .ov-pfl {
+        /* L-GAV rechts in Zeile 1 */
+        .ov-anst-top .ov-anst-tog {
+            flex: 0 0 auto;
+            margin-left: auto;
+            margin-bottom: 0;
+        }
+        .ov-anst-grid .ov-anst-tog .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
+        }
+        .ov-anst-grid .ov-anst-tog .ov-pfv {
+            min-height: 28px;
+            display: flex;
+            align-items: center;
         }
         .ov-vmenu { align-self: center; }
         /* Legacy-Klassen (falls noch referenziert) */
@@ -8050,7 +8170,13 @@
         /* ── Lohnabrechnung ─────────────────────────────────── */
         .lohn-emp-row { display:flex;align-items:center;gap:10px;padding:6px 14px;cursor:pointer;border-bottom:1px solid #f8fafc;transition:background .12s; }
         .lohn-emp-row:hover { background:#f8fafc; }
-        .lohn-emp-active { background:#f6f3ee !important; border-left:3px solid #3f3f3f; padding-left:11px !important; }
+        /* Auswahl klar sichtbar auch auf hellen Monitoren (Walter 02.08.2026) */
+        .lohn-emp-active {
+            background: #ddd5c8 !important;
+            border-left: 3px solid #3f3f3f !important;
+            padding-left: 11px !important;
+            box-shadow: inset 0 0 0 1px rgba(60,55,48,0.10);
+        }
         /* Akonto-Modus: Definitivlauf-spezifische Elemente hart verstecken.
            Walter-Bug-Fix 16.05.2026 — die Definitivlauf-Loader (loadLohnSlip,
            loadLohnPeriodBanner) laufen async parallel zum Akonto-Init und
@@ -9840,35 +9966,38 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
             color: var(--dlg-text-soft);
         }
 
-        /* ══ Auswahl in Auswahl-Listen deutlicher (Walter-Vorgabe 10.07.2026, v2) ══
-           Dezent statt Balken: die selektierte Zeile bekommt nur einen etwas
-           dunkleren Hintergrund und SCHWARZE, FETTE Schrift — kein Seitenbalken,
-           kein Schatten (Walter: «das Zeichen links ist too much»). Gilt app-weit:
-           Mitarbeiter (inkl. Liquid, auch graue Inaktiv-Zeilen), Verträge/
-           Dok-Struktur, Lohnlauf Definitiv + Akonto. */
+        /* ══ Auswahl in Listen klar sichtbar (Walter 02.08.2026) ══
+           War zu blass (rgba 0.13) — auf manchen Monitoren unsichtbar.
+           Jetzt: warmer Kohle-Hintergrund + linker Rand + fette Schrift.
+           Gilt: Mitarbeiter, Verträge/Dok-Struktur, Lohnlauf Definitiv+Akonto. */
         .emp-list-item.active,
         .dokstruktur-row.active,
         .lohn-emp-active,
+        .lohn-emp-row.lohn-emp-active,
         #page-mitarbeiter.liquid-employee .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .liquid-employee-row-active {
-            background: rgba(60,55,48,0.13) !important;
-            border-left-color: transparent !important;
-            box-shadow: none !important;
+            background: #ddd5c8 !important;
+            border-left: 3px solid #3f3f3f !important;
+            box-shadow: inset 0 0 0 1px rgba(60,55,48,0.10) !important;
             color: #000 !important;
             font-weight: 700;
         }
         .emp-list-item.active,
         #page-mitarbeiter.liquid-employee .emp-list-item.active {
             opacity: 1 !important;   /* Inaktiv-Zeilen haben inline opacity:0.65 */
+            padding-left: 11px !important;
         }
+        .lohn-emp-row.lohn-emp-active { padding-left: 11px !important; }
         .emp-list-item.active .emp-list-name,
         #page-mitarbeiter.liquid-employee .emp-list-item.active .emp-list-name,
         .lohn-emp-active .lohn-emp-name,
+        .lohn-emp-row.lohn-emp-active .lohn-emp-name,
         .dokstruktur-row.active {
             color: #000 !important;
             font-weight: 800 !important;
         }
-        .emp-list-item.active .emp-list-nr { color: #3f3f3f !important; }
+        .emp-list-item.active .emp-list-nr,
+        .lohn-emp-active .lohn-emp-nr { color: #3f3f3f !important; }
         body.theme-dark .emp-list-item.active,
         body.theme-dark .dokstruktur-row.active,
         body.theme-dark .lohn-emp-active,
@@ -9975,13 +10104,12 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
         .nw-row1 { gap: 8px; }
         .nw-row2 { gap: 6px; flex-wrap: wrap; }
         .nw-row3 { gap: 5px; }
-        /* Aktions-Buttons in einer Zeile (Kürzel «Ausn. Reg.» + breitere Karte) */
+        /* Schmalere Nachtarbeit-Karte: Aktions-Buttons umbrechen */
         .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
             justify-content: flex-end;
-            flex-wrap: nowrap;
-            gap: 4px;
-            min-width: 0;
+            flex-wrap: wrap;
+            gap: 5px;
         }
         .nw-col-menu {
             margin-left: auto;
@@ -10342,3 +10470,468 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
         body.theme-dark .akal-monthnav .cur, body.theme-dark .akal-table thead .dnum { color: #d6d3cc; }
         body.theme-dark td.akal-day.we { background: rgba(255,255,255,0.04); }
         body.theme-dark .akal-table thead .today .dnum { background: #d6d3cc; color: #26241f; }
+
+        /* ── Vertrags-Modal (Walter 01.08.2026): EXAKT MA-Übersicht-Palette ──
+           Dieselben --emp-* Variablen wie #page-mitarbeiter.liquid-employee:
+           warmes Cream, Pearl-Rim, weisse Soft-Inputs, Uppercase-Labels. */
+        #contractEditModal {
+            --emp-glass-bg: #f4f0e8;
+            --emp-glass-strong: #faf7f2;
+            --emp-glass-field: #ffffff;
+            --emp-glass-border: rgba(255, 255, 255, 0.78);
+            --emp-glass-inner: rgba(255, 255, 255, 0.72);
+            --emp-text-strong: #2f2f2f;
+            --emp-text: #4a4a4a;
+            --emp-text-soft: #7a7a7a;
+            --emp-blue: #3f3f3f;
+            --emp-fill: #f4f0e8;
+            --emp-fill-grad: linear-gradient(160deg,
+                                #fffcf8 0%,
+                                #f7f3eb 42%,
+                                #efe9df 78%,
+                                #e8e1d6 100%);
+            --emp-rim: linear-gradient(135deg,
+                                rgba(255, 255, 255, 0.98) 0%,
+                                rgba(210, 200, 185, 0.55) 35%,
+                                rgba(120, 110, 95, 0.22) 62%,
+                                rgba(255, 255, 255, 0.88) 100%);
+            --emp-shadow:
+                0 0 0 1px rgba(90, 80, 65, 0.10),
+                0 0 18px rgba(90, 80, 65, 0.06),
+                0 4px 12px rgba(60, 55, 48, 0.08),
+                0 16px 36px rgba(60, 55, 48, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.85),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.06);
+            --emp-shadow-lift:
+                0 0 0 1px rgba(90, 80, 65, 0.12),
+                0 0 22px rgba(90, 80, 65, 0.08),
+                0 6px 14px rgba(60, 55, 48, 0.10),
+                0 20px 42px rgba(60, 55, 48, 0.16),
+                inset 0 1px 0 rgba(255, 255, 255, 0.92),
+                inset 0 -1px 0 rgba(90, 80, 65, 0.08);
+        }
+        #contractEditModal.ce-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            overflow-y: auto;
+            padding: 28px 16px;
+            background:
+                radial-gradient(ellipse 70% 50% at 85% -5%, rgba(255, 255, 255, 0.55) 0%, transparent 55%),
+                radial-gradient(ellipse 55% 45% at 8% 100%, rgba(180, 165, 140, 0.18) 0%, transparent 55%),
+                linear-gradient(160deg, rgba(246,243,238,.92) 0%, rgba(239,235,227,.94) 48%, rgba(250,248,245,.92) 100%),
+                rgba(60, 55, 48, 0.28);
+        }
+        #contractEditModal .ce-modal-box {
+            margin: auto;
+            width: min(1040px, calc(100vw - 32px));
+            max-width: 1040px;
+            border-radius: 16px;
+            border: 1px solid transparent;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow-lift);
+            color: var(--emp-text);
+            font-size: 12.5px;
+            overflow: hidden;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+        }
+        #contractEditModal .ce-modal-head {
+            padding: 16px 20px 14px;
+            border-bottom: 1px solid rgba(90, 80, 65, 0.10);
+            background: transparent;
+        }
+        #contractEditModal .ce-modal-head .ma-modal-title {
+            font-size: 16px;
+            font-weight: 760;
+            letter-spacing: -0.02em;
+            color: var(--emp-text-strong);
+        }
+        #contractEditModal .ce-modal-head .ma-modal-sub {
+            margin-top: 2px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #8b8b8b;
+        }
+        #contractEditModal .ce-modal-head .ma-modal-close {
+            width: 30px;
+            height: 30px;
+            border-radius: 10px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            color: #7a7a7a;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.06);
+        }
+        #contractEditModal .ce-modal-head .ma-modal-close:hover {
+            background: #fff;
+            color: #1a1a1a;
+            border-color: rgba(90, 80, 65, 0.28);
+        }
+        #contractEditModal .ce-modal-body {
+            padding: 12px 16px 14px;
+            background: transparent;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        /* Sektions-Karten = .ov-card auf der MA-Übersicht */
+        #contractEditModal .ce-block {
+            border: 1px solid transparent;
+            border-radius: 16px;
+            padding: 12px 16px 14px;
+            background-color: var(--emp-fill);
+            background-image: var(--emp-fill-grad), var(--emp-rim);
+            background-origin: padding-box, border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: var(--emp-shadow);
+        }
+        #contractEditModal .emp-section-title {
+            background: transparent !important;
+            border-left: none !important;
+            border-radius: 0 !important;
+            color: var(--emp-text-strong) !important;
+            text-transform: none !important;
+            letter-spacing: -0.01em !important;
+            font-size: 15px !important;
+            font-weight: 760 !important;
+            padding: 0 0 10px 0 !important;
+            margin: 0 !important;
+        }
+        #contractEditModal .ce-grid {
+            display: grid;
+            gap: 10px 16px;
+            background: transparent;
+            border: none;
+            padding: 0;
+            margin: 0;
+        }
+        #contractEditModal .ce-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        #contractEditModal .ce-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        #contractEditModal .ce-field {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            min-width: 0;
+        }
+        #contractEditModal .ce-span-2 { grid-column: span 2; }
+        #contractEditModal .ce-span-4 { grid-column: 1 / -1; }
+        /* Labels = .ov-pfl */
+        #contractEditModal .ce-lbl {
+            display: block;
+            font-size: 10.5px;
+            font-weight: 700;
+            color: #8b8b8b;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            margin-bottom: 0;
+            padding-left: 0;
+            line-height: 1.2;
+        }
+        /* Inputs = .ov-softin */
+        #contractEditModal .ce-inp {
+            width: 100%;
+            box-sizing: border-box;
+            min-height: 32px;
+            height: 32px;
+            padding: 0 10px;
+            border-radius: 9px;
+            border: 1px solid rgba(90, 80, 65, 0.18);
+            background: #ffffff;
+            color: #2a2a2a;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            outline: none;
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.05);
+            transition: border-color .12s, box-shadow .12s;
+        }
+        #contractEditModal select.ce-inp {
+            height: 32px;
+            padding-right: 28px;
+        }
+        #contractEditModal .ce-inp:hover {
+            border-color: rgba(90, 80, 65, 0.28);
+        }
+        #contractEditModal .ce-inp:focus {
+            border-color: #3f3f3f;
+            box-shadow: 0 0 0 2px rgba(63, 63, 63, 0.10);
+        }
+        #contractEditModal .ce-inp-ro {
+            background: #faf7f2;
+            color: #8b8b8b;
+            font-weight: 650;
+        }
+        #contractEditModal #ceTeilzeitUnter8hWrap {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            min-width: 0;
+        }
+        /* L-GAV-Toggle 1:1 */
+        #contractEditModal .emp-yesno-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            width: fit-content;
+            padding: 3px;
+            border: 1px solid rgba(60, 55, 48, 0.16);
+            border-radius: 15px;
+            background: #f0ece4;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+            min-height: 32px;
+            box-sizing: border-box;
+        }
+        #contractEditModal .emp-yesno-toggle button {
+            border: 0;
+            border-radius: 12px;
+            background: transparent;
+            color: #8b8b8b;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 760;
+            line-height: 1;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
+        #contractEditModal .emp-yesno-toggle button.active {
+            background: #3f3f3f;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.18);
+        }
+        #contractEditModal .ce-eaw {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-top: 2px;
+            padding: 9px 12px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.14);
+            box-shadow: inset 0 1px 2px rgba(60, 55, 48, 0.03);
+        }
+        #contractEditModal .ce-eaw-cb {
+            width: 15px;
+            height: 15px;
+            margin-top: 2px;
+            accent-color: #3f3f3f;
+            flex-shrink: 0;
+        }
+        #contractEditModal .ce-eaw-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+        #contractEditModal .ce-eaw-text label {
+            font-size: 12.5px;
+            font-weight: 700;
+            color: #2f2f2f;
+            cursor: pointer;
+        }
+        #contractEditModal .ce-eaw-text span {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            font-weight: 500;
+        }
+        #contractEditModal .ce-mw-slot {
+            margin-top: 10px;
+        }
+        #contractEditModal .ce-compl-slot {
+            margin-top: 2px;
+        }
+        #contractEditModal .ce-mw-info,
+        #contractEditModal .ce-compl-card {
+            display: flex;
+            align-items: center;
+            gap: 12px 16px;
+            flex-wrap: wrap;
+            padding: 10px 13px;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid rgba(90, 80, 65, 0.12);
+            box-shadow: 0 4px 12px rgba(60, 55, 48, 0.04);
+            color: #4a4a4a;
+            font-size: 12.5px;
+        }
+        #contractEditModal .ce-mw-info .ce-mw-k {
+            font-weight: 760;
+            color: #2f2f2f;
+        }
+        #contractEditModal .ce-mw-info .ce-mw-meta {
+            color: #8b8b8b;
+            font-size: 11.5px;
+        }
+        #contractEditModal .ce-compl-card {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        #contractEditModal .ce-compl-card.ok {
+            background: #ffffff;
+            border-color: rgba(90, 80, 65, 0.12);
+        }
+        #contractEditModal .ce-compl-card.bad {
+            background: #ffffff;
+            border-color: rgba(150, 90, 80, 0.22);
+        }
+        #contractEditModal .ce-compl-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        #contractEditModal .ce-compl-title {
+            font-size: 13.5px;
+            font-weight: 760;
+            color: #2f2f2f;
+        }
+        #contractEditModal .ce-compl-card.ok .ce-compl-title { color: #2f2f2f; }
+        #contractEditModal .ce-compl-card.bad .ce-compl-title { color: #7a4038; }
+        #contractEditModal .ce-compl-grid {
+            display: grid;
+            grid-template-columns: auto 1fr 1fr;
+            gap: 4px 16px;
+            font-size: 12px;
+            color: #4a4a4a;
+        }
+        #contractEditModal .ce-compl-apply {
+            border: none;
+            border-radius: 10px;
+            padding: 6px 14px;
+            background: #3f3f3f;
+            color: #fff;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 6px 14px rgba(60, 55, 48, 0.16);
+        }
+        #contractEditModal .ce-compl-apply:hover { background: #1a1a1a; }
+        #contractEditModal .ce-hint {
+            font-size: 11.5px;
+            color: #8b8b8b;
+            padding: 2px 1px;
+        }
+        #contractEditModal .ce-hint.warn { color: #8a6a3f; }
+        #contractEditModal .ce-modal-foot {
+            padding: 12px 16px 16px;
+            border-top: 1px solid rgba(90, 80, 65, 0.10);
+            background: transparent;
+            gap: 8px;
+        }
+        #contractEditModal .ce-error {
+            color: #8a4038;
+            font-size: 12px;
+            font-weight: 650;
+        }
+        #contractEditModal .ce-btn {
+            border-radius: 10px;
+            padding: 8px 16px;
+            font: inherit;
+            font-size: 12.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform .12s, background .12s, box-shadow .12s;
+        }
+        #contractEditModal .ce-btn:hover { transform: translateY(-1px); }
+        #contractEditModal .ce-btn-ghost {
+            background: #ffffff;
+            border: 1px solid rgba(140, 132, 120, 0.32);
+            color: #3f3f3f;
+            box-shadow: 0 2px 8px rgba(60, 55, 48, 0.06);
+        }
+        #contractEditModal .ce-btn-ghost:hover {
+            border-color: #3f3f3f;
+        }
+        #contractEditModal .ce-btn-primary {
+            background: #3f3f3f;
+            border: 1px solid #3f3f3f;
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(60, 55, 48, 0.16);
+        }
+        #contractEditModal .ce-btn-primary:hover { background: #1a1a1a; border-color: #1a1a1a; }
+        @media (max-width: 820px) {
+            #contractEditModal .ce-grid-4,
+            #contractEditModal .ce-grid-2 { grid-template-columns: 1fr 1fr; }
+            #contractEditModal .ce-span-2 { grid-column: span 2; }
+        }
+        @media (max-width: 560px) {
+            #contractEditModal .ce-grid-4,
+            #contractEditModal .ce-grid-2 { grid-template-columns: 1fr; }
+            #contractEditModal .ce-span-2,
+            #contractEditModal .ce-span-4 { grid-column: auto; }
+        }
+        /* Dark: gleiche dlg-Palette wie MA-Karten */
+        body.theme-dark #contractEditModal.ce-overlay {
+            background:
+                radial-gradient(900px 500px at 30% 0%, rgba(80,140,210,.16), transparent 55%),
+                rgba(0, 4, 14, 0.62);
+        }
+        body.theme-dark #contractEditModal .ce-modal-box,
+        body.theme-dark #contractEditModal .ce-block {
+            border: 1px solid transparent !important;
+            background-color: var(--dlg-fill) !important;
+            background-image: var(--dlg-fill-grad), var(--dlg-rim) !important;
+            background-origin: padding-box, border-box !important;
+            background-clip: padding-box, border-box !important;
+            box-shadow: var(--dlg-shadow) !important;
+            color: var(--dlg-text) !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head,
+        body.theme-dark #contractEditModal .ce-modal-foot {
+            background: transparent;
+            border-color: rgba(165, 215, 255, 0.14);
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-title,
+        body.theme-dark #contractEditModal .emp-section-title,
+        body.theme-dark #contractEditModal .ce-compl-title,
+        body.theme-dark #contractEditModal .ce-mw-info .ce-mw-k,
+        body.theme-dark #contractEditModal .ce-eaw-text label {
+            color: #ffffff !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-sub,
+        body.theme-dark #contractEditModal .ce-lbl,
+        body.theme-dark #contractEditModal .ce-eaw-text span,
+        body.theme-dark #contractEditModal .ce-mw-info .ce-mw-meta,
+        body.theme-dark #contractEditModal .ce-hint {
+            color: var(--dlg-text-muted) !important;
+        }
+        body.theme-dark #contractEditModal .ce-modal-head .ma-modal-close,
+        body.theme-dark #contractEditModal .ce-inp,
+        body.theme-dark #contractEditModal .ce-eaw,
+        body.theme-dark #contractEditModal .ce-mw-info,
+        body.theme-dark #contractEditModal .ce-compl-card,
+        body.theme-dark #contractEditModal .ce-btn-ghost {
+            background: var(--dlg-fill-field) !important;
+            border-color: rgba(165, 215, 255, 0.28) !important;
+            color: #f1f5f9 !important;
+            box-shadow: none !important;
+        }
+        body.theme-dark #contractEditModal .ce-inp:focus {
+            border-color: rgba(155, 210, 255, 0.72) !important;
+            box-shadow: 0 0 0 2px rgba(70, 150, 235, 0.18) !important;
+        }
+        body.theme-dark #contractEditModal .ce-inp-ro {
+            background: rgba(0, 0, 0, 0.22) !important;
+            color: var(--dlg-text-muted) !important;
+        }
+        body.theme-dark #contractEditModal .emp-yesno-toggle {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(122, 145, 165, 0.28);
+        }
+        body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
+        body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
+            background: #e8e4dc;
+            color: #1a1a1a;
+        }
+        body.theme-dark #contractEditModal .ce-btn-primary {
+            background: #e8e4dc !important;
+            border-color: #e8e4dc !important;
+            color: #1a1a1a !important;
+        }

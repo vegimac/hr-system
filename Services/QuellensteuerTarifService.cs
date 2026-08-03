@@ -8,16 +8,20 @@ namespace HrSystem.Services;
 /// Lädt die offiziellen kantonalen Quellensteuer-Tarifdateien (ESTV-Format)
 /// und stellt eine schnelle Lookup-Methode bereit.
 ///
-/// Dateiformat: Swissdec-Standardformat, Satzart 06
-///   Dateinamen: tar{JJ}{kanton}.txt  z.B. tar26lu.txt = 2026 Luzern
+/// Dateiformat: ESTV Recordart 06 (siehe «Aufbau und Recordformate …»):
+///   Dateinamen: tar{JJ}{kanton}.txt  z.B. tar26ag.txt = 2026 Aargau
 ///
-/// Steuersatz: Block2 letzte 7 Stellen / 100 = Satz in Prozent
-///   Beispiel: 2181 → 21.81 % → Steuer = Bruttolohn × 0.2181
+/// Pro Stufe:
+///   Pos 46–54 — Mindeststeuer in Fr. (Rappen, 000000200 = CHF 2.00)
+///   Pos 55–59 — Steuer %-Satz (00715 = 7.15 %)
+///
+/// Regel ESTV 4.4:
+///   wenn IST-Brutto × Satz &lt; Mindeststeuer → Mindeststeuer, sonst % × IST-Brutto.
 /// </summary>
 public class QuellensteuerTarifService
 {
-    // Key: "2026|LU|A|0|N"  Value: SortedList<Bruttolohn_CHF, Satz_Basispunkte>
-    private readonly ConcurrentDictionary<string, SortedList<int, int>> _tarife = new();
+    // Key: "2026|LU|A|0|N"  Value: SortedList<Bruttolohn_CHF/10, Stufe>
+    private readonly ConcurrentDictionary<string, SortedList<int, QstTarifStufe>> _tarife = new();
 
     // Metadaten je geladener Datei
     private readonly ConcurrentBag<QstDateiStatus> _dateienStatus = new();
@@ -45,43 +49,56 @@ public class QuellensteuerTarifService
         string kanton, string tarifCode, int kinder, bool kirchensteuer,
         decimal bruttolohnCHF, int? jahr = null)
     {
-        EnsureLoaded();
-        int bp = GetSatzBasispunkte(kanton, tarifCode, kinder, kirchensteuer, bruttolohnCHF, ResolveJahr(jahr));
-        return bp < 0 ? null : bp / 100m;
+        var stufe = FindStufe(kanton, tarifCode, kinder, kirchensteuer, bruttolohnCHF, ResolveJahr(jahr));
+        return stufe is null ? null : stufe.Value.SatzBasispunkte / 100m;
     }
 
     /// <summary>
-    /// Berechnet den monatlichen Quellensteuer-Betrag in CHF.
+    /// Berechnet den monatlichen Quellensteuer-Betrag in CHF
+    /// (Satz-Lookup und Bemessung auf demselben Brutto).
     /// </summary>
     public decimal? GetSteuerBetrag(
         string kanton, string tarifCode, int kinder, bool kirchensteuer,
         decimal bruttolohnCHF, int? jahr = null)
-    {
-        EnsureLoaded();
-        int bp = GetSatzBasispunkte(kanton, tarifCode, kinder, kirchensteuer, bruttolohnCHF, ResolveJahr(jahr));
-        if (bp < 0) return null;
-        return Math.Round(bruttolohnCHF * bp / 10000m, 2, MidpointRounding.AwayFromZero);
-    }
+        => Berechne(kanton, tarifCode, kinder, kirchensteuer, bruttolohnCHF, bruttolohnCHF, jahr)
+            ?.SteuerbetragCHF;
 
     /// <summary>
-    /// Kantonaler Mindestbetrag der monatlichen Quellensteuer.
-    /// Quelle: jeweilige Kantons-Wegleitung. Wenn QST überhaupt anfällt,
-    /// muss mindestens dieser Betrag abgezogen werden.
-    ///
-    /// Aktuell hinterlegt:
-    ///   LU — CHF 13.00/Monat (steuern.lu.ch: "Der monatliche Mindestabzug
-    ///        beträgt CHF 13.00")
-    ///
-    /// Andere Kantone: hier ergänzen sobald wir die offizielle Regel kennen.
-    /// Walter: bitte beim Test in jedem Kanton einmal mit Mirus vergleichen.
+    /// Volle QST-Berechnung nach ESTV: Satz aus satzbestimmendem Brutto,
+    /// Betrag = max(IST × Satz, Mindeststeuer der Stufe).
     /// </summary>
-    public decimal? GetMindestbetrag(string kanton)
+    public QstTarifBerechnung? Berechne(
+        string kanton, string tarifCode, int kinder, bool kirchensteuer,
+        decimal satzbestimmenderBruttoCHF,
+        decimal istBruttoCHF,
+        int? jahr = null)
     {
-        return kanton?.Trim().ToUpperInvariant() switch
+        EnsureLoaded();
+        var stufe = FindStufe(kanton, tarifCode, kinder, kirchensteuer,
+            satzbestimmenderBruttoCHF, ResolveJahr(jahr));
+        if (stufe is null) return null;
+
+        decimal satzPct = stufe.Value.SatzBasispunkte / 100m;
+        decimal betrag = Math.Round(istBruttoCHF * satzPct / 100m, 2, MidpointRounding.AwayFromZero);
+        bool mindestAngewendet = false;
+
+        // ESTV 4.4: wenn % × Einkommen &lt; Mindeststeuer → Mindeststeuer
+        if (stufe.Value.MindeststeuerChf > 0
+            && istBruttoCHF > 0
+            && betrag < stufe.Value.MindeststeuerChf)
         {
-            "LU" => 13.00m,
-            _    => null
-        };
+            betrag = stufe.Value.MindeststeuerChf;
+            mindestAngewendet = true;
+        }
+
+        if (betrag < 0) betrag = 0;
+
+        return new QstTarifBerechnung(
+            SteuerbetragCHF: betrag,
+            SteuersatzPct: satzPct,
+            MindeststeuerCHF: stufe.Value.MindeststeuerChf,
+            MindeststeuerAngewendet: mindestAngewendet
+        );
     }
 
     /// <summary>Gibt alle verfügbaren Kantone zurück.</summary>
@@ -182,19 +199,20 @@ public class QuellensteuerTarifService
 
     private int ResolveJahr(int? jahr) => jahr ?? DateTime.Now.Year;
 
-    private int GetSatzBasispunkte(
+    private QstTarifStufe? FindStufe(
         string kanton, string tarifCode, int kinder, bool kirchensteuer,
         decimal bruttolohnCHF, int jahr)
     {
+        EnsureLoaded();
         string key = $"{jahr}|{kanton.ToUpper()}|{tarifCode.ToUpper()}|{kinder}|{(kirchensteuer ? 'Y' : 'N')}";
 
         if (!_tarife.TryGetValue(key, out var lookup))
-            return -1;
+            return null;
 
-        // Die ESTV-Tarifdatei kodiert das Monatseinkommen in CHF/10
-        // (z.B. Eintrag 320 = CHF 3'200/Monat, Eintrag 295 = CHF 2'950/Monat)
+        // Lookup-Schlüssel = Monatseinkommen in CHF/10
+        // (bestehende Parser-Konvention: Stufe 135 = ab ca. CHF 1'350)
         int lohn = (int)Math.Floor(bruttolohnCHF / 10m);
-        if (lookup.Count == 0) return 0;
+        if (lookup.Count == 0) return new QstTarifStufe(0, 0m);
 
         int idx = BinarySearchFloor(lookup.Keys, lohn);
         return idx < 0 ? lookup.Values[0] : lookup.Values[idx];
@@ -261,35 +279,44 @@ public class QuellensteuerTarifService
 
         foreach (string rawLine in File.ReadLines(filePath, System.Text.Encoding.Latin1))
         {
-            string line = rawLine.Trim();
-            if (line.Length < 30 || !line.StartsWith("06")) continue;
+            // Festbreite ESTV: Pos 46–54 Mindeststeuer, 55–59 %-Satz
+            string padded = rawLine.TrimEnd('\r', '\n').PadRight(62);
+            if (padded.Length < 59 || !padded.StartsWith("06")) continue;
 
-            string kanton  = line[4..6];
-            char   tarif   = line[6];
-            int    kinder  = line[7] - '0';
-            char   konfess = line[8];
+            string kanton  = padded[4..6];
+            char   tarif   = padded[6];
+            int    kinder  = padded[7] - '0';
+            char   konfess = padded[8];
 
-            int spaceIdx = line.IndexOf(' ', 9);
+            // Einkommen-Schlüssel: bisherige Konvention (CHF/10) beibehalten,
+            // damit Lookup-Grenzen unverändert bleiben.
+            int spaceIdx = padded.IndexOf(' ', 9);
             if (spaceIdx < 0) continue;
 
-            string block1 = line[(spaceIdx + 1)..].TrimStart();
+            string block1 = padded[(spaceIdx + 1)..].TrimStart();
             int space2 = block1.IndexOf(' ');
             if (space2 < 0) continue;
 
             string b1 = block1[..space2];
-            string b2 = block1[(space2 + 1)..].Trim();
-
-            if (b1.Length < 14 || b2.Length < 16) continue;
+            if (b1.Length < 14) continue;
             if (!int.TryParse(b1[8..14], out int einkommen)) continue;
-            if (!int.TryParse(b2[9..],   out int satzBP))    continue;
+
+            // ESTV Pos 55–59 (1-basiert) = Index 54..59 — %-Satz × 100
+            if (!int.TryParse(padded.AsSpan(54, 5), out int satzBP)) continue;
+
+            // ESTV Pos 46–54 — Mindeststeuer in Fr. mit 2 Dezimalstellen
+            // (000000200 = CHF 2.00, 000001300 = CHF 13.00)
+            decimal mindestChf = 0m;
+            if (int.TryParse(padded.AsSpan(45, 9), out int mindestRappen))
+                mindestChf = mindestRappen / 100m;
 
             string key = $"{jahr}|{kanton}|{tarif}|{kinder}|{konfess}";
 
-            var lookup = _tarife.GetOrAdd(key, _ => new SortedList<int, int>());
+            var lookup = _tarife.GetOrAdd(key, _ => new SortedList<int, QstTarifStufe>());
             lock (lookup)
             {
                 if (!lookup.ContainsKey(einkommen))
-                    lookup[einkommen] = satzBP;
+                    lookup[einkommen] = new QstTarifStufe(satzBP, mindestChf);
             }
 
             kombinationen.Add($"{kanton}|{tarif}|{kinder}|{konfess}");
@@ -358,9 +385,20 @@ public class QuellensteuerTarifService
 
         return new QstImportErgebnis.DateiInfo(kanton, jahr, Path.GetFileName(zieldatei));
     }
+
+    /// <summary>Eine Tarifstufe: %-Satz (Basispunkte) + Mindeststeuer CHF.</summary>
+    private readonly record struct QstTarifStufe(int SatzBasispunkte, decimal MindeststeuerChf);
 }
 
 // ── Records ───────────────────────────────────────────────────────────────────
+
+/// <summary>Ergebnis einer QST-Berechnung inkl. Mindeststeuer-Anwendung.</summary>
+public record QstTarifBerechnung(
+    decimal SteuerbetragCHF,
+    decimal SteuersatzPct,
+    decimal MindeststeuerCHF,
+    bool    MindeststeuerAngewendet
+);
 
 /// <summary>Status einer geladenen Tarifdatei.</summary>
 public record QstDateiStatus(

@@ -25,31 +25,44 @@ public class LohnEditLockController : ControllerBase
 
     /// <summary>
     /// GET /api/lohn-edit-lock/first-allowed-date?branchId=58
+    /// Optional: <c>mode=contracts</c> (= weiche Sperre: nur Definitiv
+    /// «abgeschlossen», wie QST/Verträge/Familienzulagen — Walter 01.08.2026).
     /// Antwort:
-    ///   { firstAllowedDate: "2026-02-01", reason: "Akonto 01/2026 bei HR …" }
+    ///   { firstAllowedDate: "2026-02-01", reason: "…" }
     /// oder:
     ///   { firstAllowedDate: null, reason: null }
     /// </summary>
     [HttpGet("first-allowed-date")]
-    public async Task<IActionResult> GetFirstAllowedDate([FromQuery] int branchId)
+    public async Task<IActionResult> GetFirstAllowedDate(
+        [FromQuery] int branchId,
+        [FromQuery] string? mode = null)
     {
         if (branchId <= 0)
             return BadRequest(new { error = "branchId fehlt" });
 
-        var first = await _lockSvc.GetFirstAllowedDateAsync(User, branchId);
+        var soft = string.Equals(mode, "contracts", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(mode, "soft", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(mode, "definitiv", StringComparison.OrdinalIgnoreCase);
+
+        var first = soft
+            ? await _lockSvc.GetFirstAllowedDateForContractsAsync(branchId)
+            : await _lockSvc.GetFirstAllowedDateAsync(User, branchId);
 
         string? reason = null;
         if (first.HasValue)
         {
             var prevMonth = first.Value.AddMonths(-1);
-            reason = $"Lohnperioden bis und mit {prevMonth:MM/yyyy} sind in Verarbeitung " +
-                     $"oder abgeschlossen — Edits nur ab {first.Value:dd.MM.yyyy}.";
+            reason = soft
+                ? $"Definitiv-Lohnperioden bis und mit {prevMonth:MM/yyyy} sind abgeschlossen — Edits nur ab {first.Value:dd.MM.yyyy}."
+                : $"Lohnperioden bis und mit {prevMonth:MM/yyyy} sind in Verarbeitung " +
+                  $"oder abgeschlossen — Edits nur ab {first.Value:dd.MM.yyyy}.";
         }
 
         return Ok(new
         {
             firstAllowedDate = first.HasValue ? first.Value.ToString("yyyy-MM-dd") : null,
-            reason
+            reason,
+            mode = soft ? "contracts" : "default"
         });
     }
 }

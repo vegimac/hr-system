@@ -11,7 +11,7 @@ Zwei Einstiege:
 Vergleicht **Soll** (laut Vertrag / Modell) mit **Ist** (gestempelte Stunden) für die gewählte Filiale und Periode. Gut für die Kontrolle vor dem Lohnlauf.
 
 ### Ferien / Feiertage / Nacht
-Überblick über Saldi und Bezüge (Ferientage, Feiertage, Nachtstunden) — je nach Vertragsmodell unterschiedlich relevant.
+Überblick über Saldi und Bezüge (Ferientage, Feiertage, Nachtstunden). **Nacht-Saldo** gilt für **alle Modelle inkl. FLEX** (inkl. Vortrag aus Monatsblatt). Soft-Warnung bei Kompensation > 9 h — siehe [Lohnlauf](#lohnlauf).
 
 ## HR: Reports über alle Filialen
 

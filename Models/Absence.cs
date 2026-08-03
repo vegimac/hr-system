@@ -29,6 +29,7 @@ public class Absence
 
     public string? Notes { get; set; }
 
+    // Walter-Vorgabe 30.06.2026: Lokalzeit — nie UtcNow (timestamp without time zone).
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 

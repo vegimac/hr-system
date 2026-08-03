@@ -61,10 +61,9 @@ public class SaldoVortragController : ControllerBase
     /// <summary>
     /// Welche Saldi sind pro Vertragstyp im Vorsystem geführt? Synchron zur
     /// Frontend-Tabelle SV_FIELD_RELEVANCE. Logik:
-    ///   • UTP   → Feiertag/Zeit/Nacht/13. werden monatlich ausbezahlt → keine Saldi.
-    ///             Nur Ferien-Tage und Ferien-Geld werden akkumuliert.
-    ///   • MTP   → wie UTP, plus Stunden- und Nacht-Saldo (garantierte Stunden).
-    ///             13. ML wird im Auszahlungsmonat verrechnet → 13.-Saldo wird geführt.
+    ///   • FLEX  → Ferien-Tage, Ferien-Geld, Nacht-Saldo (Zeitzuschlag), 13. ML
+    ///             (906 vor allem Probezeit). Kein Zeitsaldo / Feiertag-Tage.
+    ///   • MTP   → Stunden-, Ferien-, Nacht-, Ferien-Geld- und 13.-Saldo.
     ///   • FIX   → Stunden, Feiertag-Tage, Ferien-Tage, Nacht, 13. ML.
     ///             Ferien-Geld ist im Festlohn enthalten → kein Saldo.
     ///   • FIX-M → identisch zu FIX.
@@ -72,12 +71,17 @@ public class SaldoVortragController : ControllerBase
     /// </summary>
     private static bool IsRelevantForModel(string saldoCode, string model) => model switch
     {
-        "FLEX"   => saldoCode is CodeFerienTage or CodeFerienGeld,
+        // FLEX: Nacht-Saldo (904) mitführen — analog Lohnzettel (Walter 02.08.2026)
+        "FLEX"   => saldoCode is CodeFerienTage or CodeFerienGeld or CodeNacht or CodeDreizehnter,
         "MTP"   => saldoCode is CodeZeit or CodeFerienTage or CodeNacht or CodeFerienGeld or CodeDreizehnter,
         "FIX"   => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,
         "FIX-M" => saldoCode is CodeZeit or CodeFeiertag or CodeFerienTage or CodeNacht or CodeDreizehnter,
         _       => true
     };
+
+    /// <summary>Öffentlich für Unit-Tests (Relevanz-Matrix).</summary>
+    public static bool IsVortragRelevantForModel(string saldoCode, string model) =>
+        IsRelevantForModel(saldoCode, model == "UTP" ? "FLEX" : model);
 
     public record VortragDto(
         string Periode,                    // "YYYY-MM" — Periode in der die Vortrag-Einträge angelegt werden

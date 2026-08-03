@@ -56,11 +56,13 @@ public class AppDbContext : DbContext
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
+    public DbSet<EmployeeUniformDepot> EmployeeUniformDepots => Set<EmployeeUniformDepot>();
     public DbSet<PregnancyRule>     PregnancyRules     => Set<PregnancyRule>();
     public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
     public DbSet<EmploymentModelComponent> EmploymentModelComponents => Set<EmploymentModelComponent>();
     public DbSet<SwissLocation> SwissLocations => Set<SwissLocation>();
     public DbSet<Behoerde> Behoerden => Set<Behoerde>();
+    public DbSet<BehoerdeSachbearbeiter> BehoerdeSachbearbeiter => Set<BehoerdeSachbearbeiter>();
     public DbSet<CompanyProfileSsl> CompanyProfileSsls => Set<CompanyProfileSsl>();
     public DbSet<FamilienzulagenTarif> FamilienzulagenTarife => Set<FamilienzulagenTarif>();
     public DbSet<EmployeeLohnAssignment> EmployeeLohnAssignments => Set<EmployeeLohnAssignment>();
@@ -1296,6 +1298,31 @@ public class AppDbContext : DbContext
                   .HasDatabaseName("ix_bvg_member_emp_period");
         });
 
+        // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────
+        modelBuilder.Entity<EmployeeUniformDepot>(entity =>
+        {
+            entity.ToTable("employee_uniform_depot");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Balance).HasColumnName("balance").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.ChargedPeriode).HasColumnName("charged_periode").HasMaxLength(20);
+            entity.Property(e => e.RefundPeriode).HasColumnName("refund_periode").HasMaxLength(20);
+            entity.Property(e => e.ReturnConfirmed).HasColumnName("return_confirmed");
+            entity.Property(e => e.ReturnConfirmedAt).HasColumnName("return_confirmed_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ReturnConfirmedBy).HasColumnName("return_confirmed_by");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => e.EmployeeId).IsUnique()
+                  .HasDatabaseName("ux_employee_uniform_depot_emp");
+        });
+
         // ── Mutterschafts-Modul (Walter 10.06.2026) ────────────────────────
         modelBuilder.Entity<PregnancyRule>(entity =>
         {
@@ -1467,11 +1494,43 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Webseite).HasColumnName("webseite").HasMaxLength(300);
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
             entity.Property(e => e.QrIban).HasColumnName("qr_iban").HasMaxLength(34);
+            entity.Property(e => e.Kontoinhaber).HasColumnName("kontoinhaber").HasMaxLength(200);
+            entity.Property(e => e.KontoinhaberBehoerdeId).HasColumnName("kontoinhaber_behoerde_id");
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(20);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(100);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.KontoinhaberBehoerde)
+                  .WithMany()
+                  .HasForeignKey(e => e.KontoinhaberBehoerdeId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.KontoinhaberBehoerdeId)
+                  .HasDatabaseName("idx_behoerde_kontoinhaber_behoerde");
+            entity.HasMany(e => e.Sachbearbeiter).WithOne(s => s.Behoerde)
+                  .HasForeignKey(s => s.BehoerdeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── BehoerdeSachbearbeiter (Walter 02.08.2026) ─────────────────────
+        modelBuilder.Entity<BehoerdeSachbearbeiter>(entity =>
+        {
+            entity.ToTable("behoerde_sachbearbeiter");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(150);
+            entity.Property(e => e.Rolle).HasColumnName("rolle").HasMaxLength(100);
+            entity.Property(e => e.Telefon).HasColumnName("telefon").HasMaxLength(30);
+            entity.Property(e => e.Handy).HasColumnName("handy").HasMaxLength(30);
+            entity.Property(e => e.Email).HasColumnName("email").HasMaxLength(200);
+            entity.Property(e => e.Erreichbarkeit).HasColumnName("erreichbarkeit").HasMaxLength(150);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.BehoerdeId).HasDatabaseName("idx_behoerde_sachbearbeiter_behoerde");
         });
 
         // ── EmployeeLohnAssignment ─────────────────────────────────────────
@@ -1482,6 +1541,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.BehoerdeSachbearbeiterId).HasColumnName("behoerde_sachbearbeiter_id");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(100);
             entity.Property(e => e.Freigrenze).HasColumnName("freigrenze").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Zielbetrag).HasColumnName("zielbetrag").HasColumnType("numeric(10,2)");
@@ -1492,12 +1553,50 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZahlungsReferenz).HasColumnName("zahlungs_referenz").HasMaxLength(50);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.LohnausweisAnBehoerde).HasColumnName("lohnausweis_an_behoerde");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // Walter 02.08.2026: timestamp without time zone + DateTime.Now —
+            // timestamptz + Local → Npgsql 500 beim Lohn-Confirm (BereitsAbgezogen).
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId);
+            entity.HasOne(e => e.Sachbearbeiter).WithMany()
+                  .HasForeignKey(e => e.BehoerdeSachbearbeiterId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.Dokument).WithMany()
+                  .HasForeignKey(e => e.DokumentId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_employee_lohn_assignment_period");
+            entity.HasIndex(e => e.BehoerdeSachbearbeiterId)
+                  .HasDatabaseName("idx_emp_lohn_assignment_sb");
+            entity.HasIndex(e => e.DokumentId)
+                  .HasDatabaseName("idx_emp_lohn_assignment_dokument");
+        });
+
+        // ── LohnausweisShareToken (Walter 30.07.2026) ──────────────────────
+        modelBuilder.Entity<LohnausweisShareToken>(entity =>
+        {
+            entity.ToTable("lohnausweis_share_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.BehoerdeId).HasColumnName("behoerde_id");
+            entity.Property(e => e.EmployeeLohnAssignmentId).HasColumnName("employee_lohn_assignment_id");
+            entity.Property(e => e.PayrollPeriodeId).HasColumnName("payroll_periode_id");
+            entity.Property(e => e.Year).HasColumnName("year");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TokenHash).IsUnique().HasDatabaseName("ux_lohnausweis_share_token_hash");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Behoerde).WithMany().HasForeignKey(e => e.BehoerdeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Assignment).WithMany().HasForeignKey(e => e.EmployeeLohnAssignmentId).OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── LohnausweisShareToken (Walter 30.07.2026) ──────────────────────
@@ -1550,7 +1649,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DtaExportiertAm).HasColumnName("dta_exportiert_am");
             entity.Property(e => e.DtaExportRef).HasColumnName("dta_export_ref").HasMaxLength(50);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
 
             entity.HasOne(e => e.Snapshot).WithMany().HasForeignKey(e => e.PayrollSnapshotId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(e => e.Assignment).WithMany().HasForeignKey(e => e.EmployeeLohnAssignmentId).OnDelete(DeleteBehavior.Restrict);
@@ -1649,8 +1748,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HasHigherIncomeThanPartner).HasColumnName("has_higher_income_than_partner");
             entity.Property(e => e.IsGrenzgaenger).HasColumnName("is_grenzgaenger");
             entity.Property(e => e.IsWochenaufenthalter).HasColumnName("is_wochenaufenthalter");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            // TIMESTAMP (= without time zone) — ohne HasColumnType mappt Npgsql 8
+            // DateTime als timestamptz und SaveChanges scheitert beim Schreiben.
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom }).HasDatabaseName("IX_emp_qst_emp_valid");
         });
@@ -1716,7 +1819,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZaehltFuerTagessatz).HasColumnName("zaehlt_fuer_tagessatz").HasDefaultValue(true);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.Code).HasDatabaseName("IX_lohnposition_code").IsUnique();
         });
 

@@ -47,8 +47,12 @@ public class FamilyMemberAllowancesController : ControllerBase
     public async Task<IActionResult> GetAll(int familyMemberId)
     {
         var branchId     = await GetBranchByFamilyMemberAsync(familyMemberId);
+        // Weiche Sperre wie QST/Verträge (Walter 01.08.2026): nur DEFINITIV
+        // «abgeschlossen» sperrt — Akonto-ausbezahlt und provisorisch bleiben
+        // editierbar, sonst kann man Kinderzulagen nicht mehr für den offenen
+        // Definitiv-Monat nachtragen.
         var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
             : null;
 
         var entries = await _db.FamilyMemberAllowances
@@ -181,16 +185,17 @@ public class FamilyMemberAllowancesController : ControllerBase
         var memberExists = await _db.EmployeeFamilyMembers.AnyAsync(m => m.Id == familyMemberId);
         if (!memberExists) return NotFound(new { error = "Familienmitglied nicht gefunden." });
 
-        // Walter 17.05.2026: ValidFrom darf nicht rückwirkend in verarbeitete Periode.
+        // Walter 17.05.2026 / präzisiert 01.08.2026: ValidFrom nicht rückwirkend
+        // in definitiv abgeschlossene Periode (Akonto sperrt nicht — s. GET).
         var branchId     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowed = branchId.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
             : null;
         if (firstAllowed.HasValue && dto.ValidFrom!.Value < firstAllowed.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"'Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}' liegt in einer bereits in Verarbeitung befindlichen Lohnperiode. Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
+                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer bereits definitiv abgeschlossenen Lohnperiode. Frühestes erlaubtes «Gültig ab»: {firstAllowed.Value:dd.MM.yyyy}.",
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
         }
@@ -228,13 +233,13 @@ public class FamilyMemberAllowancesController : ControllerBase
 
         var branchIdU     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowedU = branchIdU.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdU.Value)
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchIdU.Value)
             : null;
         if (firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet. Bitte einen neuen Eintrag ab frühestens {firstAllowedU:dd.MM.yyyy} anlegen.",
+                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) liegt in einer definitiv abgeschlossenen Lohnperiode. Bitte einen neuen Eintrag ab frühestens {firstAllowedU:dd.MM.yyyy} anlegen.",
                 firstAllowedDate = firstAllowedU?.ToString("yyyy-MM-dd")
             });
         }
@@ -263,13 +268,13 @@ public class FamilyMemberAllowancesController : ControllerBase
 
         var branchIdD     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowedD = branchIdD.HasValue
-            ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
+            ? await _editLock.GetFirstAllowedDateForContractsAsync(branchIdD.Value)
             : null;
         if (firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) wurde bereits in einem Lohnlauf verwendet und kann nicht gelöscht werden.",
+                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) liegt in einer definitiv abgeschlossenen Lohnperiode und kann nicht gelöscht werden.",
                 firstAllowedDate = firstAllowedD?.ToString("yyyy-MM-dd")
             });
         }

@@ -299,7 +299,7 @@ public class DashboardService
                          : days == 1 ? "alert.probation.ends_tomorrow"
                          : "alert.probation.ends_in_days",
                 TitleArgs = new Dictionary<string, object> { ["days"] = days, ["ende"] = endeTxt },
-                Subtitle = $"{em.Employee!.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
+                Subtitle = $"{em.Employee.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
                 SubtitleKey  = "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
                     ["name"] = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim(),

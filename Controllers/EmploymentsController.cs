@@ -11,26 +11,33 @@ namespace HrSystem.Controllers;
 [Route("api/[controller]")]
 public class EmploymentsController : ControllerBase
 {
-    private readonly AppDbContext        _context;
-    private readonly LohnEditLockService _editLock;
+    private readonly AppDbContext         _context;
+    private readonly LohnEditLockService  _editLock;
+    private readonly UniformDepotService  _uniformDepot;
 
-    public EmploymentsController(AppDbContext context, LohnEditLockService editLock)
+    public EmploymentsController(
+        AppDbContext context,
+        LohnEditLockService editLock,
+        UniformDepotService uniformDepot)
     {
-        _context  = context;
-        _editLock = editLock;
+        _context      = context;
+        _editLock     = editLock;
+        _uniformDepot = uniformDepot;
     }
 
     /// <summary>
-    /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026):
-    /// Ein Vertrag gilt als „in Lohnlauf verwendet", wenn sein
-    /// ContractStartDate VOR dem FirstAllowedDate der Filiale liegt.
+    /// Lohnlauf-Schutz für Verträge (Walter-Vorgabe 17.05.2026,
+    /// präzisiert 01.08.2026): Ein Vertrag gilt als „in Lohnlauf verwendet",
+    /// wenn sein ContractStartDate VOR dem FirstAllowedDate der Filiale liegt.
     /// Editieren/Löschen ist dann gesperrt — stattdessen muss ein NEUER
     /// Vertrag (POST) mit ContractStartDate >= FirstAllowedDate angelegt
     /// werden; der offene wird automatisch beendet.
-    /// admin/superuser werden im Service bypassed.
+    ///
+    /// Sperre erst bei Definitiv <c>abgeschlossen</c> (DTA) — während
+    /// provisorisch_abgeschlossen (Kontrolle) bleiben Vertragsänderungen möglich.
     /// </summary>
     private async Task<DateOnly?> GetFirstAllowedAsync(int companyProfileId)
-        => await _editLock.GetFirstAllowedDateAsync(User, companyProfileId);
+        => await _editLock.GetFirstAllowedDateForContractsAsync(companyProfileId);
 
     private static bool IsInLohnVerwendet(Employment e, DateOnly? firstAllowed)
     {
@@ -196,15 +203,23 @@ public class EmploymentsController : ControllerBase
         const bool SkipProbationForBefristet = false;
         var istBefristet = string.Equals(employment.ContractType, "befristet", StringComparison.OrdinalIgnoreCase)
                            || employment.ContractEndDate.HasValue;
-        var istErstvertrag = !await _context.Employments
-            .AnyAsync(e => e.EmployeeId == employment.EmployeeId);
-        if (istErstvertrag && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
+        // Walter 02.08.2026: nicht nur Erstvertrag — auch Sync-Split ohne Probezeit.
+        // Provisorische Basis = Eintrittsdatum (sonst Vertragsbeginn); Anker an
+        // erster Stempelzeit ab Eintritt macht der Stempel-Sync.
+        var hatBereitsProbezeit = await _context.Employments
+            .AnyAsync(e => e.EmployeeId == employment.EmployeeId && e.ProbationEndDate != null);
+        if (!hatBereitsProbezeit && !(SkipProbationForBefristet && istBefristet) && employment.CompanyProfileId.HasValue)
         {
             var branchProb = await _context.CompanyProfiles
                 .Where(c => c.Id == employment.CompanyProfileId.Value)
                 .Select(c => c.ProbationMonths)
                 .FirstOrDefaultAsync();
-            var probEnd = ComputeProbationEndDate(employment.ContractStartDate, branchProb);
+            var entryDt = await _context.Employees.AsNoTracking()
+                .Where(e => e.Id == employment.EmployeeId)
+                .Select(e => e.EntryDate)
+                .FirstOrDefaultAsync();
+            var basis = entryDt ?? employment.ContractStartDate;
+            var probEnd = ComputeProbationEndDate(basis, branchProb);
             if (probEnd.HasValue)
             {
                 employment.ProbationEndDate      = probEnd.Value;
@@ -374,6 +389,8 @@ public class EmploymentsController : ControllerBase
         decimal ferienSaldoStichtag = lastSaldo?.FerienTageSaldo ?? 0;
         decimal ferienErwarteterSaldoBeiAustritt = Math.Round(ferienSaldoStichtag + ferienAnspruchRest, 2);
 
+        var uniformDepot = await _uniformDepot.GetDtoAsync(employment.EmployeeId);
+
         return Ok(new
         {
             employmentId       = id,
@@ -401,7 +418,9 @@ public class EmploymentsController : ControllerBase
             ferienAnspruchJahr,
             // Neue, klar interpretierbare Felder für die Anzeige:
             ferienAnspruchRest,                   // zusätzlicher Anspruch in der Restzeit
-            ferienErwarteterSaldoBeiAustritt      // Saldo + Rest = was bei Austritt offen bleibt
+            ferienErwarteterSaldoBeiAustritt,     // Saldo + Rest = was bei Austritt offen bleibt
+            // Uniformen-Depot (Walter Aug 2026)
+            uniformDepot
         });
     }
 
@@ -410,7 +429,16 @@ public class EmploymentsController : ControllerBase
     // Hinweis: CH-Recht verlangt i.d.R. Austritt auf Monatsende — Frontend
     // schlägt das vor. Wenn der Austrittstag mitten in der Lohnperiode
     // liegt, rechnet PayrollController automatisch eine Kurzperiode.
-    public class TerminateDto { public DateTime ExitDate { get; set; } }
+    public class TerminateDto
+    {
+        public DateTime ExitDate { get; set; }
+        /// <summary>
+        /// Uniform zurückgegeben? true = Depot wird bei letzter Abrechnung
+        /// rückerstattet; false = Depot verfällt (kein Refund). Pflicht wenn
+        /// der MA ein EINBEHALTEN-Depot hat.
+        /// </summary>
+        public bool? UniformZurueckgegeben { get; set; }
+    }
 
     [HttpPost("{id:int}/terminate")]
     public async Task<IActionResult> Terminate(int id, [FromBody] TerminateDto dto)
@@ -445,6 +473,17 @@ public class EmploymentsController : ControllerBase
             });
         }
 
+        // Uniformen-Depot: Entscheidung Pflicht wenn Depot EINBEHALTEN ist.
+        var depot = await _context.EmployeeUniformDepots.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.EmployeeId == employment.EmployeeId
+                                   && d.Status == "EINBEHALTEN"
+                                   && d.Balance > 0);
+        if (depot != null && dto.UniformZurueckgegeben is null)
+            return BadRequest(new {
+                error = "UNIFORM_DEPOT_ENTSCHEIDUNG",
+                message = "Bitte angeben, ob die Uniform zurückgegeben wurde (Depot CHF 50)."
+            });
+
         employment.ContractEndDate = exit;
 
         // Employee.ExitDate spiegeln, damit der MA in Übersichten als
@@ -456,6 +495,14 @@ public class EmploymentsController : ControllerBase
         }
 
         await _context.SaveChangesAsync();
+
+        if (depot != null && dto.UniformZurueckgegeben is bool returned)
+        {
+            var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            int? uid = int.TryParse(uidStr, out var u) ? u : null;
+            await _uniformDepot.SetReturnDecisionAsync(employment.EmployeeId, returned, uid);
+        }
+
         return Ok(new {
             employment,
             message = $"Austritt per {exit:dd.MM.yyyy} erfasst."

@@ -229,7 +229,7 @@ function renderFilialenDetail(b) {
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
             <div>
                 <div class="emp-detail-name">${name}</div>
-                <div class="emp-detail-meta">Code: ${b.restaurantCode || '–'} &nbsp;·&nbsp; ${[b.zipCode, b.city].filter(Boolean).join(' ') || '–'}</div>
+                <div class="emp-detail-meta">Code: ${b.restaurantCode || '–'} &nbsp;·&nbsp; ${[b.zipCode, (typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : b.city)].filter(Boolean).join(' ') || '–'}</div>
             </div>
         </div>
         <div class="emp-detail-tabs" style="align-items:center">
@@ -259,7 +259,7 @@ function renderFilialenDetail(b) {
                 ${fField('Filiale',         b.branchName)}
                 ${fField('Code',            b.restaurantCode)}
                 ${fField('Strasse',         [b.street, b.houseNumber].filter(Boolean).join(' '))}
-                ${fField('PLZ / Ort',       [b.zipCode, b.city].filter(Boolean).join(' '))}
+                ${fField('PLZ / Ort',       [b.zipCode, (typeof stripCityCantonSuffix === 'function' ? stripCityCantonSuffix(b.city) : b.city)].filter(Boolean).join(' '))}
                 ${fField('Standort-Kanton', b.kantonCode ? b.kantonCode : '<span style="color:#dc2626">⚠ nicht gesetzt</span>')}
                 ${fField('Telefon',         b.phone)}
                 ${fField('E-Mail',          b.email)}
@@ -1025,9 +1025,12 @@ async function stmPlzLookup(rawPlz) {
         }
         if (locs.length === 1) {
             const l = locs[0];
-            cityEl.value   = l.gemeindename;
+            const ortName = (typeof stripCityCantonSuffix === 'function'
+                ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
+                : (l.ortschaftsname || l.gemeindename));
+            cityEl.value   = ortName;
             kantonEl.value = l.kantonskuerzel;
-            hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+            hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}</span>`;
             return;
         }
         // Mehrere Treffer: nur Hinweis — Ort und Kanton nicht überschreiben falls schon gefüllt

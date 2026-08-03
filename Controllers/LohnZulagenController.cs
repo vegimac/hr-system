@@ -23,15 +23,12 @@ public class LohnZulagenController : ControllerBase
     /// <summary>
     /// Lohnlauf-Lock-Check für eine Periode (YYYY-MM) eines MA — Zulagen-spezifisch.
     ///
-    /// Walter-Vorgabe 19.05.2026: Zulagen/Abzüge (z.B. Vorschuss, Spesen) dürfen
-    /// während der GESAMTEN GF- UND HR-Bearbeitungsphase erfasst werden — nicht
-    /// nur in IN_BEARBEITUNG_GF wie der allgemeine LohnEditLock. Gesperrt sind
-    /// nur die finalen Stati:
-    ///   • Akonto-Status HR_FREIGEGEBEN oder AUSBEZAHLT
-    ///   • Definitivlauf provisorisch_abgeschlossen oder abgeschlossen
-    /// In allen anderen Stati (OFFEN, IN_BEARBEITUNG_GF, BEI_HR) ist Erfassung
-    /// erlaubt — der GF kann während seiner Phase erfassen, HR kann während
-    /// seiner Freigabe-Phase noch ergänzen.
+    /// Walter-Vorgabe 01.08.2026: Zulagen/Abzüge (inkl. QST-Korrektur Vormonate)
+    /// bleiben während Akonto und HR-Kontrolle (<c>provisorisch_abgeschlossen</c>)
+    /// erfassbar — genau dort werden Korrekturen oft noch nachgezogen.
+    /// Gesperrt erst wenn der Definitiv-Lauf <c>abgeschlossen</c> ist (DTA).
+    /// Der Akonto-Status allein sperrt nicht mehr (sonst keine Korrekturen
+    /// im Definitivlauf nach Akonto-Auszahlung). Soft-Lock wie Verträge/QST.
     /// </summary>
     private async Task<IActionResult?> CheckLohnLockAsync(int employeeId, string periode)
     {
@@ -53,17 +50,12 @@ public class LohnZulagenController : ControllerBase
                                    && p.Year == y && p.Month == m);
         if (per is null) return null;   // Periode existiert noch nicht → offen
 
-        var blockedDefinitiv = per.Status == "provisorisch_abgeschlossen"
-                            || per.Status == "abgeschlossen";
-        var blockedAkonto    = per.AkontoStatus == "HR_FREIGEGEBEN"
-                            || per.AkontoStatus == "AUSBEZAHLT";
-        if (!blockedDefinitiv && !blockedAkonto) return null;
+        if (per.Status != "abgeschlossen") return null;
 
-        var grund = blockedDefinitiv ? "Definitivlauf abgeschlossen" : "Akonto HR-freigegeben/ausbezahlt";
         return Conflict(new
         {
             error = "LOHN_EDIT_LOCKED",
-            message = $"Periode {m:D2}/{y} - {grund}. Zulagen/Abzuege koennen nicht mehr erfasst werden.",
+            message = $"Periode {m:D2}/{y} ist definitiv abgeschlossen (DTA). Zulagen/Abzüge können nicht mehr erfasst werden.",
         });
     }
 
@@ -171,8 +163,8 @@ public class LohnZulagenController : ControllerBase
             LohnpositionId = dto.LohnpositionId,
             Betrag        = Math.Round(dto.Betrag, 2),
             Bemerkung     = dto.Bemerkung?.Trim(),
-            CreatedAt     = DateTime.UtcNow,
-            UpdatedAt     = DateTime.UtcNow
+            CreatedAt     = DateTime.Now,
+            UpdatedAt     = DateTime.Now
         };
         _db.LohnZulagen.Add(entry);
         await _db.SaveChangesAsync();
@@ -209,7 +201,7 @@ public class LohnZulagenController : ControllerBase
 
         entry.Betrag    = Math.Round(dto.Betrag, 2);
         entry.Bemerkung = dto.Bemerkung?.Trim();
-        entry.UpdatedAt = DateTime.UtcNow;
+        entry.UpdatedAt = DateTime.Now;
 
         await _db.SaveChangesAsync();
         return Ok(new

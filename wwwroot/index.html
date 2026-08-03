@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260803f">
+    <link rel="stylesheet" href="css/app.css?v=20260803i">
 </head>
 <body>
 
@@ -965,7 +965,10 @@
 
                         <!-- Spalte 1: Mitarbeiterliste -->
                         <div class="card" style="padding:0;overflow:hidden">
-                            <div style="padding:14px 16px;border-bottom:1px solid #f1f5f9;font-weight:600;font-size:13px;color:#475569">Mitarbeiter</div>
+                            <div style="padding:12px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                                <div style="font-weight:600;font-size:13px;color:#475569">Mitarbeiter</div>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="openLohnCorrectionPicker()" title="Korrekturlohn für ausgetretene MA" style="font-size:11px;padding:4px 9px;border-radius:10px;color:#3f3f3f;border-color:#cbd5e1;background:rgba(255,255,255,0.55)">+ Korrektur</button>
+                            </div>
                             <div style="padding:8px 12px;border-bottom:1px solid #f1f5f9">
                                 <input type="text" id="lohnEmpSearch" class="f-input" style="font-size:12px" placeholder="Suchen..." oninput="filterLohnEmpList()">
                             </div>
@@ -998,6 +1001,8 @@
                                     <div style="font-weight:600;font-size:13px;color:#475569">Zulagen &amp; Abzüge</div>
                                     <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
                                 </div>
+                                <!-- Depot-Refund-Hinweis (Korrekturlohn / Austritt) -->
+                                <div id="lohnDepotRefundBox" style="display:none;padding:10px 18px;border-bottom:1px solid #f1f5f9"></div>
                                 <div id="lohnZulagenList" style="padding:0 18px"></div>
                                 <!-- Walter 19.05.2026: das Erfassungs-Formular wurde
                                      aus dieser Card ausgelagert in einen globalen Modal
@@ -1995,6 +2000,12 @@
                         </div>
                         <ul>
                             <li>AHV-Anmeldung / -Abmeldung</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('lohn-abtretungen')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>Lohnabtretungen</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
@@ -3900,7 +3911,7 @@
                         </label>
                         <button class="btn-primary" id="eawSyncCommitBtn" onclick="eawSyncCommit()">💾 Importieren</button>
                         <button class="btn-secondary" onclick="eawSyncPreview()" title="Optional: zeigt vorab, was importiert würde — schreibt nichts">🔍 Vorschau</button>
-                        <button class="btn-secondary" onclick="eawAnchorProbation()" title="Probezeiten auf die erste Stempelzeit verankern — unabhängig vom Import">⚓ Probezeiten nachführen</button>
+                        <button class="btn-secondary" onclick="eawAnchorProbation()" title="Nur MA mit Eintritt in den letzten 4 Monaten: fehlende Probezeiten anlegen und an erster Stempelzeit ab Eintritt verankern">⚓ Probezeiten nachführen</button>
                     </div>
                     <div id="eawSyncResult"></div>
 
@@ -4045,7 +4056,7 @@
             <div class="page" id="page-ferien">
                 <div class="page-head"><div>
                     <h1 class="page-title">Ferien / Feiertage / Nacht</h1>
-                    <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Nachtstunden aus den Stempeln × 10% Zuschlag − Nacht-Kompensation).</p>
+                    <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Vortrag aus Monatsblatt + Nachtstunden × 10% Zuschlag − Nacht-Kompensation; Saldo &gt; 9 h = gelb).</p>
                 </div></div>
                 <div class="page-body">
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
@@ -4689,15 +4700,61 @@
                 </div><!-- /.page-body (fixhead-Wrapper 22.07.2026) -->
             </div>
 
+            <!-- LOHNABTRETUNGEN (HR-Hub → Behörden-Korrespondenz) -->
+            <div class="page liquid-mask fixhead" id="page-lohn-abtretungen">
+                <div class="sticky-page-head fh-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">Lohnabtretungen</h1>
+                        <p class="page-sub">Alle Abtretungen der gewählten Filiale — Zahlung an Behörde, Kontakt über Sachbearbeiter</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')">← HR</button>
+                    </div>
+                </div>
+                <div id="laListBranchBanner" style="font-size:13px;color:#475569;margin:0 0 10px;padding:8px 12px;background:rgba(255,255,255,.45);border:1px solid rgba(255,255,255,.62);border-radius:10px"></div>
+                <div class="fh-cols-head-wrap">
+                    <table class="fh-table fh-table-head" aria-hidden="true">
+                        <colgroup>
+                            <col style="width:9%"><col style="width:11%"><col style="width:12%">
+                            <col style="width:16%"><col style="width:12%"><col style="width:12%">
+                            <col style="width:16%"><col style="width:8%"><col style="width:4%">
+                        </colgroup>
+                        <thead><tr>
+                            <th>MA-Nr.</th><th>Vorname</th><th>Name</th>
+                            <th>Abtretung an Behörde</th><th>Sachbearbeiter</th><th>Telefon</th>
+                            <th>E-Mail</th><th class="fh-th-center">Freibetrag</th><th></th>
+                        </tr></thead>
+                    </table>
+                </div>
+                </div><!-- /.fh-page-head -->
+                <div class="page-body fh-body">
+                <div class="card fh-list-card">
+                    <div class="fh-list-scroll">
+                        <table class="fh-table fh-table-body">
+                            <colgroup>
+                                <col style="width:9%"><col style="width:11%"><col style="width:12%">
+                                <col style="width:16%"><col style="width:12%"><col style="width:12%">
+                                <col style="width:16%"><col style="width:8%"><col style="width:4%">
+                            </colgroup>
+                            <tbody id="laListTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                </div>
+            </div>
+
             <!-- BEHÖRDEN -->
             <div class="page liquid-mask fixhead" id="page-behoerden">
                 <div class="sticky-page-head fh-page-head">
-                <div class="page-header">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
                     <div>
                         <h1 class="page-title">Behörden</h1>
                         <p class="page-sub">Betreibungsämter, Sozialämter und andere Empfänger von Lohnabtretungen</p>
                     </div>
-                    <button class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-primary" onclick="openBehoerdeModal(null)">+ Neue Behörde</button>
+                    </div>
                 </div>
                 <div class="fh-cols-head-wrap">
                     <table class="fh-table fh-table-head" aria-hidden="true">
@@ -5290,6 +5347,17 @@
                 <div class="card" style="padding:24px">
                     <!-- Filial-Banner aus globaler Sidebar. -->
                     <div id="svImpBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;padding:14px 16px 14px 18px;margin-bottom:16px;font-size:13px;color:#3f4d5e;line-height:1.75">
+                        <div style="font-weight:760;margin-bottom:8px;font-size:13.5px;color:#364152">📋 So holst du die Datei aus Mirus</div>
+                        <ol style="margin:0;padding-left:20px">
+                            <li>Gehe in <b>Mirus → Auswertungen</b>.</li>
+                            <li>Wähle <b>Auswertungen Lohn</b>.</li>
+                            <li>Wähle <b>Rückstellungsliste Saldomethode</b> (Periode = Vormonat, dessen Schlussaldo du brauchst — z.B. Juni).</li>
+                            <li>Klicke auf <b>Drucken</b>.</li>
+                            <li>Speichere als <b>Excel</b> (.xls / .xlsx).</li>
+                            <li>Lade die Datei hier hoch und wähle die <b>Migrations-Periode</b> (= Folgemonat / erster Lohnlauf, z.B. Juli).</li>
+                        </ol>
+                    </div>
                     <div style="display:grid;grid-template-columns:1fr auto auto auto;gap:14px;align-items:flex-end">
                         <div>
                             <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Saldomethode-Datei (XLS / XLSX)</label>
@@ -5297,18 +5365,19 @@
                                    style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
                         </div>
                         <div>
-                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode</label>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Migrations-Periode (Folgemonat)</label>
                             <input type="month" id="svImpPeriode" value="2026-01"
-                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                                   style="padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white"
+                                   title="Folgemonat = erster Lohnlauf. Schlussaldo aus der Mirus-Liste wird hier als Startsaldo gespeichert.">
                         </div>
                         <button class="btn btn-primary" onclick="svImpAnalyze()">Analysieren</button>
                         <button class="btn btn-success" id="svImpCommitBtn" onclick="svImpCommit()" disabled>Import bestätigen</button>
                     </div>
                     <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
-                        <b>Erwartete Datei:</b> Mirus „Rückstellungsliste Saldomethode" als .xls — Kostenstellen-Gruppen (z.B. „100 Crew Fix", „200 Crew Flex", „300 Management") mit MA-Zeilen.<br>
-                        <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus der Saldiübersicht in Stunden).<br>
-                        <b>Match:</b> Token-basiert auf Vor-/Nachname unter den MA der Sidebar-Filiale; bei Unklarheit oder fehlendem Match wird der MA manuell wählbar.<br>
-                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge derselben MA (905/906) werden überschrieben, nicht doppelt angelegt. Andere Vortrag-Codes (901–904, 907) bleiben unberührt. Vertragsmodell-Filter: 905 nur FLEX/MTP, 906 nur MTP/FIX/FIX-M.
+                        <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Liste Juni aus Mirus, Periode <b>Juli</b> wählen.<br>
+                        <b>Spalten:</b> <code>G</code> = 13. MLohn CHF (Vortrag-Code 906) · <code>K</code> = Ferien-Geld CHF (905) · <code>M</code> = Stunden in CHF (IGNORIERT — kommt aus dem Stunden-Saldi-Import).<br>
+                        <b>Match:</b> Token-basiert auf Vor-/Nachname unter den MA der Sidebar-Filiale (Vertrag in Vortrag-Monat oder Folgemonat, auch Austritte); bei Unklarheit manuell wählbar.<br>
+                        <b>Wirkung:</b> Idempotent — bestehende Vortrag-Einträge 905/906 werden überschrieben. Codes 901–904 bleiben unberührt. 905 nur FLEX/MTP, 906 für FLEX (Probezeit) + MTP/FIX/FIX-M.
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -5318,10 +5387,9 @@
             </div>
 
             <!-- ═══════════════ STUNDEN-SALDI IMPORT (Mirus Monatsblatt) ═══════════════
-                 Walter-Vorgabe 26.05.2026: Eröffnungssaldi für Stunden + Nacht aus dem
-                 Mirus „Monatsblatt" (JasperReports-XLS, Dezember vor dem ersten Lohn-
-                 lauf). Werte: Std + Tage. Match per Personalnummer.
-                 Codes 901/904 (Std) + 903/902 (Tage). -->
+                 Walter-Vorgabe 26.05.2026 / Ferien-Tage 01.08.2026: Eröffnungssaldi
+                 aus Mirus „Monatsblatt" (JasperReports-XLS). Codes 901/904 (Std) +
+                 903/902 (Tage). Match per Personalnummer. -->
             <div class="page" id="page-saldo-vortrag-import-stunden">
                 <div class="sticky-page-head">
                 <div class="page-header">
@@ -5365,7 +5433,7 @@
                         <b>Prinzip:</b> Mirus-Datei = <b>Schlussaldo Vormonat</b> → speichern als <b>Startsaldo Folgemonat</b>. Beispiel: Monatsblatt Juni hochladen, Periode <b>Juli</b> wählen.<br>
                         <b>Importiert:</b> «Überstunden» → Zeitsaldo (901) · «Zeitzuschlag» → Nacht (904) · «Ferien» → Ferien-Tage (903) · «Feier» → Feiertag-Tage (902).<br>
                         <b>Match:</b> per <b>Personalnummer</b>. Filiale aus dem Hauptmenü.<br>
-                        <b>Wirkung:</b> Idempotent — Vortrag 901/902/903/904 werden überschrieben. CHF-Codes 905/906 bleiben unangetastet (separater Import «CHF-Saldi»).
+                        <b>Wirkung:</b> Idempotent — Vortrag 901/902/903/904 werden überschrieben. CHF-Codes 905/906 bleiben unangetastet (separater Import «CHF-Saldi»). FLEX bekommt Ferien-Tage (903) und Nacht (904); Zeitsaldo (901) nur MTP/FIX/FIX-M.
                     </div>
                 </div>
                 </div><!-- /.sticky-page-head -->
@@ -5633,7 +5701,7 @@
                             </div>
                         </div>
                         <div class="admin-card-title">Stunden-Saldi (Mirus Monatsblatt)</div>
-                        <div class="admin-card-desc">Schlussaldo Vormonat (Mirus-Monatsblatt) als Startsaldo Folgemonat. Mirus: Auswertungen → Arbeitszeit → Monatsblatt → Stundenkontrolle / Freitage / Ferientage / Feiertage → Drucken → Vorschau → Excel. Import: Zeitsaldo, Nacht, Ferien-/Feiertag-Tage.</div>
+                        <div class="admin-card-desc">Mirus „Monatsblatt" (XLS) → Zeitsaldo, Nacht, Ferien-Tage + Feiertag-Tage als Vortrag. Auch FLEX: Ferien-Tage. Match per Personalnummer. Einmalig vor dem ersten Lohnlauf.</div>
                     </div>
 
                     <div class="admin-card" onclick="showPage('mirus-address-compare')">
@@ -6302,46 +6370,30 @@
                     <datalist id="bePlzCityList"></datalist>
                     <div id="bePlzHint" style="font-size:11px;margin-top:4px"></div>
                 </div>
-            </div>
-
-            <!-- Kontakt -->
-            <div style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:0 0 6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">KONTAKT</div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px 10px;margin-bottom:12px">
-                <div>
-                    <label class="be-lbl">Sachbearbeiter/in</label>
-                    <input type="text" id="beKontaktperson" class="be-inp" placeholder="z.B. Jana Hrdinka">
-                </div>
-                <div>
-                    <label class="be-lbl">Funktion</label>
-                    <input type="text" id="beKontaktpersonRolle" class="be-inp" placeholder="z.B. Sachbearbeiterin">
-                </div>
-                <div>
-                    <label class="be-lbl">Erreichbarkeit</label>
-                    <input type="text" id="beErreichbarkeit" class="be-inp" placeholder="Mo–Fr 08:00–11:45">
-                </div>
-                <div>
-                    <label class="be-lbl">Telefon</label>
-                    <input type="text" id="beTelefon" class="be-inp" placeholder="+41 41 228 57 35"
-                           onblur="validatePhoneBlur(this)">
-                </div>
-                <div>
-                    <label class="be-lbl">Handy</label>
-                    <input type="text" id="beHandy" class="be-inp" placeholder="+41 79 123 45 67"
-                           onblur="validatePhoneBlur(this)">
-                </div>
-                <div>
-                    <label class="be-lbl">E-Mail</label>
-                    <input type="text" id="beEmail" class="be-inp" placeholder="jana.hrdinka@lu.ch">
-                </div>
                 <div style="grid-column:span 3">
                     <label class="be-lbl">Webseite <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
-                    <input type="text" id="beWebseite" class="be-inp" placeholder="https://steuern.lu.ch">
+                    <input type="text" id="beWebseite" class="be-inp" placeholder="https://ors.ch">
                 </div>
+            </div>
+
+            <!-- Sachbearbeiter-Stamm (nach erstem Speichern) -->
+            <div id="beSbSection" style="display:none;margin-bottom:12px">
+                <div style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:0 0 6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <span>SACHBEARBEITER <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">(Kontakt &amp; Lohnmeldung)</span></span>
+                    <button type="button" class="btn btn-outline" onclick="openBeSbModal(null)" style="padding:3px 10px;font-size:11px;letter-spacing:0;text-transform:none">+ Sachbearbeiter</button>
+                </div>
+                <div style="font-size:11px;color:#64748b;margin:-2px 0 8px;line-height:1.4">
+                    Zahlung geht an die Behörden-IBAN. Lohnausweis/Korrespondenz an den am MA gewählten Sachbearbeiter.
+                </div>
+                <div id="beSbList" class="be-sb-list" style="display:flex;flex-direction:column;gap:6px;max-height:168px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:4px 6px 4px 2px;border:1px solid #e2e8f0;border-radius:8px;background:#fff"></div>
+            </div>
+            <div id="beSbHintNew" style="display:none;font-size:11.5px;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:10px 12px;margin-bottom:12px;line-height:1.45">
+                Nach dem ersten Speichern kannst du hier Sachbearbeiter mit Kontaktangaben ergänzen (z.B. ORS: mehrere SB, eine IBAN).
             </div>
 
             <!-- Bankverbindung — bei STEUERAMT ausgeblendet -->
             <div id="beBankSection">
-                <div style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:0 0 6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">BANKVERBINDUNG <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">(für Lohnabtretungen)</span></div>
+                <div style="font-size:10.5px;font-weight:700;color:#64748b;letter-spacing:.06em;margin:0 0 6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">BANKVERBINDUNG <span style="font-weight:400;color:#94a3b8;text-transform:none;letter-spacing:0">(für Lohnabtretungen / DTA)</span></div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-bottom:6px">
                     <div>
                         <label class="be-lbl">IBAN</label>
@@ -6356,6 +6408,16 @@
                                style="font-family:ui-monospace,Menlo,Consolas,monospace;letter-spacing:0.3px"
                                oninput="validateIbanField(this, 'beQrIbanHint', 'QR-IBAN')">
                         <div id="beQrIbanHint" style="font-size:10.5px;margin-top:2px;min-height:13px"></div>
+                    </div>
+                    <div style="grid-column:1 / -1">
+                        <label class="be-lbl">Kontoinhaber <span style="color:#94a3b8;font-weight:400">(DTA — optional andere Behörde)</span></label>
+                        <select id="beKontoinhaberBehoerde" class="be-inp">
+                            <option value="">— dieselbe Behörde (Name + Adresse) —</option>
+                        </select>
+                        <div id="beKontoinhaberHint" style="font-size:10.5px;color:#64748b;margin-top:2px;line-height:1.35">
+                            Seltene Ausnahme: IBAN gehört einer anderen Stelle (z.B. ORS Burgdorf → ORS Service AG Zürich).
+                            Name, Strasse, PLZ und Ort für den DTA kommen dann von der gewählten Behörde.
+                        </div>
                     </div>
                     <div>
                         <label class="be-lbl">BIC <span style="color:#94a3b8;font-weight:400">(optional)</span></label>
@@ -6382,11 +6444,65 @@
     </div>
 </div>
 
+<!-- Sachbearbeiter-Modal (unter Behörde) -->
+<div id="beSbModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);align-items:flex-start;justify-content:center;z-index:2100;overflow-y:auto;padding:16px;">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto;font-size:12.5px">
+        <div style="padding:12px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-weight:700;font-size:14px;color:#1e293b" id="beSbModalTitle">Sachbearbeiter</div>
+            <button onclick="closeBeSbModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;padding:2px 6px">✕</button>
+        </div>
+        <div style="padding:14px 18px">
+            <input type="hidden" id="beSbId">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 10px">
+                <div style="grid-column:span 2">
+                    <label class="be-lbl">Name *</label>
+                    <input type="text" id="beSbName" class="be-inp" placeholder="z.B. Jana Hrdinka">
+                </div>
+                <div>
+                    <label class="be-lbl">Funktion</label>
+                    <input type="text" id="beSbRolle" class="be-inp" placeholder="Sachbearbeiterin">
+                </div>
+                <div>
+                    <label class="be-lbl">Erreichbarkeit</label>
+                    <input type="text" id="beSbErreichbarkeit" class="be-inp" placeholder="Mo–Fr 08:00–12:00">
+                </div>
+                <div>
+                    <label class="be-lbl">Telefon</label>
+                    <input type="text" id="beSbTelefon" class="be-inp" onblur="validatePhoneBlur(this)">
+                </div>
+                <div>
+                    <label class="be-lbl">Handy</label>
+                    <input type="text" id="beSbHandy" class="be-inp" onblur="validatePhoneBlur(this)">
+                </div>
+                <div style="grid-column:span 2">
+                    <label class="be-lbl">E-Mail <span style="color:#94a3b8;font-weight:400">(für Lohnausweis-Link)</span></label>
+                    <input type="text" id="beSbEmail" class="be-inp" placeholder="jana.hrdinka@ors.ch">
+                </div>
+                <div style="grid-column:span 2">
+                    <label class="be-lbl">Bemerkung</label>
+                    <input type="text" id="beSbBemerkung" class="be-inp">
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #f1f5f9;margin-top:12px">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;color:#374151">
+                    <input type="checkbox" id="beSbIsActive" checked style="width:14px;height:14px">
+                    <span>Aktiv</span>
+                </label>
+                <div style="flex:1"></div>
+                <button class="btn-secondary" onclick="closeBeSbModal()" style="padding:7px 16px;font-size:12.5px">Abbrechen</button>
+                <button class="btn-primary" onclick="saveBeSb()" style="padding:7px 18px;font-size:12.5px">Speichern</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
 /* Behörde-Modal: kompakte Inputs + Labels */
 #behoerdeModal .be-lbl { font-size:11px;font-weight:600;color:#374151;display:block;margin-bottom:2px }
 #behoerdeModal .be-inp { width:100%;border:1px solid #d1d5db;border-radius:5px;padding:5px 8px;font-size:12.5px;line-height:1.3;background:#fff;box-sizing:border-box }
 #behoerdeModal .be-inp:focus { outline:none;border-color:#1a1a1a;box-shadow:0 0 0 2px rgba(60,55,48,.15) }
+#behoerdeModal .be-sb-list { scrollbar-gutter: stable; }
+body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1e293b; }
 </style>
 
 <!-- ═══════════════ ALV-DATEN MODAL ═══════════════ -->
@@ -7306,7 +7422,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260803f"></script>
+<script src="js/app-core.js?v=20260803i"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7326,20 +7442,20 @@
 <script src="js/swiss-locations.js?v=20260729b"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
 <script src="js/stammdaten-import.js?v=20260704p"></script>
-<script src="js/saldo-vortrag-import.js?v=20260704p"></script>
-<script src="js/saldo-vortrag-import-stunden.js?v=20260803a"></script>
+<script src="js/saldo-vortrag-import.js?v=20260803i"></script>
+<script src="js/saldo-vortrag-import-stunden.js?v=20260803i"></script>
 <script src="js/mirus-address-compare.js?v=20260803e"></script>
-<script src="js/roster-absence-import.js?v=20260803rescue"></script>
+<script src="js/roster-absence-import.js?v=20260803i"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260803f"></script>
+<script src="js/akonto-workflow.js?v=20260803i"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
-<script src="js/branches-detail.js?v=20260722a"></script>
+<script src="js/branches-detail.js?v=20260802a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260713a"></script>
+<script src="js/qst-modal.js?v=20260802a"></script>
 <script src="js/users.js?v=20260726a"></script>
-<script src="js/contracts-page.js?v=20260708flex"></script>
+<script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260727a"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
@@ -7349,31 +7465,30 @@
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
-<script src="js/austritt.js?v=20260715e"></script>
-<script src="js/contracts-edit.js?v=20260803f"></script>
+<script src="js/austritt.js?v=20260803i"></script>
+<script src="js/contracts-edit.js?v=20260803i"></script>
 <script src="js/payroll.js?v=20260803sk"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260803c"></script>
+<script src="js/admin-settings.js?v=20260803i"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260722u"></script>
 <script src="js/warning-config.js?v=20260722u"></script>
-<script src="js/easyatwork.js?v=20260718a"></script>
+<script src="js/easyatwork.js?v=20260802b"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
-<script src="js/ferien-report.js?v=20260803b"></script>
+<script src="js/ferien-report.js?v=20260803i"></script>
 <script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260726d"></script>
 <script src="js/global-search.js?v=20260719b"></script>
-<script src="js/help-panel.js?v=20260803g"></script>
-<script src="js/lohn-edit-lock.js?v=20260704p"></script>
+<script src="js/help-panel.js?v=20260803i"></script>
 <script src="js/i18n.js?v=20260729a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
@@ -7669,7 +7784,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260803h"></script>
+<script src="employees.js?v=20260803i"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -7839,12 +7954,19 @@
             <div class="ma-grid cols-2">
                 <div class="ma-field">
                     <div class="ma-field-label">Behörde</div>
-                    <select id="laBehoerdeSel" class="ma-select"></select>
+                    <select id="laBehoerdeSel" class="ma-select" onchange="laOnBehoerdeChange()"></select>
                     <div style="font-size:11px;color:#64748b;margin-top:3px">Nicht dabei? <a href="#" onclick="closeLohnAssignmentModal();showPage('behoerden');return false;">Behörden verwalten →</a></div>
                 </div>
                 <div class="ma-field">
                     <div class="ma-field-label">Bezeichnung</div>
                     <input type="text" id="laBezeichnung" class="ma-input" value="Lohnpfändung">
+                </div>
+                <div class="ma-field" style="grid-column:1 / -1">
+                    <div class="ma-field-label">Sachbearbeiter <span class="opt">(für Lohnmeldung / Lohnausweis-Mail)</span></div>
+                    <select id="laSachbearbeiterSel" class="ma-select">
+                        <option value="">— Sachbearbeiter wählen —</option>
+                    </select>
+                    <div id="laSbHint" style="font-size:11px;color:#64748b;margin-top:3px">Zahlung geht an die Behörden-IBAN; Mail an den gewählten SB.</div>
                 </div>
             </div>
 
@@ -7866,6 +7988,11 @@
                     <div class="ma-field-label">Gültig bis <span class="opt">(leer = bis Widerruf)</span></div>
                     <input type="date" id="laValidTo" class="ma-input">
                 </div>
+            </div>
+
+            <div style="margin:4px 0 14px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;line-height:1.45">
+                <b>Dokument-Pflicht:</b> Nach dem Speichern den Beleg über «🔗 Doku verknüpfen» an den Eintrag hängen.
+                Ohne Dokument greift die Abtretung im Lohnlauf nicht.
             </div>
 
             <div class="emp-section-title">Referenz &amp; Bemerkung</div>
@@ -7896,8 +8023,8 @@
                         <span>
                             <span style="font-weight:600;color:#3f3f3f;display:block">Lohnausweis an Behörde</span>
                             <span style="font-size:12px;color:#646464;line-height:1.4;display:block;margin-top:3px">
-                                Beim Definitiv-Lohnabschluss erhält die Behörde per E-Mail einen Download-Link
-                                zum Jahres-Lohnausweis (kein PDF-Anhang). Die Behörde braucht eine E-Mail-Adresse.
+                                Beim Definitiv-Lohnabschluss geht ein Download-Link per E-Mail an den gewählten
+                                Sachbearbeiter (sonst an die zentrale Behörden-E-Mail). Kein PDF-Anhang.
                             </span>
                         </span>
                     </label>
@@ -7972,6 +8099,22 @@
             <div id="terminateSummary" style="display:none;margin-top:10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:10px 12px">
                 <div style="font-size:10.5px;font-weight:800;color:#5a5348;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;padding:4px 0 4px 10px;border-left:4px solid #1a1a1a;background:linear-gradient(to right,#ece9e2 0%,#f6f3ee 60%,transparent 90%);border-radius:3px 3px 0 0" data-i18n="austritt.preview.title">📊 Austritts-Vorschau (Punktlandung)</div>
                 <div id="terminateSummaryBody" style="font-size:12px;color:#334155"></div>
+            </div>
+
+            <!-- Uniformen-Depot Entscheidung (Walter Aug 2026) — sichtbar wenn Depot EINBEHALTEN -->
+            <div id="terminateUniformBlock" style="display:none;margin-top:12px;background:#fff;border:1px solid #e7e1d8;border-radius:14px;padding:12px 14px">
+                <div style="font-size:12px;font-weight:700;color:#1a1a1a;margin-bottom:6px">👕 Uniformen-Depot CHF 50</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.45">
+                    Wurde die Uniform vollständig zurückgegeben? Bei Ja wird das Depot in der letzten Abrechnung rückerstattet; bei Nein verfällt es (kein Refund).
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer;background:#faf8f5;font-size:12.5px;color:#3f3f3f">
+                        <input type="radio" name="terminateUniformReturn" value="1" style="accent-color:#3f3f3f"> Ja, zurückgegeben → Refund
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #cbd5e1;border-radius:10px;cursor:pointer;background:#faf8f5;font-size:12.5px;color:#3f3f3f">
+                        <input type="radio" name="terminateUniformReturn" value="0" style="accent-color:#3f3f3f"> Nein → Depot verfällt
+                    </label>
+                </div>
             </div>
 
             <div id="terminateAlert" style="margin-top:10px"></div>
@@ -8227,209 +8370,140 @@
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil. ce-lbl/ce-inp werden auf
      weisse Wert-Box angeglichen, Sektionen mit emp-section-title-Streifen,
      graue Card-Wrapper analog Familien-Modal. -->
-<div id="contractEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 16px">
-    <div class="ma-modal-box" style="margin:auto;font-size:12.5px;max-width:1080px">
-        <div class="ma-modal-head">
+<!-- Vertrag bearbeiten — Look wie MA-Übersicht (eine ruhige Glasfläche,
+     keine Box-in-Box-Beige-Karten). IDs/Handler unverändert. -->
+<div id="contractEditModal" class="ce-overlay" style="display:none">
+    <div class="ma-modal-box ce-modal-box">
+        <div class="ma-modal-head ce-modal-head">
             <div>
                 <div id="ceModalTitle" class="ma-modal-title" data-i18n="vt.modal.editTitle">Vertrag bearbeiten</div>
                 <div id="ceModalSub" class="ma-modal-sub"></div>
             </div>
             <button class="ma-modal-close" onclick="closeContractEditModal()">✕</button>
         </div>
-        <div class="ma-modal-body">
+        <div class="ma-modal-body ce-modal-body">
             <input type="hidden" id="ceContractId">
             <input type="hidden" id="ceEmployeeId">
 
-            <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.startDate">Vertragsbeginn *</label>
-                    <input type="date" id="ceStartDate" class="ce-inp" onchange="checkCeMinimumWage()">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.model">Vertragsmodell *</label>
-                    <select id="ceEmploymentModel" class="ce-inp" onchange="onCeModelChange()">
-                        <option value="FLEX" data-i18n="vt.modal.modelUtp">FLEX – Stundenlohn (flexibel)</option>
-                        <option value="MTP" data-i18n="vt.modal.modelMtp">MTP – Mindest-Teilzeitpensum</option>
-                        <option value="FIX" data-i18n="vt.modal.modelFix">FIX – Festpensum</option>
-                        <option value="FIX-M" data-i18n="vt.modal.modelFixM">FIX-M – Management</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.contractType">Vertragstyp</label>
-                    <select id="ceContractType" class="ce-inp" onchange="onCeContractTypeChange()">
-                        <option value="unbefristet" data-i18n="vt.modal.contractType.openEnded">unbefristet</option>
-                        <option value="befristet" data-i18n="vt.modal.contractType.fixed">befristet</option>
-                    </select>
-                </div>
-                <div id="ceEndDateWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
-                    <input type="date" id="ceEndDate" class="ce-inp">
-                </div>
-                <div style="grid-column:span 2">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Stellenbezeichnung</label>
-                    <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Crew, Shift Coordinator">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.probation">Probezeit (Monate)</label>
-                    <input type="number" id="ceProbationMonths" class="ce-inp" min="0" max="12">
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.active">Aktiv</label>
-                    <select id="ceIsActive" class="ce-inp">
-                        <option value="true" data-i18n="vt.modal.statusActive">Aktiv</option>
-                        <option value="false" data-i18n="vt.modal.statusInactive">Inaktiv</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Qualifikation & Mindestlohn — ZUERST Ausbildung + Funktion, damit Mindestlohn vor der Lohn-Eingabe sichtbar ist -->
-            <div class="emp-section-title" data-i18n="vt.modal.section.qualif">Qualifikation &amp; Mindestlohn</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.eduLevel">Gastronomische Ausbildung *</label>
-                    <select id="ceEducationLevel" class="ce-inp" onchange="checkCeMinimumWage()">
-                        <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="ce-lbl" data-i18n="vt.modal.field.jobGroup">Funktionsgruppe *</label>
-                    <select id="ceJobGroup" class="ce-inp" onchange="checkCeMinimumWage()">
-                        <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
-                    </select>
-                </div>
-            </div>
-            <div id="ceMinimumWageInfo" style="margin-bottom:14px;font-size:12px"></div>
-
-            <!-- Lohn -->
-            <div class="emp-section-title" data-i18n="vt.modal.section.salary">Lohn &amp; Pensum</div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-                <div id="ceHourlyWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.hourly">Stundenlohn (CHF)</label>
-                    <input type="number" id="ceHourlyRate" class="ce-inp" step="0.01" oninput="checkCeMinimumWage()">
-                </div>
-                <div id="ceFteWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.fte">Monatslohn 100% (FTE)</label>
-                    <input type="number" id="ceMonthlySalaryFte" class="ce-inp" step="0.01" oninput="onCeFteChange()">
-                </div>
-                <div id="ceMonthlyWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.monthlyAtPensum">Monatslohn (Pensum)</label>
-                    <input type="number" id="ceMonthlySalary" class="ce-inp" step="0.01" readonly style="background:#faf8f5;color:#8b8b8b">
-                </div>
-                <div id="cePensumWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
-                    <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
-                </div>
-                <div id="ceWeeklyWrap">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
-                    <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
-                </div>
-                <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — rechts neben Max. h/Woche, Schieber wie L-GAV -->
-                <div id="ceTeilzeitUnter8hWrap">
-                    <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
-                    <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
-                        <input type="hidden" id="ceTeilzeitUnter8h" value="false">
-                        <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
-                        <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
+                <div class="ce-grid ce-grid-4">
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.startDate">Vertragsbeginn *</label>
+                        <input type="date" id="ceStartDate" class="ce-inp" onchange="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.model">Vertragsmodell *</label>
+                        <select id="ceEmploymentModel" class="ce-inp" onchange="onCeModelChange()">
+                            <option value="FLEX" data-i18n="vt.modal.modelUtp">FLEX – Stundenlohn (flexibel)</option>
+                            <option value="MTP" data-i18n="vt.modal.modelMtp">MTP – Mindest-Teilzeitpensum</option>
+                            <option value="FIX" data-i18n="vt.modal.modelFix">FIX – Festpensum</option>
+                            <option value="FIX-M" data-i18n="vt.modal.modelFixM">FIX-M – Management</option>
+                        </select>
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.contractType">Vertragstyp</label>
+                        <select id="ceContractType" class="ce-inp" onchange="onCeContractTypeChange()">
+                            <option value="unbefristet" data-i18n="vt.modal.contractType.openEnded">unbefristet</option>
+                            <option value="befristet" data-i18n="vt.modal.contractType.fixed">befristet</option>
+                        </select>
+                    </div>
+                    <div class="ce-field" id="ceEndDateWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
+                        <input type="date" id="ceEndDate" class="ce-inp">
+                    </div>
+                    <div class="ce-field ce-span-2">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Stellenbezeichnung</label>
+                        <input type="text" id="ceJobTitle" class="ce-inp" data-i18n-placeholder="vt.modal.field.jobTitlePh" placeholder="z.B. Crew, Shift Coordinator">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.probation">Probezeit (Monate)</label>
+                        <input type="number" id="ceProbationMonths" class="ce-inp" min="0" max="12">
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.active">Aktiv</label>
+                        <select id="ceIsActive" class="ce-inp">
+                            <option value="true" data-i18n="vt.modal.statusActive">Aktiv</option>
+                            <option value="false" data-i18n="vt.modal.statusInactive">Inaktiv</option>
+                        </select>
                     </div>
                 </div>
-                <div id="ceGuaranteedWrap" style="display:none">
-                    <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
-                    <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
-                </div>
-                <div style="grid-column:span 4;display:flex;align-items:center;gap:8px;margin-top:2px;background:#fdf1ee;border:1px solid #ecc8bf;border-radius:9px;padding:6px 10px">
-                    <input type="checkbox" id="ceEasyAtWorkManualOverride" style="width:16px;height:16px;accent-color:#dc2626">
-                    <label for="ceEasyAtWorkManualOverride" style="font-size:12px;color:#b91c1c;font-weight:700;cursor:pointer">
-                        easy@work Block – lokal nicht überschreiben
-                    </label>
-                    <span style="font-size:11px;color:#991b1b">Bei easy@work-Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
-                </div>
-                <!-- Walter-Vorgabe 06.06.2026 (Stufe 1b): Ferien %, Feiertag %,
-                     13. ML % aus dem Vertrag entfernt — kommen jetzt aus der
-                     Filiale (CompanyProfile.Default*) + altersaware Engine. -->
-            </div>
+            </section>
 
-            <!-- Lohn-Check (Vergleich Aktuell vs. Mindest) -->
-            <div id="ceComplianceResult" style="margin-bottom:12px;font-size:12px"></div>
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.qualif">Qualifikation &amp; Mindestlohn</div>
+                <div class="ce-grid ce-grid-2">
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.eduLevel">Gastronomische Ausbildung *</label>
+                        <select id="ceEducationLevel" class="ce-inp" onchange="checkCeMinimumWage()">
+                            <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
+                        </select>
+                    </div>
+                    <div class="ce-field">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.jobGroup">Funktionsgruppe *</label>
+                        <select id="ceJobGroup" class="ce-inp" onchange="checkCeMinimumWage()">
+                            <option value="" data-i18n="vt.modal.placeholderSelect">– wählen –</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="ceMinimumWageInfo" class="ce-mw-slot"></div>
+            </section>
 
+            <section class="ce-block">
+                <div class="emp-section-title" data-i18n="vt.modal.section.salary">Lohn &amp; Pensum</div>
+                <div class="ce-grid ce-grid-4">
+                    <div class="ce-field" id="ceHourlyWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.hourly">Stundenlohn (CHF)</label>
+                        <input type="number" id="ceHourlyRate" class="ce-inp" step="0.01" oninput="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-field" id="ceFteWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.fte">Monatslohn 100% (FTE)</label>
+                        <input type="number" id="ceMonthlySalaryFte" class="ce-inp" step="0.01" oninput="onCeFteChange()">
+                    </div>
+                    <div class="ce-field" id="ceMonthlyWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.monthlyAtPensum">Monatslohn (Pensum)</label>
+                        <input type="number" id="ceMonthlySalary" class="ce-inp ce-inp-ro" step="0.01" readonly>
+                    </div>
+                    <div class="ce-field" id="cePensumWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.pensumPct">Pensum (%)</label>
+                        <input type="number" id="cePensum" class="ce-inp" min="0" max="100" oninput="onCePensumChange()">
+                    </div>
+                    <div class="ce-field" id="ceWeeklyWrap">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
+                        <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                    </div>
+                    <!-- < 8 h nur bei FLEX — NBU-Befreiung UVG Art. 1a -->
+                    <div class="ce-field" id="ceTeilzeitUnter8hWrap">
+                        <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
+                        <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
+                            <input type="hidden" id="ceTeilzeitUnter8h" value="false">
+                            <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
+                            <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+                        </div>
+                    </div>
+                    <div class="ce-field" id="ceGuaranteedWrap" style="display:none">
+                        <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
+                        <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                    </div>
+                    <div class="ce-eaw ce-span-4">
+                        <input type="checkbox" id="ceEasyAtWorkManualOverride" class="ce-eaw-cb">
+                        <div class="ce-eaw-text">
+                            <label for="ceEasyAtWorkManualOverride">easy@work Block – lokal nicht überschreiben</label>
+                            <span>Bei Platzhalterlohn (CHF 1.00) automatisch aktiv.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div id="ceComplianceResult" class="ce-compl-slot"></div>
         </div>
-        <div class="ma-modal-foot">
-            <div id="ceErrorMsg" class="ma-foot-left" style="color:#dc2626;font-size:12px"></div>
-            <button class="btn btn-outline" onclick="closeContractEditModal()" data-i18n="vt.modal.btn.cancel">Abbrechen</button>
-            <button class="btn btn-primary" onclick="saveContractEdit()" id="ceSaveBtn" data-i18n="vt.modal.btn.save">Speichern</button>
+        <div class="ma-modal-foot ce-modal-foot">
+            <div id="ceErrorMsg" class="ma-foot-left ce-error"></div>
+            <button type="button" class="ce-btn ce-btn-ghost" onclick="closeContractEditModal()" data-i18n="vt.modal.btn.cancel">Abbrechen</button>
+            <button type="button" class="ce-btn ce-btn-primary" onclick="saveContractEdit()" id="ceSaveBtn" data-i18n="vt.modal.btn.save">Speichern</button>
         </div>
     </div>
 </div>
-<style>
-/* Walter-Vorgabe 08.07.2026: Vertrags-Modal im modernen Familie-Modal-Look
-   (Liquid Glass) — warme Off-White-Karten (#f6f3ee, Rand #e7e1d8, Radius 14),
-   weisse Inputs mit warmem Rand statt Blau-Grau. Logik/IDs unverändert. */
-#contractEditModal .ce-lbl { font-size:9.5px;font-weight:700;color:#475569;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em;padding-left:2px;line-height:1.2 }
-#contractEditModal .ce-inp { width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;color:#0f172a;font-weight:500;font-family:inherit;outline:none;box-shadow:0 1px 2px rgba(60,55,48,0.08);box-sizing:border-box;transition:border-color .12s,box-shadow .12s }
-#contractEditModal .ce-inp:hover { border-color:#c9bfb0;box-shadow:0 2px 4px rgba(60,55,48,0.12) }
-#contractEditModal .ce-inp:focus { border-color:#c9bfb0;box-shadow:0 0 0 3px rgba(180,165,140,.14) }
-/* Sektions-Titel wie im Familie-Modal: ruhig, ohne Balken/Grossbuchstaben */
-#contractEditModal .emp-section-title {
-    background: transparent !important;
-    border-left: none !important;
-    border-radius: 0 !important;
-    color: #364152 !important;
-    text-transform: none !important;
-    letter-spacing: -.01em !important;
-    font-size: 12px !important;
-    font-weight: 760 !important;
-    padding: 0 0 0 3px !important;
-    margin: 14px 0 5px !important;
-}
-/* < 8 h-Schieber wie L-GAV (emp-yesno-toggle) — Modal liegt ausserhalb
-   #page-mitarbeiter, daher eigene Regeln (Walter 31.07.2026). */
-#contractEditModal #ceTeilzeitUnter8hWrap {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    min-width: 0;
-}
-#contractEditModal .emp-yesno-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 3px;
-    border: 1px solid rgba(60,55,48,.16);
-    border-radius: 15px;
-    background: #f0ece4;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
-    min-height: 27px;
-    box-sizing: border-box;
-}
-#contractEditModal .emp-yesno-toggle button {
-    border: 0;
-    border-radius: 12px;
-    background: transparent;
-    color: #8b8b8b;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 760;
-    line-height: 1;
-    padding: 6px 12px;
-    cursor: pointer;
-}
-#contractEditModal .emp-yesno-toggle button.active {
-    background: #3f3f3f;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(60,55,48,.18);
-}
-body.theme-dark #contractEditModal .emp-yesno-toggle {
-    background: rgba(255,255,255,.08);
-    border-color: rgba(122,145,165,.28);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-}
-body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
-body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
-    background: #e8e4dc;
-    color: #1a1a1a;
-    box-shadow: 0 4px 12px rgba(0,0,0,.22);
-}
-</style>
 
 <div class="modal-bg" id="vtImportModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
     <div class="modal" style="max-width:520px;width:90%">
@@ -8464,7 +8538,7 @@ body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
 <script src="js/posteingang.js?v=20260725e"></script>
 <script src="js/scanbot-posteingang.js?v=20260727b"></script>
 <script src="js/hr-rav.js?v=20260704p"></script>
-<script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
+<script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
 <script src="js/kuendigung.js?v=20260803f"></script>

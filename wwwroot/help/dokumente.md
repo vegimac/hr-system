@@ -27,6 +27,8 @@ Links siehst du die **Kategorien-Sidebar:**
 
 Klick auf eine Kategorie filtert die Liste. „Alle Dokumente" zeigt alles.
 
+💡 **Lohnabtretung / Pfändung:** Der Beleg muss nicht nur in der Akte liegen — er muss an der Abtretung **verknüpft** sein (Button «🔗 Doku verknüpfen»). Ohne Verknüpfung greift die Abtretung im Lohnlauf nicht. Siehe [Lohnabtretungen](#lohnabtretungen).
+
 ## Dokument anschauen
 
 Klick auf den **Dateinamen** → das Vorschau-Panel schiebt von rechts rein. Was funktioniert:

@@ -32,17 +32,25 @@ async function loadBehoerden() {
             const address = [b.adresse1, b.adresse2, b.adresse3, `${b.plz||''} ${b.ort||''}`.trim()].filter(Boolean).join(', ');
             // Steueramt: statt IBAN den Sachbearbeiter zeigen
             const isSteuer = b.typ === 'STEUERAMT';
+            const sbCount = b.sachbearbeiterCount || 0;
+            const sbNames = Array.isArray(b.sachbearbeiterNames) ? b.sachbearbeiterNames : [];
+            const sbLine = sbCount > 0
+                ? `<div style="font-size:11px;color:#475569;margin-top:2px">${sbNames.map(n => escHtml(n)).join(', ')}${sbCount > sbNames.length ? ` <span style="color:#94a3b8">+${sbCount - sbNames.length}</span>` : ''}</div>`
+                : '';
+            // Steueramt: Kanton + SB; sonst IBAN + Kontoinhaber-Behörde + SB-Namen.
+            const kiName = b.kontoinhaberBehoerdeName || b.kontoinhaber;
+            const kontoLine = (!isSteuer && kiName)
+                ? `<div style="font-size:11px;color:#475569;margin-top:2px">Kontoinhaber: <span style="font-weight:600">${escHtml(kiName)}</span></div>`
+                : '';
             const detailCol = isSteuer
-                ? (b.kontaktperson
-                    ? `<div style="font-size:12px">${b.kontaktperson}${b.kontaktpersonRolle ? ` <span style="color:#94a3b8">· ${b.kontaktpersonRolle}</span>` : ''}</div>${b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : ''}`
-                    : (b.kantonCode ? `<span style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</span>` : '<span style="color:#cbd5e1">—</span>'))
-                : (b.qrIban && b.qrIban !== b.iban
+                ? ((b.kantonCode ? `<div style="font-size:11px;color:#16a34a;font-weight:600">Kt. ${b.kantonCode}</div>` : '') + (sbLine || '<span style="color:#cbd5e1">—</span>'))
+                : ((b.qrIban && b.qrIban !== b.iban
                     ? `<div style="font-family:monospace;font-size:11px">${b.iban || '—'}</div><div style="font-family:monospace;font-size:11px;color:#6d28d9">QR: ${b.qrIban}</div>`
-                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`);
+                    : `<span style="font-family:monospace;font-size:12px">${b.iban || '—'}</span>`) + kontoLine + sbLine);
             return `<tr style="${!b.isActive ? 'opacity:0.5;' : ''}border-bottom:1px solid #f1f5f9">
-                <td style="padding:10px 14px;font-weight:500">${b.name}</td>
+                <td style="padding:10px 14px;font-weight:500">${escHtml(b.name)}</td>
                 <td style="padding:10px 14px"><span style="font-size:11px;padding:2px 8px;border-radius:10px;${typBadge[b.typ] ?? typBadge.ANDERE}">${typLabel[b.typ] ?? b.typ}</span></td>
-                <td style="padding:10px 14px;color:#64748b">${address || '—'}</td>
+                <td style="padding:10px 14px;color:#64748b">${escHtml(address) || '—'}</td>
                 <td style="padding:10px 14px">${detailCol}</td>
                 <td style="padding:10px 14px;text-align:center">
                     <span style="font-size:11px;padding:2px 8px;border-radius:10px;${b.isActive ? 'background:#dcfce7;color:#166534' : 'background:#f1f5f9;color:#64748b'}">${b.isActive ? 'Aktiv' : 'Inaktiv'}</span>
@@ -63,6 +71,10 @@ async function loadBehoerden() {
     }
 }
 
+function escHtml(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function openBehoerdeModal(existing) {
     const d = (typeof existing === 'object' && existing !== null) ? existing : {};
     document.getElementById('behoerdeModal').style.display = 'flex';
@@ -76,13 +88,18 @@ function openBehoerdeModal(existing) {
     document.getElementById('beAdresse3').value  = d.adresse3 ?? '';
     document.getElementById('bePlz').value       = d.plz ?? '';
     document.getElementById('beOrt').value       = d.ort ?? '';
-    document.getElementById('beKontaktperson').value      = d.kontaktperson      ?? '';
-    document.getElementById('beKontaktpersonRolle').value = d.kontaktpersonRolle ?? '';
-    document.getElementById('beErreichbarkeit').value     = d.erreichbarkeit     ?? '';
-    document.getElementById('beTelefon').value   = d.telefon ?? '';
-    document.getElementById('beHandy').value     = d.handy ?? '';
-    document.getElementById('beEmail').value     = d.email ?? '';
     document.getElementById('beWebseite').value  = d.webseite ?? '';
+    // Alter «Zentraler Kontakt» → einmalig als SB übernehmen (Elena/ORS etc.)
+    window._beLegacyKontakt = (d.id && (d.kontaktperson || d.email || d.telefon))
+        ? {
+            name: d.kontaktperson || 'Sachbearbeiter',
+            rolle: d.kontaktpersonRolle || null,
+            telefon: d.telefon || null,
+            handy: d.handy || null,
+            email: d.email || null,
+            erreichbarkeit: d.erreichbarkeit || null
+          }
+        : null;
     const ibanEl   = document.getElementById('beIban');
     const qrIbanEl = document.getElementById('beQrIban');
     ibanEl.value   = d.iban   ?? '';
@@ -94,6 +111,201 @@ function openBehoerdeModal(existing) {
     document.getElementById('beIsActive').checked = d.isActive ?? true;
     // Felder typ-abhängig ein-/ausblenden (Kanton-Pflicht, Bank-Block ausblenden bei Steueramt)
     onBehoerdeTypChange();
+    refreshBeSbSection();
+    fillBeKontoinhaberSelect(d.id || null, d.kontoinhaberBehoerdeId || null);
+}
+
+/** Andere Behörden als Kontoinhaber (DTA Cdtr) — z.B. ORS Burgdorf → Zürich. */
+async function fillBeKontoinhaberSelect(selfId, selectedId) {
+    const sel = document.getElementById('beKontoinhaberBehoerde');
+    if (!sel) return;
+    const keep = selectedId != null ? String(selectedId) : '';
+    sel.innerHTML = '<option value="">— dieselbe Behörde (Name + Adresse) —</option>';
+    try {
+        const res = await fetch('/api/behoerden', { headers: ah() });
+        const list = res.ok ? await res.json() : [];
+        const self = selfId != null ? Number(selfId) : null;
+        (list || [])
+            .filter(b => b && b.id !== self)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de'))
+            .forEach(b => {
+                const addr = [b.plz, b.ort].filter(Boolean).join(' ');
+                const opt = document.createElement('option');
+                opt.value = String(b.id);
+                opt.textContent = addr ? `${b.name} (${addr})` : b.name;
+                if (keep && String(b.id) === keep) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        if (keep && !sel.value) sel.value = keep; // falls inaktiv/nicht in Liste
+    } catch { /* ignore */ }
+}
+
+function refreshBeSbSection() {
+    const id = document.getElementById('beId')?.value;
+    const sec  = document.getElementById('beSbSection');
+    const hint = document.getElementById('beSbHintNew');
+    if (!sec || !hint) return;
+    if (id) {
+        sec.style.display = 'block';
+        hint.style.display = 'none';
+        loadBeSachbearbeiter(parseInt(id, 10));
+    } else {
+        sec.style.display = 'none';
+        hint.style.display = 'block';
+        const list = document.getElementById('beSbList');
+        if (list) list.innerHTML = '';
+    }
+}
+
+async function loadBeSachbearbeiter(behoerdeId) {
+    const list = document.getElementById('beSbList');
+    if (!list || !behoerdeId) return;
+    list.innerHTML = '<div style="font-size:12px;color:#94a3b8;padding:6px 0">Lade…</div>';
+    try {
+        const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter?includeInactive=true`, { headers: ah() });
+        if (!res.ok) { list.innerHTML = '<div style="color:#dc2626;font-size:12px">Fehler beim Laden</div>'; return; }
+        let rows = await res.json();
+        // Einmalig: alten Zentral-Kontakt als ersten SB anlegen, dann Felder leeren.
+        if ((!rows || !rows.length) && window._beLegacyKontakt) {
+            const leg = window._beLegacyKontakt;
+            window._beLegacyKontakt = null;
+            const createRes = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter`, {
+                method: 'POST',
+                headers: { ...ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...leg, isActive: true })
+            });
+            if (createRes.ok) {
+                // Zentral-Felder in DB leeren (UI gibt es nicht mehr).
+                await fetch(`/api/behoerden/${behoerdeId}`, {
+                    method: 'PUT',
+                    headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: document.getElementById('beName').value.trim(),
+                        typ: document.getElementById('beTyp').value,
+                        kantonCode: document.getElementById('beKantonCode').value.trim() || null,
+                        adresse1: document.getElementById('beAdresse1').value.trim() || null,
+                        adresse2: document.getElementById('beAdresse2').value.trim() || null,
+                        adresse3: document.getElementById('beAdresse3').value.trim() || null,
+                        plz: document.getElementById('bePlz').value.trim() || null,
+                        ort: document.getElementById('beOrt').value.trim() || null,
+                        telefon: null, handy: null, email: null,
+                        kontaktperson: null, kontaktpersonRolle: null, erreichbarkeit: null,
+                        webseite: document.getElementById('beWebseite').value.trim() || null,
+                        iban: document.getElementById('beIban').value.trim() || null,
+                        qrIban: document.getElementById('beQrIban').value.trim() || null,
+                        kontoinhaberBehoerdeId: (() => {
+                            const v = document.getElementById('beKontoinhaberBehoerde')?.value;
+                            return v ? parseInt(v, 10) : null;
+                        })(),
+                        bic: document.getElementById('beBic').value.trim() || null,
+                        bankName: document.getElementById('beBankName').value.trim() || null,
+                        isActive: document.getElementById('beIsActive').checked
+                    })
+                });
+                const res2 = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter?includeInactive=true`, { headers: ah() });
+                rows = res2.ok ? await res2.json() : [];
+                loadBehoerden();
+            }
+        }
+        if (!rows.length) {
+            list.innerHTML = '<div style="font-size:12px;color:#94a3b8;font-style:italic;padding:4px 0">Noch keine Sachbearbeiter — z.B. für ORS pro Fall einen erfassen.</div>';
+            return;
+        }
+        list.innerHTML = rows.map(s => {
+            const contact = [s.email, s.telefon, s.handy].filter(Boolean).map(escHtml).join(' · ');
+            const sJson = JSON.stringify(s).replace(/'/g, '&#39;');
+            return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fafafa;${!s.isActive ? 'opacity:.55;' : ''}">
+                <div style="flex:1;min-width:0">
+                    <div style="font-weight:600;color:#0f172a;font-size:13px">${escHtml(s.name)}${s.rolle ? ` <span style="font-weight:400;color:#94a3b8">· ${escHtml(s.rolle)}</span>` : ''}${!s.isActive ? ' <span style="font-size:10px;color:#64748b">(inaktiv)</span>' : ''}</div>
+                    ${contact ? `<div style="font-size:11.5px;color:#64748b;margin-top:2px">${contact}</div>` : '<div style="font-size:11px;color:#b45309;margin-top:2px">⚠ keine E-Mail</div>'}
+                </div>
+                <button type="button" class="dok-menu-btn" onclick='openBeSbModal(${sJson})' title="Bearbeiten" style="flex-shrink:0">✎</button>
+                <button type="button" class="dok-menu-btn" onclick="deleteBeSb(${behoerdeId},${s.id},'${escHtml(s.name).replace(/'/g,"\\'")}')" title="Löschen" style="flex-shrink:0;color:#dc2626">✕</button>
+            </div>`;
+        }).join('');
+        // Scroll im Listen-Container behalten (Modal-Backdrop sonst „stiehlt" Wheel).
+        if (!list._beSbWheelBound) {
+            list.addEventListener('wheel', (e) => {
+                const el = list;
+                if (el.scrollHeight <= el.clientHeight + 1) return;
+                const atTop = el.scrollTop <= 0;
+                const atBot = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+                if ((e.deltaY < 0 && atTop) || (e.deltaY > 0 && atBot)) return;
+                e.stopPropagation();
+            }, { passive: true });
+            list._beSbWheelBound = true;
+        }
+    } catch (e) {
+        list.innerHTML = `<div style="color:#dc2626;font-size:12px">${escHtml(e.message)}</div>`;
+    }
+}
+
+function openBeSbModal(existing) {
+    const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    const behoerdeId = document.getElementById('beId')?.value;
+    if (!behoerdeId) { alert('Bitte die Behörde zuerst speichern.'); return; }
+    document.getElementById('beSbModal').style.display = 'flex';
+    document.getElementById('beSbModalTitle').textContent = d.id ? 'Sachbearbeiter bearbeiten' : 'Neuer Sachbearbeiter';
+    document.getElementById('beSbId').value = d.id ?? '';
+    document.getElementById('beSbName').value = d.name ?? '';
+    document.getElementById('beSbRolle').value = d.rolle ?? '';
+    document.getElementById('beSbErreichbarkeit').value = d.erreichbarkeit ?? '';
+    document.getElementById('beSbTelefon').value = d.telefon ?? '';
+    document.getElementById('beSbHandy').value = d.handy ?? '';
+    document.getElementById('beSbEmail').value = d.email ?? '';
+    document.getElementById('beSbBemerkung').value = d.bemerkung ?? '';
+    document.getElementById('beSbIsActive').checked = d.isActive ?? true;
+}
+
+function closeBeSbModal() {
+    const m = document.getElementById('beSbModal');
+    if (m) m.style.display = 'none';
+}
+
+async function saveBeSb() {
+    const behoerdeId = document.getElementById('beId')?.value;
+    if (!behoerdeId) return;
+    const id = document.getElementById('beSbId').value;
+    const name = document.getElementById('beSbName').value.trim();
+    if (!name) { alert('Bitte Name eingeben.'); return; }
+    const body = {
+        name,
+        rolle: document.getElementById('beSbRolle').value.trim() || null,
+        telefon: document.getElementById('beSbTelefon').value.trim() || null,
+        handy: document.getElementById('beSbHandy').value.trim() || null,
+        email: document.getElementById('beSbEmail').value.trim() || null,
+        erreichbarkeit: document.getElementById('beSbErreichbarkeit').value.trim() || null,
+        bemerkung: document.getElementById('beSbBemerkung').value.trim() || null,
+        isActive: document.getElementById('beSbIsActive').checked
+    };
+    try {
+        const url = id
+            ? `/api/behoerden/${behoerdeId}/sachbearbeiter/${id}`
+            : `/api/behoerden/${behoerdeId}/sachbearbeiter`;
+        const res = await fetch(url, {
+            method: id ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) { alert('Fehler: ' + await res.text()); return; }
+        closeBeSbModal();
+        loadBeSachbearbeiter(parseInt(behoerdeId, 10));
+        loadBehoerden();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+async function deleteBeSb(behoerdeId, id, name) {
+    if (!confirm(`Sachbearbeiter «${name}» löschen?\n\nFalls in einer Lohnabtretung verwendet: wird nur deaktiviert.`)) return;
+    try {
+        const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter/${id}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) { alert('Fehler beim Löschen.'); return; }
+        loadBeSachbearbeiter(behoerdeId);
+        loadBehoerden();
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 // Bei Typ=STEUERAMT: Kanton ist Pflicht, Bankverbindung wird ausgeblendet.
@@ -128,14 +340,22 @@ async function bePlzLookup(rawPlz) {
             return;
         }
         if (locs.length === 1) {
-            ortEl.value = locs[0].gemeindename;
-            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${locs[0].gemeindename} (${locs[0].kantonskuerzel})</span>`;
+            const ortName = (typeof stripCityCantonSuffix === 'function'
+                ? stripCityCantonSuffix(locs[0].ortschaftsname || locs[0].gemeindename)
+                : (locs[0].ortschaftsname || locs[0].gemeindename));
+            ortEl.value = ortName;
+            if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}</span>`;
             if (list) list.innerHTML = '';
             return;
         }
         // Mehrere Treffer → Datalist mit Vorschlägen, Ort bleibt leer/aktuell
         if (list) {
-            list.innerHTML = locs.map(l => `<option value="${l.gemeindename}">${l.kantonskuerzel}</option>`).join('');
+            list.innerHTML = locs.map(l => {
+                const n = (typeof stripCityCantonSuffix === 'function'
+                    ? stripCityCantonSuffix(l.ortschaftsname || l.gemeindename)
+                    : (l.ortschaftsname || l.gemeindename));
+                return `<option value="${n}"></option>`;
+            }).join('');
         }
         if (hint) hint.innerHTML = `<span style="color:#6b6152">${locs.length} Gemeinden — bitte im Ort-Feld auswählen oder tippen.</span>`;
     } catch { /* still */ }
@@ -176,15 +396,20 @@ async function saveBehoerde() {
         adresse3:           document.getElementById('beAdresse3').value.trim() || null,
         plz:                document.getElementById('bePlz').value.trim()     || null,
         ort:                document.getElementById('beOrt').value.trim()     || null,
-        telefon:            document.getElementById('beTelefon').value.trim() || null,
-        handy:              document.getElementById('beHandy').value.trim()   || null,
-        email:              document.getElementById('beEmail').value.trim()   || null,
-        kontaktperson:      document.getElementById('beKontaktperson').value.trim()      || null,
-        kontaktpersonRolle: document.getElementById('beKontaktpersonRolle').value.trim() || null,
-        erreichbarkeit:     document.getElementById('beErreichbarkeit').value.trim()     || null,
+        // Zentraler Kontakt entfernt — Kontakt nur noch über Sachbearbeiter-Stamm.
+        telefon:            null,
+        handy:              null,
+        email:              null,
+        kontaktperson:      null,
+        kontaktpersonRolle: null,
+        erreichbarkeit:     null,
         webseite:           document.getElementById('beWebseite').value.trim()           || null,
         iban:               ibanRaw   || null,
         qrIban:             qrIbanRaw || null,
+        kontoinhaberBehoerdeId: typ === 'STEUERAMT' ? null : (() => {
+            const v = document.getElementById('beKontoinhaberBehoerde')?.value;
+            return v ? parseInt(v, 10) : null;
+        })(),
         bic:                typ === 'STEUERAMT' ? null : (document.getElementById('beBic').value.trim()      || null),
         bankName:           typ === 'STEUERAMT' ? null : (document.getElementById('beBankName').value.trim() || null),
         isActive:           document.getElementById('beIsActive').checked
@@ -197,6 +422,15 @@ async function saveBehoerde() {
         if (!res.ok) {
             const err = await res.text();
             alert('Fehler: ' + err);
+            return;
+        }
+        const saved = await res.json();
+        // Neu angelegt: Modal offen lassen → sofort SB-Stamm pflegen (ORS-Fall).
+        if (!id && saved?.id) {
+            document.getElementById('beId').value = saved.id;
+            document.getElementById('beModalTitle').textContent = 'Behörde bearbeiten';
+            refreshBeSbSection();
+            loadBehoerden();
             return;
         }
         closeBehoerdeModal();
@@ -945,8 +1179,12 @@ function lpSuggestBasisFlags(code, kategorie, typ) {
         '20.3':  { feiertag: false, ferien: true,  ml13: true  },
         '60.1':  { feiertag: false, ferien: false, ml13: true  },
         '60.3':  { feiertag: false, ferien: false, ml13: false },
+        '65.1':  { feiertag: true,  ferien: false, ml13: true  },
+        '65.2':  { feiertag: true,  ferien: false, ml13: false },
         '70.1':  { feiertag: false, ferien: false, ml13: true  },
         '70.2':  { feiertag: false, ferien: false, ml13: false },
+        '75.1':  { feiertag: true,  ferien: false, ml13: true  },
+        '75.2':  { feiertag: true,  ferien: false, ml13: false },
         '180.1': { feiertag: false, ferien: false, ml13: false },
         '200.1': { feiertag: false, ferien: false, ml13: false },
         '200.5': { feiertag: false, ferien: false, ml13: true  },

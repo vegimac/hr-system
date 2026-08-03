@@ -31,7 +31,7 @@ Filiale immer über die Sidebar wählen — sonst siehst du die falsche Belegsch
 2. **Vertragsmodell** — FLEX / MTP / FIX / FIX-M.
 3. **Funktion** (z.B. Crew, Shift Manager) und **Ausbildung** (z.B. „Ia — ohne Gastronomische Berufslehre"). Daraus rechnet das System sofort den L-GAV-Mindestlohn aus.
 4. **Lohn** — Stundenlohn oder Monatslohn, je nach Modell.
-5. **Pensum** (bei FIX und FIX-M) oder **garantierte Wochenstunden** (bei MTP).
+5. **Pensum %** (bei FIX und FIX-M) oder **garantierte Wochenstunden /Wo** (bei MTP). Bei FLEX optional der Schalter **«< 8 h»** (L-GAV-Sonderregel neben Max. h/Woche).
 6. **Ferien %** (Standard 10.64 für 5 Wochen), **Feiertag %** (2.27 % bei Crew, 0 bei FIX-M), **13. ML %** (fix 8.33 — Pflicht).
 
 Klick auf **Speichern** → das System beendet automatisch den Vorgänger-Vertrag auf den Vortag und legt den neuen ab Vertragsbeginn an. Keine Datums-Lücken.
@@ -127,7 +127,10 @@ Der Vertrag wurde in mindestens einer abgeschlossenen oder laufenden Periode ben
 Neuer Vertrag mit Funktion „Shift Leader 1–6 Mt." (oder „Shift Leader 7+ Mt." je nach Erfahrung). Vertragsmodell wird automatisch auf FIX-M gesetzt — Shift Manager sind immer Management.
 
 **Mein MA macht eine Probezeit. Wie?**
-Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3 — daraus berechnet das System **Probezeit bis**. Das Gespräch und das Protokoll führst du im MA-Tab **Restaurant Admin → Probezeit** (Formular **Probezeit Gespräch**, ein Gespräch mit Dokument-Verknüpfung). Details: [Mitarbeiter](#mitarbeiter), Abschnitt „Restaurant Admin".
+Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3 — daraus berechnet das System **Probezeit bis**. Fehlt die Probezeit nach easy@work-Import: Admin → easy@work → **«Probezeiten nachführen»** ([easy@work](#easyatwork)). Das Gespräch führst du unter **Restaurant Admin → Probezeit** (Datum + Protokoll verknüpfen). Details: [Mitarbeiter](#mitarbeiter).
+
+**Wann darf ich den Vertrag noch ändern?**
+Solange der Definitivlauf der Periode **nicht abgeschlossen** ist (Akonto und «provisorisch» sperren Verträge nicht). Danach nur noch Folge-Vertrag ab neuem Datum — siehe [Edit-Sperre](#edit-sperre).
 
 **Was ist das „garantierte Monat"-Feld bei MTP?**
 Eine reine Anzeige zur Plausibilitäts-Prüfung: `garantierte Wochenstunden × Stundenlohn × 52 / 12`. So siehst du sofort, ob das ungefähr dem Mindesteinkommen entspricht das du dem MA versprochen hast.

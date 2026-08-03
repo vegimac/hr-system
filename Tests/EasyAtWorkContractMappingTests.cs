@@ -75,9 +75,9 @@ public class EasyAtWorkContractMappingTests
         Assert.Equal(5000m, info.MonthlySalary);
     }
 
-    // Stundenlohn-Verträge bleiben unberührt: week + 17 = UTP, week + 21 = MTP.
+    // Ohne Typ-Name: week + 17 = FLEX (Default). Mit Typ MTP/TPM: MTP — auch bei 17 Std.
     [Fact]
-    public void Week17_BleibtUtp()
+    public void Week17_OhneTyp_BleibtFlex()
     {
         var c = new EawContract { AmountType = "week", Amount = 17m };
         var rates = new List<EawPayRate>
@@ -91,6 +91,43 @@ public class EasyAtWorkContractMappingTests
         Assert.Equal(20.40m, info.HourlyRate);
         Assert.Null(info.EmploymentPercentage);
         Assert.Null(info.MonthlySalaryFte);
+    }
+
+    // Walter 02.08.2026: MTP mit 17 Std/Woche (Fall 580046) — Typ führend, nicht Stunden.
+    [Fact]
+    public void Week17_MitTypMtp_IstMtp()
+    {
+        var c = new EawContract
+        {
+            Type = "MTP/TPM",
+            AmountType = "week",
+            Amount = 17m,
+        };
+        var rates = new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 21.66m, FromRaw = "2026-01-01" },
+        };
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, Stichtag);
+
+        Assert.Equal("MTP", info.EmploymentModel);
+        Assert.Equal(17m, info.GuaranteedHoursPerWeek);
+        Assert.Equal(21.66m, info.HourlyRate);
+    }
+
+    [Fact]
+    public void ApplyContractTypeNames_FuelltTypeAusTypeId()
+    {
+        var c = new EawContract { TypeId = 105, AmountType = "week", Amount = 17m };
+        EasyAtWorkEmployeeSyncService.ApplyContractTypeNames(
+            new[] { c }, new Dictionary<int, string> { [105] = "MTP/TPM" });
+        Assert.Equal("MTP/TPM", c.Type);
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 21.66m, FromRaw = "2026-01-01" },
+        }, Stichtag);
+        Assert.Equal("MTP", info.EmploymentModel);
     }
 
     [Fact]

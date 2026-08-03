@@ -134,6 +134,33 @@ public class LohnEditLockService
     }
 
     /// <summary>
+    /// FirstAllowed für VERTRÄGE + QUELLENSTEUER + FAMILIENZULAGEN /
+    /// easy@work-Vertrags-Sync (Walter-Vorgabe 01.08.2026).
+    ///
+    /// Sperre erst wenn der DEFINITIV-Lauf wirklich <c>abgeschlossen</c> ist
+    /// (DTA erstellt, Lohn final). Während <c>provisorisch_abgeschlossen</c>
+    /// (HR-Kontrolle) und im gesamten Akonto-Strang bleiben Änderungen möglich —
+    /// genau dafür ist die Kontrolle da (z.B. falschen QST-Ansatz korrigieren,
+    /// Kinderzulage für den offenen Definitiv-Monat nachtragen, oder befristet
+    /// → unbefristet nachziehen, bevor der DTA rausgeht).
+    ///
+    /// Absenzen / wiederkehrende Lohnzulagen / Bank behalten die strengere
+    /// <see cref="GetFirstAllowedDateAsync"/>-Regel (inkl. provisorisch + Akonto).
+    /// </summary>
+    public async Task<DateOnly?> GetFirstAllowedDateForContractsAsync(int companyProfileId)
+    {
+        var fromPeriode = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == companyProfileId)
+            .Where(p => p.Status == "abgeschlossen")
+            .OrderByDescending(p => p.Year).ThenByDescending(p => p.Month)
+            .Select(p => new { p.Year, p.Month })
+            .FirstOrDefaultAsync();
+
+        if (fromPeriode is null) return null;
+        return new DateOnly(fromPeriode.Year, fromPeriode.Month, 1).AddMonths(1);
+    }
+
+    /// <summary>
     /// GLOBALE Variante über ALLE Filialen (Walter-Vorgabe 23.05.2026) — für
     /// global gültige Stammdaten wie L-GAV-Mindestlöhne. Ein global wirksamer
     /// Satz darf nicht rückwirkend in eine Periode fallen, die in IRGENDEINER

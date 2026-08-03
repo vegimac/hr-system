@@ -31,6 +31,24 @@ window._showValidationToast = function(msg) {
     window._validation_toast_timer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
 };
 
+/** Neutraler Info-Toast (Kohle) — z.B. QST nach Konfessions-Änderung. */
+function _showQstSyncToast(msg) {
+    let el = document.getElementById('_qst_sync_toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '_qst_sync_toast';
+        el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);'
+            + 'background:#3f3f3f;color:#fff;padding:10px 18px;border-radius:12px;'
+            + 'font-size:13px;font-weight:650;z-index:9999;box-shadow:0 10px 24px rgba(60,55,48,0.22);'
+            + 'opacity:0;transition:opacity .15s';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.opacity = '1';
+    clearTimeout(window._qst_sync_toast_timer);
+    window._qst_sync_toast_timer = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+}
+
 window.validateZip = function(el) {
     // Schweizer PLZ = 4-stellig numerisch.
     const before = el.value;
@@ -952,8 +970,20 @@ function renderEmployeeDetail(emp) {
         const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
         _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
     }
-    if (_hcActive?.probationEndDate && String(_hcActive.probationEndDate).slice(0, 10) >= _hcToday)
-        _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcActive.probationEndDate)}</span>`);
+    // Probezeit-Badge oben: Datum + Status + «eintragen»
+    // (Walter 02.08.2026) — nicht mehr in der Anstellung-Karte.
+    const _hcPzEnde = _hcActive?.probationEndDate
+        ? String(_hcActive.probationEndDate).slice(0, 10) : null;
+    const _hcPzAktiv = !!( _hcPzEnde && _hcPzEnde >= _hcToday);
+    const _hcPz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
+    if (_hcPzAktiv) {
+        const pzStatus = _hcPz1Ok
+            ? `<span class="emp-hpz-status ok">✓ erledigt</span>`
+            : `<span class="emp-hpz-status open">offen</span>
+               <button type="button" class="emp-hpz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
+                 title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>`;
+        _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcPzEnde)} · ${pzStatus}</span>`);
+    }
     if (emp.isPayrollExcluded)
         _hcBadges.push(`<span class="emp-hbadge hb-inak">⛔ MA ohne Lohn</span>`);
     // Zusatz-Angabe je Modell (Walter 17.07.2026): FIX/FIX-M = Pensum %,
@@ -1156,6 +1186,17 @@ function renderEmployeeDetail(emp) {
 
         <!-- TAB: Zulagen & Abzüge -->
         <div class="emp-tab-content" id="emp-tab-zulagen">
+            <!-- Uniformen-Depot (Walter Aug 2026) -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Uniformen-Depot</span>
+                <span style="font-size:11px;font-weight:400;color:#94a3b8">CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt</span>
+            </div>
+            <div id="uniformDepotContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
             <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
@@ -1254,8 +1295,7 @@ function loadUebersichtTab() {
     //    ov-Inputs spiegeln ihre Werte beim Speichern in die (versteckten)
     //    ef-*-Inputs des Personal-Tabs und rufen saveEmpEdit() — derselbe
     //    geprüfte Save-Pfad, keine doppelten DOM-IDs. ──
-    const adresse = [emp.street, [emp.zipCode, emp.city].filter(Boolean).join(' ')].filter(Boolean).join(', ')
-        + (emp.cantonCode ? ' ' + emp.cantonCode : '');
+    const adresse = [emp.street, [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     // Edit-Felder im TEXT-Look (Walter 17.07.2026: grosse Input-Kaesten
     // zerstoerten die ruhige Karte): sehen aus wie Werte, nur mit dezenter
     // gestrichelter Unterlinie — erst bei Fokus wird der Rahmen sichtbar.
@@ -1294,9 +1334,9 @@ function loadUebersichtTab() {
             </div>
             <div class="ov-pf ov-pf-ortkt">
                 <div class="ov-ortkt">
-                    <div class="ov-pf ov-pf-city" title="${esc(emp.city || '')}">
+                    <div class="ov-pf ov-pf-city" title="${esc(stripCityCantonSuffix(emp.city) || '')}">
                         <div class="ov-pfl">${_t('ma.field.city','Ort')}</div>
-                        <div class="ov-pfv">${esc(emp.city) || '<span class="ov-empty">–</span>'}</div>
+                        <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
                     </div>
                     <div class="ov-pf ov-pf-kt">
                         <div class="ov-pfl">Kt.</div>
@@ -1349,14 +1389,18 @@ function loadUebersichtTab() {
                 : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
             <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
         </div>
-        ${emp.isPayrollExcluded ? '' : `
-        <div class="ov-addrsep">
-            <span class="ov-pfl" style="margin-bottom:0">${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="text-transform:none;letter-spacing:0;font-weight:500;color:#a2acb8">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
-            <button class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>
-        </div>
-        <div id="otherAddressesContent"></div>`}
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
+
+    // Weitere Adressen = eigene Box unten (Walter 02.08.2026).
+    // Titelzeile: «Weitere Adressen» [(n)] · Beschreibung (Walter 02.08.2026).
+    const kAddr = emp.isPayrollExcluded ? '' : _ovCard(
+        `<span id="ovAddrCardTitle">${_t('ma.section.otherAddresses', 'Weitere Adressen')}</span>` +
+        `<span id="ovAddrCardCount" class="ov-addr-count"></span>` +
+        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span>`,
+        null, '',
+        `<div id="otherAddressesContent"></div>`,
+        `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>`);
 
     // ── Karte Anstellung (Walter 17.07.2026): L-GAV/<8h-Toggles +
     //    Kuendigungs-Daten mit Auto-Fristberechnung.
@@ -1364,67 +1408,33 @@ function loadUebersichtTab() {
     //    untereinander ganz rechts —
     //    Eintritt | Austritt | L-GAV
     //    Gekündigt am | Kündigung per | < 8 h / Wo. ──
-    const pzEnde = emp.probationEndDate ? formatDate(emp.probationEndDate) : null;
-    // Probezeitgespräch nur solange die Probezeit läuft (Walter 21.07.2026).
-    const pzAktiv = !!(emp.probationEndDate &&
-        new Date(String(emp.probationEndDate).slice(0, 10)) >= new Date(new Date().toDateString()));
-    // Erledigt nur mit Gesprächsdatum UND Protokoll-Verknüpfung
-    // (Walter 21.07.2026). Kein Direkt-Upload hier — Scan erst nach
-    // Hand-Unterschrift, Verknüpfung im Probezeit-Modal (Restaurant Admin).
-    const pz1Ok = !!(emp.probezeitGespraech1Am && emp.probezeitGespraech1DokumentId);
-    // Probezeit neben L-GAV (Walter 31.07.2026):
-    //   Zeile wie L-GAV-Titel: «Probezeit bis TT.MM.JJJJ»
-    //   darunter bei offen: rot «offen» + Button «→ eintragen» in derselben Zeile
-    let pzStatusLine = '';
-    if (pzAktiv) {
-        if (pz1Ok) {
-            pzStatusLine = `<div class="ov-anst-pz-line"><span class="ov-anst-pz-status ok">✓ erledigt</span></div>`;
-        } else {
-            pzStatusLine = `<div class="ov-anst-pz-line">
-                <span class="ov-anst-pz-status open">offen</span>
-                <button type="button" class="ov-anst-pz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
-                  title="Gesprächsdatum setzen und unterschriebenes Protokoll verknüpfen">→ eintragen</button>
-            </div>`;
-        }
-    }
-    // Probezeit nur anzeigen solange noch aktiv (Ende ≥ heute) — abgelaufen
-    // komplett ausblenden (Walter 31.07.2026; war vorher oft sichtbar weil
-    // nur der Status an pzAktiv hing, der Titel aber am Datum).
-    const pzVisible = !!(pzEnde && pzAktiv);
-    const lgavPzCell = `<div class="ov-pf ov-anst-lgav-pz">
-            <div class="ov-anst-lgav-pz-head">
-                <div class="ov-pfl">L-GAV</div>
-                ${pzVisible ? `<div class="ov-anst-pz-title" title="Probezeit">Probezeit bis ${pzEnde}</div>` : ''}
-            </div>
-            <div class="ov-anst-lgav-pz-body">
-                <div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div>
-                ${pzVisible ? pzStatusLine : ''}
-            </div>
-        </div>`;
-    // Layout (Walter 31.07.2026): 2 Zeilen — Anstellung breiter, Nachtarbeit schmaler.
-    //   Zeile 1: Eintritt | Austritt | L-GAV + Probezeit
+    // Layout (Walter 02.08.2026): Probezeit nur noch als Badge im MA-Kopf.
+    //   Zeile 1: Eintritt | Austritt | L-GAV (rechts)
     //   Zeile 2: Gekündigt am | Kündigung per | Kündigung durch | Austrittsgrund
     // < 8 h / Wo. gehört zum FLEX-Vertrag (Vertragsmaske), nicht zur Anstellung.
     const kAnst = _ovCard('Anstellung', null, '', `
         <div class="ov-anst-grid">
-            ${_pf(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? formatDate(emp.entryDate) : null)}
-            ${_pf(_t('ma.detail.exitDate','Austritt'), emp.exitDate ? formatDate(emp.exitDate) : null)}
-            ${lgavPzCell}
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
-            <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
-            <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung durch</div>
-            <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
-                <option value="">—</option>
-                <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
-                <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
-            </select></div>
-            <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
-            <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
+            <div class="ov-anst-top">
+                <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
+                <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
+                <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
+            </div>
+            <div class="ov-anst-kuend-row">
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Gekündigt am</div>
+                <input id="ov-kuendAm" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungAusgesprochenAm)}" onchange="ovKuendAmChanged(${emp.id})"></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung per</div>
+                <input id="ov-kuendPer" class="ov-softin" type="date" value="${toDateInput(emp.kuendigungPer)}" onchange="ovDirty()"></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Kündigung durch</div>
+                <select id="ov-kuendDurch" class="ov-softin" onchange="ovDirty()">
+                    <option value="">—</option>
+                    <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
+                    <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+                </select></div>
+                <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
+                <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
+            </div>
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
-
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
     //    aus dem frueheren Personal-Tab lebt jetzt HIER (einzige Instanz,
     //    keine DOM-ID-Dubletten): Status mit Ablauf-Warnung, Drucken-Buttons,
@@ -1493,15 +1503,17 @@ function loadUebersichtTab() {
     const vRows = contracts.map(c => {
         const von = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const bis = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
+        const pensum = empContractPensumText(c);
         const lohn = empContractWageText(c);
         const actions = _empContractActionsHtml(emp, c, contracts);
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
+        const metaExtra = [pensum, lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         return `<div class="ov-vrow${laufend ? '' : ' archiv'}">
             <span class="ov-vdot${laufend ? ' g' : ''}"></span>
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
-            <span class="ov-vmeta">${von} – ${bis}${lohn ? ' · ' + esc(lohn) : ''}</span>
+            <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
@@ -1526,13 +1538,11 @@ function loadUebersichtTab() {
 
     // Dokumente-Karte entfernt (Walter 17.07.2026) — Dokumente haben wie
     // gehabt ihren eigenen Bereich (Tab «Dokumente»).
-    // Weitere Adressen (Fussbereich der Personalien-Karte) nachladen.
 
-    // Personalien & Adresse ueber die VOLLE Breite (wichtigster Block),
-    // darunter Anstellung | Nachtarbeit, dann Vertraege + Saldi-Tabelle.
+    // Personalien · Anstellung|Nachtarbeit · Verträge|Saldi · Weitere Adressen
     el.innerHTML = `<div class="ov-wrap">${emp.isPayrollExcluded
         ? `<div class="ov-full">${kPers}</div>`
-        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div>`}</div>`;
+        : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded)
@@ -1602,18 +1612,20 @@ function renderEmpContractList(emp) {
         const from = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const to = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
         const title = c.jobTitle || c.jobGroupCode || c.position || 'Vertrag';
+        const pensum = empContractPensumText(c);
         const wage = empContractWageText(c);
         const active = _empContractIsEnded(c)
             ? `<span class="emp-contract-status">archiviert</span>`
             : `<span class="emp-contract-status active">aktiv</span>`;
         const actions = _empContractActionsHtml(emp, c, contracts);
+        const metaExtra = [pensum, wage].filter(Boolean).map(t => ' · ' + esc(t)).join('');
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
                 <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
                 ${active}
             </div>
-            <div class="emp-contract-meta">${from} – ${to}${wage ? ' · ' + esc(wage) : ''}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
+            <div class="emp-contract-meta">${from} – ${to}${metaExtra}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
             <div class="emp-contract-actions">${actions}</div>
         </div>`;
     }).join('');
@@ -1641,6 +1653,25 @@ function empContractWageText(c) {
     if (c.hourlyRate != null) return `CHF ${fmt(c.hourlyRate)}/h`;
     if (c.monthlySalaryFte != null) return `CHF ${fmt(c.monthlySalaryFte)} / 100%`;
     if (c.monthlySalary != null) return `CHF ${fmt(c.monthlySalary)} / Mt.`;
+    return '';
+}
+
+// FIX/FIX-M → Pensum «80%»; MTP → Wochenstunden «25/Wo» (Walter 02.08.2026).
+function empContractPensumText(c) {
+    const m = (c.employmentModel || '').toUpperCase();
+    if (m === 'FIX' || m === 'FIX-M') {
+        if (c.employmentPercentage == null || c.employmentPercentage === '') return '';
+        const n = Number(c.employmentPercentage);
+        if (!Number.isFinite(n)) return '';
+        return `${Number.isInteger(n) ? n : n.toLocaleString('de-CH', { maximumFractionDigits: 2 })}%`;
+    }
+    if (m === 'MTP') {
+        const h = c.guaranteedHoursPerWeek ?? c.weeklyHours;
+        if (h == null || h === '') return '';
+        const n = Number(h);
+        if (!Number.isFinite(n)) return '';
+        return `${Number.isInteger(n) ? n : n.toLocaleString('de-CH', { maximumFractionDigits: 2 })}/Wo`;
+    }
     return '';
 }
 
@@ -1874,6 +1905,7 @@ function switchEmpTab(tab) {
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.
+        if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);
@@ -2152,7 +2184,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
     }
     if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
           'night_work_exam', 'night_work_ausnahme',
-          'probezeit_gespraech1', 'probezeit_gespraech2'].includes(kind)) return;
+          'probezeit_gespraech1', 'probezeit_gespraech2',
+          'lohn_assignment'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2171,6 +2204,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'spouse'              ? ['spouse', 'spouse_permit']
                       : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
                           ? ['probezeitgespraech', 'probezeit_gespraech']
+                      : kind === 'lohn_assignment'     ? ['lohnabtretung', 'pfaendung', 'pfändung']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2180,6 +2214,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'night_work_ausnahme' ? /(ausnahme|nacht|tag.{0,3}nacht|anlage)/i
                        : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
                            ? /(probezeit)/i
+                       : kind === 'lohn_assignment'
+                           ? /(pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2225,6 +2261,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'night_work_ausnahme' ? 'Nachtarbeit: Ausnahmeregelung verknüpfen'
                    : kind === 'probezeit_gespraech1' ? 'Probezeitgespräch 1: Protokoll verknüpfen'
                    : kind === 'probezeit_gespraech2' ? 'Probezeitgespräch 2: Protokoll verknüpfen'
+                   : kind === 'lohn_assignment'     ? 'Lohnabtretung: Beleg-Dokument verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -2238,6 +2275,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                         ? 'Wähle die unterschriebene Ausnahmeregelung Tag-/Nachtarbeit des MA. Oder lade ein neues Dokument hoch.'
                         : (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2')
                             ? 'Wähle das ausgefüllte Probezeitgespräch-Protokoll (Typ «Probezeitgespräch» unter Mitarbeiterentwicklung). Oder lade ein neues hoch.'
+                        : kind === 'lohn_assignment'
+                            ? 'Wähle das Abtretungs-/Pfändungsdokument — ohne Beleg ist die Lohnabtretung im Lohnlauf unwirksam. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -2354,7 +2393,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         defaultKatId: defaultTyp?._katId || null,
         spouseFamilyMemberId: extra?.spouseFamilyMemberId || null,
         // Walter 14.06.2026: für kind='permit_history' der konkrete History-Eintrag.
-        permitHistoryId: extra?.permitHistoryId || null
+        permitHistoryId: extra?.permitHistoryId || null,
+        // Walter 02.08.2026: Lohnabtretung-Beleg.
+        lohnAssignmentId: extra?.lohnAssignmentId || null
     };
 }
 
@@ -2429,6 +2470,11 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!historyId) { alert('Bewilligungs-Eintrag-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/permit-history/${historyId}/dokument`;
             body = JSON.stringify({ dokumentId });
+        } else if (kind === 'lohn_assignment') {
+            const laId = ctx.lohnAssignmentId;
+            if (!laId) { alert('Lohnabtretungs-ID fehlt.'); return; }
+            url  = `/api/employee-lohn-assignments/${laId}/dokument`;
+            body = JSON.stringify({ dokumentId });
         } else if (kind === 'spouse') {
             const famId = ctx.spouseFamilyMemberId;
             if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
@@ -2477,6 +2523,9 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if (kind === 'permit_history') {
             if (typeof loadPermitHistory === 'function') loadPermitHistory(empId);
             if (typeof selectEmployee === 'function') selectEmployee(empId);
+        }
+        if (kind === 'lohn_assignment' && typeof loadLohnAssignmentsTab === 'function') {
+            loadLohnAssignmentsTab(empId);
         }
         // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
@@ -3649,7 +3698,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                     </div>
                 </div>
                 ${e.inLohnVerwendet
-                    ? `<span title="Dieser QST-Eintrag wurde bereits in einem Lohnlauf verwendet und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                    ? `<span title="Dieser QST-Eintrag gehört zu einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                     : `<div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
                         <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="qstMenu-${e.id}">
@@ -3748,6 +3797,9 @@ async function deleteQstEntry(entryId) {
         if (typeof selectEmployee === 'function') {
             await selectEmployee(selectedEmployeeId);
         }
+        if (typeof reloadLohnAfterQstChange === 'function') {
+            reloadLohnAfterQstChange(selectedEmployeeId);
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -3771,7 +3823,7 @@ async function openQstFromTab(entryId) {
         emp.permitType
             ? `${emp.permitType.code}${emp.permitType.description ? ' — ' + emp.permitType.description : ''}`
             : (emp.permitTypeId ? 'Typ ' + emp.permitTypeId : '–'));
-    setTxt('qstWohnortDisplay',   [emp.zipCode, emp.city].filter(Boolean).join(' ') || '–');
+        setTxt('qstWohnortDisplay',   [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' ') || '–');
     // Nationalität immer als Volltext (Walter-Vorgabe 14.05.2026) — der
     // Backend liefert nationalityName als Klartext (AppText → ISO-Tabelle).
     setTxt('qstNatDisplay',       emp.nationalityName ?? emp.nationality ?? '–');
@@ -4036,7 +4088,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             let addrBadge = '';
             if (m.alternativeAddress) {
                 const a = m.alternativeAddress;
-                const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
+                const ort = [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' ');
                 const land = a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : '';
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
@@ -4804,7 +4856,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
         ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
-        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(emp.city)}" ${ewInput}>`)}
+        ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(stripCityCantonSuffix(emp.city))}" ${ewInput}>`)}
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
         ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
     </div>
@@ -5026,9 +5078,11 @@ async function plzLookup(rawPlz) {
     // Eindeutiger Treffer → automatisch setzen
     if (locs.length === 1) {
         const l = locs[0];
-        cityInput.value   = l.gemeindename;
+        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
+        cityInput.value   = ortName;
         kantonSelect.value = l.kantonskuerzel;
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+        // Ortschaft ohne Kanton in Klammern (Walter 02.08.2026)
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
         return;
     }
 
@@ -5052,23 +5106,25 @@ function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
 
     const dl = document.createElement('datalist');
     dl.id = dlId;
+    const locName = l => stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
     dl.innerHTML = locs.map(l => {
         const bfs = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
-        return `<option value="${esc(l.gemeindename)}" data-kanton="${l.kantonskuerzel}" data-bfs="${bfs}">${l.kantonskuerzel}</option>`;
+        return `<option value="${esc(locName(l))}" data-kanton="${l.kantonskuerzel}" data-bfs="${bfs}"></option>`;
     }).join('');
     cityEl.setAttribute('list', dlId);
     cityEl.parentElement?.appendChild(dl);
 
     // Wenn aktueller Wert schon einer der Treffer ist → Kanton/BFS sofort syncen
-    const pre = locs.find(l => l.gemeindename === cityEl.value);
+    const pre = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
     if (pre) {
         if (cantonEl) cantonEl.value = pre.kantonskuerzel;
         if (bfsEl)    bfsEl.value    = pre.bfsNr ?? pre.bfsNumber ?? pre.bfs_number ?? '';
+        cityEl.value = locName(pre);
     }
 
     // Bei jeder Änderung im Ort-Feld den Kanton aktualisieren falls Match
     cityEl.oninput = () => {
-        const match = locs.find(l => l.gemeindename === cityEl.value);
+        const match = locs.find(l => locName(l) === cityEl.value || l.gemeindename === cityEl.value);
         if (match) {
             if (cantonEl) cantonEl.value = match.kantonskuerzel;
             if (bfsEl)    bfsEl.value    = match.bfsNr ?? match.bfsNumber ?? match.bfs_number ?? '';
@@ -5077,7 +5133,7 @@ function bindDatalistToCityInput(cityEl, cantonEl, bfsEl, locs, plz, hint) {
 
     if (hint) {
         hint.innerHTML = pre
-            ? `<span style="color:#16a34a">✓ ${esc(pre.gemeindename)} (${pre.kantonskuerzel})</span>
+            ? `<span style="color:#16a34a">✓ ${esc(locName(pre))}</span>
                <span style="color:#94a3b8;font-size:11.5px;margin-left:6px">— ${locs.length} Gemeinden für PLZ ${plz}; Ort-Feld öffnen für andere Auswahl.</span>`
             : `<span style="color:#475569">PLZ ${plz} → ${locs.length} Gemeinden — im Ort-Feld auswählen oder frei tippen.</span>`;
     }
@@ -5218,7 +5274,7 @@ async function saveEmpEdit() {
         email:        easyWorkLocked ? (emp.email || null) : (_emailRaw || null),
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
         zipCode:      _zipRaw || null,
-        city:         easyWorkLocked ? (emp.city || null) : (document.getElementById('ef-city')?.value || null),
+        city:         easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null),
         country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
         cantonCode:   easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null),
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
@@ -5270,6 +5326,9 @@ async function saveEmpEdit() {
         letterSalutation:      (formVal('ef-letterSalutation', 'ov-letterSalutation') || '').trim() || null,
         placeOfOrigin:         placeOfOriginEl ? (placeOfOriginEl.value?.trim() || null) : (emp.placeOfOrigin || null),
     };
+    const religionBefore = emp.religion || '';
+    const religionAfter  = empPayload.religion || '';
+    const religionChanged = religionBefore !== religionAfter;
 
     // "Kein Lohn"-Flag — nur senden wenn der Toggle im Formular existiert
     // (= aktueller User ist admin; sonst rendert das Feld nicht).
@@ -5339,6 +5398,24 @@ async function saveEmpEdit() {
                 renderEmployeeList(list);
             }
             renderEmployeeDetail(selectedEmployee);
+
+            // Konfession geändert → QST Kirchensteuer wurde serverseitig
+            // nachgezogen (Walter 01.08.2026). Kurz zurückmelden + Lohn neu laden.
+            if (religionChanged) {
+                try {
+                    const qr = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/current`, { headers: ah() });
+                    if (qr.ok) {
+                        const qst = await qr.json();
+                        if (qst && qst.qstCode) {
+                            const kirche = qst.kirchensteuer ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
+                            _showQstSyncToast(`QST nachgezogen: ${qst.qstCode} · ${kirche}`);
+                        }
+                    }
+                } catch { /* toast best-effort */ }
+                if (typeof reloadLohnAfterQstChange === 'function') {
+                    reloadLohnAfterQstChange(selectedEmployeeId);
+                }
+            }
         }
     } catch {
         alert('Verbindungsfehler beim Speichern.');
@@ -5588,7 +5665,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
     if (summaryEl && emp) {
         const parts = [
             emp.street,
-            [emp.zipCode, emp.city].filter(Boolean).join(' '),
+            [emp.zipCode, stripCityCantonSuffix(emp.city)].filter(Boolean).join(' '),
             emp.country && emp.country.toLowerCase() !== 'schweiz' ? emp.country : null,
         ].filter(Boolean);
         summaryEl.textContent = parts.length ? parts.join(', ') : '— keine Hauptadresse erfasst —';
@@ -5607,7 +5684,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
                     const summary = [
                         a.description || null,
                         [a.street, a.houseNumber].filter(Boolean).join(' '),
-                        [a.zipCode, a.city].filter(Boolean).join(' '),
+                        [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' '),
                         a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : null,
                     ].filter(Boolean).join(' · ');
                     opt.textContent = summary || `Adresse #${a.id}`;
@@ -5822,6 +5899,7 @@ async function openAllowanceModal(existing) {
         return;
     }
     const d = (typeof existing === 'object' && existing !== null) ? existing : {};
+    const isNew = !d.id;
     document.getElementById('alId').value            = d.id ?? '';
     document.getElementById('alValidFrom').value     = d.validFrom ?? '';
     document.getElementById('alValidTo').value       = d.validTo   ?? '';
@@ -5829,7 +5907,8 @@ async function openAllowanceModal(existing) {
     document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
     document.getElementById('alTarifSatzNr').value   = (d.tarifSatzNr ?? '').toString();
     document.getElementById('alNote').value          = d.note ?? '';
-    document.getElementById('alError').textContent   = '';
+    const errEl = document.getElementById('alError');
+    if (errEl) { errEl.textContent = ''; errEl.style.color = '#dc2626'; }
     document.getElementById('alTarifHint').textContent = '';
     const lblInfo = document.getElementById('alTarifInfoLbl');
     if (lblInfo) lblInfo.textContent = '';
@@ -5854,10 +5933,30 @@ async function openAllowanceModal(existing) {
         }
     }
     document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
+
+    // Lohnlauf-Sperre (weich, wie QST): Gültig-ab nicht in definitiv
+    // abgeschlossene Monate. FAK-Entscheid oft älter (z.B. 01.01.2025) —
+    // für den offenen Definitiv-Monat auf FirstAllowed hochsetzen.
+    const vfInp = document.getElementById('alValidFrom');
+    if (window.lohnEditLock && vfInp && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+        const state = await window.lohnEditLock.loadState(fixedCompanyProfileId, { mode: 'contracts' });
+        window.lohnEditLock.applyToDateInput(vfInp, state);
+        if (isNew && state.firstAllowedDate) {
+            const orig = vfInp.value;
+            if (!orig || orig < state.firstAllowedDate) {
+                vfInp.value = state.firstAllowedDate;
+                if (orig && orig < state.firstAllowedDate && errEl) {
+                    errEl.style.color = '#92400e';
+                    errEl.textContent =
+                        `Gültig ab ${window.lohnEditLock.fmtDate(orig)} liegt in einer abgeschlossenen Lohnperiode — auf ${window.lohnEditLock.fmtDate(state.firstAllowedDate)} gesetzt (frühester offener Definitiv-Monat). Der FAK-Entscheid kann älter sein; für den offenen Lohn reicht das.`;
+                }
+            }
+        }
+    }
+
     document.getElementById('allowanceModal').style.display = 'flex';
 
     // ValidFrom-Wechsel → Optionen neu laden (Tarif-Version könnte abweichen).
-    const vfInp = document.getElementById('alValidFrom');
     if (vfInp && !vfInp.dataset.alBound) {
         vfInp.addEventListener('change', () => alLoadTarifOptionsAndPreselect());
         vfInp.dataset.alBound = '1';
@@ -6137,10 +6236,29 @@ async function saveAllowance() {
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (res.status === 409) {
+            const body = await res.clone().json().catch(() => ({}));
+            if (body && body.error === 'LOHN_EDIT_LOCKED') {
+                if (window.lohnEditLock) await window.lohnEditLock.handleResponse(res);
+                err.style.color = '#dc2626';
+                err.textContent = body.message || 'Lohnlauf-Sperre — Datum liegt in einer abgeschlossenen Periode.';
+                if (body.firstAllowedDate) {
+                    const vf = document.getElementById('alValidFrom');
+                    if (vf) {
+                        vf.min = body.firstAllowedDate;
+                        if (!vf.value || vf.value < body.firstAllowedDate) {
+                            vf.value = body.firstAllowedDate;
+                            await alLoadTarifOptionsAndPreselect();
+                        }
+                    }
+                }
+                return;
+            }
+        }
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
-            err.textContent = e.error || 'Fehler beim Speichern.';
+            err.style.color = '#dc2626';
+            err.textContent = e.message || e.error || 'Fehler beim Speichern.';
             return;
         }
         closeAllowanceModal();
@@ -7511,12 +7629,11 @@ async function loadAbsenzenTab(employeeId) {
         const activeEmp = selectedEmployee?.employments?.find(e => e.isActive)
                        ?? selectedEmployee?.employments?.[0];
         const cpId      = activeEmp?.companyProfileId;
-        // Fallback für Lock-Lookup: wenn der MA keinen Vertrag mit
-        // companyProfileId hat (Legacy-Daten / Phantom-MA), nimm den global
-        // gewählten Filial-Selektor — sonst greift die Sperre nicht.
-        const cpIdForLock = cpId || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
 
-        const [absRes, karenzKrankRes, karenzUnfallRes, sperrRes, lockState] = await Promise.all([
+        // Soft-Lock kommt serverseitig pro Absenz als inLohnVerwendet
+        // (nur Status «abgeschlossen») — kein hard firstAllowedDate mehr
+        // (der sperrte schon bei provisorisch/HR/Akonto).
+        const [absRes, karenzKrankRes, karenzUnfallRes, sperrRes] = await Promise.all([
             fetch(`/api/absences/employee/${employeeId}`, { headers: ah() }),
             cpId
                 ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=KRANK`, { headers: ah() })
@@ -7525,11 +7642,6 @@ async function loadAbsenzenTab(employeeId) {
                 ? fetch(`/api/absences/employee/${employeeId}/karenz-history?companyProfileId=${cpId}&absenceType=UNFALL`, { headers: ah() })
                 : Promise.resolve(null),
             fetch(`/api/absences/employee/${employeeId}/sperrfrist`, { headers: ah() }),
-            // Lohnlauf-Sperre: pro Filiale FirstAllowedDate holen — pro Absenz
-            // wird entschieden ob Edit/Delete-Buttons gezeigt werden.
-            cpIdForLock && window.lohnEditLock
-                ? window.lohnEditLock.loadState(cpIdForLock)
-                : Promise.resolve(null),
         ]);
         if (!absRes.ok) throw new Error();
         const absences         = await absRes.json();
@@ -7537,7 +7649,7 @@ async function loadAbsenzenTab(employeeId) {
         const karenzKrankHist  = karenzKrankRes  && karenzKrankRes.ok  ? await karenzKrankRes.json()  : [];
         const karenzUnfallHist = karenzUnfallRes && karenzUnfallRes.ok ? await karenzUnfallRes.json() : [];
         const sperrfrist       = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
-        renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, lockState, karenzUnfallHist);
+        renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, karenzUnfallHist);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
     }
@@ -7639,7 +7751,7 @@ function analyzeAbsenceCritical(absences) {
     return reasonsById;
 }
 
-function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, lockState = null, karenzUnfallHist = []) {
+function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sperrfrist = null, karenzUnfallHist = []) {
     const empModel = selectedEmployee?.employmentModel ?? '';
     const noHours  = empModel === 'FLEX';
     const sperrHtml  = renderSperrfristPanel(sperrfrist);
@@ -7704,14 +7816,13 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                    </button>`
                 : '';
 
-            // Lohnlauf-Sperre: Absenz liegt in einer in-Verarbeitung-Periode
-            // wenn DateFrom ODER DateTo vor dem firstAllowedDate liegt.
-            const firstAllowed = lockState && lockState.firstAllowedDate;
-            const isLocked     = firstAllowed && (a.dateFrom < firstAllowed || a.dateTo < firstAllowed);
+            // Soft-Lock (Walter Aug 2026): nur wenn Definitiv «abgeschlossen»
+            // (DTA) — Flag kommt vom Server (inLohnVerwendet).
+            const isLocked = !!a.inLohnVerwendet;
             // Walter-Vorgabe 09.06.2026 (final): nur ⋮-Menü, kein extra Stift —
             // Bearbeiten + Löschen leben im Menü.
             const actionsHtml  = isLocked
-                ? `<span title="Diese Absenz liegt in einer bereits verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                ? `<span title="Diese Absenz liegt in einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
                 : `<div class="dok-menu-wrap">
                        <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
                        <div class="dok-menu" id="absMenu-${a.id}">
@@ -8447,20 +8558,34 @@ async function calcAbsHoursPreview() {
     let hours = 0;
     let hint  = '';
 
+    // Nacht-Kompensation = bezahlter Freitag (1/5 Wochenstunden), für ALLE
+    // Modelle inkl. FLEX. Nachtzuschlag selbst wird nie ausbezahlt (nur Saldo);
+    // Ausnahme Austritt. Walter 02.08.2026.
+    if (reduziertSaldo === 'NACHT_STUNDEN') {
+        hours = count * (weeklyH / 5) * pFactor;
+        const saldoHint = empModel === 'FLEX'
+            ? 'bezahlter Freitag als Stundenlohn, Nacht-Saldo sinkt'
+            : 'bezahlter Freitag (Ist-Stunden), Nacht-Saldo sinkt';
+        hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
+        // Warnung ab > 9 h (mehr als ein typischer Komp-Tag bei 42h-Woche).
+        if (hours > 9) {
+            hint += `<br><span class="abs-hours-label" style="color:#b45309;font-weight:600">⚠ Mehr als 9 Stunden Kompensation — üblich ist 1 bezahlter Freitag (1/5 Wochenarbeitszeit). Bitte prüfen.</span>`;
+        }
+        previewEl.innerHTML = hint;
+        previewEl.dataset.hours = hours.toFixed(2);
+        previewEl.dataset.nachtKompOver9 = hours > 9 ? '1' : '';
+        return;
+    }
+
     // FLEX: nur Typen mit UtpAuszahlung-Flag bekommen etwas
     if (empModel === 'FLEX' && !utpAuszahlung) {
         previewEl.innerHTML = '<span class="abs-hours-label">FLEX: keine automatische Stundengutschrift für diesen Typ — kann pro Absenz-Typ aktiviert werden (Systemeinstellungen → Absenz-Typen → „UTP als Stundenlohn auszahlen")</span>';
         previewEl.dataset.hours = '0';
+        previewEl.dataset.nachtKompOver9 = '';
         return;
     }
 
-    if (reduziertSaldo === 'NACHT_STUNDEN') {
-        hours = count * (weeklyH / 5) * pFactor;
-        const saldoHint = empModel === 'FLEX'
-            ? 'als Stundenlohn ausbezahlt, Nacht-Saldo sinkt entsprechend'
-            : 'wird zu Ist-Stunden addiert, Nacht-Saldo sinkt entsprechend';
-        hint  = `<span class="abs-hours-pos">+${hours.toFixed(2)} h</span> <span class="abs-hours-label">${typCfg?.bezeichnung ?? type}: ${count} Tag${count>1?'e':''} × ${weeklyH.toFixed(2)} h ÷ 5${pSuffix} → ${saldoHint}</span>`;
-    } else if (type === 'UNBEZ_URLAUB') {
+    if (type === 'UNBEZ_URLAUB') {
         // Walter-Vorgabe 27.06.2026: Unbezahlter Urlaub wird NICHT ausbezahlt.
         // Im Lohnlauf wird stattdessen der Festlohn (FIX/FIX-M, Tagessatz 12/365)
         // bzw. die garantierten Soll-Stunden (MTP, 1/7) um diese Tage gekürzt;
@@ -8498,6 +8623,7 @@ async function calcAbsHoursPreview() {
 
     previewEl.innerHTML = hint;
     previewEl.dataset.hours = hours.toFixed(2);
+    previewEl.dataset.nachtKompOver9 = '';
 }
 
 async function saveAbsence() {
@@ -8540,6 +8666,17 @@ async function saveAbsence() {
     const workedDays   = getAbsWorkedDays();
     const hoursPreview = document.getElementById('absHoursPreview');
     const hours        = parseFloat(hoursPreview?.dataset.hours ?? '0');
+
+    // Walter 02.08.2026: Nacht-Komp. > 9 h → Warnung (üblich = 1 bezahlter Freitag).
+    if ((type === 'NACHT_KOMP' || hoursPreview?.dataset.nachtKompOver9 === '1') && hours > 9) {
+        const ok = confirm(
+            `Nacht-Kompensation umfasst ${hours.toFixed(2)} h (mehr als 9 h).\n\n` +
+            `Üblich ist ein bezahlter Freitag = 1/5 der Wochenarbeitszeit. ` +
+            `Der Nachtzuschlag selbst wird nicht ausbezahlt (nur über Komp. / bei Austritt).\n\n` +
+            `Trotzdem speichern?`
+        );
+        if (!ok) return;
+    }
 
     let prozent = Number(document.getElementById('absProzent')?.value ?? 100);
     if (!Number.isFinite(prozent) || prozent <= 0) prozent = 100;
@@ -8869,13 +9006,26 @@ async function loadLohnAssignmentsTab(employeeId) {
 }
 
 function renderLohnAssignmentsList(el, list) {
-    // Walter-Vorgabe 27.05.2026: MA-Maske-Stil — pro Eintrag ein grauer
-    // Card-Container mit weissen Wert-Boxen (analog Familie-Tab).
+    // Walter 02.08.2026: Dokument-Pflicht wie Bewilligungen —
+    // «🔗 Doku verknüpfen» (gestrichelt) / «👁 Doku» (grün) + Header-Badge.
     const fmt = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
+    const missingDok = list.filter(a => !a.dokumentId).length;
+    const allOk = list.length > 0 && missingDok === 0;
+    const headerBadge = list.length === 0
+        ? ''
+        : (allOk
+            ? `<span title="Alle Einträge haben einen Beleg"
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac">📄 Doku ✓</span>`
+            : `<span title="${missingDok} Eintrag/Einträge ohne Beleg — im Lohnlauf unwirksam"
+                     style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">● Dokument-Pflicht</span>`);
 
     const toolbar = `
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0;margin-bottom:10px">
+        <span style="display:inline-flex;align-items:center;gap:8px">
+            Lohnabtretungen
+            ${headerBadge}
+        </span>
         <button class="btn-emp-add" onclick="openLohnAssignmentModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Lohnabtretung erfassen
@@ -8884,7 +9034,7 @@ function renderLohnAssignmentsList(el, list) {
 
     if (!list.length) {
         el.innerHTML = toolbar + `
-        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:4px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
+        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
             Keine Lohnabtretungen erfasst.
         </div>`;
         return;
@@ -8894,60 +9044,81 @@ function renderLohnAssignmentsList(el, list) {
     list.forEach(a => {
         const activeNow = a.validFrom <= today && (!a.validTo || a.validTo >= today);
         const fertig    = a.zielbetrag > 0 && a.bereitsAbgezogen >= a.zielbetrag;
-        let statusPill;
-        if (fertig)         statusPill = '<span title="Zielbetrag erreicht" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#cffafe;color:#0e7490">✓ erledigt</span>';
-        else if (activeNow) statusPill = '<span title="Aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#dcfce7;color:#166534">● aktiv</span>';
-        else                statusPill = '<span title="Nicht aktiv" style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:3px;background:#f1f5f9;color:#64748b">○ inaktiv</span>';
+        const hasDok    = !!a.dokumentId;
+        const wirksam   = hasDok && activeNow && !fertig;
 
-        const zielbetragVal = a.zielbetrag > 0 ? fmt(a.zielbetrag) + ' CHF' : '<span style="color:#16a34a;font-weight:600">offen</span>';
+        let statusPill;
+        if (fertig)         statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#cffafe;color:#0e7490">✓ erledigt</span>';
+        else if (wirksam)   statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#dcfce7;color:#166534">● aktiv</span>';
+        else if (activeNow && !hasDok)
+                            statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#fee2e2;color:#991b1b">● Dokument-Pflicht</span>';
+        else                statusPill = '<span style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:9px;background:#f1f5f9;color:#64748b">○ inaktiv</span>';
+
+        const okBadge = hasDok
+            ? '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#dcfce7;color:#166534;border:1px solid #86efac"><span style="width:7px;height:7px;border-radius:50%;background:#16a34a;display:inline-block"></span>Alles in Ordnung</span>'
+            : '<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5"><span style="width:7px;height:7px;border-radius:50%;background:#dc2626;display:inline-block"></span>Dokument-Pflicht</span>';
+
+        const zielbetragVal = a.zielbetrag > 0 ? fmt(a.zielbetrag) + ' CHF' : 'offen';
         const fortschritt = a.zielbetrag > 0
             ? `Bisher ${fmt(a.bereitsAbgezogen)} von ${fmt(a.zielbetrag)} CHF`
             : `Bisher ${fmt(a.bereitsAbgezogen)} CHF · unbegrenzt`;
         const bisStr = a.validTo
             ? formatDate(a.validTo)
-            : '<span style="color:#16a34a;font-weight:600">Widerruf</span>';
+            : 'bis Widerruf';
         const refParts = [];
         if (a.referenzAmt)       refParts.push(esc(a.referenzAmt));
-        if (a.zahlungsReferenz)  refParts.push('<span style="font-family:ui-monospace,Menlo,Consolas,monospace">' + esc(a.zahlungsReferenz) + '</span>');
+        if (a.zahlungsReferenz)  refParts.push(esc(a.zahlungsReferenz));
         if (a.bemerkung)         refParts.push(esc(a.bemerkung));
-        const refHtml = refParts.length ? refParts.join(' · ') : '<span style="color:#94a3b8">–</span>';
-        const aJson = JSON.stringify(a).replace(/'/g,"&#39;");
+        const refHtml = refParts.length ? refParts.join(' · ') : '';
+        const aJson = JSON.stringify(a).replace(/'/g, '&#39;');
+
+        const rowBorder = !hasDok
+            ? '1.5px solid #fca5a5'
+            : (wirksam ? '1.5px solid #16a34a' : '1px solid #e2e8f0');
+        const rowBg = !hasDok
+            ? '#fef2f2'
+            : (wirksam ? '#f0fdf4' : '#fafafa');
+
+        const dokBtn = hasDok
+            ? `<button type="button" onclick="qstOpenBefreiungsDok(${a.employeeId || selectedEmployeeId}, ${a.dokumentId})"
+                   style="flex-shrink:0;background:#dcfce7;color:#166534;border:1px solid #86efac;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px"
+                   title="${esc(a.dokumentName || 'Dokument')} anschauen">
+                   👁 Doku
+               </button>`
+            : `<button type="button" onclick="laOpenDokuModal(${a.id})"
+                   style="flex-shrink:0;background:#fff;color:#475569;border:1px dashed #cbd5e1;padding:4px 10px;border-radius:6px;font-size:11.5px;cursor:pointer">
+                   🔗 Doku verknüpfen
+               </button>`;
 
         cards += `
-        <div style="background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.62);border-radius:12px;padding:9px 12px 11px;margin-bottom:6px;box-shadow:0 8px 20px rgba(86,76,63,.08)">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
-                ${statusPill}
-                <span style="font-weight:600;color:#0f172a;font-size:13.5px;flex:1">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
-                <span style="font-size:12px;color:#64748b">${esc(a.behoerdeName ?? '—')}</span>
-                <button onclick='openLohnAssignmentModal(${aJson})' title="Bearbeiten"
-                        style="background:#fff;border:1px solid #94a3b8;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✎</button>
-                <button onclick="deleteLohnAssignment(${a.id})" title="Löschen"
-                        style="background:#fff;border:1px solid #fca5a5;color:#dc2626;padding:3px 9px;border-radius:3px;font-size:11px;cursor:pointer">✕</button>
+        <div style="padding:10px 12px;border:${rowBorder};border-radius:8px;background:${rowBg};margin-bottom:6px;display:flex;align-items:flex-start;gap:12px">
+            <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+                    <span style="font-weight:700;color:#0f172a;font-size:13.5px">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
+                    ${statusPill}
+                    ${okBadge}
+                </div>
+                <div style="font-size:12px;color:#475569;margin-bottom:2px">
+                    ${esc(a.behoerdeName ?? '—')}${a.sachbearbeiterName ? ` · ${esc(a.sachbearbeiterName)}` : ''}
+                    ${a.lohnausweisAnBehoerde ? ' · <span style="color:#64748b">Lohnausweis an SB</span>' : ''}
+                </div>
+                <div style="font-size:11.5px;color:#64748b">
+                    ${formatDate(a.validFrom)} – ${bisStr}
+                    · Freigrenze ${fmt(a.freigrenze)} · Ziel ${zielbetragVal}
+                </div>
+                <div style="font-size:11.5px;color:#64748b;margin-top:2px">${fortschritt}</div>
+                ${refHtml ? `<div style="font-size:11px;color:#94a3b8;margin-top:3px">${refHtml}</div>` : ''}
             </div>
-            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px">
-                <div class="emp-field">
-                    <div class="emp-field-label">Freigrenze (CHF)</div>
-                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${fmt(a.freigrenze)}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Zielbetrag</div>
-                    <div class="emp-field-value" style="font-family:ui-monospace,Menlo,Consolas,monospace;justify-content:flex-end">${zielbetragVal}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Ab</div>
-                    <div class="emp-field-value">${formatDate(a.validFrom)}</div>
-                </div>
-                <div class="emp-field">
-                    <div class="emp-field-label">Bis</div>
-                    <div class="emp-field-value">${bisStr}</div>
-                </div>
-                <div class="emp-field" style="grid-column:span 2">
-                    <div class="emp-field-label">Fortschritt</div>
-                    <div class="emp-field-value">${fortschritt}</div>
-                </div>
-                <div class="emp-field" style="grid-column:span 2">
-                    <div class="emp-field-label">Referenz / Bemerkung</div>
-                    <div class="emp-field-value">${refHtml}</div>
+            ${dokBtn}
+            <div class="dok-menu-wrap" style="flex-shrink:0">
+                <button class="dok-menu-btn" onclick="laToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                <div class="dok-menu" id="laMenu-${a.id}">
+                    <button class="dok-menu-item" onclick='openLohnAssignmentModal(${aJson})'>Bearbeiten</button>
+                    ${hasDok
+                        ? `<button class="dok-menu-item" onclick="laOpenDokuModal(${a.id})">Doku ersetzen</button>
+                           <button class="dok-menu-item" onclick="laUnlinkDokument(${a.id})">Verknüpfung aufheben</button>`
+                        : `<button class="dok-menu-item" onclick="laOpenDokuModal(${a.id})">Doku verknüpfen</button>`}
+                    <button class="dok-menu-item danger" onclick="deleteLohnAssignment(${a.id})">Löschen</button>
                 </div>
                 ${a.lohnausweisAnBehoerde
                     ? `<div class="emp-field" style="grid-column:span 4">
@@ -8961,12 +9132,47 @@ function renderLohnAssignmentsList(el, list) {
     el.innerHTML = toolbar + cards;
 }
 
+function laToggleMenu(event, id) { rowMenuToggle(event, 'la', id); }
+
+function laOpenDokuModal(lohnAssignmentId) {
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId || !lohnAssignmentId) return;
+    openAusweisDokuModal(empId, 'lohn_assignment', { lohnAssignmentId });
+}
+
+async function laUnlinkDokument(lohnAssignmentId) {
+    rowMenuCloseAll();
+    if (!lohnAssignmentId) return;
+    if (!(await liquidConfirm('Dokument-Verknüpfung wirklich aufheben?\n\nOhne Beleg greift die Lohnabtretung im Lohnlauf nicht mehr.'))) return;
+    try {
+        const res = await fetch(`/api/employee-lohn-assignments/${lohnAssignmentId}/dokument`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: null })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => null);
+            alert(j?.message || 'Verknüpfung konnte nicht aufgehoben werden.');
+            return;
+        }
+        if (typeof loadLohnAssignmentsTab === 'function') {
+            loadLohnAssignmentsTab(selectedEmployeeId || window.activeEmpId);
+        }
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
+let _laSbCache = {}; // behoerdeId → [{id,name,email,…}]
+
 function openLohnAssignmentModal(existing) {
     const modal = document.getElementById('lohnAssignmentModal');
     if (!modal) return;
     modal.style.display = 'flex';
     modal.dataset.editId = existing?.id ?? '';
+    modal.dataset.pendingSbId = existing?.behoerdeSachbearbeiterId ?? '';
     document.getElementById('laModalTitle').textContent = existing ? 'Lohnabtretung bearbeiten' : 'Lohnabtretung erfassen';
+    _laSbCache = {}; // frischer SB-Stamm (nach Behörden-Pflege)
 
     // Behörden-Dropdown
     const sel = document.getElementById('laBehoerdeSel');
@@ -8984,9 +9190,54 @@ function openLohnAssignmentModal(existing) {
     const zrEl = document.getElementById('laZahlungsReferenz');
     zrEl.value = existing?.zahlungsReferenz ?? '';
     validateZahlungsReferenz(zrEl);   // initiales Live-Feedback (falls Wert vorhanden)
-    document.getElementById('laBemerkung').value        = existing?.bemerkung ?? '';
+    // Neu: Bemerkung default = Name, Vorname, AHV (Walter 02.08.2026).
+    // Bestehende Einträge behalten ihren gespeicherten Text.
+    document.getElementById('laBemerkung').value = existing
+        ? (existing.bemerkung ?? '')
+        : laDefaultBemerkung();
     const laCb = document.getElementById('laLohnausweisAnBehoerde');
     if (laCb) laCb.checked = !!existing?.lohnausweisAnBehoerde;
+    laOnBehoerdeChange();
+}
+
+/** Default-Bemerkung für neue Lohnabtretung: «Name, Vorname, AHV». */
+function laDefaultBemerkung() {
+    const emp = (typeof selectedEmployee !== 'undefined' && selectedEmployee) ? selectedEmployee : null;
+    if (!emp) return '';
+    const last  = (emp.lastName  || '').trim();
+    const first = (emp.firstName || '').trim();
+    const ahv   = (emp.socialSecurityNumber || emp.ahvNumber || emp.ahvNummer || '').trim();
+    const parts = [];
+    if (last)  parts.push(last);
+    if (first) parts.push(first);
+    let text = parts.join(', ');
+    if (ahv) text = text ? `${text}, ${ahv}` : ahv;
+    return text;
+}
+
+async function laOnBehoerdeChange() {
+    const sel = document.getElementById('laBehoerdeSel');
+    const sbSel = document.getElementById('laSachbearbeiterSel');
+    const modal = document.getElementById('lohnAssignmentModal');
+    if (!sel || !sbSel) return;
+    const behoerdeId = parseInt(sel.value, 10) || 0;
+    const pending = modal?.dataset.pendingSbId || '';
+    sbSel.innerHTML = '<option value="">— Sachbearbeiter wählen —</option>';
+    if (!behoerdeId) return;
+    try {
+        if (!_laSbCache[behoerdeId]) {
+            const res = await fetch(`/api/behoerden/${behoerdeId}/sachbearbeiter`, { headers: ah() });
+            _laSbCache[behoerdeId] = res.ok ? await res.json() : [];
+        }
+        const list = _laSbCache[behoerdeId] || [];
+        for (const s of list) {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = s.email ? `${s.name} (${s.email})` : s.name;
+            sbSel.appendChild(opt);
+        }
+        if (pending) sbSel.value = pending;
+    } catch { /* ignore */ }
 }
 
 function closeLohnAssignmentModal() {
@@ -8998,6 +9249,8 @@ async function saveLohnAssignment() {
     const modal = document.getElementById('lohnAssignmentModal');
     const editId = modal?.dataset.editId;
     const behoerdeId  = parseInt(document.getElementById('laBehoerdeSel').value);
+    const sbRaw       = document.getElementById('laSachbearbeiterSel')?.value;
+    const behoerdeSachbearbeiterId = sbRaw ? parseInt(sbRaw, 10) : null;
     const bezeichnung = document.getElementById('laBezeichnung').value.trim() || 'Lohnpfändung';
     const freigrenze  = parseFloat(document.getElementById('laFreigrenze').value) || 0;
     const zielbetragStr = document.getElementById('laZielbetrag').value;
@@ -9011,9 +9264,12 @@ async function saveLohnAssignment() {
 
     if (!behoerdeId) { alert('Bitte eine Behörde wählen.'); return; }
     if (lohnausweisAnBehoerde) {
-        const b = (_laBehoerden || []).find(x => x.id === behoerdeId);
-        if (b && !String(b.email || '').trim()) {
-            alert('Die gewählte Behörde hat keine E-Mail-Adresse. Bitte unter Behörden pflegen, bevor «Lohnausweis an Behörde» aktiviert wird.');
+        const sbList = _laSbCache[behoerdeId] || [];
+        const sb = behoerdeSachbearbeiterId
+            ? sbList.find(x => x.id === behoerdeSachbearbeiterId)
+            : null;
+        if (!sb || !String(sb.email || '').trim()) {
+            alert('Für «Lohnausweis an Behörde» bitte einen Sachbearbeiter mit E-Mail wählen (Stamm unter Behörden).');
             return;
         }
     }
@@ -9029,6 +9285,7 @@ async function saveLohnAssignment() {
     const body = {
         employeeId: selectedEmployeeId,
         behoerdeId,
+        behoerdeSachbearbeiterId: behoerdeSachbearbeiterId || null,
         bezeichnung,
         freigrenze,
         zielbetrag,
@@ -9046,8 +9303,13 @@ async function saveLohnAssignment() {
         const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { const err = await res.text(); alert('Fehler beim Speichern: ' + err); return; }
+        const saved = await res.json().catch(() => null);
         closeLohnAssignmentModal();
-        loadLohnAssignmentsTab(selectedEmployeeId);
+        await loadLohnAssignmentsTab(selectedEmployeeId);
+        // Neu angelegt ohne Beleg → sofort Verknüpfungs-Dialog (Bewilligungen-Muster).
+        if (!editId && saved?.id && !saved.dokumentId) {
+            laOpenDokuModal(saved.id);
+        }
     } catch(e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -10961,10 +11223,11 @@ async function plzLookupGeneric(rawPlz, cityId, cantonId, bfsId, hintId) {
     }
     if (locs.length === 1) {
         const l = locs[0];
-        cityEl.value = l.gemeindename;
+        const ortName = stripCityCantonSuffix(l.ortschaftsname || l.gemeindename);
+        cityEl.value = ortName;
         if (cantonEl) cantonEl.value = l.kantonskuerzel;
         if (bfsEl) bfsEl.value = l.bfsNr ?? l.bfsNumber ?? l.bfs_number ?? '';
-        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${l.gemeindename} (${l.kantonskuerzel})</span>`;
+        if (hint) hint.innerHTML = `<span style="color:#16a34a">✓ ${esc(ortName)}</span>`;
         return;
     }
     // Mehrere Treffer → Combobox im Ort-Feld via HTML5-<datalist>.
@@ -10989,6 +11252,7 @@ async function loadEmployeeAddressesTab(employeeId) {
         if (gen !== window._addrLoadGen) return;
         if (!res.ok) {
             els.forEach(el => { el.innerHTML = ''; });
+            _ovUpdateAddrCardCount(0);
             return;
         }
         const list = await res.json();
@@ -10997,13 +11261,22 @@ async function loadEmployeeAddressesTab(employeeId) {
     } catch {
         if (gen !== window._addrLoadGen) return;
         els.forEach(el => { el.innerHTML = ''; });
+        _ovUpdateAddrCardCount(0);
     }
+}
+
+function _ovUpdateAddrCardCount(n) {
+    // Anzahl nur bei >1 neben dem Titel: «Weitere Adressen (2)» (Walter 02.08.2026).
+    const countEl = document.getElementById('ovAddrCardCount');
+    if (countEl) countEl.textContent = n > 1 ? ` (${n})` : '';
 }
 
 function renderEmployeeAddressesList(el, list) {
     if (!Array.isArray(list) || list.length === 0) {
         // Kein Hinweis-Text (Walter 17.07.2026): keine Adressen = leer.
         el.innerHTML = '';
+        if (el.closest?.('.ov-addr-full') || el.id === 'otherAddressesContent')
+            _ovUpdateAddrCardCount(0);
         return;
     }
     const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
@@ -11013,8 +11286,9 @@ function renderEmployeeAddressesList(el, list) {
         if (a.description) lines.push(a.description);
         if (a.street)      lines.push(a.street + (a.street2 ? ' / ' + a.street2 : ''));
         if (a.poBox)       lines.push('Postfach ' + a.poBox);
-        const ort = [a.zipCode, a.city].filter(Boolean).join(' ');
-        if (ort) lines.push(ort + (a.canton ? ' (' + a.canton + ')' : ''));
+        // Ortschaft ohne Kanton in Klammern (Walter 02.08.2026) — Kt. ist eigenes Feld.
+        const ort = [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' ');
+        if (ort) lines.push(ort);
         // Land nur anzeigen wenn es NICHT die Schweiz ist (Standard = "CH").
         // Beide Schreibweisen abfangen, falls noch Altdaten "Schweiz" enthalten.
         if (a.country && a.country !== 'CH' && a.country !== 'Schweiz') lines.push(a.country);
@@ -11035,6 +11309,7 @@ function renderEmployeeAddressesList(el, list) {
         </div>`;
     }).join('');
     el.innerHTML = rows;
+    _ovUpdateAddrCardCount(list.length);
 }
 
 let _empAddrEditing = null;  // null = neu, sonst die zu editierende Adresse
@@ -11074,7 +11349,7 @@ function openEmployeeAddressModal(existing) {
                 ${eField(_t('addr.field.street2','Strasse 2'), `<input id="empAddr-street2" class="ef-input" value="${esc(a.street2)}">`)}
                 ${eField(_t('addr.field.poBox','Postfach'),  `<input id="empAddr-poBox"   class="ef-input" value="${esc(a.poBox)}">`)}
                 ${eField(_t('addr.field.zipCode','PLZ'),     `<input id="empAddr-zip" class="ef-input" value="${esc(a.zipCode)}" inputmode="numeric" maxlength="4" oninput="validateZip(this)" onblur="plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')" onkeyup="if(this.value.length===4)plzLookupGeneric(this.value,'empAddr-city','empAddr-canton','empAddr-bfs','empAddr-plz-hint')">`)}
-                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(a.city)}" oninput="validateCity(this)">`)}
+                ${eField(_t('addr.field.city','Ort'),        `<input id="empAddr-city" class="ef-input" value="${esc(stripCityCantonSuffix(a.city))}" oninput="validateCity(this)">`)}
                 ${eField('BFS-Nr.',                          `<input id="empAddr-bfs"  class="ef-input" value="${esc(a.bfsNumber)}">`)}
                 ${eField(_t('addr.field.canton','Kanton'),   renderKantonSelect('empAddr-canton', a.canton))}
                 ${eField(_t('addr.field.country','Land'),    `<input id="empAddr-country" class="ef-input" value="${esc(a.country ?? 'CH')}">`)}
@@ -11163,7 +11438,7 @@ async function saveEmployeeAddress() {
         poBox:            val('empAddr-poBox') || null,
         bfsNumber:        val('empAddr-bfs') || null,
         zipCode:          val('empAddr-zip') || null,
-        city:             val('empAddr-city') || null,
+        city:             stripCityCantonSuffix(val('empAddr-city')) || null,
         canton:           val('empAddr-canton') || null,
         country:          val('empAddr-country') || 'CH',
         phone:            val('empAddr-phone') || null,
@@ -12621,6 +12896,104 @@ async function deletePermitHistoryEntry(entryId) {
 // rechnet BVG_ZUSATZ-Beiträge NUR wenn am Periodenanfang eine offene
 // Mitgliedschaft existiert.
 let _bvgZusatzCache = [];
+
+async function loadUniformDepotTab(employeeId) {
+    const el = document.getElementById('uniformDepotContent');
+    if (!el) return;
+    el.innerHTML = '<div class="emp-placeholder"><span>Wird geladen…</span></div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/uniform-depot`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden</span></div>'; return; }
+        renderUniformDepotTab(el, await res.json());
+    } catch {
+        el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
+    }
+}
+
+function renderUniformDepotTab(el, d) {
+    if (!d || !d.status) {
+        el.innerHTML = `<div style="padding:14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;color:#64748b;font-size:12.5px;line-height:1.5">
+            Noch kein Depot — beim <strong>1. Lohn</strong> werden automatisch CHF 50 abgezogen und hier als einbehaltenes Depot geführt.
+        </div>`;
+        return;
+    }
+    const bal = Number(d.balance || 0).toFixed(2);
+    const statusMap = {
+        EINBEHALTEN:    { label: 'Einbehalten', color: '#92400e', bg: '#fffbeb', border: '#fde68a' },
+        ZURUECKBEZAHLT: { label: 'Zurückbezahlt', color: '#166534', bg: '#dcfce7', border: '#86efac' },
+        VERFALLEN:      { label: 'Verfallen', color: '#991b1b', bg: '#fee2e2', border: '#fecaca' },
+    };
+    const st = statusMap[d.status] || { label: d.status, color: '#475569', bg: '#f1f5f9', border: '#cbd5e1' };
+    const charged = d.chargedPeriode === 'BACKFILL'
+        ? 'Backfill (Eintritt vor 01.07.2026)'
+        : (d.chargedPeriode || '–');
+    const refund = d.refundPeriode
+        ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Rückerstattet in Periode ${esc(d.refundPeriode)}</div>`
+        : '';
+    // Rückgabe-Entscheidung nur bei Austritt (letzter Lohn / Korrektur) —
+    // nicht bei aktiven MA die gerade den Eintritts-Abzug haben.
+    const emp = (typeof allEmployees !== 'undefined' && allEmployees)
+        ? allEmployees.find(x => x.id === (selectedEmployeeId || window.activeEmpId))
+        : null;
+    const hasExit = !!(emp?.exitDate || emp?.ExitDate);
+    const ret = d.returnConfirmed === true
+        ? '<div style="font-size:12px;color:#166534;margin-top:4px">Uniform zurückgegeben → Refund erscheint automatisch auf dem (Korrektur-)Lohnzettel</div>'
+        : d.returnConfirmed === false
+            ? '<div style="font-size:12px;color:#991b1b;margin-top:4px">Uniform nicht zurück → Depot verfällt (kein Refund)</div>'
+            : (hasExit
+                ? '<div style="font-size:12px;color:#92400e;margin-top:4px">Rückgabe noch nicht entschieden</div>'
+                : '');
+    const bem = d.bemerkung ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:6px">${esc(d.bemerkung)}</div>` : '';
+    const canDecide = hasExit && d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0;
+    const actions = canDecide ? `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+            <button type="button" onclick="setUniformDepotReturn(true)"
+                style="background:#3f3f3f;color:#fff;border:none;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Uniform zurück → Refund</button>
+            <button type="button" onclick="setUniformDepotReturn(false)"
+                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid #cbd5e1;padding:7px 12px;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer">Nicht zurück → verfällt</button>
+        </div>` : (d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0 && !hasExit
+        ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:10px">Rückgabe/Verfall wird beim <strong>Austritt</strong> (letzter Lohn) entschieden.</div>`
+        : '');
+    el.innerHTML = `
+        <div style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                <div>
+                    <div style="font-size:15px;font-weight:700;color:#1a1a1a">CHF ${bal}</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Belastet: ${esc(charged)}</div>
+                    ${refund}${ret}${bem}
+                </div>
+                <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
+            </div>
+            ${actions}
+        </div>`;
+}
+
+async function setUniformDepotReturn(returned) {
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId) return;
+    const msg = returned
+        ? 'Uniform zurückgegeben — CHF 50 erscheinen als Refund auf dem nächsten (Korrektur-)Lohnzettel. Fortfahren?'
+        : 'Uniform NICHT zurück — Depot verfällt, kein Refund. Fortfahren?';
+    if (!confirm(msg)) return;
+    try {
+        const res = await fetch(`/api/employees/${empId}/uniform-depot/return`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ returned: !!returned }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.message || err.error || 'Speichern fehlgeschlagen');
+            return;
+        }
+        await loadUniformDepotTab(empId);
+        if (typeof showToast === 'function') {
+            showToast(returned ? 'Uniform zurück → Refund bereit' : 'Depot wird verfallen', 'success');
+        }
+    } catch (e) {
+        alert('Netzwerkfehler: ' + (e?.message || e));
+    }
+}
 
 async function loadBvgZusatzTab(employeeId) {
     const el = document.getElementById('bvgZusatzContent');

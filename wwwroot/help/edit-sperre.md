@@ -1,26 +1,30 @@
 # Edit-Sperre (Lohnlauf-Schutz)
 
-Sobald ein Akonto- oder Definitivlauf einer Periode **bei HR** ist oder **abgeschlossen**, dürfen lohnrelevante Daten dieser Periode **von niemandem** mehr geändert werden — auch nicht von Admin. So bleibt der Lohnzettel konsistent.
+Sobald ein Lohnlauf einer Periode «eingefroren» ist, dürfen bestimmte Daten **von niemandem** mehr geändert werden — auch nicht von Admin. So bleibt der Lohnzettel konsistent. Es gibt **zwei Stärken**, je nach Datentyp.
 
-## Was ist gesperrt?
+## Zwei Sperr-Stufen
 
-Typischerweise (für Daten **in** der gesperrten Periode):
+| Stufe | Wann gesperrt? | Betrifft u.a. |
+|---|---|---|
+| **Hart** | Akonto bei HR / HR-freigegeben / ausbezahlt **oder** Definitiv provisorisch / abgeschlossen | Wiederkehrende Zulagen/Abzüge, Bankkonten (gültige Versionen), Lohnabtretungen, viele periodenbezogene Zulagen |
+| **Weich** | Erst wenn Definitiv wirklich **abgeschlossen** (DTA / final) | **Absenzen**, **Verträge**, **Quellensteuer**, **Kinderzulagen / Familienzulagen** |
 
-- Absenzen
-- Einmalige Zulagen / Abzüge der Periode
-- Versionierte Dinge mit „gültig ab" in der Vergangenheit (Verträge, Bank, QST, Bewilligung, wiederkehrende Zulagen …) — Änderung nur über **neue Version ab späterem Datum**
+Während der HR-Kontrolle (`provisorisch_abgeschlossen`) und im gesamten Akonto-Strang bleiben Absenzen, Verträge, QST und Kinderzulagen also noch korrigierbar — genau dafür ist die Kontrolle da.
 
-**Stempelzeiten** sind immer nur lesbar (Quelle = easy@work) — unabhängig von der Sperre.
+Akonto **IN_BEARBEITUNG_GF** (GF bereitet vor) sperrt **nicht** — Stempel-/Absenz-Korrekturen sind noch möglich.
+
+## Was ist immer nur lesen?
+
+**Stempelzeiten** — Quelle = easy@work, unabhängig von der Sperre. Korrigieren nur in easy@work.
 
 ## Was ist noch erlaubt?
 
-- Periode noch **offen** bzw. Akonto noch **in Bearbeitung GF** → GF darf vorbereiten und korrigieren
-- Neue Verträge / Bewilligungen **ab dem ersten erlaubten Tag** (meist 1. des Folgemonats)
+- Periode noch offen bzw. Akonto noch bei GF → vorbereiten und korrigieren
+- Bei **weicher** Sperre: solange Definitiv nicht final abgeschlossen ist → Absenzen/QST/Verträge/Kinderzulagen der Periode noch änderbar
+- Neue Versionen **ab dem ersten erlaubten Tag** (gelber Banner zeigt oft dieses Datum)
 - Reine Anzeige, Dokumente ablegen, Moments, Formulare …
 
-Das System zeigt oft einen gelben Banner mit dem **ersten erlaubten Datum**.
-
-## Wie hebe ich die Sperre auf?
+## Wie hebe ich die harte Sperre auf?
 
 Nur bewusst über Reset — mit Audit-Spur:
 
@@ -33,4 +37,4 @@ Vorher musst du bestätigen, dass der **DTA bei der Bank storniert** ist — son
 
 ## Fehlermeldung 409 LOHN_EDIT_LOCKED
 
-„Speichern" schlägt fehl mit Hinweis auf die Sperre. Lösung: entweder warten bis nächste Periode, neue Version ab erlaubtem Datum — oder Admin setzt den Lauf zurück.
+„Speichern" schlägt fehl mit Hinweis auf die Sperre. Lösung: entweder warten / neue Version ab erlaubtem Datum — oder Admin setzt den Lauf zurück (bei harter Sperre).

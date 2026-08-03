@@ -96,7 +96,13 @@ public record SaldoBlock(
 
     // ── 13.-ML-Basis (für Saldo-Berechnung: Summe aller Lohnpositionen
     //    mit Flag ZaehltAlsBasis13ml = true; via SumByFlag im Controller) ──
-    decimal Basis13ml = 0
+    decimal Basis13ml = 0,
+
+    // ── Probezeit-Flags für FLEX-13.-Saldo-Anzeige (Walter 02.08.2026) ──
+    bool IsInProbation = false,
+    bool ThirteenthForfeited = false,
+    // true = Saldi-Zeile «Rückst. 13. Monatslohn Probezeit» zeigen
+    bool ShowFlexThirteenthSaldo = false
 );
 
 // SaveSaldoDto entfernt am 09.06.2026 mit dem /api/payroll/save-Endpoint.
@@ -118,7 +124,10 @@ public record ConfirmPayrollDto(
     // Walter-Vorgabe 20.05.2026: einzige GF-Entscheidung, die der Server beim
     // autoritativen Nachrechnen nicht selbst ableiten kann — Ferien-Kürzung
     // (Art. 329b OR) anwenden ja/nein. Alle Geldbeträge rechnet der Server selbst.
-    bool ApplyFerienKuerzung = false);
+    bool ApplyFerienKuerzung = false,
+    // Walter Aug 2026: Korrektur-/Sonderlohn für ausgetretene MA — ohne
+    // Akonto-/Mindestlohn-/QST-Sperren, Engine-Modus isCorrection.
+    bool IsCorrection = false);
 
 public record LohnAbtretungConfirmDto(int AssignmentId, decimal Betrag);
 

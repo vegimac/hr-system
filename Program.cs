@@ -169,6 +169,7 @@ builder.Services.AddScoped<Iso20022PainService>();
 builder.Services.AddScoped<SperrfristService>();
 // L-GAV-Beitrag: automatischer Jahresabzug nach Vertragstyp/Pensum
 builder.Services.AddScoped<LgavBeitragService>();
+builder.Services.AddScoped<UniformDepotService>();
 builder.Services.AddScoped<PayrollCalculationEngine>();
 // Snapshot-Neuberechnung (hält offene Perioden frisch — Walter-Vorgabe 22.05.2026).
 builder.Services.AddScoped<SnapshotRecomputeService>();
@@ -179,6 +180,7 @@ builder.Services.AddScoped<QstPflichtCheckService>();
 // neue QST-Einträge den passenden Tarif + Kinderzahl + Kirchensteuer aus
 // Stammdaten ableitet und gegen die offizielle ESTV-Tariftabelle prüft.
 builder.Services.AddScoped<QstTarifVorschlagService>();
+builder.Services.AddScoped<QstKonfessionSyncService>();
 // FAK-Tarif-Auflösung: pro Periode Kinderzulagen-Betrag aus Tarif + Alter (Walter 28.05.2026)
 builder.Services.AddScoped<FamilienzulagenResolverService>();
 builder.Services.AddScoped<WageAdjustmentService>();
@@ -1436,25 +1438,76 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS lohnposition_id INTEGER REFERENCES lohnposition(id);
     ");
 
-    // lohn_zulage Zeitstempel: timestamp without time zone (Npgsql + DateTime.Now)
+    // lohn_zulage Zeitstempel: timestamp without time zone (Npgsql + DateTime.Now).
+    // Walter 01.08.2026: hart + public-Schema — sonst Monatsblatt-Import 500
+    // «Cannot write DateTime with Kind=Local to timestamptz».
     db.Database.ExecuteSqlRaw(@"
         DO $$
         BEGIN
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'lohn_zulage' AND column_name = 'created_at'
-                  AND udt_name = 'timestamptz'
+                WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                  AND column_name = 'created_at' AND udt_name = 'timestamptz'
             ) THEN
-                ALTER TABLE lohn_zulage
+                ALTER TABLE public.lohn_zulage
                     ALTER COLUMN created_at TYPE timestamp without time zone
                     USING (created_at AT TIME ZONE 'Europe/Zurich');
             END IF;
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
-                WHERE table_name = 'lohn_zulage' AND column_name = 'updated_at'
-                  AND udt_name = 'timestamptz'
+                WHERE table_schema = 'public' AND table_name = 'lohn_zulage'
+                  AND column_name = 'updated_at' AND udt_name = 'timestamptz'
             ) THEN
-                ALTER TABLE lohn_zulage
+                ALTER TABLE public.lohn_zulage
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'behoerde'
+                  AND column_name = 'created_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.behoerde
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'behoerde'
+                  AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.behoerde
+                    ALTER COLUMN updated_at TYPE timestamp without time zone
+                    USING (updated_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'lohnposition'
+                  AND column_name = 'created_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.lohnposition
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+
+            -- Lohnabtretung (Walter 02.08.2026): Definitiv-Confirm mit aktiver
+            -- Abtretung scheiterte mit 500 — updated_at war noch timestamptz,
+            -- Confirm schreibt DateTime.Now (Kind=Local) auf bereits_abgezogen.
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'employee_lohn_assignment'
+                  AND column_name = 'created_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.employee_lohn_assignment
+                    ALTER COLUMN created_at TYPE timestamp without time zone
+                    USING (created_at AT TIME ZONE 'Europe/Zurich');
+            END IF;
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'employee_lohn_assignment'
+                  AND column_name = 'updated_at' AND udt_name = 'timestamptz'
+            ) THEN
+                ALTER TABLE public.employee_lohn_assignment
                     ALTER COLUMN updated_at TYPE timestamp without time zone
                     USING (updated_at AT TIME ZONE 'Europe/Zurich');
             END IF;
@@ -1505,6 +1558,188 @@ using (var scope = app.Services.CreateScope())
            AND (kategorie IS DISTINCT FROM 'Saldo-Vortrag' OR is_active IS NOT TRUE);
     ");
 
+    // ── Korrektur Quellensteuer (Mirus 565) — Walter 01.08.2026 ─────────
+    // Manuelle Nachzahlung QST aus Vormonaten als Perioden-Abzug.
+    // Code = Fibu-Position 565 («Korr. QST-Abzug», Konten 1920/2010).
+    // Nicht SV-/QST-pflichtig (der Betrag IST schon die Steuerkorrektur).
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+             lohnausweis_code, sort_order, is_active,
+             nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
+        SELECT
+            '565', 'Korrektur Quellensteuer', 'Abzüge', 'ABZUG',
+            false, false, false, false, false,
+            NULL, 565, true,
+            true, true
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '565');
+
+        UPDATE lohnposition
+           SET bezeichnung = 'Korrektur Quellensteuer',
+               kategorie   = 'Abzüge',
+               typ         = 'ABZUG',
+               is_active   = true,
+               ahv_alv_pflichtig = false,
+               nbuv_pflichtig    = false,
+               ktg_pflichtig     = false,
+               bvg_pflichtig     = false,
+               qst_pflichtig     = false
+         WHERE code = '565'
+           AND (bezeichnung IS DISTINCT FROM 'Korrektur Quellensteuer'
+                OR typ IS DISTINCT FROM 'ABZUG'
+                OR is_active IS NOT TRUE);
+
+        INSERT INTO lohn_konto_mapping
+            (position, sub_position, fibukonto, gegenkonto, kostenstelle_nr, kostenstelle_name,
+             bezeichnung, is_vormonat, soll_buchung, sort_order, is_active)
+        SELECT
+            565, NULL, '1920', '2010', NULL, NULL,
+            'Korr. QST-Abzug', false, true, 1770, true
+        WHERE EXISTS (
+            SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'public' AND table_name = 'lohn_konto_mapping'
+        )
+          AND NOT EXISTS (
+            SELECT 1 FROM lohn_konto_mapping
+             WHERE position = 565 AND fibukonto = '1920' AND gegenkonto = '2010'
+          );
+    ");
+
+    // ── Uniformen-Depot (Walter Aug 2026) ────────────────────────────────
+    // CHF 50 beim 1. Lohn; Rückerstattung bei ordentlichem Austritt.
+    // Fibu 600.32 → 1920/2021 (Kontoplan-Seed).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS employee_uniform_depot (
+            id                   serial PRIMARY KEY,
+            employee_id          integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            balance              numeric(10,2) NOT NULL DEFAULT 50,
+            status               varchar(20) NOT NULL DEFAULT 'EINBEHALTEN',
+            charged_periode      varchar(20) NULL,
+            refund_periode       varchar(20) NULL,
+            return_confirmed     boolean NULL,
+            return_confirmed_at  timestamp without time zone NULL,
+            return_confirmed_by  integer NULL,
+            bemerkung            text NULL,
+            created_at           timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at           timestamp without time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_employee_uniform_depot_emp
+            ON employee_uniform_depot (employee_id);
+
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+             lohnausweis_code, sort_order, is_active,
+             nicht_drucken_wenn_null, nicht_im_vertrag_drucken)
+        SELECT
+            '600.32', 'Uniformen-Depot', 'Abzüge', 'ABZUG',
+            false, false, false, false, false,
+            NULL, 632, true,
+            true, true
+        WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '600.32');
+
+        UPDATE lohnposition
+           SET bezeichnung = 'Uniformen-Depot',
+               kategorie   = 'Abzüge',
+               typ         = 'ABZUG',
+               is_active   = true,
+               ahv_alv_pflichtig = false,
+               nbuv_pflichtig    = false,
+               ktg_pflichtig     = false,
+               bvg_pflichtig     = false,
+               qst_pflichtig     = false
+         WHERE code = '600.32';
+
+        UPDATE lohn_konto_mapping
+           SET bezeichnung = 'Uniformen-Depot'
+         WHERE position = 600 AND sub_position = 32
+           AND bezeichnung IS DISTINCT FROM 'Uniformen-Depot';
+
+        INSERT INTO lohn_konto_mapping
+            (position, sub_position, fibukonto, gegenkonto, kostenstelle_nr, kostenstelle_name,
+             bezeichnung, is_vormonat, soll_buchung, sort_order, is_active)
+        SELECT
+            600, 32, '1920', '2021', NULL, NULL,
+            'Uniformen-Depot', false, true, 1950, true
+        WHERE EXISTS (
+            SELECT 1 FROM information_schema.tables
+             WHERE table_schema = 'public' AND table_name = 'lohn_konto_mapping'
+        )
+          AND NOT EXISTS (
+            SELECT 1 FROM lohn_konto_mapping
+             WHERE position = 600 AND sub_position = 32
+          );
+
+        -- Backfill: Eintritt vor 01.07.2026 → Depot 50 ohne Lohn-Abzug
+        -- Auch bereits Ausgetretene (Korrekturlohn / Nachzahlung) — Walter Aug 2026.
+        INSERT INTO employee_uniform_depot
+            (employee_id, balance, status, charged_periode, bemerkung, created_at, updated_at)
+        SELECT e.id, 50, 'EINBEHALTEN', 'BACKFILL',
+               'Backfill: Eintritt vor 01.07.2026',
+               CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+          FROM employee e
+         WHERE COALESCE(e.is_hidden, false) = false
+           AND COALESCE(e.is_payroll_excluded, false) = false
+           AND e.entry_date IS NOT NULL
+           AND e.entry_date < DATE '2026-07-01'
+           AND NOT EXISTS (
+               SELECT 1 FROM employee_uniform_depot d WHERE d.employee_id = e.id
+           );
+    ");
+
+    // ── Korrektur UVG/KTG Lohnpositionen (Mirus 65.1/65.2/75.1/75.2) ─────
+    // Walter Aug 2026: SWICA-Nachzahlung (z.B. Qazimi CHF 344) als eigene
+    // Lohnarten mit SV-Flags + Feiertags-Basis. Altes «65»/«75» (ABZUG
+    // Festlohn-Kürzung FIX) bleibt unangetastet.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition (
+            code, bezeichnung, kategorie, typ,
+            ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+            lohnausweis_code, dreijehnter_ml_pflichtig,
+            zaehlt_als_basis_feiertag, zaehlt_als_basis_ferien, zaehlt_als_basis_13ml,
+            lohnausweisfeld, lohnausweis_kreuz, statistik_code,
+            nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
+            bvg_auf_100_rechnen, position_13ml, zaehlt_fuer_tagessatz,
+            sort_order, is_active, created_at
+        )
+        SELECT v.code, v.bezeichnung, v.kategorie, 'ZULAGE',
+               v.ahv, v.nbuv, v.ktg, v.bvg, v.qst,
+               v.la_code, false,
+               true, false, v.ml13,
+               '1', false, v.stat,
+               true, true,
+               true, 0, true,
+               v.sort_order, true, CURRENT_TIMESTAMP
+          FROM (VALUES
+            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall',
+             true,  true,  true,  true, true,  'I', true,  'I', 66),
+            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall',
+             false, false, false, true, true,  'Y', false, '0', 67),
+            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit',
+             true,  true,  true,  true, true,  'I', true,  'I', 76),
+            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit',
+             false, false, false, true, true,  'Y', false, '0', 77)
+          ) AS v(code, bezeichnung, kategorie, ahv, nbuv, ktg, bvg, qst, la_code, ml13, stat, sort_order)
+         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = v.code);
+
+        -- Bestehende Zeilen: nur Name/Kategorie/Sortierung pflegen —
+        -- SV-/Basis-Flags bewusst NICHT überschreiben (Walter kann sie in der UI anpassen).
+        UPDATE lohnposition AS lp
+           SET bezeichnung = v.bezeichnung,
+               kategorie   = v.kategorie,
+               typ         = 'ZULAGE',
+               sort_order  = v.sort_order,
+               is_active   = true
+          FROM (VALUES
+            ('65.1', 'Korrektur UVG Taggeld Karenz AHV pflichtig', 'Korrektur Unfall', 66),
+            ('65.2', 'Korrektur UVG Taggeld Versicherung',         'Korrektur Unfall', 67),
+            ('75.1', 'Korrektur KTG Taggeld Karenz AHV pflichtig', 'Korrektur Krankheit', 76),
+            ('75.2', 'Korrektur KTG Taggeld Versicherung',         'Korrektur Krankheit', 77)
+          ) AS v(code, bezeichnung, kategorie, sort_order)
+         WHERE lp.code = v.code;
+    ");
+
     // ── Lohnposition: ZaehltAlsBasis13ml-Default für Standard-Positionen ──
     // Damit der 13.-ML-Akkumulator die regulären Lohnarten (Festlohn,
     // Stundenlohn, Karenz etc.) automatisch in die Basis nimmt. Wirkt nur,
@@ -1522,8 +1757,10 @@ using (var scope = app.Services.CreateScope())
             '50',     -- Ausbezahlte Feiertage (UTP)
             '60',     -- Unfall (Karenzentschädigung)
             '65',     -- Korrektur Unfall
+            '65.1',   -- Korrektur UVG Karenz AHV
             '70',     -- Krankheit (Karenzentschädigung)
             '75',     -- Korrektur Krankheit
+            '75.1',   -- Korrektur KTG Karenz AHV
             '195.3'   -- Ferien-Geld-Auszahlung
         )
           AND zaehlt_als_basis_13ml = false;
@@ -1852,7 +2089,44 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS kontaktperson_rolle VARCHAR(100),
             ADD COLUMN IF NOT EXISTS erreichbarkeit      VARCHAR(150),
             ADD COLUMN IF NOT EXISTS webseite            VARCHAR(300),
-            ADD COLUMN IF NOT EXISTS handy               VARCHAR(30);
+            ADD COLUMN IF NOT EXISTS handy               VARCHAR(30),
+            ADD COLUMN IF NOT EXISTS kontoinhaber        VARCHAR(200),
+            ADD COLUMN IF NOT EXISTS kontoinhaber_behoerde_id INTEGER
+                REFERENCES behoerde(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_behoerde_kontoinhaber_behoerde
+            ON behoerde(kontoinhaber_behoerde_id);
+    ");
+
+    // Sachbearbeiter-Stamm pro Behörde (Walter 02.08.2026) — Zahlung an Behörde,
+    // Lohnmeldung/Lohnausweis-Mail an gewählten SB. Idempotent.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS behoerde_sachbearbeiter (
+            id              SERIAL PRIMARY KEY,
+            behoerde_id     INTEGER      NOT NULL REFERENCES behoerde(id) ON DELETE CASCADE,
+            name            VARCHAR(150) NOT NULL,
+            rolle           VARCHAR(100),
+            telefon         VARCHAR(30),
+            handy           VARCHAR(30),
+            email           VARCHAR(200),
+            erreichbarkeit  VARCHAR(150),
+            bemerkung       TEXT,
+            is_active       BOOLEAN      NOT NULL DEFAULT true,
+            created_at      TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+            updated_at      TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_behoerde_sachbearbeiter_behoerde
+            ON behoerde_sachbearbeiter(behoerde_id);
+        ALTER TABLE employee_lohn_assignment
+            ADD COLUMN IF NOT EXISTS behoerde_sachbearbeiter_id INTEGER
+            REFERENCES behoerde_sachbearbeiter(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_emp_lohn_assignment_sb
+            ON employee_lohn_assignment(behoerde_sachbearbeiter_id);
+        -- Pflicht-Dokument an Lohnabtretung (Walter 02.08.2026)
+        ALTER TABLE employee_lohn_assignment
+            ADD COLUMN IF NOT EXISTS dokument_id INTEGER
+            REFERENCES employee_dokument(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS idx_emp_lohn_assignment_dokument
+            ON employee_lohn_assignment(dokument_id);
     ");
 
     // Familienzulagen pro Familienmitglied, zeitlich versioniert (Von/Bis/Monatsbetrag).
