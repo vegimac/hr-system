@@ -15,9 +15,11 @@ Wenn du links in der Sidebar auf **Mitarbeiter** klickst, siehst du:
 
 **Neue MA kommen ausschliesslich aus easy@work.** Der Ablauf ist immer:
 
-1. **Zuerst in easy@work anlegen** (dort entsteht auch die Personalnummer).
+1. **Zuerst in easy@work anlegen** (dort entsteht auch die Personalnummer). Die Nummer muss **fortlaufend** an die letzte Nummer der Filiale in OneCrew anschliessen (siehe «letzte Nr.» oben in der MA-Liste). Ein neuer MA = nächste Nummer; mehrere Neue auf einmal = die nächsten Nummern lückenlos untereinander (z.B. letzte `750104` → `750105`, `750106`, `750107`).
 2. In der Mitarbeiter-Liste auf **„＋ Neuer MA aus easy@work"** klicken. Es öffnet sich ein Fenster mit allem, was sich für deine Filiale geändert hat: **NEU** (noch nicht im System) und **UPDATE** (aktive MA mit Änderungen). Inaktive MA (Austritt in easy@work) werden **nie** angefasst.
 3. Alles ist vorangehakt — abwählen, was (noch) nicht übernommen werden soll, dann **„Ausgewählte importieren"**. Stammdaten, Vertrag, Funktion und Lohnmodell kommen mit; der neue MA erscheint sofort in der Liste links.
+
+**Personalnummern-Sperre (NEU):** Weicht eine ausgewählte NEU-Nummer von der erwarteten Folge ab, ist der **gesamte Import gesperrt** — mit Meldung «erwartet … / erhalten …». Bitte die Nummer in easy@work korrigieren und die Vorschau neu laden. UPDATE-Zeilen (bestehende MA) sind von dieser Regel nicht betroffen. Der Admin-Filial-Massenimport prüft das nicht.
 
 Der Button steht allen HR-/GF-Rollen zur Verfügung (GF sieht nur seine Filialen). Der frühere **CSV-Import ist Vergangenheit** — bitte nicht mehr verwenden.
 
