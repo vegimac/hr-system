@@ -84,11 +84,25 @@ public class AkontoWorkflowController : HrControllerBase
 
         // Auto-Heal (Walter 03.08.2026): Definitiv schon provisorisch/abgeschlossen
         // und Akonto hängt noch in einem Zwischenstatus → UEBERSPRUNGEN.
-        // Sonst bleibt der Definitiv-Lock-Banner ewig stehen (sinnlos).
+        // Best-effort: Heal darf den Status-GET nie mit 500 killen.
         if (periode != null)
         {
-            await AkontoDefinitivGuard.TryAbandonMidFlightAsync(
-                _db, periode, GetUserId(), userName: null, log: _log);
+            try
+            {
+                await AkontoDefinitivGuard.TryAbandonMidFlightAsync(
+                    _db, periode, GetUserId(), userName: null, log: _log);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex,
+                    "[Akonto] Heal UEBERSPRUNGEN fehlgeschlagen CP={Cp} {Y}-{M} — Status trotzdem liefern",
+                    companyProfileId, year, month);
+                // Periode neu laden falls Change-Tracker halb mutiert ist
+                _db.ChangeTracker.Clear();
+                periode = await _db.PayrollPerioden
+                    .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
+                                           && p.Year == year && p.Month == month);
+            }
         }
 
         // Auto-Heal (Walter 01.06.2026): wenn die Periode auf BEI_HR steht und

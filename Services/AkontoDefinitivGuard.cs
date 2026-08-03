@@ -79,15 +79,17 @@ public static class AkontoDefinitivGuard
         periode.AkontoHrFreigegebenAt = null;
         periode.AkontoHrFreigegebenBy = null;
 
+        // payroll_periode_audit.created_at = timestamptz → UTC (wie Reset/AddAudit).
+        // user_id: 0 ist kein gültiger FK — NULL speichern.
         db.PayrollPeriodeAudits.Add(new PayrollPeriodeAudit
         {
             PayrollPeriodeId = periode.Id,
-            UserId = userId,
-            UserName = userName ?? (userId.HasValue ? $"User #{userId}" : "System"),
-            Action = "AKONTO_UEBERSPRUNGEN_DEFINITIV",
+            UserId = userId is > 0 ? userId : null,
+            UserName = userName ?? (userId is > 0 ? $"User #{userId}" : "System"),
+            Action = "AKONTO_UEBERSPRUNGEN",
             Bemerkung = $"Akonto-Status «{vorher}» → UEBERSPRUNGEN (Definitiv bereits «{periode.Status}»). "
                       + $"Vorbereitung gelöscht: {geloescht}, storniert: {storniert}.",
-            CreatedAt = DateTime.Now,
+            CreatedAt = DateTime.UtcNow,
         });
 
         await db.SaveChangesAsync(ct);
