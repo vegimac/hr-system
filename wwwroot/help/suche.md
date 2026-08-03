@@ -62,7 +62,7 @@ Tippe `7561234` → findet auch `756.1234.5678.90`. Das System ignoriert die Pun
 Tippe `B` oder `C` → findet alle MA mit dieser Bewilligung. Bei nur einem Buchstaben gibt's viele Treffer — kombiniere mit Namen für gezielter.
 
 **Leer beim Öffnen:**
-Wenn du das Suchfeld noch nicht ausgefüllt hast, siehst du **8 Schnellzugriffe** zu den häufigsten Seiten (Dashboard, Mitarbeiter, Verträge, Lohnlauf, Posteingang, …).
+Wenn du das Suchfeld noch nicht ausgefüllt hast, siehst du **Schnellzugriffe** zu den häufigsten Seiten (Dashboard, Mitarbeiter, Lohnlauf, Posteingang, Auswertungen, HR … — je nach Rolle).
 
 ## Was die Suche NICHT findet
 

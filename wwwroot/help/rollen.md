@@ -57,21 +57,18 @@ Das Filial-Selektor-Dropdown in der Sidebar zeigt nur die Filialen, auf die der 
 
 ## Wer kann was im Admin-Bereich?
 
-Diese Seiten sind **nur für admin** sichtbar UND editierbar:
+Der gesamte Bereich **System** ist nur für **admin** (Kataloge, Importer, Schnittstellen). Typische Karten:
 
-- Benutzerverwaltung
-- SV-Sätze (AHV, ALV, BVG…)
-- Mindestlöhne (L-GAV)
-- Lohnpositionen
-- Kontoplan (Fibu)
-- QST-Tarife
-- Familienzulagen-Tarife
-- Absenz-Typen
-- Behörden (Betreibungsämter etc.)
-- Banken (Stammdaten)
-- Audit-Log
+- Benutzerverwaltung (Rollen, Filialen, Unterschrift, Mirus-Flag, Menü-Bereiche)
+- SV-Sätze, Mindestlöhne, Lohnpositionen, Kontoplan
+- QST-Tarife, Familienzulagen, Absenz-Typen, Behörden, Ärzte, Mutterschafts-Regeln
+- Filialen, Lohnperioden, Warnungen, Dokument-Struktur
+- easy@work API, Importer / Onboarding-Hub, SMTP, SMS (eCall), Moments-Texte
+- Aktivitäts-Log, Datenaufbewahrung
 
-Wenn ein `superuser` versucht eine dieser Seiten zu schreiben, gibt es einen 403-Fehler. Auch wenn er die URL kennt.
+Überblick: [System](#system). Wenn ein `superuser` diese Seiten schreiben will → 403.
+
+**lowuser** sieht nur Dashboard, Mitarbeiter (und ggf. Verträge) — kein Lohnlauf, kein HR, kein System. Ideal zum Nachschlagen von Stammdaten.
 
 ## Spezial-Konstruktion: buchhaltung-Rolle
 
@@ -84,14 +81,9 @@ Damit greifen alle bestehenden HR-Berechtigungen automatisch, und zusätzlich de
 
 ## Mitarbeiter-Postfach (employee)
 
-Wenn ein MA seine Lohnzettel selber abrufen können soll:
+Ausführlich: [MA-Postfach](#postfach-ma).
 
-1. **Im MA-Detail → Tab Restaurant Admin → Kachel „Postfach-Passwort"** (oder Onboarding-QR für den Erst-Login).
-2. Das System setzt das Passwort auf die **Personalnummer** des MA und merkt sich, dass der MA es beim ersten Login ändern muss.
-3. Der MA logt sich auf `https://test.hr-srgmbh.ch/postfach` mit seiner Personalnummer + dem Initial-Passwort ein.
-4. Beim ersten Login: zwingender Passwort-Wechsel.
-
-Was der MA sieht: seine Lohnzettel (PDF) + Mitteilungen von HR (z.B. „Dein Lohn steigt").
+Kurz: Restaurant Admin → **Postfach-Passwort** oder **Onboarding-QR**. Login mit Personalnummer; erstes Passwort = Personalnummer (muss gewechselt werden).
 
 ## Passwort-Reset
 

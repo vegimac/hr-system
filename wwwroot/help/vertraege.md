@@ -4,9 +4,13 @@ Hier definierst du, **wie viel** ein Mitarbeiter verdient und **wie** er angeste
 
 ## Wo finde ich was?
 
-Sidebar **Verträge** → links die MA-Liste, rechts der gewählte Vertrag mit allen Details.
+Verträge erreichst du so:
 
-Wenn du oben in der Sidebar eine Filiale gewählt hast, siehst du nur MA dieser Filiale. „Alle Filialen" → ganze Belegschaft.
+- **Mitarbeiter** → MA wählen → Übersicht → Karte **Verträge** (oder Vertrags-Leiste)
+- Über die globale Suche **⌘K** → MA → Verträge
+- Manche Rollen haben zusätzlich eine eigene Verträge-Seite
+
+Filiale immer über die Sidebar wählen — sonst siehst du die falsche Belegschaft.
 
 ## Die vier Vertragsmodelle
 
@@ -130,6 +134,7 @@ Eine reine Anzeige zur Plausibilitäts-Prüfung: `garantierte Wochenstunden × S
 
 ## Häufige Stolpersteine
 
-- **„Mindestlohn unterschritten"** beim Speichern → entweder Lohn anheben oder Ausbildungs-Level/Funktion prüfen (vielleicht ist „Mit Berufslehre" gemeint statt „Ohne").
+- **„Mindestlohn unterschritten"** beim Speichern → entweder Lohn anheben oder Ausbildungs-Level/Funktion prüfen (vielleicht ist „Mit Berufslehre" gemeint statt „Ohne"). Mehr: [Mindestlöhne](#mindestloehne).
 - **Vertrag bleibt nicht gespeichert** → meist fehlt das Pflichtfeld „13. ML %". Das ist immer 8.33 — kannst du einfach eintippen.
 - **Der MA hat zwei aktive Verträge gleichzeitig** → kommt vor wenn easy@work-Import nicht sauber lief. Den älteren beenden (Enddatum auf gestern), dann passt es wieder.
+- **Vertrag lässt sich nicht ändern** → oft schon im Lohn verwendet oder [Edit-Sperre](#edit-sperre) — dann Folge-Vertrag ab neuem Datum.

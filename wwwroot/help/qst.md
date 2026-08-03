@@ -108,7 +108,7 @@ So bleibt die Historie sauber — frühere Lohnzettel werden mit dem damals gül
 
 ## Anmeldung beim Kanton
 
-**Sidebar → HR → QST-Anmeldung** generiert ein PDF, das du dem Kanton schickst, wenn ein MA eintritt oder austritt. Templates sind hinterlegt für SO, AG, ZH, BE. Andere Kantone können wir auf Anfrage hinzufügen.
+**Sidebar → HR → QST-Anmeldung** generiert ein PDF, das du dem Kanton schickst, wenn ein MA eintritt oder austritt. Templates sind hinterlegt für SO, AG, ZH, BE. Andere Kantone können wir auf Anfrage hinzufügen. Mehr zum HR-Bereich: [HR-Hub](#hr-hub).
 
 ## Lohnlauf-Sperre
 
