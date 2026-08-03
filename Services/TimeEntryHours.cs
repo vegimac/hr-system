@@ -12,7 +12,9 @@ public static class TimeEntryHours
 {
     /// <summary>
     /// Absolute Arbeitsstunden eines Stempel-Eintrags.
-    /// Primär aus In/Out (wie easy@work-Sync), sonst Tag+Nacht, sonst TotalHours.
+    /// Wanduhr (In/Out), TotalHours und Tag+Nacht werden zusammengeführt —
+    /// Alt-Daten mit Total/Wanduhr = nur Tag + NightHours separat werden
+    /// auf Tag+Nacht angehoben (Walter-Bug 03.08.2026: 116.59 statt 125.60).
     /// </summary>
     public static decimal AbsoluteHours(EmployeeTimeEntry t)
     {
@@ -24,9 +26,21 @@ public static class TimeEntryHours
         DateTime timeIn, DateTime? timeOut,
         decimal? totalHours, decimal? durationHours, decimal? nightHours)
     {
+        decimal? wall = null;
         if (timeOut.HasValue && timeOut.Value > timeIn)
-            return Math.Round((decimal)(timeOut.Value - timeIn).TotalHours, 2);
-        return AbsoluteHours(totalHours, durationHours, nightHours);
+            wall = Math.Round((decimal)(timeOut.Value - timeIn).TotalHours, 2);
+
+        // Grösster vertrauenswürdiger Total-Kandidat (Sync-Total oder Wanduhr).
+        // Danach dieselbe Tag+Nacht-Korrektur wie ohne Zeitstempel — sonst
+        // würde ein In/Out, das nur den Tag-Anteil abbildet, die Nacht
+        // verschlucken (genau der Live-Bug: Lohn 116.59, Stempel-Total 125.60).
+        decimal? preferredTotal = totalHours;
+        if (wall.HasValue)
+            preferredTotal = preferredTotal.HasValue
+                ? Math.Max(preferredTotal.Value, wall.Value)
+                : wall;
+
+        return AbsoluteHours(preferredTotal, durationHours, nightHours);
     }
 
     /// <summary>
