@@ -97,14 +97,17 @@ function dfRender(data) {
 }
 
 async function dfApply() {
-    if (!_dfPreview?.employeeId) return;
     const neu = (document.getElementById('dfNewNumber')?.value || '').trim();
     if (!neu) { alert('Neue Personalnummer fehlt.'); return; }
+    // Frische Checks unmittelbar vor dem Schreiben.
+    await dfLoadPreview();
+    if (!_dfPreview?.employeeId) return;
     const c = _dfPreview.checks;
-    if (c && c.taken) { alert('Nummer ist belegt.'); return; }
+    if (!c) { alert('Bitte zuerst prüfen.'); return; }
+    if (c.taken) { alert('Nummer ist belegt.'); return; }
 
     let allowPrefixMismatch = false;
-    if (c && c.prefixMismatch) {
+    if (c.prefixMismatch) {
         const ok = typeof liquidConfirm === 'function'
             ? await liquidConfirm(`Die Nummer «${neu}» passt nicht zum Filial-Präfix «${c.expectedPrefix}».\n\nTrotzdem umsetzen?`)
             : confirm(`Präfix-Mismatch. Trotzdem «${neu}» setzen?`);
