@@ -83,7 +83,10 @@ public class SnapshotRecomputeService
             s.Brutto    = gross;
             s.Netto     = net;
             s.SlipJson  = json;
-            s.UpdatedAt = DateTime.UtcNow;
+            // Walter-Vorgabe 30.06.2026: DateTime.Now, NIE UtcNow —
+            // payroll_snapshot.updated_at ist timestamp without time zone
+            // (Npgsql 500 «Cannot write DateTime with Kind=UTC»).
+            s.UpdatedAt = DateTime.Now;
 
             if (saldoByEmp.TryGetValue(s.EmployeeId, out var sal))
             {

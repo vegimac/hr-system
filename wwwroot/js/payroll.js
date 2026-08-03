@@ -2125,13 +2125,18 @@ async function lohnRecomputeSnapshots() {
             { method: 'POST', headers: ah() });
         if (!r.ok) {
             const j = await r.json().catch(() => ({}));
-            alert('Neuberechnung fehlgeschlagen: ' + (j.error || `HTTP ${r.status}`));
+            alert('Neuberechnung fehlgeschlagen: ' + (j.message || j.error || `HTTP ${r.status}`));
             return;
         }
         const j = await r.json().catch(() => ({}));
         alert(`✓ ${j.updated ?? '?'} von ${j.total ?? '?'} Lohnzetteln neu berechnet.\n\n` +
               'Erstelle das Fibu-Journal neu — Konto 1920 sollte jetzt aufgehen.');
         if (typeof lohnWfRefresh === 'function') lohnWfRefresh();
+        // Live-Slip neu laden — zeigt die frischen IST-Stunden (Tag+Nacht).
+        if (typeof _lohnSelectedEmpId !== 'undefined' && _lohnSelectedEmpId
+            && typeof loadLohnSlip === 'function') {
+            loadLohnSlip(_lohnSelectedEmpId);
+        }
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
@@ -2526,8 +2531,23 @@ async function savePeriodeBemerkung(periodeId, text) {
             body: JSON.stringify({ text })
         });
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'Fehler'); }
+        const j = await res.json().catch(() => ({}));
+        // Cache sofort aktualisieren — sonst zeigt das Modal den alten Text
+        // und man denkt, Speichern habe nicht gegriffen.
+        if (window._currentLohnPeriode && window._currentLohnPeriode.id === periodeId) {
+            window._currentLohnPeriode.pdfFooterText = j.pdfFooterText ?? (text || null);
+        }
         showToast('Bemerkung gespeichert ✓', 'success');
         await lohnWfRefresh();
+        // Bestätigte Lohnzettel tragen die Fussnote im SlipJson — ohne
+        // Recompute bleibt der alte Text auf PDF/Belegen sichtbar.
+        const hasSnaps = !!(_lohnWfData && (
+            (_lohnWfData.gfConfirmed | 0) + (_lohnWfData.hrConfirmed | 0) > 0
+            || Object.keys(_lohnWfData.snapByEmp || {}).length > 0
+        ));
+        if (hasSnaps && typeof currentUser !== 'undefined' && currentUser?.role === 'admin') {
+            showToast('Hinweis: Für bestehende Lohnzettel «♻️ Snapshots neu berechnen» ausführen, damit die neue Bemerkung auf den PDFs erscheint.', 'info');
+        }
     } catch(e) { alert(e.message); }
 }
 
