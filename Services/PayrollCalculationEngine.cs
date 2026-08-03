@@ -498,8 +498,11 @@ public class PayrollCalculationEngine
             }
         }
 
-        // Tatsächlich gestempelte Stunden (exkl. NACHT_KOMP-Gutschriften)
-        decimal workedHours = timeEntries.Sum(t => t.TotalHours ?? 0);
+        // Absolute gestempelte Stunden = gesamte Anwesenheit (Tag + Nacht).
+        // Walter 03.08.2026: NICHT nur DurationHours/Tag — Nacht gehört zur
+        // bezahlten IST-Zeit. Nacht-Saldo (10 %) läuft separat daneben.
+        // NACHT_KOMP-Absenzen stehen nicht in den Stempeln (extra Absenz-Pfad).
+        decimal workedHours = TimeEntryHours.SumAbsolute(timeEntries);
 
         // Nachtstunden dieser Periode
         decimal nightHours = timeEntries.Sum(t => t.NightHours ?? 0);
@@ -1478,8 +1481,10 @@ public class PayrollCalculationEngine
             // unabhängig von den gerundeten Anzeige-Kürzungen.
             decimal festlohnArbeitBetrag = Math.Round(sollStundenExakt * hourlyRate, 2);
 
-            // Stunden-Saldo inkl. Vormonat (Ferien wurden bereits durch sollStunden
-            // abgebildet, absenzGutschrift enthält nur noch Krank/Schulung/etc.)
+            // Stunden-Saldo inkl. Vormonat. workedHours = absolute Stempel (Tag+Nacht).
+            // Krank/Unfall/Ferien kürzen das SOLL (oben), nicht die IST-Stempel.
+            // absenzGutschrift = bezahlte Absenzen (Schulung/Militär/NACHT_KOMP …),
+            // bei MTP OHNE Krank/Unfall/Ferien (Walter 30.05. / 03.08.2026).
             decimal nettoH         = workedHours + absenzGutschrift - sollStunden + vormonatHourSaldo;
             decimal mehrstundenAus = Math.Round(Math.Max(0, nettoH), 2);
             decimal neuerSaldo     = Math.Round(Math.Min(0, nettoH), 2);

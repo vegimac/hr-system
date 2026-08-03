@@ -110,13 +110,13 @@ public class LseExportService
         // Optional: bezahlte Stunden im Monat aus EmployeeTimeEntries
         var monthFrom = new DateOnly(year, month, 1);
         var monthTo   = new DateOnly(year, month, DateTime.DaysInMonth(year, month));
-        var timeAgg = await _db.EmployeeTimeEntries
+        var timeAgg = (await _db.EmployeeTimeEntries
             .Where(t => employeeIds.Contains(t.EmployeeId)
                      && t.EntryDate >= monthFrom
                      && t.EntryDate <= monthTo)
+            .ToListAsync())
             .GroupBy(t => t.EmployeeId)
-            .Select(g => new { EmployeeId = g.Key, Hours = g.Sum(x => (x.TotalHours ?? x.DurationHours ?? 0m)) })
-            .ToDictionaryAsync(x => x.EmployeeId, x => x.Hours);
+            .ToDictionary(g => g.Key, g => TimeEntryHours.SumAbsolute(g));
 
         var result = new List<LseRecord>();
         foreach (var snap in snapshots)

@@ -984,7 +984,7 @@ public class AkontoWorkflowController : HrControllerBase
                      && t.EntryDate  >= periodFrom
                      && t.EntryDate  <= stichtag)
             .ToListAsync();
-        decimal totalHours = entries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0m);
+        decimal totalHours = TimeEntryHours.SumAbsolute(entries);
 
         var absences = await _db.Absences
             .Where(a => a.EmployeeId == emp.Id

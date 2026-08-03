@@ -80,7 +80,7 @@ Icon-Kacheln für den Filial-Alltag (GF, HR und Admin). Hier liegen die Aktionen
 5. Bei Bedarf: **Kündigung während Probezeit** direkt aus dem Modal.
 
 ### Stempelzeiten
-Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und kommen mit dem nächsten Sync automatisch rein (täglicher Auto-Sync; manueller Sync pro MA oben rechts oder in den Systemeinstellungen). Pro Woche siehst du das Total. Wenn das Wochentotal die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
+Anzeige der gestempelten Zeiten aus easy@work. **Nur lesend** — Korrekturen passieren in easy@work und kommen mit dem nächsten Sync automatisch rein (täglicher Auto-Sync; manueller Sync pro MA oben rechts oder in den Systemeinstellungen). Spalten: **Tag** / **Nacht** / **Total** (= absolute Anwesenheit). Im Lohn und in den Stundensaldi zählt immer das **Total**. Pro Woche siehst du das Total; wenn es die Filial-Max-Stunden überschreitet, erscheint ein rotes ⚠.
 
 ### Absenzen / KTG/UVG
 Krankheit, Unfall, Ferien, Feiertag, Schulung, Militär, Nacht-Kompensation. Pro Eintrag wählst du Tage und Ausfall-Prozent. Berechnete Stunden werden automatisch angezeigt.

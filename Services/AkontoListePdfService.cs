@@ -114,14 +114,13 @@ public class AkontoListePdfService
             .ToList();
         var stundenByEmp = utpMtpEmpIds.Count == 0
             ? new Dictionary<int, decimal>()
-            : await _db.EmployeeTimeEntries
+            : (await _db.EmployeeTimeEntries
                 .Where(t => utpMtpEmpIds.Contains(t.EmployeeId)
                          && t.EntryDate >= periodStart
-                         && t.EntryDate <= akontoStichtag
-                         && t.TotalHours != null)
+                         && t.EntryDate <= akontoStichtag)
+                .ToListAsync())
                 .GroupBy(t => t.EmployeeId)
-                .Select(g => new { EmployeeId = g.Key, Hours = g.Sum(t => t.TotalHours ?? 0m) })
-                .ToDictionaryAsync(x => x.EmployeeId, x => x.Hours);
+                .ToDictionary(g => g.Key, g => TimeEntryHours.SumAbsolute(g));
 
         // Rows zusammenbauen — Sortierung nach Nachname, Vorname (Treuhänder-Standard).
         var rows = zahlungen

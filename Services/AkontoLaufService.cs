@@ -629,9 +629,7 @@ public class AkontoLaufService
         }
         else
         {
-            hours = (decimal)timeEntries
-                .Where(t => t.EmployeeId == e.Id)
-                .Sum(t => (double)(t.TotalHours ?? t.DurationHours ?? 0m));
+            hours = TimeEntryHours.SumAbsolute(timeEntries.Where(t => t.EmployeeId == e.Id));
             bruttoStunden = hours * hourly;
             hourErl       = $"{hours:0.00}h × CHF {hourly:0.00} = CHF {bruttoStunden:0.00}";
         }

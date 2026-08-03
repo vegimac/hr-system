@@ -169,10 +169,10 @@ public class ZwischenverdienistController : ControllerBase
                 tagesEintraege[day] = code;
         }
 
-        // Gearbeitete Stunden eintragen (überschreiben Absenzen)
+        // Gearbeitete Stunden eintragen (überschreiben Absenzen) — absolut Tag+Nacht
         foreach (var te in timeEntries)
         {
-            decimal h = te.TotalHours ?? te.DurationHours ?? 0;
+            decimal h = TimeEntryHours.AbsoluteHours(te);
             if (h > 0)
                 tagesEintraege[te.EntryDate.Day] = h.ToString("G");
         }
@@ -181,7 +181,7 @@ public class ZwischenverdienistController : ControllerBase
         // Anzahl Stunden = gearbeitete Stempel-Stunden + bezahlte Absenz-Stunden
         // (Krank, Unfall, Mutterschaft, Ferien-Bezug etc.). Damit entspricht der
         // Grundlohn dem AHV-pflichtigen Lohnersatz, den der MA effektiv erhält.
-        decimal stempelStunden = timeEntries.Sum(t => t.TotalHours ?? t.DurationHours ?? 0);
+        decimal stempelStunden = TimeEntryHours.SumAbsolute(timeEntries);
 
         // Wochenstunden: Vertrag (für MTP) sonst Filiale
         decimal wochenStunden = employment?.GuaranteedHoursPerWeek

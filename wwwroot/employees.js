@@ -9646,20 +9646,34 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
     const sorted   = [...rows].sort(sortAsc);       // Anzeige (nur Periode)
     const sortedAll = [...fullRows].sort(sortAsc);  // für Wochentotale (volle Wochen)
 
-    // Monats-Summen (nur Periode)
-    let sumH = 0, sumN = 0;
+    // Monats-Summen (nur Periode). Absolute Stunden = Tag + Nacht
+    // (Walter 03.08.2026 — nicht totalHours allein, das war in Alt-Daten oft nur Tag).
+    const absH = (r) => {
+        const d = Number(r.durationHours ?? 0);
+        const n = Number(r.nightHours ?? 0);
+        const t = Number(r.totalHours ?? 0);
+        if (d > 0 || n > 0) {
+            const parts = d + n;
+            // totalHours schon = Tag+Nacht → total; total ≈ nur Tag → Tag+Nacht
+            if (t >= parts - 0.05) return t;
+            if (n > 0 && Math.abs(t - d) <= 0.05) return parts;
+            return Math.max(t, parts);
+        }
+        return t;
+    };
+    let sumTag = 0, sumN = 0, sumTot = 0;
     sorted.forEach(r => {
-        sumH += Number(r.totalHours ?? r.durationHours ?? 0);
-        sumN += Number(r.nightHours ?? 0);
+        sumTag += Number(r.durationHours ?? 0);
+        sumN   += Number(r.nightHours ?? 0);
+        sumTot += absH(r);
     });
 
-    // Wochentotal (Mo–So) je Woche aus den VOLLEN Wochen aufsummieren; zugleich
-    // den ECHTEN letzten Eintrag jeder Woche merken (auch über Monatsgrenzen).
+    // Wochentotal (Mo–So) = absolute gestempelte Stunden (Tag+Nacht)
     const weekSum = {}, lastIdOfWeek = {};
     sortedAll.forEach(r => {
         const wk = stempelWeekMonday(r.entryDate);
         if (!wk) return;
-        weekSum[wk] = (weekSum[wk] || 0) + Number(r.totalHours ?? r.durationHours ?? 0);
+        weekSum[wk] = (weekSum[wk] || 0) + absH(r);
         lastIdOfWeek[wk] = r.id;   // sortiert aufsteigend ⇒ am Ende = letzter Eintrag der Woche
     });
 
@@ -9717,7 +9731,7 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
         // Stempelzeiten sind read-only (Walter-Vorgabe 17.05.2026): keine
         // Edit-/Löschen-Buttons mehr — easy@work ist die Quelle der Wahrheit.
 
-        const totalRow = (Number(r.durationHours||0) + nightH).toFixed(2);
+        const totalRow = stempelFmtHours(absH(r));
         const mainRow = `
             <tr class="${rowCls}" data-row-id="${r.id}">
                 <td class="stempel-td stempel-td-date">${stempelFmtDate(r.entryDate)}</td>
@@ -9789,9 +9803,9 @@ function stempelRenderTable(rows, employeeId, lockState = null, allRows = null, 
             ${sorted.length > 0 ? `<tfoot>
                 <tr class="stempel-foot-row">
                     <td colspan="3" class="stempel-ft stempel-ft-label">Summe</td>
-                    <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumH)}</td>
+                    <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumTag)}</td>
                     <td class="stempel-ft stempel-ft-num">${stempelFmtHours(sumN)}</td>
-                    <td class="stempel-ft stempel-ft-num stempel-ft-total">${stempelFmtHours((sumH||0) + (sumN||0))}</td>
+                    <td class="stempel-ft stempel-ft-num stempel-ft-total">${stempelFmtHours(sumTot)}</td>
                     <td class="stempel-ft"></td>
                 </tr>
             </tfoot>` : ''}

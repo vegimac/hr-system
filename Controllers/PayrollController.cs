@@ -314,15 +314,13 @@ public class PayrollController : HrControllerBase
             .ThenBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
         var empIds = byEmp.Select(x => x.EmployeeId).ToList();
 
-        // Gearbeitete Stunden bis und mit Stichtag (eigene Abfrage — die Engine
-        // summiert den ganzen Monat; für den Stichtag begrenzen wir die Stempel).
+        // Gearbeitete Stunden bis und mit Stichtag — absolut (Tag+Nacht), analog Engine.
         var workedToStich = (await _db.EmployeeTimeEntries.AsNoTracking()
                 .Where(t => empIds.Contains(t.EmployeeId)
                          && t.EntryDate >= periodFrom && t.EntryDate <= stich)
-                .GroupBy(t => t.EmployeeId)
-                .Select(g => new { EmployeeId = g.Key, Sum = g.Sum(t => t.TotalHours ?? 0m) })
                 .ToListAsync())
-            .ToDictionary(x => x.EmployeeId, x => x.Sum);
+            .GroupBy(t => t.EmployeeId)
+            .ToDictionary(g => g.Key, g => TimeEntryHours.SumAbsolute(g));
 
         // Absenzen der Periode (für die Tag-Skalierung bis Stichtag).
         var absInPeriod = await _db.Absences.AsNoTracking()
