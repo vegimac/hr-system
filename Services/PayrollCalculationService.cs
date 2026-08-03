@@ -29,33 +29,32 @@ public static class PayrollCalculations
         ref List<object> lohnLines, ref decimal totalLohn,
         decimal vacationPct, decimal basis)
     {
-        // Neuer Saldo = Vormonat + Zuwachs (Auszahlung wird danach abgezogen)
-        decimal neu = Math.Round(prevGeld + accrual, 2);
-        decimal ausz = 0;
+        // Walter 31.07.2026: Pott EXAKT rechnen — runden erst Auszahlung/Saldo.
+        decimal neuExakt = prevGeld + accrual;
+        decimal auszExakt = 0;
 
         if (tageGenommen > 0 && prevTage > 0)
         {
-            // Proportionaler Anteil des akkumulierten Guthabens (2 Dezimalen;
-            // finale 0.05-Rundung passiert erst auf Brutto/Netto/Auszahlung).
-            ausz = Math.Round(prevGeld * (tageGenommen / prevTage), 2);
-            ausz = Math.Min(ausz, prevGeld); // nie mehr als Guthaben
-            if (ausz > 0)
+            auszExakt = prevGeld * (tageGenommen / prevTage);
+            if (auszExakt > prevGeld) auszExakt = prevGeld; // nie mehr als Guthaben
+            if (auszExakt > 0)
             {
+                decimal auszLine = Math.Round(auszExakt, 2);
                 lohnLines.Add(new
                 {
                     bezeichnung = $"Ferienentschädigung-Auszahlung ({tageGenommen:F1} Tage)",
                     anzahl      = (decimal?)tageGenommen,
                     prozent     = (decimal?)null,
                     basis       = (decimal?)null,
-                    betrag      = ausz,
+                    betrag      = auszLine,
                     accrued     = (decimal?)0m    // reine Saldo-Auszahlung, keine neue Akkumulation
                 });
-                totalLohn += ausz;
-                neu = Math.Round(neu - ausz, 2);
+                totalLohn += auszLine;
+                neuExakt -= auszExakt;
             }
         }
 
-        return (ausz, neu);
+        return (Math.Round(auszExakt, 2), Math.Round(neuExakt, 2));
     }
 
     public static object BuildResult(
@@ -751,8 +750,9 @@ public static class PayrollCalculations
         if (daysInPeriod == 0) return 0;
         if (daysInPeriod == allDays.Length) return a.HoursCredited;   // komplett in Periode
 
+        // Exakt — Aufrufer rundet erst am Schluss (Walter 31.07.2026)
         decimal proTag = a.HoursCredited / allDays.Length;
-        return Math.Round(proTag * daysInPeriod, 2);
+        return proTag * daysInPeriod;
     }
 
     /// <summary>

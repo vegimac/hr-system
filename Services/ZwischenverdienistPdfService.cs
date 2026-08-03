@@ -1,3 +1,4 @@
+using System.Globalization;
 using HrSystem.Models;
 using iText.Forms;
 using iText.Forms.Fields;
@@ -157,7 +158,16 @@ public class ZwischenverdienistPdfService
         }
 
         // ── Seite 2: Abschnitt 9 – Zusammensetzung des Bruttoeinkommens ──────
+        // Anzahl Std. = Total. Bei MTP daneben Aufschlüsselung
+        // (garantierte + darüber hinaus); Summe steht im Feld 1.85.
         SetRight(form, "1.85", FormatNum(d.TotalStunden));
+        if (d.StundenGarantiert.HasValue)
+        {
+            DrawMtpStundenAufschluesselung(
+                pdf, form, "1.85",
+                d.StundenGarantiert.Value,
+                d.StundenDarueber ?? 0m);
+        }
 
         SetRight(form, "4.141", FormatChf2(d.Grundlohn));
 
@@ -309,6 +319,68 @@ public class ZwischenverdienistPdfService
 
     // ── Hilfsmethoden ────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// MTP-Aufschlüsselung rechts neben «Anzahl Std.»:
+    /// Zeile 1 garantierte Std., Zeile 2 darüber hinaus — Total bleibt im Feld.
+    /// </summary>
+    private static void DrawMtpStundenAufschluesselung(
+        PdfDocument pdf, PdfAcroForm form, string fieldName,
+        decimal garantiert, decimal darueber)
+    {
+        PdfFormField? field = null;
+        try { field = form.GetField(fieldName); } catch { }
+        if (field is null) return;
+
+        var widgets = field.GetWidgets();
+        if (widgets == null || widgets.Count == 0) return;
+
+        var widget = widgets[0];
+        var rectArr = widget.GetRectangle();
+        if (rectArr == null) return;
+        var rect = rectArr.ToRectangle();
+
+        PdfPage? widgetPage = null;
+        for (int i = 1; i <= pdf.GetNumberOfPages(); i++)
+        {
+            var page = pdf.GetPage(i);
+            foreach (var an in page.GetAnnotations())
+            {
+                if (an.GetPdfObject() == widget.GetPdfObject())
+                {
+                    widgetPage = page;
+                    break;
+                }
+            }
+            if (widgetPage != null) break;
+        }
+        if (widgetPage == null) return;
+
+        // Labels ohne Umlaute: Helvetica (WinAnsi) hat kein zuverlässiges «ü».
+        string gStr = garantiert.ToString("0.00", CultureInfo.InvariantCulture);
+        string dStr = darueber.ToString("0.00", CultureInfo.InvariantCulture);
+        string line1 = $"garantierte Std. {gStr}";
+        string line2 = $"+ Mehrstunden {dStr}";
+        try
+        {
+            var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+            float x = rect.GetRight() + 8f;
+            float yTop = rect.GetTop() - 2f;
+            float lineH = 9f;
+            var canvas = new PdfCanvas(widgetPage);
+            canvas.SaveState();
+            canvas.SetFillColor(ColorConstants.BLACK);
+            canvas.BeginText()
+                  .SetFontAndSize(font, 7f)
+                  .MoveText(x, yTop - lineH)
+                  .ShowText(line1)
+                  .MoveText(0, -lineH)
+                  .ShowText(line2)
+                  .EndText();
+            canvas.RestoreState();
+        }
+        catch { /* Aufschlüsselung optional — Total im Feld bleibt */ }
+    }
+
     private static void Set(PdfAcroForm form, string fieldName, string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
@@ -386,6 +458,10 @@ public class ZwischenverdienistData
 
     public decimal? MonatslohnCHF               { get; set; }
     public decimal? TotalStunden                { get; set; }
+    /// <summary>MTP: garantierte Festlohn-Stunden (Aufschlüsselung neben Anzahl Std.).</summary>
+    public decimal? StundenGarantiert           { get; set; }
+    /// <summary>MTP: Stunden über der Garantie (Ist − Garantie, min. 0).</summary>
+    public decimal? StundenDarueber             { get; set; }
     public decimal? BruttolohnTotal             { get; set; }
     public decimal? Grundlohn                   { get; set; }
     public string? FeiertagsprozentString       { get; set; }
