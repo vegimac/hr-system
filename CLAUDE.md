@@ -2,6 +2,23 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+## ⚠ ACHTUNG TIME — ZUERST LESEN (Walter, ABSOLUT, wiederkehrend)
+
+**Bevor du irgendein C#-/DB-Feld mit Datum/Zeit anfasst oder neu anlegst:**
+
+| | Pflicht |
+|---|---|
+| Schreiben | immer `DateTime.Now` — **nie** `DateTime.UtcNow` |
+| PostgreSQL | immer `timestamp without time zone` — **nie** `timestamptz` / `TIMESTAMPTZ` |
+| EF-Mapping | `.HasColumnType("timestamp without time zone")` auf jedem `DateTime`-Property |
+| Model-Default | `= DateTime.Now` |
+
+Sonst: HTTP 500 beim Speichern (Npgsql lehnt `Kind=Local` auf `timestamptz` ab) — oft nur leeres «Fehler:» im UI. Schon mehrfach passiert (Zusatzadresse, Absenz, Absenz-Typ-Nachrechnung). Checklist auch in `.cursor/rules/achtung-timestamp.mdc`.
+
+---
+
 ## Was das ist
 
 Schweizer HR/Lohnabrechnungs-System für Schaub Restaurants GmbH (McDonald's-Franchise mit 6 Filialen). Live unter `test.hr-srgmbh.ch`. ASP.NET Core 8 + EF Core + PostgreSQL + Single-Page-HTML/JS-Frontend (kein Build-Step).
