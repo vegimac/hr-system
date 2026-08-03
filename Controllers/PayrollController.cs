@@ -1377,16 +1377,17 @@ public class PayrollController : HrControllerBase
         // pro MA. HR_BESTAETIGT bleibt unverändert wenn schon weitergerollt
         // (re-confirm während HR-Phase würde sonst HR-Bestätigung verlieren).
         // Hier nur „neu" oder von BERECHNET kommend → FREIGEGEBEN_GF.
-        // Korrekturlohn in bereits provisorischer Periode (Walter Aug 2026):
-        // ein Klick von HR setzt direkt HR_BESTAETIGT — sonst bliebe der
-        // Nachzügler nach Confirm noch auf FREIGEGEBEN_GF und bräuchte
-        // einen zweiten Klick, obwohl die Periode schon bei HR ist.
+        // Nachzügler in bereits provisorischer Periode (Walter Aug 2026,
+        // erweitert 03.08.2026): gilt für Korrekturlöhne UND reguläre MA,
+        // die erst nachträglich in die Liste kamen (z.B. Austritt in der
+        // Periode → is_active=false → fehlte im Lauf). Ein Klick von HR
+        // setzt direkt HR_BESTAETIGT — sonst bliebe der Nachzügler nach
+        // Confirm noch auf FREIGEGEBEN_GF und bräuchte einen zweiten Klick.
         if (snapshot.Status == "BERECHNET" || string.IsNullOrEmpty(snapshot.Status))
         {
             var actorId = GetUserIdOrNull();
             // akontoPeriode = PayrollPeriode dieser Filiale/Periode (oben geladen)
-            if (dto.IsCorrection
-                && akontoPeriode != null
+            if (akontoPeriode != null
                 && string.Equals(akontoPeriode.Status, "provisorisch_abgeschlossen", StringComparison.OrdinalIgnoreCase)
                 && (User.IsInRole("admin") || User.IsInRole("superuser") || User.IsInRole("buchhaltung")))
             {

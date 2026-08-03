@@ -506,10 +506,13 @@ function _lohnWfRenderStatusBar() {
     const isCorrSel = _lohnSelectedEmpId != null && _lohnIsCorrection(_lohnSelectedEmpId);
 
     // ─ GF Per-MA-Aktionen (offen) + Korrekturlohn auch in HR-Phase (Walter Aug 2026) ─
-    // Nachträgliche Korrektur (UVG/Depot) kommt oft erst wenn die Periode
-    // schon bei HR ist — sonst wäre Bestätigen unmöglich ohne «Zurück an GF».
-    const canConfirmCorrInHr = isCorrSel && isProv && isHr && selStatus === 'BERECHNET';
-    const perMaConfirm = ((isOffen && selStatus === 'BERECHNET') || canConfirmCorrInHr)
+    // Nachzügler (Korrektur ODER regulärer MA, der erst später in die Liste
+    // kam — z.B. Austritt in der Periode, Walter 03.08.2026) kommen oft erst
+    // wenn die Periode schon bei HR ist — sonst wäre Bestätigen unmöglich
+    // ohne «Zurück an GF» (das alle Bestätigungen zurücksetzen würde).
+    // HR-Klick setzt serverseitig direkt HR_BESTAETIGT.
+    const canConfirmInHr = isProv && isHr && selStatus === 'BERECHNET';
+    const perMaConfirm = ((isOffen && selStatus === 'BERECHNET') || canConfirmInHr)
         ? `<button class="btn btn-primary btn-sm" onclick="confirmLohn()">${isCorrSel ? '✓ Korrekturlohn bestätigen' : '✓ Lohn bestätigen'}</button>` : '';
     const perMaReopen = (isOffen && selStatus === 'FREIGEGEBEN_GF')
         ? `<button class="btn btn-outline btn-sm" onclick="reopenLohn()" style="color:#b91c1c;border-color:#fecaca">↶ Wieder eröffnen</button>` : '';
