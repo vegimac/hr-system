@@ -257,7 +257,7 @@ public class AuswertungenReportPdfService
                     if (nachtWarnTotal > 0)
                     {
                         col.Item().PaddingTop(4).Background("#fee2e2").Padding(5)
-                            .Text($"⚠ {nachtWarnTotal} MA mit >18 Nächten in 6 Wochen ohne vollständige Nachtarbeit-Nachweise")
+                            .Text($"ACHTUNG: {nachtWarnTotal} MA mit >18 Nächten in 6 Wochen ohne vollständige Nachtarbeit-Nachweise")
                             .FontSize(7.5f).FontColor(Neg).SemiBold();
                     }
 
@@ -335,7 +335,7 @@ public class AuswertungenReportPdfService
 
                             var maxN = r.MaxNaechte6Wochen;
                             var maxColor = r.NachtWarn ? Neg : (maxN > 18 ? Pos : Dark);
-                            Cell(r.NachtWarn ? $"{maxN} ⚠" : maxN.ToString(CH), maxColor, bold: maxN > 18);
+                            Cell(r.NachtWarn ? $"{maxN} !" : maxN.ToString(CH), maxColor, bold: maxN > 18);
                             Cell(N2(r.NachtStunden));
                             Cell(N2(r.NachtZuschlag));
                             Cell(N2(r.NachtKomp));
