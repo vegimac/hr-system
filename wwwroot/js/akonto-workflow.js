@@ -197,7 +197,7 @@ function lohnTopRefresh() {
 //   • Definitiv schon provisorisch/abgeschlossen → Definitiv
 //   • Akonto AUSBEZAHLT / UEBERSPRUNGEN → Definitiv
 //   • Akonto Mid-flight (IN_BEARBEITUNG_GF / BEI_HR / HR_FREIGEGEBEN) → Akonto
-//   • Akonto OFFEN (noch nicht gestartet) → Akonto (Default Mitte Monat)>>>>>>> origin/cursor/monatsblatt-saldi-import-3bcf
+//   • Akonto OFFEN (noch nicht gestartet) → Akonto (Default Mitte Monat)
 // Fallback bei Fehler: persistierte Wahl.
 async function _autoSelectLohnMode() {
     const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) || null;
@@ -216,7 +216,7 @@ async function _autoSelectLohnMode() {
                 if (defAdvanced || ak === 'AUSBEZAHLT' || ak === 'UEBERSPRUNGEN')
                     mode = 'definitiv';
                 else
-                    mode = 'akonto';>>>>>>> origin/cursor/monatsblatt-saldi-import-3bcf
+                    mode = 'akonto';
             }
         } catch { /* Fallback bleibt _akWfMode */ }
     }
