@@ -161,6 +161,7 @@ builder.Services.AddScoped<RisikobeurteilungPdfService>();
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
 builder.Services.AddScoped<LohnEditLockService>();
+builder.Services.AddScoped<AbsenceHoursRecalcService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
 builder.Services.AddScoped<Iso20022PainService>();
 // Sperrfrist-Service: Kündigungsschutz nach Art. 336c OR bei AU

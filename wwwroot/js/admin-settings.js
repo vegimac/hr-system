@@ -808,8 +808,32 @@ async function saveAbsenzTyp() {
         const url    = id ? `/api/absenz-typen/${id}` : '/api/absenz-typen';
         const method = id ? 'PUT' : 'POST';
         const res    = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-        if (!res.ok) { const e = await res.text(); showAbsenzAlert('Fehler: ' + e, 'err'); return; }
-        showAbsenzAlert('Gespeichert.', 'ok');
+        const raw = await res.text();
+        let j = null;
+        try { j = raw ? JSON.parse(raw) : null; } catch { /* plain text */ }
+        if (!res.ok) {
+            const e = (j && (j.message || j.error || j.title)) || raw || (`HTTP ${res.status}`);
+            showAbsenzAlert('Fehler: ' + e, 'err');
+            return;
+        }
+        let msg = 'Gespeichert.';
+        if (id && j) {
+            const u = j.recalcUpdated|0;
+            const l = j.recalcSkippedLocked|0;
+            if (j.recalcError) {
+                msg = `Gespeichert, aber Nachrechnung fehlgeschlagen: ${j.recalcError}`;
+                showAbsenzAlert(msg, 'err');
+                closeAbsenzTypForm();
+                loadAbsenzTypen();
+                return;
+            }
+            if (u > 0 || l > 0) {
+                msg = `Gespeichert. ${u} Absenz(en) neu gerechnet`
+                    + (l > 0 ? `, ${l} übersprungen (bereits im Lohn verwendet)` : '')
+                    + '.';
+            }
+        }
+        showAbsenzAlert(msg, 'ok');
         closeAbsenzTypForm();
         loadAbsenzTypen();
     } catch { showAbsenzAlert('Verbindungsfehler.', 'err'); }

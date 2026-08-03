@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,8 +13,14 @@ namespace HrSystem.Controllers;
 [Route("api/absenz-typen")]
 public class AbsenzTypenController : ControllerBase
 {
-    private readonly AppDbContext _db;
-    public AbsenzTypenController(AppDbContext db) => _db = db;
+    private readonly AppDbContext              _db;
+    private readonly AbsenceHoursRecalcService _recalc;
+
+    public AbsenzTypenController(AppDbContext db, AbsenceHoursRecalcService recalc)
+    {
+        _db     = db;
+        _recalc = recalc;
+    }
 
     // Prüft, ob der eingeloggte User Superadmin ist (Anlegen/Löschen von
     // Absenz-Typen ist Superadmin-only, Walter-Vorgabe 04.07.2026).
@@ -69,6 +76,17 @@ public class AbsenzTypenController : ControllerBase
         var err = ValidateFlags(dto);
         if (err != null) return BadRequest(err);
 
+        // Walter 31.07.2026: wenn Berechnungs-Felder ändern → Absenzen nachrechnen
+        // (alle Filialen/MA, ausser «In Lohn verwendet»).
+        bool needsRecalc =
+            typ.Zeitgutschrift != dto.Zeitgutschrift
+            || !string.Equals(typ.GutschriftModus ?? "", dto.GutschriftModus ?? "", StringComparison.Ordinal)
+            || typ.UtpAuszahlung != dto.UtpAuszahlung
+            || !string.Equals(
+                string.IsNullOrWhiteSpace(typ.BasisStunden) ? "BETRIEB" : typ.BasisStunden,
+                string.IsNullOrWhiteSpace(dto.BasisStunden) ? "BETRIEB" : dto.BasisStunden,
+                StringComparison.OrdinalIgnoreCase);
+
         typ.Code             = dto.Code.ToUpper().Trim();
         typ.Bezeichnung      = dto.Bezeichnung.Trim();
         typ.Zeitgutschrift   = dto.Zeitgutschrift;
@@ -87,9 +105,30 @@ public class AbsenzTypenController : ControllerBase
             : dto.ZwischenverdienstKuerzel.ToUpper().Trim();
 
         await _db.SaveChangesAsync();
+
+        AbsenceHoursRecalcService.RecalcResult? recalc = null;
+        string? recalcError = null;
+        if (needsRecalc)
+        {
+            try
+            {
+                recalc = await _recalc.RecalcForTypeAsync(typ);
+            }
+            catch (Exception ex)
+            {
+                // Typ ist bereits gespeichert — Nachrechnung getrennt melden
+                // (häufig: timestamp-Konflikt vor Migration).
+                recalcError = ex.InnerException?.Message ?? ex.Message;
+            }
+        }
+
         return Ok(new {
             typ.Id, typ.Code, typ.Bezeichnung, typ.Zeitgutschrift, typ.GutschriftModus,
-            typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel
+            typ.UtpAuszahlung, typ.VerlaengertProbezeit, typ.ReduziertSaldo, typ.BasisStunden, typ.SortOrder, typ.Aktiv, typ.ZwischenverdienstKuerzel,
+            recalcUpdated = recalc?.Updated ?? 0,
+            recalcSkippedLocked = recalc?.SkippedLocked ?? 0,
+            recalcSkippedNoChange = recalc?.SkippedNoChange ?? 0,
+            recalcError
         });
     }
 
