@@ -97,6 +97,10 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "AHV-Nummer"));
             });
             col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geschlecht", "Zivilstand"));
+            // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
+            // (Walter 03.08.2026).
+            col.Item().PaddingTop(12).Element(e => CheckOptionsInline(e, "Konfession",
+                "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch", "Andere", "Keine"));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Anzahl Kinder"));
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
             col.Item().PaddingTop(12).Element(e =>
@@ -302,6 +306,26 @@ public class BewerbungsbogenPdfService
                 x.AutoItem().Element(ch => CheckLabel(ch, "ja"));
                 x.ConstantItem(14);
                 x.AutoItem().Element(ch => CheckLabel(ch, "nein"));
+            });
+        });
+    }
+
+    /// <summary>
+    /// Label + Reihe Ankreuzfelder (z.B. Konfession). Gleiches Look wie
+    /// Quellensteuerpflichtig ja/nein — Walter 03.08.2026.
+    /// </summary>
+    private static void CheckOptionsInline(IContainer e, string label, params string[] options)
+    {
+        e.Column(c =>
+        {
+            c.Item().Text(label).FontSize(8.5f).FontColor(Ink);
+            c.Item().PaddingTop(5).Row(x =>
+            {
+                for (var i = 0; i < options.Length; i++)
+                {
+                    if (i > 0) x.ConstantItem(12);
+                    x.AutoItem().Element(ch => CheckLabel(ch, options[i]));
+                }
             });
         });
     }
