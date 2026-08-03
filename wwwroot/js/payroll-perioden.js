@@ -87,6 +87,7 @@ async function perLoadPerioden() {
             const akontoMap = {
                 'OFFEN':              { lbl: 'Akonto offen',   bg: '#f1f5f9', fg: '#64748b' },
                 'IN_BEARBEITUNG_GF':  { lbl: 'Akonto bei GF',  bg: '#efece5', fg: '#6b6152' },
+                'UEBERSPRUNGEN':      { lbl: 'Akonto überspr.', bg: '#e2e8f0', fg: '#64748b' },
                 'BEI_HR':             { lbl: 'Akonto bei HR',  bg: '#fef3c7', fg: '#92400e' },
                 'HR_FREIGEGEBEN':     { lbl: 'Akonto HR-frei', bg: '#ece9e2', fg: '#6b6152' },
                 'AUSBEZAHLT':         { lbl: 'Akonto bezahlt', bg: '#dcfce7', fg: '#166534' }
