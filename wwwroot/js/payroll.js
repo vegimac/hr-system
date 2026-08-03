@@ -928,6 +928,9 @@ async function loadLohnList() {
             const corrBadge = e.isCorrection
                 ? `<span title="Korrekturlohn (ausgetreten)" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:4px">Korr.</span>`
                 : '';
+            // Walter 03.08.2026: Zeile 1 = voller Name (ohne rechte Spalte,
+            // bricht kaum mehr um); Zeile 2 = Status links, Vertragsart +
+            // QST rechtsbündig. QST-Slot nur wenn Button vorhanden.
             row.innerHTML = `
                 <div style="width:34px;height:34px;border-radius:50%;background:${statusBg};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:${statusFg};flex-shrink:0">
                     ${statusIcon}
@@ -935,11 +938,11 @@ async function loadLohnList() {
                 <div style="flex:1;min-width:0">
                     <!-- Walter-Vorgabe 07.06.2026: Namen umbrechen statt mit „…" abkürzen. -->
                     <div class="lohn-emp-name" style="font-weight:600;font-size:13px;line-height:1.25;word-break:break-word">${e.firstName} ${e.lastName}${corrBadge}${mwIcon}</div>
-                    <div class="lohn-emp-nr" style="font-size:11px;color:${statusTextColor};word-break:break-word">${statusText}${e.isCorrection && e.exitDate ? ' · ausgetreten ' + (e.exitDate.slice(8,10)+'.'+e.exitDate.slice(5,7)+'.'+e.exitDate.slice(0,4)) : ''}</div>
-                </div>
-                <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;width:100px;flex-shrink:0">
-                    <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center">${modelDisplay(e.employmentModel)}</span>
-                    <span style="width:38px;display:flex;justify-content:flex-end">${e.isCorrection ? '' : qstBtnHtml}</span>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+                        <div class="lohn-emp-nr" style="flex:1;min-width:0;font-size:11px;color:${statusTextColor};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${statusText}${e.isCorrection && e.exitDate ? ' · ausgetreten ' + (e.exitDate.slice(8,10)+'.'+e.exitDate.slice(5,7)+'.'+e.exitDate.slice(0,4)) : ''}</div>
+                        <span class="${modelClass(e.employmentModel)}" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;min-width:40px;text-align:center;flex-shrink:0">${modelDisplay(e.employmentModel)}</span>
+                        ${e.isCorrection ? '' : qstBtnHtml}
+                    </div>
                 </div>`;
             listEl.appendChild(row);
         });
