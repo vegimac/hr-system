@@ -3701,11 +3701,15 @@
             overflow-y: auto;
             height: 100%;
             align-content: stretch;
-            grid-template-rows: max-content minmax(150px, auto) minmax(160px, 1fr);
+            /* Anstellung/Nachtarbeit kompakter (2 Zeilen) — 1 Adresszeile fix reserviert oben */
+            grid-template-rows: auto minmax(118px, auto) minmax(176px, 1fr);
         }
         .ov-wrap {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            /* Anstellung / Nachtarbeit — Nachtarbeit etwas breiter, damit
+               4 Aktions-Buttons (mit Ausn. Reg.) in einer Zeile bleiben
+               (Walter 31.07.2026). */
+            grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1.15fr);
             gap: 7px;
             padding: 2px 2px 4px;
         }
@@ -3732,9 +3736,10 @@
             padding-top: 6px;
             flex-shrink: 0;
         }
-        /* Max. 2 Zusatzadressen sichtbar — einzeilig; Abschnitt nie überdeckt */
+        /* Weitere Adressen: 1 Zeile immer reserviert (Walter 31.07.2026);
+           max. 2 sichtbar, ab der 3. Scroll. */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full #otherAddressesContent {
-            min-height: 0;
+            min-height: 40px; /* 1 Zeile fix — Layout springt nicht */
             max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
@@ -4027,17 +4032,28 @@
             font-size: 13px; color: #8b8b8b; text-align: center; padding: 12px;
         }
         .ov-saldi-msg.ov-saldi-err { color: #dc2626; }
-        /* Zusatzadressen: leer = kein Platz; sonst max. 2 sichtbare Zeilen */
+        /* Zusatzadressen: 1 Zeile immer reserviert; max. 2 sichtbar (Walter 31.07.2026) */
         #otherAddressesContent {
             max-height: calc(2 * 40px + 4px);
             overflow-x: hidden;
             overflow-y: auto;
-            min-height: 0;
+            min-height: 40px;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-        #otherAddressesContent:empty { display: none; margin: 0; padding: 0; }
+        /* Leer: Platz bleibt (kein Zusammenklappen) — dezenter Platzhalter-Rahmen */
+        #otherAddressesContent:empty {
+            display: flex;
+            border: 1px dashed #e5e0d6;
+            border-radius: 10px;
+            background: rgba(250, 248, 245, 0.55);
+            box-sizing: border-box;
+        }
+        body.theme-dark #otherAddressesContent:empty {
+            border-color: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.03);
+        }
         .emp-addr-row {
             flex: 0 0 40px;
             height: 40px;
@@ -4080,7 +4096,7 @@
         @media (max-width: 1100px) {
             .ov-wrap { grid-template-columns: 1fr; }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap {
-                grid-template-rows: max-content minmax(150px, auto) minmax(150px, auto) minmax(160px, 1fr);
+                grid-template-rows: auto minmax(118px, auto) minmax(118px, auto) minmax(176px, 1fr);
             }
             #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-wrap > .ov-card {
                 grid-row: auto;
@@ -4226,30 +4242,116 @@
             align-items: flex-start; margin-bottom: 8px;
             overflow: hidden; min-width: 0;
         }
-        /* Anstellung (Walter 26.07.2026):
-           Zeile 1 Eintritt|Austritt|Probezeit · Zeile 2 Kündigung · Zeile 3 Toggles.
-           Kündigung etwas kompakter als Personalien, aber gut bedienbar. */
+        /* Anstellung (Walter 31.07.2026): 2 Zeilen.
+           Z1 Eintritt|Austritt|L-GAV+Probezeit · Z2 Kündigung + Austrittsgrund.
+           < 8 h gehört zum FLEX-Vertrag, nicht hier. */
         .ov-anst-grid {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto);
-            grid-template-rows: auto auto auto;
-            gap: 4px 12px;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(200px, 1.35fr) minmax(110px, auto);
+            grid-template-rows: auto auto;
+            gap: 6px 14px;
             align-items: start;
             min-width: 0;
+        }
+        /* L-GAV + Probezeit: Spalte 3–4 in Zeile 1 */
+        .ov-anst-grid > .ov-anst-lgav-pz {
+            grid-column: 3 / 5;
+            grid-row: 1;
+            min-width: 0;
+        }
+        /* Kündigung + Austrittsgrund immer Zeile 2, ganz links → rechts */
+        .ov-anst-grid > .ov-anst-kuend {
+            grid-row: 2;
         }
         .ov-anst-grid > .ov-pf {
             margin-bottom: 0;
             min-width: 0;
         }
-        /* Zeile 1 (Eintritt/Austritt/Probezeit): normale Lesestärke */
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfl {
+        /* Zeile 1 (Eintritt/Austritt): normale Lesestärke */
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfl {
             margin-bottom: 1px;
         }
-        .ov-anst-grid > .ov-pf:nth-child(-n+3) .ov-pfv {
+        .ov-anst-grid > .ov-pf:nth-child(-n+2) .ov-pfv {
             font-size: 14px;
             line-height: 28px;
             min-height: 28px;
         }
+        /* L-GAV + Probezeit nebeneinander (Walter 31.07.2026):
+           Titelzeile: L-GAV links | Probezeit bis Datum rechts
+           Wertzeile:  Toggle links | offen + Button rechts */
+        .ov-anst-lgav-pz-head {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 1px;
+            min-width: 0;
+        }
+        .ov-anst-lgav-pz-head .ov-pfl {
+            flex: 0 0 auto;
+            margin-bottom: 0;
+        }
+        .ov-anst-pz-title {
+            flex: 0 1 auto;
+            margin-left: auto;
+            min-width: 0;
+            font-size: 10px;
+            font-weight: 700;
+            color: #9a9a9a;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: right;
+        }
+        .ov-anst-lgav-pz-body {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            min-height: 28px;
+            min-width: 0;
+        }
+        .ov-anst-lgav-pz-body > .ov-pfv {
+            flex: 0 0 auto;
+            min-height: 28px;
+            display: flex;
+            align-items: center;
+        }
+        .ov-anst-pz-line {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-left: auto;
+            min-width: 0;
+            flex-wrap: nowrap;
+            justify-content: flex-end;
+        }
+        .ov-anst-pz-status {
+            font-size: 12px;
+            font-weight: 650;
+            line-height: 1.2;
+        }
+        .ov-anst-pz-status.open { color: #9f1239; }
+        .ov-anst-pz-status.ok { color: #166534; }
+        .ov-anst-pz-btn {
+            margin: 0;
+            background: #3f3f3f;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 3px 9px;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        .ov-anst-pz-btn:hover { background: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-title { color: #94a3b8; }
+        body.theme-dark .ov-anst-pz-btn { background: #e9ecf0; color: #1a1a1a; }
+        body.theme-dark .ov-anst-pz-btn:hover { background: #fff; }
         .ov-anst-grid .ov-anst-date .ov-softin {
             width: 100%;
             min-width: 0;
@@ -4302,17 +4404,15 @@
             font-weight: 600;
         }
         .ov-anst-grid .ov-anst-kuend select.ov-softin {
-            max-width: 172px;
+            max-width: 100%;
             padding-right: 18px;
         }
-        /* L-GAV + < 8 h kompakt auf der untersten Zeile */
-        .ov-anst-grid .ov-anst-tog .ov-pfl {
+        /* L-GAV-Label in der Kombi-Zelle */
+        .ov-anst-grid .ov-anst-lgav-pz .ov-pfl {
             font-size: 10px;
             margin-bottom: 0;
         }
-        .ov-anst-grid .ov-anst-tog .ov-pfv {
-            min-height: 26px;
-        }
+        .ov-vmenu { align-self: center; }
         /* Legacy-Klassen (falls noch referenziert) */
         .ov-anst-row { margin-bottom: 8px; gap: 10px 20px; }
         .ov-anst-row:last-child { margin-bottom: 2px; }
@@ -9222,8 +9322,14 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
    Grundzustand cremig (36% Weiss ueber warmem Hintergrund), angewaehlt/
    Hover WEISS (58%) mit staerkerem Schatten — Werte = .liquid-ui-Tokens. */
 .ra-tile {
-    /* Masse exakt wie .liquid-module-card der Startseite (112x136, Icon 96) */
-    width: 112px; min-height: 136px;
+    /* Masse exakt wie .liquid-module-card der Startseite (112x136, Icon 96).
+       height fix — 2-Zeilen-Labels («Arbeits Aufforderung», «Face ID …»)
+       dürfen die Kachel nicht höher machen (Walter 30.07.2026). */
+    width: 112px;
+    height: 136px;
+    min-height: 136px;
+    max-height: 136px;
+    box-sizing: border-box;
     border: 1px solid rgba(255,255,255,0.68);
     border-radius: 20px;
     background: rgba(255,255,255,0.36);
@@ -9232,9 +9338,10 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
     backdrop-filter: blur(24px) saturate(132%);
     -webkit-backdrop-filter: blur(24px) saturate(132%);
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 6px; padding: 6px 4px 8px; cursor: pointer;
-    color: #3f3f3f; font-size: 11.5px; font-weight: 650; line-height: 1.18; text-align: center;
+    gap: 4px; padding: 6px 4px 6px; cursor: pointer;
+    color: #3f3f3f; font-size: 11.5px; font-weight: 650; line-height: 1.15; text-align: center;
     transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    overflow: hidden;
 }
 .ra-tile:hover, .ra-tile:focus-visible {
     transform: translateY(-2px);
@@ -9242,13 +9349,24 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
     box-shadow: 0 28px 78px rgba(70,64,55,0.24), inset 0 1px 1px rgba(255,255,255,0.9);
 }
 /* Icon fuellt die Kachel fast aus (Walter 15.07.2026) — 96px wie Startseite */
-.ra-tile img { width: 96px; height: 96px; object-fit: contain; display: block; }
+.ra-tile img { width: 96px; height: 96px; flex: 0 0 96px; object-fit: contain; display: block; }
+/* Label: immer Platz für 2 Zeilen — alle Kacheln gleich hoch */
+.ra-tile > span {
+    flex: 0 0 auto;
+    min-height: calc(2 * 1.15em);
+    max-height: calc(2 * 1.15em);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    padding: 0 2px;
+}
 /* Bewerbungsbogen: Motiv enger zugeschnitten → etwas groesser in der Kachel */
 .ra-tile img[src*="bewerbungsbogen.png"] { width: 104px; height: 104px; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
 body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
 /* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
 body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
+/* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
+body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
@@ -9855,12 +9973,15 @@ body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
             flex: 0 0 auto;
         }
         .nw-row1 { gap: 8px; }
-        .nw-row2 { gap: 6px; }
+        .nw-row2 { gap: 6px; flex-wrap: wrap; }
         .nw-row3 { gap: 5px; }
+        /* Aktions-Buttons in einer Zeile (Kürzel «Ausn. Reg.» + breitere Karte) */
         .nw-row4.nw-actions {
             margin-top: auto; /* Buttons immer am Kartenboden */
             justify-content: flex-end;
-            gap: 5px;
+            flex-wrap: nowrap;
+            gap: 4px;
+            min-width: 0;
         }
         .nw-col-menu {
             margin-left: auto;

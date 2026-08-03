@@ -98,6 +98,7 @@ public class EditLockEndpointAuditTests
         ["LohnlaufController"]             = "Definitivlauf-Workflow — admin only",
         ["LohnausweisController"]          = "Lohnausweis-PDF generieren — read-only",
         ["KuendigungController"]           = "Kündigungsschreiben-PDF + optionales Eintragen von Gekündigt-am/per am MA — keine Lohndaten/Lohnedit",
+        ["AufforderungZurArbeitController"] = "Aufforderung-zur-Arbeit-PDF (unentschuldigtes Fernbleiben) — reine Dokument-Generation, keine Lohndaten",
         ["ExitSurveyController"]           = "Anonymer Austritts-Fragebogen (öffentliche Abgabe + HR-Liste) — keine Lohndaten/Lohnedit",
         ["ArbeitszeugnisController"]       = "Arbeitszeugnis-PDF generieren — read-only, keine Lohndaten",
         ["EmployeeVerwarnungController"]   = "Verwarnungs-Verlauf — Personalakte, kein Lohnbezug (Storno statt Löschen)",

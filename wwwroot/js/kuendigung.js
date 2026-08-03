@@ -26,14 +26,17 @@ function kuRenderEmpList() {
     _renderEmpPicker('kuEmpFilter', 'kuEmpSearch', 'kuEmpSelect');
 }
 
-// Gemeinsamer MA-Picker-Renderer fuer Kuendigungs- und Dokument-Seite
-// (Filial-Regel + Vorname-Sortierung identisch).
-function _renderEmpPicker(filterId, searchId, selectId) {
+// Gemeinsamer MA-Picker-Renderer fuer Kuendigungs-, Dokument- und
+// Aufforderungs-Seite (Filial-Regel + Vorname-Sortierung identisch).
+// sourceList: optional — sonst _kuAllEmployees (Walter 30.07.2026: Aufforderung
+// hat eigene Liste; vorher blieb der Picker leer).
+function _renderEmpPicker(filterId, searchId, selectId, sourceList) {
     const sel = document.getElementById(selectId);
     if (!sel) return;
     const filter = document.getElementById(filterId)?.value || 'active';
     const search = (document.getElementById(searchId)?.value || '').toLowerCase().trim();
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    const pool = Array.isArray(sourceList) ? sourceList : _kuAllEmployees;
 
     // Filial-Zuordnung (Walter 15.07.2026, gleiche Regel wie ToDo/Kontrolle):
     // AKTIVE Vertraege bestimmen die Filiale; ohne aktiven Vertrag zaehlt der
@@ -51,7 +54,7 @@ function _renderEmpPicker(filterId, searchId, selectId) {
         return Number(juengster?.companyProfileId) === cidN;
     };
 
-    let list = _kuAllEmployees.filter(inBranch);
+    let list = pool.filter(inBranch);
     if (filter === 'active')   list = list.filter(e => e.isActive);
     if (filter === 'inactive') list = list.filter(e => !e.isActive);
     if (search) {
@@ -73,9 +76,13 @@ function _renderEmpPicker(filterId, searchId, selectId) {
         return `<option value="${e.id}">${escapeHtml(name)}${escapeHtml(nr)}${tag}</option>`;
     }).join('');
     if (cur) sel.value = cur;
-    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden (nur Kuendigung).
-    if (selectId === 'kuEmpSelect' && sel.value !== cur) {
-        const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none';
+    // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden.
+    if (sel.value !== cur) {
+        if (selectId === 'kuEmpSelect') {
+            const det = document.getElementById('kuDetails'); if (det) det.style.display = 'none';
+        } else if (selectId === 'aaEmpSelect') {
+            const det = document.getElementById('aaDetails'); if (det) det.style.display = 'none';
+        }
     }
 }
 

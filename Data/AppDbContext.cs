@@ -196,6 +196,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
+            // UVG Art. 1a: NBU-Befreiung < 8 h/Wo. — pro FLEX-Vertrag (Walter 31.07.2026).
+            entity.Property(e => e.TeilzeitUnter8hWoche)
+                  .HasColumnName("teilzeit_unter_8h_woche")
+                  .HasDefaultValue(false);
             entity.Property(e => e.MonthlySalaryFte).HasColumnName("monthly_salary_fte");
             entity.Property(e => e.MonthlySalary).HasColumnName("monthly_salary");
             entity.Property(e => e.HourlyRate).HasColumnName("hourly_rate");

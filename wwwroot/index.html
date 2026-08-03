@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260730d">
+    <link rel="stylesheet" href="css/app.css?v=20260803f">
 </head>
 <body>
 
@@ -1871,9 +1871,10 @@
                             <button type="button" class="kz-menu-item" onclick="zdOpen('zwischen')">3&nbsp;·&nbsp;Zwischenzeugnis</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('best')">4&nbsp;·&nbsp;Arbeitsbestätigung</button>
                             <button type="button" class="kz-menu-item" onclick="zdOpen('verwarnung')">5&nbsp;·&nbsp;Verwarnung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">6&nbsp;·&nbsp;Kündigungsrückzug</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">7&nbsp;·&nbsp;Kündigungsbestätigung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">8&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
+                            <button type="button" class="kz-menu-item" onclick="showPage('aufforderung-arbeit')">6&nbsp;·&nbsp;Arbeits Aufforderung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">7&nbsp;·&nbsp;Kündigungsrückzug</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">8&nbsp;·&nbsp;Kündigungsbestätigung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
                         </div>
                     </div>
 
@@ -2508,6 +2509,86 @@
             </div>
 
             <!-- JAHRES-LOHNAUSWEIS (HR-Modul, ESTV Form 11 dfe) -->
+            <!-- AUFFORDERUNG ZUR ARBEIT (Walter 30.07.2026) -->
+            <div class="page liquid-mask" id="page-aufforderung-arbeit">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Arbeits Aufforderung</h1>
+                        <p class="page-sub">Schreiben an Mitarbeitende, die unentschuldigt der Arbeit fernbleiben (OR 321 / 337d) — analog Kündigung als PDF-Vorschau.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:20px;max-width:760px">
+                        <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+                            <select id="aaEmpFilter" onchange="aaRenderEmpList()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:white">
+                                <option value="active">Nur Aktive</option>
+                                <option value="inactive">Nur Inaktive</option>
+                                <option value="all">Alle</option>
+                            </select>
+                            <input id="aaEmpSearch" oninput="aaRenderEmpList()" placeholder="Suche Name / Nr." style="flex:1;min-width:160px;padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px">
+                        </div>
+                        <select id="aaEmpSelect" onchange="aaOnEmpChange()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white"></select>
+                        <div id="aaEmpHint" style="font-size:12px;color:#64748b;margin-top:6px"></div>
+                        <div style="margin-top:16px;display:flex;justify-content:flex-end">
+                            <button type="button" onclick="aaAbbrechen()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Zurück</button>
+                        </div>
+
+                        <div id="aaDetails" style="display:none;margin-top:18px">
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">2. Briefdetails</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                                <label style="font-size:12.5px;color:#334155">Briefdatum
+                                    <input type="date" id="aaDatum" style="width:100%;margin-top:4px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Meldefrist bis
+                                    <input type="date" id="aaFrist" style="width:100%;margin-top:4px;padding:6px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                    <div style="font-size:11px;color:#64748b;margin-top:3px">Danach gilt das Fernbleiben als sofortige Kündigung Ihrerseits.</div>
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Ort
+                                    <input type="text" id="aaOrt" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                                <div>
+                                    <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px;margin-top:2px">Zustellung</div>
+                                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-right:14px">
+                                        <input type="radio" name="aaZustell" value="U" checked> Übergeben
+                                    </label>
+                                    <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+                                        <input type="radio" name="aaZustell" value="E"> Einschreiben
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">3. Kontaktperson (Restaurantleiter)</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+                                <label style="font-size:12.5px;color:#334155">Name
+                                    <input type="text" id="aaKontaktName" placeholder="Vorname Nachname" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Funktion
+                                    <input type="text" id="aaKontaktFunktion" placeholder="Restaurantleiter" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">Telefon / Handy
+                                    <input type="text" id="aaKontaktTel" placeholder="+41 79 123 45 67" onblur="validatePhoneBlur(this)" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
+                                </label>
+                            </div>
+
+                            <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">4. Unterzeichner</div>
+                            <label style="display:block;font-size:12.5px;color:#334155">Wer unterzeichnet das Schreiben
+                                <select id="aaSignerUserId" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white"></select>
+                                <div id="aaSignerHint" style="font-size:11px;color:#64748b;margin-top:3px">Unterschrift + Klarname aus dem Benutzerprofil der gewählten Person.</div>
+                            </label>
+
+                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+                                <button type="button" onclick="aaAbbrechen()"
+                                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                                <button type="button" onclick="aaGenerate()"
+                                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700;white-space:nowrap;box-shadow:0 6px 16px rgba(60,55,48,0.18)">📄 Aufforderung erstellen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page liquid-mask" id="page-kuendigung">
                 <div class="page-head">
                     <div>
@@ -7225,7 +7306,7 @@
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260803a"></script>
+<script src="js/app-core.js?v=20260803f"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7234,7 +7315,7 @@
 <script src="js/file-preview.js?v=20260716a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260803a"></script>
+<script src="js/dashboard.js?v=20260803f"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -7269,7 +7350,7 @@
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260715e"></script>
-<script src="js/contracts-edit.js?v=20260720a"></script>
+<script src="js/contracts-edit.js?v=20260803f"></script>
 <script src="js/payroll.js?v=20260803sk"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
@@ -7588,7 +7669,7 @@
     </div>
 </div>
 
-<script src="employees.js?v=20260803e"></script>
+<script src="employees.js?v=20260803f"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -8227,6 +8308,15 @@
                     <label class="ce-lbl" data-i18n="vt.modal.field.weeklyHours">Max. h/Woche</label>
                     <input type="number" id="ceWeeklyHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
                 </div>
+                <!-- < 8 h nur bei FLEX (Walter 31.07.2026) — rechts neben Max. h/Woche, Schieber wie L-GAV -->
+                <div id="ceTeilzeitUnter8hWrap">
+                    <label class="ce-lbl" title="NBU-Befreiung bei Arbeitszeit unter 8 h/Woche (UVG Art. 1a)">&lt; 8 h / Wo.</label>
+                    <div class="emp-yesno-toggle" data-target="ceTeilzeitUnter8h">
+                        <input type="hidden" id="ceTeilzeitUnter8h" value="false">
+                        <button type="button" onclick="empSetYesNo('ceTeilzeitUnter8h', true)">ja</button>
+                        <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
+                    </div>
+                </div>
                 <div id="ceGuaranteedWrap" style="display:none">
                     <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                     <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
@@ -8275,6 +8365,54 @@
     padding: 0 0 0 3px !important;
     margin: 14px 0 5px !important;
 }
+/* < 8 h-Schieber wie L-GAV (emp-yesno-toggle) — Modal liegt ausserhalb
+   #page-mitarbeiter, daher eigene Regeln (Walter 31.07.2026). */
+#contractEditModal #ceTeilzeitUnter8hWrap {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-width: 0;
+}
+#contractEditModal .emp-yesno-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid rgba(60,55,48,.16);
+    border-radius: 15px;
+    background: #f0ece4;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.55);
+    min-height: 27px;
+    box-sizing: border-box;
+}
+#contractEditModal .emp-yesno-toggle button {
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: #8b8b8b;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 760;
+    line-height: 1;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+#contractEditModal .emp-yesno-toggle button.active {
+    background: #3f3f3f;
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(60,55,48,.18);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle {
+    background: rgba(255,255,255,.08);
+    border-color: rgba(122,145,165,.28);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.theme-dark #contractEditModal .emp-yesno-toggle button { color: #94a3b8; }
+body.theme-dark #contractEditModal .emp-yesno-toggle button.active {
+    background: #e8e4dc;
+    color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0,0,0,.22);
+}
 </style>
 
 <div class="modal-bg" id="vtImportModalBg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center">
@@ -8313,7 +8451,8 @@
 <script src="js/hr-saldi-lohnlauf.js?v=20260708flex"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260728d"></script>
+<script src="js/kuendigung.js?v=20260803f"></script>
+<script src="js/aufforderung-arbeit.js?v=20260803f"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

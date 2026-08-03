@@ -375,14 +375,11 @@ public class PayrollCalculationEngine
                          || (!string.Equals(r.CategoryCode, "ALV",        StringComparison.OrdinalIgnoreCase)
                           && !string.Equals(r.CategoryCode, "BVG",        StringComparison.OrdinalIgnoreCase)
                           && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)))
-                     // UVG Art. 1a Abs. 6 (Walter-Vorgabe 09.06.2026):
-                     // MA mit Arbeitszeit < 8h/Woche sind von NBU befreit. Das
-                     // Flag `TeilzeitUnter8hWoche` wird in der MA-Maske gesetzt
-                     // (Anstellung-Block). NBUV ist ein reiner AN-Abzug; BU
-                     // (Berufsunfall, immer AG) ist eine separate Versicherung
-                     // und nicht über die NBUV-Regel abgebildet, daher hier
-                     // unproblematisch.
-                     && (!employee.TeilzeitUnter8hWoche
+                     // UVG Art. 1a Abs. 6 (Walter-Vorgabe 09.06.2026 / 31.07.2026):
+                     // FLEX mit Arbeitszeit < 8h/Woche sind von NBU befreit.
+                     // Flag sitzt am Vertrag (Employment); Legacy-Fallback am MA.
+                     // NBUV ist reiner AN-Abzug; BU (AG) bleibt unberührt.
+                     && (!IsNbuBefreitUnter8h(emp, employee)
                          || !string.Equals(r.CategoryCode, "NBUV", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
@@ -1212,13 +1209,10 @@ public class PayrollCalculationEngine
             lohnposAbzugTotal += b;
         }
 
-        // Info-Hinweis bei NBU-Befreiung (Walter-Vorgabe 09.06.2026):
-        // Wenn der MA das Flag TeilzeitUnter8hWoche trägt und damit nach
-        // UVG Art. 1a Abs. 6 vom NBU-Abzug befreit ist, dokumentieren wir das
-        // direkt im Lohnzettel als 0-CHF-Zeile bei den Abzügen. So sieht der
-        // Anwender, dass die NBU-Befreiung bewusst aktiv ist (statt nur die
-        // fehlende Zeile zu sehen). code=null → keine Fibu-Buchung.
-        if (employee.TeilzeitUnter8hWoche)
+        // Info-Hinweis bei NBU-Befreiung (Walter-Vorgabe 09.06.2026 / 31.07.2026):
+        // Flag am FLEX-Vertrag (Employment); Legacy-Fallback am MA.
+        // 0-CHF-Zeile im Lohnzettel — code=null → keine Fibu-Buchung.
+        if (IsNbuBefreitUnter8h(emp, employee))
         {
             lohnposAbzugLines.Add(new {
                 bezeichnung = "ℹ NBU-befreit (< 8h/Woche, UVG Art. 1a)",
@@ -2935,5 +2929,18 @@ public class PayrollCalculationEngine
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
         };
+    }
+
+    /// <summary>
+    /// UVG Art. 1a Abs. 6: NBU-Befreiung bei &lt; 8 h/Woche.
+    /// Quelle = FLEX-Vertrag; Legacy-Fallback = MA-Flag (vor Migration 31.07.2026).
+    /// </summary>
+    private static bool IsNbuBefreitUnter8h(Employment employment, Employee employee)
+    {
+        var model = employment.EmploymentModel ?? "";
+        var isFlex = string.Equals(model, "FLEX", StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(model, "UTP", StringComparison.OrdinalIgnoreCase);
+        if (!isFlex) return false;
+        return employment.TeilzeitUnter8hWoche || employee.TeilzeitUnter8hWoche;
     }
 }

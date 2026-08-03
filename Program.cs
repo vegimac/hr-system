@@ -150,6 +150,7 @@ builder.Services.AddScoped<NachtVerzichtPdfService>();
 builder.Services.AddScoped<NachtAusnahmePdfService>();
 // Kündigungsschreiben (Walter-Vorgabe 22.06.2026).
 builder.Services.AddScoped<KuendigungPdfService>();
+builder.Services.AddScoped<AufforderungZurArbeitPdfService>();
 builder.Services.AddScoped<ArbeitszeugnisPdfService>();
 builder.Services.AddScoped<VerwarnungPdfService>();
 builder.Services.AddScoped<BewerbungsbogenPdfService>();
@@ -898,6 +899,23 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employment
         ADD COLUMN IF NOT EXISTS monthly_salary_fte NUMERIC(10,2);
+    ");
+
+    // < 8 h / Wo. (NBU-Befreiung) am Vertrag statt am MA (Walter 31.07.2026).
+    // Nur FLEX sinnvoll; Backfill aus bisherigem employee-Flag für laufende FLEX.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employment
+        ADD COLUMN IF NOT EXISTS teilzeit_unter_8h_woche boolean NOT NULL DEFAULT false;
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE employment e
+           SET teilzeit_unter_8h_woche = true
+          FROM employee emp
+         WHERE e.employee_id = emp.id
+           AND emp.teilzeit_unter_8h_woche = true
+           AND UPPER(TRIM(e.employment_model)) IN ('FLEX', 'UTP')
+           AND (e.contract_end_date IS NULL OR e.contract_end_date >= CURRENT_DATE)
+           AND e.teilzeit_unter_8h_woche = false;
     ");
 
     db.Database.ExecuteSqlRaw(@"

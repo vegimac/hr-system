@@ -53,7 +53,8 @@ public class MirusChangeDigestService
         "EmploymentModelCode", "HourlyRate", "MonthlySalary", "MonthlySalaryFte",
         "EmploymentPercentage", "GuaranteedHoursPerWeek", "JobTitle", "JobGroupId",
         "ContractStartDate", "ContractEndDate", "ProbationEndDate", "ProbationMonths",
-        "IsActive", "CompanyProfileId", "EducationLevelCode", "WeeklyHours"
+        "IsActive", "CompanyProfileId", "EducationLevelCode", "WeeklyHours",
+        "TeilzeitUnter8hWoche"
     };
 
     private static readonly Dictionary<string, string> FieldLabels = new(StringComparer.Ordinal)
