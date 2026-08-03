@@ -24,6 +24,7 @@ const HELP_PAGES = [
     { slug: 'dokumente',     title: 'Dokumente & Posteingang',     roles: ['admin', 'superuser', 'user', 'buchhaltung'] },
     { slug: 'fibu',          title: 'Buchhaltung (Fibu)',          roles: ['admin', 'buchhaltung'] },
     { slug: 'audit',         title: 'Aktivitäts-Log',              roles: ['admin'] },
+    { slug: 'daten-fix',     title: 'Daten-Fix',                   roles: ['admin'] },
     { slug: 'suche',         title: 'Globale Suche (⌘K)' },
     { slug: 'rollen',        title: 'Rollen & Berechtigungen',     roles: ['admin'] },
 ];
@@ -60,6 +61,7 @@ const HELP_PAGE_BY_APP_PAGE = {
     'audit-log':         'audit',
     'benutzer':          'rollen',
     'admin-hub':         'index',
+    'daten-fix':         'daten-fix',
     'moments':           'moments',
     'moment-texte':      'moments',
     'fibu':              'fibu',
@@ -105,6 +107,7 @@ function helpContextLabel(ctx) {
         'audit-log': 'Aktivitäts-Log',
         'benutzer': 'Benutzer',
         'admin-hub': 'System',
+        'daten-fix': 'Daten-Fix',
         'moments': 'Moments',
         'moment-texte': 'Moments-Texte',
         'fibu': 'Buchhaltung (Fibu)',
