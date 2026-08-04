@@ -100,13 +100,20 @@ public class StundenkontrollePdfService
             .OrderByDescending(e => e.ContractStartDate)
             .FirstOrDefaultAsync();
 
-        var timeEntries = await _db.EmployeeTimeEntries.AsNoTracking()
+        // MIT Rand geladen (±3 Tage): die Ruhetag-Klassifizierung (L-GAV Art. 16,
+        // Walter-Vorgabe 04.08.2026) braucht das letzte Arbeitsende VOR bzw. den
+        // ersten Arbeitsbeginn NACH der Periode, um das 35-Stunden-Fenster über
+        // die Monatsgrenze zu rechnen. Angezeigt werden nur periodFrom..periodTo.
+        var timeEntriesExt = await _db.EmployeeTimeEntries.AsNoTracking()
             .Where(t => t.EmployeeId == employeeId
-                     && t.EntryDate >= periodFrom
-                     && t.EntryDate <= periodTo)
+                     && t.EntryDate >= periodFrom.AddDays(-3)
+                     && t.EntryDate <= periodTo.AddDays(3))
             .OrderBy(t => t.EntryDate)
             .ThenBy(t => t.TimeIn)
             .ToListAsync();
+        var timeEntries = timeEntriesExt
+            .Where(t => t.EntryDate >= periodFrom && t.EntryDate <= periodTo)
+            .ToList();
 
         var absences = await _db.Absences.AsNoTracking()
             .Where(a => a.EmployeeId == employeeId
@@ -132,7 +139,20 @@ public class StundenkontrollePdfService
                  ?? (slip.HasValue ? GetString(slip.Value, "employmentModel") : null)
                  ?? "";
 
-        var dayRows = BuildDayRows(periodFrom, periodTo, timeEntries, absences);
+        // Ruhetag-Klassifizierung (L-GAV Art. 16) über die ERWEITERTEN Einträge
+        // (Fenster über die Monatsgrenze); offene Stempel (ohne TimeOut) zählen
+        // nicht als Arbeitsintervall.
+        var workIntervals = timeEntriesExt
+            .Where(t => t.TimeOut.HasValue)
+            .Select(t => (Start: t.TimeIn, End: t.TimeOut!.Value))
+            .OrderBy(w => w.Start)
+            .ToList();
+        var ruhetage = ClassifyRuhetage(periodFrom, periodTo, workIntervals,
+            d => !string.IsNullOrEmpty(FormatAbsencesForDay(d, absences)));
+        int ruheGanz = ruhetage.Count(x => x.Value == RuhetagArt.Ganzer);
+        int ruheHalb = ruhetage.Count(x => x.Value is RuhetagArt.HalberVormittag or RuhetagArt.HalberNachmittag);
+
+        var dayRows = BuildDayRows(periodFrom, periodTo, timeEntries, absences, ruhetage);
         var totalHours = dayRows.Sum(r => r.TotalHours);
         var totalNight = dayRows.Sum(r => r.NightHours);
 
@@ -215,6 +235,13 @@ public class StundenkontrollePdfService
                     col.Item().PaddingTop(8).Text("Arbeitszeiten / Absenzen").Bold().FontSize(9f);
                     col.Item().PaddingTop(2).Element(e => RenderDayTable(e, dayRows, totalHours, totalNight));
 
+                    // Ruhetag-Bilanz für die L-GAV-Kontrolle (Art. 16: 2 Ruhe-
+                    // tage/Woche, davon mind. 1 ganzer; 2 halbe = 1 Ruhetag).
+                    col.Item().PaddingTop(3).Text(
+                        $"Ruhetage: {ruheGanz} ganze · {ruheHalb} halbe" +
+                        " — L-GAV Art. 16: 2 Ruhetage/Woche, davon mind. 1 ganzer; 2 halbe = 1 ganzer.")
+                        .FontSize(7.5f).FontColor(Muted);
+
                     // Unterschrift
                     col.Item().PaddingTop(14).BorderTop(0.5f).BorderColor(Line).PaddingTop(8).Column(sig =>
                     {
@@ -296,11 +323,119 @@ public class StundenkontrollePdfService
         bool ShowAuszahlung,
         bool IsFlex);
 
+    // ── Ruhetag-Klassifizierung L-GAV Art. 16 (Walter-Vorgabe 04.08.2026) ──
+    //
+    // Für die L-GAV-Kontrolle werden «Frei»-Tage auf dem Kontrollblatt
+    // klassifiziert. Regeln (Walter, nach L-GAV-Kontrollstelle):
+    //
+    //   GANZER Ruhetag    — im Anschluss an die tägliche Nachtruhe (11 Std)
+    //                       weitere 24 Std vollständig arbeitsfrei, d.h.
+    //                       mind. 35 zusammenhängende freie Stunden zwischen
+    //                       letztem Arbeitsende und nächstem Arbeitsbeginn.
+    //                       Bei mehreren freien Tagen am Stück qualifiziert
+    //                       der k-te freie Tag, wenn das Fenster
+    //                       ≥ 11 + 24×k Stunden misst (Bsp: Fr 22:00 → Mo
+    //                       06:00 = 56 Std → Sa ganzer Ruhetag, So nicht —
+    //                       für den zweiten fehlen 59 Std).
+    //   HALBER Ruhetag    — Vormittag frei: Arbeitsbeginn frühestens 12:00,
+    //                       Tagesarbeitszeit höchstens 5 Std. ODER
+    //                       Nachmittag frei: Arbeitsende spätestens 14:30,
+    //                       Tagesarbeitszeit höchstens 5 Std.
+    //                       (Gegenbeispiel der Kontrollstelle: 10:00–15:00 =
+    //                       5 Std, aber KEIN halber Ruhetag.)
+    //   KEIN Ruhetag      — keine der Bedingungen erfüllt.
+    //
+    // Fenster über den Datenrand hinaus (keine Arbeit im geladenen Bereich
+    // davor/danach) gelten als offen → qualifizieren. Absenz-Tage (Ferien,
+    // Krank, …) werden NICHT klassifiziert — sie tragen ihre eigene Kategorie.
+
+    public enum RuhetagArt { Keiner, Ganzer, FreiOhneRuhetag, HalberVormittag, HalberNachmittag }
+
+    /// <summary>Statisch + seiteneffektfrei — unit-testbar (Tests/RuhetagKlassifizierungTests).</summary>
+    public static Dictionary<DateOnly, RuhetagArt> ClassifyRuhetage(
+        DateOnly from,
+        DateOnly to,
+        IReadOnlyList<(DateTime Start, DateTime End)> work,
+        Func<DateOnly, bool> istAbwesend)
+    {
+        var sorted = work.OrderBy(w => w.Start).ToList();
+        var result = new Dictionary<DateOnly, RuhetagArt>();
+
+        bool OverlapsDay(DateOnly d)
+        {
+            var s = d.ToDateTime(TimeOnly.MinValue);
+            var e = s.AddDays(1);
+            return sorted.Any(w => w.Start < e && w.End > s);
+        }
+
+        for (var d = from; d <= to; d = d.AddDays(1))
+        {
+            if (istAbwesend(d)) continue;
+
+            var dayStart = d.ToDateTime(TimeOnly.MinValue);
+            var dayEnd   = dayStart.AddDays(1);
+            var dayIv    = sorted.Where(w => DateOnly.FromDateTime(w.Start) == d).ToList();
+
+            if (dayIv.Count > 0)
+            {
+                // Arbeitstag → halber Ruhetag prüfen. Tagesarbeitszeit = Summe
+                // der Einsatz-Dauern (Pausen zwischen Einsätzen zählen nicht).
+                var total        = (decimal)dayIv.Sum(w => (w.End - w.Start).TotalHours);
+                var earliestIn   = dayIv.Min(w => w.Start);
+                var latestOut    = dayIv.Max(w => w.End);
+                bool maxFuenf    = total <= 5.0m;
+
+                if (maxFuenf && earliestIn.TimeOfDay >= new TimeSpan(12, 0, 0))
+                    result[d] = RuhetagArt.HalberVormittag;
+                else if (maxFuenf && latestOut <= d.ToDateTime(new TimeOnly(14, 30)))
+                    result[d] = RuhetagArt.HalberNachmittag;
+                else
+                    result[d] = RuhetagArt.Keiner;
+                continue;
+            }
+
+            if (OverlapsDay(d))
+            {
+                // Nur der Auslauf einer Nachtschicht vom Vortag — kein voller
+                // freier Kalendertag, keine Klassifizierung.
+                result[d] = RuhetagArt.Keiner;
+                continue;
+            }
+
+            // Vollständig freier Tag → Fenster letztes Arbeitsende … nächster
+            // Arbeitsbeginn. Kein Eintrag im geladenen Bereich = offenes Fenster.
+            var prevEnd   = sorted.Where(w => w.End <= dayStart).Select(w => (DateTime?)w.End).Max();
+            var nextStart = sorted.Where(w => w.Start >= dayEnd).Select(w => (DateTime?)w.Start).Min();
+
+            if (prevEnd is null || nextStart is null)
+            {
+                result[d] = RuhetagArt.Ganzer;
+                continue;
+            }
+
+            // k = wievielter zählbarer freier Tag seit dem letzten Arbeitsende
+            // (Absenz-Tage zählen nicht mit — sie verbrauchen keinen Ruhetag-Slot).
+            int k = 1;
+            for (var p = DateOnly.FromDateTime(prevEnd.Value); p < d; p = p.AddDays(1))
+            {
+                if (p <= DateOnly.FromDateTime(prevEnd.Value)) continue;
+                if (!istAbwesend(p) && !OverlapsDay(p)) k++;
+            }
+
+            var windowHours = (decimal)(nextStart.Value - prevEnd.Value).TotalHours;
+            result[d] = windowHours >= 11m + 24m * k
+                ? RuhetagArt.Ganzer
+                : RuhetagArt.FreiOhneRuhetag;
+        }
+        return result;
+    }
+
     private static List<DayRow> BuildDayRows(
         DateOnly from,
         DateOnly to,
         List<EmployeeTimeEntry> entries,
-        List<Absence> absences)
+        List<Absence> absences,
+        IReadOnlyDictionary<DateOnly, RuhetagArt>? ruhetage = null)
     {
         var byDate = entries.GroupBy(e => e.EntryDate).ToDictionary(g => g.Key, g => g.ToList());
         var rows = new List<DayRow>();
@@ -323,9 +458,31 @@ public class StundenkontrollePdfService
             var bem = string.Join("; ", dayEntries
                 .Select(e => e.Comment)
                 .Where(c => !string.IsNullOrWhiteSpace(c))
-                .Distinct()!);
+                .Distinct()!) ?? "";
 
             var abw = FormatAbsencesForDay(d, absences);
+
+            // Ruhetag-Klassifizierung einblenden (L-GAV-Kontrolle).
+            if (ruhetage != null && ruhetage.TryGetValue(d, out var art))
+            {
+                switch (art)
+                {
+                    case RuhetagArt.Ganzer:
+                        if (string.IsNullOrEmpty(abw)) abw = "Frei";
+                        bem = string.IsNullOrEmpty(bem) ? "ganzer Ruhetag" : bem + "; ganzer Ruhetag";
+                        break;
+                    case RuhetagArt.FreiOhneRuhetag:
+                        if (string.IsNullOrEmpty(abw)) abw = "Frei";
+                        bem = string.IsNullOrEmpty(bem) ? "kein ganzer Ruhetag (< 35 Std frei)" : bem + "; kein ganzer Ruhetag (< 35 Std frei)";
+                        break;
+                    case RuhetagArt.HalberVormittag:
+                        bem = string.IsNullOrEmpty(bem) ? "½ Ruhetag (Vormittag frei)" : bem + "; ½ Ruhetag (Vormittag frei)";
+                        break;
+                    case RuhetagArt.HalberNachmittag:
+                        bem = string.IsNullOrEmpty(bem) ? "½ Ruhetag (Nachmittag frei)" : bem + "; ½ Ruhetag (Nachmittag frei)";
+                        break;
+                }
+            }
 
             rows.Add(new DayRow(
                 d,
@@ -334,7 +491,7 @@ public class StundenkontrollePdfService
                 total,
                 night,
                 abw,
-                bem ?? ""));
+                bem));
         }
         return rows;
     }
