@@ -110,6 +110,38 @@ public class PayrollController : HrControllerBase
         catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
     }
 
+    // GET /api/payroll/fibu-abaconnect?companyProfileId&year&month
+    // → Abacus-Export (E3, Walter 04.08.2026): dasselbe Journal als AbaConnect-
+    // XML «FIBU / XML Buchungen» v2014.00 (Vorlage = Mirus-Export). Direkt-
+    // Download (kein Vorschaufenster — XML ist eine Import-Datei wie DTA/LSE).
+    // Gleiche Guards wie fibu-journal: Rolle, Filial-Zugriff, Definitiv-Riegel.
+    [HttpGet("fibu-abaconnect")]
+    [Authorize(Roles = "admin,buchhaltung")]
+    public async Task<IActionResult> FibuAbaConnect(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
+            return PeriodeNichtAbgeschlossen();
+        try
+        {
+            var (xml, journal) = await _fibuJournal.GenerateAbaConnectXmlAsync(companyProfileId, year, month);
+            // Sicherung: ein unbalanciertes Journal darf NICHT nach Abacus —
+            // 1920-Differenz > Rundungs-Toleranz deutet auf Snapshot-Fehler.
+            if (Math.Abs(journal.Konto1920Saldo) > 0.05m)
+                return Conflict(new
+                {
+                    error = "JOURNAL_NICHT_BALANCIERT",
+                    message = $"Konto 1920 geht nicht auf (Differenz {journal.Konto1920Saldo:0.00}). " +
+                              "Bitte zuerst das Fibu-Journal prüfen (Hinweise), dann erneut exportieren."
+                });
+            return File(xml, "application/xml",
+                $"AbaConnect-Fibu_{companyProfileId}_{year}-{month:D2}.xml");
+        }
+        catch (InvalidOperationException ex) { return NotFound(new { error = ex.Message }); }
+    }
+
     // POST /api/payroll/refresh-snapshot-codes?companyProfileId&year&month  (admin-only)
     // Wartung (Walter 22.05.2026): trägt die Fibu-Codes (categoryCode/code) in
     // bestehende Snapshots nach — nötig fürs Fibu-Journal bei Perioden, die VOR

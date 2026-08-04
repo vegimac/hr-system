@@ -67,6 +67,33 @@ async function fibuSaldoListe() {
         `Lohn-Saldi-Buchhaltung_${p.cid}_${p.y}-${String(p.m).padStart(2, '0')}.pdf`);
 }
 
+// Abacus-Export (E3, Walter 04.08.2026): AbaConnect-XML «FIBU / XML Buchungen»
+// v2014.00 — Import-Datei wie DTA/LSE → Direkt-Download via saveBlobAsk
+// (KEIN Vorschaufenster; XML kann der Browser nicht sinnvoll anzeigen).
+async function fibuAbacusExport() {
+    const p = _fibuParams(); if (!p) return;
+    const statusEl = document.getElementById('fibuStatus');
+    if (statusEl) statusEl.textContent = '⏳ Abacus-XML wird erstellt…';
+    try {
+        const r = await fetch(
+            `/api/payroll/fibu-abaconnect?companyProfileId=${p.cid}&year=${p.y}&month=${p.m}`,
+            { headers: ah() });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try { const j = await r.json(); if (j && (j.error || j.message)) msg = j.message || j.error; } catch (_) {}
+            if (statusEl) statusEl.textContent = '';
+            alert('Export nicht möglich: ' + msg);
+            return;
+        }
+        const blob = await r.blob();
+        if (statusEl) statusEl.textContent = '';
+        await saveBlobAsk(blob, `AbaConnect-Fibu_${p.cid}_${p.y}-${String(p.m).padStart(2, '0')}.xml`);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = '';
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
+
 async function _fibuFetchPdf(url, filename) {
     const statusEl = document.getElementById('fibuStatus');
     if (statusEl) statusEl.textContent = '⏳ PDF wird erstellt…';

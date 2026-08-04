@@ -750,4 +750,121 @@ public class FibuJournalService
             });
         }).GeneratePdf();
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // E3: Abacus-Export — AbaConnect «FIBU / XML Buchungen» Version 2014.00
+    // (Walter-Vorgabe 04.08.2026). Vorlage = echter Mirus-Export
+    // «FibuExpAbacusV2014.xml» (Juni 2026): pro Journal-Zeile eine
+    // <Transaction> mit <CollectiveInformation> (Soll-Konto, DebitCredit D)
+    // + <SingleInformation> (Gegenkonto). Sammelbuchungs-Stil (EntryType S,
+    // EntryLevel A), Währung CHF, Kostenstellen NICHT übergeben (BookingLevel
+    // 0 — wie Mirus; die KSt steckt im Text «Crew Fix»/«Manager»).
+    //
+    // Abweichung zu Mirus (bewusst): EntryDate = PERIODENENDE (z.B. 31.07.),
+    // nicht das Exportdatum — die Buchung gehört in die Lohnperiode.
+    // Beträge InvariantCulture «0.00» (Punkt, keine Tausender-Trennzeichen);
+    // negative Beträge sind erlaubt (auch Mirus liefert sie, z.B. Überstunden-
+    // Korrektur). XML via XElement → korrektes Escaping der Texte.
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>Statisch + seiteneffektfrei — unit-testbar (Tests/AbaConnectExportTests).</summary>
+    public static string BuildAbaConnectXml(IReadOnlyList<JournalLine> lines, DateOnly entryDate)
+    {
+        static string Amt(decimal v) =>
+            v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
+        string datum = entryDate.ToString("yyyy-MM-dd");
+
+        var task = new System.Xml.Linq.XElement("Task",
+            new System.Xml.Linq.XElement("Parameter",
+                new System.Xml.Linq.XElement("Application", "FIBU"),
+                new System.Xml.Linq.XElement("Id", "XML Buchungen"),
+                new System.Xml.Linq.XElement("MapId", "AbaDefault"),
+                new System.Xml.Linq.XElement("Version", "2014.00")));
+
+        int id = 0;
+        foreach (var l in lines)
+        {
+            id++;
+            task.Add(new System.Xml.Linq.XElement("Transaction",
+                new System.Xml.Linq.XAttribute("id", id),
+                new System.Xml.Linq.XElement("Entry", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                    new System.Xml.Linq.XElement("CollectiveInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                        new System.Xml.Linq.XElement("EntryLevel", "A"),
+                        new System.Xml.Linq.XElement("EntryType", "S"),
+                        new System.Xml.Linq.XElement("Type", "Normal"),
+                        new System.Xml.Linq.XElement("DebitCredit", "D"),
+                        new System.Xml.Linq.XElement("Client", ""),
+                        new System.Xml.Linq.XElement("Division", ""),
+                        new System.Xml.Linq.XElement("KeyCurrency", "CHF"),
+                        new System.Xml.Linq.XElement("EntryDate", datum),
+                        new System.Xml.Linq.XElement("ValueDate", ""),
+                        new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                            new System.Xml.Linq.XElement("Currency", "CHF"),
+                            new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
+                        new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
+                        new System.Xml.Linq.XElement("Account", l.Soll),
+                        new System.Xml.Linq.XElement("BookingLevel1", "0"),
+                        new System.Xml.Linq.XElement("BookingLevel2", "0"),
+                        new System.Xml.Linq.XElement("BookingLevel3", "0"),
+                        new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
+                        new System.Xml.Linq.XElement("Text2", ""),
+                        new System.Xml.Linq.XElement("DocumentNumber", ""),
+                        new System.Xml.Linq.XElement("SingleCount", "0")),
+                    new System.Xml.Linq.XElement("SingleInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                        new System.Xml.Linq.XElement("Type", "Normal"),
+                        new System.Xml.Linq.XElement("DebitCredit", "D"),
+                        new System.Xml.Linq.XElement("EntryDate", datum),
+                        new System.Xml.Linq.XElement("ValueDate", ""),
+                        new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                            new System.Xml.Linq.XElement("Currency", "CHF"),
+                            new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
+                        new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
+                        new System.Xml.Linq.XElement("Account", l.Gegen),
+                        new System.Xml.Linq.XElement("BookingLevel1", "0"),
+                        new System.Xml.Linq.XElement("BookingLevel2", "0"),
+                        new System.Xml.Linq.XElement("BookingLevel3", "0"),
+                        new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
+                        new System.Xml.Linq.XElement("Text2", ""),
+                        new System.Xml.Linq.XElement("DocumentNumber", ""),
+                        new System.Xml.Linq.XElement("SelectionCode", ""),
+                        new System.Xml.Linq.XElement("NoteData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                            new System.Xml.Linq.XElement("Text", ""))))));
+        }
+
+        var container = new System.Xml.Linq.XElement("AbaConnectContainer",
+            new System.Xml.Linq.XElement("TaskCount", "1"),
+            task);
+
+        var doc = new System.Xml.Linq.XDocument(
+            new System.Xml.Linq.XDeclaration("1.0", "UTF-8", null),
+            container);
+
+        // XDocument.ToString() lässt die Declaration weg → über StringWriter
+        // mit UTF-8-Encoding serialisieren.
+        var sb = new System.Text.StringBuilder();
+        using (var w = System.Xml.XmlWriter.Create(sb, new System.Xml.XmlWriterSettings
+        {
+            Indent = true,
+            IndentChars = "  ",
+            Encoding = System.Text.Encoding.UTF8,
+            // sb ist UTF-16 — die Declaration soll trotzdem UTF-8 sagen (die
+            // Datei wird als UTF-8-Bytes ausgeliefert).
+            OmitXmlDeclaration = false
+        }))
+        {
+            doc.Save(w);
+        }
+        // XmlWriter auf StringBuilder schreibt encoding="utf-16" in die
+        // Declaration — auf utf-8 korrigieren (ausgeliefert wird UTF-8).
+        return sb.ToString().Replace("encoding=\"utf-16\"", "encoding=\"UTF-8\"");
+    }
+
+    /// <summary>Journal rechnen + als AbaConnect-XML-Bytes (UTF-8) liefern.</summary>
+    public async Task<(byte[] Xml, JournalResult Journal)> GenerateAbaConnectXmlAsync(
+        int companyProfileId, int year, int month)
+    {
+        var r = await GenerateAsync(companyProfileId, year, month);
+        var xml = BuildAbaConnectXml(r.Lines, r.Periode.PeriodTo);
+        return (System.Text.Encoding.UTF8.GetBytes(xml), r);
+    }
 }
