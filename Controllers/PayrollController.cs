@@ -118,15 +118,22 @@ public class PayrollController : HrControllerBase
     [HttpGet("fibu-abaconnect")]
     [Authorize(Roles = "admin,buchhaltung")]
     public async Task<IActionResult> FibuAbaConnect(
-        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month,
+        [FromQuery] string? entryDate = null)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (!await IsDefinitivConfirmedAsync(companyProfileId, year, month))
             return PeriodeNichtAbgeschlossen();
+        // FIBU-Buchungsdatum wählbar (Treuhänder-Empfehlung 04.08.2026);
+        // leer/ungültig → Periodenende als Default (im Service).
+        DateOnly? buchungsdatum = null;
+        if (!string.IsNullOrWhiteSpace(entryDate)
+            && DateOnly.TryParseExact(entryDate, "yyyy-MM-dd", out var ed))
+            buchungsdatum = ed;
         try
         {
-            var (xml, journal) = await _fibuJournal.GenerateAbaConnectXmlAsync(companyProfileId, year, month);
+            var (xml, journal) = await _fibuJournal.GenerateAbaConnectXmlAsync(companyProfileId, year, month, buchungsdatum);
             // Sicherung: ein unbalanciertes Journal darf NICHT nach Abacus —
             // 1920-Differenz > Rundungs-Toleranz deutet auf Snapshot-Fehler.
             if (Math.Abs(journal.Konto1920Saldo) > 0.05m)

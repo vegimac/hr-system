@@ -109,6 +109,39 @@ public class AbaConnectExportTests
     }
 
     [Fact]
+    public void MwSt_Felder_nur_auf_Personalaufwand_Buchungen()
+    {
+        // Mirus-Referenz (Treuhänder-Analyse 04.08.2026): NUR Soll-4xxx→1920-
+        // Buchungen tragen TaxAccount + TaxData (TaxCode 200, Null-MWST) —
+        // Abzüge (1920→2xxx), RST (4xxx↔2019/2017) und Umgliederungen nicht.
+        var doc = Parse();
+        var txs = doc.Descendants("Transaction").ToList();
+
+        // Zeile 3 (Index 2): 4055 → 1920, negativ — MUSS Steuerfelder tragen
+        // (auch Mirus' negative Überstunden-Zeile hat den TaxCode).
+        var mitTax = txs[2];
+        var ci = mitTax.Descendants("CollectiveInformation").Single();
+        var si = mitTax.Descendants("SingleInformation").Single();
+        Assert.Equal("1067", ci.Element("TaxAccount")!.Value);
+        Assert.Equal("1920", si.Element("TaxAccount")!.Value);
+        var td = si.Element("TaxData")!;
+        Assert.Equal("I",    td.Element("TaxIncluded")!.Value);
+        Assert.Equal("200",  td.Element("TaxCode")!.Value);
+        Assert.Equal("CH",   td.Element("Country")!.Value);
+        Assert.Equal("0.00", td.Element("KeyAmount")!.Value);
+        Assert.Equal("0",    td.Element("TaxRate")!.Value);
+
+        // Zeile 1 (1920→2010, Abzug) und Zeile 4 (4010→2017, RST): KEINE Steuerfelder.
+        foreach (var idx in new[] { 0, 3 })
+        {
+            var ohne = txs[idx];
+            Assert.Null(ohne.Descendants("CollectiveInformation").Single().Element("TaxAccount"));
+            Assert.Null(ohne.Descendants("SingleInformation").Single().Element("TaxAccount"));
+            Assert.Empty(ohne.Descendants("TaxData"));
+        }
+    }
+
+    [Fact]
     public void Umlaute_und_Sonderzeichen_werden_korrekt_escaped()
     {
         var lines = new List<JournalLine> { new("4000", "1920", "Brutto & «Sonder» < > ä", 1.00m) };

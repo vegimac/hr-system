@@ -1682,13 +1682,13 @@
                     <div style="font-size:12px;color:#64748b;margin-bottom:3px">Filiale</div>
                     <div id="fibuBranchLabel" style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:18px">–</div>
 
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:20px">
                         <label style="font-size:12px;font-weight:600;color:#475569">Jahr
-                            <input type="number" id="fibuYear" min="2024" max="2099"
+                            <input type="number" id="fibuYear" min="2024" max="2099" onchange="fibuSyncEntryDate()"
                                    style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:14px;background:white">
                         </label>
                         <label style="font-size:12px;font-weight:600;color:#475569">Monat
-                            <select id="fibuMonth"
+                            <select id="fibuMonth" onchange="fibuSyncEntryDate()"
                                     style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:14px;background:white">
                                 <option value="1">Januar</option><option value="2">Februar</option>
                                 <option value="3">März</option><option value="4">April</option>
@@ -1697,6 +1697,10 @@
                                 <option value="9">September</option><option value="10">Oktober</option>
                                 <option value="11">November</option><option value="12">Dezember</option>
                             </select>
+                        </label>
+                        <label style="font-size:12px;font-weight:600;color:#475569" title="FIBU-Buchungsdatum im Abacus-Export (EntryDate). Default: Monatsletzter der gewählten Periode.">Buchungsdatum Abacus
+                            <input type="date" id="fibuEntryDate"
+                                   style="margin-top:4px;width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:14px;background:white">
                         </label>
                     </div>
 
@@ -7475,7 +7479,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/austritt.js?v=20260803i"></script>
 <script src="js/contracts-edit.js?v=20260803i"></script>
 <script src="js/payroll.js?v=20260804e"></script>
-<script src="js/fibu.js?v=20260804b"></script>
+<script src="js/fibu.js?v=20260804c"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>

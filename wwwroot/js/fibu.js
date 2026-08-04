@@ -42,6 +42,21 @@ async function fibuInit() {
     } catch (_) { /* Fallback: aktueller Monat */ }
     y.value = py;
     m.value = String(pm);
+    fibuSyncEntryDate();
+}
+
+// Buchungsdatum Abacus (EntryDate im AbaConnect-XML) auf den Monatsletzten
+// der gewählten Periode setzen (Treuhänder-Empfehlung 04.08.2026: Default
+// Monatsletzter, aber vom Benutzer änderbar). Läuft bei Init + bei jeder
+// Jahr-/Monat-Änderung — überschreibt damit bewusst eine manuelle Wahl,
+// sobald die PERIODE wechselt (das alte Datum wäre dann sicher falsch).
+function fibuSyncEntryDate() {
+    const y = parseInt(document.getElementById('fibuYear')?.value || '0', 10);
+    const m = parseInt(document.getElementById('fibuMonth')?.value || '0', 10);
+    const d = document.getElementById('fibuEntryDate');
+    if (!d || !y || !m) return;
+    const last = new Date(y, m, 0); // Tag 0 des Folgemonats = Monatsletzter
+    d.value = `${y}-${String(m).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
 }
 
 function _fibuParams() {
@@ -74,9 +89,12 @@ async function fibuAbacusExport() {
     const p = _fibuParams(); if (!p) return;
     const statusEl = document.getElementById('fibuStatus');
     if (statusEl) statusEl.textContent = '⏳ Abacus-XML wird erstellt…';
+    // Wählbares FIBU-Buchungsdatum (leer → Server-Default Monatsletzter).
+    const ed = document.getElementById('fibuEntryDate')?.value || '';
+    const edParam = ed ? `&entryDate=${ed}` : '';
     try {
         const r = await fetch(
-            `/api/payroll/fibu-abaconnect?companyProfileId=${p.cid}&year=${p.y}&month=${p.m}`,
+            `/api/payroll/fibu-abaconnect?companyProfileId=${p.cid}&year=${p.y}&month=${p.m}${edParam}`,
             { headers: ah() });
         if (!r.ok) {
             let msg = 'HTTP ' + r.status;

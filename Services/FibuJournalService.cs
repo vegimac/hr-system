@@ -760,12 +760,31 @@ public class FibuJournalService
     // EntryLevel A), Währung CHF, Kostenstellen NICHT übergeben (BookingLevel
     // 0 — wie Mirus; die KSt steckt im Text «Crew Fix»/«Manager»).
     //
-    // Abweichung zu Mirus (bewusst): EntryDate = PERIODENENDE (z.B. 31.07.),
-    // nicht das Exportdatum — die Buchung gehört in die Lohnperiode.
-    // Beträge InvariantCulture «0.00» (Punkt, keine Tausender-Trennzeichen);
-    // negative Beträge sind erlaubt (auch Mirus liefert sie, z.B. Überstunden-
-    // Korrektur). XML via XElement → korrektes Escaping der Texte.
+    // Abweichung zu Mirus (bewusst): EntryDate = PERIODENENDE (z.B. 31.07.)
+    // als Default, nicht das Exportdatum — die Buchung gehört in die Lohn-
+    // periode. Im UI ist das Buchungsdatum wählbar (Walter/Treuhänder-
+    // Empfehlung 04.08.2026). Beträge InvariantCulture «0.00» (Punkt, keine
+    // Tausender-Trennzeichen); negative Beträge sind erlaubt und werden NIE
+    // Soll/Haben-getauscht (auch Mirus liefert sie, z.B. Überstunden-Korrektur
+    // mit TaxCode). XML via XElement → korrektes Escaping der Texte.
+    //
+    // MWST-Felder (Treuhänder-Analyse 04.08.2026, aus der Mirus-Referenz):
+    // ALLE Personalaufwand-Buchungen (Soll 4xxx / Gegen 1920 — Bruttolöhne,
+    // ausbezahlte Ferien/Feiertage, Überstunden/Nacht, Karenzentschädigungen,
+    // Ferien-/Feiertagsentschädigungen) tragen zusätzlich:
+    //   • Aufwand-Seite (CI):  <TaxAccount>1067</TaxAccount>
+    //   • 1920-Seite (SI):     <TaxAccount>1920</TaxAccount> + <TaxData> mit
+    //     TaxCode 200, Country CH, TaxIncluded I, Betrag/Satz 0 (Null-MWST-
+    //     Deklaration — Lohn ist nicht steuerbar, Abacus will den Code trotzdem).
+    // RST-Zeilen (4xxx↔2019/2017/2016), AG-Beiträge (406x→20xx), Abzüge
+    // (1920→2xxx) und Umgliederungen (2014/2016/2017/2071→1920) haben in der
+    // Mirus-Referenz KEINE Steuerfelder → bei uns ebenso.
     // ══════════════════════════════════════════════════════════════════════
+
+    // Mandant-Konstanten aus der Mirus-Referenzdatei (Schaub Restaurants GmbH).
+    // Sollte der Treuhänder den Abacus-Mandanten umstellen, hier anpassen.
+    private const string AbaTaxAccountAufwand = "1067";
+    private const string AbaTaxCode           = "200";
 
     /// <summary>Statisch + seiteneffektfrei — unit-testbar (Tests/AbaConnectExportTests).</summary>
     public static string BuildAbaConnectXml(IReadOnlyList<JournalLine> lines, DateOnly entryDate)
@@ -785,50 +804,75 @@ public class FibuJournalService
         foreach (var l in lines)
         {
             id++;
+            // MWST-Felder nur auf Personalaufwand → Durchlaufkonto (Mirus-Muster).
+            bool mitTax = l.Soll.StartsWith("4") && l.Gegen == "1920";
+
+            var ci = new System.Xml.Linq.XElement("CollectiveInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                new System.Xml.Linq.XElement("EntryLevel", "A"),
+                new System.Xml.Linq.XElement("EntryType", "S"),
+                new System.Xml.Linq.XElement("Type", "Normal"),
+                new System.Xml.Linq.XElement("DebitCredit", "D"),
+                new System.Xml.Linq.XElement("Client", ""),
+                new System.Xml.Linq.XElement("Division", ""),
+                new System.Xml.Linq.XElement("KeyCurrency", "CHF"),
+                new System.Xml.Linq.XElement("EntryDate", datum),
+                new System.Xml.Linq.XElement("ValueDate", ""),
+                new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                    new System.Xml.Linq.XElement("Currency", "CHF"),
+                    new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
+                new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
+                new System.Xml.Linq.XElement("Account", l.Soll));
+            if (mitTax)
+                ci.Add(new System.Xml.Linq.XElement("TaxAccount", AbaTaxAccountAufwand));
+            ci.Add(
+                new System.Xml.Linq.XElement("BookingLevel1", "0"),
+                new System.Xml.Linq.XElement("BookingLevel2", "0"),
+                new System.Xml.Linq.XElement("BookingLevel3", "0"),
+                new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
+                new System.Xml.Linq.XElement("Text2", ""),
+                new System.Xml.Linq.XElement("DocumentNumber", ""),
+                new System.Xml.Linq.XElement("SingleCount", "0"));
+
+            var si = new System.Xml.Linq.XElement("SingleInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                new System.Xml.Linq.XElement("Type", "Normal"),
+                new System.Xml.Linq.XElement("DebitCredit", "D"),
+                new System.Xml.Linq.XElement("EntryDate", datum),
+                new System.Xml.Linq.XElement("ValueDate", ""),
+                new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                    new System.Xml.Linq.XElement("Currency", "CHF"),
+                    new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
+                new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
+                new System.Xml.Linq.XElement("Account", l.Gegen));
+            if (mitTax)
+                si.Add(new System.Xml.Linq.XElement("TaxAccount", l.Gegen));
+            si.Add(
+                new System.Xml.Linq.XElement("BookingLevel1", "0"),
+                new System.Xml.Linq.XElement("BookingLevel2", "0"),
+                new System.Xml.Linq.XElement("BookingLevel3", "0"),
+                new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
+                new System.Xml.Linq.XElement("Text2", ""),
+                new System.Xml.Linq.XElement("DocumentNumber", ""),
+                new System.Xml.Linq.XElement("SelectionCode", ""));
+            if (mitTax)
+                si.Add(new System.Xml.Linq.XElement("TaxData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                    new System.Xml.Linq.XElement("TaxIncluded", "I"),
+                    new System.Xml.Linq.XElement("TaxType", ""),
+                    new System.Xml.Linq.XElement("UseCode", "0"),
+                    new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                        new System.Xml.Linq.XElement("Currency", "CHF"),
+                        new System.Xml.Linq.XElement("Amount", "0")),
+                    new System.Xml.Linq.XElement("KeyAmount", "0.00"),
+                    new System.Xml.Linq.XElement("TaxRate", "0"),
+                    new System.Xml.Linq.XElement("TaxCoefficient", "0"),
+                    new System.Xml.Linq.XElement("Country", "CH"),
+                    new System.Xml.Linq.XElement("TaxCode", AbaTaxCode),
+                    new System.Xml.Linq.XElement("FlatRate", "0")));
+            si.Add(new System.Xml.Linq.XElement("NoteData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
+                new System.Xml.Linq.XElement("Text", "")));
+
             task.Add(new System.Xml.Linq.XElement("Transaction",
                 new System.Xml.Linq.XAttribute("id", id),
-                new System.Xml.Linq.XElement("Entry", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                    new System.Xml.Linq.XElement("CollectiveInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                        new System.Xml.Linq.XElement("EntryLevel", "A"),
-                        new System.Xml.Linq.XElement("EntryType", "S"),
-                        new System.Xml.Linq.XElement("Type", "Normal"),
-                        new System.Xml.Linq.XElement("DebitCredit", "D"),
-                        new System.Xml.Linq.XElement("Client", ""),
-                        new System.Xml.Linq.XElement("Division", ""),
-                        new System.Xml.Linq.XElement("KeyCurrency", "CHF"),
-                        new System.Xml.Linq.XElement("EntryDate", datum),
-                        new System.Xml.Linq.XElement("ValueDate", ""),
-                        new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                            new System.Xml.Linq.XElement("Currency", "CHF"),
-                            new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
-                        new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
-                        new System.Xml.Linq.XElement("Account", l.Soll),
-                        new System.Xml.Linq.XElement("BookingLevel1", "0"),
-                        new System.Xml.Linq.XElement("BookingLevel2", "0"),
-                        new System.Xml.Linq.XElement("BookingLevel3", "0"),
-                        new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
-                        new System.Xml.Linq.XElement("Text2", ""),
-                        new System.Xml.Linq.XElement("DocumentNumber", ""),
-                        new System.Xml.Linq.XElement("SingleCount", "0")),
-                    new System.Xml.Linq.XElement("SingleInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                        new System.Xml.Linq.XElement("Type", "Normal"),
-                        new System.Xml.Linq.XElement("DebitCredit", "D"),
-                        new System.Xml.Linq.XElement("EntryDate", datum),
-                        new System.Xml.Linq.XElement("ValueDate", ""),
-                        new System.Xml.Linq.XElement("AmountData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                            new System.Xml.Linq.XElement("Currency", "CHF"),
-                            new System.Xml.Linq.XElement("Amount", Amt(l.Betrag))),
-                        new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
-                        new System.Xml.Linq.XElement("Account", l.Gegen),
-                        new System.Xml.Linq.XElement("BookingLevel1", "0"),
-                        new System.Xml.Linq.XElement("BookingLevel2", "0"),
-                        new System.Xml.Linq.XElement("BookingLevel3", "0"),
-                        new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
-                        new System.Xml.Linq.XElement("Text2", ""),
-                        new System.Xml.Linq.XElement("DocumentNumber", ""),
-                        new System.Xml.Linq.XElement("SelectionCode", ""),
-                        new System.Xml.Linq.XElement("NoteData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
-                            new System.Xml.Linq.XElement("Text", ""))))));
+                new System.Xml.Linq.XElement("Entry", new System.Xml.Linq.XAttribute("mode", "SAVE"), ci, si)));
         }
 
         var container = new System.Xml.Linq.XElement("AbaConnectContainer",
@@ -859,12 +903,16 @@ public class FibuJournalService
         return sb.ToString().Replace("encoding=\"utf-16\"", "encoding=\"UTF-8\"");
     }
 
-    /// <summary>Journal rechnen + als AbaConnect-XML-Bytes (UTF-8) liefern.</summary>
+    /// <summary>
+    /// Journal rechnen + als AbaConnect-XML-Bytes (UTF-8) liefern.
+    /// <paramref name="entryDate"/> = FIBU-Buchungsdatum (wählbar im UI);
+    /// null → Periodenende als Default.
+    /// </summary>
     public async Task<(byte[] Xml, JournalResult Journal)> GenerateAbaConnectXmlAsync(
-        int companyProfileId, int year, int month)
+        int companyProfileId, int year, int month, DateOnly? entryDate = null)
     {
         var r = await GenerateAsync(companyProfileId, year, month);
-        var xml = BuildAbaConnectXml(r.Lines, r.Periode.PeriodTo);
+        var xml = BuildAbaConnectXml(r.Lines, entryDate ?? r.Periode.PeriodTo);
         return (System.Text.Encoding.UTF8.GetBytes(xml), r);
     }
 }
