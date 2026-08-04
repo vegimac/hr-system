@@ -224,7 +224,9 @@ public class StundenkontrollePdfService
                             cd.RelativeColumn(2);
                         });
                         MetaRow(t, "Name / Vorname", fullName, "Personalnummer", empNr);
-                        MetaRow(t, "Kostenstelle", kst, "Arbeitsverhältnis", verhaeltnis);
+                        // Arbeitsverhältnis (Beginn – unbefristet) bewusst
+                        // NICHT zeigen (Walter 04.08.2026).
+                        MetaRow(t, "Kostenstelle", kst, "", "");
                     });
 
                     // Saldi-Übersicht (Stunden + CHF)
@@ -249,19 +251,20 @@ public class StundenkontrollePdfService
                             "Ich bestätige, dass ich die oben aufgeführten Arbeitszeiten und Absenzen " +
                             "kontrolliert habe und diese korrekt sind.")
                             .FontSize(8.5f);
+                        // Walter 04.08.2026: links nur «Datum:» (kein Ort, keine
+                        // Striche); rechts KEINE Linie, Name des MA weiter unten,
+                        // damit Platz für die Unterschrift bleibt.
                         sig.Item().PaddingTop(14).Row(r =>
                         {
                             r.RelativeItem().Column(c2 =>
                             {
-                                c2.Item().Text($"{(string.IsNullOrWhiteSpace(companyCity) ? "Ort" : companyCity)}, Datum: ____________________")
-                                    .FontSize(8.5f);
+                                c2.Item().Text("Datum:").FontSize(8.5f);
                             });
                             r.ConstantItem(20);
                             r.RelativeItem().Column(c2 =>
                             {
                                 c2.Item().Text("Unterschrift Mitarbeiter/in:").FontSize(8.5f);
-                                c2.Item().PaddingTop(18).BorderBottom(0.6f).BorderColor(Dark).Height(1);
-                                c2.Item().PaddingTop(2).Text(fullName).FontSize(7.5f).FontColor(Muted);
+                                c2.Item().PaddingTop(44).Text(fullName).FontSize(7.5f).FontColor(Muted);
                             });
                         });
                     });
