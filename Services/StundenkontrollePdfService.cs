@@ -462,24 +462,21 @@ public class StundenkontrollePdfService
 
             var abw = FormatAbsencesForDay(d, absences);
 
-            // Ruhetag-Klassifizierung einblenden (L-GAV-Kontrolle).
+            // Ruhetag-Klassifizierung einblenden (L-GAV-Kontrolle). Knappe
+            // Schreibweise (Walter 04.08.2026): nur «1.0 Frei» (ganzer Ruhetag)
+            // bzw. «0.5 Frei» (halber) in der Abwesenheits-Spalte — KEINE
+            // Bemerkung. Freie Tage OHNE gültigen Ruhetag (< 35 Std Fenster)
+            // bleiben bewusst leer: sie zählen für die Kontrolle nicht.
             if (ruhetage != null && ruhetage.TryGetValue(d, out var art))
             {
                 switch (art)
                 {
                     case RuhetagArt.Ganzer:
-                        if (string.IsNullOrEmpty(abw)) abw = "Frei";
-                        bem = string.IsNullOrEmpty(bem) ? "ganzer Ruhetag" : bem + "; ganzer Ruhetag";
-                        break;
-                    case RuhetagArt.FreiOhneRuhetag:
-                        if (string.IsNullOrEmpty(abw)) abw = "Frei";
-                        bem = string.IsNullOrEmpty(bem) ? "kein ganzer Ruhetag (< 35 Std frei)" : bem + "; kein ganzer Ruhetag (< 35 Std frei)";
+                        abw = string.IsNullOrEmpty(abw) ? "1.0 Frei" : abw + ", 1.0 Frei";
                         break;
                     case RuhetagArt.HalberVormittag:
-                        bem = string.IsNullOrEmpty(bem) ? "½ Ruhetag (Vormittag frei)" : bem + "; ½ Ruhetag (Vormittag frei)";
-                        break;
                     case RuhetagArt.HalberNachmittag:
-                        bem = string.IsNullOrEmpty(bem) ? "½ Ruhetag (Nachmittag frei)" : bem + "; ½ Ruhetag (Nachmittag frei)";
+                        abw = string.IsNullOrEmpty(abw) ? "0.5 Frei" : abw + ", 0.5 Frei";
                         break;
                 }
             }
