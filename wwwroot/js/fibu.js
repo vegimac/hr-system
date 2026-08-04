@@ -8,7 +8,7 @@
 // Filial-Zugriff (user_branch_access) zusätzlich serverseitig.
 // ══════════════════════════════════════════════════════════════════════
 
-function fibuInit() {
+async function fibuInit() {
     // Filiale anzeigen (aus globalem Selektor).
     const lbl = document.getElementById('fibuBranchLabel');
     const b = (typeof allBranches !== 'undefined' ? allBranches : [])
@@ -17,12 +17,31 @@ function fibuInit() {
         ? `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName}`
         : 'Bitte oben eine Filiale wählen';
 
-    // Periode defaulten (aktueller Monat), nur wenn noch leer.
+    // Periode defaulten (Walter-Vorgabe 04.08.2026): die ÄLTESTE noch nicht
+    // definitiv abgeschlossene Periode der Filiale — das ist die Periode, an
+    // der gerade gearbeitet wird (provisorisch/BEI_HR zählt als offen, analog
+    // Stichtag-Konvention). Keine offene Periode → die neueste abgeschlossene
+    // (Journal bleibt einsehbar). Gar keine Periode → aktueller Monat.
     const y = document.getElementById('fibuYear');
     const m = document.getElementById('fibuMonth');
+    if (!y || !m) return;
     const now = new Date();
-    if (y && !y.value) y.value = now.getFullYear();
-    if (m && !m.value) m.value = String(now.getMonth() + 1);
+    let py = now.getFullYear(), pm = now.getMonth() + 1;
+    try {
+        if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+            const r = await fetch(`/api/payroll-perioden?companyProfileId=${fixedCompanyProfileId}`, { headers: ah() });
+            if (r.ok) {
+                const list = await r.json();
+                const offen = list
+                    .filter(p => p.status !== 'abgeschlossen')
+                    .sort((a, b) => (a.year - b.year) || (a.month - b.month));
+                const pick = offen[0] || list[0]; // Liste kommt absteigend → [0] = neueste
+                if (pick) { py = pick.year; pm = pick.month; }
+            }
+        }
+    } catch (_) { /* Fallback: aktueller Monat */ }
+    y.value = py;
+    m.value = String(pm);
 }
 
 function _fibuParams() {
