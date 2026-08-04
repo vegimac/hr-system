@@ -855,7 +855,7 @@ public class StundenkontrollePdfService
             H("Arbeitszeit");
             H("Total", right: true);
             H("Zeitz", right: true);
-            H("Abwesenheit");
+            H("Abwesenheit", right: true);   // rechtsbündig (Walter 04.08.2026)
             H("Bemerkung");
 
             foreach (var r in rows)
@@ -875,7 +875,7 @@ public class StundenkontrollePdfService
                 D(r.Arbeitszeit);
                 D(r.TotalHours > 0 ? Num(r.TotalHours) : "", right: true);
                 D(r.NightHours > 0 ? Num(r.NightHours) : "", right: true);
-                D(r.Abwesenheit);
+                D(r.Abwesenheit, right: true);
                 D(r.Bemerkung);
             }
 

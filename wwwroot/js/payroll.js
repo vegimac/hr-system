@@ -569,7 +569,10 @@ function _lohnWfRenderStatusBar() {
             // GF-Phase: jeden MA bestätigen, dann an HR senden.
             // ⋯-Menü erscheint hier nur für HR (Saldo-Korrektur).
             actions = `${perMaConfirm}${perMaReopen}${pdfBtn}${skBtn}
-                ${buildMoreMenu([saldoKorrItem])}
+                ${buildMoreMenu([
+                    menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
+                    saldoKorrItem,
+                ])}
                 <button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`;
             break;
         case 'provisorisch_abgeschlossen':
@@ -579,6 +582,7 @@ function _lohnWfRenderStatusBar() {
                     saldoKorrItem,
                     saldoKorrItem ? menuDivider : '',
                     menuItem('📋 Alle Lohnbelege (PDF)', 'lohnDownloadVorabPdf()', { title: 'Alle Lohnbelege der Periode in einem PDF' }),
+                    menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                     menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')",     { title: 'Saldi-Übersicht für den Geschäftsführer' }),
                     isAdmin ? menuDivider : '',
                     isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()',      { title: 'Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung)' }) : '',
@@ -592,6 +596,7 @@ function _lohnWfRenderStatusBar() {
             } else {
                 const moreItemsGf = [
                     menuItem('📅 Stundenkontrolle', 'exportStundenkontrollePdf()', { title: 'Monatsblatt: Stunden kontrollieren und unterschreiben' }),
+                    menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                     menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
                 ];
                 actions = lockPill('🔒 Bei HR — keine Änderungen möglich', '#fef3c7', '#b45309') + buildMoreMenu(moreItemsGf);
@@ -601,6 +606,7 @@ function _lohnWfRenderStatusBar() {
             const moreItemsFinal = [
                 menuItem('📥 DTA-File', 'lohnDownloadDtaMa()', { title: 'pain.001-XML für die Bank' }),
                 isHr  ? menuItem('📑 Lohnbelege ansehen', 'lohnOpenLohnbelegeModal()', { title: 'Alle Lohnbelege ansehen / drucken' }) : '',
+                menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                 menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
                 isAdmin ? menuDivider : '',
                 isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()', { title: 'Wartung' }) : '',
@@ -3040,6 +3046,24 @@ async function exportStundenkontrollePdf() {
             typeof ah === 'function' ? ah() : {});
     } catch (e) {
         alert('Stundenkontrolle konnte nicht erstellt werden: ' + (e.message || e));
+    }
+}
+
+// Stundenkontrollblätter ALLER MA des Lohnlaufs in einem PDF (Walter
+// 04.08.2026) — für die L-GAV-Kontrolle / Sammel-Ausdruck zum Unterschreiben.
+async function exportStundenkontrolleAllePdf() {
+    const cid = document.getElementById('lohnBranchSelect')?.value || fixedCompanyProfileId;
+    const y = parseInt(document.getElementById('lohnYearSelect')?.value || '0', 10);
+    const m = parseInt(document.getElementById('lohnMonthSelect')?.value || '0', 10);
+    if (!cid || !y || !m) { alert('Bitte Filiale und Periode wählen.'); return; }
+    const filename = `Stundenkontrolle_Alle_${y}-${String(m).padStart(2, '0')}.pdf`;
+    try {
+        await previewUrlFetch(
+            `/api/payroll/stundenkontrolle-alle-pdf?companyProfileId=${cid}&year=${y}&month=${m}`,
+            filename,
+            typeof ah === 'function' ? ah() : {});
+    } catch (e) {
+        alert('Sammel-PDF konnte nicht erstellt werden: ' + (e.message || e));
     }
 }
 

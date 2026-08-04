@@ -1143,37 +1143,11 @@ public class PayrollController : HrControllerBase
             .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
                                    && p.Year == year
                                    && p.Month == month);
-        PayrollSnapshot? snapshot = null;
-        if (periode != null)
-        {
-            snapshot = await _db.PayrollSnapshots
-                .FirstOrDefaultAsync(s => s.PayrollPeriodeId == periode.Id
-                                       && s.EmployeeId == employeeId);
-        }
-
-        System.Text.Json.JsonElement? slip = null;
-        if (snapshot != null && periode != null
-            && (periode.Status == "abgeschlossen" || periode.Status == "provisorisch_abgeschlossen"))
-        {
-            var node = System.Text.Json.Nodes.JsonNode.Parse(snapshot.SlipJson)!.AsObject();
-            DateTime? frozenDate = periode.Status == "abgeschlossen"
-                ? periode.AbgeschlossenAm
-                : periode.ProvisorischAbgeschlossenAm;
-            if (frozenDate.HasValue)
-                node["printDate"] = frozenDate.Value.ToLocalTime().ToString("dd.MM.yyyy");
-            slip = System.Text.Json.JsonSerializer.SerializeToElement(node);
-        }
-        else
-        {
-            var calcResult = await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
-            if (calcResult is OkObjectResult ok && ok.Value is not null)
-                slip = System.Text.Json.JsonSerializer.SerializeToElement(ok.Value);
-            // Ohne Slip trotzdem Monatsblatt aus Stempelzeiten/Saldi erzeugen.
-        }
 
         byte[] pdf;
         try
         {
+            var slip = await LoadStundenkontrolleSlipAsync(employeeId, year, month, companyProfileId, periode);
             pdf = await _stundenkontrollePdf.GenerateAsync(employeeId, year, month, companyProfileId, slip);
         }
         catch (InvalidOperationException ex)
@@ -1187,6 +1161,112 @@ public class PayrollController : HrControllerBase
             : $"Mitarbeiter_{employeeId}";
         var fileName = $"Stundenkontrolle_{name}_{year}-{month:D2}.pdf";
         return File(pdf, "application/pdf", fileName);
+    }
+
+    // Slip-Quelle fürs Stundenkontrollblatt: eingefrorene Periode → Snapshot-
+    // SlipJson (mit Abschluss-Datum als printDate), sonst Live-Rechnung.
+    // Ohne Slip wird das Blatt trotzdem aus Stempelzeiten/Saldi erzeugt.
+    private async Task<System.Text.Json.JsonElement?> LoadStundenkontrolleSlipAsync(
+        int employeeId, int year, int month, int companyProfileId, PayrollPeriode? periode)
+    {
+        PayrollSnapshot? snapshot = null;
+        if (periode != null)
+        {
+            snapshot = await _db.PayrollSnapshots
+                .FirstOrDefaultAsync(s => s.PayrollPeriodeId == periode.Id
+                                       && s.EmployeeId == employeeId);
+        }
+
+        if (snapshot != null && periode != null
+            && (periode.Status == "abgeschlossen" || periode.Status == "provisorisch_abgeschlossen"))
+        {
+            var node = System.Text.Json.Nodes.JsonNode.Parse(snapshot.SlipJson)!.AsObject();
+            DateTime? frozenDate = periode.Status == "abgeschlossen"
+                ? periode.AbgeschlossenAm
+                : periode.ProvisorischAbgeschlossenAm;
+            if (frozenDate.HasValue)
+                node["printDate"] = frozenDate.Value.ToLocalTime().ToString("dd.MM.yyyy");
+            return System.Text.Json.JsonSerializer.SerializeToElement(node);
+        }
+
+        var calcResult = await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId);
+        if (calcResult is OkObjectResult ok && ok.Value is not null)
+            return System.Text.Json.JsonSerializer.SerializeToElement(ok.Value);
+        return null;
+    }
+
+    // GET /api/payroll/stundenkontrolle-alle-pdf?companyProfileId&year&month
+    // Stundenkontrollblätter ALLER MA des Lohnlaufs in EINEM PDF (Walter
+    // 04.08.2026) — gleiche MA-Auswahl wie die Lohnlauf-Liste: Vertrag
+    // überlappt die Periode, keine Phantom-MA. Sortierung nach Vorname
+    // (Walter-Konvention). Pro MA die identische Einzelblatt-Logik, danach
+    // iText-Merge.
+    [HttpGet("stundenkontrolle-alle-pdf")]
+    public async Task<IActionResult> GetStundenkontrolleAllePdf(
+        [FromQuery] int companyProfileId,
+        [FromQuery] int year,
+        [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var (pFrom, pTo) = PayrollCalculations.CalcPeriod(year, month);
+        var pFromDt = pFrom.ToDateTime(TimeOnly.MinValue);
+        var pToDt   = pTo.ToDateTime(TimeOnly.MinValue);
+
+        // MA des Lohnlaufs: Vertrag der Filiale überlappt die Periode (auch
+        // Austritte innerhalb des Monats — «wer war in der Periode aktiv»,
+        // Walter 03.08.2026), Phantom-MA (IsPayrollExcluded) raus.
+        var employees = await _db.Employments
+            .Where(e => e.CompanyProfileId == companyProfileId
+                     && e.ContractStartDate <= pToDt
+                     && (e.ContractEndDate == null || e.ContractEndDate >= pFromDt))
+            .Select(e => e.Employee!)
+            .Where(e => !e.IsPayrollExcluded)
+            .Distinct()
+            .ToListAsync();
+        var sorted = employees
+            .OrderBy(e => e.FirstName ?? "", StringComparer.Create(new System.Globalization.CultureInfo("de-CH"), true))
+            .ThenBy(e => e.LastName ?? "", StringComparer.Create(new System.Globalization.CultureInfo("de-CH"), true))
+            .ToList();
+        if (sorted.Count == 0)
+            return NotFound(new { error = "Keine Mitarbeiter mit Vertrag in dieser Periode." });
+
+        var periode = await _db.PayrollPerioden
+            .FirstOrDefaultAsync(p => p.CompanyProfileId == companyProfileId
+                                   && p.Year == year && p.Month == month);
+
+        var pdfs = new List<byte[]>();
+        foreach (var emp in sorted)
+        {
+            try
+            {
+                var slip = await LoadStundenkontrolleSlipAsync(emp.Id, year, month, companyProfileId, periode);
+                pdfs.Add(await _stundenkontrollePdf.GenerateAsync(emp.Id, year, month, companyProfileId, slip));
+            }
+            catch (InvalidOperationException)
+            {
+                // Einzelner MA ohne generierbares Blatt (z.B. Datenlücke) →
+                // überspringen statt das Gesamt-PDF zu verhindern.
+            }
+        }
+        if (pdfs.Count == 0)
+            return NotFound(new { error = "Kein Stundenkontrollblatt erzeugbar." });
+
+        using var ms = new MemoryStream();
+        using (var writer = new iText.Kernel.Pdf.PdfWriter(ms))
+        using (var merged = new iText.Kernel.Pdf.PdfDocument(writer))
+        {
+            var merger = new iText.Kernel.Utils.PdfMerger(merged);
+            foreach (var bytes in pdfs)
+            {
+                using var src = new iText.Kernel.Pdf.PdfDocument(
+                    new iText.Kernel.Pdf.PdfReader(new MemoryStream(bytes)));
+                merger.Merge(src, 1, src.GetNumberOfPages());
+            }
+        }
+        return File(ms.ToArray(), "application/pdf",
+            $"Stundenkontrolle_Alle_{year}-{month:D2}.pdf");
     }
 
     [HttpGet("saldo")]
