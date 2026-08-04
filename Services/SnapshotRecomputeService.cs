@@ -69,6 +69,20 @@ public class SnapshotRecomputeService
         int updated = 0;
         foreach (var s in snaps)
         {
+            // Ferien-Kürzungs-Entscheid (Art. 329b OR) aus dem ALTEN SlipJson
+            // übernehmen — das ist die einzige GF-Entscheidung, die die Engine
+            // nicht selbst ableiten kann (analog ConfirmPayroll). Ohne diese
+            // Übernahme würde ein Recompute eine angewendete Kürzung stillschweigend
+            // zurückdrehen.
+            bool kuerzungAngewendet = false;
+            try
+            {
+                var oldNode = JsonNode.Parse(s.SlipJson ?? "{}");
+                var kNode = oldNode?["ferienKuerzungAngewendet"];
+                if (kNode != null) kuerzungAngewendet = kNode.GetValue<bool>();
+            }
+            catch { /* Alt-Snapshot ohne Feld / defektes JSON → keine Kürzung */ }
+
             var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
@@ -79,6 +93,22 @@ public class SnapshotRecomputeService
 
             decimal gross = ReadDec(node, "totalLohn", s.Brutto);
             decimal net   = ReadDec(node, "nettolohn", s.Netto);
+
+            // Ferien-Kürzung reproduzieren (server-berechneter Vorschlag, wie
+            // ConfirmPayroll) + Entscheid wieder in den frischen Slip stempeln.
+            decimal vorschlagTage = 0m;
+            if (node["ferienKuerzung"]?["vorschlagTage"] is JsonNode vtNode)
+            {
+                try { vorschlagTage = vtNode.GetValue<decimal>(); }
+                catch { try { vorschlagTage = (decimal)vtNode.GetValue<double>(); } catch { } }
+            }
+            decimal ferTageBase = ReadDec(node, "ferienTageSaldoNeu", 0m);
+            decimal ferTage = kuerzungAngewendet
+                ? Math.Round(ferTageBase - vorschlagTage, 4)
+                : ferTageBase;
+            node["ferienKuerzungAngewendet"]     = kuerzungAngewendet;
+            node["ferienKuerzungAngewendetTage"] = kuerzungAngewendet ? vorschlagTage : 0m;
+            json = node.ToJsonString();
 
             s.Brutto    = gross;
             s.Netto     = net;
@@ -92,9 +122,24 @@ public class SnapshotRecomputeService
 
             if (saldoByEmp.TryGetValue(s.EmployeeId, out var sal))
             {
-                sal.GrossAmount = gross;
-                sal.NetAmount   = net;
-                sal.UpdatedAt   = DateTime.Now;
+                // ALLE Saldo-Felder nachziehen, nicht nur Gross/Net (Walter-Bug
+                // 04.08.2026: nach 906-Vortrag-Import + Recompute zeigte der Slip
+                // den korrekten Vormonat, aber payroll_saldo behielt die alten
+                // Werte — der FOLGEMONAT liest seinen Vormonat aus payroll_saldo
+                // und wäre falsch gestartet; auch Saldo-Listen + Fibu-RST-13
+                // lesen payroll_saldo). Spiegelbild der srv*-Zuweisungen in
+                // ConfirmPayroll.
+                sal.GrossAmount                  = gross;
+                sal.NetAmount                    = net;
+                sal.HourSaldo                    = ReadDec(node, "neuerHourSaldo",       sal.HourSaldo);
+                sal.NachtSaldo                   = ReadDec(node, "neuerNachtSaldo",      sal.NachtSaldo);
+                sal.NightHoursWorked             = ReadDec(node, "nightHours",           sal.NightHoursWorked);
+                sal.FerienGeldSaldo              = ReadDec(node, "ferienGeldSaldoNeu",   sal.FerienGeldSaldo);
+                sal.FerienTageSaldo              = ferTage;
+                sal.FeiertagTageSaldo            = ReadDec(node, "feiertagTageSaldoNeu", sal.FeiertagTageSaldo);
+                sal.ThirteenthMonthMonthly       = ReadDec(node, "thirteenthMonthly",    sal.ThirteenthMonthMonthly);
+                sal.ThirteenthMonthAccumulated   = ReadDec(node, "thirteenthAccumulated", sal.ThirteenthMonthAccumulated);
+                sal.UpdatedAt                    = DateTime.Now;
             }
             updated++;
         }

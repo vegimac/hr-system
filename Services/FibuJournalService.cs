@@ -325,6 +325,17 @@ public class FibuJournalService
         LohnKontoMapping? Find13MlAuszahlung(string? kst) =>
             maps.FirstOrDefault(m => m.Position == 180 && m.KostenstelleNr == kst && m.Gegenkonto == "1920")
             ?? maps.FirstOrDefault(m => m.Position == 180 && m.Gegenkonto == "1920");
+        // RST-13-Bildung/-Verfall (Position 2010) × Kostenstelle. Der Mirus-
+        // Kontoplan kennt KEINE 2010-Zeile für KSt 200 (Crew Flex zahlt den 13.
+        // monatlich aus) — der FLEX-PROBEZEIT-Pot braucht sie aber. Fallback
+        // daher KSt-korrekt auf die RST-Seite: Crew (100/200) → 2017-Zeile,
+        // Management/Gerant (300/400) → 2016-Zeile. NIE blind die erste
+        // 2010-Zeile nehmen (könnte die Management-Zeile sein → falsche Konten).
+        LohnKontoMapping? Find13MlRst(string? kst) =>
+            maps.FirstOrDefault(m => m.Position == 2010 && m.KostenstelleNr == kst)
+            ?? (kst is "300" or "400"
+                ? maps.FirstOrDefault(m => m.Position == 2010 && m.Gegenkonto == "2016")
+                : maps.FirstOrDefault(m => m.Position == 2010 && m.Gegenkonto == "2017"));
         string KstName(string kst) =>
             maps.FirstOrDefault(m => m.KostenstelleNr == kst && m.KostenstelleName != null)?.KostenstelleName
             ?? ("KSt " + kst);
@@ -436,7 +447,7 @@ public class FibuJournalService
             //     RST-Bildungszeile (Position 2010). Berührt 1920 NICHT.
             if (umgl.Ml13Verfall > 0)
             {
-                var mr = FindByPosKst(2010, kst);
+                var mr = Find13MlRst(kst);
                 if (mr != null)
                     Add(mr.Gegenkonto, mr.Fibukonto, "Auflösung 13. ML Verfall Probezeit " + KstName(kst), umgl.Ml13Verfall);
             }
@@ -588,10 +599,18 @@ public class FibuJournalService
             }
 
             // 4) RST 13. ML (aktueller Monat) → Position 2010 × Kostenstelle.
+            //    Für FLEX (Probezeit-Pot, KSt 200 ohne eigene Mirus-Zeile) fällt
+            //    Find13MlRst auf die Crew-2017-Konten zurück — dann mit eigener
+            //    Bezeichnung «RST 13. ML Crew Flex» statt dem Crew-Fix-Label,
+            //    damit die Zeile im Journal von Crew Fix unterscheidbar bleibt.
             if (saldoByEmp.TryGetValue(s.EmployeeId, out var sal) && sal.ThirteenthMonthMonthly != 0)
             {
-                var m = FindByPosKst(2010, kst);
-                if (m != null) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, sal.ThirteenthMonthMonthly);
+                var m = Find13MlRst(kst);
+                if (m != null)
+                {
+                    var bez = m.KostenstelleNr == kst ? m.Bezeichnung : "RST 13. ML " + KstName(kst);
+                    Add(m.Fibukonto, m.Gegenkonto, bez, sal.ThirteenthMonthMonthly);
+                }
             }
         }
 
