@@ -329,11 +329,18 @@ public class PayrollPdfService
         var nachtSaldo      = GetDecimal(slip, "neuerNachtSaldo");
         var thirteen        = GetDecimal(slip, "thirteenthAccumulated");
 
-        // 13. ML-Saldo gibt es nur bei MTP / FIX / FIX-M (UTP wird monatlich
-        // ausbezahlt, kein akkumulierter Saldo). Bei diesen Modellen IMMER
-        // zeigen, auch bei Saldo 0 — analog HTML-Lohnbeleg, Walter-Vorgabe.
+        // 13. ML-Saldo: MTP / FIX / FIX-M führen ihn immer (dort IMMER zeigen,
+        // auch bei Saldo 0 — analog HTML-Lohnbeleg, Walter-Vorgabe). FLEX zahlt
+        // monatlich aus, führt aber einen STEHENDEN Saldo während der Probezeit
+        // (Probezeit-Pot) und/oder aus einem importierten Mirus-Alt-Saldo
+        // (906-Vortrag) — dann setzt die Engine showFlexThirteenthSaldo=true
+        // und die Zeile erscheint auch bei FLEX (Walter-Entscheidung 04.08.2026).
         var modelUpper = (GetString(slip, "employmentModel") ?? "").ToUpperInvariant();
-        bool show13Saldo = modelUpper == "MTP" || modelUpper == "FIX" || modelUpper == "FIX-M";
+        bool flex13Saldo = modelUpper == "FLEX"
+                        && slip.TryGetProperty("showFlexThirteenthSaldo", out var f13)
+                        && f13.ValueKind == JsonValueKind.True;
+        bool show13Saldo = modelUpper == "MTP" || modelUpper == "FIX" || modelUpper == "FIX-M"
+                        || flex13Saldo;
 
         bool hasSaldi = (ferienTageSaldo ?? 0) != 0 || (ferienGeldSaldo ?? 0) != 0
                      || (feiertagSaldo ?? 0) != 0 || (nachtSaldo ?? 0) != 0

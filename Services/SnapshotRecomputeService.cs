@@ -83,18 +83,18 @@ public class SnapshotRecomputeService
             s.Brutto    = gross;
             s.Netto     = net;
             s.SlipJson  = json;
-            // payroll_snapshot.updated_at / payroll_saldo.updated_at sind
-            // timestamptz (Npgsql) — NUR UTC. DateTime.Now (Kind=Local) → 500
-            // «Cannot write DateTime with Kind=Local … timestamp with time zone».
-            // Analog ConfirmPayroll (UtcNow). timestamp-without-Spalten bleiben
-            // bei DateTime.Now (Walter-Regel) — gilt hier NICHT.
-            s.UpdatedAt = DateTime.UtcNow;
+            // payroll_snapshot.updated_at / payroll_saldo.updated_at sind seit
+            // der Vereinheitlichung (Walter 04.08.2026, Migration
+            // fix_payroll_snapshot_saldo_timestamps.sql) timestamp WITHOUT time
+            // zone — wie überall im System gilt: DateTime.Now (Lokalzeit),
+            // NIE UtcNow (Npgsql lehnt Kind=Utc auf without-time-zone ab).
+            s.UpdatedAt = DateTime.Now;
 
             if (saldoByEmp.TryGetValue(s.EmployeeId, out var sal))
             {
                 sal.GrossAmount = gross;
                 sal.NetAmount   = net;
-                sal.UpdatedAt   = DateTime.UtcNow;
+                sal.UpdatedAt   = DateTime.Now;
             }
             updated++;
         }

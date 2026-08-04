@@ -456,7 +456,10 @@ Zulage mit 13er-Flag: Total → Basis = Total×12/13 , 13.ML = Total−Basis
     story.append(Paragraph("12.1 Tagessatz 100 %", S["h2"]))
     story.append(formula_box("""
 StdLohnBrutto (FLEX/MTP) =
-  HourlyRate × (1+Ferien%) × (1+Feiertag%) × (1+8.33%)     // 8.33% = 13. ML
+  HourlyRate × (1+Ferien%) × (1+8.33%)                     // 8.33% = 13. ML
+  // OHNE Feiertag% (Walter 04.08.2026): Feiertagentschädigung ist
+  // AHV-pflichtiger Lohn → separate Lohnzeile «Feiertagentschädigung
+  // auf Lohnersatz» (2.27% auf 88%/80%-Beträge, nur < 2 Mt. Absenz)
 
 Regel A (< 4 Perioden Historie):
   FIX/FIX-M:  Monatslohn × 12 / 365

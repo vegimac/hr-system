@@ -631,6 +631,40 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
+    // payroll_snapshot + payroll_saldo (Walter 04.08.2026): Vereinheitlichung
+    // auf die System-Regel Lokalzeit + timestamp without time zone. Die beiden
+    // Tabellen waren timestamptz-Ausreisser (03.08.) — ConfirmPayroll schreibt
+    // DateTime.Now (Kind=Local) in gf_freigegeben_at/hr_bestaetigt_at → Npgsql
+    // lehnte das ab (HTTP 500 beim Lohn bestätigen). Idempotent: konvertiert
+    // nur Spalten, die noch timestamptz sind. Gleiches SQL auch in
+    // migrations-archive/fix_payroll_snapshot_saldo_timestamps.sql (TablePlus).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        DECLARE
+            r record;
+        BEGIN
+            FOR r IN
+                SELECT table_name, column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND udt_name = 'timestamptz'
+                  AND (
+                        (table_name = 'payroll_snapshot'
+                         AND column_name IN ('created_at','updated_at','gf_freigegeben_at','hr_bestaetigt_at'))
+                     OR (table_name = 'payroll_saldo'
+                         AND column_name IN ('created_at','updated_at'))
+                     -- Geburt-eintragen-Crash 04.08.2026: Familienmitglieder
+                     OR (table_name = 'employee_family_member'
+                         AND column_name IN ('created_at','updated_at'))
+                  )
+            LOOP
+                EXECUTE format(
+                    'ALTER TABLE public.%I ALTER COLUMN %I TYPE timestamp without time zone USING (%I AT TIME ZONE %L)',
+                    r.table_name, r.column_name, r.column_name, 'Europe/Zurich');
+            END LOOP;
+        END $$;
+    ");
+
     // Nachtstunden-Grenzen im Firmenstamm
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE company_profile
@@ -799,6 +833,14 @@ using (var scope = app.Services.CreateScope())
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
             ('audit_log_stumm', 'Aktivitäts-Log schreibt nicht', TRUE, 1, NULL, 'critical', NULL, TRUE, 22, 5, 'red')
+        ON CONFLICT (category) DO NOTHING;
+        -- Walter 04.08.2026: QST-Kanton-Mismatch-Wächter — Kanton der aktiven
+        -- QST-Erfassung weicht vom Wohnkanton (employee.canton_code) ab
+        -- (z.B. nach Adressänderung/easy@work-Sync) → falscher Tarif im Lohnlauf.
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('qst_kanton_mismatch', 'QST-Kanton ≠ Wohnkanton', TRUE, NULL, NULL, 'critical', NULL, FALSE, 24, 16, 'red')
         ON CONFLICT (category) DO NOTHING;
     ");
 

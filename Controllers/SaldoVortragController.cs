@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
@@ -30,11 +31,13 @@ namespace HrSystem.Controllers;
 [Route("api/saldo-vortrag")]
 public class SaldoVortragController : ControllerBase
 {
-    private readonly AppDbContext        _db;
-    private readonly LohnEditLockService _editLock;
-    public SaldoVortragController(AppDbContext db, LohnEditLockService editLock)
+    private readonly AppDbContext            _db;
+    private readonly LohnEditLockService     _editLock;
+    private readonly SnapshotRecomputeService _recompute;
+    public SaldoVortragController(AppDbContext db, LohnEditLockService editLock,
+                                  SnapshotRecomputeService recompute)
     {
-        _db = db; _editLock = editLock;
+        _db = db; _editLock = editLock; _recompute = recompute;
     }
 
     /// <summary>Filiale des MA (jüngster aktiver Vertrag).</summary>
@@ -260,6 +263,171 @@ public class SaldoVortragController : ControllerBase
 
         await _db.SaveChangesAsync();
         return await Get(employeeId);
+    }
+
+    public record SaldoKorrekturDto(
+        int EmployeeId,
+        string Periode,        // "YYYY-MM" — Periode, in der die Korrektur wirkt
+        string Code,           // "901"…"906" — Saldo-Vortrag-Lohnposition
+        decimal Betrag,        // DELTA (signed) — wird zum bestehenden Eintrag addiert
+        string? Begruendung    // PFLICHT — Audit-Trail («Abgleich mit Mirus» etc.)
+    );
+
+    /// <summary>
+    /// Saldo-Korrektur beim HR-Bestätigen (Walter-Vorgabe 04.08.2026).
+    ///
+    /// HR kann im Definitivlauf eine nachvollziehbare Saldo-Korrektur erfassen
+    /// (z.B. «Abgleich mit Mirus», wenn ein Vortrag fehlt) — auch wenn die
+    /// Periode bereits provisorisch abgeschlossen ist. Der Betrag ist ein
+    /// DELTA: existiert in der Periode schon ein Vortrag-Eintrag desselben
+    /// Codes, wird addiert, sonst ein neuer Eintrag angelegt. Danach wird die
+    /// Periode via SnapshotRecomputeService frisch gerechnet (Workflow-Status
+    /// bleibt erhalten).
+    ///
+    /// BEWUSST OHNE LohnEditLockService: die normale Edit-Sperre blockt genau
+    /// den Anwendungsfall dieses Endpoints (Korrektur während die Periode bei
+    /// HR liegt = provisorisch_abgeschlossen). Der Schutz ist stattdessen:
+    ///   • [Authorize admin,superuser] — nur HR,
+    ///   • harter 409-Riegel bei DEFINITIV «abgeschlossen»,
+    ///   • Pflicht-Begründung + Klarname/Datum in der Bemerkung (Audit-Trail),
+    ///   • Snapshot-Neuberechnung, damit nichts still auseinanderläuft.
+    /// </summary>
+    [HttpPost("korrektur")]
+    public async Task<IActionResult> Korrektur([FromBody] SaldoKorrekturDto dto)
+    {
+        // ── Validierung ──
+        if (string.IsNullOrWhiteSpace(dto.Begruendung))
+            return BadRequest(new { error = "BEGRUENDUNG_FEHLT",
+                message = "Begründung ist Pflicht — die Saldo-Korrektur muss nachvollziehbar sein." });
+
+        if (dto.Periode is null || dto.Periode.Length != 7 || dto.Periode[4] != '-'
+            || !int.TryParse(dto.Periode[..4], out var yr)
+            || !int.TryParse(dto.Periode[5..], out var mn)
+            || mn < 1 || mn > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG",
+                message = "Periode muss im Format YYYY-MM sein." });
+
+        if (!AllCodes.Contains(dto.Code))
+            return BadRequest(new { error = "CODE_UNGUELTIG",
+                message = $"Saldo-Code «{dto.Code}» ist unbekannt — erlaubt sind 901–906." });
+
+        if (dto.Betrag == 0)
+            return BadRequest(new { error = "BETRAG_NULL",
+                message = "Betrag 0 ist keine Korrektur — bitte ein Delta (+/−) angeben." });
+
+        // ── MA + Vertragsmodell (Relevanz-Prüfung wie beim Vortrag) ──
+        var emp = await _db.Employees
+            .Include(e => e.Employments)
+            .FirstOrDefaultAsync(e => e.Id == dto.EmployeeId);
+        if (emp == null) return NotFound("Mitarbeiter nicht gefunden.");
+
+        var activeEmployment = emp.Employments
+            .Where(e => e.IsActive)
+            .OrderByDescending(e => e.ContractStartDate)
+            .FirstOrDefault();
+        var employmentModel = (activeEmployment?.EmploymentModel ?? "").ToUpperInvariant();
+
+        if (!IsVortragRelevantForModel(dto.Code, employmentModel))
+            return BadRequest(new { error = "CODE_NICHT_RELEVANT",
+                message = $"Saldo-Code «{dto.Code}» ist für das Vertragsmodell «{employmentModel}» nicht relevant — dieser Saldo wird bei diesem Modell nicht geführt." });
+
+        // ── Periode-Status der MA-Filiale prüfen: nur der ENDGÜLTIGE Abschluss blockt ──
+        var branchId = await GetEmployeeBranchAsync(dto.EmployeeId);
+        if (branchId.HasValue)
+        {
+            var abgeschlossen = await _db.PayrollPerioden.AnyAsync(p =>
+                p.CompanyProfileId == branchId.Value &&
+                p.Year   == yr &&
+                p.Month  == mn &&
+                p.Status == "abgeschlossen");
+            if (abgeschlossen)
+            {
+                return Conflict(new {
+                    error   = "PERIODE_ABGESCHLOSSEN",
+                    message = "Periode ist definitiv abgeschlossen — keine Saldo-Korrektur mehr möglich."
+                });
+            }
+        }
+
+        // ── Lohnposition per Code ──
+        var lp = await _db.Lohnpositionen
+            .FirstOrDefaultAsync(l => l.Code == dto.Code && l.Kategorie == "Saldo-Vortrag");
+        if (lp == null)
+            return Problem($"Vortrag-Lohnposition «{dto.Code}» fehlt in der DB. " +
+                           "Bitte add_saldo_vortrag.sql ausführen.", statusCode: 500);
+
+        // ── Audit-Text: Klarname IMMER aus dem JWT, nie aus dem Body ──
+        var actorName = await GetActorNameAsync() ?? "unbekannt";
+        var auditNote = $"Saldo-Korrektur: {dto.Begruendung.Trim()} — {actorName}, {DateTime.Now:dd.MM.yyyy}";
+
+        // ── DELTA anwenden: bestehenden Eintrag desselben Codes in der Periode
+        //    aufaddieren, sonst neuen Eintrag anlegen ──
+        var betragDelta = Math.Round(dto.Betrag, 2);
+        var entry = await _db.LohnZulagen
+            .Include(z => z.Lohnposition)
+            .Where(z => z.EmployeeId == dto.EmployeeId
+                     && z.Periode == dto.Periode
+                     && z.LohnpositionId == lp.Id)
+            .FirstOrDefaultAsync();
+
+        decimal neuerBetrag;
+        if (entry == null)
+        {
+            neuerBetrag = betragDelta;
+            _db.LohnZulagen.Add(new LohnZulage
+            {
+                EmployeeId     = dto.EmployeeId,
+                Periode        = dto.Periode,
+                LohnpositionId = lp.Id,
+                Betrag         = betragDelta,
+                Bemerkung      = auditNote,
+                CreatedAt      = DateTime.Now,
+                UpdatedAt      = DateTime.Now
+            });
+        }
+        else
+        {
+            neuerBetrag     = Math.Round(entry.Betrag + betragDelta, 2);
+            entry.Betrag    = neuerBetrag;
+            entry.UpdatedAt = DateTime.Now;
+            // Bestehende Bemerkung (z.B. «Migrations-Vortrag aus Vorsystem»)
+            // bleibt erhalten — die Korrektur wird angehängt (Audit-Trail).
+            entry.Bemerkung = string.IsNullOrWhiteSpace(entry.Bemerkung)
+                ? auditNote
+                : $"{entry.Bemerkung} | {auditNote} ({(betragDelta >= 0 ? "+" : "")}{betragDelta:0.00})";
+        }
+
+        await _db.SaveChangesAsync();
+
+        // ── Snapshot(s) der Periode frisch rechnen — der Service kann nur ganze
+        //    Perioden (RecomputeAsync(cpId, year, month)), das ist akzeptabel.
+        //    Workflow-Status bleibt dabei erhalten (macht der Service so). ──
+        var recomputed = false;
+        if (branchId.HasValue)
+        {
+            var updated = await _recompute.RecomputeAsync(branchId.Value, yr, mn);
+            recomputed = updated > 0;
+        }
+
+        return Ok(new { ok = true, neuerBetrag, recomputed });
+    }
+
+    /// <summary>Klarname des eingeloggten Users (Audit) — aus dem JWT, nie aus dem Body.</summary>
+    private async Task<string?> GetActorNameAsync()
+    {
+        var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(idStr, out var uid))
+        {
+            var u = await _db.AppUsers.Where(x => x.Id == uid)
+                .Select(x => new { x.FirstName, x.LastName, x.Username })
+                .FirstOrDefaultAsync();
+            if (u != null)
+            {
+                var full = $"{u.FirstName} {u.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(full) ? u.Username : full;
+            }
+        }
+        return User.Identity?.Name;
     }
 
     /// <summary>

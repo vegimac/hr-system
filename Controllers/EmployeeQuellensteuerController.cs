@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace HrSystem.Controllers;
 
@@ -22,10 +24,13 @@ public class EmployeeQuellensteuerController : ControllerBase
 {
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
-    public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock)
+    private readonly ILogger<EmployeeQuellensteuerController> _log;
+    public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock,
+        ILogger<EmployeeQuellensteuerController> log)
     {
         _db       = db;
         _editLock = editLock;
+        _log      = log;
     }
 
     /// <summary>Filiale des MA (jüngster aktiver Vertrag) — null wenn keiner.</summary>
@@ -306,4 +311,221 @@ public class EmployeeQuellensteuerController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
+    /// <summary>Kantonskürzel → deutscher Kantonsname (für Meldung/Anzeige).</summary>
+    private static readonly Dictionary<string, string> KantonNamen = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["AG"] = "Aargau",       ["AI"] = "Appenzell Innerrhoden", ["AR"] = "Appenzell Ausserrhoden",
+        ["BE"] = "Bern",         ["BL"] = "Basel-Landschaft",      ["BS"] = "Basel-Stadt",
+        ["FR"] = "Freiburg",     ["GE"] = "Genf",                  ["GL"] = "Glarus",
+        ["GR"] = "Graubünden",   ["JU"] = "Jura",                  ["LU"] = "Luzern",
+        ["NE"] = "Neuenburg",    ["NW"] = "Nidwalden",             ["OW"] = "Obwalden",
+        ["SG"] = "St. Gallen",   ["SH"] = "Schaffhausen",          ["SO"] = "Solothurn",
+        ["SZ"] = "Schwyz",       ["TG"] = "Thurgau",               ["TI"] = "Tessin",
+        ["UR"] = "Uri",          ["VD"] = "Waadt",                 ["VS"] = "Wallis",
+        ["ZG"] = "Zug",          ["ZH"] = "Zürich"
+    };
+
+    // ────────────────────────────────────────────────────────────────────────
+    // Umzug / Kantonswechsel (Walter-Vorgabe 04.08.2026)
+    //
+    // AMTLICHE MONATSREGEL (ESTV Kreisschreiben 45 — NICHT «vereinfachen»!):
+    // Bei einem Wohnsitzwechsel in einen anderen Kanton wird der GESAMTE
+    // Umzugsmonat noch mit dem BISHERIGEN Wohnkanton abgerechnet; der neue
+    // Kanton ist erst ab dem 1. des FOLGEMONATS tarif-zuständig.
+    // Beispiel: Umzug 15.07. AG→LU → Juli komplett AG-Tarif, ab 01.08.
+    // LU-Tarif. Meldedaten an die Kantone: beim ALTEN Kanton gilt der
+    // LETZTE Tag des Umzugsmonats als Austritt, beim NEUEN der 1. des
+    // Folgemonats als Eintritt.
+    // ────────────────────────────────────────────────────────────────────────
+    // POST /api/employee-quellensteuer/{employeeId}/umzug
+    [HttpPost("/api/employee-quellensteuer/{employeeId:int}/umzug")]
+    public async Task<IActionResult> Umzug(int employeeId, [FromBody] QstUmzugDto dto)
+    {
+        if (dto is null || dto.UmzugsDatum == default)
+            return BadRequest(new { error = "UMZUGSDATUM_FEHLT", message = "Bitte ein Umzugsdatum angeben." });
+
+        var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp is null)
+            return NotFound(new { error = "MA_NICHT_GEFUNDEN", message = "Mitarbeiter nicht gefunden." });
+
+        // Neuer Kanton: aus dem Body, sonst der aktuelle Wohnkanton des MA.
+        var neuerKanton = (dto.NeuerKanton ?? emp.CantonCode ?? "").Trim().ToUpperInvariant();
+        if (string.IsNullOrWhiteSpace(neuerKanton))
+            return BadRequest(new
+            {
+                error   = "NEUER_KANTON_FEHLT",
+                message = "Neuer Kanton fehlt — weder im Request angegeben noch als Wohnkanton am Mitarbeiter erfasst."
+            });
+
+        // 1) Aktive QST-Version am Umzugsdatum (jüngstes ValidFrom, Tie-Break Id
+        //    — gleiche Auswahl wie Engine/Dashboard).
+        var aktiv = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId
+                     && q.ValidFrom <= dto.UmzugsDatum
+                     && (q.ValidTo == null || q.ValidTo >= dto.UmzugsDatum))
+            .OrderByDescending(q => q.ValidFrom)
+            .ThenByDescending(q => q.Id)
+            .FirstOrDefaultAsync();
+        if (aktiv is null)
+            return NotFound(new
+            {
+                error   = "KEINE_AKTIVE_QST_VERSION",
+                message = $"Am {dto.UmzugsDatum:dd.MM.yyyy} ist keine QST-Version aktiv — bitte zuerst einen QST-Eintrag erfassen."
+            });
+
+        // 2) Gleicher Kanton = kein Kantonswechsel.
+        var alterKanton = (aktiv.Steuerkanton ?? "").Trim().ToUpperInvariant();
+        if (string.Equals(alterKanton, neuerKanton, StringComparison.OrdinalIgnoreCase))
+            return BadRequest(new
+            {
+                error   = "KEIN_KANTONSWECHSEL",
+                message = $"Kein Kantonswechsel — die aktive QST-Version steht bereits auf Kanton «{neuerKanton}»."
+            });
+
+        // 3) Wechselstichtag = 1. Tag des Monats NACH dem Umzugsdatum
+        //    (Monatsregel Kreisschreiben 45, siehe Kommentar oben).
+        var stichtag  = new DateOnly(dto.UmzugsDatum.Year, dto.UmzugsDatum.Month, 1).AddMonths(1);
+        var letzterTagUmzugsmonat = stichtag.AddDays(-1);
+
+        // 7) Lohnlauf-Edit-Lock — gleiches Soft-Lock-Muster wie Create/Update:
+        //    QST bleibt bis Definitiv-Abschluss editierbar; liegt der Stichtag
+        //    in einer definitiv abgeschlossenen Periode → 409.
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
+        if (firstAllowed.HasValue && stichtag < firstAllowed.Value)
+        {
+            return Conflict(new
+            {
+                error            = "LOHN_EDIT_LOCKED",
+                message          = $"Der Kantonswechsel-Stichtag {stichtag:dd.MM.yyyy} liegt in einer definitiv abgeschlossenen Lohnperiode. " +
+                                   $"Frühestes erlaubtes «Gültig ab»: {firstAllowed.Value:dd.MM.yyyy}.",
+                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+            });
+        }
+
+        // Schutz vor Überlappung: existiert bereits eine SPÄTERE Version
+        // (ValidFrom nach dem Umzugsdatum), würde das Kappen/Anlegen hier
+        // die Versionskette zerreissen → manuell im QST-Tab pflegen.
+        var spaetere = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId && q.Id != aktiv.Id && q.ValidFrom > dto.UmzugsDatum)
+            .OrderBy(q => q.ValidFrom)
+            .FirstOrDefaultAsync();
+        if (spaetere != null)
+        {
+            return Conflict(new
+            {
+                error   = "QST_FOLGEVERSION_VORHANDEN",
+                message = $"Es existiert bereits eine spätere QST-Version ab {spaetere.ValidFrom:dd.MM.yyyy}. " +
+                          "Der Umzug kann nicht automatisch erfasst werden — bitte die Versionen im QST-Tab manuell anpassen."
+            });
+        }
+
+        var now = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+
+        // 4) Alte Version auf den letzten Tag des Umzugsmonats begrenzen
+        //    (nur wenn ValidTo offen oder später).
+        var altesValidTo = aktiv.ValidTo;
+        if (aktiv.ValidTo == null || aktiv.ValidTo > letzterTagUmzugsmonat)
+        {
+            aktiv.ValidTo   = letzterTagUmzugsmonat;
+            aktiv.UpdatedAt = now;
+        }
+
+        // Neue Gemeinde/BFS nur wenn der neue Kanton dem Wohnkanton des MA
+        // entspricht (dann kennen wir die Adresse) — Lookup über die PLZ.
+        // Sonst leer lassen; die alte Gemeinde wäre im neuen Kanton falsch.
+        string? neueGemeinde = null;
+        int?    neueBfsNr    = null;
+        if (!string.IsNullOrWhiteSpace(emp.ZipCode)
+            && string.Equals(neuerKanton, (emp.CantonCode ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            var plz = emp.ZipCode.Trim();
+            var loc = await _db.SwissLocations
+                .Where(l => l.Plz4 == plz && l.Kantonskuerzel == neuerKanton)
+                .OrderBy(l => l.Id)
+                .FirstOrDefaultAsync();
+            if (loc != null)
+            {
+                neueGemeinde = loc.Gemeindename;
+                neueBfsNr    = loc.BfsNr;
+            }
+        }
+
+        // 5) Neue Version = Kopie der alten (Tarif, Kirchensteuer, Kinder, alle
+        //    Felder), nur Steuerkanton/Gemeinde neu. ValidTo übernimmt ein
+        //    altes Ende, das NACH dem Stichtag lag (z.B. befristete Erfassung).
+        var neu = new EmployeeQuellensteuer
+        {
+            EmployeeId                   = employeeId,
+            ValidFrom                    = stichtag,
+            ValidTo                      = (altesValidTo.HasValue && altesValidTo.Value >= stichtag) ? altesValidTo : null,
+            Steuerkanton                 = neuerKanton,
+            SteuerkantonName             = KantonNamen.TryGetValue(neuerKanton, out var kn) ? kn : null,
+            QstGemeinde                  = neueGemeinde,
+            QstGemeindeBfsNr             = neueBfsNr,
+            TarifvorschlagQst            = aktiv.TarifvorschlagQst,
+            TarifCode                    = aktiv.TarifCode,
+            TarifBezeichnung             = aktiv.TarifBezeichnung,
+            AnzahlKinder                 = aktiv.AnzahlKinder,
+            Kirchensteuer                = aktiv.Kirchensteuer,
+            QstCode                      = aktiv.QstCode,
+            SpezielBewilligt             = aktiv.SpezielBewilligt,
+            Kategorie                    = aktiv.Kategorie,
+            Prozentsatz                  = aktiv.Prozentsatz,
+            MindestlohnSatzbestimmung    = aktiv.MindestlohnSatzbestimmung,
+            PartnerEmployeeId            = aktiv.PartnerEmployeeId,
+            PartnerEinkommenVon          = aktiv.PartnerEinkommenVon,
+            PartnerEinkommenBis          = aktiv.PartnerEinkommenBis,
+            ArbeitsortKanton             = aktiv.ArbeitsortKanton,
+            WeitereBeschaftigungen       = aktiv.WeitereBeschaftigungen,
+            GesamtpensumWeitereAg        = aktiv.GesamtpensumWeitereAg,
+            GesamteinkommenWeitereAg     = aktiv.GesamteinkommenWeitereAg,
+            Halbfamilie                  = aktiv.Halbfamilie,
+            WohnsitzAusland              = aktiv.WohnsitzAusland,
+            Wohnsitzstaat                = aktiv.Wohnsitzstaat,
+            AdresseAusland               = aktiv.AdresseAusland,
+            LivesInKonkubinat            = aktiv.LivesInKonkubinat,
+            HasJointParentalCare         = aktiv.HasJointParentalCare,
+            PaysAlimonyAdultChildren     = aktiv.PaysAlimonyAdultChildren,
+            HasHigherIncomeThanPartner   = aktiv.HasHigherIncomeThanPartner,
+            IsGrenzgaenger               = aktiv.IsGrenzgaenger,
+            IsWochenaufenthalter         = aktiv.IsWochenaufenthalter,
+            CreatedAt                    = now,
+            UpdatedAt                    = now
+        };
+        _db.EmployeeQuellensteuer.Add(neu);
+        await _db.SaveChangesAsync();
+
+        // 6) Audit-Log — Actor IMMER aus dem JWT (Walter-Vorgabe 20.05.2026),
+        //    das Model hat kein Bemerkungsfeld.
+        var actor = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "?";
+        _log.LogInformation(
+            "QST-Umzug MA {EmployeeId}: {Alt}→{Neu} per {Umzug}, Kantonswechsel ab {Stichtag} (Umzugsmonat noch {AltMonat}) — Actor UserId {Actor}",
+            employeeId, alterKanton, neuerKanton,
+            dto.UmzugsDatum.ToString("dd.MM.yyyy"), stichtag.ToString("dd.MM.yyyy"), alterKanton, actor);
+
+        // 8) Beide Versionen + die zwei Meldedaten für die Quellensteuermeldung
+        //    an die Kantone (alt = Austritt, neu = Eintritt).
+        return Ok(new
+        {
+            alteVersion         = MapToDto(aktiv, firstAllowed),
+            neueVersion         = MapToDto(neu, firstAllowed),
+            alterKanton,
+            neuerKanton,
+            alterKantonAustritt = letzterTagUmzugsmonat.ToString("yyyy-MM-dd"),
+            neuerKantonEintritt = stichtag.ToString("yyyy-MM-dd"),
+            message             = $"Umzug {alterKanton}→{neuerKanton} per {dto.UmzugsDatum:dd.MM.yyyy} erfasst. " +
+                                  $"Umzugsmonat noch {alterKanton}, {neuerKanton} gilt ab {stichtag:dd.MM.yyyy}. " +
+                                  $"Meldung: {alterKanton} Austritt {letzterTagUmzugsmonat:dd.MM.yyyy}, {neuerKanton} Eintritt {stichtag:dd.MM.yyyy}."
+        });
+    }
+}
+
+/// <summary>Request-DTO für den QST-Umzug (Kantonswechsel).</summary>
+public class QstUmzugDto
+{
+    public DateOnly UmzugsDatum { get; set; }
+    /// <summary>Optional — Default = Wohnkanton des MA (employee.canton_code).</summary>
+    public string? NeuerKanton { get; set; }
 }

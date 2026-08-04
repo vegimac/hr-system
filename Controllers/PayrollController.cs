@@ -156,7 +156,7 @@ public class PayrollController : HrControllerBase
             if (!changed) continue;
 
             s.SlipJson  = existing.ToJsonString();
-            s.UpdatedAt = DateTime.UtcNow;
+            s.UpdatedAt = DateTime.Now; // System-Regel: Lokalzeit + timestamp without time zone (Walter 04.08.2026)
             updated++;
         }
         await _db.SaveChangesAsync();
@@ -221,8 +221,9 @@ public class PayrollController : HrControllerBase
         }
         catch (Exception ex)
         {
-            // Klartext statt nacktem 500. Snapshot/Saldo = timestamptz → UtcNow
-            // (nicht DateTime.Now/Local — das war der wiederkehrende Bug 03.08.2026).
+            // Klartext statt nacktem 500. Snapshot/Saldo folgen seit 04.08.2026
+            // der System-Regel: Lokalzeit (DateTime.Now) + timestamp without time
+            // zone (Migration fix_payroll_snapshot_saldo_timestamps.sql).
             return StatusCode(500, new {
                 error = "RECOMPUTE_FAILED",
                 message = ex.GetBaseException().Message
@@ -1583,7 +1584,7 @@ public class PayrollController : HrControllerBase
 
             string altStatus = saldo.Status ?? "(null)";
             saldo.Status    = "draft";
-            saldo.UpdatedAt = DateTime.UtcNow;
+            saldo.UpdatedAt = DateTime.Now; // System-Regel: Lokalzeit (Walter 04.08.2026)
             await _db.SaveChangesAsync();
             return Ok(new {
                 message  = $"Saldo zurückgesetzt (vorheriger Status: '{altStatus}'). Kein Snapshot gefunden — vermutlich Altbestand. Bitte Lohn neu prüfen und bestätigen.",
@@ -1610,7 +1611,7 @@ public class PayrollController : HrControllerBase
         if (saldo != null)
         {
             saldo.Status    = "draft";
-            saldo.UpdatedAt = DateTime.UtcNow;
+            saldo.UpdatedAt = DateTime.Now; // System-Regel: Lokalzeit (Walter 04.08.2026)
         }
 
         // 7) Snapshot löschen — sonst zählt der MA in loadLohnList weiter als
@@ -1643,7 +1644,7 @@ public class PayrollController : HrControllerBase
             return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet FREIGEGEBEN_GF)." });
 
         snap.Status         = "HR_BESTAETIGT";
-        snap.HrBestaetigtAt = DateTime.UtcNow;
+        snap.HrBestaetigtAt = DateTime.Now; // System-Regel: Lokalzeit (Walter 04.08.2026)
         snap.HrBestaetigtBy = GetUserIdOrNull();
         snap.UpdatedAt      = DateTime.Now;
         await _db.SaveChangesAsync();

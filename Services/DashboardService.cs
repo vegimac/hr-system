@@ -747,6 +747,60 @@ public class DashboardService
             }
         }
 
+        // ── 3c.iv) QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026) ─────
+        // Der QST-Tarif richtet sich IMMER nach dem Wohnkanton des MA
+        // (employee.canton_code). Ändert die Adresse (manuell ODER via
+        // easy@work-Adress-Sync) und der Steuerkanton der aktiven
+        // QST-Erfassung passt nicht mehr, rechnet der Lohnlauf mit dem
+        // FALSCHEN Tarif (realer Fall: Aurelio Artiles Santana wohnt in
+        // Langenthal BE, Erfassung stand auf AG). Live-Rechnung bei jedem
+        // Dashboard-Load — bewusst KEIN Extra-Hook im easy@work-Sync nötig:
+        // nach jedem Adress-Sync erscheint die Warnung hier automatisch.
+        // «QST-pflichtig» = hat eine am Stichtag aktive QST-Erfassung
+        // (befreite/CH-MA haben keine; die Pflicht-Lücke selbst deckt 3c.i ab).
+        if (Enabled("qst_kanton_mismatch"))
+        {
+            var qstMmEmps = await qstCandidatesQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.CantonCode })
+                .ToListAsync();
+            var qstMmIds = qstMmEmps.Select(x => x.Id).ToList();
+            var qstMmRows = await _db.EmployeeQuellensteuer
+                .AsNoTracking()
+                .Where(q => qstMmIds.Contains(q.EmployeeId)
+                         && q.ValidFrom <= qstStichtag
+                         && (q.ValidTo == null || q.ValidTo >= qstStichtag))
+                .Select(q => new { q.EmployeeId, q.ValidFrom, q.Id, q.Steuerkanton })
+                .ToListAsync();
+            // Bei mehreren am Stichtag gültigen Erfassungen zählt die jüngste
+            // (höchstes ValidFrom, Tie-Break Id) — analog Engine-Auswahl.
+            var qstKantonByEmp = qstMmRows
+                .GroupBy(q => q.EmployeeId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First().Steuerkanton);
+            foreach (var e in qstMmEmps)
+            {
+                if (!qstKantonByEmp.TryGetValue(e.Id, out var qstKanton)) continue;
+                var wohnKanton = e.CantonCode;
+                // Nur warnen wenn BEIDE Kantone erfasst sind (case-insensitive).
+                if (string.IsNullOrWhiteSpace(qstKanton) || string.IsNullOrWhiteSpace(wohnKanton)) continue;
+                var qk = qstKanton.Trim().ToUpperInvariant();
+                var wk = wohnKanton.Trim().ToUpperInvariant();
+                if (string.Equals(qk, wk, StringComparison.OrdinalIgnoreCase)) continue;
+                var mmName = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "qst_kanton_mismatch",
+                    Severity = SeverityState("qst_kanton_mismatch", "critical"),
+                    Title    = "QST-Kanton ≠ Wohnkanton — Tarif prüfen",
+                    Subtitle = $"{mmName} · Personalnr. {e.EmployeeNumber} · QST-Tarif Kanton {qk}, Wohnkanton {wk} — Tarif prüfen",
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = mmName
+                });
+            }
+        }
+
         // ── 3d) Aktive Schwangerschaften (Walter-Vorgabe 10.06.2026) ───────
         // Pro aktive Schwangerschaft eine Info-Card mit Geburtstermin und
         // einer kurzen Liste „aktuell erlaubt/nicht erlaubt" — die wird live

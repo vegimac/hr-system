@@ -248,7 +248,25 @@ public class MinimumWageRulesController : ControllerBase
         // Pro MA nur den in der Periode jüngsten Vertrag prüfen (analog Engine-Auswahl).
         var byEmp = ems
             .GroupBy(e => e.EmployeeId)
-            .Select(g => g.OrderByDescending(e => e.ContractStartDate).First());
+            .Select(g => g.OrderByDescending(e => e.ContractStartDate).First())
+            .ToList();
+
+        // QST-Kanton-Mismatch (Walter-Vorgabe 04.08.2026): den Steuerkanton der
+        // am Periodenende aktiven QST-Erfassung pro MA vorladen (eine Query statt
+        // N+1) — Vergleich gegen employee.canton_code unten im Loop.
+        var qstMmEmpIds = byEmp.Select(e => e.EmployeeId).ToList();
+        var qstMmRows = await _db.EmployeeQuellensteuer
+            .AsNoTracking()
+            .Where(q => qstMmEmpIds.Contains(q.EmployeeId)
+                     && q.ValidFrom <= periodTo
+                     && (q.ValidTo == null || q.ValidTo >= periodTo))
+            .Select(q => new { q.EmployeeId, q.ValidFrom, q.Id, q.Steuerkanton })
+            .ToListAsync();
+        var qstKantonByEmp = qstMmRows
+            .GroupBy(q => q.EmployeeId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First().Steuerkanton);
 
         var underpaid = new List<object>();
         foreach (var em in byEmp)
@@ -312,6 +330,35 @@ public class MinimumWageRulesController : ControllerBase
                     Unit       = (string?)null,
                     Difference = (decimal?)null,
                     Message    = qstChk.Message
+                });
+            }
+
+            // QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026): der QST-Tarif
+            // richtet sich IMMER nach dem Wohnkanton (employee.canton_code).
+            // Weicht der Kanton der aktiven QST-Erfassung ab (z.B. Adresse via
+            // easy@work-Sync geändert, Erfassung nicht nachgezogen), erscheint
+            // der MA mit problem="QST_KANTON_MISMATCH" in derselben
+            // «mit Lohnproblem»-Liste → ⚠ in der MA-Liste + Banner auf dem
+            // Lohnzettel. Bewusst NUR Warnung, KEIN 409-Block in
+            // ConfirmPayroll/Freigeben — der Lohnlauf darf durchlaufen, aber der
+            // Tarif muss geprüft werden (realer Fall Artiles Santana: BE vs. AG).
+            var wohnKanton = em.Employee!.CantonCode;
+            if (qstKantonByEmp.TryGetValue(em.EmployeeId, out var qstKanton)
+                && !string.IsNullOrWhiteSpace(qstKanton)
+                && !string.IsNullOrWhiteSpace(wohnKanton)
+                && !string.Equals(qstKanton.Trim(), wohnKanton.Trim(), StringComparison.OrdinalIgnoreCase))
+            {
+                underpaid.Add(new
+                {
+                    employeeId = em.EmployeeId,
+                    firstName  = em.Employee!.FirstName,
+                    lastName   = em.Employee!.LastName,
+                    problem    = "QST_KANTON_MISMATCH",
+                    Minimum    = (decimal?)null,
+                    Actual     = (decimal?)null,
+                    Unit       = (string?)null,
+                    Difference = (decimal?)null,
+                    Message    = $"QST-Tarif Kanton {qstKanton.Trim().ToUpperInvariant()}, Wohnkanton {wohnKanton.Trim().ToUpperInvariant()} — Tarif prüfen."
                 });
             }
         }

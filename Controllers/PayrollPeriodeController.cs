@@ -330,7 +330,8 @@ public class PayrollPeriodeController : ControllerBase
         // gesetzt. UpdatedAt-Touch reicht hier für den Audit.
         foreach (var snap in periode.Snapshots)
         {
-            snap.UpdatedAt = DateTime.UtcNow;
+            // payroll_snapshot = timestamp without time zone → Lokalzeit (Walter 04.08.2026)
+            snap.UpdatedAt = DateTime.Now;
         }
 
         periode.Status                       = "provisorisch_abgeschlossen";
@@ -400,7 +401,7 @@ public class PayrollPeriodeController : ControllerBase
         {
             snap.Status    = "ABGESCHLOSSEN";
             snap.IsFinal   = true;
-            snap.UpdatedAt = DateTime.UtcNow;
+            snap.UpdatedAt = DateTime.Now; // Lokalzeit (Walter 04.08.2026)
         }
 
         await AddAuditAsync(periode.Id, GetUserId(), "DEFINITIV_ABGESCHLOSSEN",
@@ -479,7 +480,7 @@ public class PayrollPeriodeController : ControllerBase
             snap.GfFreigegebenBy   = null;
             snap.HrBestaetigtAt    = null;
             snap.HrBestaetigtBy    = null;
-            snap.UpdatedAt         = DateTime.UtcNow;
+            snap.UpdatedAt         = DateTime.Now; // Lokalzeit (Walter 04.08.2026)
         }
         var saldosToReset = await _db.PayrollSaldos
             .Where(s => s.CompanyProfileId == periode.CompanyProfileId
@@ -488,7 +489,7 @@ public class PayrollPeriodeController : ControllerBase
         foreach (var sld in saldosToReset)
         {
             sld.Status    = "draft";
-            sld.UpdatedAt = DateTime.UtcNow;
+            sld.UpdatedAt = DateTime.Now; // Lokalzeit (Walter 04.08.2026)
         }
 
         periode.Status                       = "offen";
@@ -561,7 +562,7 @@ public class PayrollPeriodeController : ControllerBase
             if (snap.Status == "ABGESCHLOSSEN")
                 snap.Status = "HR_BESTAETIGT";
             snap.IsFinal   = false;
-            snap.UpdatedAt = DateTime.UtcNow;
+            snap.UpdatedAt = DateTime.Now; // Lokalzeit (Walter 04.08.2026)
         }
 
         await AddAuditAsync(periode.Id, GetUserId(), "WIEDER_GEOEFFNET", dto.Bemerkung);

@@ -14,7 +14,10 @@ namespace HrSystem.Services;
 ///     • FIX / FIX-M : MonthlySalary × 12 / 365
 ///     • UTP         : max_part_time_hours × StdLohn_brutto × 52 / 365
 ///     • MTP         : GuaranteedHoursPerWeek × StdLohn_brutto × 52 / 365
-///     StdLohn_brutto = HourlyRate × (1 + Ferien%) × (1 + Feiertag%) × (1 + 8.33%)
+///     StdLohn_brutto = HourlyRate × (1 + Ferien%) × (1 + 8.33%)
+///     (OHNE Feiertag% — Feiertagsentschädigung ist AHV-pflichtiger Lohn und
+///     läuft während Krankheit als separate Lohnzeile, nicht im Taggeld;
+///     Walter 04.08.2026)
 ///
 ///   <b>Regel B</b> – Vertragsdauer ≥ 4 abgeschlossene Perioden:
 ///     • FIX / FIX-M / UTP : Σ SvBasisAhv der letzten max. 12 Monate / n × 12 / 365
@@ -109,22 +112,25 @@ public class KtgTagessatzService
         string regel = anzahlPerioden >= 4 ? "B" : "A";
         string modell = (employment.EmploymentModel ?? "").ToUpperInvariant();
 
-        // Ferien-/Feiertag-Prozente bestimmen
+        // Ferien-Prozent bestimmen
         // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
         decimal ferienPct    = ResolveFerienPct(emp, company);
-        decimal feiertagPct  = company.DefaultHolidayPercent ?? 0m;
 
-        // Brutto-Stundenlohn (inkl. Ferien/Feiertag/13. ML)
+        // Brutto-Stundenlohn (inkl. Ferien/13. ML — OHNE Feiertag).
+        // Walter-Vorgabe 04.08.2026: Die Feiertagsentschädigung ist
+        // AHV-pflichtiger LOHN — sie läuft während Krankheit/Unfall als
+        // separate Lohnzeile («Feiertagentschädigung auf Lohnersatz» in der
+        // PayrollCalculationEngine) und darf darum nicht im (SV-freien)
+        // Versicherungs-Taggeld stecken. Gilt für FLEX und MTP (FIX/FIX-M
+        // rechnen ohnehin über Monatslohn bzw. AHV-Durchschnitt).
         decimal stdLohnBasis  = employment.HourlyRate ?? 0m;
         decimal stdLohnBrutto = stdLohnBasis
                               * (1 + ferienPct    / 100m)
-                              * (1 + feiertagPct  / 100m)
                               * (1 + ZehnterMonatslohnPct / 100m);
 
         decimal tagessatz100;
         var breakdown = new KtgBreakdown {
             FerienPct     = ferienPct,
-            FeiertagPct   = feiertagPct,
             ZehnterMLPct  = ZehnterMonatslohnPct,
         };
 
@@ -252,9 +258,10 @@ public class KtgTagessatzService
             b.GarantieTagessatz        = Math.Round(garantieTagessatz, 2);
 
             // Mehrstunden-Anteil: Lohnposition "MTP + Stunden" aus SlipJson jedes Monats
-            // auf Brutto-Niveau (Ferien/Feiertag/13. ML) bringen, dann Ø × 12 / 365.
+            // auf Brutto-Niveau (Ferien/13. ML) bringen, dann Ø × 12 / 365.
+            // OHNE Feiertag% — Feiertagsentschädigung ist AHV-pflichtiger Lohn,
+            // nicht Teil des Taggelds (Walter 04.08.2026, siehe oben).
             decimal bruttoAufschlag = (1 + (b.FerienPct ?? 0m) / 100m)
-                                    * (1 + (b.FeiertagPct ?? 0m) / 100m)
                                     * (1 + ZehnterMonatslohnPct / 100m);
 
             decimal summeMehrBrutto = 0m;
@@ -360,6 +367,10 @@ public class KtgBreakdown
 
     // Allgemein
     public decimal? FerienPct      { get; set; }
+    /// <summary>Seit 04.08.2026 nicht mehr befüllt (bleibt null) — die
+    /// Feiertag-Komponente steckt nicht mehr im Taggeld-Tagessatz
+    /// (Feiertagsentschädigung = AHV-pflichtiger Lohn, separate Lohnzeile).
+    /// Property bleibt für JSON-Kompatibilität erhalten.</summary>
     public decimal? FeiertagPct    { get; set; }
     public decimal? ZehnterMLPct   { get; set; }
 

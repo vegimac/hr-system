@@ -3615,7 +3615,11 @@ async function qstBefreiungSpeichern() {
 
 function renderQuellensteuerTab(el, entries, pflicht) {
     // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
-    const banner = renderQstPflichtBanner(pflicht);
+    const banner = renderQstPflichtBanner(pflicht)
+                 // Walter-Vorgabe 04.08.2026: Kantonswechsel-Hinweis direkt
+                 // darunter — Wohnkanton ≠ Kanton der aktuellen QST-Version
+                 // → «🚚 Umzug erfassen» (Monatsregel Kreisschreiben 45).
+                 + renderQstUmzugBanner(entries);
     // Bewilligungen + QST unter dem Pflicht-Banner. Bank steht darüber
     // (ausserhalb dieses Containers — Walter 19.07.2026).
     const permitsHtml = renderPermitListHtml(_permitHistoryCache || []);
@@ -3711,6 +3715,192 @@ function renderQuellensteuerTab(el, entries, pflicht) {
     });
 
     el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Umzug / Kantonswechsel (Walter-Vorgabe 04.08.2026)
+// ──────────────────────────────────────────────────────────────────────
+// Amtliche Monatsregel (ESTV Kreisschreiben 45): der GESAMTE Umzugsmonat
+// wird noch mit dem bisherigen Wohnkanton abgerechnet; der neue Kanton
+// gilt ab dem 1. des Folgemonats. Beim alten Kanton zählt der letzte Tag
+// des Umzugsmonats als Austritt, beim neuen der 1. des Folgemonats als
+// Eintritt (Meldedaten für die Quellensteuermeldung an die Kantone).
+// ══════════════════════════════════════════════════════════════════════
+
+// Aktuelle (heute gültige) QST-Version — jüngstes validFrom, Tie-Break id
+// (gleiche Auswahl wie Dashboard-Warnung qst_kanton_mismatch).
+function _qstCurrentVersion(entries) {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const valid = (entries || []).filter(e =>
+        (e.validFrom || '') <= today && (!e.validTo || e.validTo >= today));
+    if (!valid.length) return null;
+    valid.sort((a, b) => (b.validFrom || '').localeCompare(a.validFrom || '') || ((b.id || 0) - (a.id || 0)));
+    return valid[0];
+}
+
+let _qstUmzugAlt = null;   // Kanton der aktuellen QST-Version
+let _qstUmzugNeu = null;   // Wohnkanton des MA (Ziel-Kanton)
+
+function renderQstUmzugBanner(entries) {
+    const emp = selectedEmployee;
+    if (!emp || !emp.cantonCode) return '';
+    const cur = _qstCurrentVersion(entries);
+    if (!cur || !cur.steuerkanton) return '';
+    const wohn = String(emp.cantonCode).trim().toUpperCase();
+    const qstK = String(cur.steuerkanton).trim().toUpperCase();
+    if (!wohn || !qstK || wohn === qstK) return '';
+    return `
+    <div style="background:#fff7ed;border:1px solid #fdba74;border-left:4px solid #ea580c;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <span style="font-size:18px">🚚</span>
+        <div style="flex:1;min-width:200px">
+            <div style="font-weight:700;color:#9a3412;font-size:13px">Wohnkanton ${esc(wohn)} ≠ QST-Kanton ${esc(qstK)}</div>
+            <div style="color:#c2410c;font-size:12px;margin-top:2px">
+                Die aktuelle QST-Version rechnet mit Kanton ${esc(qstK)}, der MA wohnt aber in ${esc(wohn)}.
+                Bei einem Umzug: der ganze Umzugsmonat bleibt ${esc(qstK)}, ${esc(wohn)} gilt ab dem 1. des Folgemonats (Kreisschreiben 45).
+            </div>
+        </div>
+        <button onclick="openQstUmzugModal('${esc(qstK)}','${esc(wohn)}')" style="background:#ea580c;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+            🚚 Umzug erfassen
+        </button>
+    </div>`;
+}
+
+function openQstUmzugModal(altKanton, neuKanton) {
+    if (!selectedEmployeeId) return;
+    _qstUmzugAlt = altKanton;
+    _qstUmzugNeu = neuKanton;
+
+    const ktName = (code) => (typeof kantonNameFor === 'function' && kantonNameFor(code))
+        ? `${code} — ${kantonNameFor(code)}` : code;
+
+    const d = new Date();
+    const todayIso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    document.getElementById('qstUmzugModal')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'qstUmzugModal';
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(60,55,48,0.34);backdrop-filter:blur(6px)';
+    wrap.addEventListener('click', (ev) => { if (ev.target === wrap) closeQstUmzugModal(); });
+    // Liquid-Glass-Karte (Walter-Vorgabe 01.07.2026): Off-White, Glasrand,
+    // Kohle-Primärpille, heller Glas-Sekundärbutton.
+    wrap.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 48px rgba(60,55,48,0.22);width:min(440px,92vw);padding:22px 24px" onclick="event.stopPropagation()">
+        <div id="qstUmzugBody">
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;display:flex;align-items:center;gap:8px">🚚 Umzug erfassen</div>
+            <div style="font-size:12px;color:#8b8b8b;margin-top:3px">${esc(selectedEmployee ? `${selectedEmployee.firstName ?? ''} ${selectedEmployee.lastName ?? ''}`.trim() : '')}</div>
+
+            <div style="display:flex;align-items:center;gap:10px;margin:16px 0 14px;background:rgba(255,255,255,0.48);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 14px">
+                <div style="flex:1">
+                    <div style="font-size:10.5px;font-weight:700;color:#8b8b8b;letter-spacing:.05em;text-transform:uppercase">Bisher (QST)</div>
+                    <div style="font-size:13px;font-weight:600;color:#3f3f3f;margin-top:2px">${esc(ktName(altKanton))}</div>
+                </div>
+                <span style="font-size:16px;color:#6b7280">→</span>
+                <div style="flex:1;text-align:right">
+                    <div style="font-size:10.5px;font-weight:700;color:#8b8b8b;letter-spacing:.05em;text-transform:uppercase">Neu (Wohnkanton)</div>
+                    <div style="font-size:13px;font-weight:600;color:#3f3f3f;margin-top:2px">${esc(ktName(neuKanton))}</div>
+                </div>
+            </div>
+
+            <label style="display:block;font-size:12px;font-weight:600;color:#646464;margin-bottom:5px">Umzugsdatum *</label>
+            <input type="date" id="qstUmzugDatum" value="${todayIso}" onchange="qstUmzugUpdateInfo()" oninput="qstUmzugUpdateInfo()"
+                   style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.58);border:1px solid rgba(255,255,255,0.62);border-radius:10px;padding:9px 12px;font-size:13px;color:#3f3f3f;box-shadow:0 1px 3px rgba(60,55,48,0.14)">
+
+            <div id="qstUmzugInfo" style="margin-top:12px;background:rgba(255,255,255,0.38);border:1px solid rgba(255,255,255,0.62);border-radius:10px;padding:10px 12px;font-size:12px;color:#646464;line-height:1.5"></div>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button onclick="closeQstUmzugModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);color:#646464;padding:9px 16px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 1px 3px rgba(60,55,48,0.14)">Abbrechen</button>
+                <button id="qstUmzugSaveBtn" onclick="saveQstUmzug()" style="background:#1a1a1a;border:none;color:#fff;padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 8px rgba(60,55,48,0.22)">Umzug speichern</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    qstUmzugUpdateInfo();
+    if (window.lohnEditLock && typeof window.lohnEditLock.loadState === 'function') {
+        // Gesperrte Tage im Date-Picker gar nicht erst anbieten — der Server
+        // prüft den STICHTAG (Folgemonat) nochmals autoritativ.
+        const branchId = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+        if (branchId) {
+            window.lohnEditLock.loadState(branchId).then(state => {
+                const inp = document.getElementById('qstUmzugDatum');
+                if (inp && state) window.lohnEditLock.applyToDateInput(inp, state);
+            }).catch(() => {});
+        }
+    }
+}
+
+function closeQstUmzugModal() {
+    document.getElementById('qstUmzugModal')?.remove();
+}
+
+// Info-Text der Monatsregel — live beim Datumswechsel aktualisiert.
+function qstUmzugUpdateInfo() {
+    const inp  = document.getElementById('qstUmzugDatum');
+    const info = document.getElementById('qstUmzugInfo');
+    if (!inp || !info) return;
+    if (!inp.value) {
+        info.innerHTML = 'Bitte ein Umzugsdatum wählen.';
+        return;
+    }
+    const [y, m] = inp.value.split('-').map(Number);
+    const lastDay   = new Date(y, m, 0).getDate();                    // letzter Tag des Umzugsmonats
+    const fy        = m === 12 ? y + 1 : y;
+    const fm        = m === 12 ? 1     : m + 1;
+    const austritt  = `${String(lastDay).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
+    const eintritt  = `01.${String(fm).padStart(2, '0')}.${fy}`;
+    info.innerHTML = `Der ganze Umzugsmonat wird noch mit <b>${esc(_qstUmzugAlt || '?')}</b> abgerechnet (bis ${austritt});
+        <b>${esc(_qstUmzugNeu || '?')}</b> gilt ab <b>${eintritt}</b> (Monatsregel Kreisschreiben 45).<br>
+        Meldung an die Kantone: ${esc(_qstUmzugAlt || '?')} Austritt ${austritt}, ${esc(_qstUmzugNeu || '?')} Eintritt ${eintritt}.`;
+}
+
+async function saveQstUmzug() {
+    const empId = selectedEmployeeId;
+    const inp   = document.getElementById('qstUmzugDatum');
+    if (!empId || !inp || !inp.value) { alert('Bitte ein Umzugsdatum angeben.'); return; }
+    const btn = document.getElementById('qstUmzugSaveBtn');
+    const resetBtn = () => { if (btn) { btn.disabled = false; btn.textContent = 'Umzug speichern'; } };
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichert…'; }
+    try {
+        const res = await fetch(`/api/employee-quellensteuer/${empId}/umzug`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ umzugsDatum: inp.value, neuerKanton: _qstUmzugNeu || null })
+        });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) { resetBtn(); return; }
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            alert(j.message || j.error || 'Fehler beim Erfassen des Umzugs.');
+            resetBtn();
+            return;
+        }
+        // Erfolg: Meldedaten BLEIBEN im Modal sichtbar (nicht nur Toast) —
+        // Walter braucht sie für die Quellensteuermeldung an die Kantone.
+        const fmtIso = (iso) => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.${String(iso).slice(0, 4)}` : '–';
+        const body = document.getElementById('qstUmzugBody');
+        if (body) {
+            body.innerHTML = `
+            <div style="font-size:16px;font-weight:700;color:#166534;display:flex;align-items:center;gap:8px">✅ Umzug erfasst</div>
+            <div style="margin-top:12px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#166534;line-height:1.6">
+                QST-Versionen aktualisiert: Umzugsmonat noch <b>${esc(j.alterKanton || _qstUmzugAlt || '?')}</b>,
+                <b>${esc(j.neuerKanton || _qstUmzugNeu || '?')}</b> gilt ab <b>${fmtIso(j.neuerKantonEintritt)}</b>.<br>
+                <b>Meldung an die Kantone:</b><br>
+                • ${esc(j.alterKanton || _qstUmzugAlt || '?')} — Austritt <b>${fmtIso(j.alterKantonAustritt)}</b><br>
+                • ${esc(j.neuerKanton || _qstUmzugNeu || '?')} — Eintritt <b>${fmtIso(j.neuerKantonEintritt)}</b>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:16px">
+                <button onclick="closeQstUmzugModal()" style="background:#1a1a1a;border:none;color:#fff;padding:9px 18px;border-radius:12px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 3px 8px rgba(60,55,48,0.22)">Schliessen</button>
+            </div>`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(`Meldung: ${j.alterKanton || ''} Austritt ${fmtIso(j.alterKantonAustritt)}, ${j.neuerKanton || ''} Eintritt ${fmtIso(j.neuerKantonEintritt)}`, 'success');
+        }
+        // QST-Tab neu laden (Versionen-Liste + Banner verschwinden lassen).
+        if (typeof loadQuellensteuerTab === 'function') loadQuellensteuerTab(empId);
+        if (typeof reloadLohnAfterQstChange === 'function') reloadLohnAfterQstChange(empId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        resetBtn();
+    }
 }
 
 // Walter-Vorgabe 07.06.2026: QST-Eintrag löschen — gleiche UI-Logik wie
@@ -10228,7 +10418,8 @@ function _ktgBreakdownHtml(d) {
             breakdownHtml = `
                 <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
                     <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
-                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + Feiertag ${fmt(bd.feiertagPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
+                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
+                    <div style="color:#94a3b8;font-size:11px">ohne Feiertag % — Feiertagentschädigung ist AHV-pflichtiger Lohn und läuft während Krankheit als separate Lohnzeile (04.08.2026)</div>
                     <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
                     <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
                     <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>

@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260803i">
+    <link rel="stylesheet" href="css/app.css?v=20260804b">
 </head>
 <body>
 
@@ -999,7 +999,13 @@
                             <div class="card" id="lohnZulagenPanel" style="display:none;padding:0;overflow:hidden">
                                 <div style="padding:13px 18px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between">
                                     <div style="font-weight:600;font-size:13px;color:#475569">Zulagen &amp; Abzüge</div>
-                                    <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
+                                    <div style="display:flex;gap:8px">
+                                        <!-- Walter 04.08.2026: Saldo-Korrektur prominent statt im ⋯-Menü -->
+                                        <button id="lohnSaldoKorrBtn" class="btn btn-sm btn-outline" style="display:none"
+                                                title="Saldo nachvollziehbar korrigieren (z.B. Abgleich mit Mirus) — Lohnzettel wird neu gerechnet"
+                                                onclick="lohnOpenSaldoKorrektur()">⚖ Saldo-Korrektur</button>
+                                        <button class="btn btn-sm btn-primary" onclick="lzOpenForm()">+ Erfassen</button>
+                                    </div>
                                 </div>
                                 <!-- Depot-Refund-Hinweis (Korrekturlohn / Austritt) -->
                                 <div id="lohnDepotRefundBox" style="display:none;padding:10px 18px;border-bottom:1px solid #f1f5f9"></div>
@@ -7422,7 +7428,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260803i"></script>
+<script src="js/app-core.js?v=20260804b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7431,7 +7437,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260716a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260803f"></script>
+<script src="js/dashboard.js?v=20260804a"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -7448,7 +7454,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260803i"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260803i"></script>
+<script src="js/akonto-workflow.js?v=20260804a"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
 <script src="js/branches-detail.js?v=20260802a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
@@ -7456,7 +7462,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/qst-modal.js?v=20260802a"></script>
 <script src="js/users.js?v=20260726a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
-<script src="js/documents.js?v=20260727a"></script>
+<script src="js/documents.js?v=20260804b"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260708flex"></script>
@@ -7467,7 +7473,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260803i"></script>
 <script src="js/contracts-edit.js?v=20260803i"></script>
-<script src="js/payroll.js?v=20260803me"></script>
+<script src="js/payroll.js?v=20260804e"></script>
 <script src="js/fibu.js?v=20260704p"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
@@ -7784,7 +7790,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260803i"></script>
+<script src="employees.js?v=20260804a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

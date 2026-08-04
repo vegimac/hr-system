@@ -124,8 +124,8 @@ public class EmployeeFamilyMembersController : ControllerBase
     public async Task<IActionResult> Create(int employeeId, EmployeeFamilyMember member)
     {
         member.EmployeeId = employeeId;
-        member.CreatedAt = DateTime.UtcNow;
-        member.UpdatedAt = DateTime.UtcNow;
+        member.CreatedAt = DateTime.Now;
+        member.UpdatedAt = DateTime.Now;
 
         // AlternativeAddressId nur akzeptieren, wenn die Zusatzadresse
         // tatsächlich zum gleichen MA gehört (Schutz vor Cross-MA-IDs).
@@ -167,7 +167,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.PermitExpiryDate     = member.PermitExpiryDate;
         existing.ZemisNumber          = string.IsNullOrWhiteSpace(member.ZemisNumber) ? null : member.ZemisNumber.Trim();
         existing.NationalityId        = member.NationalityId;
-        existing.UpdatedAt            = DateTime.UtcNow;
+        existing.UpdatedAt            = DateTime.Now;
 
         await _context.SaveChangesAsync();
         return Ok(existing);
@@ -223,7 +223,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         }
 
         member.DokumentId = dto.DokumentId;
-        member.UpdatedAt  = DateTime.UtcNow;
+        member.UpdatedAt  = DateTime.Now;
         await _context.SaveChangesAsync();
         return Ok(new { id = member.Id, dokumentId = member.DokumentId });
     }

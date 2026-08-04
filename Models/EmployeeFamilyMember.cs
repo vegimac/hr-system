@@ -68,8 +68,10 @@ public class EmployeeFamilyMember
     /// </summary>
     public int? DokumentId { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    // Walter-Regel ACHTUNG TIME (vereinheitlicht 04.08.2026): Lokalzeit,
+    // Spalten timestamp without time zone — nie UtcNow.
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
 
     // Navigation
     public Employee? Employee { get; set; }

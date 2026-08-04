@@ -842,8 +842,8 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
-            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
-            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.PermitType).WithMany().HasForeignKey(e => e.PermitTypeId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.NationalityRef).WithMany().HasForeignKey(e => e.NationalityId).OnDelete(DeleteBehavior.SetNull);
@@ -1046,10 +1046,13 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GrossAmount).HasColumnName("gross_amount").HasColumnType("numeric(10,2)");
             entity.Property(e => e.NetAmount).HasColumnName("net_amount").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("draft");
+            // Vereinheitlichung Walter 04.08.2026: Lokalzeit + timestamp without
+            // time zone (System-Regel). Die timestamptz-Ausreisser vom 03.08. sind
+            // per Migration fix_payroll_snapshot_saldo_timestamps.sql konvertiert.
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             // Natürlicher Schlüssel: EIN Saldo pro MA PRO FILIALE pro Periode.
             // company_profile_id MUSS rein — MA in mehreren Filialen hätten sonst
@@ -1918,20 +1921,22 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsFinal).HasColumnName("is_final").HasDefaultValue(false);
             // 4-Augen-Workflow Walter 19.05.2026 — per-MA-Status analog AkontoZahlung
             entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20).HasDefaultValue("FREIGEGEBEN_GF");
-            // timestamptz → DateTime.UtcNow (Confirm/Recompute). Explizit, damit
-            // niemand wieder auf DateTime.Now «korrigiert» und Neuberechnung 500 wirft.
+            // Vereinheitlichung Walter 04.08.2026: Lokalzeit (DateTime.Now) +
+            // timestamp without time zone — System-Regel «ACHTUNG TIME». Die
+            // timestamptz-Ausreisser vom 03.08. sind per Migration
+            // fix_payroll_snapshot_saldo_timestamps.sql konvertiert.
             entity.Property(e => e.GfFreigegebenAt).HasColumnName("gf_freigegeben_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.GfFreigegebenBy).HasColumnName("gf_freigegeben_by");
             entity.Property(e => e.HrBestaetigtAt).HasColumnName("hr_bestaetigt_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.HrBestaetigtBy).HasColumnName("hr_bestaetigt_by");
             entity.Property(e => e.KommentarGf).HasColumnName("kommentar_gf");
             entity.Property(e => e.KommentarHr).HasColumnName("kommentar_hr");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
-                  .HasColumnType("timestamp with time zone");
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Periode).WithMany(p => p.Snapshots).HasForeignKey(e => e.PayrollPeriodeId);
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.PayrollPeriodeId, e.EmployeeId })

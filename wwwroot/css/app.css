@@ -1471,16 +1471,21 @@
 
         /* Helles Glas-Dropdown für die Filialauswahl in der Sidebar (wie Dashboard) */
         .sb-branch-menu { position: relative; }
+        /* Walter 04.08.2026: gewählte Filiale MARKANT — Kohle-Pille
+           (Liquid-Glass-Primär) statt dezentem Glas, weisser fetter Text. */
         .sb-branch-btn {
-            width: 100%; padding: 8px 10px; background: rgba(255,255,255,0.62);
-            border: 1px solid rgba(255,255,255,0.72); border-radius: 12px;
-            color: #364152; font-size: 11.5px; font-weight: 700; font-family: inherit;
+            width: 100%; padding: 10px 12px; background: #3f3f3f;
+            border: 1px solid rgba(255,255,255,0.14); border-radius: 12px;
+            color: #fff; font-size: 12.5px; font-weight: 750; font-family: inherit;
+            letter-spacing: 0.01em;
             cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px;
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.6), 0 6px 14px rgba(72,63,53,0.06);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 6px 16px rgba(60,55,48,0.22);
             text-align: left;
+            transition: background 0.15s;
         }
+        .sb-branch-btn:hover { background: #1a1a1a; }
         .sb-branch-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .sb-branch-btn svg { width: 15px; height: 15px; flex: none; fill: none; stroke: #8b96a5; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .sb-branch-btn svg { width: 15px; height: 15px; flex: none; fill: none; stroke: rgba(255,255,255,0.75); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .sb-branch-options {
             position: fixed; min-width: 260px;
             z-index: 4000; background: rgba(250,248,245,0.98);
@@ -1501,13 +1506,13 @@
         .sb-branch-option.active { background: rgba(255,255,255,0.92); font-weight: 750; box-shadow: 0 3px 10px rgba(72,63,53,0.10); }
         .sb-branch-check { width: 13px; flex: none; color: #3f3f3f; }
         body.theme-dark .sb-branch-btn {
-            border: 1px solid transparent !important;
-            background-image: var(--dlg-fill-field), var(--dlg-rim-soft) !important;
-            background-origin: padding-box, border-box !important;
-            background-clip: padding-box, border-box !important;
-            color: var(--dlg-text-strong);
-            box-shadow: inset 0 1px 0 var(--dlg-glass-inner);
+            /* Kohle-Pille auch im Dunkel-Modus — heller Rand als Kontrast */
+            background: #1a1a1a !important;
+            border: 1px solid rgba(255,255,255,0.22) !important;
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
         }
+        body.theme-dark .sb-branch-btn:hover { background: #000 !important; }
         body.theme-dark .sb-branch-options {
             border: 1px solid transparent !important;
             background-image: var(--dlg-fill-strong), var(--dlg-rim) !important;

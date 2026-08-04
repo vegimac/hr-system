@@ -34,16 +34,40 @@ namespace HrSystem.Services;
 ///                   SlipJson; FIX/FIX-M Tage × Tagessatz (Monatslohn×12/364, 7-Tage-
 ///                   Basis), UTP/MTP Ferien als CHF (Ferien-Geld). Kontoplan 4070.20
 ///                   (Ferien) / 4070.30 (Feiertag): Aufwand 4000/4001/4055 ↔ RST 2019.
+///   • v3 Brutto-Umgliederung (Walter-Vorgabe 04.08.2026, Mirus-Deckungsgleichheit):
+///     drei Anteile stecken im snapshot.Brutto, sind aber KEIN echter Personal-
+///     aufwand des Monats — sie werden aus der 400x-Aufwand-Buchung herausgelöst
+///     und separat gebucht. Die Haben-Seite von 1920 bleibt in Summe identisch
+///     (Rest-Aufwand + Spezialzeilen = Brutto) → Balance strukturell unverändert:
+///       – Familienzulagen (190.x — QST-pflichtig, daher in lohnLines/Brutto)
+///         → S 2071 / H 1920 (Durchlauf — die FAK erstattet sie dem AG)
+///       – KTG-/UVG-Taggeld 80% (Codes 70.2/60.2) → S 2014 / H 1920 (Forderung
+///         Versicherung); die KARENZ-Entschädigungen 88% (Codes 70/60) bleiben
+///         bewusst echter AG-Aufwand (400x)
+///       – 13.-ML-Auszahlung AUS DEM SALDO («Saldo-Auszahlung» / «Nachzahlung
+///         nach Probezeit») → S 2017 (Crew) / 2016 (Mgmt/Gerant) / H 1920
+///         (RST-Abbau). Der im Auszahlungsmonat NEU verdiente Anteil («akt.
+///         Monat» bzw. FLEX-Monatszeile) bleibt Aufwand — für ihn wird im
+///         selben Monat KEINE RST gebildet (thirteenthPctForSaldo=0 im
+///         Auszahlungsmonat → ThirteenthMonthMonthly=0, geprüft 04.08.2026)
+///       – 13.-ML-Verfall in Probezeit (Slip-betrag=0, Wert in accrued) →
+///         RST-Auflösung S 2017/2016 / H Aufwand 4010/4057 (berührt 1920 nicht)
+///     Extraktion via ExtractBruttoUmgliederung (statisch, seiteneffektfrei,
+///     unit-getestet): lohnLines tragen KEINE Codes → Matching über die
+///     Lohnposition-Bezeichnungen aus der DB + fixe Engine-Strings als Fallback
+///     (Alt-Snapshots). Es wird exakt der extrahierte Betrag vom Aufwand
+///     abgezogen und identisch auf den Spezialkonten gebucht → doppelt oder gar
+///     nicht buchen ist strukturell unmöglich; findet die Extraktion nichts,
+///     verhält sich das Journal wie v2.3 (alles Personalaufwand).
 ///
 /// Das Journal balanciert, WEIL snapshot.Netto = totalLohn − Abzüge (Identität
-/// Brutto = Netto + Abzüge). Familienzulagen/Spesen liegen in zulagenExtraLines
-/// und sind im snapshot.Netto NICHT enthalten (nettolohn ist VOR den Extras) →
-/// sie werden hier NICHT gebucht. Mirus-konform (auszahlungsbetrag inkl. FamZ als
-/// Netto + FamZ → 2071/1920) ist v3-Arbeit. Die RST-Buchungen berühren 1920 NICHT
-/// (Aufwand ↔ RST), können das Durchlaufkonto also nicht aus der Balance bringen.
+/// Brutto = Netto + Abzüge). Spesen liegen in zulagenExtraLines und sind im
+/// snapshot.Netto NICHT enthalten (nettolohn ist VOR den Extras) → sie werden
+/// hier NICHT gebucht. Die RST-Buchungen berühren 1920 NICHT (Aufwand ↔ RST),
+/// können das Durchlaufkonto also nicht aus der Balance bringen.
 ///
-/// v2.1 NOCH OHNE: Familienzulagen/Spesen (s.o.) und Arbeitgeber-Sozialbeiträge
-/// (rechnet die Engine nicht). Beide berühren Konto 1920 NICHT — Hinweis im Journal.
+/// v3 NOCH OHNE: Spesen/übrige zulagenExtraLines (liegen ausserhalb des Netto)
+/// und das Abacus-Exportformat (E3).
 /// </summary>
 public class FibuJournalService
 {
@@ -72,6 +96,117 @@ public class FibuJournalService
         "FIX-M" => "300",
         _       => "100"
     };
+
+    // ── v3: Brutto-Umgliederung (Walter-Vorgabe 04.08.2026) ────────────────
+    // Statische, seiteneffektfreie Extraktion der Umgliederungs-Summen aus den
+    // SlipJson-lohnLines EINES Snapshots — bewusst public static, damit die
+    // Summen-Logik ohne DB unit-testbar ist (Tests/FibuJournalUmgliederungTests).
+
+    /// <summary>Extrahierte Umgliederungs-Summen aus den lohnLines eines Snapshots.</summary>
+    public sealed record BruttoUmgliederung(
+        decimal Famz,
+        decimal KtgTaggeld,
+        decimal UvgTaggeld,
+        decimal Ml13Auszahlung,
+        decimal Ml13Verfall)
+    {
+        /// <summary>
+        /// Summe, die der Brutto-Aufwand-Buchung (400x) entnommen wird. Der
+        /// Verfall zählt NICHT dazu — dessen Slip-Zeile hat betrag=0 und steckt
+        /// damit gar nicht im Brutto (reine RST-Auflösung Aufwand ↔ RST).
+        /// </summary>
+        public decimal AufwandAbzug => Famz + KtgTaggeld + UvgTaggeld + Ml13Auszahlung;
+        public static readonly BruttoUmgliederung Leer = new(0, 0, 0, 0, 0);
+    }
+
+    // Fixe Engine-Strings als Fallback (Alt-Snapshots bzw. umbenannte
+    // Lohnpositionen — die Slip-Bezeichnung friert den Stand zur Rechenzeit ein).
+    public static readonly string[] FamzFallbackPrefixes =
+        { "Kinderzulage", "Ausbildungszulage", "Geburtszulage", "Adoptionszulage", "Geburts-/Adoptionszulage" };
+    public static readonly string[] KtgTaggeldFallbackPrefixes = { "Krankheit (Taggeld" };
+    public static readonly string[] UvgTaggeldFallbackPrefixes = { "Unfall (Taggeld" };
+    // 13.-ML-Auszahlung AUS DEM SALDO: NUR diese zwei exakten Engine-Zeilen.
+    // «13. Monatslohn (akt. Monat)» und die FLEX-Monatszeile «13. Monatslohn»
+    // bleiben bewusst Personalaufwand — für sie wird im selben Monat keine RST
+    // gebildet (ThirteenthMonthMonthly=0 im Auszahlungsmonat).
+    // ACHTUNG importierte Alt-Saldi (Walter-Entscheidung 04.08.2026): der
+    // 906-Vortrag (Mirus «Rückstellungsliste Saldomethode», auch FLEX) hat
+    // KEINE OneCrew-RST-Bildungsbuchung — der Bestand stammt aus der Mirus-
+    // Eröffnungsbilanz. Seine Auszahlung («Saldo-Auszahlung» / «Nachzahlung
+    // nach Probezeit») bucht hier trotzdem den RST-Abbau S 2017/2016 / H 1920;
+    // das RST-Konto muss den Anfangsbestand aus der Eröffnungsbilanz tragen,
+    // sonst läuft es durch den Abbau ins Minus (Buchhaltung, nicht OneCrew).
+    public static readonly string[] Ml13AuszahlungPrefixes =
+        { "13. Monatslohn (Saldo-Auszahlung)", "13. Monatslohn (Nachzahlung nach Probezeit)" };
+    // Verfall in Probezeit: Zeile hat betrag=0 (kein Lohn) — der verfallene
+    // RST-Bestand steht im Feld «accrued» → RST auflösen (S RST / H Aufwand).
+    public static readonly string[] Ml13VerfallPrefixes = { "13. Monatslohn (verfallen" };
+
+    /// <summary>
+    /// Summiert FamZ / KTG-Taggeld / UVG-Taggeld / 13.-ML-Saldo-Auszahlung /
+    /// 13.-ML-Verfall aus den lohnLines. Die *Namen-Listen sind die aktuellen
+    /// Lohnposition-Bezeichnungen aus der DB (Match: exakt ODER «Name (…»,
+    /// weil die Engine optional « (Bemerkung)» anhängt); die statischen
+    /// Fallback-Prefixe greifen zusätzlich für Alt-Snapshots.
+    /// </summary>
+    public static BruttoUmgliederung ExtractBruttoUmgliederung(
+        JsonElement slipRoot,
+        IReadOnlyList<string>? famzNamen = null,
+        IReadOnlyList<string>? ktgTaggeldNamen = null,
+        IReadOnlyList<string>? uvgTaggeldNamen = null)
+    {
+        if (!slipRoot.TryGetProperty("lohnLines", out var lines) || lines.ValueKind != JsonValueKind.Array)
+            return BruttoUmgliederung.Leer;
+
+        static bool NameMatch(string bez, IReadOnlyList<string>? namen)
+        {
+            if (namen == null) return false;
+            foreach (var n in namen)
+            {
+                if (string.IsNullOrWhiteSpace(n)) continue;
+                if (bez == n || bez.StartsWith(n + " (", StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+        static bool PrefixMatch(string bez, string[] prefixes)
+        {
+            foreach (var p in prefixes)
+                if (bez.StartsWith(p, StringComparison.Ordinal)) return true;
+            return false;
+        }
+
+        decimal famz = 0, ktg = 0, uvg = 0, ausz13 = 0, verfall13 = 0;
+        foreach (var line in lines.EnumerateArray())
+        {
+            string bez = line.TryGetProperty("bezeichnung", out var bz) && bz.ValueKind == JsonValueKind.String
+                ? (bz.GetString() ?? "") : "";
+            if (bez.Length == 0) continue;
+            decimal betrag = line.TryGetProperty("betrag", out var b) && b.ValueKind == JsonValueKind.Number
+                ? b.GetDecimal() : 0m;
+
+            // Verfall zuerst — betrag=0, der Wert steht in «accrued». Der Prefix
+            // «13. Monatslohn (verfallen» kollidiert nicht mit den Auszahlungs-Zeilen.
+            if (PrefixMatch(bez, Ml13VerfallPrefixes))
+            {
+                if (line.TryGetProperty("accrued", out var a) && a.ValueKind == JsonValueKind.Number)
+                    verfall13 += a.GetDecimal();
+                continue;
+            }
+            if (betrag == 0) continue;   // reine Anzeige-Zeilen (Accrual etc.)
+
+            if (PrefixMatch(bez, Ml13AuszahlungPrefixes))
+                ausz13 += betrag;
+            else if (NameMatch(bez, ktgTaggeldNamen) || PrefixMatch(bez, KtgTaggeldFallbackPrefixes))
+                ktg += betrag;
+            else if (NameMatch(bez, uvgTaggeldNamen) || PrefixMatch(bez, UvgTaggeldFallbackPrefixes))
+                uvg += betrag;
+            else if (NameMatch(bez, famzNamen) || PrefixMatch(bez, FamzFallbackPrefixes))
+                famz += betrag;
+        }
+        return new BruttoUmgliederung(
+            Math.Round(famz, 2), Math.Round(ktg, 2), Math.Round(uvg, 2),
+            Math.Round(ausz13, 2), Math.Round(verfall13, 2));
+    }
 
     public record JournalLine(string Soll, string Gegen, string Bezeichnung, decimal Betrag);
     public record JournalResult(
@@ -140,6 +275,19 @@ public class FibuJournalService
             .GroupBy(x => x.Code.ToUpperInvariant())
             .ToDictionary(g => g.Key, g => g.First().RateEmployer!.Value);
 
+        // v3: Bezeichnungs-Quellen für die Brutto-Umgliederung — die lohnLines
+        // tragen KEINE Codes, daher Matching über die Lohnposition-Bezeichnungen
+        // (DB, inkl. inaktiver Versionen) + fixe Engine-Fallbacks (Alt-Snapshots).
+        var famzNamen = await _db.Lohnpositionen
+            .Where(l => l.Kategorie == "Familienzulagen"
+                     || l.Code == "190.1" || l.Code == "190.2" || l.Code == "190.3")
+            .Select(l => l.Bezeichnung)
+            .ToListAsync();
+        var ktgTaggeldNamen = await _db.Lohnpositionen
+            .Where(l => l.Code == "70.2").Select(l => l.Bezeichnung).ToListAsync();
+        var uvgTaggeldNamen = await _db.Lohnpositionen
+            .Where(l => l.Code == "60.2").Select(l => l.Bezeichnung).ToListAsync();
+
         // Kontoplan-Lookups -----------------------------------------------------
         LohnKontoMapping? FindByPosKst(int pos, string? kst) =>
             maps.FirstOrDefault(m => m.Position == pos && m.KostenstelleNr == kst)
@@ -160,6 +308,26 @@ public class FibuJournalService
         LohnKontoMapping? FindRstBuild(int sub, string? kst) =>
             maps.FirstOrDefault(m => m.Position == 4070 && m.SubPosition == sub && m.KostenstelleNr == kst && !m.IsVormonat)
             ?? maps.FirstOrDefault(m => m.Position == 4070 && m.SubPosition == sub && !m.IsVormonat);
+        // v3-Lookups (Walter-Vorgabe 04.08.2026) ------------------------------
+        // Familienzulagen → Mirus-Position 190 (S 2071 / H 1920); Fallback die
+        // Nachzahlungs-Zeile 200.190.
+        LohnKontoMapping? FindFamz() =>
+            maps.FirstOrDefault(m => m.Position == 190 && m.Gegenkonto == "1920")
+            ?? maps.FirstOrDefault(m => m.Position == 200 && m.SubPosition == 190 && m.Gegenkonto == "1920");
+        // Vers.-Entschädigung (Taggeld) = die 2014-Zeile der Position (Mirus:
+        // KTG 70.2, UVG 60.3 — Engine-Code 60.2 wird bewusst auf die 2014-Zeile
+        // der Position 60 gemappt, egal welche SubPos der Seed führt).
+        LohnKontoMapping? FindVersEntsch(int pos, string? kst) =>
+            maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014" && m.KostenstelleNr == kst)
+            ?? maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014");
+        // 13.-ML-Auszahlung aus dem Saldo → Position 180 (S 2017 Crew /
+        // 2016 Management+Gerant, H 1920) × Kostenstelle.
+        LohnKontoMapping? Find13MlAuszahlung(string? kst) =>
+            maps.FirstOrDefault(m => m.Position == 180 && m.KostenstelleNr == kst && m.Gegenkonto == "1920")
+            ?? maps.FirstOrDefault(m => m.Position == 180 && m.Gegenkonto == "1920");
+        string KstName(string kst) =>
+            maps.FirstOrDefault(m => m.KostenstelleNr == kst && m.KostenstelleName != null)?.KostenstelleName
+            ?? ("KSt " + kst);
 
         // Aggregation: Schlüssel (Soll|Gegen|Bezeichnung) → Summe.
         var acc = new Dictionary<string, JournalLine>();
@@ -176,17 +344,101 @@ public class FibuJournalService
         }
 
         int ohneCodes = 0;
+        // v3: Umgliederungs-Totale über alle MA — für den Transparenz-Hinweis
+        // (Abgleich mit dem Mirus-Referenzjournal).
+        decimal totFamz = 0, totTaggeld = 0, tot13Ausz = 0;
 
         foreach (var s in snapshots)
         {
             modelByEmp.TryGetValue(s.EmployeeId, out var model);
             var kst = KstFor(model);
 
-            // 1) Bruttolohn → Position 10 × Kostenstelle.
-            if (s.Brutto != 0)
+            // v3 (Walter-Vorgabe 04.08.2026): Durchlauf-/RST-Anteile aus den
+            // lohnLines extrahieren, BEVOR der Brutto-Aufwand gebucht wird.
+            // Bei defektem/leerem Slip → Leer = Verhalten exakt wie v2.3.
+            var umgl = BruttoUmgliederung.Leer;
+            try
+            {
+                using var slipDoc = JsonDocument.Parse(string.IsNullOrWhiteSpace(s.SlipJson) ? "{}" : s.SlipJson);
+                umgl = ExtractBruttoUmgliederung(slipDoc.RootElement, famzNamen, ktgTaggeldNamen, uvgTaggeldNamen);
+            }
+            catch { /* defekter Slip → alles bleibt Personalaufwand (v2.3) */ }
+            totFamz    += umgl.Famz;
+            totTaggeld += umgl.KtgTaggeld + umgl.UvgTaggeld;
+            tot13Ausz  += umgl.Ml13Auszahlung;
+
+            // 1) Bruttolohn → Position 10 × Kostenstelle — REDUZIERT um die
+            //    umgegliederten Anteile (FamZ / Taggelder 80% / 13.-ML-Saldo-
+            //    Auszahlung). Haben-Seite 1920 bleibt in Summe identisch
+            //    (Rest-Aufwand + Spezialzeilen = Brutto) → Balance unverändert.
+            decimal bruttoAufwand = Math.Round(s.Brutto - umgl.AufwandAbzug, 2);
+            if (bruttoAufwand != 0)
             {
                 var m = FindByPosKst(10, kst);
-                if (m != null) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, s.Brutto);
+                if (m != null)
+                {
+                    if (bruttoAufwand > 0) Add(m.Fibukonto, m.Gegenkonto, m.Bezeichnung, bruttoAufwand);
+                    else                   Add(m.Gegenkonto, m.Fibukonto, m.Bezeichnung + " (negativ)", -bruttoAufwand);
+                }
+            }
+
+            // 1b) Familienzulagen → S 2071 / H 1920 (Durchlauf — FAK erstattet dem AG).
+            if (umgl.Famz != 0)
+            {
+                var mf = FindFamz();
+                var (soll, gegen, bez) = mf != null
+                    ? (mf.Fibukonto, mf.Gegenkonto, mf.Bezeichnung)
+                    : ("2071", "1920", "Familienzulagen");   // Kontoplan-Zeile fehlt → feste Mirus-Konten
+                if (umgl.Famz > 0) Add(soll, gegen, bez, umgl.Famz);
+                else               Add(gegen, soll, bez + " Rückforderung", -umgl.Famz);
+            }
+
+            // 1c) KTG-/UVG-Taggeld 80% → S 2014 / H 1920 (Forderung Versicherung).
+            //     Karenz-Entschädigungen 88% (Codes 70/60) bleiben bewusst
+            //     Personalaufwand — die zahlt der AG selbst.
+            if (umgl.KtgTaggeld != 0)
+            {
+                var mk = FindVersEntsch(70, kst);
+                var (soll, gegen, bez) = mk != null
+                    ? (mk.Fibukonto, mk.Gegenkonto, mk.Bezeichnung)
+                    : ("2014", "1920", "Vers.-Entsch. KTG " + KstName(kst));
+                if (umgl.KtgTaggeld > 0) Add(soll, gegen, bez, umgl.KtgTaggeld);
+                else                     Add(gegen, soll, bez + " Korrektur", -umgl.KtgTaggeld);
+            }
+            if (umgl.UvgTaggeld != 0)
+            {
+                var mu = FindVersEntsch(60, kst);
+                var (soll, gegen, bez) = mu != null
+                    ? (mu.Fibukonto, mu.Gegenkonto, mu.Bezeichnung)
+                    : ("2014", "1920", "Vers.-Entsch. UVG " + KstName(kst));
+                if (umgl.UvgTaggeld > 0) Add(soll, gegen, bez, umgl.UvgTaggeld);
+                else                     Add(gegen, soll, bez + " Korrektur", -umgl.UvgTaggeld);
+            }
+
+            // 1d) 13.-ML-Auszahlung aus dem Saldo → RST-Abbau S 2017 (Crew) /
+            //     2016 (Management) / H 1920. Der im Auszahlungsmonat NEU
+            //     verdiente Anteil («akt. Monat» / FLEX-Monatszeile) bleibt
+            //     Personalaufwand — für ihn wird im selben Monat KEINE RST
+            //     gebildet (ThirteenthMonthMonthly ist im Auszahlungsmonat 0).
+            if (umgl.Ml13Auszahlung != 0)
+            {
+                var m13 = Find13MlAuszahlung(kst);
+                var (soll, gegen, bez) = m13 != null
+                    ? (m13.Fibukonto, m13.Gegenkonto, m13.Bezeichnung)
+                    : (kst is "300" or "400" ? "2016" : "2017", "1920", "Auszahlung 13. ML " + KstName(kst));
+                if (umgl.Ml13Auszahlung > 0) Add(soll, gegen, bez, umgl.Ml13Auszahlung);
+                else                         Add(gegen, soll, bez + " Korrektur", -umgl.Ml13Auszahlung);
+            }
+
+            // 1e) 13.-ML-Verfall in Probezeit: Slip-betrag=0 → steckt NICHT im
+            //     Brutto. Die in Vormonaten gebildete RST wird aufgelöst —
+            //     S RST (2017/2016) / H Aufwand (4010/4057), via Umkehrung der
+            //     RST-Bildungszeile (Position 2010). Berührt 1920 NICHT.
+            if (umgl.Ml13Verfall > 0)
+            {
+                var mr = FindByPosKst(2010, kst);
+                if (mr != null)
+                    Add(mr.Gegenkonto, mr.Fibukonto, "Auflösung 13. ML Verfall Probezeit " + KstName(kst), umgl.Ml13Verfall);
             }
 
             // 2) Abzüge aus dem SlipJson (SV/QST per categoryCode, LGAV/Lohnpos per code).
@@ -321,11 +573,12 @@ public class FibuJournalService
             }
             catch { ohneCodes++; }
 
-            // Hinweis: Familienzulagen / Spesen liegen in zulagenExtraLines und sind
-            // im snapshot.Netto NICHT enthalten (nettolohn ist VOR den Extras). Daher
-            // werden sie hier bewusst NICHT gebucht — sonst ginge 1920 nicht auf.
-            // Mirus-konforme Variante (auszahlungsbetrag inkl. FamZ als Netto + FamZ
-            // → 2071) ist als v3 offen.
+            // Hinweis: Spesen und übrige nicht-SV-/QST-pflichtige Zulagen liegen
+            // in zulagenExtraLines und sind im snapshot.Netto NICHT enthalten
+            // (nettolohn ist VOR den Extras) → sie werden hier bewusst NICHT
+            // gebucht, sonst ginge 1920 nicht auf. Familienzulagen sind seit der
+            // QST-Pflicht-Migration in lohnLines/Brutto und werden in Schritt 1b
+            // nach 2071 umgegliedert (v3).
 
             // 3) Nettolohn → Position 1060.
             if (s.Netto != 0)
@@ -374,8 +627,10 @@ public class FibuJournalService
 
         var hinweise = new List<string>
         {
-            "v2.3 — Bruttolohn, AN-Abzüge (SV/QST/LGAV), Nettolohn, RST 13. ML, RST Ferien/Feiertage und AG-Sozialbeiträge inkl. FAK (406x, wo ein AG-Satz gepflegt ist) verbucht. NOCH OHNE: Familienzulagen/Spesen (Mirus bucht sie über 2071 — folgt in v3). Berührt das Durchlaufkonto 1920 NICHT (FamZ ausserhalb Netto; RST + AG-Beiträge laufen Aufwand↔RST/Verbindlichkeit). Hinweis: AG-Sätze (KTG/BVG/BU) in Systemeinstellungen → SV-Sätze pflegen, sonst werden sie nicht gebucht.",
+            "v3 — Bruttolohn (Personalaufwand nach Umgliederung), AN-Abzüge (SV/QST/LGAV), Nettolohn, RST 13. ML, RST Ferien/Feiertage, AG-Sozialbeiträge inkl. FAK (406x, wo ein AG-Satz gepflegt ist) sowie Mirus-konforme Umgliederung: Familienzulagen → 2071 (Durchlauf), KTG-/UVG-Taggelder 80% → 2014 (Forderung Versicherung; Karenz 88% bleibt Aufwand), 13.-ML-Auszahlung aus dem Saldo → 2017/2016 (RST-Abbau; der im Auszahlungsmonat neu verdiente Anteil bleibt Aufwand), 13.-ML-Verfall in Probezeit → RST-Auflösung. NOCH OHNE: Spesen/übrige Netto-Extras (liegen ausserhalb des Journal-Netto) und Abacus-Exportformat. Hinweis: AG-Sätze (KTG/BVG/BU) in Systemeinstellungen → SV-Sätze pflegen, sonst werden sie nicht gebucht.",
         };
+        if (totFamz != 0 || totTaggeld != 0 || tot13Ausz != 0)
+            hinweise.Add($"Umgliederung aus dem Bruttolohn: Familienzulagen CHF {Chf(totFamz)} · Taggelder KTG/UVG CHF {Chf(totTaggeld)} · 13.-ML-Saldo-Auszahlung CHF {Chf(tot13Ausz)} — zum Abgleich mit dem Mirus-Journal.");
         if (ohneCodes > 0)
             hinweise.Add($"{ohneCodes} Abzugszeile(n) ohne Code/Konto übersprungen — entweder Alt-Snapshot (》🔄 Codes nachtragen《) oder eine Lohnart fehlt im Kontoplan.");
         if (Math.Abs(k1920) > 0.05m)

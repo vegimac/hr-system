@@ -47,7 +47,7 @@ public class SaldoVortragImportController : ControllerBase
         int     RowNumber,
         string  KStelle,
         string  Name,
-        decimal DreizehnterChf,    // col G (idx 6)  — „13. MLohn 100%"
+        decimal DreizehnterChf,    // col G (idx 6) — «13. MLohn 100%» (H ist NICHT der Saldo; Klärung 04.08.2026 via Juni-Lohnbeleg)
         decimal FerienGeldChf,     // col K (idx 10) — „Ferien" (CHF Saldo)
         decimal StundenChf         // col M (idx 12) — informativ, nicht importiert
     );
@@ -295,8 +295,15 @@ public class SaldoVortragImportController : ControllerBase
 
     private static bool IsRelevant905(string model) =>   // Ferien-Geld CHF
         model == "FLEX" || model == "MTP";
-    private static bool IsRelevant906(string model) =>   // 13. ML CHF (FLEX: Probezeit)
+    // 906 = 13.-ML-Alt-Saldo: seit Walter-Entscheidung 04.08.2026 auch FLEX —
+    // Mirus stellte bei FLEX ganzjährig zurück; der Alt-Saldo läuft in der
+    // Engine über denselben 13.-Saldo wie der Probezeit-Pot (prevThirteenth).
+    private static bool IsRelevant906(string model) =>   // 13. ML CHF (alle Modelle)
         model == "FLEX" || model == "MTP" || model == "FIX" || model == "FIX-M";
+
+    /// <summary>Öffentlich für Unit-Tests (Relevanz 906 — 13.-ML-Alt-Saldo inkl. FLEX).</summary>
+    public static bool IsDreizehnterVortragRelevantForModel(string? model) =>
+        IsRelevant906(NormalizeModel(model));
 
     // ── XLS-Parser ───────────────────────────────────────────────────────────
 
@@ -345,6 +352,13 @@ public class SaldoVortragImportController : ControllerBase
             if (string.IsNullOrEmpty(name)) continue;
             if (name.StartsWith("Total ", StringComparison.OrdinalIgnoreCase)) continue;
 
+            // 13.-ML-Spalte = G (idx 6). GEKLÄRT 04.08.2026 (Juni-Lohnbeleg):
+            // Mirus zahlt den 13. HALBJÄHRLICH aus (Juni + Dezember) — der
+            // kumulierte Saldo steht im Lohnbeleg-Footer und war Ende Juni 0.00
+            // für ALLE. Spalte H («AG-Betrag») ist NICHT der geschuldete Saldo
+            // (Irrläufer 04.08., wieder zurückgebaut). Massgebend bei künftigen
+            // Migrationen: der Footer «Rückstellung 13.ter ML kumuliert» des
+            // letzten Mirus-Lohnbelegs — nicht diese Liste blind vertrauen.
             var g = ReadDecimal(row.GetCell(6));
             var k = ReadDecimal(row.GetCell(10));
             var m = ReadDecimal(row.GetCell(12));

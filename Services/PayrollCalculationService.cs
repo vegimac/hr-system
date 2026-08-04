@@ -623,6 +623,26 @@ public static class PayrollCalculations
         => Math.Round(value / 0.05m, 0, MidpointRounding.AwayFromZero) * 0.05m;
 
     /// <summary>
+    /// FAK-Mindesteinkommen-Sperre (Familienzulagen nur ab kantonalem
+    /// Mindesterwerbseinkommen, z.B. 630/Mt. = 7'560/Jahr ÷ 12).
+    ///
+    /// Walter-Bug 04.08.2026: Feride Alimi (FLEX, Juli 2026) — die Sperre
+    /// wurde auf einer Lohn-SCHÄTZUNG entschieden (workedHours × hourlyRate
+    /// = 216.85) statt auf dem echten AHV-pflichtigen Lohn der Periode
+    /// (1'027.93 inkl. Feiertag, Ferienentschädigung-Auszahlung, 13. ML) →
+    /// Ausbildungszulage 278.00 fälschlich gesperrt. Seither entscheidet die
+    /// Engine mit DIESER Funktion auf der echten AHV-Basis (svBases.Ahv-Niveau,
+    /// ohne FamZ — die sind selbst nicht AHV-pflichtig, keine Zirkularität).
+    ///
+    /// <paramref name="mindesteinkommenMonat"/> = null → kein Tarif/keine
+    /// Schwelle hinterlegt → nie gesperrt.
+    /// </summary>
+    public static bool IsFakMindesteinkommenGesperrt(
+        decimal ahvBasisPeriode, decimal? mindesteinkommenMonat)
+        => mindesteinkommenMonat.HasValue
+           && ahvBasisPeriode < mindesteinkommenMonat.Value;
+
+    /// <summary>
     /// Bestimmt ob in diesem Monat der angesammelte 13.-ML-Saldo ausbezahlt wird.
     /// Primär aus dem CSV-Feld ThirteenthMonthPayoutMonths (z.B. "6,12" für
     /// halbjährlich). Falls leer/null, Legacy-Fallback auf den alten
@@ -691,6 +711,119 @@ public static class PayrollCalculations
             if (a == null || ce < a) a = ce;
         }
         return a;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Austritts-Schlussabrechnung (Walter-Vorgabe 04.08.2026)
+    // ──────────────────────────────────────────────────────────────────────
+    // Beim LETZTEN Lohn eines MA werden alle Saldi ausbezahlt bzw. verrechnet
+    // (Nacht-Saldo, Zeitsaldo, Ferien-Geld/-Tage, Feiertag-Tage, 13. ML).
+    // Die reinen Formeln liegen hier (unit-testbar); die Orchestrierung
+    // (welcher Saldo, welche Lohnzeile, SV-Basen) sitzt in
+    // PayrollCalculationEngine.CalculateAsync in den drei Modell-Blöcken.
+    // ════════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Letzter Lohn? — Der in der Periode gültige Vertrag endet innerhalb der
+    /// Abrechnungsperiode UND es existiert KEIN Folgevertrag (in keiner
+    /// Filiale) mit Vertragsbeginn NACH dem Vertragsende. Parallel laufende
+    /// oder ältere Verträge (Beginn ≤ Vertragsende) zählen nicht als
+    /// Folgevertrag.
+    /// </summary>
+    public static bool IsLetzterLohn(
+        DateOnly? contractEnd,
+        DateOnly periodFrom,
+        DateOnly periodToFull,
+        IEnumerable<DateOnly> andereVertragsStarts)
+    {
+        if (!contractEnd.HasValue) return false;
+        var end = contractEnd.Value;
+        if (end < periodFrom || end > periodToFull) return false;
+        foreach (var start in andereVertragsStarts)
+            if (start > end) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Betrag einer Austritts-Saldo-Zeile (Auszahlung ODER Verrechnung) aus
+    /// den ANGEZEIGTEN Werten: anzahl (auf 2 Dez. gerundet) × satz (auf 2 Dez.
+    /// gerundet), Resultat auf 2 Dez. — damit die sichtbare Formel-Zeile
+    /// exakt aufgeht (Walter-Konvention: Betrag aus den gerundeten
+    /// Anzeige-Zahlen rechnen). Negative anzahl → negativer Betrag
+    /// (Verrechnung). Referenzfall Patricia (FLEX, 20.40/h, Austritt 31.07.):
+    /// Nacht-Saldo 0.18 + 0.13 = 0.31 h → 0.31 × 20.40 = 6.32.
+    /// </summary>
+    public static decimal ExitSettlementBetrag(decimal anzahl, decimal satz)
+        => Math.Round(Math.Round(anzahl, 2) * Math.Round(satz, 2), 2);
+
+    /// <summary>
+    /// FIX/FIX-M ohne HourlyRate: Stundensatz aus dem Monatslohn ableiten —
+    ///   Tagessatz  = Monatslohn × 12 / 365 (Kalenderbasis, wie fixTagessatz)
+    ///   Stundensatz = Tagessatz / (Wochenstunden / 7)
+    /// Wochenstunden ≤ 0 → 0 (keine Bewertung möglich).
+    /// </summary>
+    public static decimal ExitStundensatzAusMonatslohn(decimal monthlySalary, decimal weeklyHours)
+    {
+        if (weeklyHours <= 0m) return 0m;
+        return monthlySalary * 12m / 365m / (weeklyHours / 7m);
+    }
+
+    /// <summary>
+    /// FIX/FIX-M Ferien-/Feiertag-Tagessatz für die Austritts-Schlussabrechnung:
+    /// Monatslohn × 12 / 365 (Kalenderbasis — identisch zu fixTagessatz in der
+    /// Engine und zur RST-Formel im FibuJournalService).
+    /// </summary>
+    public static decimal ExitTagessatzFix(decimal monthlySalary)
+        => monthlySalary * 12m / 365m;
+
+    /// <summary>
+    /// 13.-ML-Basis der Periode (Walter-Vorgabe 04.08.2026): Flag-Summe der
+    /// Lohnpositionen (ZaehltAlsBasis13ml) PLUS Saldo-AUSZAHLUNGEN ohne
+    /// Lohnpositions-Code — FLEX-Pott-Ferienbezug (CalcFerienGeld), Nacht-
+    /// Saldo- und Ferien-Geld-Auszahlung bei Austritt. Prinzip: der 13. wird
+    /// NICHT auf der Ferien-Geld-GUTSCHRIFT gerechnet (Pott-Aufbau), sondern
+    /// erst auf der AUSZAHLUNG — bei Austritt in der Probezeit verfällt er
+    /// damit komplett, auch auf der Feriengutschrift. Das Verfall-/
+    /// Rückstellungs-Routing macht die Engine (ResolveThirteenthProbationStatus),
+    /// die Basis ist in allen drei Zweigen dieselbe.
+    /// ACHTUNG Doppelzählung: Auszahlungen MIT Lohnpositions-Code (MTP-
+    /// Ferienbezug Code 2, manuelle/Jahresend-Auszahlung 195.3) stecken
+    /// bereits in der Flag-Summe (AddAmount) und dürfen NICHT in
+    /// <paramref name="auszahlungenOhneCode"/> — nur codelose Zeilen.
+    /// </summary>
+    public static decimal ThirteenthBasisMitAuszahlungen(
+        decimal flagBasisExact, decimal auszahlungenOhneCode)
+        => flagBasisExact + auszahlungenOhneCode;
+
+    /// <summary>
+    /// FLEX: Auszahlungs-Trigger für den STEHENDEN 13.-ML-Saldo (Probezeit-Pot
+    /// + importierter 906-Alt-Saldo aus Mirus) — Walter-Entscheidung 04.08.2026.
+    /// Auszahlung NUR in drei Fällen:
+    /// <list type="number">
+    /// <item>Probezeit endet in dieser Periode (= erster Lohn nach bestandener
+    /// Probezeit) → Label «13. Monatslohn (Nachzahlung nach Probezeit)»</item>
+    /// <item>Letzter Lohn (Austritts-Schlussabrechnung)
+    /// → Label «13. Monatslohn (Saldo-Auszahlung)»</item>
+    /// <item>Spätestens Dezember-Lauf → dito «Saldo-Auszahlung»</item>
+    /// </list>
+    /// Die zwei Labels sind EXAKT die Muster, die Fibu v3
+    /// (FibuJournalService.Ml13AuszahlungPrefixes → ExtractBruttoUmgliederung)
+    /// als RST-Abbau S 2017/2016 / H 1920 bucht — NICHT umformulieren.
+    /// Sonst: kein Payout — der Saldo wird unverändert weitergetragen (er
+    /// wächst nach der Probezeit nicht weiter, der laufende 13. wird bei FLEX
+    /// monatlich ausbezahlt). Verfall bei Austritt IN der Probezeit läuft
+    /// NICHT hier, sondern über ResolveThirteenthProbationStatus (Forfeited)
+    /// VOR diesem Aufruf — er gilt einheitlich für den GANZEN Saldo inkl.
+    /// Alt-Saldo (L-GAV).
+    /// </summary>
+    public static (bool Payout, string Label) ResolveFlexThirteenthSaldoPayout(
+        bool probationEndsThisPeriod, bool isLetzterLohn, int month)
+    {
+        if (probationEndsThisPeriod)
+            return (true, "13. Monatslohn (Nachzahlung nach Probezeit)");
+        if (isLetzterLohn || month == 12)
+            return (true, "13. Monatslohn (Saldo-Auszahlung)");
+        return (false, "");
     }
 
     /// <summary>

@@ -1817,11 +1817,148 @@ async function dokUpload() {
         }
         closeDokUploadModal();
         loadEmpDokumente(_dokState.empId);
+        // Walter-Vorgabe 04.08.2026: nach erfolgreichem Upload fragen, ob
+        // OneCrew-Benutzer per Mail benachrichtigt werden sollen (fire-and-
+        // forget). Die Upload-Bemerkung dient als Nachricht-Vorschlag.
+        dokAskNotifyUser(respData?.id ?? null, bemerkung);
     } catch (err) {
         status.textContent = 'Fehler: ' + err.message;
         status.style.color = '#b91c1c';
         submitBtn.disabled = false;
     }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Benutzer-Benachrichtigung nach Dokument-Upload (Walter-Vorgabe 04.08.2026)
+// Liquid-Glass-Modal: Checkbox-Liste aktiver OneCrew-Benutzer (Mehrfach-
+// auswahl, Verantwortliche der MA-Filiale vorangehakt) + Nachricht-Vorschlag
+// aus der Upload-Bemerkung → POST /api/documents/{id}/notify (Hinweis-Mail
+// an jeden gewählten Empfänger).
+// ══════════════════════════════════════════════════════════════════════
+
+// Kleines Rollen-Label für die Empfänger-Liste (user = GF).
+function dokNotifyRoleLabel(role) {
+    switch (role) {
+        case 'user':        return 'GF';
+        case 'buchhaltung': return 'Buchhaltung';
+        case 'superuser':   return 'HR';
+        case 'admin':       return 'Admin';
+        default:            return role || '';
+    }
+}
+
+async function dokAskNotifyUser(docId, uploadBemerkung) {
+    if (!docId) return;
+
+    // Kandidaten laden (aktive User mit E-Mail + Filial-Zugang-Info zur
+    // Filiale des MA). Bei Fehler den Dialog stillschweigend überspringen.
+    let users = [];
+    try {
+        const r = await fetch(`/api/documents/notify-candidates?employeeId=${_dokState.empId}`,
+            { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!r.ok) return;
+        users = await r.json();
+    } catch { return; }
+    users = users || [];   // Backend sortiert bereits nach Vorname
+    if (!users.length) return;
+
+    document.getElementById('dokNotifyOverlay')?.remove();
+    const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    // Default-Vorauswahl: Verantwortliche der Filiale des MA = alle User mit
+    // Filial-Zugang und Rolle GF ('user') oder 'buchhaltung'. admin/superuser
+    // haben zwar implizit Zugang, werden aber NICHT vorangehakt.
+    const isPreselected = u => !!u.hatFilialZugang && (u.role === 'user' || u.role === 'buchhaltung');
+
+    const rows = users.map(u => `
+        <label style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;cursor:pointer"
+               onmouseover="this.style.background='rgba(255,255,255,0.55)'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" class="dokNotifyChk" value="${u.userId}" ${isPreselected(u) ? 'checked' : ''}
+                   style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
+            <span style="font-size:13.5px;color:#3f3f3f;font-weight:600">${esc(u.name)}</span>
+            <span style="font-size:10.5px;font-weight:700;color:#646464;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.3);border-radius:8px;padding:1px 7px">${esc(dokNotifyRoleLabel(u.role))}</span>
+        </label>`).join('');
+
+    // Nachricht-Vorschlag: Upload-Bemerkung + Leerzeile + Grussformel mit dem
+    // Klarnamen des angemeldeten Benutzers (editierbar).
+    const actorName = currentUser
+        ? (`${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || '')
+        : '';
+    const gruss = 'Liebe Grüsse' + (actorName ? '\n' + actorName : '');
+    const msgVorschlag = (uploadBemerkung || '').trim()
+        ? `${(uploadBemerkung || '').trim()}\n\n${gruss}`
+        : gruss;
+
+    const wrap = document.createElement('div');
+    wrap.id = 'dokNotifyOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:460px;width:92%;padding:22px 24px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">Benutzer benachrichtigen?</div>
+        <div style="font-size:13.5px;color:#646464;line-height:1.5">Das Dokument wurde hochgeladen. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?</div>
+        <div style="margin-top:14px">
+            <label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Empfänger</label>
+            <div id="dokNotifyUserList" style="max-height:200px;overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px">${rows}</div>
+        </div>
+        <div style="margin-top:12px">
+            <label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Nachricht (optional)</label>
+            <textarea id="dokNotifyMsg" rows="5" placeholder="Persönliche Nachricht…"
+                style="width:100%;box-sizing:border-box;resize:vertical;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;font-size:13.5px;color:#3f3f3f;outline:none;font-family:inherit"></textarea>
+        </div>
+        <div id="dokNotifyStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+            <button id="dokNotifyNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Nein, danke</button>
+            <button id="dokNotifySend" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Senden</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    document.getElementById('dokNotifyMsg').value = msgVorschlag;
+
+    const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = e => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#dokNotifyNo').onclick = close;
+
+    wrap.querySelector('#dokNotifySend').onclick = async () => {
+        const userIds = [...wrap.querySelectorAll('.dokNotifyChk:checked')]
+            .map(c => parseInt(c.value, 10))
+            .filter(n => !isNaN(n));
+        const nachricht = document.getElementById('dokNotifyMsg').value.trim();
+        const statusEl = document.getElementById('dokNotifyStatus');
+        const sendBtn = wrap.querySelector('#dokNotifySend');
+        if (!userIds.length) { statusEl.style.color = '#b91c1c'; statusEl.textContent = 'Bitte mindestens einen Benutzer wählen.'; return; }
+        sendBtn.disabled = true;
+        statusEl.style.color = '#64748b';
+        statusEl.textContent = 'Sende Mitteilung…';
+        try {
+            const r = await fetch(`/api/documents/${docId}/notify`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ userIds, nachricht: nachricht || null })
+            });
+            if (!r.ok) {
+                let msg = 'HTTP ' + r.status;
+                try { const j = await r.json(); msg = j.error || j.message || msg; } catch {}
+                throw new Error(msg);
+            }
+            let empfaenger = [];
+            try { empfaenger = (await r.json()).empfaenger || []; } catch {}
+            close();
+            if (typeof showToast === 'function') {
+                const wer = empfaenger.length ? empfaenger.join(', ') : userIds.length + ' Benutzer';
+                showToast(`✓ Mitteilung gesendet an ${wer}`, 'success');
+            }
+        } catch (err) {
+            statusEl.style.color = '#b91c1c';
+            statusEl.textContent = 'Fehler: ' + err.message;
+            sendBtn.disabled = false;
+        }
+    };
 }
 
 // ══════════════════════════════════════════════════════════════════════

@@ -1060,7 +1060,10 @@ function populateBranchSelector() {
     visible.forEach(b => {
         const o = document.createElement('option');
         o.value = b.id;
-        o.textContent = `${b.restaurantCode ? b.restaurantCode + ' – ' : ''}${b.branchName || b.companyName}`;
+        // Walter 04.08.2026: kompakt «058-Oftringen» (Code + Ort) statt
+        // «058 – Filiale Oftringen» — passt ohne Abschneiden in die Pille.
+        const ort = b.city || String(b.branchName || b.companyName || '').replace(/^Filiale\s+/i, '');
+        o.textContent = `${b.restaurantCode ? b.restaurantCode + '-' : ''}${ort}`;
         sel.appendChild(o);
     });
     // Auto-Selektion: bei einer oder mehreren sichtbaren Filialen wird die

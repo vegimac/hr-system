@@ -120,10 +120,11 @@ public class EmailService
     /// Sendet eine Mail. Wirft KEINE Exceptions raus — ein Mail-Fehler darf
     /// einen Lohnabschluss nicht blockieren. Fehler werden geloggt.
     /// </summary>
-    public async Task<bool> SendAsync(string to, string? toName, string subject, string htmlBody, string textBody)
+    public async Task<bool> SendAsync(string to, string? toName, string subject, string htmlBody, string textBody,
+        bool bypassTestRedirect = false)
     {
         var cfg = await GetEffectiveConfigAsync();
-        try { await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody, throwOnError: false); return true; }
+        try { await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody, throwOnError: false, bypassTestRedirect: bypassTestRedirect); return true; }
         catch (Exception ex)
         {
             _log.LogError(ex, "[EmailService] Mail-Versand fehlgeschlagen an {To} — {Subject}", to, subject);
@@ -169,7 +170,7 @@ public class EmailService
         }
     }
 
-    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, List<(byte[] Data, string Name)>? attachments = null)
+    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, List<(byte[] Data, string Name)>? attachments = null, bool bypassTestRedirect = false)
     {
         if (string.IsNullOrWhiteSpace(cfg.Host) || string.IsNullOrWhiteSpace(cfg.FromAddress))
         {
@@ -182,7 +183,11 @@ public class EmailService
         var effectiveTo = to;
         var effectiveToName = toName;
         var effectiveSubject = subject;
-        if (!string.IsNullOrWhiteSpace(cfg.TestRedirectTo))
+        // bypassTestRedirect (Walter 04.08.2026): interne Benutzer-Mitteilungen
+        // (z.B. Dokument-Benachrichtigung an OneCrew-Benutzer) gehen auch im
+        // Testmodus SCHARF an den echten Empfänger — es sind eigene Leute,
+        // keine MA-/Behörden-Mails.
+        if (!bypassTestRedirect && !string.IsNullOrWhiteSpace(cfg.TestRedirectTo))
         {
             effectiveTo = cfg.TestRedirectTo!;
             effectiveToName = "Test-Empfänger";
@@ -358,5 +363,111 @@ Der Link ist bis {gueltig} gültig. Aus Datenschutzgründen ist kein PDF angehä
 Schaub HR (automatisch versendet — bitte nicht antworten)";
 
         await SendAsync(toEmail, behoerdeName, subject, html, text);
+    }
+
+    /// <summary>
+    /// Hinweis-Mail an einen OneCrew-Benutzer, dass ein Dokument bei einem MA
+    /// abgelegt wurde (Walter-Vorgabe 04.08.2026). KEIN Anhang, KEIN Link —
+    /// reiner Hinweis. Du-Form, da Empfänger ein interner Benutzer ist.
+    /// </summary>
+    public async Task<bool> SendDokumentNotificationAsync(
+        string toEmail,
+        string? toName,
+        string actorName,
+        string employeeDisplayName,
+        string employeeNumber,
+        string? kategorieName,
+        string? typName,
+        string? dateiName,
+        string? bemerkung,
+        string? persoenlicheNachricht)
+    {
+        if (string.IsNullOrWhiteSpace(toEmail)) return false;
+
+        // ANONYMISIERUNG (Walter-Vorgabe 04.08.2026): E-Mail ist ein externer
+        // Kanal — KEINE Personendaten des MA. Nur die Personalnummer; kein
+        // Name, kein Dateiname, keine Dokument-Bemerkung. employeeDisplayName
+        // wird bewusst NICHT verwendet (Parameter bleibt für Log/Zukunft).
+        _ = employeeDisplayName;
+        _ = dateiName;
+        _ = bemerkung;
+        var maLabel = string.IsNullOrWhiteSpace(employeeNumber)
+            ? "einem Mitarbeiter"
+            : $"MA {employeeNumber}";
+        var subject = string.IsNullOrWhiteSpace(employeeNumber)
+            ? "Neues Dokument"
+            : $"Neues Dokument für {employeeNumber}";
+
+        var katTyp = string.Join(" → ", new[] { kategorieName, typName }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+        string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+
+        // Detail-Zeilen (nur gefüllte Felder zeigen)
+        var htmlRows = "";
+        var textRows = "";
+        void AddRow(string label, string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            htmlRows += $@"<tr>
+              <td style=""padding:4px 12px 4px 0;color:#94a3b8;font-size:12.5px;white-space:nowrap;vertical-align:top"">{Enc(label)}</td>
+              <td style=""padding:4px 0;color:#0f172a;font-size:13px"">{Enc(value)}</td>
+            </tr>";
+            textRows += $"{label}: {value}\n";
+        }
+        // Nur der Ablageort — Dateiname/Bemerkung koennten Namen enthalten.
+        AddRow("Abgelegt unter", katTyp);
+
+        var nachrichtHtml = string.IsNullOrWhiteSpace(persoenlicheNachricht) ? "" : $@"
+      <div style=""margin:18px 0 0;padding:12px 16px;background:#f8fafc;border-left:3px solid #94a3b8;border-radius:8px;color:#334155;font-size:13.5px;line-height:1.5;white-space:pre-line"">{Enc(persoenlicheNachricht)}</div>";
+
+        // Per-Du-Kultur (Walter 04.08.2026): Anrede nur mit dem Vornamen.
+        var vorname = string.IsNullOrWhiteSpace(toName) ? "" : toName.Trim().Split(' ')[0];
+        var anrede = string.IsNullOrWhiteSpace(vorname) ? "Hallo" : $"Hallo {vorname}";
+
+        var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""UTF-8""></head>
+<body style=""font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;margin:0;padding:20px"">
+  <div style=""max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)"">
+    <div style=""background:linear-gradient(135deg,#3f3f3f 0%,#1a1a1a 100%);color:#fff;padding:24px 28px"">
+      <div style=""font-weight:700;font-size:14px;opacity:0.9"">OneCrew — Schaub Restaurants GmbH</div>
+      <div style=""font-size:20px;font-weight:700;margin-top:6px"">Neues Dokument</div>
+    </div>
+    <div style=""padding:24px 28px;color:#0f172a"">
+      <p style=""font-size:15px;margin:0 0 14px"">{Enc(anrede)},</p>
+      <p style=""font-size:14px;line-height:1.55;margin:0 0 14px"">
+        <strong>{Enc(actorName)}</strong> hat dir ein Dokument bei
+        <strong>{Enc(maLabel)}</strong> abgelegt.
+      </p>
+      <table style=""border-collapse:collapse;margin:6px 0 0"">{htmlRows}</table>{nachrichtHtml}
+      <p style=""font-size:12.5px;color:#64748b;line-height:1.5;margin:18px 0 0"">
+        Du findest das Dokument in OneCrew im Dokumente-Tab des Mitarbeiters.
+        Aus Datenschutzgründen ist kein Anhang beigefügt.
+      </p>
+    </div>
+    <div style=""padding:14px 28px;background:#f8fafc;color:#94a3b8;font-size:11.5px;text-align:center;border-top:1px solid #e2e8f0"">
+      Diese Nachricht wurde automatisch von OneCrew versendet — bitte nicht antworten.
+    </div>
+  </div>
+</body></html>";
+
+        var textNachricht = string.IsNullOrWhiteSpace(persoenlicheNachricht)
+            ? ""
+            : $"\nNachricht:\n{persoenlicheNachricht}\n";
+
+        var text = $@"{anrede},
+
+{actorName} hat dir ein Dokument bei {maLabel} abgelegt.
+
+{textRows}{textNachricht}
+Du findest das Dokument in OneCrew im Dokumente-Tab des Mitarbeiters.
+Aus Datenschutzgründen ist kein Anhang beigefügt.
+
+—
+OneCrew (automatisch versendet — bitte nicht antworten)";
+
+        // Interne Mitteilung an OneCrew-Benutzer: auch im Testmodus scharf
+        // (Walter 04.08.2026) — der Test-Redirect gilt für MA-/Behörden-Mails.
+        return await SendAsync(toEmail, toName, subject, html, text, bypassTestRedirect: true);
     }
 }

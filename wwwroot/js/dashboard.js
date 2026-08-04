@@ -87,6 +87,7 @@ const DASH_CATEGORY_META = {
     kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt steht bevor',   icon: '🚪', color: '#b91c1c' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
+    qst_kanton_mismatch:    { label: 'QST-Kanton ≠ Wohnkanton', icon: '🧾', color: '#991b1b' },
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
@@ -349,7 +350,7 @@ function renderDashTodoRow(a) {
     const meta = DASH_CATEGORY_META[a.category] || { icon: '•' };
     const { title, subtitle } = dashResolveAlertTexts(a);
     const onClick = a.employeeId
-        ? (a.category === 'qst_pflicht_offen'
+        ? ((a.category === 'qst_pflicht_offen' || a.category === 'qst_kanton_mismatch')
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
             : a.category === 'spouse_doku_fehlt'
                 ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
@@ -499,6 +500,9 @@ function dashTodoOnClick(a) {
     if (a.employeeId) {
         switch (a.category) {
             case 'qst_pflicht_offen':   return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): direkt in den
+            // QST-Tab des MA — dort wird der Tarif korrigiert.
+            case 'qst_kanton_mismatch': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'spouse_doku_fehlt':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
@@ -640,10 +644,11 @@ function renderDashAlertRow(a) {
 
     // QST-Pflicht-Karten springen direkt in den Quellensteuer-Tab des MA
     // (Walter 26.05.2026 — dort sind die Schnell-Buttons).
+    // QST-Kanton-Mismatch ebenfalls → QST-Tab (Walter 04.08.2026).
     // Ausweis-Ehepartner-Karten springen in den Familie-Tab (Walter 12.06.2026),
     // wo Variante-C-Upload den Ehegatten-Ausweis aufnimmt.
     const onClick = a.employeeId
-        ? (a.category === 'qst_pflicht_offen'
+        ? ((a.category === 'qst_pflicht_offen' || a.category === 'qst_kanton_mismatch')
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
             : a.category === 'spouse_doku_fehlt'
                 ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`

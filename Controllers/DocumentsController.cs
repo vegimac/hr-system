@@ -18,16 +18,18 @@ public class DocumentsController : ControllerBase
     private readonly AppDbContext _db;
     private readonly string _storagePath;
     private readonly OfficeToPdfService _officePdf;
+    private readonly EmailService _email;
 
     /// <summary>
     /// Storage-Pfad wird aus appsettings.json (Documents:StoragePath) gelesen.
     /// Default: "data/documents" relativ zum Content-Root.
     /// Auf dem Server via systemd-Environment "Documents__StoragePath=/var/data/hr-system/documents".
     /// </summary>
-    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf)
+    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf, EmailService email)
     {
         _db = db;
         _officePdf = officePdf;
+        _email = email;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
@@ -351,6 +353,177 @@ public class DocumentsController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { doc.Id, doc.FilenameOriginal, doc.GroesseBytes, doc.HochgeladenAm });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // BENUTZER-BENACHRICHTIGUNG nach Upload (Walter-Vorgabe 04.08.2026)
+    // ──────────────────────────────────────────────────────────────────────
+
+    public class DokumentNotifyDto
+    {
+        public List<int> UserIds { get; set; } = new();
+        public string? Nachricht { get; set; }
+    }
+
+    /// <summary>
+    /// Sendet eine Hinweis-Mail an einen oder mehrere OneCrew-Benutzer, dass
+    /// dieses Dokument abgelegt wurde (Walter-Vorgabe 04.08.2026, Mehrfach-
+    /// versand). Kein Anhang, kein Link — reiner Hinweis. Mail an jeden
+    /// Empfänger einzeln (gleiche Methode in Schleife). Auth wie die übrigen
+    /// Dokument-Endpoints (HR-Rollen via DefaultPolicy); der Actor-Klarname
+    /// kommt aus dem JWT.
+    /// </summary>
+    [HttpPost("{id:int}/notify")]
+    public async Task<IActionResult> Notify(int id, [FromBody] DokumentNotifyDto dto)
+    {
+        var doc = await _db.EmployeeDokumente.FindAsync(id);
+        if (doc is null) return NotFound(new { error = "Dokument nicht gefunden." });
+
+        var userIds = (dto.UserIds ?? new List<int>()).Distinct().ToList();
+        if (userIds.Count == 0)
+            return BadRequest(new { error = "Kein Empfänger gewählt." });
+
+        var emp = await _db.Employees
+            .Where(e => e.Id == doc.EmployeeId)
+            .Select(e => new { e.FirstName, e.LastName, e.EmployeeNumber })
+            .FirstOrDefaultAsync();
+        if (emp is null)
+            return BadRequest(new { error = "Mitarbeiter zum Dokument nicht gefunden." });
+
+        var users = await _db.AppUsers
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.Email, u.IsActive })
+            .ToListAsync();
+        var gueltige = users
+            .Where(u => u.IsActive && !string.IsNullOrWhiteSpace(u.Email))
+            .ToList();
+        if (gueltige.Count == 0)
+            return BadRequest(new { error = "Kein gewählter Benutzer ist aktiv und hat eine E-Mail-Adresse." });
+
+        // Kategorie + Typ für den Mail-Text (best-effort, darf fehlen)
+        var typ = await _db.DokumentTypen
+            .Where(t => t.Id == doc.DokumentTypId)
+            .Select(t => new
+            {
+                t.Name,
+                KategorieName = _db.DokumentKategorien
+                    .Where(k => k.Id == t.KategorieId)
+                    .Select(k => k.Name)
+                    .FirstOrDefault()
+            })
+            .FirstOrDefaultAsync();
+
+        var actorName = await GetActorNameAsync();
+        if (string.IsNullOrWhiteSpace(actorName)) actorName = "Ein OneCrew-Benutzer";
+
+        var maName = $"{emp.FirstName} {emp.LastName}".Trim();
+        var nachricht = string.IsNullOrWhiteSpace(dto.Nachricht) ? null : dto.Nachricht.Trim();
+
+        // ANONYMISIERUNG (Walter-Vorgabe 04.08.2026): E-Mail = externer Kanal.
+        // Die freie Nachricht darf weder Vor- noch Nachname des MA enthalten —
+        // sonst 400 mit Klartext, damit der Anwender den Text korrigiert.
+        if (nachricht != null)
+        {
+            bool Enthaelt(string? teil) =>
+                !string.IsNullOrWhiteSpace(teil) && teil!.Trim().Length >= 2
+                && nachricht.Contains(teil.Trim(), StringComparison.OrdinalIgnoreCase);
+            if (Enthaelt(emp.FirstName) || Enthaelt(emp.LastName))
+            {
+                return BadRequest(new
+                {
+                    error = "NACHRICHT_ENTHAELT_NAMEN",
+                    message = "Die Nachricht enthält den Vor- oder Nachnamen des Mitarbeiters. "
+                            + "E-Mails werden anonymisiert versendet — bitte den Namen entfernen "
+                            + "(die Personalnummer steht automatisch in der Mail)."
+                });
+            }
+        }
+
+        var empfaengerNamen = new List<string>();
+        foreach (var user in gueltige)
+        {
+            var empfaenger = $"{user.FirstName} {user.LastName}".Trim();
+            if (string.IsNullOrWhiteSpace(empfaenger)) empfaenger = user.Username;
+
+            var ok = await _email.SendDokumentNotificationAsync(
+                user.Email!,
+                empfaenger,
+                actorName,
+                maName,
+                emp.EmployeeNumber,
+                typ?.KategorieName,
+                typ?.Name,
+                doc.FilenameOriginal,
+                doc.Bemerkung,
+                nachricht);
+
+            if (ok) empfaengerNamen.Add(empfaenger);
+        }
+
+        if (empfaengerNamen.Count == 0)
+            return StatusCode(500, new { error = "Mail-Versand fehlgeschlagen — bitte SMTP-Einstellungen prüfen." });
+
+        return Ok(new { ok = true, empfaenger = empfaengerNamen });
+    }
+
+    /// <summary>
+    /// Kandidaten-Liste für die Dokument-Benachrichtigung (Walter-Vorgabe
+    /// 04.08.2026): alle aktiven OneCrew-Benutzer mit E-Mail (ohne MA-Postfach-
+    /// Logins). Pro User: hat er Zugang zur Filiale des MA (user_branch_access;
+    /// admin/superuser implizit) und ist er dort Standard-Unterzeichner
+    /// (IsDefault, Muster KuendigungController). Die Filiale des MA bestimmt
+    /// der aktuelle/letzte Vertrag (jüngster, aktive zuerst). Die Default-
+    /// Vorauswahl (GF + Buchhaltung mit Filial-Zugang) trifft das Frontend.
+    /// </summary>
+    [HttpGet("notify-candidates")]
+    public async Task<IActionResult> NotifyCandidates([FromQuery] int employeeId)
+    {
+        // Filiale des MA = jüngster Vertrag (aktive zuerst) — analog
+        // KuendigungController.GuardBranchAsync.
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == employeeId)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+
+        var users = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive && u.Email != null && u.Email != "" && u.Role != "employee")
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.Role })
+            .ToListAsync();
+
+        // Filial-Zugang + IsDefault aus user_branch_access für die MA-Filiale.
+        var accessById = new Dictionary<int, bool>();
+        if (cpId != null)
+        {
+            var ubaList = await _db.UserBranchAccesses.AsNoTracking()
+                .Where(a => a.CompanyProfileId == cpId.Value)
+                .Select(a => new { a.UserId, a.IsDefault })
+                .ToListAsync();
+            foreach (var a in ubaList)
+                accessById[a.UserId] = accessById.TryGetValue(a.UserId, out var d) ? (d || a.IsDefault) : a.IsDefault;
+        }
+
+        // Wie überall: nach Vorname sortieren, Tie-Break Nachname.
+        var result = users
+            .OrderBy(u => u.FirstName ?? "")
+            .ThenBy(u => u.LastName ?? "")
+            .Select(u => new
+            {
+                userId = u.Id,
+                name = string.IsNullOrWhiteSpace($"{u.FirstName} {u.LastName}".Trim())
+                    ? u.Username
+                    : $"{u.FirstName} {u.LastName}".Trim(),
+                role = u.Role,
+                // admin/superuser haben implizit Zugang zu jeder Filiale —
+                // vorausgewählt werden sie im Frontend trotzdem nicht.
+                hatFilialZugang = accessById.ContainsKey(u.Id)
+                    || u.Role == "admin" || u.Role == "superuser",
+                isDefault = accessById.TryGetValue(u.Id, out var isDef) && isDef
+            })
+            .ToList();
+
+        return Ok(result);
     }
 
     /// <summary>

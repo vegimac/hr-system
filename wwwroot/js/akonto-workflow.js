@@ -486,7 +486,12 @@ async function akWfRefresh() {
         // betroffene MA in der Liste + speist Banner/Counter/Freigabe-Sperre.
         // Geteilt mit dem Definitivlauf (globales _lohnMwUnderpaid aus payroll.js).
         _lohnMwUnderpaid = {};
-        if (rMw && rMw.ok) { try { (await rMw.json() || []).forEach(u => { _lohnMwUnderpaid[u.employeeId] = u; }); } catch {} }
+        if (rMw && rMw.ok) { try { (await rMw.json() || []).forEach(u => {
+            // QST_KANTON_MISMATCH ist nur Warnung (Walter 04.08.2026) — darf ein
+            // hartes Block-Problem desselben MA in der Map nie überdecken.
+            if (u.problem === 'QST_KANTON_MISMATCH' && _lohnMwUnderpaid[u.employeeId]) return;
+            _lohnMwUnderpaid[u.employeeId] = u;
+        }); } catch {} }
         if (!r.ok) {
             if (bar) bar.innerHTML = _akWfAlert('Fehler beim Laden des Akonto-Status (HTTP ' + r.status + ').', 'err');
             return;
@@ -716,6 +721,8 @@ function _akWfRenderMaList() {
         if (_mwW) {
             if (_mwW.problem === 'NO_SALARY')   _mwLbl = '⚠ Lohn fehlt';
             else if (_mwW.problem === 'QST_OFFEN') _mwLbl = '⚠ QST';
+            // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): Warnung, kein Block.
+            else if (_mwW.problem === 'QST_KANTON_MISMATCH') _mwLbl = '⚠ QST-Kanton';
         }
         const mwIcon = _mwW ? ` <span title="${String(_mwW.message||'Lohnproblem').replace(/"/g,'&quot;')}" style="color:#dc2626">${_mwLbl}</span>` : '';
         const hrNote = r.kommentarHr
@@ -1340,7 +1347,8 @@ async function akWfFreigeben(id) {
     // freundliche UX davor.
     const _zChk = (_akWfData?.zahlungen || []).find(z => z.id === id);
     const _zProb = _zChk ? _lohnMwUnderpaid[_zChk.employeeId] : null;
-    if (_zProb) {
+    // QST_KANTON_MISMATCH ist bewusst KEIN Block (Walter 04.08.2026) — nur ⚠.
+    if (_zProb && _zProb.problem !== 'QST_KANTON_MISMATCH') {
         const head = _zProb.problem === 'NO_SALARY'
             ? 'Freigabe gesperrt — Lohnsumme fehlt.'
             : 'Freigabe gesperrt — Mindestlohn unterschritten.';

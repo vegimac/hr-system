@@ -552,17 +552,32 @@ function _lohnWfRenderStatusBar() {
         `<button class="action-menu-item${opts.danger ? ' danger' : ''}" onclick="${onclick}"${opts.title ? ` title="${opts.title}"` : ''}>${label}</button>`;
     const menuDivider = '<div class="action-menu-divider"></div>';
 
+    // Saldo-Korrektur beim HR-Bestätigen (Walter-Vorgabe 04.08.2026): HR darf
+    // beim ausgewählten MA einen fehlenden Saldo-Vortrag nachvollziehbar
+    // korrigieren (z.B. «Abgleich mit Mirus») — nur solange die Periode noch
+    // NICHT definitiv abgeschlossen ist (offen / provisorisch_abgeschlossen).
+    // Walter 04.08.2026 (2. Iteration): nicht im ⋯-Menü versteckt, sondern als
+    // sichtbarer Button im «Zulagen & Abzüge»-Panel (#lohnSaldoKorrBtn).
+    const saldoKorrOk = (isHr && _lohnSelectedEmpId != null && (isOffen || isProv));
+    const _skKorrBtn = document.getElementById('lohnSaldoKorrBtn');
+    if (_skKorrBtn) _skKorrBtn.style.display = saldoKorrOk ? '' : 'none';
+    const saldoKorrItem = '';
+
     let actions = '';
     switch (d.status) {
         case 'offen':
             // GF-Phase: jeden MA bestätigen, dann an HR senden.
+            // ⋯-Menü erscheint hier nur für HR (Saldo-Korrektur).
             actions = `${perMaConfirm}${perMaReopen}${pdfBtn}${skBtn}
+                ${buildMoreMenu([saldoKorrItem])}
                 <button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`;
             break;
         case 'provisorisch_abgeschlossen':
             if (isHr) {
                 // Sekundär-Aktionen ins ⋯-Menü
                 const moreItems = [
+                    saldoKorrItem,
+                    saldoKorrItem ? menuDivider : '',
                     menuItem('📋 Alle Lohnbelege (PDF)', 'lohnDownloadVorabPdf()', { title: 'Alle Lohnbelege der Periode in einem PDF' }),
                     menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')",     { title: 'Saldi-Übersicht für den Geschäftsführer' }),
                     isAdmin ? menuDivider : '',
@@ -718,7 +733,13 @@ async function loadLohnList() {
         _lohnMwUnderpaid = {};
         try {
             const mwRes = await fetch(`/api/minimum-wage-rules/check-period?companyProfileId=${cid}&year=${y}&month=${m}`, { headers: ah() });
-            if (mwRes.ok) (await mwRes.json() || []).forEach(u => { _lohnMwUnderpaid[u.employeeId] = u; });
+            if (mwRes.ok) (await mwRes.json() || []).forEach(u => {
+                // QST_KANTON_MISMATCH ist nur eine Warnung (Walter 04.08.2026)
+                // — darf ein hartes Block-Problem (UNDERPAID/NO_SALARY/QST_OFFEN)
+                // desselben MA in der Map nie überdecken.
+                if (u.problem === 'QST_KANTON_MISMATCH' && _lohnMwUnderpaid[u.employeeId]) return;
+                _lohnMwUnderpaid[u.employeeId] = u;
+            });
         } catch {}
 
         const res  = await fetch(`/api/employees`, { headers: ah() });
@@ -1488,10 +1509,14 @@ function renderLohnSlip(s, targetEl) {
     if (_mwWarn) {
         if (_mwWarn.problem === 'NO_SALARY')   _mwHead = '⚠ Lohnsumme fehlt — Bestätigen gesperrt';
         else if (_mwWarn.problem === 'QST_OFFEN') _mwHead = '⚠ QST-Pflicht offen — Bestätigen gesperrt';
+        // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): NUR Warnung, KEIN Block
+        // — daher ohne «Bestätigen gesperrt» im Titel.
+        else if (_mwWarn.problem === 'QST_KANTON_MISMATCH') _mwHead = '⚠ QST-Kanton stimmt nicht mit Wohnkanton überein — Tarif im QST-Tab prüfen';
     }
     // Walter-Vorgabe 26.05.2026: bei QST_OFFEN zusätzlich Sprung-Button zum
     // MA-QST-Tab (öffnet Mitarbeiter-Modul + Tab + Schnell-Buttons).
-    const _qstSprung = _mwWarn && _mwWarn.problem === 'QST_OFFEN'
+    // Gleicher Sprung bei QST_KANTON_MISMATCH (Walter 04.08.2026).
+    const _qstSprung = _mwWarn && (_mwWarn.problem === 'QST_OFFEN' || _mwWarn.problem === 'QST_KANTON_MISMATCH')
         ? `<div style="margin-top:6px"><button onclick="window.activeEmpId=${_lohnSelectedEmpId};showPage('mitarbeiter');setTimeout(()=>switchEmpTab('quellensteuer'),250)" style="background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">→ QST im MA-Tab erfassen</button></div>`
         : '';
     const _mwBanner = (_mwWarn && !s.isCorrection)
@@ -1838,7 +1863,11 @@ function renderLohnSlip(s, targetEl) {
             // Display-Werte explizit, damit nach dem Saldo-Reset alle vier
             // Spalten weiterhin nachvollziehbar sind.
             if (show13Saldo) {
-                let label13 = isUtp
+                // FLEX: «Probezeit»-Zusatz nur solange der MA wirklich in der
+                // Probezeit ist. Ein stehender Saldo NACH der Probezeit
+                // (importierter Mirus-Alt-Saldo via 906-Vortrag, Walter
+                // 04.08.2026) heisst schlicht «Rückst. 13. Monatslohn (CHF)».
+                let label13 = (isUtp && s.isInProbation)
                     ? 'Rückst. 13. Monatslohn Probezeit (CHF)'
                     : 'Rückst. 13. Monatslohn (CHF)';
                 if (isUtp && s.thirteenthForfeited)
@@ -1976,7 +2005,9 @@ async function confirmLohn() {
     // zusätzlich mit 409; dies ist nur die freundliche UX davor.
     // Korrekturlohn: keine Mindestlohn-/QST-Sperre.
     const _lohnProb = !isCorr ? _lohnMwUnderpaid[s.employeeId] : null;
-    if (_lohnProb) {
+    // QST_KANTON_MISMATCH ist bewusst KEIN Block (Walter 04.08.2026) — nur
+    // Banner/⚠; das Bestätigen läuft durch (Server blockt ebenfalls nicht).
+    if (_lohnProb && _lohnProb.problem !== 'QST_KANTON_MISMATCH') {
         let head = 'Bestätigen gesperrt — Mindestlohn unterschritten.';
         let hint = 'Bitte zuerst den Lohn im Vertrag erfassen/korrigieren.';
         if (_lohnProb.problem === 'NO_SALARY') {
@@ -3220,6 +3251,173 @@ async function addLohnCorrectionMa(empId) {
     else {
         lzInit(empId, cid, y, m);
         loadLohnSlip(empId, cid, y, m);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Saldo-Korrektur beim HR-Bestätigen (Walter-Vorgabe 04.08.2026)
+// ═══════════════════════════════════════════════════════════════════════
+// HR erfasst beim ausgewählten MA eine nachvollziehbare Saldo-Korrektur
+// (z.B. «Abgleich mit Mirus», wenn ein Vortrag fehlt) — auch wenn die
+// Periode schon provisorisch abgeschlossen ist. Der Betrag ist ein DELTA
+// und wird serverseitig zum bestehenden Vortrag-Eintrag addiert; danach
+// rechnet der Server die Snapshots der Periode frisch (Status bleibt).
+// Modal wird beim ersten Aufruf dynamisch erzeugt (Muster filePreviewModal),
+// Liquid-Glass-Look gemäss docs/liquid-glass-ui-konzept.md.
+
+const _LOHN_SK_TYPES = [
+    { code: '901', label: '901 · Zeitsaldo (Std)' },
+    { code: '902', label: '902 · Feiertag-Saldo (Tage)' },
+    { code: '903', label: '903 · Ferien-Saldo (Tage)' },
+    { code: '904', label: '904 · Nacht-Saldo (Std)' },
+    { code: '905', label: '905 · Ferien-Geld (CHF)' },
+    { code: '906', label: '906 · 13. Monatslohn (CHF)' },
+];
+// Relevanz pro Vertragsmodell — Spiegel von SaldoVortragController.IsRelevantForModel.
+// Unbekanntes Modell → alle Codes (der Server validiert ohnehin nochmals).
+const _LOHN_SK_RELEVANT = {
+    'FLEX':  ['903', '904', '905', '906'],
+    'MTP':   ['901', '903', '904', '905', '906'],
+    'FIX':   ['901', '902', '903', '904', '906'],
+    'FIX-M': ['901', '902', '903', '904', '906'],
+};
+
+function _lohnEnsureSaldoKorrModal() {
+    if (document.getElementById('lohnSaldoKorrModal')) return;
+    const wrap = document.createElement('div');
+    wrap.id = 'lohnSaldoKorrModal';
+    wrap.style.cssText = 'display:none;position:fixed;inset:0;z-index:10050;'
+        + 'background:rgba(60,55,48,0.35);backdrop-filter:blur(3px);'
+        + 'align-items:center;justify-content:center;padding:20px';
+    wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;
+                    box-shadow:0 18px 48px rgba(60,55,48,0.22);width:100%;max-width:440px;
+                    padding:20px 22px;color:#3f3f3f" onclick="event.stopPropagation()">
+            <div style="font-size:15px;font-weight:700;margin-bottom:2px">⚖ Saldo-Korrektur</div>
+            <div id="lskEmpLine" style="font-size:12px;color:#8b8b8b;margin-bottom:14px"></div>
+
+            <label style="display:block;font-size:11.5px;font-weight:600;color:#646464;margin-bottom:4px">Saldo-Typ</label>
+            <select id="lskCode" style="width:100%;margin-bottom:12px"></select>
+
+            <label style="display:block;font-size:11.5px;font-weight:600;color:#646464;margin-bottom:4px">Betrag (+/− Delta)</label>
+            <input id="lskBetrag" type="number" step="0.01" placeholder="z.B. 8.5 oder -2"
+                   style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);
+                          border-radius:10px;background:rgba(255,255,255,0.58);font-size:13px;color:#3f3f3f;margin-bottom:12px">
+
+            <label style="display:block;font-size:11.5px;font-weight:600;color:#646464;margin-bottom:4px">Begründung (Pflicht)</label>
+            <textarea id="lskBegruendung" rows="2" placeholder="z.B. Abgleich mit Mirus — Vortrag fehlte"
+                   style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid rgba(60,55,48,0.18);
+                          border-radius:10px;background:rgba(255,255,255,0.58);font-size:13px;color:#3f3f3f;
+                          resize:vertical;margin-bottom:8px"></textarea>
+
+            <div style="font-size:11px;color:#8b8b8b;line-height:1.45;margin-bottom:12px">
+                Wird als nachvollziehbare Korrekturbuchung gespeichert und der Lohnzettel neu gerechnet.
+            </div>
+            <div id="lskError" style="display:none;font-size:12px;color:#b91c1c;background:#fee2e2;
+                    border-radius:10px;padding:7px 10px;margin-bottom:12px"></div>
+
+            <div style="display:flex;justify-content:flex-end;gap:8px">
+                <button type="button" onclick="lohnCloseSaldoKorrektur()"
+                        style="padding:8px 16px;border-radius:12px;border:1px solid rgba(60,55,48,0.18);
+                               background:rgba(255,255,255,0.58);color:#3f3f3f;font-size:13px;font-weight:600;cursor:pointer">
+                    Abbrechen</button>
+                <button type="button" id="lskSaveBtn" onclick="lohnSaveSaldoKorrektur()"
+                        style="padding:8px 18px;border-radius:12px;border:none;background:#1a1a1a;
+                               color:#fff;font-size:13px;font-weight:600;cursor:pointer">
+                    Speichern</button>
+            </div>
+        </div>`;
+    // Klick auf den Hintergrund schliesst (ESC-los, wie filePreviewModal)
+    wrap.addEventListener('click', () => lohnCloseSaldoKorrektur());
+    document.body.appendChild(wrap);
+}
+
+function lohnOpenSaldoKorrektur() {
+    const empId = _lohnSelectedEmpId;
+    if (!empId) { alert('Bitte zuerst einen Mitarbeiter auswählen.'); return; }
+    _lohnEnsureSaldoKorrModal();
+
+    const emp   = (typeof _lohnEmpById !== 'undefined' && _lohnEmpById) ? _lohnEmpById[empId] : null;
+    const y     = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m     = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
+    const model = String(emp?.employmentModel || '').toUpperCase();
+
+    const line = document.getElementById('lskEmpLine');
+    line.textContent = `${emp ? `${emp.firstName || ''} ${emp.lastName || ''}`.trim() : `MA #${empId}`}`
+        + ` · Periode ${String(m).padStart(2, '0')}.${y}${model ? ` · ${model}` : ''}`;
+
+    // Saldo-Typen auf das Vertragsmodell einschränken (Server prüft nochmals)
+    const relevant = _LOHN_SK_RELEVANT[model] || _LOHN_SK_TYPES.map(t => t.code);
+    const sel = document.getElementById('lskCode');
+    sel.innerHTML = _LOHN_SK_TYPES
+        .filter(t => relevant.includes(t.code))
+        .map(t => `<option value="${t.code}">${t.label}</option>`)
+        .join('');
+    // liquid-select.js synct das Label nach programmatischem Rebuild selbst
+
+    document.getElementById('lskBetrag').value      = '';
+    document.getElementById('lskBegruendung').value = '';
+    const err = document.getElementById('lskError');
+    err.style.display = 'none'; err.textContent = '';
+
+    document.getElementById('lohnSaldoKorrModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('lskBetrag')?.focus(), 60);
+}
+
+function lohnCloseSaldoKorrektur() {
+    const modal = document.getElementById('lohnSaldoKorrModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function lohnSaveSaldoKorrektur() {
+    const empId = _lohnSelectedEmpId;
+    if (!empId) return;
+    const err = document.getElementById('lskError');
+    const showErr = (msg) => { err.textContent = msg; err.style.display = 'block'; };
+    err.style.display = 'none';
+
+    const code   = document.getElementById('lskCode')?.value;
+    const betrag = parseFloat(String(document.getElementById('lskBetrag')?.value || '').replace(',', '.'));
+    const beg    = (document.getElementById('lskBegruendung')?.value || '').trim();
+
+    if (!code)                          { showErr('Bitte einen Saldo-Typ wählen.'); return; }
+    if (isNaN(betrag) || betrag === 0)  { showErr('Bitte ein Delta ungleich 0 angeben (+/−).'); return; }
+    if (!beg)                           { showErr('Begründung ist Pflicht — die Korrektur muss nachvollziehbar sein.'); return; }
+
+    const cid = parseInt(document.getElementById('lohnBranchSelect')?.value || fixedCompanyProfileId || 0);
+    const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
+    const periode = `${y}-${String(m).padStart(2, '0')}`;
+
+    const btn = document.getElementById('lskSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichere…'; }
+    try {
+        const res = await fetch('/api/saldo-vortrag/korrektur', {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeId: empId, periode, code, betrag, begruendung: beg })
+        });
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            showErr(j.message || j.error || j.title || `Fehler (HTTP ${res.status})`);
+            return;
+        }
+        const j = await res.json().catch(() => ({}));
+        lohnCloseSaldoKorrektur();
+        if (typeof showToast === 'function') {
+            showToast(`✓ Saldo-Korrektur gespeichert — neuer Wert ${Number(j.neuerBetrag ?? 0).toFixed(2)}`
+                + (j.recomputed ? ' · Lohnzettel neu gerechnet' : ''), 'success');
+        }
+        // Statusbar + Liste + Live-Slip aktualisieren. WICHTIG: loadLohnSlip
+        // IMMER mit allen 4 Parametern (Walter-Bug 03.08.2026 — mit nur einem
+        // Parameter lehnt der Server ab: «One or more validation errors»).
+        await lohnWfRefresh();
+        lzInit(empId, cid, y, m);
+        loadLohnSlip(empId, cid, y, m);
+    } catch (e) {
+        showErr('Netzwerkfehler: ' + (e?.message || e));
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
     }
 }
 
