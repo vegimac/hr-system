@@ -43,7 +43,7 @@ public class LohnKontoMappingController : ControllerBase
                 m.Fibukonto, m.Gegenkonto,
                 m.KostenstelleNr, m.KostenstelleName,
                 m.Bezeichnung, m.IsVormonat, m.SortOrder,
-                m.MwstKonto, m.MwstCode
+                m.MwstKonto, m.MwstCode, m.MwstProzent
             })
             .ToListAsync();
         return Ok(rows);
@@ -61,7 +61,7 @@ public class LohnKontoMappingController : ControllerBase
 
     public record MappingEditDto(
         string Fibukonto, string Gegenkonto, string? Bezeichnung,
-        string? MwstKonto = null, string? MwstCode = null);
+        string? MwstKonto = null, string? MwstCode = null, decimal? MwstProzent = null);
 
     // PUT /api/lohn-konto-mapping/{id}  → Konto-Korrektur (Konten + Text +
     // MWST-Konfiguration für den Abacus-Export; Schlüsselfelder Position/
@@ -84,8 +84,9 @@ public class LohnKontoMappingController : ControllerBase
         m.Gegenkonto = dto.Gegenkonto.Trim();
         m.MwstKonto  = mk;
         m.MwstCode   = mc;
+        m.MwstProzent = mk == null ? null : (dto.MwstProzent ?? 0m);
         if (!string.IsNullOrWhiteSpace(dto.Bezeichnung)) m.Bezeichnung = dto.Bezeichnung.Trim();
         await _db.SaveChangesAsync();
-        return Ok(new { m.Id, m.Fibukonto, m.Gegenkonto, m.Bezeichnung, m.MwstKonto, m.MwstCode });
+        return Ok(new { m.Id, m.Fibukonto, m.Gegenkonto, m.Bezeichnung, m.MwstKonto, m.MwstCode, m.MwstProzent });
     }
 }

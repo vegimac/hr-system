@@ -49,6 +49,15 @@ public class LohnKontoMapping
     /// <summary>Abacus-MWST-Code (z.B. 200 = 0% MWST). NULL = keine Steuerfelder.</summary>
     public string? MwstCode { get; set; }
 
+    /// <summary>
+    /// MWST-Prozent (aus Mirus «Mwst. Prozent»): 0 für Code 200; 8.1 für die
+    /// Naturallohn-/Privatanteil-Zeilen (Code 311, Konto 2065, Position 600).
+    /// Der AbaConnect-Export schreibt aktuell NUR 0%-TaxData — Zeilen mit
+    /// Prozent &gt; 0 werden dort übersprungen (das Journal bucht diese
+    /// Lohnarten heute ohnehin nicht; bei Bedarf TaxData-Mathematik ergänzen).
+    /// </summary>
+    public decimal? MwstProzent { get; set; }
+
     public bool SollBuchung { get; set; } = true;
 
     public int SortOrder { get; set; }

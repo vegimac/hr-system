@@ -65,8 +65,9 @@ function kpRender() {
             const vorm = m.isVormonat ? '<span style="color:#b45309;font-size:10.5px;font-weight:600">Vormonat</span>' : '';
             // MWST-Konfiguration für den Abacus-Export (Treuhänder 05.08.2026):
             // Badge «MWST 1067 / 200» wenn gesetzt — editierbar via kpEdit.
+            const pz = (m.mwstProzent != null && Number(m.mwstProzent) > 0) ? ` · ${Number(m.mwstProzent)}%` : '';
             const mwst = m.mwstKonto
-                ? `<span style="background:#ecfdf5;color:#047857;padding:1px 7px;border-radius:7px;font-size:10.5px;font-weight:600;white-space:nowrap" title="Abacus: TaxAccount ${esc(m.mwstKonto)}, TaxCode ${esc(m.mwstCode)}">MWST ${esc(m.mwstKonto)} / ${esc(m.mwstCode)}</span>`
+                ? `<span style="background:#ecfdf5;color:#047857;padding:1px 7px;border-radius:7px;font-size:10.5px;font-weight:600;white-space:nowrap" title="Abacus: TaxAccount ${esc(m.mwstKonto)}, TaxCode ${esc(m.mwstCode)}${pz}">MWST ${esc(m.mwstKonto)} / ${esc(m.mwstCode)}${pz}</span>`
                 : '';
             body += `<tr data-id="${m.id}" style="border-top:1px solid #f1f5f9">
                 <td style="padding:6px 10px;color:#64748b">${m.subPosition ?? '—'}</td>
@@ -104,7 +105,9 @@ function kpEdit(id) {
         <span style="font-size:10.5px;color:#64748b">MWST-Kto</span>
         <input id="kpMwstKto_${id}" value="${esc(m.mwstKonto || '')}" placeholder="1067" style="width:52px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">
         <span style="font-size:10.5px;color:#64748b">Code</span>
-        <input id="kpMwstCode_${id}" value="${esc(m.mwstCode || '')}" placeholder="200" style="width:44px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
+        <input id="kpMwstCode_${id}" value="${esc(m.mwstCode || '')}" placeholder="200" style="width:44px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">
+        <span style="font-size:10.5px;color:#64748b">%</span>
+        <input id="kpMwstPz_${id}" value="${m.mwstProzent != null ? Number(m.mwstProzent) : ''}" placeholder="0" style="width:38px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
     const actionCell = row.lastElementChild;
     actionCell.innerHTML = `<button class="btn-link" style="font-size:11.5px;color:#16a34a;background:none;border:none;cursor:pointer" onclick="kpSave(${id})">✓ speichern</button>
         <button class="btn-link" style="font-size:11.5px;color:#94a3b8;background:none;border:none;cursor:pointer" onclick="kpRender()">✕</button>`;
@@ -116,16 +119,19 @@ async function kpSave(id) {
     const bezeichnung = document.getElementById(`kpBez_${id}`)?.value.trim();
     const mwstKonto  = document.getElementById(`kpMwstKto_${id}`)?.value.trim() || '';
     const mwstCode   = document.getElementById(`kpMwstCode_${id}`)?.value.trim() || '';
+    const pzRaw      = (document.getElementById(`kpMwstPz_${id}`)?.value || '').trim().replace(',', '.');
+    const mwstProzent = pzRaw === '' ? null : parseFloat(pzRaw);
     if (!fibukonto || !gegenkonto) { alert('Soll- und Gegenkonto sind Pflicht.'); return; }
     if ((mwstKonto === '') !== (mwstCode === '')) {
         alert('MWST-Konto und MWST-Code entweder beide ausfüllen oder beide leer lassen.');
         return;
     }
+    if (pzRaw !== '' && !Number.isFinite(mwstProzent)) { alert('MWST-Prozent ist keine gültige Zahl.'); return; }
     try {
         const r = await fetch(`/api/lohn-konto-mapping/${id}`, {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fibukonto, gegenkonto, bezeichnung, mwstKonto, mwstCode })
+            body: JSON.stringify({ fibukonto, gegenkonto, bezeichnung, mwstKonto, mwstCode, mwstProzent })
         });
         if (!r.ok) {
             const j = await r.json().catch(() => ({}));
@@ -136,6 +142,7 @@ async function kpSave(id) {
         if (m) {
             m.fibukonto = fibukonto; m.gegenkonto = gegenkonto; m.bezeichnung = bezeichnung;
             m.mwstKonto = mwstKonto || null; m.mwstCode = mwstCode || null;
+            m.mwstProzent = mwstKonto ? (mwstProzent ?? 0) : null;
         }
         kpRender();
         if (typeof showToast === 'function') showToast('Konto gespeichert ✓', 'success');

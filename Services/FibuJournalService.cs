@@ -931,10 +931,15 @@ public class FibuJournalService
 
         // MWST-Konfiguration aus dem Kontoplan: (Soll, Gegen) → (MwstKonto, MwstCode).
         // Mehrere Zeilen mit demselben Konten-Paar (verschiedene KSt) haben per
-        // Seed dieselbe Konfiguration — erste gesetzte gewinnt.
+        // Seed dieselbe Konfiguration — erste gesetzte gewinnt. NUR 0%-Codes:
+        // die 8.1%-Naturallohn-Zeilen (Code 311, Position 600) bucht das
+        // Journal heute nicht, und deren TaxData-Form (Steuerbetrag!) ist ohne
+        // Mirus-Referenz nicht verifizierbar — kämen sie ins Journal, würden
+        // sie hier bewusst OHNE Steuerfelder exportiert statt falsch.
         var taxConfig = new Dictionary<(string, string), (string, string)>();
         var mwstRows = await _db.LohnKontoMappings.AsNoTracking()
-            .Where(m => m.IsActive && m.MwstKonto != null && m.MwstCode != null)
+            .Where(m => m.IsActive && m.MwstKonto != null && m.MwstCode != null
+                     && (m.MwstProzent == null || m.MwstProzent == 0))
             .Select(m => new { m.Fibukonto, m.Gegenkonto, m.MwstKonto, m.MwstCode })
             .ToListAsync();
         foreach (var m in mwstRows)

@@ -1079,6 +1079,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsVormonat).HasColumnName("is_vormonat").HasDefaultValue(false);
             entity.Property(e => e.MwstKonto).HasColumnName("mwst_konto").HasMaxLength(10);
             entity.Property(e => e.MwstCode).HasColumnName("mwst_code").HasMaxLength(10);
+            entity.Property(e => e.MwstProzent).HasColumnName("mwst_prozent").HasColumnType("numeric(5,2)");
             entity.Property(e => e.SollBuchung).HasColumnName("soll_buchung").HasDefaultValue(true);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");

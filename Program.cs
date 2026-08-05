@@ -386,14 +386,25 @@ using (var scope = app.Services.CreateScope())
     // sowie Buchungsnummer pro Lohnperiode (DocumentNumber im AbaConnect-XML).
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE lohn_konto_mapping
-        ADD COLUMN IF NOT EXISTS mwst_konto varchar(10),
-        ADD COLUMN IF NOT EXISTS mwst_code  varchar(10);
+        ADD COLUMN IF NOT EXISTS mwst_konto   varchar(10),
+        ADD COLUMN IF NOT EXISTS mwst_code    varchar(10),
+        ADD COLUMN IF NOT EXISTS mwst_prozent numeric(5,2);
     ");
     db.Database.ExecuteSqlRaw(@"
         UPDATE lohn_konto_mapping
-        SET mwst_konto = '1067', mwst_code = '200'
+        SET mwst_konto = '1067', mwst_code = '200', mwst_prozent = 0
         WHERE mwst_konto IS NULL AND mwst_code IS NULL
           AND fibukonto LIKE '4%' AND gegenkonto = '1920';
+    ");
+    // Mirus export.xls (Walter 05.08.2026): Position 600 (Naturallohn
+    // Verpflegung / Privatanteil Geschäftswagen) trägt Code 311 / 8.1% /
+    // Konto 2065. Wird vom Journal heute nicht gebucht — Konfiguration
+    // trotzdem vollständig übernehmen.
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE lohn_konto_mapping
+        SET mwst_konto = '2065', mwst_code = '311', mwst_prozent = 8.1
+        WHERE mwst_konto IS NULL AND mwst_code IS NULL
+          AND position = 600 AND fibukonto = '1920';
     ");
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE payroll_periode
