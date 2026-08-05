@@ -1514,6 +1514,7 @@ function loadUebersichtTab() {
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
             <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
+            <span class="ov-vsms" id="ovVsms_${c.id}" style="font-size:11px;color:#8b8b8b;white-space:nowrap;margin-left:auto;padding-right:6px"></span>
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
@@ -1545,8 +1546,41 @@ function loadUebersichtTab() {
         : `<div class="ov-full">${kPers}</div>${kAnst}${kNacht}<div class="ov-vertraege-ktg">${kVert}${kSaldi}</div><div class="ov-addr-full">${kAddr}</div>`}</div>`;
     if (!emp.isPayrollExcluded && typeof loadEmployeeAddressesTab === 'function')
         loadEmployeeAddressesTab(emp.id);
-    if (!emp.isPayrollExcluded)
+    if (!emp.isPayrollExcluded) {
         loadOvSaldi(emp.id);
+        loadOvVertragSms(emp.id);
+    }
+}
+
+// SMS-/Link-Status in der Vertragszeile (Walter 05.08.2026): NUR wenn
+// wirklich eine Vertrags-SMS versendet wurde (sms_log) — Link-only-Erzeugung
+// oder gar kein Versand zeigt nichts. Best-effort nach dem Render.
+async function loadOvVertragSms(employeeId) {
+    try {
+        const r = await fetch(`/api/contract-share/status-by-employee?employeeId=${employeeId}`, { headers: ah() });
+        if (!r.ok) return;
+        const s = await r.json();
+        if (!s.lastSmsSentAt || !Array.isArray(s.tokens)) return; // nie eine SMS raus → nichts anzeigen
+        const f = ts => {
+            const d = new Date(ts);
+            return isNaN(d.getTime()) ? '' :
+                d.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' }) +
+                ' ' + d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+        };
+        for (const t of s.tokens) {
+            const el = document.getElementById(`ovVsms_${t.employmentId}`);
+            if (!el) continue;
+            let html = `📲 ${f(t.createdAt)}`;
+            if (t.openedAt) {
+                html += ` · 👁 geöffnet ${f(t.openedAt)}`;
+                if (t.usedAt) html += ' · 📄 PDF ✓';
+            } else {
+                html += ' · <span style="color:#b45309">noch nicht geöffnet</span>';
+            }
+            el.innerHTML = html;
+            el.title = 'Vertrags-SMS: gesendet' + (t.openedAt ? ' · Link geöffnet' + (t.usedAt ? ' · PDF abgerufen' : '') : ' · Link noch nicht geöffnet');
+        }
+    } catch (_) { /* Status ist nur Komfort */ }
 }
 
 // Inline-Edit in der Uebersicht (Walter 17.07.2026): Speichern liest ov-*

@@ -174,6 +174,34 @@ public class ContractShareController : ControllerBase
         return Ok(new { lastSmsSentAt = lastSms, activeLink = active });
     }
 
+    // ── HR: SMS-/Link-Status ALLER Verträge eines MA in einem Aufruf ────────
+    // (Walter 05.08.2026): für die Vertragszeile in der MA-Übersicht —
+    // «gesendet · geöffnet · PDF». NUR Verträge, zu denen je ein Token
+    // existiert; ob wirklich eine SMS raus ist, entscheidet das Frontend
+    // über lastSmsSentAt (Link-only-Erzeugung ohne SMS zeigt nichts).
+    [HttpGet("status-by-employee")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> StatusByEmployee([FromQuery] int employeeId)
+    {
+        var lastSms = await _db.SmsLogs.AsNoTracking()
+            .Where(l => l.EmployeeId == employeeId && l.Purpose == "VERTRAG" && l.Ok)
+            .OrderByDescending(l => l.CreatedAt)
+            .Select(l => (DateTime?)l.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        // Neuester Token pro Vertrag (auch abgelaufene/ersetzte — der
+        // Öffnungs-Status des letzten Versands bleibt sichtbar).
+        var tokens = await _db.ContractShareTokens.AsNoTracking()
+            .Where(t => t.EmployeeId == employeeId)
+            .GroupBy(t => t.EmploymentId)
+            .Select(g => g.OrderByDescending(t => t.CreatedAt)
+                .Select(t => new { t.EmploymentId, t.CreatedAt, t.ExpiresAt, t.OpenedAt, t.UsedAt, t.RevokedAt })
+                .First())
+            .ToListAsync();
+
+        return Ok(new { lastSmsSentAt = lastSms, tokens });
+    }
+
     // ── HR: alle aktiven Links dieses Vertrags widerrufen (Punkt 2) ─────────
     [HttpPost("revoke")]
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
