@@ -1495,23 +1495,40 @@ public class EmployeesController : ControllerBase
             "DELETE FROM employee WHERE id = {0}", id);
     }
 
-    // ── Archiv-MA aufräumen (Walter 05.08.2026) ─────────────────────────────
-    // Löscht ALLE Pre-Mirus-Archiv-MA (Personalnummer endet auf «alt», z.B.
-    // 750586alt — angelegt via Archiv-Import). Sicherheitsnetz:
-    //   • MA mit Lohn-Daten (Snapshot/Saldo/Akonto) werden NIE gelöscht.
-    //   • MA mit Dokumenten werden übersprungen und namentlich gemeldet —
-    //     Walter-Annahme «die sollten keine Dokumente haben» wird geprüft,
-    //     nicht blind vollstreckt.
+    // ── Prä-Mirus-Karteileichen aufräumen (Walter 05.08.2026, final) ────────
+    // Löscht ALLE inaktiven MA, deren letzte Anstellungs-Spur (Vertragsende/
+    // Austritt) VOR dem 01.01.2025 (Mirus-Start) liegt — egal ob die Nummer
+    // «…alt», «999…» oder normal ist. Sicherheitsnetz:
+    //   • aktive MA / offene Verträge: nie angefasst
+    //   • MA ohne jegliches Datum: übersprungen («kein Datum» ≠ «alt»)
+    //   • Stempelzeiten / Lohn-Daten: nie gelöscht
+    //   • Dokumente: übersprungen und namentlich gemeldet
+    // Wiederkehr-Schutz: der Nacht-Sync holt nur HEUTE aktive easy-MA —
+    // gelöschte Karteileichen kommen nicht zurück.
     // dryRun=true (Default) = nur Vorschau, es wird NICHTS gelöscht.
-    // Hinweis easy@work: die dortigen 999750xx-Dossiers sind eigene MA-Nummern
-    // und von diesem Aufräumen nicht betroffen.
     [HttpPost("cleanup-archiv")]
     [Microsoft.AspNetCore.Authorization.Authorize(Roles = "admin")]
     public async Task<IActionResult> CleanupArchiv([FromQuery] bool dryRun = true)
     {
+        // Prä-Mirus-Grenze (Walter 05.08.2026): Mirus-Einführung = 01.01.2025.
+        // Ein «alt»-MA ist nur löschbar, wenn seine LETZTE Anstellungs-Spur
+        // (Vertragsende/Austritt) VOR diesem Datum liegt. Die easy@work-
+        // Verknüpfung allein blockiert NICHT (praktisch alle Alt-Importe
+        // wurden per Duplikat-Merge verknüpft) — der Nacht-Sync zieht ohnehin
+        // nur die HEUTE aktiven easy-MA, gelöschte Karteileichen kommen also
+        // nicht zurück. Merge-Fälle mit echter Mirus-Ära-Historie (z.B.
+        // Sweeba Akhtar: Wiedereintritt bis 2026) sind über Vertragsdaten/
+        // Stempelzeiten geschützt.
+        var mirusStart = new DateTime(2025, 1, 1);
+
+        // Kriterium (Walter 05.08.2026, final): NICHT die Nummer entscheidet,
+        // sondern die letzte Anstellungs-Spur — ALLE inaktiven MA mit Austritt/
+        // Vertragsende VOR dem 01.01.2025 (Mirus-Start) werden erfasst, egal ob
+        // «…alt», «999…» oder normale Nummer. MA ohne jegliches Datum bleiben
+        // stehen («kein Datum» ist kein Beweis für «alt»).
         var alts = await _context.Employees.AsNoTracking()
-            .Where(e => e.EmployeeNumber != null && EF.Functions.ILike(e.EmployeeNumber, "%alt"))
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.EasyAtWorkEmployeeId, e.IsActive })
+            .Where(e => !e.IsHidden)
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.IsActive, e.ExitDate })
             .OrderBy(e => e.EmployeeNumber)
             .ToListAsync();
 
@@ -1520,20 +1537,43 @@ public class EmployeesController : ControllerBase
         var mitEaw  = new List<object>();
         var loeschbar = new List<(int Id, string Label)>();
 
+        int geprueft = 0;
         foreach (var e in alts)
         {
+            // Aktive MA sind nie Kandidaten — gar nicht erst auflisten.
+            if (e.IsActive) continue;
+            geprueft++;
             var label = $"{e.EmployeeNumber} — {e.FirstName} {e.LastName}";
 
-            // Merge-Schutz (Walter-Fund 05.08.2026, Sweeba Akhtar 581039alt):
-            // Wiedereintritte wurden per Duplikat-Merge mit dem easy@work-MA
-            // zusammengeführt — das Dossier trägt dann zwar die alt-Nummer,
-            // ist aber ein ECHTER MA (easy@work-Verknüpfung, Stempelzeiten).
-            // Solche NIE löschen.
-            bool hatEaw     = e.EasyAtWorkEmployeeId != null;
-            bool hatStempel = !hatEaw && await _context.EmployeeTimeEntries.AnyAsync(t => t.EmployeeId == e.Id);
-            if (hatEaw || hatStempel || e.IsActive)
+            var vertragsEnden = await _context.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == e.Id)
+                .Select(em => em.ContractEndDate)
+                .ToListAsync();
+            bool offenerVertrag = vertragsEnden.Any(x => x == null);
+            if (offenerVertrag)
             {
-                mitEaw.Add(new { e.Id, label, grund = hatEaw ? "easy@work-verknüpft (Merge)" : hatStempel ? "hat Stempelzeiten" : "ist aktiv" });
+                mitEaw.Add(new { e.Id, label, grund = "hat offenen Vertrag" });
+                continue;
+            }
+
+            // Letzte Anstellungs-Spur = spätestes Datum aus Vertragsende/Austritt.
+            var maxEnde = vertragsEnden.Where(x => x != null).DefaultIfEmpty(null).Max();
+            var spur = (maxEnde.HasValue && e.ExitDate.HasValue)
+                ? (maxEnde.Value > e.ExitDate.Value ? maxEnde : e.ExitDate)
+                : (maxEnde ?? e.ExitDate);
+            if (!spur.HasValue)
+            {
+                mitEaw.Add(new { e.Id, label, grund = "kein Austritts-/Vertragsdatum — bitte manuell prüfen" });
+                continue;
+            }
+            if (spur.Value >= mirusStart)
+            {
+                mitEaw.Add(new { e.Id, label, grund = $"Anstellung bis {spur.Value:dd.MM.yyyy} (Mirus-Ära)" });
+                continue;
+            }
+            if (await _context.EmployeeTimeEntries.AnyAsync(t => t.EmployeeId == e.Id))
+            {
+                mitEaw.Add(new { e.Id, label, grund = "hat Stempelzeiten" });
                 continue;
             }
 
@@ -1553,7 +1593,7 @@ public class EmployeesController : ControllerBase
             return Ok(new
             {
                 dryRun = true,
-                total = alts.Count,
+                total = geprueft,
                 loeschbar = loeschbar.Select(x => x.Label).ToList(),
                 uebersprungenLohn = mitLohn,
                 uebersprungenDokumente = mitDok,
@@ -1582,7 +1622,7 @@ public class EmployeesController : ControllerBase
         return Ok(new
         {
             dryRun = false,
-            total = alts.Count,
+            total = geprueft,
             geloescht = deleted,
             uebersprungenLohn = mitLohn,
             uebersprungenDokumente = mitDok,
