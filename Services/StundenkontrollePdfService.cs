@@ -270,13 +270,11 @@ public class StundenkontrollePdfService
                     });
                 });
 
-                page.Footer().AlignCenter().Text(t =>
-                {
-                    t.Span("Bitte unterschriebenes Blatt dem GF / HR zurückgeben · Seite ").FontSize(7.5f).FontColor(Muted);
-                    t.CurrentPageNumber().FontSize(7.5f).FontColor(Muted);
-                    t.Span(" / ").FontSize(7.5f).FontColor(Muted);
-                    t.TotalPages().FontSize(7.5f).FontColor(Muted);
-                });
+                // Ohne Seitenzahl (Walter 04.08.2026) — im Sammel-PDF aller MA
+                // wäre eine fortlaufende Seitennummer ohnehin irreführend.
+                page.Footer().AlignCenter()
+                    .Text("Bitte unterschriebenes Blatt dem GF / HR zurückgeben")
+                    .FontSize(7.5f).FontColor(Muted);
             });
         }).GeneratePdf();
     }

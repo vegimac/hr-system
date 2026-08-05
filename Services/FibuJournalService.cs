@@ -768,30 +768,41 @@ public class FibuJournalService
     // Soll/Haben-getauscht (auch Mirus liefert sie, z.B. Überstunden-Korrektur
     // mit TaxCode). XML via XElement → korrektes Escaping der Texte.
     //
-    // MWST-Felder (Treuhänder-Analyse 04.08.2026, aus der Mirus-Referenz):
-    // ALLE Personalaufwand-Buchungen (Soll 4xxx / Gegen 1920 — Bruttolöhne,
-    // ausbezahlte Ferien/Feiertage, Überstunden/Nacht, Karenzentschädigungen,
-    // Ferien-/Feiertagsentschädigungen) tragen zusätzlich:
-    //   • Aufwand-Seite (CI):  <TaxAccount>1067</TaxAccount>
-    //   • 1920-Seite (SI):     <TaxAccount>1920</TaxAccount> + <TaxData> mit
-    //     TaxCode 200, Country CH, TaxIncluded I, Betrag/Satz 0 (Null-MWST-
-    //     Deklaration — Lohn ist nicht steuerbar, Abacus will den Code trotzdem).
-    // RST-Zeilen (4xxx↔2019/2017/2016), AG-Beiträge (406x→20xx), Abzüge
-    // (1920→2xxx) und Umgliederungen (2014/2016/2017/2071→1920) haben in der
-    // Mirus-Referenz KEINE Steuerfelder → bei uns ebenso.
+    // MWST-Felder (Treuhänder-Vorgabe Simone 05.08.2026): je nach Abacus-
+    // Kontostamm ist ein MWST-Code ZWINGEND — ohne MWST ist es Code 200
+    // (0% MWST). Die Konfiguration hängt wie im Mirus-Fibukonto-Dialog
+    // («Mehrwertsteuer»: Mwst-Fibukonto 1067, Code 200, Prozent 0.00) an der
+    // KONTOPLAN-Zeile: lohn_konto_mapping.mwst_konto + mwst_code, editierbar
+    // in Systemeinstellungen → Kontoplan (Fibu). Der Seed setzt 1067/200 auf
+    // alle Personalaufwand-Zeilen (Soll 4xxx / Gegen 1920) — deckungsgleich
+    // mit der Mirus-Referenzdatei (dort tragen exakt diese Buchungen die
+    // Steuerfelder; RST-Zeilen, AG-Beiträge, Abzüge und Umgliederungen nicht).
+    // Auf der Buchung heisst das:
+    //   • Aufwand-Seite (CI):  <TaxAccount>{mwst_konto}</TaxAccount>
+    //   • Gegen-Seite   (SI):  <TaxAccount>{Gegenkonto}</TaxAccount> +
+    //     <TaxData> mit TaxCode {mwst_code}, Country CH, TaxIncluded I,
+    //     Betrag/Satz 0 (Null-MWST-Deklaration).
+    //
+    // Buchungsnummer (Treuhänder-Vorgabe 05.08.2026): DocumentNumber auf
+    // BEIDEN Buchungsseiten jeder Transaktion — eine Nummer pro Lohnlauf
+    // (Mirus-Referenz: 50006), persistiert in payroll_periode.fibu_buchungsnummer.
     // ══════════════════════════════════════════════════════════════════════
 
-    // Mandant-Konstanten aus der Mirus-Referenzdatei (Schaub Restaurants GmbH).
-    // Sollte der Treuhänder den Abacus-Mandanten umstellen, hier anpassen.
-    private const string AbaTaxAccountAufwand = "1067";
-    private const string AbaTaxCode           = "200";
-
-    /// <summary>Statisch + seiteneffektfrei — unit-testbar (Tests/AbaConnectExportTests).</summary>
-    public static string BuildAbaConnectXml(IReadOnlyList<JournalLine> lines, DateOnly entryDate)
+    /// <summary>
+    /// Statisch + seiteneffektfrei — unit-testbar (Tests/AbaConnectExportTests).
+    /// <paramref name="taxConfig"/>: (SollKonto, Gegenkonto) → (MwstKonto, MwstCode)
+    /// aus dem Kontoplan; Buchungen ohne Eintrag bleiben ohne Steuerfelder.
+    /// </summary>
+    public static string BuildAbaConnectXml(
+        IReadOnlyList<JournalLine> lines,
+        DateOnly entryDate,
+        string? documentNumber = null,
+        IReadOnlyDictionary<(string Soll, string Gegen), (string MwstKonto, string MwstCode)>? taxConfig = null)
     {
         static string Amt(decimal v) =>
             v.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture);
         string datum = entryDate.ToString("yyyy-MM-dd");
+        string docNr = documentNumber?.Trim() ?? "";
 
         var task = new System.Xml.Linq.XElement("Task",
             new System.Xml.Linq.XElement("Parameter",
@@ -804,8 +815,10 @@ public class FibuJournalService
         foreach (var l in lines)
         {
             id++;
-            // MWST-Felder nur auf Personalaufwand → Durchlaufkonto (Mirus-Muster).
-            bool mitTax = l.Soll.StartsWith("4") && l.Gegen == "1920";
+            // MWST-Felder aus der Kontoplan-Konfiguration (Soll+Gegen-Paar) —
+            // per Seed sind das die Personalaufwand-Zeilen 4xxx→1920 (Mirus-Muster).
+            (string MwstKonto, string MwstCode) tax = default;
+            bool mitTax = taxConfig != null && taxConfig.TryGetValue((l.Soll, l.Gegen), out tax);
 
             var ci = new System.Xml.Linq.XElement("CollectiveInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
                 new System.Xml.Linq.XElement("EntryLevel", "A"),
@@ -823,14 +836,14 @@ public class FibuJournalService
                 new System.Xml.Linq.XElement("KeyAmount", Amt(l.Betrag)),
                 new System.Xml.Linq.XElement("Account", l.Soll));
             if (mitTax)
-                ci.Add(new System.Xml.Linq.XElement("TaxAccount", AbaTaxAccountAufwand));
+                ci.Add(new System.Xml.Linq.XElement("TaxAccount", tax.MwstKonto));
             ci.Add(
                 new System.Xml.Linq.XElement("BookingLevel1", "0"),
                 new System.Xml.Linq.XElement("BookingLevel2", "0"),
                 new System.Xml.Linq.XElement("BookingLevel3", "0"),
                 new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
                 new System.Xml.Linq.XElement("Text2", ""),
-                new System.Xml.Linq.XElement("DocumentNumber", ""),
+                new System.Xml.Linq.XElement("DocumentNumber", docNr),
                 new System.Xml.Linq.XElement("SingleCount", "0"));
 
             var si = new System.Xml.Linq.XElement("SingleInformation", new System.Xml.Linq.XAttribute("mode", "SAVE"),
@@ -851,7 +864,7 @@ public class FibuJournalService
                 new System.Xml.Linq.XElement("BookingLevel3", "0"),
                 new System.Xml.Linq.XElement("Text1", l.Bezeichnung),
                 new System.Xml.Linq.XElement("Text2", ""),
-                new System.Xml.Linq.XElement("DocumentNumber", ""),
+                new System.Xml.Linq.XElement("DocumentNumber", docNr),
                 new System.Xml.Linq.XElement("SelectionCode", ""));
             if (mitTax)
                 si.Add(new System.Xml.Linq.XElement("TaxData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
@@ -865,7 +878,7 @@ public class FibuJournalService
                     new System.Xml.Linq.XElement("TaxRate", "0"),
                     new System.Xml.Linq.XElement("TaxCoefficient", "0"),
                     new System.Xml.Linq.XElement("Country", "CH"),
-                    new System.Xml.Linq.XElement("TaxCode", AbaTaxCode),
+                    new System.Xml.Linq.XElement("TaxCode", tax.MwstCode),
                     new System.Xml.Linq.XElement("FlatRate", "0")));
             si.Add(new System.Xml.Linq.XElement("NoteData", new System.Xml.Linq.XAttribute("mode", "SAVE"),
                 new System.Xml.Linq.XElement("Text", "")));
@@ -907,12 +920,27 @@ public class FibuJournalService
     /// Journal rechnen + als AbaConnect-XML-Bytes (UTF-8) liefern.
     /// <paramref name="entryDate"/> = FIBU-Buchungsdatum (wählbar im UI);
     /// null → Periodenende als Default.
+    /// <paramref name="documentNumber"/> = Abacus-Buchungsnummer (DocumentNumber
+    /// auf beiden Buchungsseiten; null/leer = kein Eintrag).
     /// </summary>
     public async Task<(byte[] Xml, JournalResult Journal)> GenerateAbaConnectXmlAsync(
-        int companyProfileId, int year, int month, DateOnly? entryDate = null)
+        int companyProfileId, int year, int month,
+        DateOnly? entryDate = null, string? documentNumber = null)
     {
         var r = await GenerateAsync(companyProfileId, year, month);
-        var xml = BuildAbaConnectXml(r.Lines, entryDate ?? r.Periode.PeriodTo);
+
+        // MWST-Konfiguration aus dem Kontoplan: (Soll, Gegen) → (MwstKonto, MwstCode).
+        // Mehrere Zeilen mit demselben Konten-Paar (verschiedene KSt) haben per
+        // Seed dieselbe Konfiguration — erste gesetzte gewinnt.
+        var taxConfig = new Dictionary<(string, string), (string, string)>();
+        var mwstRows = await _db.LohnKontoMappings.AsNoTracking()
+            .Where(m => m.IsActive && m.MwstKonto != null && m.MwstCode != null)
+            .Select(m => new { m.Fibukonto, m.Gegenkonto, m.MwstKonto, m.MwstCode })
+            .ToListAsync();
+        foreach (var m in mwstRows)
+            taxConfig.TryAdd((m.Fibukonto, m.Gegenkonto), (m.MwstKonto!, m.MwstCode!));
+
+        var xml = BuildAbaConnectXml(r.Lines, entryDate ?? r.Periode.PeriodTo, documentNumber, taxConfig);
         return (System.Text.Encoding.UTF8.GetBytes(xml), r);
     }
 }

@@ -63,13 +63,18 @@ function kpRender() {
                 ? `<span style="background:${kstBg};padding:1px 7px;border-radius:7px;font-size:11px;font-weight:600;white-space:nowrap">${esc(m.kostenstelleNr)} ${esc(m.kostenstelleName || '')}</span>`
                 : '<span style="color:#94a3b8;font-size:11px">alle</span>';
             const vorm = m.isVormonat ? '<span style="color:#b45309;font-size:10.5px;font-weight:600">Vormonat</span>' : '';
+            // MWST-Konfiguration für den Abacus-Export (Treuhänder 05.08.2026):
+            // Badge «MWST 1067 / 200» wenn gesetzt — editierbar via kpEdit.
+            const mwst = m.mwstKonto
+                ? `<span style="background:#ecfdf5;color:#047857;padding:1px 7px;border-radius:7px;font-size:10.5px;font-weight:600;white-space:nowrap" title="Abacus: TaxAccount ${esc(m.mwstKonto)}, TaxCode ${esc(m.mwstCode)}">MWST ${esc(m.mwstKonto)} / ${esc(m.mwstCode)}</span>`
+                : '';
             body += `<tr data-id="${m.id}" style="border-top:1px solid #f1f5f9">
                 <td style="padding:6px 10px;color:#64748b">${m.subPosition ?? '—'}</td>
                 <td style="padding:6px 10px">${kstLabel}</td>
                 <td style="padding:6px 10px"><span class="kp-bez">${esc(m.bezeichnung)}</span></td>
                 <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#166534"><span class="kp-soll">${esc(m.fibukonto)}</span></td>
                 <td style="padding:6px 10px;font-family:monospace;font-weight:700;color:#b91c1c"><span class="kp-gegen">${esc(m.gegenkonto)}</span></td>
-                <td style="padding:6px 10px">${vorm}</td>
+                <td class="kp-extra" style="padding:6px 10px">${vorm}${vorm && mwst ? ' ' : ''}${mwst}</td>
                 <td style="padding:6px 10px;text-align:right">
                     <div style="position:relative;display:inline-block">
                         <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'kp-${m.id}')" title="Aktionen">⋮</button>
@@ -93,6 +98,13 @@ function kpEdit(id) {
     row.querySelector('.kp-soll').innerHTML  = `<input id="kpSoll_${id}"  value="${esc(m.fibukonto)}"  style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
     row.querySelector('.kp-gegen').innerHTML = `<input id="kpGegen_${id}" value="${esc(m.gegenkonto)}" style="width:60px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
     row.querySelector('.kp-bez').innerHTML   = `<input id="kpBez_${id}" value="${esc(m.bezeichnung)}" style="width:100%;min-width:180px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px">`;
+    // MWST-Konfiguration (Abacus): beide Felder oder beide leer.
+    const extra = row.querySelector('.kp-extra');
+    if (extra) extra.innerHTML = `
+        <span style="font-size:10.5px;color:#64748b">MWST-Kto</span>
+        <input id="kpMwstKto_${id}" value="${esc(m.mwstKonto || '')}" placeholder="1067" style="width:52px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">
+        <span style="font-size:10.5px;color:#64748b">Code</span>
+        <input id="kpMwstCode_${id}" value="${esc(m.mwstCode || '')}" placeholder="200" style="width:44px;padding:2px 4px;border:1px solid #d0c8b8;border-radius:5px;font-family:monospace">`;
     const actionCell = row.lastElementChild;
     actionCell.innerHTML = `<button class="btn-link" style="font-size:11.5px;color:#16a34a;background:none;border:none;cursor:pointer" onclick="kpSave(${id})">✓ speichern</button>
         <button class="btn-link" style="font-size:11.5px;color:#94a3b8;background:none;border:none;cursor:pointer" onclick="kpRender()">✕</button>`;
@@ -102,12 +114,18 @@ async function kpSave(id) {
     const fibukonto  = document.getElementById(`kpSoll_${id}`)?.value.trim();
     const gegenkonto = document.getElementById(`kpGegen_${id}`)?.value.trim();
     const bezeichnung = document.getElementById(`kpBez_${id}`)?.value.trim();
+    const mwstKonto  = document.getElementById(`kpMwstKto_${id}`)?.value.trim() || '';
+    const mwstCode   = document.getElementById(`kpMwstCode_${id}`)?.value.trim() || '';
     if (!fibukonto || !gegenkonto) { alert('Soll- und Gegenkonto sind Pflicht.'); return; }
+    if ((mwstKonto === '') !== (mwstCode === '')) {
+        alert('MWST-Konto und MWST-Code entweder beide ausfüllen oder beide leer lassen.');
+        return;
+    }
     try {
         const r = await fetch(`/api/lohn-konto-mapping/${id}`, {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fibukonto, gegenkonto, bezeichnung })
+            body: JSON.stringify({ fibukonto, gegenkonto, bezeichnung, mwstKonto, mwstCode })
         });
         if (!r.ok) {
             const j = await r.json().catch(() => ({}));
@@ -115,7 +133,10 @@ async function kpSave(id) {
             return;
         }
         const m = _kpRows.find(x => x.id === id);
-        if (m) { m.fibukonto = fibukonto; m.gegenkonto = gegenkonto; m.bezeichnung = bezeichnung; }
+        if (m) {
+            m.fibukonto = fibukonto; m.gegenkonto = gegenkonto; m.bezeichnung = bezeichnung;
+            m.mwstKonto = mwstKonto || null; m.mwstCode = mwstCode || null;
+        }
         kpRender();
         if (typeof showToast === 'function') showToast('Konto gespeichert ✓', 'success');
     } catch (e) {

@@ -38,6 +38,17 @@ public class LohnKontoMapping
     /// <summary>true = Rückstellungs-Auflösung des Vormonats (RST → Aufwand).</summary>
     public bool IsVormonat { get; set; }
 
+    /// <summary>
+    /// MWST-Konto für den Abacus-Export (Treuhänder-Vorgabe 05.08.2026, wie
+    /// Mirus-Fibukonto-Dialog «Mehrwertsteuer»): z.B. 1067. NULL = Buchung
+    /// ohne Steuerfelder. Wird zusammen mit <see cref="MwstCode"/> auf die
+    /// AbaConnect-Buchung geschrieben (TaxAccount + TaxData).
+    /// </summary>
+    public string? MwstKonto { get; set; }
+
+    /// <summary>Abacus-MWST-Code (z.B. 200 = 0% MWST). NULL = keine Steuerfelder.</summary>
+    public string? MwstCode { get; set; }
+
     public bool SollBuchung { get; set; } = true;
 
     public int SortOrder { get; set; }

@@ -29,8 +29,19 @@ public class AbaConnectExportTests
 
     private static readonly DateOnly PeriodEnd = new(2026, 7, 31);
 
+    // MWST-Konfiguration wie der Kontoplan-Seed: Personalaufwand (4xxx→1920)
+    // → TaxAccount 1067 / TaxCode 200. RST-Zeile 4010→2017 bewusst OHNE.
+    private static readonly Dictionary<(string, string), (string, string)> TaxConfig = new()
+    {
+        [("4055", "1920")] = ("1067", "200"),
+        [("4000", "1920")] = ("1067", "200"),
+        [("4001", "1920")] = ("1067", "200"),
+    };
+
+    private const string DocNr = "50006";
+
     private static XDocument Parse() =>
-        XDocument.Parse(FibuJournalService.BuildAbaConnectXml(SampleLines, PeriodEnd));
+        XDocument.Parse(FibuJournalService.BuildAbaConnectXml(SampleLines, PeriodEnd, DocNr, TaxConfig));
 
     [Fact]
     public void Container_und_Parameter_entsprechen_der_Mirus_Vorlage()
@@ -46,9 +57,27 @@ public class AbaConnectExportTests
         Assert.Equal("2014.00",       p.Element("Version")!.Value);
 
         // XML-Declaration muss UTF-8 deklarieren (Datei wird als UTF-8 geliefert).
-        var raw = FibuJournalService.BuildAbaConnectXml(SampleLines, PeriodEnd);
+        var raw = FibuJournalService.BuildAbaConnectXml(SampleLines, PeriodEnd, DocNr, TaxConfig);
         Assert.Contains("encoding=\"UTF-8\"", raw);
         Assert.DoesNotContain("utf-16", raw, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Buchungsnummer_steht_auf_beiden_Buchungsseiten()
+    {
+        // Treuhänder-Vorgabe 05.08.2026 (Mirus-Referenz: 50006 überall):
+        // DocumentNumber auf CollectiveInformation UND SingleInformation
+        // jeder Transaktion.
+        var doc = Parse();
+        foreach (var tx in doc.Descendants("Transaction"))
+        {
+            Assert.Equal(DocNr, tx.Descendants("CollectiveInformation").Single().Element("DocumentNumber")!.Value);
+            Assert.Equal(DocNr, tx.Descendants("SingleInformation").Single().Element("DocumentNumber")!.Value);
+        }
+
+        // Ohne Buchungsnummer bleibt das Feld leer (kein Absturz).
+        var ohne = XDocument.Parse(FibuJournalService.BuildAbaConnectXml(SampleLines, PeriodEnd, null, TaxConfig));
+        Assert.All(ohne.Descendants("DocumentNumber"), d => Assert.Equal("", d.Value));
     }
 
     [Fact]
@@ -109,11 +138,12 @@ public class AbaConnectExportTests
     }
 
     [Fact]
-    public void MwSt_Felder_nur_auf_Personalaufwand_Buchungen()
+    public void MwSt_Felder_nur_auf_konfigurierten_Konten_Paaren()
     {
-        // Mirus-Referenz (Treuhänder-Analyse 04.08.2026): NUR Soll-4xxx→1920-
-        // Buchungen tragen TaxAccount + TaxData (TaxCode 200, Null-MWST) —
-        // Abzüge (1920→2xxx), RST (4xxx↔2019/2017) und Umgliederungen nicht.
+        // Treuhänder-Vorgabe 05.08.2026: MWST-Konfiguration hängt am Kontoplan
+        // (mwst_konto/mwst_code pro Zeile) — per Seed die Personalaufwand-
+        // Zeilen 4xxx→1920 (wie die Mirus-Referenz). Abzüge (1920→2xxx),
+        // RST (4xxx↔2019/2017) und Umgliederungen bleiben ohne Steuerfelder.
         var doc = Parse();
         var txs = doc.Descendants("Transaction").ToList();
 
@@ -145,7 +175,7 @@ public class AbaConnectExportTests
     public void Umlaute_und_Sonderzeichen_werden_korrekt_escaped()
     {
         var lines = new List<JournalLine> { new("4000", "1920", "Brutto & «Sonder» < > ä", 1.00m) };
-        var xml = FibuJournalService.BuildAbaConnectXml(lines, PeriodEnd);
+        var xml = FibuJournalService.BuildAbaConnectXml(lines, PeriodEnd, DocNr, TaxConfig);
         // Muss parsebar bleiben und den Text verlustfrei zurückliefern.
         var doc = XDocument.Parse(xml);
         Assert.Equal("Brutto & «Sonder» < > ä",

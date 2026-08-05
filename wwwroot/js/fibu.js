@@ -32,6 +32,7 @@ async function fibuInit() {
             const r = await fetch(`/api/payroll-perioden?companyProfileId=${fixedCompanyProfileId}`, { headers: ah() });
             if (r.ok) {
                 const list = await r.json();
+                _fibuPerioden = list;
                 const offen = list
                     .filter(p => p.status !== 'abgeschlossen')
                     .sort((a, b) => (a.year - b.year) || (a.month - b.month));
@@ -43,6 +44,25 @@ async function fibuInit() {
     y.value = py;
     m.value = String(pm);
     fibuSyncEntryDate();
+}
+
+// Perioden-Cache der gewählten Filiale (für Buchungsnummer-Prefill).
+let _fibuPerioden = [];
+
+// Buchungsnummer-Prefill (Treuhänder-Vorgabe 05.08.2026): gespeicherte Nummer
+// der gewählten Periode; sonst Vorperioden-Nummer + 1; sonst leer.
+function fibuSyncDocNr() {
+    const el = document.getElementById('fibuDocNr');
+    if (!el) return;
+    const y = parseInt(document.getElementById('fibuYear')?.value || '0', 10);
+    const m = parseInt(document.getElementById('fibuMonth')?.value || '0', 10);
+    if (!y || !m) { el.value = ''; return; }
+    const cur = _fibuPerioden.find(p => p.year === y && p.month === m);
+    if (cur?.fibuBuchungsnummer) { el.value = cur.fibuBuchungsnummer; return; }
+    const py = m === 1 ? y - 1 : y, pm = m === 1 ? 12 : m - 1;
+    const prev = _fibuPerioden.find(p => p.year === py && p.month === pm);
+    const prevNr = parseInt(prev?.fibuBuchungsnummer || '', 10);
+    el.value = Number.isFinite(prevNr) ? String(prevNr + 1) : '';
 }
 
 // Buchungsdatum Abacus (EntryDate im AbaConnect-XML) auf den Monatsletzten
@@ -57,6 +77,7 @@ function fibuSyncEntryDate() {
     if (!d || !y || !m) return;
     const last = new Date(y, m, 0); // Tag 0 des Folgemonats = Monatsletzter
     d.value = `${y}-${String(m).padStart(2, '0')}-${String(last.getDate()).padStart(2, '0')}`;
+    fibuSyncDocNr();
 }
 
 function _fibuParams() {
@@ -89,12 +110,15 @@ async function fibuAbacusExport() {
     const p = _fibuParams(); if (!p) return;
     const statusEl = document.getElementById('fibuStatus');
     if (statusEl) statusEl.textContent = '⏳ Abacus-XML wird erstellt…';
-    // Wählbares FIBU-Buchungsdatum (leer → Server-Default Monatsletzter).
+    // Wählbares FIBU-Buchungsdatum (leer → Server-Default Monatsletzter) +
+    // Buchungsnummer (wird serverseitig pro Periode gespeichert).
     const ed = document.getElementById('fibuEntryDate')?.value || '';
     const edParam = ed ? `&entryDate=${ed}` : '';
+    const dn = (document.getElementById('fibuDocNr')?.value || '').trim();
+    const dnParam = dn ? `&documentNumber=${encodeURIComponent(dn)}` : '';
     try {
         const r = await fetch(
-            `/api/payroll/fibu-abaconnect?companyProfileId=${p.cid}&year=${p.y}&month=${p.m}${edParam}`,
+            `/api/payroll/fibu-abaconnect?companyProfileId=${p.cid}&year=${p.y}&month=${p.m}${edParam}${dnParam}`,
             { headers: ah() });
         if (!r.ok) {
             let msg = 'HTTP ' + r.status;

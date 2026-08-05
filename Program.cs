@@ -380,6 +380,26 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS austrittsgrund text;
     ");
 
+    // Abacus-Export (Treuhänder-Vorgabe 05.08.2026): MWST-Konfiguration pro
+    // Kontoplan-Zeile (wie Mirus-Fibukonto-Dialog «Mehrwertsteuer») + Seed für
+    // die Personalaufwand-Zeilen (Soll 4xxx / Gegen 1920 → 1067 / Code 200),
+    // sowie Buchungsnummer pro Lohnperiode (DocumentNumber im AbaConnect-XML).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE lohn_konto_mapping
+        ADD COLUMN IF NOT EXISTS mwst_konto varchar(10),
+        ADD COLUMN IF NOT EXISTS mwst_code  varchar(10);
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        UPDATE lohn_konto_mapping
+        SET mwst_konto = '1067', mwst_code = '200'
+        WHERE mwst_konto IS NULL AND mwst_code IS NULL
+          AND fibukonto LIKE '4%' AND gegenkonto = '1920';
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE payroll_periode
+        ADD COLUMN IF NOT EXISTS fibu_buchungsnummer varchar(20);
+    ");
+
     // Anonymer Austritts-Fragebogen (Walter 26.07.2026) — ersetzt Google Forms.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS exit_survey_response (

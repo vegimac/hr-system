@@ -76,6 +76,8 @@ public class PayrollPeriodeController : ControllerBase
                 // (fmtDateDe) formatiert auf TT.MM.JJJJ.
                 p.Auszahlungsdatum,
                 p.AkontoAuszahlungsdatum,
+                // Abacus-Buchungsnummer (Fibu-Seite: Prefill + Vorschlag +1).
+                p.FibuBuchungsnummer,
                 AkontoCount = _db.AkontoZahlungen
                     .Count(a => a.CompanyProfileId == p.CompanyProfileId
                              && a.PeriodYear  == p.Year

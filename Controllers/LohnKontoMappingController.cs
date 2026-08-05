@@ -42,7 +42,8 @@ public class LohnKontoMappingController : ControllerBase
                 m.Id, m.Position, m.SubPosition,
                 m.Fibukonto, m.Gegenkonto,
                 m.KostenstelleNr, m.KostenstelleName,
-                m.Bezeichnung, m.IsVormonat, m.SortOrder
+                m.Bezeichnung, m.IsVormonat, m.SortOrder,
+                m.MwstKonto, m.MwstCode
             })
             .ToListAsync();
         return Ok(rows);
@@ -58,10 +59,15 @@ public class LohnKontoMappingController : ControllerBase
         return Ok(konten);
     }
 
-    public record MappingEditDto(string Fibukonto, string Gegenkonto, string? Bezeichnung);
+    public record MappingEditDto(
+        string Fibukonto, string Gegenkonto, string? Bezeichnung,
+        string? MwstKonto = null, string? MwstCode = null);
 
-    // PUT /api/lohn-konto-mapping/{id}  → Konto-Korrektur (nur Konten + Text;
-    // Schlüsselfelder Position/SubPos/Kostenstelle bleiben fix).
+    // PUT /api/lohn-konto-mapping/{id}  → Konto-Korrektur (Konten + Text +
+    // MWST-Konfiguration für den Abacus-Export; Schlüsselfelder Position/
+    // SubPos/Kostenstelle bleiben fix). MWST: BEIDE Felder gesetzt = Buchung
+    // bekommt TaxAccount/TaxData im AbaConnect-XML; beide leer = keine
+    // Steuerfelder; nur eines gesetzt = 400.
     [Authorize(Roles = "admin")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] MappingEditDto dto)
@@ -70,10 +76,16 @@ public class LohnKontoMappingController : ControllerBase
         if (m == null) return NotFound();
         if (string.IsNullOrWhiteSpace(dto.Fibukonto) || string.IsNullOrWhiteSpace(dto.Gegenkonto))
             return BadRequest(new { error = "Soll- und Gegenkonto sind Pflicht." });
+        var mk = string.IsNullOrWhiteSpace(dto.MwstKonto) ? null : dto.MwstKonto.Trim();
+        var mc = string.IsNullOrWhiteSpace(dto.MwstCode)  ? null : dto.MwstCode.Trim();
+        if ((mk == null) != (mc == null))
+            return BadRequest(new { error = "MWST-Konto und MWST-Code entweder beide setzen oder beide leer lassen." });
         m.Fibukonto  = dto.Fibukonto.Trim();
         m.Gegenkonto = dto.Gegenkonto.Trim();
+        m.MwstKonto  = mk;
+        m.MwstCode   = mc;
         if (!string.IsNullOrWhiteSpace(dto.Bezeichnung)) m.Bezeichnung = dto.Bezeichnung.Trim();
         await _db.SaveChangesAsync();
-        return Ok(new { m.Id, m.Fibukonto, m.Gegenkonto, m.Bezeichnung });
+        return Ok(new { m.Id, m.Fibukonto, m.Gegenkonto, m.Bezeichnung, m.MwstKonto, m.MwstCode });
     }
 }

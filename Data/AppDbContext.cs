@@ -1077,6 +1077,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KostenstelleName).HasColumnName("kostenstelle_name").HasMaxLength(60);
             entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung").HasMaxLength(200);
             entity.Property(e => e.IsVormonat).HasColumnName("is_vormonat").HasDefaultValue(false);
+            entity.Property(e => e.MwstKonto).HasColumnName("mwst_konto").HasMaxLength(10);
+            entity.Property(e => e.MwstCode).HasColumnName("mwst_code").HasMaxLength(10);
             entity.Property(e => e.SollBuchung).HasColumnName("soll_buchung").HasDefaultValue(true);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
@@ -1847,6 +1849,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Auszahlungsdatum).HasColumnName("auszahlungsdatum").HasColumnType("date");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.PdfFooterText).HasColumnName("pdf_footer_text");
+            entity.Property(e => e.FibuBuchungsnummer).HasColumnName("fibu_buchungsnummer").HasMaxLength(20);
             // Akonto-Workflow (Walter-Vorgabe 16.05.2026) — eigener Status-Strang.
             entity.Property(e => e.AkontoStatus).HasColumnName("akonto_status").HasMaxLength(30).HasDefaultValue("OFFEN");
             entity.Property(e => e.AkontoGfStartedAt).HasColumnName("akonto_gf_started_at");

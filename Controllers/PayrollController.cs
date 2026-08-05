@@ -119,7 +119,7 @@ public class PayrollController : HrControllerBase
     [Authorize(Roles = "admin,buchhaltung")]
     public async Task<IActionResult> FibuAbaConnect(
         [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month,
-        [FromQuery] string? entryDate = null)
+        [FromQuery] string? entryDate = null, [FromQuery] string? documentNumber = null)
     {
         if (!await CanAccessBranchAsync(companyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
@@ -131,9 +131,25 @@ public class PayrollController : HrControllerBase
         if (!string.IsNullOrWhiteSpace(entryDate)
             && DateOnly.TryParseExact(entryDate, "yyyy-MM-dd", out var ed))
             buchungsdatum = ed;
+
+        // Abacus-Buchungsnummer (Treuhänder-Vorgabe 05.08.2026): pro Periode
+        // persistieren — mitgegebene Nummer speichern, ohne Angabe die
+        // gespeicherte verwenden (Re-Export = gleiche Nummer).
+        var periode = await _db.PayrollPerioden.FirstOrDefaultAsync(
+            p => p.CompanyProfileId == companyProfileId && p.Year == year && p.Month == month);
+        var docNr = string.IsNullOrWhiteSpace(documentNumber)
+            ? periode?.FibuBuchungsnummer
+            : documentNumber.Trim();
+        if (periode != null && !string.IsNullOrWhiteSpace(docNr) && periode.FibuBuchungsnummer != docNr)
+        {
+            periode.FibuBuchungsnummer = docNr;
+            await _db.SaveChangesAsync();
+        }
+
         try
         {
-            var (xml, journal) = await _fibuJournal.GenerateAbaConnectXmlAsync(companyProfileId, year, month, buchungsdatum);
+            var (xml, journal) = await _fibuJournal.GenerateAbaConnectXmlAsync(
+                companyProfileId, year, month, buchungsdatum, docNr);
             // Sicherung: ein unbalanciertes Journal darf NICHT nach Abacus —
             // 1920-Differenz > Rundungs-Toleranz deutet auf Snapshot-Fehler.
             if (Math.Abs(journal.Konto1920Saldo) > 0.05m)

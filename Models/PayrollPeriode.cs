@@ -67,6 +67,14 @@ public class PayrollPeriode
     /// </summary>
     public string? PdfFooterText { get; set; }
 
+    /// <summary>
+    /// Abacus-Buchungsnummer des Lohnlaufs (Treuhänder-Vorgabe 05.08.2026,
+    /// z.B. «50006») — wird beim AbaConnect-Export als DocumentNumber auf
+    /// jede Buchung geschrieben und hier pro Periode persistiert (Vorschlag
+    /// für die Folgeperiode = +1).
+    /// </summary>
+    public string? FibuBuchungsnummer { get; set; }
+
     // ── Akonto-Workflow (Walter-Vorgabe 16.05.2026) ────────────────────────
     // Eigener Status-Strang parallel zum bestehenden Definitiv-Strang
     // (siehe AKONTO-LOHN-PLAN.md, Abschnitt 6/7). Der GF startet die Akonto-
