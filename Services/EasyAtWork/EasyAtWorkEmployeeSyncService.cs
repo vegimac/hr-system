@@ -565,10 +565,15 @@ public class EasyAtWorkEmployeeSyncService
             emp.EasyAtWorkEmployeeId = eaw.Id;
             result.UpdatedFields.Add("easy@work-ID");
         }
-        // Hauptnummer folgt dem AKTIVEN Datensatz (Walter 12.07.2026): trägt der
-        // (aktive) easy@work-Datensatz eine andere Nummer als unsere Hauptnummer,
-        // wird getauscht — die bisherige Hauptnummer wandert als Alias in die
-        // Historie (bzw. Rollen-Tausch, wenn die neue schon Alias war).
+        // Hauptnummer folgt dem easy@work-Datensatz (Walter 12.07.2026, gelockert
+        // 05.08.2026 für den EINZEL-Sync): die bisherige Hauptnummer wandert als
+        // Alias in die Historie (bzw. Rollen-Tausch, wenn die neue schon Alias war).
+        // Beim MANUELLEN Einzel-Sync darf die Nummer auch von einem BEENDETEN
+        // Datensatz kommen (Walter-Fall Julia Sanchez Büchi: Nummernkorrektur in
+        // easy NACH dem Austritt) — die Identität ist hier über die easy-ID
+        // gesichert, und existiert irgendwo ein AKTIVER Datensatz der Person,
+        // hat der Aktiv-Vorrang-Schritt oben ohnehin auf ihn gewechselt.
+        // Der AUTO-Sync (SyncCore) behält seine Aktiv-Bremse unverändert.
         // Kollisionsschutz: gehört die Nummer einem anderen MA, nur Hinweis.
         // Archiv-«alt» vs. nackte easy@work-Nummer = dieselbe Badge → behalten
         // (Walter-Bug 18.07.2026, Sweeba Akhtar).
@@ -576,7 +581,7 @@ public class EasyAtWorkEmployeeSyncService
             var eawNum = (eaw.Number ?? "").Trim();
             var curNum = (emp.EmployeeNumber ?? "").Trim();
             bool eawAktivJetzt = !eaw.To.HasValue || eaw.To.Value >= DateOnly.FromDateTime(DateTime.Today);
-            if (eawAktivJetzt && eawNum.Length > 0
+            if (eawNum.Length > 0
                 && !string.Equals(eawNum, curNum, StringComparison.OrdinalIgnoreCase)
                 && !IsSameNumberIgnoringAlt(curNum, eawNum))
             {
@@ -589,6 +594,8 @@ public class EasyAtWorkEmployeeSyncService
                     var alteNr = emp.EmployeeNumber;
                     SaveNumberChange(_db, emp, eawNum);
                     result.UpdatedFields.Add($"Personalnummer ({alteNr} → {eawNum})");
+                    if (!eawAktivJetzt)
+                        result.Notes.Add($"Nummer aus BEENDETEM easy@work-Datensatz übernommen (Austritt {eaw.To:dd.MM.yyyy}) — Identität via easy@work-ID gesichert.");
                 }
             }
         }
