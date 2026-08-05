@@ -264,7 +264,7 @@ public class StundenkontrollePdfService
                             r.RelativeItem().Column(c2 =>
                             {
                                 c2.Item().Text("Unterschrift Mitarbeiter/in:").FontSize(8.5f);
-                                c2.Item().PaddingTop(44).Text(fullName).FontSize(7.5f).FontColor(Muted);
+                                c2.Item().PaddingTop(72).Text(fullName).FontSize(7.5f).FontColor(Muted);
                             });
                         });
                     });
