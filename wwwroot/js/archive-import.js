@@ -6,6 +6,72 @@
 // ADMIN: MITARBEITER-ARCHIV-IMPORT (CSV → ausgetretene MAs)
 // ══════════════════════════════════════════════════════════════════════
 
+// ── Archiv-MA aufräumen (Walter 05.08.2026): alle «…alt»-MA löschen ────
+// Zweistufig: Vorschau (dryRun) → erst danach ist der Lösch-Knopf aktiv.
+// Server überspringt MA mit Lohn-Daten oder Dokumenten immer.
+
+async function archivCleanupPreview() {
+    const box = document.getElementById('archivCleanupResult');
+    const delBtn = document.getElementById('archivCleanupBtn');
+    if (delBtn) delBtn.disabled = true;
+    if (box) box.innerHTML = '<div style="font-size:13px;color:#64748b">⏳ Prüfe Archiv-MA…</div>';
+    try {
+        const r = await fetch('/api/employees/cleanup-archiv?dryRun=true', {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) {
+            const t = await r.text();
+            if (box) box.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${t || r.status}</div>`;
+            return;
+        }
+        const d = await r.json();
+        const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+        let html = `<div style="font-size:13px;color:#0f172a"><b>${d.total}</b> Archiv-MA gefunden · <b style="color:#15803d">${d.loeschbar.length} löschbar</b>`;
+        if (d.uebersprungenLohn.length) html += ` · <b style="color:#b45309">${d.uebersprungenLohn.length} mit Lohn-Daten (bleiben)</b>`;
+        if (d.uebersprungenDokumente.length) html += ` · <b style="color:#b91c1c">${d.uebersprungenDokumente.length} mit Dokumenten (bleiben)</b>`;
+        html += '</div>';
+        if (d.loeschbar.length)
+            html += `<details style="margin-top:8px;font-size:12px;color:#64748b"><summary style="cursor:pointer">Löschbare anzeigen (${d.loeschbar.length})</summary><div style="margin-top:6px;max-height:220px;overflow:auto">${d.loeschbar.map(esc).join('<br>')}</div></details>`;
+        if (d.uebersprungenDokumente.length)
+            html += `<details style="margin-top:8px;font-size:12px;color:#b91c1c" open><summary style="cursor:pointer">Mit Dokumenten — bitte prüfen</summary><div style="margin-top:6px;max-height:220px;overflow:auto">${d.uebersprungenDokumente.map(x => esc(x.label) + ' (' + x.dokCount + ' Dok.)').join('<br>')}</div></details>`;
+        if (box) box.innerHTML = html;
+        if (delBtn) delBtn.disabled = d.loeschbar.length === 0;
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Verbindungsfehler: ${e.message}</div>`;
+    }
+}
+
+async function archivCleanupRun() {
+    const box = document.getElementById('archivCleanupResult');
+    const delBtn = document.getElementById('archivCleanupBtn');
+    const ok = await (typeof liquidConfirm === 'function'
+        ? liquidConfirm('Alle löschbaren Archiv-MA («…alt») endgültig löschen? Das kann nicht rückgängig gemacht werden.',
+            { title: 'Archiv aufräumen', yesLabel: 'Ja, löschen', noLabel: 'Abbrechen' })
+        : Promise.resolve(confirm('Alle löschbaren Archiv-MA endgültig löschen?')));
+    if (!ok) return;
+    if (delBtn) delBtn.disabled = true;
+    if (box) box.innerHTML = '<div style="font-size:13px;color:#64748b">⏳ Lösche Archiv-MA… (kann bei vielen MA eine Minute dauern)</div>';
+    try {
+        const r = await fetch('/api/employees/cleanup-archiv?dryRun=false', {
+            method: 'POST', headers: ah()
+        });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) {
+            if (box) box.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${d.message || d.error || r.status}</div>`;
+            return;
+        }
+        let html = `<div style="padding:10px 14px;background:#ecfdf5;color:#047857;border-radius:7px;font-size:13px">✓ <b>${d.geloescht}</b> Archiv-MA gelöscht.`;
+        if (d.uebersprungenLohn.length || d.uebersprungenDokumente.length)
+            html += ` Übersprungen: ${d.uebersprungenLohn.length} mit Lohn-Daten, ${d.uebersprungenDokumente.length} mit Dokumenten.`;
+        html += '</div>';
+        if ((d.fehler || []).length)
+            html += `<div style="margin-top:8px;padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:12.5px">${d.fehler.map(f => '✗ ' + f).join('<br>')}</div>`;
+        if (box) box.innerHTML = html;
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="padding:10px 14px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Verbindungsfehler: ${e.message}</div>`;
+    }
+}
+
 async function archivImportAnalyze() { await archivImportRun(true); }
 async function archivImportCommit()  { await archivImportRun(false); }
 

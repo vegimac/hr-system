@@ -1425,51 +1425,7 @@ public class EmployeesController : ControllerBase
         await using var tx = await _context.Database.BeginTransactionAsync();
         try
         {
-            // 1) FamilyMemberAllowance — hängt an EmployeeFamilyMember
-            await _context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM family_member_allowance WHERE family_member_id IN (SELECT id FROM employee_family_member WHERE employee_id = {0})", id);
-
-            // 2) Alle direkten employee_id-Tabellen
-            var directTables = new[]
-            {
-                "employee_family_member",
-                "employee_address",
-                "employee_education_history",
-                "employee_import_snapshot",
-                "employee_time_entry",
-                "absence",
-                "krankheit_karenz_saldo",
-                "employee_lohn_durchschnitt",
-                "employee_dokument",
-                "mailbox_document",
-                "lohn_zulage",
-                "employee_recurring_wage",
-                "employee_bvg_zusatz_member",
-                "employee_pregnancy",
-                "employee_lohn_assignment",
-                "payroll_lohn_abtretung_entry",
-                "employee_bank_account",
-                "employee_quellensteuer",
-                "employee_arbeitslosigkeit",
-                "employee_permit_history",
-                "employment"
-            };
-            foreach (var t in directTables)
-            {
-                await _context.Database.ExecuteSqlRawAsync(
-                    $"DELETE FROM {t} WHERE employee_id = {{0}}", id);
-            }
-
-            // 3) app_user (MA-Postfach-Login) — komplett entfernen, nicht
-            // nur EmployeeId auf NULL setzen. Beim Hard-Delete soll auch
-            // der Login weg.
-            await _context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM app_user WHERE employee_id = {0}", id);
-
-            // 4) MA selbst
-            await _context.Database.ExecuteSqlRawAsync(
-                "DELETE FROM employee WHERE id = {0}", id);
-
+            await HardDeleteEmployeeCoreAsync(id);
             await tx.CommitAsync();
             return Ok(new
             {
@@ -1486,6 +1442,136 @@ public class EmployeesController : ControllerBase
                 message = $"Löschen fehlgeschlagen: {ex.Message}"
             });
         }
+    }
+
+    // Hard-Delete-Kern (alle FK-Tabellen + MA selbst) — OHNE Transaktion,
+    // der Aufrufer klammert. Geteilt von Delete (Einzel-MA) und
+    // CleanupArchiv (Bulk «+alt»-Archiv-MA, Walter 05.08.2026).
+    private async Task HardDeleteEmployeeCoreAsync(int id)
+    {
+        // 1) FamilyMemberAllowance — hängt an EmployeeFamilyMember
+        await _context.Database.ExecuteSqlRawAsync(
+            "DELETE FROM family_member_allowance WHERE family_member_id IN (SELECT id FROM employee_family_member WHERE employee_id = {0})", id);
+
+        // 2) Alle direkten employee_id-Tabellen
+        var directTables = new[]
+        {
+            "employee_family_member",
+            "employee_address",
+            "employee_education_history",
+            "employee_import_snapshot",
+            "employee_time_entry",
+            "absence",
+            "krankheit_karenz_saldo",
+            "employee_lohn_durchschnitt",
+            "employee_dokument",
+            "mailbox_document",
+            "lohn_zulage",
+            "employee_recurring_wage",
+            "employee_bvg_zusatz_member",
+            "employee_pregnancy",
+            "employee_lohn_assignment",
+            "payroll_lohn_abtretung_entry",
+            "employee_bank_account",
+            "employee_quellensteuer",
+            "employee_arbeitslosigkeit",
+            "employee_permit_history",
+            "employment"
+        };
+        foreach (var t in directTables)
+        {
+            await _context.Database.ExecuteSqlRawAsync(
+                $"DELETE FROM {t} WHERE employee_id = {{0}}", id);
+        }
+
+        // 3) app_user (MA-Postfach-Login) — komplett entfernen, nicht
+        // nur EmployeeId auf NULL setzen. Beim Hard-Delete soll auch
+        // der Login weg.
+        await _context.Database.ExecuteSqlRawAsync(
+            "DELETE FROM app_user WHERE employee_id = {0}", id);
+
+        // 4) MA selbst
+        await _context.Database.ExecuteSqlRawAsync(
+            "DELETE FROM employee WHERE id = {0}", id);
+    }
+
+    // ── Archiv-MA aufräumen (Walter 05.08.2026) ─────────────────────────────
+    // Löscht ALLE Pre-Mirus-Archiv-MA (Personalnummer endet auf «alt», z.B.
+    // 750586alt — angelegt via Archiv-Import). Sicherheitsnetz:
+    //   • MA mit Lohn-Daten (Snapshot/Saldo/Akonto) werden NIE gelöscht.
+    //   • MA mit Dokumenten werden übersprungen und namentlich gemeldet —
+    //     Walter-Annahme «die sollten keine Dokumente haben» wird geprüft,
+    //     nicht blind vollstreckt.
+    // dryRun=true (Default) = nur Vorschau, es wird NICHTS gelöscht.
+    // Hinweis easy@work: die dortigen 999750xx-Dossiers sind eigene MA-Nummern
+    // und von diesem Aufräumen nicht betroffen.
+    [HttpPost("cleanup-archiv")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "admin")]
+    public async Task<IActionResult> CleanupArchiv([FromQuery] bool dryRun = true)
+    {
+        var alts = await _context.Employees.AsNoTracking()
+            .Where(e => e.EmployeeNumber != null && EF.Functions.ILike(e.EmployeeNumber, "%alt"))
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .OrderBy(e => e.EmployeeNumber)
+            .ToListAsync();
+
+        var mitLohn = new List<object>();
+        var mitDok  = new List<object>();
+        var loeschbar = new List<(int Id, string Label)>();
+
+        foreach (var e in alts)
+        {
+            var label = $"{e.EmployeeNumber} — {e.FirstName} {e.LastName}";
+            bool hasLohn = await _context.PayrollSnapshots.AnyAsync(p => p.EmployeeId == e.Id)
+                        || await _context.PayrollSaldos.AnyAsync(s => s.EmployeeId == e.Id)
+                        || await _context.AkontoZahlungen.AnyAsync(a => a.EmployeeId == e.Id);
+            if (hasLohn) { mitLohn.Add(new { e.Id, label }); continue; }
+
+            var dokCount = await _context.EmployeeDokumente.CountAsync(d => d.EmployeeId == e.Id);
+            if (dokCount > 0) { mitDok.Add(new { e.Id, label, dokCount }); continue; }
+
+            loeschbar.Add((e.Id, label));
+        }
+
+        if (dryRun)
+        {
+            return Ok(new
+            {
+                dryRun = true,
+                total = alts.Count,
+                loeschbar = loeschbar.Select(x => x.Label).ToList(),
+                uebersprungenLohn = mitLohn,
+                uebersprungenDokumente = mitDok,
+            });
+        }
+
+        int deleted = 0;
+        var fehler = new List<string>();
+        foreach (var (id, label) in loeschbar)
+        {
+            await using var tx = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                await HardDeleteEmployeeCoreAsync(id);
+                await tx.CommitAsync();
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                await tx.RollbackAsync();
+                fehler.Add($"{label}: {ex.Message}");
+            }
+        }
+
+        return Ok(new
+        {
+            dryRun = false,
+            total = alts.Count,
+            geloescht = deleted,
+            uebersprungenLohn = mitLohn,
+            uebersprungenDokumente = mitDok,
+            fehler,
+        });
     }
 
     private static string NormalizeRestaurantPrefix(string? restaurantCode)

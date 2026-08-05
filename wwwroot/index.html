@@ -5822,6 +5822,22 @@
 
                 <div id="archivImportSummary" style="margin-top:16px"></div>
                 <div id="archivImportPreview" style="margin-top:16px"></div>
+
+                <!-- Archiv-MA aufräumen (Walter 05.08.2026): alle «…alt»-MA löschen -->
+                <div class="card" style="padding:24px;margin-top:20px">
+                    <div style="font-weight:700;font-size:15px;color:#0f172a">🧹 Archiv-Mitarbeiter aufräumen</div>
+                    <div style="font-size:12.5px;color:#64748b;margin-top:4px;max-width:720px">
+                        Löscht alle Pre-Mirus-Archiv-MA (Personalnummer endet auf «alt», z.B. <code>750586alt</code>)
+                        samt Verträgen, Adressen und Postfach-Konto. MA mit Lohn-Daten oder Dokumenten werden
+                        <b>nie</b> gelöscht, sondern aufgelistet. Zuerst «Vorschau» — gelöscht wird erst mit dem zweiten Knopf.
+                    </div>
+                    <div style="display:flex;gap:10px;margin-top:14px">
+                        <button class="btn btn-outline" onclick="archivCleanupPreview()">Vorschau</button>
+                        <button class="btn btn-outline" id="archivCleanupBtn" onclick="archivCleanupRun()" disabled
+                                style="color:#b91c1c;border-color:#fecaca">🗑 Endgültig löschen</button>
+                    </div>
+                    <div id="archivCleanupResult" style="margin-top:14px"></div>
+                </div>
             </div>
 
             <!-- ═══════════════ DOKUMENT-STRUKTUR ═══════════════ -->
@@ -7474,7 +7490,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/documents.js?v=20260804b"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
-<script src="js/archive-import.js?v=20260708flex"></script>
+<script src="js/archive-import.js?v=20260805a"></script>
 <script src="js/dok-struktur.js?v=20260720a"></script>
 <script src="js/moments.js?v=20260722b"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
