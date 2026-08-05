@@ -1571,12 +1571,11 @@ public class EmployeesController : ControllerBase
                 mitEaw.Add(new { e.Id, label, grund = $"Anstellung bis {spur.Value:dd.MM.yyyy} (Mirus-Ära)" });
                 continue;
             }
-            if (await _context.EmployeeTimeEntries.AnyAsync(t => t.EmployeeId == e.Id))
-            {
-                mitEaw.Add(new { e.Id, label, grund = "hat Stempelzeiten" });
-                continue;
-            }
 
+            // Stempelzeiten sind bewusst KEIN Hindernis (Walter 05.08.2026) —
+            // die Historie bleibt in easy@work nachschlagbar. Der Lohn-Guard
+            // bleibt als stilles Sicherheitsnetz (prä-2025-MA können ohnehin
+            // keine OneCrew-Lohndaten haben).
             bool hasLohn = await _context.PayrollSnapshots.AnyAsync(p => p.EmployeeId == e.Id)
                         || await _context.PayrollSaldos.AnyAsync(s => s.EmployeeId == e.Id)
                         || await _context.AkontoZahlungen.AnyAsync(a => a.EmployeeId == e.Id);
