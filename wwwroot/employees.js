@@ -1570,12 +1570,13 @@ async function loadOvVertragSms(employeeId) {
         for (const t of s.tokens) {
             const el = document.getElementById(`ovVsms_${t.employmentId}`);
             if (!el) continue;
+            // Kompakt (Walter 05.08.2026): nur Icons + Datum/Zeit, kein Text.
+            // 📲 = gesendet · 👁 = geöffnet (PDF abgerufen ergänzt ✓) · 👁 grau = noch nicht.
             let html = `📲 ${f(t.createdAt)}`;
             if (t.openedAt) {
-                html += ` · 👁 geöffnet ${f(t.openedAt)}`;
-                if (t.usedAt) html += ' · 📄 PDF ✓';
+                html += ` · 👁 ${f(t.openedAt)}${t.usedAt ? ' ✓' : ''}`;
             } else {
-                html += ' · <span style="color:#b45309">noch nicht geöffnet</span>';
+                html += ' · <span style="color:#b45309">👁 –</span>';
             }
             el.innerHTML = html;
             el.title = 'Vertrags-SMS: gesendet' + (t.openedAt ? ' · Link geöffnet' + (t.usedAt ? ' · PDF abgerufen' : '') : ' · Link noch nicht geöffnet');
