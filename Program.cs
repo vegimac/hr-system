@@ -255,7 +255,7 @@ builder.Services.AddHttpClient("EasyAtWork", c =>
     // envoy (Reverse-Proxy bei easy@work) liefert 403 ohne User-Agent (Bot-Schutz).
     // Wir identifizieren uns mit einem sprechenden UA — auch hilfreich beim Debugging
     // im easy@work-Access-Log.
-    c.DefaultRequestHeaders.UserAgent.ParseAdd("hr-srgmbh-cowork/1.0 (+test.hr-srgmbh.ch)");
+    c.DefaultRequestHeaders.UserAgent.ParseAdd("onecrew/1.0 (+onecrew.ch)");
     c.DefaultRequestHeaders.Accept.Add(
         new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
 });

@@ -113,8 +113,12 @@ public class LgavBeitragService
             Periode         = periode,
             Betrag          = betrag,
             Bemerkung       = null,  // nur Lohnposition-Bezeichnung auf dem Lohnzettel
-            CreatedAt       = DateTime.UtcNow,
-            UpdatedAt       = DateTime.UtcNow
+            // ACHTUNG TIME (Walter-Regel, Bug 05.08.2026): lohn_zulage.created_at
+            // ist timestamp WITHOUT time zone — Npgsql lehnt Kind=Utc ab. Der
+            // Fehler traf GENAU neue MA: der ERSTE Calculate löst diesen Insert
+            // aus (EnsureAsync), bestehende MA haben den Jahresbeitrag schon.
+            CreatedAt       = DateTime.Now,
+            UpdatedAt       = DateTime.Now
         });
         await _db.SaveChangesAsync();
     }

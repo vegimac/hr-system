@@ -45,4 +45,4 @@ ls -la /var/www/hr-system/hr-system.dll | awk '{print $6,$7,$8,$9}'
 REMOTE
 
 echo ""
-echo "✅ Deployment erfolgreich. App unter https://test.hr-srgmbh.ch"
+echo "✅ Deployment erfolgreich. App unter https://onecrew.ch"
