@@ -622,16 +622,18 @@ public class FibuJournalService
         // Differenzen bleiben als Warnung stehen — die deuten auf einen
         // echten Snapshot-/Code-Fehler hin und duerfen nicht stillschweigend
         // weggebucht werden.
+        //
+        // IMMER in Aufwand-Richtung S 4000 / H 1920, notfalls mit NEGATIVEM
+        // Betrag (Treuhänder-Feedback Simone 05.08.2026): Konto 4000 ist in
+        // Abacus MWST-pflichtig — die Zeile braucht den MWST-Code 200. Über
+        // die feste Orientierung greift die Kontoplan-Konfiguration des
+        // Paars 4000/1920 im AbaConnect-Export automatisch (Mirus bucht
+        // negative Beträge genauso, statt Soll/Haben zu tauschen).
         {
             decimal preK1920 = acc.Values.Where(l => l.Soll  == "1920").Sum(l => l.Betrag)
                              - acc.Values.Where(l => l.Gegen == "1920").Sum(l => l.Betrag);
             if (preK1920 != 0 && Math.Abs(preK1920) <= 2.00m)
-            {
-                if (preK1920 < 0)
-                    Add("1920", "4000", "Rundungsdifferenz", Math.Abs(preK1920));
-                else
-                    Add("4000", "1920", "Rundungsdifferenz", preK1920);
-            }
+                Add("4000", "1920", "Rundungsdifferenz", preK1920);
         }
 
         var lines = acc.Values

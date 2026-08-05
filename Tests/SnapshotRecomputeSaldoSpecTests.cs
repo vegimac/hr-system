@@ -102,4 +102,20 @@ public class SnapshotRecomputeSaldoSpecTests
         // FLEX-Fallback-Zeile muss unterscheidbar beschriftet sein.
         Assert.Contains("\"RST 13. ML \" + KstName(kst)", src);
     }
+
+    [Fact]
+    public void Rundungsdifferenz_immer_in_Aufwand_Richtung()
+    {
+        // Treuhänder-Feedback Simone 05.08.2026: die Rundungsdifferenz-Zeile
+        // braucht in Abacus den MWST-Code 200 (Konto 4000 ist MWST-pflichtig).
+        // Das greift NUR über die feste Orientierung S 4000 / H 1920 —
+        // negatives Vorzeichen statt Soll/Haben-Tausch (wie Mirus).
+        var src = Src("Services/FibuJournalService.cs");
+        Assert.True(
+            Regex.IsMatch(src, "Add\\(\"4000\",\\s*\"1920\",\\s*\"Rundungsdifferenz\",\\s*preK1920\\)"),
+            "Rundungsdifferenz muss als S 4000 / H 1920 mit signiertem Betrag gebucht werden.");
+        Assert.False(
+            Regex.IsMatch(src, "Add\\(\"1920\",\\s*\"4000\",\\s*\"Rundungsdifferenz\""),
+            "Rundungsdifferenz darf NIE als S 1920 / H 4000 gebucht werden — sonst fehlt der MWST-Code im Abacus-Export.");
+    }
 }
