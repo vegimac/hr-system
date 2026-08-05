@@ -156,6 +156,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ProbezeitGespraech2Am).HasColumnName("probezeit_gespraech2_am").HasColumnType("date");
             entity.Property(e => e.ProbezeitGespraech2DokumentId).HasColumnName("probezeit_gespraech2_dokument_id");
             entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
+            entity.Property(e => e.EasyMissingSince).HasColumnName("easy_missing_since").HasColumnType("date");
             // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
             // automatisch aus — kein manuelles WHERE in jedem Controller nötig.
             // Wer hidden MA explizit sehen will, ruft `.IgnoreQueryFilters()`

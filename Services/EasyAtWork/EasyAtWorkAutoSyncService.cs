@@ -99,6 +99,24 @@ public class EasyAtWorkAutoSyncRunner
             }
         }
 
+        // STUFE 3 (Walter 05.08.2026): Verschollen-Wächter — aktive MA mit
+        // easy@work-Verknüpfung, die in KEINER Aktiv-Liste mehr vorkommen
+        // (Wechsel zu fremdem Franchise / vergessener Austritt), markieren →
+        // kritische Dashboard-Warnung «Austritt prüfen». Best-effort.
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var empSync = scope.ServiceProvider.GetRequiredService<EasyAtWorkEmployeeSyncService>();
+            var notes = await empSync.CheckVerscholleneAsync(ct);
+            foreach (var n in notes)
+                _log.LogInformation("[Verschollen-Check] {Note}", n);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Verschollen-Check fehlgeschlagen.");
+        }
+
         await CleanupLogAsync(ct);
         _log.LogInformation("easy@work Auto-Sync beendet.");
     }

@@ -181,6 +181,16 @@ public class Employee
     /// </summary>
     public int? EasyAtWorkEmployeeId { get; set; }
 
+    /// <summary>
+    /// Verschollen-Wächter (Walter 05.08.2026): gesetzt, wenn der Nacht-Sync
+    /// diesen AKTIVEN, easy@work-verknüpften MA in KEINER Aktiv-Liste der
+    /// gemappten Filialen mehr findet (typisch: Wechsel zu einem fremden
+    /// McDonald's-Franchise / vergessener Austritt). Dashboard zeigt dann in
+    /// der Filiale eine kritische Warnung «Austritt prüfen». Wird vom Sync
+    /// automatisch wieder gelöscht, sobald der MA wieder auftaucht.
+    /// </summary>
+    public DateOnly? EasyMissingSince { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     /// <summary>

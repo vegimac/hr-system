@@ -801,6 +801,40 @@ public class DashboardService
             }
         }
 
+        // ── 3c.iii) Verschollen-Wächter (Walter 05.08.2026) ────────────────
+        // Aktive, easy@work-verknüpfte MA, die der Nacht-Sync in KEINER
+        // Aktiv-Liste mehr findet (Wechsel zu fremdem McDonald's-Franchise /
+        // vergessener Austritt). Markierung setzt/löscht der Auto-Sync
+        // (employee.easy_missing_since); hier nur die fette rote Karte in
+        // der (letzten) Filiale des MA.
+        if (Enabled("easy_verschollen"))
+        {
+            var missQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && e.EasyMissingSince != null);
+            if (companyProfileId.HasValue)
+                missQ = missQ.Where(e => e.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            var missing = await missQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.EasyMissingSince })
+                .ToListAsync();
+            foreach (var e in missing)
+            {
+                var vmName = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "easy_verschollen",
+                    Severity = SeverityState("easy_verschollen", "critical"),
+                    Title    = "⚠ MA in easy@work nicht mehr auffindbar — Austritt prüfen",
+                    Subtitle = $"{vmName} · Personalnr. {e.EmployeeNumber} · seit {e.EasyMissingSince:dd.MM.yyyy} in keiner easy@work-Aktivliste — Wechsel zu fremdem Restaurant oder Austritt vergessen?",
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = vmName
+                });
+            }
+        }
+
         // ── 3d) Aktive Schwangerschaften (Walter-Vorgabe 10.06.2026) ───────
         // Pro aktive Schwangerschaft eine Info-Card mit Geburtstermin und
         // einer kurzen Liste „aktuell erlaubt/nicht erlaubt" — die wird live

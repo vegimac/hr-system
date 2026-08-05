@@ -290,6 +290,65 @@ public class EasyAtWorkEmployeeSyncService
         public System.Collections.Concurrent.ConcurrentDictionary<int, List<EawPayRate>>  Rates     { get; } = new();
     }
 
+    /// <summary>
+    /// Verschollen-Wächter (Walter 05.08.2026): prüft, ob jeder AKTIVE,
+    /// easy@work-verknüpfte MA noch in der Aktiv-Liste IRGENDEINER gemappten
+    /// Filiale vorkommt. Fehlt er (typisch: Wechsel zu fremdem McDonald's-
+    /// Franchise — dann sehen wir seinen Datensatz nicht mehr — oder
+    /// vergessener Austritt), wird employee.easy_missing_since gesetzt →
+    /// kritische Dashboard-Warnung «Austritt prüfen» in seiner Filiale.
+    /// Taucht er wieder auf, wird die Markierung automatisch gelöscht.
+    /// Bewusst KEIN Auto-Austritt — die Entscheidung trifft HR/GF.
+    /// Bei API-Störung werden KEINE Markierungen gesetzt (kein Fehlalarm).
+    /// </summary>
+    public async Task<List<string>> CheckVerscholleneAsync(CancellationToken ct = default)
+    {
+        var notes = new List<string>();
+        var mappings = await _db.EasyAtWorkBranchMappings.AsNoTracking().ToListAsync(ct);
+        if (mappings.Count == 0) return notes;
+
+        var activeAt = DateOnly.FromDateTime(DateTime.Today);
+        var seen = new HashSet<int>();
+        foreach (var m in mappings)
+        {
+            List<EawEmployee> rows;
+            try { rows = await _client.GetAllEmployeesActiveAtAsync(m.EasyAtWorkCustomerId, activeAt, ct); }
+            catch (Exception ex)
+            {
+                notes.Add($"Verschollen-Check abgebrochen — Customer {m.EasyAtWorkCustomerId} nicht abrufbar ({ex.Message}). Keine Markierungen gesetzt.");
+                return notes;
+            }
+            foreach (var r in rows)
+            {
+                seen.Add(r.Id);
+                if (r.UserId.HasValue) seen.Add(r.UserId.Value); // Legacy: teils user_id gespeichert
+            }
+        }
+
+        var kandidaten = await _db.Employees
+            .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded && e.EasyAtWorkEmployeeId != null)
+            .ToListAsync(ct);
+        bool changed = false;
+        foreach (var e in kandidaten)
+        {
+            bool found = seen.Contains(e.EasyAtWorkEmployeeId!.Value);
+            if (!found && e.EasyMissingSince == null)
+            {
+                e.EasyMissingSince = activeAt;
+                notes.Add($"⚠ {e.FirstName} {e.LastName} ({e.EmployeeNumber}) in keiner easy@work-Aktivliste — Austritt prüfen.");
+                changed = true;
+            }
+            else if (found && e.EasyMissingSince != null)
+            {
+                e.EasyMissingSince = null;
+                notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): wieder in easy@work gefunden — Warnung aufgehoben.");
+                changed = true;
+            }
+        }
+        if (changed) await _db.SaveChangesAsync(ct);
+        return notes;
+    }
+
     public async Task<SingleEmployeeSyncResult> SyncSingleCoworkEmployeeAsync(
         int employeeId, int? companyProfileId, CancellationToken ct = default)
     {

@@ -411,6 +411,21 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS fibu_buchungsnummer varchar(20);
     ");
 
+    // Verschollen-Wächter (Walter 05.08.2026): aktiver, easy@work-verknüpfter
+    // MA taucht in keiner Aktiv-Liste mehr auf → Datum der Feststellung +
+    // kritische Dashboard-Warnung «Austritt prüfen».
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+        ADD COLUMN IF NOT EXISTS easy_missing_since date;
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('easy_verschollen', 'MA in easy@work verschollen', TRUE, NULL, NULL, 'critical', NULL, FALSE, 25, 15, 'red')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // Anonymer Austritts-Fragebogen (Walter 26.07.2026) — ersetzt Google Forms.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS exit_survey_response (
