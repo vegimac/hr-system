@@ -492,6 +492,22 @@ public class EasyAtWorkClient
     /// archiviert). Best-effort: liefert null bei 404/Fehler. Die API kann einen
     /// endgültig gelöschten MA dennoch verweigern — dann bleibt nur Zuordnen/Skip.
     /// </summary>
+    // Einzel-Antworten liefert easy@work mal MIT «data»-Hülle, mal das Objekt
+    // DIREKT (Walter-Bug 05.08.2026, Julia Sanchez Büchi: der Single-Endpoint
+    // gab das Employee-Objekt ungewrappt zurück → EawSingle.Data war null →
+    // Sync meldete «nicht gefunden», obwohl die API 200 lieferte; der Dump
+    // zeigte es). Deshalb tolerant parsen: erst «data» probieren, sonst root.
+    private static T? UnwrapSingle<T>(JsonElement el) where T : class
+    {
+        if (el.ValueKind == JsonValueKind.Object
+            && el.TryGetProperty("data", out var d)
+            && d.ValueKind == JsonValueKind.Object)
+            return d.Deserialize<T>(JsonOpts);
+        if (el.ValueKind == JsonValueKind.Object)
+            return el.Deserialize<T>(JsonOpts);
+        return null;
+    }
+
     public virtual async Task<EawEmployee?> GetEmployeeByIdAsync(int customerId, int employeeId, CancellationToken ct = default)
     {
         // NUR 404 = «gibt es hier nicht» → null. Alle anderen Fehler (Timeout,
@@ -500,9 +516,9 @@ public class EasyAtWorkClient
         // (Walter-Bug 09.07.2026, Behija/580009).
         try
         {
-            var res = await GetJsonAsync<EawSingle<EawEmployee>>(
+            var el = await GetJsonAsync<JsonElement>(
                 $"customers/{customerId}/employees/{employeeId}", ct);
-            return res?.Data;
+            return UnwrapSingle<EawEmployee>(el);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         { return null; }
@@ -521,9 +537,9 @@ public class EasyAtWorkClient
             var number = employeeNumber.Trim();
             if (!number.StartsWith("n", StringComparison.OrdinalIgnoreCase))
                 number = "n" + number;
-            var res = await GetJsonAsync<EawSingle<EawEmployee>>(
+            var el = await GetJsonAsync<JsonElement>(
                 $"customers/{customerId}/employees/{Uri.EscapeDataString(number)}", ct);
-            return res?.Data;
+            return UnwrapSingle<EawEmployee>(el);
         }
         catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
         { return null; }

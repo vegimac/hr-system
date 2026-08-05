@@ -420,7 +420,45 @@ public class EasyAtWorkEmployeeSyncService
         }
         if (eaw == null)
         {
-            result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (gespeicherte ID {emp.EasyAtWorkEmployeeId.Value}; employee.id-Suche und Legacy-user_id-Reparatur über alle gemappten Filialen ohne Treffer).");
+            // Stufe 3 (Walter 05.08.2026, Julia Sanchez Büchi): gespeicherte ID
+            // veraltet UND Personalnummer wurde in easy@work GEÄNDERT → ID- und
+            // Nummern-Suche laufen beide ins Leere. Letzte Stufe: eindeutiger
+            // Match über Name (+ Geburtsdatum, wenn vorhanden) in der
+            // Gesamtliste inkl. Inaktiver. NUR bei exakt EINEM Kandidaten —
+            // bei Mehrdeutigkeit lieber Fehler als falsche Person.
+            foreach (var mapping in mappings)
+            {
+                List<EawEmployee> rows;
+                try { rows = await _client.GetAllEmployeesIncludingInactiveAsync(mapping.EasyAtWorkCustomerId, ct); }
+                catch (Exception ex)
+                {
+                    result.Notes.Add($"Name-Suche Customer {mapping.EasyAtWorkCustomerId}: Employee-Liste nicht abrufbar ({ex.Message}).");
+                    continue;
+                }
+                bool NameMatch(EawEmployee x) =>
+                    string.Equals((x.FirstName ?? "").Trim(), (emp.FirstName ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
+                 && string.Equals((x.LastName ?? "").Trim(), (emp.LastName ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+                var cands = rows.Where(NameMatch).ToList();
+                if (emp.DateOfBirth.HasValue && cands.Count > 0)
+                {
+                    var dob = DateOnly.FromDateTime(emp.DateOfBirth.Value);
+                    var withDob = cands.Where(x => x.BirthDate == dob).ToList();
+                    if (withDob.Count > 0) cands = withDob;
+                }
+                if (cands.Count == 1)
+                {
+                    eaw = cands[0];
+                    matchedCustomerId = mapping.EasyAtWorkCustomerId;
+                    result.Notes.Add($"Über Name+Geburtsdatum aufgelöst (alte ID {emp.EasyAtWorkEmployeeId.Value} veraltet, Nummer in easy@work geändert) → employee.id {eaw.Id}, Nummer {eaw.Number}.");
+                    break;
+                }
+                if (cands.Count > 1)
+                    result.Notes.Add($"Name-Suche Customer {mapping.EasyAtWorkCustomerId}: {cands.Count} Kandidaten «{emp.FirstName} {emp.LastName}» — nicht eindeutig, übersprungen.");
+            }
+        }
+        if (eaw == null)
+        {
+            result.Errors.Add($"Mitarbeiter in easy@work nicht gefunden (gespeicherte ID {emp.EasyAtWorkEmployeeId.Value}; employee.id-Suche, Nummern-Suche und Name+Geburtsdatum-Suche über alle gemappten Filialen ohne eindeutigen Treffer).");
             return result;
         }
 
