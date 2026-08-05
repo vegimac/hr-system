@@ -1511,17 +1511,32 @@ public class EmployeesController : ControllerBase
     {
         var alts = await _context.Employees.AsNoTracking()
             .Where(e => e.EmployeeNumber != null && EF.Functions.ILike(e.EmployeeNumber, "%alt"))
-            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName })
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.EasyAtWorkEmployeeId, e.IsActive })
             .OrderBy(e => e.EmployeeNumber)
             .ToListAsync();
 
         var mitLohn = new List<object>();
         var mitDok  = new List<object>();
+        var mitEaw  = new List<object>();
         var loeschbar = new List<(int Id, string Label)>();
 
         foreach (var e in alts)
         {
             var label = $"{e.EmployeeNumber} — {e.FirstName} {e.LastName}";
+
+            // Merge-Schutz (Walter-Fund 05.08.2026, Sweeba Akhtar 581039alt):
+            // Wiedereintritte wurden per Duplikat-Merge mit dem easy@work-MA
+            // zusammengeführt — das Dossier trägt dann zwar die alt-Nummer,
+            // ist aber ein ECHTER MA (easy@work-Verknüpfung, Stempelzeiten).
+            // Solche NIE löschen.
+            bool hatEaw     = e.EasyAtWorkEmployeeId != null;
+            bool hatStempel = !hatEaw && await _context.EmployeeTimeEntries.AnyAsync(t => t.EmployeeId == e.Id);
+            if (hatEaw || hatStempel || e.IsActive)
+            {
+                mitEaw.Add(new { e.Id, label, grund = hatEaw ? "easy@work-verknüpft (Merge)" : hatStempel ? "hat Stempelzeiten" : "ist aktiv" });
+                continue;
+            }
+
             bool hasLohn = await _context.PayrollSnapshots.AnyAsync(p => p.EmployeeId == e.Id)
                         || await _context.PayrollSaldos.AnyAsync(s => s.EmployeeId == e.Id)
                         || await _context.AkontoZahlungen.AnyAsync(a => a.EmployeeId == e.Id);
@@ -1542,6 +1557,7 @@ public class EmployeesController : ControllerBase
                 loeschbar = loeschbar.Select(x => x.Label).ToList(),
                 uebersprungenLohn = mitLohn,
                 uebersprungenDokumente = mitDok,
+                uebersprungenVerknuepft = mitEaw,
             });
         }
 
@@ -1570,6 +1586,7 @@ public class EmployeesController : ControllerBase
             geloescht = deleted,
             uebersprungenLohn = mitLohn,
             uebersprungenDokumente = mitDok,
+            uebersprungenVerknuepft = mitEaw,
             fehler,
         });
     }
