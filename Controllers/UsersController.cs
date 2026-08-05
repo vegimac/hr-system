@@ -206,9 +206,19 @@ public class UsersController : ControllerBase
         if (!string.IsNullOrWhiteSpace(req.Password))
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
 
-        // Filialen-Zuweisungen neu setzen
-        _context.UserBranchAccesses.RemoveRange(user.BranchAccess);
-        foreach (var branchId in req.BranchIds)
+        // Filialen-Zuweisungen per DIFF statt Löschen+Neuanlegen (Walter-Bug
+        // 06.08.2026): das frühere RemoveRange+Add legte NACKTE Zeilen an und
+        // löschte damit bei JEDEM Benutzer-Speichern die Unterzeichner-Attribute
+        // (Role/FunctionTitle/IsDefault) ALLER Filialen — Anita verlor so
+        // «Geschäftsführerin» + «Allgemeiner Unterzeichner». Bestehende Zeilen
+        // bleiben jetzt unangetastet; nur echte Änderungen werden geschrieben.
+        var reqBranchIds = (req.BranchIds ?? new List<int>()).Distinct().ToHashSet();
+        var wegfallend = user.BranchAccess
+            .Where(a => !reqBranchIds.Contains(a.CompanyProfileId))
+            .ToList();
+        _context.UserBranchAccesses.RemoveRange(wegfallend);
+        var vorhandene = user.BranchAccess.Select(a => a.CompanyProfileId).ToHashSet();
+        foreach (var branchId in reqBranchIds.Where(b => !vorhandene.Contains(b)))
         {
             _context.UserBranchAccesses.Add(new UserBranchAccess
             {
