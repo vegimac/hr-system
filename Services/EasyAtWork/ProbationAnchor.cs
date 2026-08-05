@@ -1,3 +1,5 @@
+using HrSystem.Models;
+
 namespace HrSystem.Services.EasyAtWork;
 
 /// <summary>
@@ -27,6 +29,42 @@ public static class ProbationAnchor
         => branchProbationMonths == 14
             ? basis.AddDays(14).AddDays(-1)
             : basis.AddMonths(branchProbationMonths).AddDays(-1);
+
+    /// <summary>
+    /// Ziel-Vertrag für die Probezeit (Walter 05.08.2026): der offene Vertrag
+    /// (frühester Beginn), sonst der früheste überhaupt. Donor = ein ANDERER
+    /// Vertrag, der die Probezeit (noch) trägt — typisch nach einem
+    /// easy@work-Sync-Split (1-Tages-Vertrag + offener Folge-Vertrag), bei dem
+    /// die Probezeit auf dem beendeten Splitter hängen blieb und Anzeige/
+    /// Lohnlauf (die den AKTIVEN Vertrag lesen) leer ausgingen.
+    /// </summary>
+    public static (Employment Target, Employment? Donor) ResolveProbationTarget(IReadOnlyList<Employment> emps)
+    {
+        var target = emps.Where(e => e.ContractEndDate == null)
+                         .OrderBy(e => e.ContractStartDate)
+                         .FirstOrDefault()
+                  ?? emps.OrderBy(e => e.ContractStartDate).First();
+        var donor = emps.FirstOrDefault(e => !ReferenceEquals(e, target) && e.ProbationEndDate != null);
+        return (target, donor);
+    }
+
+    /// <summary>
+    /// Hängt die Probezeit vom Donor auf den Ziel-Vertrag um (Sync-Split-
+    /// Heilung). Werte bleiben unverändert (ein bereits verankertes Ende wird
+    /// NICHT neu gerechnet); der Donor wird geleert, damit pro MA genau EINE
+    /// Probezeit existiert. False, wenn das Ziel schon eine hat.
+    /// </summary>
+    public static bool MoveProbation(Employment target, Employment donor)
+    {
+        if (target.ProbationEndDate != null) return false;
+        target.ProbationEndDate      = donor.ProbationEndDate;
+        target.ProbationPeriodMonths = donor.ProbationPeriodMonths;
+        target.ProbationStartDate    = donor.ProbationStartDate;
+        donor.ProbationEndDate      = null;
+        donor.ProbationPeriodMonths = null;
+        donor.ProbationStartDate    = null;
+        return true;
+    }
 
     /// <summary>Klartext-Grund für die History-Zeile.</summary>
     public static string Grund(DateOnly referenceStart, DateOnly firstStamp)

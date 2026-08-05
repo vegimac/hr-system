@@ -2322,13 +2322,32 @@ public class EasyAtWorkEmployeeSyncService
                     {
                         var emps = await _db.Employments
                             .Where(e => e.EmployeeId == eid).ToListAsync(ct);
-                        if (emps.Count == 0 || emps.Any(e => e.ProbationEndDate != null)) continue;
+                        if (emps.Count == 0) continue;
 
-                        // Ziel = offener Vertrag, sonst frühester Beginn.
-                        var target = emps.Where(e => e.ContractEndDate == null)
-                                         .OrderBy(e => e.ContractStartDate)
-                                         .FirstOrDefault()
-                                  ?? emps.OrderBy(e => e.ContractStartDate).First();
+                        // Ziel = offener Vertrag, sonst frühester Beginn. Sitzt die
+                        // Probezeit nach einem Sync-Split auf einem ANDEREN (beendeten)
+                        // Vertrag → umhängen statt überspringen (Walter-Bug 05.08.2026:
+                        // Anzeige/Lohnlauf lesen den aktiven Vertrag → Probezeit «fehlte»).
+                        var (target, donor) = ProbationAnchor.ResolveProbationTarget(emps);
+                        if (target.ProbationEndDate != null) continue;
+                        if (donor != null)
+                        {
+                            if (ProbationAnchor.MoveProbation(target, donor))
+                            {
+                                _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
+                                {
+                                    EmploymentId         = target.Id,
+                                    EventDate            = DateOnly.FromDateTime(DateTime.Now),
+                                    EventType            = "UMGEHAENGT",
+                                    DeltaDays            = 0,
+                                    Grund                = $"Probezeit vom Sync-Split-Vertrag (#{donor.Id}) auf den offenen Vertrag übernommen.",
+                                    ProbezeitEndeNachher = DateOnly.FromDateTime(target.ProbationEndDate!.Value),
+                                    CreatedAt            = DateTime.Now,
+                                });
+                                probChanged = true;
+                            }
+                            continue;
+                        }
 
                         // Regel „befristet → keine Probezeit" (Walter 30.06.2026):
                         // vorbereitet, AKTUELL aber NICHT AKTIV.

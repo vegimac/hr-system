@@ -1186,14 +1186,18 @@ public class EasyAtWorkTimepunchSyncService
     /// </summary>
     private async Task SeedMissingProbationAsync(AutoSyncResult res, DateOnly entryMin, CancellationToken ct)
     {
-        // Aktive MA mit Eintritt in Fenster, mind. einem Vertrag, nirgends ProbationEndDate.
+        // Aktive MA mit Eintritt in Fenster und mind. einem Vertrag. BEWUSST
+        // NICHT mehr auf «nirgends ProbationEndDate» gefiltert (Walter-Bug
+        // 05.08.2026, Dora Mustedanagic): nach einem Sync-Split kann die
+        // Probezeit auf dem beendeten 1-Tages-Vertrag hängen — Anzeige und
+        // Lohnlauf lesen aber den AKTIVEN Vertrag. Solche Fälle werden hier
+        // GEHEILT (Probezeit auf den offenen Vertrag umgehängt).
         var entryMinDt = entryMin.ToDateTime(TimeOnly.MinValue);
         var empIdsMissing = await _db.Employees.AsNoTracking()
             .Where(e => e.IsActive
                      && e.EntryDate != null
                      && e.EntryDate >= entryMinDt
-                     && e.Employments.Any()
-                     && !e.Employments.Any(em => em.ProbationEndDate != null))
+                     && e.Employments.Any())
             .Select(e => e.Id)
             .ToListAsync(ct);
         if (empIdsMissing.Count == 0) return;
@@ -1209,12 +1213,32 @@ public class EasyAtWorkTimepunchSyncService
             var emps = await _db.Employments
                 .Where(e => e.EmployeeId == eid)
                 .ToListAsync(ct);
-            if (emps.Count == 0 || emps.Any(e => e.ProbationEndDate != null)) continue;
+            if (emps.Count == 0) continue;
 
-            var target = emps.Where(e => e.ContractEndDate == null)
-                             .OrderBy(e => e.ContractStartDate)
-                             .FirstOrDefault()
-                      ?? emps.OrderBy(e => e.ContractStartDate).First();
+            var (target, donor) = ProbationAnchor.ResolveProbationTarget(emps);
+            if (target.ProbationEndDate != null) continue; // Ziel hat schon — idempotent.
+
+            // Sync-Split-Heilung: Probezeit vom beendeten Splitter umhängen.
+            if (donor != null)
+            {
+                if (ProbationAnchor.MoveProbation(target, donor))
+                {
+                    _db.EmploymentProbationLogs.Add(new EmploymentProbationLog
+                    {
+                        EmploymentId         = target.Id,
+                        EventDate            = DateOnly.FromDateTime(DateTime.Now),
+                        EventType            = "UMGEHAENGT",
+                        DeltaDays            = 0,
+                        Grund                = $"Probezeit vom Sync-Split-Vertrag (#{donor.Id}, beendet " +
+                                               $"{donor.ContractEndDate:dd.MM.yyyy}) auf den offenen Vertrag übernommen.",
+                        ProbezeitEndeNachher = DateOnly.FromDateTime(target.ProbationEndDate!.Value),
+                        CreatedAt            = DateTime.Now,
+                    });
+                    res.Notes.Add($"Probezeit umgehängt (MA #{eid}): Sync-Split-Vertrag → offener Vertrag.");
+                    changed = true;
+                }
+                continue; // kein Neu-Seed nötig — Anker-Pass verankert falls provisorisch.
+            }
 
             if (!target.CompanyProfileId.HasValue
                 || !branchProbs.TryGetValue(target.CompanyProfileId.Value, out var branchProb))
