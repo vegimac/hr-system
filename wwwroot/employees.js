@@ -875,16 +875,44 @@ function renderNumberAliases(empId, rows) {
     if (!box || String(box.dataset.emp) !== String(empId)) return;
     const summary = document.getElementById('empAliasSummaryField');
     const activeNumber = (selectedEmployee?.employeeNumber || '').trim();
-    const uniqueNumbers = Array.from(new Set((rows || [])
-        .map(a => (a.number || '').trim())
-        .filter(n => n && n !== activeNumber)));
-    if (summary) {
-        const txt = uniqueNumbers.join(', ');
-        summary.textContent = txt || '–';
+    // Dedupe nach Nummer, erste (neueste) Zeile gewinnt — ID fürs Entfernen behalten.
+    const seen = new Set();
+    const uniq = [];
+    for (const a of (rows || [])) {
+        const n = (a.number || '').trim();
+        if (!n || n === activeNumber || seen.has(n)) continue;
+        seen.add(n);
+        uniq.push({ id: a.id, number: n });
     }
-    box.innerHTML = uniqueNumbers
-        .map(n => `<span class="emp-old-number">${esc(n)}</span>`)
+    if (summary) {
+        summary.textContent = uniq.map(a => a.number).join(', ') || '–';
+    }
+    // Klick auf den Chip entfernt die alte Nummer (Walter 05.08.2026 —
+    // Fehlerkorrektur-Aliase wie 10400025 sollen weg können).
+    box.innerHTML = uniq
+        .map(a => `<span class="emp-old-number" style="cursor:pointer" title="Alte Nummer — klicken zum Entfernen"
+            onclick="removeNumberAlias(${empId}, ${a.id}, '${esc(a.number)}')">${esc(a.number)}</span>`)
         .join('');
+}
+
+async function removeNumberAlias(empId, aliasId, number) {
+    const ok = await (typeof liquidConfirm === 'function'
+        ? liquidConfirm(`Alte Personalnummer ${number} aus der Historie entfernen?`,
+            { title: 'Alias entfernen', yesLabel: 'Entfernen', noLabel: 'Abbrechen' })
+        : Promise.resolve(confirm(`Alte Nummer ${number} entfernen?`)));
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/number-aliases/${aliasId}`, {
+            method: 'DELETE', headers: ah()
+        });
+        if (!r.ok && r.status !== 204) {
+            alert('Entfernen fehlgeschlagen (HTTP ' + r.status + ').');
+            return;
+        }
+        loadNumberAliases(empId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
 }
 
 async function addNumberAlias(empId) {
