@@ -120,7 +120,12 @@ public static class ContractPdfBuilder
         var input = new ContractPdfInput(
             CompanyName:             company.FullDisplayName,
             CompanyAddress:          companyAddress,
-            WorkLocation:            company.WorkLocation ?? "",
+            // Arbeitsort im Vertragstext («im Restaurant in X»): eigenes Feld,
+            // Fallback = Ort der Filiale (Walter-Bug 05.08.2026, Langenthal
+            // Drive — Feld war nie gepflegt → «im Restaurant in , eingesetzt»).
+            WorkLocation:            !string.IsNullOrWhiteSpace(company.WorkLocation)
+                                         ? company.WorkLocation
+                                         : (company.City ?? ""),
             SignatoryName:           signatory != null
                                          ? $"{signatory.User.FirstName} {signatory.User.LastName}".Trim()
                                          : "",

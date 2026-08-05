@@ -230,6 +230,9 @@ public class CompanyProfilesController : ControllerBase
         profile.ZipCode        = string.IsNullOrWhiteSpace(dto.ZipCode)        ? null : dto.ZipCode.Trim();
         profile.City           = string.IsNullOrWhiteSpace(dto.City)           ? null : dto.City.Trim();
         profile.Country        = string.IsNullOrWhiteSpace(dto.Country)        ? null : dto.Country.Trim();
+        // Arbeitsort im Vertragstext («im Restaurant in X») — leer = Fallback
+        // auf den Ort (ContractPdfBuilder, Walter 05.08.2026).
+        profile.WorkLocation   = string.IsNullOrWhiteSpace(dto.WorkLocation)   ? null : dto.WorkLocation.Trim();
 
         // Standort-Kanton (für Familienzulagen)
         if (string.IsNullOrWhiteSpace(dto.KantonCode))
@@ -284,6 +287,7 @@ public class CompanyProfilesController : ControllerBase
         string?  ZipCode,
         string?  City,
         string?  Country,
+        string?  WorkLocation,
         string?  KantonCode,
         string?  Phone,
         string?  Email,

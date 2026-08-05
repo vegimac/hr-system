@@ -263,6 +263,7 @@ function renderFilialenDetail(b) {
                 ${fField('Standort-Kanton', b.kantonCode ? b.kantonCode : '<span style="color:#dc2626">⚠ nicht gesetzt</span>')}
                 ${fField('Telefon',         b.phone)}
                 ${fField('E-Mail',          b.email)}
+                ${fField('Arbeitsort (Vertrag)', b.workLocation || `<span style="color:#8b8b8b">– (Fallback: ${b.city || 'Ort'})</span>`)}
                 ${fField('BUR-Nummer',      b.burNummer)}
                 ${fField('UID-Nummer',      b.uidNummer)}
                 ${fField('Branchen-Code',   b.branchenCode)}
@@ -974,6 +975,8 @@ async function openStmModal(id) {
         document.getElementById('stmKantonCode').value     = (b.kantonCode || '').toUpperCase();
         document.getElementById('stmPhone').value          = b.phone          || '';
         document.getElementById('stmEmail').value          = b.email          || '';
+        const stmWl = document.getElementById('stmWorkLocation');
+        if (stmWl) stmWl.value = b.workLocation || '';
         document.getElementById('stmBurNummer').value      = b.burNummer      || '';
         document.getElementById('stmUidNummer').value      = b.uidNummer      || '';
         document.getElementById('stmBranchenCode').value   = b.branchenCode   || '';
@@ -1059,6 +1062,7 @@ async function saveStm() {
         kantonCode:     kanton,
         phone:          trimOrNull('stmPhone'),
         email:          trimOrNull('stmEmail'),
+        workLocation:   trimOrNull('stmWorkLocation'),
         burNummer:      trimOrNull('stmBurNummer'),
         uidNummer:      trimOrNull('stmUidNummer'),
         branchenCode:   trimOrNull('stmBranchenCode'),

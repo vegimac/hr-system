@@ -439,23 +439,31 @@ function applyEmpFilter() {
             if (!emps.length && restCode && (e.employeeNumber || '').replace(/alt$/i, '').startsWith(restCode)) {
                 return true;
             }
-            // Filial-Treffer nach Vertragsstatus (Walter-Vorgabe 23.06.2026):
-            //   aktiv  → wenn in dieser Filiale ein Vertrag HEUTE läuft ODER in
-            //            der ZUKUNFT beginnt (Walter 12.07.2026: neu importierte
-            //            MA mit künftigem Eintritt — z.B. Vertrag ab 23.7. —
-            //            gehören zu den Aktiven, nicht nur unter «Alle»).
-            //            Filialwechsel bleibt korrekt: der Vertrag der alten
-            //            Filiale ist beendet (Ende < heute) und zählt nicht.
-            //   inaktiv→ jeder (auch historische) Vertrag in dieser Filiale zählt
-            const matchBranchActive = emps.some(v =>
-                Number(v.companyProfileId) === cpid
-                && (_empContractActiveOn(v, today)
-                    || (v.contractStartDate && new Date(v.contractStartDate) > today
-                        && (!v.contractEndDate || new Date(v.contractEndDate) >= today))));
-            const matchBranchAny = emps.some(v => Number(v.companyProfileId) === cpid);
-            if (_empFilter === 'aktiv')   return matchBranchActive;
-            if (_empFilter === 'inaktiv') return matchBranchAny;
-            return matchBranchAny;
+            // ── Heimatfiliale-Prinzip (Walter-Vorgabe 05.08.2026) ────────────
+            // Das Dossier wohnt dort, wo der MA ARBEITET: beim Filialwechsel
+            // zieht die GANZE Akte (inkl. alter Verträge/History) in die neue
+            // Filiale um; die alte Filiale zeigt den MA NICHT mehr (auch nicht
+            // unter «Alle» — Fall Mirjete Velijaj 104→230). Beim Austritt
+            // bleibt das Dossier in der LETZTEN Filiale. MA mit PARALLELEN
+            // laufenden/zukünftigen Verträgen in mehreren Filialen erscheinen
+            // in allen diesen Filialen.
+            const withCp = emps.filter(v => v.companyProfileId);
+            if (!withCp.length) return false;
+            const laeuft = v => _empContractActiveOn(v, today)
+                || (v.contractStartDate && new Date(v.contractStartDate) > today
+                    && (!v.contractEndDate || new Date(v.contractEndDate) >= today));
+            const activeCpids = [...new Set(withCp.filter(laeuft).map(v => Number(v.companyProfileId)))];
+            if (activeCpids.length) {
+                // Irgendwo aktiv → NUR in diesen Filialen sichtbar (als Aktiver).
+                if (!activeCpids.includes(cpid)) return false;
+                return _empFilter !== 'inaktiv';
+            }
+            // Nirgends aktiv → Heimat = Filiale des zuletzt beendeten Vertrags.
+            const letzte = withCp.slice().sort((a, b) =>
+                String(b.contractEndDate || b.contractStartDate || '')
+                    .localeCompare(String(a.contractEndDate || a.contractStartDate || '')))[0];
+            if (Number(letzte.companyProfileId) !== cpid) return false;
+            return _empFilter !== 'aktiv';
         });
     }
 
