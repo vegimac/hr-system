@@ -2082,7 +2082,7 @@ function cpEmpfFieldLabels(art) {
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 6494895' };
     if (art === 'QST')
-        return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Subnummer',
+        return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Buchungskreis',
                  phMitglied: 'z.B. 1914715' };
     return { kasse: 'Nummer der Kasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
              phMitglied: 'z.B. 629.0714.00' };
@@ -2152,7 +2152,7 @@ function cpEmpfRowHtml(z) {
     const nums = [
         z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
         z.mitgliednummer ? `${isVers ? 'Kunde' : isQst ? 'SSL' : 'Mitglied'} ${cdokEsc(z.mitgliednummer)}` : null,
-        z.subnummer      ? `${isVers ? 'Vertrag' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
+        z.subnummer      ? `${isVers ? 'Vertrag' : isQst ? 'Buchungskreis' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
     ].filter(Boolean).join(' · ');
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
