@@ -2176,7 +2176,7 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
                 <label style="${lbl}">PLZ / Ort
                     <div style="display:flex;gap:8px">
-                        <input id="cpEmpfPlz" style="${inp};width:80px;flex:none">
+                        <input id="cpEmpfPlz" oninput="cpEmpfPlzLookup()" style="${inp};width:80px;flex:none">
                         <input id="cpEmpfOrt" style="${inp}">
                     </div>
                 </label>
@@ -2358,4 +2358,14 @@ async function cpEmpfDelete(zuordnungId) {
         showToast('Entfernt.', 'success');
         await cpEmpfLoad(_cpEmpfBranchId);
     } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+}
+
+// PLZ-Lookup im Empfänger-Modal (Walter 06.08.2026): Ort + Kanton automatisch
+// aus der PLZ — nutzt den globalen Helfer aus employees.js (BFS-Liste).
+function cpEmpfPlzLookup() {
+    const plz = document.getElementById('cpEmpfPlz')?.value || '';
+    if (!/^\d{4}$/.test(plz.trim())) return;
+    if (typeof plzLookupGeneric === 'function') {
+        plzLookupGeneric(plz, 'cpEmpfOrt', 'cpEmpfKanton', null, null);
+    }
 }
