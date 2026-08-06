@@ -1383,14 +1383,14 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-tel2"><div class="ov-pfl">Telefon 2</div>
             <input id="ov-phone2" class="ov-softin" type="tel" value="${esc(emp.phone2)}" placeholder="+41 79 …" oninput="validatePhone(this);ovDirty()" onblur="validatePhoneBlur(this)"></div>
             <div class="ov-pf ov-pf-ahv">
-                <div class="ov-pfl">AHV-Nr.</div>
+                <div class="ov-pfl" style="display:flex;align-items:center;gap:8px">AHV-Nr.${!(emp.ahvNumber ?? emp.socialSecurityNumber) && typeof ahvOpenForEmployee === 'function' ? `
+                    <button type="button" onclick="ahvOpenForEmployee(${emp.id})"
+                            title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:2px 9px;font-size:10.5px;font-weight:600;cursor:pointer;box-shadow:0 1px 4px rgba(60,55,48,0.18);line-height:1.5">
+                        📄 Ausweis bestellen
+                    </button>` : ''}
+                </div>
                 <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber) || '<span class="ov-empty">–</span>'}</div>
-                ${!(emp.ahvNumber ?? emp.socialSecurityNumber) && typeof ahvOpenForEmployee === 'function' ? `
-                <button type="button" onclick="ahvOpenForEmployee(${emp.id})"
-                        title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"
-                        style="margin-top:6px;background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:5px 12px;font-size:11.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 6px rgba(60,55,48,0.18)">
-                    📄 Ausweis bestellen
-                </button>` : ''}
             </div>
 
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
