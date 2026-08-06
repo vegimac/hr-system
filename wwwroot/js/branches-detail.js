@@ -1867,8 +1867,10 @@ function filDoksRowHtml(d, isAdmin) {
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
         <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="filDoksPreview(${d.id})" title="Ansehen">${cdokEsc(name)}</div>
-            ${d.bemerkung ? `<div style="font-size:11.5px;color:#8b8b8b;margin-top:1px">${cdokEsc(d.bemerkung)}</div>` : ''}
+            <!-- Bemerkung INLINE hinter dem Namen (Walter 06.08.2026) -->
+            <div style="font-size:13px;color:#3f3f3f;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="filDoksPreview(${d.id})" title="Ansehen">
+                <span style="font-weight:600">${cdokEsc(name)}</span>${d.bemerkung ? ` <span style="font-weight:400;color:#8b8b8b;font-size:12px">— ${cdokEsc(d.bemerkung)}</span>` : ''}
+            </div>
         </div>
         <div style="flex-shrink:0;text-align:right">
             <div style="font-size:12px;color:#646464">${dt}</div>
