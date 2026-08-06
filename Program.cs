@@ -853,12 +853,12 @@ using (var scope = app.Services.CreateScope())
         VALUES
             ('night_work_ausnahme_fehlt', 'Nachtarbeit-Ausnahmeregelung fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 23, 52, 'none')
         ON CONFLICT (category) DO NOTHING;
-        UPDATE dashboard_warning_config
-           SET label = 'Nachtarbeit-Ausnahmeregelung fehlt',
-               severity_base = 'critical'
-         WHERE category = 'night_work_ausnahme_fehlt'
-           AND (severity_base IS DISTINCT FROM 'critical'
-                OR label IS DISTINCT FROM 'Nachtarbeit-Ausnahmeregelung fehlt');
+        -- ACHTUNG (Walter-Bug 06.08.2026): hier stand ein UPDATE, das bei JEDEM
+        -- Start severity_base auf 'critical' zurückzwang, sobald Walter die
+        -- Stufe in der Warnungsverwaltung änderte (Guard hing am editierten
+        -- Feld selbst — Stolperfalle 8). Entfernt; der Seed-Wert kommt nur
+        -- noch über das INSERT oben in eine LEERE Zeile. User-Einstellungen
+        -- in dashboard_warning_config NIE per Start-Seed überschreiben.
         UPDATE dashboard_warning_config SET todo_priority = 15,  warn_color = 'red'
             WHERE category = 'minimum_wage_violation' AND todo_priority = 100 AND warn_color = 'none';
         UPDATE dashboard_warning_config SET todo_priority = 45,  warn_color = 'none'
@@ -880,9 +880,9 @@ using (var scope = app.Services.CreateScope())
                severity_escalated = 'critical',
                is_date_based = TRUE
          WHERE category = 'exit_pending_active'
-           AND (label = 'Austritt erfasst, MA noch aktiv'
-                OR warn_days IS NULL
-                OR is_date_based = FALSE);
+           AND label = 'Austritt erfasst, MA noch aktiv';
+        -- (Guard NUR am alten Label — warn_days/is_date_based würden nach
+        --  User-Edits erneut zünden und Einstellungen überschreiben.)
         UPDATE dashboard_warning_config SET todo_priority = 25, warn_color = 'red',
                label = 'Kündigung möglich (Sperrfrist Ende)', warn_days = 90, severity_base = 'warning'
             WHERE category = 'kuendigung_sperrfrist_ende' AND todo_priority = 100;
