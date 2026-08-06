@@ -141,6 +141,31 @@ public class EasyAtWorkController : ControllerBase
             }
         }
 
+        // Verschollen-Diagnose (Walter 06.08.2026): steht der MA HEUTE in der
+        // ?active=-Liste? Genau diese Liste nutzt der Verschollen-Wächter —
+        // fehlt der MA hier trotz offenem to=null, filtert easy vertragsbasiert
+        // (kein laufender Vertrag/Pay-rate in easy).
+        object activeListCheck;
+        try
+        {
+            var activeRows = await _client.GetAllEmployeesActiveAtAsync(
+                customerId, DateOnly.FromDateTime(DateTime.Today), ct);
+            var inList = activeRows.Any(r => r.Id == eid
+                || (match.UserId.HasValue && r.UserId == match.UserId));
+            activeListCheck = new
+            {
+                heuteInAktivListe = inList,
+                aktivListeCount   = activeRows.Count,
+                hinweis = inList
+                    ? "MA ist in der Aktivliste — Verschollen-Warnung sollte sich beim nächsten Check aufheben."
+                    : "MA FEHLT in der Aktivliste (?active=heute) trotz offenem Austritt — easy filtert vertragsbasiert: Vertrag/Pay-rate in easy prüfen (Einsatz & Vertragsinfos).",
+            };
+        }
+        catch (Exception ex)
+        {
+            activeListCheck = new { error = ex.Message };
+        }
+
         return Ok(new
         {
             number = num,
@@ -148,6 +173,7 @@ public class EasyAtWorkController : ControllerBase
             easyAtWorkResourceId = eid,        // für /employees/{id} verwendet
             easyAtWorkUserId     = match.UserId,
             storedCoworkEawId    = storedCoworkEawId,   // bei uns gespeichert (i.d.R. UserId)
+            activeListCheck,
             results
         });
     }
