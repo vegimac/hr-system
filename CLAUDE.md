@@ -190,6 +190,8 @@ Auszahlung = Tagessatz × bezogene Tage diesen Monat
 
 Beispiel: Saldo 800 + Akkumulation 200 = 1000 CHF / (8 + 2) = 10 Tage → 100 CHF/Tag, bei 6 bezogenen Tagen → 600 CHF Auszahlung. Cap = Pott CHF (kein Vorbezug). Ferien-Geld-Saldo neu = Pott − Auszahlung. Ferien-Tage-Saldo neu = Vormonat + Accrual − bezogen. Bei MTP zusätzlich: Garantie-Festlohn im Bezugsmonat um die Ferientage gekürzt.
 
+**Kein Ferien-Vorbezug = bewusste Mirus-Abweichung (Walter bestätigt 06.08.2026, ABSOLUT):** Mirus zahlt bezogene Ferientage voll zum Tagessatz aus und lässt den Ferien-CHF-Saldo ins MINUS laufen (Vorbezug, z.B. Juli 2026 Oftringen: Demirel −1'101, Cuzdi −814). OneCrew cappt bewusst auf den Pott — negative Feriengeld-Saldi gibt es bei uns NICHT. Beim Parallelbetrieb-Lohnvergleich gegen Mirus sind grosse Brutto-Differenzen bei MA mit vielen Ferientagen daher ERWARTET und KEIN Bug (Mirus-Slip zeigt dann «Saldo Ferien in CHF» negativ); übers Jahr gleicht es sich aus. Diese Vorgabe NICHT «fixen».
+
 **Ferien-Tagessatz je Modell (Walter-Vorgabe 26.05.2026, ABSOLUT):** der Tagessatz, mit dem im Lohnzettel die bezogenen Ferientage bewertet werden, hängt am Vertragsmodell. Krankheit/Unfall ist davon AUSGENOMMEN — dort gilt `KtgTagessatzService` (eigene Formel, hier nicht anrühren).
 
 - **MTP** (Stundenlöhner mit Garantie) — kein fester Monatslohn, schwankt nach Anzahl Tagen pro Monat:
