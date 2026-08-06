@@ -3947,7 +3947,7 @@ function buildApiContractPayloadFromRow(employeeId, row) {
 // ── SAVE NEW EMPLOYEE ─────────────────────────────────
 // ── VACATION PERCENT ─────────────────────────────────
 function getVacationPct(dateOfBirth, startDate) {
-    const vac5 = companyProfile?.defaultVacationPercent5Weeks ?? 10.64;
+    const vac5 = companyProfile?.defaultVacationPercent5Weeks ?? 10.65;
     const vac6 = companyProfile?.defaultVacationPercent6Weeks ?? 13.04;
     if (!dateOfBirth || !startDate) return vac5;
     const birth = new Date(dateOfBirth);

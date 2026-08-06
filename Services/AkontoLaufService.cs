@@ -644,7 +644,7 @@ public class AkontoLaufService
             decimal bezogeneTage = FerienAuszahlungService
                 .SumAbgeschlosseneFerientageBisStichtag(empAbsences, periodFrom, stichtag);
             // Walter-Vorgabe 06.06.2026 (Stufe 1b): aus der Filiale, altersaware
-            decimal vacationPct = profile.DefaultVacationPercent5Weeks ?? 10.64m;
+            decimal vacationPct = profile.DefaultVacationPercent5Weeks ?? 10.65m;
             if (e.DateOfBirth.HasValue)
             {
                 var dob = DateOnly.FromDateTime(e.DateOfBirth.Value);

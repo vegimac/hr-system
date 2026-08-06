@@ -1506,7 +1506,7 @@ using (var scope = app.Services.CreateScope())
             ('190.2', 'Ausbildungszulage',            'Familienzulagen','ZULAGE',false, false, false, false, true,  'K',     191,  true),
             -- ── Ferienentschädigung ───────────────────────────────────────
             ('195.1', 'Ferienentschädigung 8.33%',   'Ferienentsch.','ZULAGE', true,  true,  true,  true,  true,  'I',     195,  true),
-            ('195.2', 'Ferienentschädigung 10.64%',  'Ferienentsch.','ZULAGE', true,  true,  true,  true,  true,  'I',     196,  true),
+            ('195.2', 'Ferienentschädigung 10.65%',  'Ferienentsch.','ZULAGE', true,  true,  true,  true,  true,  'I',     196,  true),
             ('195.3', 'Ferienentschädigung 13.04%',  'Ferienentsch.','ZULAGE', true,  true,  true,  true,  true,  'I',     197,  true),
             -- ── Boni / Sondervergütungen ──────────────────────────────────
             ('200.5', 'McBonus',                      'Bonus',        'ZULAGE', true,  true,  true,  true,  true,  NULL,    200,  true),

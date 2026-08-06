@@ -26,7 +26,7 @@ namespace HrSystem.Tests;
 ///      Periodenende → keine Zahlung mehr).
 ///
 /// Referenzfall Zeljka Pajic (MTP, 21.66/h): alter Tagessatz 128.60
-/// (mit Feiertag) → neu 125.75 (ohne Feiertag).
+/// (mit Feiertag) → neu 125.76 (ohne Feiertag).
 /// </summary>
 public class FeiertagLohnersatzTests
 {
@@ -45,7 +45,7 @@ public class FeiertagLohnersatzTests
         var cp = new CompanyProfile
         {
             CompanyName = "Test-Filiale",
-            DefaultVacationPercent5Weeks = 10.64m,
+            DefaultVacationPercent5Weeks = 10.65m,
             DefaultHolidayPercent = 2.27m,
             MaxPartTimeHoursPerWeek = 17m,
         };
@@ -80,13 +80,13 @@ public class FeiertagLohnersatzTests
 
         Assert.NotNull(r);
         Assert.Equal("A", r!.Regel);
-        // 34 × (21.66 × 1.1064 × 1.0833) × 52 / 365 = 125.75
+        // 34 × (21.66 × 1.1065 × 1.0833) × 52 / 365 = 125.76
         // (ALT mit Feiertag ×1.0227 wäre 128.60 — Referenz Zeljka Pajic)
-        Assert.Equal(125.75m, r.Tagessatz100);
+        Assert.Equal(125.76m, r.Tagessatz100);
         Assert.NotEqual(128.60m, r.Tagessatz100);
         // Breakdown liefert keine Feiertag-Komponente mehr (Anzeige-Karte)
         Assert.Null(r.Breakdown.FeiertagPct);
-        Assert.Equal(10.64m, r.Breakdown.FerienPct);
+        Assert.Equal(10.65m, r.Breakdown.FerienPct);
         Assert.Equal(8.33m, r.Breakdown.ZehnterMLPct);
     }
 

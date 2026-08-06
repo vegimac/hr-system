@@ -370,7 +370,7 @@ public class EmploymentsController : ControllerBase
         // Ferien-Anspruch: 5 Wochen = 35 Tage/Jahr, 6 Wochen = 42 Tage/Jahr
         // Walter-Vorgabe 06.06.2026: Quelle = Filial-Defaults (5-Wo. bzw. 6-Wo.)
         // + altersaware Schwelle am Austrittsdatum, analog Engine.
-        decimal vacPct = company?.DefaultVacationPercent5Weeks ?? 10.64m;
+        decimal vacPct = company?.DefaultVacationPercent5Weeks ?? 10.65m;
         if (employment.Employee?.DateOfBirth != null && company != null)
         {
             var dob = DateOnly.FromDateTime(employment.Employee.DateOfBirth.Value);

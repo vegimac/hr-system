@@ -347,12 +347,12 @@ public class ZwischenverdienistController : ControllerBase
             if (checkDate < DateOnly.FromDateTime(employee.DateOfBirth.Value.AddYears(age))) age--;
             ferienPct = age >= 50
                 ? (company.DefaultVacationPercent6Weeks ?? 13.04m)
-                : (company.DefaultVacationPercent5Weeks ?? 10.64m);
+                : (company.DefaultVacationPercent5Weeks ?? 10.65m);
         }
         else
         {
             // Kein Geburtsdatum → Standardwert 5 Wochen
-            ferienPct = company.DefaultVacationPercent5Weeks ?? 10.64m;
+            ferienPct = company.DefaultVacationPercent5Weeks ?? 10.65m;
 }
         // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
         decimal? feiertagPct  = company.DefaultHolidayPercent;

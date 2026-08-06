@@ -73,7 +73,7 @@ public class CompanyProfile
     public int? SelectedContractTemplateId { get; set; }
 
     // NEU: Lohnzuschläge
-    public decimal? DefaultVacationPercent5Weeks { get; set; } = 10.64m;
+    public decimal? DefaultVacationPercent5Weeks { get; set; } = 10.65m;
     public decimal? DefaultVacationPercent6Weeks { get; set; } = 13.04m;
     public decimal? DefaultHolidayPercent { get; set; } = 2.27m;
 

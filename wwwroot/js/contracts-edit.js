@@ -1191,11 +1191,11 @@ function onPensumChange() {
 
 function getVacationPercent(employeeId, startDate) {
     const dob = employeeDateOfBirthMap[employeeId];
-    if (!dob || !startDate) return selectedCompanyProfile?.defaultVacationPercent5Weeks ?? 10.64;
+    if (!dob || !startDate) return selectedCompanyProfile?.defaultVacationPercent5Weeks ?? 10.65;
     const birth = new Date(dob); const start = new Date(startDate);
     let age = start.getFullYear() - birth.getFullYear();
     if (start < new Date(start.getFullYear(), birth.getMonth(), birth.getDate())) age--;
-    return age >= 50 ? (selectedCompanyProfile?.defaultVacationPercent6Weeks ?? 13.04) : (selectedCompanyProfile?.defaultVacationPercent5Weeks ?? 10.64);
+    return age >= 50 ? (selectedCompanyProfile?.defaultVacationPercent6Weeks ?? 13.04) : (selectedCompanyProfile?.defaultVacationPercent5Weeks ?? 10.65);
 }
 
 async function saveEmployment() {

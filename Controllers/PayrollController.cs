@@ -714,7 +714,7 @@ public class PayrollController : HrControllerBase
             .Where(c => c.Id == companyProfileId)
             .Select(c => new { c.DefaultVacationPercent5Weeks, c.DefaultVacationPercent6Weeks, c.VacationSixWeeksFromAge })
             .FirstOrDefaultAsync();
-        decimal basePct = company?.DefaultVacationPercent5Weeks ?? 10.64m;
+        decimal basePct = company?.DefaultVacationPercent5Weeks ?? 10.65m;
         decimal sixPct  = company?.DefaultVacationPercent6Weeks ?? 13.04m;
         int sixFromAge  = company?.VacationSixWeeksFromAge ?? 50;
 

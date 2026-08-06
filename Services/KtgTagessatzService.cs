@@ -334,7 +334,7 @@ public class KtgTagessatzService
             if (dob.AddYears(company.VacationSixWeeksFromAge) <= heute)
                 return company.DefaultVacationPercent6Weeks ?? 13.04m;
         }
-        return company.DefaultVacationPercent5Weeks ?? 10.64m;
+        return company.DefaultVacationPercent5Weeks ?? 10.65m;
     }
 
     private static string MonthName(int month) => month switch
