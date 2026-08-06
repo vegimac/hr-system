@@ -7,6 +7,7 @@
 // ══════════════════════════════════════════════════════════════════════
 let _ahvAllEmployees = [];
 let _ahvSelectedEmpId = null;
+let _ahvPendingEmpId = null;   // Deep-Link aus dem MA-Detail («Ausweis bestellen»)
 
 async function ahvInit() {
     try { _ahvAllEmployees = await loadEmployeeLookup(); }
@@ -15,6 +16,22 @@ async function ahvInit() {
     const form = document.getElementById('ahvFormBlock');
     if (form) form.style.display = 'none';
     ahvRenderEmpList();
+    // Deep-Link: MA aus dem Personalien-Tab direkt vorselektieren.
+    if (_ahvPendingEmpId != null) {
+        const id = _ahvPendingEmpId;
+        _ahvPendingEmpId = null;
+        const sel = document.getElementById('ahvEmpSelect');
+        if (sel) sel.value = String(id);
+        // Auch laden, wenn der MA nicht in der (gefilterten) Liste steht.
+        await ahvSelectEmpById(id);
+    }
+}
+
+/** Sprung aus dem MA-Detail: AHV-Anmeldung öffnen + MA vorbefüllen. */
+function ahvOpenForEmployee(empId) {
+    _ahvPendingEmpId = empId;
+    window.activeEmpId = empId;
+    showPage('ahv-anmeldung');
 }
 
 function ahvRenderEmpList() {
@@ -50,6 +67,11 @@ function ahvRenderEmpList() {
 async function ahvSelectEmp() {
     const sel = document.getElementById('ahvEmpSelect');
     const empId = parseInt(sel?.value || '0', 10);
+    if (!empId) return;
+    await ahvSelectEmpById(empId);
+}
+
+async function ahvSelectEmpById(empId) {
     if (!empId) return;
     _ahvSelectedEmpId = empId;
     window.activeEmpId = empId;
