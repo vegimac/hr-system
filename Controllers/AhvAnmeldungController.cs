@@ -76,8 +76,8 @@ public class AhvAnmeldungController : ControllerBase
             geburtsdatum = e.DateOfBirth?.ToString("dd.MM.yyyy"),
             ahvNummer   = "",   // Formularzweck: Nummer ist ja nicht vorhanden
             geschlecht  = NormalizeGender(e.Gender, e.Salutation),
-            strasse     = e.Street,
-            hausNr      = "",   // employee.street enthält Strasse+Nr kombiniert
+            strasse     = SplitStreetAndHouseNumber(e.Street).Street,
+            hausNr      = SplitStreetAndHouseNumber(e.Street).HouseNumber,
             plz         = e.ZipCode,
             ort         = e.City,
             telefon     = e.PhoneMobile ?? e.Phone2,
@@ -146,6 +146,18 @@ public class AhvAnmeldungController : ControllerBase
 
         return File(bytes, "application/pdf",
             $"{e.EmployeeNumber}-AHV-Anmeldung-318260.pdf");
+    }
+
+    /// <summary>«Rüesselerweg 7b» → («Rüesselerweg», «7b») — analog Stammdaten-Import.</summary>
+    private static (string? Street, string? HouseNumber) SplitStreetAndHouseNumber(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return (null, null);
+        var trimmed = raw.Trim();
+        var m = System.Text.RegularExpressions.Regex.Match(
+            trimmed, @"^(.+?)\s+(\d+\s*[a-zA-Z]?(?:[-–]\d+\s*[a-zA-Z]?)?)\s*$");
+        if (m.Success)
+            return (m.Groups[1].Value.Trim(), m.Groups[2].Value.Trim());
+        return (trimmed, null);
     }
 
     private static string? NormalizeGender(string? gender, string? salutation)

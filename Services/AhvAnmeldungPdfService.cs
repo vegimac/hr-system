@@ -94,28 +94,30 @@ public class AhvAnmeldungPdfService
             void X1(float x, float topY)
                 => Stamp(c1, fontBold, "X", x, topY, 10f);
 
-            T1(d.Wohnsitzland, 40, 157);
+            // Werte-Grundlinien: Label-Top + ~24.5 → vertikal mittig in der Box
+            // (Walter-Feedback 06.08.2026: vorher klebten die Werte am oberen Rand).
+            T1(d.Wohnsitzland, 40, 160.5f);
             // Grenzgänger: Kreis vor «ja» (x0 48.6) bzw. «nein» (x0 69.0)
             if (d.Grenzgaenger) X1(40.0f, 190.5f); else X1(60.5f, 190.5f);
-            T1(d.Name,         40, 228);
-            T1(d.Ledigname,    40, 263);
-            T1(d.Vornamen,     40, 298);
-            T1(d.Geburtsdatum, 40, 351);
-            T1(d.AhvNummer,   330, 383);
+            T1(d.Name,         40, 231.5f);
+            T1(d.Ledigname,    40, 266.5f);
+            T1(d.Vornamen,     40, 301.5f);
+            T1(d.Geburtsdatum, 40, 354.5f);
+            T1(d.AhvNummer,   330, 384);   // Grundlinie des vorgedruckten «756»
             // Geschlecht: Kreis vor «männlich» (x0 48.6) bzw. «weiblich» (x0 100.2)
             var g = (d.Geschlecht ?? "").Trim().ToUpperInvariant();
             if (g is "M") X1(40.0f, 447.0f);
             else if (g is "F" or "W") X1(91.5f, 447.0f);
-            T1(d.Strasse,       40, 501);
-            T1(d.HausNr,       432, 501);
-            T1(d.Plz,           40, 536);
-            T1(d.Ort,          170, 536);
-            T1(d.Telefon,       40, 571);
-            T1(d.Email,        301, 571);
-            T1(d.Staatsangehoerigkeit, 40, 611);
-            T1(d.Geburtsort,   316, 611);
-            T1(d.MutterName,    40, 696);
-            T1(d.MutterVornamen, 40, 743);
+            T1(d.Strasse,       40, 504.5f);
+            T1(d.HausNr,       432, 504.5f);
+            T1(d.Plz,           40, 539.5f);
+            T1(d.Ort,          170, 539.5f);
+            T1(d.Telefon,       40, 574.5f);
+            T1(d.Email,        301, 574.5f);
+            T1(d.Staatsangehoerigkeit, 40, 614.5f);
+            T1(d.Geburtsort,   316, 614.5f);
+            T1(d.MutterName,    40, 699.5f);
+            T1(d.MutterVornamen, 40, 746.5f);
 
             // ── Seite 2 ────────────────────────────────────────────────
             var c2 = new PdfCanvas(pdf.GetPage(2));
@@ -124,8 +126,8 @@ public class AhvAnmeldungPdfService
             void X2(float x, float topY)
                 => Stamp(c2, fontBold, "X", x, topY, 9f);
 
-            T2(d.VaterName,     40, 66);
-            T2(d.VaterVornamen, 40, 113);
+            T2(d.VaterName,     40, 69.5f);
+            T2(d.VaterVornamen, 40, 116.5f);
             // Grund-Kreise: Texte bei x0=60.7, Kreis davor (Spalte x≈42.8)
             var grundTop = (d.Grund ?? "").Trim().ToUpperInvariant() switch
             {
@@ -136,14 +138,14 @@ public class AhvAnmeldungPdfService
                 _              => 0f,
             };
             if (grundTop > 0) X2(42.8f, grundTop);
-            T2(d.GrundText,     40, 272);
-            T2(d.Firmenname,    40, 353);
-            T2(d.Abrechnungsnummer, 388, 353);
-            T2(d.FirmaStrasse,  40, 387);
-            T2(d.FirmaHausNr,  432, 387);
-            T2(d.FirmaPlz,      40, 422);
-            T2(d.FirmaOrt,     170, 422);
-            T2(d.Stellenantritt, 40, 461);
+            T2(d.GrundText,     40, 275.5f);
+            T2(d.Firmenname,    40, 356.5f);
+            T2(d.Abrechnungsnummer, 388, 356.5f);
+            T2(d.FirmaStrasse,  40, 390.5f);
+            T2(d.FirmaHausNr,  432, 390.5f);
+            T2(d.FirmaPlz,      40, 425.5f);
+            T2(d.FirmaOrt,     170, 425.5f);
+            T2(d.Stellenantritt, 40, 464.5f);
             if (d.BeilageAusweiskopie) X2(42.8f, 546.5f);
         }
         return ms.ToArray();
