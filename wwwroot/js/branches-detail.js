@@ -2176,9 +2176,12 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
                 <label style="${lbl}">PLZ / Ort
                     <div style="display:flex;gap:8px">
-                        <input id="cpEmpfPlz" oninput="cpEmpfPlzLookup()" style="${inp};width:80px;flex:none">
+                        <input id="cpEmpfPlz" oninput="cpEmpfPlzLookup()"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();cpEmpfPlzLookup();document.getElementById('cpEmpfOrt')?.focus();}"
+                               style="${inp};width:80px;flex:none">
                         <input id="cpEmpfOrt" style="${inp}">
                     </div>
+                    <div id="cpEmpfPlzHint" style="font-size:11px;font-weight:400;margin-top:3px;min-height:14px"></div>
                 </label>
                 <label style="${lbl}">Kanton (bei QST)<input id="cpEmpfKanton" placeholder="AG, BE, …" maxlength="2" style="${inp}"></label>
                 <label style="${lbl}">Support-E-Mail<input id="cpEmpfMail" style="${inp}"></label>
@@ -2366,6 +2369,9 @@ function cpEmpfPlzLookup() {
     const plz = document.getElementById('cpEmpfPlz')?.value || '';
     if (!/^\d{4}$/.test(plz.trim())) return;
     if (typeof plzLookupGeneric === 'function') {
-        plzLookupGeneric(plz, 'cpEmpfOrt', 'cpEmpfKanton', null, null);
+        // Hint zeigt ✓ Ort bzw. «PLZ nicht gefunden» (z.B. Postfach-PLZ wie
+        // 5001 Aarau — die stehen nicht im BFS-Ortschaftsverzeichnis, dann
+        // Ort/Kanton von Hand eintragen).
+        plzLookupGeneric(plz, 'cpEmpfOrt', 'cpEmpfKanton', null, 'cpEmpfPlzHint');
     }
 }
