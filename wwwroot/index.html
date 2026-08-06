@@ -4035,6 +4035,7 @@
                         <button class="btn-primary" onclick="eawTestConnection()">🔌 Verbindung testen</button>
                         <button class="btn-secondary" onclick="eawLoadMappings()">↻ Mappings neu laden</button>
                         <button class="btn-secondary" style="background:#fef3c7;border-color:#fde68a;color:#92400e" onclick="showPage('employee-merge'); empMergeLoad();">🧹 Duplikate bereinigen</button>
+                        <button class="btn-secondary" onclick="eawVerschollenCheck(this)" title="Prüft sofort alle MA gegen die easy@work-Aktivlisten — setzt Verschollen-Warnungen und hebt sie auf (sonst läuft das nur im Nacht-Sync)">🕵️ Verschollen-Check jetzt</button>
                     </div>
                     <div id="eawTestResultBox" style="display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:8px;padding:12px;margin-bottom:18px;font-size:13px"></div>
                     <h3 style="margin:18px 0 8px;font-size:15px">Filial-Mappings</h3>
@@ -7667,7 +7668,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260708flex"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260722u"></script>
-<script src="js/easyatwork.js?v=20260802b"></script>
+<script src="js/easyatwork.js?v=20260806a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>

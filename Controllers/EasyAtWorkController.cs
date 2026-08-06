@@ -178,6 +178,19 @@ public class EasyAtWorkController : ControllerBase
         });
     }
 
+    // Verschollen-Check manuell anstossen (Walter 06.08.2026): gleicher Lauf
+    // wie im Nacht-Sync — setzt Markierungen UND hebt sie auf, wenn ein MA
+    // wieder in einer Aktivliste steht. So muss nach einer easy-Korrektur
+    // nicht bis zum nächsten Morgen gewartet werden.
+    [HttpPost("verschollen-check")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> VerschollenCheck(
+        [FromServices] EasyAtWorkEmployeeSyncService empSync, CancellationToken ct)
+    {
+        var notes = await empSync.CheckVerscholleneAsync(ct);
+        return Ok(new { notes });
+    }
+
     // Generischer Roh-Pfad-Prober (Walter 07.07.2026): fragt einen BELIEBIGEN
     // easy@work-API-Pfad ab und gibt Status + Body zurück. Für die Endpunkt-
     // Discovery (z.B. availabilities/{id} + Unter-Ressourcen für die Zeitfenster).

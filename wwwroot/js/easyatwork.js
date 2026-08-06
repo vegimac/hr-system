@@ -1888,3 +1888,21 @@ if (typeof escapeHtml !== 'function') {
             ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     };
 }
+
+// Verschollen-Check manuell (Walter 06.08.2026): gleicher Lauf wie im
+// Nacht-Sync — setzt und HEBT Markierungen sofort auf.
+async function eawVerschollenCheck(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '🕵️ Prüfe…'; }
+    try {
+        const res = await fetch('/api/easywork/verschollen-check', { method: 'POST', headers: ah() });
+        if (!res.ok) { showToast('Verschollen-Check fehlgeschlagen (HTTP ' + res.status + ').', 'error'); return; }
+        const d = await res.json();
+        const notes = d.notes || [];
+        if (!notes.length) showToast('Verschollen-Check: alles unverändert — keine Auffälligkeiten.', 'success');
+        else alert('Verschollen-Check:\n\n' + notes.join('\n'));
+    } catch (_) {
+        showToast('Verbindungsfehler beim Verschollen-Check.', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🕵️ Verschollen-Check jetzt'; }
+    }
+}
