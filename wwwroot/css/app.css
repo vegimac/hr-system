@@ -938,6 +938,28 @@
             color: var(--dlg-text, #d5dee8) !important;
             border-color: rgba(180,200,220,.22) !important;
         }
+        /* Liquid-Glas-Weiss (Sektionen/Buttons in Modals mit inline
+           rgba-Weiss) → Nachtglas. Walter 06.08.2026: Empfänger-Modal
+           & Co. sahen im Dunkelmodus wie graue Platten aus. */
+        body.theme-dark [style*="background:rgba(255,255,255,0.38)"],
+        body.theme-dark [style*="background:rgba(255,255,255,0.45)"],
+        body.theme-dark [style*="background:rgba(255,255,255,0.55)"],
+        body.theme-dark [style*="background:rgba(255,255,255,0.58)"],
+        body.theme-dark [style*="background:rgba(255,255,255,.38)"],
+        body.theme-dark [style*="background:rgba(255,255,255,.45)"],
+        body.theme-dark [style*="background:rgba(255,255,255,.55)"],
+        body.theme-dark [style*="background:rgba(255,255,255,.58)"] {
+            background: rgba(255, 255, 255, 0.07) !important;
+            color: var(--dlg-text, #d5dee8) !important;
+            border-color: rgba(180,200,220,.22) !important;
+        }
+        /* Warme Grau-Texte der Liquid-Masken (Titel/Labels/Hints) →
+           lesbare Nacht-Töne. Substring-Match trifft NUR color:… —
+           background:#3f3f3f (Kohle-Buttons) bleibt unberührt. */
+        body.theme-dark [style*="color:#3f3f3f"] { color: #e8edf4 !important; }
+        body.theme-dark [style*="color:#646464"] { color: #b7c1cc !important; }
+        body.theme-dark [style*="color:#8b8b8b"] { color: #93a1b0 !important; }
+        body.theme-dark .ahv-f { color: #93a1b0; }
         body.theme-dark [style*="background:#f0fdf4"],
         body.theme-dark [style*="background: #f0fdf4"],
         body.theme-dark [style*="background:#dcfce7"],
