@@ -1390,7 +1390,7 @@ function svRender() {
         if (r.maxBaseMonthly       != null) parts.push(`Höchst. ${chf(r.maxBaseMonthly)}`);
         if (r.entryThresholdYearly != null) parts.push(`Eintritt ${chf(r.entryThresholdYearly)}/J`);
         if (r.freibetragMonthly    != null) parts.push(`Freibetr. ${chf(r.freibetragMonthly)}`);
-        return parts.length ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:2px">${parts.join(' · ')}</div>` : '';
+        return parts.length ? `<div style="font-size:10.5px;color:#94a3b8;margin-top:2px;line-height:1.4">${parts.join(' · ')}</div>` : '';
     };
     // Datum IMMER TT.MM.JJJJ (Walter-Vorgabe, gilt überall). Backend liefert ISO.
     const fmtDate = d => {
@@ -1443,7 +1443,7 @@ function svRender() {
                 </div>
             </div>`;
         const lockPill  = locked
-            ? `<span style="font-size:10px;padding:2px 7px;border-radius:9px;background:#fee2e2;color:#991b1b;margin-left:6px" title="In einem freigegebenen Lohnlauf verwendet">🔒 in Lohn</span>`
+            ? ` <span style="display:inline-block;font-size:10px;padding:1px 7px;border-radius:9px;background:#fee2e2;color:#991b1b;white-space:nowrap;vertical-align:1px" title="In einem freigegebenen Lohnlauf verwendet">🔒 in Lohn</span>`
             : '';
         const st = svStatus(r);
         return `<tr style="${st.dim ? 'opacity:0.5;' : ''}">
@@ -1451,10 +1451,10 @@ function svRender() {
             <td style="padding:10px 14px">
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
             </td>
-            <td style="padding:10px 14px;font-weight:500;color:#1e293b;white-space:nowrap">${r.name}${lockPill}</td>
+            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${r.name}${lockPill}</td>
             <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
-            <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
+            <td style="padding:10px 14px;color:#64748b;font-size:12px">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
             <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
             <td style="padding:10px 14px">${modelBadge}</td>
             <td style="padding:10px 14px;font-size:12px;white-space:nowrap">${(() => {

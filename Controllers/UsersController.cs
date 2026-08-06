@@ -49,6 +49,7 @@ public class UsersController : ControllerBase
                 u.Role,
                 u.IsActive,
                 u.IsHrTeam,
+                u.CanCompanyDokumente,
                 u.ReceivesMirusChangeDigest,
                 u.IsSuperAdmin,
                 u.CreatedAt,
@@ -78,7 +79,8 @@ public class UsersController : ControllerBase
         List<int> BranchIds, bool? IsHrTeam = false,
         bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
-        List<string>? AllowedAreas = null);
+        List<string>? AllowedAreas = null,
+        bool? CanCompanyDokumente = false);
 
     public record UpdateUserRequest(
         string Username, string? FirstName, string? LastName,
@@ -87,7 +89,8 @@ public class UsersController : ControllerBase
         bool? IsHrTeam = false,
         bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
-        List<string>? AllowedAreas = null);
+        List<string>? AllowedAreas = null,
+        bool? CanCompanyDokumente = false);
 
     // Bereichs-Schlüssel → komma-separierter DB-String (Walter 28.06.2026).
     //   NULL-Liste  → null  (Rollen-Default bleibt)
@@ -132,6 +135,7 @@ public class UsersController : ControllerBase
             Role      = req.Role,
             IsActive  = true,
             IsHrTeam  = req.IsHrTeam ?? false,
+            CanCompanyDokumente = req.CanCompanyDokumente ?? false,
             ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false,
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
@@ -198,6 +202,7 @@ public class UsersController : ControllerBase
         user.Role      = req.Role;
         user.IsActive  = req.IsActive;
         user.IsHrTeam  = req.IsHrTeam ?? false;
+        user.CanCompanyDokumente = req.CanCompanyDokumente ?? false;
         user.ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false;
         user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
         user.MaxSessionMinutes  = req.MaxSessionMinutes;

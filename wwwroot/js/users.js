@@ -203,6 +203,7 @@ function openUserModal(userId = null) {
             document.getElementById('umRole').value      = u.role;
             document.getElementById('umActive').value    = u.isActive.toString();
             document.getElementById('umIsHrTeam').checked = !!u.isHrTeam;
+            document.getElementById('umCanCompanyDokumente').checked = !!u.canCompanyDokumente;
             document.getElementById('umMirusDigest').checked = !!u.receivesMirusChangeDigest;
             document.getElementById('umIdleTimeout').value = u.idleTimeoutMinutes ?? '';
             document.getElementById('umMaxSession').value  = u.maxSessionMinutes ?? '';
@@ -222,6 +223,7 @@ function openUserModal(userId = null) {
         document.getElementById('umRole').value      = 'user';
         document.getElementById('umActive').value    = 'true';
         document.getElementById('umIsHrTeam').checked = false;
+        document.getElementById('umCanCompanyDokumente').checked = false;
         document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
@@ -375,6 +377,8 @@ async function saveUser() {
     const role      = document.getElementById('umRole').value;
     const isActive  = document.getElementById('umActive').value === 'true';
     const isHrTeam  = document.getElementById('umIsHrTeam').checked;
+    // Zugriff Filial-Dokumente (Walter 06.08.2026) — Tab «Dokumente» im Filial-Detail.
+    const canCompanyDokumente = document.getElementById('umCanCompanyDokumente').checked;
     const receivesMirusChangeDigest = document.getElementById('umMirusDigest').checked;
     const branchIds = Array.from(document.querySelectorAll('#umBranches input:checked')).map(cb => parseInt(cb.value));
     const username  = `${firstName} ${lastName}`.trim() || email;
@@ -406,7 +410,7 @@ async function saveUser() {
     if (!maxP.ok)  { showErr(`${maxP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
 
     const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam,
-                   receivesMirusChangeDigest, branchIds,
+                   canCompanyDokumente, receivesMirusChangeDigest, branchIds,
                    idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value,
                    allowedAreas: umGetAreas() };
 

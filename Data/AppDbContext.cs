@@ -84,6 +84,7 @@ public class AppDbContext : DbContext
     public DbSet<DokumentKategorie>         DokumentKategorien          => Set<DokumentKategorie>();
     public DbSet<DokumentTyp>               DokumentTypen               => Set<DokumentTyp>();
     public DbSet<EmployeeDokument>          EmployeeDokumente           => Set<EmployeeDokument>();
+    public DbSet<CompanyDokument>           CompanyDokumente            => Set<CompanyDokument>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -735,6 +736,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at");
             entity.Property(e => e.IsHrTeam).HasColumnName("is_hr_team");
+            // Zugriff Filial-Dokumente (Walter 06.08.2026) — pro Benutzer vergeben.
+            entity.Property(e => e.CanCompanyDokumente).HasColumnName("can_company_dokumente").HasDefaultValue(false);
             entity.Property(e => e.ReceivesMirusChangeDigest).HasColumnName("receives_mirus_change_digest").HasDefaultValue(false);
             entity.Property(e => e.IsSuperAdmin).HasColumnName("is_super_admin").HasDefaultValue(false);
             entity.Property(e => e.AllowedAreas).HasColumnName("allowed_areas");
@@ -1168,6 +1171,28 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DvelopDokumentId).HasColumnName("dvelop_dokument_id").HasMaxLength(20);
             entity.HasIndex(e => e.EmployeeId);
             entity.HasIndex(e => e.DokumentTypId);
+        });
+
+        // ── CompanyDokument (Filial-Dokumente, Walter-Vorgabe 06.08.2026) ────
+        modelBuilder.Entity<CompanyDokument>(entity =>
+        {
+            entity.ToTable("company_dokument");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Kategorie).HasColumnName("kategorie");
+            entity.Property(e => e.OriginalFilename).HasColumnName("original_filename");
+            entity.Property(e => e.StorageFilename).HasColumnName("storage_filename");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.UploadedByName).HasColumnName("uploaded_by_name");
+            // Lokalzeit — wie alle anderen timestamp-Spalten (Walter-Vorgabe 30.06.2026).
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ZugriffAm).HasColumnName("zugriff_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ZugriffVon).HasColumnName("zugriff_von");
+            entity.HasIndex(e => e.CompanyProfileId);
+            entity.HasIndex(e => e.StorageFilename).IsUnique();
         });
 
         // ── MailboxDocument (Posteingang pro Filiale) ────────────────────────

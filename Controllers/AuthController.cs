@@ -131,6 +131,9 @@ public class AuthController : ControllerBase
                 preferredLanguage = user.PreferredLanguage,
                 employeeId = user.EmployeeId,
                 isHrTeam   = user.IsHrTeam,
+                // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend
+                // blendet damit den Tab «Dokumente» im Filial-Detail ein/aus.
+                canCompanyDokumente = user.CanCompanyDokumente,
                 isSuperAdmin = user.IsSuperAdmin,
                 // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
                 allowedAreas = user.AllowedAreas == null
@@ -187,6 +190,9 @@ public class AuthController : ControllerBase
             employeeId         = user.EmployeeId,
             mustChangePassword = user.MustChangePassword,
             isHrTeam           = user.IsHrTeam,
+            // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend blendet
+            // damit den Tab «Dokumente» im Filial-Detail ein/aus.
+            canCompanyDokumente = user.CanCompanyDokumente,
             isSuperAdmin       = user.IsSuperAdmin,
             // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
             allowedAreas = user.AllowedAreas == null
@@ -344,6 +350,7 @@ public class AuthController : ControllerBase
                 preferredLanguage = target.PreferredLanguage,
                 employeeId        = target.EmployeeId,
                 isHrTeam          = target.IsHrTeam,
+                canCompanyDokumente = target.CanCompanyDokumente,
                 isSuperAdmin      = target.IsSuperAdmin,
                 branches = target.Role == "admin" || target.Role == "lowuser"
                     ? (object)"all"

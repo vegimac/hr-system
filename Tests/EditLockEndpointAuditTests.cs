@@ -117,6 +117,7 @@ public class EditLockEndpointAuditTests
 
         // Dokumente / Mailbox / Posteingang — Lohn-orthogonal
         ["DocumentsController"]            = "MA-Dokumente — Files, kein Lohn",
+        ["CompanyDokumenteController"]     = "Filial-Dokumente — Files, kein Lohn",
         ["MailboxController"]              = "Posteingang/Postfach — Files, kein Lohn",
         ["WebDavController"]               = "WebDAV-Zugriff — Files",
 

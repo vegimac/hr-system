@@ -237,6 +237,7 @@ function renderFilialenDetail(b) {
             <div class="emp-tab"        data-ftab="f-unterzeichner"  onclick="switchFilialenTab('f-unterzeichner')">Unterzeichner</div>
             <div class="emp-tab"        data-ftab="f-abzuege"        onclick="switchFilialenTab('f-abzuege')">Abzüge</div>
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
+            ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
                  (nicht-scrollender Kopfbereich) — bleiben so immer sichtbar.
                  Nur eingeblendet wenn der Einstellungen-Tab aktiv ist
@@ -487,6 +488,20 @@ function renderFilialenDetail(b) {
                  Der „Auf alle Filialen übertragen"-Button sitzt in der
                  sticky Kopfzeile oben — kein zweiter Button hier unten nötig. -->
         </div>
+
+        <!-- TAB: Dokumente (Walter-Vorgabe 06.08.2026) — Filial-Dokumente
+             (Versicherungspolicen, AHV-Korrespondenz, QST-Unterlagen …).
+             Nur sichtbar für admin oder User mit canCompanyDokumente
+             (AuthController.Me); das Backend prüft den Zugriff zusätzlich. -->
+        ${cdokCanSee() ? `
+        <div class="emp-tab-content" id="fil-tab-f-doks">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Dokumente
+                <button onclick="filDoksOpenUpload()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.18)">+ Hochladen</button>
+            </div>
+            <div id="filDoksFilterBar" style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px"></div>
+            <div id="filDoksList"><div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div></div>
+        </div>` : ''}
     </div>`;
     // SSL-Nummern asynchron nachladen (separater Endpoint)
     loadSslListForBranch(b.id);
@@ -814,6 +829,9 @@ async function saveEinstellungen(branchId) {
 let activeFilialenTab = 'f-stamm';
 
 function switchFilialenTab(tab) {
+    // Guard: existiert der Tab nicht (z.B. «Dokumente» ohne Berechtigung
+    // nach User-Wechsel gemerkt), auf Stammdaten zurückfallen.
+    if (!document.getElementById('fil-tab-' + tab)) tab = 'f-stamm';
     activeFilialenTab = tab;
     document.querySelectorAll('#filialenDetailPanel .emp-tab').forEach(t => {
         t.classList.toggle('active', t.dataset.ftab === tab);
@@ -825,6 +843,10 @@ function switchFilialenTab(tab) {
     // Einstellungen-Tab einblenden.
     const einActions = document.getElementById('filEinstellungenActions');
     if (einActions) einActions.style.display = (tab === 'f-einstellungen') ? 'flex' : 'none';
+    // Dokumente-Tab: Liste beim Betreten (neu) laden.
+    if (tab === 'f-doks' && selectedBranch && typeof filDoksLoad === 'function') {
+        filDoksLoad(selectedBranch.id);
+    }
 }
 
 // ── Unterzeichner ──────────────────────────────────
@@ -1739,5 +1761,270 @@ async function bmwDelete(id) {
         showToast('Gelöscht.', 'success');
         bmwInit(_bmwBranch);
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FILIAL-DOKUMENTE (Walter-Vorgabe 06.08.2026) — Tab «Dokumente» im
+// Filial-Detail. Backend: CompanyDokumenteController (api/company-dokumente).
+// Zugriff: admin ODER AppUser.CanCompanyDokumente (AuthController.Me liefert
+// `canCompanyDokumente`); das Backend prüft zusätzlich user_branch_access.
+// ⋮-Menü-Standard: dok-menu-btn + dokToggleMenu/dokCloseAllMenus (documents.js).
+// ══════════════════════════════════════════════════════════════════════
+
+// Kategorie-Codes → Labels. Backend-Pendant:
+// CompanyDokumenteController.Kategorien — bei Änderungen BEIDE Stellen pflegen.
+const CDOK_KATEGORIEN = [
+    ['VERSICHERUNG', 'Versicherungen'],
+    ['AHV_SV',       'AHV / Sozialversicherungen'],
+    ['QST',          'Quellensteuer'],
+    ['VERTRAEGE',    'Verträge & Behörden'],
+    ['SONSTIGES',    'Sonstiges'],
+];
+
+let _filDoksBranchId = null;   // Filiale, deren Dokumente gerade geladen sind
+let _filDoksCache    = [];     // letzte Server-Liste (GET /api/company-dokumente)
+let _filDoksFilter   = '';     // '' = Alle, sonst Kategorie-Code
+
+function cdokCanSee() {
+    return typeof currentUser !== 'undefined' && !!currentUser
+        && (currentUser.role === 'admin' || !!currentUser.canCompanyDokumente);
+}
+
+function cdokEsc(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function cdokLabel(code) {
+    const hit = CDOK_KATEGORIEN.find(k => k[0] === code);
+    return hit ? hit[1] : (code || 'Sonstiges');
+}
+
+async function filDoksLoad(branchId) {
+    _filDoksBranchId = branchId;
+    const el = document.getElementById('filDoksList');
+    if (!el) return;
+    el.innerHTML = '<div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div>';
+    try {
+        const res = await fetch('/api/company-dokumente?companyProfileId=' + branchId, { headers: ah() });
+        if (!res.ok) {
+            let msg = 'Fehler beim Laden (HTTP ' + res.status + ').';
+            try { const d = await res.json(); msg = d.message || d.error || msg; } catch (_) { /* Text bleibt */ }
+            el.innerHTML = `<div style="color:#b91c1c;padding:16px;font-size:13px">${cdokEsc(msg)}</div>`;
+            return;
+        }
+        _filDoksCache = await res.json();
+        filDoksRender();
+    } catch (_) {
+        el.innerHTML = '<div style="color:#b91c1c;padding:16px;font-size:13px">Verbindungsfehler.</div>';
+    }
+}
+
+function filDoksSetFilter(code) {
+    _filDoksFilter = code;
+    filDoksRender();
+}
+
+function filDoksRender() {
+    // Kategorie-Filter als ruhige Liquid-Pills (aktiv = Kohle, sonst Glas).
+    const bar = document.getElementById('filDoksFilterBar');
+    if (bar) {
+        const pill = (code, label) => {
+            const active = _filDoksFilter === code;
+            return `<button onclick="filDoksSetFilter('${code}')" style="border:1px solid ${active ? '#3f3f3f' : 'rgba(60,55,48,0.18)'};background:${active ? '#3f3f3f' : 'rgba(255,255,255,0.55)'};color:${active ? '#fff' : '#646464'};border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">${label}</button>`;
+        };
+        bar.innerHTML = pill('', 'Alle') + CDOK_KATEGORIEN.map(k => pill(k[0], k[1])).join('');
+    }
+
+    const el = document.getElementById('filDoksList');
+    if (!el) return;
+    const docs = _filDoksFilter
+        ? _filDoksCache.filter(d => d.kategorie === _filDoksFilter)
+        : _filDoksCache;
+    if (!docs.length) {
+        el.innerHTML = '<div style="color:#8b8b8b;padding:26px;text-align:center;font-size:13px">Noch keine Dokumente — mit ‹+ Hochladen› beginnen.</div>';
+        return;
+    }
+
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    // Gruppiert nach Kategorie in CDOK-Reihenfolge; unbekannte Codes zuletzt.
+    const known = CDOK_KATEGORIEN.map(k => k[0]);
+    const extra = [...new Set(docs.map(d => d.kategorie).filter(c => !known.includes(c)))];
+    let html = '';
+    for (const cat of [...known, ...extra]) {
+        const items = docs.filter(d => d.kategorie === cat);
+        if (!items.length) continue;
+        html += `<div style="font-size:12px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px">${cdokEsc(cdokLabel(cat))}</div>`;
+        html += items.map(d => filDoksRowHtml(d, isAdmin)).join('');
+    }
+    el.innerHTML = html;
+}
+
+function filDoksRowHtml(d, isAdmin) {
+    const name  = d.originalFilename || 'dokument';
+    const isPdf = /\.pdf$/i.test(name);
+    const dt    = d.createdAt ? new Date(d.createdAt).toLocaleDateString('de-CH') : '–';
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
+        <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="filDoksPreview(${d.id})" title="Ansehen">${cdokEsc(name)}</div>
+            ${d.bemerkung ? `<div style="font-size:11.5px;color:#8b8b8b;margin-top:1px">${cdokEsc(d.bemerkung)}</div>` : ''}
+        </div>
+        <div style="flex-shrink:0;text-align:right">
+            <div style="font-size:12px;color:#646464">${dt}</div>
+            ${d.uploadedByName ? `<div style="font-size:11px;color:#8b8b8b">${cdokEsc(d.uploadedByName)}</div>` : ''}
+        </div>
+        <div style="position:relative;display:inline-block;flex-shrink:0">
+            <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'cdok-${d.id}')" title="Aktionen">⋮</button>
+            <div class="dok-menu" id="dokMenu-cdok-${d.id}">
+                <button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksPreview(${d.id})">Ansehen</button>
+                <button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksDownload(${d.id})">Herunterladen</button>
+                ${isPdf ? `<button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksRotate(${d.id})">PDF drehen ↻</button>` : ''}
+                ${isAdmin ? `<button class="dok-menu-item danger" onclick="dokCloseAllMenus();filDoksDelete(${d.id})">Löschen</button>` : ''}
+            </div>
+        </div>
+    </div>`;
+}
+
+// Vorschau: PDF/Bilder direkt via /preview; alles andere (Word/Excel/…)
+// serverseitig nach PDF gewandelt via /preview-pdf (LibreOffice).
+function filDoksPreview(id) {
+    const d = _filDoksCache.find(x => x.id === id);
+    if (!d) return;
+    const name = d.originalFilename || 'dokument';
+    const direct = /\.(pdf|png|jpg|jpeg|webp|heic)$/i.test(name);
+    const url = '/api/company-dokumente/' + id + (direct ? '/preview' : '/preview-pdf');
+    previewUrlFetch(url, name, ah());
+}
+
+async function filDoksDownload(id) {
+    const d = _filDoksCache.find(x => x.id === id);
+    if (!d) return;
+    try {
+        const res = await fetch('/api/company-dokumente/' + id + '/download', { headers: ah() });
+        if (!res.ok) {
+            showToast('Download fehlgeschlagen (HTTP ' + res.status + ').', 'error');
+            return;
+        }
+        const blob = await res.blob();
+        await saveBlobAsk(blob, d.originalFilename || 'dokument');
+    } catch (_) { showToast('Verbindungsfehler beim Download.', 'error'); }
+}
+
+async function filDoksRotate(id) {
+    try {
+        const res = await fetch('/api/company-dokumente/' + id + '/rotate?deg=90', {
+            method: 'POST', headers: ah()
+        });
+        if (!res.ok) {
+            let msg = 'Drehen fehlgeschlagen (HTTP ' + res.status + ').';
+            try { const d = await res.json(); msg = d.message || d.error || msg; } catch (_) { /* Text bleibt */ }
+            showToast(msg, 'error');
+            return;
+        }
+        showToast('PDF um 90° gedreht.', 'success');
+        await filDoksLoad(_filDoksBranchId);
+        // Ist das Vorschaufenster gerade offen, gedrehte Version neu laden.
+        const pm = document.getElementById('filePreviewModal');
+        if (pm && pm.style.display && pm.style.display !== 'none') filDoksPreview(id);
+    } catch (_) { showToast('Verbindungsfehler beim Drehen.', 'error'); }
+}
+
+async function filDoksDelete(id) {
+    const d = _filDoksCache.find(x => x.id === id);
+    if (!d) return;
+    const ok = await liquidConfirm(
+        `Dokument «${d.originalFilename || 'dokument'}» wirklich löschen?`,
+        { title: 'Dokument löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const res = await fetch('/api/company-dokumente/' + id, { method: 'DELETE', headers: ah() });
+        if (!res.ok && res.status !== 204) {
+            showToast('Löschen fehlgeschlagen (HTTP ' + res.status + ').', 'error');
+            return;
+        }
+        showToast('Dokument gelöscht.', 'success');
+        await filDoksLoad(_filDoksBranchId);
+    } catch (_) { showToast('Verbindungsfehler beim Löschen.', 'error'); }
+}
+
+// ── Upload-Modal (Liquid-Glass: Off-White-Karte, Kohle-Primärbutton) ────
+function filDoksOpenUpload() {
+    if (document.getElementById('cdokUploadModal')) return;
+    const opts = CDOK_KATEGORIEN.map(k => `<option value="${k[0]}">${k[1]}</option>`).join('');
+    const label = 'font-size:11.5px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px';
+    const html = `
+    <div id="cdokUploadModal" style="position:fixed;inset:0;background:rgba(60,55,48,0.35);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
+         onclick="if(event.target===this)filDoksCloseUpload()">
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 48px rgba(60,55,48,0.22);width:100%;max-width:440px;padding:22px 24px">
+            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:16px">Dokument hochladen</div>
+            <div style="margin-bottom:12px">
+                <div style="${label}">Datei</div>
+                <input type="file" id="cdokFile" style="font-size:13px;color:#3f3f3f;width:100%">
+            </div>
+            <div style="margin-bottom:12px">
+                <div style="${label}">Kategorie</div>
+                <select id="cdokKategorie" class="ef-input">${opts}</select>
+            </div>
+            <div style="margin-bottom:12px">
+                <div style="${label}">Bemerkung</div>
+                <input type="text" id="cdokBemerkung" class="ef-input" placeholder="optional, z.B. Police 2026">
+            </div>
+            <div id="cdokUploadErr" style="display:none;color:#b91c1c;font-size:12.5px;margin-bottom:10px"></div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+                <button onclick="filDoksCloseUpload()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:12px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">Abbrechen</button>
+                <button id="cdokUploadBtn" onclick="filDoksSubmitUpload()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 18px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.18)">Hochladen</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function filDoksCloseUpload() {
+    document.getElementById('cdokUploadModal')?.remove();
+}
+
+async function filDoksSubmitUpload() {
+    const errEl = document.getElementById('cdokUploadErr');
+    const showErr = (m) => { if (errEl) { errEl.textContent = m; errEl.style.display = 'block'; } };
+    if (errEl) errEl.style.display = 'none';
+
+    const file = document.getElementById('cdokFile')?.files?.[0];
+    if (!file) { showErr('Bitte eine Datei wählen.'); return; }
+    if (file.size > 20 * 1024 * 1024) { showErr('Datei zu gross (max. 20 MB).'); return; }
+    if (!_filDoksBranchId) { showErr('Keine Filiale gewählt.'); return; }
+
+    const fd = new FormData();
+    fd.append('file', file, file.name || 'dokument');
+    fd.append('companyProfileId', String(_filDoksBranchId));
+    fd.append('kategorie', document.getElementById('cdokKategorie')?.value || 'SONSTIGES');
+    const bem = (document.getElementById('cdokBemerkung')?.value || '').trim();
+    if (bem) fd.append('bemerkung', bem);
+
+    const btn = document.getElementById('cdokUploadBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Lädt hoch…'; }
+    try {
+        // Kein ah() — das setzt Content-Type: application/json und bricht
+        // FormData-Multipart. Nur der Bearer-Header (Muster users.js).
+        const res = await fetch('/api/company-dokumente/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd
+        });
+        if (!res.ok) {
+            let msg = 'Hochladen fehlgeschlagen (HTTP ' + res.status + ').';
+            try { const d = await res.json(); msg = d.message || d.error || msg; } catch (_) { /* Text bleibt */ }
+            showErr(msg);
+            return;
+        }
+        filDoksCloseUpload();
+        showToast('Dokument hochgeladen.', 'success');
+        await filDoksLoad(_filDoksBranchId);
+    } catch (_) {
+        showErr('Verbindungsfehler beim Hochladen.');
+    } finally {
+        const btn2 = document.getElementById('cdokUploadBtn');
+        if (btn2) { btn2.disabled = false; btn2.textContent = 'Hochladen'; }
+    }
 }
 

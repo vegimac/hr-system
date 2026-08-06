@@ -2764,6 +2764,30 @@ using (var scope = app.Services.CreateScope())
         UPDATE pregnancy_rule SET offset_monate = ABS(offset_monate) WHERE offset_monate < 0;
         UPDATE pregnancy_rule SET offset_wochen = ABS(offset_wochen) WHERE offset_wochen < 0;
     ");
+
+    // ── Filial-Dokumentenverwaltung (Walter-Vorgabe 06.08.2026) ───────────
+    // Dokumente pro FILIALE (Versicherungspolicen, AHV-Korrespondenz, QST …)
+    // + Benutzer-Häkchen «Zugriff Filial-Dokumente» (admin immer).
+    // Doku-Migration: migrations-archive/add_company_dokument.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS company_dokument (
+            id                 bigserial PRIMARY KEY,
+            company_profile_id integer NOT NULL,
+            kategorie          text NOT NULL,
+            original_filename  text NOT NULL,
+            storage_filename   text NOT NULL UNIQUE,
+            bemerkung          text,
+            uploaded_by_name   text,
+            created_at         timestamp without time zone NOT NULL DEFAULT now(),
+            zugriff_am         timestamp without time zone,
+            zugriff_von        text
+        );
+        CREATE INDEX IF NOT EXISTS ix_company_dokument_company_profile
+            ON company_dokument (company_profile_id);
+
+        ALTER TABLE app_user
+            ADD COLUMN IF NOT EXISTS can_company_dokumente boolean NOT NULL DEFAULT false;
+    ");
 }
 
 // Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE

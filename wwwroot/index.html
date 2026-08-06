@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260804b">
+    <link rel="stylesheet" href="css/app.css?v=20260806a">
 </head>
 <body>
 
@@ -7433,6 +7433,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </label>
                 <div class="f-hint" style="margin-top:2px">Zugriff aufs gemeinsame HR-Postfach (z.B. HR-Verantwortliche, Treuhänder).</div>
             </div>
+            <!-- Filial-Dokumente (Walter-Vorgabe 06.08.2026): Tab «Dokumente» im
+                 Filial-Detail — nur admin oder User mit diesem Häkchen (+ Filial-Zugang). -->
+            <div class="f-group">
+                <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="checkbox" id="umCanCompanyDokumente" style="width:18px;height:18px;cursor:pointer">
+                    <span>Zugriff Filial-Dokumente (Policen / AHV / QST)</span>
+                </label>
+                <div class="f-hint" style="margin-top:2px">Sieht den Tab «Dokumente» im Filial-Detail (Versicherungspolicen, AHV-/QST-Korrespondenz) — für die zugeteilten Filialen. Admin hat den Zugriff immer.</div>
+            </div>
             <div class="f-group">
                 <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
                     <input type="checkbox" id="umMirusDigest" style="width:18px;height:18px;cursor:pointer">
@@ -7526,11 +7535,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260804a"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
-<script src="js/branches-detail.js?v=20260805a"></script>
+<script src="js/branches-detail.js?v=20260806a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260802a"></script>
-<script src="js/users.js?v=20260726a"></script>
+<script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260804b"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
@@ -7548,7 +7557,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260806c"></script>
+<script src="js/admin-settings.js?v=20260806d"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
