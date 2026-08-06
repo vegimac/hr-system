@@ -153,7 +153,18 @@ public class UniformDepotService
         var depot = await _db.EmployeeUniformDepots
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.EmployeeId == employeeId);
-        if (depot is null || depot.Status != "EINBEHALTEN" || depot.Balance <= 0)
+        if (depot is null) return (false, 0, null);
+
+        // Reproduzierbarkeit bei Neuberechnung (Walter-Bug 06.08.2026): nach dem
+        // Confirm steht das Depot auf ZURUECKBEZAHLT — wird der Snapshot der
+        // Refund-Periode danach neu gerechnet (SnapshotRecompute, wieder-öffnen),
+        // muss die Refund-Zeile in DERSELBEN Periode wieder erscheinen, sonst
+        // verschwindet die Rückerstattung still aus dem Slip.
+        var refundPeriode = $"{periodTo.Year:D4}-{periodTo.Month:D2}";
+        if (depot.Status == "ZURUECKBEZAHLT" && depot.RefundPeriode == refundPeriode)
+            return (true, DepotBetrag, "Uniformen-Depot Rückerstattung");
+
+        if (depot.Status != "EINBEHALTEN" || depot.Balance <= 0)
             return (false, 0, null);
         if (depot.ReturnConfirmed != true)
             return (false, 0, null);
