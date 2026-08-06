@@ -319,14 +319,19 @@ public class ZwischenverdienistController : ControllerBase
             int alter = checkDateBvg.Year - employee.DateOfBirth.Value.Year;
             if (checkDateBvg < DateOnly.FromDateTime(employee.DateOfBirth.Value.AddYears(alter))) alter--;
 
+            // Filial-Namensraum (Walter 05.08.2026): globale Zeilen + Override
+            // dieser Filiale; Filial-Zeile gewinnt vor der globalen, dann
+            // neuestes ValidFrom.
             var bvgRate = await _db.SocialInsuranceRates
                 .Where(r => r.IsActive
                          && r.Code == "BVG"
                          && r.ValidFrom <= checkDateBvg
                          && (r.ValidTo == null || r.ValidTo >= checkDateBvg)
                          && (r.MinAge == null || r.MinAge <= alter)
-                         && (r.MaxAge == null || r.MaxAge >= alter))
-                .OrderByDescending(r => r.ValidFrom)
+                         && (r.MaxAge == null || r.MaxAge >= alter)
+                         && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
+                .OrderByDescending(r => r.CompanyProfileId != null)
+                .ThenByDescending(r => r.ValidFrom)
                 .FirstOrDefaultAsync();
             bvgKoordinationsabzug = bvgRate?.CoordinationDeduction ?? 0m;
         }

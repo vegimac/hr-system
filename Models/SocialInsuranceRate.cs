@@ -21,6 +21,17 @@ public class SocialInsuranceRate
     public bool     OnlyQuellensteuer     { get; set; }
 
     /// <summary>
+    /// SV-Sätze pro Filiale (Walter-Vorgabe 05.08.2026): NULL = globaler
+    /// Standard für alle Filialen; gesetzt = Override NUR für diese Filiale
+    /// (jede Filiale ist eine eigene GmbH — z.B. KTG 1.945% statt global
+    /// 2.15%). Der Override gewinnt in seiner Filiale gegen die globale
+    /// Zeile mit gleichem Fach-Schlüssel (Code, MinAge, MaxAge,
+    /// EmploymentModelCode, OnlyQuellensteuer, BasisType) — Auflösung
+    /// zentral in <c>PayrollCalculations.SelectSvRatesForBranch</c>.
+    /// </summary>
+    public int?     CompanyProfileId      { get; set; }
+
+    /// <summary>
     /// Fibu-Position (Mirus-Lohnart-Code) für das Fibu-Journal / den Abacus-Export
     /// (Walter-Vorgabe 22.05.2026). Verlinkt diesen SV-Satz STABIL mit dem
     /// Kontoplan (`lohn_konto_mapping.position`) — kein Text-Matching.

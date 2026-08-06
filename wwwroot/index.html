@@ -3545,7 +3545,7 @@
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
                     <h1 class="page-title">SV-Sätze</h1>
-                    <p class="page-sub">Globale Sozialversicherungssätze (AHV, ALV, NBUV, BVG) — gelten für alle Filialen</p>
+                    <p class="page-sub">Sozialversicherungssätze (AHV, ALV, NBUV, KTG, BVG) — Standard gilt für alle Filialen, Abweichungen pro Filiale im Abschnitt unten</p>
                 </div>
                 </div>
                 <div class="fh-toolbar">
@@ -3598,6 +3598,16 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- Filial-Abweichungen (Walter-Vorgabe 06.08.2026): jede Filiale
+                         ist eine eigene GmbH — KTG/NBU/BU-Sätze können abweichen.
+                         Zeilen mit gesetzter companyProfileId, gruppiert pro Filiale;
+                         gerendert von svRender() in admin-settings.js. -->
+                    <div style="margin-top:28px">
+                        <h2 style="font-size:15px;font-weight:700;color:#3f3f3f;margin:0 0 3px">Filial-Abweichungen</h2>
+                        <p style="font-size:12.5px;color:#8b8b8b;margin:0 0 12px">Sätze, die in einzelnen Filialen vom Standard abweichen — die Abweichung gewinnt dort gegen den Standard.</p>
+                        <div id="svBranchSection"></div>
+                    </div>
                 </div>
 
                 <!-- Formular (Drawer-Style) -->
@@ -3636,6 +3646,18 @@
                         <div style="margin-bottom:14px">
                             <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Beschreibung</label>
                             <input id="svDescription" maxlength="200" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                        </div>
+
+                        <!-- SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler
+                             Standard; Filiale gewählt = Abweichung nur dort (gewinnt
+                             gegen den Standard mit gleichem Fach-Schlüssel). Optionen
+                             werden in svOpenForm() aus allBranches gefüllt. -->
+                        <div style="margin-bottom:14px">
+                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für</label>
+                            <select id="svCompanyProfile" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                <option value="">Alle Filialen (Standard)</option>
+                            </select>
+                            <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">Filiale gewählt = Abweichung nur für diese Filiale — sie gewinnt dort gegen den Standard-Satz.</div>
                         </div>
 
                         <div style="margin-bottom:14px">
@@ -7516,7 +7538,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260803i"></script>
+<script src="js/admin-settings.js?v=20260806a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>

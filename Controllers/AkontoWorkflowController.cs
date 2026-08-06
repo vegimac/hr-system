@@ -1032,18 +1032,17 @@ public class AkontoWorkflowController : HrControllerBase
             .Select(b => new { b.Iban, b.BankName, b.IsHauptbank })
             .ToListAsync();
 
-        // SV-Sätze am Stichtag, dedupliziert (latest valid_from gewinnt).
+        // SV-Sätze am Stichtag, Filial-Namensraum (Walter 05.08.2026):
+        // globale Zeilen + Overrides der Filiale dieser Akonto-Zahlung;
+        // Filial-Zeile gewinnt, dann neuestes ValidFrom (zentrale Auflösung
+        // in PayrollCalculations.SelectSvRatesForBranch).
         var allSv = await _db.SocialInsuranceRates
             .Where(r => r.IsActive && !r.OnlyQuellensteuer
                      && r.ValidFrom <= stichtag
-                     && (r.ValidTo == null || r.ValidTo >= stichtag))
+                     && (r.ValidTo == null || r.ValidTo >= stichtag)
+                     && (r.CompanyProfileId == null || r.CompanyProfileId == z.CompanyProfileId))
             .ToListAsync();
-        var svRates = allSv
-            .GroupBy(r => new { r.Code, r.MinAge, r.MaxAge,
-                                EmpModel = r.EmploymentModelCode ?? "",
-                                r.BasisType })
-            .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
-            .ToList();
+        var svRates = PayrollCalculations.SelectSvRatesForBranch(allSv, z.CompanyProfileId);
 
         int? age = emp.DateOfBirth.HasValue
             ? AgeAtStichtag(emp.DateOfBirth.Value, stichtag)

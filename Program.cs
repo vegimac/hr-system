@@ -2046,30 +2046,47 @@ using (var scope = app.Services.CreateScope())
         WHERE NOT EXISTS (SELECT 1 FROM social_insurance_rate);
     ");
 
+    // SV-Sätze pro Filiale (Walter-Vorgabe 05.08.2026): NULL = globaler
+    // Standard für alle Filialen; gesetzt = Override nur für diese Filiale
+    // (jede Filiale ist eine eigene GmbH, z.B. KTG 1.945% statt global 2.15%).
+    // Auflösung zentral in PayrollCalculations.SelectSvRatesForBranch.
+    // Doku für TablePlus: migrations-archive/add_sv_rate_company_profile.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE social_insurance_rate
+        ADD COLUMN IF NOT EXISTS company_profile_id integer;
+    ");
+
     // Schutz gegen künftige Dubletten: Unique-Index auf den fachlichen Schlüssel
     // (identisch mit dem Duplikat-Check in SocialInsuranceRatesController.Create).
-    // COALESCE, weil min_age/max_age/employment_model_code NULL sein dürfen und
-    // Postgres NULLs in Unique-Indizes sonst als verschieden behandelt.
+    // COALESCE, weil min_age/max_age/employment_model_code/company_profile_id
+    // NULL sein dürfen und Postgres NULLs in Unique-Indizes sonst als
+    // verschieden behandelt.
+    // Seit 05.08.2026 inkl. COALESCE(company_profile_id, 0) — global und
+    // Filial-Override mit gleichem Schlüssel sind KEIN Duplikat. Der alte
+    // Index ohne Filial-Spalte wird idempotent gedroppt (Neu-Name …_natural2).
     // Defensiv: wird nur angelegt wenn aktuell keine Dubletten existieren — so
     // crasht der Startup nicht, falls die Alt-Daten noch nicht bereinigt sind
     // (Bereinigung läuft einmalig über migrations-archive/fix_social_insurance_rate_dedup.sql).
     db.Database.ExecuteSqlRaw(@"
         DO $$
         BEGIN
+            DROP INDEX IF EXISTS ux_social_insurance_rate_natural;
             IF NOT EXISTS (
                 SELECT 1 FROM (
                     SELECT 1 FROM social_insurance_rate
                     GROUP BY code, valid_from, COALESCE(min_age, -1),
                              COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
-                             basis_type, only_quellensteuer
+                             basis_type, only_quellensteuer,
+                             COALESCE(company_profile_id, 0)
                     HAVING COUNT(*) > 1
                 ) dup
             ) THEN
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural2
                 ON social_insurance_rate (
                     code, valid_from, COALESCE(min_age, -1),
                     COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
-                    basis_type, only_quellensteuer
+                    basis_type, only_quellensteuer,
+                    COALESCE(company_profile_id, 0)
                 );
             END IF;
         END $$;

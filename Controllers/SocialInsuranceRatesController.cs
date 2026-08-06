@@ -46,6 +46,9 @@ public class SocialInsuranceRatesController : ControllerBase
             r.MinBaseMonthly, r.EntryThresholdYearly,
             r.OnlyQuellensteuer, r.FibuPosition, r.ValidFrom, r.ValidTo,
             r.SortOrder, r.IsActive, r.CreatedAt,
+            // SV-Sätze pro Filiale (Walter 05.08.2026): NULL = globaler Standard,
+            // gesetzt = Override nur für diese Filiale.
+            r.CompanyProfileId,
             inLohnVerwendet = frozenPerioden.Any(p =>
                 r.ValidFrom <= p.PeriodTo
              && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))
@@ -98,6 +101,10 @@ public class SocialInsuranceRatesController : ControllerBase
              && r.EmploymentModelCode == dto.EmploymentModelCode
              && r.OnlyQuellensteuer == dto.OnlyQuellensteuer
              && r.BasisType == dto.BasisType
+             // Filial-Namensraum (Walter 05.08.2026): global vs. Filial-Override
+             // mit gleichem Schlüssel ist KEIN Duplikat — nur gleiche Filiale
+             // (bzw. beide global) kollidiert.
+             && r.CompanyProfileId == dto.CompanyProfileId
              && r.ValidFrom == dto.ValidFrom);
         if (duplicate)
             return Conflict(new {
@@ -147,6 +154,7 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.MinBaseMonthly        = dto.MinBaseMonthly;
         rate.EntryThresholdYearly  = dto.EntryThresholdYearly;
         rate.OnlyQuellensteuer     = dto.OnlyQuellensteuer;
+        rate.CompanyProfileId      = dto.CompanyProfileId;
         rate.FibuPosition          = dto.FibuPosition;
         rate.ValidFrom             = dto.ValidFrom;
         rate.ValidTo               = dto.ValidTo;
@@ -209,6 +217,9 @@ public class SocialInsuranceRatesController : ControllerBase
             MinBaseMonthly        = dto.MinBaseMonthly ?? oldRate.MinBaseMonthly,
             EntryThresholdYearly  = dto.EntryThresholdYearly ?? oldRate.EntryThresholdYearly,
             OnlyQuellensteuer     = oldRate.OnlyQuellensteuer,
+            // Filial-Zugehörigkeit ist Teil des Fach-Schlüssels — der
+            // Nachfolger bleibt in derselben Filiale (bzw. global).
+            CompanyProfileId      = oldRate.CompanyProfileId,
             FibuPosition          = dto.FibuPosition ?? oldRate.FibuPosition,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,

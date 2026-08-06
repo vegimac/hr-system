@@ -1786,6 +1786,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MinBaseMonthly).HasColumnName("min_base_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.EntryThresholdYearly).HasColumnName("entry_threshold_yearly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.OnlyQuellensteuer).HasColumnName("only_quellensteuer").HasDefaultValue(false);
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
             entity.Property(e => e.FibuPosition).HasColumnName("fibu_position");
             entity.Property(e => e.RateEmployer).HasColumnName("rate_employer").HasColumnType("numeric(6,3)");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");

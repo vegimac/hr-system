@@ -310,25 +310,19 @@ public class PayrollCalculationEngine
                      // KEIN AN-Abzug → nicht in die AN-Berechnung aufnehmen, sonst
                      // entstünde eine Phantom-„0.00"-Zeile im Lohnzettel. Sie werden
                      // nur im Fibu-Journal als AG-Beitrag verbucht.
-                     && !(r.Rate == 0 && r.RateEmployer != null))
+                     && !(r.Rate == 0 && r.RateEmployer != null)
+                     // Filial-Namensraum (Walter 05.08.2026): globale + Zeilen
+                     // DIESER Filiale; fremde Filial-Overrides bleiben draussen.
+                     && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
             .ToListAsync();
 
-        // Deduplizieren: pro (Code + Altersband + Vertragsmodell + OnlyQst) nur
-        // die Regel mit dem neuesten ValidFrom. Verhindert Doppel-Abzüge wenn
-        // in der DB alte und neue Regeln mit überlappender Gültigkeit liegen
-        // (z.B. Rate ab 2024 und Rate ab 2026 beide noch IsActive/ValidTo=null).
-        globalRates = globalRates
-            .GroupBy(r => new {
-                r.Code,
-                r.MinAge,
-                r.MaxAge,
-                r.EmploymentModelCode,
-                r.OnlyQuellensteuer,
-                r.BasisType
-            })
-            .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
-            .OrderBy(r => r.SortOrder)
-            .ToList();
+        // Deduplizieren + Filial-Auflösung (Walter 05.08.2026): pro Fach-
+        // Schlüssel gewinnt der Filial-Override vor der globalen Zeile,
+        // innerhalb gleicher Herkunft das neueste ValidFrom. Verhindert
+        // Doppel-Abzüge wenn in der DB alte und neue Regeln mit überlappender
+        // Gültigkeit liegen (z.B. Rate ab 2024 und Rate ab 2026 beide noch
+        // IsActive/ValidTo=null).
+        globalRates = SelectSvRatesForBranch(globalRates, companyProfileId);
 
         List<DeductionRule> allRules;
         if (globalRates.Any())
@@ -3810,13 +3804,12 @@ public class PayrollCalculationEngine
                 .Where(r => r.IsActive
                          && r.ValidFrom <= periodTo
                          && (r.ValidTo == null || r.ValidTo >= periodFrom)
-                         && !(r.Rate == 0 && r.RateEmployer != null))
+                         && !(r.Rate == 0 && r.RateEmployer != null)
+                         // Filial-Namensraum (Walter 05.08.2026)
+                         && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
                 .ToListAsync();
-            globalRates = globalRates
-                .GroupBy(r => new { r.Code, r.MinAge, r.MaxAge, r.EmploymentModelCode, r.OnlyQuellensteuer, r.BasisType })
-                .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
-                .OrderBy(r => r.SortOrder)
-                .ToList();
+            // Filial-Override gewinnt vor global, dann neuestes ValidFrom.
+            globalRates = SelectSvRatesForBranch(globalRates, companyProfileId);
 
             List<DeductionRule> allRules = globalRates.Any()
                 ? globalRates.Select(r => new DeductionRule

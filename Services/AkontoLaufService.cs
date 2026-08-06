@@ -122,22 +122,19 @@ public class AkontoLaufService
             .ToListAsync();
         var empIds = employees.Select(e => e.Id).ToList();
 
-        // SV-Sätze gültig am Stichtag, dedupliziert nach fachlichem Schlüssel
-        // (latest-ValidFrom gewinnt). QST-only und inaktive sind ausgeschlossen.
+        // SV-Sätze gültig am Stichtag, Filial-Namensraum (Walter 05.08.2026:
+        // globale Zeilen + Overrides DIESER Filiale; Filial-Zeile gewinnt,
+        // dann neuestes ValidFrom — zentrale Auflösung in
+        // PayrollCalculations.SelectSvRatesForBranch). QST-only und inaktive
+        // sind ausgeschlossen.
         var allSv = await _db.SocialInsuranceRates
             .Where(r => r.IsActive
                      && !r.OnlyQuellensteuer
                      && r.ValidFrom <= stichtag
-                     && (r.ValidTo == null || r.ValidTo >= stichtag))
+                     && (r.ValidTo == null || r.ValidTo >= stichtag)
+                     && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
             .ToListAsync();
-        var svRates = allSv
-            .GroupBy(r => new {
-                r.Code, r.MinAge, r.MaxAge,
-                EmpModel = r.EmploymentModelCode ?? "",
-                r.BasisType
-            })
-            .Select(g => g.OrderByDescending(r => r.ValidFrom).First())
-            .ToList();
+        var svRates = PayrollCalculations.SelectSvRatesForBranch(allSv, companyProfileId);
 
         // Absenzen, Stempelzeiten, Pfändungen vorladen
         var absences = await _db.Absences

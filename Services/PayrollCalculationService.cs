@@ -19,6 +19,40 @@ namespace HrSystem.Services;
 public static class PayrollCalculations
 {
     /// <summary>
+    /// Filial-Auflösung der SV-Sätze (Walter-Vorgabe 05.08.2026): globale
+    /// Zeilen (CompanyProfileId NULL) + Zeilen DIESER Filiale; pro
+    /// Fach-Schlüssel (Code, MinAge, MaxAge, EmploymentModelCode,
+    /// OnlyQuellensteuer, BasisType) gewinnt die Filial-Zeile vor der
+    /// globalen, innerhalb gleicher Herkunft das neueste ValidFrom.
+    /// Fremde Filial-Zeilen werden ignoriert. Bei companyProfileId=null
+    /// bleiben nur die globalen Zeilen übrig.
+    /// Ersetzt die frühere manuelle GroupBy-Deduplizierung in Engine/
+    /// AkontoLauf — EINE Quelle für die Auswahl-Logik, unit-testbar
+    /// (Tests/SvRateBranchSelectionTests.cs).
+    /// </summary>
+    public static List<SocialInsuranceRate> SelectSvRatesForBranch(
+        IEnumerable<SocialInsuranceRate> rates, int? companyProfileId)
+    {
+        return rates
+            .Where(r => r.CompanyProfileId == null
+                     || (companyProfileId.HasValue && r.CompanyProfileId == companyProfileId.Value))
+            .GroupBy(r => new {
+                r.Code,
+                r.MinAge,
+                r.MaxAge,
+                r.EmploymentModelCode,
+                r.OnlyQuellensteuer,
+                r.BasisType
+            })
+            .Select(g => g
+                .OrderByDescending(r => r.CompanyProfileId != null)   // Filial-Override vor global
+                .ThenByDescending(r => r.ValidFrom)                    // innerhalb Herkunft: neuestes ValidFrom
+                .First())
+            .OrderBy(r => r.SortOrder)
+            .ToList();
+    }
+
+    /// <summary>
     /// Akkumuliert Ferienentschädigung und berechnet Auszahlung bei Ferienbezug.
     /// Gibt (auszahlung, neuerSaldo) zurück.
     /// </summary>

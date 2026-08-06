@@ -260,20 +260,31 @@ public class FibuJournalService
 
         // Kontoplan + SV-Fibu-Positionen laden.
         var maps = await _db.LohnKontoMappings.Where(m => m.IsActive).ToListAsync();
+        // Filial-Namensraum (Walter 05.08.2026): globale Zeilen + Overrides
+        // DIESER Filiale; pro Code gewinnt die Filial-Zeile vor der globalen,
+        // dann das neueste ValidFrom — so entsteht auch KEIN Duplicate-Key,
+        // wenn global + Filiale denselben Code führen.
         var svFibu = await _db.SocialInsuranceRates
-            .Where(r => r.IsActive && r.FibuPosition != null)
-            .Select(r => new { r.Code, r.FibuPosition, r.RateEmployer })
+            .Where(r => r.IsActive && r.FibuPosition != null
+                     && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
+            .Select(r => new { r.Code, r.FibuPosition, r.RateEmployer, r.CompanyProfileId, r.ValidFrom })
             .ToListAsync();
         var fibuByCode = svFibu
             .GroupBy(x => x.Code.ToUpperInvariant())
-            .ToDictionary(g => g.Key, g => g.First().FibuPosition!.Value);
+            .ToDictionary(g => g.Key,
+                          g => g.OrderByDescending(x => x.CompanyProfileId != null)
+                                .ThenByDescending(x => x.ValidFrom)
+                                .First().FibuPosition!.Value);
         fibuByCode["QST"] = 560;   // QST ist kein SV-Satz, fixer Mirus-Code
         // AG-Satz pro Code (Walter 22.05.2026): AG-Beitrag = rate_employer × Basis.
         // NULL = kein AG-Anteil → wird nicht gebucht.
         var agRateByCode = svFibu
             .Where(x => x.RateEmployer != null)
             .GroupBy(x => x.Code.ToUpperInvariant())
-            .ToDictionary(g => g.Key, g => g.First().RateEmployer!.Value);
+            .ToDictionary(g => g.Key,
+                          g => g.OrderByDescending(x => x.CompanyProfileId != null)
+                                .ThenByDescending(x => x.ValidFrom)
+                                .First().RateEmployer!.Value);
 
         // v3: Bezeichnungs-Quellen für die Brutto-Umgliederung — die lohnLines
         // tragen KEINE Codes, daher Matching über die Lohnposition-Bezeichnungen

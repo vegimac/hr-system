@@ -1365,12 +1365,16 @@ function svRender() {
     if (filterCode) rows = rows.filter(r => r.code === filterCode);
     if (!showInact)  rows = rows.filter(r => r.isActive);
 
-    if (infoEl) infoEl.textContent = `${rows.length} Satz${rows.length !== 1 ? 'sätze' : ''} angezeigt`;
+    // SV-Sätze pro Filiale (Walter-Vorgabe 06.08.2026): oberer Bereich zeigt
+    // NUR die globalen Standard-Sätze (companyProfileId == null); Zeilen mit
+    // gesetzter Filiale wandern in den Abschnitt «Filial-Abweichungen» unten.
+    // Ein Filial-Override ist damit auch KEIN «Duplikat» der globalen Zeile.
+    const globalRows = rows.filter(r => r.companyProfileId == null);
+    const branchRows = rows.filter(r => r.companyProfileId != null);
 
-    if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge gefunden</td></tr>';
-        return;
-    }
+    if (infoEl) infoEl.textContent =
+        `${globalRows.length} Satz${globalRows.length !== 1 ? 'sätze' : ''} angezeigt`
+        + (branchRows.length ? ` · ${branchRows.length} Filial-Abweichung${branchRows.length !== 1 ? 'en' : ''}` : '');
 
     const codeColor = { AHV: '#3f3f3f', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
     const basisLabel = { gross: 'Brutto', bvg_basis: 'BVG-Basis', coord_deduction: 'Koord.-Abzug' };
@@ -1414,7 +1418,7 @@ function svRender() {
         return { label: 'Aktiv', bg: '#dcfce7', fg: '#166534', dim: false };
     };
 
-    tbody.innerHTML = rows.map(r => {
+    const rowHtml = (r) => {
         const col  = codeColor[r.code] ?? '#64748b';
         const rate = Number(r.rate ?? 0);
         const modelBadge = r.employmentModelCode
@@ -1465,7 +1469,73 @@ function svRender() {
             </td>
             <td style="padding:10px 14px;width:1%;text-align:right;white-space:nowrap">${actionsMenu}</td>
         </tr>`;
-    }).join('');
+    };
+
+    tbody.innerHTML = globalRows.length
+        ? globalRows.map(rowHtml).join('')
+        : '<tr><td colspan="13" style="padding:30px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge gefunden</td></tr>';
+
+    svRenderBranchSection(branchRows, rowHtml);
+}
+
+// Anzeige-Label einer Filiale für den Gruppen-Kopf der Filial-Abweichungen
+// (Format wie der globale Filial-Selektor: «104 – Langenthal»).
+// ACHTUNG: allBranches ist in app-core.js mit top-level `let` deklariert —
+// das ist ein globales Binding, aber KEIN window-Property. Daher bare
+// Referenz mit typeof-Guard, nie window.allBranches.
+function svAllBranchesSafe() {
+    return (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
+}
+
+function svBranchLabel(cpId) {
+    const b = svAllBranchesSafe().find(x => x.id === cpId);
+    if (!b) return `Filiale ${cpId}`;
+    const name = b.branchName || b.companyName || '';
+    return b.restaurantCode ? `${b.restaurantCode} – ${name}` : name;
+}
+
+// Unterer Abschnitt «Filial-Abweichungen» (Walter-Vorgabe 06.08.2026):
+// nur Zeilen mit gesetzter companyProfileId, gruppiert pro Filiale.
+// Gleiche Spalten + ⋮-Aktionen wie die Standard-Tabelle oben (rowHtml
+// wird aus svRender durchgereicht, damit die Zeilen-Optik identisch ist).
+function svRenderBranchSection(branchRows, rowHtml) {
+    const host = document.getElementById('svBranchSection');
+    if (!host) return;
+
+    if (!branchRows.length) {
+        host.innerHTML = '<div style="padding:16px 18px;border:1px dashed #d8d2c6;border-radius:12px;font-size:12.5px;color:#8b8b8b;font-style:italic">Keine Abweichungen erfasst — alle Filialen nutzen die Standard-Sätze.</div>';
+        return;
+    }
+
+    // Gruppieren pro Filiale, sortiert nach Restaurant-Code (wie der Selektor).
+    const byBranch = new Map();
+    branchRows.forEach(r => {
+        if (!byBranch.has(r.companyProfileId)) byBranch.set(r.companyProfileId, []);
+        byBranch.get(r.companyProfileId).push(r);
+    });
+    const groups = [...byBranch.entries()].sort((a, b) => {
+        const ba = svAllBranchesSafe().find(x => x.id === a[0]);
+        const bb = svAllBranchesSafe().find(x => x.id === b[0]);
+        return parseInt(ba?.restaurantCode || '9999', 10) - parseInt(bb?.restaurantCode || '9999', 10);
+    });
+
+    const colgroup = `<colgroup>
+        <col class="sv-c-nr"><col class="sv-c-typ"><col class="sv-c-name"><col class="sv-c-an"><col class="sv-c-ag">
+        <col class="sv-c-basis"><col class="sv-c-alter"><col class="sv-c-vertrag"><col class="sv-c-fibu">
+        <col class="sv-c-ab"><col class="sv-c-bis"><col class="sv-c-status"><col class="sv-c-act">
+    </colgroup>`;
+
+    host.innerHTML = groups.map(([cpId, rws]) => `
+        <div class="card" style="margin-bottom:14px;padding:0;overflow-x:auto">
+            <div style="padding:10px 14px;border-bottom:1px solid #eee8dd;font-size:13px;font-weight:700;color:#3f3f3f">
+                ${escHtml(svBranchLabel(cpId))}
+                <span style="font-weight:400;color:#94a3b8;font-size:11.5px;margin-left:8px">${rws.length} Abweichung${rws.length !== 1 ? 'en' : ''}</span>
+            </div>
+            <table class="fh-table">
+                ${colgroup}
+                <tbody>${rws.map(rowHtml).join('')}</tbody>
+            </table>
+        </div>`).join('');
 }
 
 // ⋮-Menü-Toggle für SV-Sätze (Walter-Vorgabe 09.06.2026).
@@ -1529,6 +1599,20 @@ function svOpenForm(rate, mode) {
     const _re = document.getElementById('svRateEmployer'); if (_re) _re.value = rate?.rateEmployer ?? '';
     document.getElementById('svBasisType').value       = rate?.basisType ?? 'gross';
     document.getElementById('svEmploymentModel').value = rate?.employmentModelCode ?? '';
+    // «Gilt für» (Walter 06.08.2026): erste Option = globaler Standard,
+    // danach die Filialen aus allBranches (Sortierung wie Filial-Selektor).
+    // Bei «Neu ab» ist die Filiale Teil des Fach-Schlüssels — das Backend
+    // übernimmt sie ohnehin vom Vorgänger; hier nur vorbelegt zur Anzeige.
+    const cpSel = document.getElementById('svCompanyProfile');
+    if (cpSel) {
+        cpSel.innerHTML = '<option value="">Alle Filialen (Standard)</option>'
+            + svAllBranchesSafe()
+                .slice()
+                .sort((a, b) => parseInt(a.restaurantCode || '9999', 10) - parseInt(b.restaurantCode || '9999', 10))
+                .map(b => `<option value="${b.id}">${escHtml(svBranchLabel(b.id))}</option>`)
+                .join('');
+        cpSel.value = rate?.companyProfileId != null ? String(rate.companyProfileId) : '';
+    }
     document.getElementById('svMinAge').value        = rate?.minAge ?? '';
     document.getElementById('svMaxAge').value        = rate?.maxAge ?? '';
     document.getElementById('svFreibetrag').value    = rate?.freibetragMonthly ?? '';
@@ -1603,6 +1687,11 @@ async function svSave(event) {
         rateEmployer:          parseNum('svRateEmployer'),
         basisType:             document.getElementById('svBasisType').value,
         employmentModelCode:   document.getElementById('svEmploymentModel').value || null,
+        // SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler Standard.
+        companyProfileId:      (() => {
+            const v = document.getElementById('svCompanyProfile')?.value || '';
+            return v ? parseInt(v, 10) : null;
+        })(),
         minAge:                parseIntOpt('svMinAge'),
         maxAge:                parseIntOpt('svMaxAge'),
         freibetragMonthly:     parseNum('svFreibetrag'),
