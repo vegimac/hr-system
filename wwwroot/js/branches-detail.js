@@ -2073,6 +2073,32 @@ function cpEmpfArtLabel(code) {
     return f ? f[1] : (code || 'Andere');
 }
 
+// Feld-Beschriftungen je Art (Walter 06.08.2026): gleiche DB-Felder, aber
+// Versicherungen (KTG/UVG/BVG) nennen sie anders als die Ausgleichskasse —
+// Mitgliednummer ≙ Kundennummer, Subnummer ≙ Vertragsnummer,
+// Nummer der Kasse ≙ Versicherernummer (Mirus-Vorbild Swica).
+function cpEmpfFieldLabels(art) {
+    if (art === 'KTG' || art === 'UVG' || art === 'BVG')
+        return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
+                 phMitglied: 'z.B. 6494895' };
+    if (art === 'QST')
+        return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Subnummer',
+                 phMitglied: 'z.B. 1914715' };
+    return { kasse: 'Nummer der Kasse', mitglied: 'Mitgliednummer', sub: 'Subnummer',
+             phMitglied: 'z.B. 629.0714.00' };
+}
+
+function cpEmpfUpdateLabels() {
+    const art = document.getElementById('cpEmpfArt')?.value || '';
+    const L = cpEmpfFieldLabels(art);
+    const set = (id, t) => { const el = document.getElementById(id); if (el) el.textContent = t; };
+    set('cpEmpfLblKassenNr', L.kasse);
+    set('cpEmpfLblMitglied', L.mitglied);
+    set('cpEmpfLblSub', L.sub);
+    const mi = document.getElementById('cpEmpfMitglied');
+    if (mi) mi.placeholder = L.phMitglied;
+}
+
 async function cpEmpfLoad(branchId) {
     _cpEmpfBranchId = branchId;
     const el = document.getElementById('cpEmpfList');
@@ -2121,10 +2147,12 @@ function cpEmpfRender() {
 function cpEmpfRowHtml(z) {
     const adr = [z.strasse, z.postfach, [z.plz, z.ort].filter(Boolean).join(' ')]
         .filter(s => s && s.trim()).join(' · ');
+    const isVers = (z.art === 'KTG' || z.art === 'UVG' || z.art === 'BVG');
+    const isQst  = (z.art === 'QST');
     const nums = [
-        z.kassennummer  ? `Kasse ${cdokEsc(z.kassennummer)}` : null,
-        z.mitgliednummer ? `Mitglied ${cdokEsc(z.mitgliednummer)}` : null,
-        z.subnummer     ? `Sub ${cdokEsc(z.subnummer)}` : null,
+        z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
+        z.mitgliednummer ? `${isVers ? 'Kunde' : isQst ? 'SSL' : 'Mitglied'} ${cdokEsc(z.mitgliednummer)}` : null,
+        z.subnummer      ? `${isVers ? 'Vertrag' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
     ].filter(Boolean).join(' · ');
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
@@ -2167,11 +2195,11 @@ function cpEmpfEnsureModal() {
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Empfänger-Stammdaten <span style="font-weight:400;color:#8b8b8b">(zentral — gelten für alle Filialen)</span></div>
             <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 12px">
                 <label style="${lbl}">Art
-                    <select id="cpEmpfArt" style="${inp}">${CP_EMPF_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
+                    <select id="cpEmpfArt" onchange="cpEmpfUpdateLabels()" style="${inp}">${CP_EMPF_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
                 </label>
                 <label style="${lbl}">Bezeichnung<input id="cpEmpfBez" style="${inp}"></label>
                 <label style="${lbl}">Zusatz<input id="cpEmpfZusatz" style="${inp}"></label>
-                <label style="${lbl}">Nummer der Kasse<input id="cpEmpfKassenNr" style="${inp}"></label>
+                <label style="${lbl}"><span id="cpEmpfLblKassenNr">Nummer der Kasse</span><input id="cpEmpfKassenNr" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Strasse<input id="cpEmpfStrasse" style="${inp}"></label>
                 <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
                 <label style="${lbl}">PLZ / Ort
@@ -2191,8 +2219,8 @@ function cpEmpfEnsureModal() {
         <div style="border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:14px;background:rgba(255,255,255,0.45)">
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
-                <label style="${lbl}">Mitgliednummer<input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
-                <label style="${lbl}">Subnummer<input id="cpEmpfSub" style="${inp}"></label>
+                <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
+                <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
             </div>
         </div>
@@ -2268,6 +2296,7 @@ function cpEmpfFillKatalog(k, isNew) {
     set('cpEmpfOrt', k.ort);
     set('cpEmpfKanton', k.kantonCode);
     set('cpEmpfMail', k.supportEmail);
+    cpEmpfUpdateLabels();
 }
 
 function cpEmpfCloseModal() {
