@@ -1439,6 +1439,7 @@ function svRender() {
                 <div class="dok-menu" id="svMenu-${r.id}">
                     ${editItem}
                     <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'new-version')">Neu ab Datum</button>
+                    <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'duplicate')" title="Alle Werte übernehmen und als NEUEN Satz speichern — z.B. für eine Filial-Abweichung">⧉ Duplizieren</button>
                 </div>
             </div>`;
         const lockPill  = locked
@@ -1584,14 +1585,20 @@ let _svFormMode = 'new';
 
 function svOpenForm(rate, mode) {
     _svFormMode = mode || (rate ? 'edit' : 'new');
+    // «Duplizieren» (Walter 06.08.2026): alle Werte der Quelle übernehmen,
+    // aber als NEUEN Satz speichern (typisch: Filial-Abweichung erfassen —
+    // nur «Gilt für» + Satz ändern statt alles neu tippen). Technisch = 'new'.
+    const isDuplicate = _svFormMode === 'duplicate';
+    if (isDuplicate) _svFormMode = 'new';
     const titleMap = {
-        'new':         'Neuer SV-Satz',
+        'new':         isDuplicate ? `Neuer SV-Satz — Kopie von «${rate?.name ?? rate?.code ?? ''}»` : 'Neuer SV-Satz',
         'edit':        'SV-Satz bearbeiten',
         'new-version': `Neue Version ab — ${rate?.name ?? rate?.code ?? ''}`,
     };
     document.getElementById('svFormTitle').textContent = titleMap[_svFormMode];
-    // svId hält bei 'new-version' die ID des Vorgängers (für den POST /new-version-Endpoint)
-    document.getElementById('svId').value            = rate?.id ?? '';
+    // svId hält bei 'new-version' die ID des Vorgängers (für den POST /new-version-Endpoint);
+    // beim Duplizieren bewusst LEER (es entsteht ein neuer Satz).
+    document.getElementById('svId').value            = isDuplicate ? '' : (rate?.id ?? '');
     document.getElementById('svCode').value            = rate?.code ?? 'AHV';
     document.getElementById('svName').value            = rate?.name ?? '';
     document.getElementById('svDescription').value     = rate?.description ?? '';
@@ -1612,6 +1619,13 @@ function svOpenForm(rate, mode) {
                 .map(b => `<option value="${b.id}">${escHtml(svBranchLabel(b.id))}</option>`)
                 .join('');
         cpSel.value = rate?.companyProfileId != null ? String(rate.companyProfileId) : '';
+        // Bei «Neu ab» ist die Filiale Teil des Versions-Schlüssels und darf
+        // NICHT wechseln (der Vorgänger würde sonst fälschlich begrenzt —
+        // Walter 06.08.2026). Für eine Filial-Abweichung: «⧉ Duplizieren».
+        cpSel.disabled = (_svFormMode === 'new-version');
+        cpSel.title = cpSel.disabled
+            ? 'Bei «Neu ab» fix — für eine Filial-Abweichung «Duplizieren» verwenden.'
+            : '';
     }
     document.getElementById('svMinAge').value        = rate?.minAge ?? '';
     document.getElementById('svMaxAge').value        = rate?.maxAge ?? '';
@@ -1640,6 +1654,9 @@ function svOpenForm(rate, mode) {
     if (hint) {
         if (_svFormMode === 'new-version' && rate) {
             hint.innerHTML = `Vorgänger <b>${rate.name}</b> (gültig ab ${rate.validFrom?.substring(0,10) ?? '?'}) wird beim Speichern automatisch begrenzt auf „neu&nbsp;ab&nbsp;−&nbsp;1&nbsp;Tag".`;
+            hint.style.display = 'block';
+        } else if (isDuplicate && rate) {
+            hint.innerHTML = `Kopie von <b>${rate.name}</b> — typischerweise nur «Gilt für» (Filiale) und den Satz anpassen. Die Quelle bleibt unverändert bestehen.`;
             hint.style.display = 'block';
         } else {
             hint.style.display = 'none';
