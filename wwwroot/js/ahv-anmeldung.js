@@ -34,6 +34,30 @@ function ahvOpenForEmployee(empId) {
     showPage('ahv-anmeldung');
 }
 
+/** Direkt-PDF aus dem MA-Detail (Walter 06.08.2026): Vorbefüllung holen,
+ *  PDF erzeugen, Vorschaufenster — ohne Umweg über den HR-Hub. Eltern-
+ *  Angaben bleiben leer (kennt das System nicht) und werden bei Bedarf
+ *  von Hand ergänzt bzw. über die HR-Hub-Maske erfasst. */
+async function ahvQuickPdf(empId) {
+    try {
+        const pre = await fetch(`/api/ahv-anmeldung/${empId}/prefill`, { headers: ah(), cache: 'no-store' });
+        if (!pre.ok) { showToast('Vorbefüllung fehlgeschlagen', 'error'); return; }
+        const d = await pre.json();
+        const res = await fetch(`/api/ahv-anmeldung/${empId}/pdf`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(d),
+        });
+        if (!res.ok) { showToast('PDF-Erzeugung fehlgeschlagen', 'error'); return; }
+        const blob = await res.blob();
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
+        await previewFileModal(blob, m ? decodeURIComponent(m[1]) : 'AHV-Anmeldung-318260.pdf');
+    } catch (_) {
+        showToast('PDF-Erzeugung fehlgeschlagen', 'error');
+    }
+}
+
 function ahvRenderEmpList() {
     const sel    = document.getElementById('ahvEmpSelect');
     const search = (document.getElementById('ahvEmpSearch')?.value || '').toLowerCase().trim();

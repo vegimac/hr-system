@@ -1385,7 +1385,7 @@ function loadUebersichtTab() {
             <div class="ov-pf ov-pf-ahv">
                 <div class="ov-pfl">AHV-Nr.</div>
                 <div class="ov-pfv">${esc(emp.ahvNumber ?? emp.socialSecurityNumber)
-                    || (typeof ahvOpenForEmployee === 'function' ? `<button type="button" onclick="ahvOpenForEmployee(${emp.id})"
+                    || (typeof ahvQuickPdf === 'function' ? `<button type="button" onclick="ahvQuickPdf(${emp.id})"
                             title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"
                             style="height:22px;display:inline-flex;align-items:center;vertical-align:middle;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:0 10px;font-size:10.5px;font-weight:600;cursor:pointer;box-shadow:0 1px 4px rgba(60,55,48,0.18);white-space:nowrap">📄 Ausweis bestellen</button>`
                         : '<span class="ov-empty">–</span>')}</div>
