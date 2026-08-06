@@ -3660,15 +3660,25 @@
                             <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">Filiale gewählt = Abweichung nur für diese Filiale — sie gewinnt dort gegen den Standard-Satz.</div>
                         </div>
 
-                        <div style="margin-bottom:14px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für Vertragstyp</label>
-                            <select id="svEmploymentModel" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                                <option value="">Alle Vertragstypen</option>
-                                <option value="FLEX">FLEX – Stundenlohn</option>
-                                <option value="MTP">MTP – Garantierte Stunden</option>
-                                <option value="FIX">FIX – Festlohn</option>
-                                <option value="FIX-M">FIX-M – Kader / Management</option>
-                            </select>
+                        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für Vertragstyp</label>
+                                <select id="svEmploymentModel" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                    <option value="">Alle Vertragstypen</option>
+                                    <option value="FLEX">FLEX – Stundenlohn</option>
+                                    <option value="MTP">MTP – Garantierte Stunden</option>
+                                    <option value="FIX">FIX – Festlohn</option>
+                                    <option value="FIX-M">FIX-M – Kader / Management</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Versicherer führen z.B. beim KTG zeitweise getrennte Frauen-/Männer-Sätze — dann zwei Zeilen (F/M) erfassen, am einfachsten per Duplizieren.">Geschlecht</label>
+                                <select id="svGender" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                    <option value="">Alle</option>
+                                    <option value="F">Nur Frauen</option>
+                                    <option value="M">Nur Männer</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
@@ -7538,7 +7548,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260806b"></script>
+<script src="js/admin-settings.js?v=20260806c"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260723a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>

@@ -12,6 +12,15 @@ public class SocialInsuranceRate
     public string?  EmploymentModelCode   { get; set; }            // NULL = alle | UTP | MTP | FIX | FIX-M
     public int?     MinAge                { get; set; }
     public int?     MaxAge                { get; set; }
+
+    /// <summary>
+    /// Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): NULL = gilt für alle;
+    /// «F» = nur Frauen, «M» = nur Männer. Versicherer führten beim KTG zeitweise
+    /// getrennte Frauen-/Männer-Sätze — dann zwei Zeilen (F/M) statt einer.
+    /// Matching zentral in <c>PayrollCalculations.GenderMatches</c> (nutzt
+    /// employee.gender mit Anrede-Fallback).
+    /// </summary>
+    public string?  Gender                { get; set; }
     public decimal? FreibetragMonthly     { get; set; }          // AHV 65+
     public decimal? CoordinationDeduction { get; set; }          // BVG Koordinationsabzug/Mt.
     public decimal? MaxBaseMonthly        { get; set; }          // Höchstlohn/Mt. (ALV+NBU: 148'200/Jahr = 12'350/Mt.); NULL = unbegrenzt — MIT Dezember-Aufrollverfahren

@@ -461,7 +461,7 @@ public class AkontoLaufService
 
         // 4) Abzüge (SV + BVG, kein QST)
         int? age = AgeAt(e.DateOfBirth, stichtag);
-        decimal abzuege = ComputeDeductions(brutto, svRates, model, age);
+        decimal abzuege = ComputeDeductions(brutto, svRates, model, age, e.Gender, e.Salutation);
 
         // 5) Netto-Vorschlag — AkontoProzent je nach Modell
         //    Regel 3:  FIX    → AkontoProzentFix    (Default 80%)
@@ -680,7 +680,8 @@ public class AkontoLaufService
     //   • bvg_basis       → Rate × max(brutto − CoordinationDeduction, 0)
     //   • coord_deduction → Rate × CoordinationDeduction (Kaderlösung)
     private static decimal ComputeDeductions(
-        decimal brutto, List<SocialInsuranceRate> svRates, string modelCode, int? age)
+        decimal brutto, List<SocialInsuranceRate> svRates, string modelCode, int? age,
+        string? gender = null, string? salutation = null)
     {
         if (brutto <= 0m) return 0m;
         decimal total = 0m;
@@ -691,6 +692,8 @@ public class AkontoLaufService
                 continue;
             if (r.MinAge.HasValue && age.HasValue && age.Value < r.MinAge.Value) continue;
             if (r.MaxAge.HasValue && age.HasValue && age.Value > r.MaxAge.Value) continue;
+            // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall).
+            if (!PayrollCalculations.GenderMatches(r.Gender, gender, salutation)) continue;
 
             decimal basis;
             switch (r.BasisType)

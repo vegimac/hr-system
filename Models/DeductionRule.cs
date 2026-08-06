@@ -101,6 +101,14 @@ public class DeductionRule
     /// </summary>
     public string? EmploymentModelCode { get; set; }
 
+    /// <summary>
+    /// Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): NULL = alle,
+    /// «F» = nur Frauen, «M» = nur Männer. Transient — aus
+    /// social_insurance_rate.gender; Matching via PayrollCalculations.GenderMatches.
+    /// </summary>
+    [NotMapped]
+    public string? Gender { get; set; }
+
     public DateOnly ValidFrom { get; set; } = new DateOnly(2026, 1, 1);
     public DateOnly? ValidTo { get; set; }
 

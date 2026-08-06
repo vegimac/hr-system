@@ -1455,7 +1455,7 @@ function svRender() {
             <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
             <td style="padding:10px 14px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
-            <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}</td>
+            <td style="padding:10px 14px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
             <td style="padding:10px 14px">${modelBadge}</td>
             <td style="padding:10px 14px;font-size:12px;white-space:nowrap">${(() => {
                 if (r.fibuPosition == null) return '<span style="color:#cbd5e1">—</span>';
@@ -1606,6 +1606,8 @@ function svOpenForm(rate, mode) {
     const _re = document.getElementById('svRateEmployer'); if (_re) _re.value = rate?.rateEmployer ?? '';
     document.getElementById('svBasisType').value       = rate?.basisType ?? 'gross';
     document.getElementById('svEmploymentModel').value = rate?.employmentModelCode ?? '';
+    // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): '' = alle, F/M.
+    const _sg = document.getElementById('svGender'); if (_sg) _sg.value = rate?.gender ?? '';
     // «Gilt für» (Walter 06.08.2026): erste Option = globaler Standard,
     // danach die Filialen aus allBranches (Sortierung wie Filial-Selektor).
     // Bei «Neu ab» ist die Filiale Teil des Fach-Schlüssels — das Backend
@@ -1704,6 +1706,7 @@ async function svSave(event) {
         rateEmployer:          parseNum('svRateEmployer'),
         basisType:             document.getElementById('svBasisType').value,
         employmentModelCode:   document.getElementById('svEmploymentModel').value || null,
+        gender:                document.getElementById('svGender')?.value || null,
         // SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler Standard.
         companyProfileId:      (() => {
             const v = document.getElementById('svCompanyProfile')?.value || '';

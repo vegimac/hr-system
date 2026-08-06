@@ -49,6 +49,8 @@ public class SocialInsuranceRatesController : ControllerBase
             // SV-Sätze pro Filiale (Walter 05.08.2026): NULL = globaler Standard,
             // gesetzt = Override nur für diese Filiale.
             r.CompanyProfileId,
+            // Geschlechts-Filter (Walter 06.08.2026): NULL = alle, «F»/«M».
+            r.Gender,
             inLohnVerwendet = frozenPerioden.Any(p =>
                 r.ValidFrom <= p.PeriodTo
              && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))
@@ -105,6 +107,9 @@ public class SocialInsuranceRatesController : ControllerBase
              // mit gleichem Schlüssel ist KEIN Duplikat — nur gleiche Filiale
              // (bzw. beide global) kollidiert.
              && r.CompanyProfileId == dto.CompanyProfileId
+             // Geschlechts-Namensraum (Walter 06.08.2026): F-/M-Zeilen desselben
+             // Satzes sind KEIN Duplikat.
+             && r.Gender == dto.Gender
              && r.ValidFrom == dto.ValidFrom);
         if (duplicate)
             return Conflict(new {
@@ -155,6 +160,7 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.EntryThresholdYearly  = dto.EntryThresholdYearly;
         rate.OnlyQuellensteuer     = dto.OnlyQuellensteuer;
         rate.CompanyProfileId      = dto.CompanyProfileId;
+        rate.Gender                = dto.Gender;
         rate.FibuPosition          = dto.FibuPosition;
         rate.ValidFrom             = dto.ValidFrom;
         rate.ValidTo               = dto.ValidTo;
@@ -220,6 +226,8 @@ public class SocialInsuranceRatesController : ControllerBase
             // Filial-Zugehörigkeit ist Teil des Fach-Schlüssels — der
             // Nachfolger bleibt in derselben Filiale (bzw. global).
             CompanyProfileId      = oldRate.CompanyProfileId,
+            // Geschlecht ebenso Teil des Schlüssels (F-/M-Zeilen, Walter 06.08.2026).
+            Gender                = oldRate.Gender,
             FibuPosition          = dto.FibuPosition ?? oldRate.FibuPosition,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,

@@ -166,4 +166,53 @@ public class SvRateBranchSelectionTests
         Assert.True(result[0].SortOrder <= result[1].SortOrder
                  && result[1].SortOrder <= result[2].SortOrder);
     }
+
+    // ── Geschlechts-Filter (Walter 06.08.2026, KTG-Fall) ──────────────────
+
+    [Fact]
+    public void F_und_M_Zeilen_desselben_Satzes_ueberleben_beide_die_Dedupe()
+    {
+        var f = Rate("KTG", 2.10m); f.Gender = "F";
+        var m = Rate("KTG", 1.80m); m.Gender = "M";
+        var result = PayrollCalculations.SelectSvRatesForBranch(
+            new[] { f, m }, null);
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public void GenderMatches_Regel_ohne_Geschlecht_gilt_fuer_alle()
+    {
+        Assert.True(PayrollCalculations.GenderMatches(null, "W"));
+        Assert.True(PayrollCalculations.GenderMatches("", "male"));
+        Assert.True(PayrollCalculations.GenderMatches(null, null));
+    }
+
+    [Fact]
+    public void GenderMatches_erkennt_weiblich_in_allen_Schreibweisen()
+    {
+        foreach (var g in new[] { "F", "f", "w", "W", "female", "Frau", "weiblich" })
+        {
+            Assert.True(PayrollCalculations.GenderMatches("F", g), $"«{g}» sollte F matchen");
+            Assert.False(PayrollCalculations.GenderMatches("M", g), $"«{g}» darf M nicht matchen");
+        }
+    }
+
+    [Fact]
+    public void GenderMatches_erkennt_maennlich_und_Anrede_Fallback()
+    {
+        foreach (var g in new[] { "M", "m", "male", "Mann", "männlich" })
+            Assert.True(PayrollCalculations.GenderMatches("M", g), $"«{g}» sollte M matchen");
+        // Anrede-Fallback, wenn gender leer ist.
+        Assert.True(PayrollCalculations.GenderMatches("F", null, "Frau"));
+        Assert.True(PayrollCalculations.GenderMatches("M", "", "Herr"));
+    }
+
+    [Fact]
+    public void GenderMatches_unbekanntes_Geschlecht_matcht_nur_geschlechtslose_Regeln()
+    {
+        // Lieber der Standard-Satz als ein falscher F-/M-Satz (und nie beide).
+        Assert.False(PayrollCalculations.GenderMatches("F", null));
+        Assert.False(PayrollCalculations.GenderMatches("M", "", ""));
+        Assert.True(PayrollCalculations.GenderMatches(null, null));
+    }
 }

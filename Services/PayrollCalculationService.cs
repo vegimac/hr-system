@@ -42,7 +42,10 @@ public static class PayrollCalculations
                 r.MaxAge,
                 r.EmploymentModelCode,
                 r.OnlyQuellensteuer,
-                r.BasisType
+                r.BasisType,
+                // Geschlechts-Filter (Walter 06.08.2026): F-/M-Zeilen desselben
+                // Satzes sind eigene Fach-Schlüssel — beide überleben die Dedupe.
+                r.Gender
             })
             .Select(g => g
                 .OrderByDescending(r => r.CompanyProfileId != null)   // Filial-Override vor global
@@ -50,6 +53,35 @@ public static class PayrollCalculations
                 .First())
             .OrderBy(r => r.SortOrder)
             .ToList();
+    }
+
+    /// <summary>
+    /// Geschlechts-Match für SV-Sätze (Walter 06.08.2026, KTG-Fall):
+    /// Regel-Gender NULL/leer = gilt für alle. «F» matcht weiblich
+    /// (gender f/w/female/frau/weiblich, Fallback Anrede «Frau»), «M» matcht
+    /// männlich (m/male/mann/männlich, Fallback Anrede «Herr»). Ist das
+    /// Geschlecht des MA NICHT feststellbar, matchen NUR geschlechtslose
+    /// Regeln — lieber der Standard-Satz als ein falscher F-/M-Satz.
+    /// </summary>
+    public static bool GenderMatches(string? ruleGender, string? employeeGender, string? salutation = null)
+    {
+        var rg = (ruleGender ?? "").Trim().ToUpperInvariant();
+        if (rg.Length == 0) return true;
+
+        var eg = NormalizeGender(employeeGender, salutation);
+        return eg != null && eg == rg;
+    }
+
+    /// <summary>«F», «M» oder null (nicht feststellbar) — gender mit Anrede-Fallback.</summary>
+    public static string? NormalizeGender(string? gender, string? salutation = null)
+    {
+        var g = (gender ?? "").Trim().ToLowerInvariant();
+        if (g is "f" or "w" or "female" or "frau" or "weiblich") return "F";
+        if (g is "m" or "male" or "mann" or "herr" or "männlich" or "maennlich") return "M";
+        var s = (salutation ?? "").Trim().ToLowerInvariant();
+        if (s.StartsWith("frau")) return "F";
+        if (s.StartsWith("herr")) return "M";
+        return null;
     }
 
     /// <summary>

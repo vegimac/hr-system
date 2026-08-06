@@ -1049,7 +1049,8 @@ public class AkontoWorkflowController : HrControllerBase
             : (int?)null;
 
         var abzuegeDetails = BuildAbzuegeBreakdown(
-            z.GeschaetzterBrutto, svRates, employment?.EmploymentModel ?? "", age);
+            z.GeschaetzterBrutto, svRates, employment?.EmploymentModel ?? "", age,
+            emp.Gender, emp.Salutation);
 
         return Ok(new {
             z.Id, z.EmployeeId,
@@ -1100,7 +1101,8 @@ public class AkontoWorkflowController : HrControllerBase
     // Abzüge-Breakdown — gleiche Logik wie AkontoLaufService.ComputeDeductions,
     // aber liefert pro SV-Satz die Basis + Betrag zurück (für die Anzeige im Detail).
     private static List<object> BuildAbzuegeBreakdown(
-        decimal brutto, List<SocialInsuranceRate> svRates, string model, int? age)
+        decimal brutto, List<SocialInsuranceRate> svRates, string model, int? age,
+        string? gender = null, string? salutation = null)
     {
         var result = new List<object>();
         if (brutto <= 0m) return result;
@@ -1111,6 +1113,8 @@ public class AkontoWorkflowController : HrControllerBase
                 continue;
             if (r.MinAge.HasValue && age.HasValue && age.Value < r.MinAge.Value) continue;
             if (r.MaxAge.HasValue && age.HasValue && age.Value > r.MaxAge.Value) continue;
+            // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall).
+            if (!PayrollCalculations.GenderMatches(r.Gender, gender, salutation)) continue;
 
             decimal basis;
             switch (r.BasisType)

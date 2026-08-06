@@ -348,6 +348,7 @@ public class PayrollCalculationEngine
                 EntryThresholdYearly  = r.EntryThresholdYearly,
                 OnlyQuellensteuer     = r.OnlyQuellensteuer,
                 EmploymentModelCode   = r.EmploymentModelCode,
+                Gender                = r.Gender,
                 ValidFrom             = r.ValidFrom,
                 SortOrder             = r.SortOrder,
                 IsActive              = true,
@@ -380,6 +381,9 @@ public class PayrollCalculationEngine
             .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
                      && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
                      && (!r.OnlyQuellensteuer || isQuellensteuer)
+                     // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): NULL = alle;
+                     // «F»/«M»-Zeilen greifen nur beim passenden Geschlecht.
+                     && GenderMatches(r.Gender, employee.Gender, employee.Salutation)
                      // Vertragstyp: NULL = gilt für alle; gesetzt = nur wenn MA-Modell übereinstimmt
                      && (r.EmploymentModelCode == null
                          || string.Equals(r.EmploymentModelCode, empModelCode,
@@ -3826,6 +3830,7 @@ public class PayrollCalculationEngine
                     EntryThresholdYearly = r.EntryThresholdYearly,
                     OnlyQuellensteuer = r.OnlyQuellensteuer,
                     EmploymentModelCode = r.EmploymentModelCode,
+                    Gender = r.Gender,
                     ValidFrom = r.ValidFrom, SortOrder = r.SortOrder, IsActive = true,
                 }).ToList()
                 : BuildSwissStandardDeductions(companyProfileId);
@@ -3835,6 +3840,7 @@ public class PayrollCalculationEngine
                 .Where(r => (r.MinAge == null || effectiveAge == null || effectiveAge >= r.MinAge)
                          && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge)
                          && !r.OnlyQuellensteuer
+                         && GenderMatches(r.Gender, employee.Gender, employee.Salutation)
                          && (r.EmploymentModelCode == null
                              || string.Equals(r.EmploymentModelCode, empModelCode, StringComparison.OrdinalIgnoreCase))
                          && !string.Equals(r.CategoryCode, "BVG_ZUSATZ", StringComparison.OrdinalIgnoreCase)

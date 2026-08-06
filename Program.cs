@@ -2055,6 +2055,13 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE social_insurance_rate
         ADD COLUMN IF NOT EXISTS company_profile_id integer;
     ");
+    // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): NULL = alle,
+    // «F» = nur Frauen, «M» = nur Männer (Versicherer führten beim KTG
+    // zeitweise getrennte Sätze). Doku: migrations-archive/add_sv_rate_gender.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE social_insurance_rate
+        ADD COLUMN IF NOT EXISTS gender varchar(1);
+    ");
 
     // Schutz gegen künftige Dubletten: Unique-Index auf den fachlichen Schlüssel
     // (identisch mit dem Duplikat-Check in SocialInsuranceRatesController.Create).
@@ -2067,26 +2074,30 @@ using (var scope = app.Services.CreateScope())
     // Defensiv: wird nur angelegt wenn aktuell keine Dubletten existieren — so
     // crasht der Startup nicht, falls die Alt-Daten noch nicht bereinigt sind
     // (Bereinigung läuft einmalig über migrations-archive/fix_social_insurance_rate_dedup.sql).
+    // Seit 06.08.2026 zusätzlich COALESCE(gender, '') im Schlüssel — F-/M-Zeilen
+    // desselben Satzes sind KEIN Duplikat (Neu-Name …_natural3, alte Indizes
+    // idempotent gedroppt).
     db.Database.ExecuteSqlRaw(@"
         DO $$
         BEGIN
             DROP INDEX IF EXISTS ux_social_insurance_rate_natural;
+            DROP INDEX IF EXISTS ux_social_insurance_rate_natural2;
             IF NOT EXISTS (
                 SELECT 1 FROM (
                     SELECT 1 FROM social_insurance_rate
                     GROUP BY code, valid_from, COALESCE(min_age, -1),
                              COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
                              basis_type, only_quellensteuer,
-                             COALESCE(company_profile_id, 0)
+                             COALESCE(company_profile_id, 0), COALESCE(gender, '')
                     HAVING COUNT(*) > 1
                 ) dup
             ) THEN
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural2
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural3
                 ON social_insurance_rate (
                     code, valid_from, COALESCE(min_age, -1),
                     COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
                     basis_type, only_quellensteuer,
-                    COALESCE(company_profile_id, 0)
+                    COALESCE(company_profile_id, 0), COALESCE(gender, '')
                 );
             END IF;
         END $$;
