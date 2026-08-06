@@ -835,6 +835,41 @@ public class DashboardService
             }
         }
 
+        // ── 3c.iv) AHV-Nummer fehlt (Walter 06.08.2026, kritisch) ──────────
+        // Aktive MA mit laufendem Vertrag ohne AHV-Nummer — ohne sie sind
+        // SV-Meldungen/Lohnausweis nicht möglich. Phantom-MA und reine
+        // Personaldossiers (kein laufender Vertrag) warnen nicht.
+        if (Enabled("ahv_nummer_fehlt"))
+        {
+            var ahvQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && (e.SocialSecurityNumber == null || e.SocialSecurityNumber == "")
+                         && e.Employments.Any(em => em.IsActive
+                             && em.ContractStartDate <= DateTime.Today
+                             && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            if (companyProfileId.HasValue)
+                ahvQ = ahvQ.Where(e => e.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            var ohneAhv = await ahvQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .ToListAsync();
+            foreach (var e in ohneAhv)
+            {
+                var anName = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "ahv_nummer_fehlt",
+                    Severity = SeverityState("ahv_nummer_fehlt", "critical"),
+                    Title    = "AHV-Nummer fehlt",
+                    Subtitle = $"{anName} · Personalnr. {e.EmployeeNumber} · keine AHV-Nummer erfasst — SV-Meldungen/Lohnausweis nicht möglich",
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = anName
+                });
+            }
+        }
+
         // ── 3d) Aktive Schwangerschaften (Walter-Vorgabe 10.06.2026) ───────
         // Pro aktive Schwangerschaft eine Info-Card mit Geburtstermin und
         // einer kurzen Liste „aktuell erlaubt/nicht erlaubt" — die wird live

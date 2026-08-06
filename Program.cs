@@ -426,6 +426,16 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (category) DO NOTHING;
     ");
 
+    // AHV-Nummer fehlt (Walter 06.08.2026): kritische Warnung für aktive MA
+    // mit laufendem Vertrag ohne AHV-Nummer.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('ahv_nummer_fehlt', 'AHV-Nummer fehlt', TRUE, NULL, NULL, 'critical', NULL, FALSE, 26, 16, 'red')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // Anonymer Austritts-Fragebogen (Walter 26.07.2026) — ersetzt Google Forms.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS exit_survey_response (
