@@ -85,6 +85,8 @@ public class AppDbContext : DbContext
     public DbSet<DokumentTyp>               DokumentTypen               => Set<DokumentTyp>();
     public DbSet<EmployeeDokument>          EmployeeDokumente           => Set<EmployeeDokument>();
     public DbSet<CompanyDokument>           CompanyDokumente            => Set<CompanyDokument>();
+    public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
+    public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1193,6 +1195,57 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ZugriffVon).HasColumnName("zugriff_von");
             entity.HasIndex(e => e.CompanyProfileId);
             entity.HasIndex(e => e.StorageFilename).IsUnique();
+        });
+
+        // ── Lohndatenempfänger: Katalog + Filial-Zuordnung (Walter 06.08.2026) ─
+        modelBuilder.Entity<LohndatenEmpfaenger>(entity =>
+        {
+            entity.ToTable("lohndaten_empfaenger");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Zusatz).HasColumnName("zusatz");
+            entity.Property(e => e.UidNummer).HasColumnName("uid_nummer");
+            entity.Property(e => e.Strasse).HasColumnName("strasse");
+            entity.Property(e => e.Postfach).HasColumnName("postfach");
+            entity.Property(e => e.Plz).HasColumnName("plz");
+            entity.Property(e => e.Ort).HasColumnName("ort");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
+            entity.Property(e => e.Kassennummer).HasColumnName("kassennummer");
+            entity.Property(e => e.SupportEmail).HasColumnName("support_email");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+        });
+
+        modelBuilder.Entity<CompanyProfileEmpfaenger>(entity =>
+        {
+            entity.ToTable("company_profile_empfaenger");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.EmpfaengerId).HasColumnName("empfaenger_id");
+            entity.Property(e => e.Mitgliednummer).HasColumnName("mitgliednummer");
+            entity.Property(e => e.Subnummer).HasColumnName("subnummer");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.CompanyProfileId);
+            entity.HasOne(e => e.Empfaenger)
+                  .WithMany(x => x.Zuordnungen)
+                  .HasForeignKey(e => e.EmpfaengerId)
+                  .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.CompanyProfile)
+                  .WithMany()
+                  .HasForeignKey(e => e.CompanyProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── MailboxDocument (Posteingang pro Filiale) ────────────────────────

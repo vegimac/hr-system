@@ -64,6 +64,20 @@ public class AhvAnmeldungController : ControllerBase
                 ? cp.CompanyName
                 : $"{cp.CompanyName}, {cp.BranchName}";
 
+        // Abrechnungsnummer: Mitgliednummer des Ausgleichskassen-Empfängers
+        // dieser Filiale (Lohndatenempfänger, Walter 06.08.2026) — Fallback
+        // auf das Freitextfeld CompanyProfile.AhvKasse.
+        string? abrechnungsNr = null;
+        if (cp != null)
+        {
+            abrechnungsNr = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+                .Where(z => z.CompanyProfileId == cp.Id && z.IsActive
+                         && z.Empfaenger!.Art == "AUSGLEICHSKASSE")
+                .Select(z => z.Mitgliednummer)
+                .FirstOrDefaultAsync();
+        }
+        if (string.IsNullOrWhiteSpace(abrechnungsNr)) abrechnungsNr = cp?.AhvKasse;
+
         return Ok(new
         {
             employeeId  = e.Id,
@@ -89,7 +103,7 @@ public class AhvAnmeldungController : ControllerBase
             grund      = "ZUZUG",
             grundText  = "",
             firmenname = firma,
-            abrechnungsnummer = cp?.AhvKasse,
+            abrechnungsnummer = abrechnungsNr,
             firmaStrasse = cp?.Street,
             firmaHausNr  = cp?.HouseNumber,
             firmaPlz     = cp?.ZipCode,

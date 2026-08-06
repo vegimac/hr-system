@@ -237,6 +237,7 @@ function renderFilialenDetail(b) {
             <div class="emp-tab"        data-ftab="f-unterzeichner"  onclick="switchFilialenTab('f-unterzeichner')">Unterzeichner</div>
             <div class="emp-tab"        data-ftab="f-abzuege"        onclick="switchFilialenTab('f-abzuege')">Abzüge</div>
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
+            <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')">Empfänger</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
                  (nicht-scrollender Kopfbereich) — bleiben so immer sichtbar.
@@ -487,6 +488,19 @@ function renderFilialenDetail(b) {
                  die Lohnperiode ist jetzt immer der Kalendermonat.
                  Der „Auf alle Filialen übertragen"-Button sitzt in der
                  sticky Kopfzeile oben — kein zweiter Button hier unten nötig. -->
+        </div>
+
+        <!-- TAB: Lohndatenempfänger (Walter-Vorgabe 06.08.2026, Mirus-Vorbild) —
+             zentrale Empfänger-Stammdaten + filial-spezifische Mitglied-/
+             Subnummer. Empfänger werden beim Zuordnen direkt miterfasst
+             (kein eigener Systemsteuerungs-Punkt). -->
+        <div class="emp-tab-content" id="fil-tab-f-empf">
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                Lohndatenempfänger
+                <button onclick="cpEmpfOpenModal(null)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.18)">+ Hinzufügen</button>
+            </div>
+            <div style="font-size:12px;color:#8b8b8b;margin:4px 0 12px">Kassen, Versicherungen und Steuerverwaltungen, an die Lohndaten dieser Filiale gemeldet werden. Adresse und Kassennummer sind zentral erfasst (gelten für alle Filialen); Mitglied- und Subnummer gehören zu dieser Filiale.</div>
+            <div id="cpEmpfList"><div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div></div>
         </div>
 
         <!-- TAB: Dokumente (Walter-Vorgabe 06.08.2026) — Filial-Dokumente
@@ -846,6 +860,10 @@ function switchFilialenTab(tab) {
     // Dokumente-Tab: Liste beim Betreten (neu) laden.
     if (tab === 'f-doks' && selectedBranch && typeof filDoksLoad === 'function') {
         filDoksLoad(selectedBranch.id);
+    }
+    // Lohndatenempfänger-Tab: Zuordnungen beim Betreten laden.
+    if (tab === 'f-empf' && selectedBranch && typeof cpEmpfLoad === 'function') {
+        cpEmpfLoad(selectedBranch.id);
     }
 }
 
@@ -2030,3 +2048,314 @@ async function filDoksSubmitUpload() {
     }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+//  LOHNDATENEMPFÄNGER (Walter-Vorgabe 06.08.2026, Mirus-Vorbild)
+//  Zentraler Katalog (Adresse/Kassennummer EINMAL) + Zuordnung pro
+//  Filiale (Mitglied-/Subnummer). Gepflegt komplett aus diesem Tab.
+// ══════════════════════════════════════════════════════════════════════
+let _cpEmpfBranchId = null;
+let _cpEmpfCache    = [];   // Zuordnungen dieser Filiale
+let _cpEmpfKatalog  = [];   // globaler Empfänger-Katalog
+
+const CP_EMPF_ARTEN = [
+    ['AUSGLEICHSKASSE', 'Ausgleichskasse (AHV)'],
+    ['FAK',             'Familienausgleichskasse (FAK)'],
+    ['KTG',             'KTG-Versicherung'],
+    ['UVG',             'UVG-Versicherung'],
+    ['BVG',             'BVG / Pensionskasse'],
+    ['QST',             'Quellensteuer'],
+    ['LOHNAUSWEIS',     'Lohnausweis'],
+    ['ANDERE',          'Andere'],
+];
+function cpEmpfArtLabel(code) {
+    const f = CP_EMPF_ARTEN.find(a => a[0] === code);
+    return f ? f[1] : (code || 'Andere');
+}
+
+async function cpEmpfLoad(branchId) {
+    _cpEmpfBranchId = branchId;
+    const el = document.getElementById('cpEmpfList');
+    if (!el) return;
+    try {
+        const [zRes, kRes] = await Promise.all([
+            fetch(`/api/companyprofiles/${branchId}/empfaenger`, { headers: ah(), cache: 'no-store' }),
+            fetch('/api/lohndaten-empfaenger', { headers: ah(), cache: 'no-store' }),
+        ]);
+        if (!zRes.ok || !kRes.ok) {
+            el.innerHTML = '<div style="color:#991b1b;padding:16px;font-size:12.5px">Laden fehlgeschlagen.</div>';
+            return;
+        }
+        _cpEmpfCache   = await zRes.json();
+        _cpEmpfKatalog = await kRes.json();
+        cpEmpfRender();
+    } catch (_) {
+        el.innerHTML = '<div style="color:#991b1b;padding:16px;font-size:12.5px">Verbindungsfehler.</div>';
+    }
+}
+
+function cpEmpfRender() {
+    const el = document.getElementById('cpEmpfList');
+    if (!el) return;
+    if (!_cpEmpfCache.length) {
+        el.innerHTML = '<div style="color:#8b8b8b;padding:26px;text-align:center;font-size:13px">Noch keine Empfänger zugeordnet — mit ‹+ Hinzufügen› beginnen.</div>';
+        return;
+    }
+    let html = '';
+    for (const [code] of CP_EMPF_ARTEN) {
+        const items = _cpEmpfCache.filter(z => z.art === code);
+        if (!items.length) continue;
+        html += `<div style="font-size:12px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px">${cdokEsc(cpEmpfArtLabel(code))}</div>`;
+        html += items.map(cpEmpfRowHtml).join('');
+    }
+    // unbekannte Arten zuletzt
+    const known = CP_EMPF_ARTEN.map(a => a[0]);
+    const rest = _cpEmpfCache.filter(z => !known.includes(z.art));
+    if (rest.length) {
+        html += `<div style="font-size:12px;font-weight:700;color:#646464;margin:14px 0 4px">WEITERE</div>`;
+        html += rest.map(cpEmpfRowHtml).join('');
+    }
+    el.innerHTML = html;
+}
+
+function cpEmpfRowHtml(z) {
+    const adr = [z.strasse, z.postfach, [z.plz, z.ort].filter(Boolean).join(' ')]
+        .filter(s => s && s.trim()).join(' · ');
+    const nums = [
+        z.kassennummer  ? `Kasse ${cdokEsc(z.kassennummer)}` : null,
+        z.mitgliednummer ? `Mitglied ${cdokEsc(z.mitgliednummer)}` : null,
+        z.subnummer     ? `Sub ${cdokEsc(z.subnummer)}` : null,
+    ].filter(Boolean).join(' · ');
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
+        <div style="flex:1;min-width:0">
+            <div style="font-size:13px;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                <span style="font-weight:600">${cdokEsc(z.bezeichnung)}</span>${z.zusatz ? ` <span style="font-weight:400;color:#8b8b8b;font-size:12px">— ${cdokEsc(z.zusatz)}</span>` : ''}${z.kantonCode ? ` <span style="font-weight:600;color:#6b7280;font-size:11px;border:1px solid rgba(60,55,48,0.18);border-radius:6px;padding:1px 6px;margin-left:4px">${cdokEsc(z.kantonCode)}</span>` : ''}
+            </div>
+            <div style="font-size:11.5px;color:#8b8b8b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cdokEsc(adr) || '–'}</div>
+        </div>
+        <div style="flex-shrink:0;text-align:right;font-size:12px;color:#646464">${nums || '<span style="color:#b45309">Mitgliednummer fehlt</span>'}</div>
+        <div style="position:relative;display:inline-block;flex-shrink:0">
+            <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'cpempf-${z.id}')" title="Aktionen">⋮</button>
+            <div class="dok-menu" id="dokMenu-cpempf-${z.id}">
+                <button class="dok-menu-item" onclick="dokCloseAllMenus();cpEmpfOpenModal(${z.id})">Bearbeiten</button>
+                <button class="dok-menu-item danger" onclick="dokCloseAllMenus();cpEmpfDelete(${z.id})">Aus Filiale entfernen</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ── Modal (dynamisch, Liquid-Glass) ────────────────────────────────────
+function cpEmpfEnsureModal() {
+    if (document.getElementById('cpEmpfModal')) return;
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
+    const div = document.createElement('div');
+    div.id = 'cpEmpfModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.innerHTML = `
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger hinzufügen</div>
+
+        <div id="cpEmpfPickBlock" style="margin-bottom:14px">
+            <label style="${lbl}">Empfänger
+                <select id="cpEmpfPick" onchange="cpEmpfPickChanged()" style="${inp}"></select>
+            </label>
+        </div>
+
+        <div id="cpEmpfKatalogBlock" style="border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:14px;background:rgba(255,255,255,0.45);margin-bottom:14px">
+            <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Empfänger-Stammdaten <span style="font-weight:400;color:#8b8b8b">(zentral — gelten für alle Filialen)</span></div>
+            <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 12px">
+                <label style="${lbl}">Art
+                    <select id="cpEmpfArt" style="${inp}">${CP_EMPF_ARTEN.map(a => `<option value="${a[0]}">${a[1]}</option>`).join('')}</select>
+                </label>
+                <label style="${lbl}">Bezeichnung<input id="cpEmpfBez" style="${inp}"></label>
+                <label style="${lbl}">Zusatz<input id="cpEmpfZusatz" style="${inp}"></label>
+                <label style="${lbl}">Nummer der Kasse<input id="cpEmpfKassenNr" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Strasse<input id="cpEmpfStrasse" style="${inp}"></label>
+                <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
+                <label style="${lbl}">PLZ / Ort
+                    <div style="display:flex;gap:8px">
+                        <input id="cpEmpfPlz" style="${inp};width:80px;flex:none">
+                        <input id="cpEmpfOrt" style="${inp}">
+                    </div>
+                </label>
+                <label style="${lbl}">Kanton (bei QST)<input id="cpEmpfKanton" placeholder="AG, BE, …" maxlength="2" style="${inp}"></label>
+                <label style="${lbl}">Support-E-Mail<input id="cpEmpfMail" style="${inp}"></label>
+            </div>
+        </div>
+
+        <div style="border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:14px;background:rgba(255,255,255,0.45)">
+            <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <label style="${lbl}">Mitgliednummer<input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
+                <label style="${lbl}">Subnummer<input id="cpEmpfSub" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
+            </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+            <button onclick="cpEmpfCloseModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+            <button id="cpEmpfSaveBtn" onclick="cpEmpfSave()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Speichern</button>
+        </div>
+    </div>`;
+    div.addEventListener('click', (e) => { if (e.target === div) cpEmpfCloseModal(); });
+    document.body.appendChild(div);
+}
+
+let _cpEmpfEditId = null;   // Zuordnungs-Id beim Bearbeiten, null = neu
+
+function cpEmpfOpenModal(zuordnungId) {
+    cpEmpfEnsureModal();
+    _cpEmpfEditId = zuordnungId;
+    const modal = document.getElementById('cpEmpfModal');
+    const pick  = document.getElementById('cpEmpfPick');
+    const title = document.getElementById('cpEmpfModalTitle');
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+
+    if (zuordnungId == null) {
+        // NEU: Auswahl bestehender Empfänger (ohne bereits zugeordnete) + «Neu erfassen»
+        title.textContent = 'Empfänger hinzufügen';
+        document.getElementById('cpEmpfPickBlock').style.display = '';
+        const zugeordnet = new Set(_cpEmpfCache.map(z => z.empfaengerId));
+        const frei = _cpEmpfKatalog.filter(k => !zugeordnet.has(k.id));
+        pick.innerHTML = '<option value="NEW">+ Neuen Empfänger erfassen…</option>'
+            + frei.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
+        pick.value = frei.length ? String(frei[0].id) : 'NEW';
+        ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem'].forEach(id => set(id, ''));
+        cpEmpfPickChanged();
+    } else {
+        // BEARBEITEN: Zuordnung + zentrale Stammdaten in einem Formular
+        const z = _cpEmpfCache.find(x => x.id === zuordnungId);
+        if (!z) return;
+        title.textContent = 'Empfänger bearbeiten';
+        document.getElementById('cpEmpfPickBlock').style.display = 'none';
+        cpEmpfFillKatalog({
+            art: z.art, bezeichnung: z.bezeichnung, zusatz: z.zusatz,
+            kassennummer: z.kassennummer, strasse: z.strasse, postfach: z.postfach,
+            plz: z.plz, ort: z.ort, kantonCode: z.kantonCode, supportEmail: z.supportEmail,
+        }, false);
+        set('cpEmpfMitglied', z.mitgliednummer);
+        set('cpEmpfSub', z.subnummer);
+        set('cpEmpfBem', z.bemerkung);
+    }
+    modal.style.display = 'block';
+}
+
+function cpEmpfPickChanged() {
+    const v = document.getElementById('cpEmpfPick')?.value;
+    if (v === 'NEW') {
+        cpEmpfFillKatalog({ art: 'AUSGLEICHSKASSE' }, true);
+    } else {
+        const k = _cpEmpfKatalog.find(x => String(x.id) === v);
+        if (k) cpEmpfFillKatalog(k, false);
+    }
+}
+
+// readonly=false → Felder editierbar (zentrale Änderung wird mitgespeichert)
+function cpEmpfFillKatalog(k, isNew) {
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    set('cpEmpfArt', k.art || 'ANDERE');
+    set('cpEmpfBez', k.bezeichnung);
+    set('cpEmpfZusatz', k.zusatz);
+    set('cpEmpfKassenNr', k.kassennummer);
+    set('cpEmpfStrasse', k.strasse);
+    set('cpEmpfPostfach', k.postfach);
+    set('cpEmpfPlz', k.plz);
+    set('cpEmpfOrt', k.ort);
+    set('cpEmpfKanton', k.kantonCode);
+    set('cpEmpfMail', k.supportEmail);
+}
+
+function cpEmpfCloseModal() {
+    const m = document.getElementById('cpEmpfModal');
+    if (m) m.style.display = 'none';
+}
+
+async function cpEmpfSave() {
+    const val = (id) => document.getElementById(id)?.value?.trim() || null;
+    const btn = document.getElementById('cpEmpfSaveBtn');
+    const katalogBody = {
+        art: val('cpEmpfArt'), bezeichnung: val('cpEmpfBez'), zusatz: val('cpEmpfZusatz'),
+        kassennummer: val('cpEmpfKassenNr'), strasse: val('cpEmpfStrasse'),
+        postfach: val('cpEmpfPostfach'), plz: val('cpEmpfPlz'), ort: val('cpEmpfOrt'),
+        kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
+    };
+    if (!katalogBody.bezeichnung) { showToast('Bezeichnung fehlt.', 'error'); return; }
+    const zuordnungFields = {
+        mitgliednummer: val('cpEmpfMitglied'),
+        subnummer: val('cpEmpfSub'),
+        bemerkung: val('cpEmpfBem'),
+    };
+    if (btn) btn.disabled = true;
+    try {
+        if (_cpEmpfEditId == null) {
+            // Neu: ggf. Katalog-Empfänger anlegen, dann Zuordnung
+            const pickVal = document.getElementById('cpEmpfPick')?.value;
+            let empfId;
+            if (pickVal === 'NEW') {
+                const r = await fetch('/api/lohndaten-empfaenger', {
+                    method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(katalogBody),
+                });
+                if (!r.ok) { showToast('Empfänger anlegen fehlgeschlagen.', 'error'); return; }
+                empfId = (await r.json()).id;
+            } else {
+                empfId = parseInt(pickVal, 10);
+                // Zentrale Stammdaten wurden evtl. angepasst → mitspeichern
+                await fetch('/api/lohndaten-empfaenger/' + empfId, {
+                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(katalogBody),
+                });
+            }
+            const r2 = await fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger`, {
+                method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ empfaengerId: empfId, ...zuordnungFields }),
+            });
+            if (!r2.ok) {
+                let msg = 'Zuordnung fehlgeschlagen.';
+                try { const j = await r2.json(); if (j.error === 'EMPFAENGER_BEREITS_ZUGEORDNET') msg = 'Dieser Empfänger ist der Filiale bereits zugeordnet.'; } catch (_) {}
+                showToast(msg, 'error'); return;
+            }
+        } else {
+            // Bearbeiten: zentrale Stammdaten + Zuordnung parallel speichern
+            const z = _cpEmpfCache.find(x => x.id === _cpEmpfEditId);
+            if (!z) return;
+            const [r1, r2] = await Promise.all([
+                fetch('/api/lohndaten-empfaenger/' + z.empfaengerId, {
+                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(katalogBody),
+                }),
+                fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger/${z.id}`, {
+                    method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ empfaengerId: z.empfaengerId, ...zuordnungFields }),
+                }),
+            ]);
+            if (!r1.ok || !r2.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
+        }
+        cpEmpfCloseModal();
+        showToast('Gespeichert.', 'success');
+        await cpEmpfLoad(_cpEmpfBranchId);
+    } catch (_) {
+        showToast('Verbindungsfehler.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function cpEmpfDelete(zuordnungId) {
+    const z = _cpEmpfCache.find(x => x.id === zuordnungId);
+    if (!z) return;
+    const ok = await liquidConfirm(
+        `Empfänger «${z.bezeichnung}» aus dieser Filiale entfernen? Der zentrale Empfänger bleibt bestehen.`,
+        { title: 'Empfänger entfernen', yesLabel: 'Entfernen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/companyprofiles/${_cpEmpfBranchId}/empfaenger/${zuordnungId}`, {
+            method: 'DELETE', headers: ah(),
+        });
+        if (!r.ok) { showToast('Entfernen fehlgeschlagen.', 'error'); return; }
+        showToast('Entfernt.', 'success');
+        await cpEmpfLoad(_cpEmpfBranchId);
+    } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+}

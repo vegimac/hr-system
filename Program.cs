@@ -2800,6 +2800,47 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE app_user
             ADD COLUMN IF NOT EXISTS can_company_dokumente boolean NOT NULL DEFAULT false;
     ");
+
+    // ── Lohndatenempfänger (Walter-Vorgabe 06.08.2026, Mirus-Vorbild) ─────
+    // Zentraler Empfänger-Katalog (Adresse/Kassennummer EINMAL erfasst) +
+    // Zuordnung pro Filiale mit Mitglied-/Subnummer (jede Filiale = eigene
+    // GmbH = eigene Mitgliednummer). Grundlage für Behörden-Formulare + ELM.
+    // Doku-Migration: migrations-archive/add_lohndaten_empfaenger.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS lohndaten_empfaenger (
+            id            serial PRIMARY KEY,
+            art           text NOT NULL,
+            bezeichnung   text NOT NULL,
+            zusatz        text,
+            uid_nummer    text,
+            strasse       text,
+            postfach      text,
+            plz           text,
+            ort           text,
+            kanton_code   text,
+            kassennummer  text,
+            support_email text,
+            bemerkung     text,
+            is_active     boolean NOT NULL DEFAULT true,
+            created_at    timestamp without time zone NOT NULL DEFAULT now(),
+            updated_at    timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS company_profile_empfaenger (
+            id                 serial PRIMARY KEY,
+            company_profile_id integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            empfaenger_id      integer NOT NULL REFERENCES lohndaten_empfaenger(id) ON DELETE CASCADE,
+            mitgliednummer     text,
+            subnummer          text,
+            bemerkung          text,
+            is_active          boolean NOT NULL DEFAULT true,
+            created_at         timestamp without time zone NOT NULL DEFAULT now(),
+            updated_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_cp_empfaenger_company_profile
+            ON company_profile_empfaenger (company_profile_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_cp_empfaenger_cp_empf
+            ON company_profile_empfaenger (company_profile_id, empfaenger_id);
+    ");
 }
 
 // Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE
