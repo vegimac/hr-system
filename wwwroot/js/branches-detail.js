@@ -237,7 +237,7 @@ function renderFilialenDetail(b) {
             <div class="emp-tab"        data-ftab="f-unterzeichner"  onclick="switchFilialenTab('f-unterzeichner')">Unterzeichner</div>
             <div class="emp-tab"        data-ftab="f-abzuege"        onclick="switchFilialenTab('f-abzuege')">Abzüge</div>
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
-            <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')">Empfänger</div>
+            <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')" style="line-height:1.15;text-align:center">Lohndaten<br>Empfänger</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
             <!-- Aktions-Buttons des Einstellungen-Tabs sitzen in der Tab-Leiste
                  (nicht-scrollender Kopfbereich) — bleiben so immer sichtbar.
@@ -2314,6 +2314,16 @@ async function cpEmpfSave() {
         kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
     };
     if (!katalogBody.bezeichnung) { showToast('Bezeichnung fehlt.', 'error'); return; }
+    // Unbekannte PLZ lernen (Walter 06.08.2026): hat der User Ort zu einer
+    // PLZ eingetragen, die das Ortschaftsverzeichnis nicht kennt (Postfach-
+    // PLZ wie 5001), merkt sich das System die Kombination — best-effort,
+    // der Endpoint lernt nur komplett unbekannte PLZ.
+    if (katalogBody.plz && /^\d{4}$/.test(katalogBody.plz) && katalogBody.ort) {
+        fetch('/api/swiss-locations/learn', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plz: katalogBody.plz, ort: katalogBody.ort, kanton: katalogBody.kantonCode }),
+        }).catch(() => {});
+    }
     const zuordnungFields = {
         mitgliednummer: val('cpEmpfMitglied'),
         subnummer: val('cpEmpfSub'),

@@ -65,6 +65,35 @@ public class SwissLocationsController : ControllerBase
         return Ok(list);
     }
 
+    // POST /api/swiss-locations/learn — unbekannte PLZ lernen (Walter 06.08.2026).
+    // Sonder-PLZ (Postfach-Adressen wie «5001 Aarau SPS») stehen nicht im
+    // amtlichen Ortschaftsverzeichnis. Trägt der User Ort (+ Kanton) von Hand
+    // ein, merken wir uns das — der nächste Lookup findet die PLZ dann überall.
+    // Bewusst NUR wenn die PLZ komplett unbekannt ist (kein Überschreiben/
+    // Verwässern amtlicher Einträge durch Tippvarianten).
+    [HttpPost("learn")]
+    public async Task<IActionResult> Learn([FromBody] SwissLocationLearnDto dto)
+    {
+        var plz = (dto.Plz ?? "").Trim();
+        var ort = (dto.Ort ?? "").Trim();
+        if (!System.Text.RegularExpressions.Regex.IsMatch(plz, @"^\d{4}$") || ort.Length < 2)
+            return BadRequest(new { error = "PLZ_ODER_ORT_UNGUELTIG" });
+
+        var exists = await _db.SwissLocations.AnyAsync(l => l.Plz4 == plz);
+        if (exists) return Ok(new { learned = false, reason = "PLZ_BEKANNT" });
+
+        _db.SwissLocations.Add(new Models.SwissLocation
+        {
+            Plz4           = plz,
+            Ortschaftsname = ort,
+            Gemeindename   = ort,
+            BfsNr          = 0,
+            Kantonskuerzel = (dto.Kanton ?? "").Trim().ToUpperInvariant(),
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { learned = true });
+    }
+
     // GET /api/swiss-locations/cantons-by-plz?plzs=4900,6260,8580,…
     [HttpGet("cantons-by-plz")]
     public async Task<IActionResult> CantonsByPlz([FromQuery] string plzs)
@@ -267,4 +296,11 @@ public class SwissLocationsController : ControllerBase
         err = "";
         return true;
     }
+}
+
+public class SwissLocationLearnDto
+{
+    public string? Plz { get; set; }
+    public string? Ort { get; set; }
+    public string? Kanton { get; set; }
 }
