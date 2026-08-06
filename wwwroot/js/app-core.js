@@ -994,6 +994,7 @@ function showPage(name) {
     if (name === 'kuendigung') kuendigungInit();
     if (name === 'aufforderung-arbeit') aufforderungArbeitInit();
     if (name === 'zwischenverdienst') zviInit();
+    if (name === 'ahv-anmeldung') ahvInit();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();
     if (name === 'lohnlauf')      llInit();
@@ -1143,6 +1144,9 @@ function onBranchChange() {
     } else if (currentPageName === 'zwischenverdienst') {
         // RAV-Zwischenverdienst folgt dem globalen Filial-Selektor.
         zviInit();
+    } else if (currentPageName === 'ahv-anmeldung') {
+        // AHV-Anmeldung folgt dem globalen Filial-Selektor.
+        if (typeof ahvInit === 'function') ahvInit();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {

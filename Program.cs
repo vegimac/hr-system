@@ -144,6 +144,8 @@ builder.Services.AddScoped<PregnancyPdfService>();
 builder.Services.AddScoped<LohnSaldoListePdfService>();
 // SECO-Formular „Eignung Schicht-/Nachtarbeit" vorausgefüllt (Walter 20.06.2026).
 builder.Services.AddScoped<NachtEignungPdfService>();
+// AHV-Formular 318.260 «Anmeldung Versicherungsausweis» vorausgefüllt (Walter 06.08.2026).
+builder.Services.AddScoped<AhvAnmeldungPdfService>();
 // Verzicht auf medizinische Untersuchung Nachtarbeit (Beilage-Layout).
 builder.Services.AddScoped<NachtVerzichtPdfService>();
 // Ausnahmeregelung Tag-/Nachtarbeit (Anlage zum Arbeitsvertrag), vorausgefüllt.

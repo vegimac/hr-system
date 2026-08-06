@@ -143,6 +143,7 @@ public class EditLockEndpointAuditTests
         // QST-Formulare etc.
         ["QstAnmeldungController"]         = "QST-Anmeldung-PDF — read-only",
         ["ZwischenverdienistController"]   = "RAV-Zwischenverdienst — admin/superuser-Formular",
+        ["AhvAnmeldungController"]         = "AHV-Anmeldung 318.260 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
 
         // Vorerst noch ungeschützt (Walter: nächste Etappen) — bewusst hier
         // gelistet damit der Test nicht fehlschlägt. JEDER EINTRAG IST
