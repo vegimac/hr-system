@@ -7180,18 +7180,20 @@
         /* Neu verteilt (Walter 06.08.2026): Name + Basis brauchen Platz
            («Nichtberufsunfallversicherung» + 🔒-Pille bzw. die BVG-Limits-
            Zeile liefen sonst optisch in die Nachbarspalten). */
+        /* Walter 06.08.2026 (2. Runde): «in Lohn»-Pille bleibt HINTER dem
+           Namen in EINER Zeile — Platz kommt aus den Zahlen-/Kurzspalten. */
         #page-sv-saetze .sv-c-nr { width: 3%; }
-        #page-sv-saetze .sv-c-typ { width: 7%; }
-        #page-sv-saetze .sv-c-name { width: 17%; }
-        #page-sv-saetze .sv-c-an { width: 7%; }
-        #page-sv-saetze .sv-c-ag { width: 7%; }
+        #page-sv-saetze .sv-c-typ { width: 6%; }
+        #page-sv-saetze .sv-c-name { width: 22%; }
+        #page-sv-saetze .sv-c-an { width: 6%; }
+        #page-sv-saetze .sv-c-ag { width: 6%; }
         #page-sv-saetze .sv-c-basis { width: 13%; }
-        #page-sv-saetze .sv-c-alter { width: 6%; }
-        #page-sv-saetze .sv-c-vertrag { width: 7%; }
-        #page-sv-saetze .sv-c-fibu { width: 9%; }
-        #page-sv-saetze .sv-c-ab { width: 7%; }
-        #page-sv-saetze .sv-c-bis { width: 7%; }
-        #page-sv-saetze .sv-c-status { width: 6%; }
+        #page-sv-saetze .sv-c-alter { width: 5%; }
+        #page-sv-saetze .sv-c-vertrag { width: 6%; }
+        #page-sv-saetze .sv-c-fibu { width: 8.5%; }
+        #page-sv-saetze .sv-c-ab { width: 6.5%; }
+        #page-sv-saetze .sv-c-bis { width: 6.5%; }
+        #page-sv-saetze .sv-c-status { width: 5.5%; }
         #page-sv-saetze .sv-c-act { width: 4%; }
 
         #page-lohnpositionen .lp-c-code { width: 7%; }

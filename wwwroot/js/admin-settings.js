@@ -1451,7 +1451,7 @@ function svRender() {
             <td style="padding:10px 14px">
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
             </td>
-            <td style="padding:10px 14px;font-weight:500;color:#1e293b">${r.name}${lockPill}</td>
+            <td style="padding:10px 14px;font-weight:500;color:#1e293b"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
             <td style="padding:10px 14px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
             <td style="padding:10px 14px;color:#64748b;font-size:12px">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
