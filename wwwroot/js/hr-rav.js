@@ -53,11 +53,25 @@ function zviRenderEmpList() {
     if (!sel) return;
 
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    // Heimatfiliale-Prinzip (Walter 06.08.2026): nur MA mit LAUFENDEM Vertrag
+    // in dieser Filiale — Wechsler erscheinen nicht mehr in der alten Filiale.
+    const zviToday = new Date().toISOString().slice(0, 10);
+    const zviLaeuft = (v) => v.isActive !== false
+        && (!v.contractEndDate || String(v.contractEndDate).slice(0, 10) >= zviToday);
     const inThisBranch = (e) => {
         if (!cid) return true;
         const emps = e.employments || [];
         if (emps.length === 0) return true;
-        return emps.some(v => v.companyProfileId === cid || v.companyProfileId == null);
+        // Mit laufendem Vertrag: nur in dessen Filiale(n) zeigen.
+        if (emps.some(zviLaeuft))
+            return emps.some(v => zviLaeuft(v) && (v.companyProfileId === cid || v.companyProfileId == null));
+        // Ausgetretene (RAV-Fall!): Filiale des zuletzt beendeten Vertrags.
+        let last = null;
+        for (const v of emps) {
+            const d = String(v.contractEndDate || '').slice(0, 10);
+            if (!last || d > String(last.contractEndDate || '').slice(0, 10)) last = v;
+        }
+        return !!last && (last.companyProfileId === cid || last.companyProfileId == null);
     };
 
     let list = _zviAllEmployees.filter(inThisBranch);

@@ -64,11 +64,18 @@ function ahvRenderEmpList() {
     if (!sel) return;
 
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    // Heimatfiliale-Prinzip (Walter 06.08.2026): ein MA zählt nur zur Filiale,
+    // in der er einen LAUFENDEN Vertrag hat — Wechsler mit altem (beendetem)
+    // Vertrag erscheinen nicht mehr in der alten Filiale.
+    const today = new Date().toISOString().slice(0, 10);
+    const laeuft = (v) => v.isActive !== false
+        && (!v.contractStartDate || String(v.contractStartDate).slice(0, 10) <= today)
+        && (!v.contractEndDate || String(v.contractEndDate).slice(0, 10) >= today);
     const inThisBranch = (e) => {
         if (!cid) return true;
         const emps = e.employments || [];
         if (emps.length === 0) return true;
-        return emps.some(v => v.companyProfileId === cid || v.companyProfileId == null);
+        return emps.some(v => laeuft(v) && (v.companyProfileId === cid || v.companyProfileId == null));
     };
 
     let list = _ahvAllEmployees.filter(inThisBranch).filter(e => e.isActive);
