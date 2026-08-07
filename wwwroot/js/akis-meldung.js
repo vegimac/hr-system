@@ -75,6 +75,11 @@ async function akisRefresh() {
     }
 }
 
+// Erzeugte Dateien im Speicher — als ziehbare Chips angeboten (Walter
+// 06.08.2026): direkt aus OneCrew in den AKISnet-Tab bzw. auf den Desktop
+// ziehen, ohne Umweg über den Finder. Speichern-Knopf bleibt als Option.
+const _akisBlobs = {};   // typ → { blob, name, url }
+
 async function akisDownload(typ, btn) {
     const p = _akisParams();
     if (!p) return;
@@ -85,12 +90,46 @@ async function akisDownload(typ, btn) {
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
-        await saveBlobAsk(blob, m ? decodeURIComponent(m[1]) : `${typ}Mitarbeitende.xlsx`);
+        const name = m ? decodeURIComponent(m[1]) : `${typ}Mitarbeitende.xlsx`;
+        if (_akisBlobs[typ]?.url) URL.revokeObjectURL(_akisBlobs[typ].url);
+        _akisBlobs[typ] = { blob, name, url: URL.createObjectURL(blob) };
+        akisRenderFiles();
+        showToast('Excel bereit — Chip in den AKISnet-Tab ziehen oder speichern.', 'success');
     } catch (_) {
         showToast('Verbindungsfehler beim Export.', 'error');
     } finally {
         if (btn) btn.disabled = false;
     }
+}
+
+function akisRenderFiles() {
+    const el = document.getElementById('akisFiles');
+    if (!el) return;
+    const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    el.innerHTML = Object.entries(_akisBlobs).map(([typ, f]) => `
+        <div draggable="true" ondragstart="akisDragStart(event, '${typ}')"
+             title="In den AKISnet-Browser-Tab ziehen (kurz über dem Tab-Reiter verharren, dann in die Upload-Zone fallen lassen) — oder auf den Desktop"
+             style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.55);border:1px dashed rgba(60,55,48,0.35);border-radius:12px;padding:10px 14px;cursor:grab;user-select:none">
+            <span style="font-size:20px">📄</span>
+            <span style="font-size:12.5px;font-weight:600;color:#3f3f3f">${esc(f.name)}<br>
+                <span style="font-weight:400;color:#8b8b8b;font-size:11px">zum Hochladen in den AKISnet-Tab ziehen</span></span>
+            <button onclick="saveBlobAsk(_akisBlobs['${typ}'].blob, _akisBlobs['${typ}'].name)"
+                    title="Speichern unter…"
+                    style="background:transparent;border:1px solid rgba(60,55,48,0.18);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:#646464">💾</button>
+        </div>`).join('');
+}
+
+function akisDragStart(e, typ) {
+    const f = _akisBlobs[typ];
+    if (!f) return;
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    try {
+        // Echte Datei in den Drag legen — Drop-Zonen (AKISnet) sehen sie als File.
+        e.dataTransfer.items.add(new File([f.blob], f.name, { type: mime }));
+    } catch (_) { /* ältere Browser */ }
+    // Fallback: Drag auf Desktop/Finder (Chrome-Konvention).
+    try { e.dataTransfer.setData('DownloadURL', `${mime}:${f.name}:${f.url}`); } catch (_) {}
+    e.dataTransfer.effectAllowed = 'copy';
 }
 
 function akisOpenPortal() {
