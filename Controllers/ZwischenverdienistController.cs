@@ -115,6 +115,21 @@ public class ZwischenverdienistController : ControllerBase
         CompanySignatory? signatory = null;
 
         var company = await _db.CompanyProfiles.FindAsync(companyProfileId);
+
+        // AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern der Filiale
+        // (Walter 06.08.2026) — neuster gültiger Eintrag; Fallback auf die
+        // Legacy-Freitextfelder am CompanyProfile.
+        var heuteEmpf = DateOnly.FromDateTime(DateTime.Today);
+        async Task<string?> EmpfName(string art) =>
+            await _db.CompanyProfileEmpfaengers.AsNoTracking()
+                .Where(z => z.CompanyProfileId == companyProfileId && z.IsActive
+                         && z.Empfaenger!.Art == art
+                         && (z.GueltigAb == null || z.GueltigAb <= heuteEmpf))
+                .OrderByDescending(z => z.GueltigAb)
+                .Select(z => z.Empfaenger!.Bezeichnung)
+                .FirstOrDefaultAsync();
+        var ahvKasseName = await EmpfName("AUSGLEICHSKASSE") ?? company?.AhvKasse;
+        var bvgVersichererName = await EmpfName("BVG") ?? company?.BvgVersicherer;
         if (company is null) return NotFound("Firmenprofil nicht gefunden");
 
         // ── Kalendermonat bestimmen ───────────────────────────────────────
@@ -483,10 +498,10 @@ public class ZwischenverdienistController : ControllerBase
             // nicht ob die Firma generell einen Versicherer hat.
             BvgErhoben             = bvgKoordinationsabzug > 0
                                      && bruttolohnTotal > bvgKoordinationsabzug
-                                     && !string.IsNullOrWhiteSpace(company.BvgVersicherer),
+                                     && !string.IsNullOrWhiteSpace(bvgVersichererName),
             BvgVersicherer         = (bvgKoordinationsabzug > 0 && bruttolohnTotal > bvgKoordinationsabzug)
-                                     ? company.BvgVersicherer : null,
-            AhvKasse               = company.AhvKasse,
+                                     ? bvgVersichererName : null,
+            AhvKasse               = ahvKasseName,
             KinderzulagenAusgerichtet = null,
             IstBeteiligt           = false,
 

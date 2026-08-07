@@ -6783,8 +6783,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1.5fr 1.5fr;gap:10px">
                     <div><label class="f-label">Branchen-Code (NOGA)</label><input id="stmBranchenCode" class="f-input" placeholder="5610"></div>
-                    <div><label class="f-label">AHV-Ausgleichskasse</label><input id="stmAhvKasse" class="f-input" placeholder="Name + Nummer"></div>
-                    <div><label class="f-label">BVG-Versicherer</label><input id="stmBvgVersicherer" class="f-input"></div>
+                    <!-- AHV-Kasse/BVG-Versicherer werden aus den Lohndaten-
+                         empfängern abgeleitet (Walter 06.08.2026) — hier nicht
+                         mehr editierbar (Pflege im Tab «Lohndaten Empfänger»). -->
                 </div>
             </section>
 
@@ -7640,7 +7641,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260804a"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
-<script src="js/branches-detail.js?v=20260806j"></script>
+<script src="js/branches-detail.js?v=20260806k"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260802a"></script>

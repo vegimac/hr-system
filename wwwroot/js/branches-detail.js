@@ -269,8 +269,17 @@ function renderFilialenDetail(b) {
                 ${fField('BUR-Nummer',      b.burNummer)}
                 ${fField('UID-Nummer',      b.uidNummer)}
                 ${fField('Branchen-Code',   b.branchenCode)}
-                ${fField('AHV-Kasse',       b.ahvKasse)}
-                ${fField('BVG-Versicherer', b.bvgVersicherer)}
+                <!-- AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern
+                     abgeleitet (Walter 06.08.2026) — keine Freitextfelder mehr.
+                     Wird nach dem Render async aus den Zuordnungen gefüllt. -->
+                <div class="emp-field">
+                    <div class="emp-field-label">AHV-Kasse <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
+                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedAhvKasse-${b.id}">–</div>
+                </div>
+                <div class="emp-field">
+                    <div class="emp-field-label">BVG-Versicherer <span style="font-weight:400;color:#b8b2a7">(aus Lohndaten Empfänger)</span></div>
+                    <div class="emp-field-value" style="font-size:14px;color:#0f172a" id="stmDerivedBvg-${b.id}">–</div>
+                </div>
                 ${fField('GAV',             b.istGav ? (b.gavName || 'Ja') : 'Nein')}
                 ${fField('Lohnausweis Box F', b.lohnausweisBoxFFreierTransport ? '✓ Werks-Transport gratis' : '✗ nicht angekreuzt')}
                 ${fField('Lohnausweis Box G', b.lohnausweisBoxGKantineGratis    ? '✓ Kantine gratis'       : '✗ nicht angekreuzt')}
@@ -515,6 +524,8 @@ function renderFilialenDetail(b) {
     </div>`;
     // SSL-Nummern-Block entfernt (Walter 06.08.2026) — Pflege im Tab
     // «Lohndaten Empfänger»; loadSslListForBranch bleibt toter Code.
+    // AHV-Kasse/BVG-Versicherer aus den Empfänger-Zuordnungen ableiten.
+    stmFillDerivedKassen(b.id);
     // Filial-Bankverbindungen asynchron nachladen (separate Tabelle mit Historie)
     loadCompanyBankList(b.id);
     // 13.-ML-Monatsraster im Einstellungen-Tab initialisieren.
@@ -1016,8 +1027,7 @@ async function openStmModal(id) {
         document.getElementById('stmBurNummer').value      = b.burNummer      || '';
         document.getElementById('stmUidNummer').value      = b.uidNummer      || '';
         document.getElementById('stmBranchenCode').value   = b.branchenCode   || '';
-        document.getElementById('stmAhvKasse').value       = b.ahvKasse       || '';
-        document.getElementById('stmBvgVersicherer').value = b.bvgVersicherer || '';
+        // stmAhvKasse/stmBvgVersicherer entfernt (aus Lohndatenempfängern abgeleitet).
         document.getElementById('stmIstGav').checked       = !!b.istGav;
         document.getElementById('stmGavName').value        = b.gavName        || '';
         // Lohnausweis-Standardwerte (Walter 13.05.2026: pro Filiale konfigurierbar)
@@ -1102,8 +1112,8 @@ async function saveStm() {
         burNummer:      trimOrNull('stmBurNummer'),
         uidNummer:      trimOrNull('stmUidNummer'),
         branchenCode:   trimOrNull('stmBranchenCode'),
-        ahvKasse:       trimOrNull('stmAhvKasse'),
-        bvgVersicherer: trimOrNull('stmBvgVersicherer'),
+        // ahvKasse/bvgVersicherer nicht mehr im Payload — DB-Felder bleiben
+        // unangetastet (Ableitung aus Lohndatenempfängern, Walter 06.08.2026).
         istGav:         document.getElementById('stmIstGav').checked,
         gavName:        trimOrNull('stmGavName'),
         // Lohnausweis-Standardwerte
@@ -2413,4 +2423,28 @@ function cpEmpfPlzLookup() {
         // Ort/Kanton von Hand eintragen).
         plzLookupGeneric(plz, 'cpEmpfOrt', 'cpEmpfKanton', null, 'cpEmpfPlzHint');
     }
+}
+
+// AHV-Kasse/BVG-Versicherer der Stammdaten-Card aus den Lohndatenempfänger-
+// Zuordnungen ableiten (Walter 06.08.2026): neuster gültiger Eintrag gewinnt,
+// künftige (Gültig-ab in der Zukunft) zählen noch nicht.
+async function stmFillDerivedKassen(branchId) {
+    try {
+        const res = await fetch(`/api/companyprofiles/${branchId}/empfaenger`, { headers: ah(), cache: 'no-store' });
+        if (!res.ok) return;
+        const list = await res.json();
+        const today = new Date().toISOString().slice(0, 10);
+        const pick = (art) => {
+            const cands = list.filter(z => z.art === art && z.isActive !== false
+                && (!z.gueltigAb || String(z.gueltigAb).slice(0, 10) <= today));
+            cands.sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')));
+            return cands[0] || null;
+        };
+        const set = (id, z) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = z ? z.bezeichnung : '–';
+        };
+        set('stmDerivedAhvKasse-' + branchId, pick('AUSGLEICHSKASSE'));
+        set('stmDerivedBvg-' + branchId, pick('BVG'));
+    } catch (_) { /* Anzeige bleibt «–» */ }
 }

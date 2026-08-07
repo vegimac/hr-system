@@ -255,8 +255,9 @@ public class CompanyProfilesController : ControllerBase
         profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim();
         profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim();
         profile.BranchenCode   = string.IsNullOrWhiteSpace(dto.BranchenCode)   ? null : dto.BranchenCode.Trim();
-        profile.AhvKasse       = string.IsNullOrWhiteSpace(dto.AhvKasse)       ? null : dto.AhvKasse.Trim();
-        profile.BvgVersicherer = string.IsNullOrWhiteSpace(dto.BvgVersicherer) ? null : dto.BvgVersicherer.Trim();
+        // AhvKasse/BvgVersicherer: seit 06.08.2026 aus den Lohndatenempfängern
+        // abgeleitet (Walter) — hier NICHT mehr mutieren, sonst nullt jeder
+        // Stammdaten-Save die Legacy-Werte (UI sendet die Felder nicht mehr).
         profile.IstGav         = dto.IstGav ?? profile.IstGav;
         profile.GavName        = string.IsNullOrWhiteSpace(dto.GavName)        ? null : dto.GavName.Trim();
 
