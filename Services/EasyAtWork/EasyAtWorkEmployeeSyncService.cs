@@ -334,6 +334,36 @@ public class EasyAtWorkEmployeeSyncService
             bool found = seen.Contains(e.EasyAtWorkEmployeeId!.Value);
             if (!found && e.EasyMissingSince == null)
             {
+                // Verifikation per Einzelabfrage (Walter-Bug 07.08.2026, Senada):
+                // die ?active=-Liste FLATTERT gelegentlich (MA fehlt in einem
+                // Lauf, ist im nächsten wieder drin) — vor dem Markieren den MA
+                // direkt abfragen. Nur wenn er auch dort fehlt ODER beendet ist
+                // (to gesetzt und vorbei), gilt er als verschollen.
+                bool wirklichWeg = true;
+                foreach (var m in mappings)
+                {
+                    try
+                    {
+                        var direkt = await _client.GetEmployeeByIdAsync(
+                            m.EasyAtWorkCustomerId, e.EasyAtWorkEmployeeId.Value, ct);
+                        if (direkt != null
+                            && (direkt.From == null || direkt.From <= activeAt)
+                            && (direkt.To == null || direkt.To >= activeAt))
+                        {
+                            wirklichWeg = false;
+                            notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): fehlte in der Aktivliste, Einzelabfrage findet ihn aber aktiv (Customer {m.EasyAtWorkCustomerId}) — KEINE Markierung (Listen-Flattern).");
+                            break;
+                        }
+                    }
+                    catch
+                    {
+                        // API-Fehler bei der Verifikation → im Zweifel NICHT markieren.
+                        wirklichWeg = false;
+                        notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Verifikation nicht möglich (API-Fehler) — keine Markierung gesetzt.");
+                        break;
+                    }
+                }
+                if (!wirklichWeg) continue;
                 e.EasyMissingSince = activeAt;
                 notes.Add($"⚠ {e.FirstName} {e.LastName} ({e.EmployeeNumber}) in keiner easy@work-Aktivliste — Austritt prüfen.");
                 changed = true;
@@ -343,6 +373,29 @@ public class EasyAtWorkEmployeeSyncService
                 e.EasyMissingSince = null;
                 notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): wieder in easy@work gefunden — Warnung aufgehoben.");
                 changed = true;
+            }
+            else if (!found && e.EasyMissingSince != null)
+            {
+                // Bereits markiert + weiterhin nicht in der Liste: Einzelabfrage
+                // darf die Warnung ebenfalls aufheben (Listen-Flattern, Senada).
+                foreach (var m in mappings)
+                {
+                    try
+                    {
+                        var direkt = await _client.GetEmployeeByIdAsync(
+                            m.EasyAtWorkCustomerId, e.EasyAtWorkEmployeeId.Value, ct);
+                        if (direkt != null
+                            && (direkt.From == null || direkt.From <= activeAt)
+                            && (direkt.To == null || direkt.To >= activeAt))
+                        {
+                            e.EasyMissingSince = null;
+                            notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Einzelabfrage findet ihn aktiv — Warnung aufgehoben (Listen-Flattern).");
+                            changed = true;
+                            break;
+                        }
+                    }
+                    catch { break; }
+                }
             }
         }
         if (changed) await _db.SaveChangesAsync(ct);

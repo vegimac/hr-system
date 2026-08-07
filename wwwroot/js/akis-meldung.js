@@ -108,11 +108,11 @@ function akisRenderFiles() {
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     el.innerHTML = Object.entries(_akisBlobs).map(([typ, f]) => `
         <div draggable="true" ondragstart="akisDragStart(event, '${typ}')"
-             title="In den AKISnet-Browser-Tab ziehen (kurz über dem Tab-Reiter verharren, dann in die Upload-Zone fallen lassen) — oder auf den Desktop"
+             title="Auf den Schreibtisch ziehen (Chrome legt die Datei dort ab), dann vom Schreibtisch in die AKISnet-Upload-Zone — Browser erlauben keinen Datei-Drag direkt zwischen zwei Fenstern"
              style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.55);border:1px dashed rgba(60,55,48,0.35);border-radius:12px;padding:10px 14px;cursor:grab;user-select:none">
             <span style="font-size:20px">📄</span>
             <span style="font-size:12.5px;font-weight:600;color:#3f3f3f">${esc(f.name)}<br>
-                <span style="font-weight:400;color:#8b8b8b;font-size:11px">zum Hochladen in den AKISnet-Tab ziehen</span></span>
+                <span style="font-weight:400;color:#8b8b8b;font-size:11px">auf den Schreibtisch ziehen → von dort ins AKISnet</span></span>
             <button onclick="saveBlobAsk(_akisBlobs['${typ}'].blob, _akisBlobs['${typ}'].name)"
                     title="Speichern unter…"
                     style="background:transparent;border:1px solid rgba(60,55,48,0.18);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:#646464">💾</button>
