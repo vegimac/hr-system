@@ -1231,6 +1231,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmpfaengerId).HasColumnName("empfaenger_id");
             entity.Property(e => e.Mitgliednummer).HasColumnName("mitgliednummer");
             entity.Property(e => e.Subnummer).HasColumnName("subnummer");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")

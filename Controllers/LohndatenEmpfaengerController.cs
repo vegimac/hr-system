@@ -121,7 +121,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
             .Select(z => new
             {
                 z.Id, z.EmpfaengerId, z.Mitgliednummer, z.Subnummer,
-                z.Bemerkung, z.IsActive,
+                z.GueltigAb, z.Bemerkung, z.IsActive,
                 art          = z.Empfaenger!.Art,
                 bezeichnung  = z.Empfaenger!.Bezeichnung,
                 zusatz       = z.Empfaenger!.Zusatz,
@@ -187,6 +187,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         z.Mitgliednummer = string.IsNullOrWhiteSpace(dto.Mitgliednummer) ? null : dto.Mitgliednummer.Trim();
         z.Subnummer      = string.IsNullOrWhiteSpace(dto.Subnummer) ? null : dto.Subnummer.Trim();
         z.Bemerkung      = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        z.GueltigAb      = DateOnly.TryParse(dto.GueltigAb, out var ab) ? ab : null;
         if (dto.IsActive.HasValue) z.IsActive = dto.IsActive.Value;
     }
 }
@@ -214,5 +215,7 @@ public class CpEmpfaengerDto
     public string? Mitgliednummer { get; set; }
     public string? Subnummer { get; set; }
     public string? Bemerkung { get; set; }
+    /// <summary>ISO yyyy-MM-dd (native Datumsfelder) — leer = seit jeher.</summary>
+    public string? GueltigAb { get; set; }
     public bool? IsActive { get; set; }
 }

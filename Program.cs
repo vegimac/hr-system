@@ -2840,6 +2840,8 @@ using (var scope = app.Services.CreateScope())
             ON company_profile_empfaenger (company_profile_id);
         CREATE UNIQUE INDEX IF NOT EXISTS ux_cp_empfaenger_cp_empf
             ON company_profile_empfaenger (company_profile_id, empfaenger_id);
+        ALTER TABLE company_profile_empfaenger
+            ADD COLUMN IF NOT EXISTS gueltig_ab date;
     ");
 }
 

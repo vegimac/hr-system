@@ -38,3 +38,7 @@ CREATE INDEX IF NOT EXISTS ix_cp_empfaenger_company_profile
     ON company_profile_empfaenger (company_profile_id);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_cp_empfaenger_cp_empf
     ON company_profile_empfaenger (company_profile_id, empfaenger_id);
+
+-- Nachtrag 06.08.2026: Gültig-ab auf der Zuordnung (UVG-Wechsel etc.)
+ALTER TABLE company_profile_empfaenger
+    ADD COLUMN IF NOT EXISTS gueltig_ab date;

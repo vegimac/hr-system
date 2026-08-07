@@ -131,10 +131,13 @@ public class QstAnmeldungController : ControllerBase
         string? sslNummer = null;
         if (!string.IsNullOrWhiteSpace(wohnkanton))
         {
+            var heute = DateOnly.FromDateTime(DateTime.Today);
             sslNummer = await _db.CompanyProfileEmpfaengers.AsNoTracking()
                 .Where(z => z.CompanyProfileId == company.Id && z.IsActive
                          && z.Empfaenger!.Art == "QST"
-                         && z.Empfaenger!.KantonCode == wohnkanton)
+                         && z.Empfaenger!.KantonCode == wohnkanton
+                         && (z.GueltigAb == null || z.GueltigAb <= heute))
+                .OrderByDescending(z => z.GueltigAb)
                 .Select(z => z.Mitgliednummer)
                 .FirstOrDefaultAsync();
         }

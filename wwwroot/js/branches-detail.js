@@ -2149,6 +2149,7 @@ function cpEmpfRowHtml(z) {
         z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
         z.mitgliednummer ? `${isVers ? 'Kunde' : isQst ? 'SSL' : 'Mitglied'} ${cdokEsc(z.mitgliednummer)}` : null,
         z.subnummer      ? `${isVers ? 'Vertrag' : isQst ? 'Buchungskreis' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
+        z.gueltigAb      ? `ab ${new Date(z.gueltigAb).toLocaleDateString('de-CH')}` : null,
     ].filter(Boolean).join(' · ');
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
@@ -2217,7 +2218,8 @@ function cpEmpfEnsureModal() {
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
-                <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
+                <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
+                <label style="${lbl}">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
             </div>
         </div>
 
@@ -2249,7 +2251,7 @@ function cpEmpfOpenModal(zuordnungId) {
         pick.innerHTML = '<option value="NEW">+ Neuen Empfänger erfassen…</option>'
             + frei.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
         pick.value = frei.length ? String(frei[0].id) : 'NEW';
-        ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem'].forEach(id => set(id, ''));
+        ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb'].forEach(id => set(id, ''));
         cpEmpfPickChanged();
     } else {
         // BEARBEITEN: Zuordnung + zentrale Stammdaten in einem Formular
@@ -2265,6 +2267,7 @@ function cpEmpfOpenModal(zuordnungId) {
         set('cpEmpfMitglied', z.mitgliednummer);
         set('cpEmpfSub', z.subnummer);
         set('cpEmpfBem', z.bemerkung);
+        set('cpEmpfGueltigAb', z.gueltigAb ? String(z.gueltigAb).slice(0, 10) : '');
     }
     modal.style.display = 'block';
 }
@@ -2324,6 +2327,7 @@ async function cpEmpfSave() {
         mitgliednummer: val('cpEmpfMitglied'),
         subnummer: val('cpEmpfSub'),
         bemerkung: val('cpEmpfBem'),
+        gueltigAb: val('cpEmpfGueltigAb'),
     };
     if (btn) btn.disabled = true;
     try {

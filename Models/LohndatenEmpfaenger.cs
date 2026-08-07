@@ -63,6 +63,11 @@ public class CompanyProfileEmpfaenger
     public string? Mitgliednummer { get; set; }
 
     public string? Subnummer { get; set; }
+
+    /// <summary>Gültig ab (Walter 06.08.2026) — z.B. Wechsel der UVG-Versicherung:
+    /// alter Empfänger bleibt mit altem Datum, neuer kommt mit neuem Ab-Datum.
+    /// NULL = seit jeher gültig.</summary>
+    public DateOnly? GueltigAb { get; set; }
     public string? Bemerkung { get; set; }
 
     public bool IsActive { get; set; } = true;
