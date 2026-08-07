@@ -2084,7 +2084,9 @@ function cpEmpfArtLabel(code) {
 // Mitgliednummer ≙ Kundennummer, Subnummer ≙ Vertragsnummer,
 // Nummer der Kasse ≙ Versicherernummer (Mirus-Vorbild Swica).
 function cpEmpfFieldLabels(art) {
-    if (art === 'KTG' || art === 'UVG' || art === 'BVG')
+    // BVG bewusst NICHT dabei (Walter 06.08.2026): GastroSocial führt BVG wie
+    // die Ausgleichskasse → gleiche Felder (Kasse/Mitglied/Sub) wie bei AHV.
+    if (art === 'KTG' || art === 'UVG')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 6494895' };
     if (art === 'QST')
@@ -2153,7 +2155,7 @@ function cpEmpfRender() {
 function cpEmpfRowHtml(z) {
     const adr = [z.strasse, z.postfach, [z.plz, z.ort].filter(Boolean).join(' ')]
         .filter(s => s && s.trim()).join(' · ');
-    const isVers = (z.art === 'KTG' || z.art === 'UVG' || z.art === 'BVG');
+    const isVers = (z.art === 'KTG' || z.art === 'UVG');
     const isQst  = (z.art === 'QST');
     const nums = [
         z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
