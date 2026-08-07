@@ -291,15 +291,11 @@ function renderFilialenDetail(b) {
             </div>
             <div id="companyBankList-${b.id}"><div style="color:#94a3b8;padding:14px;text-align:center;font-size:12px">Wird geladen…</div></div>
 
-            <!-- ── SSL-Nummern Quellensteuer (eine pro Kanton) ───────────── -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
-                <div>
-                    SSL-Nummern Quellensteuer
-                    <span style="font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px">(eine pro Kanton, in dem diese Filiale QST-pflichtige MA beschäftigt)</span>
-                </div>
-                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openSslModal(${b.id}, null)">+ Hinzufügen</button>
-            </div>
-            <div id="sslList-${b.id}"><div style="color:#94a3b8;padding:14px;text-align:center;font-size:12px">Wird geladen…</div></div>
+            <!-- SSL-Nummern Quellensteuer: Block ENTFERNT (Walter 06.08.2026) —
+                 die SSL-Nummern leben jetzt im Tab «Lohndaten Empfänger»
+                 (QST-Empfänger pro Kanton, Mitgliednummer = SSL). Die alten
+                 Funktionen (loadSslListForBranch/openSslModal/…) + Backend
+                 bleiben als Code erhalten, sind aber nicht mehr verdrahtet. -->
         </div>
 
         <!-- TAB: Unterzeichner -->
@@ -517,8 +513,8 @@ function renderFilialenDetail(b) {
             <div id="filDoksList"><div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div></div>
         </div>` : ''}
     </div>`;
-    // SSL-Nummern asynchron nachladen (separater Endpoint)
-    loadSslListForBranch(b.id);
+    // SSL-Nummern-Block entfernt (Walter 06.08.2026) — Pflege im Tab
+    // «Lohndaten Empfänger»; loadSslListForBranch bleibt toter Code.
     // Filial-Bankverbindungen asynchron nachladen (separate Tabelle mit Historie)
     loadCompanyBankList(b.id);
     // 13.-ML-Monatsraster im Einstellungen-Tab initialisieren.

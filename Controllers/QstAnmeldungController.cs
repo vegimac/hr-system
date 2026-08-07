@@ -123,12 +123,20 @@ public class QstAnmeldungController : ControllerBase
         // SSL-Nummer für (Filiale, Wohnkanton des MA). Die SSL ist immer
         // kantonal — ein Arbeitgeber muss sich pro Kanton, in dem er QST-pflichtige
         // MA beschäftigt, separat anmelden.
+        // EINZIGE Quelle seit 06.08.2026 (Walter): Lohndatenempfänger — QST-
+        // Empfänger des Kantons, Mitgliednummer = SSL. BEWUSST KEIN Fallback
+        // auf die Alt-Tabelle company_profile_ssl: deren Nummern sind evtl.
+        // falsch erfasst (Walter 06.08.2026) — lieber leer + Check-Hinweis
+        // als eine falsche SSL auf dem Behördenformular.
         string? sslNummer = null;
         if (!string.IsNullOrWhiteSpace(wohnkanton))
         {
-            var sslEntry = await _db.CompanyProfileSsls.FirstOrDefaultAsync(s =>
-                s.CompanyProfileId == company.Id && s.KantonCode == wohnkanton);
-            sslNummer = sslEntry?.SslNummer;
+            sslNummer = await _db.CompanyProfileEmpfaengers.AsNoTracking()
+                .Where(z => z.CompanyProfileId == company.Id && z.IsActive
+                         && z.Empfaenger!.Art == "QST"
+                         && z.Empfaenger!.KantonCode == wohnkanton)
+                .Select(z => z.Mitgliednummer)
+                .FirstOrDefaultAsync();
         }
 
         // HR-Verantwortliche/r als Kontaktperson auf dem Formular —
@@ -304,14 +312,18 @@ public class QstAnmeldungController : ControllerBase
         }
 
         // ── SSL-Nummer (Filiale × Wohnkanton) ──────────────────────────
+        // Quelle: QST-Lohndatenempfänger des Kantons (Fallback Alt-Tabelle).
         if (employment != null && !string.IsNullOrWhiteSpace(emp.CantonCode))
         {
-            var sslExists = await _db.CompanyProfileSsls.AnyAsync(s =>
-                s.CompanyProfileId == employment.CompanyProfileId && s.KantonCode == emp.CantonCode);
+            var sslExists = await _db.CompanyProfileEmpfaengers.AnyAsync(z =>
+                z.CompanyProfileId == employment.CompanyProfileId && z.IsActive
+                && z.Empfaenger!.Art == "QST"
+                && z.Empfaenger!.KantonCode == emp.CantonCode
+                && z.Mitgliednummer != null && z.Mitgliednummer != "");
             if (!sslExists)
             {
                 Add($"SSL-Nummer für Wohnkanton {emp.CantonCode}", "filiale-ssl",
-                    "Filial-Konfiguration → SSL-Nummern Quellensteuer → für diesen Wohnkanton erfassen.");
+                    "Filiale → Tab «Lohndaten Empfänger» → Quellensteuer-Empfänger des Kantons zuordnen und SSL-Nummer eintragen.");
             }
         }
 

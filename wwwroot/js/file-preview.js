@@ -47,7 +47,14 @@ function _fpEnsureModal() {
         + '<div style="flex:1;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden">'
         + '<iframe id="filePreviewFrame" style="width:100%;height:100%;border:none;background:white" title="Datei-Vorschau"></iframe>'
         + '</div>'
+        + '<div id="filePreviewDossierForm" style="display:none;align-items:center;gap:8px;padding:10px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap">'
+        + '<select id="filePreviewDossierTyp" class="no-liquid" style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px;background:white;max-width:320px"></select>'
+        + '<input id="filePreviewDossierBem" type="text" placeholder="Bemerkung (optional)" style="flex:1;min-width:140px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px">'
+        + '<button onclick="filePreviewDossierSubmit()" id="filePreviewDossierSubmit" style="padding:6px 14px;border:none;background:#3f3f3f;color:white;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer">Ablegen</button>'
+        + '<span id="filePreviewDossierStatus" style="font-size:12px"></span>'
+        + '</div>'
         + '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:white">'
+        + '<button id="filePreviewDossierBtn" onclick="filePreviewDossierToggle()" style="display:none;padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">📁 Ins Dossier ablegen</button>'
         + '<button onclick="filePreviewPrint()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">🖨 Drucken</button>'
         + '<button onclick="filePreviewDownload()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">⬇ Herunterladen</button>'
         + '<button onclick="filePreviewClose()" style="padding:7px 16px;border:none;background:#0f172a;color:white;border-radius:7px;font-size:13px;cursor:pointer">✕ Schliessen</button>'
@@ -66,7 +73,7 @@ function _fpEnsureModal() {
 // Haupt-Einstieg: zeigt das Blob im Vorschaufenster (PDF/Bild) ODER speichert
 // es direkt (nicht anzeigbare Typen). Drop-in-Ersatz für saveBlobAsk(blob,name)
 // überall wo der User die Datei zuerst ansehen können soll.
-async function previewFileModal(blob, filename) {
+async function previewFileModal(blob, filename, opts) {
     const kind = _fpKind(filename, blob && blob.type);
     if (!kind) { await saveBlobAsk(blob, filename); return; }   // nicht anzeigbar → direkt speichern
     const modal = _fpEnsureModal();
@@ -77,7 +84,84 @@ async function previewFileModal(blob, filename) {
     const titleEl = document.getElementById('filePreviewTitle');
     if (titleEl) titleEl.textContent = _fpName;
     document.getElementById('filePreviewFrame').src = _fpUrl;
+    // Optionaler MA-Kontext (Walter 06.08.2026): «Ins Dossier ablegen»
+    // erscheint nur, wenn der Aufrufer employeeId mitgibt.
+    _fpEmpId = opts && opts.employeeId ? opts.employeeId : null;
+    const dosBtn  = document.getElementById('filePreviewDossierBtn');
+    const dosForm = document.getElementById('filePreviewDossierForm');
+    const dosStat = document.getElementById('filePreviewDossierStatus');
+    if (dosBtn)  dosBtn.style.display = _fpEmpId ? '' : 'none';
+    if (dosForm) dosForm.style.display = 'none';
+    if (dosStat) dosStat.textContent = '';
     modal.style.display = 'block';
+}
+
+// ── «Ins Dossier ablegen» (Walter 06.08.2026) ──────────────────────────
+// Legt das angezeigte PDF als Dokument beim MA ab — gleiche API wie das
+// RAV-Muster (/api/documents/upload, Typ aus der Dokument-Taxonomie).
+let _fpEmpId = null;
+
+async function filePreviewDossierToggle() {
+    const form = document.getElementById('filePreviewDossierForm');
+    const sel  = document.getElementById('filePreviewDossierTyp');
+    if (!form || !sel) return;
+    if (!sel.options.length) {
+        try {
+            const r = await fetch('/api/documents/taxonomie', { headers: ah() });
+            const tx = r.ok ? await r.json() : [];
+            const opts = [];
+            tx.forEach(k => (k.typen || []).forEach(t =>
+                opts.push(`<option value="${t.id}">${k.name} → ${t.name}</option>`)));
+            sel.innerHTML = '<option value="">— Dokument-Typ wählen —</option>' + opts.join('');
+        } catch {
+            sel.innerHTML = '<option value="">Typen nicht ladbar</option>';
+        }
+    }
+    form.style.display = (form.style.display === 'none') ? 'flex' : 'none';
+}
+
+async function filePreviewDossierSubmit() {
+    const status = document.getElementById('filePreviewDossierStatus');
+    const submit = document.getElementById('filePreviewDossierSubmit');
+    if (!_fpBlob || !_fpEmpId) return;
+    const typId = parseInt(document.getElementById('filePreviewDossierTyp')?.value || '0', 10);
+    if (!Number.isFinite(typId) || typId <= 0) {
+        if (status) { status.textContent = 'Bitte Dokument-Typ wählen.'; status.style.color = '#b91c1c'; }
+        return;
+    }
+    const branch = (typeof allBranches !== 'undefined' && Array.isArray(allBranches) && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        ? allBranches.find(b => b.id === fixedCompanyProfileId) : null;
+    const branchCode = branch?.restaurantCode || '';
+    if (submit) submit.disabled = true;
+    if (status) { status.textContent = 'Wird abgelegt…'; status.style.color = '#64748b'; }
+    try {
+        const fd = new FormData();
+        fd.append('file', _fpBlob, _fpName);
+        fd.append('employeeId', String(_fpEmpId));
+        fd.append('dokumentTypId', String(typId));
+        if (branchCode) fd.append('branchCode', branchCode);
+        const bem = document.getElementById('filePreviewDossierBem')?.value?.trim();
+        if (bem) fd.append('bemerkung', bem);
+        const r = await fetch('/api/documents/upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}` },
+            body: fd,
+        });
+        if (!r.ok) {
+            if (status) {
+                status.textContent = (r.status === 409)
+                    ? 'Dokument existiert bereits beim MA.'
+                    : 'Ablegen fehlgeschlagen (HTTP ' + r.status + ').';
+                status.style.color = '#b91c1c';
+            }
+            return;
+        }
+        if (status) { status.textContent = '✓ Im Dossier abgelegt.'; status.style.color = '#15803d'; }
+    } catch (e) {
+        if (status) { status.textContent = 'Verbindungsfehler.'; status.style.color = '#b91c1c'; }
+    } finally {
+        if (submit) submit.disabled = false;
+    }
 }
 
 // Convenience: holt die Datei per fetch und zeigt sie dann an. Vereinheitlicht
