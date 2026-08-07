@@ -235,7 +235,11 @@ function renderFilialenDetail(b) {
         <div class="emp-detail-tabs" style="align-items:center">
             <div class="emp-tab active" data-ftab="f-stamm"         onclick="switchFilialenTab('f-stamm')">Stammdaten</div>
             <div class="emp-tab"        data-ftab="f-unterzeichner"  onclick="switchFilialenTab('f-unterzeichner')">Unterzeichner</div>
-            <div class="emp-tab"        data-ftab="f-abzuege"        onclick="switchFilialenTab('f-abzuege')">Abzüge</div>
+            <!-- Tab «Abzüge» ENTFERNT (Walter 06.08.2026): Erste-Generation-
+                 Abzugssystem, längst durch Systemsteuerung → SV-Sätze ersetzt
+                 (Engine liest nur social_insurance_rate); der alte Endpoint
+                 /companyprofiles/{id}/deductions existiert nicht mehr. -->
+
             <div class="emp-tab"        data-ftab="f-einstellungen"  onclick="switchFilialenTab('f-einstellungen')">Einstellungen</div>
             <div class="emp-tab"        data-ftab="f-empf"           onclick="switchFilialenTab('f-empf')" style="line-height:1.15;text-align:center">Lohndaten<br>Empfänger</div>
             ${cdokCanSee() ? `<div class="emp-tab" data-ftab="f-doks" onclick="switchFilialenTab('f-doks')">Dokumente</div>` : ''}
@@ -348,14 +352,8 @@ function renderFilialenDetail(b) {
             </div>
         </div>
 
-        <!-- TAB: Abzüge -->
-        <div class="emp-tab-content" id="fil-tab-f-abzuege">
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                Abzüge
-                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openDeductionDrawer(${b.id}, encodeURI('${name.replace(/'/g,"\'")}'))">✎ Bearbeiten</button>
-            </div>
-            <div style="color:#64748b;font-size:13px;padding:20px 0">Klicke auf "Bearbeiten", um die Abzüge zu verwalten.</div>
-        </div>
+        <!-- TAB «Abzüge» entfernt (Walter 06.08.2026) — siehe Kommentar in
+             der Tab-Leiste; deductions.js bleibt als toter Code erhalten. -->
 
         <!-- TAB: Einstellungen — Felder direkt editierbar in der Maske
              (Walter-Vorgabe 14.05.2026: keine Popup-Modals mehr). Ein
