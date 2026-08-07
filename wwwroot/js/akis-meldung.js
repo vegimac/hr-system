@@ -62,9 +62,14 @@ async function akisRefresh() {
             <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:14px 0 4px">Anmeldungen (${d.anmeldungen.length})</div>
             ${warn(d.anmeldungenOhneAhv, 'Eintritt(e)')}
             ${tbl(d.anmeldungen, true)}
-            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:18px 0 4px">Abmeldungen (${d.abmeldungen.length})</div>
+            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin:18px 0 4px">Abmeldungen (${d.abmeldungen.length}) <span style="font-weight:400;color:#8b8b8b;font-size:11.5px">— nur MA mit erfasstem Austritt</span></div>
             ${warn(d.abmeldungenOhneAhv, 'Austritt(e)')}
-            ${tbl(d.abmeldungen, false)}`;
+            ${tbl(d.abmeldungen, false)}
+            ${(d.befristetOffen || []).length ? `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;margin-top:14px;font-size:12px;color:#92400e">
+                <b>${d.befristetOffen.length} befristete(r) Vertrag/Verträge enden im Zeitraum ohne erfassten Austritt</b> — verlängern oder Austritt erfassen (erst dann erscheinen sie als Abmeldung):<br>
+                ${d.befristetOffen.map(r => `${esc(r.vorname)} ${esc(r.name)} (per ${esc(r.datum)})`).join(' · ')}
+            </div>` : ''}`;
     } catch (_) {
         el.innerHTML = '<div style="color:#991b1b;padding:14px;font-size:12.5px">Verbindungsfehler.</div>';
     }

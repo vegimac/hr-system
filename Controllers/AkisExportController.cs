@@ -65,8 +65,51 @@ public class AkisExportController : ControllerBase
         return await LoadRowsAsync(kandidaten);
     }
 
+    /// <summary>
+    /// Abmeldung NUR bei ERFASSTEM Austritt (Employee.ExitDate im Zeitraum) —
+    /// ein blosses Ende eines befristeten Vertrags ist KEINE Abmeldung
+    /// (Walter 06.08.2026: Verlängerung ist oft nur noch nicht erfasst).
+    /// Filial-Zuordnung: der letzte Vertrag des MA (über alle Filialen) muss
+    /// in dieser Filiale liegen.
+    /// </summary>
     private async Task<(List<Row> rows, List<Row> ohneAhv)> AbmeldungenAsync(
         int cpId, DateTime from, DateTime to)
+    {
+        var exitEmps = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden && !e.IsPayrollExcluded
+                     && e.ExitDate != null && e.ExitDate >= from && e.ExitDate <= to)
+            .Select(e => new { e.Id, e.ExitDate })
+            .ToListAsync();
+        if (exitEmps.Count == 0) return (new List<Row>(), new List<Row>());
+
+        var ids = exitEmps.Select(e => e.Id).ToList();
+        var alleVertraege = await _db.Employments.AsNoTracking()
+            .Where(e => ids.Contains(e.EmployeeId) && e.CompanyProfileId != null)
+            .Select(e => new { e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate })
+            .ToListAsync();
+
+        var kandidaten = new Dictionary<int, DateTime>();
+        foreach (var e in exitEmps)
+        {
+            var vs = alleVertraege.Where(v => v.EmployeeId == e.Id).ToList();
+            if (vs.Count == 0) continue;
+            // letzter Vertrag = offenes Ende zuerst, sonst spätestes Ende
+            var letzter = vs.OrderByDescending(v => v.ContractEndDate == null)
+                            .ThenByDescending(v => v.ContractEndDate)
+                            .ThenByDescending(v => v.ContractStartDate)
+                            .First();
+            if (letzter.CompanyProfileId == cpId)
+                kandidaten[e.Id] = e.ExitDate!.Value;
+        }
+        return await LoadRowsAsync(kandidaten);
+    }
+
+    /// <summary>
+    /// Info-Liste: befristete Verträge der Filiale, die im Zeitraum enden,
+    /// OHNE Anschlussvertrag und OHNE erfassten Austritt — hier muss Walter
+    /// entscheiden: verlängern oder Austritt erfassen.
+    /// </summary>
+    private async Task<List<Row>> BefristetOffenAsync(int cpId, DateTime from, DateTime to)
     {
         var emps = await _db.Employments.AsNoTracking()
             .Where(e => e.CompanyProfileId == cpId)
@@ -89,7 +132,18 @@ public class AkisExportController : ControllerBase
                     kandidaten[empId] = c.ContractEndDate!.Value;
             }
         }
-        return await LoadRowsAsync(kandidaten);
+        if (kandidaten.Count == 0) return new List<Row>();
+        // MA mit erfasstem Austritt raus (die sind echte Abmeldungen)
+        var ids = kandidaten.Keys.ToList();
+        var ohneExit = await _db.Employees.AsNoTracking()
+            .Where(e => ids.Contains(e.Id) && e.ExitDate == null)
+            .Select(e => e.Id)
+            .ToListAsync();
+        var gefiltert = kandidaten.Where(k => ohneExit.Contains(k.Key))
+            .ToDictionary(k => k.Key, k => k.Value);
+        var (rows, ohneAhv) = await LoadRowsAsync(gefiltert);
+        return rows.Concat(ohneAhv)
+            .OrderBy(r => r.Vorname, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
     private async Task<(List<Row> rows, List<Row> ohneAhv)> LoadRowsAsync(Dictionary<int, DateTime> kandidaten)
@@ -152,6 +206,7 @@ public class AkisExportController : ControllerBase
     {
         var (an, anOhne) = await AnmeldungenAsync(companyProfileId, from.Date, to.Date);
         var (ab, abOhne) = await AbmeldungenAsync(companyProfileId, from.Date, to.Date);
+        var befristet = await BefristetOffenAsync(companyProfileId, from.Date, to.Date);
         object Map(Row r) => new
         {
             r.EmployeeId, ahv = r.Ahv, name = r.Name, vorname = r.Vorname,
@@ -166,6 +221,8 @@ public class AkisExportController : ControllerBase
             anmeldungenOhneAhv = anOhne.Select(Map),   // → zuerst AHV-Anmeldung 318.260!
             abmeldungen = ab.Select(Map),
             abmeldungenOhneAhv = abOhne.Select(Map),
+            // Befristungen ohne erfassten Austritt: verlängern oder Austritt erfassen?
+            befristetOffen = befristet.Select(Map),
         });
     }
 
