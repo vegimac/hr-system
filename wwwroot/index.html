@@ -2027,7 +2027,12 @@
                                 <span style="color:#15803d">✓ vorhanden</span>
                                 <span style="color:#94a3b8;font-size:11px">— öffnen</span>
                             </li>
-                            <li>AHV-Abmeldung</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
                             <li class="hr-done" style="cursor:pointer" onclick="showPage('lohn-abtretungen')"
                                 onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
                                 <b><u>Lohnabtretungen</u></b>
@@ -2896,6 +2901,33 @@
                             <button class="btn btn-outline" onclick="zviPdfPrint()" data-i18n="qsta.btn.print">🖨 Drucken</button>
                             <button class="btn btn-success" onclick="zviPdfSaveToDocsToggle()" data-i18n="qsta.btn.saveToMa">📁 Bei MA ablegen</button>
                         </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ AKIS AN-/ABMELDUNG (Behörden-Korrespondenz) ═══════════════ -->
+            <div class="page liquid-mask" id="page-akis-meldung">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">An-/Abmeldung Ausgleichskasse (AKIS)</h1>
+                        <p class="page-sub">GastroSocial-Sammelmeldungen: OneCrew erzeugt die AKISnet-Upload-Excel aus den Ein- und Austritten der gewählten Filiale — Hochladen erfolgt im Portal.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:20px;max-width:900px">
+                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+                            <label style="font-size:12px;font-weight:600;color:#64748b">Von
+                                <input id="akisFrom" type="date" onchange="akisRefresh()" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                            </label>
+                            <label style="font-size:12px;font-weight:600;color:#64748b">Bis
+                                <input id="akisTo" type="date" onchange="akisRefresh()" style="display:block;margin-top:4px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                            </label>
+                            <span style="flex:1"></span>
+                            <button onclick="akisDownload('anmeldung', this)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬇ Anmelde-Excel</button>
+                            <button onclick="akisDownload('abmeldung', this)" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">⬇ Abmelde-Excel</button>
+                            <button onclick="akisOpenPortal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer">🌐 AKISnet öffnen</button>
+                        </div>
+                        <div id="akisPreview"></div>
                     </div>
                 </div>
             </div>
@@ -7613,7 +7645,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260806a"></script>
+<script src="js/app-core.js?v=20260806b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8732,6 +8764,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
+<script src="js/akis-meldung.js?v=20260806a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>

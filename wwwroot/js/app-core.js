@@ -995,6 +995,7 @@ function showPage(name) {
     if (name === 'aufforderung-arbeit') aufforderungArbeitInit();
     if (name === 'zwischenverdienst') zviInit();
     if (name === 'ahv-anmeldung') ahvInit();
+    if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();
     if (name === 'lohnlauf')      llInit();
@@ -1147,6 +1148,9 @@ function onBranchChange() {
     } else if (currentPageName === 'ahv-anmeldung') {
         // AHV-Anmeldung folgt dem globalen Filial-Selektor.
         if (typeof ahvInit === 'function') ahvInit();
+    } else if (currentPageName === 'akis-meldung') {
+        // AKIS-Meldung folgt dem globalen Filial-Selektor.
+        if (typeof akisRefresh === 'function') akisRefresh();
     } else if (currentPageName === 'lohn-abtretungen') {
         if (typeof laListInit === 'function') laListInit();
     } else if (currentPageName === 'saldo-vortrag') {
