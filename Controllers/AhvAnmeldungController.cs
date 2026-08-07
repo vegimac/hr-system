@@ -65,18 +65,21 @@ public class AhvAnmeldungController : ControllerBase
                 : $"{cp.CompanyName}, {cp.BranchName}";
 
         // Abrechnungsnummer: Mitgliednummer des Ausgleichskassen-Empfängers
-        // dieser Filiale (Lohndatenempfänger, Walter 06.08.2026) — Fallback
-        // auf das Freitextfeld CompanyProfile.AhvKasse.
+        // dieser Filiale (Lohndatenempfänger, Walter 06.08.2026). BEWUSST kein
+        // Fallback auf das Legacy-Freitextfeld AhvKasse — dort steht ein NAME
+        // («Gastro Social»), keine Nummer. Neuster gültiger Eintrag gewinnt.
         string? abrechnungsNr = null;
         if (cp != null)
         {
+            var heuteAbr = DateOnly.FromDateTime(DateTime.Today);
             abrechnungsNr = await _db.CompanyProfileEmpfaengers.AsNoTracking()
                 .Where(z => z.CompanyProfileId == cp.Id && z.IsActive
-                         && z.Empfaenger!.Art == "AUSGLEICHSKASSE")
+                         && z.Empfaenger!.Art == "AUSGLEICHSKASSE"
+                         && (z.GueltigAb == null || z.GueltigAb <= heuteAbr))
+                .OrderByDescending(z => z.GueltigAb)
                 .Select(z => z.Mitgliednummer)
                 .FirstOrDefaultAsync();
         }
-        if (string.IsNullOrWhiteSpace(abrechnungsNr)) abrechnungsNr = cp?.AhvKasse;
 
         return Ok(new
         {
