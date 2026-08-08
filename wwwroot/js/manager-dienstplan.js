@@ -8,6 +8,9 @@
 //  sonst nur Filialen mit user_branch_access.can_dienstplan.
 // ══════════════════════════════════════════════════════════════════════
 let _dpYear = null, _dpMonth = null, _dpData = null;
+let _dpRowOrder = [], _dpTage = 0;          // Zeilen-Reihenfolge (empIds) + Tage im Monat für Pfeiltasten
+let _dpBuf = '';                            // Tipp-Puffer der fokussierten Zelle (S → SK → SKM)
+let _dpPend = null, _dpPendTimer = null;    // debounced Speichern
 
 const DP_ABSENZ_STYLE = {
     FERIEN:       { bg: '#bbf7d0', fg: '#166534', kuerzel: ''   },
@@ -96,6 +99,8 @@ function dpRender() {
     kwRow += '</tr>'; dayRow += '</tr>'; wdRow += '</tr>';
 
     // Filial-Gruppen in Reihenfolge der Zeilen.
+    _dpRowOrder = d.zeilen.map(z => z.employeeId);
+    _dpTage = tage;
     let body = '';
     let lastCp = null;
     for (const z of d.zeilen) {
@@ -117,8 +122,10 @@ function dpRender() {
                 const code = (z.zellen || {})[iso] || '';
                 const cd = (d.codes || []).find(c => c.code === code);
                 const bg = cd?.farbe ? `background:${cd.farbe};` : '';
-                const click = z.planbar ? ` onclick="dpCellClick(${z.employeeId},'${iso}')" style="cursor:pointer;${bg}"` : ` style="${bg}"`;
-                row += `<td class="dp-cell${we ? ' dp-we' : ''}"${click} id="dp-${z.employeeId}-${iso}" title="${cd ? esc(cd.bezeichnung) : (z.planbar ? 'Klick: Kürzel wechseln' : '')}">${esc(code)}</td>`;
+                const click = z.planbar
+                    ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
+                    : ` style="${bg}"`;
+                row += `<td class="dp-cell${we ? ' dp-we' : ''}"${click} id="dp-${z.employeeId}-${iso}" title="${cd ? esc(cd.bezeichnung) : (z.planbar ? 'Tippen (F/M/S/-/SK/SKM), Klick rotiert' : '')}">${esc(code)}</td>`;
             }
         }
         body += `<tr>${row}</tr>`;
@@ -141,37 +148,95 @@ function dpRender() {
 }
 
 // Klick rotiert durch die aktiven Kürzel (…→ letzter → leer → erster …).
-async function dpCellClick(empId, iso) {
+function dpCellClick(empId, iso) {
     if (!_dpData) return;
     const zeile = _dpData.zeilen.find(z => z.employeeId === empId);
     if (!zeile || !zeile.planbar) return;
+    _dpBuf = '';
     const codes = (_dpData.codes || []).map(c => c.code);
     const cur = (zeile.zellen || {})[iso] || '';
     const idx = codes.indexOf(cur);
     const next = cur === '' ? codes[0] : (idx >= 0 && idx < codes.length - 1 ? codes[idx + 1] : '');
+    _dpApply(empId, iso, next);
+}
+
+// ── Tastatur-Eingabe (Walter-Vorgabe 08.08.2026) ─────────────────────────
+// Direktes Tippen in der fokussierten Zelle: F/M/S/-/SK/SKM. Der Puffer
+// wächst pro Tastendruck (S → SK → SKM); ist das Kürzel eindeutig fertig
+// (F, M, -, SKM), springt der Fokus automatisch einen Tag weiter.
+// Pfeiltasten/Enter navigieren, Backspace/Delete leert, Leertaste rotiert.
+function dpCellKey(ev, empId, iso) {
+    const nav = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0], Enter: [1, 0] };
+    if (nav[ev.key]) { ev.preventDefault(); _dpMove(empId, iso, nav[ev.key][0], nav[ev.key][1]); return; }
+    if (ev.key === 'Backspace' || ev.key === 'Delete') { ev.preventDefault(); _dpBuf = ''; _dpApply(empId, iso, ''); return; }
+    if (ev.key === ' ') { ev.preventDefault(); dpCellClick(empId, iso); return; }
+    if (ev.key.length !== 1 || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    ev.preventDefault();
+    const ch = ev.key.toUpperCase() === '−' ? '-' : ev.key.toUpperCase();
+    const codes = (_dpData?.codes || []).map(c => c.code);
+    let cand = _dpBuf + ch;
+    if (!codes.some(c => c.startsWith(cand))) cand = ch;             // Puffer passt nicht mehr → neu anfangen
+    if (!codes.some(c => c.startsWith(cand))) return;                // Taste passt zu keinem Kürzel → ignorieren
+    _dpBuf = cand;
+    if (!codes.includes(cand)) return;                               // noch kein fertiges Kürzel
+    _dpApply(empId, iso, cand);
+    if (!codes.some(c => c !== cand && c.startsWith(cand))) {        // nicht verlängerbar → weiter zum nächsten Tag
+        _dpBuf = '';
+        _dpMove(empId, iso, 0, 1);
+    }
+}
+
+// Fokus verschieben; Absenz-/nicht-planbare Zellen werden übersprungen.
+function _dpMove(empId, iso, dr, dc) {
+    let r = _dpRowOrder.indexOf(empId);
+    let c = parseInt(iso.slice(8), 10);
+    while (true) {
+        r += dr; c += dc;
+        if (r < 0 || r >= _dpRowOrder.length || c < 1 || c > _dpTage) return;
+        const id = `dp-${_dpRowOrder[r]}-${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(c).padStart(2, '0')}`;
+        const el = document.getElementById(id);
+        if (el && el.tabIndex === 0) { el.focus(); return; }
+        if (dr === 0 && dc === 0) return;
+    }
+}
+
+// Anzeige sofort aktualisieren, Speichern leicht verzögert (bündelt S→SK→SKM zu EINEM PUT).
+function _dpApply(empId, iso, code) {
+    const zeile = _dpData?.zeilen.find(z => z.employeeId === empId);
+    if (!zeile || !zeile.planbar) return;
+    if (!zeile.zellen) zeile.zellen = {};
+    if (code) zeile.zellen[iso] = code; else delete zeile.zellen[iso];
+    const cell = document.getElementById(`dp-${empId}-${iso}`);
+    if (cell) {
+        const cd = (_dpData.codes || []).find(c => c.code === code);
+        cell.textContent = code;
+        cell.style.background = cd?.farbe || '';
+        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/SKM), Klick rotiert';
+    }
+    if (_dpPendTimer) clearTimeout(_dpPendTimer);
+    if (_dpPend && (_dpPend.empId !== empId || _dpPend.iso !== iso)) _dpFlush();   // andere Zelle offen → sofort raus
+    _dpPend = { empId, iso, code };
+    _dpPendTimer = setTimeout(_dpFlush, 350);
+}
+
+async function _dpFlush() {
+    if (_dpPendTimer) { clearTimeout(_dpPendTimer); _dpPendTimer = null; }
+    const p = _dpPend;
+    _dpPend = null;
+    if (!p) return;
     try {
         const res = await fetch('/api/manager-dienstplan/cell', {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeId: empId, datum: iso, code: next || null }),
+            body: JSON.stringify({ employeeId: p.empId, datum: p.iso, code: p.code || null }),
         });
         if (!res.ok) {
             let msg = 'Speichern fehlgeschlagen.';
             try { const j = await res.json(); if (j.message) msg = j.message; } catch (_) {}
             showToast(msg, 'error');
-            return;
+            dpLoad();   // Server-Stand zurückholen
         }
-        // Lokal nachführen + Zelle neu malen (kein Voll-Reload pro Klick).
-        if (!zeile.zellen) zeile.zellen = {};
-        if (next) zeile.zellen[iso] = next; else delete zeile.zellen[iso];
-        const cell = document.getElementById(`dp-${empId}-${iso}`);
-        if (cell) {
-            const cd = (_dpData.codes || []).find(c => c.code === next);
-            cell.textContent = next;
-            cell.style.background = cd?.farbe || '';
-            cell.title = cd ? cd.bezeichnung : 'Klick: Kürzel wechseln';
-        }
-    } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+    } catch (_) { showToast('Verbindungsfehler.', 'error'); dpLoad(); }
 }
 
 function dpPrint() { window.print(); }
