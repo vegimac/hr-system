@@ -309,14 +309,20 @@ public class EasyAtWorkEmployeeSyncService
 
         var activeAt = DateOnly.FromDateTime(DateTime.Today);
         var seen = new HashSet<int>();
+        // Ein einzelner Filial-API-Fehler bricht den Lauf NICHT mehr ab
+        // (Walter 08.08.2026): die übrigen Filialen werden weiter geprüft.
+        // Bei unvollständiger Liste werden nur AUFHEBUNGEN gemacht, keine
+        // neuen Markierungen (wir können «fehlt überall» nicht beweisen).
+        bool listeUnvollstaendig = false;
         foreach (var m in mappings)
         {
             List<EawEmployee> rows;
             try { rows = await _client.GetAllEmployeesActiveAtAsync(m.EasyAtWorkCustomerId, activeAt, ct); }
             catch (Exception ex)
             {
-                notes.Add($"Verschollen-Check abgebrochen — Customer {m.EasyAtWorkCustomerId} nicht abrufbar ({ex.Message}). Keine Markierungen gesetzt.");
-                return notes;
+                notes.Add($"Customer {m.EasyAtWorkCustomerId} nicht abrufbar ({ex.Message}) — Liste unvollständig, keine NEUEN Markierungen in diesem Lauf.");
+                listeUnvollstaendig = true;
+                continue;
             }
             foreach (var r in rows)
             {
@@ -334,12 +340,17 @@ public class EasyAtWorkEmployeeSyncService
             bool found = seen.Contains(e.EasyAtWorkEmployeeId!.Value);
             if (!found && e.EasyMissingSince == null)
             {
+                // Unvollständige Liste → keine NEUEN Markierungen.
+                if (listeUnvollstaendig) continue;
                 // Verifikation per Einzelabfrage (Walter-Bug 07.08.2026, Senada):
                 // die ?active=-Liste FLATTERT gelegentlich (MA fehlt in einem
                 // Lauf, ist im nächsten wieder drin) — vor dem Markieren den MA
                 // direkt abfragen. Nur wenn er auch dort fehlt ODER beendet ist
                 // (to gesetzt und vorbei), gilt er als verschollen.
+                // Fehler bei EINEM Customer (403/500 für fremde IDs) → weiter
+                // mit dem nächsten; erst wenn ALLE geprüft sind, zählt «weg».
                 bool wirklichWeg = true;
+                bool verifikationGestoert = false;
                 foreach (var m in mappings)
                 {
                     try
@@ -357,11 +368,13 @@ public class EasyAtWorkEmployeeSyncService
                     }
                     catch
                     {
-                        // API-Fehler bei der Verifikation → im Zweifel NICHT markieren.
-                        wirklichWeg = false;
-                        notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Verifikation nicht möglich (API-Fehler) — keine Markierung gesetzt.");
-                        break;
+                        verifikationGestoert = true; // andere Customer trotzdem prüfen
                     }
+                }
+                if (wirklichWeg && verifikationGestoert)
+                {
+                    notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Verifikation unvollständig (API-Fehler bei mind. einem Customer) — im Zweifel KEINE Markierung.");
+                    continue;
                 }
                 if (!wirklichWeg) continue;
                 e.EasyMissingSince = activeAt;
@@ -378,6 +391,9 @@ public class EasyAtWorkEmployeeSyncService
             {
                 // Bereits markiert + weiterhin nicht in der Liste: Einzelabfrage
                 // darf die Warnung ebenfalls aufheben (Listen-Flattern, Senada).
+                // WICHTIG (Walter-Bug 08.08.2026): Fehler bei einem Customer
+                // (403/500 für fremde IDs) NICHT abbrechen — sonst kommt die
+                // eigene Filiale nie dran und die Warnung bleibt kleben.
                 foreach (var m in mappings)
                 {
                     try
@@ -394,7 +410,7 @@ public class EasyAtWorkEmployeeSyncService
                             break;
                         }
                     }
-                    catch { break; }
+                    catch { /* nächsten Customer probieren */ }
                 }
             }
         }
