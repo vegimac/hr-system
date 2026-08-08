@@ -8,17 +8,19 @@ using Microsoft.EntityFrameworkCore;
 namespace HrSystem.Controllers;
 
 /// <summary>
-/// Wohnort-Historie + Umzugs-Erfassung (Walter-Vorgabe 07.08.2026).
+/// Wohnort-Historie + Umzugsdatum-Bestätigung (Walter-Vorgabe 07./08.08.2026).
 ///
-/// «Umzug erfassen» macht in EINEM Schritt:
-///   1. History-Eintrag (PLZ/Ort/Kanton, gültig ab Umzugsdatum); existiert
-///      noch keine Historie, wird die Bestandsadresse als «seit jeher»
-///      zurückgeschrieben, damit das «bis» des Vorgängers ableitbar ist.
-///   2. Aktuelle MA-Adresse aktualisieren (PLZ/Ort/Kanton, optional Strasse).
-///   3. Bei KANTONSWECHSEL mit aktiver QST-Erfassung: automatische
-///      QST-Folge-Version — alter Kanton bis Ende Umzugsmonat, neuer Kanton
-///      ab 1. des FOLGEmonats (angebrochener Monat zahlt im alten Kanton).
-///      Die neue Version übernimmt Tarif/Kinder/Kirchensteuer unverändert.
+/// Adressen werden AUSSCHLIESSLICH in easy@work gepflegt. Der Sync erkennt
+/// PLZ-/Ort-Wechsel und legt einen Historie-Eintrag mit DatumOffen=true an.
+/// POST umzug bestätigt NUR das Umzugsdatum zu diesem offenen Eintrag
+/// (kein offener Wechsel → 409 KEIN_OFFENER_WECHSEL) und löst bei einem
+/// Kantonswechsel die QST-Folge-Version aus: alter Kanton (= Steuerkanton
+/// der aktiven QST-Version) bis Ende Umzugsmonat, neuer Kanton ab 1. des
+/// FOLGEmonats — der angebrochene Monat zahlt im alten Kanton. Tarif/Kinder/
+/// Kirchensteuer werden unverändert übernommen.
+///
+/// Admin-Korrekturen (PUT/DELETE): nur Gültig-ab-Datum + Bemerkung bzw.
+/// Eintrag löschen — Adressdaten sind auch hier NICHT editierbar.
 ///
 /// Lock: die QST-Folge-Version respektiert den Lohn-Edit-Lock (Soft-Lock wie
 /// Verträge) — liegt der Folgemonat in einer verarbeiteten Periode → 409.
@@ -68,11 +70,24 @@ public class EmployeeWohnortController : ControllerBase
         if (emp == null) return NotFound(new { error = "EMP_NOT_FOUND" });
         if (!DateOnly.TryParse(dto.Umzugsdatum, out var umzug))
             return BadRequest(new { error = "UMZUGSDATUM_UNGUELTIG" });
-        if (string.IsNullOrWhiteSpace(dto.Plz) || string.IsNullOrWhiteSpace(dto.Ort)
-            || string.IsNullOrWhiteSpace(dto.Kanton))
-            return BadRequest(new { error = "PLZ_ORT_KANTON_PFLICHT" });
 
-        var neuerKanton = dto.Kanton.Trim().ToUpperInvariant();
+        // Adresse kommt AUSSCHLIESSLICH aus easy@work (Walter 08.08.2026):
+        // hier wird nur noch das UMZUGSDATUM zum offenen Adresswechsel
+        // bestätigt — ohne offenen Wechsel gibt es nichts zu erfassen.
+        var offenerWechsel = await _db.EmployeeWohnortHistories
+            .Where(h => h.EmployeeId == employeeId && h.DatumOffen)
+            .OrderByDescending(h => h.Id)
+            .FirstOrDefaultAsync();
+        if (offenerWechsel == null)
+            return Conflict(new
+            {
+                error = "KEIN_OFFENER_WECHSEL",
+                message = "Kein offener Adresswechsel — Adresse zuerst in easy@work ändern und den MA synchronisieren.",
+            });
+
+        var neuerKanton = (offenerWechsel.KantonCode ?? "").Trim().ToUpperInvariant();
+        if (string.IsNullOrEmpty(neuerKanton))
+            neuerKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
 
         // Massgebender ALTER Kanton = Steuerkanton der aktiven QST-Version
         // (Walter 08.08.2026): robust, egal ob die MA-Adresse schon von easy
@@ -112,49 +127,11 @@ public class EmployeeWohnortController : ControllerBase
             }
         }
 
-        // 1) Historie: offenen easy@work-Eintrag BESTÄTIGEN (Datum setzen)
-        //    oder — beim manuellen Umzug — Bestand sichern + neuen Eintrag.
-        var pending = await _db.EmployeeWohnortHistories
-            .Where(h => h.EmployeeId == employeeId && h.DatumOffen)
-            .OrderByDescending(h => h.Id)
-            .FirstOrDefaultAsync();
-        if (pending != null)
-        {
-            pending.Plz = dto.Plz.Trim();
-            pending.Ort = dto.Ort.Trim();
-            pending.KantonCode = neuerKanton;
-            pending.GueltigAb = umzug;
-            pending.DatumOffen = false;
-            if (!string.IsNullOrWhiteSpace(dto.Bemerkung)) pending.Bemerkung = dto.Bemerkung.Trim();
-        }
-        else
-        {
-            bool hatHistorie = await _db.EmployeeWohnortHistories
-                .AnyAsync(h => h.EmployeeId == employeeId);
-            if (!hatHistorie)
-            {
-                _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
-                {
-                    EmployeeId = employeeId,
-                    Plz = emp.ZipCode, Ort = emp.City, KantonCode = emp.CantonCode,
-                    GueltigAb = null,
-                    Bemerkung = "Bestandsadresse (automatisch beim ersten Umzug)",
-                });
-            }
-            _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
-            {
-                EmployeeId = employeeId,
-                Plz = dto.Plz.Trim(), Ort = dto.Ort.Trim(), KantonCode = neuerKanton,
-                GueltigAb = umzug,
-                Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
-            });
-        }
-
-        // 2) Aktuelle Adresse nachziehen.
-        emp.ZipCode = dto.Plz.Trim();
-        emp.City = dto.Ort.Trim();
-        emp.CantonCode = neuerKanton;
-        if (!string.IsNullOrWhiteSpace(dto.Strasse)) emp.Street = dto.Strasse.Trim();
+        // 1) Offenen Eintrag bestätigen: nur Datum + Bemerkung — die Adresse
+        //    selbst bleibt exakt wie aus easy@work übernommen.
+        offenerWechsel.GueltigAb = umzug;
+        offenerWechsel.DatumOffen = false;
+        if (!string.IsNullOrWhiteSpace(dto.Bemerkung)) offenerWechsel.Bemerkung = dto.Bemerkung.Trim();
 
         // 3) QST-Folge-Version bei Kantonswechsel.
         if (kantonswechsel && qstAlt != null)
@@ -169,7 +146,7 @@ public class EmployeeWohnortController : ControllerBase
                 ValidTo = null,
                 Steuerkanton = neuerKanton,
                 SteuerkantonName = KantonName(neuerKanton),
-                QstGemeinde = dto.Ort.Trim(),
+                QstGemeinde = offenerWechsel.Ort,
                 QstGemeindeBfsNr = null,
                 TarifvorschlagQst = qstAlt.TarifvorschlagQst,
                 TarifCode = qstAlt.TarifCode,
@@ -227,9 +204,8 @@ public class EmployeeWohnortController : ControllerBase
         var h = await _db.EmployeeWohnortHistories
             .FirstOrDefaultAsync(x => x.Id == id && x.EmployeeId == employeeId);
         if (h == null) return NotFound();
-        if (!string.IsNullOrWhiteSpace(dto.Plz)) h.Plz = dto.Plz.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Ort)) h.Ort = dto.Ort.Trim();
-        if (!string.IsNullOrWhiteSpace(dto.Kanton)) h.KantonCode = dto.Kanton.Trim().ToUpperInvariant();
+        // BEWUSST keine Adress-Felder (Walter 08.08.2026): PLZ/Ort/Kanton
+        // kommen ausschliesslich aus easy@work — hier nur Datum + Bemerkung.
         // GueltigAb: leerer String = «seit jeher» (NULL); fehlend = unverändert.
         if (dto.GueltigAb != null)
             h.GueltigAb = DateOnly.TryParse(dto.GueltigAb, out var ab) ? ab : null;
@@ -268,9 +244,6 @@ public class EmployeeWohnortController : ControllerBase
 
 public class WohnortEntryDto
 {
-    public string? Plz { get; set; }
-    public string? Ort { get; set; }
-    public string? Kanton { get; set; }
     /// <summary>ISO yyyy-MM-dd; leerer String = «seit jeher»; null = unverändert.</summary>
     public string? GueltigAb { get; set; }
     public bool? DatumOffen { get; set; }
@@ -280,9 +253,5 @@ public class WohnortEntryDto
 public class UmzugDto
 {
     public string? Umzugsdatum { get; set; }   // ISO yyyy-MM-dd
-    public string? Plz { get; set; }
-    public string? Ort { get; set; }
-    public string? Kanton { get; set; }
-    public string? Strasse { get; set; }       // optional: neue Strasse
     public string? Bemerkung { get; set; }
 }

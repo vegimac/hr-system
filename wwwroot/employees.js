@@ -14117,12 +14117,15 @@ async function vwDelete(id) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  UMZUG ERFASSEN (Walter-Vorgabe 07.08.2026)
-//  Wohnort-Historie (PLZ/Ort/Kanton, gültig ab) + QST-Automatik:
-//  Kantonswechsel → alter Kanton bis Ende Umzugsmonat, neuer ab 1. des
-//  Folgemonats (angebrochener Monat zahlt im alten Kanton).
+//  UMZUG BESTÄTIGEN (Walter-Vorgabe 07./08.08.2026)
+//  Adressen kommen AUSSCHLIESSLICH aus easy@work. Dieser Dialog bestätigt
+//  nur das UMZUGSDATUM zum offenen Adresswechsel (Pending aus dem Sync).
+//  Bei Kantonswechsel versioniert das Backend die QST automatisch:
+//  alter Kanton bis Ende Umzugsmonat, neuer ab 1. des Folgemonats.
+//  Admin kann Historie-Einträge korrigieren: Datum ändern / löschen.
 // ══════════════════════════════════════════════════════════════════════
 let _umzugEmpId = null;
+let _umzugHist = [];
 
 function _umzugEnsureModal() {
     if (document.getElementById('umzugModal')) return;
@@ -14133,21 +14136,12 @@ function _umzugEnsureModal() {
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
-        <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug erfassen</div>
-        <div id="umzugMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:14px"></div>
+        <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug bestätigen</div>
+        <div id="umzugMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
+        <div id="umzugPendingBox" style="margin-bottom:12px"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
             <label style="${lbl}">Umzugsdatum<input id="umzugDatum" type="date" style="${inp}"></label>
-            <label style="${lbl}">Neue Strasse <span style="font-weight:400">(optional)</span><input id="umzugStrasse" style="${inp}"></label>
-            <label style="${lbl}">PLZ / Ort
-                <div style="display:flex;gap:8px">
-                    <input id="umzugPlz" oninput="if(/^\\d{4}$/.test(this.value.trim())&&typeof plzLookupGeneric==='function')plzLookupGeneric(this.value,'umzugOrt','umzugKanton',null,'umzugPlzHint')"
-                           style="${inp};width:80px;flex:none">
-                    <input id="umzugOrt" style="${inp}">
-                </div>
-                <div id="umzugPlzHint" style="font-size:11px;font-weight:400;margin-top:3px;min-height:14px"></div>
-            </label>
-            <label style="${lbl}">Kanton<input id="umzugKanton" maxlength="2" placeholder="AG, LU, …" style="${inp}"></label>
-            <label style="${lbl};grid-column:span 2">Bemerkung <span style="font-weight:400">(optional)</span><input id="umzugBem" style="${inp}"></label>
+            <label style="${lbl}">Bemerkung <span style="font-weight:400">(optional)</span><input id="umzugBem" style="${inp}"></label>
         </div>
         <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:11.5px;color:#646464">
             Bei einem <b>Kantonswechsel</b> wird die Quellensteuer automatisch versioniert:
@@ -14156,9 +14150,9 @@ function _umzugEnsureModal() {
         <div id="umzugHistorie" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
             <button onclick="document.getElementById('umzugModal').style.display='none'"
-                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Schliessen</button>
             <button id="umzugSaveBtn" onclick="umzugSave()"
-                    style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Umzug speichern</button>
+                    style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Datum bestätigen</button>
         </div>
     </div>`;
     div.addEventListener('click', (e) => { if (e.target === div) div.style.display = 'none'; });
@@ -14170,21 +14164,19 @@ async function openUmzugModal(empId) {
     _umzugEnsureModal();
     _umzugEmpId = empId;
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
-    ['umzugDatum','umzugStrasse','umzugPlz','umzugOrt','umzugKanton','umzugBem'].forEach(id => set(id, ''));
-    const hint = document.getElementById('umzugPlzHint');
-    if (hint) hint.innerHTML = '';
+    ['umzugDatum', 'umzugBem'].forEach(id => set(id, ''));
     const nameEl = document.getElementById('umzugMaName');
     if (nameEl && typeof selectedEmployee !== 'undefined' && selectedEmployee) {
-        nameEl.textContent = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''} — bisher ${selectedEmployee.zipCode || ''} ${selectedEmployee.city || ''} (${selectedEmployee.cantonCode || '–'})`;
+        nameEl.textContent = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''} — aktuelle Adresse ${selectedEmployee.zipCode || ''} ${selectedEmployee.city || ''} (${selectedEmployee.cantonCode || '–'})`;
     }
     document.getElementById('umzugModal').style.display = 'block';
-    umzugLoadHistorie(empId);
+    await umzugLoadHistorie(empId);
 }
-
-let _umzugHist = [];
 
 async function umzugLoadHistorie(empId) {
     const el = document.getElementById('umzugHistorie');
+    const box = document.getElementById('umzugPendingBox');
+    const saveBtn = document.getElementById('umzugSaveBtn');
     if (!el) return;
     el.innerHTML = '';
     try {
@@ -14192,72 +14184,98 @@ async function umzugLoadHistorie(empId) {
         if (!res.ok) return;
         const list = await res.json();
         _umzugHist = list;
-        if (!list.length) return;
         const f = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
         const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+
+        // Offener easy@work-Wechsel: nur dann gibt es etwas zu bestätigen.
+        const pending = list.find(h => h.datumOffen);
+        if (box) {
+            box.innerHTML = pending
+                ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;font-size:12.5px;color:#92400e">
+                    Neue Adresse aus easy@work: <b>${esc(pending.plz)} ${esc(pending.ort)} ${esc(pending.kantonCode)}</b><br>
+                    <span style="font-size:11.5px">Bitte Umzugsdatum bestätigen — die Adresse selbst wird nur in easy@work gepflegt.</span></div>`
+                : `<div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#646464">
+                    Kein offener Adresswechsel. Adressänderungen zuerst in <b>easy@work</b> erfassen und den MA synchronisieren.</div>`;
+        }
+        if (saveBtn) saveBtn.style.display = pending ? '' : 'none';
+        const datumEl = document.getElementById('umzugDatum');
+        if (datumEl) datumEl.disabled = !pending;
+
+        if (!list.length) return;
         el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
             + list.map(h => `<div id="umzugRow-${h.id}" style="display:flex;align-items:center;gap:8px;font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
                 <div style="flex:1;min-width:0">
-                    ${h.plz || ''} ${h.ort || ''} <b>${h.kantonCode || ''}</b>
+                    ${esc(h.plz)} ${esc(h.ort)} <b>${esc(h.kantonCode)}</b>
                     <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
                     ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
                 </div>
                 ${isAdmin ? `
-                <div style="position:relative;display:inline-block;flex-shrink:0">
-                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'umzug-${h.id}')" title="Aktionen">⋮</button>
-                    <div class="dok-menu" id="dokMenu-umzug-${h.id}">
-                        <button class="dok-menu-item" onclick="dokCloseAllMenus();umzugEntryEdit(${h.id})">Bearbeiten</button>
-                        <button class="dok-menu-item danger" onclick="dokCloseAllMenus();umzugEntryDelete(${h.id})">Löschen</button>
-                    </div>
-                </div>` : ''}
+                <button onclick="umzugEntryEdit(${h.id})" title="Gültig-ab-Datum korrigieren"
+                        style="flex-shrink:0;background:#fff;border:1px solid #cbd5e1;color:#475569;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📅 Datum</button>
+                <button onclick="umzugEntryDelete(${h.id})" title="Eintrag löschen"
+                        style="flex-shrink:0;background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🗑</button>` : ''}
             </div>`).join('');
-        // Offener easy@work-Umzug: Felder vorbefüllen — Walter muss nur noch
-        // das echte Umzugsdatum setzen und speichern (bestätigt den Eintrag).
-        const pending = list.find(h => h.datumOffen);
-        if (pending) {
-            const set = (id, v) => { const el2 = document.getElementById(id); if (el2 && !el2.value) el2.value = v ?? ''; };
-            set('umzugPlz', pending.plz);
-            set('umzugOrt', pending.ort);
-            set('umzugKanton', pending.kantonCode);
-            const hint = document.getElementById('umzugPlzHint');
-            if (hint) hint.innerHTML = '<span style="color:#b45309">Neue Adresse kam aus easy@work — bitte Umzugsdatum bestätigen.</span>';
-        }
     } catch (_) { /* Historie optional */ }
 }
 
-// Admin-Korrektur eines Historie-Eintrags (Walter 08.08.2026, v.a. Test-
-// Aufräumen): Inline-Edit direkt in der Zeile, keine QST-Seiteneffekte.
+async function umzugSave() {
+    const val = (id) => document.getElementById(id)?.value?.trim() || null;
+    const datum = val('umzugDatum');
+    if (!datum) { showToast('Bitte Umzugsdatum wählen.', 'error'); return; }
+    const btn = document.getElementById('umzugSaveBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/umzug`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ umzugsdatum: datum, bemerkung: val('umzugBem') }),
+        });
+        if (typeof lohnEditLock !== 'undefined' && await lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            let msg = 'Bestätigen fehlgeschlagen.';
+            try { const j = await res.json(); if (j.message) msg = j.message; } catch (_) {}
+            showToast(msg, 'error');
+            return;
+        }
+        const d = await res.json();
+        document.getElementById('umzugModal').style.display = 'none';
+        showToast('Umzugsdatum bestätigt.' + (d.qstInfo ? ' ' + d.qstInfo : ''), 'success');
+        if (typeof selectEmployee === 'function' && _umzugEmpId) selectEmployee(_umzugEmpId);
+    } catch (_) {
+        showToast('Verbindungsfehler beim Speichern.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+}
+
+// ── Admin-Korrekturen (Walter 08.08.2026): NUR Datum ändern + löschen —
+//    Adresse ist easy@work-Sache und hier nie editierbar. ────────────────
 function umzugEntryEdit(id) {
     const h = _umzugHist.find(x => x.id === id);
     const row = document.getElementById('umzugRow-' + id);
     if (!h || !row) return;
     const inp = 'padding:4px 7px;border:1px solid rgba(60,55,48,0.18);border-radius:7px;font-size:12px;background:#fff;color:#3f3f3f';
     row.innerHTML = `
-        <input id="uzE-plz-${id}" value="${(h.plz || '').replace(/"/g, '&quot;')}" placeholder="PLZ" style="${inp};width:52px">
-        <input id="uzE-ort-${id}" value="${(h.ort || '').replace(/"/g, '&quot;')}" placeholder="Ort" style="${inp};flex:1;min-width:80px">
-        <input id="uzE-kt-${id}" value="${(h.kantonCode || '').replace(/"/g, '&quot;')}" maxlength="2" placeholder="KT" style="${inp};width:38px">
+        <span style="flex:1;min-width:0">${String(h.plz || '')} ${String(h.ort || '')} <b>${String(h.kantonCode || '')}</b></span>
         <input id="uzE-ab-${id}" type="date" value="${h.gueltigAb || ''}" title="leer = seit jeher" style="${inp}">
         <button onclick="umzugEntrySave(${id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">✓</button>
         <button onclick="umzugLoadHistorie(_umzugEmpId)" style="background:transparent;border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer">✕</button>`;
 }
 
 async function umzugEntrySave(id) {
-    const v = (x) => document.getElementById('uzE-' + x + '-' + id)?.value?.trim() ?? '';
-    const abVal = v('ab');
+    const abVal = document.getElementById('uzE-ab-' + id)?.value?.trim() ?? '';
     try {
         const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/${id}`, {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                plz: v('plz') || null,
-                ort: v('ort') || null,
-                kanton: v('kt') || null,
-                gueltigAb: abVal,            // '' = seit jeher
-                datumOffen: abVal ? false : undefined,  // Datum gesetzt = bestätigt
+                gueltigAb: abVal,                        // '' = seit jeher
+                datumOffen: abVal ? false : undefined,   // Datum gesetzt = bestätigt
             }),
         });
         if (!res.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
-        showToast('Eintrag angepasst.', 'success');
+        showToast('Datum angepasst.', 'success');
         umzugLoadHistorie(_umzugEmpId);
     } catch (_) { showToast('Verbindungsfehler.', 'error'); }
 }
@@ -14276,43 +14294,4 @@ async function umzugEntryDelete(id) {
         showToast('Eintrag gelöscht.', 'success');
         umzugLoadHistorie(_umzugEmpId);
     } catch (_) { showToast('Verbindungsfehler.', 'error'); }
-}
-
-async function umzugSave() {
-    const val = (id) => document.getElementById(id)?.value?.trim() || null;
-    const body = {
-        umzugsdatum: val('umzugDatum'),
-        plz: val('umzugPlz'),
-        ort: val('umzugOrt'),
-        kanton: (val('umzugKanton') || '').toUpperCase() || null,
-        strasse: val('umzugStrasse'),
-        bemerkung: val('umzugBem'),
-    };
-    if (!body.umzugsdatum) { showToast('Bitte Umzugsdatum wählen.', 'error'); return; }
-    if (!body.plz || !body.ort || !body.kanton) { showToast('PLZ, Ort und Kanton sind Pflicht.', 'error'); return; }
-    const btn = document.getElementById('umzugSaveBtn');
-    if (btn) btn.disabled = true;
-    try {
-        const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/umzug`, {
-            method: 'POST',
-            headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        if (typeof lohnEditLock !== 'undefined' && await lohnEditLock.handleResponse(res)) return;
-        if (!res.ok) {
-            let msg = 'Umzug speichern fehlgeschlagen.';
-            try { const j = await res.json(); if (j.message) msg = j.message; } catch (_) {}
-            showToast(msg, 'error');
-            return;
-        }
-        const d = await res.json();
-        document.getElementById('umzugModal').style.display = 'none';
-        showToast('Umzug erfasst.' + (d.qstInfo ? ' ' + d.qstInfo : ''), 'success');
-        // MA neu laden, damit Adresse/QST-Tab den neuen Stand zeigen.
-        if (typeof selectEmployee === 'function' && _umzugEmpId) selectEmployee(_umzugEmpId);
-    } catch (_) {
-        showToast('Verbindungsfehler beim Speichern.', 'error');
-    } finally {
-        if (btn) btn.disabled = false;
-    }
 }
