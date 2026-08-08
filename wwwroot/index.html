@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260806f">
+    <link rel="stylesheet" href="css/app.css?v=20260808a">
 </head>
 <body>
 
@@ -199,6 +199,10 @@
                         <img class="nav-icon-img" src="img/auswertung-icon.png?v=20260628a" alt="">
                         <span>Auswertungen</span>
                     </div>
+                    <div class="nav-item" data-page="manager-dienstplan" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
+                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M7 14h3M12 14h3M7 17.5h3M12 17.5h3"/></svg>
+                        <span>Manager-DP</span>
+                    </div>
                 </div>
                 <!-- Datenimport: nur admin sichtbar. -->
                 <div class="nav-section import-section" style="display:none">
@@ -316,6 +320,10 @@
                             <button class="liquid-module-card" onclick="showPage('roster-absence-import')" type="button" data-liquid-roles="admin,superuser">
                                 <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:82px;height:82px;stroke-width:1.4"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
                                 <span>Mirus Absenz<br>Import</span>
+                            </button>
+                            <button class="liquid-module-card" onclick="showPage('manager-dienstplan')" type="button" data-liquid-roles="admin,superuser,user">
+                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:82px;height:82px;stroke-width:1.4"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M7 14h3M12 14h3M7 17.5h3M12 17.5h3"/></svg>
+                                <span>Manager<br>Dienstplan</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('lohn')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
                                 <img src="img/lohn-icon.png?v=20260704d" alt="Lohnlauf" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
@@ -2902,6 +2910,26 @@
                             <button class="btn btn-success" onclick="zviPdfSaveToDocsToggle()" data-i18n="qsta.btn.saveToMa">📁 Bei MA ablegen</button>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ MANAGER-DIENSTPLAN (Walter 08.08.2026) ═══════════════ -->
+            <div class="page liquid-mask fixhead" id="page-manager-dienstplan">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Manager-Dienstplan</h1>
+                        <p class="page-sub">FIX-M-Manager aller Filialen — Klick auf eine Zelle wechselt das Kürzel. Absenzen kommen automatisch aus dem System und sind gesperrt.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+                        <button onclick="dpShift(-1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">‹</button>
+                        <div id="dpMonatTitel" style="font-size:15px;font-weight:700;color:#3f3f3f;min-width:150px;text-align:center"></div>
+                        <button onclick="dpShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
+                        <span style="flex:1"></span>
+                        <button onclick="dpPrint()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">🖨 Drucken</button>
+                    </div>
+                    <div id="dpGrid"></div>
                 </div>
             </div>
 
@@ -7646,7 +7674,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260806b"></script>
+<script src="js/app-core.js?v=20260808a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -7674,7 +7702,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260804a"></script>
 <script src="js/dok-audit.js?v=20260704p"></script>
-<script src="js/branches-detail.js?v=20260806m"></script>
+<script src="js/branches-detail.js?v=20260808a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260802a"></script>
@@ -8766,6 +8794,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
 <script src="js/akis-meldung.js?v=20260806d"></script>
+<script src="js/manager-dienstplan.js?v=20260808a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>

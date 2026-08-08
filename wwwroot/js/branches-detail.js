@@ -343,6 +343,11 @@ function renderFilialenDetail(b) {
                             <input type="checkbox" id="sig-isDefault" style="width:16px;height:16px">
                             <span style="font-size:13px;color:#64748b">Allgemeiner Unterzeichner</span>
                         </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px"
+                               title="Darf den Manager-Dienstplan dieser Filiale planen (Walter 08.08.2026)">
+                            <input type="checkbox" id="sig-canDienstplan" style="width:16px;height:16px">
+                            <span style="font-size:13px;color:#64748b">Manager-Dienstplan planen</span>
+                        </label>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:14px">
@@ -906,6 +911,7 @@ function renderSignatoryList(list) {
             <div style="flex-shrink:0;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
                 ${s.role ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0efeb;color:#6b7280">${roleLabels[s.role]||s.role}</span>` : ''}
                 ${s.isDefault ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0fdf4;color:#15803d">Allgemein</span>` : ''}
+                ${s.canDienstplan ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">Dienstplan</span>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
                 <button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick='openSignatoryForm(${JSON.stringify(s)})'>✎</button>
@@ -940,6 +946,8 @@ async function openSignatoryForm(s) {
     document.getElementById('sig-function').value    = s?.functionTitle || '';
     document.getElementById('sig-role').value        = s?.role          || '';
     document.getElementById('sig-isDefault').checked = s?.isDefault     || false;
+    const dpChk = document.getElementById('sig-canDienstplan');
+    if (dpChk) dpChk.checked = s?.canDienstplan || false;
     document.getElementById('signatoryForm').style.display = 'block';
     document.getElementById('signatoryForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -960,6 +968,7 @@ async function saveSignatory() {
             functionTitle: (document.getElementById('sig-function')?.value || '').trim() || null,
             role:          document.getElementById('sig-role')?.value               || null,
             isDefault:     !!document.getElementById('sig-isDefault')?.checked,
+            canDienstplan: !!document.getElementById('sig-canDienstplan')?.checked,
         };
         const url    = editingSignatoryId ? `/api/userbranch/${editingSignatoryId}` : '/api/userbranch';
         const method = editingSignatoryId ? 'PUT' : 'POST';

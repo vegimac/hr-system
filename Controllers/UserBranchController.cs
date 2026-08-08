@@ -34,6 +34,7 @@ public class UserBranchController : ControllerBase
                 uba.Role,
                 uba.FunctionTitle,
                 uba.IsDefault,
+                uba.CanDienstplan,
                 User = new
                 {
                     uba.User.Id,
@@ -83,7 +84,7 @@ public class UserBranchController : ControllerBase
         });
     }
 
-    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault);
+    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault, bool? CanDienstplan = null);
 
     // POST /api/userbranch
     // Sicherheit (Walter-Vorgabe 23.05.2026): Filial-Zugriffe vergeben/ändern nur
@@ -101,6 +102,7 @@ public class UserBranchController : ControllerBase
             // Aktualisieren statt doppelt anlegen
             existing.Role          = req.Role;
             existing.FunctionTitle = req.FunctionTitle;
+            if (req.CanDienstplan.HasValue) existing.CanDienstplan = req.CanDienstplan.Value;
             existing.IsDefault     = req.IsDefault;
             await _context.SaveChangesAsync();
             return Ok(existing);
@@ -113,6 +115,7 @@ public class UserBranchController : ControllerBase
             Role             = req.Role,
             FunctionTitle    = req.FunctionTitle,
             IsDefault        = req.IsDefault,
+            CanDienstplan    = req.CanDienstplan ?? false,
         };
         _context.UserBranchAccesses.Add(uba);
         await _context.SaveChangesAsync();
@@ -143,6 +146,7 @@ public class UserBranchController : ControllerBase
         uba.Role          = req.Role;
         uba.FunctionTitle = req.FunctionTitle;
         uba.IsDefault     = req.IsDefault;
+        if (req.CanDienstplan.HasValue) uba.CanDienstplan = req.CanDienstplan.Value;
         await _context.SaveChangesAsync();
         return Ok(uba);
     }

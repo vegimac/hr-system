@@ -15,6 +15,10 @@ public class UserBranchAccess
     /// <summary>Funktion/Titel in dieser Filiale, z.B. "Geschäftsführerin", "HR-Leiterin"</summary>
     public string? FunctionTitle { get; set; }
 
+    /// <summary>Darf diese Person den Manager-Dienstplan dieser Filiale planen
+    /// (Walter 08.08.2026)? Admin darf immer überall.</summary>
+    public bool CanDienstplan { get; set; }
+
     /// <summary>Ist diese Person der Standard-Unterzeichner für diese Filiale?</summary>
     public bool IsDefault { get; set; } = false;
 

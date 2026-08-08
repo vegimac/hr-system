@@ -88,6 +88,8 @@ public class AppDbContext : DbContext
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
     public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
     public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
+    public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
+    public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -814,6 +816,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Role).HasColumnName("role").HasMaxLength(50);
             entity.Property(e => e.FunctionTitle).HasColumnName("function_title").HasMaxLength(100);
             entity.Property(e => e.IsDefault).HasColumnName("is_default");
+            entity.Property(e => e.CanDienstplan).HasColumnName("can_dienstplan");
             entity.HasOne(e => e.User).WithMany(e => e.BranchAccess).HasForeignKey(e => e.UserId);
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
         });
@@ -1270,6 +1273,32 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.EmployeeId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Manager-Dienstplan (Walter 08.08.2026) ───────────────────────────
+        modelBuilder.Entity<ManagerDienstplanEntry>(entity =>
+        {
+            entity.ToTable("manager_dienstplan");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.HasIndex(e => new { e.EmployeeId, e.Datum }).IsUnique();
+        });
+        modelBuilder.Entity<DienstplanCode>(entity =>
+        {
+            entity.ToTable("dienstplan_code");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Farbe).HasColumnName("farbe");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
         });
 
         // ── MailboxDocument (Posteingang pro Filiale) ────────────────────────
