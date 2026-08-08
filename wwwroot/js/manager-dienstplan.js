@@ -242,7 +242,13 @@ async function _dpFlush() {
     } catch (_) { showToast('Verbindungsfehler.', 'error'); dpLoad(); }
 }
 
-function dpPrint() { window.print(); }
+// PDF A4 quer im Vorschaufenster (Drucken/Herunterladen aus dem Modal).
+function dpPdf() {
+    previewUrlFetch(
+        `/api/manager-dienstplan/pdf?year=${_dpYear}&month=${_dpMonth}`,
+        `Manager-Dienstplan_${_dpYear}-${String(_dpMonth).padStart(2, '0')}.pdf`,
+        ah());
+}
 
 // ── Einmal-Import aus der alten Excel «Manager DP 2026.xlsx» (admin) ─────
 function dpImportExcel() {

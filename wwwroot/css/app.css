@@ -11002,9 +11002,7 @@ body.theme-dark .dp-table thead th, body.theme-dark .dp-side { background:#1c2a4
 body.theme-dark .dp-name { background:rgba(8,18,34,0.6) !important; color:#e8edf4; }
 body.theme-dark .dp-we { background:rgba(255,255,255,0.05); }
 body.theme-dark .dp-cell { color:#e8edf4; }
-@media print {
-    .sidebar, .page-head, #langSwitcher, .dp-scroll { border:none; }
-    body * { visibility:hidden; }
-    #dpGrid, #dpGrid * { visibility:visible; }
-    #dpGrid { position:absolute; left:0; top:0; width:100%; }
-}
+/* Grid scrollt INTERN (nicht der page-body) — nur so bleiben die sticky
+   Datum-/Tag-Kopfzeilen und die Namensspalte beim Scrollen stehen.
+   (Der frühere @media-print-Hack ist raus — Drucken läuft übers PDF.) */
+.dp-scroll { max-height: calc(100vh - 245px); }

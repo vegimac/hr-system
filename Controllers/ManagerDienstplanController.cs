@@ -24,7 +24,12 @@ namespace HrSystem.Controllers;
 public class ManagerDienstplanController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public ManagerDienstplanController(AppDbContext db) => _db = db;
+    private readonly Services.ManagerDienstplanPdfService _pdf;
+    public ManagerDienstplanController(AppDbContext db, Services.ManagerDienstplanPdfService pdf)
+    {
+        _db = db;
+        _pdf = pdf;
+    }
 
     private int? GetUserId()
         => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
@@ -64,6 +69,45 @@ public class ManagerDienstplanController : ControllerBase
     {
         if (year < 2020 || year > 2100 || month < 1 || month > 12)
             return BadRequest(new { error = "PERIODE_UNGUELTIG" });
+        var (zeilen, filialen, codes) = await BuildMonthDataAsync(year, month);
+        return Ok(new
+        {
+            year, month,
+            filialen = filialen.Select(b => new { id = b.Id, code = b.Code, name = b.Name }),
+            zeilen = zeilen.Select(z => new
+            {
+                employeeId = z.EmployeeId,
+                vorname = z.Vorname,
+                nachname = z.Nachname,
+                companyProfileId = z.CompanyProfileId,
+                istGf = z.IstGf,
+                planbar = z.Planbar,
+                zellen = z.Zellen,
+                absenzen = z.Absenzen.Select(a => new
+                {
+                    typ = a.Typ,
+                    von = a.Von.ToString("yyyy-MM-dd"),
+                    bis = a.Bis.ToString("yyyy-MM-dd"),
+                }),
+            }),
+            codes = codes.Select(x => new { code = x.Code, bezeichnung = x.Bezeichnung, farbe = x.Farbe }),
+        });
+    }
+
+    /// <summary>Manager-Dienstplan als A4-quer-PDF (Walter-Vorgabe 09.08.2026).</summary>
+    [HttpGet("pdf")]
+    public async Task<IActionResult> GetPdf([FromQuery] int year, [FromQuery] int month)
+    {
+        if (year < 2020 || year > 2100 || month < 1 || month > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG" });
+        var (zeilen, filialen, codes) = await BuildMonthDataAsync(year, month);
+        var bytes = _pdf.Generate(year, month, zeilen, filialen, codes);
+        return File(bytes, "application/pdf", $"Manager-Dienstplan_{year}-{month:D2}.pdf");
+    }
+
+    private async Task<(List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes)>
+        BuildMonthDataAsync(int year, int month)
+    {
         var from = new DateOnly(year, month, 1);
         var to   = from.AddMonths(1).AddDays(-1);
         var fromDt = from.ToDateTime(TimeOnly.MinValue);
@@ -107,7 +151,7 @@ public class ManagerDienstplanController : ControllerBase
         var codes = await _db.DienstplanCodes.AsNoTracking()
             .Where(c => c.IsActive)
             .OrderBy(c => c.SortOrder)
-            .Select(c => new { c.Code, c.Bezeichnung, c.Farbe })
+            .Select(c => new DpCodeInfo(c.Code, c.Bezeichnung, c.Farbe))
             .ToListAsync();
 
         var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
@@ -117,33 +161,27 @@ public class ManagerDienstplanController : ControllerBase
             .OrderBy(x => branches.FirstOrDefault(b => b.Id == x.CompanyProfileId)?.RestaurantCode ?? "")
             .ThenByDescending(x => x.JobCode == "REST_MANAGER")
             .ThenBy(x => x.FirstName, StringComparer.OrdinalIgnoreCase)
-            .Select(x => new
-            {
-                employeeId = x.EmployeeId,
-                vorname = x.FirstName,
-                nachname = x.LastName,
-                istGf = x.JobCode == "REST_MANAGER",
-                companyProfileId = x.CompanyProfileId,
-                planbar = isAdmin || (x.CompanyProfileId.HasValue && planBranches.Contains(x.CompanyProfileId.Value)),
-                zellen = plan.Where(p => p.EmployeeId == x.EmployeeId)
+            .Select(x => new DpZeileInfo(
+                x.EmployeeId,
+                x.FirstName ?? "",
+                x.LastName ?? "",
+                x.CompanyProfileId,
+                x.JobCode == "REST_MANAGER",
+                isAdmin || (x.CompanyProfileId.HasValue && planBranches.Contains(x.CompanyProfileId.Value)),
+                plan.Where(p => p.EmployeeId == x.EmployeeId)
                     .ToDictionary(p => p.Datum.ToString("yyyy-MM-dd"), p => p.Code),
-                absenzen = absences.Where(a => a.EmployeeId == x.EmployeeId)
-                    .Select(a => new
-                    {
-                        typ = a.AbsenceType,
-                        von = (a.DateFrom < from ? from : a.DateFrom).ToString("yyyy-MM-dd"),
-                        bis = (a.DateTo > to ? to : a.DateTo).ToString("yyyy-MM-dd"),
-                    }).ToList(),
-            })
+                absences.Where(a => a.EmployeeId == x.EmployeeId)
+                    .Select(a => new DpAbsenzInfo(
+                        a.AbsenceType,
+                        a.DateFrom < from ? from : a.DateFrom,
+                        a.DateTo > to ? to : a.DateTo))
+                    .ToList()))
             .ToList();
 
-        return Ok(new
-        {
-            year, month,
-            filialen = branches.Select(b => new { b.Id, code = b.RestaurantCode, name = b.BranchName ?? b.City }),
-            zeilen,
-            codes,
-        });
+        var filialen = branches
+            .Select(b => new DpFilialeInfo(b.Id, b.RestaurantCode, b.BranchName ?? b.City))
+            .ToList();
+        return (zeilen, filialen, codes);
     }
 
     public class CellDto
@@ -457,3 +495,12 @@ public class ManagerDienstplanController : ControllerBase
         return d[a.Length, b.Length];
     }
 }
+
+// Geteilte Daten-Records für JSON-Grid UND PDF (ManagerDienstplanPdfService).
+public sealed record DpFilialeInfo(int Id, string? Code, string? Name);
+public sealed record DpAbsenzInfo(string Typ, DateOnly Von, DateOnly Bis);
+public sealed record DpCodeInfo(string Code, string? Bezeichnung, string? Farbe);
+public sealed record DpZeileInfo(
+    int EmployeeId, string Vorname, string Nachname, int? CompanyProfileId,
+    bool IstGf, bool Planbar,
+    Dictionary<string, string> Zellen, List<DpAbsenzInfo> Absenzen);

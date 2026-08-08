@@ -146,6 +146,8 @@ builder.Services.AddScoped<LohnSaldoListePdfService>();
 builder.Services.AddScoped<NachtEignungPdfService>();
 // AHV-Formular 318.260 «Anmeldung Versicherungsausweis» vorausgefüllt (Walter 06.08.2026).
 builder.Services.AddScoped<AhvAnmeldungPdfService>();
+// Manager-Dienstplan als A4-quer-PDF (Walter 09.08.2026, zustandslos).
+builder.Services.AddSingleton<ManagerDienstplanPdfService>();
 // Verzicht auf medizinische Untersuchung Nachtarbeit (Beilage-Layout).
 builder.Services.AddScoped<NachtVerzichtPdfService>();
 // Ausnahmeregelung Tag-/Nachtarbeit (Anlage zum Arbeitsvertrag), vorausgefüllt.
