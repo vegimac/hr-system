@@ -290,6 +290,82 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Absenzen-Probe (Walter 09.08.2026): easy@work publiziert keine API-Doku —
+    /// dieser read-only Probe-Lauf testet die plausiblen Absenz-Endpunkte
+    /// (Laravel-Konventionen, analog zu den bestätigten availabilities) auf
+    /// Customer- und MA-Ebene durch und liefert Status + Roh-JSON pro Pfad.
+    /// 404 = Endpunkt existiert nicht, 200 mit Daten = Treffer → auf dieser
+    /// Basis bauen wir dann den echten Absenz-Sync. Es wird NICHTS geschrieben.
+    /// </summary>
+    [HttpGet("debug/absence-probe")]
+    public async Task<IActionResult> AbsenceProbe(
+        [FromQuery] int companyProfileId, [FromQuery] string? number, CancellationToken ct)
+    {
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        // Optional: Personalnummer → easy@work-Employee-Id (für MA-Ebene-Pfade).
+        int? eid = null;
+        if (!string.IsNullOrWhiteSpace(number))
+        {
+            try
+            {
+                var eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct);
+                eid = eawList.FirstOrDefault(e => (e.Number ?? "").Trim() == number.Trim())?.Id;
+                if (eid == null)
+                    return NotFound(new { error = "NOT_IN_CUSTOMER", message = $"Personalnr. {number} nicht in easy@work-Customer {customerId} gefunden." });
+            }
+            catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        }
+
+        var pfade = new List<string>
+        {
+            $"customers/{customerId}/absences?per_page=5",
+            $"customers/{customerId}/absence_types?per_page=50",
+            $"customers/{customerId}/absencetypes?per_page=50",
+            $"customers/{customerId}/vacations?per_page=5",
+            $"customers/{customerId}/leaves?per_page=5",
+            $"customers/{customerId}/leave_requests?per_page=5",
+            $"customers/{customerId}/holidays?per_page=5",
+        };
+        if (eid.HasValue)
+        {
+            pfade.Add($"customers/{customerId}/employees/{eid}/absences?per_page=50");
+            pfade.Add($"customers/{customerId}/employees/{eid}/vacations?per_page=50");
+            pfade.Add($"customers/{customerId}/employees/{eid}/leaves?per_page=50");
+        }
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b.Length > 3000 ? b[..3000] + "…" : b; }
+        }
+
+        var results = new List<object>();
+        foreach (var p in pfade)
+        {
+            try
+            {
+                var (st, body) = await _client.GetRawAsync(p, ct);
+                results.Add(new { path = p, status = st, body = ParseBody(body) });
+            }
+            catch (Exception ex) { results.Add(new { path = p, status = -1, error = ex.Message }); }
+        }
+
+        return Ok(new
+        {
+            customerId,
+            easyAtWorkResourceId = eid,
+            hinweis = "Status 200 = Endpunkt existiert (Treffer). 404/405 = gibt es nicht. Auf Treffer-Basis bauen wir den Absenz-Sync.",
+            results,
+        });
+    }
+
+    /// <summary>
     /// Diagnose-Dump NACH easy@work-ID (Walter 29.06.2026): holt für eine direkt
     /// angegebene easy@work-employee-Id ALLE erreichbaren Roh-JSON-Antworten. Der
     /// passende Customer wird automatisch über ALLE gemappten Filialen gesucht

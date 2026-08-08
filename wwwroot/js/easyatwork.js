@@ -836,6 +836,26 @@ async function eawAvailabilityDump() {
     }
 }
 
+// Absenzen-Probe (Walter 09.08.2026): easy@work hat keine öffentliche API-Doku —
+// testet read-only die plausiblen Absenz-Endpunkte (absences / absence_types /
+// vacations / leaves …) auf Customer- und MA-Ebene durch. Personalnummer ist
+// optional (ohne Nummer nur Customer-Ebene). Status 200 = Endpunkt existiert.
+async function eawAbsenceProbe() {
+    const out = document.getElementById('eawDumpResult');
+    const number = (document.getElementById('eawDumpNumber')?.value || '').trim();
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { if (out) out.textContent = 'Bitte zuerst oben eine Filiale wählen.'; return; }
+    if (out) out.textContent = 'Absenz-Endpunkte werden durchgetestet…';
+    try {
+        const r = await fetch(`/api/easywork/debug/absence-probe?companyProfileId=${cpId}${number ? '&number=' + encodeURIComponent(number) : ''}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
 // API-Dump nach easy@work-ID: holt die Roh-Felder direkt für eine ID. Der
 // passende Customer wird serverseitig über alle gemappten Filialen gesucht —
 // so sieht Walter, welche Personalnummer easy@work für diese ID liefert.

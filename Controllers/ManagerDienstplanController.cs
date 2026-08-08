@@ -314,6 +314,14 @@ public class ManagerDienstplanController : ControllerBase
             .Select(a => new { a.EmployeeId, a.DateFrom, a.DateTo })
             .ToListAsync();
 
+        try
+        {
+        // Globaler Namens-Fallback: die Excel-Blöcke decken sich nicht 1:1 mit
+        // unseren Filialen («LANGENTHAL 2», «HENDSCHIKEN» im LENZBURG-Block) —
+        // wenn der Name im Block-Roster nicht gefunden wird, über ALLE FIX-M
+        // eindeutig matchen (Eintrag hängt ohnehin nur am MA, nicht an der Filiale).
+        var alleMas = roster.Select(x => (x.EmployeeId, x.FirstName ?? "", x.LastName ?? "")).ToList();
+
         var eintraege = new Dictionary<(int empId, DateOnly datum), string>();
         var matched = new List<object>();
         var matchedNames = new HashSet<string>();   // «SHEET|BRANCHZEILE|NAME» einmalig melden
@@ -359,11 +367,18 @@ public class ManagerDienstplanController : ControllerBase
                 if (row == null) continue;
                 var nameCell = CellText(row.GetCell(0)).Trim();
                 if (string.IsNullOrEmpty(nameCell)) continue;
+                // Zahlen-/Datums-Müll in der Namensspalte überspringen.
+                if (nameCell.All(ch => char.IsDigit(ch) || ch == '.' || ch == '-' || ch == ':' || ch == ' ')) continue;
 
-                // Filial-Header? (Ortsname in GROSSBUCHSTABEN, matcht City/BranchName)
+                // Filial-Header? (Ortsname in GROSSBUCHSTABEN; bidirektional, damit
+                // auch «LANGENTHAL 2» den Ort Langenthal trifft)
                 var br = branches.FirstOrDefault(b =>
-                    (!string.IsNullOrEmpty(b.City) && b.City.Contains(nameCell, StringComparison.OrdinalIgnoreCase))
-                    || (!string.IsNullOrEmpty(b.BranchName) && b.BranchName.Contains(nameCell, StringComparison.OrdinalIgnoreCase)));
+                    (!string.IsNullOrEmpty(b.City)
+                        && (b.City.Contains(nameCell, StringComparison.OrdinalIgnoreCase)
+                         || nameCell.Contains(b.City, StringComparison.OrdinalIgnoreCase)))
+                    || (!string.IsNullOrEmpty(b.BranchName)
+                        && (b.BranchName.Contains(nameCell, StringComparison.OrdinalIgnoreCase)
+                         || nameCell.Contains(b.BranchName, StringComparison.OrdinalIgnoreCase))));
                 if (br != null && nameCell == nameCell.ToUpperInvariant() && nameCell.Length >= 4)
                 {
                     curBranch = br;
@@ -374,8 +389,10 @@ public class ManagerDienstplanController : ControllerBase
                 }
                 if (curBranch == null) continue;   // Zeilen vor dem ersten Filial-Block (Supervisoren) überspringen
 
-                // MA-Match: exakt → Präfix (≥3) → Tippfehler-Toleranz (Levenshtein ≤ 2).
+                // MA-Match: exakt → Präfix (≥3) → Tippfehler-Toleranz (Levenshtein ≤ 2);
+                // erst im Block-Roster, dann eindeutig über alle FIX-M.
                 var empId = MatchName(nameCell, branchMas, out var maName);
+                if (empId == null) empId = MatchName(nameCell, alleMas, out maName);
                 var meldeKey = $"{curBranchLabel}|{nameCell}";
                 if (empId == null)
                 {
@@ -447,6 +464,13 @@ public class ManagerDienstplanController : ControllerBase
             uebersprungeneKuerzel = skippedCodes.OrderByDescending(kv => kv.Value).Select(kv => new { kuerzel = kv.Key, anzahl = kv.Value }),
             absenzGesperrt,
         });
+        }
+        catch (Exception ex)
+        {
+            // Fehler transparent machen — «Analyse fehlgeschlagen» ohne Grund
+            // hilft niemandem (Lehre 09.08.2026).
+            return StatusCode(500, new { error = "IMPORT_FEHLER", message = $"Import-Fehler: {ex.Message}" });
+        }
     }
 
     private static string CellText(NPOI.SS.UserModel.ICell? cell)
@@ -471,10 +495,12 @@ public class ManagerDienstplanController : ControllerBase
         var n = excelName.Trim();
         // 1) exakt (Vorname)
         var hit = mas.Where(m => string.Equals(m.FirstName, n, StringComparison.OrdinalIgnoreCase)).ToList();
-        // 2) Präfix in beide Richtungen (≥ 3 Zeichen)
+        // 2) Präfix in beide Richtungen (≥ 3 Zeichen; leere Vornamen ausschliessen —
+        //    n.StartsWith("") wäre sonst für JEDEN true)
         if (hit.Count == 0 && n.Length >= 3)
-            hit = mas.Where(m => m.FirstName.StartsWith(n, StringComparison.OrdinalIgnoreCase)
-                              || n.StartsWith(m.FirstName, StringComparison.OrdinalIgnoreCase)).ToList();
+            hit = mas.Where(m => m.FirstName.Length >= 3
+                              && (m.FirstName.StartsWith(n, StringComparison.OrdinalIgnoreCase)
+                               || n.StartsWith(m.FirstName, StringComparison.OrdinalIgnoreCase))).ToList();
         // 3) Tippfehler-Toleranz (Levenshtein ≤ 2 bei Namen ab 5 Zeichen)
         if (hit.Count == 0 && n.Length >= 5)
             hit = mas.Where(m => Levenshtein(m.FirstName.ToLowerInvariant(), n.ToLowerInvariant()) <= 2).ToList();

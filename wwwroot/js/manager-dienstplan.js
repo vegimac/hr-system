@@ -262,8 +262,10 @@ function dpImportExcel() {
         fd.append('file', f);
         showToast('Excel wird analysiert…', 'info');
         try {
+            // ACHTUNG: bei FormData KEIN ah() — das setzt Content-Type auf JSON
+            // und zerstört den Multipart-Boundary (Bug 09.08.2026). Nur Bearer.
             const res = await fetch(`/api/manager-dienstplan/import-excel?year=${_dpYear}&dryRun=true`, {
-                method: 'POST', headers: ah(), body: fd,
+                method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd,
             });
             const j = await res.json();
             if (!res.ok) { showToast(j.message || j.error || 'Analyse fehlgeschlagen.', 'error'); return; }
@@ -283,7 +285,7 @@ function dpImportExcel() {
                 const fd2 = new FormData();
                 fd2.append('file', f);
                 const res2 = await fetch(`/api/manager-dienstplan/import-excel?year=${_dpYear}&dryRun=false`, {
-                    method: 'POST', headers: ah(), body: fd2,
+                    method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd2,
                 });
                 const j2 = await res2.json().catch(() => ({}));
                 if (!res2.ok) { showToast(j2.message || 'Import fehlgeschlagen.', 'error'); return; }
