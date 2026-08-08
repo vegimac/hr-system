@@ -384,8 +384,12 @@ public class EmployeeQuellensteuerController : ControllerBase
             });
 
         // 3) Wechselstichtag = 1. Tag des Monats NACH dem Umzugsdatum
-        //    (Monatsregel Kreisschreiben 45, siehe Kommentar oben).
-        var stichtag  = new DateOnly(dto.UmzugsDatum.Year, dto.UmzugsDatum.Month, 1).AddMonths(1);
+        //    (Monatsregel Kreisschreiben 45). SPEZIALFALL Umzug am 1. des
+        //    Monats (Walter 08.08.2026): dann ist im alten Kanton NICHTS
+        //    angebrochen — der neue Kanton gilt ab genau diesem Tag.
+        var stichtag = dto.UmzugsDatum.Day == 1
+            ? dto.UmzugsDatum
+            : new DateOnly(dto.UmzugsDatum.Year, dto.UmzugsDatum.Month, 1).AddMonths(1);
         var letzterTagUmzugsmonat = stichtag.AddDays(-1);
 
         // 7) Lohnlauf-Edit-Lock — gleiches Soft-Lock-Muster wie Create/Update:

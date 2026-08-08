@@ -92,7 +92,12 @@ public class EmployeeWohnortController : ControllerBase
         // Massgebender ALTER Kanton = Steuerkanton der aktiven QST-Version
         // (Walter 08.08.2026): robust, egal ob die MA-Adresse schon von easy
         // überschrieben wurde (Pending) oder der Umzug manuell kommt.
-        var folgeMonatErster = new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
+        // Monatsregel KS 45 mit Monatserster-Spezialfall (Walter 08.08.2026):
+        // Umzug am 1. → KEIN angebrochener Monat, neuer Kanton gilt ab genau
+        // diesem Tag (alter bis Ende Vormonat). Sonst ab 1. des Folgemonats.
+        var folgeMonatErster = umzug.Day == 1
+            ? umzug
+            : new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
         var qstAlt = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId
                      && q.ValidFrom < folgeMonatErster

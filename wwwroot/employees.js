@@ -3943,14 +3943,27 @@ function qstUmzugUpdateInfo() {
         info.innerHTML = 'Bitte ein Umzugsdatum wählen.';
         return;
     }
-    const [y, m] = inp.value.split('-').map(Number);
-    const lastDay   = new Date(y, m, 0).getDate();                    // letzter Tag des Umzugsmonats
-    const fy        = m === 12 ? y + 1 : y;
-    const fm        = m === 12 ? 1     : m + 1;
-    const austritt  = `${String(lastDay).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
-    const eintritt  = `01.${String(fm).padStart(2, '0')}.${fy}`;
-    info.innerHTML = `Der ganze Umzugsmonat wird noch mit <b>${esc(_qstUmzugAlt || '?')}</b> abgerechnet (bis ${austritt});
-        <b>${esc(_qstUmzugNeu || '?')}</b> gilt ab <b>${eintritt}</b> (Monatsregel Kreisschreiben 45).<br>
+    const [y, m, d] = inp.value.split('-').map(Number);
+    let austritt, eintritt, satz;
+    if (d === 1) {
+        // Spezialfall Umzug am 1. (Walter 08.08.2026): kein angebrochener
+        // Monat — der neue Kanton gilt ab genau diesem Tag.
+        const py = m === 1 ? y - 1 : y;
+        const pm = m === 1 ? 12    : m - 1;
+        const plast = new Date(py, pm, 0).getDate();
+        austritt = `${String(plast).padStart(2, '0')}.${String(pm).padStart(2, '0')}.${py}`;
+        eintritt = `01.${String(m).padStart(2, '0')}.${y}`;
+        satz = `Umzug am Monatsersten — kein angebrochener Monat: <b>${esc(_qstUmzugNeu || '?')}</b> gilt ab <b>${eintritt}</b>, <b>${esc(_qstUmzugAlt || '?')}</b> bis ${austritt}.`;
+    } else {
+        const lastDay = new Date(y, m, 0).getDate();                  // letzter Tag des Umzugsmonats
+        const fy      = m === 12 ? y + 1 : y;
+        const fm      = m === 12 ? 1     : m + 1;
+        austritt = `${String(lastDay).padStart(2, '0')}.${String(m).padStart(2, '0')}.${y}`;
+        eintritt = `01.${String(fm).padStart(2, '0')}.${fy}`;
+        satz = `Der ganze Umzugsmonat wird noch mit <b>${esc(_qstUmzugAlt || '?')}</b> abgerechnet (bis ${austritt});
+        <b>${esc(_qstUmzugNeu || '?')}</b> gilt ab <b>${eintritt}</b> (Monatsregel Kreisschreiben 45).`;
+    }
+    info.innerHTML = `${satz}<br>
         Meldung an die Kantone: ${esc(_qstUmzugAlt || '?')} Austritt ${austritt}, ${esc(_qstUmzugNeu || '?')} Eintritt ${eintritt}.`;
 }
 
