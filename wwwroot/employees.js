@@ -14170,13 +14170,15 @@ function _umzugEnsureModal() {
         <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug bestätigen</div>
         <div id="umzugMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
         <div id="umzugPendingBox" style="margin-bottom:12px"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
-            <label style="${lbl}">Umzugsdatum<input id="umzugDatum" type="date" style="${inp}"></label>
-            <label style="${lbl}">Bemerkung <span style="font-weight:400">(optional)</span><input id="umzugBem" style="${inp}"></label>
-        </div>
-        <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:11.5px;color:#646464">
-            Bei einem <b>Kantonswechsel</b> wird die Quellensteuer automatisch versioniert:
-            der angebrochene Monat zahlt noch im alten Kanton, ab dem 1. des Folgemonats gilt der neue Kanton.
+        <div id="umzugFormBlock">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+                <label style="${lbl}">Umzugsdatum<input id="umzugDatum" type="date" style="${inp}"></label>
+                <label style="${lbl}">Bemerkung <span style="font-weight:400">(optional)</span><input id="umzugBem" style="${inp}"></label>
+            </div>
+            <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:11.5px;color:#646464">
+                Bei einem <b>Kantonswechsel</b> wird die Quellensteuer automatisch versioniert:
+                der angebrochene Monat zahlt noch im alten Kanton (Umzug am Monatsersten: neuer Kanton ab genau diesem Tag).
+            </div>
         </div>
         <div id="umzugHistorie" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
@@ -14230,8 +14232,10 @@ async function umzugLoadHistorie(empId) {
                     Kein offener Adresswechsel. Adressänderungen zuerst in <b>easy@work</b> erfassen und den MA synchronisieren.</div>`;
         }
         if (saveBtn) saveBtn.style.display = pending ? '' : 'none';
-        const datumEl = document.getElementById('umzugDatum');
-        if (datumEl) datumEl.disabled = !pending;
+        // Ohne offenen Wechsel gibt es nichts zu erfassen — Formular +
+        // Regel-Hinweis komplett ausblenden (Walter 08.08.2026).
+        const formBlock = document.getElementById('umzugFormBlock');
+        if (formBlock) formBlock.style.display = pending ? '' : 'none';
 
         if (!list.length) return;
         el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
