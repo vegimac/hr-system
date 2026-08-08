@@ -87,6 +87,7 @@ public class AppDbContext : DbContext
     public DbSet<CompanyDokument>           CompanyDokumente            => Set<CompanyDokument>();
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
     public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
+    public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1246,6 +1247,27 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.CompanyProfile)
                   .WithMany()
                   .HasForeignKey(e => e.CompanyProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Wohnort-Historie (Walter 07.08.2026, QST-Umzug) ──────────────────
+        modelBuilder.Entity<EmployeeWohnortHistory>(entity =>
+        {
+            entity.ToTable("employee_wohnort_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Plz).HasColumnName("plz");
+            entity.Property(e => e.Ort).HasColumnName("ort");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasOne(e => e.Employee)
+                  .WithMany()
+                  .HasForeignKey(e => e.EmployeeId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

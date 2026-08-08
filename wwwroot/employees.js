@@ -13648,6 +13648,7 @@ function _raTilesHtml() {
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
+        ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}
     </div>`;
 }
@@ -14105,4 +14106,126 @@ async function vwDelete(id) {
         if (!r.ok) { alert('Löschen fehlgeschlagen (' + r.status + ')'); return; }
         loadVerwarnungenTab(selectedEmployeeId);
     } catch (e) { alert('Netzwerkfehler: ' + e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  UMZUG ERFASSEN (Walter-Vorgabe 07.08.2026)
+//  Wohnort-Historie (PLZ/Ort/Kanton, gültig ab) + QST-Automatik:
+//  Kantonswechsel → alter Kanton bis Ende Umzugsmonat, neuer ab 1. des
+//  Folgemonats (angebrochener Monat zahlt im alten Kanton).
+// ══════════════════════════════════════════════════════════════════════
+let _umzugEmpId = null;
+
+function _umzugEnsureModal() {
+    if (document.getElementById('umzugModal')) return;
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
+    const div = document.createElement('div');
+    div.id = 'umzugModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.innerHTML = `
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug erfassen</div>
+        <div id="umzugMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:14px"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px">
+            <label style="${lbl}">Umzugsdatum<input id="umzugDatum" type="date" style="${inp}"></label>
+            <label style="${lbl}">Neue Strasse <span style="font-weight:400">(optional)</span><input id="umzugStrasse" style="${inp}"></label>
+            <label style="${lbl}">PLZ / Ort
+                <div style="display:flex;gap:8px">
+                    <input id="umzugPlz" oninput="if(/^\\d{4}$/.test(this.value.trim())&&typeof plzLookupGeneric==='function')plzLookupGeneric(this.value,'umzugOrt','umzugKanton',null,'umzugPlzHint')"
+                           style="${inp};width:80px;flex:none">
+                    <input id="umzugOrt" style="${inp}">
+                </div>
+                <div id="umzugPlzHint" style="font-size:11px;font-weight:400;margin-top:3px;min-height:14px"></div>
+            </label>
+            <label style="${lbl}">Kanton<input id="umzugKanton" maxlength="2" placeholder="AG, LU, …" style="${inp}"></label>
+            <label style="${lbl};grid-column:span 2">Bemerkung <span style="font-weight:400">(optional)</span><input id="umzugBem" style="${inp}"></label>
+        </div>
+        <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:8px 12px;margin-top:12px;font-size:11.5px;color:#646464">
+            Bei einem <b>Kantonswechsel</b> wird die Quellensteuer automatisch versioniert:
+            der angebrochene Monat zahlt noch im alten Kanton, ab dem 1. des Folgemonats gilt der neue Kanton.
+        </div>
+        <div id="umzugHistorie" style="margin-top:12px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+            <button onclick="document.getElementById('umzugModal').style.display='none'"
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+            <button id="umzugSaveBtn" onclick="umzugSave()"
+                    style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Umzug speichern</button>
+        </div>
+    </div>`;
+    div.addEventListener('click', (e) => { if (e.target === div) div.style.display = 'none'; });
+    document.body.appendChild(div);
+}
+
+async function openUmzugModal(empId) {
+    if (!empId) return;
+    _umzugEnsureModal();
+    _umzugEmpId = empId;
+    const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v ?? ''; };
+    ['umzugDatum','umzugStrasse','umzugPlz','umzugOrt','umzugKanton','umzugBem'].forEach(id => set(id, ''));
+    const hint = document.getElementById('umzugPlzHint');
+    if (hint) hint.innerHTML = '';
+    const nameEl = document.getElementById('umzugMaName');
+    if (nameEl && typeof selectedEmployee !== 'undefined' && selectedEmployee) {
+        nameEl.textContent = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''} — bisher ${selectedEmployee.zipCode || ''} ${selectedEmployee.city || ''} (${selectedEmployee.cantonCode || '–'})`;
+    }
+    document.getElementById('umzugModal').style.display = 'block';
+    umzugLoadHistorie(empId);
+}
+
+async function umzugLoadHistorie(empId) {
+    const el = document.getElementById('umzugHistorie');
+    if (!el) return;
+    el.innerHTML = '';
+    try {
+        const res = await fetch(`/api/employees/${empId}/wohnort`, { headers: ah(), cache: 'no-store' });
+        if (!res.ok) return;
+        const list = await res.json();
+        if (!list.length) return;
+        const f = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
+        el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
+            + list.map(h => `<div style="font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+                ${h.plz || ''} ${h.ort || ''} <b>${h.kantonCode || ''}</b>
+                <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
+            </div>`).join('');
+    } catch (_) { /* Historie optional */ }
+}
+
+async function umzugSave() {
+    const val = (id) => document.getElementById(id)?.value?.trim() || null;
+    const body = {
+        umzugsdatum: val('umzugDatum'),
+        plz: val('umzugPlz'),
+        ort: val('umzugOrt'),
+        kanton: (val('umzugKanton') || '').toUpperCase() || null,
+        strasse: val('umzugStrasse'),
+        bemerkung: val('umzugBem'),
+    };
+    if (!body.umzugsdatum) { showToast('Bitte Umzugsdatum wählen.', 'error'); return; }
+    if (!body.plz || !body.ort || !body.kanton) { showToast('PLZ, Ort und Kanton sind Pflicht.', 'error'); return; }
+    const btn = document.getElementById('umzugSaveBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/umzug`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (typeof lohnEditLock !== 'undefined' && await lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            let msg = 'Umzug speichern fehlgeschlagen.';
+            try { const j = await res.json(); if (j.message) msg = j.message; } catch (_) {}
+            showToast(msg, 'error');
+            return;
+        }
+        const d = await res.json();
+        document.getElementById('umzugModal').style.display = 'none';
+        showToast('Umzug erfasst.' + (d.qstInfo ? ' ' + d.qstInfo : ''), 'success');
+        // MA neu laden, damit Adresse/QST-Tab den neuen Stand zeigen.
+        if (typeof selectEmployee === 'function' && _umzugEmpId) selectEmployee(_umzugEmpId);
+    } catch (_) {
+        showToast('Verbindungsfehler beim Speichern.', 'error');
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#3f3f3f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Umzugswagen (Sketch-Stil) -->
+  <rect x="6" y="22" width="30" height="20" rx="2"/>
+  <path d="M36 28h10l8 8v6H36z"/>
+  <circle cx="16" cy="47" r="4.5"/>
+  <circle cx="45" cy="47" r="4.5"/>
+  <path d="M6 42h5M20.5 47H40.5M49.5 47H54v-5"/>
+  <!-- Karton im Wagen -->
+  <rect x="12" y="28" width="9" height="9"/>
+  <path d="M12 32.5h9M16.5 28v9"/>
+  <!-- Haus-Andeutung -->
+  <path d="M46 20l7-6 7 6M48.5 18.5V24h9v-5.5"/>
+</svg>

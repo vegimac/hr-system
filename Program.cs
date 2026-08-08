@@ -2843,6 +2843,24 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile_empfaenger
             ADD COLUMN IF NOT EXISTS gueltig_ab date;
     ");
+
+    // ── Wohnort-Historie (Walter 07.08.2026): PLZ/Ort/Kanton mit Gültig-ab —
+    // Umzugs-Zeitpunkt für die QST (Kantonswechsel wirkt ab Folgemonat).
+    // Doku-Migration: migrations-archive/add_employee_wohnort_history.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS employee_wohnort_history (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            plz         text,
+            ort         text,
+            kanton_code text,
+            gueltig_ab  date,
+            bemerkung   text,
+            created_at  timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_wohnort_history_employee
+            ON employee_wohnort_history (employee_id);
+    ");
 }
 
 // Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE
