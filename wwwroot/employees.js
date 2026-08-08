@@ -14181,6 +14181,8 @@ async function openUmzugModal(empId) {
     umzugLoadHistorie(empId);
 }
 
+let _umzugHist = [];
+
 async function umzugLoadHistorie(empId) {
     const el = document.getElementById('umzugHistorie');
     if (!el) return;
@@ -14189,13 +14191,25 @@ async function umzugLoadHistorie(empId) {
         const res = await fetch(`/api/employees/${empId}/wohnort`, { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
         const list = await res.json();
+        _umzugHist = list;
         if (!list.length) return;
         const f = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
+        const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
         el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
-            + list.map(h => `<div style="font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
-                ${h.plz || ''} ${h.ort || ''} <b>${h.kantonCode || ''}</b>
-                <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
-                ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
+            + list.map(h => `<div id="umzugRow-${h.id}" style="display:flex;align-items:center;gap:8px;font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+                <div style="flex:1;min-width:0">
+                    ${h.plz || ''} ${h.ort || ''} <b>${h.kantonCode || ''}</b>
+                    <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
+                    ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
+                </div>
+                ${isAdmin ? `
+                <div style="position:relative;display:inline-block;flex-shrink:0">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'umzug-${h.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-umzug-${h.id}">
+                        <button class="dok-menu-item" onclick="dokCloseAllMenus();umzugEntryEdit(${h.id})">Bearbeiten</button>
+                        <button class="dok-menu-item danger" onclick="dokCloseAllMenus();umzugEntryDelete(${h.id})">Löschen</button>
+                    </div>
+                </div>` : ''}
             </div>`).join('');
         // Offener easy@work-Umzug: Felder vorbefüllen — Walter muss nur noch
         // das echte Umzugsdatum setzen und speichern (bestätigt den Eintrag).
@@ -14209,6 +14223,59 @@ async function umzugLoadHistorie(empId) {
             if (hint) hint.innerHTML = '<span style="color:#b45309">Neue Adresse kam aus easy@work — bitte Umzugsdatum bestätigen.</span>';
         }
     } catch (_) { /* Historie optional */ }
+}
+
+// Admin-Korrektur eines Historie-Eintrags (Walter 08.08.2026, v.a. Test-
+// Aufräumen): Inline-Edit direkt in der Zeile, keine QST-Seiteneffekte.
+function umzugEntryEdit(id) {
+    const h = _umzugHist.find(x => x.id === id);
+    const row = document.getElementById('umzugRow-' + id);
+    if (!h || !row) return;
+    const inp = 'padding:4px 7px;border:1px solid rgba(60,55,48,0.18);border-radius:7px;font-size:12px;background:#fff;color:#3f3f3f';
+    row.innerHTML = `
+        <input id="uzE-plz-${id}" value="${(h.plz || '').replace(/"/g, '&quot;')}" placeholder="PLZ" style="${inp};width:52px">
+        <input id="uzE-ort-${id}" value="${(h.ort || '').replace(/"/g, '&quot;')}" placeholder="Ort" style="${inp};flex:1;min-width:80px">
+        <input id="uzE-kt-${id}" value="${(h.kantonCode || '').replace(/"/g, '&quot;')}" maxlength="2" placeholder="KT" style="${inp};width:38px">
+        <input id="uzE-ab-${id}" type="date" value="${h.gueltigAb || ''}" title="leer = seit jeher" style="${inp}">
+        <button onclick="umzugEntrySave(${id})" style="background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:4px 10px;font-size:11.5px;font-weight:600;cursor:pointer">✓</button>
+        <button onclick="umzugLoadHistorie(_umzugEmpId)" style="background:transparent;border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:8px;padding:4px 9px;font-size:11.5px;cursor:pointer">✕</button>`;
+}
+
+async function umzugEntrySave(id) {
+    const v = (x) => document.getElementById('uzE-' + x + '-' + id)?.value?.trim() ?? '';
+    const abVal = v('ab');
+    try {
+        const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/${id}`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plz: v('plz') || null,
+                ort: v('ort') || null,
+                kanton: v('kt') || null,
+                gueltigAb: abVal,            // '' = seit jeher
+                datumOffen: abVal ? false : undefined,  // Datum gesetzt = bestätigt
+            }),
+        });
+        if (!res.ok) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
+        showToast('Eintrag angepasst.', 'success');
+        umzugLoadHistorie(_umzugEmpId);
+    } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+}
+
+async function umzugEntryDelete(id) {
+    const h = _umzugHist.find(x => x.id === id);
+    const ok = await liquidConfirm(
+        `Historie-Eintrag «${h?.plz || ''} ${h?.ort || ''}» löschen? (reine Datenkorrektur — QST-Versionen bleiben unberührt)`,
+        { title: 'Eintrag löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const res = await fetch(`/api/employees/${_umzugEmpId}/wohnort/${id}`, {
+            method: 'DELETE', headers: ah(),
+        });
+        if (!res.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
+        showToast('Eintrag gelöscht.', 'success');
+        umzugLoadHistorie(_umzugEmpId);
+    } catch (_) { showToast('Verbindungsfehler.', 'error'); }
 }
 
 async function umzugSave() {

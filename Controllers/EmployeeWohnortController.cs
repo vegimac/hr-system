@@ -218,6 +218,41 @@ public class EmployeeWohnortController : ControllerBase
         });
     }
 
+    /// <summary>Historie-Eintrag korrigieren (Admin — v.a. zum Testen/Aufräumen).
+    /// Reine Datenkorrektur, KEINE QST-Seiteneffekte.</summary>
+    [Authorize(Roles = "admin")]
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateEntry(int employeeId, int id, [FromBody] WohnortEntryDto dto)
+    {
+        var h = await _db.EmployeeWohnortHistories
+            .FirstOrDefaultAsync(x => x.Id == id && x.EmployeeId == employeeId);
+        if (h == null) return NotFound();
+        if (!string.IsNullOrWhiteSpace(dto.Plz)) h.Plz = dto.Plz.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Ort)) h.Ort = dto.Ort.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Kanton)) h.KantonCode = dto.Kanton.Trim().ToUpperInvariant();
+        // GueltigAb: leerer String = «seit jeher» (NULL); fehlend = unverändert.
+        if (dto.GueltigAb != null)
+            h.GueltigAb = DateOnly.TryParse(dto.GueltigAb, out var ab) ? ab : null;
+        if (dto.DatumOffen.HasValue) h.DatumOffen = dto.DatumOffen.Value;
+        if (dto.Bemerkung != null)
+            h.Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        await _db.SaveChangesAsync();
+        return Ok(new { h.Id });
+    }
+
+    /// <summary>Historie-Eintrag löschen (Admin).</summary>
+    [Authorize(Roles = "admin")]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteEntry(int employeeId, int id)
+    {
+        var h = await _db.EmployeeWohnortHistories
+            .FirstOrDefaultAsync(x => x.Id == id && x.EmployeeId == employeeId);
+        if (h == null) return NotFound();
+        _db.EmployeeWohnortHistories.Remove(h);
+        await _db.SaveChangesAsync();
+        return Ok(new { deleted = true });
+    }
+
     private static string? KantonName(string code) => code switch
     {
         "AG" => "Aargau", "AI" => "Appenzell Innerrhoden", "AR" => "Appenzell Ausserrhoden",
@@ -229,6 +264,17 @@ public class EmployeeWohnortController : ControllerBase
         "VS" => "Wallis", "ZG" => "Zug", "ZH" => "Zürich",
         _ => null,
     };
+}
+
+public class WohnortEntryDto
+{
+    public string? Plz { get; set; }
+    public string? Ort { get; set; }
+    public string? Kanton { get; set; }
+    /// <summary>ISO yyyy-MM-dd; leerer String = «seit jeher»; null = unverändert.</summary>
+    public string? GueltigAb { get; set; }
+    public bool? DatumOffen { get; set; }
+    public string? Bemerkung { get; set; }
 }
 
 public class UmzugDto
