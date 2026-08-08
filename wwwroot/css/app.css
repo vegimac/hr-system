@@ -10990,6 +10990,8 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
 .dp-table thead th { background:#f6f3ee; font-weight:700; color:#646464; position:sticky; top:0; z-index:2; }
 .dp-side { position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important; padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dp-name { font-weight:600; color:#3f3f3f; background:#fff !important; }
+.dp-gf { font-weight:800; }
+body.theme-dark .dp-gf { color:#fff !important; }
 .dp-we { background:#efece6; }
 .dp-branch td { background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px; letter-spacing:.4px; text-align:left; padding:3px 8px; }
 .dp-cell { font-weight:700; color:#3f3f3f; user-select:none; }

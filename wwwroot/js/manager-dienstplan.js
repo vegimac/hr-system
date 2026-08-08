@@ -25,6 +25,9 @@ function dpInit() {
         _dpYear = now.getFullYear();
         _dpMonth = now.getMonth() + 1;
     }
+    // Excel-Import nur für admin sichtbar.
+    const impBtn = document.getElementById('dpImportBtn');
+    if (impBtn) impBtn.style.display = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin') ? '' : 'none';
     dpLoad();
 }
 
@@ -109,7 +112,7 @@ function dpRender() {
             const f = (d.filialen || []).find(x => x.id === z.companyProfileId);
             body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td><td colspan="${tage}"></td></tr>`;
         }
-        let row = `<td class="dp-side dp-name" title="${esc(z.vorname)} ${esc(z.nachname)}">${esc(z.vorname)}</td>`;
+        let row = `<td class="dp-side dp-name${z.istGf ? ' dp-gf' : ''}" title="${esc(z.vorname)} ${esc(z.nachname)}${z.istGf ? ' — Geschäftsführer/in' : ''}">${esc(z.vorname)}${z.istGf ? ' ★' : ''}</td>`;
         for (let t = 1; t <= tage; t++) {
             const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
             const dt = new Date(_dpYear, _dpMonth - 1, t);
@@ -240,3 +243,68 @@ async function _dpFlush() {
 }
 
 function dpPrint() { window.print(); }
+
+// ── Einmal-Import aus der alten Excel «Manager DP 2026.xlsx» (admin) ─────
+function dpImportExcel() {
+    const inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = '.xlsx';
+    inp.onchange = async () => {
+        const f = inp.files?.[0];
+        if (!f) return;
+        const fd = new FormData();
+        fd.append('file', f);
+        showToast('Excel wird analysiert…', 'info');
+        try {
+            const res = await fetch(`/api/manager-dienstplan/import-excel?year=${_dpYear}&dryRun=true`, {
+                method: 'POST', headers: ah(), body: fd,
+            });
+            const j = await res.json();
+            if (!res.ok) { showToast(j.message || j.error || 'Analyse fehlgeschlagen.', 'error'); return; }
+            const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+            const un = (j.unmatched || []).map(u => `<li>${esc(u.name)} <span style="color:#8b8b8b">(${esc(u.filiale)})</span></li>`).join('');
+            const sk = (j.uebersprungeneKuerzel || []).map(k => `${esc(k.kuerzel)} (${k.anzahl}×)`).join(', ');
+            const html = `
+                <div style="font-size:13px;color:#3f3f3f;line-height:1.55">
+                    <p><b>${j.eintraege}</b> Plan-Einträge für ${j.year} erkannt,
+                       <b>${(j.matched || []).length}</b> Manager zugeordnet.</p>
+                    ${un ? `<p style="color:#991b1b"><b>Nicht zugeordnet</b> (werden übersprungen):</p><ul style="margin:4px 0 8px 18px">${un}</ul>` : ''}
+                    ${sk ? `<p style="color:#8b8b8b">Übersprungene Excel-Kürzel (nicht im Katalog, Absenzen kommen aus dem System): ${sk}</p>` : ''}
+                    ${j.absenzGesperrt ? `<p style="color:#8b8b8b">${j.absenzGesperrt} Tage durch System-Absenzen belegt — übersprungen.</p>` : ''}
+                    <p>Bestehende Plan-Einträge ${j.year} werden dabei überschrieben. Importieren?</p>
+                </div>`;
+            _dpShowImportModal(html, async () => {
+                const fd2 = new FormData();
+                fd2.append('file', f);
+                const res2 = await fetch(`/api/manager-dienstplan/import-excel?year=${_dpYear}&dryRun=false`, {
+                    method: 'POST', headers: ah(), body: fd2,
+                });
+                const j2 = await res2.json().catch(() => ({}));
+                if (!res2.ok) { showToast(j2.message || 'Import fehlgeschlagen.', 'error'); return; }
+                showToast(`${j2.eintraege} Einträge importiert.`, 'success');
+                dpLoad();
+            });
+        } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+    };
+    inp.click();
+}
+
+function _dpShowImportModal(bodyHtml, onOk) {
+    document.getElementById('dpImportModal')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'dpImportModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:560px;width:100%;max-height:80vh;overflow:auto;padding:20px 22px">
+            <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:10px">Excel-Import — Vorschau</div>
+            ${bodyHtml}
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+                <button id="dpImpCancel" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+                <button id="dpImpOk" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Importieren</button>
+            </div>
+        </div>`;
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+    document.getElementById('dpImpCancel').onclick = () => ov.remove();
+    document.getElementById('dpImpOk').onclick = () => { ov.remove(); onOk(); };
+}
