@@ -134,7 +134,18 @@ public class EmployeeWohnortController : ControllerBase
         if (!string.IsNullOrWhiteSpace(dto.Bemerkung)) offenerWechsel.Bemerkung = dto.Bemerkung.Trim();
 
         // 3) QST-Folge-Version bei Kantonswechsel.
-        if (kantonswechsel && qstAlt != null)
+        // Dedupe (Walter 08.08.2026): wurde der Wechsel schon über den
+        // QST-Tab-Dialog erfasst (Version mit neuem Kanton ab Folgemonat
+        // existiert), keine zweite Version anlegen.
+        bool qstSchonVersioniert = kantonswechsel && await _db.EmployeeQuellensteuer
+            .AnyAsync(q => q.EmployeeId == employeeId
+                        && q.ValidFrom == folgeMonatErster
+                        && q.Steuerkanton == neuerKanton);
+        if (qstSchonVersioniert)
+        {
+            qstInfo = $"QST-Kantonswechsel war bereits erfasst ({neuerKanton} ab {folgeMonatErster:dd.MM.yyyy}) — keine neue Version.";
+        }
+        else if (kantonswechsel && qstAlt != null)
         {
             var monatsende = folgeMonatErster.AddDays(-1);
             qstAlt.ValidTo = monatsende;

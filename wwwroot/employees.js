@@ -3833,6 +3833,24 @@ function renderQstUmzugBanner(entries) {
     const wohn = String(emp.cantonCode).trim().toUpperCase();
     const qstK = String(cur.steuerkanton).trim().toUpperCase();
     if (!wohn || !qstK || wohn === qstK) return '';
+    // Kantonswechsel BEREITS erfasst (Walter 08.08.2026): existiert eine
+    // künftige Version mit dem Wohnkanton (z.B. via Umzugsdatum-Bestätigung
+    // im Wohnort-Dialog), grünen Info-Banner zeigen statt nochmal zu fordern.
+    const dNow = new Date();
+    const todayIso = `${dNow.getFullYear()}-${String(dNow.getMonth() + 1).padStart(2, '0')}-${String(dNow.getDate()).padStart(2, '0')}`;
+    const erfasst = (entries || []).find(e =>
+        String(e.steuerkanton || '').trim().toUpperCase() === wohn
+        && (e.validFrom || '') > todayIso);
+    if (erfasst) {
+        const f = (iso) => `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.${String(iso).slice(0, 4)}`;
+        return `
+        <div style="background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
+            <span style="font-size:16px">✅</span>
+            <div style="font-size:12.5px;color:#166534">
+                <b>Kantonswechsel erfasst:</b> Umzugsmonat noch ${esc(qstK)}, <b>${esc(wohn)}</b> gilt ab <b>${f(erfasst.validFrom)}</b> (Kreisschreiben 45).
+            </div>
+        </div>`;
+    }
     return `
     <div style="background:#fff7ed;border:1px solid #fdba74;border-left:4px solid #ea580c;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:18px">🚚</span>
