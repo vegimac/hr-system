@@ -73,6 +73,10 @@ function dpRender() {
     const wd = ['So','Mo','Di','Mi','Do','Fr','Sa'];
 
     // Absenz-Lookup pro MA/Tag vorbereiten.
+    // ACHTUNG: NIE toISOString() fürs Kalenderdatum — das ist UTC und schiebt
+    // in Zürich jeden Tag um 1 zurück (Bug 09.08.2026: Ferien bis 9.8. wurden
+    // nur bis 8.8. gemalt). Lokal formatieren.
+    const localIso = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
     const absMap = {};   // empId → { 'yyyy-mm-dd': typ }
     for (const z of d.zeilen) {
         const m = {};
@@ -80,7 +84,7 @@ function dpRender() {
             let cur = new Date(a.von + 'T00:00:00');
             const end = new Date(a.bis + 'T00:00:00');
             while (cur <= end) {
-                m[cur.toISOString().slice(0, 10)] = a.typ;
+                m[localIso(cur)] = a.typ;
                 cur.setDate(cur.getDate() + 1);
             }
         }
