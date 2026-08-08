@@ -25,6 +25,11 @@ public class EmployeeWohnortHistory
     /// <summary>NULL = «seit jeher» (initialer Eintrag aus der Bestandsadresse).</summary>
     public DateOnly? GueltigAb { get; set; }
 
+    /// <summary>true = Adresse kam aus easy@work, das UMZUGSDATUM ist noch
+    /// nicht bestätigt (GueltigAb = Sync-Tag als Platzhalter). Dashboard-ToDo
+    /// «Umzugsdatum bestätigen»; die QST-Automatik läuft erst bei Bestätigung.</summary>
+    public bool DatumOffen { get; set; }
+
     public string? Bemerkung { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;

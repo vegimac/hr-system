@@ -14,3 +14,13 @@ CREATE TABLE IF NOT EXISTS employee_wohnort_history (
 );
 CREATE INDEX IF NOT EXISTS ix_wohnort_history_employee
     ON employee_wohnort_history (employee_id);
+
+-- Nachtrag 08.08.2026: Adresswechsel aus easy@work → Datum-offen-Flag +
+-- Dashboard-Warnung «Umzugsdatum bestätigen (QST)».
+ALTER TABLE employee_wohnort_history
+    ADD COLUMN IF NOT EXISTS datum_offen boolean NOT NULL DEFAULT false;
+INSERT INTO dashboard_warning_config
+    (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+VALUES
+    ('umzug_datum_offen', 'Umzugsdatum bestätigen (QST)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 27, 17, 'red')
+ON CONFLICT (category) DO NOTHING;

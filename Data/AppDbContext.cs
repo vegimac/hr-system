@@ -1261,6 +1261,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Ort).HasColumnName("ort");
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.DatumOffen).HasColumnName("datum_offen");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");

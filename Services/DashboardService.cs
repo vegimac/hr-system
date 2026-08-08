@@ -870,6 +870,43 @@ public class DashboardService
             }
         }
 
+        // ── 3c.v) Umzugsdatum bestätigen (Walter 08.08.2026) ───────────────
+        // easy@work hat eine neue Adresse mit PLZ/Ort-Wechsel geliefert —
+        // Walter muss das echte Umzugsdatum bestätigen (erst dann läuft die
+        // QST-Kantonswechsel-Automatik).
+        if (Enabled("umzug_datum_offen"))
+        {
+            var offenQ = _db.EmployeeWohnortHistories.AsNoTracking()
+                .Where(h => h.DatumOffen && h.Employee!.IsActive
+                         && !h.Employee!.IsHidden && !h.Employee!.IsPayrollExcluded);
+            if (companyProfileId.HasValue)
+                offenQ = offenQ.Where(h => h.Employee!.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            var offene = await offenQ
+                .Select(h => new
+                {
+                    h.EmployeeId, h.Plz, h.Ort, h.KantonCode,
+                    h.Employee!.FirstName, h.Employee!.LastName, h.Employee!.EmployeeNumber,
+                    altKanton = h.Employee!.CantonCode,
+                })
+                .ToListAsync();
+            foreach (var h in offene)
+            {
+                var uzName = $"{h.FirstName} {h.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "umzug_datum_offen",
+                    Severity = SeverityState("umzug_datum_offen", "warning"),
+                    Title    = "Umzugsdatum bestätigen (QST)",
+                    Subtitle = $"{uzName} · Personalnr. {h.EmployeeNumber} · neue Adresse {h.Plz} {h.Ort} ({h.KantonCode}) aus easy@work — Umzugsdatum im MA-Detail (Kachel «Umzug erfassen») bestätigen",
+                    EmployeeId     = h.EmployeeId,
+                    EmployeeNumber = h.EmployeeNumber,
+                    EmployeeName   = uzName
+                });
+            }
+        }
+
         // ── 3d) Aktive Schwangerschaften (Walter-Vorgabe 10.06.2026) ───────
         // Pro aktive Schwangerschaft eine Info-Card mit Geburtstermin und
         // einer kurzen Liste „aktuell erlaubt/nicht erlaubt" — die wird live

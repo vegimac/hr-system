@@ -54,6 +54,7 @@ public class EmployeeWohnortController : ControllerBase
                 h.Id, h.Plz, h.Ort, kantonCode = h.KantonCode,
                 gueltigAb = h.GueltigAb?.ToString("yyyy-MM-dd"),
                 gueltigBis = bis?.ToString("yyyy-MM-dd"),
+                datumOffen = h.DatumOffen,
                 h.Bemerkung,
             });
         }
@@ -72,7 +73,25 @@ public class EmployeeWohnortController : ControllerBase
             return BadRequest(new { error = "PLZ_ORT_KANTON_PFLICHT" });
 
         var neuerKanton = dto.Kanton.Trim().ToUpperInvariant();
-        var alterKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
+        // Alter Kanton: beim BESTÄTIGEN eines easy@work-Pendings ist die
+        // MA-Adresse schon die NEUE — der Vergleichswert kommt dann aus dem
+        // Historie-Vorgänger (letzter bestätigter Eintrag).
+        var pendingExists = await _db.EmployeeWohnortHistories
+            .AnyAsync(h => h.EmployeeId == employeeId && h.DatumOffen);
+        string alterKanton;
+        if (pendingExists)
+        {
+            var vorgaenger = await _db.EmployeeWohnortHistories
+                .Where(h => h.EmployeeId == employeeId && !h.DatumOffen)
+                .OrderByDescending(h => h.GueltigAb != null).ThenByDescending(h => h.GueltigAb)
+                .Select(h => h.KantonCode)
+                .FirstOrDefaultAsync();
+            alterKanton = (vorgaenger ?? emp.CantonCode ?? "").Trim().ToUpperInvariant();
+        }
+        else
+        {
+            alterKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
+        }
         bool kantonswechsel = !string.IsNullOrEmpty(alterKanton) && alterKanton != neuerKanton;
 
         // QST-Folge-Version vorbereiten (VOR dem Schreiben prüfen, damit der
@@ -110,26 +129,43 @@ public class EmployeeWohnortController : ControllerBase
             }
         }
 
-        // 1) Historie: initialen Bestand sichern, dann neuen Eintrag.
-        bool hatHistorie = await _db.EmployeeWohnortHistories
-            .AnyAsync(h => h.EmployeeId == employeeId);
-        if (!hatHistorie)
+        // 1) Historie: offenen easy@work-Eintrag BESTÄTIGEN (Datum setzen)
+        //    oder — beim manuellen Umzug — Bestand sichern + neuen Eintrag.
+        var pending = await _db.EmployeeWohnortHistories
+            .Where(h => h.EmployeeId == employeeId && h.DatumOffen)
+            .OrderByDescending(h => h.Id)
+            .FirstOrDefaultAsync();
+        if (pending != null)
         {
+            pending.Plz = dto.Plz.Trim();
+            pending.Ort = dto.Ort.Trim();
+            pending.KantonCode = neuerKanton;
+            pending.GueltigAb = umzug;
+            pending.DatumOffen = false;
+            if (!string.IsNullOrWhiteSpace(dto.Bemerkung)) pending.Bemerkung = dto.Bemerkung.Trim();
+        }
+        else
+        {
+            bool hatHistorie = await _db.EmployeeWohnortHistories
+                .AnyAsync(h => h.EmployeeId == employeeId);
+            if (!hatHistorie)
+            {
+                _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
+                {
+                    EmployeeId = employeeId,
+                    Plz = emp.ZipCode, Ort = emp.City, KantonCode = emp.CantonCode,
+                    GueltigAb = null,
+                    Bemerkung = "Bestandsadresse (automatisch beim ersten Umzug)",
+                });
+            }
             _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
             {
                 EmployeeId = employeeId,
-                Plz = emp.ZipCode, Ort = emp.City, KantonCode = emp.CantonCode,
-                GueltigAb = null,
-                Bemerkung = "Bestandsadresse (automatisch beim ersten Umzug)",
+                Plz = dto.Plz.Trim(), Ort = dto.Ort.Trim(), KantonCode = neuerKanton,
+                GueltigAb = umzug,
+                Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
             });
         }
-        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
-        {
-            EmployeeId = employeeId,
-            Plz = dto.Plz.Trim(), Ort = dto.Ort.Trim(), KantonCode = neuerKanton,
-            GueltigAb = umzug,
-            Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
-        });
 
         // 2) Aktuelle Adresse nachziehen.
         emp.ZipCode = dto.Plz.Trim();

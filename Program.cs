@@ -2860,6 +2860,16 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_wohnort_history_employee
             ON employee_wohnort_history (employee_id);
+        ALTER TABLE employee_wohnort_history
+            ADD COLUMN IF NOT EXISTS datum_offen boolean NOT NULL DEFAULT false;
+    ");
+    // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('umzug_datum_offen', 'Umzugsdatum bestätigen (QST)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 27, 17, 'red')
+        ON CONFLICT (category) DO NOTHING;
     ");
 }
 

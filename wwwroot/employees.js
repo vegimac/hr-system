@@ -14187,7 +14187,19 @@ async function umzugLoadHistorie(empId) {
             + list.map(h => `<div style="font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
                 ${h.plz || ''} ${h.ort || ''} <b>${h.kantonCode || ''}</b>
                 <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
+                ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
             </div>`).join('');
+        // Offener easy@work-Umzug: Felder vorbefüllen — Walter muss nur noch
+        // das echte Umzugsdatum setzen und speichern (bestätigt den Eintrag).
+        const pending = list.find(h => h.datumOffen);
+        if (pending) {
+            const set = (id, v) => { const el2 = document.getElementById(id); if (el2 && !el2.value) el2.value = v ?? ''; };
+            set('umzugPlz', pending.plz);
+            set('umzugOrt', pending.ort);
+            set('umzugKanton', pending.kantonCode);
+            const hint = document.getElementById('umzugPlzHint');
+            if (hint) hint.innerHTML = '<span style="color:#b45309">Neue Adresse kam aus easy@work — bitte Umzugsdatum bestätigen.</span>';
+        }
     } catch (_) { /* Historie optional */ }
 }
 

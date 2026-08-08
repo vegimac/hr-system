@@ -89,6 +89,7 @@ const DASH_CATEGORY_META = {
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
     qst_kanton_mismatch:    { label: 'QST-Kanton ≠ Wohnkanton', icon: '🧾', color: '#991b1b' },
     ahv_nummer_fehlt:       { label: 'AHV-Nummer fehlt',        icon: '🆔', color: '#b91c1c' },
+    umzug_datum_offen:      { label: 'Umzugsdatum bestätigen',  icon: '🚚', color: '#b45309' },
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
