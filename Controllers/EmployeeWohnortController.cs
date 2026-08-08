@@ -73,40 +73,23 @@ public class EmployeeWohnortController : ControllerBase
             return BadRequest(new { error = "PLZ_ORT_KANTON_PFLICHT" });
 
         var neuerKanton = dto.Kanton.Trim().ToUpperInvariant();
-        // Alter Kanton: beim BESTÄTIGEN eines easy@work-Pendings ist die
-        // MA-Adresse schon die NEUE — der Vergleichswert kommt dann aus dem
-        // Historie-Vorgänger (letzter bestätigter Eintrag).
-        var pendingExists = await _db.EmployeeWohnortHistories
-            .AnyAsync(h => h.EmployeeId == employeeId && h.DatumOffen);
-        string alterKanton;
-        if (pendingExists)
-        {
-            var vorgaenger = await _db.EmployeeWohnortHistories
-                .Where(h => h.EmployeeId == employeeId && !h.DatumOffen)
-                .OrderByDescending(h => h.GueltigAb != null).ThenByDescending(h => h.GueltigAb)
-                .Select(h => h.KantonCode)
-                .FirstOrDefaultAsync();
-            alterKanton = (vorgaenger ?? emp.CantonCode ?? "").Trim().ToUpperInvariant();
-        }
-        else
-        {
-            alterKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
-        }
+
+        // Massgebender ALTER Kanton = Steuerkanton der aktiven QST-Version
+        // (Walter 08.08.2026): robust, egal ob die MA-Adresse schon von easy
+        // überschrieben wurde (Pending) oder der Umzug manuell kommt.
+        var folgeMonatErster = new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
+        var qstAlt = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId
+                     && q.ValidFrom < folgeMonatErster
+                     && (q.ValidTo == null || q.ValidTo >= umzug))
+            .OrderByDescending(q => q.ValidFrom)
+            .FirstOrDefaultAsync();
+        var alterKanton = (qstAlt?.Steuerkanton ?? emp.CantonCode ?? "").Trim().ToUpperInvariant();
         bool kantonswechsel = !string.IsNullOrEmpty(alterKanton) && alterKanton != neuerKanton;
 
-        // QST-Folge-Version vorbereiten (VOR dem Schreiben prüfen, damit der
-        // Umzug bei Lock komplett abbricht statt halb erfasst zu sein).
-        var folgeMonatErster = new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
-        EmployeeQuellensteuer? qstAlt = null;
         string? qstInfo = null;
         if (kantonswechsel)
         {
-            qstAlt = await _db.EmployeeQuellensteuer
-                .Where(q => q.EmployeeId == employeeId
-                         && q.ValidFrom < folgeMonatErster
-                         && (q.ValidTo == null || q.ValidTo >= umzug))
-                .OrderByDescending(q => q.ValidFrom)
-                .FirstOrDefaultAsync();
             if (qstAlt != null)
             {
                 // Soft-Lock wie Verträge/QST-Versionen.

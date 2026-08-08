@@ -1861,6 +1861,14 @@ async function easyworkSyncSelectedEmployee(empId) {
         else if (typeof showToast === 'function')
             showToast(upd.length ? 'Daten aktualisiert' : 'Keine Änderungen', 'success');
 
+        // Adresswechsel aus easy@work (Walter 08.08.2026): sofort den
+        // Umzugs-Dialog öffnen — Umzugsdatum bestätigen, QST folgt automatisch.
+        if (upd.includes('Wohnort-Historie (Umzugsdatum bestätigen)')
+            && typeof openUmzugModal === 'function') {
+            showToast('Neue Adresse aus easy@work — bitte Umzugsdatum bestätigen.', 'success');
+            openUmzugModal(empId);
+        }
+
         // Schwangerschaft in easy@work gelöscht → in OneCrew nachfragen
         // (Walter-Vorgabe 27.07.2026). Kein Auto-Delete.
         const orphans = data.orphanedPregnancies || [];
