@@ -25,9 +25,6 @@ function dpInit() {
         _dpYear = now.getFullYear();
         _dpMonth = now.getMonth() + 1;
     }
-    // Excel-Import nur für admin sichtbar.
-    const impBtn = document.getElementById('dpImportBtn');
-    if (impBtn) impBtn.style.display = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin') ? '' : 'none';
     dpLoad();
 }
 

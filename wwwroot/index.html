@@ -2930,7 +2930,8 @@
                     <span style="flex:1"></span>
                     <button onclick="dpOpenSchulferien()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulferien</button>
                     <button onclick="dpOpenFeiertage()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎉 Feiertage</button>
-                    <button id="dpImportBtn" onclick="dpImportExcel()" style="display:none;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">⬆ Excel übernehmen</button>
+                    <!-- Excel-Einmal-Import: UI entfernt (Walter 09.08.2026, Migration erledigt).
+                         dpImportExcel() + Backend-Endpoint bleiben als Code erhalten. -->
                     <button onclick="dpPdf()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">📄 PDF</button>
                 </div>
                 <div class="page-body">
@@ -7746,7 +7747,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260726d"></script>
 <script src="js/global-search.js?v=20260719b"></script>
-<script src="js/help-panel.js?v=20260803i"></script>
+<script src="js/help-panel.js?v=20260809a"></script>
 <script src="js/i18n.js?v=20260729a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
@@ -8800,7 +8801,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
 <script src="js/akis-meldung.js?v=20260806d"></script>
-<script src="js/manager-dienstplan.js?v=20260809p"></script>
+<script src="js/manager-dienstplan.js?v=20260809q"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
