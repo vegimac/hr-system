@@ -105,10 +105,10 @@ function dpRender() {
         dayRow += `<th${cls}>${String(t).padStart(2, '0')}</th>`;
         wdRow  += `<th${cls}>${wd[dt.getDay()]}</th>`;
     }
-    // Summen-Spalten F/M/S ganz rechts (Titel in der Tag-Zeile).
-    kwRow  += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
-    dayRow += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
-    wdRow  += '<th class="dp-sum dp-sumfirst">F</th><th class="dp-sum">M</th><th class="dp-sum">S</th></tr>';
+    // Auswertungs-Spalten ganz rechts: F | M | S | frei | WE (Walter 09.08.2026).
+    kwRow  += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
+    dayRow += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
+    wdRow  += '<th class="dp-sum dp-sumfirst">F</th><th class="dp-sum">M</th><th class="dp-sum">S</th><th class="dp-sum" title="Anzahl freie Tage (-)">frei</th><th class="dp-sum" title="OK = mind. 1× Samstag/Sonntag frei">WE</th></tr>';
 
     // Feiertage + Schulferien pro Filiale/Tag (Walter 09.08.2026).
     const ftByCp = {};   // cpId → { iso: bezeichnung }
@@ -145,7 +145,7 @@ function dpRender() {
                 const tip = [ft, sf].filter(Boolean).join(' · ');
                 brCells += `<td class="dp-brday${cls}"${tip ? ` data-tip="${esc(`${_dpFmtD(iso)} — ${tip}`)}"` : ''}>${ft ? '★' : ''}</td>`;
             }
-            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}<td class="dp-sumfirst"></td><td></td><td></td></tr>`;
+            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}<td class="dp-sumfirst"></td><td></td><td></td><td></td><td></td></tr>`;
         }
         // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
         const anzName = z.vorname + (z.nachname ? ` ${z.nachname.charAt(0)}.` : '');
@@ -165,20 +165,21 @@ function dpRender() {
                 const cd = (d.codes || []).find(c => c.code === code);
                 const bg = cd?.farbe ? `background:${cd.farbe};` : '';
                 const ft = (ftByCp[z.companyProfileId] || {})[iso];
-                const ftCls = ft && !cd?.farbe ? ' dp-ftday' : '';
-                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/IV/P), Leertaste rotiert' : '');
+                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/IV/P)' : '');
                 const title = ft ? `${ft}${baseTitle ? ' — ' + baseTitle : ''}` : baseTitle;
                 const click = z.planbar
                     ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
                     : ` style="${bg}"`;
-                row += `<td class="dp-cell${moCls}${ftCls}"${click} id="dp-${z.employeeId}-${iso}" title="${esc(title)}">${esc(code)}</td>`;
+                row += `<td class="dp-cell${moCls}"${click} id="dp-${z.employeeId}-${iso}" title="${esc(title)}">${esc(code)}</td>`;
             }
         }
-        // Summen F/M/S des Monats ganz rechts (wie in der alten Excel).
+        // Auswertung ganz rechts: F | M | S | frei | WE-OK.
         const sums = _dpRowSums(z);
         row += `<td class="dp-sum dp-sumfirst" id="dp-sum-${z.employeeId}-F">${sums.F || ''}</td>
                 <td class="dp-sum" id="dp-sum-${z.employeeId}-M">${sums.M || ''}</td>
-                <td class="dp-sum" id="dp-sum-${z.employeeId}-S">${sums.S || ''}</td>`;
+                <td class="dp-sum" id="dp-sum-${z.employeeId}-S">${sums.S || ''}</td>
+                <td class="dp-sum" id="dp-sum-${z.employeeId}-frei">${sums.frei || ''}</td>
+                <td class="dp-sum dp-weok" id="dp-sum-${z.employeeId}-we">${sums.weOk ? 'OK' : ''}</td>`;
         body += `<tr>${row}</tr>`;
     }
 
@@ -270,7 +271,8 @@ function dpCellKey(ev, empId, iso) {
     const nav = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0], Enter: [1, 0] };
     if (nav[ev.key]) { ev.preventDefault(); _dpMove(empId, iso, nav[ev.key][0], nav[ev.key][1]); return; }
     if (ev.key === 'Backspace' || ev.key === 'Delete') { ev.preventDefault(); _dpBuf = ''; _dpApply(empId, iso, ''); return; }
-    if (ev.key === ' ') { ev.preventDefault(); dpCellRotate(empId, iso); return; }
+    // Leertaste = Zelle leeren + weiter (erstellt KEINEN Eintrag; Walter 09.08.2026).
+    if (ev.key === ' ') { ev.preventDefault(); _dpBuf = ''; _dpApply(empId, iso, ''); _dpMove(empId, iso, 0, 1); return; }
     if (ev.key.length !== 1 || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     ev.preventDefault();
     const ch = ev.key.toUpperCase() === '−' ? '-' : ev.key.toUpperCase();
@@ -301,11 +303,24 @@ function _dpMove(empId, iso, dr, dc) {
     }
 }
 
-// F/M/S-Zähler einer Zeile (nur geplante Kürzel; Absenzen zählen nicht).
+// Auswertung einer Zeile: F/M/S-Dienste, freie Tage («-») und WE-Kontrolle —
+// OK sobald mind. EIN Samstag/Sonntag frei («-») oder in den Ferien war.
 function _dpRowSums(zeile) {
-    const c = { F: 0, M: 0, S: 0 };
-    for (const v of Object.values(zeile.zellen || {}))
-        if (c[v] !== undefined) c[v]++;
+    const isWe = (iso) => { const g = new Date(iso + 'T00:00:00').getDay(); return g === 0 || g === 6; };
+    const c = { F: 0, M: 0, S: 0, frei: 0, weOk: false };
+    for (const [iso, v] of Object.entries(zeile.zellen || {})) {
+        if (c[v] !== undefined && v.length === 1) c[v]++;
+        if (v === '-') { c.frei++; if (isWe(iso)) c.weOk = true; }
+    }
+    for (const a of (zeile.absenzen || [])) {
+        if (a.typ !== 'FERIEN') continue;
+        let cur = new Date(a.von + 'T00:00:00');
+        const end = new Date(a.bis + 'T00:00:00');
+        while (cur <= end && !c.weOk) {
+            if (cur.getDay() === 0 || cur.getDay() === 6) c.weOk = true;
+            cur.setDate(cur.getDate() + 1);
+        }
+    }
     return c;
 }
 
@@ -313,10 +328,12 @@ function _dpUpdateSums(empId) {
     const zeile = _dpData?.zeilen.find(z => z.employeeId === empId);
     if (!zeile) return;
     const sums = _dpRowSums(zeile);
-    for (const k of ['F', 'M', 'S']) {
+    for (const k of ['F', 'M', 'S', 'frei']) {
         const cell = document.getElementById(`dp-sum-${empId}-${k}`);
         if (cell) cell.textContent = sums[k] || '';
     }
+    const we = document.getElementById(`dp-sum-${empId}-we`);
+    if (we) we.textContent = sums.weOk ? 'OK' : '';
 }
 
 // Anzeige sofort aktualisieren, Speichern leicht verzögert (bündelt S→SK→SKM zu EINEM PUT).
@@ -330,7 +347,7 @@ function _dpApply(empId, iso, code) {
         const cd = (_dpData.codes || []).find(c => c.code === code);
         cell.textContent = code;
         cell.style.background = cd?.farbe || '';
-        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV/P), Leertaste rotiert';
+        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV/P), Leertaste leert';
     }
     _dpUpdateSums(empId);
     if (_dpPendTimer) clearTimeout(_dpPendTimer);

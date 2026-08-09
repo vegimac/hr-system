@@ -98,10 +98,12 @@ public class ManagerDienstplanPdfService
                     {
                         cols.ConstantColumn(78);
                         for (int t = 1; t <= tage; t++) cols.RelativeColumn();
-                        // Summen-Spalten F/M/S ganz rechts (wie in der alten Excel).
+                        // Auswertungs-Spalten F | M | S | frei | WE (Walter 09.08.2026).
                         cols.ConstantColumn(16);
                         cols.ConstantColumn(16);
                         cols.ConstantColumn(16);
+                        cols.ConstantColumn(18);
+                        cols.ConstantColumn(20);
                     });
 
                     // Kopf: Datum + Wochentag. Wochenende NUR hier schattiert;
@@ -113,9 +115,8 @@ public class ManagerDienstplanPdfService
                         for (int t = 1; t <= tage; t++)
                             h.Cell().Element(x => KopfZelle(x, istWe[t], istMo[t]))
                                 .Text(t.ToString("00")).Bold().FontColor("#646464");
-                        h.Cell().Element(x => KopfZelle(x, false, true));
-                        h.Cell().Element(x => KopfZelle(x, false, false));
-                        h.Cell().Element(x => KopfZelle(x, false, false));
+                        for (int i = 0; i < 5; i++)
+                            h.Cell().Element(x => KopfZelle(x, false, i == 0));
                         h.Cell().Element(x => KopfZelle(x, false, false)).AlignLeft().PaddingLeft(3)
                             .Text("Tag").Bold().FontColor("#646464");
                         for (int t = 1; t <= tage; t++)
@@ -125,6 +126,8 @@ public class ManagerDienstplanPdfService
                         h.Cell().Element(x => KopfZelle(x, false, true)).Text("F").Bold().FontColor("#646464");
                         h.Cell().Element(x => KopfZelle(x, false, false)).Text("M").Bold().FontColor("#646464");
                         h.Cell().Element(x => KopfZelle(x, false, false)).Text("S").Bold().FontColor("#646464");
+                        h.Cell().Element(x => KopfZelle(x, false, false)).Text("frei").Bold().FontColor("#646464").FontSize(5.5f);
+                        h.Cell().Element(x => KopfZelle(x, false, false)).Text("WE").Bold().FontColor("#646464").FontSize(5.5f);
                     });
 
                     int? lastCp = null;
@@ -148,9 +151,7 @@ public class ManagerDienstplanPdfService
                                 table.Cell().Background(bgBr).AlignCenter().AlignMiddle()
                                     .Text("").FontSize(6);
                             }
-                            table.Cell().Background(Dunkel).Text("");
-                            table.Cell().Background(Dunkel).Text("");
-                            table.Cell().Background(Dunkel).Text("");
+                            for (int i = 0; i < 5; i++) table.Cell().Background(Dunkel).Text("");
                         }
 
                         // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
@@ -179,23 +180,37 @@ public class ManagerDienstplanPdfService
                             }
                             z.Zellen.TryGetValue(iso, out var code);
                             var farbe = codes.FirstOrDefault(x => x.Code == code)?.Farbe;
-                            bool istFt = ftMap.ContainsKey((z.CompanyProfileId ?? -1, t));
-                            // Wochenende NICHT mehr im Grid färben (nur Kopf).
-                            var bg = farbe ?? (istFt ? "#fdeaea" : null);
-                            if (bg != null) basis = basis.Background(bg);
+                            // Wochenende + Feiertag NICHT im Grid färben (nur Kopf/Filialzeile).
+                            if (farbe != null) basis = basis.Background(farbe);
                             basis.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
                                 .Text(code ?? "").Bold();
                         }
 
-                        // Summen F/M/S des Monats (nur geplante Kürzel).
+                        // Auswertung: F/M/S-Dienste, freie Tage («-»), WE-Kontrolle
+                        // (OK = mind. ein Sa/So frei oder in den Ferien).
                         int SumOf(string k) => z.Zellen.Values.Count(v => v == k);
-                        foreach (var (k, erste) in new[] { ("F", true), ("M", false), ("S", false) })
+                        bool weOk = false;
+                        for (int t = 1; t <= tage && !weOk; t++)
+                        {
+                            if (!istWe[t]) continue;
+                            var iso = $"{year:D4}-{month:D2}-{t:D2}";
+                            if ((z.Zellen.TryGetValue(iso, out var c2) && c2 == "-")
+                                || (abs.TryGetValue(t, out var at) && at == "FERIEN"))
+                                weOk = true;
+                        }
+                        foreach (var (txt, erste, gruen) in new[]
+                        {
+                            (SumOf("F") > 0 ? SumOf("F").ToString() : "", true, false),
+                            (SumOf("M") > 0 ? SumOf("M").ToString() : "", false, false),
+                            (SumOf("S") > 0 ? SumOf("S").ToString() : "", false, false),
+                            (SumOf("-") > 0 ? SumOf("-").ToString() : "", false, false),
+                            (weOk ? "OK" : "", false, true),
+                        })
                         {
                             var sc = table.Cell().Border(0.5f).BorderColor(Rand).Background(KopfBg);
                             if (erste) sc = sc.BorderLeft(1.6f);
-                            var n = SumOf(k);
                             sc.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
-                                .Text(n > 0 ? n.ToString() : "").Bold();
+                                .Text(txt).Bold().FontColor(gruen ? "#166534" : "#1a1a1a").FontSize(gruen ? 5.5f : 6.5f);
                         }
                     }
                 });
