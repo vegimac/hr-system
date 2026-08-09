@@ -627,7 +627,11 @@ public class ManagerDienstplanController : ControllerBase
         return Ok(new { ok = true });
     }
 
-    /// <summary>Best-effort-Textnachricht ins MA-Postfach des Managers (wie Lohnanpassung).</summary>
+    /// <summary>
+    /// Best-effort-Textnachricht ins FILIAL-Postfach der Heimatfiliale des
+    /// Managers (Walter-Vorgabe 09.08.2026: nicht-persönliche Nachrichten
+    /// gehen immer an die Filiale — dort sehen es GF und Team im Posteingang).
+    /// </summary>
     private async Task TryPostfachNachrichtAsync(InterviewFenster f, string text)
     {
         try
@@ -647,7 +651,7 @@ public class ManagerDienstplanController : ControllerBase
                 MessageBody = text,
                 EmployeeId = f.EmployeeId,
                 NotifyUserId = null,
-                TargetType = "EMPLOYEE",
+                TargetType = "BRANCH",
             });
             await _db.SaveChangesAsync();
         }
