@@ -88,7 +88,9 @@ public class ManagerDienstplanPdfService
                         .Text($"Stand {DateTime.Now:dd.MM.yyyy HH:mm}").FontSize(7).FontColor("#646464");
                 });
 
-                page.Content().Table(table =>
+                // Immer EINE A4-quer-Seite (Walter 09.08.2026): ScaleToFit
+                // verkleinert das ganze Grid, bis es auf die Seite passt.
+                page.Content().ScaleToFit().Table(table =>
                 {
                     table.ColumnsDefinition(cols =>
                     {
