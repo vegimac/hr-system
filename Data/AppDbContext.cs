@@ -93,6 +93,7 @@ public class AppDbContext : DbContext
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
+    public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1331,6 +1332,22 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Datum });
+        });
+        modelBuilder.Entity<InterviewTermin>(entity =>
+        {
+            entity.ToTable("interview_termin");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FensterId).HasColumnName("fenster_id");
+            entity.Property(e => e.VonZeit).HasColumnName("von_zeit");
+            entity.Property(e => e.Kandidat).HasColumnName("kandidat");
+            entity.Property(e => e.Telefon).HasColumnName("telefon");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.FensterId);
         });
         modelBuilder.Entity<BranchSchulferien>(entity =>
         {

@@ -74,6 +74,28 @@ public class InterviewFenster
 }
 
 /// <summary>
+/// Gebuchtes Vorstellungsgespräch (Walter-Vorgabe 09.08.2026, Stufe 2):
+/// HR bucht in einem <see cref="InterviewFenster"/> einen 30-Minuten-Slot
+/// (Raster 45 Min = 30 Gespräch + 15 Puffer, verankert am Fensterstart).
+/// ABGESAGT gibt den Slot wieder frei (Historie bleibt).
+/// </summary>
+public class InterviewTermin
+{
+    public int Id { get; set; }
+    public int FensterId { get; set; }
+    /// <summary>Slot-Start; Ende = Start + 30 Minuten.</summary>
+    public TimeOnly VonZeit { get; set; }
+    public string Kandidat { get; set; } = "";
+    public string? Telefon { get; set; }
+    public string? Bemerkung { get; set; }
+    /// <summary>GEPLANT | ABGESAGT</summary>
+    public string Status { get; set; } = "GEPLANT";
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    /// <summary>Anzeigename des Buchers (aus JWT, nie aus dem Body).</summary>
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>
 /// Schulferien pro Filiale (Walter-Vorgabe 09.08.2026) — Anzeige-Band in der
 /// Filial-Zeile des Manager-Dienstplans (wie «Sportferien» in der alten Excel).
 /// </summary>

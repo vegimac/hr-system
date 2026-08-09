@@ -412,12 +412,31 @@ public class ManagerDienstplanController : ControllerBase
             .Select(c => new { c.Id, c.WorkLocation, c.City, c.BranchName })
             .ToListAsync();
 
+        // Gebuchte Termine (GEPLANT) aller Fenster in einem Rutsch.
+        var fensterIds = fenster.Select(f => f.Id).ToList();
+        var termine = await _db.InterviewTermine.AsNoTracking()
+            .Where(t => fensterIds.Contains(t.FensterId) && t.Status == "GEPLANT")
+            .ToListAsync();
+
         var result = new List<object>();
         foreach (var f in fenster)
         {
             var cpId = await HomeBranchAsync(f.EmployeeId, f.Datum);
             var b = branches.FirstOrDefault(x => x.Id == cpId);
             namen.TryGetValue(f.EmployeeId, out var n);
+            var slots = BerechneSlots(f.VonZeit, f.BisZeit).Select(s =>
+            {
+                var t = termine.FirstOrDefault(x => x.FensterId == f.Id && x.VonZeit == s.von);
+                return new
+                {
+                    von = s.von.ToString("HH:mm"),
+                    bis = s.bis.ToString("HH:mm"),
+                    terminId = t?.Id,
+                    kandidat = t?.Kandidat,
+                    telefon = t?.Telefon,
+                    terminBemerkung = t?.Bemerkung,
+                };
+            }).ToList();
             result.Add(new
             {
                 f.Id,
@@ -429,9 +448,30 @@ public class ManagerDienstplanController : ControllerBase
                 von = f.VonZeit.ToString("HH:mm"),
                 bis = f.BisZeit.ToString("HH:mm"),
                 f.Bemerkung,
+                slots,
             });
         }
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Slot-Raster eines Fensters: 30 Min Gespräch + 15 Min Puffer (= 45er-
+    /// Raster, verankert am Fensterstart). 15:00–17:00 → 15:00, 15:45, 16:30.
+    /// </summary>
+    private static List<(TimeOnly von, TimeOnly bis)> BerechneSlots(TimeOnly von, TimeOnly bis)
+    {
+        var slots = new List<(TimeOnly, TimeOnly)>();
+        var t = von;
+        while (true)
+        {
+            var ende = t.AddMinutes(30);
+            if (ende < t || ende > bis) break;   // Fenster voll oder Mitternachts-Wrap
+            slots.Add((t, ende));
+            var next = t.AddMinutes(45);
+            if (next <= t) break;
+            t = next;
+        }
+        return slots;
     }
 
     /// <summary>Geplante Arbeitstage (F/M/S) eines Managers ab heute — für das Tag-Dropdown.</summary>
@@ -509,9 +549,112 @@ public class ManagerDienstplanController : ControllerBase
             if (!cpId.HasValue || !planBranches.Contains(cpId.Value))
                 return StatusCode(403, new { error = "KEIN_PLANRECHT", message = "Kein Planungsrecht für die Filiale dieses Managers." });
         }
+        // Fenster mit gebuchten Gesprächen kann nicht gelöscht werden —
+        // HR muss die Termine zuerst absagen (Kandidaten sind informiert!).
+        bool hatTermine = await _db.InterviewTermine.AnyAsync(t => t.FensterId == id && t.Status == "GEPLANT");
+        if (hatTermine)
+            return Conflict(new
+            {
+                error = "TERMINE_VORHANDEN",
+                message = "In diesem Fenster sind bereits Gespräche gebucht — bitte HR kontaktieren, damit die Termine zuerst abgesagt werden.",
+            });
         _db.InterviewFenster.Remove(f);
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
+    }
+
+    // ── Termin-Buchung durch HR (Stufe 2, Walter 09.08.2026) ─────────────
+    public class InterviewTerminDto
+    {
+        public int FensterId { get; set; }
+        public string? Von { get; set; }       // Slot-Start HH:mm (muss im Raster liegen)
+        public string? Kandidat { get; set; }
+        public string? Telefon { get; set; }
+        public string? Bemerkung { get; set; }
+    }
+
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("interview-termin")]
+    public async Task<IActionResult> AddInterviewTermin([FromBody] InterviewTerminDto dto)
+    {
+        var f = await _db.InterviewFenster.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.FensterId);
+        if (f == null) return NotFound(new { error = "FENSTER_FEHLT" });
+        if (f.Datum < DateOnly.FromDateTime(DateTime.Now))
+            return Conflict(new { error = "FENSTER_VERGANGEN", message = "Dieses Zeitfenster liegt in der Vergangenheit." });
+        if (string.IsNullOrWhiteSpace(dto.Kandidat))
+            return BadRequest(new { error = "KANDIDAT_FEHLT", message = "Kandidatenname angeben." });
+        if (!TimeOnly.TryParse(dto.Von, out var von))
+            return BadRequest(new { error = "ZEIT_UNGUELTIG" });
+        if (!BerechneSlots(f.VonZeit, f.BisZeit).Any(s => s.von == von))
+            return BadRequest(new { error = "SLOT_UNGUELTIG", message = "Startzeit liegt nicht im 45-Minuten-Raster des Fensters." });
+        bool belegt = await _db.InterviewTermine.AnyAsync(t =>
+            t.FensterId == f.Id && t.VonZeit == von && t.Status == "GEPLANT");
+        if (belegt)
+            return Conflict(new { error = "SLOT_BELEGT", message = "Dieser Slot ist bereits gebucht." });
+
+        var (_, _, name) = await GetPlanRechteAsync();
+        _db.InterviewTermine.Add(new InterviewTermin
+        {
+            FensterId = f.Id,
+            VonZeit = von,
+            Kandidat = dto.Kandidat.Trim(),
+            Telefon = string.IsNullOrWhiteSpace(dto.Telefon) ? null : dto.Telefon.Trim(),
+            Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
+            Status = "GEPLANT",
+            CreatedAt = DateTime.Now,
+            CreatedBy = name,
+        });
+        await _db.SaveChangesAsync();
+        await TryPostfachNachrichtAsync(f,
+            $"HR hat ein Vorstellungsgespräch gebucht: {f.Datum:dd.MM.yyyy}, {von:HH\\:mm}–{von.AddMinutes(30):HH\\:mm} — Kandidat/in: {dto.Kandidat.Trim()}"
+            + (string.IsNullOrWhiteSpace(dto.Bemerkung) ? "" : $" ({dto.Bemerkung.Trim()})"));
+        return Ok(new { ok = true });
+    }
+
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("interview-termin/{id:int}/absagen")]
+    public async Task<IActionResult> AbsagenInterviewTermin(int id)
+    {
+        var t = await _db.InterviewTermine.FirstOrDefaultAsync(x => x.Id == id);
+        if (t == null) return NotFound();
+        if (t.Status == "ABGESAGT") return Ok(new { ok = true });
+        t.Status = "ABGESAGT";
+        await _db.SaveChangesAsync();
+        var f = await _db.InterviewFenster.AsNoTracking().FirstOrDefaultAsync(x => x.Id == t.FensterId);
+        if (f != null)
+            await TryPostfachNachrichtAsync(f,
+                $"HR hat das Vorstellungsgespräch vom {f.Datum:dd.MM.yyyy} um {t.VonZeit:HH\\:mm} (Kandidat/in {t.Kandidat}) abgesagt.");
+        return Ok(new { ok = true });
+    }
+
+    /// <summary>Best-effort-Textnachricht ins MA-Postfach des Managers (wie Lohnanpassung).</summary>
+    private async Task TryPostfachNachrichtAsync(InterviewFenster f, string text)
+    {
+        try
+        {
+            var cpId = await HomeBranchAsync(f.EmployeeId, f.Datum);
+            if (!cpId.HasValue) return;
+            _db.MailboxDocuments.Add(new MailboxDocument
+            {
+                CompanyProfileId = cpId.Value,
+                UploadedBy = GetUserId(),
+                UploadedAt = DateTime.Now,
+                OriginalFilename = $"Vorstellungsgespräch {f.Datum:dd.MM.yyyy}",
+                StorageFilename = $"msg-{Guid.NewGuid():N}",
+                MimeType = null,
+                FileSizeBytes = null,
+                Bemerkung = "Vorstellungsgespräch",
+                MessageBody = text,
+                EmployeeId = f.EmployeeId,
+                NotifyUserId = null,
+                TargetType = "EMPLOYEE",
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch
+        {
+            // best-effort — Buchung/Absage ist bereits gespeichert.
+        }
     }
 
     public class CellDto
