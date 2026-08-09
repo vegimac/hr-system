@@ -33,15 +33,56 @@ function _ivModalShell(id, titel) {
 }
 
 // ── GF-Erfassung (Restaurant Admin) ─────────────────────────────────────
-function openInterviewFensterModal(empId) {
-    if (!empId) return;
-    _ivModalShell('ivModal', '🗣 Vorstellungsgespräche — meine Zeitfenster');
-    document.getElementById('ivModal').style.display = 'flex';
-    ivRefresh(empId);
+// Das Fenster gehört einem MANAGER (FIX-M) — nicht zwingend dem gerade
+// geöffneten MA (Bug 09.08.2026: Senada öffnete Aleksandra/MTP → «keine
+// Arbeitstage»). Darum oben eine Manager-Auswahl: alle planbaren Manager
+// der eigenen Filiale(n); vorausgewählt der geöffnete MA, sonst die
+// angemeldete Person selbst (Namens-Match), sonst der erste.
+let _ivManagers = [];
+
+async function openInterviewFensterModal(empId) {
+    _ivModalShell('ivModal', '🗣 Vorstellungsgespräche — Zeitfenster melden');
+    const m = document.getElementById('ivModal');
+    m.style.display = 'flex';
+    const body = document.getElementById('ivModalBody');
+    body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
+    try {
+        const now = new Date();
+        const r = await fetch(`/api/manager-dienstplan?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { headers: ah() });
+        const d = await r.json();
+        if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
+        _ivManagers = (d.zeilen || []).filter(z => z.planbar).map(z => ({
+            id: z.employeeId,
+            name: `${z.vorname} ${z.nachname || ''}`.trim(),
+            filiale: (d.filialen || []).find(f => f.id === z.companyProfileId)?.name || '',
+        }));
+        if (!_ivManagers.length) {
+            body.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px;color:#854d0e">
+                Kein Planungsrecht für den Manager-Dienstplan — das Häkchen
+                «Manager-Dienstplan planen» wird im Filial-Tab «Unterzeichner» vergeben.</div>`;
+            return;
+        }
+        let sel = _ivManagers.find(x => x.id === empId)?.id;
+        if (!sel) {
+            const eigen = `${(currentUser?.firstName || '')} ${(currentUser?.lastName || '')}`.trim().toLowerCase();
+            sel = (eigen && _ivManagers.find(x => x.name.toLowerCase() === eigen)?.id) || _ivManagers[0].id;
+        }
+        const opts = _ivManagers.map(x =>
+            `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${x.name.replace(/</g, '&lt;')} (${x.filiale.replace(/</g, '&lt;')})</option>`).join('');
+        body.innerHTML = `
+            <p style="margin:0 0 10px;color:#646464">Melde, wann der Manager an einem Arbeitstag Zeit für
+            Vorstellungsgespräche hat — HR sieht die Fenster im HR-Bereich und meldet sich für die Planung.</p>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px;max-width:320px;margin-bottom:10px">Manager
+                <select id="ivMgr" onchange="ivRefresh(parseInt(this.value,10))" style="${_ivInp}">${opts}</select></label>
+            <div id="ivContent"></div>`;
+        ivRefresh(sel);
+    } catch (_) {
+        body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>';
+    }
 }
 
 async function ivRefresh(empId) {
-    const body = document.getElementById('ivModalBody');
+    const body = document.getElementById('ivContent');
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
@@ -82,8 +123,6 @@ async function ivRefresh(empId) {
             : `<span style="color:#8b8b8b">Noch keine Zeitfenster gemeldet.</span>`;
 
         body.innerHTML = `
-            <p style="margin:0 0 10px;color:#646464">Melde hier, wann du an einem Arbeitstag Zeit für
-            Vorstellungsgespräche hast — HR sieht deine Fenster im HR-Bereich und meldet sich für die Planung.</p>
             ${form}
             <div style="font-weight:700;margin:14px 0 4px">Gemeldete Zeitfenster</div>
             ${rows}`;
