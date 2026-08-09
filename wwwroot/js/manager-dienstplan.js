@@ -179,7 +179,7 @@ function dpRender() {
                 <td class="dp-sum" id="dp-sum-${z.employeeId}-M">${sums.M || ''}</td>
                 <td class="dp-sum" id="dp-sum-${z.employeeId}-S">${sums.S || ''}</td>
                 <td class="dp-sum" id="dp-sum-${z.employeeId}-frei">${sums.frei || ''}</td>
-                <td class="dp-sum dp-weok" id="dp-sum-${z.employeeId}-we">${sums.weOk ? 'OK' : ''}</td>`;
+                <td class="dp-sum ${sums.weOk ? 'dp-weok' : 'dp-wenok'}" id="dp-sum-${z.employeeId}-we">${sums.weOk ? 'OK' : 'NOK'}</td>`;
         body += `<tr>${row}</tr>`;
     }
 
@@ -342,7 +342,11 @@ function _dpUpdateSums(empId) {
         if (cell) cell.textContent = sums[k] || '';
     }
     const we = document.getElementById(`dp-sum-${empId}-we`);
-    if (we) we.textContent = sums.weOk ? 'OK' : '';
+    if (we) {
+        we.textContent = sums.weOk ? 'OK' : 'NOK';
+        we.classList.toggle('dp-weok', sums.weOk);
+        we.classList.toggle('dp-wenok', !sums.weOk);
+    }
 }
 
 // Anzeige sofort aktualisieren, Speichern leicht verzögert (bündelt S→SK→SKM zu EINEM PUT).

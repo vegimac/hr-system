@@ -207,13 +207,14 @@ public class ManagerDienstplanPdfService
                             (SumOf("M") > 0 ? SumOf("M").ToString() : "", false, false),
                             (SumOf("S") > 0 ? SumOf("S").ToString() : "", false, false),
                             (SumOf("-") > 0 ? SumOf("-").ToString() : "", false, false),
-                            (weOk ? "OK" : "", false, true),
+                            (weOk ? "OK" : "NOK", false, true),
                         })
                         {
                             var sc = table.Cell().Border(0.5f).BorderColor(Rand).Background(KopfBg);
                             if (erste) sc = sc.BorderLeft(1.6f);
+                            var farbeTxt = !gruen ? "#1a1a1a" : weOk ? "#166534" : "#b91c1c";
                             sc.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
-                                .Text(txt).Bold().FontColor(gruen ? "#166534" : "#1a1a1a").FontSize(gruen ? 5.5f : 6.5f);
+                                .Text(txt).Bold().FontColor(farbeTxt).FontSize(gruen ? 5.5f : 6.5f);
                         }
                     }
                 });

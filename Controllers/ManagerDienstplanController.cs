@@ -209,11 +209,19 @@ public class ManagerDienstplanController : ControllerBase
 
         var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
 
-        // GF (REST_MANAGER) pro Filiale zuoberst, danach alphabetisch (Walter 08.08.2026).
+        // Filialen alphabetisch nach Anzeigename (Arbeitsort), innerhalb GF
+        // zuoberst, dann Vorname + Nachname (Walter 09.08.2026).
+        string BranchAnzeige(int? cpId)
+        {
+            var b = branches.FirstOrDefault(x => x.Id == cpId);
+            if (b == null) return "";
+            return !string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "");
+        }
         var zeilen = proMa
-            .OrderBy(x => branches.FirstOrDefault(b => b.Id == x.CompanyProfileId)?.RestaurantCode ?? "")
+            .OrderBy(x => BranchAnzeige(x.CompanyProfileId), StringComparer.OrdinalIgnoreCase)
             .ThenByDescending(x => x.JobCode == "REST_MANAGER")
             .ThenBy(x => x.FirstName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.LastName, StringComparer.OrdinalIgnoreCase)
             .Select(x => new DpZeileInfo(
                 x.EmployeeId,
                 x.FirstName ?? "",
