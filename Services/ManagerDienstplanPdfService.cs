@@ -41,6 +41,7 @@ public class ManagerDienstplanPdfService
         List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes,
         List<DpFeiertagInfo> feiertage, List<DpSchulferienInfo> schulferien)
     {
+        QuestPDF.Settings.License = LicenseType.Community;   // wie alle anderen PDF-Generatoren
         int tage = DateTime.DaysInMonth(year, month);
 
         // Feiertag-/Schulferien-Lookup pro Filiale/Tag.
