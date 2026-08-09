@@ -105,6 +105,19 @@ function dpRender() {
     }
     kwRow += '</tr>'; dayRow += '</tr>'; wdRow += '</tr>';
 
+    // Feiertage + Schulferien pro Filiale/Tag (Walter 09.08.2026).
+    const ftByCp = {};   // cpId → { iso: bezeichnung }
+    for (const f of (d.feiertage || [])) {
+        (ftByCp[f.companyProfileId] = ftByCp[f.companyProfileId] || {})[f.datum] = f.bezeichnung;
+    }
+    const sfByCp = {};   // cpId → { iso: bezeichnung }
+    for (const s of (d.schulferien || [])) {
+        const m = (sfByCp[s.companyProfileId] = sfByCp[s.companyProfileId] || {});
+        let cur = new Date(s.von + 'T00:00:00');
+        const end = new Date(s.bis + 'T00:00:00');
+        while (cur <= end) { m[localIso(cur)] = s.bezeichnung; cur.setDate(cur.getDate() + 1); }
+    }
+
     // Filial-Gruppen in Reihenfolge der Zeilen.
     _dpRowOrder = d.zeilen.map(z => z.employeeId);
     _dpTage = tage;
@@ -114,9 +127,23 @@ function dpRender() {
         if (z.companyProfileId !== lastCp) {
             lastCp = z.companyProfileId;
             const f = (d.filialen || []).find(x => x.id === z.companyProfileId);
-            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td><td colspan="${tage}"></td></tr>`;
+            // Filial-Zeile trägt pro Tag die Schulferien-/Feiertags-Marker
+            // (wie «Sportferien» in der alten Excel).
+            const ftM = ftByCp[z.companyProfileId] || {};
+            const sfM = sfByCp[z.companyProfileId] || {};
+            let brCells = '';
+            for (let t = 1; t <= tage; t++) {
+                const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+                const ft = ftM[iso], sf = sfM[iso];
+                const cls = ft ? ' dp-brft' : (sf ? ' dp-brsf' : '');
+                const title = [ft, sf].filter(Boolean).join(' · ');
+                brCells += `<td class="dp-brday${cls}"${title ? ` title="${esc(title)}"` : ''}>${ft ? '★' : ''}</td>`;
+            }
+            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}</tr>`;
         }
-        let row = `<td class="dp-side dp-name${z.istGf ? ' dp-gf' : ''}" title="${esc(z.vorname)} ${esc(z.nachname)}${z.istGf ? ' — Geschäftsführer/in' : ''}">${esc(z.vorname)}${z.istGf ? ' ★' : ''}</td>`;
+        // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
+        const anzName = z.vorname + (z.nachname ? ` ${z.nachname.charAt(0)}.` : '');
+        let row = `<td class="dp-side dp-name${z.istGf ? ' dp-gf' : ''}" title="${esc(z.vorname)} ${esc(z.nachname)}${z.istGf ? ' — Geschäftsführer/in' : ''}">${esc(anzName)}${z.istGf ? ' ★' : ''}</td>`;
         for (let t = 1; t <= tage; t++) {
             const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
             const dt = new Date(_dpYear, _dpMonth - 1, t);
@@ -129,10 +156,14 @@ function dpRender() {
                 const code = (z.zellen || {})[iso] || '';
                 const cd = (d.codes || []).find(c => c.code === code);
                 const bg = cd?.farbe ? `background:${cd.farbe};` : '';
+                const ft = (ftByCp[z.companyProfileId] || {})[iso];
+                const ftCls = ft && !cd?.farbe ? ' dp-ftday' : '';
+                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/SKM), Klick rotiert' : '');
+                const title = ft ? `${ft}${baseTitle ? ' — ' + baseTitle : ''}` : baseTitle;
                 const click = z.planbar
                     ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
                     : ` style="${bg}"`;
-                row += `<td class="dp-cell${we ? ' dp-we' : ''}"${click} id="dp-${z.employeeId}-${iso}" title="${cd ? esc(cd.bezeichnung) : (z.planbar ? 'Tippen (F/M/S/-/SK/SKM), Klick rotiert' : '')}">${esc(code)}</td>`;
+                row += `<td class="dp-cell${we ? ' dp-we' : ''}${ftCls}"${click} id="dp-${z.employeeId}-${iso}" title="${esc(title)}">${esc(code)}</td>`;
             }
         }
         body += `<tr>${row}</tr>`;
@@ -144,7 +175,11 @@ function dpRender() {
             <span style="display:inline-block;width:16px;height:16px;border:1px solid rgba(60,55,48,0.2);border-radius:4px;text-align:center;font-size:10px;font-weight:700;line-height:16px;background:${c.farbe || '#fff'}">${esc(c.code)}</span>${esc(c.bezeichnung)}</span>`).join('')
         + Object.entries(DP_ABSENZ_STYLE).map(([typ, st]) =>
         `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11.5px;color:#646464">
-            <span style="display:inline-block;width:16px;height:16px;border:1px solid rgba(60,55,48,0.2);border-radius:4px;text-align:center;font-size:10px;font-weight:700;line-height:16px;background:${st.bg};color:${st.fg}">${st.kuerzel || '✓'}</span>${typ.charAt(0) + typ.slice(1).toLowerCase()}</span>`).join('');
+            <span style="display:inline-block;width:16px;height:16px;border:1px solid rgba(60,55,48,0.2);border-radius:4px;text-align:center;font-size:10px;font-weight:700;line-height:16px;background:${st.bg};color:${st.fg}">${st.kuerzel || '✓'}</span>${typ.charAt(0) + typ.slice(1).toLowerCase()}</span>`).join('')
+        + `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11.5px;color:#646464">
+            <span style="display:inline-block;width:16px;height:16px;border:1px solid rgba(60,55,48,0.2);border-radius:4px;text-align:center;font-size:10px;font-weight:700;line-height:16px;background:#f87171;color:#fff">★</span>Feiertag</span>
+           <span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11.5px;color:#646464">
+            <span style="display:inline-block;width:16px;height:16px;border:1px solid rgba(60,55,48,0.2);border-radius:4px;background:#93c5fd"></span>Schulferien</span>`;
 
     el.innerHTML = `
         <div style="margin-bottom:8px">${leg}</div>
@@ -299,6 +334,185 @@ function dpImportExcel() {
         } catch (_) { showToast('Verbindungsfehler.', 'error'); }
     };
     inp.click();
+}
+
+// ── Schulferien + Feiertage pflegen (Walter 09.08.2026) ──────────────────
+function _dpBranchName(cpId) {
+    const f = (_dpData?.filialen || []).find(x => x.id === cpId);
+    return f ? `${f.code ? f.code + ' ' : ''}${f.name || ''}` : `Filiale ${cpId}`;
+}
+
+function _dpFmtD(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : ''; }
+
+function _dpMgmtModal(title, bodyHtml) {
+    document.getElementById('dpMgmtModal')?.remove();
+    const ov = document.createElement('div');
+    ov.id = 'dpMgmtModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:640px;width:100%;max-height:85vh;overflow:auto;padding:20px 22px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div style="font-size:15px;font-weight:700;color:#3f3f3f">${title}</div>
+                <button onclick="document.getElementById('dpMgmtModal').remove()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:4px 10px;font-size:13px;cursor:pointer;color:#3f3f3f">✕</button>
+            </div>
+            <div id="dpMgmtBody">${bodyHtml}</div>
+        </div>`;
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+}
+
+const _dpInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f';
+const _dpBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
+
+// ── Schulferien ─────────────────────────────────────────────────────────
+async function dpOpenSchulferien() {
+    if (!_dpData) return;
+    const filOpts = (_dpData.filialen || []).map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
+    _dpMgmtModal('🎓 Schulferien pro Filiale', `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Filiale
+                <select id="dpSfCp" style="${_dpInp};min-width:170px">${filOpts}</select></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bezeichnung
+                <input id="dpSfName" placeholder="z.B. Sportferien" style="${_dpInp};min-width:150px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von
+                <input id="dpSfVon" type="date" style="${_dpInp}"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis
+                <input id="dpSfBis" type="date" style="${_dpInp}"></label>
+            <button onclick="dpSfAdd()" style="${_dpBtnDark}">+ Hinzufügen</button>
+        </div>
+        <div id="dpSfList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
+    await dpSfReload();
+}
+
+async function dpSfReload() {
+    const el = document.getElementById('dpSfList');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/manager-dienstplan/schulferien?year=${_dpYear}`, { headers: ah() });
+        const list = await r.json();
+        if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
+        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Noch keine Schulferien für ${_dpYear} erfasst.</span>`; return; }
+        el.innerHTML = list.map(s => `
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">
+                <span style="min-width:150px;color:#646464">${_dpBranchName(s.companyProfileId)}</span>
+                <b>${s.bezeichnung}</b>
+                <span style="color:#8b8b8b">${_dpFmtD(s.von)} – ${_dpFmtD(s.bis)}</span>
+                <span style="flex:1"></span>
+                <button onclick="dpSfDelete(${s.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>
+            </div>`).join('');
+    } catch (_) { el.textContent = 'Verbindungsfehler.'; }
+}
+
+async function dpSfAdd() {
+    const body = {
+        companyProfileId: parseInt(document.getElementById('dpSfCp')?.value, 10),
+        bezeichnung: (document.getElementById('dpSfName')?.value || '').trim(),
+        von: document.getElementById('dpSfVon')?.value,
+        bis: document.getElementById('dpSfBis')?.value,
+    };
+    if (!body.bezeichnung || !body.von || !body.bis) { showToast('Bezeichnung, Von und Bis ausfüllen.', 'error'); return; }
+    const r = await fetch('/api/manager-dienstplan/schulferien', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
+    document.getElementById('dpSfName').value = '';
+    await dpSfReload();
+    dpLoad();
+}
+
+async function dpSfDelete(id) {
+    if (!await liquidConfirm('Diesen Schulferien-Eintrag löschen?', { title: 'Schulferien' })) return;
+    const r = await fetch(`/api/manager-dienstplan/schulferien/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
+    await dpSfReload();
+    dpLoad();
+}
+
+// ── Feiertage (National / Kanton / Filiale) ─────────────────────────────
+async function dpOpenFeiertage() {
+    if (!_dpData) return;
+    const filOpts = (_dpData.filialen || []).map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
+    const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
+    _dpMgmtModal('🎉 Feiertage (national / kantonal / Filiale)', `
+        <div style="display:${kannPflegen ? 'flex' : 'none'};gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Datum
+                <input id="dpFtDatum" type="date" style="${_dpInp}"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bezeichnung
+                <input id="dpFtName" placeholder="z.B. Auffahrt" style="${_dpInp};min-width:150px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Geltung
+                <select id="dpFtScope" onchange="dpFtScopeChanged()" style="${_dpInp}">
+                    <option value="NATIONAL">National (alle Filialen)</option>
+                    <option value="KANTON">Kanton</option>
+                    <option value="FILIALE">Nur eine Filiale (Gemeinde)</option>
+                </select></label>
+            <label id="dpFtKantonWrap" style="font-size:11px;color:#8b8b8b;display:none;flex-direction:column;gap:3px">Kanton
+                <input id="dpFtKanton" placeholder="z.B. AG" maxlength="2" style="${_dpInp};width:70px;text-transform:uppercase"></label>
+            <label id="dpFtCpWrap" style="font-size:11px;color:#8b8b8b;display:none;flex-direction:column;gap:3px">Filiale
+                <select id="dpFtCp" style="${_dpInp};min-width:170px">${filOpts}</select></label>
+            <button onclick="dpFtAdd()" style="${_dpBtnDark}">+ Hinzufügen</button>
+        </div>
+        <div id="dpFtList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
+    await dpFtReload();
+}
+
+function dpFtScopeChanged() {
+    const scope = document.getElementById('dpFtScope')?.value;
+    const k = document.getElementById('dpFtKantonWrap');
+    const c = document.getElementById('dpFtCpWrap');
+    if (k) k.style.display = scope === 'KANTON' ? 'flex' : 'none';
+    if (c) c.style.display = scope === 'FILIALE' ? 'flex' : 'none';
+}
+
+function _dpFtScopeLabel(f) {
+    if (f.scope === 'KANTON') return `Kanton ${f.kantonCode || ''}`;
+    if (f.scope === 'FILIALE') return _dpBranchName(f.companyProfileId);
+    return 'National';
+}
+
+async function dpFtReload() {
+    const el = document.getElementById('dpFtList');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/manager-dienstplan/feiertage?year=${_dpYear}`, { headers: ah() });
+        const list = await r.json();
+        if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
+        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Noch keine Feiertage für ${_dpYear} erfasst.</span>`; return; }
+        const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
+        el.innerHTML = list.map(f => `
+            <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">
+                <span style="min-width:80px;color:#8b8b8b">${_dpFmtD(f.datum)}</span>
+                <b>${f.bezeichnung}</b>
+                <span style="background:${f.scope === 'NATIONAL' ? '#e0e7ff' : f.scope === 'KANTON' ? '#fef3c7' : '#dcfce7'};border-radius:8px;padding:1px 8px;font-size:11.5px;color:#3f3f3f">${_dpFtScopeLabel(f)}</span>
+                <span style="flex:1"></span>
+                ${kannPflegen ? `<button onclick="dpFtDelete(${f.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>` : ''}
+            </div>`).join('');
+    } catch (_) { el.textContent = 'Verbindungsfehler.'; }
+}
+
+async function dpFtAdd() {
+    const scope = document.getElementById('dpFtScope')?.value || 'NATIONAL';
+    const body = {
+        datum: document.getElementById('dpFtDatum')?.value,
+        bezeichnung: (document.getElementById('dpFtName')?.value || '').trim(),
+        scope,
+        kantonCode: scope === 'KANTON' ? (document.getElementById('dpFtKanton')?.value || '').trim().toUpperCase() : null,
+        companyProfileId: scope === 'FILIALE' ? parseInt(document.getElementById('dpFtCp')?.value, 10) : null,
+    };
+    if (!body.datum || !body.bezeichnung) { showToast('Datum und Bezeichnung ausfüllen.', 'error'); return; }
+    if (scope === 'KANTON' && !body.kantonCode) { showToast('Kanton angeben (z.B. AG).', 'error'); return; }
+    const r = await fetch('/api/manager-dienstplan/feiertage', { method: 'POST', headers: ah(), body: JSON.stringify(body) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
+    document.getElementById('dpFtName').value = '';
+    await dpFtReload();
+    dpLoad();
+}
+
+async function dpFtDelete(id) {
+    if (!await liquidConfirm('Diesen Feiertag löschen?', { title: 'Feiertage' })) return;
+    const r = await fetch(`/api/manager-dienstplan/feiertage/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
+    await dpFtReload();
+    dpLoad();
 }
 
 function _dpShowImportModal(bodyHtml, onOk) {

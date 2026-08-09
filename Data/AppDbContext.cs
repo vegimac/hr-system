@@ -90,6 +90,8 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
     public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
     public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
+    public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
+    public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1299,6 +1301,33 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Farbe).HasColumnName("farbe");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+        });
+        modelBuilder.Entity<DienstplanFeiertag>(entity =>
+        {
+            entity.ToTable("dienstplan_feiertag");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Scope).HasColumnName("scope");
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.Datum);
+        });
+        modelBuilder.Entity<BranchSchulferien>(entity =>
+        {
+            entity.ToTable("branch_schulferien");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Von).HasColumnName("von");
+            entity.Property(e => e.Bis).HasColumnName("bis");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.CompanyProfileId);
         });
 
         // ── MailboxDocument (Posteingang pro Filiale) ────────────────────────

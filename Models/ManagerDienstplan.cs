@@ -30,3 +30,38 @@ public class DienstplanCode
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
 }
+
+/// <summary>
+/// Feiertag für den Manager-Dienstplan (Walter-Vorgabe 09.08.2026).
+/// Geltungsbereich dreistufig: NATIONAL (alle Filialen), KANTON (Filialen
+/// mit passendem <see cref="CompanyProfile.KantonCode"/>), FILIALE (genau
+/// eine Filiale — Gemeinde-Feiertage). Reiner Planungs-Marker, KEINE
+/// Lohn-Wirkung (Feiertags-Saldo-Logik läuft separat in der Payroll).
+/// </summary>
+public class DienstplanFeiertag
+{
+    public int Id { get; set; }
+    public DateOnly Datum { get; set; }
+    public string Bezeichnung { get; set; } = "";
+    /// <summary>NATIONAL | KANTON | FILIALE</summary>
+    public string Scope { get; set; } = "NATIONAL";
+    /// <summary>Bei Scope=KANTON: 2-Zeichen-Code (LU, AG, BE, …).</summary>
+    public string? KantonCode { get; set; }
+    /// <summary>Bei Scope=FILIALE: die betroffene Filiale.</summary>
+    public int? CompanyProfileId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+}
+
+/// <summary>
+/// Schulferien pro Filiale (Walter-Vorgabe 09.08.2026) — Anzeige-Band in der
+/// Filial-Zeile des Manager-Dienstplans (wie «Sportferien» in der alten Excel).
+/// </summary>
+public class BranchSchulferien
+{
+    public int Id { get; set; }
+    public int CompanyProfileId { get; set; }
+    public string Bezeichnung { get; set; } = "";
+    public DateOnly Von { get; set; }
+    public DateOnly Bis { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+}

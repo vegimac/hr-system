@@ -38,9 +38,21 @@ public class ManagerDienstplanPdfService
     private const string Dunkel    = "#3f3f3f";
 
     public byte[] Generate(int year, int month,
-        List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes)
+        List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes,
+        List<DpFeiertagInfo> feiertage, List<DpSchulferienInfo> schulferien)
     {
         int tage = DateTime.DaysInMonth(year, month);
+
+        // Feiertag-/Schulferien-Lookup pro Filiale/Tag.
+        var ftMap = new Dictionary<(int cp, int tag), string>();
+        foreach (var f in feiertage)
+            if (f.Datum.Year == year && f.Datum.Month == month)
+                ftMap[(f.CompanyProfileId, f.Datum.Day)] = f.Bezeichnung;
+        var sfMap = new Dictionary<(int cp, int tag), string>();
+        foreach (var s in schulferien)
+            for (var d = s.Von; d <= s.Bis; d = d.AddDays(1))
+                if (d.Year == year && d.Month == month)
+                    sfMap[(s.CompanyProfileId, d.Day)] = s.Bezeichnung;
         bool[] istWe = new bool[tage + 1];
         for (int t = 1; t <= tage; t++)
         {
@@ -107,15 +119,27 @@ public class ManagerDienstplanPdfService
                             lastCp = z.CompanyProfileId;
                             var f = filialen.FirstOrDefault(b => b.Id == z.CompanyProfileId);
                             var label = f == null ? "" : $"{f.Code} {f.Name}".Trim();
-                            table.Cell().ColumnSpan((uint)(tage + 1)).Background(Dunkel)
-                                .PaddingVertical(2).PaddingLeft(4)
+                            // Filial-Zeile: Label + pro Tag Feiertag- (rot ★) /
+                            // Schulferien-Marker (blau), wie im Grid.
+                            table.Cell().Background(Dunkel).PaddingVertical(2).PaddingLeft(4)
                                 .Text(label).FontColor("#ffffff").Bold().FontSize(7.5f);
+                            int cp = z.CompanyProfileId ?? -1;
+                            for (int t = 1; t <= tage; t++)
+                            {
+                                bool ft = ftMap.ContainsKey((cp, t));
+                                bool sf = sfMap.ContainsKey((cp, t));
+                                var bgBr = ft ? "#f87171" : sf ? "#93c5fd" : Dunkel;
+                                table.Cell().Background(bgBr).AlignCenter().AlignMiddle()
+                                    .Text(ft ? "★" : "").FontColor("#ffffff").FontSize(6);
+                            }
                         }
 
+                        // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
+                        var anzName = z.Vorname + (string.IsNullOrEmpty(z.Nachname) ? "" : $" {z.Nachname[0]}.");
                         var nameZelle = table.Cell().Border(0.5f).BorderColor(Rand)
                             .PaddingVertical(1.5f).PaddingLeft(3).AlignMiddle();
-                        if (z.IstGf) nameZelle.Text($"★ {z.Vorname}").Bold().FontSize(7);
-                        else nameZelle.Text(z.Vorname).FontSize(7);
+                        if (z.IstGf) nameZelle.Text($"★ {anzName}").Bold().FontSize(7);
+                        else nameZelle.Text(anzName).FontSize(7);
 
                         var abs = absMap[z.EmployeeId];
                         for (int t = 1; t <= tage; t++)
@@ -132,7 +156,8 @@ public class ManagerDienstplanPdfService
                             }
                             z.Zellen.TryGetValue(iso, out var code);
                             var farbe = codes.FirstOrDefault(x => x.Code == code)?.Farbe;
-                            var bg = farbe ?? (istWe[t] ? WochenEnd : null);
+                            bool istFt = ftMap.ContainsKey((z.CompanyProfileId ?? -1, t));
+                            var bg = farbe ?? (istFt ? "#fdeaea" : istWe[t] ? WochenEnd : null);
                             var cell = table.Cell().Border(0.5f).BorderColor(Rand);
                             if (bg != null) cell = cell.Background(bg);
                             cell.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
@@ -145,7 +170,9 @@ public class ManagerDienstplanPdfService
                 {
                     var teile = codes
                         .Select(x => $"{x.Code} = {x.Bezeichnung}")
-                        .Concat(ABS.Values.Select(a => $"{(a.Kuerzel == "" ? "grün" : a.Kuerzel)} = {a.Label}"));
+                        .Concat(ABS.Values.Select(a => $"{(a.Kuerzel == "" ? "grün" : a.Kuerzel)} = {a.Label}"))
+                        .Append("★ rot = Feiertag")
+                        .Append("blau = Schulferien");
                     r.RelativeItem().Text(string.Join("   ·   ", teile)).FontSize(6.5f).FontColor("#646464");
                     r.ConstantItem(60).AlignRight().Text(x =>
                     {

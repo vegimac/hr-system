@@ -69,11 +69,24 @@ public class ManagerDienstplanController : ControllerBase
     {
         if (year < 2020 || year > 2100 || month < 1 || month > 12)
             return BadRequest(new { error = "PERIODE_UNGUELTIG" });
-        var (zeilen, filialen, codes) = await BuildMonthDataAsync(year, month);
+        var (zeilen, filialen, codes, feiertage, schulferien) = await BuildMonthDataAsync(year, month);
         return Ok(new
         {
             year, month,
             filialen = filialen.Select(b => new { id = b.Id, code = b.Code, name = b.Name }),
+            feiertage = feiertage.Select(f => new
+            {
+                companyProfileId = f.CompanyProfileId,
+                datum = f.Datum.ToString("yyyy-MM-dd"),
+                bezeichnung = f.Bezeichnung,
+            }),
+            schulferien = schulferien.Select(s => new
+            {
+                companyProfileId = s.CompanyProfileId,
+                von = s.Von.ToString("yyyy-MM-dd"),
+                bis = s.Bis.ToString("yyyy-MM-dd"),
+                bezeichnung = s.Bezeichnung,
+            }),
             zeilen = zeilen.Select(z => new
             {
                 employeeId = z.EmployeeId,
@@ -100,12 +113,13 @@ public class ManagerDienstplanController : ControllerBase
     {
         if (year < 2020 || year > 2100 || month < 1 || month > 12)
             return BadRequest(new { error = "PERIODE_UNGUELTIG" });
-        var (zeilen, filialen, codes) = await BuildMonthDataAsync(year, month);
-        var bytes = _pdf.Generate(year, month, zeilen, filialen, codes);
+        var (zeilen, filialen, codes, feiertage, schulferien) = await BuildMonthDataAsync(year, month);
+        var bytes = _pdf.Generate(year, month, zeilen, filialen, codes, feiertage, schulferien);
         return File(bytes, "application/pdf", $"Manager-Dienstplan_{year}-{month:D2}.pdf");
     }
 
-    private async Task<(List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes)>
+    private async Task<(List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes,
+                       List<DpFeiertagInfo> feiertage, List<DpSchulferienInfo> schulferien)>
         BuildMonthDataAsync(int year, int month)
     {
         var from = new DateOnly(year, month, 1);
@@ -135,8 +149,39 @@ public class ManagerDienstplanController : ControllerBase
         var empIds = proMa.Select(x => x.EmployeeId).ToList();
 
         var branches = await _db.CompanyProfiles.AsNoTracking()
-            .Select(c => new { c.Id, c.RestaurantCode, c.BranchName, c.City })
+            .Select(c => new { c.Id, c.RestaurantCode, c.BranchName, c.City, c.KantonCode })
             .ToListAsync();
+
+        // Feiertage des Monats pro Filiale auflösen: NATIONAL → alle,
+        // KANTON → Filialen mit passendem Kanton, FILIALE → genau die eine.
+        var ftRoh = await _db.DienstplanFeiertage.AsNoTracking()
+            .Where(f => f.Datum >= from && f.Datum <= to)
+            .ToListAsync();
+        var feiertage = new List<DpFeiertagInfo>();
+        foreach (var f in ftRoh)
+            foreach (var b in branches)
+            {
+                bool gilt = f.Scope switch
+                {
+                    "NATIONAL" => true,
+                    "KANTON"   => !string.IsNullOrEmpty(f.KantonCode)
+                                  && string.Equals(b.KantonCode, f.KantonCode, StringComparison.OrdinalIgnoreCase),
+                    "FILIALE"  => f.CompanyProfileId == b.Id,
+                    _ => false,
+                };
+                if (gilt) feiertage.Add(new DpFeiertagInfo(b.Id, f.Datum, f.Bezeichnung));
+            }
+
+        // Schulferien, die den Monat überlappen — auf den Monat geclampt.
+        var schulferien = (await _db.BranchSchulferien.AsNoTracking()
+                .Where(s => s.Von <= to && s.Bis >= from)
+                .ToListAsync())
+            .Select(s => new DpSchulferienInfo(
+                s.CompanyProfileId,
+                s.Von < from ? from : s.Von,
+                s.Bis > to ? to : s.Bis,
+                s.Bezeichnung))
+            .ToList();
 
         var plan = await _db.ManagerDienstplanEntries.AsNoTracking()
             .Where(p => empIds.Contains(p.EmployeeId) && p.Datum >= from && p.Datum <= to)
@@ -181,7 +226,135 @@ public class ManagerDienstplanController : ControllerBase
         var filialen = branches
             .Select(b => new DpFilialeInfo(b.Id, b.RestaurantCode, b.BranchName ?? b.City))
             .ToList();
-        return (zeilen, filialen, codes);
+        return (zeilen, filialen, codes, feiertage, schulferien);
+    }
+
+    // ── Feiertage (zentral, admin/superuser) ─────────────────────────────
+    [HttpGet("feiertage")]
+    public async Task<IActionResult> GetFeiertage([FromQuery] int? year)
+    {
+        var q = _db.DienstplanFeiertage.AsNoTracking();
+        if (year.HasValue)
+            q = q.Where(f => f.Datum >= new DateOnly(year.Value, 1, 1) && f.Datum <= new DateOnly(year.Value, 12, 31));
+        var list = await q.OrderBy(f => f.Datum).ToListAsync();
+        return Ok(list.Select(f => new
+        {
+            f.Id,
+            datum = f.Datum.ToString("yyyy-MM-dd"),
+            f.Bezeichnung,
+            f.Scope,
+            f.KantonCode,
+            f.CompanyProfileId,
+        }));
+    }
+
+    public class FeiertagDto
+    {
+        public string? Datum { get; set; }
+        public string? Bezeichnung { get; set; }
+        public string? Scope { get; set; }
+        public string? KantonCode { get; set; }
+        public int? CompanyProfileId { get; set; }
+    }
+
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("feiertage")]
+    public async Task<IActionResult> AddFeiertag([FromBody] FeiertagDto dto)
+    {
+        if (!DateOnly.TryParse(dto.Datum, out var datum))
+            return BadRequest(new { error = "DATUM_UNGUELTIG" });
+        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
+            return BadRequest(new { error = "BEZEICHNUNG_FEHLT" });
+        var scope = (dto.Scope ?? "NATIONAL").ToUpperInvariant();
+        if (scope is not ("NATIONAL" or "KANTON" or "FILIALE"))
+            return BadRequest(new { error = "SCOPE_UNGUELTIG" });
+        if (scope == "KANTON" && string.IsNullOrWhiteSpace(dto.KantonCode))
+            return BadRequest(new { error = "KANTON_FEHLT" });
+        if (scope == "FILIALE" && !dto.CompanyProfileId.HasValue)
+            return BadRequest(new { error = "FILIALE_FEHLT" });
+        _db.DienstplanFeiertage.Add(new DienstplanFeiertag
+        {
+            Datum = datum,
+            Bezeichnung = dto.Bezeichnung.Trim(),
+            Scope = scope,
+            KantonCode = scope == "KANTON" ? dto.KantonCode!.Trim().ToUpperInvariant() : null,
+            CompanyProfileId = scope == "FILIALE" ? dto.CompanyProfileId : null,
+            CreatedAt = DateTime.Now,
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    [Authorize(Roles = "admin,superuser")]
+    [HttpDelete("feiertage/{id:int}")]
+    public async Task<IActionResult> DeleteFeiertag(int id)
+    {
+        var f = await _db.DienstplanFeiertage.FindAsync(id);
+        if (f == null) return NotFound();
+        _db.DienstplanFeiertage.Remove(f);
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    // ── Schulferien pro Filiale (admin überall, sonst Planungsrecht) ─────
+    [HttpGet("schulferien")]
+    public async Task<IActionResult> GetSchulferien([FromQuery] int? year)
+    {
+        var q = _db.BranchSchulferien.AsNoTracking();
+        if (year.HasValue)
+            q = q.Where(s => s.Von <= new DateOnly(year.Value, 12, 31) && s.Bis >= new DateOnly(year.Value, 1, 1));
+        var list = await q.OrderBy(s => s.Von).ToListAsync();
+        return Ok(list.Select(s => new
+        {
+            s.Id,
+            s.CompanyProfileId,
+            s.Bezeichnung,
+            von = s.Von.ToString("yyyy-MM-dd"),
+            bis = s.Bis.ToString("yyyy-MM-dd"),
+        }));
+    }
+
+    public class SchulferienDto
+    {
+        public int CompanyProfileId { get; set; }
+        public string? Bezeichnung { get; set; }
+        public string? Von { get; set; }
+        public string? Bis { get; set; }
+    }
+
+    [HttpPost("schulferien")]
+    public async Task<IActionResult> AddSchulferien([FromBody] SchulferienDto dto)
+    {
+        if (!DateOnly.TryParse(dto.Von, out var von) || !DateOnly.TryParse(dto.Bis, out var bis) || bis < von)
+            return BadRequest(new { error = "DATUM_UNGUELTIG" });
+        if (string.IsNullOrWhiteSpace(dto.Bezeichnung))
+            return BadRequest(new { error = "BEZEICHNUNG_FEHLT" });
+        var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
+        if (!isAdmin && !planBranches.Contains(dto.CompanyProfileId))
+            return StatusCode(403, new { error = "KEIN_PLANRECHT", message = "Kein Planungsrecht für diese Filiale." });
+        _db.BranchSchulferien.Add(new BranchSchulferien
+        {
+            CompanyProfileId = dto.CompanyProfileId,
+            Bezeichnung = dto.Bezeichnung.Trim(),
+            Von = von,
+            Bis = bis,
+            CreatedAt = DateTime.Now,
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    [HttpDelete("schulferien/{id:int}")]
+    public async Task<IActionResult> DeleteSchulferien(int id)
+    {
+        var s = await _db.BranchSchulferien.FindAsync(id);
+        if (s == null) return NotFound();
+        var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
+        if (!isAdmin && !planBranches.Contains(s.CompanyProfileId))
+            return StatusCode(403, new { error = "KEIN_PLANRECHT", message = "Kein Planungsrecht für diese Filiale." });
+        _db.BranchSchulferien.Remove(s);
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
     }
 
     public class CellDto
@@ -524,6 +697,8 @@ public class ManagerDienstplanController : ControllerBase
 
 // Geteilte Daten-Records für JSON-Grid UND PDF (ManagerDienstplanPdfService).
 public sealed record DpFilialeInfo(int Id, string? Code, string? Name);
+public sealed record DpFeiertagInfo(int CompanyProfileId, DateOnly Datum, string Bezeichnung);
+public sealed record DpSchulferienInfo(int CompanyProfileId, DateOnly Von, DateOnly Bis, string Bezeichnung);
 public sealed record DpAbsenzInfo(string Typ, DateOnly Von, DateOnly Bis);
 public sealed record DpCodeInfo(string Code, string? Bezeichnung, string? Farbe);
 public sealed record DpZeileInfo(

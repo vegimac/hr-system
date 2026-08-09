@@ -2899,6 +2899,30 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE user_branch_access
             ADD COLUMN IF NOT EXISTS can_dienstplan boolean NOT NULL DEFAULT false;
     ");
+    // Manager-DP: Feiertage (national/kantonal/Filiale) + Schulferien pro Filiale
+    // (Walter 09.08.2026). Doku: migrations-archive/add_dienstplan_feiertage_schulferien.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS dienstplan_feiertag (
+            id                 serial PRIMARY KEY,
+            datum              date NOT NULL,
+            bezeichnung        text NOT NULL,
+            scope              text NOT NULL DEFAULT 'NATIONAL'
+                               CHECK (scope IN ('NATIONAL','KANTON','FILIALE')),
+            kanton_code        text,
+            company_profile_id integer REFERENCES company_profile(id) ON DELETE CASCADE,
+            created_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_dienstplan_feiertag_datum ON dienstplan_feiertag (datum);
+        CREATE TABLE IF NOT EXISTS branch_schulferien (
+            id                 serial PRIMARY KEY,
+            company_profile_id integer NOT NULL REFERENCES company_profile(id) ON DELETE CASCADE,
+            bezeichnung        text NOT NULL,
+            von                date NOT NULL,
+            bis                date NOT NULL,
+            created_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_branch_schulferien_cp ON branch_schulferien (company_profile_id);
+    ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config
