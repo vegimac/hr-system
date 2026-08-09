@@ -365,11 +365,36 @@ const _dpInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radi
 const _dpBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
 
 // ── Schulferien ─────────────────────────────────────────────────────────
+function _dpYearOpts(selId) {
+    let h = '';
+    for (let y = 2025; y <= _dpYear + 3; y++)
+        h += `<option value="${y}"${y === _dpYear ? ' selected' : ''}>${y}</option>`;
+    return h;
+}
+
+function _dpFilterOpts() {
+    return `<option value="">Alle Filialen</option>` + (_dpData.filialen || [])
+        .map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
+}
+
+function dpToggleForm(id) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+}
+
 async function dpOpenSchulferien() {
     if (!_dpData) return;
     const filOpts = (_dpData.filialen || []).map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
     _dpMgmtModal('🎓 Schulferien pro Filiale', `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Jahr
+                <select id="dpSfYear" onchange="dpSfReload()" style="${_dpInp}">${_dpYearOpts()}</select></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Filiale
+                <select id="dpSfFilter" onchange="dpSfReload()" style="${_dpInp};min-width:170px">${_dpFilterOpts()}</select></label>
+            <span style="flex:1"></span>
+            <button onclick="dpToggleForm('dpSfForm')" style="${_dpBtnDark}">+ Neu erfassen</button>
+        </div>
+        <div id="dpSfForm" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px;margin-top:10px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Filiale
                 <select id="dpSfCp" style="${_dpInp};min-width:170px">${filOpts}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bezeichnung
@@ -378,7 +403,7 @@ async function dpOpenSchulferien() {
                 <input id="dpSfVon" type="date" style="${_dpInp}"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis
                 <input id="dpSfBis" type="date" style="${_dpInp}"></label>
-            <button onclick="dpSfAdd()" style="${_dpBtnDark}">+ Hinzufügen</button>
+            <button onclick="dpSfAdd()" style="${_dpBtnDark}">Speichern</button>
         </div>
         <div id="dpSfList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
     await dpSfReload();
@@ -387,11 +412,14 @@ async function dpOpenSchulferien() {
 async function dpSfReload() {
     const el = document.getElementById('dpSfList');
     if (!el) return;
+    const year = document.getElementById('dpSfYear')?.value || _dpYear;
+    const filter = document.getElementById('dpSfFilter')?.value || '';
     try {
-        const r = await fetch(`/api/manager-dienstplan/schulferien?year=${_dpYear}`, { headers: ah() });
-        const list = await r.json();
+        const r = await fetch(`/api/manager-dienstplan/schulferien?year=${year}`, { headers: ah() });
+        let list = await r.json();
         if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
-        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Noch keine Schulferien für ${_dpYear} erfasst.</span>`; return; }
+        if (filter) list = list.filter(s => s.companyProfileId === parseInt(filter, 10));
+        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Keine Schulferien für ${year}${filter ? ' in dieser Filiale' : ''} erfasst.</span>`; return; }
         el.innerHTML = list.map(s => `
             <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">
                 <span style="min-width:150px;color:#646464">${_dpBranchName(s.companyProfileId)}</span>
@@ -433,7 +461,15 @@ async function dpOpenFeiertage() {
     const filOpts = (_dpData.filialen || []).map(f => `<option value="${f.id}">${f.code ? f.code + ' ' : ''}${f.name || ''}</option>`).join('');
     const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
     _dpMgmtModal('🎉 Feiertage (national / kantonal / Filiale)', `
-        <div style="display:${kannPflegen ? 'flex' : 'none'};gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Jahr
+                <select id="dpFtYear" onchange="dpFtReload()" style="${_dpInp}">${_dpYearOpts()}</select></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Filiale
+                <select id="dpFtFilter" onchange="dpFtReload()" style="${_dpInp};min-width:170px">${_dpFilterOpts()}</select></label>
+            <span style="flex:1"></span>
+            ${kannPflegen ? `<button onclick="dpToggleForm('dpFtForm')" style="${_dpBtnDark}">+ Neu erfassen</button>` : ''}
+        </div>
+        <div id="dpFtForm" style="display:none;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px;margin-top:10px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Datum
                 <input id="dpFtDatum" type="date" style="${_dpInp}"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bezeichnung
@@ -448,7 +484,7 @@ async function dpOpenFeiertage() {
                 <input id="dpFtKanton" placeholder="z.B. AG" maxlength="2" style="${_dpInp};width:70px;text-transform:uppercase"></label>
             <label id="dpFtCpWrap" style="font-size:11px;color:#8b8b8b;display:none;flex-direction:column;gap:3px">Filiale
                 <select id="dpFtCp" style="${_dpInp};min-width:170px">${filOpts}</select></label>
-            <button onclick="dpFtAdd()" style="${_dpBtnDark}">+ Hinzufügen</button>
+            <button onclick="dpFtAdd()" style="${_dpBtnDark}">Speichern</button>
         </div>
         <div id="dpFtList" style="margin-top:12px;font-size:13px;color:#3f3f3f">Wird geladen…</div>`);
     await dpFtReload();
@@ -471,11 +507,21 @@ function _dpFtScopeLabel(f) {
 async function dpFtReload() {
     const el = document.getElementById('dpFtList');
     if (!el) return;
+    const year = document.getElementById('dpFtYear')?.value || _dpYear;
+    const filter = document.getElementById('dpFtFilter')?.value || '';
     try {
-        const r = await fetch(`/api/manager-dienstplan/feiertage?year=${_dpYear}`, { headers: ah() });
-        const list = await r.json();
+        const r = await fetch(`/api/manager-dienstplan/feiertage?year=${year}`, { headers: ah() });
+        let list = await r.json();
         if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
-        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Noch keine Feiertage für ${_dpYear} erfasst.</span>`; return; }
+        if (filter) {
+            // Nur Feiertage, die für DIESE Filiale gelten: national, passender
+            // Kanton (Filial-Stammdaten) oder direkt der Filiale zugeordnet.
+            const br = (_dpData.filialen || []).find(x => x.id === parseInt(filter, 10));
+            list = list.filter(f => f.scope === 'NATIONAL'
+                || (f.scope === 'KANTON' && br?.kanton && f.kantonCode === br.kanton)
+                || (f.scope === 'FILIALE' && f.companyProfileId === parseInt(filter, 10)));
+        }
+        if (!list.length) { el.innerHTML = `<span style="color:#8b8b8b">Keine Feiertage für ${year}${filter ? ' in dieser Filiale' : ''} erfasst.</span>`; return; }
         const kannPflegen = typeof currentUser !== 'undefined' && ['admin', 'superuser'].includes(currentUser?.role);
         el.innerHTML = list.map(f => `
             <div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">

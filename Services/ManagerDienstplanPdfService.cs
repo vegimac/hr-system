@@ -130,15 +130,17 @@ public class ManagerDienstplanPdfService
                                 bool sf = sfMap.ContainsKey((cp, t));
                                 var bgBr = ft ? "#f87171" : sf ? "#93c5fd" : Dunkel;
                                 table.Cell().Background(bgBr).AlignCenter().AlignMiddle()
-                                    .Text(ft ? "★" : "").FontColor("#ffffff").FontSize(6);
+                                    .Text("").FontSize(6);
                             }
                         }
 
                         // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
+                        // KEIN ★ im PDF — das Glyph fehlt im PDF-Font und QuestPDF
+                        // wirft dann (HTTP-500-Bug 09.08.2026). GF = fett + «(GF)».
                         var anzName = z.Vorname + (string.IsNullOrEmpty(z.Nachname) ? "" : $" {z.Nachname[0]}.");
                         var nameZelle = table.Cell().Border(0.5f).BorderColor(Rand)
                             .PaddingVertical(1.5f).PaddingLeft(3).AlignMiddle();
-                        if (z.IstGf) nameZelle.Text($"★ {anzName}").Bold().FontSize(7);
+                        if (z.IstGf) nameZelle.Text($"{anzName} (GF)").Bold().FontSize(7);
                         else nameZelle.Text(anzName).FontSize(7);
 
                         var abs = absMap[z.EmployeeId];
@@ -171,7 +173,7 @@ public class ManagerDienstplanPdfService
                     var teile = codes
                         .Select(x => $"{x.Code} = {x.Bezeichnung}")
                         .Concat(ABS.Values.Select(a => $"{(a.Kuerzel == "" ? "grün" : a.Kuerzel)} = {a.Label}"))
-                        .Append("★ rot = Feiertag")
+                        .Append("rot = Feiertag")
                         .Append("blau = Schulferien");
                     r.RelativeItem().Text(string.Join("   ·   ", teile)).FontSize(6.5f).FontColor("#646464");
                     r.ConstantItem(60).AlignRight().Text(x =>

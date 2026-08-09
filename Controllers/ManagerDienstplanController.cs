@@ -73,7 +73,7 @@ public class ManagerDienstplanController : ControllerBase
         return Ok(new
         {
             year, month,
-            filialen = filialen.Select(b => new { id = b.Id, code = b.Code, name = b.Name }),
+            filialen = filialen.Select(b => new { id = b.Id, code = b.Code, name = b.Name, kanton = b.Kanton }),
             feiertage = feiertage.Select(f => new
             {
                 companyProfileId = f.CompanyProfileId,
@@ -113,9 +113,17 @@ public class ManagerDienstplanController : ControllerBase
     {
         if (year < 2020 || year > 2100 || month < 1 || month > 12)
             return BadRequest(new { error = "PERIODE_UNGUELTIG" });
-        var (zeilen, filialen, codes, feiertage, schulferien) = await BuildMonthDataAsync(year, month);
-        var bytes = _pdf.Generate(year, month, zeilen, filialen, codes, feiertage, schulferien);
-        return File(bytes, "application/pdf", $"Manager-Dienstplan_{year}-{month:D2}.pdf");
+        try
+        {
+            var (zeilen, filialen, codes, feiertage, schulferien) = await BuildMonthDataAsync(year, month);
+            var bytes = _pdf.Generate(year, month, zeilen, filialen, codes, feiertage, schulferien);
+            return File(bytes, "application/pdf", $"Manager-Dienstplan_{year}-{month:D2}.pdf");
+        }
+        catch (Exception ex)
+        {
+            // Fehler sichtbar machen — file-preview.js zeigt das error-Feld an.
+            return StatusCode(500, new { error = $"PDF-Fehler: {ex.Message}" });
+        }
     }
 
     private async Task<(List<DpZeileInfo> zeilen, List<DpFilialeInfo> filialen, List<DpCodeInfo> codes,
@@ -224,7 +232,7 @@ public class ManagerDienstplanController : ControllerBase
             .ToList();
 
         var filialen = branches
-            .Select(b => new DpFilialeInfo(b.Id, b.RestaurantCode, b.BranchName ?? b.City))
+            .Select(b => new DpFilialeInfo(b.Id, b.RestaurantCode, b.BranchName ?? b.City, b.KantonCode))
             .ToList();
         return (zeilen, filialen, codes, feiertage, schulferien);
     }
@@ -696,7 +704,7 @@ public class ManagerDienstplanController : ControllerBase
 }
 
 // Geteilte Daten-Records für JSON-Grid UND PDF (ManagerDienstplanPdfService).
-public sealed record DpFilialeInfo(int Id, string? Code, string? Name);
+public sealed record DpFilialeInfo(int Id, string? Code, string? Name, string? Kanton = null);
 public sealed record DpFeiertagInfo(int CompanyProfileId, DateOnly Datum, string Bezeichnung);
 public sealed record DpSchulferienInfo(int CompanyProfileId, DateOnly Von, DateOnly Bis, string Bezeichnung);
 public sealed record DpAbsenzInfo(string Typ, DateOnly Von, DateOnly Bis);
