@@ -186,18 +186,21 @@ public class ManagerDienstplanPdfService
                                 .Text(code ?? "").Bold();
                         }
 
-                        // Auswertung: F/M/S-Dienste, freie Tage («-»), WE-Kontrolle
-                        // (OK = mind. ein Sa/So frei oder in den Ferien).
+                        // Auswertung: F/M/S-Dienste, freie Tage («-»), WE-Kontrolle —
+                        // OK erst wenn ein ZUSAMMENHÄNGENDES Wochenende (Sa UND der
+                        // folgende So) frei («-») oder Ferien war (Walter 09.08.2026).
                         int SumOf(string k) => z.Zellen.Values.Count(v => v == k);
-                        bool weOk = false;
-                        for (int t = 1; t <= tage && !weOk; t++)
+                        bool FreiAm(int t)
                         {
-                            if (!istWe[t]) continue;
-                            var iso = $"{year:D4}-{month:D2}-{t:D2}";
-                            if ((z.Zellen.TryGetValue(iso, out var c2) && c2 == "-")
-                                || (abs.TryGetValue(t, out var at) && at == "FERIEN"))
-                                weOk = true;
+                            var iso2 = $"{year:D4}-{month:D2}-{t:D2}";
+                            return (z.Zellen.TryGetValue(iso2, out var c2) && c2 == "-")
+                                || (abs.TryGetValue(t, out var at) && at == "FERIEN");
                         }
+                        bool weOk = false;
+                        for (int t = 1; t < tage && !weOk; t++)
+                            if (new DateTime(year, month, t).DayOfWeek == DayOfWeek.Saturday
+                                && FreiAm(t) && FreiAm(t + 1))
+                                weOk = true;
                         foreach (var (txt, erste, gruen) in new[]
                         {
                             (SumOf("F") > 0 ? SumOf("F").ToString() : "", true, false),

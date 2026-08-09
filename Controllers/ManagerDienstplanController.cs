@@ -684,6 +684,7 @@ public class ManagerDienstplanController : ControllerBase
         {
             ["Lulu"]   = ("Ludmila", "S"),
             ["Sinthy"] = ("Sinthuja", "K"),
+            ["Poja"]   = ("Pooja", "K"),
             ["Merita"] = ("Merita", "B"),
             ["Lita"]   = ("Merita", "R"),
             ["Sadis"]  = ("Nimalneethan", "S"),

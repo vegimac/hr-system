@@ -108,7 +108,7 @@ function dpRender() {
     // Auswertungs-Spalten ganz rechts: F | M | S | frei | WE (Walter 09.08.2026).
     kwRow  += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
     dayRow += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
-    wdRow  += '<th class="dp-sum dp-sumfirst">F</th><th class="dp-sum">M</th><th class="dp-sum">S</th><th class="dp-sum" title="Anzahl freie Tage (-)">frei</th><th class="dp-sum" title="OK = mind. 1× Samstag/Sonntag frei">WE</th></tr>';
+    wdRow  += '<th class="dp-sum dp-sumfirst">F</th><th class="dp-sum">M</th><th class="dp-sum">S</th><th class="dp-sum" title="Anzahl freie Tage (-)">frei</th><th class="dp-sum" title="OK = mind. ein zusammenhängendes Wochenende (Sa+So) frei oder Ferien">WE</th></tr>';
 
     // Feiertage + Schulferien pro Filiale/Tag (Walter 09.08.2026).
     const ftByCp = {};   // cpId → { iso: bezeichnung }
@@ -304,22 +304,31 @@ function _dpMove(empId, iso, dr, dc) {
 }
 
 // Auswertung einer Zeile: F/M/S-Dienste, freie Tage («-») und WE-Kontrolle —
-// OK sobald mind. EIN Samstag/Sonntag frei («-») oder in den Ferien war.
+// OK erst wenn ein ZUSAMMENHÄNGENDES Wochenende (Sa UND der folgende So)
+// frei («-») oder Ferien war (Walter 09.08.2026).
 function _dpRowSums(zeile) {
-    const isWe = (iso) => { const g = new Date(iso + 'T00:00:00').getDay(); return g === 0 || g === 6; };
     const c = { F: 0, M: 0, S: 0, frei: 0, weOk: false };
-    for (const [iso, v] of Object.entries(zeile.zellen || {})) {
+    for (const v of Object.values(zeile.zellen || {})) {
         if (c[v] !== undefined && v.length === 1) c[v]++;
-        if (v === '-') { c.frei++; if (isWe(iso)) c.weOk = true; }
+        if (v === '-') c.frei++;
     }
+    // Ferientage sammeln (zählen für die WE-Kontrolle als frei).
+    const ferien = new Set();
     for (const a of (zeile.absenzen || [])) {
         if (a.typ !== 'FERIEN') continue;
         let cur = new Date(a.von + 'T00:00:00');
         const end = new Date(a.bis + 'T00:00:00');
-        while (cur <= end && !c.weOk) {
-            if (cur.getDay() === 0 || cur.getDay() === 6) c.weOk = true;
+        while (cur <= end) {
+            ferien.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`);
             cur.setDate(cur.getDate() + 1);
         }
+    }
+    const isoOf = (t) => `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+    const istFrei = (t) => (zeile.zellen || {})[isoOf(t)] === '-' || ferien.has(isoOf(t));
+    const tage = new Date(_dpYear, _dpMonth, 0).getDate();
+    for (let t = 1; t < tage; t++) {
+        if (new Date(_dpYear, _dpMonth - 1, t).getDay() !== 6) continue;   // Samstag
+        if (istFrei(t) && istFrei(t + 1)) { c.weOk = true; break; }        // + folgender Sonntag
     }
     return c;
 }
