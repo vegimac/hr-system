@@ -158,7 +158,7 @@ function dpRender() {
                 const bg = cd?.farbe ? `background:${cd.farbe};` : '';
                 const ft = (ftByCp[z.companyProfileId] || {})[iso];
                 const ftCls = ft && !cd?.farbe ? ' dp-ftday' : '';
-                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/SKM), Klick rotiert' : '');
+                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/IV), Leertaste rotiert' : '');
                 const title = ft ? `${ft}${baseTitle ? ' — ' + baseTitle : ''}` : baseTitle;
                 const click = z.planbar
                     ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
@@ -217,8 +217,16 @@ function dpTipHide() {
     if (t) t.style.display = 'none';
 }
 
-// Klick rotiert durch die aktiven Kürzel (…→ letzter → leer → erster …).
+// Klick MARKIERT die Zelle nur (expliziter .focus() — Safari fokussiert
+// tabindex-Zellen beim Klick nicht selbst, darum ging Tippen vorher nicht;
+// Walter-Bug 09.08.2026). Kürzel wechseln = direkt tippen oder Leertaste.
 function dpCellClick(empId, iso) {
+    _dpBuf = '';
+    document.getElementById(`dp-${empId}-${iso}`)?.focus();
+}
+
+// Leertaste rotiert durch die aktiven Kürzel (…→ letzter → leer → erster …).
+function dpCellRotate(empId, iso) {
     if (!_dpData) return;
     const zeile = _dpData.zeilen.find(z => z.employeeId === empId);
     if (!zeile || !zeile.planbar) return;
@@ -239,7 +247,7 @@ function dpCellKey(ev, empId, iso) {
     const nav = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0], Enter: [1, 0] };
     if (nav[ev.key]) { ev.preventDefault(); _dpMove(empId, iso, nav[ev.key][0], nav[ev.key][1]); return; }
     if (ev.key === 'Backspace' || ev.key === 'Delete') { ev.preventDefault(); _dpBuf = ''; _dpApply(empId, iso, ''); return; }
-    if (ev.key === ' ') { ev.preventDefault(); dpCellClick(empId, iso); return; }
+    if (ev.key === ' ') { ev.preventDefault(); dpCellRotate(empId, iso); return; }
     if (ev.key.length !== 1 || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     ev.preventDefault();
     const ch = ev.key.toUpperCase() === '−' ? '-' : ev.key.toUpperCase();
@@ -281,7 +289,7 @@ function _dpApply(empId, iso, code) {
         const cd = (_dpData.codes || []).find(c => c.code === code);
         cell.textContent = code;
         cell.style.background = cd?.farbe || '';
-        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/SKM), Klick rotiert';
+        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV), Leertaste rotiert';
     }
     if (_dpPendTimer) clearTimeout(_dpPendTimer);
     if (_dpPend && (_dpPend.empId !== empId || _dpPend.iso !== iso)) _dpFlush();   // andere Zelle offen → sofort raus

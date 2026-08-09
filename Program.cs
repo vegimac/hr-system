@@ -2889,12 +2889,12 @@ using (var scope = app.Services.CreateScope())
             is_active   boolean NOT NULL DEFAULT true
         );
         INSERT INTO dienstplan_code (code, bezeichnung, farbe, sort_order) VALUES
-            ('F',   'Früh',                          NULL,      10),
-            ('M',   'Mittel',                        NULL,      20),
-            ('S',   'Spät',                          NULL,      30),
-            ('-',   'frei',                          '#fef9c3', 40),
-            ('SK',  'Shake-Maschine reinigen',       '#dbeafe', 50),
-            ('SKM', 'Shake-Maschine reinigen + Mittel', '#dbeafe', 60)
+            ('F',   'Früh',                    NULL,      10),
+            ('M',   'Mittel',                  NULL,      20),
+            ('S',   'Spät',                    NULL,      30),
+            ('-',   'frei',                    '#fef9c3', 40),
+            ('SK',  'Shake-Maschine reinigen', '#dbeafe', 50),
+            ('IV',  'Inventar',                '#e0e7ff', 60)
         ON CONFLICT (code) DO NOTHING;
         ALTER TABLE user_branch_access
             ADD COLUMN IF NOT EXISTS can_dienstplan boolean NOT NULL DEFAULT false;
