@@ -675,11 +675,36 @@ public class ManagerDienstplanController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Von Walter bestätigte Excel-Spitznamen (09.08.2026): Excel-Name →
+    /// Vorname + Nachnamen-Initial. Löst auch Mehrdeutigkeiten (zwei Meritas).
+    /// </summary>
+    private static readonly Dictionary<string, (string Vorname, string Initial)> EXCEL_ALIASES =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Lulu"]   = ("Ludmila", "S"),
+            ["Sinthy"] = ("Sinthuja", "K"),
+            ["Merita"] = ("Merita", "B"),
+            ["Lita"]   = ("Merita", "R"),
+            ["Sadis"]  = ("Nimalneethan", "S"),
+        };
+
     /// <summary>Excel-Name (oft Kurzform: «Sinthy», «Xheva») → MA der Filiale.</summary>
     private static int? MatchName(string excelName, List<(int EmpId, string FirstName, string LastName)> mas, out string? maName)
     {
         maName = null;
         var n = excelName.Trim();
+        // 0) bestätigte Aliase (Vorname + Nachnamen-Initial, eindeutig)
+        if (EXCEL_ALIASES.TryGetValue(n, out var alias))
+        {
+            var ahit = mas.Where(m => string.Equals(m.FirstName, alias.Vorname, StringComparison.OrdinalIgnoreCase)
+                                   && m.LastName.StartsWith(alias.Initial, StringComparison.OrdinalIgnoreCase)).ToList();
+            if (ahit.Count == 1)
+            {
+                maName = $"{ahit[0].FirstName} {ahit[0].LastName}".Trim();
+                return ahit[0].EmpId;
+            }
+        }
         // 1) exakt (Vorname)
         var hit = mas.Where(m => string.Equals(m.FirstName, n, StringComparison.OrdinalIgnoreCase)).ToList();
         // 2) Präfix in beide Richtungen (≥ 3 Zeichen; leere Vornamen ausschliessen —
