@@ -209,16 +209,10 @@ public class ManagerDienstplanController : ControllerBase
 
         var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
 
-        // Filialen alphabetisch nach Anzeigename (Arbeitsort), innerhalb GF
-        // zuoberst, dann Vorname + Nachname (Walter 09.08.2026).
-        string BranchAnzeige(int? cpId)
-        {
-            var b = branches.FirstOrDefault(x => x.Id == cpId);
-            if (b == null) return "";
-            return !string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "");
-        }
+        // Filial-Reihenfolge wie überall in OneCrew: nach Restaurant-Nummer.
+        // Innerhalb GF zuoberst, dann Vorname + Nachname (Walter 09.08.2026).
         var zeilen = proMa
-            .OrderBy(x => BranchAnzeige(x.CompanyProfileId), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => branches.FirstOrDefault(b => b.Id == x.CompanyProfileId)?.RestaurantCode ?? "")
             .ThenByDescending(x => x.JobCode == "REST_MANAGER")
             .ThenBy(x => x.FirstName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(x => x.LastName, StringComparer.OrdinalIgnoreCase)
