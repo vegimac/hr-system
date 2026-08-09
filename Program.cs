@@ -2894,7 +2894,8 @@ using (var scope = app.Services.CreateScope())
             ('S',   'Spät',                    NULL,      30),
             ('-',   'frei',                    '#fef9c3', 40),
             ('SK',  'Shake-Maschine reinigen', '#dbeafe', 50),
-            ('IV',  'Inventar',                '#e0e7ff', 60)
+            ('IV',  'Inventar',                '#e0e7ff', 60),
+            ('P',   'Plan',                    '#fce7f3', 70)
         ON CONFLICT (code) DO NOTHING;
         ALTER TABLE user_branch_access
             ADD COLUMN IF NOT EXISTS can_dienstplan boolean NOT NULL DEFAULT false;

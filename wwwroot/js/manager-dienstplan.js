@@ -158,7 +158,7 @@ function dpRender() {
                 const bg = cd?.farbe ? `background:${cd.farbe};` : '';
                 const ft = (ftByCp[z.companyProfileId] || {})[iso];
                 const ftCls = ft && !cd?.farbe ? ' dp-ftday' : '';
-                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/IV), Leertaste rotiert' : '');
+                const baseTitle = cd ? cd.bezeichnung : (z.planbar ? 'Tippen (F/M/S/-/SK/IV/P), Leertaste rotiert' : '');
                 const title = ft ? `${ft}${baseTitle ? ' — ' + baseTitle : ''}` : baseTitle;
                 const click = z.planbar
                     ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
@@ -289,7 +289,7 @@ function _dpApply(empId, iso, code) {
         const cd = (_dpData.codes || []).find(c => c.code === code);
         cell.textContent = code;
         cell.style.background = cd?.farbe || '';
-        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV), Leertaste rotiert';
+        cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV/P), Leertaste rotiert';
     }
     if (_dpPendTimer) clearTimeout(_dpPendTimer);
     if (_dpPend && (_dpPend.empId !== empId || _dpPend.iso !== iso)) _dpFlush();   // andere Zelle offen → sofort raus
