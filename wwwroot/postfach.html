@@ -880,7 +880,12 @@
                     <span class="pf-up-pick-icon">📎</span>
                     Datei wählen
                 </label>
+                <label class="pf-up-pick" onclick="pfScanDocument()">
+                    <span class="pf-up-pick-icon">📄</span>
+                    Dokument scannen
+                </label>
             </div>
+            <div id="upScanStatus" style="display:none;font-size:12.5px;color:#64748b;margin-top:6px"></div>
             <input type="file" id="upInputCamera" accept="image/*" capture="environment" style="display:none" onchange="upFilePicked(this.files)">
             <input type="file" id="upInputFile"   accept="image/*,application/pdf" style="display:none" onchange="upFilePicked(this.files)">
 
@@ -939,6 +944,7 @@
 </main>
 
 <script src="js/webauthn.js?v=20260701b"></script>
+<script src="js/scanbot-scan.js?v=20260809a"></script>
 <script>
     // Token aus dem Login (gemeinsam mit der Backoffice-App)
     const TOKEN = localStorage.getItem('hrToken');
@@ -1480,6 +1486,27 @@
         document.getElementById('upInputFile').value   = '';
         document.getElementById('upPreview').style.display = 'none';
         document.getElementById('upSubmitBtn').disabled = true;
+    }
+
+    // Dokument-Scan via Scanbot (gemeinsamer Kern js/scanbot-scan.js) —
+    // Kamera → automatische Dokumenterkennung → PDF → wie gewählte Datei.
+    async function pfScanDocument() {
+        const st = document.getElementById('upScanStatus');
+        const show = (t) => { if (st) { st.style.display = t ? 'block' : 'none'; st.textContent = t || ''; } };
+        try {
+            const file = await scanbotScanToPdf({
+                busy: (stage) => show(
+                    stage === 'load' ? '📷 Scanner wird geladen, bitte warten…'
+                    : stage === 'pdf' ? '📄 PDF wird erstellt…'
+                    : ''),
+            });
+            show('');
+            if (file) upFilePicked([file]);
+        } catch (e) {
+            show('');
+            const msg = (e && (e.message || e.toString())) || 'Unbekannter Fehler';
+            alert('Scan fehlgeschlagen: ' + msg);
+        }
     }
 
     async function submitUpload() {
