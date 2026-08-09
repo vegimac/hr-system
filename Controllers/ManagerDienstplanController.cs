@@ -157,7 +157,7 @@ public class ManagerDienstplanController : ControllerBase
         var empIds = proMa.Select(x => x.EmployeeId).ToList();
 
         var branches = await _db.CompanyProfiles.AsNoTracking()
-            .Select(c => new { c.Id, c.RestaurantCode, c.BranchName, c.City, c.KantonCode })
+            .Select(c => new { c.Id, c.RestaurantCode, c.BranchName, c.City, c.KantonCode, c.WorkLocation })
             .ToListAsync();
 
         // Feiertage des Monats pro Filiale auflösen: NATIONAL → alle,
@@ -231,8 +231,14 @@ public class ManagerDienstplanController : ControllerBase
                     .ToList()))
             .ToList();
 
+        // Anzeigename = Arbeitsort pur («Hendschiken», «Langenthal Drive») —
+        // ohne Restaurant-Code und ohne «Filiale»-Präfix (Walter 09.08.2026).
         var filialen = branches
-            .Select(b => new DpFilialeInfo(b.Id, b.RestaurantCode, b.BranchName ?? b.City, b.KantonCode))
+            .Select(b => new DpFilialeInfo(
+                b.Id,
+                null,
+                !string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName),
+                b.KantonCode))
             .ToList();
         return (zeilen, filialen, codes, feiertage, schulferien);
     }

@@ -136,8 +136,8 @@ function dpRender() {
                 const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
                 const ft = ftM[iso], sf = sfM[iso];
                 const cls = ft ? ' dp-brft' : (sf ? ' dp-brsf' : '');
-                const title = [ft, sf].filter(Boolean).join(' · ');
-                brCells += `<td class="dp-brday${cls}"${title ? ` title="${esc(title)}"` : ''}>${ft ? '★' : ''}</td>`;
+                const tip = [ft, sf].filter(Boolean).join(' · ');
+                brCells += `<td class="dp-brday${cls}"${tip ? ` data-tip="${esc(`${_dpFmtD(iso)} — ${tip}`)}"` : ''}>${ft ? '★' : ''}</td>`;
             }
             body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}</tr>`;
         }
@@ -187,6 +187,34 @@ function dpRender() {
             <thead>${kwRow}${dayRow}${wdRow}</thead>
             <tbody>${body}</tbody>
         </table></div>`;
+
+    // Sofort-Tooltip für Feiertags-/Schulferien-Zellen (nativer title ist zu träge).
+    el.querySelectorAll('[data-tip]').forEach(c => {
+        c.onmouseenter = () => dpTipShow(c);
+        c.onmouseleave = dpTipHide;
+    });
+}
+
+function dpTipShow(cell) {
+    const text = cell.getAttribute('data-tip');
+    if (!text) return;
+    let tip = document.getElementById('dpTip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'dpTip';
+        tip.className = 'dp-tip';
+        document.body.appendChild(tip);
+    }
+    tip.textContent = text;
+    tip.style.display = 'block';
+    const r = cell.getBoundingClientRect();
+    tip.style.left = Math.max(6, Math.min(window.innerWidth - tip.offsetWidth - 6, r.left + r.width / 2 - tip.offsetWidth / 2)) + 'px';
+    tip.style.top = Math.max(6, r.top - tip.offsetHeight - 6) + 'px';
+}
+
+function dpTipHide() {
+    const t = document.getElementById('dpTip');
+    if (t) t.style.display = 'none';
 }
 
 // Klick rotiert durch die aktiven Kürzel (…→ letzter → leer → erster …).

@@ -11001,6 +11001,9 @@ body.theme-dark .dp-gf { color:#fff !important; }
    Tag — Feiertag rot (★), Schulferien blaues Band; Tageszellen am Feiertag
    leicht rot getönt. !important nötig gegen .dp-branch td. */
 .dp-branch td.dp-brday { padding:0; font-size:10px; text-align:center; }
+.dp-tip { position:fixed; z-index:9500; background:#3f3f3f; color:#fff; font-size:12px; font-weight:600;
+          padding:5px 10px; border-radius:8px; box-shadow:0 6px 18px rgba(60,55,48,0.3);
+          pointer-events:none; white-space:nowrap; display:none; }
 .dp-branch td.dp-brft { background:#f87171 !important; color:#fff !important; }
 .dp-branch td.dp-brsf { background:#93c5fd !important; }
 td.dp-cell.dp-ftday { background:#fdeaea; }
