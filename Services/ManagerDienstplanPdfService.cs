@@ -55,10 +55,12 @@ public class ManagerDienstplanPdfService
                 if (d.Year == year && d.Month == month)
                     sfMap[(s.CompanyProfileId, d.Day)] = s.Bezeichnung;
         bool[] istWe = new bool[tage + 1];
+        bool[] istMo = new bool[tage + 1];
         for (int t = 1; t <= tage; t++)
         {
             var dow = new DateTime(year, month, t).DayOfWeek;
             istWe[t] = dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday;
+            istMo[t] = dow == DayOfWeek.Monday;
         }
 
         // Absenz-Lookup MA → Tag → Typ.
@@ -96,22 +98,33 @@ public class ManagerDienstplanPdfService
                     {
                         cols.ConstantColumn(78);
                         for (int t = 1; t <= tage; t++) cols.RelativeColumn();
+                        // Summen-Spalten F/M/S ganz rechts (wie in der alten Excel).
+                        cols.ConstantColumn(16);
+                        cols.ConstantColumn(16);
+                        cols.ConstantColumn(16);
                     });
 
-                    // Kopf (wiederholt sich auf Folgeseiten): Datum + Wochentag.
+                    // Kopf: Datum + Wochentag. Wochenende NUR hier schattiert;
+                    // vor jedem Montag eine Wochen-Trennlinie.
                     table.Header(h =>
                     {
-                        h.Cell().Element(x => KopfZelle(x, false)).AlignLeft().PaddingLeft(3)
+                        h.Cell().Element(x => KopfZelle(x, false, false)).AlignLeft().PaddingLeft(3)
                             .Text("Datum").Bold().FontColor("#646464");
                         for (int t = 1; t <= tage; t++)
-                            h.Cell().Element(x => KopfZelle(x, istWe[t]))
+                            h.Cell().Element(x => KopfZelle(x, istWe[t], istMo[t]))
                                 .Text(t.ToString("00")).Bold().FontColor("#646464");
-                        h.Cell().Element(x => KopfZelle(x, false)).AlignLeft().PaddingLeft(3)
+                        h.Cell().Element(x => KopfZelle(x, false, true));
+                        h.Cell().Element(x => KopfZelle(x, false, false));
+                        h.Cell().Element(x => KopfZelle(x, false, false));
+                        h.Cell().Element(x => KopfZelle(x, false, false)).AlignLeft().PaddingLeft(3)
                             .Text("Tag").Bold().FontColor("#646464");
                         for (int t = 1; t <= tage; t++)
-                            h.Cell().Element(x => KopfZelle(x, istWe[t]))
+                            h.Cell().Element(x => KopfZelle(x, istWe[t], istMo[t]))
                                 .Text(Wochentage[(int)new DateTime(year, month, t).DayOfWeek])
                                 .Bold().FontColor("#646464");
+                        h.Cell().Element(x => KopfZelle(x, false, true)).Text("F").Bold().FontColor("#646464");
+                        h.Cell().Element(x => KopfZelle(x, false, false)).Text("M").Bold().FontColor("#646464");
+                        h.Cell().Element(x => KopfZelle(x, false, false)).Text("S").Bold().FontColor("#646464");
                     });
 
                     int? lastCp = null;
@@ -135,6 +148,9 @@ public class ManagerDienstplanPdfService
                                 table.Cell().Background(bgBr).AlignCenter().AlignMiddle()
                                     .Text("").FontSize(6);
                             }
+                            table.Cell().Background(Dunkel).Text("");
+                            table.Cell().Background(Dunkel).Text("");
+                            table.Cell().Background(Dunkel).Text("");
                         }
 
                         // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
@@ -150,11 +166,13 @@ public class ManagerDienstplanPdfService
                         for (int t = 1; t <= tage; t++)
                         {
                             var iso = $"{year:D4}-{month:D2}-{t:D2}";
+                            var basis = table.Cell().Border(0.5f).BorderColor(Rand);
+                            if (istMo[t]) basis = basis.BorderLeft(1.6f);   // Wochen-Trennlinie
                             if (abs.TryGetValue(t, out var typ))
                             {
                                 var st = ABS.TryGetValue(typ, out var a) ? a
                                     : new AbsStyle("#e2e8f0", "#475569", typ.Length > 2 ? typ[..2] : typ, typ);
-                                table.Cell().Border(0.5f).BorderColor(Rand).Background(st.Bg)
+                                basis.Background(st.Bg)
                                     .AlignCenter().AlignMiddle().PaddingVertical(1.5f)
                                     .Text(st.Kuerzel).Bold().FontColor(st.Fg);
                                 continue;
@@ -162,11 +180,22 @@ public class ManagerDienstplanPdfService
                             z.Zellen.TryGetValue(iso, out var code);
                             var farbe = codes.FirstOrDefault(x => x.Code == code)?.Farbe;
                             bool istFt = ftMap.ContainsKey((z.CompanyProfileId ?? -1, t));
-                            var bg = farbe ?? (istFt ? "#fdeaea" : istWe[t] ? WochenEnd : null);
-                            var cell = table.Cell().Border(0.5f).BorderColor(Rand);
-                            if (bg != null) cell = cell.Background(bg);
-                            cell.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
+                            // Wochenende NICHT mehr im Grid färben (nur Kopf).
+                            var bg = farbe ?? (istFt ? "#fdeaea" : null);
+                            if (bg != null) basis = basis.Background(bg);
+                            basis.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
                                 .Text(code ?? "").Bold();
+                        }
+
+                        // Summen F/M/S des Monats (nur geplante Kürzel).
+                        int SumOf(string k) => z.Zellen.Values.Count(v => v == k);
+                        foreach (var (k, erste) in new[] { ("F", true), ("M", false), ("S", false) })
+                        {
+                            var sc = table.Cell().Border(0.5f).BorderColor(Rand).Background(KopfBg);
+                            if (erste) sc = sc.BorderLeft(1.6f);
+                            var n = SumOf(k);
+                            sc.AlignCenter().AlignMiddle().PaddingVertical(1.5f)
+                                .Text(n > 0 ? n.ToString() : "").Bold();
                         }
                     }
                 });
@@ -192,7 +221,11 @@ public class ManagerDienstplanPdfService
         }).GeneratePdf();
     }
 
-    private static IContainer KopfZelle(IContainer x, bool we)
-        => x.Border(0.5f).BorderColor(Rand).Background(we ? WochenEnd : KopfBg)
+    private static IContainer KopfZelle(IContainer x, bool we, bool mo)
+    {
+        x = x.Border(0.5f).BorderColor(Rand);
+        if (mo) x = x.BorderLeft(1.6f);
+        return x.Background(we ? WochenEnd : KopfBg)
             .PaddingVertical(1.5f).AlignCenter().AlignMiddle();
+    }
 }

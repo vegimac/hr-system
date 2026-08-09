@@ -91,19 +91,24 @@ function dpRender() {
         absMap[z.employeeId] = m;
     }
 
-    // Kopfzeilen: KW / Datum / Tag.
+    // Kopfzeilen: KW / Datum / Tag. Wochenende NUR hier gefärbt; vor jedem
+    // Montag eine senkrechte Wochen-Trennlinie (wie in der alten Excel).
     let kwRow = '<tr><th class="dp-side">KW</th>';
     let dayRow = '<tr><th class="dp-side">Datum</th>';
     let wdRow = '<tr><th class="dp-side">Tag</th>';
     for (let t = 1; t <= tage; t++) {
         const dt = new Date(_dpYear, _dpMonth - 1, t);
         const we = dt.getDay() === 0 || dt.getDay() === 6;
-        const cls = we ? ' class="dp-we"' : '';
-        kwRow  += `<th${cls}>${dt.getDay() === 1 ? _dpKw(dt) : ''}</th>`;
+        const mo = dt.getDay() === 1;
+        const cls = (we || mo) ? ` class="${we ? 'dp-we' : ''}${mo ? ' dp-mo' : ''}"` : '';
+        kwRow  += `<th${cls}>${mo ? _dpKw(dt) : ''}</th>`;
         dayRow += `<th${cls}>${String(t).padStart(2, '0')}</th>`;
         wdRow  += `<th${cls}>${wd[dt.getDay()]}</th>`;
     }
-    kwRow += '</tr>'; dayRow += '</tr>'; wdRow += '</tr>';
+    // Summen-Spalten F/M/S ganz rechts (Titel in der Tag-Zeile).
+    kwRow  += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
+    dayRow += '<th class="dp-sum dp-sumfirst"></th><th class="dp-sum"></th><th class="dp-sum"></th></tr>';
+    wdRow  += '<th class="dp-sum dp-sumfirst">F</th><th class="dp-sum">M</th><th class="dp-sum">S</th></tr>';
 
     // Feiertage + Schulferien pro Filiale/Tag (Walter 09.08.2026).
     const ftByCp = {};   // cpId → { iso: bezeichnung }
@@ -134,12 +139,13 @@ function dpRender() {
             let brCells = '';
             for (let t = 1; t <= tage; t++) {
                 const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+                const mo = new Date(_dpYear, _dpMonth - 1, t).getDay() === 1;
                 const ft = ftM[iso], sf = sfM[iso];
-                const cls = ft ? ' dp-brft' : (sf ? ' dp-brsf' : '');
+                const cls = (ft ? ' dp-brft' : (sf ? ' dp-brsf' : '')) + (mo ? ' dp-mo' : '');
                 const tip = [ft, sf].filter(Boolean).join(' · ');
                 brCells += `<td class="dp-brday${cls}"${tip ? ` data-tip="${esc(`${_dpFmtD(iso)} — ${tip}`)}"` : ''}>${ft ? '★' : ''}</td>`;
             }
-            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}</tr>`;
+            body += `<tr class="dp-branch"><td class="dp-side">${esc(f ? (f.code ? f.code + ' ' : '') + (f.name || '') : '')}</td>${brCells}<td class="dp-sumfirst"></td><td></td><td></td></tr>`;
         }
         // Anzeigename immer «Vorname N.» (Walter 09.08.2026, wie Alters-Report).
         const anzName = z.vorname + (z.nachname ? ` ${z.nachname.charAt(0)}.` : '');
@@ -147,11 +153,13 @@ function dpRender() {
         for (let t = 1; t <= tage; t++) {
             const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
             const dt = new Date(_dpYear, _dpMonth - 1, t);
-            const we = dt.getDay() === 0 || dt.getDay() === 6;
+            // Wochenende NICHT mehr in den Tageszellen färben (nur Kopf) —
+            // dafür Wochen-Trennlinie vor jedem Montag (Walter 09.08.2026).
+            const moCls = dt.getDay() === 1 ? ' dp-mo' : '';
             const absTyp = absMap[z.employeeId][iso];
             if (absTyp) {
                 const st = DP_ABSENZ_STYLE[absTyp] || { bg: '#e2e8f0', fg: '#475569', kuerzel: absTyp.slice(0, 2) };
-                row += `<td class="dp-cell dp-abs${we ? ' dp-we' : ''}" style="background:${st.bg};color:${st.fg}" title="${esc(absTyp)} — im Absenzen-Tab gepflegt">${st.kuerzel}</td>`;
+                row += `<td class="dp-cell dp-abs${moCls}" style="background:${st.bg};color:${st.fg}" title="${esc(absTyp)} — im Absenzen-Tab gepflegt">${st.kuerzel}</td>`;
             } else {
                 const code = (z.zellen || {})[iso] || '';
                 const cd = (d.codes || []).find(c => c.code === code);
@@ -163,9 +171,14 @@ function dpRender() {
                 const click = z.planbar
                     ? ` tabindex="0" onclick="dpCellClick(${z.employeeId},'${iso}')" onkeydown="dpCellKey(event,${z.employeeId},'${iso}')" onfocus="_dpBuf=''" style="cursor:pointer;${bg}"`
                     : ` style="${bg}"`;
-                row += `<td class="dp-cell${we ? ' dp-we' : ''}${ftCls}"${click} id="dp-${z.employeeId}-${iso}" title="${esc(title)}">${esc(code)}</td>`;
+                row += `<td class="dp-cell${moCls}${ftCls}"${click} id="dp-${z.employeeId}-${iso}" title="${esc(title)}">${esc(code)}</td>`;
             }
         }
+        // Summen F/M/S des Monats ganz rechts (wie in der alten Excel).
+        const sums = _dpRowSums(z);
+        row += `<td class="dp-sum dp-sumfirst" id="dp-sum-${z.employeeId}-F">${sums.F || ''}</td>
+                <td class="dp-sum" id="dp-sum-${z.employeeId}-M">${sums.M || ''}</td>
+                <td class="dp-sum" id="dp-sum-${z.employeeId}-S">${sums.S || ''}</td>`;
         body += `<tr>${row}</tr>`;
     }
 
@@ -192,6 +205,16 @@ function dpRender() {
     el.querySelectorAll('[data-tip]').forEach(c => {
         c.onmouseenter = () => dpTipShow(c);
         c.onmouseleave = dpTipHide;
+    });
+
+    // Alle 3 Kopfzeilen (KW/Datum/Tag) fixieren: Sticky-Offsets aus den ECHTEN
+    // Zeilenhöhen messen — feste CSS-Werte stimmen je nach Browser/Zoom nicht
+    // (Walter-Bug 09.08.2026: KW/Datum rutschten unter die Tag-Zeile).
+    const headRows = el.querySelectorAll('thead tr');
+    let off = 0;
+    headRows.forEach(r => {
+        r.querySelectorAll('th').forEach(th => { th.style.top = off + 'px'; });
+        off += r.getBoundingClientRect().height;
     });
 }
 
@@ -278,6 +301,24 @@ function _dpMove(empId, iso, dr, dc) {
     }
 }
 
+// F/M/S-Zähler einer Zeile (nur geplante Kürzel; Absenzen zählen nicht).
+function _dpRowSums(zeile) {
+    const c = { F: 0, M: 0, S: 0 };
+    for (const v of Object.values(zeile.zellen || {}))
+        if (c[v] !== undefined) c[v]++;
+    return c;
+}
+
+function _dpUpdateSums(empId) {
+    const zeile = _dpData?.zeilen.find(z => z.employeeId === empId);
+    if (!zeile) return;
+    const sums = _dpRowSums(zeile);
+    for (const k of ['F', 'M', 'S']) {
+        const cell = document.getElementById(`dp-sum-${empId}-${k}`);
+        if (cell) cell.textContent = sums[k] || '';
+    }
+}
+
 // Anzeige sofort aktualisieren, Speichern leicht verzögert (bündelt S→SK→SKM zu EINEM PUT).
 function _dpApply(empId, iso, code) {
     const zeile = _dpData?.zeilen.find(z => z.employeeId === empId);
@@ -291,6 +332,7 @@ function _dpApply(empId, iso, code) {
         cell.style.background = cd?.farbe || '';
         cell.title = cd ? cd.bezeichnung : 'Tippen (F/M/S/-/SK/IV/P), Leertaste rotiert';
     }
+    _dpUpdateSums(empId);
     if (_dpPendTimer) clearTimeout(_dpPendTimer);
     if (_dpPend && (_dpPend.empId !== empId || _dpPend.iso !== iso)) _dpFlush();   // andere Zelle offen → sofort raus
     _dpPend = { empId, iso, code };

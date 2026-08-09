@@ -11009,6 +11009,14 @@ body.theme-dark .dp-gf { color:#fff !important; }
 .dp-tip { position:fixed; z-index:9500; background:#3f3f3f; color:#fff; font-size:12px; font-weight:600;
           padding:5px 10px; border-radius:8px; box-shadow:0 6px 18px rgba(60,55,48,0.3);
           pointer-events:none; white-space:nowrap; display:none; }
+/* Wochen-Trennlinie vor jedem Montag + F/M/S-Summenspalten (Walter 09.08.2026).
+   Wochenende wird NUR noch im Kopf (dp-we auf th) gefärbt. */
+.dp-table .dp-mo { border-left:2px solid #a39c8f !important; }
+.dp-table .dp-sum { background:#f6f3ee; font-weight:700; color:#3f3f3f; min-width:26px; }
+.dp-table .dp-sumfirst { border-left:2px solid #a39c8f !important; }
+.dp-branch td.dp-sumfirst { border-left-color:#a39c8f; }
+body.theme-dark .dp-table .dp-mo, body.theme-dark .dp-table .dp-sumfirst { border-left-color:#4a5a72 !important; }
+body.theme-dark .dp-table .dp-sum { background:#1c2a40; color:#cbd5e1; }
 .dp-branch td.dp-brft { background:#f87171 !important; color:#fff !important; }
 .dp-branch td.dp-brsf { background:#93c5fd !important; }
 td.dp-cell.dp-ftday { background:#fdeaea; }
