@@ -2924,6 +2924,21 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_branch_schulferien_cp ON branch_schulferien (company_profile_id);
     ");
+    // Vorstellungsgespräch-Zeitfenster der GF (Walter 09.08.2026, Stufe 1).
+    // Doku: migrations-archive/add_interview_fenster.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS interview_fenster (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            datum       date NOT NULL,
+            von_zeit    time NOT NULL,
+            bis_zeit    time NOT NULL,
+            bemerkung   text,
+            created_at  timestamp without time zone NOT NULL DEFAULT now(),
+            created_by  text
+        );
+        CREATE INDEX IF NOT EXISTS ix_interview_fenster_emp_datum ON interview_fenster (employee_id, datum);
+    ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config

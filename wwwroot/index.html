@@ -1853,6 +1853,22 @@
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:12px">
 
+                    <!-- Vorstellungsgespräch-Zeitfenster der GF (Walter 09.08.2026, Stufe 1) -->
+                    <div class="hr-card" style="cursor:pointer" onclick="hrIvOpen()">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#eef2ff">🗣</div>
+                            <div>
+                                <div class="hr-card-title">Vorstellungsgespräche</div>
+                                <div class="hr-card-status">Zeitfenster der GF</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li class="hr-done"><b>Zeitfenster ansehen</b> <span style="color:#15803d">✓ vorhanden</span> <span style="color:#94a3b8;font-size:11px">— öffnen</span></li>
+                            <li>GF melden ihre Fenster im Restaurant Admin (nur an geplanten Arbeitstagen)</li>
+                            <li class="hr-idea">Terminbuchung durch HR — folgt</li>
+                        </ul>
+                    </div>
+
                     <!-- Walter-Vorgabe 07.06.2026: Kontroll-Listen — proaktive
                          Lücken-Erkennung. Card BEWUSST in Rot, damit HR sie sieht.
                          Walter 22.07.2026: Dokument-Upload-Protokoll aus FIBU hierher
@@ -8043,7 +8059,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260808g"></script>
+<script src="employees.js?v=20260809a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -8803,6 +8819,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260809q"></script>
+<script src="js/interview-fenster.js?v=20260809a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>

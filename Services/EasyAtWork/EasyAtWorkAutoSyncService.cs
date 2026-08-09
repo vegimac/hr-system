@@ -118,6 +118,7 @@ public class EasyAtWorkAutoSyncRunner
         }
 
         await CleanupLogAsync(ct);
+        await CleanupInterviewFensterAsync(ct);
         _log.LogInformation("easy@work Auto-Sync beendet.");
     }
 
@@ -347,6 +348,28 @@ public class EasyAtWorkAutoSyncRunner
     }
 
     /// <summary>Protokoll-Einträge älter als 90 Tage entfernen (eigener Scope).</summary>
+    /// <summary>
+    /// Vergangene Vorstellungsgespräch-Zeitfenster löschen (Walter-Vorgabe
+    /// 09.08.2026): angezeigt wird ohnehin nur ab heute — der tägliche
+    /// Sync-Job räumt die abgelaufenen Fenster endgültig aus der Tabelle.
+    /// </summary>
+    private async Task CleanupInterviewFensterAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var heute = DateOnly.FromDateTime(SwissNow());
+            var n = await db.InterviewFenster.Where(f => f.Datum < heute).ExecuteDeleteAsync(ct);
+            if (n > 0)
+                _log.LogInformation("Interview-Fenster-Cleanup: {N} vergangene Fenster gelöscht.", n);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Interview-Fenster-Cleanup fehlgeschlagen.");
+        }
+    }
+
     private async Task CleanupLogAsync(CancellationToken ct)
     {
         try

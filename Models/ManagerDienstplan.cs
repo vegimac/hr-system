@@ -53,6 +53,27 @@ public class DienstplanFeiertag
 }
 
 /// <summary>
+/// Vorstellungsgespräch-Zeitfenster eines GF/Managers (Walter-Vorgabe
+/// 09.08.2026, Stufe 1): der GF teilt NUR mit, wann er an einem seiner im
+/// Manager-Dienstplan als ARBEIT (F/M/S) geplanten Tage Zeit für
+/// Vorstellungsgespräche hat. HR sieht die Fenster im HR-Hub (read-only).
+/// Die eigentliche Terminbuchung durch HR ist Stufe 2 (noch nicht gebaut).
+/// </summary>
+public class InterviewFenster
+{
+    public int Id { get; set; }
+    /// <summary>Der Manager/GF (employee), dem das Fenster gehört.</summary>
+    public int EmployeeId { get; set; }
+    public DateOnly Datum { get; set; }
+    public TimeOnly VonZeit { get; set; }
+    public TimeOnly BisZeit { get; set; }
+    public string? Bemerkung { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    /// <summary>Anzeigename des Erfassers (aus JWT, nie aus dem Body).</summary>
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>
 /// Schulferien pro Filiale (Walter-Vorgabe 09.08.2026) — Anzeige-Band in der
 /// Filial-Zeile des Manager-Dienstplans (wie «Sportferien» in der alten Excel).
 /// </summary>

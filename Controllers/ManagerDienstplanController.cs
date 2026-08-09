@@ -373,6 +373,147 @@ public class ManagerDienstplanController : ControllerBase
         return Ok(new { ok = true });
     }
 
+    // ═════════════════════════════════════════════════════════════════════
+    //  Vorstellungsgespräch-Zeitfenster (Walter-Vorgabe 09.08.2026, Stufe 1):
+    //  Der GF teilt NUR mit, wann er Zeit für Vorstellungsgespräche hat —
+    //  an einem Tag, der im Manager-DP als ARBEIT (F/M/S) geplant ist.
+    //  HR sieht die Fenster im HR-Hub. Terminbuchung = Stufe 2 (offen).
+    // ═════════════════════════════════════════════════════════════════════
+
+    /// <summary>Heimatfiliale des Managers am Datum (laufender FIX-M-Vertrag).</summary>
+    private async Task<int?> HomeBranchAsync(int employeeId, DateOnly datum)
+    {
+        var dt = datum.ToDateTime(TimeOnly.MinValue);
+        return await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == employeeId
+                      && em.EmploymentModel == "FIX-M"
+                      && em.ContractStartDate <= dt
+                      && (em.ContractEndDate == null || em.ContractEndDate >= dt))
+            .OrderByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+    }
+
+    /// <summary>Kommende Fenster (ab heute); optional nur ein Manager.</summary>
+    [HttpGet("interview-fenster")]
+    public async Task<IActionResult> GetInterviewFenster([FromQuery] int? employeeId)
+    {
+        var heute = DateOnly.FromDateTime(DateTime.Now);
+        var q = _db.InterviewFenster.AsNoTracking().Where(f => f.Datum >= heute);
+        if (employeeId.HasValue) q = q.Where(f => f.EmployeeId == employeeId.Value);
+        var fenster = await q.OrderBy(f => f.Datum).ThenBy(f => f.VonZeit).ToListAsync();
+
+        var empIds = fenster.Select(f => f.EmployeeId).Distinct().ToList();
+        var namen = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id))
+            .Select(e => new { e.Id, e.FirstName, e.LastName })
+            .ToDictionaryAsync(e => e.Id);
+        var branches = await _db.CompanyProfiles.AsNoTracking()
+            .Select(c => new { c.Id, c.WorkLocation, c.City, c.BranchName })
+            .ToListAsync();
+
+        var result = new List<object>();
+        foreach (var f in fenster)
+        {
+            var cpId = await HomeBranchAsync(f.EmployeeId, f.Datum);
+            var b = branches.FirstOrDefault(x => x.Id == cpId);
+            namen.TryGetValue(f.EmployeeId, out var n);
+            result.Add(new
+            {
+                f.Id,
+                f.EmployeeId,
+                manager = n == null ? "" : $"{n.FirstName} {(string.IsNullOrEmpty(n.LastName) ? "" : n.LastName[..1] + ".")}".Trim(),
+                companyProfileId = cpId,
+                filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
+                datum = f.Datum.ToString("yyyy-MM-dd"),
+                von = f.VonZeit.ToString("HH:mm"),
+                bis = f.BisZeit.ToString("HH:mm"),
+                f.Bemerkung,
+            });
+        }
+        return Ok(result);
+    }
+
+    /// <summary>Geplante Arbeitstage (F/M/S) eines Managers ab heute — für das Tag-Dropdown.</summary>
+    [HttpGet("interview-fenster/arbeitstage/{employeeId:int}")]
+    public async Task<IActionResult> GetArbeitstage(int employeeId)
+    {
+        var heute = DateOnly.FromDateTime(DateTime.Now);
+        var bis = heute.AddDays(60);
+        var arbeit = new[] { "F", "M", "S" };
+        var tage = await _db.ManagerDienstplanEntries.AsNoTracking()
+            .Where(p => p.EmployeeId == employeeId && p.Datum >= heute && p.Datum <= bis && arbeit.Contains(p.Code))
+            .OrderBy(p => p.Datum)
+            .Select(p => new { datum = p.Datum, p.Code })
+            .ToListAsync();
+        return Ok(tage.Select(t => new { datum = t.datum.ToString("yyyy-MM-dd"), code = t.Code }));
+    }
+
+    public class InterviewFensterDto
+    {
+        public int EmployeeId { get; set; }
+        public string? Datum { get; set; }     // ISO yyyy-MM-dd
+        public string? Von { get; set; }       // HH:mm
+        public string? Bis { get; set; }       // HH:mm
+        public string? Bemerkung { get; set; }
+    }
+
+    [HttpPost("interview-fenster")]
+    public async Task<IActionResult> AddInterviewFenster([FromBody] InterviewFensterDto dto)
+    {
+        if (!DateOnly.TryParse(dto.Datum, out var datum))
+            return BadRequest(new { error = "DATUM_UNGUELTIG" });
+        if (!TimeOnly.TryParse(dto.Von, out var von) || !TimeOnly.TryParse(dto.Bis, out var bis) || bis <= von)
+            return BadRequest(new { error = "ZEIT_UNGUELTIG", message = "Von/Bis-Zeit prüfen (Bis muss nach Von liegen)." });
+
+        // Rechte: admin überall, sonst Planungsrecht auf der Heimatfiliale.
+        var (isAdmin, planBranches, name) = await GetPlanRechteAsync();
+        var cpId = await HomeBranchAsync(dto.EmployeeId, datum);
+        if (!isAdmin && (!cpId.HasValue || !planBranches.Contains(cpId.Value)))
+            return StatusCode(403, new { error = "KEIN_PLANRECHT", message = "Kein Planungsrecht für die Filiale dieses Managers." });
+
+        // Nur an Tagen, die im Manager-DP als ARBEIT (F/M/S) geplant sind.
+        var arbeit = new[] { "F", "M", "S" };
+        bool istArbeitstag = await _db.ManagerDienstplanEntries.AnyAsync(p =>
+            p.EmployeeId == dto.EmployeeId && p.Datum == datum && arbeit.Contains(p.Code));
+        if (!istArbeitstag)
+            return Conflict(new
+            {
+                error = "KEIN_ARBEITSTAG",
+                message = "An diesem Tag ist im Manager-Dienstplan keine Arbeit (F/M/S) geplant — zuerst den Dienstplan pflegen.",
+            });
+
+        _db.InterviewFenster.Add(new InterviewFenster
+        {
+            EmployeeId = dto.EmployeeId,
+            Datum = datum,
+            VonZeit = von,
+            BisZeit = bis,
+            Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
+            CreatedAt = DateTime.Now,
+            CreatedBy = name,
+        });
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    [HttpDelete("interview-fenster/{id:int}")]
+    public async Task<IActionResult> DeleteInterviewFenster(int id)
+    {
+        var f = await _db.InterviewFenster.FindAsync(id);
+        if (f == null) return NotFound();
+        var (isAdmin, planBranches, _) = await GetPlanRechteAsync();
+        if (!isAdmin)
+        {
+            var cpId = await HomeBranchAsync(f.EmployeeId, f.Datum);
+            if (!cpId.HasValue || !planBranches.Contains(cpId.Value))
+                return StatusCode(403, new { error = "KEIN_PLANRECHT", message = "Kein Planungsrecht für die Filiale dieses Managers." });
+        }
+        _db.InterviewFenster.Remove(f);
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
     public class CellDto
     {
         public int EmployeeId { get; set; }
