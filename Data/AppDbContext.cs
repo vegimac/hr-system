@@ -97,6 +97,8 @@ public class AppDbContext : DbContext
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
     public DbSet<HrInterviewBuchung>        HrInterviewBuchungen        => Set<HrInterviewBuchung>();
     public DbSet<ContractShareDokAbruf>     ContractShareDokAbrufe      => Set<ContractShareDokAbruf>();
+    public DbSet<Kandidat>                  Kandidaten                  => Set<Kandidat>();
+    public DbSet<KandidatDokument>          KandidatDokumente           => Set<KandidatDokument>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1337,6 +1339,42 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Datum });
+        });
+        modelBuilder.Entity<Kandidat>(entity =>
+        {
+            entity.ToTable("kandidat");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Vorname).HasColumnName("vorname");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Telefon).HasColumnName("telefon");
+            entity.Property(e => e.FruehesterEintritt).HasColumnName("fruehester_eintritt");
+            entity.Property(e => e.LgavAusbildung).HasColumnName("lgav_ausbildung");
+            entity.Property(e => e.WunschTerminId).HasColumnName("wunsch_termin_id");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.Ablehnungsgrund).HasColumnName("ablehnungsgrund");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.DecidedAt).HasColumnName("decided_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.DecidedBy).HasColumnName("decided_by");
+            entity.HasIndex(e => e.Status);
+        });
+        modelBuilder.Entity<KandidatDokument>(entity =>
+        {
+            entity.ToTable("kandidat_dokument");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.KandidatId).HasColumnName("kandidat_id");
+            entity.Property(e => e.OriginalFilename).HasColumnName("original_filename");
+            entity.Property(e => e.StorageFilename).HasColumnName("storage_filename");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.KandidatId);
         });
         modelBuilder.Entity<ContractShareDokAbruf>(entity =>
         {

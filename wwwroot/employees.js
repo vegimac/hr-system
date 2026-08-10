@@ -13688,6 +13688,7 @@ function _raTilesHtml() {
         ${tile('face id zurück.png', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
         ${tile('bewerbungsbogen.png', 'Bewerbungsbogen', 'raBewerbungsbogenPdf()')}
+        ${tile('onboarding qr.png', 'Kandidat an HR', 'openKandidatModal()')}
         ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}

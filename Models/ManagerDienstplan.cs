@@ -113,6 +113,45 @@ public class HrInterviewTermin
     public string? CreatedBy { get; set; }
 }
 
+/// <summary>
+/// Kandidat (Walter-Vorgabe 10.08.2026, Etappe 1): der GF reicht nach dem
+/// Vorstellungsgespräch einen Einstellungs-Kandidaten an HR ein — bewusst
+/// KEIN Employee (der MA entsteht erst nach HR-Annahme in easy@work).
+/// Status: NEU → ANGENOMMEN / ABGELEHNT → ERLEDIGT (Etappe 2: Checkliste).
+/// </summary>
+public class Kandidat
+{
+    public int Id { get; set; }
+    public int CompanyProfileId { get; set; }
+    public string Vorname { get; set; } = "";
+    public string Name { get; set; } = "";
+    public string? Telefon { get; set; }
+    public DateOnly? FruehesterEintritt { get; set; }
+    /// <summary>L-GAV-Ausbildungsstufe (Ia, Ib, II, IIIa, IIIb, IV).</summary>
+    public string? LgavAusbildung { get; set; }
+    /// <summary>Unverbindlicher Wunschtermin fürs Onboarding (hr_interview_termin).</summary>
+    public int? WunschTerminId { get; set; }
+    public string? Bemerkung { get; set; }
+    /// <summary>NEU | ANGENOMMEN | ABGELEHNT | ERLEDIGT</summary>
+    public string Status { get; set; } = "NEU";
+    public string? Ablehnungsgrund { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string? CreatedBy { get; set; }
+    public DateTime? DecidedAt { get; set; }
+    public string? DecidedBy { get; set; }
+}
+
+/// <summary>Anhang zum Kandidaten (CV, Bewerbungsbogen …) — Datei im Storage unter kandidaten/{kandidatId}/.</summary>
+public class KandidatDokument
+{
+    public int Id { get; set; }
+    public int KandidatId { get; set; }
+    public string OriginalFilename { get; set; } = "";
+    public string StorageFilename { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string? CreatedBy { get; set; }
+}
+
 /// <summary>Gebuchter Platz eines Kandidaten; ABGESAGT gibt den Platz frei.</summary>
 public class HrInterviewBuchung
 {
