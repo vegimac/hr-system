@@ -23,7 +23,7 @@ function _obFmt(ts) {
 // Restaurant wählen → alle MA mit Eintritt in der Zukunft → Vertrags-SMS
 // (inkl. Onboarding-Dokumente am Link) direkt auslösen.
 function hrObInvite() {
-    _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 820);
+    _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 960);
     document.getElementById('hrObInvModal').style.display = 'flex';
     hrObInvReload();
 }
@@ -59,35 +59,41 @@ async function hrObInvReload() {
         if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
         const termine = rt.ok ? await rt.json() : [];
         if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
-        list.innerHTML = rows.map(m => {
+        // Tabellen-Grid mit festen Spalten (Walter 10.08.2026 «schöner anordnen»):
+        // MA (Name + Eintritt·Filiale·Modell) | Einladung (Status) | Termin | Aktion.
+        const gridCols = 'grid-template-columns:minmax(190px,1.1fr) minmax(160px,0.9fr) minmax(220px,240px) 150px';
+        const rowsHtml = rows.map((m, i) => {
             let status;
-            if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">noch nicht eingeladen</span>';
+            if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap">noch nicht eingeladen</span>';
             else {
-                status = `📲 ${_obFmt(m.gesendetAm)}`;
-                status += m.geoeffnetAm
-                    ? ` · 👁 ${_obFmt(m.geoeffnetAm)}${m.pdfAm ? ' <span style="color:#166534">✓</span>' : ''}`
-                    : ' · <span style="color:#b45309">👁 –</span>';
+                status = `<div style="white-space:nowrap">📲 ${_obFmt(m.gesendetAm)}</div>
+                          <div style="white-space:nowrap;margin-top:2px">${m.geoeffnetAm
+                    ? `👁 ${_obFmt(m.geoeffnetAm)}${m.pdfAm ? ' <span style="color:#166534;font-weight:700">✓</span>' : ''}`
+                    : '<span style="color:#b45309">👁 noch nicht geöffnet</span>'}</div>`;
             }
             const kannSms = !!(m.telefon && m.telefon.trim());
             // Termin-Auswahl: freie Termine; Wunschtermin des GF vorausgewählt.
-            const terminOpts = ['<option value="">— ohne Onboarding-Termin —</option>']
+            const terminOpts = ['<option value="">— ohne Termin —</option>']
                 .concat(termine.filter(t => t.frei > 0 || t.id === m.wunschTerminId).map(t =>
                     `<option value="${t.id}"${t.id === m.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === m.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
                 .join('');
             return `
-            <div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-bottom:1px solid rgba(60,55,48,0.1);flex-wrap:wrap">
-                <b style="min-width:150px">${_obEsc(m.name)}</b>
-                <span style="background:#e0e7ff;border-radius:8px;padding:1px 8px;font-size:11.5px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)}</span>
-                <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_obEsc(m.filiale || '')}</span>
-                <span style="color:#8b8b8b;font-size:12px">${_obEsc(m.modell || '')}</span>
-                <span style="font-size:12px">${status}</span>
-                <span style="flex:1"></span>
+            <div style="display:grid;${gridCols};gap:12px;align-items:center;padding:9px 10px;border-bottom:1px solid rgba(60,55,48,0.08);${i % 2 ? 'background:rgba(255,255,255,0.45);' : ''}">
+                <div>
+                    <div style="font-weight:800">${_obEsc(m.name)}</div>
+                    <div style="color:#8b8b8b;font-size:11.5px;margin-top:2px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)} · ${_obEsc(m.filiale || '')}${m.modell ? ' · ' + _obEsc(m.modell) : ''}</div>
+                </div>
+                <div style="font-size:12px">${status}</div>
                 ${kannSms
-                    ? `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;max-width:240px">${terminOpts}</select>
-                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">${m.gesendetAm ? '📱 Erneut senden' : '📱 Einladen'}</button>`
-                    : '<span style="color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon</span>'}
+                    ? `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;width:100%">${terminOpts}</select>
+                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:${m.gesendetAm ? 'rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22)' : '#3f3f3f;color:#fff;border:none'};border-radius:12px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${m.gesendetAm ? '📱 Erneut senden' : '📱 Einladen'}</button>`
+                    : '<span style="grid-column:span 2;color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon hinterlegt</span>'}
             </div>`;
         }).join('');
+        list.innerHTML = `
+            <div style="display:grid;${gridCols};gap:12px;padding:4px 10px 6px;font-size:10.5px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#8b8b8b;border-bottom:2px solid rgba(60,55,48,0.14)">
+                <span>Mitarbeiter/in</span><span>Einladung</span><span>Onboarding-Termin</span><span></span>
+            </div>${rowsHtml}`;
     } catch (_) { list.textContent = 'Verbindungsfehler.'; }
 }
 
