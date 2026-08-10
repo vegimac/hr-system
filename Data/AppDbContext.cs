@@ -99,6 +99,7 @@ public class AppDbContext : DbContext
     public DbSet<ContractShareDokAbruf>     ContractShareDokAbrufe      => Set<ContractShareDokAbruf>();
     public DbSet<Kandidat>                  Kandidaten                  => Set<Kandidat>();
     public DbSet<KandidatDokument>          KandidatDokumente           => Set<KandidatDokument>();
+    public DbSet<OnboardingWunsch>          OnboardingWuensche          => Set<OnboardingWunsch>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1365,7 +1366,22 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AbsageGesendetAm).HasColumnName("absage_gesendet_am")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.AbsageKanal).HasColumnName("absage_kanal");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.VerknuepftEmployeeId).HasColumnName("verknuepft_employee_id");
+            entity.Property(e => e.Notiz).HasColumnName("notiz");
             entity.HasIndex(e => e.Status);
+        });
+        modelBuilder.Entity<OnboardingWunsch>(entity =>
+        {
+            entity.ToTable("onboarding_wunsch");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.TerminId).HasColumnName("termin_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId).IsUnique();
         });
         modelBuilder.Entity<KandidatDokument>(entity =>
         {

@@ -144,6 +144,26 @@ public class Kandidat
     public DateTime? AbsageGesendetAm { get; set; }
     /// <summary>SMS | EMAIL</summary>
     public string? AbsageKanal { get; set; }
+    /// <summary>Zeitpunkt der MA-Verknüpfung (Status ERLEDIGT) — Löschung erst 30 Tage später.</summary>
+    public DateTime? ErledigtAm { get; set; }
+    /// <summary>Der verknüpfte MA (Referenz, falls Rückfragen kommen).</summary>
+    public int? VerknuepftEmployeeId { get; set; }
+    /// <summary>Freie HR-Notiz (z.B. «hat sich nach Absage nochmals gemeldet»).</summary>
+    public string? Notiz { get; set; }
+}
+
+/// <summary>
+/// Onboarding-Wunschtermin des MA (Walter 10.08.2026): beim Verknüpfen des
+/// Kandidaten mit dem importierten MA wird der vom GF erfasste Wunschtermin
+/// hierher übernommen — sichtbar beim Einladen im Onboarding-Kalender.
+/// Wird beim tatsächlichen Buchen (Einladung mit Termin) wieder gelöscht.
+/// </summary>
+public class OnboardingWunsch
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public int TerminId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
 
 /// <summary>Anhang zum Kandidaten (CV, Bewerbungsbogen …) — Datei im Storage unter kandidaten/{kandidatId}/.</summary>

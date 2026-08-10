@@ -208,6 +208,9 @@ public class ContractShareController : ControllerBase
             });
             var tokRow = await _db.ContractShareTokens.FirstOrDefaultAsync(x => x.Id == b.TokenId);
             if (tokRow != null) tokRow.OnboardingTerminId = termin.Id;
+            // Wunschtermin ist damit eingelöst — Vormerkung entfernen.
+            var wunsch = await _db.OnboardingWuensche.FirstOrDefaultAsync(w => w.EmployeeId == b.Emp.Id);
+            if (wunsch != null) _db.OnboardingWuensche.Remove(wunsch);
             await _db.SaveChangesAsync();
         }
 
@@ -656,6 +659,14 @@ public class ContractShareController : ControllerBase
             .Select(c => new { c.Id, c.WorkLocation, c.City, c.BranchName })
             .ToListAsync();
 
+        // Wunschtermine (vom GF via Kandidat übergeben) — zeigen beim Einladen.
+        var wuensche = await _db.OnboardingWuensche.AsNoTracking()
+            .Where(w => ids.Contains(w.EmployeeId))
+            .ToListAsync();
+        var wunschTermine = await _db.HrInterviewTermine.AsNoTracking()
+            .Where(t => wuensche.Select(w => w.TerminId).Contains(t.Id))
+            .ToListAsync();
+
         var rows = kandidaten
             .Where(k => neuester.TryGetValue(k.Id, out var v)
                      && (!companyProfileId.HasValue || v.CompanyProfileId == companyProfileId.Value))
@@ -666,6 +677,8 @@ public class ContractShareController : ControllerBase
                 var v = neuester[k.Id];
                 var myTokens = tokens.Where(t => t.EmploymentId == v.Id).ToList();
                 var b = branches.FirstOrDefault(x => x.Id == v.CompanyProfileId);
+                var w = wuensche.FirstOrDefault(x => x.EmployeeId == k.Id);
+                var wt = w == null ? null : wunschTermine.FirstOrDefault(x => x.Id == w.TerminId);
                 return new
                 {
                     employeeId = k.Id,
@@ -674,6 +687,8 @@ public class ContractShareController : ControllerBase
                     modell = v.EmploymentModel,
                     telefon = k.PhoneMobile,
                     filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
+                    wunschTerminId = wt?.Id,
+                    wunschTermin = wt == null ? null : $"{wt.Datum:dd.MM.yyyy} {wt.VonZeit:HH\\:mm}",
                     gesendetAm = myTokens.Count == 0 ? null : myTokens.Max(t => t.CreatedAt).ToString("yyyy-MM-dd HH:mm"),
                     geoeffnetAm = myTokens.Where(t => t.OpenedAt != null).Select(t => t.OpenedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
                     pdfAm = myTokens.Where(t => t.UsedAt != null).Select(t => t.UsedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),

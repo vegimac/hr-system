@@ -218,6 +218,9 @@ public class KandidatenController : ControllerBase
                 decidedAt = k.DecidedAt?.ToString("yyyy-MM-dd HH:mm"),
                 absageGesendetAm = k.AbsageGesendetAm?.ToString("yyyy-MM-dd HH:mm"),
                 k.AbsageKanal,
+                erledigtAm = k.ErledigtAm?.ToString("yyyy-MM-dd HH:mm"),
+                k.VerknuepftEmployeeId,
+                k.Notiz,
                 filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
                 wunschTermin = t == null ? null : $"{t.Datum:dd.MM.yyyy} {t.VonZeit:HH\\:mm}",
                 dokumente = doks.Where(d => d.KandidatId == k.Id)
@@ -443,20 +446,47 @@ public class KandidatenController : ControllerBase
             uebernommen++;
         }
 
-        // Kandidat endgültig entfernen (Walter: mit dem Import in OneCrew kann
-        // der Kandidat gelöscht werden). Die kandidat_dokument-Zeilen räumt der
-        // DB-Cascade ab — sie NICHT zusätzlich per EF löschen, sonst zählt EF
-        // 0 betroffene Zeilen und wirft einen Concurrency-Konflikt (Bug 10.08.2026).
-        _db.Kandidaten.Remove(k);
-        await _db.SaveChangesAsync();
-        try
+        // Wunschtermin des GF an den MA übergeben (Walter 10.08.2026) — er
+        // erscheint beim Einladen im Onboarding-Kalender.
+        if (k.WunschTerminId != null)
         {
-            var dir = Path.Combine(_storageRoot, k.Id.ToString());
-            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+            var vorhanden = await _db.OnboardingWuensche.FirstOrDefaultAsync(w => w.EmployeeId == emp.Id);
+            if (vorhanden != null) vorhanden.TerminId = k.WunschTerminId.Value;
+            else _db.OnboardingWuensche.Add(new OnboardingWunsch
+            {
+                EmployeeId = emp.Id,
+                TerminId = k.WunschTerminId.Value,
+                CreatedAt = DateTime.Now,
+            });
         }
-        catch { /* best-effort */ }
+
+        // KEIN Sofort-Löschen (Walter-Korrektur 10.08.2026): der Kandidat wird
+        // als ERLEDIGT markiert (mit MA-Referenz) und erst 30 Tage später von
+        // der täglichen Routine entfernt — so bleibt nachvollziehbar, wer es
+        // war, falls Rückfragen kommen.
+        k.Status = "ERLEDIGT";
+        k.ErledigtAm = DateTime.Now;
+        k.VerknuepftEmployeeId = emp.Id;
+        await _db.SaveChangesAsync();
 
         return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id });
+    }
+
+    public class NotizDto
+    {
+        public string? Notiz { get; set; }
+    }
+
+    /// <summary>Freie HR-Notiz am Kandidaten (z.B. «hat sich nach Absage nochmals gemeldet»).</summary>
+    [HttpPost("{id:int}/notiz")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> SetNotiz(int id, [FromBody] NotizDto dto)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        k.Notiz = string.IsNullOrWhiteSpace(dto.Notiz) ? null : dto.Notiz.Trim();
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
     }
 
     // ── Dokument ansehen (GF eigene Filialen, HR alle) ──────────────────────

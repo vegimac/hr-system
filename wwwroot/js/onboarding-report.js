@@ -69,6 +69,7 @@ async function hrObInvReload() {
                 <b style="min-width:150px">${_obEsc(m.name)}</b>
                 <span style="background:#e0e7ff;border-radius:8px;padding:1px 8px;font-size:11.5px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)}</span>
                 <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_obEsc(m.filiale || '')}</span>
+                ${m.wunschTermin ? `<span style="background:#fef3c7;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#854d0e">★ Wunsch: ${_obEsc(m.wunschTermin)}</span>` : ''}
                 <span style="color:#8b8b8b;font-size:12px">${_obEsc(m.modell || '')}</span>
                 <span style="font-size:12px">${status}</span>
                 <span style="flex:1"></span>

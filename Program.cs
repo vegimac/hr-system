@@ -3021,6 +3021,17 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS email text;
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_gesendet_am timestamp without time zone;
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_kanal text;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS erledigt_am timestamp without time zone;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS verknuepft_employee_id integer;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS notiz text;
+        -- Wunschtermin überlebt die Kandidat-Löschung am MA (Walter 10.08.2026).
+        CREATE TABLE IF NOT EXISTS onboarding_wunsch (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            termin_id   integer NOT NULL REFERENCES hr_interview_termin(id) ON DELETE CASCADE,
+            created_at  timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_onboarding_wunsch_emp ON onboarding_wunsch (employee_id);
     ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"

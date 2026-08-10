@@ -386,7 +386,8 @@ public class EasyAtWorkAutoSyncRunner
             var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
             var cutoff = DateTime.Now.AddDays(-30);
             var alte = await db.Kandidaten
-                .Where(k => k.Status == "ABGELEHNT" && k.DecidedAt != null && k.DecidedAt < cutoff)
+                .Where(k => (k.Status == "ABGELEHNT" && k.DecidedAt != null && k.DecidedAt < cutoff)
+                         || (k.Status == "ERLEDIGT" && k.ErledigtAm != null && k.ErledigtAm < cutoff))
                 .ToListAsync(ct);
             if (alte.Count == 0) return;
 
@@ -406,7 +407,7 @@ public class EasyAtWorkAutoSyncRunner
             await db.KandidatDokumente.Where(d => ids.Contains(d.KandidatId)).ExecuteDeleteAsync(ct);
             db.Kandidaten.RemoveRange(alte);
             await db.SaveChangesAsync(ct);
-            _log.LogInformation("Kandidaten-Cleanup: {N} abgelehnte Kandidaten (>30 Tage) gelöscht.", alte.Count);
+            _log.LogInformation("Kandidaten-Cleanup: {N} abgelehnte/erledigte Kandidaten (>30 Tage) gelöscht.", alte.Count);
         }
         catch (Exception ex)
         {

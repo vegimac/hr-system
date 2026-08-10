@@ -42,3 +42,19 @@ ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS email text;
 -- gelöscht (täglicher Sync-Job); angenommene beim Verknüpfen mit dem MA.
 ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_gesendet_am timestamp without time zone;
 ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_kanal text;
+
+-- Nachtrag 10.08.2026: Wunschtermin überlebt die Kandidat-Löschung am MA
+-- (onboarding_wunsch) — sichtbar beim Einladen, gelöscht beim Buchen.
+CREATE TABLE IF NOT EXISTS onboarding_wunsch (
+    id          serial PRIMARY KEY,
+    employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+    termin_id   integer NOT NULL REFERENCES hr_interview_termin(id) ON DELETE CASCADE,
+    created_at  timestamp without time zone NOT NULL DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_onboarding_wunsch_emp ON onboarding_wunsch (employee_id);
+
+-- Nachtrag 10.08.2026: kein Sofort-Löschen beim Verknüpfen — Status ERLEDIGT
+-- mit MA-Referenz, Auto-Löschung nach 30 Tagen; dazu freie HR-Notiz.
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS erledigt_am timestamp without time zone;
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS verknuepft_employee_id integer;
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS notiz text;

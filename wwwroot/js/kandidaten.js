@@ -247,6 +247,7 @@ async function hrKandReload() {
         const neu = list.filter(k => k.status === 'NEU');
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
+        const erledigt = list.filter(k => k.status === 'ERLEDIGT');
         const card = (inner) => `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 12px;margin-bottom:10px">${inner}</div>`;
         const titel = (t) => `<div style="font-weight:800;font-size:13.5px;margin:14px 0 6px;color:#3f3f3f">${t}</div>`;
         let html = '';
@@ -291,11 +292,42 @@ async function hrKandReload() {
                        ${k.telefon ? `<button onclick="hrKandAbsage(${k.id}, 'SMS')" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">📱 Absage per SMS</button>` : ''}
                        ${(!k.email && !k.telefon) ? '<span style="color:#991b1b;font-size:12px">Weder E-Mail noch Telefon erfasst — Absage bitte anders zustellen.</span>' : ''}`}
                 <span style="color:#b0aca4;font-size:11px">wird 30 Tage nach dem Entscheid automatisch gelöscht</span>
-            </div>`)).join('')
+            </div>
+            ${_kdNotizHtml(k)}`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
+
+        // ── 4) Erledigt (verknüpft — Referenz, Auto-Löschung nach 30 Tagen) ─
+        html += titel(`Erledigt — mit MA verknüpft (${erledigt.length})`);
+        html += erledigt.length ? erledigt.map(k => card(`
+            ${_kdKopf(k)}
+            <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
+                <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
+                <span style="color:#b0aca4;font-size:11px">wird 30 Tage später automatisch gelöscht</span>
+            </div>
+            ${_kdNotizHtml(k)}`)).join('')
+            : '<span style="color:#8b8b8b;font-size:12.5px">Keine erledigten Kandidaten.</span>';
 
         body.innerHTML = html;
     } catch (_) { body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>'; }
+}
+
+// Notiz-Zeile (z.B. «hat sich nach der Absage nochmals gemeldet»).
+function _kdNotizHtml(k) {
+    return `
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-top:8px;flex-wrap:wrap">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px;flex:1;min-width:240px">Notiz
+                <input id="kdNotiz${k.id}" value="${_kdEsc(k.notiz || '')}" placeholder="z.B. hat sich am … nochmals gemeldet" style="${_kdInp}"></label>
+            <button onclick="hrKandNotiz(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">💾 Notiz speichern</button>
+        </div>`;
+}
+
+async function hrKandNotiz(id) {
+    const notiz = document.getElementById(`kdNotiz${id}`)?.value || '';
+    const r = await fetch(`/api/kandidaten/${id}/notiz`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ notiz }),
+    });
+    if (!r.ok) { showToast('Notiz speichern fehlgeschlagen.', 'error'); return; }
+    showToast('Notiz gespeichert.', 'success');
 }
 
 async function hrKandAbsage(id, kanal) {
@@ -335,7 +367,7 @@ async function hrKandVorschlaege(id) {
 
 async function hrKandVerknuepfen(kandId, employeeId, maName) {
     if (typeof liquidConfirm === 'function'
-        && !await liquidConfirm(`Kandidat mit «${maName}» verknüpfen? Die Anhänge wandern in seine Personalakte, der Kandidat wird gelöscht.`, { title: 'Verknüpfen' })) return;
+        && !await liquidConfirm(`Kandidat mit «${maName}» verknüpfen? Die Anhänge wandern in seine Personalakte; der Kandidat bleibt 30 Tage als «erledigt» sichtbar.`, { title: 'Verknüpfen' })) return;
     const r = await fetch(`/api/kandidaten/${kandId}/verknuepfen`, {
         method: 'POST', headers: ah(), body: JSON.stringify({ employeeId }),
     });

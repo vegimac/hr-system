@@ -252,7 +252,7 @@ async function hrIvLoadKand(terminId) {
         _hrIvKandidaten = r.ok ? await r.json() : [];
     } catch (_) { _hrIvKandidaten = []; }
     const maOpts = _hrIvKandidaten.map(k =>
-        `<option value="${k.employeeId}">${_ivEsc(k.name)} — Eintritt ${_ivFmtD(k.eintritt)} · ${_ivEsc(k.filiale)}${k.gesendetAm ? ' · bereits eingeladen' : ''}</option>`).join('');
+        `<option value="${k.employeeId}">${_ivEsc(k.name)} — Eintritt ${_ivFmtD(k.eintritt)} · ${_ivEsc(k.filiale)}${k.wunschTermin ? ' · ★ Wunsch: ' + _ivEsc(k.wunschTermin) : ''}${k.gesendetAm ? ' · bereits eingeladen' : ''}</option>`).join('');
     sel.innerHTML = `<option value="">— externer Kandidat (Freitext) —</option>${maOpts}`;
     const ft = document.getElementById('hrIvFreitext');
     if (ft) ft.style.display = 'flex';
