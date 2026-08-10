@@ -26,11 +26,36 @@ public class ContractShareController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly EcallSmsService _sms;
+    private readonly IConfiguration _config;
+    private readonly IWebHostEnvironment _env;
 
-    public ContractShareController(AppDbContext db, EcallSmsService sms)
+    public ContractShareController(AppDbContext db, EcallSmsService sms,
+                                   IConfiguration config, IWebHostEnvironment env)
     {
         _db = db;
         _sms = sms;
+        _config = config;
+        _env = env;
+    }
+
+    /// <summary>
+    /// Onboarding-Dokumente der Filiale des Vertrags (Walter 09.08.2026):
+    /// PDFs aus dem Filial-Ordner (Pflege im Filial-Detail) — hängen als
+    /// Download-Liste am öffentlichen Vertrags-Link.
+    /// </summary>
+    private async Task<List<string>> BranchDokNamesAsync(int employmentId)
+    {
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.Id == employmentId)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (!cpId.HasValue) return new List<string>();
+        var dir = OnboardingDokumenteController.BranchDir(_config, _env, cpId.Value);
+        if (!Directory.Exists(dir)) return new List<string>();
+        return Directory.GetFiles(dir, "*.pdf")
+            .Select(p => Path.GetFileName(p)!)
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private int? UserId() =>
@@ -377,10 +402,47 @@ public class ContractShareController : ControllerBase
                     ? $"Hallo {System.Net.WebUtility.HtmlEncode(vorname)}, hier findest du deinen Arbeitsvertrag als PDF."
                     : "Hier findest du deinen Arbeitsvertrag als PDF.";
             }
+            // Filial-Dokumente (AGB, Hygiene, Datenschutz …) als Download-Liste
+            // unter dem Vertrags-Button (Walter 09.08.2026).
+            string docsHtml = "";
+            var doks = await BranchDokNamesAsync(t.EmploymentId);
+            if (doks.Count > 0)
+            {
+                var items = string.Join("", doks.Select(f =>
+                    $"<a class='doc' href='/vertrag/{token}/dok/{Uri.EscapeDataString(f)}'>📎 {System.Net.WebUtility.HtmlEncode(Path.GetFileNameWithoutExtension(f))}</a>"));
+                docsHtml = $"<div class='docs'><div class='docstitle'>Wichtige Dokumente deines Restaurants</div>{items}</div>";
+            }
             html = LandingHtml("Dein Arbeitsvertrag", bodyHtml, pdfHref,
-                               t.ExpiresAt.ToString("dd.MM.yyyy"));
+                               t.ExpiresAt.ToString("dd.MM.yyyy"), docsHtml);
         }
         return Content(html, "text/html; charset=utf-8");
+    }
+
+    // ── Öffentlich: Filial-Dokument (gleiche Token-Prüfung wie das PDF) ──────
+    [AllowAnonymous]
+    [HttpGet("/vertrag/{token}/dok/{name}")]
+    public async Task<IActionResult> PublicDok(string token, string name)
+    {
+        var hash = HashToken(token);
+        var t = await _db.ContractShareTokens.AsNoTracking().FirstOrDefaultAsync(x => x.TokenHash == hash);
+        if (t == null)
+            return NotFound("Dieser Vertrags-Link wurde nicht gefunden.");
+        if (t.RevokedAt != null)
+            return StatusCode(410, "Dieser Vertrags-Link wurde ersetzt oder zurückgezogen.");
+        if (t.ExpiresAt < DateTime.Now)
+            return StatusCode(410, "Dieser Vertrags-Link ist abgelaufen.");
+
+        var n = Path.GetFileName((name ?? "").Trim());
+        if (n.Length == 0 || n.Contains("..") || !n.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            return NotFound();
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.Id == t.EmploymentId)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (!cpId.HasValue) return NotFound();
+        var path = Path.Combine(OnboardingDokumenteController.BranchDir(_config, _env, cpId.Value), n);
+        if (!System.IO.File.Exists(path)) return NotFound();
+        return PhysicalFile(path, "application/pdf");
     }
 
     // Platzhalter der Vorlage ersetzen und in sicheres HTML wandeln: erst den
@@ -414,7 +476,7 @@ public class ContractShareController : ControllerBase
     // Karte sitzt OBEN (nicht vertikal zentriert) — auf dem Handy war sie sonst
     // zu weit unten (Walter 07.07.2026). Gültig-bis klein unter dem Button.
     private static string LandingHtml(string title, string bodyHtml, string? pdfHref,
-                                      string? gueltigBis = null)
+                                      string? gueltigBis = null, string docsHtml = "")
     {
         var btn = pdfHref != null
             ? $"<a class='btn' href='{pdfHref}'>📄 Arbeitsvertrag öffnen</a>"
@@ -443,8 +505,11 @@ public class ContractShareController : ControllerBase
   a.btn{{display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;padding:13px 24px;border-radius:12px;font-size:15px;font-weight:600}}
   .sign{{font-size:12.5px;color:#646464;margin-top:14px;padding-top:12px;border-top:1px solid rgba(139,139,139,.25)}}
   .valid{{font-size:12px;color:#8b8b8b;margin-top:8px}}
+  .docs{{margin-top:20px;text-align:left}}
+  .docstitle{{font-weight:700;font-size:13px;margin-bottom:7px;color:#3f3f3f}}
+  a.doc{{display:block;font-size:13.5px;color:#3f3f3f;text-decoration:none;padding:8px 12px;border:1px solid rgba(139,139,139,.3);border-radius:10px;margin-bottom:6px;background:#fff}}
 </style></head>
-<body><div class='card'><h1>{title}</h1><div class='msg'>{bodyHtml}</div>{btn}{signNote}{validNote}</div></body></html>";
+<body><div class='card'><h1>{title}</h1><div class='msg'>{bodyHtml}</div>{btn}{docsHtml}{signNote}{validNote}</div></body></html>";
     }
 
     // ── Öffentlich: das PDF (wird erst per Button-Klick geladen) ─────────────
