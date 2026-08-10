@@ -1554,7 +1554,9 @@ function loadUebersichtTab() {
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
             <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
-            <span class="ov-vsms" id="ovVsms_${c.id}" style="font-size:11px;color:#8b8b8b;white-space:nowrap;margin-left:auto;padding-right:6px"></span>
+<!-- SMS-/Öffnungs-Status entfernt (Walter 10.08.2026): die Info lebt jetzt
+     in der ONBOARDING-Auswertung im HR-Hub. loadOvVertragSms bleibt als
+     toter Code erhalten, wird aber nicht mehr aufgerufen. -->
             ${actions}
         </div>`;
     }).join('') || '<div class="ov-empty" style="padding:4px 0">Keine Verträge vorhanden.</div>';
@@ -1588,7 +1590,7 @@ function loadUebersichtTab() {
         loadEmployeeAddressesTab(emp.id);
     if (!emp.isPayrollExcluded) {
         loadOvSaldi(emp.id);
-        loadOvVertragSms(emp.id);
+        // loadOvVertragSms(emp.id);  // entfernt — Status jetzt in der ONBOARDING-Auswertung (HR-Hub)
     }
 }
 

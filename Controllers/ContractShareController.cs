@@ -504,6 +504,58 @@ public class ContractShareController : ControllerBase
         return PhysicalFile(path, "application/pdf");
     }
 
+    // ── HR: «MA zum Onboarding einladen» (Kachel ONBOARDING, Schritt 2) ─────
+    // Alle MA der Filiale mit EINTRITT IN DER ZUKUNFT + Vertrags-Link-Status,
+    // damit HR die Vertrags-SMS (inkl. Onboarding-Dokumente) direkt auslöst.
+    [HttpGet("onboarding-einladungen")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> OnboardingEinladungen([FromQuery] int companyProfileId)
+    {
+        var heute = DateTime.Now.Date;
+        var kandidaten = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden && !e.IsPayrollExcluded && e.EntryDate != null && e.EntryDate > heute)
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EntryDate, e.PhoneMobile })
+            .ToListAsync();
+        var ids = kandidaten.Select(k => k.Id).ToList();
+
+        // Neuester Vertrag pro MA — nur MA, deren Vertrag zur gewählten Filiale gehört.
+        var emps = await _db.Employments.AsNoTracking()
+            .Where(em => ids.Contains(em.EmployeeId))
+            .Select(em => new { em.Id, em.EmployeeId, em.CompanyProfileId, em.EmploymentModel, em.ContractStartDate })
+            .ToListAsync();
+        var neuester = emps.GroupBy(e => e.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.ContractStartDate).First());
+
+        var employmentIds = neuester.Values.Select(v => v.Id).ToList();
+        var tokens = await _db.ContractShareTokens.AsNoTracking()
+            .Where(t => employmentIds.Contains(t.EmploymentId))
+            .Select(t => new { t.EmploymentId, t.CreatedAt, t.OpenedAt, t.UsedAt })
+            .ToListAsync();
+
+        var rows = kandidaten
+            .Where(k => neuester.TryGetValue(k.Id, out var v) && v.CompanyProfileId == companyProfileId)
+            .OrderBy(k => k.EntryDate)
+            .ThenBy(k => k.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .Select(k =>
+            {
+                var v = neuester[k.Id];
+                var myTokens = tokens.Where(t => t.EmploymentId == v.Id).ToList();
+                return new
+                {
+                    employeeId = k.Id,
+                    name = $"{k.FirstName} {k.LastName}".Trim(),
+                    eintritt = k.EntryDate!.Value.ToString("yyyy-MM-dd"),
+                    modell = v.EmploymentModel,
+                    telefon = k.PhoneMobile,
+                    gesendetAm = myTokens.Count == 0 ? null : myTokens.Max(t => t.CreatedAt).ToString("yyyy-MM-dd HH:mm"),
+                    geoeffnetAm = myTokens.Where(t => t.OpenedAt != null).Select(t => t.OpenedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
+                    pdfAm = myTokens.Where(t => t.UsedAt != null).Select(t => t.UsedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
+                };
+            })
+            .ToList();
+        return Ok(rows);
+    }
+
     // ── HR: Auswertung «Onboarding-Dokumente gelesen» (Kachel ONBOARDING) ───
     // Pro MA der Filiale: Vertrag gesendet/geöffnet/PDF abgerufen + pro
     // ONBOARDING-Dokument der Erst-Abruf (über ALLE Links des MA).
