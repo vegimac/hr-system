@@ -43,6 +43,9 @@ public class CompanyDokumenteController : ControllerBase
         ["AHV_SV"]       = "AHV / Sozialversicherungen",
         ["QST"]          = "Quellensteuer",
         ["VERTRAEGE"]    = "Verträge & Behörden",
+        // PDFs dieser Kategorie hängen automatisch am öffentlichen
+        // Vertrags-SMS-Link der Filiale (ContractShareController, Walter 10.08.2026).
+        ["ONBOARDING"]   = "Onboarding (Vertrags-Link)",
         ["SONSTIGES"]    = "Sonstiges",
     };
 

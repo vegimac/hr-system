@@ -39,22 +39,25 @@ public class ContractShareController : ControllerBase
     }
 
     /// <summary>
-    /// Onboarding-Dokumente der Filiale des Vertrags (Walter 09.08.2026):
-    /// PDFs aus dem Filial-Ordner (Pflege im Filial-Detail) — hängen als
-    /// Download-Liste am öffentlichen Vertrags-Link.
+    /// Onboarding-Dokumente der Filiale des Vertrags (Walter 10.08.2026):
+    /// die FILIAL-DOKUMENTE mit Kategorie ONBOARDING (Pflege im Filial-Tab
+    /// «Dokumente») — hängen als Download-Liste am öffentlichen Vertrags-Link.
     /// </summary>
-    private async Task<List<string>> BranchDokNamesAsync(int employmentId)
+    private async Task<List<(long Id, string Name)>> BranchDokListeAsync(int employmentId)
     {
         var cpId = await _db.Employments.AsNoTracking()
             .Where(em => em.Id == employmentId)
             .Select(em => em.CompanyProfileId)
             .FirstOrDefaultAsync();
-        if (!cpId.HasValue) return new List<string>();
-        var dir = OnboardingDokumenteController.BranchDir(_config, _env, cpId.Value);
-        if (!Directory.Exists(dir)) return new List<string>();
-        return Directory.GetFiles(dir, "*.pdf")
-            .Select(p => Path.GetFileName(p)!)
-            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+        if (!cpId.HasValue) return new List<(long, string)>();
+        var doks = await _db.CompanyDokumente.AsNoTracking()
+            .Where(d => d.CompanyProfileId == cpId.Value && d.Kategorie == "ONBOARDING")
+            .Select(d => new { d.Id, d.OriginalFilename })
+            .ToListAsync();
+        return doks
+            .Where(d => d.OriginalFilename.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(d => d.OriginalFilename, StringComparer.OrdinalIgnoreCase)
+            .Select(d => (d.Id, d.OriginalFilename))
             .ToList();
     }
 
@@ -433,14 +436,14 @@ public class ContractShareController : ControllerBase
                     ? $"Hallo {System.Net.WebUtility.HtmlEncode(vorname)}, hier findest du deinen Arbeitsvertrag als PDF."
                     : "Hier findest du deinen Arbeitsvertrag als PDF.";
             }
-            // Filial-Dokumente (AGB, Hygiene, Datenschutz …) als Download-Liste
-            // unter dem Vertrags-Button (Walter 09.08.2026).
+            // Filial-Dokumente (Kategorie ONBOARDING: AGB, Hygiene, Datenschutz …)
+            // als Download-Liste unter dem Vertrags-Button (Walter 10.08.2026).
             string docsHtml = "";
-            var doks = await BranchDokNamesAsync(t.EmploymentId);
+            var doks = await BranchDokListeAsync(t.EmploymentId);
             if (doks.Count > 0)
             {
-                var items = string.Join("", doks.Select(f =>
-                    $"<a class='doc' href='/vertrag/{token}/dok/{Uri.EscapeDataString(f)}'>📎 {System.Net.WebUtility.HtmlEncode(Path.GetFileNameWithoutExtension(f))}</a>"));
+                var items = string.Join("", doks.Select(d =>
+                    $"<a class='doc' href='/vertrag/{token}/dok/{d.Id}'>📎 {System.Net.WebUtility.HtmlEncode(Path.GetFileNameWithoutExtension(d.Name))}</a>"));
                 docsHtml = $"<div class='docs'><div class='docstitle'>Wichtige Dokumente deines Restaurants</div>{items}</div>";
             }
             html = LandingHtml("Dein Arbeitsvertrag", bodyHtml, pdfHref,
@@ -449,10 +452,11 @@ public class ContractShareController : ControllerBase
         return Content(html, "text/html; charset=utf-8");
     }
 
-    // ── Öffentlich: Filial-Dokument (gleiche Token-Prüfung wie das PDF) ──────
+    // ── Öffentlich: Filial-Dokument (gleiche Token-Prüfung wie das PDF).
+    //    Nur ONBOARDING-Dokumente der Filiale DES Vertrags sind erreichbar. ──
     [AllowAnonymous]
-    [HttpGet("/vertrag/{token}/dok/{name}")]
-    public async Task<IActionResult> PublicDok(string token, string name)
+    [HttpGet("/vertrag/{token}/dok/{dokId:long}")]
+    public async Task<IActionResult> PublicDok(string token, long dokId)
     {
         var hash = HashToken(token);
         var t = await _db.ContractShareTokens.AsNoTracking().FirstOrDefaultAsync(x => x.TokenHash == hash);
@@ -463,15 +467,20 @@ public class ContractShareController : ControllerBase
         if (t.ExpiresAt < DateTime.Now)
             return StatusCode(410, "Dieser Vertrags-Link ist abgelaufen.");
 
-        var n = Path.GetFileName((name ?? "").Trim());
-        if (n.Length == 0 || n.Contains("..") || !n.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
-            return NotFound();
         var cpId = await _db.Employments.AsNoTracking()
             .Where(em => em.Id == t.EmploymentId)
             .Select(em => em.CompanyProfileId)
             .FirstOrDefaultAsync();
         if (!cpId.HasValue) return NotFound();
-        var path = Path.Combine(OnboardingDokumenteController.BranchDir(_config, _env, cpId.Value), n);
+        var doc = await _db.CompanyDokumente.AsNoTracking().FirstOrDefaultAsync(d =>
+            d.Id == dokId && d.CompanyProfileId == cpId.Value && d.Kategorie == "ONBOARDING");
+        if (doc == null) return NotFound();
+
+        // Gleiche Storage-Wurzel wie CompanyDokumenteController: filiale/{cpId}/.
+        var root = _config["Documents:StoragePath"];
+        if (string.IsNullOrWhiteSpace(root))
+            root = Path.Combine(_env.ContentRootPath, "data", "documents");
+        var path = Path.Combine(root, "filiale", doc.CompanyProfileId.ToString(), doc.StorageFilename);
         if (!System.IO.File.Exists(path)) return NotFound();
         return PhysicalFile(path, "application/pdf");
     }

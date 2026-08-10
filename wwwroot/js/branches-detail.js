@@ -493,10 +493,6 @@ function renderFilialenDetail(b) {
                 <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt; übersteuert den L-GAV nach oben</span></div>
             <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
 
-            <div class="ein-group-title">Onboarding-Dokumente (Vertrags-Link)
-                <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— diese PDFs (AGB, Hygiene, Datenschutz …) hängen automatisch am Vertrags-SMS-Link dieser Filiale</span></div>
-            <div id="obDokBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
-
             <div class="ein-group-title">easy@work Auto-Sync
                 <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— automatischer Stempelzeiten-Import dieser Filiale, täglich um 05:00</span></div>
             <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
@@ -546,7 +542,6 @@ function renderFilialenDetail(b) {
     loadAkontoTermine(b.id);
     // Kommunalen Mindestlohn der Filiale laden (versioniert).
     bmwInit(b.id);
-    obDokInit(b.id);
     // easy@work Auto-Sync-Schalter dieser Filiale laden.
     eawAutoInit(b.id);
     // Aktiven Tab beibehalten (Walter-Vorgabe 15.05.2026): wer in
@@ -1622,86 +1617,6 @@ async function saveThirteenthPayouts() {
     } catch { alert('Verbindungsfehler.'); }
 }
 
-// ── Onboarding-Dokumente pro Filiale (Walter-Vorgabe 09.08.2026) ────────────
-// Ordner im Server-Storage; die PDFs hängen automatisch am öffentlichen
-// Vertrags-SMS-Link dieser Filiale (ContractShare-Landing-Page).
-let _obDokBranch = null;
-
-async function obDokInit(branchId) {
-    _obDokBranch = branchId;
-    const el = document.getElementById('obDokBlock');
-    if (!el) return;
-    el.innerHTML = '<div style="font-size:12px;color:#94a3b8">Wird geladen…</div>';
-    try {
-        const r = await fetch(`/api/onboarding-dokumente?companyProfileId=${branchId}`, { headers: ah() });
-        const list = await r.json();
-        if (!r.ok) { el.innerHTML = '<div style="font-size:12px;color:#991b1b">Laden fehlgeschlagen.</div>'; return; }
-        const fmtSize = (b) => b < 1024 * 1024 ? (b / 1024).toFixed(0) + ' KB' : (b / 1024 / 1024).toFixed(1) + ' MB';
-        const rows = list.length
-            ? list.map(f => `
-                <div style="display:flex;align-items:center;gap:10px;padding:5px 8px;border-bottom:1px solid rgba(60,55,48,0.08);font-size:12.5px">
-                    <a style="cursor:pointer;color:#3f3f3f;text-decoration:underline" onclick="obDokPreview('${encodeURIComponent(f.name)}')">📄 ${f.name.replace(/</g, '&lt;')}</a>
-                    <span style="color:#94a3b8">${fmtSize(f.size)}</span>
-                    <span style="flex:1"></span>
-                    <button class="btn btn-outline" style="font-size:11px;padding:2px 8px" title="In die Ordner aller anderen Filialen kopieren" onclick="obDokCopyAll('${encodeURIComponent(f.name)}')">→ alle Filialen</button>
-                    <button style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b" onclick="obDokDelete('${encodeURIComponent(f.name)}')">🗑</button>
-                </div>`).join('')
-            : '<div style="font-size:12px;color:#94a3b8;padding:4px 8px">Noch keine Dokumente — beim Vertrags-Link erscheint dann nur der Vertrag.</div>';
-        el.innerHTML = `
-            ${rows}
-            <div style="margin-top:8px">
-                <button class="btn btn-outline" style="font-size:12px" onclick="document.getElementById('obDokFile').click()">⬆ PDF hochladen</button>
-                <input type="file" id="obDokFile" accept="application/pdf" multiple style="display:none" onchange="obDokUpload(this.files)">
-            </div>`;
-    } catch (_) {
-        el.innerHTML = '<div style="font-size:12px;color:#991b1b">Verbindungsfehler.</div>';
-    }
-}
-
-async function obDokUpload(files) {
-    if (!files || !files.length || !_obDokBranch) return;
-    for (const f of files) {
-        const fd = new FormData();
-        fd.append('companyProfileId', _obDokBranch);
-        fd.append('file', f);
-        // ACHTUNG: bei FormData KEIN ah() — das setzt Content-Type auf JSON
-        // und zerstört den Multipart-Boundary. Nur Bearer.
-        const r = await fetch('/api/onboarding-dokumente/upload', {
-            method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd,
-        });
-        if (!r.ok) {
-            const j = await r.json().catch(() => ({}));
-            showToast(`${f.name}: ${j.message || j.error || 'Upload fehlgeschlagen.'}`, 'error');
-        }
-    }
-    obDokInit(_obDokBranch);
-}
-
-async function obDokDelete(encName) {
-    const name = decodeURIComponent(encName);
-    if (typeof liquidConfirm === 'function' && !await liquidConfirm(`«${name}» aus dieser Filiale löschen?`, { title: 'Onboarding-Dokumente' })) return;
-    const r = await fetch(`/api/onboarding-dokumente?companyProfileId=${_obDokBranch}&name=${encName}`, { method: 'DELETE', headers: ah() });
-    if (!r.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
-    obDokInit(_obDokBranch);
-}
-
-async function obDokCopyAll(encName) {
-    const name = decodeURIComponent(encName);
-    if (typeof liquidConfirm === 'function' && !await liquidConfirm(`«${name}» in die Ordner ALLER anderen Filialen kopieren (bestehende gleiche Dateien werden überschrieben)?`, { title: 'Onboarding-Dokumente' })) return;
-    const r = await fetch('/api/onboarding-dokumente/copy-to-all', {
-        method: 'POST', headers: ah(),
-        body: JSON.stringify({ companyProfileId: _obDokBranch, name }),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast(j.message || 'Kopieren fehlgeschlagen.', 'error'); return; }
-    showToast(`In ${j.kopiert} Filiale(n) kopiert.`, 'success');
-}
-
-async function obDokPreview(encName) {
-    if (typeof previewUrlFetch === 'function')
-        previewUrlFetch(`/api/onboarding-dokumente/file?companyProfileId=${_obDokBranch}&name=${encName}`, decodeURIComponent(encName), ah());
-}
-
 // ── Kommunaler Mindestlohn pro Filiale (Walter-Vorgabe 23.05.2026) ──────────
 // Jahreslohn erfassen; Monat (÷13) und Stunde (÷52÷Wochenstunden) werden
 // gerechnet. Versioniert (Generationen). Übersteuert L-GAV nach oben.
@@ -1903,6 +1818,8 @@ const CDOK_KATEGORIEN = [
     ['AHV_SV',       'AHV / Sozialversicherungen'],
     ['QST',          'Quellensteuer'],
     ['VERTRAEGE',    'Verträge & Behörden'],
+    // PDFs dieser Kategorie hängen automatisch am Vertrags-SMS-Link der Filiale.
+    ['ONBOARDING',   'Onboarding (Vertrags-Link)'],
     ['SONSTIGES',    'Sonstiges'],
 ];
 
