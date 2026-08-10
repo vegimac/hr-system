@@ -96,6 +96,7 @@ public class AppDbContext : DbContext
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
     public DbSet<HrInterviewBuchung>        HrInterviewBuchungen        => Set<HrInterviewBuchung>();
+    public DbSet<ContractShareDokAbruf>     ContractShareDokAbrufe      => Set<ContractShareDokAbruf>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1335,6 +1336,17 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Datum });
+        });
+        modelBuilder.Entity<ContractShareDokAbruf>(entity =>
+        {
+            entity.ToTable("contract_share_dok_abruf");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TokenId).HasColumnName("token_id");
+            entity.Property(e => e.DokId).HasColumnName("dok_id");
+            entity.Property(e => e.AbgerufenAm).HasColumnName("abgerufen_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.TokenId, e.DokId }).IsUnique();
         });
         modelBuilder.Entity<HrInterviewTermin>(entity =>
         {

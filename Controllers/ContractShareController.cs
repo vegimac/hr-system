@@ -482,7 +482,95 @@ public class ContractShareController : ControllerBase
             root = Path.Combine(_env.ContentRootPath, "data", "documents");
         var path = Path.Combine(root, "filiale", doc.CompanyProfileId.ToString(), doc.StorageFilename);
         if (!System.IO.File.Exists(path)) return NotFound();
+
+        // Lese-Tracking (Walter 10.08.2026): ERSTES Öffnen pro Token+Dokument
+        // festhalten — best-effort, das Ausliefern hat Vorrang.
+        try
+        {
+            bool schon = await _db.ContractShareDokAbrufe.AnyAsync(a => a.TokenId == t.Id && a.DokId == doc.Id);
+            if (!schon)
+            {
+                _db.ContractShareDokAbrufe.Add(new ContractShareDokAbruf
+                {
+                    TokenId = t.Id,
+                    DokId = doc.Id,
+                    AbgerufenAm = DateTime.Now,
+                });
+                await _db.SaveChangesAsync();
+            }
+        }
+        catch { /* best-effort */ }
+
         return PhysicalFile(path, "application/pdf");
+    }
+
+    // ── HR: Auswertung «Onboarding-Dokumente gelesen» (Kachel ONBOARDING) ───
+    // Pro MA der Filiale: Vertrag gesendet/geöffnet/PDF abgerufen + pro
+    // ONBOARDING-Dokument der Erst-Abruf (über ALLE Links des MA).
+    [HttpGet("onboarding-report")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> OnboardingReport([FromQuery] int companyProfileId)
+    {
+        var doks = (await _db.CompanyDokumente.AsNoTracking()
+                .Where(d => d.CompanyProfileId == companyProfileId && d.Kategorie == "ONBOARDING")
+                .Select(d => new { d.Id, d.OriginalFilename })
+                .ToListAsync())
+            .OrderBy(d => d.OriginalFilename, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var emps = await _db.Employments.AsNoTracking()
+            .Where(em => em.CompanyProfileId == companyProfileId)
+            .Select(em => new { em.Id, em.EmployeeId })
+            .ToListAsync();
+        var empIds = emps.Select(e => e.EmployeeId).Distinct().ToList();
+        var employmentIds = emps.Select(e => e.Id).ToList();
+        var employmentToEmp = emps.GroupBy(e => e.Id).ToDictionary(g => g.Key, g => g.First().EmployeeId);
+
+        var maList = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded)
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.IsActive })
+            .ToListAsync();
+
+        var tokens = await _db.ContractShareTokens.AsNoTracking()
+            .Where(x => employmentIds.Contains(x.EmploymentId))
+            .Select(x => new { x.Id, x.EmploymentId, x.CreatedAt, x.OpenedAt, x.UsedAt })
+            .ToListAsync();
+        var tokenIds = tokens.Select(x => x.Id).ToList();
+        var abrufe = await _db.ContractShareDokAbrufe.AsNoTracking()
+            .Where(a => tokenIds.Contains(a.TokenId))
+            .ToListAsync();
+
+        var rows = maList
+            .OrderBy(m => m.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
+            .ThenBy(m => m.LastName ?? "", StringComparer.OrdinalIgnoreCase)
+            .Select(m =>
+            {
+                var myTokens = tokens
+                    .Where(t => employmentToEmp.TryGetValue(t.EmploymentId, out var eid) && eid == m.Id)
+                    .ToList();
+                var myTokenIds = myTokens.Select(t => t.Id).ToHashSet();
+                var gelesen = abrufe
+                    .Where(a => myTokenIds.Contains(a.TokenId))
+                    .GroupBy(a => a.DokId)
+                    .ToDictionary(g => g.Key.ToString(), g => g.Min(x => x.AbgerufenAm).ToString("yyyy-MM-dd HH:mm"));
+                return new
+                {
+                    employeeId = m.Id,
+                    name = $"{m.FirstName} {m.LastName}".Trim(),
+                    aktiv = m.IsActive,
+                    gesendetAm = myTokens.Count == 0 ? null : myTokens.Max(t => t.CreatedAt).ToString("yyyy-MM-dd HH:mm"),
+                    geoeffnetAm = myTokens.Where(t => t.OpenedAt != null).Select(t => t.OpenedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
+                    pdfAm = myTokens.Where(t => t.UsedAt != null).Select(t => t.UsedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
+                    gelesen,
+                };
+            })
+            .ToList();
+
+        return Ok(new
+        {
+            doks = doks.Select((d, i) => new { nr = i + 1, id = d.Id, name = d.OriginalFilename }),
+            rows,
+        });
     }
 
     // Platzhalter der Vorlage ersetzen und in sicheres HTML wandeln: erst den
