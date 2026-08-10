@@ -94,6 +94,8 @@ public class AppDbContext : DbContext
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
+    public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
+    public DbSet<HrInterviewBuchung>        HrInterviewBuchungen        => Set<HrInterviewBuchung>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -1332,6 +1334,36 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Datum });
+        });
+        modelBuilder.Entity<HrInterviewTermin>(entity =>
+        {
+            entity.ToTable("hr_interview_termin");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.VonZeit).HasColumnName("von_zeit");
+            entity.Property(e => e.BisZeit).HasColumnName("bis_zeit");
+            entity.Property(e => e.Plaetze).HasColumnName("plaetze");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.Datum);
+        });
+        modelBuilder.Entity<HrInterviewBuchung>(entity =>
+        {
+            entity.ToTable("hr_interview_buchung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.TerminId).HasColumnName("termin_id");
+            entity.Property(e => e.Kandidat).HasColumnName("kandidat");
+            entity.Property(e => e.Telefon).HasColumnName("telefon");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => e.TerminId);
         });
         modelBuilder.Entity<InterviewTermin>(entity =>
         {

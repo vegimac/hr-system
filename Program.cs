@@ -2951,6 +2951,32 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_interview_termin_fenster ON interview_termin (fenster_id);
     ");
+    // HR-Büro-Kalender für Vorstellungsgespräche (Walter 09.08.2026, ersetzt
+    // den GF-Zeitfenster-Prozess). Doku: migrations-archive/add_hr_interview_kalender.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS hr_interview_termin (
+            id         serial PRIMARY KEY,
+            datum      date NOT NULL,
+            von_zeit   time NOT NULL,
+            bis_zeit   time,
+            plaetze    integer NOT NULL DEFAULT 1,
+            bemerkung  text,
+            created_at timestamp without time zone NOT NULL DEFAULT now(),
+            created_by text
+        );
+        CREATE INDEX IF NOT EXISTS ix_hr_interview_termin_datum ON hr_interview_termin (datum);
+        CREATE TABLE IF NOT EXISTS hr_interview_buchung (
+            id         serial PRIMARY KEY,
+            termin_id  integer NOT NULL REFERENCES hr_interview_termin(id) ON DELETE CASCADE,
+            kandidat   text NOT NULL,
+            telefon    text,
+            bemerkung  text,
+            status     text NOT NULL DEFAULT 'GEPLANT' CHECK (status IN ('GEPLANT','ABGESAGT')),
+            created_at timestamp without time zone NOT NULL DEFAULT now(),
+            created_by text
+        );
+        CREATE INDEX IF NOT EXISTS ix_hr_interview_buchung_termin ON hr_interview_buchung (termin_id);
+    ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config

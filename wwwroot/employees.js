@@ -13687,7 +13687,6 @@ function _raTilesHtml() {
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
-        ${tile('bewerbungsbogen.png', 'Vorstellungs-Fenster', 'openInterviewFensterModal(selectedEmployeeId)')}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}
     </div>`;

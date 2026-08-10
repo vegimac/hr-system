@@ -96,6 +96,38 @@ public class InterviewTermin
 }
 
 /// <summary>
+/// HR-Büro-Kalender-Termin für Vorstellungsgespräche (Walter-Vorgabe
+/// 09.08.2026, ersetzt den GF-Zeitfenster-Prozess): HR pflegt Termine mit
+/// Platz-Kapazität, max. 2 Monate im Voraus, und bucht Kandidaten selbst.
+/// </summary>
+public class HrInterviewTermin
+{
+    public int Id { get; set; }
+    public DateOnly Datum { get; set; }
+    public TimeOnly VonZeit { get; set; }
+    public TimeOnly? BisZeit { get; set; }
+    /// <summary>Anzahl verfügbare Plätze (Kandidaten) an diesem Termin.</summary>
+    public int Plaetze { get; set; } = 1;
+    public string? Bemerkung { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>Gebuchter Platz eines Kandidaten; ABGESAGT gibt den Platz frei.</summary>
+public class HrInterviewBuchung
+{
+    public int Id { get; set; }
+    public int TerminId { get; set; }
+    public string Kandidat { get; set; } = "";
+    public string? Telefon { get; set; }
+    public string? Bemerkung { get; set; }
+    /// <summary>GEPLANT | ABGESAGT</summary>
+    public string Status { get; set; } = "GEPLANT";
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string? CreatedBy { get; set; }
+}
+
+/// <summary>
 /// Schulferien pro Filiale (Walter-Vorgabe 09.08.2026) — Anzeige-Band in der
 /// Filial-Zeile des Manager-Dienstplans (wie «Sportferien» in der alten Excel).
 /// </summary>

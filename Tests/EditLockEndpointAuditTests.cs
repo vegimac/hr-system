@@ -145,6 +145,7 @@ public class EditLockEndpointAuditTests
         ["ZwischenverdienistController"]   = "RAV-Zwischenverdienst — admin/superuser-Formular",
         ["AhvAnmeldungController"]         = "AHV-Anmeldung 318.260 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
         ["ManagerDienstplanController"]    = "Manager-Dienstplan (Schicht-Kürzel pro Tag) — reine Planung, keine Lohndaten",
+        ["HrInterviewController"]          = "HR-Büro-Kalender Vorstellungsgespräche — reine Planung, keine Lohndaten",
         ["LohndatenEmpfaengerController"]  = "Lohndatenempfänger-Katalog + Filial-Zuordnung (Mitglied-/Subnummer; beide Controller in dieser Datei) — Stammdaten, keine Lohndaten",
 
         // Vorerst noch ungeschützt (Walter: nächste Etappen) — bewusst hier

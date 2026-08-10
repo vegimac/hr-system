@@ -1,27 +1,44 @@
 // ══════════════════════════════════════════════════════════════════════
-//  Vorstellungsgespräch-Zeitfenster (Walter-Vorgabe 09.08.2026, Stufe 1)
-//  GF-Erfassung: Kachel im Restaurant-Admin-Tab (openInterviewFensterModal)
-//  — Tag-Auswahl NUR aus den im Manager-DP als Arbeit (F/M/S) geplanten
-//  Tagen, dazu Von-/Bis-Zeit + Bemerkung.
-//  HR-Sicht: Karte im HR-Hub (hrIvOpen) — read-only Liste aller kommenden
-//  Fenster über alle Filialen. Terminbuchung durch HR = Stufe 2 (offen).
+//  HR-BÜRO-KALENDER FÜR VORSTELLUNGSGESPRÄCHE (Walter-Vorgabe 09.08.2026)
+//  Ersetzt den früheren GF-Zeitfenster-Prozess (Code in der Git-Historie;
+//  die alten Endpunkte interview-fenster/-termin bleiben serverseitig
+//  erhalten, sind aber ohne UI-Zugang).
+//
+//  HR pflegt hier Termine mit Anzahl verfügbarer Plätze — maximal 2 Monate
+//  im Voraus — und bucht beim Einladen eines Kandidaten selbst einen Platz.
+//  Einstieg: HR-Hub → Karte «Vorstellungsgespräche» (admin/superuser).
 // ══════════════════════════════════════════════════════════════════════
 
 const _ivWd = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+const _ivMon = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
 function _ivFmtD(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : ''; }
 function _ivWdOf(iso) { return _ivWd[new Date(iso + 'T00:00:00').getDay()]; }
+function _ivEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+function _ivIsoToday() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function _ivIsoMax() {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 2);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const _ivInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f';
 const _ivBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
+const _ivBtnLight = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f';
 
-function _ivModalShell(id, titel) {
+let _hrIvList = [];      // Termine ab heute (mit Buchungen)
+let _hrIvSelDay = null;  // gewählter Tag (iso)
+
+function _ivModalShell(id, titel, maxWidth) {
     if (document.getElementById(id)) return;
     const div = document.createElement('div');
     div.id = id;
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center;padding:16px';
     div.innerHTML = `
-    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:620px;width:96%;max-height:90vh;overflow-y:auto;padding:22px 24px">
+    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:${maxWidth || 620}px;width:96%;max-height:92vh;overflow-y:auto;padding:22px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">${titel}</div>
             <button type="button" onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
@@ -32,141 +49,9 @@ function _ivModalShell(id, titel) {
     document.body.appendChild(div);
 }
 
-// ── GF-Erfassung (Restaurant Admin) ─────────────────────────────────────
-// Das Fenster gehört einem MANAGER (FIX-M) — nicht zwingend dem gerade
-// geöffneten MA (Bug 09.08.2026: Senada öffnete Aleksandra/MTP → «keine
-// Arbeitstage»). Darum oben eine Manager-Auswahl: alle planbaren Manager
-// der eigenen Filiale(n); vorausgewählt der geöffnete MA, sonst die
-// angemeldete Person selbst (Namens-Match), sonst der erste.
-let _ivManagers = [];
-
-async function openInterviewFensterModal(empId) {
-    _ivModalShell('ivModal', '🗣 Vorstellungsgespräche — Zeitfenster melden');
-    const m = document.getElementById('ivModal');
-    m.style.display = 'flex';
-    const body = document.getElementById('ivModalBody');
-    body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
-    try {
-        const now = new Date();
-        const r = await fetch(`/api/manager-dienstplan?year=${now.getFullYear()}&month=${now.getMonth() + 1}`, { headers: ah() });
-        const d = await r.json();
-        if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
-        _ivManagers = (d.zeilen || []).filter(z => z.planbar).map(z => ({
-            id: z.employeeId,
-            name: `${z.vorname} ${z.nachname || ''}`.trim(),
-            filiale: (d.filialen || []).find(f => f.id === z.companyProfileId)?.name || '',
-        }));
-        if (!_ivManagers.length) {
-            body.innerHTML = `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px;color:#854d0e">
-                Kein Planungsrecht für den Manager-Dienstplan — das Häkchen
-                «Manager-Dienstplan planen» wird im Filial-Tab «Unterzeichner» vergeben.</div>`;
-            return;
-        }
-        let sel = _ivManagers.find(x => x.id === empId)?.id;
-        if (!sel) {
-            const eigen = `${(currentUser?.firstName || '')} ${(currentUser?.lastName || '')}`.trim().toLowerCase();
-            sel = (eigen && _ivManagers.find(x => x.name.toLowerCase() === eigen)?.id) || _ivManagers[0].id;
-        }
-        const opts = _ivManagers.map(x =>
-            `<option value="${x.id}"${x.id === sel ? ' selected' : ''}>${x.name.replace(/</g, '&lt;')} (${x.filiale.replace(/</g, '&lt;')})</option>`).join('');
-        body.innerHTML = `
-            <p style="margin:0 0 10px;color:#646464">Melde, wann der Manager an einem Arbeitstag Zeit für
-            Vorstellungsgespräche hat — HR sieht die Fenster im HR-Bereich und meldet sich für die Planung.</p>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px;max-width:320px;margin-bottom:10px">Manager
-                <select id="ivMgr" onchange="ivRefresh(parseInt(this.value,10))" style="${_ivInp}">${opts}</select></label>
-            <div id="ivContent"></div>`;
-        ivRefresh(sel);
-    } catch (_) {
-        body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>';
-    }
-}
-
-async function ivRefresh(empId) {
-    const body = document.getElementById('ivContent');
-    if (!body) return;
-    body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
-    try {
-        const [tageR, listR] = await Promise.all([
-            fetch(`/api/manager-dienstplan/interview-fenster/arbeitstage/${empId}`, { headers: ah() }),
-            fetch(`/api/manager-dienstplan/interview-fenster?employeeId=${empId}`, { headers: ah() }),
-        ]);
-        const tage = tageR.ok ? await tageR.json() : [];
-        const list = listR.ok ? await listR.json() : [];
-
-        const tagOpts = tage.map(t =>
-            `<option value="${t.datum}">${_ivWdOf(t.datum)} ${_ivFmtD(t.datum)} (${t.code})</option>`).join('');
-        const form = tage.length
-            ? `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
-                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Arbeitstag
-                    <select id="ivTag" style="${_ivInp};min-width:180px">${tagOpts}</select></label>
-                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von
-                    <input id="ivVon" type="time" style="${_ivInp}"></label>
-                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis
-                    <input id="ivBis" type="time" style="${_ivInp}"></label>
-                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
-                    <input id="ivBem" placeholder="optional" style="${_ivInp};min-width:140px"></label>
-                <button onclick="ivAdd(${empId})" style="${_ivBtnDark}">+ Zeitfenster melden</button>
-               </div>`
-            : `<div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:10px;color:#854d0e">
-                Keine geplanten Arbeitstage (F/M/S) in den nächsten 60 Tagen —
-                zuerst den <b>Manager-Dienstplan</b> pflegen.</div>`;
-
-        const rows = list.length
-            ? list.map(f => {
-                const gebucht = (f.slots || []).filter(s => s.terminId);
-                const gb = gebucht.length
-                    ? `<div style="padding:0 8px 6px 8px;font-size:12px;color:#166534">
-                        ${gebucht.map(s => `🗓 ${s.von}–${s.bis} ${String(s.kandidat || '').replace(/</g, '&lt;')}${s.telefon ? ' · ' + String(s.telefon).replace(/</g, '&lt;') : ''}`).join('<br>')}
-                       </div>`
-                    : '';
-                return `
-                <div style="display:flex;align-items:center;gap:10px;padding:6px 8px${gebucht.length ? '' : ';border-bottom:1px solid rgba(60,55,48,0.1)'}">
-                    <b style="min-width:110px">${_ivWdOf(f.datum)} ${_ivFmtD(f.datum)}</b>
-                    <span>${f.von} – ${f.bis}</span>
-                    <span style="color:#8b8b8b">${f.bemerkung ? String(f.bemerkung).replace(/</g, '&lt;') : ''}</span>
-                    <span style="flex:1"></span>
-                    <button onclick="ivDelete(${f.id},${empId})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>
-                </div>${gb ? gb + '<div style="border-bottom:1px solid rgba(60,55,48,0.1)"></div>' : ''}`;
-            }).join('')
-            : `<span style="color:#8b8b8b">Noch keine Zeitfenster gemeldet.</span>`;
-
-        body.innerHTML = `
-            ${form}
-            <div style="font-weight:700;margin:14px 0 4px">Gemeldete Zeitfenster</div>
-            ${rows}`;
-    } catch (_) {
-        body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>';
-    }
-}
-
-async function ivAdd(empId) {
-    const dto = {
-        employeeId: empId,
-        datum: document.getElementById('ivTag')?.value,
-        von: document.getElementById('ivVon')?.value,
-        bis: document.getElementById('ivBis')?.value,
-        bemerkung: document.getElementById('ivBem')?.value || null,
-    };
-    if (!dto.datum || !dto.von || !dto.bis) { showToast('Tag, Von und Bis ausfüllen.', 'error'); return; }
-    const r = await fetch('/api/manager-dienstplan/interview-fenster', {
-        method: 'POST', headers: ah(), body: JSON.stringify(dto),
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
-    showToast('Zeitfenster gemeldet.', 'success');
-    ivRefresh(empId);
-}
-
-async function ivDelete(id, empId) {
-    if (typeof liquidConfirm === 'function' && !await liquidConfirm('Dieses Zeitfenster löschen?', { title: 'Vorstellungsgespräche' })) return;
-    const r = await fetch(`/api/manager-dienstplan/interview-fenster/${id}`, { method: 'DELETE', headers: ah() });
-    if (!r.ok) { showToast('Löschen fehlgeschlagen.', 'error'); return; }
-    ivRefresh(empId);
-}
-
-// ── HR-Sicht (HR-Hub): Fenster ansehen + Slots buchen (Stufe 2) ─────────
+// ── Einstieg (HR-Hub-Karte) ─────────────────────────────────────────────
 function hrIvOpen() {
-    _ivModalShell('hrIvModal', '🗣 Vorstellungsgespräche — Termine buchen');
+    _ivModalShell('hrIvModal', '🗣 Vorstellungsgespräche — HR-Büro-Kalender', 780);
     document.getElementById('hrIvModal').style.display = 'flex';
     hrIvReload();
 }
@@ -176,89 +61,185 @@ async function hrIvReload() {
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const r = await fetch('/api/manager-dienstplan/interview-fenster', { headers: ah() });
-        const list = await r.json();
+        const r = await fetch('/api/hr-interview/termine', { headers: ah() });
+        _hrIvList = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
-        if (!list.length) {
-            body.innerHTML = '<span style="color:#8b8b8b">Aktuell haben keine GF Zeitfenster gemeldet.</span>';
-            return;
-        }
-        const esc = (s) => String(s ?? '').replace(/</g, '&lt;');
-        let html = `<p style="margin:0 0 10px;color:#646464">Freien Slot anklicken, Kandidat erfassen — gebucht.
-            Jedes Gespräch dauert 30 Minuten, dazwischen bleiben 15 Minuten Puffer.
-            Der GF wird per Postfach-Nachricht informiert.</p>`;
-        let lastDatum = null;
-        for (const f of list) {
-            if (f.datum !== lastDatum) {
-                lastDatum = f.datum;
-                html += `<div style="font-weight:800;margin:14px 0 4px;color:#3f3f3f">${_ivWdOf(f.datum)}, ${_ivFmtD(f.datum)}</div>`;
-            }
-            const chips = (f.slots || []).map(s => s.terminId
-                ? `<span title="${esc(s.terminBemerkung || '')}" style="display:inline-flex;align-items:center;gap:6px;background:#3f3f3f;color:#fff;border-radius:10px;padding:4px 10px;font-size:12px;margin:2px 6px 2px 0">
-                    ${s.von} ${esc(s.kandidat)}${s.telefon ? ' · ' + esc(s.telefon) : ''}
-                    <a onclick="hrIvAbsagen(${s.terminId})" style="cursor:pointer;color:#fca5a5;font-weight:700" title="Termin absagen">✕</a></span>`
-                : `<button onclick="hrIvPick(${f.id},'${s.von}','${s.bis}')" style="background:#fff;border:1px solid #cbd5e1;border-radius:10px;padding:4px 12px;font-size:12px;cursor:pointer;color:#3f3f3f;margin:2px 6px 2px 0">${s.von}</button>`
-            ).join('');
-            html += `
-                <div style="padding:6px 8px;border-bottom:1px solid rgba(60,55,48,0.1)">
-                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-                        <b>${f.von} – ${f.bis}</b>
-                        <span>${esc(f.manager)}</span>
-                        <span style="background:#e0e7ff;border-radius:8px;padding:1px 8px;font-size:11.5px">${esc(f.filiale)}</span>
-                        <span style="color:#8b8b8b">${esc(f.bemerkung || '')}</span>
-                    </div>
-                    <div>${chips || '<span style="color:#8b8b8b;font-size:12px">Fenster zu kurz für einen 30-Min-Slot.</span>'}</div>
-                    <div id="hrIvForm${f.id}"></div>
-                </div>`;
-        }
-        body.innerHTML = html;
+        if (_hrIvSelDay && _hrIvSelDay < _ivIsoToday()) _hrIvSelDay = null;
+        _hrIvRender();
     } catch (_) {
         body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>';
     }
 }
 
-function hrIvPick(fensterId, von, bis) {
-    // Offene Formulare schliessen, dann Formular unter dem gewählten Fenster.
-    document.querySelectorAll('[id^="hrIvForm"]').forEach(e => { e.innerHTML = ''; });
-    const el = document.getElementById(`hrIvForm${fensterId}`);
+// ── Kalender: heute bis +2 Monate (3 Monats-Raster) ─────────────────────
+function _hrIvRender() {
+    const body = document.getElementById('hrIvModalBody');
+    if (!body) return;
+    const heute = _ivIsoToday();
+    const max = _ivIsoMax();
+
+    // Termine pro Tag: frei-Plätze summieren.
+    const proTag = {};
+    for (const t of _hrIvList) {
+        const frei = t.plaetze - (t.buchungen || []).length;
+        const e = (proTag[t.datum] = proTag[t.datum] || { termine: 0, frei: 0 });
+        e.termine++;
+        e.frei += Math.max(0, frei);
+    }
+
+    const now = new Date();
+    let months = '';
+    for (let m = 0; m < 3; m++) {
+        const y = now.getFullYear() + Math.floor((now.getMonth() + m) / 12);
+        const mo = (now.getMonth() + m) % 12;
+        const tage = new Date(y, mo + 1, 0).getDate();
+        const first = new Date(y, mo, 1);
+        const lead = (first.getDay() + 6) % 7;   // Mo-basiert
+        let cells = '';
+        for (let i = 0; i < lead; i++) cells += '<div></div>';
+        for (let t = 1; t <= tage; t++) {
+            const iso = `${y}-${String(mo + 1).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
+            const info = proTag[iso];
+            const aktiv = iso >= heute && iso <= max;
+            const sel = iso === _hrIvSelDay;
+            const bg = sel ? '#3f3f3f' : info ? (info.frei > 0 ? '#dcfce7' : '#fecaca') : (aktiv ? '#fff' : '#f1efe9');
+            const fg = sel ? '#fff' : aktiv ? '#3f3f3f' : '#c2beb5';
+            cells += `<div ${aktiv ? `onclick="hrIvDay('${iso}')" style="cursor:pointer;` : 'style="'}
+                background:${bg};color:${fg};border:1px solid rgba(60,55,48,0.12);border-radius:8px;
+                padding:3px 0;text-align:center;font-size:12px;font-weight:600;position:relative">
+                ${t}${info ? `<div style="font-size:9px;font-weight:700;color:${sel ? '#fff' : info.frei > 0 ? '#166534' : '#991b1b'}">${info.frei} frei</div>` : ''}
+            </div>`;
+        }
+        months += `
+            <div style="min-width:210px;flex:1">
+                <div style="font-weight:800;margin-bottom:4px;color:#3f3f3f">${_ivMon[mo]} ${y}</div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:10px;color:#8b8b8b;margin-bottom:3px">
+                    <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div></div>
+                <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells}</div>
+            </div>`;
+    }
+
+    body.innerHTML = `
+        <p style="margin:0 0 10px;color:#646464">Tag anklicken → Termine mit Plätzen erfassen (max. 2 Monate im Voraus)
+        und beim Einladen eines Kandidaten direkt einen Platz buchen.
+        <span style="color:#166534;font-weight:700">grün</span> = freie Plätze,
+        <span style="color:#991b1b;font-weight:700">rot</span> = ausgebucht.</p>
+        <div style="display:flex;gap:14px;flex-wrap:wrap">${months}</div>
+        <div id="hrIvDayDetail" style="margin-top:14px"></div>`;
+    if (_hrIvSelDay) _hrIvRenderDay();
+}
+
+function hrIvDay(iso) {
+    _hrIvSelDay = iso;
+    _hrIvRender();
+}
+
+// ── Tages-Detail: Termine + Buchungen + Erfassen ────────────────────────
+function _hrIvRenderDay() {
+    const el = document.getElementById('hrIvDayDetail');
+    if (!el || !_hrIvSelDay) return;
+    const termine = _hrIvList.filter(t => t.datum === _hrIvSelDay);
+
+    const rows = termine.map(t => {
+        const belegt = (t.buchungen || []).length;
+        const frei = t.plaetze - belegt;
+        const buchungen = (t.buchungen || []).map(b => `
+            <div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 16px;font-size:12.5px">
+                <span>👤 ${_ivEsc(b.kandidat)}${b.telefon ? ' · ' + _ivEsc(b.telefon) : ''}${b.bemerkung ? ' · ' + _ivEsc(b.bemerkung) : ''}</span>
+                <a onclick="hrIvAbsagen(${b.id})" style="cursor:pointer;color:#991b1b;font-weight:700" title="Buchung absagen">✕</a>
+            </div>`).join('');
+        return `
+            <div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:8px 10px;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <b>🕐 ${t.von}${t.bis ? ' – ' + t.bis : ''}</b>
+                    <span style="background:${frei > 0 ? '#dcfce7' : '#fecaca'};border-radius:8px;padding:1px 8px;font-size:11.5px;color:${frei > 0 ? '#166534' : '#991b1b'}">
+                        ${frei} von ${t.plaetze} Plätzen frei</span>
+                    <span style="color:#8b8b8b">${_ivEsc(t.bemerkung || '')}</span>
+                    <span style="flex:1"></span>
+                    ${frei > 0 ? `<button onclick="hrIvPick(${t.id})" style="${_ivBtnDark};padding:4px 12px;font-size:12px">Platz buchen</button>` : ''}
+                    ${belegt === 0 ? `<button onclick="hrIvDeleteTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>` : ''}
+                </div>
+                ${buchungen}
+                <div id="hrIvBookForm${t.id}"></div>
+            </div>`;
+    }).join('');
+
+    el.innerHTML = `
+        <div style="font-weight:800;margin-bottom:6px;color:#3f3f3f">${_ivWdOf(_hrIvSelDay)}, ${_ivFmtD(_hrIvSelDay)}</div>
+        ${rows || '<div style="color:#8b8b8b;margin-bottom:8px">Noch keine Termine an diesem Tag.</div>'}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von
+                <input id="hrIvNeuVon" type="time" style="${_ivInp}"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis (optional)
+                <input id="hrIvNeuBis" type="time" style="${_ivInp}"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
+                <input id="hrIvNeuPlaetze" type="number" min="1" max="50" value="1" style="${_ivInp};width:70px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
+                <input id="hrIvNeuBem" placeholder="optional" style="${_ivInp};min-width:130px"></label>
+            <button onclick="hrIvAddTermin()" style="${_ivBtnDark}">+ Termin anlegen</button>
+        </div>`;
+}
+
+async function hrIvAddTermin() {
+    const dto = {
+        datum: _hrIvSelDay,
+        von: document.getElementById('hrIvNeuVon')?.value,
+        bis: document.getElementById('hrIvNeuBis')?.value || null,
+        plaetze: parseInt(document.getElementById('hrIvNeuPlaetze')?.value, 10) || 0,
+        bemerkung: document.getElementById('hrIvNeuBem')?.value || null,
+    };
+    if (!dto.datum || !dto.von || dto.plaetze < 1) { showToast('Von-Zeit und Plätze angeben.', 'error'); return; }
+    const r = await fetch('/api/hr-interview/termine', { method: 'POST', headers: ah(), body: JSON.stringify(dto) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
+    hrIvReload();
+}
+
+async function hrIvDeleteTermin(id) {
+    if (typeof liquidConfirm === 'function' && !await liquidConfirm('Diesen Termin löschen?', { title: 'HR-Kalender' })) return;
+    const r = await fetch(`/api/hr-interview/termine/${id}`, { method: 'DELETE', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || 'Löschen fehlgeschlagen.', 'error'); return; }
+    hrIvReload();
+}
+
+function hrIvPick(terminId) {
+    document.querySelectorAll('[id^="hrIvBookForm"]').forEach(e => { e.innerHTML = ''; });
+    const el = document.getElementById(`hrIvBookForm${terminId}`);
     if (!el) return;
     el.innerHTML = `
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.15);border-radius:12px;padding:10px;margin-top:6px">
-            <b style="font-size:12.5px">Termin ${von}–${bis}</b>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;margin-top:6px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Kandidat/in
                 <input id="hrIvKand" style="${_ivInp};min-width:160px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Telefon
                 <input id="hrIvTel" style="${_ivInp};width:130px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
                 <input id="hrIvBem" style="${_ivInp};min-width:130px"></label>
-            <button onclick="hrIvBook(${fensterId},'${von}')" style="${_ivBtnDark}">Buchen</button>
-            <button onclick="this.closest('div[id^=hrIvForm]').innerHTML=''" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+            <button onclick="hrIvBook(${terminId})" style="${_ivBtnDark}">Buchen</button>
+            <button onclick="this.closest('div[id^=hrIvBookForm]').innerHTML=''" style="${_ivBtnLight}">Abbrechen</button>
         </div>`;
     document.getElementById('hrIvKand')?.focus();
 }
 
-async function hrIvBook(fensterId, von) {
+async function hrIvBook(terminId) {
     const dto = {
-        fensterId,
-        von,
         kandidat: (document.getElementById('hrIvKand')?.value || '').trim(),
         telefon: document.getElementById('hrIvTel')?.value || null,
         bemerkung: document.getElementById('hrIvBem')?.value || null,
     };
     if (!dto.kandidat) { showToast('Kandidatenname angeben.', 'error'); return; }
-    const r = await fetch('/api/manager-dienstplan/interview-termin', {
+    const r = await fetch(`/api/hr-interview/termine/${terminId}/buchen`, {
         method: 'POST', headers: ah(), body: JSON.stringify(dto),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Buchen fehlgeschlagen.', 'error'); return; }
-    showToast('Termin gebucht — der GF wurde per Postfach informiert.', 'success');
+    showToast('Platz gebucht.', 'success');
     hrIvReload();
 }
 
-async function hrIvAbsagen(terminId) {
-    if (typeof liquidConfirm === 'function' && !await liquidConfirm('Diesen Termin absagen? Der Slot wird wieder frei.', { title: 'Vorstellungsgespräch' })) return;
-    const r = await fetch(`/api/manager-dienstplan/interview-termin/${terminId}/absagen`, { method: 'POST', headers: ah() });
+async function hrIvAbsagen(buchungId) {
+    if (typeof liquidConfirm === 'function' && !await liquidConfirm('Diese Buchung absagen? Der Platz wird wieder frei.', { title: 'HR-Kalender' })) return;
+    const r = await fetch(`/api/hr-interview/buchungen/${buchungId}/absagen`, { method: 'POST', headers: ah() });
     if (!r.ok) { showToast('Absagen fehlgeschlagen.', 'error'); return; }
-    showToast('Termin abgesagt.', 'success');
     hrIvReload();
 }
