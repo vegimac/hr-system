@@ -31,7 +31,8 @@ const _ivBtnLight = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,
 
 let _hrIvList = [];        // Termine ab heute (mit Buchungen)
 let _hrIvSelDay = null;    // gewählter Tag (iso)
-let _hrIvKandidaten = [];  // MA mit Eintritt im Fenster −1…+2 Monate (für «Platz buchen» = Einladung)
+let _hrIvKandidaten = [];  // MA-Eintritte des gewählten Monats (für «Platz buchen» = Einladung)
+let _hrIvMonOffset = 0;    // Eintrittsmonat-Offset (−1…+2) im Buchen-Formular
 
 function _ivModalShell(id, titel, maxWidth) {
     if (document.getElementById(id)) return;
@@ -52,7 +53,7 @@ function _ivModalShell(id, titel, maxWidth) {
 
 // ── Einstieg (HR-Hub-Karte) ─────────────────────────────────────────────
 function hrIvOpen() {
-    _ivModalShell('hrIvModal', '🗣 Vorstellungsgespräche — HR-Büro-Kalender', 780);
+    _ivModalShell('hrIvModal', '🚀 Onboarding — HR-Büro-Kalender', 780);
     document.getElementById('hrIvModal').style.display = 'flex';
     hrIvReload();
 }
@@ -62,13 +63,9 @@ async function hrIvReload() {
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const [r, rk] = await Promise.all([
-            fetch('/api/hr-interview/termine', { headers: ah() }),
-            fetch('/api/contract-share/onboarding-einladungen?range=true', { headers: ah() }),
-        ]);
+        const r = await fetch('/api/hr-interview/termine', { headers: ah() });
         _hrIvList = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
-        _hrIvKandidaten = rk.ok ? await rk.json() : [];
         if (_hrIvSelDay && _hrIvSelDay < _ivIsoToday()) _hrIvSelDay = null;
         _hrIvRender();
     } catch (_) {
@@ -212,15 +209,23 @@ function hrIvPick(terminId) {
     document.querySelectorAll('[id^="hrIvBookForm"]').forEach(e => { e.innerHTML = ''; });
     const el = document.getElementById(`hrIvBookForm${terminId}`);
     if (!el) return;
-    // MA-Auswahl (Eintritt −1…+2 Monate): buchen + Vertrags-SMS-Einladung in
-    // EINEM Schritt (Walter 10.08.2026); Freitext bleibt für externe Kandidaten.
-    const maOpts = _hrIvKandidaten.map(k =>
-        `<option value="${k.employeeId}">${_ivEsc(k.name)} — Eintritt ${_ivFmtD(k.eintritt)} (${_ivEsc(k.filiale)})${k.gesendetAm ? ' · bereits eingeladen' : ''}</option>`).join('');
+    // Einladungs-Flow direkt im Buchen (Walter 10.08.2026): Eintrittsmonat
+    // wählen (−1…+2) → MA über ALLE Filialen, sortiert nach Eintrittsdatum,
+    // Filiale hinter dem Namen. Buchen + Vertrags-SMS in EINEM Schritt.
+    // Freitext bleibt für externe Kandidaten.
+    const monNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const now = new Date();
+    const monOpts = [-1, 0, 1, 2].map(off => {
+        const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+        return `<option value="${off}"${off === _hrIvMonOffset ? ' selected' : ''}>${monNamen[d.getMonth()]} ${d.getFullYear()}</option>`;
+    }).join('');
     el.innerHTML = `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;margin-top:6px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Eintrittsmonat
+                <select id="hrIvMon" onchange="_hrIvMonOffset=parseInt(this.value,10);hrIvLoadKand(${terminId})" style="${_ivInp}">${monOpts}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Mitarbeiter (bucht + lädt per Vertrags-SMS ein)
-                <select id="hrIvMa" onchange="document.getElementById('hrIvFreitext').style.display=this.value?'none':'flex'" style="${_ivInp};min-width:280px">
-                    <option value="">— externer Kandidat (Freitext unten) —</option>${maOpts}
+                <select id="hrIvMa" onchange="document.getElementById('hrIvFreitext').style.display=this.value?'none':'flex'" style="${_ivInp};min-width:300px">
+                    <option value="">Wird geladen…</option>
                 </select></label>
             <span id="hrIvFreitext" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
                 <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Kandidat/in
@@ -233,6 +238,24 @@ function hrIvPick(terminId) {
             <button onclick="hrIvBook(${terminId})" style="${_ivBtnDark}">Buchen</button>
             <button onclick="this.closest('div[id^=hrIvBookForm]').innerHTML=''" style="${_ivBtnLight}">Abbrechen</button>
         </div>`;
+    hrIvLoadKand(terminId);
+}
+
+// MA-Eintritte des gewählten Monats laden (alle Filialen, sortiert nach Eintritt).
+async function hrIvLoadKand(terminId) {
+    const sel = document.getElementById('hrIvMa');
+    if (!sel) return;
+    const now = new Date();
+    const d = new Date(now.getFullYear(), now.getMonth() + _hrIvMonOffset, 1);
+    try {
+        const r = await fetch(`/api/contract-share/onboarding-einladungen?year=${d.getFullYear()}&month=${d.getMonth() + 1}`, { headers: ah() });
+        _hrIvKandidaten = r.ok ? await r.json() : [];
+    } catch (_) { _hrIvKandidaten = []; }
+    const maOpts = _hrIvKandidaten.map(k =>
+        `<option value="${k.employeeId}">${_ivEsc(k.name)} — Eintritt ${_ivFmtD(k.eintritt)} · ${_ivEsc(k.filiale)}${k.gesendetAm ? ' · bereits eingeladen' : ''}</option>`).join('');
+    sel.innerHTML = `<option value="">— externer Kandidat (Freitext) —</option>${maOpts}`;
+    const ft = document.getElementById('hrIvFreitext');
+    if (ft) ft.style.display = 'flex';
 }
 
 async function hrIvBook(terminId) {

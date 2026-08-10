@@ -25,22 +25,14 @@ function _obFmt(ts) {
 function hrObInvite() {
     _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 820);
     document.getElementById('hrObInvModal').style.display = 'flex';
-    if (_obInvCp == null)
-        _obInvCp = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
     hrObInvReload();
 }
 
 async function hrObInvReload() {
     const body = document.getElementById('hrObInvModalBody');
     if (!body) return;
-    const branches = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
-    if (_obInvCp == null && branches.length) _obInvCp = branches[0].id;
-    const opts = branches
-        .slice()
-        .sort((a, b) => String(a.restaurantCode || '').localeCompare(String(b.restaurantCode || '')))
-        .map(b => `<option value="${b.id}"${b.id === _obInvCp ? ' selected' : ''}>${_obEsc((b.restaurantCode ? b.restaurantCode + ' ' : '') + (b.branchName || b.city || ''))}</option>`)
-        .join('');
-    // Eintrittsmonat-Auswahl: aktueller Monat −1 bis +2 (Walter 10.08.2026).
+    // KEINE Filial-Auswahl (Walter 10.08.2026): immer ALLE Eintritte des
+    // gewählten Monats (−1…+2), sortiert nach Eintrittsdatum, Filiale pro Zeile.
     const monNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
     const now = new Date();
     const monOpts = [-1, 0, 1, 2].map(off => {
@@ -51,19 +43,17 @@ async function hrObInvReload() {
 
     body.innerHTML = `
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Restaurant
-                <select onchange="_obInvCp=parseInt(this.value,10);hrObInvReload()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f;min-width:220px">${opts}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Eintrittsmonat
                 <select onchange="_obInvOffset=parseInt(this.value,10);hrObInvReload()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f">${monOpts}</select></label>
-            <span style="font-size:11.5px;color:#8b8b8b;padding-bottom:8px">MA mit Eintritt im gewählten Monat.</span>
+            <span style="font-size:11.5px;color:#8b8b8b;padding-bottom:8px">Alle MA mit Eintritt im gewählten Monat, über alle Restaurants.</span>
         </div>
         <div id="hrObInvList" style="font-size:13px;color:#3f3f3f">Wird geladen…</div>`;
     const list = document.getElementById('hrObInvList');
     try {
-        const r = await fetch(`/api/contract-share/onboarding-einladungen?companyProfileId=${_obInvCp}&year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() });
+        const r = await fetch(`/api/contract-share/onboarding-einladungen?year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() });
         const rows = await r.json();
         if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
-        if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat in diesem Restaurant.</span>'; return; }
+        if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
         list.innerHTML = rows.map(m => {
             let status;
             if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">noch nicht eingeladen</span>';
@@ -78,6 +68,7 @@ async function hrObInvReload() {
             <div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-bottom:1px solid rgba(60,55,48,0.1);flex-wrap:wrap">
                 <b style="min-width:150px">${_obEsc(m.name)}</b>
                 <span style="background:#e0e7ff;border-radius:8px;padding:1px 8px;font-size:11.5px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)}</span>
+                <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_obEsc(m.filiale || '')}</span>
                 <span style="color:#8b8b8b;font-size:12px">${_obEsc(m.modell || '')}</span>
                 <span style="font-size:12px">${status}</span>
                 <span style="flex:1"></span>
