@@ -1435,6 +1435,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.MaAntwort).HasColumnName("ma_antwort");
+            entity.Property(e => e.MaAntwortAm).HasColumnName("ma_antwort_am")
+                  .HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.TerminId);
         });
         modelBuilder.Entity<InterviewTermin>(entity =>

@@ -149,6 +149,9 @@ function _hrIvRenderDay() {
         const buchungen = (t.buchungen || []).map(b => `
             <div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 16px;font-size:12.5px;flex-wrap:wrap">
                 <span>👤 ${_ivEsc(b.kandidat)}${b.telefon ? ' · ' + _ivEsc(b.telefon) : ''}${b.bemerkung ? ' · ' + _ivEsc(b.bemerkung) : ''}</span>
+                ${b.maAntwort === 'ANGENOMMEN'
+                    ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700" title="Der MA hat den Termin über den Vertrags-Link bestätigt">✓ bestätigt</span>'
+                    : '<span style="background:#f1efe9;color:#8b8b8b;border-radius:8px;padding:1px 8px;font-size:11px" title="Der MA hat den Termin noch nicht über den Vertrags-Link bestätigt">⏳ unbestätigt</span>'}
                 <a onclick="hrIvUmbuchen(${b.id}, ${t.id})" style="cursor:pointer;color:#1d4ed8;font-weight:700;font-size:12px" title="Nach telefonischer Absprache auf einen anderen Termin verschieben — der Vertrags-Link zeigt danach den neuen Termin">⇄ Umbuchen</a>
                 <a onclick="hrIvAbsagen(${b.id})" style="cursor:pointer;color:#991b1b;font-weight:700" title="Buchung absagen">✕</a>
                 <span id="hrIvUb${b.id}" style="display:none;align-items:center;gap:6px"></span>

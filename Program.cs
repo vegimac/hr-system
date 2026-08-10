@@ -2978,6 +2978,10 @@ using (var scope = app.Services.CreateScope())
             created_by text
         );
         CREATE INDEX IF NOT EXISTS ix_hr_interview_buchung_termin ON hr_interview_buchung (termin_id);
+        -- Termin-Antwort des MA über den Vertrags-Link (Walter 10.08.2026).
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS employee_id integer;
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS ma_antwort text;
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS ma_antwort_am timestamp without time zone;
         -- Erst-Abruf der Onboarding-Dokumente über den Vertrags-Link (Walter 10.08.2026).
         CREATE TABLE IF NOT EXISTS contract_share_dok_abruf (
             id           serial PRIMARY KEY,

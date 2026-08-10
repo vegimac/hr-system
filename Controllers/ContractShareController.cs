@@ -205,6 +205,7 @@ public class ContractShareController : ControllerBase
                 Status = "GEPLANT",
                 CreatedAt = DateTime.Now,
                 CreatedBy = "Onboarding-Einladung",
+                EmployeeId = b.Emp.Id,
             });
             var tokRow = await _db.ContractShareTokens.FirstOrDefaultAsync(x => x.Id == b.TokenId);
             if (tokRow != null) tokRow.OnboardingTerminId = termin.Id;
@@ -475,7 +476,9 @@ public class ContractShareController : ControllerBase
                     : "Hier findest du deinen Arbeitsvertrag als PDF.";
             }
             // Onboarding-Termin (Walter 10.08.2026): Datum/Zeit anzeigen +
-            // Kalender-Button (ICS) für das Handy des Kandidaten.
+            // Kalender-Button (ICS) für das Handy des Kandidaten. Zusätzlich
+            // (Walter 10.08.2026): der MA kann den Termin annehmen/absagen —
+            // HR bekommt die Antwort ins HR-Postfach.
             string terminHtml = "";
             if (t.OnboardingTerminId != null)
             {
@@ -488,10 +491,49 @@ public class ContractShareController : ControllerBase
                     var zeit = ter.BisZeit.HasValue
                         ? $"{ter.VonZeit:HH\\:mm}–{ter.BisZeit.Value:HH\\:mm}"
                         : $"{ter.VonZeit:HH\\:mm}";
+                    var buchung = await FindTerminBuchungAsync(t);
+                    string antwortHtml;
+                    if (buchung?.MaAntwort == "ANGENOMMEN")
+                        antwortHtml = @"<div style='margin-top:10px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:8px 12px;color:#166534;font-weight:600;font-size:14px'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>";
+                    else if (buchung?.MaAntwort == "ABGELEHNT")
+                        antwortHtml = @"<div style='margin-top:10px;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;color:#991b1b;font-size:14px'>Du hast den Termin abgesagt. Das HR-Team meldet sich bei dir für einen neuen Termin.</div>";
+                    else if (buchung != null && buchung.Status == "GEPLANT" && ter.Datum >= DateOnly.FromDateTime(DateTime.Now))
+                        // Absage mit eigener Ja/Nein-Rückfrage (Walter 10.08.2026):
+                        // Klick auf «Absagen» zeigt zuerst «Willkommenstag wirklich
+                        // absagen?» mit Ja/Nein — kein Browser-confirm (OK/Abbrechen).
+                        antwortHtml = $@"<div style='margin-top:12px;font-size:13.5px;color:#646464'>Passt dir dieser Termin?</div>
+                            <div id='tmAsk' style='display:flex;gap:10px;margin-top:8px;flex-wrap:wrap'>
+                                <form method='post' action='/vertrag/{token}/termin-antwort' style='margin:0'>
+                                    <input type='hidden' name='antwort' value='JA'>
+                                    <button type='submit' style='background:#166534;color:#fff;border:none;border-radius:12px;padding:10px 18px;font-size:15px;font-weight:700;cursor:pointer'>✓ Termin annehmen</button>
+                                </form>
+                                <button type='button'
+                                        onclick=""document.getElementById('tmAsk').style.display='none';document.getElementById('tmConfirm').style.display='block';""
+                                        style='background:#fff;color:#991b1b;border:1px solid #fca5a5;border-radius:12px;padding:10px 18px;font-size:15px;font-weight:600;cursor:pointer'>✕ Termin absagen</button>
+                            </div>
+                            <div id='tmConfirm' style='display:none;margin-top:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:12px'>
+                                <div style='font-size:14.5px;font-weight:700;color:#9a3412;margin-bottom:8px'>Willkommenstag wirklich absagen?</div>
+                                <div style='font-size:12.5px;color:#646464;margin-bottom:10px'>Das HR-Team meldet sich dann bei dir für einen neuen Termin.</div>
+                                <div style='display:flex;gap:10px;flex-wrap:wrap'>
+                                    <form method='post' action='/vertrag/{token}/termin-antwort' style='margin:0'>
+                                        <input type='hidden' name='antwort' value='NEIN'>
+                                        <button type='submit' style='background:#991b1b;color:#fff;border:none;border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:700;cursor:pointer'>Ja, absagen</button>
+                                    </form>
+                                    <button type='button'
+                                            onclick=""document.getElementById('tmConfirm').style.display='none';document.getElementById('tmAsk').style.display='flex';""
+                                            style='background:#fff;color:#3f3f3f;border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:600;cursor:pointer'>Nein</button>
+                                </div>
+                            </div>";
+                    else
+                        antwortHtml = "";
+                    // ICS-Button nur solange der Termin nicht abgesagt ist.
+                    var icsHtml = buchung?.MaAntwort == "ABGELEHNT"
+                        ? ""
+                        : $"<a class='btncal' href='/vertrag/{token}/kalender.ics'>In Kalender speichern</a>";
                     terminHtml = $@"<div class='termin'>
                         <div class='termintitle'>📅 Dein Onboarding-Termin</div>
                         <div class='termindat'>{wt}, {ter.Datum:dd.MM.yyyy} · {zeit} Uhr</div>
-                        <a class='btncal' href='/vertrag/{token}/kalender.ics'>In Kalender speichern</a>
+                        {icsHtml}{antwortHtml}
                     </div>";
                 }
             }
@@ -605,6 +647,94 @@ public class ContractShareController : ControllerBase
             "END:VCALENDAR",
         });
         return File(System.Text.Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", "Onboarding.ics");
+    }
+
+    // ── Buchung zum Token finden (Walter 10.08.2026): primär über die neue
+    //    employee_id, Fallback für Alt-Buchungen über Telefon/Name. ──
+    private async Task<HrInterviewBuchung?> FindTerminBuchungAsync(ContractShareToken t)
+    {
+        if (t.OnboardingTerminId == null) return null;
+        var kandidaten = await _db.HrInterviewBuchungen
+            .Where(b => b.TerminId == t.OnboardingTerminId.Value)
+            .OrderByDescending(b => b.CreatedAt)
+            .ToListAsync();
+        if (kandidaten.Count == 0) return null;
+        var direkt = kandidaten.FirstOrDefault(b => b.EmployeeId == t.EmployeeId);
+        if (direkt != null) return direkt;
+        var emp = await _db.Employees.AsNoTracking()
+            .Where(e => e.Id == t.EmployeeId)
+            .Select(e => new { e.FirstName, e.LastName, e.PhoneMobile })
+            .FirstOrDefaultAsync();
+        if (emp == null) return null;
+        static string Digits(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+        var name = $"{emp.FirstName} {emp.LastName}".Trim();
+        return kandidaten.FirstOrDefault(b =>
+            (Digits(b.Telefon).Length > 0 && Digits(b.Telefon) == Digits(emp.PhoneMobile))
+            || string.Equals(b.Kandidat.Trim(), name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    // ── Öffentlich: MA nimmt den Onboarding-Termin an oder sagt ab (Walter
+    //    10.08.2026). Annahme = Buchung fix bestätigt; Absage = Platz wird
+    //    frei. In beiden Fällen Mitteilung ins HR-Postfach. ──
+    [AllowAnonymous]
+    [HttpPost("/vertrag/{token}/termin-antwort")]
+    public async Task<IActionResult> PublicTerminAntwort(string token, [FromForm] string? antwort)
+    {
+        var hash = HashToken(token);
+        var t = await _db.ContractShareTokens.AsNoTracking().FirstOrDefaultAsync(x => x.TokenHash == hash);
+        if (t == null || t.RevokedAt != null || t.ExpiresAt < DateTime.Now || t.OnboardingTerminId == null)
+            return NotFound("Dieser Vertrags-Link ist nicht mehr gültig.");
+        var ter = await _db.HrInterviewTermine.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == t.OnboardingTerminId.Value);
+        var buchung = await FindTerminBuchungAsync(t);
+        if (ter == null || buchung == null)
+            return Redirect($"/vertrag/{token}");
+        // Bereits beantwortet oder Termin vorbei → nichts ändern, nur zurück.
+        if (buchung.MaAntwort != null || buchung.Status != "GEPLANT"
+            || ter.Datum < DateOnly.FromDateTime(DateTime.Now))
+            return Redirect($"/vertrag/{token}");
+
+        bool ja = string.Equals(antwort, "JA", StringComparison.OrdinalIgnoreCase);
+        buchung.MaAntwort = ja ? "ANGENOMMEN" : "ABGELEHNT";
+        buchung.MaAntwortAm = DateTime.Now;
+        if (buchung.EmployeeId == null) buchung.EmployeeId = t.EmployeeId;
+        if (!ja) buchung.Status = "ABGESAGT"; // Platz wird frei
+
+        // Mitteilung ins HR-Postfach (best-effort erst NACH dem Commit).
+        var zeit = ter.BisZeit.HasValue
+            ? $"{ter.VonZeit:HH\\:mm}–{ter.BisZeit.Value:HH\\:mm}"
+            : $"{ter.VonZeit:HH\\:mm}";
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.Id == t.EmploymentId)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync()
+            ?? await _db.CompanyProfiles.AsNoTracking().OrderBy(c => c.Id).Select(c => c.Id).FirstAsync();
+        await _db.SaveChangesAsync();
+        try
+        {
+            var text = ja
+                ? $"{buchung.Kandidat} hat den Onboarding-Termin {ter.Datum:dd.MM.yyyy} · {zeit} Uhr BESTÄTIGT."
+                : $"{buchung.Kandidat} hat den Onboarding-Termin {ter.Datum:dd.MM.yyyy} · {zeit} Uhr ABGESAGT — bitte telefonisch einen neuen Termin vereinbaren und im Onboarding-Kalender umbuchen (der Platz ist wieder frei).";
+            _db.MailboxDocuments.Add(new MailboxDocument
+            {
+                CompanyProfileId = cpId,
+                UploadedBy = null,
+                UploadedAt = DateTime.Now,
+                OriginalFilename = $"Onboarding-Termin {(ja ? "bestätigt" : "abgesagt")} — {buchung.Kandidat}",
+                StorageFilename = $"msg-{Guid.NewGuid():N}",
+                MimeType = null,
+                FileSizeBytes = null,
+                Bemerkung = "Onboarding-Termin-Antwort",
+                MessageBody = text,
+                EmployeeId = null,
+                NotifyUserId = null,
+                TargetType = "HR",
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch { /* best-effort */ }
+
+        return Redirect($"/vertrag/{token}");
     }
 
     // ── HR: «MA zum Onboarding einladen» (Kachel ONBOARDING, Schritt 2) ─────

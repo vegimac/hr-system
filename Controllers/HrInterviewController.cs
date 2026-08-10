@@ -59,7 +59,7 @@ public class HrInterviewController : ControllerBase
             t.Bemerkung,
             buchungen = buchungen.Where(b => b.TerminId == t.Id).Select(b => new
             {
-                b.Id, b.Kandidat, b.Telefon, b.Bemerkung,
+                b.Id, b.Kandidat, b.Telefon, b.Bemerkung, b.MaAntwort,
             }),
         }));
     }
@@ -229,6 +229,10 @@ public class HrInterviewController : ControllerBase
 
         var alterTerminId = b.TerminId;
         b.TerminId = neu.Id;
+        // Neuer Termin = neue Bestätigung nötig (Walter 10.08.2026): eine
+        // frühere Annahme des MA galt für den alten Termin.
+        b.MaAntwort = null;
+        b.MaAntwortAm = null;
 
         // Vertrags-Link des MA mitziehen: aktive Tokens mit dem ALTEN Termin,
         // deren MA per Telefon (normalisiert) oder Name zur Buchung passt.

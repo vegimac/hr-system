@@ -189,6 +189,11 @@ public class HrInterviewBuchung
     public string Status { get; set; } = "GEPLANT";
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? CreatedBy { get; set; }
+    /// <summary>MA hinter der Buchung (Walter 10.08.2026, gesetzt bei Onboarding-Einladung) — für Termin-Antwort + Umbuchen.</summary>
+    public int? EmployeeId { get; set; }
+    /// <summary>Antwort des MA über den Vertrags-Link: ANGENOMMEN | ABGELEHNT (NULL = noch unbestätigt).</summary>
+    public string? MaAntwort { get; set; }
+    public DateTime? MaAntwortAm { get; set; }
 }
 
 /// <summary>
