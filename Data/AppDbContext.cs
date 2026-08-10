@@ -1362,6 +1362,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.DecidedAt).HasColumnName("decided_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.DecidedBy).HasColumnName("decided_by");
+            entity.Property(e => e.AbsageGesendetAm).HasColumnName("absage_gesendet_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.AbsageKanal).HasColumnName("absage_kanal");
             entity.HasIndex(e => e.Status);
         });
         modelBuilder.Entity<KandidatDokument>(entity =>

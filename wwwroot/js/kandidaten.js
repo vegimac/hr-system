@@ -110,7 +110,7 @@ async function openKandidatModal() {
         <div style="margin-top:10px">
             <button onclick="document.getElementById('kdFiles').click()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f">📎 Dokumente anhängen</button>
             <input type="file" id="kdFiles" accept="application/pdf,image/*" multiple style="display:none" onchange="kdFilesPicked(this.files)">
-            <span id="kdFileList" style="font-size:12px;color:#646464;margin-left:8px"></span>
+            <div id="kdFileList" style="font-size:12px;color:#646464;margin-top:6px"></div>
         </div>
         <div style="display:flex;justify-content:flex-end;margin-top:14px">
             <button onclick="kdSubmit()" style="${_kdBtnDark}">An HR senden</button>
@@ -120,10 +120,30 @@ async function openKandidatModal() {
     kdMeineListe();
 }
 
+// Mehrfach anhängen (Walter 10.08.2026): jede Auswahl wird ANGEHÄNGT, nicht
+// ersetzt — so kann man nacheinander CV, Bewilligung, Zeugnis … dazuklicken.
 function kdFilesPicked(files) {
-    _kdFiles = Array.from(files || []);
+    for (const f of Array.from(files || [])) {
+        if (!_kdFiles.some(x => x.name === f.name && x.size === f.size)) _kdFiles.push(f);
+    }
+    const inp = document.getElementById('kdFiles');
+    if (inp) inp.value = '';   // gleiche Datei erneut wählbar
+    kdFilesRender();
+}
+
+function kdFilesRender() {
     const el = document.getElementById('kdFileList');
-    if (el) el.textContent = _kdFiles.length ? _kdFiles.map(f => f.name).join(' · ') : '';
+    if (!el) return;
+    el.innerHTML = _kdFiles.map((f, i) =>
+        `<span style="display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:2px 9px;margin:2px 6px 2px 0">
+            📄 ${_kdEsc(f.name)}
+            <a onclick="kdFileRemove(${i})" style="cursor:pointer;color:#991b1b;font-weight:700">✕</a>
+        </span>`).join('');
+}
+
+function kdFileRemove(i) {
+    _kdFiles.splice(i, 1);
+    kdFilesRender();
 }
 
 async function kdSubmit() {
@@ -191,48 +211,139 @@ function hrKandOpen() {
     hrKandReload();
 }
 
+function _kdKopf(k) {
+    return `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <b style="font-size:14px">${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
+            <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_kdEsc(k.filiale)}</span>
+            ${k.telefon ? `<span style="color:#646464;font-size:12px">📞 ${_kdEsc(k.telefon)}</span>` : ''}
+            ${k.email ? `<span style="color:#646464;font-size:12px">✉️ ${_kdEsc(k.email)}</span>` : ''}
+            <span style="color:#b0aca4;font-size:11px">eingereicht ${_kdFmtTs(k.createdAt)} von ${_kdEsc(k.createdBy || '')}</span>
+        </div>`;
+}
+
+function _kdDetails(k) {
+    const ausb = KAND_AUSBILDUNG.find(([c]) => c === k.lgavAusbildung)?.[1] || k.lgavAusbildung || '–';
+    const doks = (k.dokumente || []).map(d =>
+        `<a style="cursor:pointer;text-decoration:underline;color:#3f3f3f" onclick="kdDokPreview(${d.id}, '${_kdEsc(d.name)}')">📎 ${_kdEsc(d.name)}</a>`).join(' · ');
+    return `
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f">
+            <span><b>Eintritt ab:</b> ${k.fruehesterEintritt ? _kdFmtD(k.fruehesterEintritt) : '–'}</span>
+            <span><b>Ausbildung:</b> ${_kdEsc(ausb)}</span>
+            <span><b>Wunschtermin:</b> ${k.wunschTermin ? _kdEsc(k.wunschTermin) : '–'}</span>
+        </div>
+        ${k.bemerkung ? `<div style="margin-top:4px;font-size:12.5px;color:#646464">💬 ${_kdEsc(k.bemerkung)}</div>` : ''}
+        ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}`;
+}
+
 async function hrKandReload() {
     const body = document.getElementById('hrKandModalBody');
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const r = await fetch('/api/kandidaten?status=NEU', { headers: ah() });
+        const r = await fetch('/api/kandidaten', { headers: ah() });
         const list = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
+        const neu = list.filter(k => k.status === 'NEU');
+        const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
+        const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
+        const card = (inner) => `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 12px;margin-bottom:10px">${inner}</div>`;
+        const titel = (t) => `<div style="font-weight:800;font-size:13.5px;margin:14px 0 6px;color:#3f3f3f">${t}</div>`;
+        let html = '';
+
+        // ── 1) Zu prüfen ────────────────────────────────────────────────
+        html += titel(`Zu prüfen (${neu.length})`);
+        html += neu.length ? neu.map(k => card(`
+            ${_kdKopf(k)}${_kdDetails(k)}
+            <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
+                <button onclick="hrKandEntscheid(${k.id}, true)" style="background:#166534;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:700;cursor:pointer">✓ Annehmen</button>
+                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ablehnungsgrund
+                    <input id="kdGrund${k.id}" style="${_kdInp};min-width:220px"></label>
+                <button onclick="hrKandEntscheid(${k.id}, false)" style="background:#fff;border:1.5px solid #991b1b;color:#991b1b;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer">✕ Ablehnen</button>
+            </div>`)).join('')
+            : '<span style="color:#8b8b8b;font-size:12.5px">Keine unbearbeiteten Kandidaten. 🎉</span>';
+
+        // ── 2) Angenommen: in easy erfassen → importieren → verknüpfen ──
+        html += titel(`Angenommen — in easy@work erfassen & importieren (${angenommen.length})`);
+        html += angenommen.length ? angenommen.map(k => card(`
+            ${_kdKopf(k)}${_kdDetails(k)}
+            <div style="margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:8px;font-size:12.5px;color:#3730a3">
+                <b>Nächste Schritte (HR):</b> 1. MA mit obigen Daten in <b>easy@work</b> erfassen ·
+                2. easy@work-Sync/Import nach OneCrew · 3. unten mit dem importierten MA verknüpfen —
+                die Anhänge wandern in seine Personalakte, der Kandidat wird gelöscht. Danach: Einladung
+                über den Onboarding-Kalender.
+            </div>
+            <div style="margin-top:8px">
+                <button onclick="hrKandVorschlaege(${k.id})" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">🔗 Mit importiertem MA verknüpfen</button>
+                <div id="kdLink${k.id}" style="margin-top:6px"></div>
+            </div>`)).join('')
+            : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Annahmen.</span>';
+
+        // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
+        html += titel(`Abgelehnt — Absage senden (${abgelehnt.length})`);
+        html += abgelehnt.length ? abgelehnt.map(k => card(`
+            ${_kdKopf(k)}
+            <div style="margin-top:4px;font-size:12.5px;color:#646464">Grund: ${_kdEsc(k.ablehnungsgrund || '–')}</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+                ${k.absageGesendetAm
+                    ? `<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✓ Absage per ${k.absageKanal === 'EMAIL' ? 'E-Mail' : 'SMS'} gesendet ${_kdFmtTs(k.absageGesendetAm)}</span>`
+                    : `${k.email ? `<button onclick="hrKandAbsage(${k.id}, 'EMAIL')" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">✉️ Absage per E-Mail</button>` : ''}
+                       ${k.telefon ? `<button onclick="hrKandAbsage(${k.id}, 'SMS')" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">📱 Absage per SMS</button>` : ''}
+                       ${(!k.email && !k.telefon) ? '<span style="color:#991b1b;font-size:12px">Weder E-Mail noch Telefon erfasst — Absage bitte anders zustellen.</span>' : ''}`}
+                <span style="color:#b0aca4;font-size:11px">wird 30 Tage nach dem Entscheid automatisch gelöscht</span>
+            </div>`)).join('')
+            : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
+
+        body.innerHTML = html;
+    } catch (_) { body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>'; }
+}
+
+async function hrKandAbsage(id, kanal) {
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm(`Absage per ${kanal === 'EMAIL' ? 'E-Mail' : 'SMS'} an den Kandidaten senden?`, { title: 'Absage' })) return;
+    const r = await fetch(`/api/kandidaten/${id}/absage`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ kanal }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Versand fehlgeschlagen.', 'error'); return; }
+    showToast('Absage gesendet.', 'success');
+    hrKandReload();
+}
+
+async function hrKandVorschlaege(id) {
+    const el = document.getElementById(`kdLink${id}`);
+    if (!el) return;
+    el.innerHTML = '<span style="color:#8b8b8b;font-size:12px">Suche importierte MA…</span>';
+    try {
+        const r = await fetch(`/api/kandidaten/${id}/ma-vorschlaege`, { headers: ah() });
+        const list = await r.json();
+        if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
         if (!list.length) {
-            body.innerHTML = '<span style="color:#8b8b8b">Keine unbearbeiteten Kandidaten. 🎉</span>';
-            hrKandBadge();
+            el.innerHTML = '<span style="color:#854d0e;font-size:12.5px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;display:inline-block">Kein passender MA gefunden — wurde er schon in easy@work erfasst und nach OneCrew importiert?</span>';
             return;
         }
-        body.innerHTML = list.map(k => {
-            const ausb = KAND_AUSBILDUNG.find(([c]) => c === k.lgavAusbildung)?.[1] || k.lgavAusbildung || '–';
-            const doks = (k.dokumente || []).map(d =>
-                `<a style="cursor:pointer;text-decoration:underline;color:#3f3f3f" onclick="kdDokPreview(${d.id}, '${_kdEsc(d.name)}')">📎 ${_kdEsc(d.name)}</a>`).join(' · ');
-            return `
-            <div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 12px;margin-bottom:10px">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                    <b style="font-size:14px">${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
-                    <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_kdEsc(k.filiale)}</span>
-                    ${k.telefon ? `<span style="color:#646464;font-size:12px">📞 ${_kdEsc(k.telefon)}</span>` : ''}
-                    ${k.email ? `<span style="color:#646464;font-size:12px">✉️ ${_kdEsc(k.email)}</span>` : ''}
-                    <span style="color:#b0aca4;font-size:11px">eingereicht ${_kdFmtTs(k.createdAt)} von ${_kdEsc(k.createdBy || '')}</span>
-                </div>
-                <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f">
-                    <span><b>Eintritt ab:</b> ${k.fruehesterEintritt ? _kdFmtD(k.fruehesterEintritt) : '–'}</span>
-                    <span><b>Ausbildung:</b> ${_kdEsc(ausb)}</span>
-                    <span><b>Wunschtermin:</b> ${k.wunschTermin ? _kdEsc(k.wunschTermin) : '–'}</span>
-                </div>
-                ${k.bemerkung ? `<div style="margin-top:4px;font-size:12.5px;color:#646464">💬 ${_kdEsc(k.bemerkung)}</div>` : ''}
-                ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}
-                <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
-                    <button onclick="hrKandEntscheid(${k.id}, true)" style="background:#166534;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:700;cursor:pointer">✓ Annehmen</button>
-                    <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ablehnungsgrund
-                        <input id="kdGrund${k.id}" style="${_kdInp};min-width:220px"></label>
-                    <button onclick="hrKandEntscheid(${k.id}, false)" style="background:#fff;border:1.5px solid #991b1b;color:#991b1b;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer">✕ Ablehnen</button>
-                </div>
-            </div>`;
-        }).join('');
-    } catch (_) { body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>'; }
+        el.innerHTML = list.map(m => `
+            <div style="display:flex;align-items:center;gap:10px;padding:4px 8px;border-bottom:1px solid rgba(60,55,48,0.08);font-size:12.5px">
+                <b>${_kdEsc(m.name)}</b>
+                <span style="color:#8b8b8b">${_kdEsc(m.employeeNumber || '')}</span>
+                <span style="color:#8b8b8b">${m.entryDate ? 'Eintritt ' + _kdFmtD(m.entryDate) : ''}</span>
+                <span style="flex:1"></span>
+                <button onclick="hrKandVerknuepfen(${id}, ${m.id}, '${_kdEsc(m.name)}')" style="background:#166534;color:#fff;border:none;border-radius:10px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer">Verknüpfen</button>
+            </div>`).join('');
+    } catch (_) { el.textContent = 'Verbindungsfehler.'; }
+}
+
+async function hrKandVerknuepfen(kandId, employeeId, maName) {
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm(`Kandidat mit «${maName}» verknüpfen? Die Anhänge wandern in seine Personalakte, der Kandidat wird gelöscht.`, { title: 'Verknüpfen' })) return;
+    const r = await fetch(`/api/kandidaten/${kandId}/verknuepfen`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Verknüpfen fehlgeschlagen.', 'error'); return; }
+    showToast(`${j.dokumente} Dokument(e) übernommen — weiter mit der Einladung im Onboarding-Kalender.`, 'success');
+    hrKandReload();
+    hrKandBadge();
 }
 
 async function hrKandEntscheid(id, angenommen) {
@@ -245,7 +356,7 @@ async function hrKandEntscheid(id, angenommen) {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Entscheid fehlgeschlagen.', 'error'); return; }
-    showToast(angenommen ? 'Kandidat angenommen — nächster Schritt: MA in easy@work erfassen.' : 'Kandidat abgelehnt.', 'success');
+    showToast(angenommen ? 'Kandidat angenommen — jetzt MA in easy@work erfassen (HR).' : 'Kandidat abgelehnt.', 'success');
     hrKandReload();
     hrKandBadge();
 }

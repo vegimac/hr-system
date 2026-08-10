@@ -119,6 +119,7 @@ public class EasyAtWorkAutoSyncRunner
 
         await CleanupLogAsync(ct);
         await CleanupInterviewFensterAsync(ct);
+        await CleanupKandidatenAsync(ct);
         _log.LogInformation("easy@work Auto-Sync beendet.");
     }
 
@@ -367,6 +368,49 @@ public class EasyAtWorkAutoSyncRunner
         catch (Exception ex)
         {
             _log.LogWarning(ex, "Interview-Fenster-Cleanup fehlgeschlagen.");
+        }
+    }
+
+    /// <summary>
+    /// Abgelehnte Kandidaten 30 Tage nach dem Entscheid endgültig löschen
+    /// (Walter-Vorgabe 10.08.2026) — inkl. Anhänge im Storage. Angenommene
+    /// werden beim Verknüpfen mit dem importierten MA gelöscht.
+    /// </summary>
+    private async Task CleanupKandidatenAsync(CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+            var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+            var cutoff = DateTime.Now.AddDays(-30);
+            var alte = await db.Kandidaten
+                .Where(k => k.Status == "ABGELEHNT" && k.DecidedAt != null && k.DecidedAt < cutoff)
+                .ToListAsync(ct);
+            if (alte.Count == 0) return;
+
+            var root = config["Documents:StoragePath"];
+            if (string.IsNullOrWhiteSpace(root))
+                root = Path.Combine(env.ContentRootPath, "data", "documents");
+            foreach (var k in alte)
+            {
+                try
+                {
+                    var dir = Path.Combine(root, "kandidaten", k.Id.ToString());
+                    if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+                }
+                catch { /* Datei-Cleanup best-effort */ }
+            }
+            var ids = alte.Select(k => k.Id).ToList();
+            await db.KandidatDokumente.Where(d => ids.Contains(d.KandidatId)).ExecuteDeleteAsync(ct);
+            db.Kandidaten.RemoveRange(alte);
+            await db.SaveChangesAsync(ct);
+            _log.LogInformation("Kandidaten-Cleanup: {N} abgelehnte Kandidaten (>30 Tage) gelöscht.", alte.Count);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Kandidaten-Cleanup fehlgeschlagen.");
         }
     }
 

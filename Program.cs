@@ -3019,6 +3019,8 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_kandidat_dokument_kandidat ON kandidat_dokument (kandidat_id);
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS email text;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_gesendet_am timestamp without time zone;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_kanal text;
     ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"

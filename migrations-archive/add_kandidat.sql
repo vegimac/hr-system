@@ -36,3 +36,9 @@ CREATE INDEX IF NOT EXISTS ix_kandidat_dokument_kandidat ON kandidat_dokument (k
 
 -- Nachtrag 10.08.2026: E-Mail des Kandidaten.
 ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS email text;
+
+-- Nachtrag 10.08.2026 (Etappe 2): Absage-Versand an den Kandidaten.
+-- Abgelehnte Kandidaten werden 30 Tage nach dem Entscheid automatisch
+-- gelöscht (täglicher Sync-Job); angenommene beim Verknüpfen mit dem MA.
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_gesendet_am timestamp without time zone;
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS absage_kanal text;

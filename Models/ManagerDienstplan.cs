@@ -140,6 +140,10 @@ public class Kandidat
     public string? CreatedBy { get; set; }
     public DateTime? DecidedAt { get; set; }
     public string? DecidedBy { get; set; }
+    /// <summary>Absage an den Kandidaten verschickt (Etappe 2).</summary>
+    public DateTime? AbsageGesendetAm { get; set; }
+    /// <summary>SMS | EMAIL</summary>
+    public string? AbsageKanal { get; set; }
 }
 
 /// <summary>Anhang zum Kandidaten (CV, Bewerbungsbogen …) — Datei im Storage unter kandidaten/{kandidatId}/.</summary>

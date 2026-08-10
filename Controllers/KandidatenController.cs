@@ -22,14 +22,21 @@ namespace HrSystem.Controllers;
 public class KandidatenController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly string _storageRoot;
+    private readonly Services.EcallSmsService _sms;
+    private readonly Services.EmailService _email;
+    private readonly string _docStorage;   // Wurzel der MA-Dokumente
+    private readonly string _storageRoot;  // …/kandidaten
 
-    public KandidatenController(AppDbContext db, IConfiguration config, IWebHostEnvironment env)
+    public KandidatenController(AppDbContext db, IConfiguration config, IWebHostEnvironment env,
+                                Services.EcallSmsService sms, Services.EmailService email)
     {
         _db = db;
+        _sms = sms;
+        _email = email;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
+        _docStorage = configured;
         _storageRoot = Path.Combine(configured, "kandidaten");
     }
 
@@ -209,6 +216,8 @@ public class KandidatenController : ControllerBase
                 k.CreatedBy,
                 k.DecidedBy,
                 decidedAt = k.DecidedAt?.ToString("yyyy-MM-dd HH:mm"),
+                absageGesendetAm = k.AbsageGesendetAm?.ToString("yyyy-MM-dd HH:mm"),
+                k.AbsageKanal,
                 filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
                 wunschTermin = t == null ? null : $"{t.Datum:dd.MM.yyyy} {t.VonZeit:HH\\:mm}",
                 dokumente = doks.Where(d => d.KandidatId == k.Id)
@@ -252,8 +261,10 @@ public class KandidatenController : ControllerBase
         // Nachrichten gehen an die Filiale).
         try
         {
+            // Nur die Info an den GF — die easy@work-Erfassung und das gesamte
+            // Onboarding macht HR selbst (Walter-Vorgabe 10.08.2026).
             var text = dto.Angenommen
-                ? $"HR hat den Kandidaten {k.Vorname} {k.Name} ANGENOMMEN. Nächster Schritt: MA in easy@work erfassen; Einladung/Onboarding folgt durch HR."
+                ? $"HR hat den Kandidaten {k.Vorname} {k.Name} ANGENOMMEN. HR übernimmt die Erfassung und das Onboarding."
                 : $"HR hat den Kandidaten {k.Vorname} {k.Name} abgelehnt. Grund: {k.Ablehnungsgrund}";
             _db.MailboxDocuments.Add(new MailboxDocument
             {
@@ -275,6 +286,176 @@ public class KandidatenController : ControllerBase
         catch { /* best-effort */ }
 
         return Ok(new { ok = true, k.Status });
+    }
+
+    public class AbsageDto
+    {
+        /// <summary>SMS | EMAIL</summary>
+        public string? Kanal { get; set; }
+    }
+
+    // ── HR: Absage an den Kandidaten senden (Etappe 2) ──────────────────────
+    [HttpPost("{id:int}/absage")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> Absage(int id, [FromBody] AbsageDto dto)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (k.Status != "ABGELEHNT")
+            return Conflict(new { error = "NICHT_ABGELEHNT", message = "Absagen gibt es nur für abgelehnte Kandidaten." });
+
+        var firma = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == k.CompanyProfileId)
+            .Select(c => c.FullDisplayName)
+            .FirstOrDefaultAsync() ?? "McDonald's";
+
+        var kanal = (dto.Kanal ?? "").ToUpperInvariant();
+        if (kanal == "SMS")
+        {
+            var tel = (k.Telefon ?? "").Trim();
+            if (tel.Length == 0)
+                return BadRequest(new { error = "TELEFON_FEHLT", message = "Keine Telefonnummer erfasst." });
+            var text = $"Guten Tag {k.Vorname}, vielen Dank für dein Interesse und das Gespräch bei {firma}. "
+                     + "Leider können wir dir zurzeit keine Stelle anbieten. Wir wünschen dir für deine Zukunft alles Gute.";
+            var res = await _sms.SendSmsAsync(tel, text, purpose: "KANDIDAT_ABSAGE");
+            if (!res.Ok)
+                return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
+        }
+        else if (kanal == "EMAIL")
+        {
+            var mail = (k.Email ?? "").Trim();
+            if (mail.Length == 0)
+                return BadRequest(new { error = "EMAIL_FEHLT", message = "Keine E-Mail-Adresse erfasst." });
+            var subject = $"Deine Bewerbung bei {firma}";
+            var textBody = $"Guten Tag {k.Vorname} {k.Name}\n\n"
+                + $"Vielen Dank für dein Interesse und das Gespräch bei {firma}. "
+                + "Wir haben uns intensiv mit deiner Bewerbung auseinandergesetzt — leider können wir dir zurzeit keine Stelle anbieten.\n\n"
+                + "Wir wünschen dir für deine berufliche Zukunft alles Gute.\n\n"
+                + $"Freundliche Grüsse\n{firma}";
+            var htmlBody = System.Net.WebUtility.HtmlEncode(textBody).Replace("\n", "<br>");
+            var ok = await _email.SendAsync(mail, $"{k.Vorname} {k.Name}", subject, htmlBody, textBody);
+            if (!ok)
+                return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen (SMTP-Konfiguration prüfen)." });
+        }
+        else
+        {
+            return BadRequest(new { error = "KANAL_UNGUELTIG", message = "Kanal SMS oder EMAIL angeben." });
+        }
+
+        k.AbsageGesendetAm = DateTime.Now;
+        k.AbsageKanal = kanal;
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
+    // ── HR: MA-Vorschläge für die Verknüpfung (nach easy-Import) ────────────
+    [HttpGet("{id:int}/ma-vorschlaege")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> MaVorschlaege(int id)
+    {
+        var k = await _db.Kandidaten.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        var vn = k.Vorname.Trim();
+        var nn = k.Name.Trim();
+        // Felder ROH laden, Datum im Speicher formatieren (Datum/Zeit-Regelwerk
+        // 13.07.2026: ToString mit Format ist nicht EF-übersetzbar).
+        var roh = await _db.Employees.AsNoTracking()
+            .Where(e => !e.IsHidden
+                     && (EF.Functions.ILike(e.FirstName ?? "", $"%{vn}%")
+                      || EF.Functions.ILike(e.LastName ?? "", $"%{nn}%")))
+            .OrderByDescending(e => e.EntryDate)
+            .Take(12)
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.EntryDate })
+            .ToListAsync();
+        return Ok(roh.Select(e => new
+        {
+            e.Id,
+            name = $"{e.FirstName} {e.LastName}".Trim(),
+            e.EmployeeNumber,
+            entryDate = e.EntryDate?.ToString("yyyy-MM-dd"),
+        }));
+    }
+
+    public class VerknuepfenDto
+    {
+        public int EmployeeId { get; set; }
+    }
+
+    // ── HR: Kandidat mit importiertem MA verknüpfen — Dokumente wandern in
+    //    die Personalakte, danach wird der Kandidat GELÖSCHT (Etappe 2). ─────
+    [HttpPost("{id:int}/verknuepfen")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> Verknuepfen(int id, [FromBody] VerknuepfenDto dto)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (k.Status != "ANGENOMMEN")
+            return Conflict(new { error = "NICHT_ANGENOMMEN", message = "Nur angenommene Kandidaten können verknüpft werden." });
+        var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == dto.EmployeeId);
+        if (emp == null) return NotFound(new { error = "MA_FEHLT" });
+
+        // Dokumenttyp: «Bewerbung*» bevorzugt, sonst «Sonstig*», sonst erster aktiver.
+        var typen = await _db.DokumentTypen.AsNoTracking().Where(t => t.Aktiv).ToListAsync();
+        var typ = typen.FirstOrDefault(t => t.Name.Contains("Bewerbung", StringComparison.OrdinalIgnoreCase))
+               ?? typen.FirstOrDefault(t => t.Name.Contains("Sonstig", StringComparison.OrdinalIgnoreCase))
+               ?? typen.FirstOrDefault();
+        if (typ == null)
+            return Conflict(new { error = "KEIN_DOKUMENTTYP", message = "Kein aktiver Dokumenttyp vorhanden." });
+
+        var branchCode = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == k.CompanyProfileId)
+            .Select(c => c.RestaurantCode)
+            .FirstOrDefaultAsync() ?? "0";
+        var safeBranch = new string(branchCode.Where(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-').ToArray());
+        if (safeBranch.Length == 0) safeBranch = "0";
+
+        var actor = await ActorNameAsync();
+        var doks = await _db.KandidatDokumente.Where(d => d.KandidatId == k.Id).ToListAsync();
+        int uebernommen = 0;
+        foreach (var d in doks)
+        {
+            var src = Path.Combine(_storageRoot, k.Id.ToString(), d.StorageFilename);
+            if (!System.IO.File.Exists(src)) continue;
+            var empDir = Path.Combine(_docStorage, safeBranch, emp.Id.ToString());
+            Directory.CreateDirectory(empDir);
+            var ext = Path.GetExtension(d.OriginalFilename);
+            var storageName = Guid.NewGuid().ToString("N") + ext;
+            System.IO.File.Copy(src, Path.Combine(empDir, storageName));
+            _db.EmployeeDokumente.Add(new EmployeeDokument
+            {
+                EmployeeId = emp.Id,
+                DokumentTypId = typ.Id,
+                BranchCode = safeBranch,
+                FilenameOriginal = d.OriginalFilename,
+                FilenameStorage = storageName,
+                MimeType = ext.ToLowerInvariant() switch
+                {
+                    ".pdf" => "application/pdf",
+                    ".png" => "image/png",
+                    ".jpg" or ".jpeg" => "image/jpeg",
+                    _ => "application/octet-stream",
+                },
+                GroesseBytes = new FileInfo(src).Length,
+                Bemerkung = "Aus Kandidaten-Dossier übernommen",
+                HochgeladenVon = UserId(),
+                HochgeladenAm = DateTime.Now,
+            });
+            uebernommen++;
+        }
+
+        // Kandidat + Dateien endgültig entfernen (Walter: mit dem Import
+        // in OneCrew kann der Kandidat gelöscht werden).
+        _db.KandidatDokumente.RemoveRange(doks);
+        _db.Kandidaten.Remove(k);
+        await _db.SaveChangesAsync();
+        try
+        {
+            var dir = Path.Combine(_storageRoot, k.Id.ToString());
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+        catch { /* best-effort */ }
+
+        return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id });
     }
 
     // ── Dokument ansehen (GF eigene Filialen, HR alle) ──────────────────────
