@@ -91,7 +91,7 @@ public class ContractShareController : ControllerBase
 
     private const int ExpiryDays = 14;
 
-    public record CreateDto(int? EmployeeId, int? EmploymentId);
+    public record CreateDto(int? EmployeeId, int? EmploymentId, int? TerminId = null);
 
     // Ergebnis des gemeinsamen Aufbau-Schritts (Token + Link + SMS-Text).
     private sealed class ShareBuildResult
@@ -151,6 +151,21 @@ public class ContractShareController : ControllerBase
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
     public async Task<IActionResult> SendSms([FromBody] CreateDto dto)
     {
+        // Onboarding-Termin VOR dem Token-Bau prüfen (Walter 10.08.2026):
+        // gewählter Termin muss existieren, in der Zukunft liegen und frei sein.
+        HrInterviewTermin? termin = null;
+        if (dto?.TerminId != null)
+        {
+            termin = await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == dto.TerminId.Value);
+            if (termin == null)
+                return NotFound(new { error = "Onboarding-Termin nicht gefunden." });
+            if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
+                return Conflict(new { error = "Der gewählte Onboarding-Termin liegt in der Vergangenheit." });
+            int belegt = await _db.HrInterviewBuchungen.CountAsync(x => x.TerminId == termin.Id && x.Status == "GEPLANT");
+            if (belegt >= termin.Plaetze)
+                return Conflict(new { error = "Der gewählte Onboarding-Termin ist ausgebucht." });
+        }
+
         var b = await BuildShareAsync(dto);
         if (b.Error != null) return b.Error;
 
@@ -175,6 +190,26 @@ public class ContractShareController : ControllerBase
         var res = await _sms.SendSmsAsync(phone, b.SmsText, purpose: "VERTRAG", employeeId: b.Emp.Id);
         if (!res.Ok)
             return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
+
+        // Onboarding-Termin: Platz buchen (Kandidat = MA-Name) + am Token
+        // hinterlegen — die Landing-Page zeigt Datum/Zeit + Kalender-Button.
+        if (termin != null)
+        {
+            var maName = $"{b.Emp.FirstName} {b.Emp.LastName}".Trim();
+            _db.HrInterviewBuchungen.Add(new HrInterviewBuchung
+            {
+                TerminId = termin.Id,
+                Kandidat = maName,
+                Telefon = phone,
+                Bemerkung = "Onboarding-Einladung",
+                Status = "GEPLANT",
+                CreatedAt = DateTime.Now,
+                CreatedBy = "Onboarding-Einladung",
+            });
+            var tokRow = await _db.ContractShareTokens.FirstOrDefaultAsync(x => x.Id == b.TokenId);
+            if (tokRow != null) tokRow.OnboardingTerminId = termin.Id;
+            await _db.SaveChangesAsync();
+        }
 
         var redirect = await _db.EcallSettings.AsNoTracking()
             .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
@@ -436,6 +471,28 @@ public class ContractShareController : ControllerBase
                     ? $"Hallo {System.Net.WebUtility.HtmlEncode(vorname)}, hier findest du deinen Arbeitsvertrag als PDF."
                     : "Hier findest du deinen Arbeitsvertrag als PDF.";
             }
+            // Onboarding-Termin (Walter 10.08.2026): Datum/Zeit anzeigen +
+            // Kalender-Button (ICS) für das Handy des Kandidaten.
+            string terminHtml = "";
+            if (t.OnboardingTerminId != null)
+            {
+                var ter = await _db.HrInterviewTermine.AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.Id == t.OnboardingTerminId.Value);
+                if (ter != null)
+                {
+                    var wt = new[] { "Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag" }
+                        [(int)ter.Datum.DayOfWeek];
+                    var zeit = ter.BisZeit.HasValue
+                        ? $"{ter.VonZeit:HH\\:mm}–{ter.BisZeit.Value:HH\\:mm}"
+                        : $"{ter.VonZeit:HH\\:mm}";
+                    terminHtml = $@"<div class='termin'>
+                        <div class='termintitle'>📅 Dein Onboarding-Termin</div>
+                        <div class='termindat'>{wt}, {ter.Datum:dd.MM.yyyy} · {zeit} Uhr</div>
+                        <a class='btncal' href='/vertrag/{token}/kalender.ics'>In Kalender speichern</a>
+                    </div>";
+                }
+            }
+
             // Filial-Dokumente (Kategorie ONBOARDING: AGB, Hygiene, Datenschutz …)
             // als Download-Liste unter dem Vertrags-Button (Walter 10.08.2026).
             string docsHtml = "";
@@ -447,7 +504,7 @@ public class ContractShareController : ControllerBase
                 docsHtml = $"<div class='docs'><div class='docstitle'>Wichtige Dokumente deines Restaurants</div>{items}</div>";
             }
             html = LandingHtml("Dein Arbeitsvertrag", bodyHtml, pdfHref,
-                               t.ExpiresAt.ToString("dd.MM.yyyy"), docsHtml);
+                               t.ExpiresAt.ToString("dd.MM.yyyy"), terminHtml + docsHtml);
         }
         return Content(html, "text/html; charset=utf-8");
     }
@@ -504,16 +561,80 @@ public class ContractShareController : ControllerBase
         return PhysicalFile(path, "application/pdf");
     }
 
+    // ── Öffentlich: Onboarding-Termin als Kalender-Datei (ICS) fürs Handy ───
+    [AllowAnonymous]
+    [HttpGet("/vertrag/{token}/kalender.ics")]
+    public async Task<IActionResult> PublicKalender(string token)
+    {
+        var hash = HashToken(token);
+        var t = await _db.ContractShareTokens.AsNoTracking().FirstOrDefaultAsync(x => x.TokenHash == hash);
+        if (t == null || t.RevokedAt != null || t.ExpiresAt < DateTime.Now || t.OnboardingTerminId == null)
+            return NotFound();
+        var ter = await _db.HrInterviewTermine.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == t.OnboardingTerminId.Value);
+        if (ter == null) return NotFound();
+
+        // Firma/Ort aus der Filiale des Vertrags (best-effort).
+        var cp = await _db.Employments.AsNoTracking()
+            .Where(em => em.Id == t.EmploymentId && em.CompanyProfileId != null)
+            .Select(em => em.CompanyProfile)
+            .FirstOrDefaultAsync();
+        var firma = cp?.FullDisplayName ?? "McDonald's";
+        var ort = cp?.City ?? "";
+
+        var start = ter.Datum.ToDateTime(ter.VonZeit);
+        var ende = ter.Datum.ToDateTime(ter.BisZeit ?? ter.VonZeit.AddHours(1));
+        string Ics(DateTime d) => d.ToString("yyyyMMdd'T'HHmmss");
+        var ics = string.Join("\r\n", new[]
+        {
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//OneCrew//Onboarding//DE",
+            "BEGIN:VEVENT",
+            $"UID:onboarding-{t.Id}@onecrew.ch",
+            $"DTSTAMP:{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}",
+            $"DTSTART;TZID=Europe/Zurich:{Ics(start)}",
+            $"DTEND;TZID=Europe/Zurich:{Ics(ende)}",
+            $"SUMMARY:Onboarding {firma}",
+            $"LOCATION:{firma}{(string.IsNullOrWhiteSpace(ort) ? "" : ", " + ort)}",
+            "DESCRIPTION:Dein Onboarding-Termin. Bitte pünktlich erscheinen — wir freuen uns auf dich!",
+            "END:VEVENT",
+            "END:VCALENDAR",
+        });
+        return File(System.Text.Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", "Onboarding.ics");
+    }
+
     // ── HR: «MA zum Onboarding einladen» (Kachel ONBOARDING, Schritt 2) ─────
     // Alle MA der Filiale mit EINTRITT IN DER ZUKUNFT + Vertrags-Link-Status,
     // damit HR die Vertrags-SMS (inkl. Onboarding-Dokumente) direkt auslöst.
     [HttpGet("onboarding-einladungen")]
     [Authorize(Roles = "admin,superuser")]
-    public async Task<IActionResult> OnboardingEinladungen([FromQuery] int companyProfileId)
+    public async Task<IActionResult> OnboardingEinladungen(
+        [FromQuery] int? companyProfileId, [FromQuery] int? year, [FromQuery] int? month, [FromQuery] bool range = false)
     {
+        // Eintritts-Filter (Walter 10.08.2026): year+month = genau dieser
+        // Eintrittsmonat; range = Monatsfenster −1 bis +2 (Kalender-Buchen);
+        // ohne beides = Eintritt in der Zukunft.
         var heute = DateTime.Now.Date;
+        DateTime von, bis;
+        if (year.HasValue && month.HasValue)
+        {
+            von = new DateTime(year.Value, month.Value, 1);
+            bis = von.AddMonths(1).AddDays(-1);
+        }
+        else if (range)
+        {
+            von = new DateTime(heute.Year, heute.Month, 1).AddMonths(-1);
+            bis = new DateTime(heute.Year, heute.Month, 1).AddMonths(3).AddDays(-1);
+        }
+        else
+        {
+            von = heute.AddDays(1);
+            bis = DateTime.MaxValue.Date;
+        }
         var kandidaten = await _db.Employees.AsNoTracking()
-            .Where(e => !e.IsHidden && !e.IsPayrollExcluded && e.EntryDate != null && e.EntryDate > heute)
+            .Where(e => !e.IsHidden && !e.IsPayrollExcluded && e.EntryDate != null
+                     && e.EntryDate >= von && e.EntryDate <= bis)
             .Select(e => new { e.Id, e.FirstName, e.LastName, e.EntryDate, e.PhoneMobile })
             .ToListAsync();
         var ids = kandidaten.Select(k => k.Id).ToList();
@@ -531,15 +652,20 @@ public class ContractShareController : ControllerBase
             .Where(t => employmentIds.Contains(t.EmploymentId))
             .Select(t => new { t.EmploymentId, t.CreatedAt, t.OpenedAt, t.UsedAt })
             .ToListAsync();
+        var branches = await _db.CompanyProfiles.AsNoTracking()
+            .Select(c => new { c.Id, c.WorkLocation, c.City, c.BranchName })
+            .ToListAsync();
 
         var rows = kandidaten
-            .Where(k => neuester.TryGetValue(k.Id, out var v) && v.CompanyProfileId == companyProfileId)
+            .Where(k => neuester.TryGetValue(k.Id, out var v)
+                     && (!companyProfileId.HasValue || v.CompanyProfileId == companyProfileId.Value))
             .OrderBy(k => k.EntryDate)
             .ThenBy(k => k.FirstName ?? "", StringComparer.OrdinalIgnoreCase)
             .Select(k =>
             {
                 var v = neuester[k.Id];
                 var myTokens = tokens.Where(t => t.EmploymentId == v.Id).ToList();
+                var b = branches.FirstOrDefault(x => x.Id == v.CompanyProfileId);
                 return new
                 {
                     employeeId = k.Id,
@@ -547,6 +673,7 @@ public class ContractShareController : ControllerBase
                     eintritt = k.EntryDate!.Value.ToString("yyyy-MM-dd"),
                     modell = v.EmploymentModel,
                     telefon = k.PhoneMobile,
+                    filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
                     gesendetAm = myTokens.Count == 0 ? null : myTokens.Max(t => t.CreatedAt).ToString("yyyy-MM-dd HH:mm"),
                     geoeffnetAm = myTokens.Where(t => t.OpenedAt != null).Select(t => t.OpenedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
                     pdfAm = myTokens.Where(t => t.UsedAt != null).Select(t => t.UsedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
@@ -685,6 +812,10 @@ public class ContractShareController : ControllerBase
   a.btn{{display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;padding:13px 24px;border-radius:12px;font-size:15px;font-weight:600}}
   .sign{{font-size:12.5px;color:#646464;margin-top:14px;padding-top:12px;border-top:1px solid rgba(139,139,139,.25)}}
   .valid{{font-size:12px;color:#8b8b8b;margin-top:8px}}
+  .termin{{margin-top:18px;background:#fff;border:1px solid rgba(139,139,139,.3);border-radius:12px;padding:14px;text-align:center}}
+  .termintitle{{font-weight:700;font-size:13.5px;margin-bottom:4px}}
+  .termindat{{font-size:15px;font-weight:600;margin-bottom:10px}}
+  a.btncal{{display:inline-block;background:#fff;color:#3f3f3f;border:1.5px solid #3f3f3f;text-decoration:none;padding:9px 18px;border-radius:12px;font-size:13.5px;font-weight:600}}
   .docs{{margin-top:20px;text-align:left}}
   .docstitle{{font-weight:700;font-size:13px;margin-bottom:7px;color:#3f3f3f}}
   a.doc{{display:block;font-size:13.5px;color:#3f3f3f;text-decoration:none;padding:8px 12px;border:1px solid rgba(139,139,139,.3);border-radius:10px;margin-bottom:6px;background:#fff}}

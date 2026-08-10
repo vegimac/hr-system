@@ -411,6 +411,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.OnboardingTerminId).HasColumnName("onboarding_termin_id");
             entity.HasIndex(e => e.TokenHash).IsUnique();
         });
 

@@ -10,6 +10,7 @@
 let _obRep = null;          // letzter Report
 let _obRepInaktive = false; // Filter «inaktive anzeigen»
 let _obInvCp = null;        // Filiale im Einladungs-Modal
+let _obInvOffset = 0;       // Eintrittsmonat: Offset zum aktuellen Monat (−1…+2)
 
 function _obEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
@@ -39,19 +40,30 @@ async function hrObInvReload() {
         .sort((a, b) => String(a.restaurantCode || '').localeCompare(String(b.restaurantCode || '')))
         .map(b => `<option value="${b.id}"${b.id === _obInvCp ? ' selected' : ''}>${_obEsc((b.restaurantCode ? b.restaurantCode + ' ' : '') + (b.branchName || b.city || ''))}</option>`)
         .join('');
+    // Eintrittsmonat-Auswahl: aktueller Monat −1 bis +2 (Walter 10.08.2026).
+    const monNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+    const now = new Date();
+    const monOpts = [-1, 0, 1, 2].map(off => {
+        const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
+        return `<option value="${off}"${off === _obInvOffset ? ' selected' : ''}>${monNamen[d.getMonth()]} ${d.getFullYear()}</option>`;
+    }).join('');
+    const selDate = new Date(now.getFullYear(), now.getMonth() + _obInvOffset, 1);
+
     body.innerHTML = `
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Restaurant
                 <select onchange="_obInvCp=parseInt(this.value,10);hrObInvReload()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f;min-width:220px">${opts}</select></label>
-            <span style="font-size:11.5px;color:#8b8b8b;padding-bottom:8px">Gezeigt werden alle MA mit Eintritt in der Zukunft.</span>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Eintrittsmonat
+                <select onchange="_obInvOffset=parseInt(this.value,10);hrObInvReload()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f">${monOpts}</select></label>
+            <span style="font-size:11.5px;color:#8b8b8b;padding-bottom:8px">MA mit Eintritt im gewählten Monat.</span>
         </div>
         <div id="hrObInvList" style="font-size:13px;color:#3f3f3f">Wird geladen…</div>`;
     const list = document.getElementById('hrObInvList');
     try {
-        const r = await fetch(`/api/contract-share/onboarding-einladungen?companyProfileId=${_obInvCp}`, { headers: ah() });
+        const r = await fetch(`/api/contract-share/onboarding-einladungen?companyProfileId=${_obInvCp}&year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() });
         const rows = await r.json();
         if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
-        if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in der Zukunft in diesem Restaurant.</span>'; return; }
+        if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat in diesem Restaurant.</span>'; return; }
         list.innerHTML = rows.map(m => {
             let status;
             if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">noch nicht eingeladen</span>';

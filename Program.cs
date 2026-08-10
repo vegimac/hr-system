@@ -2986,6 +2986,9 @@ using (var scope = app.Services.CreateScope())
             abgerufen_am timestamp without time zone NOT NULL DEFAULT now()
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_cs_dok_abruf ON contract_share_dok_abruf (token_id, dok_id);
+        -- Onboarding-Termin am Vertrags-Link (Kalender-Button, Walter 10.08.2026).
+        ALTER TABLE contract_share_token
+            ADD COLUMN IF NOT EXISTS onboarding_termin_id integer;
     ");
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"

@@ -29,8 +29,9 @@ const _ivInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radi
 const _ivBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer';
 const _ivBtnLight = 'background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f';
 
-let _hrIvList = [];      // Termine ab heute (mit Buchungen)
-let _hrIvSelDay = null;  // gewählter Tag (iso)
+let _hrIvList = [];        // Termine ab heute (mit Buchungen)
+let _hrIvSelDay = null;    // gewählter Tag (iso)
+let _hrIvKandidaten = [];  // MA mit Eintritt im Fenster −1…+2 Monate (für «Platz buchen» = Einladung)
 
 function _ivModalShell(id, titel, maxWidth) {
     if (document.getElementById(id)) return;
@@ -61,9 +62,13 @@ async function hrIvReload() {
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const r = await fetch('/api/hr-interview/termine', { headers: ah() });
+        const [r, rk] = await Promise.all([
+            fetch('/api/hr-interview/termine', { headers: ah() }),
+            fetch('/api/contract-share/onboarding-einladungen?range=true', { headers: ah() }),
+        ]);
         _hrIvList = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
+        _hrIvKandidaten = rk.ok ? await rk.json() : [];
         if (_hrIvSelDay && _hrIvSelDay < _ivIsoToday()) _hrIvSelDay = null;
         _hrIvRender();
     } catch (_) {
@@ -207,27 +212,56 @@ function hrIvPick(terminId) {
     document.querySelectorAll('[id^="hrIvBookForm"]').forEach(e => { e.innerHTML = ''; });
     const el = document.getElementById(`hrIvBookForm${terminId}`);
     if (!el) return;
+    // MA-Auswahl (Eintritt −1…+2 Monate): buchen + Vertrags-SMS-Einladung in
+    // EINEM Schritt (Walter 10.08.2026); Freitext bleibt für externe Kandidaten.
+    const maOpts = _hrIvKandidaten.map(k =>
+        `<option value="${k.employeeId}">${_ivEsc(k.name)} — Eintritt ${_ivFmtD(k.eintritt)} (${_ivEsc(k.filiale)})${k.gesendetAm ? ' · bereits eingeladen' : ''}</option>`).join('');
     el.innerHTML = `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;margin-top:6px">
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Kandidat/in
-                <input id="hrIvKand" style="${_ivInp};min-width:160px"></label>
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Telefon
-                <input id="hrIvTel" style="${_ivInp};width:130px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Mitarbeiter (bucht + lädt per Vertrags-SMS ein)
+                <select id="hrIvMa" onchange="document.getElementById('hrIvFreitext').style.display=this.value?'none':'flex'" style="${_ivInp};min-width:280px">
+                    <option value="">— externer Kandidat (Freitext unten) —</option>${maOpts}
+                </select></label>
+            <span id="hrIvFreitext" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Kandidat/in
+                    <input id="hrIvKand" style="${_ivInp};min-width:160px"></label>
+                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Telefon
+                    <input id="hrIvTel" style="${_ivInp};width:130px"></label>
+            </span>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
                 <input id="hrIvBem" style="${_ivInp};min-width:130px"></label>
             <button onclick="hrIvBook(${terminId})" style="${_ivBtnDark}">Buchen</button>
             <button onclick="this.closest('div[id^=hrIvBookForm]').innerHTML=''" style="${_ivBtnLight}">Abbrechen</button>
         </div>`;
-    document.getElementById('hrIvKand')?.focus();
 }
 
 async function hrIvBook(terminId) {
+    const maId = parseInt(document.getElementById('hrIvMa')?.value, 10) || null;
+
+    if (maId) {
+        // MA gewählt: Platz buchen + Vertrags-SMS mit Termin am Link — in einem
+        // Schritt über contract-share/send (bucht serverseitig, Landing-Page
+        // zeigt Datum/Zeit + «In Kalender speichern»).
+        const k = _hrIvKandidaten.find(x => x.employeeId === maId);
+        if (typeof liquidConfirm === 'function'
+            && !await liquidConfirm(`${k?.name || 'MA'} auf diesen Termin buchen und per Vertrags-SMS einladen?`, { title: 'Onboarding-Einladung' })) return;
+        const r = await fetch('/api/contract-share/send', {
+            method: 'POST', headers: ah(),
+            body: JSON.stringify({ employeeId: maId, terminId }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { showToast(j.error || j.message || 'Einladung fehlgeschlagen.', 'error'); return; }
+        showToast(`Gebucht + Einladung an ${j.to} gesendet.` + (j.redirectedTo ? ` (Test-Umleitung: ${j.redirectedTo})` : ''), 'success');
+        hrIvReload();
+        return;
+    }
+
     const dto = {
         kandidat: (document.getElementById('hrIvKand')?.value || '').trim(),
         telefon: document.getElementById('hrIvTel')?.value || null,
         bemerkung: document.getElementById('hrIvBem')?.value || null,
     };
-    if (!dto.kandidat) { showToast('Kandidatenname angeben.', 'error'); return; }
+    if (!dto.kandidat) { showToast('Kandidatenname angeben (oder oben einen MA wählen).', 'error'); return; }
     const r = await fetch(`/api/hr-interview/termine/${terminId}/buchen`, {
         method: 'POST', headers: ah(), body: JSON.stringify(dto),
     });

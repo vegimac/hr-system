@@ -21,6 +21,13 @@ public class ContractShareToken
     public DateTime ExpiresAt { get; set; }
     public DateTime? UsedAt { get; set; }
 
+    /// <summary>
+    /// Verknüpfter Onboarding-Termin (hr_interview_termin) — beim Einladen
+    /// gebucht; die Landing-Page zeigt Datum/Zeit + Kalender-Button (ICS).
+    /// (Walter 10.08.2026)
+    /// </summary>
+    public int? OnboardingTerminId { get; set; }
+
     /// <summary>Erstes Öffnen der Landing-Page (Walter 07.07.2026) — UsedAt
     /// bleibt der erste PDF-Abruf.</summary>
     public DateTime? OpenedAt { get; set; }
