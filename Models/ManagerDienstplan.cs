@@ -126,6 +126,7 @@ public class Kandidat
     public string Vorname { get; set; } = "";
     public string Name { get; set; } = "";
     public string? Telefon { get; set; }
+    public string? Email { get; set; }
     public DateOnly? FruehesterEintritt { get; set; }
     /// <summary>L-GAV-Ausbildungsstufe (Ia, Ib, II, IIIa, IIIb, IV).</summary>
     public string? LgavAusbildung { get; set; }

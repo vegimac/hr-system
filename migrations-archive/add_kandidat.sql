@@ -33,3 +33,6 @@ CREATE TABLE IF NOT EXISTS kandidat_dokument (
     created_by        text
 );
 CREATE INDEX IF NOT EXISTS ix_kandidat_dokument_kandidat ON kandidat_dokument (kandidat_id);
+
+-- Nachtrag 10.08.2026: E-Mail des Kandidaten.
+ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS email text;

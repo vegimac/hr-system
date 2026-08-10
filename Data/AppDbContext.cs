@@ -1349,6 +1349,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Vorname).HasColumnName("vorname");
             entity.Property(e => e.Name).HasColumnName("name");
             entity.Property(e => e.Telefon).HasColumnName("telefon");
+            entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.FruehesterEintritt).HasColumnName("fruehester_eintritt");
             entity.Property(e => e.LgavAusbildung).HasColumnName("lgav_ausbildung");
             entity.Property(e => e.WunschTerminId).HasColumnName("wunsch_termin_id");

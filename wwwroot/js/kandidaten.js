@@ -20,6 +20,21 @@ const _kdInp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radi
 const _kdBtnDark = 'background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer';
 
 function _kdEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+// CH-Telefonformat «+41 79 333 44 55» — gleiche Logik wie formatPhone()
+// im easy@work-Importer (import.html).
+function _kdFormatPhone(raw) {
+    if (!raw) return '';
+    let digits = String(raw).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('0041')) digits = digits.slice(4);
+    if (digits.startsWith('41') && digits.length > 9) digits = digits.slice(2);
+    if (digits.startsWith('0') && digits.length === 10) digits = digits.slice(1);
+    if (digits.length === 9 && /^[2-9]/.test(digits)) {
+        return '+41 ' + digits.slice(0, 2) + ' ' + digits.slice(2, 5) + ' ' + digits.slice(5, 7) + ' ' + digits.slice(7, 9);
+    }
+    return raw;
+}
 function _kdFmtD(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : ''; }
 function _kdFmtTs(ts) { return ts ? `${ts.slice(8, 10)}.${ts.slice(5, 7)}.${ts.slice(2, 4)} ${ts.slice(11, 16)}` : ''; }
 
@@ -78,7 +93,9 @@ async function openKandidatModal() {
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Name
                 <input id="kdName" style="${_kdInp}"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Telefon
-                <input id="kdTelefon" placeholder="+41 79 …" style="${_kdInp}"></label>
+                <input id="kdTelefon" placeholder="+41 79 333 44 55" onblur="this.value=_kdFormatPhone(this.value)" style="${_kdInp}"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">E-Mail
+                <input id="kdEmail" type="email" placeholder="name@mail.ch" style="${_kdInp}"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Restaurant
                 <select id="kdCp" style="${_kdInp}">${filOpts}</select></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Frühest möglicher Eintritt
@@ -117,7 +134,8 @@ async function kdSubmit() {
     fd.append('companyProfileId', document.getElementById('kdCp')?.value || '');
     fd.append('vorname', vorname);
     fd.append('name', name);
-    fd.append('telefon', document.getElementById('kdTelefon')?.value || '');
+    fd.append('telefon', _kdFormatPhone(document.getElementById('kdTelefon')?.value || ''));
+    fd.append('email', (document.getElementById('kdEmail')?.value || '').trim());
     fd.append('fruehesterEintritt', document.getElementById('kdEintritt')?.value || '');
     fd.append('lgavAusbildung', document.getElementById('kdAusbildung')?.value || '');
     const terminVal = document.getElementById('kdTermin')?.value;
@@ -196,6 +214,7 @@ async function hrKandReload() {
                     <b style="font-size:14px">${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
                     <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_kdEsc(k.filiale)}</span>
                     ${k.telefon ? `<span style="color:#646464;font-size:12px">📞 ${_kdEsc(k.telefon)}</span>` : ''}
+                    ${k.email ? `<span style="color:#646464;font-size:12px">✉️ ${_kdEsc(k.email)}</span>` : ''}
                     <span style="color:#b0aca4;font-size:11px">eingereicht ${_kdFmtTs(k.createdAt)} von ${_kdEsc(k.createdBy || '')}</span>
                 </div>
                 <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f">
