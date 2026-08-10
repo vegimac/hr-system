@@ -443,9 +443,10 @@ public class KandidatenController : ControllerBase
             uebernommen++;
         }
 
-        // Kandidat + Dateien endgültig entfernen (Walter: mit dem Import
-        // in OneCrew kann der Kandidat gelöscht werden).
-        _db.KandidatDokumente.RemoveRange(doks);
+        // Kandidat endgültig entfernen (Walter: mit dem Import in OneCrew kann
+        // der Kandidat gelöscht werden). Die kandidat_dokument-Zeilen räumt der
+        // DB-Cascade ab — sie NICHT zusätzlich per EF löschen, sonst zählt EF
+        // 0 betroffene Zeilen und wirft einen Concurrency-Konflikt (Bug 10.08.2026).
         _db.Kandidaten.Remove(k);
         await _db.SaveChangesAsync();
         try
