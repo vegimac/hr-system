@@ -35,6 +35,7 @@ public class UserBranchController : ControllerBase
                 uba.FunctionTitle,
                 uba.IsDefault,
                 uba.CanDienstplan,
+                uba.CanVertragSms,
                 User = new
                 {
                     uba.User.Id,
@@ -84,7 +85,7 @@ public class UserBranchController : ControllerBase
         });
     }
 
-    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault, bool? CanDienstplan = null);
+    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault, bool? CanDienstplan = null, bool? CanVertragSms = null);
 
     // POST /api/userbranch
     // Sicherheit (Walter-Vorgabe 23.05.2026): Filial-Zugriffe vergeben/ändern nur
@@ -103,6 +104,7 @@ public class UserBranchController : ControllerBase
             existing.Role          = req.Role;
             existing.FunctionTitle = req.FunctionTitle;
             if (req.CanDienstplan.HasValue) existing.CanDienstplan = req.CanDienstplan.Value;
+            if (req.CanVertragSms.HasValue) existing.CanVertragSms = req.CanVertragSms.Value;
             existing.IsDefault     = req.IsDefault;
             await _context.SaveChangesAsync();
             return Ok(existing);
@@ -116,6 +118,7 @@ public class UserBranchController : ControllerBase
             FunctionTitle    = req.FunctionTitle,
             IsDefault        = req.IsDefault,
             CanDienstplan    = req.CanDienstplan ?? false,
+            CanVertragSms    = req.CanVertragSms ?? false,
         };
         _context.UserBranchAccesses.Add(uba);
         await _context.SaveChangesAsync();
@@ -147,6 +150,7 @@ public class UserBranchController : ControllerBase
         uba.FunctionTitle = req.FunctionTitle;
         uba.IsDefault     = req.IsDefault;
         if (req.CanDienstplan.HasValue) uba.CanDienstplan = req.CanDienstplan.Value;
+        if (req.CanVertragSms.HasValue) uba.CanVertragSms = req.CanVertragSms.Value;
         await _context.SaveChangesAsync();
         return Ok(uba);
     }

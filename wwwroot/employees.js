@@ -1769,12 +1769,18 @@ function _empContractActionsHtml(emp, c, allContracts) {
     if (!cid) return '';
     // ⋮-Menü wie überall (Walter 31.07.2026) — statt vier Text-Buttons.
     const historisch = _empContractIsHistorisch(c, allContracts);
+    // Vertrags-SMS nur für ausgewählte Benutzer (Walter 10.08.2026):
+    // admin/superuser immer; Rolle user braucht das Häkchen «Vertrags-SMS
+    // senden» (Filial-Tab «Unterzeichner»). Server prüft zusätzlich pro Filiale.
+    const darfSms = ['admin', 'superuser', 'buchhaltung'].includes(currentUser?.role) || !!currentUser?.canVertragSms;
+    const smsItems = darfSms
+        ? `<button type="button" class="dok-menu-item" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
+           <button type="button" class="dok-menu-item danger" onclick="contractShareRevoke(${cid})">Link löschen</button>`
+        : '';
     const items = historisch
         ? `<button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
         : `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>
-           <button type="button" class="dok-menu-item" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
-           <button type="button" class="dok-menu-item danger" onclick="contractShareRevoke(${cid})">Link löschen</button>`;
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}`;
     return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
         <div class="dok-menu" id="ctrMenu-${cid}">${items}</div>

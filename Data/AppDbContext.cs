@@ -823,6 +823,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FunctionTitle).HasColumnName("function_title").HasMaxLength(100);
             entity.Property(e => e.IsDefault).HasColumnName("is_default");
             entity.Property(e => e.CanDienstplan).HasColumnName("can_dienstplan");
+            entity.Property(e => e.CanVertragSms).HasColumnName("can_vertrag_sms");
             entity.HasOne(e => e.User).WithMany(e => e.BranchAccess).HasForeignKey(e => e.UserId);
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
         });

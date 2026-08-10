@@ -61,6 +61,20 @@ public class ContractShareController : ControllerBase
     private int? UserId() =>
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
 
+    /// <summary>
+    /// Vertrags-Links senden/verwalten (Walter 10.08.2026): admin/superuser
+    /// (inkl. buchhaltung via Doppel-Claim) immer; Rolle user nur mit dem
+    /// Häkchen «Vertrags-SMS senden» auf der Filiale des Vertrags.
+    /// </summary>
+    private async Task<bool> DarfVertragSendenAsync(int? companyProfileId)
+    {
+        if (User.IsInRole("admin") || User.IsInRole("superuser")) return true;
+        var uid = UserId();
+        if (uid == null || !companyProfileId.HasValue) return false;
+        return await _db.UserBranchAccesses.AsNoTracking().AnyAsync(u =>
+            u.UserId == uid.Value && u.CompanyProfileId == companyProfileId.Value && u.CanVertragSms);
+    }
+
     // ── Token: Klartext im Link, nur der SHA-256-Hash in der DB ─────────────
     private static (string token, string hash) NewToken()
     {
@@ -234,6 +248,13 @@ public class ContractShareController : ControllerBase
     {
         if (dto?.EmploymentId == null)
             return BadRequest(new { error = "Bitte employmentId angeben." });
+        var cpIdRevoke = await _db.Employments.AsNoTracking()
+            .Where(e => e.Id == dto.EmploymentId.Value)
+            .Select(e => e.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        if (!await DarfVertragSendenAsync(cpIdRevoke))
+            return StatusCode(403, new { error = "KEIN_VERTRAG_SMS_RECHT",
+                message = "Kein Recht zum Verwalten von Vertrags-Links (Häkchen «Vertrags-SMS senden» im Filial-Tab «Unterzeichner»)." });
 
         var now = DateTime.Now;
         var n = await _db.ContractShareTokens
@@ -266,6 +287,16 @@ public class ContractShareController : ControllerBase
                 .FirstOrDefaultAsync();
             if (employment == null) return new ShareBuildResult { Error = NotFound(new { error = "Für diesen Mitarbeitenden ist kein Vertrag erfasst." }) };
         }
+
+        // Vertrags-SMS nur für ausgewählte Benutzer (Walter 10.08.2026):
+        // admin/superuser immer; Rolle user braucht das Häkchen «Vertrags-SMS
+        // senden» (user_branch_access) für die Filiale des Vertrags.
+        if (!await DarfVertragSendenAsync(employment.CompanyProfileId))
+            return new ShareBuildResult
+            {
+                Error = StatusCode(403, new { error = "KEIN_VERTRAG_SMS_RECHT",
+                    message = "Kein Recht zum Versenden von Vertrags-Links — das Häkchen «Vertrags-SMS senden» wird im Filial-Tab «Unterzeichner» vergeben." }),
+            };
 
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employment.EmployeeId);
         if (emp == null) return new ShareBuildResult { Error = NotFound(new { error = "Mitarbeiter nicht gefunden." }) };

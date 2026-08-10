@@ -136,6 +136,7 @@ public class AuthController : ControllerBase
                 canCompanyDokumente = user.CanCompanyDokumente,
                 // Manager-Dienstplan planbar in mind. einer Filiale (Walter 08.08.2026).
                 canDienstplan = user.BranchAccess.Any(b => b.CanDienstplan),
+                canVertragSms = user.BranchAccess.Any(b => b.CanVertragSms),
                 isSuperAdmin = user.IsSuperAdmin,
                 // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
                 allowedAreas = user.AllowedAreas == null
@@ -196,6 +197,7 @@ public class AuthController : ControllerBase
             // damit den Tab «Dokumente» im Filial-Detail ein/aus.
             canCompanyDokumente = user.CanCompanyDokumente,
             canDienstplan      = user.BranchAccess.Any(b => b.CanDienstplan),
+            canVertragSms      = user.BranchAccess.Any(b => b.CanVertragSms),
             isSuperAdmin       = user.IsSuperAdmin,
             // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
             allowedAreas = user.AllowedAreas == null

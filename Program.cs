@@ -2899,6 +2899,8 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (code) DO NOTHING;
         ALTER TABLE user_branch_access
             ADD COLUMN IF NOT EXISTS can_dienstplan boolean NOT NULL DEFAULT false;
+        ALTER TABLE user_branch_access
+            ADD COLUMN IF NOT EXISTS can_vertrag_sms boolean NOT NULL DEFAULT false;
     ");
     // Manager-DP: Feiertage (national/kantonal/Filiale) + Schulferien pro Filiale
     // (Walter 09.08.2026). Doku: migrations-archive/add_dienstplan_feiertage_schulferien.sql

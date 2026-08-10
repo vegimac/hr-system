@@ -348,6 +348,11 @@ function renderFilialenDetail(b) {
                             <input type="checkbox" id="sig-canDienstplan" style="width:16px;height:16px">
                             <span style="font-size:13px;color:#64748b">Manager-Dienstplan planen</span>
                         </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px"
+                               title="Darf Arbeitsvertrags-Links dieser Filiale per SMS senden und widerrufen (Walter 10.08.2026)">
+                            <input type="checkbox" id="sig-canVertragSms" style="width:16px;height:16px">
+                            <span style="font-size:13px;color:#64748b">Vertrags-SMS senden</span>
+                        </label>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:14px">
@@ -917,6 +922,7 @@ function renderSignatoryList(list) {
                 ${s.role ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0efeb;color:#6b7280">${roleLabels[s.role]||s.role}</span>` : ''}
                 ${s.isDefault ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0fdf4;color:#15803d">Allgemein</span>` : ''}
                 ${s.canDienstplan ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">Dienstplan</span>` : ''}
+                ${s.canVertragSms ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534">Vertrags-SMS</span>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
                 <button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick='openSignatoryForm(${JSON.stringify(s)})'>✎</button>
@@ -953,6 +959,8 @@ async function openSignatoryForm(s) {
     document.getElementById('sig-isDefault').checked = s?.isDefault     || false;
     const dpChk = document.getElementById('sig-canDienstplan');
     if (dpChk) dpChk.checked = s?.canDienstplan || false;
+    const smsChk = document.getElementById('sig-canVertragSms');
+    if (smsChk) smsChk.checked = s?.canVertragSms || false;
     document.getElementById('signatoryForm').style.display = 'block';
     document.getElementById('signatoryForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -974,6 +982,7 @@ async function saveSignatory() {
             role:          document.getElementById('sig-role')?.value               || null,
             isDefault:     !!document.getElementById('sig-isDefault')?.checked,
             canDienstplan: !!document.getElementById('sig-canDienstplan')?.checked,
+            canVertragSms: !!document.getElementById('sig-canVertragSms')?.checked,
         };
         const url    = editingSignatoryId ? `/api/userbranch/${editingSignatoryId}` : '/api/userbranch';
         const method = editingSignatoryId ? 'PUT' : 'POST';

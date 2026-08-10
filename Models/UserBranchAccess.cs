@@ -19,6 +19,9 @@ public class UserBranchAccess
     /// (Walter 08.08.2026)? Admin darf immer überall.</summary>
     public bool CanDienstplan { get; set; }
 
+    /// <summary>Darf Vertrags-SMS-Links dieser Filiale senden/verwalten (Walter 10.08.2026).</summary>
+    public bool CanVertragSms { get; set; }
+
     /// <summary>Ist diese Person der Standard-Unterzeichner für diese Filiale?</summary>
     public bool IsDefault { get; set; } = false;
 
