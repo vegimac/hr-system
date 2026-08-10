@@ -50,9 +50,14 @@ async function hrObInvReload() {
         <div id="hrObInvList" style="font-size:13px;color:#3f3f3f">Wird geladen…</div>`;
     const list = document.getElementById('hrObInvList');
     try {
-        const r = await fetch(`/api/contract-share/onboarding-einladungen?year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() });
+        // MA-Liste + Onboarding-Termine (für die Termin-Auswahl) parallel laden.
+        const [r, rt] = await Promise.all([
+            fetch(`/api/contract-share/onboarding-einladungen?year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() }),
+            fetch('/api/kandidaten/termine', { headers: ah() }),
+        ]);
         const rows = await r.json();
         if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
+        const termine = rt.ok ? await rt.json() : [];
         if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
         list.innerHTML = rows.map(m => {
             let status;
@@ -64,17 +69,22 @@ async function hrObInvReload() {
                     : ' · <span style="color:#b45309">👁 –</span>';
             }
             const kannSms = !!(m.telefon && m.telefon.trim());
+            // Termin-Auswahl: freie Termine; Wunschtermin des GF vorausgewählt.
+            const terminOpts = ['<option value="">— ohne Onboarding-Termin —</option>']
+                .concat(termine.filter(t => t.frei > 0 || t.id === m.wunschTerminId).map(t =>
+                    `<option value="${t.id}"${t.id === m.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === m.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
+                .join('');
             return `
             <div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-bottom:1px solid rgba(60,55,48,0.1);flex-wrap:wrap">
                 <b style="min-width:150px">${_obEsc(m.name)}</b>
                 <span style="background:#e0e7ff;border-radius:8px;padding:1px 8px;font-size:11.5px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)}</span>
                 <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_obEsc(m.filiale || '')}</span>
-                ${m.wunschTermin ? `<span style="background:#fef3c7;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#854d0e">★ Wunsch: ${_obEsc(m.wunschTermin)}</span>` : ''}
                 <span style="color:#8b8b8b;font-size:12px">${_obEsc(m.modell || '')}</span>
                 <span style="font-size:12px">${status}</span>
                 <span style="flex:1"></span>
                 ${kannSms
-                    ? `<button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">${m.gesendetAm ? '📱 Erneut senden' : '📱 Einladen'}</button>`
+                    ? `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;max-width:240px">${terminOpts}</select>
+                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">${m.gesendetAm ? '📱 Erneut senden' : '📱 Einladen'}</button>`
                     : '<span style="color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon</span>'}
             </div>`;
         }).join('');
@@ -82,10 +92,13 @@ async function hrObInvReload() {
 }
 
 async function hrObInvSend(employeeId, name, telefon) {
+    const terminSel = document.getElementById(`kdInvTermin${employeeId}`);
+    const terminId = terminSel && terminSel.value ? parseInt(terminSel.value, 10) : null;
+    const terminTxt = terminId ? ` — inkl. Onboarding-Termin ${terminSel.options[terminSel.selectedIndex].text.replace(/ \(\d+ frei\).*/, '')}` : '';
     if (typeof liquidConfirm === 'function'
-        && !await liquidConfirm(`Vertrags-SMS (inkl. Onboarding-Dokumente am Link) an ${name} — ${telefon} — senden?`, { title: 'Onboarding-Einladung' })) return;
+        && !await liquidConfirm(`Vertrags-SMS (inkl. Onboarding-Dokumente am Link) an ${name} — ${telefon} — senden?${terminTxt}`, { title: 'Onboarding-Einladung' })) return;
     const r = await fetch('/api/contract-share/send', {
-        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId }),
+        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId, terminId }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.error || j.message || 'Versand fehlgeschlagen.', 'error'); return; }

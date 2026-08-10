@@ -123,7 +123,8 @@ function _hrIvRender() {
 
     body.innerHTML = `
         <p style="margin:0 0 10px;color:#646464">Tag anklicken → Termine mit Plätzen erfassen (max. 2 Monate im Voraus)
-        und beim Einladen eines Kandidaten direkt einen Platz buchen.
+        und die gebuchten MA sehen. Eingeladen (mit Termin-Buchung) wird unter
+        <b>«2 · MA zum Onboarding einladen»</b>.
         <span style="color:#166534;font-weight:700">grün</span> = freie Plätze,
         <span style="color:#991b1b;font-weight:700">rot</span> = ausgebucht.</p>
         <div style="display:flex;gap:14px;flex-wrap:wrap">${months}</div>
@@ -158,11 +159,9 @@ function _hrIvRenderDay() {
                         ${frei} von ${t.plaetze} Plätzen frei</span>
                     <span style="color:#8b8b8b">${_ivEsc(t.bemerkung || '')}</span>
                     <span style="flex:1"></span>
-                    ${frei > 0 ? `<button onclick="hrIvPick(${t.id})" style="${_ivBtnDark};padding:4px 12px;font-size:12px">Platz buchen</button>` : ''}
                     ${belegt === 0 ? `<button onclick="hrIvDeleteTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>` : ''}
                 </div>
-                ${buchungen}
-                <div id="hrIvBookForm${t.id}"></div>
+                ${buchungen || '<div style="padding:2px 0 2px 16px;font-size:12px;color:#b0aca4">Noch niemand gebucht.</div>'}
             </div>`;
     }).join('');
 

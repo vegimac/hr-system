@@ -382,6 +382,16 @@ public class KandidatenController : ControllerBase
     public class VerknuepfenDto
     {
         public int EmployeeId { get; set; }
+        /// <summary>Pro Anhang: Ziel-Dokumenttyp + Beschreibung (Walter 10.08.2026).</summary>
+        public List<VerknuepfenDok>? Dokumente { get; set; }
+    }
+
+    public class VerknuepfenDok
+    {
+        public int DokId { get; set; }
+        public int DokumentTypId { get; set; }
+        public string? Bemerkung { get; set; }
+        public bool Uebernehmen { get; set; } = true;
     }
 
     // ── HR: Kandidat mit importiertem MA verknüpfen — Dokumente wandern in
@@ -397,13 +407,17 @@ public class KandidatenController : ControllerBase
         var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == dto.EmployeeId);
         if (emp == null) return NotFound(new { error = "MA_FEHLT" });
 
-        // Dokumenttyp: «Bewerbung*» bevorzugt, sonst «Sonstig*», sonst erster aktiver.
+        // Dokument-Zuordnung pro Anhang (Walter 10.08.2026): das Frontend
+        // liefert pro Dokument Ziel-Typ + Beschreibung; Fallback (ohne
+        // Zuordnung) = Typ «Bewerbung*»/«Sonstig*».
         var typen = await _db.DokumentTypen.AsNoTracking().Where(t => t.Aktiv).ToListAsync();
-        var typ = typen.FirstOrDefault(t => t.Name.Contains("Bewerbung", StringComparison.OrdinalIgnoreCase))
-               ?? typen.FirstOrDefault(t => t.Name.Contains("Sonstig", StringComparison.OrdinalIgnoreCase))
-               ?? typen.FirstOrDefault();
-        if (typ == null)
+        var fallbackTyp = typen.FirstOrDefault(t => t.Name.Contains("Bewerbung", StringComparison.OrdinalIgnoreCase))
+                       ?? typen.FirstOrDefault(t => t.Name.Contains("Sonstig", StringComparison.OrdinalIgnoreCase))
+                       ?? typen.FirstOrDefault();
+        if (fallbackTyp == null)
             return Conflict(new { error = "KEIN_DOKUMENTTYP", message = "Kein aktiver Dokumenttyp vorhanden." });
+        var typById = typen.ToDictionary(t => t.Id);
+        var zuordnung = (dto.Dokumente ?? new List<VerknuepfenDok>()).ToDictionary(d => d.DokId);
 
         var branchCode = await _db.CompanyProfiles.AsNoTracking()
             .Where(c => c.Id == k.CompanyProfileId)
@@ -417,6 +431,16 @@ public class KandidatenController : ControllerBase
         int uebernommen = 0;
         foreach (var d in doks)
         {
+            // Zuordnung des Frontends: Typ + Beschreibung pro Dokument;
+            // «nicht übernehmen» wird respektiert (Dokument bleibt nur beim
+            // Kandidaten und verschwindet mit der 30-Tage-Routine).
+            zuordnung.TryGetValue(d.Id, out var z);
+            if (z != null && !z.Uebernehmen) continue;
+            var typ = (z != null && typById.ContainsKey(z.DokumentTypId)) ? typById[z.DokumentTypId] : fallbackTyp;
+            var bemerkung = !string.IsNullOrWhiteSpace(z?.Bemerkung)
+                ? z!.Bemerkung!.Trim()
+                : Path.GetFileNameWithoutExtension(d.OriginalFilename);
+
             var src = Path.Combine(_storageRoot, k.Id.ToString(), d.StorageFilename);
             if (!System.IO.File.Exists(src)) continue;
             var empDir = Path.Combine(_docStorage, safeBranch, emp.Id.ToString());
@@ -439,7 +463,7 @@ public class KandidatenController : ControllerBase
                     _ => "application/octet-stream",
                 },
                 GroesseBytes = new FileInfo(src).Length,
-                Bemerkung = "Aus Kandidaten-Dossier übernommen",
+                Bemerkung = bemerkung,
                 HochgeladenVon = UserId(),
                 HochgeladenAm = DateTime.Now,
             });

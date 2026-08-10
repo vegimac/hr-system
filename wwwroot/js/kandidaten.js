@@ -236,6 +236,8 @@ function _kdDetails(k) {
         ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}`;
 }
 
+let _kdHrList = [];   // letzte HR-Liste (für die Dokument-Zuordnung beim Verknüpfen)
+
 async function hrKandReload() {
     const body = document.getElementById('hrKandModalBody');
     if (!body) return;
@@ -244,6 +246,7 @@ async function hrKandReload() {
         const r = await fetch('/api/kandidaten', { headers: ah() });
         const list = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
+        _kdHrList = list;
         const neu = list.filter(k => k.status === 'NEU');
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
@@ -360,16 +363,74 @@ async function hrKandVorschlaege(id) {
                 <span style="color:#8b8b8b">${_kdEsc(m.employeeNumber || '')}</span>
                 <span style="color:#8b8b8b">${m.entryDate ? 'Eintritt ' + _kdFmtD(m.entryDate) : ''}</span>
                 <span style="flex:1"></span>
-                <button onclick="hrKandVerknuepfen(${id}, ${m.id}, '${_kdEsc(m.name)}')" style="background:#166534;color:#fff;border:none;border-radius:10px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer">Verknüpfen</button>
+                <button onclick="hrKandZuordnung(${id}, ${m.id}, '${_kdEsc(m.name)}')" style="background:#166534;color:#fff;border:none;border-radius:10px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer">Verknüpfen</button>
             </div>`).join('');
     } catch (_) { el.textContent = 'Verbindungsfehler.'; }
 }
 
-async function hrKandVerknuepfen(kandId, employeeId, maName) {
+// ── Dokument-Zuordnung beim Verknüpfen (Walter 10.08.2026): pro Anhang
+//    Ziel-Dokumenttyp + Beschreibung wählen — kein Pauschal-Übernehmen. ─────
+let _kdTaxonomie = null;
+
+async function _kdLadeTaxonomie() {
+    if (_kdTaxonomie) return _kdTaxonomie;
+    const r = await fetch('/api/documents/taxonomie', { headers: ah() });
+    _kdTaxonomie = r.ok ? await r.json() : [];
+    return _kdTaxonomie;
+}
+
+async function hrKandZuordnung(kandId, employeeId, maName) {
+    const el = document.getElementById(`kdLink${kandId}`);
+    if (!el) return;
+    const k = _kdHrList.find(x => x.id === kandId);
+    const doks = k?.dokumente || [];
+    if (!doks.length) {
+        // Keine Anhänge → direkt verknüpfen.
+        hrKandVerknuepfen(kandId, employeeId, maName, []);
+        return;
+    }
+    el.innerHTML = '<span style="color:#8b8b8b;font-size:12px">Dokumenttypen werden geladen…</span>';
+    const tax = await _kdLadeTaxonomie();
+    const typOpts = tax.map(kat =>
+        `<optgroup label="${_kdEsc(kat.name)}">${(kat.typen || []).map(t =>
+            `<option value="${t.id}">${_kdEsc(t.name)}</option>`).join('')}</optgroup>`).join('');
+    el.innerHTML = `
+        <div style="background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:10px;margin-top:6px">
+            <div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Dokumente für ${_kdEsc(maName)} zuordnen</div>
+            ${doks.map(d => `
+                <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;padding:5px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+                    <label style="font-size:11px;color:#8b8b8b;display:flex;align-items:center;gap:5px;padding-bottom:7px">
+                        <input type="checkbox" id="kdZuNehmen${d.id}" checked> übernehmen</label>
+                    <a style="cursor:pointer;text-decoration:underline;color:#3f3f3f;font-size:12.5px;padding-bottom:7px;min-width:150px"
+                       onclick="kdDokPreview(${d.id}, '${_kdEsc(d.name)}')">📎 ${_kdEsc(d.name)}</a>
+                    <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Dokumenttyp
+                        <select id="kdZuTyp${d.id}" style="${_kdInp}">${typOpts}</select></label>
+                    <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px;flex:1;min-width:180px">Beschreibung
+                        <input id="kdZuBem${d.id}" value="${_kdEsc(String(d.name).replace(/\.[^.]+$/, ''))}" style="${_kdInp}"></label>
+                </div>`).join('')}
+            <div style="display:flex;gap:8px;margin-top:10px">
+                <button onclick='hrKandVerknuepfenSubmit(${kandId}, ${employeeId}, ${JSON.stringify(maName)})' style="background:#166534;color:#fff;border:none;border-radius:12px;padding:6px 16px;font-size:12.5px;font-weight:700;cursor:pointer">✓ Verknüpfen & übernehmen</button>
+                <button onclick="document.getElementById('kdLink${kandId}').innerHTML=''" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12.5px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+            </div>
+        </div>`;
+}
+
+function hrKandVerknuepfenSubmit(kandId, employeeId, maName) {
+    const k = _kdHrList.find(x => x.id === kandId);
+    const dokumente = (k?.dokumente || []).map(d => ({
+        dokId: d.id,
+        dokumentTypId: parseInt(document.getElementById(`kdZuTyp${d.id}`)?.value, 10) || 0,
+        bemerkung: document.getElementById(`kdZuBem${d.id}`)?.value || null,
+        uebernehmen: !!document.getElementById(`kdZuNehmen${d.id}`)?.checked,
+    }));
+    hrKandVerknuepfen(kandId, employeeId, maName, dokumente);
+}
+
+async function hrKandVerknuepfen(kandId, employeeId, maName, dokumente) {
     if (typeof liquidConfirm === 'function'
-        && !await liquidConfirm(`Kandidat mit «${maName}» verknüpfen? Die Anhänge wandern in seine Personalakte; der Kandidat bleibt 30 Tage als «erledigt» sichtbar.`, { title: 'Verknüpfen' })) return;
+        && !await liquidConfirm(`Kandidat mit «${maName}» verknüpfen? Die zugeordneten Dokumente wandern in seine Personalakte; der Kandidat bleibt 30 Tage als «erledigt» sichtbar.`, { title: 'Verknüpfen' })) return;
     const r = await fetch(`/api/kandidaten/${kandId}/verknuepfen`, {
-        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId }),
+        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId, dokumente: dokumente || [] }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Verknüpfen fehlgeschlagen.', 'error'); return; }
