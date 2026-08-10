@@ -147,9 +147,11 @@ function _hrIvRenderDay() {
         const belegt = (t.buchungen || []).length;
         const frei = t.plaetze - belegt;
         const buchungen = (t.buchungen || []).map(b => `
-            <div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 16px;font-size:12.5px">
+            <div style="display:flex;align-items:center;gap:8px;padding:2px 0 2px 16px;font-size:12.5px;flex-wrap:wrap">
                 <span>👤 ${_ivEsc(b.kandidat)}${b.telefon ? ' · ' + _ivEsc(b.telefon) : ''}${b.bemerkung ? ' · ' + _ivEsc(b.bemerkung) : ''}</span>
+                <a onclick="hrIvUmbuchen(${b.id}, ${t.id})" style="cursor:pointer;color:#1d4ed8;font-weight:700;font-size:12px" title="Nach telefonischer Absprache auf einen anderen Termin verschieben — der Vertrags-Link zeigt danach den neuen Termin">⇄ Umbuchen</a>
                 <a onclick="hrIvAbsagen(${b.id})" style="cursor:pointer;color:#991b1b;font-weight:700" title="Buchung absagen">✕</a>
+                <span id="hrIvUb${b.id}" style="display:none;align-items:center;gap:6px"></span>
             </div>`).join('');
         return `
             <div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:8px 10px;margin-bottom:8px">
@@ -159,9 +161,11 @@ function _hrIvRenderDay() {
                         ${frei} von ${t.plaetze} Plätzen frei</span>
                     <span style="color:#8b8b8b">${_ivEsc(t.bemerkung || '')}</span>
                     <span style="flex:1"></span>
-                    ${belegt === 0 ? `<button onclick="hrIvDeleteTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b">🗑</button>` : ''}
+                    <button onclick="hrIvEditTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#3f3f3f" title="Termin bearbeiten">✎</button>
+                    ${belegt === 0 ? `<button onclick="hrIvDeleteTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#991b1b" title="Löschen (nur ohne Buchungen)">🗑</button>` : ''}
                 </div>
                 ${buchungen || '<div style="padding:2px 0 2px 16px;font-size:12px;color:#b0aca4">Noch niemand gebucht.</div>'}
+                <div id="hrIvEdit${t.id}"></div>
             </div>`;
     }).join('');
 
@@ -193,6 +197,47 @@ async function hrIvAddTermin() {
     const r = await fetch('/api/hr-interview/termine', { method: 'POST', headers: ah(), body: JSON.stringify(dto) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
+    hrIvReload();
+}
+
+// Termin bearbeiten — Walter 10.08.2026: Zeit nur solange NIEMAND gebucht ist
+// (Eingeladene haben die Zeit erhalten); Plätze runter nur bis Anzahl Gebuchte.
+function hrIvEditTermin(id) {
+    document.querySelectorAll('[id^="hrIvEdit"]').forEach(e => { e.innerHTML = ''; });
+    const t = _hrIvList.find(x => x.id === id);
+    const el = document.getElementById(`hrIvEdit${id}`);
+    if (!t || !el) return;
+    const belegt = (t.buchungen || []).length;
+    const zeitLock = belegt > 0 ? ' readonly style="' + _ivInp + ';background:#f1efe9;color:#8b8b8b;pointer-events:none"' : ` style="${_ivInp}"`;
+    el.innerHTML = `
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;margin-top:6px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von${belegt > 0 ? ' 🔒' : ''}
+                <input id="hrIvEdVon" type="time" value="${t.von}"${zeitLock}></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis (optional)${belegt > 0 ? ' 🔒' : ''}
+                <input id="hrIvEdBis" type="time" value="${t.bis || ''}"${zeitLock}></label>
+            ${belegt > 0 ? `<span style="font-size:11px;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;align-self:center">Zeit gesperrt — ${belegt} MA eingeladen. Verschieben = pro MA «⇄ Umbuchen» (nach Telefonat).</span>` : ''}
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
+                <input id="hrIvEdPlaetze" type="number" min="1" max="50" value="${t.plaetze}" style="${_ivInp};width:70px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
+                <input id="hrIvEdBem" value="${_ivEsc(t.bemerkung || '')}" style="${_ivInp};min-width:130px"></label>
+            <button onclick="hrIvSaveTermin(${id})" style="${_ivBtnDark}">Speichern</button>
+            <button onclick="document.getElementById('hrIvEdit${id}').innerHTML=''" style="${_ivBtnLight}">Abbrechen</button>
+        </div>`;
+}
+
+async function hrIvSaveTermin(id) {
+    const dto = {
+        datum: null,
+        von: document.getElementById('hrIvEdVon')?.value,
+        bis: document.getElementById('hrIvEdBis')?.value || null,
+        plaetze: parseInt(document.getElementById('hrIvEdPlaetze')?.value, 10) || 0,
+        bemerkung: document.getElementById('hrIvEdBem')?.value || null,
+    };
+    if (!dto.von || dto.plaetze < 1) { showToast('Von-Zeit und Plätze angeben.', 'error'); return; }
+    const r = await fetch(`/api/hr-interview/termine/${id}`, { method: 'PUT', headers: ah(), body: JSON.stringify(dto) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Speichern fehlgeschlagen.', 'error'); return; }
+    showToast('Termin angepasst.', 'success');
     hrIvReload();
 }
 
@@ -290,6 +335,37 @@ async function hrIvBook(terminId) {
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Buchen fehlgeschlagen.', 'error'); return; }
     showToast('Platz gebucht.', 'success');
+    hrIvReload();
+}
+
+// Buchung umbuchen (Walter 10.08.2026): Ziel-Termin wählen — der bestehende
+// Vertrags-Link des MA zeigt danach automatisch den neuen Termin.
+function hrIvUmbuchen(buchungId, aktuellerTerminId) {
+    const el = document.getElementById(`hrIvUb${buchungId}`);
+    if (!el) return;
+    const ziele = _hrIvList.filter(t =>
+        t.id !== aktuellerTerminId && (t.plaetze - (t.buchungen || []).length) > 0);
+    if (!ziele.length) { showToast('Kein anderer Termin mit freien Plätzen vorhanden — zuerst einen Termin anlegen.', 'error'); return; }
+    const opts = ziele.map(t =>
+        `<option value="${t.id}">${_ivFmtD(t.datum)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.plaetze - (t.buchungen || []).length} frei)</option>`).join('');
+    el.style.display = 'inline-flex';
+    el.innerHTML = `
+        <select id="hrIvUbSel${buchungId}" style="${_ivInp};padding:3px 8px;font-size:12px">${opts}</select>
+        <button onclick="hrIvUmbuchenSubmit(${buchungId})" style="${_ivBtnDark};padding:4px 10px;font-size:12px">Umbuchen</button>
+        <button onclick="this.parentElement.style.display='none'" style="${_ivBtnLight};padding:4px 8px;font-size:12px">✕</button>`;
+}
+
+async function hrIvUmbuchenSubmit(buchungId) {
+    const neuerTerminId = parseInt(document.getElementById(`hrIvUbSel${buchungId}`)?.value, 10);
+    if (!neuerTerminId) return;
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm('Buchung auf den gewählten Termin verschieben? (MA vorher telefonisch informieren — der Vertrags-Link zeigt danach den neuen Termin.)', { title: 'Umbuchen' })) return;
+    const r = await fetch(`/api/hr-interview/buchungen/${buchungId}/umbuchen`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ neuerTerminId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Umbuchen fehlgeschlagen.', 'error'); return; }
+    showToast('Umgebucht — der Vertrags-Link zeigt den neuen Termin.', 'success');
     hrIvReload();
 }
 
