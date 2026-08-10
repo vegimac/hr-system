@@ -23,7 +23,7 @@ function _obFmt(ts) {
 // Restaurant wählen → alle MA mit Eintritt in der Zukunft → Vertrags-SMS
 // (inkl. Onboarding-Dokumente am Link) direkt auslösen.
 function hrObInvite() {
-    _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 960);
+    _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 1180);
     document.getElementById('hrObInvModal').style.display = 'flex';
     hrObInvReload();
 }
@@ -61,7 +61,7 @@ async function hrObInvReload() {
         if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
         // Tabellen-Grid mit festen Spalten (Walter 10.08.2026 «schöner anordnen»):
         // MA (Name + Eintritt·Filiale·Modell) | Einladung (Status) | Termin | Aktion.
-        const gridCols = 'grid-template-columns:minmax(190px,1.1fr) minmax(160px,0.9fr) minmax(220px,240px) 150px';
+        const gridCols = 'grid-template-columns:minmax(200px,1fr) minmax(150px,0.7fr) minmax(320px,360px) 150px';
         const rowsHtml = rows.map((m, i) => {
             let status;
             if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap">noch nicht eingeladen</span>';
