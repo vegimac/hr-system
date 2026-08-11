@@ -473,10 +473,10 @@ async function hrKandReload() {
             html += card(`
                 <div class="kd-day-title" style="font-size:14.5px;margin-bottom:4px">⚠ Angenommen — noch ohne Onboarding-Tag</div>
                 ${ohneTag.map(k => `
-                <div class="kd-row" style="grid-template-columns:minmax(200px,1fr) minmax(200px,1.2fr) auto">
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span class="kd-chip kd-chip-kohle">${_kdEsc(k.filiale)}</span>
-                        <b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b></div>
+                <div class="kd-row">
+                    <div><span class="kd-chip kd-chip-kohle">${_kdEsc(k.filiale)}</span></div>
+                    <div><b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b></div>
+                    <div class="kd-dim" style="font-size:11.5px;white-space:nowrap">${k.telefon ? _kdEsc(k.telefon) : ''}</div>
                     <div><span class="kd-chip kd-chip-gelb">Onboarding-Tag wählen → Details</span></div>
                     <a class="kd-link" onclick="_kdObToggle('k${k.id}', ${k.id})" style="font-size:12px;justify-self:end">Details ⌄</a>
                 </div>
@@ -569,10 +569,9 @@ function _kdObRow(t, r) {
         aktionen += `<a class="kd-link" onclick="_kdObToggle('${key}', ${k.id})" style="font-size:12px">Details ⌄</a>`;
     return `
         <div class="kd-row">
-            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                ${r.filiale ? `<span class="kd-chip kd-chip-kohle">${_kdEsc(r.filiale)}</span>` : ''}
-                <b>${_kdEsc(r.name)}</b>
-                ${r.telefon ? `<span class="kd-dim" style="font-size:11.5px">${_kdEsc(r.telefon)}</span>` : ''}</div>
+            <div>${r.filiale ? `<span class="kd-chip kd-chip-kohle">${_kdEsc(r.filiale)}</span>` : ''}</div>
+            <div><b>${_kdEsc(r.name)}</b></div>
+            <div class="kd-dim" style="font-size:11.5px;white-space:nowrap">${r.telefon ? _kdEsc(r.telefon) : ''}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kdObChips(r)}</div>
             <div style="display:flex;gap:8px;align-items:center;justify-self:end;flex-wrap:wrap">${aktionen}</div>
         </div>
