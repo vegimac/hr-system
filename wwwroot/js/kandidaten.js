@@ -153,24 +153,56 @@ function kdFileRemove(i) {
     kdFilesRender();
 }
 
-// ── Dokumente aus dem Filial-Posteingang übernehmen (Walter 11.08.2026) ──
-// Die Datei wird heruntergeladen und wie ein lokaler Anhang mitgeschickt —
-// das Original bleibt unverändert im Posteingang.
+// ── Dokumente aus dem Posteingang übernehmen (Walter 11.08.2026) ─────────
+// ALLE für den Benutzer zugänglichen Postfächer wählbar (eigenes, Filialen,
+// HR/Admin/Buchhaltung — via /api/mailbox/postfaecher). Die Datei wird
+// heruntergeladen und wie ein lokaler Anhang mitgeschickt — das Original
+// bleibt unverändert im Posteingang.
 async function kdPfOpen() {
     const el = document.getElementById('kdPfPicker');
     if (!el) return;
     if (el.style.display !== 'none') { el.style.display = 'none'; return; }
-    const cpId = document.getElementById('kdCp')?.value;
-    if (!cpId) { showToast('Zuerst ein Restaurant wählen.', 'error'); return; }
     el.style.display = 'block';
-    el.innerHTML = '<span style="color:#8b8b8b">Posteingang wird geladen…</span>';
+    el.innerHTML = '<span style="color:#8b8b8b">Postfächer werden geladen…</span>';
     try {
-        const r = await fetch(`/api/mailbox?type=BRANCH&companyProfileId=${cpId}`, { headers: ah() });
+        const r = await fetch('/api/mailbox/postfaecher', { headers: ah() });
+        const pfs = await r.json();
+        if (!r.ok || !Array.isArray(pfs) || !pfs.length) { el.innerHTML = 'Keine Postfächer verfügbar.'; return; }
+        const val = (p) => p.type === 'USER' ? `USER:${p.targetUserId}`
+            : p.type === 'BRANCH' ? `BRANCH:${p.companyProfileId}` : p.type;
+        const label = (p) => (p.type === 'BRANCH' && p.code ? p.code + ' ' : '') + (p.name || p.type)
+            + (p.isSelf ? ' (mein Postfach)' : '') + (p.count ? ` — ${p.count}` : '');
+        // Vorauswahl: Filial-Postfach des im Formular gewählten Restaurants.
+        const cpId = document.getElementById('kdCp')?.value;
+        const preferred = pfs.find(p => p.type === 'BRANCH' && String(p.companyProfileId) === String(cpId)) || pfs[0];
+        const opts = pfs.map(p =>
+            `<option value="${val(p)}"${val(p) === val(preferred) ? ' selected' : ''}>${_kdEsc(label(p))}</option>`).join('');
+        el.innerHTML = `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+                <b style="color:#3f3f3f">Postfach:</b>
+                <select id="kdPfSel" onchange="kdPfLoadFiles()" style="${_kdInp};padding:4px 8px;font-size:12px;min-width:220px">${opts}</select>
+            </div>
+            <div id="kdPfFiles" style="font-size:12.5px"></div>`;
+        kdPfLoadFiles();
+    } catch (_) { el.innerHTML = 'Verbindungsfehler.'; }
+}
+
+async function kdPfLoadFiles() {
+    const el = document.getElementById('kdPfFiles');
+    const v = document.getElementById('kdPfSel')?.value || '';
+    if (!el || !v) return;
+    el.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
+    let url = '';
+    if (v.startsWith('USER:')) url = `/api/mailbox?type=USER&targetUserId=${v.slice(5)}`;
+    else if (v.startsWith('BRANCH:')) url = `/api/mailbox?type=BRANCH&companyProfileId=${v.slice(7)}`;
+    else url = `/api/mailbox?type=${v}`;
+    try {
+        const r = await fetch(url, { headers: ah() });
         const list = await r.json();
         if (!r.ok) { el.innerHTML = 'Laden fehlgeschlagen.'; return; }
         const files = (Array.isArray(list) ? list : []).filter(m => m.mimeType && !m.messageBody).slice(0, 40);
-        if (!files.length) { el.innerHTML = '<span style="color:#8b8b8b">Keine Dateien im Filial-Posteingang.</span>'; return; }
-        el.innerHTML = `<div style="font-weight:700;margin-bottom:4px;color:#3f3f3f">Filial-Posteingang — Datei anklicken zum Übernehmen</div>` + files.map(m => `
+        if (!files.length) { el.innerHTML = '<span style="color:#8b8b8b">Keine Dateien in diesem Postfach.</span>'; return; }
+        el.innerHTML = `<div style="color:#8b8b8b;font-size:11.5px;margin-bottom:3px">Datei anklicken zum Übernehmen — das Original bleibt im Postfach.</div>` + files.map(m => `
             <div style="display:flex;align-items:center;gap:8px;padding:3px 2px;border-bottom:1px solid rgba(60,55,48,0.07)">
                 <a onclick="kdPfAdd(${m.id}, '${_kdEsc(m.originalFilename).replace(/'/g, '&#39;')}')" style="cursor:pointer;color:#1d4ed8;text-decoration:underline">📄 ${_kdEsc(m.originalFilename)}</a>
                 <span style="color:#b0aca4;font-size:11px">${_kdFmtTs((m.uploadedAt || '').slice(0, 16).replace('T', ' '))}</span>
