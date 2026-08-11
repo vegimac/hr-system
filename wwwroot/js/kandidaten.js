@@ -343,7 +343,7 @@ async function hrKandBadge() {
 }
 
 function hrKandOpen() {
-    _ivModalShell('hrKandModal', '📨 Kandidaten prüfen', 860);
+    _ivModalShell('hrKandModal', '📨 Kandidaten prüfen', 1200);
     document.getElementById('hrKandModal').style.display = 'flex';
     hrKandReload();
 }
@@ -431,12 +431,21 @@ async function hrKandReload() {
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
         const erledigt = list.filter(k => k.status === 'ERLEDIGT');
-        const card = (inner) => `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 12px;margin-bottom:10px">${inner}</div>`;
-        const titel = (t) => `<div style="font-weight:800;font-size:13.5px;margin:14px 0 6px;color:#3f3f3f">${t}</div>`;
+        // Liquid-Glass-Look (Walter 11.08.2026): Glas-Karten mit weichem
+        // Schatten, Sektions-Titel als ruhige Uppercase-Zeile mit Zähler-Pille.
+        const card = (inner) => `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 8px 24px rgba(60,55,48,0.10)">${inner}</div>`;
+        const titel = (t, n, farbe) => {
+            const [bg, fg] = farbe || ['#f1efe9', '#8b8b8b'];
+            return `<div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+                <span style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8b8b8b;white-space:nowrap">${t}</span>
+                <span style="background:${bg};color:${fg};border-radius:10px;padding:1px 10px;font-size:11.5px;font-weight:800">${n}</span>
+                <span style="flex:1;height:1px;background:rgba(60,55,48,0.12)"></span>
+            </div>`;
+        };
         let html = '';
 
         // ── 1) Zu prüfen ────────────────────────────────────────────────
-        html += titel(`Zu prüfen (${neu.length})`);
+        html += titel('Zu prüfen', neu.length, neu.length ? ['#fef9c3', '#854d0e'] : null);
         html += neu.length ? neu.map(k => card(`
             ${_kdKopf(k)}${_kdDetails(k)}
             <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
@@ -448,7 +457,7 @@ async function hrKandReload() {
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine unbearbeiteten Kandidaten. 🎉</span>';
 
         // ── 2) Angenommen: in easy erfassen → importieren → verknüpfen ──
-        html += titel(`Angenommen — Willkommenstag & Import (${angenommen.length})`);
+        html += titel('Angenommen — Willkommenstag & Import', angenommen.length, angenommen.length ? ['#dcfce7', '#166534'] : null);
         html += angenommen.length ? angenommen.map(k => {
             // Willkommenstag-Status (Walter 11.08.2026): SMS geht DIREKT an den
             // Kandidaten — vor der easy@work-Erfassung.
@@ -462,27 +471,42 @@ async function hrKandReload() {
                 wkStatus = `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12.5px">
                     <span>📲 Willkommenstag-SMS ${_kdFmtTs(k.willkommenGesendetAm)}</span>${antwort}</div>`;
             }
+            // Ablauf als ruhige Schritt-Liste (Liquid-Glass): erledigte
+            // Schritte grün abgehakt, der nächste Schritt hervorgehoben.
+            const smsOk = !!k.willkommenGesendetAm && k.willkommenAntwort !== 'ABGELEHNT';
+            const bestOk = k.willkommenAntwort === 'ANGENOMMEN';
+            const step = (nr, text, done, aktiv) => `
+                <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 0">
+                    <span style="flex:0 0 22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;
+                        ${done ? 'background:#dcfce7;color:#166534' : aktiv ? 'background:#3f3f3f;color:#fff' : 'background:#f1efe9;color:#8b8b8b'}">${done ? '✓' : nr}</span>
+                    <span style="font-size:12.5px;color:${done ? '#8b8b8b' : '#3f3f3f'};padding-top:2px;${aktiv ? 'font-weight:700;' : ''}">${text}</span>
+                </div>`;
+            const schritte = `
+                <div style="margin-top:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 14px">
+                    <div style="font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#8b8b8b;margin-bottom:5px">Ablauf HR</div>
+                    ${step(1, 'Onboarding-Tag prüfen und Willkommenstag-SMS senden — der Kandidat bestätigt am Handy', smsOk, !smsOk)}
+                    ${step(2, 'Termin-Bestätigung des Kandidaten abwarten', bestOk, smsOk && !bestOk)}
+                    ${step(3, 'MA mit obigen Daten in easy@work erfassen · Sync/Import nach OneCrew', false, bestOk)}
+                    ${step(4, 'Unten mit dem importierten MA verknüpfen — Anhänge wandern in die Personalakte, die Termin-Buchung geht an den MA über', false, false)}
+                    ${step(5, 'Vertrags-SMS über «2 · Vertrags-SMS senden» (Vertrag + Dokumente)', false, false)}
+                </div>`;
             return card(`
             ${_kdKopf(k)}${_kdDetails(k)}
             ${wkStatus}
-            <div style="margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:8px;font-size:12.5px;color:#3730a3">
-                <b>Nächste Schritte (HR):</b> 1. Oben den Onboarding-Tag prüfen und <b>Willkommenstag-SMS senden</b> —
-                der Kandidat bestätigt den Termin direkt am Handy · 2. MA mit obigen Daten in <b>easy@work</b> erfassen ·
-                3. easy@work-Sync/Import nach OneCrew · 4. unten mit dem importierten MA verknüpfen — die Anhänge wandern
-                in seine Personalakte, die Termin-Buchung geht an den MA über · 5. Vertrags-SMS über «MA einladen».
-            </div>
-            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">📱 Willkommenstag-SMS ${k.willkommenGesendetAm ? 'erneut senden' : 'senden'}</button>
-                <button onclick="hrKandVorschlaege(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Mit importiertem MA verknüpfen</button>
+            ${schritte}
+            <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:13px;padding:8px 16px">📱 Willkommenstag-SMS ${k.willkommenGesendetAm ? 'erneut senden' : 'senden'}</button>
+                <button onclick="hrKandVorschlaege(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Mit importiertem MA verknüpfen</button>
+                <span style="flex:1"></span>
                 <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
-                        style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">↶ Entscheid zurücknehmen</button>
+                        style="background:transparent;border:none;padding:6px 4px;font-size:12px;cursor:pointer;color:#8b8b8b;text-decoration:underline">↶ Entscheid zurücknehmen</button>
             </div>
             <div id="kdLink${k.id}" style="margin-top:6px"></div>`);
         }).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Annahmen.</span>';
 
         // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
-        html += titel(`Abgelehnt — Absage senden (${abgelehnt.length})`);
+        html += titel('Abgelehnt — Absage senden', abgelehnt.length, abgelehnt.length ? ['#fecaca', '#991b1b'] : null);
         html += abgelehnt.length ? abgelehnt.map(k => card(`
             ${_kdKopf(k)}
             <div style="margin-top:4px;font-size:12.5px;color:#646464">Grund: ${_kdEsc(k.ablehnungsgrund || '–')}</div>
@@ -500,7 +524,7 @@ async function hrKandReload() {
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
 
         // ── 4) Erledigt (verknüpft — Referenz, Auto-Löschung nach 30 Tagen) ─
-        html += titel(`Erledigt — mit MA verknüpft (${erledigt.length})`);
+        html += titel('Erledigt — mit MA verknüpft', erledigt.length, erledigt.length ? ['#e0e7ff', '#3730a3'] : null);
         html += erledigt.length ? erledigt.map(k => card(`
             ${_kdKopf(k)}
             <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
