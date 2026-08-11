@@ -462,7 +462,11 @@ async function hrKandReload() {
         // pro Person «Onboarding abgeschlossen» (Meldung an den GF).
         const obTage = _kdObTage || [];
         const obKandIds = new Set();
-        obTage.forEach(t => (t.rows || []).forEach(rr => { if (rr.kandidatId) obKandIds.add(rr.kandidatId); }));
+        const obEmpIds = new Set();
+        obTage.forEach(t => (t.rows || []).forEach(rr => {
+            if (rr.kandidatId) obKandIds.add(rr.kandidatId);
+            if (rr.employeeId) obEmpIds.add(rr.employeeId);
+        }));
         const ohneTag = angenommen.filter(k => !k.wunschTerminId);
         html += titel('Onboarding-Tage', obTage.length, obTage.length ? 'kd-chip-gruen' : null);
         if (ohneTag.length) {
@@ -501,15 +505,18 @@ async function hrKandReload() {
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
 
         // ── 4) Erledigt-Fallback: nur verknüpfte Kandidaten, die in KEINEM
-        // Onboarding-Tag auftauchen (z.B. ohne Willkommenstag-Buchung) ──
-        const erledigtRest = erledigt.filter(k => !obKandIds.has(k.id));
+        // Onboarding-Tag auftauchen — auch nicht über den verknüpften MA ──
+        const erledigtRest = erledigt.filter(k =>
+            !obKandIds.has(k.id) && !(k.verknuepftEmployeeId && obEmpIds.has(k.verknuepftEmployeeId)));
         if (erledigtRest.length) {
             html += titel('Erledigt — ohne Onboarding-Tag', erledigtRest.length, 'kd-chip-indigo');
             html += erledigtRest.map(k => card(`
                 ${_kdKopf(k)}
                 <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
-                    <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
-                    <span style="color:#b0aca4;font-size:11px">wird 30 Tage später automatisch gelöscht</span>
+                    <span class="kd-chip kd-chip-indigo">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
+                    <span class="kd-dim" style="font-size:11px">wird 30 Tage später automatisch gelöscht</span>
+                    <span style="flex:1"></span>
+                    <a class="kd-link" onclick="hrKandLoeschen(${k.id}, '${_kdEsc(k.vorname)} ${_kdEsc(k.name)}')" style="font-size:12px;color:#991b1b">🗑 Jetzt löschen</a>
                 </div>
                 ${_kdNotizHtml(k)}`)).join('');
         }
@@ -699,10 +706,25 @@ function _kdErledigtInner(k) {
     return `
         ${_kdKopf(k)}
         <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
-            <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
-            <span style="color:#b0aca4;font-size:11px">Kandidaten-Daten werden 30 Tage nach der Verknüpfung automatisch gelöscht</span>
+            <span class="kd-chip kd-chip-indigo">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
+            <span class="kd-dim" style="font-size:11px">Kandidaten-Daten werden 30 Tage nach der Verknüpfung automatisch gelöscht</span>
+            <span style="flex:1"></span>
+            <a class="kd-link" onclick="hrKandLoeschen(${k.id}, '${_kdEsc(k.vorname)} ${_kdEsc(k.name)}')" style="font-size:12px;color:#991b1b">🗑 Jetzt löschen</a>
         </div>
         ${_kdNotizHtml(k)}`;
+}
+
+// Kandidaten-Daten sofort löschen (Walter 11.08.2026) — z.B. Test-Einträge.
+// Der MA und seine Termin-Buchung bleiben unberührt.
+async function hrKandLoeschen(id, name) {
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm(`Kandidaten-Daten von ${name} jetzt löschen (inkl. Anhänge)? Der verknüpfte MA und seine Termin-Buchung bleiben bestehen.`, { title: 'Kandidat löschen' })) return;
+    const r = await fetch(`/api/kandidaten/${id}`, { method: 'DELETE', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Löschen fehlgeschlagen.', 'error'); return; }
+    showToast('Kandidaten-Daten gelöscht.', 'success');
+    hrKandReload();
+    if (typeof hrKandBadge === 'function') hrKandBadge();
 }
 
 // Notiz-Zeile (z.B. «hat sich nach der Absage nochmals gemeldet»).

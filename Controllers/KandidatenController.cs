@@ -1112,6 +1112,32 @@ public class KandidatenController : ControllerBase
         return Ok(new { ok = true });
     }
 
+    /// <summary>
+    /// Kandidaten-Daten sofort löschen (Walter 11.08.2026) — z.B. Test-
+    /// Einträge, statt auf die 30-Tage-Routine zu warten. Nur für bereits
+    /// abgeschlossene Kandidaturen (ERLEDIGT/ABGELEHNT); Buchungen bleiben
+    /// bestehen (Kandidaten-Bezug wird gelöst, MA-Bezug bleibt).
+    /// </summary>
+    [HttpDelete("{id:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (k.Status == "NEU" || k.Status == "ANGENOMMEN")
+            return Conflict(new { error = "NOCH_AKTIV", message = "Aktive Kandidaturen zuerst ablehnen oder verknüpfen — erst danach löschen." });
+
+        await _db.HrInterviewBuchungen
+            .Where(b => b.KandidatId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(b => b.KandidatId, (int?)null));
+        await _db.KandidatDokumente.Where(d => d.KandidatId == id).ExecuteDeleteAsync();
+        _db.Kandidaten.Remove(k);
+        await _db.SaveChangesAsync();
+        try { var dir = Path.Combine(_storageRoot, id.ToString()); if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        catch { /* best-effort */ }
+        return Ok(new { ok = true });
+    }
+
     public class NotizDto
     {
         public string? Notiz { get; set; }
