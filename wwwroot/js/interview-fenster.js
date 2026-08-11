@@ -43,7 +43,11 @@ function _ivModalShell(id, titel, maxWidth) {
     <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:${maxWidth || 620}px;width:96%;max-height:92vh;overflow-y:auto;padding:22px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">${titel}</div>
-            <button type="button" onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+            <div style="display:flex;gap:12px;align-items:center">
+                <button type="button" onclick="document.getElementById('${id}').style.display='none'"
+                        class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
+                <button type="button" onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+            </div>
         </div>
         <div id="${id}Body" style="font-size:13px;color:#3f3f3f"></div>
     </div>`;
