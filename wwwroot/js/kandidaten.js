@@ -232,13 +232,31 @@ function _kdDetails(k) {
         .concat((_kdHrTermine || []).filter(t => t.frei > 0 || t.id === k.wunschTerminId).map(t =>
             `<option value="${t.id}"${t.id === k.wunschTerminId ? ' selected' : ''}>${_kdFmtD(t.datum)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)</option>`))
         .join('');
+    // Markante Anzeige (Walter 11.08.2026): welcher Onboarding-Tag mit dem
+    // Kandidaten provisorisch ausgemacht wurde.
+    const sel = (_kdHrTermine || []).find(t => t.id === k.wunschTerminId);
+    const wtNamen = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+    let terminBadge;
+    if (sel) {
+        const wt = wtNamen[new Date(sel.datum + 'T00:00:00').getDay()];
+        terminBadge = `<div style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:10px;padding:6px 12px;font-size:13.5px;color:#3730a3">
+            📅 <b>Onboarding provisorisch ausgemacht:</b> ${wt}, ${_kdFmtD(sel.datum)} · ${sel.von}${sel.bis ? '–' + sel.bis : ''} Uhr</div>`;
+    } else if (k.wunschTermin) {
+        // Termin-Detail nicht (mehr) ladbar — Fallback auf den Server-Text.
+        terminBadge = `<div style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:10px;padding:6px 12px;font-size:13.5px;color:#3730a3">
+            📅 <b>Onboarding provisorisch ausgemacht:</b> ${_kdEsc(k.wunschTermin)} Uhr</div>`;
+    } else {
+        terminBadge = `<div style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:6px 12px;font-size:13px;color:#854d0e">
+            📅 Noch kein Onboarding-Tag ausgemacht</div>`;
+    }
     return `
         <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f;align-items:center">
             <span><b>Eintritt ab:</b> ${k.fruehesterEintritt ? _kdFmtD(k.fruehesterEintritt) : '–'}</span>
             <span><b>Ausbildung:</b> ${_kdEsc(ausb)}</span>
-            <span style="display:flex;align-items:center;gap:6px"><b>Onboarding-Tag:</b>
+            <span style="display:flex;align-items:center;gap:6px"><b>Onboarding-Tag ändern:</b>
                 <select onchange="hrKandTermin(${k.id}, this.value)" style="${_kdInp};padding:4px 8px;font-size:12px;min-width:210px">${opts}</select></span>
         </div>
+        ${terminBadge}
         ${k.bemerkung ? `<div style="margin-top:4px;font-size:12.5px;color:#646464">💬 ${_kdEsc(k.bemerkung)}</div>` : ''}
         ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}`;
 }
@@ -253,6 +271,7 @@ async function hrKandTermin(id, val) {
     const k = _kdHrList.find(x => x.id === id);
     if (k) k.wunschTerminId = terminId;
     showToast(terminId ? 'Onboarding-Tag gespeichert.' : 'Onboarding-Tag entfernt.', 'success');
+    hrKandReload(); // Badge «provisorisch ausgemacht» aktualisieren
 }
 
 let _kdHrList = [];    // letzte HR-Liste (für die Dokument-Zuordnung beim Verknüpfen)
