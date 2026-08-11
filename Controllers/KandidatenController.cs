@@ -222,6 +222,7 @@ public class KandidatenController : ControllerBase
                 k.VerknuepftEmployeeId,
                 k.Notiz,
                 filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
+                k.WunschTerminId,
                 wunschTermin = t == null ? null : $"{t.Datum:dd.MM.yyyy} {t.VonZeit:HH\\:mm}",
                 dokumente = doks.Where(d => d.KandidatId == k.Id)
                     .Select(d => new { d.Id, name = d.OriginalFilename }),
@@ -494,6 +495,37 @@ public class KandidatenController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id });
+    }
+
+    public class TerminDto
+    {
+        public int? TerminId { get; set; }
+    }
+
+    /// <summary>
+    /// HR setzt/ändert den Onboarding-Tag direkt in der Kandidaten-Karte
+    /// (Walter 11.08.2026). Der Termin wird beim Verknüpfen als
+    /// OnboardingWunsch an den MA übergeben und beim Einladen vorausgewählt.
+    /// </summary>
+    [HttpPost("{id:int}/termin")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> SetTermin(int id, [FromBody] TerminDto dto)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (dto.TerminId != null && dto.TerminId != k.WunschTerminId)
+        {
+            var t = await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(x => x.Id == dto.TerminId.Value);
+            if (t == null) return NotFound(new { error = "TERMIN_FEHLT" });
+            if (t.Datum < DateOnly.FromDateTime(DateTime.Now))
+                return Conflict(new { error = "TERMIN_VERGANGEN", message = "Der gewählte Termin liegt in der Vergangenheit." });
+            int belegt = await _db.HrInterviewBuchungen.CountAsync(b => b.TerminId == t.Id && b.Status == "GEPLANT");
+            if (belegt >= t.Plaetze)
+                return Conflict(new { error = "AUSGEBUCHT", message = "Der gewählte Termin ist ausgebucht." });
+        }
+        k.WunschTerminId = dto.TerminId;
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
     }
 
     public class NotizDto

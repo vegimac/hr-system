@@ -226,27 +226,51 @@ function _kdDetails(k) {
     const ausb = KAND_AUSBILDUNG.find(([c]) => c === k.lgavAusbildung)?.[1] || k.lgavAusbildung || '–';
     const doks = (k.dokumente || []).map(d =>
         `<a style="cursor:pointer;text-decoration:underline;color:#3f3f3f" onclick="kdDokPreview(${d.id}, '${_kdEsc(d.name)}')">📎 ${_kdEsc(d.name)}</a>`).join(' · ');
+    // Onboarding-Tag direkt in der Karte änderbar (Walter 11.08.2026):
+    // freie Termine + der aktuell gewählte; Änderung speichert sofort.
+    const opts = ['<option value="">— kein Termin —</option>']
+        .concat((_kdHrTermine || []).filter(t => t.frei > 0 || t.id === k.wunschTerminId).map(t =>
+            `<option value="${t.id}"${t.id === k.wunschTerminId ? ' selected' : ''}>${_kdFmtD(t.datum)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)</option>`))
+        .join('');
     return `
-        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:12.5px;color:#3f3f3f;align-items:center">
             <span><b>Eintritt ab:</b> ${k.fruehesterEintritt ? _kdFmtD(k.fruehesterEintritt) : '–'}</span>
             <span><b>Ausbildung:</b> ${_kdEsc(ausb)}</span>
-            <span><b>Wunschtermin:</b> ${k.wunschTermin ? _kdEsc(k.wunschTermin) : '–'}</span>
+            <span style="display:flex;align-items:center;gap:6px"><b>Onboarding-Tag:</b>
+                <select onchange="hrKandTermin(${k.id}, this.value)" style="${_kdInp};padding:4px 8px;font-size:12px;min-width:210px">${opts}</select></span>
         </div>
         ${k.bemerkung ? `<div style="margin-top:4px;font-size:12.5px;color:#646464">💬 ${_kdEsc(k.bemerkung)}</div>` : ''}
         ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}`;
 }
 
-let _kdHrList = [];   // letzte HR-Liste (für die Dokument-Zuordnung beim Verknüpfen)
+async function hrKandTermin(id, val) {
+    const terminId = val ? parseInt(val, 10) : null;
+    const r = await fetch(`/api/kandidaten/${id}/termin`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ terminId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Termin speichern fehlgeschlagen.', 'error'); hrKandReload(); return; }
+    const k = _kdHrList.find(x => x.id === id);
+    if (k) k.wunschTerminId = terminId;
+    showToast(terminId ? 'Onboarding-Tag gespeichert.' : 'Onboarding-Tag entfernt.', 'success');
+}
+
+let _kdHrList = [];    // letzte HR-Liste (für die Dokument-Zuordnung beim Verknüpfen)
+let _kdHrTermine = []; // Onboarding-Termine (für den Onboarding-Tag-Select in den Karten)
 
 async function hrKandReload() {
     const body = document.getElementById('hrKandModalBody');
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const r = await fetch('/api/kandidaten', { headers: ah() });
+        const [r, rt] = await Promise.all([
+            fetch('/api/kandidaten', { headers: ah() }),
+            fetch('/api/kandidaten/termine', { headers: ah() }),
+        ]);
         const list = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
         _kdHrList = list;
+        _kdHrTermine = rt.ok ? await rt.json() : [];
         const neu = list.filter(k => k.status === 'NEU');
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
