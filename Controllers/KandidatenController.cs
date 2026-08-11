@@ -175,6 +175,76 @@ public class KandidatenController : ControllerBase
         return Ok(new { k.Id });
     }
 
+    // ── GF: Kandidat bearbeiten + weitere Anhänge (Walter 11.08.2026) ──────
+    //    Nur solange HR noch NICHT entschieden hat (Status NEU).
+    [HttpPost("{id:int}/update")]
+    [RequestSizeLimit(60_000_000)]
+    public async Task<IActionResult> Update(
+        int id,
+        [FromForm] int companyProfileId,
+        [FromForm] string? vorname,
+        [FromForm] string? name,
+        [FromForm] string? telefon,
+        [FromForm] string? email,
+        [FromForm] string? fruehesterEintritt,
+        [FromForm] string? lgavAusbildung,
+        [FromForm] int? wunschTerminId,
+        [FromForm] string? bemerkung,
+        [FromForm] List<IFormFile>? files)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        var erlaubt = await ErlaubteFilialenAsync();
+        if (!erlaubt.Contains(k.CompanyProfileId) || !erlaubt.Contains(companyProfileId))
+            return StatusCode(403, new { error = "KEINE_FILIALE", message = "Kein Zugriff auf diese Filiale." });
+        if (k.Status != "NEU")
+            return Conflict(new { error = "BEREITS_ENTSCHIEDEN", message = "HR hat bereits entschieden — Bearbeiten ist nicht mehr möglich." });
+        if (string.IsNullOrWhiteSpace(vorname) || string.IsNullOrWhiteSpace(name))
+            return BadRequest(new { error = "NAME_FEHLT", message = "Vorname und Name angeben." });
+
+        DateOnly? eintritt = null;
+        if (!string.IsNullOrWhiteSpace(fruehesterEintritt))
+        {
+            if (!DateOnly.TryParse(fruehesterEintritt, out var d))
+                return BadRequest(new { error = "DATUM_UNGUELTIG" });
+            eintritt = d;
+        }
+
+        k.CompanyProfileId = companyProfileId;
+        k.Vorname = vorname.Trim();
+        k.Name = name.Trim();
+        k.Telefon = string.IsNullOrWhiteSpace(telefon) ? null : telefon.Trim();
+        k.Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+        k.FruehesterEintritt = eintritt;
+        k.LgavAusbildung = string.IsNullOrWhiteSpace(lgavAusbildung) ? null : lgavAusbildung.Trim();
+        k.WunschTerminId = wunschTerminId;
+        k.Bemerkung = string.IsNullOrWhiteSpace(bemerkung) ? null : bemerkung.Trim();
+
+        // Neue Anhänge werden ANGEHÄNGT — bestehende bleiben unverändert.
+        var actor = await ActorNameAsync();
+        foreach (var f in files ?? new List<IFormFile>())
+        {
+            if (f.Length == 0) continue;
+            var orig = Path.GetFileName(f.FileName ?? "datei");
+            if (orig.Length > 200) orig = orig[..200];
+            var ext = Path.GetExtension(orig);
+            var storage = $"{Guid.NewGuid():N}{ext}";
+            var path = Path.Combine(KandidatDir(k.Id), storage);
+            await using (var fs = System.IO.File.Create(path))
+                await f.CopyToAsync(fs);
+            _db.KandidatDokumente.Add(new KandidatDokument
+            {
+                KandidatId = k.Id,
+                OriginalFilename = orig,
+                StorageFilename = storage,
+                CreatedAt = DateTime.Now,
+                CreatedBy = actor,
+            });
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { k.Id });
+    }
+
     // ── Liste: GF sieht seine Filialen, HR alles; optional nach Status ─────
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] string? status)
@@ -203,6 +273,7 @@ public class KandidatenController : ControllerBase
             return new
             {
                 k.Id,
+                k.CompanyProfileId,
                 k.Vorname,
                 k.Name,
                 k.Telefon,

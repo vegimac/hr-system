@@ -52,11 +52,14 @@ function _kdStatusPill(k) {
 
 // ── GF: Kandidat einreichen ─────────────────────────────────────────────
 let _kdFiles = [];
+let _kdEditId = null; // Bearbeiten-Modus (Walter 11.08.2026): Id des Kandidaten
+let _kdMeine = [];    // eigene eingereichte Kandidaten (für Bearbeiten)
 
 async function openKandidatModal() {
     _ivModalShell('kdModal', '📨 Kandidat an HR senden', 720);
     document.getElementById('kdModal').style.display = 'flex';
     _kdFiles = [];
+    _kdEditId = null;
     const body = document.getElementById('kdModalBody');
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
 
@@ -110,10 +113,12 @@ async function openKandidatModal() {
         <div style="margin-top:10px">
             <button onclick="document.getElementById('kdFiles').click()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f">📎 Dokumente anhängen</button>
             <input type="file" id="kdFiles" accept="application/pdf,image/*" multiple style="display:none" onchange="kdFilesPicked(this.files)">
+            <div id="kdFileListVorhanden" style="font-size:12px;color:#646464;margin-top:6px"></div>
             <div id="kdFileList" style="font-size:12px;color:#646464;margin-top:6px"></div>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:14px">
-            <button onclick="kdSubmit()" style="${_kdBtnDark}">An HR senden</button>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px">
+            <button id="kdCancelEditBtn" onclick="openKandidatModal()" style="display:none;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 14px;font-size:13px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+            <button id="kdSubmitBtn" onclick="kdSubmit()" style="${_kdBtnDark}">An HR senden</button>
         </div>
         <div style="font-weight:700;margin:16px 0 4px">Meine eingereichten Kandidaten</div>
         <div id="kdMeineListe" style="font-size:12.5px;color:#3f3f3f">Wird geladen…</div>`;
@@ -163,13 +168,15 @@ async function kdSubmit() {
     fd.append('bemerkung', document.getElementById('kdBemerkung')?.value || '');
     for (const f of _kdFiles) fd.append('files', f);
     // ACHTUNG: bei FormData KEIN ah() — zerstört den Multipart-Boundary.
-    const r = await fetch('/api/kandidaten', {
+    const url = _kdEditId ? `/api/kandidaten/${_kdEditId}/update` : '/api/kandidaten';
+    const r = await fetch(url, {
         method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd,
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Senden fehlgeschlagen.', 'error'); return; }
-    showToast('Kandidat an HR gesendet.', 'success');
+    showToast(_kdEditId ? 'Änderungen gespeichert.' : 'Kandidat an HR gesendet.', 'success');
     _kdFiles = [];
+    _kdEditId = null;
     openKandidatModal();
 }
 
@@ -180,6 +187,7 @@ async function kdMeineListe() {
         const r = await fetch('/api/kandidaten', { headers: ah() });
         const list = await r.json();
         if (!r.ok) { el.textContent = 'Laden fehlgeschlagen.'; return; }
+        _kdMeine = list;
         if (!list.length) { el.innerHTML = '<span style="color:#8b8b8b">Noch keine Kandidaten eingereicht.</span>'; return; }
         el.innerHTML = list.map(k => `
             <div style="display:flex;align-items:center;gap:10px;padding:5px 8px;border-bottom:1px solid rgba(60,55,48,0.08);flex-wrap:wrap">
@@ -187,8 +195,51 @@ async function kdMeineListe() {
                 <span style="color:#8b8b8b">${k.fruehesterEintritt ? 'ab ' + _kdFmtD(k.fruehesterEintritt) : ''}</span>
                 ${_kdStatusPill(k)}
                 <span style="color:#b0aca4;font-size:11px">${_kdFmtTs(k.createdAt)}</span>
+                ${k.status === 'NEU'
+                    ? `<a onclick="kdEdit(${k.id})" title="Solange HR noch nicht entschieden hat: Daten ändern und weitere Dokumente anhängen"
+                          style="cursor:pointer;color:#1d4ed8;font-size:12px;font-weight:700">✎ Bearbeiten</a>`
+                    : ''}
             </div>`).join('');
     } catch (_) { el.textContent = 'Verbindungsfehler.'; }
+}
+
+// Bearbeiten (Walter 11.08.2026): Formular oben mit den Daten des Kandidaten
+// füllen — nur solange HR noch nicht entschieden hat (Status NEU).
+function kdEdit(id) {
+    const k = _kdMeine.find(x => x.id === id);
+    if (!k) return;
+    _kdEditId = id;
+    _kdFiles = [];
+    kdFilesRender();
+    const set = (elId, v) => { const e = document.getElementById(elId); if (e) e.value = v ?? ''; };
+    set('kdVorname', k.vorname);
+    set('kdName', k.name);
+    set('kdTelefon', k.telefon);
+    set('kdEmail', k.email);
+    set('kdCp', k.companyProfileId);
+    set('kdEintritt', k.fruehesterEintritt);
+    set('kdAusbildung', k.lgavAusbildung);
+    set('kdBemerkung', k.bemerkung);
+    // Wunschtermin: falls der gewählte Termin nicht (mehr) in der Liste ist
+    // (z.B. inzwischen ausgebucht), Option ergänzen — Auswahl bleibt erhalten.
+    const sel = document.getElementById('kdTermin');
+    if (sel && k.wunschTerminId) {
+        if (![...sel.options].some(o => o.value === String(k.wunschTerminId)))
+            sel.insertAdjacentHTML('beforeend', `<option value="${k.wunschTerminId}">${_kdEsc(k.wunschTermin || 'gewählter Termin')}</option>`);
+        sel.value = String(k.wunschTerminId);
+    } else if (sel) sel.value = '';
+    // Bereits eingereichte Anhänge (bleiben bestehen, neue kommen dazu).
+    const vorhanden = document.getElementById('kdFileListVorhanden');
+    if (vorhanden) vorhanden.innerHTML = (k.dokumente || []).length
+        ? 'Bereits eingereicht: ' + k.dokumente.map(d =>
+            `<span style="display:inline-flex;align-items:center;gap:5px;background:#f1efe9;border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:2px 9px;margin:2px 6px 2px 0">📄 ${_kdEsc(d.name)}</span>`).join('')
+        : '';
+    const btn = document.getElementById('kdSubmitBtn');
+    if (btn) btn.textContent = '💾 Änderungen speichern';
+    const cancel = document.getElementById('kdCancelEditBtn');
+    if (cancel) cancel.style.display = '';
+    document.getElementById('kdVorname')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    showToast(`Bearbeiten: ${k.vorname} ${k.name} — Änderungen mit «Speichern» bestätigen.`, 'info');
 }
 
 // ── HR: Kandidaten prüfen (ONBOARDING-Kachel) ───────────────────────────
