@@ -90,6 +90,7 @@ async function openKandidatModal() {
     body.innerHTML = `
         <p style="margin:0 0 10px;color:#646464">Nach dem Vorstellungsgespräch: Kandidat/in an HR melden.
         HR prüft, entscheidet und meldet sich via Filial-Postfach zurück.</p>
+        <div id="kdEditBanner" style="display:none;background:#e0e7ff;border:1px solid #c7d2fe;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#3730a3"></div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Vorname
                 <input id="kdVorname" style="${_kdInp}"></label>
@@ -247,7 +248,10 @@ async function kdSubmit() {
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Senden fehlgeschlagen.', 'error'); return; }
-    showToast(_kdEditId ? 'Änderungen gespeichert.' : 'Kandidat an HR gesendet.', 'success');
+    const warEdit = !!_kdEditId;
+    showToast(warEdit
+        ? 'Änderungen gespeichert — HR sieht sofort den aktuellen Stand.'
+        : 'Kandidat an HR gesendet.', 'success');
     _kdFiles = [];
     _kdEditId = null;
     openKandidatModal();
@@ -308,11 +312,20 @@ function kdEdit(id) {
             `<span style="display:inline-flex;align-items:center;gap:5px;background:#f1efe9;border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:2px 9px;margin:2px 6px 2px 0">📄 ${_kdEsc(d.name)}</span>`).join('')
         : '';
     const btn = document.getElementById('kdSubmitBtn');
-    if (btn) btn.textContent = '💾 Änderungen speichern';
+    if (btn) btn.textContent = '💾 Änderungen an HR speichern';
     const cancel = document.getElementById('kdCancelEditBtn');
     if (cancel) cancel.style.display = '';
-    document.getElementById('kdVorname')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    showToast(`Bearbeiten: ${k.vorname} ${k.name} — Änderungen mit «Speichern» bestätigen.`, 'info');
+    // Unmissverständlicher Bearbeiten-Modus (Walter 11.08.2026): blauer
+    // Banner über dem Formular — sonst ist nicht erkennbar, ob man gerade
+    // einen NEUEN Kandidaten erfasst oder einen bestehenden ändert.
+    const banner = document.getElementById('kdEditBanner');
+    if (banner) {
+        banner.style.display = 'block';
+        banner.innerHTML = `✎ <b>Du bearbeitest: ${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b> — der Kandidat liegt bereits bei HR.
+            Angaben ändern und/oder Dokumente ergänzen, dann unten «💾 Änderungen an HR speichern».
+            Zum Erfassen eines NEUEN Kandidaten zuerst «Abbrechen» drücken.`;
+    }
+    document.getElementById('kdEditBanner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 // ── HR: Kandidaten prüfen (ONBOARDING-Kachel) ───────────────────────────
