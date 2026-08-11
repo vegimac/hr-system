@@ -572,7 +572,10 @@ function _kdObRow(t, r) {
             <div>${r.filiale ? `<span class="kd-chip kd-chip-kohle">${_kdEsc(r.filiale)}</span>` : ''}</div>
             <div><b>${_kdEsc(r.name)}</b></div>
             <div class="kd-dim" style="font-size:11.5px;white-space:nowrap">${r.telefon ? _kdEsc(r.telefon) : ''}</div>
-            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kdObChips(r)}</div>
+            <div style="display:grid;grid-template-columns:135px auto;gap:6px;align-items:center">
+                <span class="kd-dim" style="font-size:11.5px;white-space:nowrap">${r.buchungId && r.willkommenGesendetAm ? '📲 ' + _kdFmtTs(r.willkommenGesendetAm) : ''}</span>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kdObChips(r)}</div>
+            </div>
             <div style="display:flex;gap:8px;align-items:center;justify-self:end;flex-wrap:wrap">${aktionen}</div>
         </div>
         <div id="kdObMv${key}" style="display:none"></div>
@@ -621,7 +624,7 @@ function _kdObChips(r) {
     if (!r.buchungId) {
         c += chip('kd-chip-gelb', 'Willkommenstag-SMS offen');
     } else {
-        if (r.willkommenGesendetAm) c += `<span class="kd-dim" style="font-size:11.5px;white-space:nowrap">📲 ${_kdFmtTs(r.willkommenGesendetAm)}</span>`;
+        // 📲-Zeitstempel steht in der eigenen Unterspalte (_kdObRow) — hier nur Pillen.
         c += r.maAntwort === 'ANGENOMMEN'
             ? chip('kd-chip-gruen', '✓ Termin bestätigt')
             : chip('kd-chip-gelb', '⏳ unbestätigt');
