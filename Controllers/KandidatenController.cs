@@ -497,6 +497,29 @@ public class KandidatenController : ControllerBase
         return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id });
     }
 
+    /// <summary>
+    /// Entscheid zurücknehmen (Walter 11.08.2026): ANGENOMMEN → NEU jederzeit
+    /// (solange nicht verknüpft); ABGELEHNT → NEU nur solange die Absage noch
+    /// NICHT versendet wurde.
+    /// </summary>
+    [HttpPost("{id:int}/entscheid-zuruecknehmen")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> EntscheidZuruecknehmen(int id)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (k.Status == "ABGELEHNT" && k.AbsageGesendetAm != null)
+            return Conflict(new { error = "ABSAGE_GESENDET", message = "Die Absage wurde bereits versendet — der Entscheid kann nicht mehr zurückgenommen werden." });
+        if (k.Status != "ANGENOMMEN" && k.Status != "ABGELEHNT")
+            return Conflict(new { error = "STATUS_UNGUELTIG", message = $"Status «{k.Status}» kann nicht zurückgenommen werden." });
+        k.Status = "NEU";
+        k.Ablehnungsgrund = null;
+        k.DecidedAt = null;
+        k.DecidedBy = null;
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
     public class TerminDto
     {
         public int? TerminId { get; set; }

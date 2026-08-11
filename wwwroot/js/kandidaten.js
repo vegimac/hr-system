@@ -301,10 +301,12 @@ async function hrKandReload() {
                 die Anhänge wandern in seine Personalakte, der Kandidat wird gelöscht. Danach: Einladung
                 über den Onboarding-Kalender.
             </div>
-            <div style="margin-top:8px">
+            <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <button onclick="hrKandVorschlaege(${k.id})" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">🔗 Mit importiertem MA verknüpfen</button>
-                <div id="kdLink${k.id}" style="margin-top:6px"></div>
-            </div>`)).join('')
+                <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
+                        style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">↶ Entscheid zurücknehmen</button>
+            </div>
+            <div id="kdLink${k.id}" style="margin-top:6px"></div>`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Annahmen.</span>';
 
         // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
@@ -317,7 +319,9 @@ async function hrKandReload() {
                     ? `<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✓ Absage per ${k.absageKanal === 'EMAIL' ? 'E-Mail' : 'SMS'} gesendet ${_kdFmtTs(k.absageGesendetAm)}</span>`
                     : `${k.email ? `<button onclick="hrKandAbsage(${k.id}, 'EMAIL')" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">✉️ Absage per E-Mail</button>` : ''}
                        ${k.telefon ? `<button onclick="hrKandAbsage(${k.id}, 'SMS')" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">📱 Absage per SMS</button>` : ''}
-                       ${(!k.email && !k.telefon) ? '<span style="color:#991b1b;font-size:12px">Weder E-Mail noch Telefon erfasst — Absage bitte anders zustellen.</span>' : ''}`}
+                       ${(!k.email && !k.telefon) ? '<span style="color:#991b1b;font-size:12px">Weder E-Mail noch Telefon erfasst — Absage bitte anders zustellen.</span>' : ''}
+                       <button onclick="hrKandZuruecknehmen(${k.id})" title="Ablehnung zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
+                               style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">↶ Entscheid zurücknehmen</button>`}
                 <span style="color:#b0aca4;font-size:11px">wird 30 Tage nach dem Entscheid automatisch gelöscht</span>
             </div>
             ${_kdNotizHtml(k)}`)).join('')
@@ -355,6 +359,18 @@ async function hrKandNotiz(id) {
     });
     if (!r.ok) { showToast('Notiz speichern fehlgeschlagen.', 'error'); return; }
     showToast('Notiz gespeichert.', 'success');
+}
+
+// Entscheid zurücknehmen (Walter 11.08.2026): Kandidat zurück zu «Zu prüfen».
+async function hrKandZuruecknehmen(id) {
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm('Entscheid zurücknehmen? Der Kandidat steht danach wieder unter «Zu prüfen».', { title: 'Entscheid zurücknehmen' })) return;
+    const r = await fetch(`/api/kandidaten/${id}/entscheid-zuruecknehmen`, { method: 'POST', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Zurücknehmen fehlgeschlagen.', 'error'); return; }
+    showToast('Entscheid zurückgenommen.', 'success');
+    hrKandReload();
+    if (typeof hrKandBadge === 'function') hrKandBadge();
 }
 
 async function hrKandAbsage(id, kanal) {
