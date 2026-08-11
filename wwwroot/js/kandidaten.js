@@ -448,21 +448,37 @@ async function hrKandReload() {
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine unbearbeiteten Kandidaten. 🎉</span>';
 
         // ── 2) Angenommen: in easy erfassen → importieren → verknüpfen ──
-        html += titel(`Angenommen — in easy@work erfassen & importieren (${angenommen.length})`);
-        html += angenommen.length ? angenommen.map(k => card(`
+        html += titel(`Angenommen — Willkommenstag & Import (${angenommen.length})`);
+        html += angenommen.length ? angenommen.map(k => {
+            // Willkommenstag-Status (Walter 11.08.2026): SMS geht DIREKT an den
+            // Kandidaten — vor der easy@work-Erfassung.
+            let wkStatus = '';
+            if (k.willkommenGesendetAm) {
+                const antwort = k.willkommenAntwort === 'ANGENOMMEN'
+                    ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✓ Termin angenommen — fix gebucht</span>'
+                    : k.willkommenAntwort === 'ABGELEHNT'
+                        ? '<span style="background:#fecaca;color:#991b1b;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✕ Termin abgesagt — neu vereinbaren + erneut senden</span>'
+                        : '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">⏳ wartet auf Antwort</span>';
+                wkStatus = `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12.5px">
+                    <span>📲 Willkommenstag-SMS ${_kdFmtTs(k.willkommenGesendetAm)}</span>${antwort}</div>`;
+            }
+            return card(`
             ${_kdKopf(k)}${_kdDetails(k)}
+            ${wkStatus}
             <div style="margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:8px;font-size:12.5px;color:#3730a3">
-                <b>Nächste Schritte (HR):</b> 1. MA mit obigen Daten in <b>easy@work</b> erfassen ·
-                2. easy@work-Sync/Import nach OneCrew · 3. unten mit dem importierten MA verknüpfen —
-                die Anhänge wandern in seine Personalakte, der Kandidat wird gelöscht. Danach: Einladung
-                über den Onboarding-Kalender.
+                <b>Nächste Schritte (HR):</b> 1. Oben den Onboarding-Tag prüfen und <b>Willkommenstag-SMS senden</b> —
+                der Kandidat bestätigt den Termin direkt am Handy · 2. MA mit obigen Daten in <b>easy@work</b> erfassen ·
+                3. easy@work-Sync/Import nach OneCrew · 4. unten mit dem importierten MA verknüpfen — die Anhänge wandern
+                in seine Personalakte, die Termin-Buchung geht an den MA über · 5. Vertrags-SMS über «MA einladen».
             </div>
             <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <button onclick="hrKandVorschlaege(${k.id})" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">🔗 Mit importiertem MA verknüpfen</button>
+                <button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:12.5px;padding:6px 14px">📱 Willkommenstag-SMS ${k.willkommenGesendetAm ? 'erneut senden' : 'senden'}</button>
+                <button onclick="hrKandVorschlaege(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Mit importiertem MA verknüpfen</button>
                 <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
                         style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">↶ Entscheid zurücknehmen</button>
             </div>
-            <div id="kdLink${k.id}" style="margin-top:6px"></div>`)).join('')
+            <div id="kdLink${k.id}" style="margin-top:6px"></div>`);
+        }).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Annahmen.</span>';
 
         // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
@@ -515,6 +531,21 @@ async function hrKandNotiz(id) {
     });
     if (!r.ok) { showToast('Notiz speichern fehlgeschlagen.', 'error'); return; }
     showToast('Notiz gespeichert.', 'success');
+}
+
+// Willkommenstag-SMS an den Kandidaten (Walter 11.08.2026): Einladung mit
+// Bestätigungs-Link — VOR der easy@work-Erfassung.
+async function hrKandWillkommen(id) {
+    const k = _kdHrList.find(x => x.id === id);
+    if (k && !k.wunschTerminId) { showToast('Zuerst oben einen Onboarding-Tag wählen.', 'error'); return; }
+    if (k && !(k.telefon || '').trim()) { showToast('Für diesen Kandidaten ist keine Handynummer erfasst.', 'error'); return; }
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm(`Willkommenstag-SMS an ${k ? k.vorname + ' ' + k.name : 'den Kandidaten'} — ${k?.telefon || ''} — senden? Der Kandidat kann den Termin am Handy annehmen oder absagen.`, { title: 'Willkommenstag-Einladung' })) return;
+    const r = await fetch(`/api/kandidaten/${id}/willkommen-sms`, { method: 'POST', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Versand fehlgeschlagen.', 'error'); return; }
+    showToast(`Willkommenstag-SMS an ${j.to} gesendet.` + (j.redirectedTo ? ` (Test-Umleitung: ${j.redirectedTo})` : ''), 'success');
+    hrKandReload();
 }
 
 // Entscheid zurücknehmen (Walter 11.08.2026): Kandidat zurück zu «Zu prüfen».

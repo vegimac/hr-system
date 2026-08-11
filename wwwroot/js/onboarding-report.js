@@ -50,15 +50,32 @@ async function hrObInvReload() {
         <div id="hrObInvList" style="font-size:13px;color:#3f3f3f">Wird geladen…</div>`;
     const list = document.getElementById('hrObInvList');
     try {
-        // MA-Liste + Onboarding-Termine (für die Termin-Auswahl) parallel laden.
-        const [r, rt] = await Promise.all([
+        // MA-Liste + Onboarding-Termine + wartende Kandidaten parallel laden.
+        const [r, rt, rk] = await Promise.all([
             fetch(`/api/contract-share/onboarding-einladungen?year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() }),
             fetch('/api/kandidaten/termine', { headers: ah() }),
+            fetch('/api/kandidaten?status=ANGENOMMEN', { headers: ah() }),
         ]);
         const rows = await r.json();
         if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
         const termine = rt.ok ? await rt.json() : [];
-        if (!rows.length) { list.innerHTML = '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
+        // Hinweis (Walter 11.08.2026): angenommene Kandidaten sind hier noch
+        // NICHT einladbar — die Willkommens-SMS enthält den Vertrags-Link und
+        // braucht einen importierten MA. Sichtbar machen statt rätseln lassen.
+        let wartendHtml = '';
+        try {
+            const kand = rk.ok ? await rk.json() : [];
+            if (Array.isArray(kand) && kand.length) {
+                const namen = kand.map(k =>
+                    `<b>${_obEsc(k.vorname)} ${_obEsc(k.name)}</b> (${_obEsc(k.filiale)}${k.fruehesterEintritt ? ', Eintritt ab ' + _obFmt(k.fruehesterEintritt + ' 00:00').slice(0, 8) : ''})`).join(' · ');
+                wartendHtml = `
+                    <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:#854d0e">
+                        ⏳ <b>Noch nicht einladbar:</b> ${namen} — zuerst in easy@work erfassen, nach OneCrew importieren
+                        und unter «Kandidaten prüfen» verknüpfen. Danach erscheint der MA hier automatisch.
+                    </div>`;
+            }
+        } catch (_) { /* Hinweis ist nur Komfort */ }
+        if (!rows.length) { list.innerHTML = wartendHtml + '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
         // Tabellen-Grid mit festen Spalten (Walter 10.08.2026 «schöner anordnen»):
         // MA (Name + Eintritt·Filiale·Modell) | Einladung (Status) | Termin | Aktion.
         const gridCols = 'grid-template-columns:minmax(200px,1fr) minmax(150px,0.7fr) minmax(320px,360px) 150px';
@@ -90,7 +107,7 @@ async function hrObInvReload() {
                     : '<span style="grid-column:span 2;color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon hinterlegt</span>'}
             </div>`;
         }).join('');
-        list.innerHTML = `
+        list.innerHTML = wartendHtml + `
             <div style="display:grid;${gridCols};gap:12px;padding:4px 10px 6px;font-size:10.5px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#8b8b8b;border-bottom:2px solid rgba(60,55,48,0.14)">
                 <span>Mitarbeiter/in</span><span>Einladung</span><span>Onboarding-Termin</span><span></span>
             </div>${rowsHtml}`;

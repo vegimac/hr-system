@@ -1370,6 +1370,9 @@ public class AppDbContext : DbContext
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.VerknuepftEmployeeId).HasColumnName("verknuepft_employee_id");
             entity.Property(e => e.Notiz).HasColumnName("notiz");
+            entity.Property(e => e.WillkommenTokenHash).HasColumnName("willkommen_token_hash");
+            entity.Property(e => e.WillkommenGesendetAm).HasColumnName("willkommen_gesendet_am")
+                  .HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.Status);
         });
         modelBuilder.Entity<OnboardingWunsch>(entity =>
@@ -1439,6 +1442,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.MaAntwort).HasColumnName("ma_antwort");
             entity.Property(e => e.MaAntwortAm).HasColumnName("ma_antwort_am")
                   .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.KandidatId).HasColumnName("kandidat_id");
             entity.HasIndex(e => e.TerminId);
         });
         modelBuilder.Entity<InterviewTermin>(entity =>

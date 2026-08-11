@@ -196,17 +196,24 @@ public class ContractShareController : ControllerBase
         if (termin != null)
         {
             var maName = $"{b.Emp.FirstName} {b.Emp.LastName}".Trim();
-            _db.HrInterviewBuchungen.Add(new HrInterviewBuchung
-            {
-                TerminId = termin.Id,
-                Kandidat = maName,
-                Telefon = phone,
-                Bemerkung = "Onboarding-Einladung",
-                Status = "GEPLANT",
-                CreatedAt = DateTime.Now,
-                CreatedBy = "Onboarding-Einladung",
-                EmployeeId = b.Emp.Id,
-            });
+            // KEINE Doppel-Buchung (Walter 11.08.2026): hält der MA den Platz
+            // bereits (z.B. aus der Willkommenstag-SMS als Kandidat, beim
+            // Verknüpfen übergeben), bleibt die Buchung samt Bestätigungs-
+            // Status stehen — nur der Token zeigt zusätzlich auf den Termin.
+            var schonGebucht = await _db.HrInterviewBuchungen.AnyAsync(x =>
+                x.TerminId == termin.Id && x.Status == "GEPLANT" && x.EmployeeId == b.Emp.Id);
+            if (!schonGebucht)
+                _db.HrInterviewBuchungen.Add(new HrInterviewBuchung
+                {
+                    TerminId = termin.Id,
+                    Kandidat = maName,
+                    Telefon = phone,
+                    Bemerkung = "Onboarding-Einladung",
+                    Status = "GEPLANT",
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = "Onboarding-Einladung",
+                    EmployeeId = b.Emp.Id,
+                });
             var tokRow = await _db.ContractShareTokens.FirstOrDefaultAsync(x => x.Id == b.TokenId);
             if (tokRow != null) tokRow.OnboardingTerminId = termin.Id;
             // Wunschtermin ist damit eingelöst — Vormerkung entfernen.

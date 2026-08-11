@@ -1199,7 +1199,8 @@ using (var scope = app.Services.CreateScope())
           ('CareHeatNotice','Fürsorge-Hinweis','Kurzer Hinweis bei Hitze oder ähnlicher Belastung','care',6,true),
           ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true),
           ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true),
-          ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','Kurz-SMS + Link-Seite bei abgelaufener Bewilligung. SMS max. 160 Zeichen (Vorname); Mitteilung: Briefanrede, PermitCode, GueltigBis, SenderName','appreciation',9,true)
+          ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','Kurz-SMS + Link-Seite bei abgelaufener Bewilligung. SMS max. 160 Zeichen (Vorname); Mitteilung: Briefanrede, PermitCode, GueltigBis, SenderName','appreciation',9,true),
+          ('WILLKOMMENSTAG','Willkommenstag-Einladung','SMS an den KANDIDATEN mit Einladung zum Willkommenstag (Onboarding). Platzhalter: Vorname, Firma, Wochentag, Datum, Zeit, Link','appreciation',10,true)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;
@@ -1282,6 +1283,25 @@ using (var scope = app.Services.CreateScope())
                     Titel = "Arbeitsvertrag-Link",
                     SmsText = "Hallo {Vorname}, hier ist dein Arbeitsvertrag bei {Firma}: {Link}",
                     BodyText = "Vorlage für den SMS-Text des öffentlichen Vertrags-Links. Platzhalter: {Vorname}, {Firma}, {Link}, {GueltigBis}.",
+                    LanguageCode = "de", Version = "1.0", RequiresReview = false,
+                    IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+            }
+        }
+
+        // WILLKOMMENSTAG (Walter 11.08.2026): SMS an den KANDIDATEN mit der
+        // Einladung zum Willkommenstag — VOR der easy@work-Erfassung. Der Link
+        // führt auf /willkommen/{token} mit Annehmen/Absagen.
+        if (_mtTypeIds.TryGetValue("WILLKOMMENSTAG", out var _wtTypeId))
+        {
+            var _wtToneId = _mtToneIds.TryGetValue("Warm", out var _w) ? _w
+                          : db.MomentTones.OrderBy(t => t.SortOrder).ThenBy(t => t.Id).Select(t => t.Id).FirstOrDefault();
+            if (_wtToneId != 0 && !db.MomentTexts.Any(x => x.MomentTypeId == _wtTypeId))
+            {
+                db.MomentTexts.Add(new MomentText {
+                    MomentTypeId = _wtTypeId, MomentToneId = _wtToneId,
+                    Titel = "Willkommenstag-Einladung",
+                    SmsText = "Hallo {Vorname}, herzlich willkommen bei {Firma}! Dein Willkommenstag: {Wochentag}, {Datum} um {Zeit}. Bitte bestätige hier: {Link}",
+                    BodyText = "Vorlage für die Willkommenstag-SMS an den Kandidaten. Platzhalter: {Vorname}, {Firma}, {Wochentag}, {Datum}, {Zeit}, {Link}.",
                     LanguageCode = "de", Version = "1.0", RequiresReview = false,
                     IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
             }
@@ -2982,6 +3002,10 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS employee_id integer;
         ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS ma_antwort text;
         ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS ma_antwort_am timestamp without time zone;
+        -- Willkommenstag-SMS an den KANDIDATEN (Walter 11.08.2026).
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS kandidat_id integer;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS willkommen_token_hash text;
+        ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS willkommen_gesendet_am timestamp without time zone;
         -- Erst-Abruf der Onboarding-Dokumente über den Vertrags-Link (Walter 10.08.2026).
         CREATE TABLE IF NOT EXISTS contract_share_dok_abruf (
             id           serial PRIMARY KEY,

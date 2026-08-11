@@ -150,6 +150,9 @@ public class Kandidat
     public int? VerknuepftEmployeeId { get; set; }
     /// <summary>Freie HR-Notiz (z.B. «hat sich nach Absage nochmals gemeldet»).</summary>
     public string? Notiz { get; set; }
+    /// <summary>Willkommenstag-Einladung (Walter 11.08.2026): SHA-256-Hash des öffentlichen Links /willkommen/{token}.</summary>
+    public string? WillkommenTokenHash { get; set; }
+    public DateTime? WillkommenGesendetAm { get; set; }
 }
 
 /// <summary>
@@ -191,6 +194,8 @@ public class HrInterviewBuchung
     public string? CreatedBy { get; set; }
     /// <summary>MA hinter der Buchung (Walter 10.08.2026, gesetzt bei Onboarding-Einladung) — für Termin-Antwort + Umbuchen.</summary>
     public int? EmployeeId { get; set; }
+    /// <summary>Kandidat hinter der Buchung (Walter 11.08.2026, Willkommenstag-SMS vor easy@work-Erfassung).</summary>
+    public int? KandidatId { get; set; }
     /// <summary>Antwort des MA über den Vertrags-Link: ANGENOMMEN | ABGELEHNT (NULL = noch unbestätigt).</summary>
     public string? MaAntwort { get; set; }
     public DateTime? MaAntwortAm { get; set; }

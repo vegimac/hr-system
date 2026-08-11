@@ -265,6 +265,11 @@ public class KandidatenController : ControllerBase
         var terminIds = list.Where(k => k.WunschTerminId != null).Select(k => k.WunschTerminId!.Value).Distinct().ToList();
         var termine = await _db.HrInterviewTermine.AsNoTracking()
             .Where(t => terminIds.Contains(t.Id)).ToListAsync();
+        // Willkommenstag-Buchungen (Antwort-Status) pro Kandidat.
+        var wkBuchungen = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => b.KandidatId != null && kIds.Contains(b.KandidatId.Value))
+            .OrderByDescending(b => b.CreatedAt)
+            .ToListAsync();
 
         return Ok(list.Select(k =>
         {
@@ -295,6 +300,8 @@ public class KandidatenController : ControllerBase
                 filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
                 k.WunschTerminId,
                 wunschTermin = t == null ? null : $"{t.Datum:dd.MM.yyyy} {t.VonZeit:HH\\:mm}",
+                willkommenGesendetAm = k.WillkommenGesendetAm?.ToString("yyyy-MM-dd HH:mm"),
+                willkommenAntwort = wkBuchungen.FirstOrDefault(b => b.KandidatId == k.Id)?.MaAntwort,
                 dokumente = doks.Where(d => d.KandidatId == k.Id)
                     .Select(d => new { d.Id, name = d.OriginalFilename }),
             };
@@ -542,6 +549,13 @@ public class KandidatenController : ControllerBase
             uebernommen++;
         }
 
+        // Willkommenstag-Buchung an den MA übergeben (Walter 11.08.2026): die
+        // Buchung aus der Willkommenstag-SMS (inkl. Bestätigungs-Status)
+        // hängt danach am MA — die spätere Vertrags-SMS bucht nicht doppelt.
+        var kandBuchungen = await _db.HrInterviewBuchungen
+            .Where(b => b.KandidatId == k.Id).ToListAsync();
+        foreach (var b in kandBuchungen) b.EmployeeId = emp.Id;
+
         // Wunschtermin des GF an den MA übergeben (Walter 10.08.2026) — er
         // erscheint beim Einladen im Onboarding-Kalender.
         if (k.WunschTerminId != null)
@@ -618,8 +632,326 @@ public class KandidatenController : ControllerBase
                 return Conflict(new { error = "AUSGEBUCHT", message = "Der gewählte Termin ist ausgebucht." });
         }
         k.WunschTerminId = dto.TerminId;
+        // Läuft bereits eine Willkommenstag-Buchung, zieht sie mit um
+        // (Walter 11.08.2026) — neue Zeit = neue Bestätigung nötig.
+        var bu = await _db.HrInterviewBuchungen.FirstOrDefaultAsync(b => b.KandidatId == id && b.Status == "GEPLANT");
+        if (bu != null)
+        {
+            if (dto.TerminId == null)
+            {
+                bu.Status = "ABGESAGT"; // Termin entfernt → Platz frei
+            }
+            else if (bu.TerminId != dto.TerminId.Value)
+            {
+                bu.TerminId = dto.TerminId.Value;
+                bu.MaAntwort = null;
+                bu.MaAntwortAm = null;
+            }
+        }
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
+    }
+
+    // ══ Willkommenstag-SMS an den KANDIDATEN (Walter 11.08.2026) ═══════════
+    // Neuer Ablauf: die Einladung zum Willkommenstag geht DIREKT an den
+    // Kandidaten (VOR der easy@work-Erfassung). Eigener öffentlicher Link
+    // /willkommen/{token} mit Annehmen/Absagen; Annahme = fix gebucht + HR-
+    // Meldung, Absage = Platz frei + HR-Meldung. Die Vertrags-SMS (mit
+    // Vertrag + Dokumenten) folgt später separat nach dem Import.
+
+    private static string WkHash(string token) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
+
+    private static (string token, string hash) WkNewToken()
+    {
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(24);
+        var token = Convert.ToBase64String(bytes).Replace('+', '-').Replace('/', '_').TrimEnd('=');
+        return (token, WkHash(token));
+    }
+
+    private static readonly string[] WkWochentage =
+        { "Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag" };
+
+    [HttpPost("{id:int}/willkommen-sms")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> WillkommenSms(int id)
+    {
+        var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
+        if (k == null) return NotFound();
+        if (k.Status != "ANGENOMMEN")
+            return Conflict(new { error = "NICHT_ANGENOMMEN", message = "Die Willkommenstag-SMS gibt es erst nach der Annahme des Kandidaten." });
+        var tel = (k.Telefon ?? "").Trim();
+        if (tel.Length == 0)
+            return BadRequest(new { error = "KEIN_TELEFON", message = "Für diesen Kandidaten ist keine Handynummer erfasst." });
+        if (k.WunschTerminId == null)
+            return Conflict(new { error = "KEIN_TERMIN", message = "Zuerst oben einen Onboarding-Tag wählen." });
+        var termin = await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == k.WunschTerminId.Value);
+        if (termin == null) return NotFound(new { error = "TERMIN_FEHLT" });
+        if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
+            return Conflict(new { error = "TERMIN_VERGANGEN", message = "Der gewählte Termin liegt in der Vergangenheit." });
+
+        // Kapazität nur prüfen, wenn dieser Kandidat den Platz noch nicht hält.
+        var buchung = await _db.HrInterviewBuchungen.FirstOrDefaultAsync(b => b.KandidatId == k.Id && b.Status == "GEPLANT");
+        if (buchung == null || buchung.TerminId != termin.Id)
+        {
+            int belegt = await _db.HrInterviewBuchungen.CountAsync(b => b.TerminId == termin.Id && b.Status == "GEPLANT");
+            if (belegt >= termin.Plaetze)
+                return Conflict(new { error = "AUSGEBUCHT", message = "Der gewählte Termin ist ausgebucht." });
+        }
+
+        var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == k.CompanyProfileId);
+        var firma = cp?.FullDisplayName ?? "McDonald's";
+        var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
+        var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
+            ? siteRow.SiteUrl.Trim() : "https://onecrew.ch/";
+        var (token, hash) = WkNewToken();
+        var url = $"{baseUrl.TrimEnd('/')}/willkommen/{token}";
+
+        var wt = WkWochentage[(int)termin.Datum.DayOfWeek];
+        var zeit = termin.BisZeit.HasValue
+            ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
+            : $"{termin.VonZeit:HH\\:mm}";
+
+        // SMS-Text aus der pflegbaren Moments-Vorlage WILLKOMMENSTAG.
+        string smsText;
+        var tpl = await _db.MomentTexts
+            .Include(t => t.MomentType)
+            .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
+            .FirstOrDefaultAsync();
+        if (tpl != null && !string.IsNullOrWhiteSpace(tpl.SmsText))
+            smsText = tpl.SmsText
+                .Replace("{Vorname}", k.Vorname)
+                .Replace("{Firma}", firma)
+                .Replace("{Wochentag}", wt)
+                .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
+                .Replace("{Zeit}", zeit)
+                .Replace("{Link}", url);
+        else
+            smsText = $"Hallo {k.Vorname}, herzlich willkommen bei {firma}! Dein Willkommenstag: {wt}, {termin.Datum:dd.MM.yyyy} um {zeit}. Bitte bestätige hier: {url}";
+
+        var res = await _sms.SendSmsAsync(tel, smsText, purpose: "KANDIDAT_WILLKOMMEN");
+        if (!res.Ok)
+            return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
+
+        // Nach SMS-Erfolg: Platz buchen bzw. bestehende Buchung umziehen.
+        var maName = $"{k.Vorname} {k.Name}".Trim();
+        if (buchung == null)
+        {
+            _db.HrInterviewBuchungen.Add(new HrInterviewBuchung
+            {
+                TerminId = termin.Id,
+                Kandidat = maName,
+                Telefon = tel,
+                Bemerkung = "Willkommenstag-Einladung",
+                Status = "GEPLANT",
+                CreatedAt = DateTime.Now,
+                CreatedBy = "Willkommenstag-Einladung",
+                KandidatId = k.Id,
+            });
+        }
+        else
+        {
+            if (buchung.TerminId != termin.Id) { buchung.MaAntwort = null; buchung.MaAntwortAm = null; }
+            buchung.TerminId = termin.Id;
+            buchung.Kandidat = maName;
+            buchung.Telefon = tel;
+        }
+        k.WillkommenTokenHash = hash;
+        k.WillkommenGesendetAm = DateTime.Now;
+        await _db.SaveChangesAsync();
+
+        var redirect = await _db.EcallSettings.AsNoTracking()
+            .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
+        return Ok(new
+        {
+            ok = true,
+            to = tel,
+            redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
+        });
+    }
+
+    // ── Öffentliche Landing-Page /willkommen/{token} ───────────────────────
+    private static string WkHtml(string title, string inner) => $@"<!doctype html>
+<html lang='de'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='robots' content='noindex'>
+<title>{title}</title>
+<style>
+  body {{ margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f6f3ee; color:#3f3f3f; }}
+  .wrap {{ max-width:560px; margin:0 auto; padding:24px 16px; }}
+  .card {{ background:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.62);
+          border-radius:16px; padding:22px; box-shadow:0 8px 24px rgba(60,55,48,0.14); }}
+  h1 {{ font-size:20px; margin:0 0 12px; }}
+</style></head>
+<body><div class='wrap'><div class='card'>{inner}</div>
+<div style='text-align:center;color:#b0aca4;font-size:11px;margin-top:14px'>OneCrew · Schaub Restaurants</div>
+</div></body></html>";
+
+    [AllowAnonymous]
+    [HttpGet("/willkommen/{token}")]
+    public async Task<IActionResult> WillkommenLanding(string token)
+    {
+        var hash = WkHash(token);
+        var k = await _db.Kandidaten.AsNoTracking().FirstOrDefaultAsync(x => x.WillkommenTokenHash == hash);
+        if (k == null)
+            return Content(WkHtml("Link nicht gefunden", "<h1>Link nicht gefunden</h1><p>Dieser Einladungs-Link ist nicht mehr gültig.</p>"), "text/html; charset=utf-8");
+
+        var buchung = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => b.KandidatId == k.Id)
+            .OrderByDescending(b => b.CreatedAt)
+            .FirstOrDefaultAsync();
+        var terminId = buchung?.TerminId ?? k.WunschTerminId;
+        var termin = terminId == null ? null
+            : await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == terminId.Value);
+        var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == k.CompanyProfileId);
+        var firma = cp?.FullDisplayName ?? "McDonald's";
+        if (termin == null)
+            return Content(WkHtml("Willkommenstag", $"<h1>Herzlich willkommen bei {firma}!</h1><p>Dein Willkommenstag wird gerade geplant — das HR-Team meldet sich bei dir.</p>"), "text/html; charset=utf-8");
+
+        var wt = WkWochentage[(int)termin.Datum.DayOfWeek];
+        var zeit = termin.BisZeit.HasValue
+            ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
+            : $"{termin.VonZeit:HH\\:mm}";
+        var ort = string.IsNullOrWhiteSpace(cp?.City) ? "" : $" · {cp!.City}";
+        var terminBlock = $@"<div style='background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:16px'>
+            📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
+
+        string inner;
+        if (buchung?.MaAntwort == "ANGENOMMEN")
+            inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>{terminBlock}
+                <div style='background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:10px 12px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
+                <p style='margin-top:14px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:600'>In Kalender speichern</a></p>";
+        else if (buchung?.MaAntwort == "ABGELEHNT" || buchung?.Status == "ABGESAGT")
+            inner = $@"<h1>Willkommenstag abgesagt</h1>{terminBlock}
+                <div style='background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;color:#991b1b'>Du hast den Termin abgesagt. Das HR-Team meldet sich bei dir für einen neuen Termin.</div>";
+        else if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
+            inner = $@"<h1>Willkommenstag</h1>{terminBlock}<p>Dieser Termin liegt in der Vergangenheit — das HR-Team meldet sich bei dir.</p>";
+        else
+            inner = $@"<h1>Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!</h1>
+                <p>Wir laden dich zu deinem <b>Willkommenstag</b> (Onboarding) ein:</p>{terminBlock}
+                <p style='margin:4px 0 6px;color:#646464;font-size:14px'>Passt dir dieser Termin?</p>
+                <div id='tmAsk' style='display:flex;gap:10px;flex-wrap:wrap'>
+                    <form method='post' action='/willkommen/{token}/antwort' style='margin:0'>
+                        <input type='hidden' name='antwort' value='JA'>
+                        <button type='submit' style='background:#166534;color:#fff;border:none;border-radius:12px;padding:11px 20px;font-size:16px;font-weight:700;cursor:pointer'>✓ Termin annehmen</button>
+                    </form>
+                    <button type='button'
+                            onclick=""document.getElementById('tmAsk').style.display='none';document.getElementById('tmConfirm').style.display='block';""
+                            style='background:#fff;color:#991b1b;border:1px solid #fca5a5;border-radius:12px;padding:11px 20px;font-size:16px;font-weight:600;cursor:pointer'>✕ Termin absagen</button>
+                </div>
+                <div id='tmConfirm' style='display:none;margin-top:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:12px'>
+                    <div style='font-size:15px;font-weight:700;color:#9a3412;margin-bottom:8px'>Willkommenstag wirklich absagen?</div>
+                    <div style='font-size:13px;color:#646464;margin-bottom:10px'>Das HR-Team meldet sich dann bei dir für einen neuen Termin.</div>
+                    <div style='display:flex;gap:10px;flex-wrap:wrap'>
+                        <form method='post' action='/willkommen/{token}/antwort' style='margin:0'>
+                            <input type='hidden' name='antwort' value='NEIN'>
+                            <button type='submit' style='background:#991b1b;color:#fff;border:none;border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:700;cursor:pointer'>Ja, absagen</button>
+                        </form>
+                        <button type='button'
+                                onclick=""document.getElementById('tmConfirm').style.display='none';document.getElementById('tmAsk').style.display='flex';""
+                                style='background:#fff;color:#3f3f3f;border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:600;cursor:pointer'>Nein</button>
+                    </div>
+                </div>
+                <p style='margin-top:14px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:rgba(255,255,255,0.7);color:#3f3f3f;text-decoration:none;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:9px 16px;font-weight:600;font-size:14px'>In Kalender speichern</a></p>";
+
+        return Content(WkHtml("Dein Willkommenstag", inner), "text/html; charset=utf-8");
+    }
+
+    [AllowAnonymous]
+    [HttpPost("/willkommen/{token}/antwort")]
+    public async Task<IActionResult> WillkommenAntwort(string token, [FromForm] string? antwort)
+    {
+        var hash = WkHash(token);
+        var k = await _db.Kandidaten.AsNoTracking().FirstOrDefaultAsync(x => x.WillkommenTokenHash == hash);
+        if (k == null) return NotFound("Dieser Einladungs-Link ist nicht mehr gültig.");
+        var buchung = await _db.HrInterviewBuchungen
+            .Where(b => b.KandidatId == k.Id)
+            .OrderByDescending(b => b.CreatedAt)
+            .FirstOrDefaultAsync();
+        var termin = buchung == null ? null
+            : await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == buchung.TerminId);
+        if (buchung == null || termin == null
+            || buchung.MaAntwort != null || buchung.Status != "GEPLANT"
+            || termin.Datum < DateOnly.FromDateTime(DateTime.Now))
+            return Redirect($"/willkommen/{token}");
+
+        bool ja = string.Equals(antwort, "JA", StringComparison.OrdinalIgnoreCase);
+        buchung.MaAntwort = ja ? "ANGENOMMEN" : "ABGELEHNT";
+        buchung.MaAntwortAm = DateTime.Now;
+        if (!ja) buchung.Status = "ABGESAGT"; // Platz wird frei
+        await _db.SaveChangesAsync();
+
+        // Mitteilung ins HR-Postfach (best-effort NACH dem Commit).
+        try
+        {
+            var zeit = termin.BisZeit.HasValue
+                ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
+                : $"{termin.VonZeit:HH\\:mm}";
+            var text = ja
+                ? $"Kandidat/in {buchung.Kandidat} hat den Willkommenstag {termin.Datum:dd.MM.yyyy} · {zeit} Uhr BESTÄTIGT — fix gebucht."
+                : $"Kandidat/in {buchung.Kandidat} hat den Willkommenstag {termin.Datum:dd.MM.yyyy} · {zeit} Uhr ABGESAGT — bitte telefonisch einen neuen Termin vereinbaren (der Platz ist wieder frei).";
+            _db.MailboxDocuments.Add(new MailboxDocument
+            {
+                CompanyProfileId = k.CompanyProfileId,
+                UploadedBy = null,
+                UploadedAt = DateTime.Now,
+                OriginalFilename = $"Willkommenstag {(ja ? "bestätigt" : "abgesagt")} — {buchung.Kandidat}",
+                StorageFilename = $"msg-{Guid.NewGuid():N}",
+                MimeType = null,
+                FileSizeBytes = null,
+                Bemerkung = "Willkommenstag-Antwort",
+                MessageBody = text,
+                EmployeeId = null,
+                NotifyUserId = null,
+                TargetType = "HR",
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch { /* best-effort */ }
+
+        return Redirect($"/willkommen/{token}");
+    }
+
+    [AllowAnonymous]
+    [HttpGet("/willkommen/{token}/kalender.ics")]
+    public async Task<IActionResult> WillkommenKalender(string token)
+    {
+        var hash = WkHash(token);
+        var k = await _db.Kandidaten.AsNoTracking().FirstOrDefaultAsync(x => x.WillkommenTokenHash == hash);
+        if (k == null) return NotFound();
+        var buchung = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => b.KandidatId == k.Id)
+            .OrderByDescending(b => b.CreatedAt)
+            .FirstOrDefaultAsync();
+        var terminId = buchung?.TerminId ?? k.WunschTerminId;
+        var termin = terminId == null ? null
+            : await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == terminId.Value);
+        if (termin == null) return NotFound();
+        var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == k.CompanyProfileId);
+        var firma = cp?.FullDisplayName ?? "McDonald's";
+        var ort = cp?.City ?? "";
+
+        var start = termin.Datum.ToDateTime(termin.VonZeit);
+        var ende = termin.Datum.ToDateTime(termin.BisZeit ?? termin.VonZeit.AddHours(1));
+        string Ics(DateTime d) => d.ToString("yyyyMMdd'T'HHmmss");
+        var ics = string.Join("\r\n", new[]
+        {
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//OneCrew//Willkommenstag//DE",
+            "BEGIN:VEVENT",
+            $"UID:willkommen-{k.Id}@onecrew.ch",
+            $"DTSTAMP:{DateTime.UtcNow:yyyyMMdd'T'HHmmss'Z'}",
+            $"DTSTART;TZID=Europe/Zurich:{Ics(start)}",
+            $"DTEND;TZID=Europe/Zurich:{Ics(ende)}",
+            $"SUMMARY:Willkommenstag {firma}",
+            $"LOCATION:{firma}{(string.IsNullOrWhiteSpace(ort) ? "" : ", " + ort)}",
+            "DESCRIPTION:Dein Willkommenstag (Onboarding). Bitte pünktlich erscheinen — wir freuen uns auf dich!",
+            "END:VEVENT",
+            "END:VCALENDAR",
+        });
+        return File(System.Text.Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", "Willkommenstag.ics");
     }
 
     public class NotizDto
