@@ -352,10 +352,10 @@ function _kdKopf(k) {
     return `
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <b style="font-size:14px">${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
-            <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11.5px;color:#646464">${_kdEsc(k.filiale)}</span>
-            ${k.telefon ? `<span style="color:#646464;font-size:12px">📞 ${_kdEsc(k.telefon)}</span>` : ''}
-            ${k.email ? `<span style="color:#646464;font-size:12px">✉️ ${_kdEsc(k.email)}</span>` : ''}
-            <span style="color:#b0aca4;font-size:11px">eingereicht ${_kdFmtTs(k.createdAt)} von ${_kdEsc(k.createdBy || '')}</span>
+            <span class="kd-chip kd-chip-kohle">${_kdEsc(k.filiale)}</span>
+            ${k.telefon ? `<span class="kd-dim" style="font-size:12px">📞 ${_kdEsc(k.telefon)}</span>` : ''}
+            ${k.email ? `<span class="kd-dim" style="font-size:12px">✉️ ${_kdEsc(k.email)}</span>` : ''}
+            <span class="kd-dim" style="font-size:11px">eingereicht ${_kdFmtTs(k.createdAt)} von ${_kdEsc(k.createdBy || '')}</span>
         </div>`;
 }
 
@@ -434,21 +434,18 @@ async function hrKandReload() {
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
         const erledigt = list.filter(k => k.status === 'ERLEDIGT');
-        // Liquid-Glass-Look (Walter 11.08.2026): Glas-Karten mit weichem
-        // Schatten, Sektions-Titel als ruhige Uppercase-Zeile mit Zähler-Pille.
-        const card = (inner) => `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);border-radius:16px;padding:16px 18px;margin-bottom:12px;box-shadow:0 8px 24px rgba(60,55,48,0.10)">${inner}</div>`;
-        const titel = (t, n, farbe) => {
-            const [bg, fg] = farbe || ['#f1efe9', '#8b8b8b'];
-            return `<div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
-                <span style="font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;color:#8b8b8b;white-space:nowrap">${t}</span>
-                <span style="background:${bg};color:${fg};border-radius:10px;padding:1px 10px;font-size:11.5px;font-weight:800">${n}</span>
-                <span style="flex:1;height:1px;background:rgba(60,55,48,0.12)"></span>
+        // Karten im Stil des MA-Hauptbildschirms (.kd-day, dark-mode-fähig
+        // via app.css); Sektions-Titel als ruhige Uppercase-Zeile mit Pille.
+        const card = (inner) => `<div class="kd-day">${inner}</div>`;
+        const titel = (t, n, chipCls) => `<div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+                <span class="kd-sect">${t}</span>
+                <span class="kd-chip ${chipCls || 'kd-chip-grau'}">${n}</span>
+                <span class="kd-sect-line"></span>
             </div>`;
-        };
         let html = '';
 
         // ── 1) Zu prüfen ────────────────────────────────────────────────
-        html += titel('Zu prüfen', neu.length, neu.length ? ['#fef9c3', '#854d0e'] : null);
+        html += titel('Zu prüfen', neu.length, neu.length ? 'kd-chip-gelb' : null);
         html += neu.length ? neu.map(k => card(`
             ${_kdKopf(k)}${_kdDetails(k)}
             <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px;flex-wrap:wrap">
@@ -467,16 +464,17 @@ async function hrKandReload() {
         const obKandIds = new Set();
         obTage.forEach(t => (t.rows || []).forEach(rr => { if (rr.kandidatId) obKandIds.add(rr.kandidatId); }));
         const ohneTag = angenommen.filter(k => !k.wunschTerminId);
-        html += titel('Onboarding-Tage', obTage.length, obTage.length ? ['#dcfce7', '#166534'] : null);
+        html += titel('Onboarding-Tage', obTage.length, obTage.length ? 'kd-chip-gruen' : null);
         if (ohneTag.length) {
             html += card(`
-                <div style="font-weight:800;color:#854d0e;font-size:14.5px;margin-bottom:4px">⚠ Angenommen — noch ohne Onboarding-Tag</div>
+                <div class="kd-day-title" style="font-size:14.5px;margin-bottom:4px">⚠ Angenommen — noch ohne Onboarding-Tag</div>
                 ${ohneTag.map(k => `
-                <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1.2fr) auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(60,55,48,0.08)">
-                    <div><b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
-                        <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11px;color:#646464;margin-left:6px">${_kdEsc(k.filiale)}</span></div>
-                    <div><span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11.5px;font-weight:700">Onboarding-Tag wählen → Details</span></div>
-                    <a onclick="_kdObToggle('k${k.id}', ${k.id})" style="cursor:pointer;color:#1d4ed8;font-size:12px;font-weight:700;justify-self:end">Details ⌄</a>
+                <div class="kd-row" style="grid-template-columns:minmax(200px,1fr) minmax(200px,1.2fr) auto">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span class="kd-chip kd-chip-kohle">${_kdEsc(k.filiale)}</span>
+                        <b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b></div>
+                    <div><span class="kd-chip kd-chip-gelb">Onboarding-Tag wählen → Details</span></div>
+                    <a class="kd-link" onclick="_kdObToggle('k${k.id}', ${k.id})" style="font-size:12px;justify-self:end">Details ⌄</a>
                 </div>
                 <div id="kdObDetk${k.id}" style="display:none"></div>`).join('')}`);
         }
@@ -485,7 +483,7 @@ async function hrKandReload() {
             : (ohneTag.length ? '' : '<span style="color:#8b8b8b;font-size:12.5px">Keine Onboarding-Tage mit Teilnehmenden.</span>');
 
         // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
-        html += titel('Abgelehnt — Absage senden', abgelehnt.length, abgelehnt.length ? ['#fecaca', '#991b1b'] : null);
+        html += titel('Abgelehnt — Absage senden', abgelehnt.length, abgelehnt.length ? 'kd-chip-rot' : null);
         html += abgelehnt.length ? abgelehnt.map(k => card(`
             ${_kdKopf(k)}
             <div style="margin-top:4px;font-size:12.5px;color:#646464">Grund: ${_kdEsc(k.ablehnungsgrund || '–')}</div>
@@ -506,7 +504,7 @@ async function hrKandReload() {
         // Onboarding-Tag auftauchen (z.B. ohne Willkommenstag-Buchung) ──
         const erledigtRest = erledigt.filter(k => !obKandIds.has(k.id));
         if (erledigtRest.length) {
-            html += titel('Erledigt — ohne Onboarding-Tag', erledigtRest.length, ['#e0e7ff', '#3730a3']);
+            html += titel('Erledigt — ohne Onboarding-Tag', erledigtRest.length, 'kd-chip-indigo');
             html += erledigtRest.map(k => card(`
                 ${_kdKopf(k)}
                 <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
@@ -528,17 +526,20 @@ function _kdObTagInner(t) {
     const offen = (t.rows || []).filter(r => r.buchungId && !r.abgeschlossenAm).length;
     const header = `
         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
-            <div style="font-size:17px;font-weight:800;color:#3f3f3f">📅 ${wt}, ${_kdFmtD(t.datum)}</div>
-            <span style="color:#646464;font-size:13.5px">🕘 ${t.von}${t.bis ? '–' + t.bis : ''} Uhr</span>
-            <span style="background:#f1efe9;color:#646464;border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:700">${t.belegt}/${t.plaetze} Plätze</span>
-            ${t.bemerkung ? `<span style="color:#8b8b8b;font-size:12px">${_kdEsc(t.bemerkung)}</span>` : ''}
+            <div class="kd-day-title">📅 ${wt}, ${_kdFmtD(t.datum)}</div>
+            <span class="kd-dim" style="font-size:13.5px">🕘 ${t.von}${t.bis ? '–' + t.bis : ''} Uhr</span>
+            <span class="kd-chip kd-chip-grau">${t.belegt}/${t.plaetze} Plätze</span>
+            ${t.bemerkung ? `<span class="kd-dim" style="font-size:12px">${_kdEsc(t.bemerkung)}</span>` : ''}
             <span style="flex:1"></span>
             ${t.vergangen && offen
-                ? '<span style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:700">Tag vorbei — Abschluss bestätigen</span>'
+                ? '<span class="kd-chip kd-chip-orange">Tag vorbei — Abschluss bestätigen</span>'
                 : ''}
         </div>`;
-    const rows = (t.rows || []).length
-        ? t.rows.map(r => _kdObRow(t, r)).join('')
+    // Hauptsortierung Filiale, innerhalb der Filiale nach Vorname (Walter 11.08.2026).
+    const sortiert = (t.rows || []).slice().sort((a, b) =>
+        (a.filiale || '').localeCompare(b.filiale || '') || (a.name || '').localeCompare(b.name || ''));
+    const rows = sortiert.length
+        ? sortiert.map(r => _kdObRow(t, r)).join('')
         : '<div style="color:#8b8b8b;font-size:12.5px;padding:4px 2px">Noch niemand eingeladen.</div>';
     return header + rows;
 }
@@ -554,33 +555,72 @@ function _kdObRow(t, r) {
     }
     if (t.vergangen && r.buchungId && !r.abgeschlossenAm)
         aktionen += `<button onclick="hrKandObAbschliessen(${r.buchungId}, '${_kdEsc(r.name).replace(/'/g, '&#39;')}')" style="background:#166534;color:#fff;border:none;border-radius:10px;padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer">✓ Onboarding abschliessen</button>`;
+    // Onboarding-Tag verschieben — prominent direkt in der Zeile (Walter 11.08.2026).
+    if (!r.abgeschlossenAm && !t.vergangen && (r.kandidatId || r.buchungId))
+        aktionen += `<button class="kd-btn-glass" onclick="_kdObTagWechsel('${key}', ${r.kandidatId ?? 'null'}, ${r.buchungId ?? 'null'})" title="Person auf einen anderen Onboarding-Tag verschieben">⇄ Tag ändern</button>`;
     if (k)
-        aktionen += `<a onclick="_kdObToggle('${key}', ${k.id})" style="cursor:pointer;color:#1d4ed8;font-size:12px;font-weight:700">Details ⌄</a>`;
+        aktionen += `<a class="kd-link" onclick="_kdObToggle('${key}', ${k.id})" style="font-size:12px">Details ⌄</a>`;
     return `
-        <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(220px,1.3fr) auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(60,55,48,0.08)">
-            <div><b>${_kdEsc(r.name)}</b>
-                ${r.filiale ? `<span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11px;color:#646464;margin-left:6px">${_kdEsc(r.filiale)}</span>` : ''}
-                ${r.telefon ? `<span style="color:#8b8b8b;font-size:11.5px;margin-left:6px">${_kdEsc(r.telefon)}</span>` : ''}</div>
+        <div class="kd-row">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                ${r.filiale ? `<span class="kd-chip kd-chip-kohle">${_kdEsc(r.filiale)}</span>` : ''}
+                <b>${_kdEsc(r.name)}</b>
+                ${r.telefon ? `<span class="kd-dim" style="font-size:11.5px">${_kdEsc(r.telefon)}</span>` : ''}</div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kdObChips(r)}</div>
             <div style="display:flex;gap:8px;align-items:center;justify-self:end;flex-wrap:wrap">${aktionen}</div>
         </div>
+        <div id="kdObMv${key}" style="display:none"></div>
         <div id="kdObDet${key}" style="display:none"></div>`;
 }
 
+// Inline-Verschieber: Ziel-Tag wählen → Kandidat via Termin-Endpoint (zieht
+// Buchung + Wunschtermin mit), reine MA-Buchung via Kalender-Umbuchen.
+function _kdObTagWechsel(key, kandidatId, buchungId) {
+    const el = document.getElementById(`kdObMv${key}`);
+    if (!el) return;
+    if (el.style.display !== 'none') { el.style.display = 'none'; el.innerHTML = ''; return; }
+    const ziele = (_kdHrTermine || []).filter(t => t.frei > 0);
+    if (!ziele.length) { showToast('Kein anderer Termin mit freien Plätzen vorhanden.', 'error'); return; }
+    const opts = ziele.map(t =>
+        `<option value="${t.id}">${_kdFmtD(t.datum)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)</option>`).join('');
+    el.style.display = 'block';
+    el.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:8px 10px;margin:4px 0 8px">
+            <span style="font-size:12px;color:#646464;font-weight:600">Neuer Onboarding-Tag:</span>
+            <select id="kdObMvSel${key}" style="${_kdInp};padding:4px 8px;font-size:12px;min-width:230px">${opts}</select>
+            <button onclick="_kdObTagWechselSubmit('${key}', ${kandidatId ?? 'null'}, ${buchungId ?? 'null'})" style="${_kdBtnDark};font-size:12px;padding:5px 12px">Verschieben</button>
+            <button onclick="_kdObTagWechsel('${key}')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:5px 10px;font-size:12px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+            <span style="font-size:11px;color:#8b8b8b">Der Einladungs-Link zeigt danach den neuen Tag — die Person muss neu bestätigen.</span>
+        </div>`;
+}
+
+async function _kdObTagWechselSubmit(key, kandidatId, buchungId) {
+    const neuerTerminId = parseInt(document.getElementById(`kdObMvSel${key}`)?.value, 10);
+    if (!neuerTerminId) return;
+    if (kandidatId) { await hrKandTermin(kandidatId, String(neuerTerminId)); return; }
+    const r = await fetch(`/api/hr-interview/buchungen/${buchungId}/umbuchen`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ neuerTerminId }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Verschieben fehlgeschlagen.', 'error'); return; }
+    showToast('Auf den neuen Onboarding-Tag verschoben.', 'success');
+    hrKandReload();
+}
+
 function _kdObChips(r) {
-    const chip = (bg, fg, text) => `<span style="background:${bg};color:${fg};border-radius:8px;padding:2px 9px;font-size:11.5px;font-weight:700;white-space:nowrap">${text}</span>`;
+    const chip = (cls, text) => `<span class="kd-chip ${cls}">${text}</span>`;
     if (r.abgeschlossenAm)
-        return chip('#f1efe9', '#8b8b8b', `✓ Onboarding abgeschlossen ${_kdFmtTs(r.abgeschlossenAm)}`);
+        return chip('kd-chip-grau', `✓ Onboarding abgeschlossen ${_kdFmtTs(r.abgeschlossenAm)}`);
     let c = '';
     if (!r.buchungId) {
-        c += chip('#fef9c3', '#854d0e', 'Willkommenstag-SMS offen');
+        c += chip('kd-chip-gelb', 'Willkommenstag-SMS offen');
     } else {
-        if (r.willkommenGesendetAm) c += `<span style="color:#646464;font-size:11.5px;white-space:nowrap">📲 ${_kdFmtTs(r.willkommenGesendetAm)}</span>`;
+        if (r.willkommenGesendetAm) c += `<span class="kd-dim" style="font-size:11.5px;white-space:nowrap">📲 ${_kdFmtTs(r.willkommenGesendetAm)}</span>`;
         c += r.maAntwort === 'ANGENOMMEN'
-            ? chip('#dcfce7', '#166534', '✓ Termin bestätigt')
-            : chip('#fef9c3', '#854d0e', '⏳ unbestätigt');
+            ? chip('kd-chip-gruen', '✓ Termin bestätigt')
+            : chip('kd-chip-gelb', '⏳ unbestätigt');
     }
-    if (r.verknuepft) c += chip('#e0e7ff', '#3730a3', '✓ MA verknüpft');
+    if (r.verknuepft) c += chip('kd-chip-indigo', '✓ MA verknüpft');
     return c;
 }
 
