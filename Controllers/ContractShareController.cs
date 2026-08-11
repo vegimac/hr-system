@@ -162,7 +162,11 @@ public class ContractShareController : ControllerBase
             if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
                 return Conflict(new { error = "Der gewählte Onboarding-Termin liegt in der Vergangenheit." });
             int belegt = await _db.HrInterviewBuchungen.CountAsync(x => x.TerminId == termin.Id && x.Status == "GEPLANT");
-            if (belegt >= termin.Plaetze)
+            // Hält der MA den Platz bereits selbst (Willkommenstag-Buchung aus
+            // der Kandidaten-Phase), zählt «ausgebucht» nicht (Walter 11.08.2026).
+            bool haeltPlatz = dto.EmployeeId != null && await _db.HrInterviewBuchungen.AnyAsync(x =>
+                x.TerminId == termin.Id && x.Status == "GEPLANT" && x.EmployeeId == dto.EmployeeId.Value);
+            if (belegt >= termin.Plaetze && !haeltPlatz)
                 return Conflict(new { error = "Der gewählte Onboarding-Termin ist ausgebucht." });
         }
 
@@ -804,6 +808,17 @@ public class ContractShareController : ControllerBase
             .Where(t => wuensche.Select(w => w.TerminId).Contains(t.Id))
             .ToListAsync();
 
+        // Bereits fixe Willkommenstag-Buchungen (Walter 11.08.2026): kommt der
+        // MA aus der Kandidaten-Pipeline, ist der Termin schon über die
+        // Willkommenstag-SMS gebucht — dann zeigt die Vertrags-SMS-Maske nur
+        // noch den Status statt der Termin-Auswahl.
+        var buchungen = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => b.EmployeeId != null && ids.Contains(b.EmployeeId.Value) && b.Status == "GEPLANT")
+            .ToListAsync();
+        var buchungTermine = await _db.HrInterviewTermine.AsNoTracking()
+            .Where(t => buchungen.Select(b => b.TerminId).Contains(t.Id))
+            .ToListAsync();
+
         var rows = kandidaten
             .Where(k => neuester.TryGetValue(k.Id, out var v)
                      && (!companyProfileId.HasValue || v.CompanyProfileId == companyProfileId.Value))
@@ -816,6 +831,8 @@ public class ContractShareController : ControllerBase
                 var b = branches.FirstOrDefault(x => x.Id == v.CompanyProfileId);
                 var w = wuensche.FirstOrDefault(x => x.EmployeeId == k.Id);
                 var wt = w == null ? null : wunschTermine.FirstOrDefault(x => x.Id == w.TerminId);
+                var bu = buchungen.FirstOrDefault(x => x.EmployeeId == k.Id);
+                var but = bu == null ? null : buchungTermine.FirstOrDefault(x => x.Id == bu.TerminId);
                 return new
                 {
                     employeeId = k.Id,
@@ -826,6 +843,9 @@ public class ContractShareController : ControllerBase
                     filiale = b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName ?? "")),
                     wunschTerminId = wt?.Id,
                     wunschTermin = wt == null ? null : $"{wt.Datum:dd.MM.yyyy} {wt.VonZeit:HH\\:mm}",
+                    gebuchtTerminId = bu?.TerminId,
+                    gebuchtTermin = but == null ? null : $"{but.Datum:dd.MM.yyyy} · {but.VonZeit:HH\\:mm}{(but.BisZeit.HasValue ? "–" + but.BisZeit.Value.ToString("HH\\:mm") : "")}",
+                    gebuchtAntwort = bu?.MaAntwort,
                     gesendetAm = myTokens.Count == 0 ? null : myTokens.Max(t => t.CreatedAt).ToString("yyyy-MM-dd HH:mm"),
                     geoeffnetAm = myTokens.Where(t => t.OpenedAt != null).Select(t => t.OpenedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),
                     pdfAm = myTokens.Where(t => t.UsedAt != null).Select(t => t.UsedAt).Min()?.ToString("yyyy-MM-dd HH:mm"),

@@ -23,7 +23,7 @@ function _obFmt(ts) {
 // Restaurant wählen → alle MA mit Eintritt in der Zukunft → Vertrags-SMS
 // (inkl. Onboarding-Dokumente am Link) direkt auslösen.
 function hrObInvite() {
-    _ivModalShell('hrObInvModal', '🚀 Onboarding — MA einladen', 1180);
+    _ivModalShell('hrObInvModal', '📲 Vertrags-SMS senden — Vertrag + Dokumente', 1180);
     document.getElementById('hrObInvModal').style.display = 'flex';
     hrObInvReload();
 }
@@ -89,11 +89,24 @@ async function hrObInvReload() {
                     : '<span style="color:#b45309">👁 noch nicht geöffnet</span>'}</div>`;
             }
             const kannSms = !!(m.telefon && m.telefon.trim());
-            // Termin-Auswahl: freie Termine; Wunschtermin des GF vorausgewählt.
-            const terminOpts = ['<option value="">— ohne Termin —</option>']
-                .concat(termine.filter(t => t.frei > 0 || t.id === m.wunschTerminId).map(t =>
-                    `<option value="${t.id}"${t.id === m.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === m.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
-                .join('');
+            // Termin-Zelle (Walter 11.08.2026): ist der Willkommenstag bereits
+            // über die Kandidaten-SMS gebucht, nur den Status zeigen (kein
+            // Select) — der Vertrags-Link übernimmt den gebuchten Termin.
+            let terminZelle;
+            if (m.gebuchtTermin) {
+                const badge = m.gebuchtAntwort === 'ANGENOMMEN'
+                    ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">✓ bestätigt</span>'
+                    : '<span style="background:#f1efe9;color:#8b8b8b;border-radius:8px;padding:1px 8px;font-size:11px">⏳ unbestätigt</span>';
+                terminZelle = `<div style="font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    <input type="hidden" id="kdInvTermin${m.employeeId}" value="${m.gebuchtTerminId}">
+                    <span>📅 ${_obEsc(m.gebuchtTermin)}</span>${badge}</div>`;
+            } else {
+                const terminOpts = ['<option value="">— ohne Termin —</option>']
+                    .concat(termine.filter(t => t.frei > 0 || t.id === m.wunschTerminId).map(t =>
+                        `<option value="${t.id}"${t.id === m.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === m.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
+                    .join('');
+                terminZelle = `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;width:100%">${terminOpts}</select>`;
+            }
             return `
             <div style="display:grid;${gridCols};gap:12px;align-items:center;padding:9px 10px;border-bottom:1px solid rgba(60,55,48,0.08);${i % 2 ? 'background:rgba(255,255,255,0.45);' : ''}">
                 <div>
@@ -102,8 +115,8 @@ async function hrObInvReload() {
                 </div>
                 <div style="font-size:12px">${status}</div>
                 ${kannSms
-                    ? `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;width:100%">${terminOpts}</select>
-                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:${m.gesendetAm ? 'rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22)' : '#3f3f3f;color:#fff;border:none'};border-radius:12px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${m.gesendetAm ? '📱 Erneut senden' : '📱 Einladen'}</button>`
+                    ? `<div>${terminZelle}</div>
+                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:${m.gesendetAm ? 'rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22)' : '#3f3f3f;color:#fff;border:none'};border-radius:12px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${m.gesendetAm ? '📱 Erneut senden' : '📱 Vertrag senden'}</button>`
                     : '<span style="grid-column:span 2;color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon hinterlegt</span>'}
             </div>`;
         }).join('');
@@ -117,7 +130,12 @@ async function hrObInvReload() {
 async function hrObInvSend(employeeId, name, telefon) {
     const terminSel = document.getElementById(`kdInvTermin${employeeId}`);
     const terminId = terminSel && terminSel.value ? parseInt(terminSel.value, 10) : null;
-    const terminTxt = terminId ? ` — inkl. Onboarding-Termin ${terminSel.options[terminSel.selectedIndex].text.replace(/ \(\d+ frei\).*/, '')}` : '';
+    // Hidden-Input (bereits gebuchter Willkommenstag) hat keine options.
+    const terminTxt = terminId
+        ? (terminSel.options
+            ? ` — inkl. Onboarding-Termin ${terminSel.options[terminSel.selectedIndex].text.replace(/ \(\d+ frei\).*/, '')}`
+            : ' — der Link zeigt den bereits gebuchten Willkommenstag')
+        : '';
     if (typeof liquidConfirm === 'function'
         && !await liquidConfirm(`Vertrags-SMS (inkl. Onboarding-Dokumente am Link) an ${name} — ${telefon} — senden?${terminTxt}`, { title: 'Onboarding-Einladung' })) return;
     const r = await fetch('/api/contract-share/send', {
