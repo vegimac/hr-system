@@ -40,7 +40,7 @@ function _ivModalShell(id, titel, maxWidth) {
     div.id = id;
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center;padding:16px';
     div.innerHTML = `
-    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:${maxWidth || 620}px;width:96%;max-height:92vh;overflow-y:auto;padding:22px 24px">
+    <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:${maxWidth || 620}px;width:96%;max-height:92vh;overflow-y:auto;padding:22px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">${titel}</div>
             <button type="button" onclick="document.getElementById('${id}').style.display='none'" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>

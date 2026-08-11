@@ -129,6 +129,7 @@
         /* Karten: opaker Innen-Verlauf + klarer Rim — kein Blur */
         body.theme-dark .dlg-rim,
         body.theme-dark .kd-day,
+        body.theme-dark .iv-modal-box,
         body.theme-dark .card,
         body.theme-dark .emp-detail-panel,
         body.theme-dark .emp-list,
@@ -11038,8 +11039,11 @@ body.theme-dark .dp-cell { color:#e8edf4; }
    Tages-Karten im Stil des MA-Hauptbildschirms + Dark-Mode-taugliche
    Status-Pillen. Die Dark-Karten-Optik kommt über die zentrale
    body.theme-dark .kd-day-Regel (Selektor-Liste oben). */
-.kd-day { background:#fbfaf7; border:1px solid rgba(60,55,48,0.12); border-radius:16px;
-          padding:16px 18px; margin-bottom:12px; box-shadow:0 4px 16px rgba(60,55,48,0.08); }
+/* Onboarding-Modals: warmer Verlauf wie die MA-Maske (Walter 11.08.2026). */
+.iv-modal-box { background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%); }
+.kd-day { background:rgba(255,255,255,0.48); border:1px solid rgba(255,255,255,0.70); border-radius:16px;
+          padding:16px 18px; margin-bottom:12px;
+          box-shadow:0 10px 30px rgba(70,64,55,0.12), inset 0 1px 0 rgba(255,255,255,0.58); }
 .kd-day-title { font-size:17px; font-weight:800; color:#3f3f3f; }
 .kd-dim { color:#8b8b8b; }
 .kd-link { color:#1d4ed8; cursor:pointer; font-weight:700; }
