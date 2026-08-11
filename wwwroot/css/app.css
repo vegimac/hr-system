@@ -11050,10 +11050,10 @@ body.theme-dark .dp-cell { color:#e8edf4; }
 .kd-sect { font-size:11px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase;
            color:#8b8b8b; white-space:nowrap; }
 .kd-sect-line { flex:1; height:1px; background:rgba(60,55,48,0.12); }
-/* Feste Spalten (Walter 11.08.2026): Filiale | Name | Telefon | Zustand | Aktionen
-   — dieselben Spaltenbreiten in allen Tages-Karten, damit alles sauber
-   untereinander steht. */
-.kd-row { display:grid; grid-template-columns:112px minmax(150px,0.8fr) 140px minmax(240px,1.3fr) auto;
+/* Feste Spalten (Walter 11.08.2026): Filiale | Name | Telefon | Zustand | Aktionen.
+   ALLE Info-Spalten haben FIXE Breiten (kein fr vor den Aktionen) — sonst
+   verschieben unterschiedlich breite Aktions-Blöcke die Spalten pro Zeile. */
+.kd-row { display:grid; grid-template-columns:112px 230px 150px 380px 1fr;
           gap:10px; align-items:center; padding:7px 4px; border-top:1px solid rgba(60,55,48,0.08); }
 .kd-chip { display:inline-block; border-radius:8px; padding:2px 9px; font-size:11.5px;
            font-weight:700; white-space:nowrap; }
