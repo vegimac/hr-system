@@ -112,7 +112,9 @@ async function openKandidatModal() {
         </div>
         <div style="margin-top:10px">
             <button onclick="document.getElementById('kdFiles').click()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f">📎 Dokumente anhängen</button>
+            <button onclick="kdPfOpen()" title="Dokument aus dem Filial-Posteingang übernehmen (z.B. gescannte Bewerbungsunterlagen)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;cursor:pointer;color:#3f3f3f;margin-left:6px">📥 Aus Posteingang</button>
             <input type="file" id="kdFiles" accept="application/pdf,image/*" multiple style="display:none" onchange="kdFilesPicked(this.files)">
+            <div id="kdPfPicker" style="display:none;margin-top:8px;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;max-height:220px;overflow:auto;font-size:12.5px"></div>
             <div id="kdFileListVorhanden" style="font-size:12px;color:#646464;margin-top:6px"></div>
             <div id="kdFileList" style="font-size:12px;color:#646464;margin-top:6px"></div>
         </div>
@@ -149,6 +151,45 @@ function kdFilesRender() {
 function kdFileRemove(i) {
     _kdFiles.splice(i, 1);
     kdFilesRender();
+}
+
+// ── Dokumente aus dem Filial-Posteingang übernehmen (Walter 11.08.2026) ──
+// Die Datei wird heruntergeladen und wie ein lokaler Anhang mitgeschickt —
+// das Original bleibt unverändert im Posteingang.
+async function kdPfOpen() {
+    const el = document.getElementById('kdPfPicker');
+    if (!el) return;
+    if (el.style.display !== 'none') { el.style.display = 'none'; return; }
+    const cpId = document.getElementById('kdCp')?.value;
+    if (!cpId) { showToast('Zuerst ein Restaurant wählen.', 'error'); return; }
+    el.style.display = 'block';
+    el.innerHTML = '<span style="color:#8b8b8b">Posteingang wird geladen…</span>';
+    try {
+        const r = await fetch(`/api/mailbox?type=BRANCH&companyProfileId=${cpId}`, { headers: ah() });
+        const list = await r.json();
+        if (!r.ok) { el.innerHTML = 'Laden fehlgeschlagen.'; return; }
+        const files = (Array.isArray(list) ? list : []).filter(m => m.mimeType && !m.messageBody).slice(0, 40);
+        if (!files.length) { el.innerHTML = '<span style="color:#8b8b8b">Keine Dateien im Filial-Posteingang.</span>'; return; }
+        el.innerHTML = `<div style="font-weight:700;margin-bottom:4px;color:#3f3f3f">Filial-Posteingang — Datei anklicken zum Übernehmen</div>` + files.map(m => `
+            <div style="display:flex;align-items:center;gap:8px;padding:3px 2px;border-bottom:1px solid rgba(60,55,48,0.07)">
+                <a onclick="kdPfAdd(${m.id}, '${_kdEsc(m.originalFilename).replace(/'/g, '&#39;')}')" style="cursor:pointer;color:#1d4ed8;text-decoration:underline">📄 ${_kdEsc(m.originalFilename)}</a>
+                <span style="color:#b0aca4;font-size:11px">${_kdFmtTs((m.uploadedAt || '').slice(0, 16).replace('T', ' '))}</span>
+                ${m.bemerkung ? `<span style="color:#8b8b8b;font-size:11px">· ${_kdEsc(m.bemerkung)}</span>` : ''}
+            </div>`).join('');
+    } catch (_) { el.innerHTML = 'Verbindungsfehler.'; }
+}
+
+async function kdPfAdd(id, name) {
+    try {
+        const r = await fetch(`/api/mailbox/${id}/download`, { headers: ah() });
+        if (!r.ok) { showToast('Datei konnte nicht geladen werden.', 'error'); return; }
+        const blob = await r.blob();
+        const f = new File([blob], name || 'dokument', { type: blob.type || 'application/octet-stream' });
+        if (_kdFiles.some(x => x.name === f.name && x.size === f.size)) { showToast('Datei ist bereits angehängt.', 'error'); return; }
+        _kdFiles.push(f);
+        kdFilesRender();
+        showToast(`«${name}» aus dem Posteingang übernommen.`, 'success');
+    } catch (_) { showToast('Datei konnte nicht geladen werden.', 'error'); }
 }
 
 async function kdSubmit() {
