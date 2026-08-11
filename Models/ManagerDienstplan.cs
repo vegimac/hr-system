@@ -196,6 +196,9 @@ public class HrInterviewBuchung
     public int? EmployeeId { get; set; }
     /// <summary>Kandidat hinter der Buchung (Walter 11.08.2026, Willkommenstag-SMS vor easy@work-Erfassung).</summary>
     public int? KandidatId { get; set; }
+    /// <summary>Onboarding-Abschluss (Walter 11.08.2026): HR bestätigt nach dem Willkommenstag — der MA läuft danach regulär.</summary>
+    public DateTime? OnboardingAbgeschlossenAm { get; set; }
+    public string? OnboardingAbgeschlossenVon { get; set; }
     /// <summary>Antwort des MA über den Vertrags-Link: ANGENOMMEN | ABGELEHNT (NULL = noch unbestätigt).</summary>
     public string? MaAntwort { get; set; }
     public DateTime? MaAntwortAm { get; set; }

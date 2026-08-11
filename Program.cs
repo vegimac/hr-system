@@ -3006,6 +3006,9 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS kandidat_id integer;
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS willkommen_token_hash text;
         ALTER TABLE kandidat ADD COLUMN IF NOT EXISTS willkommen_gesendet_am timestamp without time zone;
+        -- Onboarding-Abschluss nach dem Willkommenstag (Walter 11.08.2026).
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS onboarding_abgeschlossen_am timestamp without time zone;
+        ALTER TABLE hr_interview_buchung ADD COLUMN IF NOT EXISTS onboarding_abgeschlossen_von text;
         -- Erst-Abruf der Onboarding-Dokumente über den Vertrags-Link (Walter 10.08.2026).
         CREATE TABLE IF NOT EXISTS contract_share_dok_abruf (
             id           serial PRIMARY KEY,

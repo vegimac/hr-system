@@ -954,6 +954,164 @@ public class KandidatenController : ControllerBase
         return File(System.Text.Encoding.UTF8.GetBytes(ics), "text/calendar; charset=utf-8", "Willkommenstag.ics");
     }
 
+    // ══ Onboarding-Übersicht pro Tag + Abschluss (Walter 11.08.2026) ═══════
+    // Die Kandidaten/MA werden pro Onboarding-Tag gruppiert angezeigt; nach
+    // dem Tag bestätigt HR pro Person «Onboarding abgeschlossen» — der GF
+    // bekommt die Meldung ins Filial-Postfach, die Person läuft danach als
+    // normaler MA weiter.
+
+    [HttpGet("onboarding-tage")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> OnboardingTage()
+    {
+        var von = DateOnly.FromDateTime(DateTime.Now).AddDays(-30);
+        var termine = await _db.HrInterviewTermine.AsNoTracking()
+            .Where(t => t.Datum >= von)
+            .OrderBy(t => t.Datum).ThenBy(t => t.VonZeit)
+            .ToListAsync();
+        var tIds = termine.Select(t => t.Id).ToList();
+        var buchungen = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => tIds.Contains(b.TerminId) && b.Status == "GEPLANT")
+            .OrderBy(b => b.Kandidat)
+            .ToListAsync();
+
+        // Kandidaten-Zusatzinfos (SMS-Zeitpunkt, Status, Filiale).
+        var kandIds = buchungen.Where(b => b.KandidatId != null).Select(b => b.KandidatId!.Value).Distinct().ToList();
+        var kandidaten = await _db.Kandidaten.AsNoTracking()
+            .Where(k => kandIds.Contains(k.Id) || (k.Status == "ANGENOMMEN" && k.WunschTerminId != null))
+            .ToListAsync();
+        // Filialen der MA-Zeilen (neuester Vertrag).
+        var empIds = buchungen.Where(b => b.EmployeeId != null).Select(b => b.EmployeeId!.Value).Distinct().ToList();
+        var empCps = (await _db.Employments.AsNoTracking()
+                .Where(em => empIds.Contains(em.EmployeeId) && em.CompanyProfileId != null)
+                .Select(em => new { em.EmployeeId, em.CompanyProfileId, em.ContractStartDate })
+                .ToListAsync())
+            .GroupBy(x => x.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(x => x.ContractStartDate).First().CompanyProfileId);
+        var branches = await _db.CompanyProfiles.AsNoTracking()
+            .Select(c => new { c.Id, c.WorkLocation, c.City, c.BranchName })
+            .ToListAsync();
+        string BranchName(int? cpId)
+        {
+            var b = branches.FirstOrDefault(x => x.Id == cpId);
+            return b == null ? "" : (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation! : (b.City ?? b.BranchName ?? ""));
+        }
+
+        var result = termine.Select(t =>
+        {
+            var rows = new List<object>();
+            foreach (var b in buchungen.Where(x => x.TerminId == t.Id))
+            {
+                var k = b.KandidatId == null ? null : kandidaten.FirstOrDefault(x => x.Id == b.KandidatId.Value);
+                var cpId = k?.CompanyProfileId ?? (b.EmployeeId != null && empCps.TryGetValue(b.EmployeeId.Value, out var c) ? c : null);
+                rows.Add(new
+                {
+                    buchungId = b.Id,
+                    kandidatId = b.KandidatId,
+                    employeeId = b.EmployeeId,
+                    name = b.Kandidat,
+                    telefon = b.Telefon,
+                    filiale = BranchName(cpId),
+                    b.MaAntwort,
+                    verknuepft = b.EmployeeId != null,
+                    willkommenGesendetAm = k?.WillkommenGesendetAm?.ToString("yyyy-MM-dd HH:mm"),
+                    abgeschlossenAm = b.OnboardingAbgeschlossenAm?.ToString("yyyy-MM-dd HH:mm"),
+                    abgeschlossenVon = b.OnboardingAbgeschlossenVon,
+                });
+            }
+            // Angenommene Kandidaten mit diesem Wunschtermin, aber noch OHNE
+            // Buchung (SMS noch nicht gesendet) — als «SMS offen»-Zeile zeigen.
+            foreach (var k in kandidaten.Where(x => x.Status == "ANGENOMMEN" && x.WunschTerminId == t.Id
+                                                    && !buchungen.Any(b => b.KandidatId == x.Id)))
+            {
+                rows.Add(new
+                {
+                    buchungId = (int?)null,
+                    kandidatId = (int?)k.Id,
+                    employeeId = (int?)null,
+                    name = $"{k.Vorname} {k.Name}".Trim(),
+                    telefon = k.Telefon,
+                    filiale = BranchName(k.CompanyProfileId),
+                    MaAntwort = (string?)null,
+                    verknuepft = false,
+                    willkommenGesendetAm = (string?)null,
+                    abgeschlossenAm = (string?)null,
+                    abgeschlossenVon = (string?)null,
+                });
+            }
+            return new
+            {
+                t.Id,
+                datum = t.Datum.ToString("yyyy-MM-dd"),
+                von = t.VonZeit.ToString("HH:mm"),
+                bis = t.BisZeit?.ToString("HH:mm"),
+                t.Plaetze,
+                t.Bemerkung,
+                belegt = buchungen.Count(x => x.TerminId == t.Id),
+                vergangen = t.Datum <= DateOnly.FromDateTime(DateTime.Now),
+                rows,
+            };
+        })
+        .Where(x => x.rows.Count > 0 || !x.vergangen)
+        .ToList();
+        return Ok(result);
+    }
+
+    [HttpPost("onboarding-abschliessen/{buchungId:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> OnboardingAbschliessen(int buchungId)
+    {
+        var b = await _db.HrInterviewBuchungen.FirstOrDefaultAsync(x => x.Id == buchungId);
+        if (b == null) return NotFound();
+        if (b.OnboardingAbgeschlossenAm != null)
+            return Conflict(new { error = "BEREITS_ABGESCHLOSSEN" });
+        var termin = await _db.HrInterviewTermine.AsNoTracking().FirstOrDefaultAsync(t => t.Id == b.TerminId);
+        if (termin == null) return NotFound(new { error = "TERMIN_FEHLT" });
+        if (termin.Datum > DateOnly.FromDateTime(DateTime.Now))
+            return Conflict(new { error = "TERMIN_ZUKUNFT", message = "Der Willkommenstag liegt noch in der Zukunft — Abschluss erst danach." });
+
+        var actor = await ActorNameAsync();
+        b.OnboardingAbgeschlossenAm = DateTime.Now;
+        b.OnboardingAbgeschlossenVon = actor;
+
+        // Filiale bestimmen: Kandidat → dessen Filiale; sonst neuester Vertrag des MA.
+        int? cpId = null;
+        if (b.KandidatId != null)
+            cpId = await _db.Kandidaten.AsNoTracking()
+                .Where(k => k.Id == b.KandidatId.Value).Select(k => (int?)k.CompanyProfileId).FirstOrDefaultAsync();
+        if (cpId == null && b.EmployeeId != null)
+            cpId = await _db.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == b.EmployeeId.Value && em.CompanyProfileId != null)
+                .OrderByDescending(em => em.ContractStartDate)
+                .Select(em => em.CompanyProfileId).FirstOrDefaultAsync();
+        cpId ??= await _db.CompanyProfiles.AsNoTracking().OrderBy(c => c.Id).Select(c => c.Id).FirstAsync();
+        await _db.SaveChangesAsync();
+
+        // Meldung an den GF ins Filial-Postfach (best-effort NACH dem Commit).
+        try
+        {
+            _db.MailboxDocuments.Add(new MailboxDocument
+            {
+                CompanyProfileId = cpId.Value,
+                UploadedBy = UserId(),
+                UploadedAt = DateTime.Now,
+                OriginalFilename = $"Onboarding abgeschlossen — {b.Kandidat}",
+                StorageFilename = $"msg-{Guid.NewGuid():N}",
+                MimeType = null,
+                FileSizeBytes = null,
+                Bemerkung = "Onboarding-Abschluss",
+                MessageBody = $"Onboarding abgeschlossen: {b.Kandidat} hat den Willkommenstag vom {termin.Datum:dd.MM.yyyy} absolviert. Der/die Mitarbeitende läuft ab jetzt regulär.",
+                EmployeeId = null,
+                NotifyUserId = null,
+                TargetType = "BRANCH",
+            });
+            await _db.SaveChangesAsync();
+        }
+        catch { /* best-effort */ }
+
+        return Ok(new { ok = true });
+    }
+
     public class NotizDto
     {
         public string? Notiz { get; set; }

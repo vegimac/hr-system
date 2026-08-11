@@ -413,20 +413,23 @@ async function hrKandTermin(id, val) {
 
 let _kdHrList = [];    // letzte HR-Liste (für die Dokument-Zuordnung beim Verknüpfen)
 let _kdHrTermine = []; // Onboarding-Termine (für den Onboarding-Tag-Select in den Karten)
+let _kdObTage = [];    // Onboarding-Tage mit Teilnehmenden (Tages-Gruppierung)
 
 async function hrKandReload() {
     const body = document.getElementById('hrKandModalBody');
     if (!body) return;
     body.innerHTML = '<span style="color:#8b8b8b">Wird geladen…</span>';
     try {
-        const [r, rt] = await Promise.all([
+        const [r, rt, rob] = await Promise.all([
             fetch('/api/kandidaten', { headers: ah() }),
             fetch('/api/kandidaten/termine', { headers: ah() }),
+            fetch('/api/kandidaten/onboarding-tage', { headers: ah() }),
         ]);
         const list = await r.json();
         if (!r.ok) { body.innerHTML = 'Laden fehlgeschlagen.'; return; }
         _kdHrList = list;
         _kdHrTermine = rt.ok ? await rt.json() : [];
+        _kdObTage = rob.ok ? await rob.json() : [];
         const neu = list.filter(k => k.status === 'NEU');
         const angenommen = list.filter(k => k.status === 'ANGENOMMEN');
         const abgelehnt = list.filter(k => k.status === 'ABGELEHNT');
@@ -456,54 +459,30 @@ async function hrKandReload() {
             </div>`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine unbearbeiteten Kandidaten. 🎉</span>';
 
-        // ── 2) Angenommen: in easy erfassen → importieren → verknüpfen ──
-        html += titel('Angenommen — Willkommenstag & Import', angenommen.length, angenommen.length ? ['#dcfce7', '#166534'] : null);
-        html += angenommen.length ? angenommen.map(k => {
-            // Willkommenstag-Status (Walter 11.08.2026): SMS geht DIREKT an den
-            // Kandidaten — vor der easy@work-Erfassung.
-            let wkStatus = '';
-            if (k.willkommenGesendetAm) {
-                const antwort = k.willkommenAntwort === 'ANGENOMMEN'
-                    ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✓ Termin angenommen — fix gebucht</span>'
-                    : k.willkommenAntwort === 'ABGELEHNT'
-                        ? '<span style="background:#fecaca;color:#991b1b;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✕ Termin abgesagt — neu vereinbaren + erneut senden</span>'
-                        : '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">⏳ wartet auf Antwort</span>';
-                wkStatus = `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12.5px">
-                    <span>📲 Willkommenstag-SMS ${_kdFmtTs(k.willkommenGesendetAm)}</span>${antwort}</div>`;
-            }
-            // Ablauf als ruhige Schritt-Liste (Liquid-Glass): erledigte
-            // Schritte grün abgehakt, der nächste Schritt hervorgehoben.
-            const smsOk = !!k.willkommenGesendetAm && k.willkommenAntwort !== 'ABGELEHNT';
-            const bestOk = k.willkommenAntwort === 'ANGENOMMEN';
-            const step = (nr, text, done, aktiv) => `
-                <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 0">
-                    <span style="flex:0 0 22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;
-                        ${done ? 'background:#dcfce7;color:#166534' : aktiv ? 'background:#3f3f3f;color:#fff' : 'background:#f1efe9;color:#8b8b8b'}">${done ? '✓' : nr}</span>
-                    <span style="font-size:12.5px;color:${done ? '#8b8b8b' : '#3f3f3f'};padding-top:2px;${aktiv ? 'font-weight:700;' : ''}">${text}</span>
-                </div>`;
-            const schritte = `
-                <div style="margin-top:10px;background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 14px">
-                    <div style="font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#8b8b8b;margin-bottom:5px">Ablauf HR</div>
-                    ${step(1, 'Onboarding-Tag prüfen und Willkommenstag-SMS senden — der Kandidat bestätigt am Handy', smsOk, !smsOk)}
-                    ${step(2, 'Termin-Bestätigung des Kandidaten abwarten', bestOk, smsOk && !bestOk)}
-                    ${step(3, 'MA mit obigen Daten in easy@work erfassen · Sync/Import nach OneCrew', false, bestOk)}
-                    ${step(4, 'Unten mit dem importierten MA verknüpfen — Anhänge wandern in die Personalakte, die Termin-Buchung geht an den MA über', false, false)}
-                    ${step(5, 'Vertrags-SMS über «2 · Vertrags-SMS senden» (Vertrag + Dokumente)', false, false)}
-                </div>`;
-            return card(`
-            ${_kdKopf(k)}${_kdDetails(k)}
-            ${wkStatus}
-            ${schritte}
-            <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:13px;padding:8px 16px">📱 Willkommenstag-SMS ${k.willkommenGesendetAm ? 'erneut senden' : 'senden'}</button>
-                <button onclick="hrKandVorschlaege(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Mit importiertem MA verknüpfen</button>
-                <span style="flex:1"></span>
-                <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
-                        style="background:transparent;border:none;padding:6px 4px;font-size:12px;cursor:pointer;color:#8b8b8b;text-decoration:underline">↶ Entscheid zurücknehmen</button>
-            </div>
-            <div id="kdLink${k.id}" style="margin-top:6px"></div>`);
-        }).join('')
-            : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Annahmen.</span>';
+        // ── 2) Onboarding-Tage (Walter 11.08.2026): Kandidaten/MA pro Tag ──
+        // gruppiert — prominente Tages-Header, kompakte Zeilen mit Status
+        // rechts. Verknüpfte MA bleiben beim Tag; nach dem Tag bestätigt HR
+        // pro Person «Onboarding abgeschlossen» (Meldung an den GF).
+        const obTage = _kdObTage || [];
+        const obKandIds = new Set();
+        obTage.forEach(t => (t.rows || []).forEach(rr => { if (rr.kandidatId) obKandIds.add(rr.kandidatId); }));
+        const ohneTag = angenommen.filter(k => !k.wunschTerminId);
+        html += titel('Onboarding-Tage', obTage.length, obTage.length ? ['#dcfce7', '#166534'] : null);
+        if (ohneTag.length) {
+            html += card(`
+                <div style="font-weight:800;color:#854d0e;font-size:14.5px;margin-bottom:4px">⚠ Angenommen — noch ohne Onboarding-Tag</div>
+                ${ohneTag.map(k => `
+                <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(200px,1.2fr) auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(60,55,48,0.08)">
+                    <div><b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b>
+                        <span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11px;color:#646464;margin-left:6px">${_kdEsc(k.filiale)}</span></div>
+                    <div><span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11.5px;font-weight:700">Onboarding-Tag wählen → Details</span></div>
+                    <a onclick="_kdObToggle('k${k.id}', ${k.id})" style="cursor:pointer;color:#1d4ed8;font-size:12px;font-weight:700;justify-self:end">Details ⌄</a>
+                </div>
+                <div id="kdObDetk${k.id}" style="display:none"></div>`).join('')}`);
+        }
+        html += obTage.length
+            ? obTage.map(t => card(_kdObTagInner(t))).join('')
+            : (ohneTag.length ? '' : '<span style="color:#8b8b8b;font-size:12.5px">Keine Onboarding-Tage mit Teilnehmenden.</span>');
 
         // ── 3) Abgelehnt: Absage senden (Auto-Löschung nach 30 Tagen) ───
         html += titel('Abgelehnt — Absage senden', abgelehnt.length, abgelehnt.length ? ['#fecaca', '#991b1b'] : null);
@@ -523,19 +502,167 @@ async function hrKandReload() {
             ${_kdNotizHtml(k)}`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
 
-        // ── 4) Erledigt (verknüpft — Referenz, Auto-Löschung nach 30 Tagen) ─
-        html += titel('Erledigt — mit MA verknüpft', erledigt.length, erledigt.length ? ['#e0e7ff', '#3730a3'] : null);
-        html += erledigt.length ? erledigt.map(k => card(`
-            ${_kdKopf(k)}
-            <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
-                <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
-                <span style="color:#b0aca4;font-size:11px">wird 30 Tage später automatisch gelöscht</span>
-            </div>
-            ${_kdNotizHtml(k)}`)).join('')
-            : '<span style="color:#8b8b8b;font-size:12.5px">Keine erledigten Kandidaten.</span>';
+        // ── 4) Erledigt-Fallback: nur verknüpfte Kandidaten, die in KEINEM
+        // Onboarding-Tag auftauchen (z.B. ohne Willkommenstag-Buchung) ──
+        const erledigtRest = erledigt.filter(k => !obKandIds.has(k.id));
+        if (erledigtRest.length) {
+            html += titel('Erledigt — ohne Onboarding-Tag', erledigtRest.length, ['#e0e7ff', '#3730a3']);
+            html += erledigtRest.map(k => card(`
+                ${_kdKopf(k)}
+                <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
+                    <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
+                    <span style="color:#b0aca4;font-size:11px">wird 30 Tage später automatisch gelöscht</span>
+                </div>
+                ${_kdNotizHtml(k)}`)).join('');
+        }
 
         body.innerHTML = html;
     } catch (_) { body.innerHTML = '<span style="color:#991b1b">Verbindungsfehler.</span>'; }
+}
+
+// ── Onboarding-Tages-Gruppierung (Walter 11.08.2026) ────────────────────
+const _kdWtNamen = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+
+function _kdObTagInner(t) {
+    const wt = _kdWtNamen[new Date(t.datum + 'T00:00:00').getDay()];
+    const offen = (t.rows || []).filter(r => r.buchungId && !r.abgeschlossenAm).length;
+    const header = `
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+            <div style="font-size:17px;font-weight:800;color:#3f3f3f">📅 ${wt}, ${_kdFmtD(t.datum)}</div>
+            <span style="color:#646464;font-size:13.5px">🕘 ${t.von}${t.bis ? '–' + t.bis : ''} Uhr</span>
+            <span style="background:#f1efe9;color:#646464;border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:700">${t.belegt}/${t.plaetze} Plätze</span>
+            ${t.bemerkung ? `<span style="color:#8b8b8b;font-size:12px">${_kdEsc(t.bemerkung)}</span>` : ''}
+            <span style="flex:1"></span>
+            ${t.vergangen && offen
+                ? '<span style="background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:700">Tag vorbei — Abschluss bestätigen</span>'
+                : ''}
+        </div>`;
+    const rows = (t.rows || []).length
+        ? t.rows.map(r => _kdObRow(t, r)).join('')
+        : '<div style="color:#8b8b8b;font-size:12.5px;padding:4px 2px">Noch niemand eingeladen.</div>';
+    return header + rows;
+}
+
+function _kdObRow(t, r) {
+    const key = r.buchungId != null ? r.buchungId : ('k' + r.kandidatId);
+    const k = r.kandidatId ? _kdHrList.find(x => x.id === r.kandidatId) : null;
+    let aktionen = '';
+    if (k && k.status === 'ANGENOMMEN' && !r.abgeschlossenAm) {
+        aktionen += `<button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:11.5px;padding:4px 10px">📱 ${r.willkommenGesendetAm ? 'SMS erneut' : 'SMS senden'}</button>`;
+        if (r.maAntwort === 'ANGENOMMEN' && !r.verknuepft)
+            aktionen += `<button onclick="_kdObVerknuepfen('${key}', ${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:4px 10px;font-size:11.5px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Verknüpfen</button>`;
+    }
+    if (t.vergangen && r.buchungId && !r.abgeschlossenAm)
+        aktionen += `<button onclick="hrKandObAbschliessen(${r.buchungId}, '${_kdEsc(r.name).replace(/'/g, '&#39;')}')" style="background:#166534;color:#fff;border:none;border-radius:10px;padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer">✓ Onboarding abschliessen</button>`;
+    if (k)
+        aktionen += `<a onclick="_kdObToggle('${key}', ${k.id})" style="cursor:pointer;color:#1d4ed8;font-size:12px;font-weight:700">Details ⌄</a>`;
+    return `
+        <div style="display:grid;grid-template-columns:minmax(200px,1fr) minmax(220px,1.3fr) auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(60,55,48,0.08)">
+            <div><b>${_kdEsc(r.name)}</b>
+                ${r.filiale ? `<span style="background:#f1efe9;border-radius:8px;padding:1px 8px;font-size:11px;color:#646464;margin-left:6px">${_kdEsc(r.filiale)}</span>` : ''}
+                ${r.telefon ? `<span style="color:#8b8b8b;font-size:11.5px;margin-left:6px">${_kdEsc(r.telefon)}</span>` : ''}</div>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${_kdObChips(r)}</div>
+            <div style="display:flex;gap:8px;align-items:center;justify-self:end;flex-wrap:wrap">${aktionen}</div>
+        </div>
+        <div id="kdObDet${key}" style="display:none"></div>`;
+}
+
+function _kdObChips(r) {
+    const chip = (bg, fg, text) => `<span style="background:${bg};color:${fg};border-radius:8px;padding:2px 9px;font-size:11.5px;font-weight:700;white-space:nowrap">${text}</span>`;
+    if (r.abgeschlossenAm)
+        return chip('#f1efe9', '#8b8b8b', `✓ Onboarding abgeschlossen ${_kdFmtTs(r.abgeschlossenAm)}`);
+    let c = '';
+    if (!r.buchungId) {
+        c += chip('#fef9c3', '#854d0e', 'Willkommenstag-SMS offen');
+    } else {
+        if (r.willkommenGesendetAm) c += `<span style="color:#646464;font-size:11.5px;white-space:nowrap">📲 ${_kdFmtTs(r.willkommenGesendetAm)}</span>`;
+        c += r.maAntwort === 'ANGENOMMEN'
+            ? chip('#dcfce7', '#166534', '✓ Termin bestätigt')
+            : chip('#fef9c3', '#854d0e', '⏳ unbestätigt');
+    }
+    if (r.verknuepft) c += chip('#e0e7ff', '#3730a3', '✓ MA verknüpft');
+    return c;
+}
+
+function _kdObToggle(key, kandidatId) {
+    const el = document.getElementById(`kdObDet${key}`);
+    if (!el) return;
+    if (el.style.display !== 'none') { el.style.display = 'none'; el.innerHTML = ''; return; }
+    const k = _kdHrList.find(x => x.id === kandidatId);
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:12px 14px;margin:4px 0 8px">${k
+        ? (k.status === 'ANGENOMMEN' ? _kdAngenommenInner(k) : _kdErledigtInner(k))
+        : '<span style="color:#8b8b8b;font-size:12px">Keine Kandidaten-Details mehr vorhanden — reguläre/r MA.</span>'}</div>`;
+}
+
+function _kdObVerknuepfen(key, kandidatId) {
+    const el = document.getElementById(`kdObDet${key}`);
+    if (el && el.style.display === 'none') _kdObToggle(key, kandidatId);
+    hrKandVorschlaege(kandidatId);
+}
+
+async function hrKandObAbschliessen(buchungId, name) {
+    if (typeof liquidConfirm === 'function'
+        && !await liquidConfirm(`Onboarding für ${name} abschliessen? Der GF erhält die Meldung ins Filial-Postfach — die Person läuft danach als regulärer MA weiter.`, { title: 'Onboarding abschliessen' })) return;
+    const r = await fetch(`/api/kandidaten/onboarding-abschliessen/${buchungId}`, { method: 'POST', headers: ah() });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { showToast(j.message || j.error || 'Abschliessen fehlgeschlagen.', 'error'); return; }
+    showToast('Onboarding abgeschlossen — Meldung an den GF gesendet.', 'success');
+    hrKandReload();
+}
+
+// Detail-Inhalt eines ANGENOMMENEN Kandidaten (aufklappbar in der Tages-Zeile).
+function _kdAngenommenInner(k) {
+    let wkStatus = '';
+    if (k.willkommenGesendetAm) {
+        const antwort = k.willkommenAntwort === 'ANGENOMMEN'
+            ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✓ Termin angenommen — fix gebucht</span>'
+            : k.willkommenAntwort === 'ABGELEHNT'
+                ? '<span style="background:#fecaca;color:#991b1b;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">✕ Termin abgesagt — neu vereinbaren + erneut senden</span>'
+                : '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 10px;font-size:12px;font-weight:700">⏳ wartet auf Antwort</span>';
+        wkStatus = `<div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;font-size:12.5px">
+            <span>📲 Willkommenstag-SMS ${_kdFmtTs(k.willkommenGesendetAm)}</span>${antwort}</div>`;
+    }
+    const smsOk = !!k.willkommenGesendetAm && k.willkommenAntwort !== 'ABGELEHNT';
+    const bestOk = k.willkommenAntwort === 'ANGENOMMEN';
+    const step = (nr, text, done, aktiv) => `
+        <div style="display:flex;align-items:flex-start;gap:10px;padding:3px 0">
+            <span style="flex:0 0 22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:800;
+                ${done ? 'background:#dcfce7;color:#166534' : aktiv ? 'background:#3f3f3f;color:#fff' : 'background:#f1efe9;color:#8b8b8b'}">${done ? '✓' : nr}</span>
+            <span style="font-size:12.5px;color:${done ? '#8b8b8b' : '#3f3f3f'};padding-top:2px;${aktiv ? 'font-weight:700;' : ''}">${text}</span>
+        </div>`;
+    const schritte = `
+        <div style="margin-top:10px;background:rgba(255,255,255,0.55);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 14px">
+            <div style="font-size:10.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#8b8b8b;margin-bottom:5px">Ablauf HR</div>
+            ${step(1, 'Onboarding-Tag prüfen und Willkommenstag-SMS senden — der Kandidat bestätigt am Handy', smsOk, !smsOk)}
+            ${step(2, 'Termin-Bestätigung des Kandidaten abwarten', bestOk, smsOk && !bestOk)}
+            ${step(3, 'MA mit obigen Daten in easy@work erfassen · Sync/Import nach OneCrew', false, bestOk)}
+            ${step(4, 'Mit dem importierten MA verknüpfen — Anhänge wandern in die Personalakte, die Termin-Buchung geht an den MA über', false, false)}
+            ${step(5, 'Vertrags-SMS über «2 · Vertrags-SMS senden» (Vertrag + Dokumente) · nach dem Tag: Onboarding abschliessen', false, false)}
+        </div>`;
+    return `
+        ${_kdKopf(k)}${_kdDetails(k)}
+        ${wkStatus}
+        ${schritte}
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button onclick="hrKandWillkommen(${k.id})" style="${_kdBtnDark};font-size:13px;padding:8px 16px">📱 Willkommenstag-SMS ${k.willkommenGesendetAm ? 'erneut senden' : 'senden'}</button>
+            <button onclick="hrKandVorschlaege(${k.id})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 16px;font-size:13px;cursor:pointer;color:#3f3f3f;font-weight:600">🔗 Mit importiertem MA verknüpfen</button>
+            <span style="flex:1"></span>
+            <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
+                    style="background:transparent;border:none;padding:6px 4px;font-size:12px;cursor:pointer;color:#8b8b8b;text-decoration:underline">↶ Entscheid zurücknehmen</button>
+        </div>
+        <div id="kdLink${k.id}" style="margin-top:6px"></div>`;
+}
+
+// Detail-Inhalt eines ERLEDIGTEN (verknüpften) Kandidaten.
+function _kdErledigtInner(k) {
+    return `
+        ${_kdKopf(k)}
+        <div style="display:flex;gap:12px;align-items:center;margin-top:6px;flex-wrap:wrap;font-size:12.5px">
+            <span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:2px 10px;font-weight:700">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
+            <span style="color:#b0aca4;font-size:11px">Kandidaten-Daten werden 30 Tage nach der Verknüpfung automatisch gelöscht</span>
+        </div>
+        ${_kdNotizHtml(k)}`;
 }
 
 // Notiz-Zeile (z.B. «hat sich nach der Absage nochmals gemeldet»).
