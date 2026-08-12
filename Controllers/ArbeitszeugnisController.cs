@@ -97,9 +97,12 @@ public class ArbeitszeugnisController : ControllerBase
         var lastByStart = emps.OrderByDescending(x => x.ContractStartDate).FirstOrDefault();
         var monatsEnde = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1)
                              .AddMonths(1).AddDays(-1);
-        var bis = e.ExitDate
+        // Walter-Vorgabe 12.08.2026: Das im Modal EINGETRAGENE Austrittsdatum
+        // hat IMMER Vorrang (der MA-Austritt ist nur der Vorschlag im Feld).
+        // Vorher gewann das Vertragsende über die Eingabe → falsches «bis».
+        var bis = (dto.Austritt.HasValue ? dto.Austritt.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null)
+                  ?? e.ExitDate
                   ?? lastByStart?.ContractEndDate
-                  ?? (dto.Austritt.HasValue ? dto.Austritt.Value.ToDateTime(TimeOnly.MinValue) : (DateTime?)null)
                   ?? monatsEnde;
 
         // Vollzeit nur bei FIX/FIX-M mit Pensum ≥ 100 % — Crew/FLEX/MTP = Teilzeit.

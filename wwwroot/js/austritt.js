@@ -367,14 +367,25 @@ function _azFunktionVorschlag(emp, female) {
 // Braucht das ARBEITSzeugnis ein fiktives Austrittsdatum? (Walter 15.07.2026:
 // letzter Vertrag offen + kein Austritt erfasst). Zwischenzeugnis/Bestaetigung
 // brauchen kein Bis-Datum. Bei unbekanntem MA-Objekt: Feld sicherheitshalber zeigen.
+// Walter-Vorgabe 12.08.2026: das Austrittsdatum-Feld wird beim
+// ARBEITSzeugnis IMMER gezeigt — vorbefüllt mit dem erfassten MA-Austritt
+// (sonst Vertragsende, sonst Monatsende). Im Zeugnis gilt IMMER das hier
+// eingetragene Datum (Server-Priorität: dto.Austritt zuerst).
 function _azNeedsAustritt(emp) {
-    if (_azZwischen || _azBest) return false;
-    if (!emp) return true;
-    if (emp.exitDate) return false;
-    const es = (emp.employments || []).slice()
+    return !(_azZwischen || _azBest);
+}
+
+// Vorschlag fürs Austrittsdatum: MA-Austritt → Ende des letzten Vertrags →
+// Ende des laufenden Monats.
+function _azAustrittVorschlag(emp) {
+    const exit = (emp?.exitDate || '').slice(0, 10);
+    if (exit) return exit;
+    const es = (emp?.employments || []).slice()
         .sort((a, b) => (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
-    const last = es[0];
-    return !last || !last.contractEndDate;
+    const ende = (es[0]?.contractEndDate || '').slice(0, 10);
+    if (ende) return ende;
+    const now = new Date();
+    return isoLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 }
 
 function _azEmpObj(employeeId) {
@@ -440,7 +451,7 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
             <div style="margin-bottom:16px">
                 <div style="${label}">Austrittsdatum (für «war vom … bis …»)</div>
                 <input type="date" id="azAustritt" style="${inp}">
-                <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Der letzte Vertrag ist noch offen und kein Austritt erfasst — bitte das (geplante) Austrittsdatum angeben. Vorschlag: Ende des laufenden Monats.</div>
+                <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Vorschlag = erfasstes Austrittsdatum des MA (sonst Vertragsende / Monatsende). Im Zeugnis gilt das HIER eingetragene Datum.</div>
             </div>` : ''}
 
             <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
@@ -467,12 +478,10 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
         </div>`;
     document.body.appendChild(ov);
     document.getElementById('azDatum').value = isoLocalDate(new Date());
-    // Fiktives Austrittsdatum: Vorschlag = Ende des laufenden Monats.
+    // Austrittsdatum: Vorschlag = MA-Austritt → Vertragsende → Monatsende
+    // (Walter 12.08.2026); im Zeugnis gilt das eingetragene Datum.
     const azA = document.getElementById('azAustritt');
-    if (azA) {
-        const now = new Date();
-        azA.value = isoLocalDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-    }
+    if (azA) azA.value = _azAustrittVorschlag(emp);
     azQuickTasks();
     azUpdateTaskVisibility();
 }

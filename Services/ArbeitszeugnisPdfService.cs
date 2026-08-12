@@ -63,7 +63,29 @@ public class ArbeitszeugnisPdfService
     private static byte[] BannerBytes => _bannerBytes ??=
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png"));
 
+    /// <summary>
+    /// Einseitigkeit ist PFLICHT (Walter-Vorgabe 12.08.2026): die interne
+    /// Schätzung kann bei sehr langem Inhalt danebenliegen — deshalb wird das
+    /// Ergebnis nachgemessen (echte Seitenzahl via iText) und bei Überlauf mit
+    /// stufenweise kleinerer Schrift neu gesetzt, bis es auf 1 A4 passt.
+    /// </summary>
     public byte[] Generate(ArbeitszeugnisInput d)
+    {
+        foreach (var fs in new[] { 10.5f, 10.0f, 9.5f, 9.0f, 8.5f })
+        {
+            var bytes = GenerateInternal(d, fs);
+            try
+            {
+                using var reader = new iText.Kernel.Pdf.PdfReader(new MemoryStream(bytes));
+                using var pdf = new iText.Kernel.Pdf.PdfDocument(reader);
+                if (pdf.GetNumberOfPages() <= 1) return bytes;
+            }
+            catch { return bytes; /* Messung fehlgeschlagen → Ergebnis so nehmen */ }
+        }
+        return GenerateInternal(d, 8.5f);
+    }
+
+    private byte[] GenerateInternal(ArbeitszeugnisInput d, float baseFont)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -266,7 +288,7 @@ public class ArbeitszeugnisPdfService
         float[] lhOpts = { 1.3f, 1.22f, 1.14f, 1.07f };
         foreach (var tryLh in lhOpts)
         {
-            float lineH = 10.5f * tryLh;
+            float lineH = baseFont * tryLh;
             float est = 5f + 70f                                    // Content-Pad + Adressblock
                       + padDatum + lineH                            // Ortszeile
                       + padTitel + 20f;                             // Titel
@@ -304,7 +326,7 @@ public class ArbeitszeugnisPdfService
                 page.MarginTop(1.0f, Unit.Centimetre);
                 page.MarginBottom(1.0f, Unit.Centimetre);
                 page.MarginHorizontal(1.8f, Unit.Centimetre);
-                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(10.5f).LineHeight(lh).FontColor(Dark));
+                page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(baseFont).LineHeight(lh).FontColor(Dark));
 
                 // Briefkopf: gelbes Banner wie überall (Walter-Vorgabe).
                 page.Header().PaddingTop(12).Image(BannerBytes).FitWidth();
