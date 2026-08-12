@@ -8446,7 +8446,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 
     <!-- Stammdaten (read-only) — 3 Spalten, sehr kompakt -->
-    <div style="padding:8px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0">
+    <div style="padding:8px 20px;background:rgba(255,255,255,0.5);border-bottom:1px solid rgba(60,55,48,0.12)">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 18px;font-size:12px;line-height:1.5">
             <div><span style="color:#64748b">Aufenthalt:</span> <span id="qstPermitDisplay" style="font-weight:500">–</span></div>
             <div><span style="color:#64748b">Wohnort:</span> <span id="qstWohnortDisplay" style="font-weight:500">–</span></div>
@@ -8457,12 +8457,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 
     <!-- Verlauf-Tabs -->
-    <div style="padding:6px 20px 0;border-bottom:1px solid #e2e8f0;display:flex;gap:8px;align-items:center">
+    <div style="padding:6px 20px 0;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;gap:8px;align-items:center">
         <div id="qstHistoryTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
     </div>
 
-    <!-- Formular -->
-    <div style="padding:12px 20px" id="qstFormWrap">
+    <!-- Formular — scrollt INNERHALB der Box (ma-modal-body: overflow+flex),
+         sonst fallen die untersten Felder aus der 92vh-Box (Walter 12.08.2026) -->
+    <div class="ma-modal-body" id="qstFormWrap">
 
         <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
         <div class="qst-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
@@ -8646,10 +8647,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <!-- Aktionen -->
-        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:8px;border-top:1px solid #f1f5f9">
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:10px;border-top:1px solid rgba(60,55,48,0.12)">
             <div id="qstSaveResult" style="font-size:12px;flex:1"></div>
-            <button onclick="closeQstModal()" style="background:#f1f5f9;color:#374151;border:none;border-radius:7px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">Abbrechen</button>
-            <button onclick="saveQstEntry()" style="background:#1a1a1a;color:#fff;border:none;border-radius:7px;padding:7px 18px;font-size:12.5px;font-weight:600;cursor:pointer">Speichern</button>
+            <button onclick="closeQstModal()" style="background:rgba(255,255,255,0.6);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Abbrechen</button>
+            <button onclick="saveQstEntry()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(60,55,48,0.22)">Speichern</button>
         </div>
     </div>
 </div>
