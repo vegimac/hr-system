@@ -48,6 +48,10 @@ public class ArbeitszeugnisController : ControllerBase
         /// <summary>true = ARBEITSBESTÄTIGUNG (Vorlage «244 Sursee») — nur der
         /// Bestätigungssatz, keine Qualität/Bereiche/Aufgaben nötig.</summary>
         public bool Bestaetigung { get; set; }
+        /// <summary>Abgabe durch Restaurant (Walter 12.08.2026): true =
+        /// Allgemein-Unterzeichner der Filiale unterschreibt; false =
+        /// Versand an MA, der eingeloggte User unterschreibt.</summary>
+        public bool Abgabe { get; set; }
         /// <summary>Fiktives Austrittsdatum (Walter 15.07.2026): nur fürs
         /// ARBEITSzeugnis, wenn der LETZTE Vertrag offen ist und kein Austritt
         /// erfasst wurde. Vorschlag im UI: Ende des laufenden Monats.</summary>
@@ -115,8 +119,35 @@ public class ArbeitszeugnisController : ControllerBase
                    || string.Equals(e.Gender, "f", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(e.Salutation, "Frau", StringComparison.OrdinalIgnoreCase);
 
-        // Unterschrift + Klarname des EINGELOGGTEN Users (nie eine andere Person).
+        // Unterzeichner folgt der Zustellart (HR-Idee, Walter 12.08.2026):
+        // Versand an MA = EINGELOGGTER User · Abgabe durch Restaurant =
+        // Allgemein-Unterzeichner der Filiale (IsDefault, Fallback GF).
         byte[]? sigPng = null; string signerName = ""; string? signerTitle = null;
+        if (dto.Abgabe)
+        {
+            var uba = await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == cp.Id && a.IsDefault
+                         && a.User != null && a.User.IsActive)
+                .FirstOrDefaultAsync()
+                ?? await _db.UserBranchAccesses.AsNoTracking()
+                    .Include(a => a.User)
+                    .Where(a => a.CompanyProfileId == cp.Id && a.Role == "GESCHAEFTSFUEHRER"
+                             && a.User != null && a.User.IsActive)
+                    .OrderBy(a => a.Id)
+                    .FirstOrDefaultAsync();
+            if (uba?.User == null)
+                return BadRequest(new { error = "KEIN_ALLGEMEIN_UNTERZEICHNER",
+                    message = "Kein Allgemein-Unterzeichner für diese Filiale definiert — im Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen, oder «Versand an Mitarbeiter» wählen." });
+            sigPng = uba.User.SignaturePng;
+            var fullD = $"{uba.User.FirstName} {uba.User.LastName}".Trim();
+            signerName = string.IsNullOrWhiteSpace(fullD) ? (uba.User.Username ?? "") : fullD;
+            signerTitle = !string.IsNullOrWhiteSpace(uba.FunctionTitle)
+                ? uba.FunctionTitle
+                : (uba.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        }
+        else
+        {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (int.TryParse(idStr, out var uid))
         {
@@ -136,6 +167,7 @@ public class ArbeitszeugnisController : ControllerBase
                          && a.FunctionTitle != null && a.FunctionTitle != "")
                 .Select(a => a.FunctionTitle)
                 .FirstOrDefaultAsync();
+        }
         }
 
         var strasse = string.Join(" ", new[] { cp.Street, cp.HouseNumber }

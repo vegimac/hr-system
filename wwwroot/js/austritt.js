@@ -454,6 +454,12 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
                 <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Vorschlag = erfasstes Austrittsdatum des MA (sonst Vertragsende / Monatsende). Im Zeugnis gilt das HIER eingetragene Datum.</div>
             </div>` : ''}
 
+            <div style="margin-bottom:16px">
+                <div style="${label}">Zustellung &amp; Unterzeichner</div>
+                <label style="${pill};margin-bottom:6px"><input type="radio" name="azZustell" value="V" checked> Versand an Mitarbeiter <span style="color:#8b8b8b;font-weight:400">— unterzeichnet der angemeldete Benutzer</span></label>
+                <label style="${pill}"><input type="radio" name="azZustell" value="A"> Abgabe durch Restaurant <span style="color:#8b8b8b;font-weight:400">— unterzeichnet der Allgemein-Unterzeichner der Filiale</span></label>
+            </div>
+
             <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
             <div style="display:${_azBest ? 'none' : 'flex'};gap:8px;margin-bottom:12px">
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche" onchange="azQuickTasks()"> Küche</label>
@@ -534,7 +540,9 @@ async function azGenerate() {
                 aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
                 zwischen: _azZwischen,
                 bestaetigung: _azBest,
-                austritt: document.getElementById('azAustritt')?.value || null
+                austritt: document.getElementById('azAustritt')?.value || null,
+                // Abgabe durch Restaurant = Allgemein-Unterzeichner (Walter 12.08.2026).
+                abgabe: document.querySelector('input[name="azZustell"]:checked')?.value === 'A'
             })
         });
         if (!res.ok) {

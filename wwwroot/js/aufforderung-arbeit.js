@@ -102,28 +102,42 @@ async function aaOnEmpChange() {
     }
 }
 
+// Unterzeichner folgt der Zustellung (HR-Idee, Walter 12.08.2026):
+// Versand (Einschreiben) = angemeldeter Benutzer · Abgabe durch Restaurant =
+// Allgemein-Unterzeichner der Filiale. Das Dropdown bleibt unsichtbare
+// Datenquelle (aaFillSignerSelect befüllt es weiter).
+let _aaSigners = [];
+let _aaDefaultSignerId = null;
+
 function aaFillSignerSelect(signers, defaultId) {
+    _aaSigners = Array.isArray(signers) ? signers : [];
+    _aaDefaultSignerId = defaultId ?? null;
     const sel = document.getElementById('aaSignerUserId');
+    if (sel) sel.innerHTML = _aaSigners.map(s => `<option value="${s.userId}">${s.name}</option>`).join('');
+    aaSignerInfoUpdate();
+}
+
+// Aufgelöster Unterzeichner je Zustellart (null = eingeloggter User).
+function _aaSignerForZustellung() {
+    const abgabe = document.querySelector('input[name="aaZustell"]:checked')?.value === 'U';
+    if (!abgabe) return null;
+    return _aaDefaultSignerId || null;
+}
+
+function aaSignerInfoUpdate() {
     const hint = document.getElementById('aaSignerHint');
-    if (!sel) return;
-    if (!signers.length) {
-        sel.innerHTML = '<option value="">— keine Filial-Benutzer —</option>';
-        if (hint) hint.textContent = 'Keine Benutzer mit Filial-Zugang gefunden. Unterzeichner werden im Filial-Tab «Unterzeichner» gepflegt.';
-        return;
-    }
-    sel.innerHTML = signers.map(s => {
-        const fn = s.funktion ? ` · ${s.funktion}` : '';
-        const sig = s.hasSignature ? '' : ' · (keine Unterschrift)';
-        return `<option value="${s.userId}">${s.name}${fn}${sig}</option>`;
-    }).join('');
-    const def = defaultId != null ? String(defaultId) : '';
-    if (def && [...sel.options].some(o => o.value === def)) sel.value = def;
-    else sel.selectedIndex = 0;
-    const chosen = signers.find(s => String(s.userId) === sel.value);
-    if (hint) {
-        hint.textContent = chosen && !chosen.hasSignature
-            ? 'Hinweis: Diese Person hat noch keine Unterschrift hinterlegt — die Stelle im PDF bleibt leer.'
-            : 'Unterschrift + Klarname aus dem Benutzerprofil der gewählten Person.';
+    if (!hint) return;
+    const abgabe = document.querySelector('input[name="aaZustell"]:checked')?.value === 'U';
+    if (abgabe) {
+        const def = _aaSigners.find(s => Number(s.userId) === Number(_aaDefaultSignerId));
+        hint.innerHTML = def
+            ? `✍️ <b>Unterzeichnet:</b> ${def.name}${def.funktion ? ' · ' + def.funktion : ''} <span style="color:#8b8b8b">(Allgemein-Unterzeichner der Filiale)</span>${def.hasSignature === false ? ' — <span style="color:#991b1b">keine Unterschrift hinterlegt, Stelle bleibt leer</span>' : ''}`
+            : `⚠️ <span style="color:#991b1b">Kein Allgemein-Unterzeichner für diese Filiale definiert</span> — im Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen.`;
+    } else {
+        const me = (typeof currentUser !== 'undefined' && currentUser)
+            ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || ''
+            : '';
+        hint.innerHTML = `✍️ <b>Unterzeichnet:</b> ${me} <span style="color:#8b8b8b">(angemeldeter Benutzer)</span>`;
     }
 }
 
@@ -159,11 +173,15 @@ async function aaGenerate() {
     if (kontaktTel && typeof window.formatPhoneIntl === 'function')
         kontaktTel = window.formatPhoneIntl(kontaktTel);
     const eingeschrieben = document.querySelector('input[name="aaZustell"]:checked')?.value === 'E';
-    const signerUserId = parseInt(document.getElementById('aaSignerUserId')?.value || '0', 10) || null;
+    // Unterzeichner folgt der Zustellart (Walter 12.08.2026): null = eingeloggter User.
+    const signerUserId = _aaSignerForZustellung();
 
     if (!kontaktName) { alert('Bitte den Namen der Kontaktperson (Restaurantleiter) angeben.'); return; }
     if (!frist) { alert('Bitte die Meldefrist angeben.'); return; }
-    if (!signerUserId) { alert('Bitte einen Unterzeichner wählen.'); return; }
+    if (!eingeschrieben && !signerUserId) {
+        alert('Kein Allgemein-Unterzeichner für diese Filiale definiert.\nIm Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen — oder «Versand an Mitarbeiter» wählen.');
+        return;
+    }
     if (datum && frist && frist < datum) {
         alert('Die Meldefrist darf nicht vor dem Briefdatum liegen.');
         return;

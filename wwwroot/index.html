@@ -2643,10 +2643,10 @@
                                 <div>
                                     <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px;margin-top:2px">Zustellung</div>
                                     <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-right:14px">
-                                        <input type="radio" name="aaZustell" value="U" checked> Übergeben
+                                        <input type="radio" name="aaZustell" value="U" onchange="aaSignerInfoUpdate()"> Abgabe durch Restaurant
                                     </label>
                                     <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                                        <input type="radio" name="aaZustell" value="E"> Einschreiben
+                                        <input type="radio" name="aaZustell" value="E" checked onchange="aaSignerInfoUpdate()"> Versand an Mitarbeiter (Einschreiben)
                                     </label>
                                 </div>
                             </div>
@@ -2664,11 +2664,12 @@
                                 </label>
                             </div>
 
+                            <!-- Unterzeichner folgt der Zustellung (HR-Idee, Walter 12.08.2026):
+                                 Versand (E) = angemeldeter Benutzer · Abgabe (U) = Allgemein-
+                                 Unterzeichner der Filiale. Dropdown = unsichtbare Datenquelle. -->
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">4. Unterzeichner</div>
-                            <label style="display:block;font-size:12.5px;color:#334155">Wer unterzeichnet das Schreiben
-                                <select id="aaSignerUserId" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white"></select>
-                                <div id="aaSignerHint" style="font-size:11px;color:#64748b;margin-top:3px">Unterschrift + Klarname aus dem Benutzerprofil der gewählten Person.</div>
-                            </label>
+                            <select id="aaSignerUserId" class="no-liquid" style="display:none"></select>
+                            <div id="aaSignerHint" style="font-size:12.5px;color:#3f3f3f;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:8px 12px"></div>
 
                             <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
                                 <button type="button" onclick="aaAbbrechen()"
@@ -2760,21 +2761,20 @@
                                     <div style="margin-top:10px">
                                         <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
                                         <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-right:14px">
-                                            <input type="radio" name="kuZustell" value="U" checked> Übergeben
+                                            <input type="radio" name="kuZustell" value="U" checked onchange="kuSignerInfoUpdate()"> Abgabe durch Restaurant
                                         </label>
                                         <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
-                                            <input type="radio" name="kuZustell" value="E"> Einschreiben
+                                            <input type="radio" name="kuZustell" value="E" onchange="kuSignerInfoUpdate()"> Versand an Mitarbeiter (Einschreiben)
                                         </label>
-                                        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Übergeben: Zeuge der Übergabe zwischen den Unterschriften · Einschreiben: «EINSCHREIBEN» über der Adresse</div>
+                                        <div style="font-size:11px;color:#94a3b8;margin-top:4px">Abgabe: Zeuge der Übergabe zwischen den Unterschriften · Versand: «EINSCHREIBEN» über der Adresse</div>
                                     </div>
                                 </label>
                             </div>
-                            <label style="display:block;margin-top:10px;font-size:12.5px;color:#334155">Unterzeichnet durch
-                                <select id="kuUnterzeichner" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
-                                    <option value="">— bitte wählen —</option>
-                                </select>
-                                <div style="font-size:11px;color:#94a3b8;margin-top:3px">Alle Benutzer mit Zugang zu dieser Filiale. Name + Funktion erscheinen auf dem Kündigungsschreiben.</div>
-                            </label>
+                            <!-- Unterzeichner folgt der Zustellung (HR-Idee, Walter 12.08.2026):
+                                 Abgabe = Allgemein-Unterzeichner der Filiale · Versand = angemeldeter
+                                 Benutzer. Das alte Dropdown bleibt als unsichtbare Datenquelle. -->
+                            <select id="kuUnterzeichner" class="no-liquid" style="display:none"></select>
+                            <div id="kuSignerInfo" style="margin-top:10px;font-size:12.5px;color:#3f3f3f;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:8px 12px"></div>
 
                             <!-- Schritt 3: Sperrfrist -->
                             <div id="kuSperr" style="margin-top:14px"></div>
@@ -7764,7 +7764,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
-<script src="js/austritt.js?v=20260812a"></script>
+<script src="js/austritt.js?v=20260812b"></script>
 <script src="js/contracts-edit.js?v=20260806a"></script>
 <script src="js/payroll.js?v=20260804f"></script>
 <script src="js/fibu.js?v=20260805a"></script>
@@ -8849,8 +8849,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
-<script src="js/kuendigung.js?v=20260803f"></script>
-<script src="js/aufforderung-arbeit.js?v=20260803f"></script>
+<script src="js/kuendigung.js?v=20260812a"></script>
+<script src="js/aufforderung-arbeit.js?v=20260812a"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>

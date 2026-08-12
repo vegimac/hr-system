@@ -153,8 +153,12 @@ async function kuLoadInfo() {
     } catch (_) { /* still */ }
 }
 
-/** Unterzeichner-Dropdown aus Filial-Berechtigten füllen (Walter 28.07.2026). */
+/** Unterzeichner-Dropdown aus Filial-Berechtigten füllen (Walter 28.07.2026).
+    Seit 12.08.2026 unsichtbare Datenquelle — der Unterzeichner folgt der
+    Zustellart (_kuSignerList + kuSignerInfoUpdate). */
 function kuFillUnterzeichner(list) {
+    _kuSignerList = Array.isArray(list) ? list : [];
+    kuSignerInfoUpdate();
     const sel = document.getElementById('kuUnterzeichner');
     if (!sel) return;
     const prev = sel.value;
@@ -388,8 +392,9 @@ function _krEnsureModal() {
         </div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> persönliche Aushändigung</label>
-            <label style="font-size:13px"><input type="radio" name="krZustell" value="E"> per Einschreiben</label>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> Abgabe durch Restaurant</label>
+            <label style="font-size:13px"><input type="radio" name="krZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
             <button onclick="krClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
@@ -536,8 +541,9 @@ function _kbEnsureModal() {
         <input type="date" id="kbKuendigungAuf" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="kbZustell" value="P" checked> persönliche Aushändigung</label>
-            <label style="font-size:13px"><input type="radio" name="kbZustell" value="E"> per Einschreiben</label>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="kbZustell" value="P" checked> Abgabe durch Restaurant</label>
+            <label style="font-size:13px"><input type="radio" name="kbZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
             <button onclick="kbClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
@@ -745,8 +751,9 @@ function _avEnsureModal() {
         <div style="font-size:11.5px;color:#64748b;margin:0 0 12px">Standard: Auflösung = Monatsende, letzter Lohn = 6. des Folgemonats (anpassbar).</div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="avZustell" value="P" checked> persönliche Aushändigung</label>
-            <label style="font-size:13px"><input type="radio" name="avZustell" value="E"> per Einschreiben</label>
+            <label style="font-size:13px;margin-right:16px"><input type="radio" name="avZustell" value="P" checked> Abgabe durch Restaurant</label>
+            <label style="font-size:13px"><input type="radio" name="avZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
             <button onclick="avClose()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
@@ -946,9 +953,38 @@ function _kuFormBody() {
         // U = persönlich übergeben (Default, oft am Probezeitgespräch);
         // E = Einschreiben (Walter 21.07.2026).
         eingeschrieben:    document.querySelector('input[name="kuZustell"]:checked')?.value === 'E',
-        // Unterzeichner (Filial-Berechtigte) — Walter 28.07.2026.
-        unterzeichnerUserId: +(document.getElementById('kuUnterzeichner')?.value || 0) || null
+        // Unterzeichner folgt der Zustellung (HR-Idee, Walter 12.08.2026):
+        // Abgabe (U) = Allgemein-Unterzeichner der Filiale · Versand (E) =
+        // angemeldeter Benutzer (null → Backend nimmt den eingeloggten User).
+        unterzeichnerUserId: _kuSignerForZustellung()
     };
+}
+
+// Aufgelöster Unterzeichner je Zustellart (null = eingeloggter User).
+let _kuSignerList = [];
+function _kuSignerForZustellung() {
+    const abgabe = document.querySelector('input[name="kuZustell"]:checked')?.value !== 'E';
+    if (!abgabe) return null;
+    const def = (_kuSignerList || []).find(s => s.isDefault);
+    return def ? def.userId : null;
+}
+
+// Info-Zeile: wer unterzeichnet bei der gewählten Zustellart?
+function kuSignerInfoUpdate() {
+    const el = document.getElementById('kuSignerInfo');
+    if (!el) return;
+    const abgabe = document.querySelector('input[name="kuZustell"]:checked')?.value !== 'E';
+    if (abgabe) {
+        const def = (_kuSignerList || []).find(s => s.isDefault);
+        el.innerHTML = def
+            ? `✍️ <b>Unterzeichnet:</b> ${escapeHtml(def.name || '')}${def.functionTitle ? ' · ' + escapeHtml(def.functionTitle) : ''} <span style="color:#8b8b8b">(Allgemein-Unterzeichner der Filiale)</span>`
+            : `⚠️ <span style="color:#991b1b">Kein Allgemein-Unterzeichner für diese Filiale definiert</span> — im Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen.`;
+    } else {
+        const me = (typeof currentUser !== 'undefined' && currentUser)
+            ? `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim() || currentUser.username || ''
+            : '';
+        el.innerHTML = `✍️ <b>Unterzeichnet:</b> ${escapeHtml(me)} <span style="color:#8b8b8b">(angemeldeter Benutzer)</span>`;
+    }
 }
 
 /// Schreibt «Gekündigt am» / «Kündigung per» am MA — bewusst getrennt vom PDF
@@ -994,8 +1030,10 @@ async function kuEintragen() {
 async function kuGenerate() {
     const id = +(document.getElementById('kuEmpSelect')?.value || 0);
     if (!id) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
-    if (!document.getElementById('kuUnterzeichner')?.value)
-        return alert('Bitte wählen, wer die Kündigung unterschreibt.');
+    // Abgabe durch Restaurant braucht einen Allgemein-Unterzeichner (Walter 12.08.2026).
+    const kuAbgabe = document.querySelector('input[name="kuZustell"]:checked')?.value !== 'E';
+    if (kuAbgabe && !_kuSignerForZustellung())
+        return alert('Kein Allgemein-Unterzeichner für diese Filiale definiert.\nIm Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen — oder «Versand an Mitarbeiter» wählen.');
     // Sperrfrist: warnen, aber die Erstellung bleibt HR-Entscheid (nicht hart sperren).
     if (_kuInfo?.sperrfrist?.blocked &&
         !(await liquidConfirm('Für diesen MA läuft eine Sperrfrist — eine Kündigung wäre evtl. nichtig. Trotzdem ein Schreiben erstellen?',

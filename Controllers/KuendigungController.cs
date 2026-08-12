@@ -277,7 +277,11 @@ public class KuendigungController : ControllerBase
 
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
-        var (sigPng, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        // Unterzeichner folgt der Zustellart (Walter 12.08.2026):
+        // Einschreiben = Versand → eingeloggter User; sonst Abgabe → Allgemein.
+        var (sigPng, signerName, signerFunktion) = dto.Eingeschrieben
+            ? await GetSignerAsync(cp?.Id)
+            : await GetAbgabeSignerAsync(cp?.Id);
 
         var data = new KuendigungPdfService.RueckzugData(
             FirmaName:    cp?.CompanyName,
@@ -345,7 +349,10 @@ public class KuendigungController : ControllerBase
 
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
-        var (_, signerName, signerFunktion) = await GetSignerAsync(cp?.Id);
+        // Unterzeichner folgt der Zustellart (Walter 12.08.2026).
+        var (_, signerName, signerFunktion) = dto.Eingeschrieben
+            ? await GetSignerAsync(cp?.Id)
+            : await GetAbgabeSignerAsync(cp?.Id);
         // Referenzangaben: Standard-Unterzeichner der Filiale (wie Arbeitsvertrag),
         // nicht der eingeloggte User — Walter 27.07.2026.
         var (refName, refFunktion) = await GetDefaultSignatoryAsync(cp?.Id);
@@ -433,9 +440,14 @@ public class KuendigungController : ControllerBase
 
         var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
         var ort   = string.IsNullOrWhiteSpace(dto.Ort) ? (cp?.City ?? "") : dto.Ort!.Trim();
-        // Walter 28.07.2026: Aufhebung immer mit Filial-Geschäftsführer
-        // (Name + Funktion) — nicht dem eingeloggten User.
-        var (gfName, gfFunktion) = await GetGeschaeftsfuehrerAsync(cp?.Id);
+        // Unterzeichner folgt der Zustellart (Walter 12.08.2026, ersetzt die
+        // frühere Immer-GF-Regel vom 28.07.2026): Einschreiben = Versand →
+        // eingeloggter User; Abgabe → Allgemein-Unterzeichner (Fallback GF).
+        string? gfName; string? gfFunktion;
+        if (dto.Eingeschrieben)
+            (_, gfName, gfFunktion) = await GetSignerAsync(cp?.Id);
+        else
+            (_, gfName, gfFunktion) = await GetAbgabeSignerAsync(cp?.Id);
         if (string.IsNullOrWhiteSpace(gfFunktion))
             gfFunktion = "Geschäftsführer";
 
@@ -725,6 +737,36 @@ public class KuendigungController : ControllerBase
     {
         var s = string.Join(" ", new[] { a, b }.Where(x => !string.IsNullOrWhiteSpace(x)));
         return string.IsNullOrWhiteSpace(s) ? null : s;
+    }
+
+    /// <summary>
+    /// Unterzeichner bei «Abgabe durch Restaurant» (HR-Idee, Walter
+    /// 12.08.2026): Allgemein-Unterzeichner der Filiale (IsDefault),
+    /// Fallback Rolle GESCHAEFTSFUEHRER. Gegenstück: bei «Versand an
+    /// Mitarbeiter» unterzeichnet der eingeloggte User (GetSignerAsync).
+    /// </summary>
+    private async Task<(byte[]? png, string? name, string? funktion)> GetAbgabeSignerAsync(int? companyProfileId)
+    {
+        if (!companyProfileId.HasValue) return await GetSignerAsync(companyProfileId);
+        var uba = await _db.UserBranchAccesses.AsNoTracking()
+            .Include(a => a.User)
+            .Where(a => a.CompanyProfileId == companyProfileId.Value && a.IsDefault
+                     && a.User != null && a.User.IsActive)
+            .FirstOrDefaultAsync()
+            ?? await _db.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .Where(a => a.CompanyProfileId == companyProfileId.Value
+                         && a.Role == "GESCHAEFTSFUEHRER"
+                         && a.User != null && a.User.IsActive)
+                .OrderBy(a => a.Id)
+                .FirstOrDefaultAsync();
+        if (uba?.User == null) return await GetSignerAsync(companyProfileId);
+        var full = $"{uba.User.FirstName} {uba.User.LastName}".Trim();
+        var name = string.IsNullOrWhiteSpace(full) ? uba.User.Username : full;
+        var funktion = !string.IsNullOrWhiteSpace(uba.FunctionTitle)
+            ? uba.FunctionTitle
+            : (uba.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+        return (uba.User.SignaturePng, name, funktion);
     }
 
     private async Task<(byte[]? png, string? name, string? funktion)> GetSignerAsync(int? companyProfileId = null)
