@@ -4298,11 +4298,7 @@
             <!-- ═══ SOLLSTUNDEN-ÜBERSICHT (GF, Walter-Vorgabe 19.06.2026) ═══ -->
             <div class="page" id="page-sollstunden">
                 <div class="page-head"><div>
-                    <!-- «← Zurück» direkt neben dem Titel (Walter 12.08.2026:
-                         nicht ganz rechts aussen, sondern nah bei der Info) -->
-                    <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Sollstunden-Übersicht
-                        <button onclick="pageBack()"
-                                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
+                    <h1 class="page-title">Sollstunden-Übersicht</h1>
                     <p class="page-sub">Pro Mitarbeiter (FIX / FIX-M / MTP): wie viele Stunden im Monat zu leisten sind, wie viel bereits gearbeitet wurde und was Absenzen gutschreiben/abziehen — gerechnet mit derselben Logik wie der Lohnlauf.</p>
                 </div></div>
                 <div class="page-body">
@@ -4317,7 +4313,12 @@
                             <input type="date" id="sollStichtag" class="eaw-input" style="min-width:150px">
                         </label>
                         <button class="btn-primary" onclick="sollLoad()">🔄 Laden</button>
-                        <button type="button" class="btn btn-outline" onclick="sollPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
+                        <!-- «← Zurück» rechts oberhalb des PDF-Knopfs (Walter 12.08.2026) -->
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                            <button onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:4px 13px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button>
+                            <button type="button" class="btn btn-outline" onclick="sollPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
+                        </div>
                         <span style="font-size:12px;color:#94a3b8">Stichtag = bis und mit diesem Tag · Filiale = Sidebar</span>
                     </div>
                     <div id="sollResult"></div>
@@ -4326,9 +4327,7 @@
             <!-- ═══ FERIEN-ÜBERSICHT (GF, Walter-Vorgabe 20.06.2026) ═══ -->
             <div class="page" id="page-ferien">
                 <div class="page-head"><div>
-                    <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Ferien / Feiertage / Nacht
-                        <button onclick="pageBack()"
-                                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
+                    <h1 class="page-title">Ferien / Feiertage / Nacht</h1>
                     <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Vortrag aus Monatsblatt + Nachtstunden × 10% Zuschlag − Nacht-Kompensation; Saldo &gt; 9 h = gelb).</p>
                 </div></div>
                 <div class="page-body">
@@ -4340,7 +4339,12 @@
                             <select id="ferMonth" class="eaw-input" style="min-width:130px"></select>
                         </label>
                         <button class="btn-primary" onclick="ferLoad()">🔄 Laden</button>
-                        <button type="button" class="btn btn-outline" onclick="ferPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
+                        <!-- «← Zurück» rechts oberhalb des PDF-Knopfs (Walter 12.08.2026) -->
+                        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+                            <button onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:4px 13px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button>
+                            <button type="button" class="btn btn-outline" onclick="ferPdf()" title="Liste als PDF (A4 quer)">📄 PDF</button>
+                        </div>
                         <span style="font-size:12px;color:#94a3b8">Anspruch Jan – Stichtag-Monat · Filiale = Sidebar</span>
                     </div>
                     <div id="ferResult"></div>
