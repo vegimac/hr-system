@@ -8456,8 +8456,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
     </div>
 
-    <!-- Verlauf-Tabs -->
+    <!-- Verlauf-Tabs: eine Pille pro QST-Version (Gültig ab → bis); Klick
+         lädt die Version ins Formular. Beschriftung Walter 12.08.2026. -->
     <div style="padding:6px 20px 0;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;gap:8px;align-items:center">
+        <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:#8b8b8b;white-space:nowrap">Verlauf</span>
         <div id="qstHistoryTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
     </div>
 
@@ -8483,8 +8485,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <input type="date" id="qstValidFrom" class="qst-inp">
             </div>
             <div>
-                <label class="qst-lbl">Gültig bis</label>
-                <input type="date" id="qstValidTo" class="qst-inp">
+                <label class="qst-lbl">Gültig bis <span class="qst-ro-hint">automatisch</span></label>
+                <!-- Nur Anzeige (Walter 12.08.2026): ein QST-Enddatum entsteht
+                     NUR systemisch — durch Folge-Eintrag, Bewilligungswechsel,
+                     Befreiung oder Kantonswechsel/Umzug. Nie manuell. -->
+                <input type="date" id="qstValidTo" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off">
             </div>
             <div style="display:none">
                 <input type="text" id="qstGemeinde" tabindex="-1">

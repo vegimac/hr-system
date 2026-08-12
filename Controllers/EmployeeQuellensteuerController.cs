@@ -213,6 +213,10 @@ public class EmployeeQuellensteuerController : ControllerBase
         dto.EmployeeId = employeeId;
         dto.CreatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         dto.UpdatedAt  = dto.CreatedAt;
+        // ValidTo NIE vom Client (Walter 12.08.2026): ein QST-Enddatum
+        // entsteht nur systemisch (Folge-Eintrag kappt den Vorgänger,
+        // Umzug/Kantonswechsel, Bewilligungswechsel/Befreiung).
+        dto.ValidTo = null;
 
         // Steuerkanton/Gemeinde/BFS IMMER aus der Wohnadresse des MA
         // (Walter 12.08.2026): die QST folgt der easy@work-geführten
@@ -250,7 +254,9 @@ public class EmployeeQuellensteuerController : ControllerBase
         }
 
         entry.ValidFrom                  = dto.ValidFrom;
-        entry.ValidTo                    = dto.ValidTo;
+        // entry.ValidTo bleibt UNANGETASTET (Walter 12.08.2026): das Enddatum
+        // wird nur systemisch gesetzt (Folge-Eintrag/Umzug/Befreiung) — ein
+        // Client-Wert wird ignoriert.
         // Wohnort-Kette server-autoritativ (Walter 12.08.2026) — siehe Create.
         await ApplyWohnadresseAsync(entry, employeeId);
         entry.TarifvorschlagQst          = dto.TarifvorschlagQst;
