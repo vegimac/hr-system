@@ -19,6 +19,53 @@
 
 let _fpBlob = null, _fpUrl = null, _fpName = '';
 
+// ── Fenster-Verhalten für Vorschau-Panels (Walter-Vorgabe 12.08.2026) ────
+// Macht eine Vorschau-Box wie ein Fenster bedienbar: am Kopf VERSCHIEBEN,
+// unten rechts in der GRÖSSE ziehen (nativer CSS-resize). Wiederverwendbar
+// für filePreviewModal (global) UND pbPreviewPanel (Posteingang) — das
+// Dokumente-Panel (dokPreviewPanel) hat bereits eigenes Drag/Resize.
+// Wichtig: während des Ziehens pointer-events der iframes ausschalten,
+// sonst schluckt der PDF-Viewer die Maus-Events und das Ziehen bleibt hängen.
+function fpMakeWindow(box, handle) {
+    if (!box || !handle || box._fpWin) return;
+    box._fpWin = true;
+    box.style.resize = 'both';
+    box.style.overflow = 'hidden';
+    box.style.minWidth = '380px';
+    box.style.minHeight = '280px';
+    handle.style.cursor = 'move';
+    handle.style.userSelect = 'none';
+    handle.addEventListener('pointerdown', (e) => {
+        // Buttons/Inputs im Header bleiben normal bedienbar.
+        if (e.target.closest('button,select,input,a,textarea')) return;
+        e.preventDefault();
+        const r = box.getBoundingClientRect();
+        // Auf feste Pixel-Geometrie umstellen (statt vw/vh/right/bottom) —
+        // erst damit sind left/top frei verschiebbar.
+        box.style.position = 'fixed';
+        box.style.left = r.left + 'px';
+        box.style.top = r.top + 'px';
+        box.style.width = r.width + 'px';
+        box.style.height = r.height + 'px';
+        box.style.right = 'auto';
+        box.style.bottom = 'auto';
+        const dx = e.clientX - r.left, dy = e.clientY - r.top;
+        const frames = box.querySelectorAll('iframe');
+        frames.forEach(f => { f.style.pointerEvents = 'none'; });
+        const move = (ev) => {
+            box.style.left = Math.min(window.innerWidth - 80, Math.max(80 - r.width, ev.clientX - dx)) + 'px';
+            box.style.top  = Math.min(window.innerHeight - 44, Math.max(0, ev.clientY - dy)) + 'px';
+        };
+        const up = () => {
+            document.removeEventListener('pointermove', move);
+            document.removeEventListener('pointerup', up);
+            frames.forEach(f => { f.style.pointerEvents = ''; });
+        };
+        document.addEventListener('pointermove', move);
+        document.addEventListener('pointerup', up);
+    });
+}
+
 // Liefert 'pdf' | 'image' | null  (null = nicht im Browser anzeigbar)
 function _fpKind(filename, mime) {
     const ext = (String(filename || '').match(/\.[^.]+$/) || [''])[0].toLowerCase();
@@ -36,8 +83,8 @@ function _fpEnsureModal() {
     modal.id = 'filePreviewModal';
     modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:10050;background:rgba(0,0,0,0.55)';
     modal.innerHTML =
-        '<div style="position:absolute;top:3vh;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">'
-        + '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">'
+        '<div id="filePreviewBox" style="position:absolute;top:3vh;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">'
+        + '<div id="filePreviewHeader" style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">'
         + '<div>'
         + '<div style="font-size:15px;font-weight:700;color:#0f172a">Vorschau</div>'
         + '<div id="filePreviewTitle" style="font-size:12px;color:#64748b;margin-top:2px">–</div>'
@@ -61,6 +108,8 @@ function _fpEnsureModal() {
         + '</div>'
         + '</div>';
     document.body.appendChild(modal);
+    // Fenster-Verhalten: am Kopf verschieben, unten rechts Grösse ziehen.
+    fpMakeWindow(document.getElementById('filePreviewBox'), document.getElementById('filePreviewHeader'));
     // Klick auf den dunklen Hintergrund schliesst das Fenster.
     modal.addEventListener('click', e => { if (e.target === modal) filePreviewClose(); });
     // ESC schliesst.

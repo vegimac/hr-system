@@ -817,6 +817,12 @@ async function pbOpenPreview(id) {
         </div>
         <div id="pbPreviewBody" style="flex:1;overflow:auto;background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:13px">Lädt…</div>
     </div>`);
+    // Fenster-Verhalten (Walter 12.08.2026): am Kopf verschieben, unten
+    // rechts Grösse ziehen — Helfer aus file-preview.js.
+    if (typeof fpMakeWindow === 'function') {
+        const _pnl = document.getElementById('pbPreviewPanel');
+        fpMakeWindow(_pnl, _pnl.firstElementChild);
+    }
 
     try {
         const r = await fetch(`/api/mailbox/${id}/preview`, { headers: ah() });

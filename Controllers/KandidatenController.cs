@@ -827,6 +827,33 @@ public class KandidatenController : ControllerBase
         var terminBlock = $@"<div style='background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px;margin:14px 0;font-size:16px;line-height:1.65;color:#3f3f3f;box-shadow:0 4px 14px rgba(70,64,55,0.08)'>
             📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
 
+        // Einleitungstext der Link-Seite aus der Moments-Vorlage WILLKOMMENSTAG
+        // (Feld «Mitteilung»/BodyText, Walter 12.08.2026) — gestaltbar unter
+        // System → Moments-Texte → Willkommenstag-Einladung. Gleiche Platzhalter
+        // wie die SMS: {Vorname} {Firma} {Wochentag} {Datum} {Zeit}.
+        // Fallback (leer oder noch der Seed-Beschreibungstext) = Standard-Satz.
+        var tplBody = await _db.MomentTexts.AsNoTracking()
+            .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
+            .OrderBy(t => t.SortOrder)
+            .Select(t => t.BodyText)
+            .FirstOrDefaultAsync();
+        string introHtml;
+        if (!string.IsNullOrWhiteSpace(tplBody)
+            && !tplBody.TrimStart().StartsWith("Vorlage für die Willkommenstag-SMS"))
+        {
+            var filled = tplBody
+                .Replace("{Vorname}", k.Vorname ?? "")
+                .Replace("{Firma}", firma)
+                .Replace("{Wochentag}", wt)
+                .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
+                .Replace("{Zeit}", zeit);
+            introHtml = "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
+        }
+        else
+        {
+            introHtml = "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
+        }
+
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
         // Statische Datei in wwwroot/img — anonym erreichbar wie die Landing.
@@ -851,7 +878,7 @@ public class KandidatenController : ControllerBase
             inner = $@"<h1>Willkommenstag</h1>{terminBlock}<p>Dieser Termin liegt in der Vergangenheit — das HR-Team meldet sich bei dir.</p>";
         else
             inner = $@"<h1>Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!</h1>
-                <p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>{terminBlock}
+                {introHtml}{terminBlock}
                 <p style='margin:4px 0 8px;color:#646464;font-size:14px'>Passt dir dieser Termin?</p>
                 <div id='tmAsk' style='display:flex;gap:10px;flex-wrap:wrap'>
                     <form method='post' action='/willkommen/{token}/antwort' style='margin:0'>
