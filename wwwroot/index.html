@@ -5770,11 +5770,15 @@
                  Gesamt-Ausfalltagen absteigend. Drilldown pro MA + CSV-Export. -->
             <div class="page" id="page-absence-report">
                 <div class="sticky-page-head">
-                <div class="page-header">
+                <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
                     <div>
                         <h1 class="page-title">Absenz-Auswertung</h1>
                         <p class="page-sub">Krankheit, Unfall und Mutter-/Vaterschaftsurlaub pro Mitarbeiter:in — pro Filiale oder filialübergreifend als Top-Liste, sortiert nach Gesamt-Ausfalltagen.</p>
                     </div>
+                    <!-- «← Zurück» rechts, mit 58px Versatz unter der reservierten
+                         Sprach-/Theme-Zone (Walter 12.08.2026) -->
+                    <button onclick="pageBack()"
+                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
                 </div>
                 <div id="arAlert" style="margin-bottom:12px"></div>
 
