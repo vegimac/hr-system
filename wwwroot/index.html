@@ -8466,7 +8466,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     <div class="ma-modal-body" id="qstFormWrap">
 
         <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
-        <div class="qst-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+        <!-- Feldbreiten nach Inhalt (Walter 12.08.2026): Datum/Zahl schmal,
+             nur Text-/Auswahlfelder flexibel. -->
+        <div class="qst-grid" style="display:grid;grid-template-columns:150px 150px 200px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp">
@@ -8551,12 +8553,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <label class="qst-lbl">Prozentsatz (manuell)</label>
                 <input type="number" id="qstProzentsatz" step="0.01" placeholder="auto" class="qst-inp">
             </div>
-            <div style="grid-column:span 3">
-                <label class="qst-lbl">Mindestlohn Satzbestimmung (Medianlohn)</label>
+            <div>
+                <label class="qst-lbl">Satzbest. Medianlohn</label>
                 <input type="number" id="qstMedianlohn" step="0.05" placeholder="CHF" class="qst-inp">
             </div>
-            <!-- 3 Checkboxen inline, sparen vertikalen Platz -->
-            <div style="grid-column:1 / -1;display:flex;gap:18px;flex-wrap:wrap;padding-top:2px">
+            <!-- 3 Checkboxen inline neben den Zahlenfeldern (spart eine Zeile) -->
+            <div style="grid-column:span 2;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-bottom:1px">
                 <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode()"> Kirchensteuer</label>
                 <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
@@ -8564,7 +8566,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="emp-section-title">Partner</div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 2fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+        <div style="display:grid;grid-template-columns:1fr 110px 340px;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
@@ -8595,7 +8597,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="emp-section-title">Zusätzliche Angaben</div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:140px 220px 110px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <div>
                 <label class="qst-lbl">Halbfamilie</label>
                 <select id="qstHalbfamilie" class="qst-inp">
@@ -8618,7 +8620,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
         </div>
         <!-- Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
-        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+        <div style="display:grid;grid-template-columns:auto 180px 220px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap">
                 <input type="checkbox" id="qstWeitere" onchange="toggleQstWeitere()">
                 Weitere Beschäftigungen
@@ -8637,7 +8639,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <span>Tarif-relevante Stammdaten</span>
             <span style="font-weight:400;font-size:10px;color:#64748b;letter-spacing:0;text-transform:none">leer = weder Ja noch Nein auf dem Anmeldeformular</span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+        <div style="display:flex;flex-wrap:wrap;gap:6px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
             <label class="qst-cb"><input type="checkbox" id="qstHasJointParentalCare"> Gemeinsame elterl. Sorge</label>
             <label class="qst-cb"><input type="checkbox" id="qstPaysAlimonyAdultChildren"> Unterhalt volljährige Kinder</label>
