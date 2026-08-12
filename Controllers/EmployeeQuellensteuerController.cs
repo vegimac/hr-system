@@ -185,6 +185,10 @@ public class EmployeeQuellensteuerController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeQuellensteuer dto)
     {
+        // Prozentsatz/Medianlohn nie negativ (Walter 12.08.2026).
+        if (dto.Prozentsatz < 0 || dto.MindestlohnSatzbestimmung < 0)
+            return BadRequest(new { error = "NEGATIVER_WERT", message = "Prozentsatz und Medianlohn dürfen nicht negativ sein." });
+
         // Soft-Lock (Walter 01.08.2026): ValidFrom darf nicht rückwirkend in
         // einer DEFINITIV abgeschlossenen Periode liegen. Während HR-Kontrolle
         // (provisorisch) und Akonto bleibt Anlegen möglich.
@@ -234,6 +238,10 @@ public class EmployeeQuellensteuerController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int employeeId, int id, [FromBody] EmployeeQuellensteuer dto)
     {
+        // Prozentsatz/Medianlohn nie negativ (Walter 12.08.2026).
+        if (dto.Prozentsatz < 0 || dto.MindestlohnSatzbestimmung < 0)
+            return BadRequest(new { error = "NEGATIVER_WERT", message = "Prozentsatz und Medianlohn dürfen nicht negativ sein." });
+
         var entry = await _db.EmployeeQuellensteuer
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();

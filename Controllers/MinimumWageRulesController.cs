@@ -268,6 +268,33 @@ public class MinimumWageRulesController : ControllerBase
                 g => g.Key,
                 g => g.OrderByDescending(x => x.ValidFrom).ThenByDescending(x => x.Id).First().Steuerkanton);
 
+        // Wohnkanton AM PERIODENENDE aus der Wohnort-Historie (Walter-Vorgabe
+        // 12.08.2026): der Vergleich darf NICHT gegen den heutigen
+        // employee.canton_code laufen — nach einem Umzug per 1.8. wohnte die MA
+        // in der Juli-Periode noch im alten Kanton, der Juli-QST-Eintrag (alter
+        // Kanton) ist also KORREKT und darf keine Mismatch-Warnung auslösen.
+        // Auflösung: jüngster Historie-Eintrag mit GueltigAb <= periodTo
+        // (GueltigAb NULL = «seit jeher» = ältester). Ohne Historie-Eintrag
+        // Fallback auf employee.canton_code (Bestand ohne Umzug).
+        var wohnHistRows = await _db.EmployeeWohnortHistories
+            .AsNoTracking()
+            .Where(w => qstMmEmpIds.Contains(w.EmployeeId))
+            .Select(w => new { w.EmployeeId, w.GueltigAb, w.KantonCode, w.Id })
+            .ToListAsync();
+        var wohnKantonByEmp = wohnHistRows
+            .GroupBy(w => w.EmployeeId)
+            .Select(g => new
+            {
+                EmployeeId = g.Key,
+                Row = g.Where(w => w.GueltigAb == null || w.GueltigAb <= periodTo)
+                       .OrderByDescending(w => w.GueltigAb.HasValue)  // datiert vor «seit jeher»
+                       .ThenByDescending(w => w.GueltigAb)
+                       .ThenByDescending(w => w.Id)
+                       .FirstOrDefault()
+            })
+            .Where(x => x.Row != null && !string.IsNullOrWhiteSpace(x.Row!.KantonCode))
+            .ToDictionary(x => x.EmployeeId, x => x.Row!.KantonCode!);
+
         var underpaid = new List<object>();
         foreach (var em in byEmp)
         {
@@ -333,16 +360,19 @@ public class MinimumWageRulesController : ControllerBase
                 });
             }
 
-            // QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026): der QST-Tarif
-            // richtet sich IMMER nach dem Wohnkanton (employee.canton_code).
-            // Weicht der Kanton der aktiven QST-Erfassung ab (z.B. Adresse via
-            // easy@work-Sync geändert, Erfassung nicht nachgezogen), erscheint
-            // der MA mit problem="QST_KANTON_MISMATCH" in derselben
-            // «mit Lohnproblem»-Liste → ⚠ in der MA-Liste + Banner auf dem
-            // Lohnzettel. Bewusst NUR Warnung, KEIN 409-Block in
-            // ConfirmPayroll/Freigeben — der Lohnlauf darf durchlaufen, aber der
-            // Tarif muss geprüft werden (realer Fall Artiles Santana: BE vs. AG).
-            var wohnKanton = em.Employee!.CantonCode;
+            // QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026, historisiert
+            // 12.08.2026): der QST-Tarif richtet sich IMMER nach dem Wohnkanton
+            // — aber nach dem Wohnkanton IN DER PERIODE (Wohnort-Historie am
+            // Periodenende), nicht nach dem heutigen. Weicht der Kanton der in
+            // der Periode aktiven QST-Erfassung ab, erscheint der MA mit
+            // problem="QST_KANTON_MISMATCH" in derselben «mit Lohnproblem»-
+            // Liste → ⚠ in der MA-Liste + Banner auf dem Lohnzettel. Bewusst
+            // NUR Warnung, KEIN 409-Block in ConfirmPayroll/Freigeben — der
+            // Lohnlauf darf durchlaufen, aber der Tarif muss geprüft werden
+            // (realer Fall Artiles Santana: BE vs. AG).
+            var wohnKanton = wohnKantonByEmp.TryGetValue(em.EmployeeId, out var histKanton)
+                ? histKanton
+                : em.Employee!.CantonCode;
             if (qstKantonByEmp.TryGetValue(em.EmployeeId, out var qstKanton)
                 && !string.IsNullOrWhiteSpace(qstKanton)
                 && !string.IsNullOrWhiteSpace(wohnKanton)

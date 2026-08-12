@@ -8571,12 +8571,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div id="qstKinderAutoHint" style="font-size:11px;margin-top:3px;line-height:1.4"></div>
             </div>
             <div>
-                <label class="qst-lbl">Prozentsatz (manuell)</label>
-                <input type="number" id="qstProzentsatz" step="0.01" placeholder="auto" class="qst-inp">
+                <!-- Label EINZEILIG halten («(manuell)» als kleiner Hint) — ein
+                     zweizeiliges Label schob das Feld unter die Nachbar-Zeile. -->
+                <label class="qst-lbl" style="white-space:nowrap">Prozentsatz <span class="qst-ro-hint">manuell</span></label>
+                <input type="number" id="qstProzentsatz" step="0.01" min="0" placeholder="auto" class="qst-inp"
+                       oninput="if(parseFloat(this.value)<0)this.value=''">
             </div>
             <div>
-                <label class="qst-lbl">Satzbest. Medianlohn</label>
-                <input type="number" id="qstMedianlohn" step="0.05" placeholder="CHF" class="qst-inp">
+                <label class="qst-lbl" style="white-space:nowrap">Satzbest. Medianlohn</label>
+                <input type="number" id="qstMedianlohn" step="0.05" min="0" placeholder="CHF" class="qst-inp"
+                       oninput="if(parseFloat(this.value)<0)this.value=''">
             </div>
             </div>
             <!-- Zeile 3: die 3 Checkboxen in voller Breite -->
@@ -8588,8 +8592,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="emp-section-title">Partner</div>
-        <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich -->
-        <div style="display:grid;grid-template-columns:1fr 120px 470px;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+        <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich.
+             Partner-Name fix 220px statt 1fr → Arbeitsort Kt. rückt nach links,
+             leere 1fr-Spalte rechts fängt die Restbreite. -->
+        <div style="display:grid;grid-template-columns:220px 120px 470px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
