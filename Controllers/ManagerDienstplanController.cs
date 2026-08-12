@@ -1097,72 +1097,132 @@ public class ManagerDienstplanController : ControllerBase
         var year = y is >= 2020 and <= 2100 ? y.Value : heute.Year;
         var month = m is >= 1 and <= 12 ? m.Value : heute.Month;
 
-        var (zeilen, filialen, codes, feiertage, _) = await BuildMonthDataAsync(year, month);
+        // 1:1 wie die Desktop-Ansicht (Walter 12.08.2026): EIN Grid über alle
+        // Filialen mit dunklen Filial-Trennzeilen (★ Feiertag / Schulferien-
+        // Band), KW/Datum/Tag-Kopf, Wochen-Trennlinie vor Montag, Wochenende
+        // nur im Kopf getönt, Summen F/M/S/frei/WE — und OHNE Heute-Umrandung.
+        var (zeilen, filialen, codes, feiertage, schulferien) = await BuildMonthDataAsync(year, month);
         var days = DateTime.DaysInMonth(year, month);
         var prev = new DateOnly(year, month, 1).AddMonths(-1);
         var next = new DateOnly(year, month, 1).AddMonths(1);
         string Nav(DateOnly d, string label) =>
             $"<a href='/dienstplan/{token}?y={d.Year}&m={d.Month}' style='text-decoration:none;background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 16px;font-weight:800;color:#3f3f3f'>{label}</a>";
+        static string H(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
 
         var codeStyle = codes.ToDictionary(c => c.Code, c => c.Farbe ?? "#ffffff", StringComparer.OrdinalIgnoreCase);
-        // Absenz-Overlay: gleiche Farben wie das Grid (DP_ABSENZ_STYLE).
         var absStyle = new Dictionary<string, (string bg, string fg, string kz)>(StringComparer.OrdinalIgnoreCase)
         {
             ["FERIEN"] = ("#bbf7d0", "#166534", ""), ["KRANK"] = ("#fecaca", "#991b1b", "K"),
             ["UNFALL"] = ("#fed7aa", "#9a3412", "U"), ["MUTTERSCHAFT"] = ("#e9d5ff", "#6b21a8", "MS"),
         };
-        var ftSet = feiertage.Select(f => (f.CompanyProfileId, f.Datum)).ToHashSet();
-
-        var sb = new System.Text.StringBuilder();
-        foreach (var fil in filialen.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+        var ftMap = feiertage.GroupBy(f => f.CompanyProfileId)
+            .ToDictionary(g => g.Key, g => g.ToDictionary(x => x.Datum, x => x.Bezeichnung));
+        var sfMap = new Dictionary<int, Dictionary<DateOnly, string>>();
+        foreach (var s in schulferien)
         {
-            var maZeilen = zeilen.Where(z => z.CompanyProfileId == fil.Id).ToList();
-            if (maZeilen.Count == 0) continue;
-            sb.Append($"<div class='fil'><div class='filname'>{System.Net.WebUtility.HtmlEncode(fil.Name ?? "")}</div><div class='scroll'><table><thead><tr><th class='nm'></th>");
-            for (var d = 1; d <= days; d++)
+            var mm = sfMap.TryGetValue(s.CompanyProfileId, out var ex) ? ex : (sfMap[s.CompanyProfileId] = new());
+            for (var dt = s.Von; dt <= s.Bis; dt = dt.AddDays(1)) mm[dt] = s.Bezeichnung;
+        }
+
+        // Kopf: KW / Datum / Tag (wie Desktop; KW nur am Montag).
+        var kwRow = new System.Text.StringBuilder("<tr><th class='dp-side'>KW</th>");
+        var dayRow = new System.Text.StringBuilder("<tr><th class='dp-side'>Datum</th>");
+        var wdRow = new System.Text.StringBuilder("<tr><th class='dp-side'>Tag</th>");
+        for (var t = 1; t <= days; t++)
+        {
+            var dt = new DateOnly(year, month, t);
+            var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+            var mo = dt.DayOfWeek == DayOfWeek.Monday;
+            var cls = (we || mo) ? $" class='{(we ? "dp-we" : "")}{(mo ? " dp-mo" : "")}'" : "";
+            var kw = mo ? System.Globalization.ISOWeek.GetWeekOfYear(dt.ToDateTime(TimeOnly.MinValue)).ToString() : "";
+            kwRow.Append($"<th{cls}>{kw}</th>");
+            dayRow.Append($"<th{cls}{(dt == heute ? " id='dpToday'" : "")}>{t:00}</th>");
+            wdRow.Append($"<th{cls}>{DpWo[(int)dt.DayOfWeek]}</th>");
+        }
+        kwRow.Append("<th class='dp-sum dp-sumfirst'></th><th class='dp-sum'></th><th class='dp-sum'></th><th class='dp-sum'></th><th class='dp-sum'></th></tr>");
+        dayRow.Append("<th class='dp-sum dp-sumfirst'></th><th class='dp-sum'></th><th class='dp-sum'></th><th class='dp-sum'></th><th class='dp-sum'></th></tr>");
+        wdRow.Append("<th class='dp-sum dp-sumfirst'>F</th><th class='dp-sum'>M</th><th class='dp-sum'>S</th><th class='dp-sum'>frei</th><th class='dp-sum'>WE</th></tr>");
+
+        var body = new System.Text.StringBuilder();
+        int? lastCp = null;
+        foreach (var z in zeilen)
+        {
+            if (z.CompanyProfileId != lastCp)
             {
-                var dt = new DateOnly(year, month, d);
-                var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-                var ft = ftSet.Contains((fil.Id, dt));
-                var cls = (dt == heute ? "heute " : "") + (we ? "we" : "");
-                sb.Append($"<th class='{cls}'{(dt == heute ? " id='h" + fil.Id + "'" : "")}>{DpWo[(int)dt.DayOfWeek]}<br>{d}{(ft ? "<span class='ft'>●</span>" : "")}</th>");
-            }
-            sb.Append("</tr></thead><tbody>");
-            foreach (var z in maZeilen)
-            {
-                var name = $"{z.Vorname} {(z.Nachname.Length > 0 ? z.Nachname[..1] + "." : "")}".Trim();
-                sb.Append($"<tr><td class='nm{(z.IstGf ? " gf" : "")}'>{System.Net.WebUtility.HtmlEncode(name)}</td>");
-                for (var d = 1; d <= days; d++)
+                lastCp = z.CompanyProfileId;
+                var fil = filialen.FirstOrDefault(f => f.Id == z.CompanyProfileId);
+                var ftM = z.CompanyProfileId.HasValue && ftMap.TryGetValue(z.CompanyProfileId.Value, out var f1)
+                    ? f1 : new Dictionary<DateOnly, string>();
+                var sfM = z.CompanyProfileId.HasValue && sfMap.TryGetValue(z.CompanyProfileId.Value, out var s1)
+                    ? s1 : new Dictionary<DateOnly, string>();
+                body.Append($"<tr class='dp-branch'><td class='dp-side'>{H(fil?.Name)}</td>");
+                for (var t = 1; t <= days; t++)
                 {
-                    var dt = new DateOnly(year, month, d);
-                    var iso = dt.ToString("yyyy-MM-dd");
-                    var abs = z.Absenzen.FirstOrDefault(a => a.Von <= dt && a.Bis >= dt);
-                    var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-                    var cls = (dt == heute ? "heute " : "") + (we ? "we" : "");
-                    if (abs != null)
-                    {
-                        var st = absStyle.TryGetValue(abs.Typ, out var s2) ? s2 : ("#e2e8f0", "#475569", abs.Typ.Length > 2 ? abs.Typ[..2] : abs.Typ);
-                        sb.Append($"<td class='{cls}' style='background:{st.Item1};color:{st.Item2};font-weight:700'>{st.Item3}</td>");
-                    }
-                    else if (z.Zellen.TryGetValue(iso, out var code))
-                    {
-                        var bg = codeStyle.TryGetValue(code, out var f) ? f : "#ffffff";
-                        sb.Append($"<td class='{cls}' style='background:{bg};font-weight:700'>{System.Net.WebUtility.HtmlEncode(code)}</td>");
-                    }
-                    else sb.Append($"<td class='{cls}'></td>");
+                    var dt = new DateOnly(year, month, t);
+                    var mo = dt.DayOfWeek == DayOfWeek.Monday;
+                    var ft = ftM.ContainsKey(dt);
+                    var sf = sfM.ContainsKey(dt);
+                    var cls = "dp-brday" + (ft ? " dp-brft" : sf ? " dp-brsf" : "") + (mo ? " dp-mo" : "");
+                    body.Append($"<td class='{cls}'{(ft ? $" title='{H(ftM[dt])}'" : sf ? $" title='{H(sfM[dt])}'" : "")}>{(ft ? "★" : "")}</td>");
                 }
-                sb.Append("</tr>");
+                body.Append("<td class='dp-sumfirst'></td><td></td><td></td><td></td><td></td></tr>");
             }
-            sb.Append("</tbody></table></div></div>");
+
+            var name = z.Vorname + (z.Nachname.Length > 0 ? $" {z.Nachname[..1]}." : "");
+            var row = new System.Text.StringBuilder(
+                $"<tr><td class='dp-side dp-name{(z.IstGf ? " dp-gf" : "")}'>{H(name)}{(z.IstGf ? " ★" : "")}</td>");
+            // Summen wie _dpRowSums im Desktop-Grid.
+            int cF = 0, cM = 0, cS = 0, cFrei = 0;
+            foreach (var v in z.Zellen.Values)
+            {
+                if (v == "F") cF++; else if (v == "M") cM++; else if (v == "S") cS++;
+                if (v == "-") cFrei++;
+            }
+            var ferienTage = new HashSet<DateOnly>();
+            foreach (var a in z.Absenzen.Where(a => a.Typ == "FERIEN"))
+                for (var dt = a.Von; dt <= a.Bis; dt = dt.AddDays(1)) ferienTage.Add(dt);
+            bool IstFrei(DateOnly dt) =>
+                (z.Zellen.TryGetValue(dt.ToString("yyyy-MM-dd"), out var v2) && v2 == "-") || ferienTage.Contains(dt);
+            var weOk = false;
+            for (var t = 1; t < days; t++)
+            {
+                var dt = new DateOnly(year, month, t);
+                if (dt.DayOfWeek != DayOfWeek.Saturday) continue;
+                if (IstFrei(dt) && IstFrei(dt.AddDays(1))) { weOk = true; break; }
+            }
+
+            for (var t = 1; t <= days; t++)
+            {
+                var dt = new DateOnly(year, month, t);
+                var iso = dt.ToString("yyyy-MM-dd");
+                var moCls = dt.DayOfWeek == DayOfWeek.Monday ? " dp-mo" : "";
+                var abs = z.Absenzen.FirstOrDefault(a => a.Von <= dt && a.Bis >= dt);
+                if (abs != null)
+                {
+                    var st = absStyle.TryGetValue(abs.Typ, out var s2) ? s2 : ("#e2e8f0", "#475569", abs.Typ.Length > 2 ? abs.Typ[..2] : abs.Typ);
+                    row.Append($"<td class='dp-cell{moCls}' style='background:{st.Item1};color:{st.Item2}'>{H(st.Item3)}</td>");
+                }
+                else if (z.Zellen.TryGetValue(iso, out var code) && code.Length > 0)
+                {
+                    var bg = codeStyle.TryGetValue(code, out var f) ? f : "#ffffff";
+                    row.Append($"<td class='dp-cell{moCls}' style='background:{bg}'>{H(code)}</td>");
+                }
+                else row.Append($"<td class='dp-cell{moCls}'></td>");
+            }
+            row.Append($"<td class='dp-sum dp-sumfirst'>{(cF > 0 ? cF.ToString() : "")}</td><td class='dp-sum'>{(cM > 0 ? cM.ToString() : "")}</td>"
+                + $"<td class='dp-sum'>{(cS > 0 ? cS.ToString() : "")}</td><td class='dp-sum'>{(cFrei > 0 ? cFrei.ToString() : "")}</td>"
+                + $"<td class='dp-sum {(weOk ? "dp-weok" : "dp-wenok")}'>{(weOk ? "OK" : "NOK")}</td></tr>");
+            body.Append(row);
         }
 
         var legende = string.Join("", codes.Select(c =>
-            $"<span class='lg'><span class='sw' style='background:{c.Farbe ?? "#fff"}'></span>{System.Net.WebUtility.HtmlEncode(c.Code)} = {System.Net.WebUtility.HtmlEncode(c.Bezeichnung ?? "")}</span>"))
-            + "<span class='lg'><span class='sw' style='background:#bbf7d0'></span>Ferien</span>"
-            + "<span class='lg'><span class='sw' style='background:#fecaca'></span>K = Krank</span>"
-            + "<span class='lg'><span class='sw' style='background:#fed7aa'></span>U = Unfall</span>"
-            + "<span class='lg'><span class='sw' style='background:#e9d5ff'></span>MS = Mutterschaft</span>"
-            + "<span class='lg'><span class='ft'>●</span> Feiertag</span>";
+            $"<span class='lg'><span class='sw' style='background:{c.Farbe ?? "#fff"}'>{H(c.Code)}</span>{H(c.Bezeichnung)}</span>"))
+            + "<span class='lg'><span class='sw' style='background:#bbf7d0'>✓</span>Ferien</span>"
+            + "<span class='lg'><span class='sw' style='background:#fecaca;color:#991b1b'>K</span>Krank</span>"
+            + "<span class='lg'><span class='sw' style='background:#fed7aa;color:#9a3412'>U</span>Unfall</span>"
+            + "<span class='lg'><span class='sw' style='background:#e9d5ff;color:#6b21a8'>MS</span>Mutterschaft</span>"
+            + "<span class='lg'><span class='sw' style='background:#f87171;color:#fff'>★</span>Feiertag</span>"
+            + "<span class='lg'><span class='sw' style='background:#93c5fd'></span>Schulferien</span>";
 
         var html = $@"<!doctype html>
 <html lang='de'><head><meta charset='utf-8'>
@@ -1173,41 +1233,54 @@ public class ManagerDienstplanController : ControllerBase
   body {{ margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
          background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);
          background-attachment:fixed; min-height:100vh; color:#3f3f3f; }}
-  .wrap {{ max-width:980px; margin:0 auto; padding:18px 10px 28px; }}
-  .brand {{ display:flex; align-items:center; gap:8px; margin:0 4px 10px;
+  .wrap {{ padding:14px 10px 26px; }}
+  .brand {{ display:flex; align-items:center; gap:8px; margin:0 4px 8px;
            font-weight:800; font-size:12px; letter-spacing:1.4px; text-transform:uppercase; color:#8b8b8b; }}
   .brand::after {{ content:''; flex:1; height:1px; background:rgba(60,55,48,0.14); }}
-  h1 {{ font-size:19px; font-weight:800; margin:0 4px 12px; }}
-  .nav {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 4px 14px; }}
+  .nav {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 4px 12px; }}
   .mon {{ font-size:16px; font-weight:800; }}
-  .fil {{ background:rgba(255,255,255,0.60); border:1px solid rgba(255,255,255,0.70); border-radius:16px;
-         padding:12px 10px; margin-bottom:14px; box-shadow:0 10px 30px rgba(70,64,55,0.14); }}
-  .filname {{ font-weight:800; font-size:14.5px; margin:0 4px 8px; }}
-  .scroll {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}
-  table {{ border-collapse:separate; border-spacing:0; font-size:11.5px; }}
-  th, td {{ border-bottom:1px solid rgba(60,55,48,0.10); padding:4px 3px; text-align:center; min-width:30px; }}
-  th {{ font-size:10px; color:#8b8b8b; font-weight:700; line-height:1.25; }}
-  .nm {{ position:sticky; left:0; background:#f6f3ee; text-align:left; padding-left:6px; padding-right:8px;
-        min-width:92px; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-        font-weight:600; z-index:1; box-shadow:2px 0 4px rgba(60,55,48,0.08); }}
-  .nm.gf {{ font-weight:800; }}
-  .we {{ background:rgba(60,55,48,0.05); }}
-  .heute {{ outline:2px solid #3f3f3f; outline-offset:-2px; }}
-  th.heute {{ color:#3f3f3f; }}
-  .ft {{ color:#b91c1c; font-size:8px; display:block; line-height:1; }}
-  .legende {{ display:flex; flex-wrap:wrap; gap:8px 14px; margin:4px 6px 0; font-size:11.5px; color:#646464; }}
+  .dp-scroll {{ overflow:auto; -webkit-overflow-scrolling:touch; background:rgba(255,255,255,0.60);
+               border:1px solid rgba(255,255,255,0.70); border-radius:14px; padding:6px;
+               box-shadow:0 10px 30px rgba(70,64,55,0.14); }}
+  .dp-table {{ border-collapse:collapse; font-size:11.5px; width:max-content; }}
+  .dp-table th, .dp-table td {{ border:1px solid rgba(60,55,48,0.12); text-align:center; min-width:27px; padding:2px 3px; }}
+  .dp-table thead th {{ background:#f6f3ee; font-weight:700; color:#646464; position:sticky; z-index:2; height:24px; box-sizing:border-box; }}
+  .dp-table thead tr:nth-child(1) th {{ top:0; }}
+  .dp-table thead tr:nth-child(2) th {{ top:24px; }}
+  .dp-table thead tr:nth-child(3) th {{ top:48px; }}
+  .dp-side {{ position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important;
+             padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap;
+             overflow:hidden; text-overflow:ellipsis; }}
+  .dp-we {{ background:#efece6; }}
+  .dp-branch td {{ background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px;
+                  letter-spacing:.4px; text-align:left; padding:3px 8px; }}
+  .dp-branch td.dp-brday {{ padding:0; font-size:10px; text-align:center; }}
+  .dp-branch td.dp-brft {{ background:#f87171 !important; color:#fff !important; }}
+  .dp-branch td.dp-brsf {{ background:#93c5fd !important; }}
+  .dp-cell {{ font-weight:700; color:#3f3f3f; }}
+  .dp-name {{ font-weight:600; }}
+  .dp-gf {{ font-weight:800; }}
+  .dp-table .dp-mo {{ border-left:2px solid #a39c8f !important; }}
+  .dp-table .dp-sum {{ background:#f6f3ee; font-weight:700; color:#3f3f3f; min-width:26px; }}
+  .dp-table td.dp-weok {{ color:#166534; font-size:10.5px; }}
+  .dp-table td.dp-wenok {{ color:#b91c1c; font-size:10.5px; }}
+  .dp-table .dp-sumfirst {{ border-left:2px solid #a39c8f !important; }}
+  .legende {{ display:flex; flex-wrap:wrap; gap:8px 14px; margin:10px 6px 0; font-size:11.5px; color:#646464; }}
   .lg {{ display:inline-flex; align-items:center; gap:5px; }}
-  .sw {{ width:12px; height:12px; border-radius:4px; border:1px solid rgba(60,55,48,0.18); display:inline-block; }}
+  .sw {{ min-width:16px; height:16px; border-radius:4px; border:1px solid rgba(60,55,48,0.18);
+        display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; padding:0 2px; }}
 </style></head>
 <body><div class='wrap'>
-<div class='brand'>OneCrew</div>
-<h1>Manager-Dienstplan</h1>
+<div class='brand'>OneCrew · Manager-Dienstplan</div>
 <div class='nav'>{Nav(prev, "‹ " + DpMonate[prev.Month])}<span class='mon'>{DpMonate[month]} {year}</span>{Nav(next, DpMonate[next.Month] + " ›")}</div>
-{sb}
+<div class='dp-scroll'><table class='dp-table'>
+<thead>{kwRow}{dayRow}{wdRow}</thead>
+<tbody>{body}</tbody>
+</table></div>
 <div class='legende'>{legende}</div>
-<div style='text-align:center;color:#b0aca4;font-size:11px;margin-top:16px'>OneCrew · Schaub Restaurants · Stand {DateTime.Now:dd.MM.yyyy HH:mm}</div>
+<div style='text-align:center;color:#b0aca4;font-size:11px;margin-top:14px'>OneCrew · Schaub Restaurants · Stand {DateTime.Now:dd.MM.yyyy HH:mm}</div>
 </div>
-<script>var h=document.querySelector('th.heute');if(h)h.closest('.scroll').scrollLeft=Math.max(0,h.offsetLeft-120);</script>
+<script>var h=document.getElementById('dpToday');if(h)h.closest('.dp-scroll').scrollLeft=Math.max(0,h.offsetLeft-140);</script>
 </body></html>";
         return Content(html, "text/html; charset=utf-8");
     }
