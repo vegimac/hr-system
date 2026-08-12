@@ -1242,9 +1242,13 @@ public class ManagerDienstplanController : ControllerBase
   /* KEIN horizontales Padding — sonst läuft der Plan beim Wischen im
      Polsterstreifen LINKS der sticky Namen-Spalte sichtbar durch
      (Walter-Bug 12.08.2026). */
+  /* Der Container scrollt selbst vertikal (max-height) — nur so greifen die
+     sticky Kopfzeilen KW/Datum/Tag beim Nach-unten-Scrollen (Walter
+     12.08.2026). Ohne Höhe scrollte der BODY und der Kopf lief mit. */
   .dp-scroll {{ overflow:auto; -webkit-overflow-scrolling:touch; background:rgba(255,255,255,0.60);
                border:1px solid rgba(255,255,255,0.70); border-radius:14px; padding:0;
-               box-shadow:0 10px 30px rgba(70,64,55,0.14); }}
+               box-shadow:0 10px 30px rgba(70,64,55,0.14);
+               max-height:calc(100vh - 165px); max-height:calc(100dvh - 165px); }}
   .dp-table {{ border-collapse:collapse; font-size:11.5px; width:max-content; }}
   .dp-table th, .dp-table td {{ border:1px solid rgba(60,55,48,0.12); text-align:center; min-width:27px; padding:2px 3px; }}
   .dp-table thead th {{ background:#f6f3ee; font-weight:700; color:#646464; position:sticky; z-index:2; height:24px; box-sizing:border-box; }}
