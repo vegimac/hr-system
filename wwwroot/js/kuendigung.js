@@ -392,8 +392,10 @@ function _krEnsureModal() {
         </div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="krZustell" value="P" checked> Abgabe durch Restaurant</label>
-            <label style="font-size:13px"><input type="radio" name="krZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div class="zst-wrap">
+                <label class="zst-pill"><input type="radio" name="krZustell" value="P" checked>🏪 Abgabe durch Restaurant</label>
+                <label class="zst-pill"><input type="radio" name="krZustell" value="E">📮 Versand an Mitarbeiter</label>
+            </div>
             <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
@@ -541,8 +543,10 @@ function _kbEnsureModal() {
         <input type="date" id="kbKuendigungAuf" style="width:100%;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white;margin-bottom:12px">
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="kbZustell" value="P" checked> Abgabe durch Restaurant</label>
-            <label style="font-size:13px"><input type="radio" name="kbZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div class="zst-wrap">
+                <label class="zst-pill"><input type="radio" name="kbZustell" value="P" checked>🏪 Abgabe durch Restaurant</label>
+                <label class="zst-pill"><input type="radio" name="kbZustell" value="E">📮 Versand an Mitarbeiter</label>
+            </div>
             <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">
@@ -751,8 +755,10 @@ function _avEnsureModal() {
         <div style="font-size:11.5px;color:#64748b;margin:0 0 12px">Standard: Auflösung = Monatsende, letzter Lohn = 6. des Folgemonats (anpassbar).</div>
         <div style="margin-bottom:16px">
             <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px">Zustellung</div>
-            <label style="font-size:13px;margin-right:16px"><input type="radio" name="avZustell" value="P" checked> Abgabe durch Restaurant</label>
-            <label style="font-size:13px"><input type="radio" name="avZustell" value="E"> Versand an Mitarbeiter (Einschreiben)</label>
+            <div class="zst-wrap">
+                <label class="zst-pill"><input type="radio" name="avZustell" value="P" checked>🏪 Abgabe durch Restaurant</label>
+                <label class="zst-pill"><input type="radio" name="avZustell" value="E">📮 Versand an Mitarbeiter</label>
+            </div>
             <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale · Versand: unterzeichnet der angemeldete Benutzer.</div>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:10px">

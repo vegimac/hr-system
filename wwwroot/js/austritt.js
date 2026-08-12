@@ -456,8 +456,11 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
 
             <div style="margin-bottom:16px">
                 <div style="${label}">Zustellung &amp; Unterzeichner</div>
-                <label style="${pill};margin-bottom:6px"><input type="radio" name="azZustell" value="V" checked> Versand an Mitarbeiter <span style="color:#8b8b8b;font-weight:400">— unterzeichnet der angemeldete Benutzer</span></label>
-                <label style="${pill}"><input type="radio" name="azZustell" value="A"> Abgabe durch Restaurant <span style="color:#8b8b8b;font-weight:400">— unterzeichnet der Allgemein-Unterzeichner der Filiale</span></label>
+                <div class="zst-wrap">
+                    <label class="zst-pill"><input type="radio" name="azZustell" value="V" checked>📮 Versand an Mitarbeiter</label>
+                    <label class="zst-pill"><input type="radio" name="azZustell" value="A">🏪 Abgabe durch Restaurant</label>
+                </div>
+                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Versand: unterzeichnet der angemeldete Benutzer · Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale.</div>
             </div>
 
             <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
