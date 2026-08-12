@@ -1254,6 +1254,7 @@ public class ManagerDienstplanController : ControllerBase
   .dp-side {{ position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important;
              padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap;
              overflow:hidden; text-overflow:ellipsis; }}
+  thead .dp-side {{ text-transform:uppercase; z-index:4; }}
   .dp-we {{ background:#efece6; }}
   .dp-branch td {{ background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px;
                   letter-spacing:.4px; text-align:left; padding:3px 8px; }}
