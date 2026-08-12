@@ -309,6 +309,13 @@ public class EasyAtWorkEmployeeSyncService
 
         var activeAt = DateOnly.FromDateTime(DateTime.Today);
         var seen = new HashSet<int>();
+        // Aktivlisten-Zeilen zusätzlich nach PERSONALNUMMER indexieren
+        // (Walter-Bug 12.08.2026, Senada 580082): legt easy@work einen MA neu
+        // an (Rollenwechsel/Neuerfassung), bekommt er eine NEUE employee-Id —
+        // unsere gespeicherte Id findet dann nie mehr etwas und die Warnung
+        // flattert. Über die Nummer hängen wir die Verknüpfung automatisch um.
+        static string NurZiffern(string? s) => new string((s ?? "").Where(char.IsDigit).ToArray());
+        var byNumber = new Dictionary<string, EawEmployee>();
         // Ein einzelner Filial-API-Fehler bricht den Lauf NICHT mehr ab
         // (Walter 08.08.2026): die übrigen Filialen werden weiter geprüft.
         // Bei unvollständiger Liste werden nur AUFHEBUNGEN gemacht, keine
@@ -328,6 +335,8 @@ public class EasyAtWorkEmployeeSyncService
             {
                 seen.Add(r.Id);
                 if (r.UserId.HasValue) seen.Add(r.UserId.Value); // Legacy: teils user_id gespeichert
+                var nr = NurZiffern(r.Number);
+                if (nr.Length > 0 && !byNumber.ContainsKey(nr)) byNumber[nr] = r;
             }
         }
 
@@ -338,6 +347,24 @@ public class EasyAtWorkEmployeeSyncService
         foreach (var e in kandidaten)
         {
             bool found = seen.Contains(e.EasyAtWorkEmployeeId!.Value);
+
+            // Id nicht gefunden, aber die PERSONALNUMMER steht in einer
+            // Aktivliste → easy@work hat den MA neu angelegt (neue Id).
+            // Verknüpfung umhängen statt warnen (Walter 12.08.2026, Senada).
+            // «alt»-Nummern (Archiv-Suffix) sind ausgenommen — Kollisionsgefahr.
+            if (!found && !(e.EmployeeNumber ?? "").Contains("alt", StringComparison.OrdinalIgnoreCase))
+            {
+                var nr = NurZiffern(e.EmployeeNumber);
+                if (nr.Length > 0 && byNumber.TryGetValue(nr, out var neu) && neu.Id != e.EasyAtWorkEmployeeId.Value)
+                {
+                    notes.Add($"🔗 {e.FirstName} {e.LastName} ({e.EmployeeNumber}): easy@work-Id gewechselt {e.EasyAtWorkEmployeeId} → {neu.Id} — Verknüpfung automatisch umgehängt" + (e.EasyMissingSince != null ? ", Verschollen-Warnung aufgehoben." : "."));
+                    e.EasyAtWorkEmployeeId = neu.Id;
+                    e.EasyMissingSince = null;
+                    changed = true;
+                    continue;
+                }
+            }
+
             if (!found && e.EasyMissingSince == null)
             {
                 // Unvollständige Liste → keine NEUEN Markierungen.
