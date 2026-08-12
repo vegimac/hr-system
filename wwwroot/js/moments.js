@@ -785,7 +785,7 @@ function momTextTypeChanged() {
         hint.innerHTML = 'Bewilligung abgelaufen: SMS = kurzer Push (max. 160), ausführlicher Text ins Feld «Mitteilung». SMS-Platzhalter: <b>{Vorname}</b>. Mitteilung: <b>{Briefanrede}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b> · <b>{SenderName}</b>. Der Link wird automatisch angehängt.';
     } else if (t && t.code === 'WILLKOMMENSTAG_ERINNERUNG') {
         hint.style.display = 'block';
-        hint.innerHTML = 'Willkommenstag-Erinnerung: dieser SMS-Text wird beim <b>«SMS erneut senden»</b> verwendet (statt der ersten Einladung). Platzhalter: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b> · <b>{Link}</b>. Das Feld «Mitteilung» wird hier nicht verwendet (die Link-Seite kommt aus der Einladungs-Vorlage).';
+        hint.innerHTML = 'Willkommenstag-Erinnerung: dieser SMS-Text wird beim <b>«SMS erneut senden»</b> verwendet (statt der ersten Einladung). Das Feld «Mitteilung» ist der <b>Text auf der Link-Seite, NACHDEM der Kandidat bestätigt hat</b>. Platzhalter überall: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>.';
     } else if (t && t.code === 'WILLKOMMENSTAG') {
         hint.style.display = 'block';
         hint.innerHTML = 'Willkommenstag: SMS = kurzer Push mit Link (max. 160). Das Feld «Mitteilung» ist der <b>Begrüssungstext auf der Link-Seite</b> (zwischen Titel und Termin-Box). Platzhalter in beiden Feldern: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>. {Arbeitsort} = Ort wie im Vertrag (z.B. «Reinach»).';

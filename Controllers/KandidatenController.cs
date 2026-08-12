@@ -851,36 +851,40 @@ public class KandidatenController : ControllerBase
         var terminBlock = $@"<div style='background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px;margin:14px 0;font-size:16px;line-height:1.65;color:#3f3f3f;box-shadow:0 4px 14px rgba(70,64,55,0.08)'>
             📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
 
-        // Einleitungstext der Link-Seite aus der Moments-Vorlage WILLKOMMENSTAG
-        // (Feld «Mitteilung»/BodyText, Walter 12.08.2026) — gestaltbar unter
-        // System → Moments-Texte → Willkommenstag-Einladung. Gleiche Platzhalter
-        // wie die SMS: {Vorname} {Firma} {Wochentag} {Datum} {Zeit}.
-        // Fallback (leer oder noch der Seed-Beschreibungstext) = Standard-Satz.
+        // Texte der Link-Seite aus den Moments-Vorlagen (Walter 12.08.2026):
+        //   OFFENE Einladung  → Mitteilung der Vorlage WILLKOMMENSTAG
+        //   BESTÄTIGT-Seite   → Mitteilung der Vorlage WILLKOMMENSTAG_ERINNERUNG
+        // Beide gestaltbar unter System → Moments-Texte, gleiche Platzhalter wie
+        // die SMS: {Vorname} {Firma} {Arbeitsort} {Wochentag} {Datum} {Zeit}.
+        // Fallback (leer oder noch der Seed-Beschreibungstext): offene Seite =
+        // Standard-Einladungssatz, Bestätigt-Seite = kein Zusatztext.
+        var arbeitsortLp = !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim() : (cp?.City ?? "").Trim();
+        string? BuildIntro(string? body)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return null;
+            if (body.TrimStart().StartsWith("Vorlage für die Willkommenstag-SMS")) return null;
+            var filled = body
+                .Replace("{Vorname}", k.Vorname ?? "")
+                .Replace("{Firma}", firma)
+                .Replace("{Arbeitsort}", arbeitsortLp)
+                .Replace("{Wochentag}", wt)
+                .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
+                .Replace("{Zeit}", zeit);
+            return "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
+        }
         var tplBody = await _db.MomentTexts.AsNoTracking()
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
             .OrderBy(t => t.SortOrder)
             .Select(t => t.BodyText)
             .FirstOrDefaultAsync();
-        string? customIntro = null;
-        if (!string.IsNullOrWhiteSpace(tplBody)
-            && !tplBody.TrimStart().StartsWith("Vorlage für die Willkommenstag-SMS"))
-        {
-            var filled = tplBody
-                .Replace("{Vorname}", k.Vorname ?? "")
-                .Replace("{Firma}", firma)
-                .Replace("{Arbeitsort}", !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim() : (cp?.City ?? "").Trim())
-                .Replace("{Wochentag}", wt)
-                .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
-                .Replace("{Zeit}", zeit);
-            customIntro = "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
-        }
-        // Offener Zustand: eigener Text oder Standard-Einladungssatz. Die
-        // BESTÄTIGT-Seite zeigt bewusst KEINEN Einladungstext (Walter
-        // 12.08.2026: Wiederholung läuft über «SMS erneut senden», nicht über
-        // einen zweiten Text auf der Link-Seite).
-        var introHtml = customIntro
+        var tplBodyBest = await _db.MomentTexts.AsNoTracking()
+            .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG_ERINNERUNG")
+            .OrderBy(t => t.SortOrder)
+            .Select(t => t.BodyText)
+            .FirstOrDefaultAsync();
+        var introHtml = BuildIntro(tplBody)
             ?? "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
-        var introHtmlBestaetigt = "";
+        var introHtmlBestaetigt = BuildIntro(tplBodyBest) ?? "";
 
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
