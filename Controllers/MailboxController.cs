@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -633,8 +634,9 @@ public class MailboxController : ControllerBase
         if (!System.IO.File.Exists(path)) return NotFound();
 
         var bytes = await System.IO.File.ReadAllBytesAsync(path);
-        // Content-Disposition: inline → Browser zeigt PDF/Bild direkt im iframe
-        Response.Headers["Content-Disposition"] = $"inline; filename=\"{doc.OriginalFilename}\"";
+        // Content-Disposition: inline → Browser zeigt PDF/Bild direkt im iframe.
+        // Umlaut-sicher via RFC-5987-Helper (roher Name mit «Ö» → 500).
+        Response.Headers["Content-Disposition"] = ContentDispositionUtil.Build("inline", doc.OriginalFilename, "datei.pdf");
         return File(bytes, doc.MimeType ?? "application/octet-stream");
     }
 

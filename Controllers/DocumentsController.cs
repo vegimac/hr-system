@@ -611,7 +611,7 @@ public class DocumentsController : ControllerBase
         {
             var stream = System.IO.File.OpenRead(fullPath);
             Response.Headers["Content-Disposition"] =
-                $"inline; filename=\"{Uri.EscapeDataString(doc.FilenameOriginal ?? "dokument.pdf")}\"";
+                ContentDispositionUtil.Build("inline", doc.FilenameOriginal, "dokument.pdf");
             return File(stream, "application/pdf");
         }
 
@@ -627,7 +627,7 @@ public class DocumentsController : ControllerBase
                 return StatusCode(500, new { error = "PDF-Konvertierung fehlgeschlagen. Ist LibreOffice auf dem Server installiert?" });
 
             var name = Path.GetFileNameWithoutExtension(doc.FilenameOriginal ?? "dokument") + ".pdf";
-            Response.Headers["Content-Disposition"] = $"inline; filename=\"{Uri.EscapeDataString(name)}\"";
+            Response.Headers["Content-Disposition"] = ContentDispositionUtil.Build("inline", name, "dokument.pdf");
             return File(pdf, "application/pdf");
         }
 
@@ -1147,7 +1147,7 @@ public class DocumentsController : ControllerBase
         var stream = System.IO.File.OpenRead(fullPath);
         var contentDisposition = asAttachment ? "attachment" : "inline";
         Response.Headers["Content-Disposition"] =
-            $"{contentDisposition}; filename=\"{Uri.EscapeDataString(doc.FilenameOriginal)}\"";
+            ContentDispositionUtil.Build(contentDisposition, doc.FilenameOriginal, "dokument");
         return File(stream, doc.MimeType);
     }
 
