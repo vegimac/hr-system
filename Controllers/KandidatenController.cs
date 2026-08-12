@@ -712,9 +712,20 @@ public class KandidatenController : ControllerBase
             ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
             : $"{termin.VonZeit:HH\\:mm}";
 
-        // SMS-Text aus der pflegbaren Moments-Vorlage WILLKOMMENSTAG.
+        // SMS-Text aus der pflegbaren Moments-Vorlage. ERNEUTES Senden
+        // (Walter 12.08.2026) nimmt die eigene Erinnerungs-Vorlage
+        // WILLKOMMENSTAG_ERINNERUNG — fällt ohne aktive Erinnerungs-Vorlage
+        // auf die normale Einladung (WILLKOMMENSTAG) zurück.
         string smsText;
-        var tpl = await _db.MomentTexts
+        var istErinnerung = k.WillkommenGesendetAm != null;
+        var tpl = istErinnerung
+            ? await _db.MomentTexts
+                .Include(t => t.MomentType)
+                .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG_ERINNERUNG")
+                .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
+                .FirstOrDefaultAsync()
+            : null;
+        tpl ??= await _db.MomentTexts
             .Include(t => t.MomentType)
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)

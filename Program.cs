@@ -1200,7 +1200,8 @@ using (var scope = app.Services.CreateScope())
           ('WelcomeBackNeutral','Schön, dass du wieder da bist','Neutrale Willkommensnachricht ohne Angabe des Grundes','care',7,true),
           ('VERTRAG_LINK','Arbeitsvertrag-Link','SMS-Vorlage für den öffentlichen Vertrags-Link. Platzhalter (in geschweiften Klammern): Vorname, Firma, Link, GueltigBis','appreciation',8,true),
           ('BEWILLIGUNG_ABGELAUFEN','Bewilligung abgelaufen','Kurz-SMS + Link-Seite bei abgelaufener Bewilligung. SMS max. 160 Zeichen (Vorname); Mitteilung: Briefanrede, PermitCode, GueltigBis, SenderName','appreciation',9,true),
-          ('WILLKOMMENSTAG','Willkommenstag-Einladung','SMS an den KANDIDATEN mit Einladung zum Willkommenstag (Onboarding). Platzhalter: Vorname, Firma, Arbeitsort, Wochentag, Datum, Zeit, Link','appreciation',10,true)
+          ('WILLKOMMENSTAG','Willkommenstag-Einladung','SMS an den KANDIDATEN mit Einladung zum Willkommenstag (Onboarding). Platzhalter: Vorname, Firma, Arbeitsort, Wochentag, Datum, Zeit, Link','appreciation',10,true),
+          ('WILLKOMMENSTAG_ERINNERUNG','Willkommenstag-Erinnerung','SMS beim ERNEUTEN Senden der Willkommenstag-Einladung (Erinnerung). Gleiche Platzhalter: Vorname, Firma, Arbeitsort, Wochentag, Datum, Zeit, Link. Ohne aktive Vorlage wird die normale Einladung verwendet.','appreciation',11,true)
         ON CONFLICT (code) DO UPDATE SET
           name = EXCLUDED.name, description = EXCLUDED.description,
           consent_category = EXCLUDED.consent_category, sort_order = EXCLUDED.sort_order, is_active = EXCLUDED.is_active;
@@ -1302,6 +1303,25 @@ using (var scope = app.Services.CreateScope())
                     Titel = "Willkommenstag-Einladung",
                     SmsText = "Hallo {Vorname}, herzlich willkommen bei {Firma}! Dein Willkommenstag: {Wochentag}, {Datum} um {Zeit}. Bitte bestätige hier: {Link}",
                     BodyText = "Vorlage für die Willkommenstag-SMS an den Kandidaten. Platzhalter: {Vorname}, {Firma}, {Wochentag}, {Datum}, {Zeit}, {Link}.",
+                    LanguageCode = "de", Version = "1.0", RequiresReview = false,
+                    IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
+            }
+        }
+
+        // WILLKOMMENSTAG_ERINNERUNG (Walter 12.08.2026): eigener SMS-Text für
+        // das ERNEUTE Senden («SMS erneut») — z.B. freundliche Erinnerung
+        // statt nochmals die identische Einladung.
+        if (_mtTypeIds.TryGetValue("WILLKOMMENSTAG_ERINNERUNG", out var _weTypeId))
+        {
+            var _weToneId = _mtToneIds.TryGetValue("Warm", out var _w2) ? _w2
+                          : db.MomentTones.OrderBy(t => t.SortOrder).ThenBy(t => t.Id).Select(t => t.Id).FirstOrDefault();
+            if (_weToneId != 0 && !db.MomentTexts.Any(x => x.MomentTypeId == _weTypeId))
+            {
+                db.MomentTexts.Add(new MomentText {
+                    MomentTypeId = _weTypeId, MomentToneId = _weToneId,
+                    Titel = "Willkommenstag-Erinnerung",
+                    SmsText = "Hallo {Vorname}, kleine Erinnerung an deinen Willkommenstag: {Wochentag}, {Datum} um {Zeit}. Bitte bestätige hier: {Link}",
+                    BodyText = "",
                     LanguageCode = "de", Version = "1.0", RequiresReview = false,
                     IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
             }
