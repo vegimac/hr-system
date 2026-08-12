@@ -1239,8 +1239,11 @@ public class ManagerDienstplanController : ControllerBase
   .brand::after {{ content:''; flex:1; height:1px; background:rgba(60,55,48,0.14); }}
   .nav {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 4px 12px; }}
   .mon {{ font-size:16px; font-weight:800; }}
+  /* KEIN horizontales Padding — sonst läuft der Plan beim Wischen im
+     Polsterstreifen LINKS der sticky Namen-Spalte sichtbar durch
+     (Walter-Bug 12.08.2026). */
   .dp-scroll {{ overflow:auto; -webkit-overflow-scrolling:touch; background:rgba(255,255,255,0.60);
-               border:1px solid rgba(255,255,255,0.70); border-radius:14px; padding:6px;
+               border:1px solid rgba(255,255,255,0.70); border-radius:14px; padding:0;
                box-shadow:0 10px 30px rgba(70,64,55,0.14); }}
   .dp-table {{ border-collapse:collapse; font-size:11.5px; width:max-content; }}
   .dp-table th, .dp-table td {{ border:1px solid rgba(60,55,48,0.12); text-align:center; min-width:27px; padding:2px 3px; }}
