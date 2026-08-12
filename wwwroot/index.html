@@ -4297,14 +4297,14 @@
             </div>
             <!-- ═══ SOLLSTUNDEN-ÜBERSICHT (GF, Walter-Vorgabe 19.06.2026) ═══ -->
             <div class="page" id="page-sollstunden">
-                <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div>
-                    <h1 class="page-title">Sollstunden-Übersicht</h1>
+                <div class="page-head"><div>
+                    <!-- «← Zurück» direkt neben dem Titel (Walter 12.08.2026:
+                         nicht ganz rechts aussen, sondern nah bei der Info) -->
+                    <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Sollstunden-Übersicht
+                        <button onclick="pageBack()"
+                                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
                     <p class="page-sub">Pro Mitarbeiter (FIX / FIX-M / MTP): wie viele Stunden im Monat zu leisten sind, wie viel bereits gearbeitet wurde und was Absenzen gutschreiben/abziehen — gerechnet mit derselben Logik wie der Lohnlauf.</p>
-                </div>
-                    <!-- «← Zurück» rechts, 58px unter der reservierten Sprach-/Theme-Zone -->
-                    <button onclick="pageBack()"
-                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
-                </div>
+                </div></div>
                 <div class="page-body">
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Monat
@@ -4325,14 +4325,12 @@
             </div>
             <!-- ═══ FERIEN-ÜBERSICHT (GF, Walter-Vorgabe 20.06.2026) ═══ -->
             <div class="page" id="page-ferien">
-                <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div>
-                    <h1 class="page-title">Ferien / Feiertage / Nacht</h1>
+                <div class="page-head"><div>
+                    <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Ferien / Feiertage / Nacht
+                        <button onclick="pageBack()"
+                                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
                     <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Vortrag aus Monatsblatt + Nachtstunden × 10% Zuschlag − Nacht-Kompensation; Saldo &gt; 9 h = gelb).</p>
-                </div>
-                    <!-- «← Zurück» rechts, 58px unter der reservierten Sprach-/Theme-Zone -->
-                    <button onclick="pageBack()"
-                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
-                </div>
+                </div></div>
                 <div class="page-body">
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Jahr
@@ -5778,15 +5776,15 @@
                  Gesamt-Ausfalltagen absteigend. Drilldown pro MA + CSV-Export. -->
             <div class="page" id="page-absence-report">
                 <div class="sticky-page-head">
-                <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+                <div class="page-header">
                     <div>
-                        <h1 class="page-title">Absenz-Auswertung</h1>
+                        <!-- «← Zurück» direkt neben dem Titel (Walter 12.08.2026:
+                             nicht ganz rechts aussen, sondern nah bei der Info) -->
+                        <h1 class="page-title" style="display:flex;align-items:center;gap:18px">Absenz-Auswertung
+                            <button onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
                         <p class="page-sub">Krankheit, Unfall und Mutter-/Vaterschaftsurlaub pro Mitarbeiter:in — pro Filiale oder filialübergreifend als Top-Liste, sortiert nach Gesamt-Ausfalltagen.</p>
                     </div>
-                    <!-- «← Zurück» rechts, mit 58px Versatz unter der reservierten
-                         Sprach-/Theme-Zone (Walter 12.08.2026) -->
-                    <button onclick="pageBack()"
-                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
                 </div>
                 <div id="arAlert" style="margin-bottom:12px"></div>
 
