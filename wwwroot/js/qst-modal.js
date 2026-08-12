@@ -306,11 +306,14 @@ function qstUpdateAutoKinderHint() {
     });
     const quelle = allKinderHaveQstData ? 'aus QST-Daten' : 'aus Geburtsdatum';
 
+    // Walter 12.08.2026: immer zeigen, wie viele Kinder ERFASST sind —
+    // zusätzlich zur Zahl der am Stichtag QST-berechtigten.
+    const erfasst = `${_qstFamilyKinder.length} Kind${_qstFamilyKinder.length===1?'':'er'} im Familie-Tab`;
     if (manual === auto) {
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${auto} Kind${auto===1?'':'er'} QST-abzugsberechtigt am ${stichtagDe} (${quelle})</span>`;
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${erfasst} · ${auto} QST-abzugsberechtigt am ${stichtagDe} (${quelle})</span>`;
     } else {
         hint.innerHTML = `
-            <span style="color:#dc2626">⚠ Auto: ${auto} (${quelle}), manuell eingetragen: ${manual}</span>
+            <span style="color:#dc2626">⚠ ${erfasst} · Auto: ${auto} (${quelle}), manuell eingetragen: ${manual}</span>
             <button type="button" onclick="qstApplyAutoKinder()"
                     style="margin-left:6px;background:#1a1a1a;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
     }

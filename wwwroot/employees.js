@@ -4155,6 +4155,13 @@ async function openQstFromTab(entryId) {
         loadQstPartnerInfo(selectedEmployeeId);
     }
 
+    // Kinder aus dem Familie-Tab laden (Walter-Bug 12.08.2026): dieser
+    // Tab-Öffnungspfad hat den Kinder-Cache nie befüllt — deshalb stand
+    // «Keine Kinder erfasst», obwohl Kinder vorhanden waren.
+    if (typeof loadQstFamilyKinder === 'function') {
+        await loadQstFamilyKinder(selectedEmployeeId);
+    }
+
     // Formular befüllen
     if (entryId) {
         try {
