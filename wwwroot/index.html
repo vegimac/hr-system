@@ -8446,7 +8446,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 
     <!-- Stammdaten (read-only) — 3 Spalten, sehr kompakt -->
-    <div style="padding:8px 20px;background:rgba(255,255,255,0.5);border-bottom:1px solid rgba(60,55,48,0.12)">
+    <div style="padding:5px 20px;background:rgba(255,255,255,0.5);border-bottom:1px solid rgba(60,55,48,0.12)">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 18px;font-size:12px;line-height:1.5">
             <div><span style="color:#64748b">Aufenthalt:</span> <span id="qstPermitDisplay" style="font-weight:500">–</span></div>
             <div><span style="color:#64748b">Wohnort:</span> <span id="qstWohnortDisplay" style="font-weight:500">–</span></div>
@@ -8647,7 +8647,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <!-- Aktionen -->
-        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:10px;border-top:1px solid rgba(60,55,48,0.12)">
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:6px;border-top:1px solid rgba(60,55,48,0.12)">
             <div id="qstSaveResult" style="font-size:12px;flex:1"></div>
             <button onclick="closeQstModal()" style="background:rgba(255,255,255,0.6);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Abbrechen</button>
             <button onclick="saveQstEntry()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(60,55,48,0.22)">Speichern</button>
@@ -8665,6 +8665,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 #qstModal .qst-inp:focus { border-color:#1a1a1a;box-shadow:0 0 0 3px rgba(60,55,48,.15) }
 #qstModal .qst-cb    { display:inline-flex;align-items:center;gap:6px;font-size:12.5px;cursor:pointer;color:#0f172a;white-space:nowrap;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;box-shadow:0 1px 2px rgba(15,23,42,0.08) }
 #qstModal .qst-cb input[type=checkbox] { width:14px;height:14px;margin:0 }
+/* Kompakt-Modus (Walter 12.08.2026): das ganze Formular soll OHNE Scrollen
+   auf den Eingabebildschirm passen — Abstände/Feldhöhen eng, !important
+   übersteuert die Inline-Paddings der Feldgruppen-Karten. */
+#qstModal .ma-modal-body { padding:6px 20px 8px !important; }
+#qstModal .emp-section-title { margin:8px 0 3px !important; }
+#qstModal .qst-grid,
+#qstModal #qstFormWrap > div[style*="f6f3ee"] { padding:6px 12px 7px !important; margin-bottom:2px !important; gap:5px 10px !important; }
+#qstModal .qst-inp { min-height:25px !important; padding:3px 8px !important; }
+#qstModal .qst-cb  { min-height:25px !important; padding:3px 8px !important; }
+#qstModal .qst-lbl { margin-bottom:1px !important; }
+#qstModal #qstTarifHint { font-size:10.5px !important; line-height:1.25 !important; margin-top:2px !important; }
 </style>
 
 
