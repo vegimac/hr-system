@@ -178,10 +178,14 @@ public static class QstTarifVorschlagLogic
         // 2) Tarif-Buchstaben
         var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung);
 
-        // 3) Kirchensteuer
+        // 3) Kirchensteuer — Begründung IMMER nennen (Walter 12.08.2026):
+        // auch bei «keine Kirchensteuer» soll sichtbar sein, WELCHE Konfession
+        // der Ableitung zugrunde liegt (falsch gepflegte Stammdaten fallen
+        // damit sofort auf, statt still A0N vorzuschlagen).
         var kirchensteuer = IstKirchensteuerPflichtig(religion);
-        if (kirchensteuer)
-            begruendung.Add($"Konfession '{religion}' -> kirchensteuerpflichtig");
+        begruendung.Add(kirchensteuer
+            ? $"Konfession '{religion}' -> kirchensteuerpflichtig (Y)"
+            : $"Konfession '{(string.IsNullOrWhiteSpace(religion) ? "nicht erfasst" : religion)}' -> keine Kirchensteuer (N)");
 
         // 4) Tariftabelle prüfen + Fallbacks
         var (effektiveKinder, effektiveKirche, gefunden) = FindeTarifInTabelle(

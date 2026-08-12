@@ -679,16 +679,19 @@ function renderEmployeeList(employees) {
         if (e.isPayrollExcluded) {
             kepLohnBadge = `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:8px;background:#fef3c7;color:#92400e;flex-shrink:0;align-self:center;${modelBadge ? 'margin-left:4px' : 'margin-left:auto'}">kein Lohn</span>`;
         }
-        // Schwangerschaft / Mutterschutz (Walter 20.07.2026) — rosa Pille
-        // vor dem Modell-Badge; margin-left:auto auf die erste rechte Pille.
+        // Schwangerschaft / Mutterschutz (Walter 20.07.2026, präzisiert
+        // 12.08.2026) — rosa Pille vor dem Modell-Badge. Geburt erfasst =
+        // «Mutterschutz» (16-Wochen-Fenster), sonst «Schwanger».
         let schwangerBadge = '';
-        if (e.isPregnant) {
-            schwangerBadge = `<span class="emp-schwanger-badge" title="Schwangerschaft / Mutterschutz aktiv" style="margin-left:auto">🤰 Schwanger</span>`;
+        if (e.isPregnant || e.isMaternity) {
+            schwangerBadge = e.isMaternity
+                ? `<span class="emp-schwanger-badge" title="Mutterschutz — 16 Wochen nach Geburt" style="margin-left:auto">🍼 Mutterschutz</span>`
+                : `<span class="emp-schwanger-badge" title="Schwangerschaft aktiv" style="margin-left:auto">🤰 Schwanger</span>`;
             if (modelBadge) modelBadge = modelBadge.replace('margin-left:auto;', 'margin-left:4px;');
             else if (kepLohnBadge) kepLohnBadge = kepLohnBadge.replace('margin-left:auto', 'margin-left:4px');
         }
         return `
-        <div class="emp-list-item liquid-employee-row ${active}${e.isPregnant ? ' emp-list-pregnant' : ''}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
+        <div class="emp-list-item liquid-employee-row ${active}${(e.isPregnant || e.isMaternity) ? ' emp-list-pregnant' : ''}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
             <div style="flex:1;min-width:0">
                 <div class="emp-list-name">${name}${isInactive ? ' <span style="color:#94a3b8;font-weight:400;font-size:11px">(inaktiv)</span>' : ''}</div>

@@ -305,6 +305,14 @@ public class Employee
     [NotMapped]
     public bool IsPregnant { get; set; }
 
+    /// <summary>
+    /// Geburt bereits erfasst, MA im Mutterschutz-Fenster (16 Wochen nach
+    /// Geburt) — Walter 12.08.2026: Liste zeigt dann «Mutterschutz» statt
+    /// «Schwanger». Keine DB-Spalte.
+    /// </summary>
+    [NotMapped]
+    public bool IsMaternity { get; set; }
+
     // Hinweis: LivesInKonkubinat, HasJointParentalCare, PaysAlimonyAdultChildren,
     // HasHigherIncomeThanPartner, IsGrenzgaenger, IsWochenaufenthalter sind in
     // EmployeeQuellensteuer (zeitlich versionierter QST-Eintrag) gewandert,

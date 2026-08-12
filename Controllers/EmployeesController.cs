@@ -84,16 +84,22 @@ public class EmployeesController : ControllerBase
             .Where(p => p.IsActive)
             .Select(p => new { p.EmployeeId, p.Geburtsdatum, p.ErrechneterTermin })
             .ToListAsync();
-        var pregnantSet = pregnantIds
+        // Zwei Zustände (Walter 12.08.2026): Geburt noch nicht erfasst =
+        // «Schwanger»; Geburt erfasst + innerhalb 16 Wochen = «Mutterschutz».
+        var inWindow = pregnantIds
             .Where(p =>
             {
                 var basis = p.Geburtsdatum ?? p.ErrechneterTermin;
                 return basis.AddDays(16 * 7) >= today;
             })
-            .Select(p => p.EmployeeId)
-            .ToHashSet();
+            .ToList();
+        var pregnantSet  = inWindow.Where(p => p.Geburtsdatum == null).Select(p => p.EmployeeId).ToHashSet();
+        var maternitySet = inWindow.Where(p => p.Geburtsdatum != null).Select(p => p.EmployeeId).ToHashSet();
         foreach (var e in employees)
-            e.IsPregnant = pregnantSet.Contains(e.Id);
+        {
+            e.IsMaternity = maternitySet.Contains(e.Id);
+            e.IsPregnant  = !e.IsMaternity && pregnantSet.Contains(e.Id);
+        }
 
         return Ok(employees);
     }

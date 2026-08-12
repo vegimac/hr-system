@@ -191,6 +191,16 @@ async function qstFetchServerVorschlag(stichtagIso) {
             return null;
         }
         _qstServerVorschlag = await res.json();
+        // Kirchensteuer-Häkchen IMMER aus dem Konfession-abgeleiteten
+        // Server-Wert (Walter 12.08.2026) — auch im Edit-Modus. Das Feld ist
+        // nur Anzeige; der Server erzwingt beim Speichern denselben Wert.
+        // Ohne den Sync zeigte ein Alt-Eintrag (manuell Y) ein Häkchen, das
+        // dem Vorschlag (N aus Konfession) widersprach.
+        const kirchEl = document.getElementById('qstKirchensteuer');
+        if (kirchEl) {
+            kirchEl.checked = !!_qstServerVorschlag.kirchensteuer;
+            if (typeof buildQstCode === 'function') buildQstCode();
+        }
         return _qstServerVorschlag;
     } catch (e) {
         _qstServerVorschlagError = 'Netzwerkfehler: ' + (e?.message || e);
