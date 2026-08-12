@@ -783,6 +783,9 @@ function momTextTypeChanged() {
     } else if (t && t.code === 'BEWILLIGUNG_ABGELAUFEN') {
         hint.style.display = 'block';
         hint.innerHTML = 'Bewilligung abgelaufen: SMS = kurzer Push (max. 160), ausführlicher Text ins Feld «Mitteilung». SMS-Platzhalter: <b>{Vorname}</b>. Mitteilung: <b>{Briefanrede}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b> · <b>{SenderName}</b>. Der Link wird automatisch angehängt.';
+    } else if (t && t.code === 'WILLKOMMENSTAG') {
+        hint.style.display = 'block';
+        hint.innerHTML = 'Willkommenstag: SMS = kurzer Push mit Link (max. 160). Das Feld «Mitteilung» ist der <b>Begrüssungstext auf der Link-Seite</b> (zwischen Titel und Termin-Box). Platzhalter in beiden Feldern: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>.';
     } else {
         hint.style.display = 'none';
     }
