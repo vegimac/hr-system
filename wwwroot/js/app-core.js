@@ -95,6 +95,14 @@ let editingUserId = null;
 let currentBranchId = null;
 let currentPageName = 'dashboard';
 
+// «← Zurück» auf Dokument-Erfassungsmasken (Walter 12.08.2026): zurück zur
+// vorher angezeigten Seite (Fallback HR-Bereich).
+function pageBack() {
+    const ziel = (window._prevPageName && window._prevPageName !== currentPageName)
+        ? window._prevPageName : 'hr-hub';
+    showPage(ziel);
+}
+
 // Contract page state
 let fixedCompanyProfileId = null;
 let selectedCompanyProfile = null;
@@ -914,6 +922,9 @@ function applyAdminBreadcrumb(name) {
 }
 
 function showPage(name) {
+    // Seiten-Historie (Walter 12.08.2026): für «← Zurück»-Buttons auf den
+    // Dokument-Erfassungsmasken (pageBack unten).
+    if (currentPageName && currentPageName !== name) window._prevPageName = currentPageName;
     currentPageName = name;
     updateDashboardShellState(name);
     // easy@work-Sync-Pill im langSwitcher: nur auf der Mitarbeiter-Seite

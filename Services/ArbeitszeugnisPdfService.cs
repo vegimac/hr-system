@@ -289,7 +289,7 @@ public class ArbeitszeugnisPdfService
         foreach (var tryLh in lhOpts)
         {
             float lineH = baseFont * tryLh;
-            float est = 5f + 70f                                    // Content-Pad + Adressblock
+            float est = 5f + 116f                                   // Content-Pad + Adressblock inkl. Fenster-Abstandhalter (40pt + 6pt)
                       + padDatum + lineH                            // Ortszeile
                       + padTitel + 20f;                             // Titel
             foreach (var a in absaetze) est += padAbs + LinesFor(a, contentW) * lineH;
@@ -344,7 +344,12 @@ public class ArbeitszeugnisPdfService
                         }.Where(x => !string.IsNullOrWhiteSpace(x))))
                         .FontSize(8f).FontColor("#6b6152");
 
-                    col.Item().PaddingTop(10).Column(c =>
+                    // MA-Adresse im COUVERT-FENSTER (Walter 12.08.2026, gleiche
+                    // Konvention wie Kündigung/Rückzug): Schweizer C5-Fenster
+                    // links beginnt ~4.5 cm ab Papierkante — der fixe
+                    // Abstandhalter schiebt den Adressblock in die Fensterzone.
+                    col.Item().Height(40);
+                    col.Item().PaddingTop(16).Column(c =>
                     {
                         c.Item().Text(anrede);
                         c.Item().Text($"{d.FirstName} {d.LastName}".Trim());
