@@ -4488,7 +4488,7 @@ function showFamilyDetailPopup(memberId) {
 
     const html = `
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeFamilyDetailPopup()">
-            <div style="background:white;border-radius:14px;width:480px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.2);overflow:hidden">
+            <div style="background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);border-radius:14px;width:480px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.2);overflow:hidden">
                 <div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
                     <div>
                         <div style="font-size:16px;font-weight:700;color:#0f172a">${esc(name)}</div>
@@ -10930,7 +10930,7 @@ function openKtgOverrideModal(employeeId, autoTagessatz100, karenzAbgeschlossen,
     const html = `
         <div id="ktgOvBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
              onclick="if(event.target===this) closeKtgOverrideModal()">
-            <div style="background:#fff;border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
+            <div style="background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
                 <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0">
                     <div style="font-size:15px;font-weight:700;color:#1e293b">KTG/UVG-Tagessatz übersteuern</div>
                     <div style="font-size:12px;color:#64748b;margin-top:2px">Auto-Berechnung: CHF ${Number(autoTagessatz100).toFixed(2)} / Tag (100 %)</div>
@@ -11643,7 +11643,7 @@ function openEmployeeAddressModal(existing) {
     ).join('');
 
     modal.innerHTML = `
-    <div style="background:#fff;border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto">
+    <div style="background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto">
         <div style="padding:14px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:700;color:#1e293b">${isNew ? _t('addr.modalTitleNew','Adresse hinzufügen') : _t('addr.modalTitleEdit','Adresse bearbeiten')}</div>
             <button onclick="closeEmployeeAddressModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
@@ -12630,7 +12630,7 @@ function showInitialPasswordModal(username, password) {
         document.body.appendChild(overlay);
     }
     overlay.innerHTML = `
-        <div style="background:#fff;border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
+        <div style="background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
             <div style="padding:18px 22px;background:linear-gradient(180deg,#ece9e2,#fff);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
                 <span style="font-size:20px">📬</span>
                 <div>
@@ -13019,7 +13019,7 @@ async function openPermitHistoryModal(entryId) {
 
     modal.innerHTML = `
         <div style="display:flex;gap:14px;align-items:stretch;max-width:1100px;width:100%;max-height:90vh">
-        <div style="background:#fff;border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
+        <div style="background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <h3 style="margin:0;font-size:18px;color:#0f172a">${isEdit ? _t('permit.modalTitleEdit','Bewilligung bearbeiten') : _t('permit.modalTitleNew','Neue Bewilligung')}</h3>
                 <button onclick="closePermitHistoryModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer">×</button>
@@ -13747,10 +13747,13 @@ function _pzEnsureModal() {
     div.id = 'pzModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9000;align-items:center;justify-content:center';
     div.innerHTML = `
-    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:560px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
+    <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:560px;width:94%;max-height:92vh;overflow-y:auto;padding:22px 24px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">Probezeit</div>
-            <button type="button" onclick="pzClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+            <div style="display:flex;gap:12px;align-items:center">
+                <button type="button" onclick="pzClose()" class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
+                <button type="button" onclick="pzClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+            </div>
         </div>
         <div id="pzBody" style="font-size:13px;color:#3f3f3f"></div>
         <div style="display:flex;justify-content:flex-end;margin-top:18px">
@@ -13938,8 +13941,11 @@ async function openVerwarnungModal(id) {
     const heuteIso = `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
 
     ov.innerHTML = `
-        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:560px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${edit ? 'Verwarnung bearbeiten' : 'Verwarnung erfassen'}</div>
+        <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:22px 24px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:2px">
+                <div style="font-size:16px;font-weight:800;color:#3f3f3f">${edit ? 'Verwarnung bearbeiten' : 'Verwarnung erfassen'}</div>
+                <button type="button" onclick="document.getElementById('vwModal').remove()" class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
+            </div>
             <div style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${selectedEmployee ? esc(selectedEmployee.firstName + ' ' + selectedEmployee.lastName) : ''}</div>
 
             <div style="display:flex;gap:12px;margin-bottom:14px">

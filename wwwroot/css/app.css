@@ -8344,7 +8344,8 @@
         }
         #familyModal.open { display: flex; }
         .family-modal-box {
-            background: white; border-radius: 16px;
+            /* OneCrew-Standard (Walter 12.08.2026): warmer Verlauf statt Weiss. */
+            background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%); border-radius: 16px;
             width: min(1080px, calc(100vw - 40px)); max-height: 92vh;
             display: flex; flex-direction: column; box-shadow: 0 24px 48px rgba(0,0,0,0.25);
         }
@@ -8842,7 +8843,8 @@
                                .ma-input/.ma-select/.ma-textarea (Wert-Box).
         ════════════════════════════════════════════════════════════════ */
         .ma-modal-box {
-            background: #fff; border-radius: 8px;
+            /* OneCrew-Standard (Walter 12.08.2026): warmer Verlauf statt Weiss. */
+            background: linear-gradient(135deg, #f7f4ef 0%, #efebe3 48%, #faf8f5 100%); border-radius: 14px;
             width: min(1080px, calc(100vw - 40px)); max-height: 92vh;
             display: flex; flex-direction: column;
             box-shadow: 0 24px 48px rgba(0,0,0,0.25);
