@@ -827,10 +827,22 @@ public class KandidatenController : ControllerBase
         var terminBlock = $@"<div style='background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px;margin:14px 0;font-size:16px;line-height:1.65;color:#3f3f3f;box-shadow:0 4px 14px rgba(70,64,55,0.08)'>
             📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
 
+        // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
+        // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
+        // Statische Datei in wwwroot/img — anonym erreichbar wie die Landing.
+        var wegBlock = @"<div style='margin:14px 0 4px'>
+            <div style='font-weight:800;font-size:14px;color:#3f3f3f;margin-bottom:8px'>📍 So findest du uns</div>
+            <a href='/img/wegbeschreibung-willkommenstag.jpg' target='_blank' style='display:block'>
+                <img src='/img/wegbeschreibung-willkommenstag.jpg' alt='Wegbeschreibung'
+                     style='width:100%;border-radius:14px;border:1px solid rgba(60,55,48,0.14);box-shadow:0 4px 14px rgba(70,64,55,0.10)'></a>
+            <div style='font-size:12px;color:#8b8b8b;margin-top:6px'>Grün = Fussweg vom Bahnhof · P = Parkplatz · Zum Vergrössern antippen</div>
+        </div>";
+
         string inner;
         if (buchung?.MaAntwort == "ANGENOMMEN")
             inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>{terminBlock}
                 <div style='background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:10px 14px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
+                {wegBlock}
                 <p style='margin-top:16px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;border-radius:12px;padding:11px 20px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)'>In Kalender speichern</a></p>";
         else if (buchung?.MaAntwort == "ABGELEHNT" || buchung?.Status == "ABGESAGT")
             inner = $@"<h1>Willkommenstag abgesagt</h1>{terminBlock}
@@ -863,6 +875,7 @@ public class KandidatenController : ControllerBase
                                 style='background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:14.5px;font-weight:600;cursor:pointer'>Nein</button>
                     </div>
                 </div>
+                {wegBlock}
                 <p style='margin-top:16px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:rgba(255,255,255,0.72);color:#3f3f3f;text-decoration:none;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:10px 18px;font-weight:600;font-size:14px'>In Kalender speichern</a></p>";
 
         return Content(WkHtml("Dein Willkommenstag", inner), "text/html; charset=utf-8");

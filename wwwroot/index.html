@@ -1490,13 +1490,10 @@
                         <div class="admin-card-title">Mitarbeiter-Archiv («…alt»)</div>
                         <div class="admin-card-desc">Pre-Mirus-Archiv-MA: Import + Aufräumen (alle «…alt»-Nummern löschen)</div>
                     </div>
-                    <div class="admin-card" onclick="showPage('dvelop-import')">
-                        <div class="admin-card-icon" style="background:#dcfce7;color:#15803d">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        </div>
-                        <div class="admin-card-title">d.velop Dokumenten-Import</div>
-                        <div class="admin-card-desc">CSV + ZIP aus d.velop hochladen — Match via Name + Geburtsdatum</div>
-                    </div>
+                    <!-- d.velop Dokumenten-Import bewusst hier ENTFERNT (Walter-Vorgabe
+                         12.08.2026) — nur noch via „Neue Filiale importieren"
+                         (Onboarding-Hub, Karte «Dokumente (d.velop)») erreichbar.
+                         Page selbst bleibt vorhanden, Route via showPage('dvelop-import'). -->
                     <div class="admin-card" onclick="showPage('easyatwork')">
                         <div class="admin-card-icon" style="background:#fef3c7;color:#a16207">
                             <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 6V2H8M22 8.5l-7-7L8 8.5l7 7zM2 18l3-3 7 7-3 3zM16 8l-5 5"/></svg>
@@ -8086,7 +8083,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260812f"></script>
+<script src="employees.js?v=20260812g"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

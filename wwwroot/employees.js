@@ -407,6 +407,12 @@ function applyEmpFilter() {
     if (_empFilter === 'aktiv')   filtered = filtered.filter(isActiveEffective);
     if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !isActiveEffective(e));
 
+    // Phantom-MA ohne Lohn (isPayrollExcluded, z.B. Supervisor Nihat) in den
+    // normalen Ansichten AUSBLENDEN (Walter 12.08.2026) — sie sind nur
+    // easy@work-Zugänge, kein echtes Personal. Auffindbar bleiben sie unter
+    // «Alle» (dort greift auch die Suche).
+    if (_empFilter !== 'alle') filtered = filtered.filter(e => !e.isPayrollExcluded);
+
     // Austrittsdatum-Filter — nur im Inaktive-Modus aktiv. Vergleicht ISO mit ISO
     // (lexikalischer String-Compare reicht für YYYY-MM-DD). MA ohne Austrittsdatum
     // fallen raus, sobald der Filter gesetzt ist.
