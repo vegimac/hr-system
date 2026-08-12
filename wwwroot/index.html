@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260812c">
+    <link rel="stylesheet" href="css/app.css?v=20260812d">
 </head>
 <body>
 
@@ -7755,7 +7755,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260810b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260812c"></script>
+<script src="js/qst-modal.js?v=20260812d"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260804b"></script>
@@ -8595,9 +8595,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
         <div class="emp-section-title">Partner</div>
         <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich.
-             Partner-Name fix 220px statt 1fr → Arbeitsort Kt. rückt nach links,
-             leere 1fr-Spalte rechts fängt die Restbreite. -->
-        <div style="display:grid;grid-template-columns:220px 120px 470px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+             Verteilung (Walter 12.08.2026): Partner-Pille wächst moderat bis
+             380px, grosszügige Spalten-Gaps, 1fr-Rest rechts — Felder sitzen
+             gleichmässig verteilt statt zusammengedrängt. -->
+        <div style="display:grid;grid-template-columns:minmax(240px,380px) 170px 470px 1fr;gap:7px 26px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 16px 13px;margin-bottom:6px;align-items:end">
             <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
@@ -8628,14 +8629,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="emp-section-title">Zusätzliche Angaben</div>
-        <div style="display:grid;grid-template-columns:140px 220px 110px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+        <div style="display:grid;grid-template-columns:180px 220px 110px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <div>
                 <label class="qst-lbl">Halbfamilie</label>
-                <select id="qstHalbfamilie" class="qst-inp">
-                    <option value="">–</option>
-                    <option value="Ja">Ja</option>
-                    <option value="Nein">Nein</option>
-                </select>
+                <!-- Segment-Pille statt Select (Walter 12.08.2026, wie LGAV/Zustellart).
+                     Lesen/Schreiben via qstGetHalbfamilie()/qstSetHalbfamilie() in qst-modal.js. -->
+                <div class="zst-wrap">
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="" checked> –</label>
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Ja"> Ja</label>
+                    <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Nein"> Nein</label>
+                </div>
             </div>
             <div>
                 <label class="qst-lbl">Wohnsitz Ausland</label>

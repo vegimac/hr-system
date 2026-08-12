@@ -11096,7 +11096,8 @@ body.theme-dark .kd-btn-glass { background:rgba(255,255,255,0.10); border-color:
             cursor:pointer; text-align:center; line-height:1.2; white-space:nowrap;
             transition:background .15s, color .15s; }
 .zst-pill:first-child { border-radius:10px 0 0 10px; }
-.zst-pill:last-child { border-radius:0 10px 10px 0; border-left:none; }
+.zst-pill:last-child { border-radius:0 10px 10px 0; }
+.zst-pill + .zst-pill { border-left:none; } /* auch bei 3+ Segmenten kein Doppel-Rand */
 .zst-pill input { position:absolute; opacity:0; pointer-events:none; }
 .zst-pill:has(input:checked) { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
 .zst-pill:hover:not(:has(input:checked)) { background:rgba(255,255,255,0.95); }

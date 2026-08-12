@@ -20,6 +20,17 @@ let _qstFamilyKinder     = [];
 // ValidFrom-Änderung (Stichtag wechselt → ggf. anderer Vorschlag).
 let _qstServerVorschlag  = null;
 
+// Halbfamilie ist eine Segment-Pille (Radios name="qstHalbfamilie",
+// Walter 12.08.2026 — wie LGAV/Zustellart) statt Select.
+function qstSetHalbfamilie(val) {
+    const want = (val ?? '').toString();
+    document.querySelectorAll('input[name="qstHalbfamilie"]').forEach(r => { r.checked = (r.value === want); });
+}
+function qstGetHalbfamilie() {
+    const r = document.querySelector('input[name="qstHalbfamilie"]:checked');
+    return r ? r.value : '';
+}
+
 async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
     qstCurrentEntryId    = null;
@@ -586,7 +597,7 @@ function populateQstForm(entry) {
     v('qstPartnerBis',     entry?.partnerEinkommenBis?.slice(0,10) ?? '');
     v('qstGesamtpensum',   entry?.gesamtpensumWeitereAg   ?? '');
     v('qstGesamteinkommen',entry?.gesamteinkommenWeitereAg ?? '');
-    v('qstHalbfamilie',    entry?.halbfamilie              ?? '');
+    qstSetHalbfamilie(entry?.halbfamilie ?? '');
     v('qstWohnsitzAusland',entry?.wohnsitzAusland          ?? '');
     v('qstWohnsitzstaat',  entry?.wohnsitzstaat            ?? '');
     v('qstAdresseAusland', entry?.adresseAusland           ?? '');
@@ -694,7 +705,7 @@ async function saveQstEntry() {
         weitereBeschaftigungen: document.getElementById('qstWeitere').checked,
         gesamtpensumWeitereAg:  parseFloat(document.getElementById('qstGesamtpensum').value)    || null,
         gesamteinkommenWeitereAg: parseFloat(document.getElementById('qstGesamteinkommen').value) || null,
-        halbfamilie:          document.getElementById('qstHalbfamilie').value      || null,
+        halbfamilie:          qstGetHalbfamilie()                                  || null,
         wohnsitzAusland:      document.getElementById('qstWohnsitzAusland').value  || null,
         wohnsitzstaat:        document.getElementById('qstWohnsitzstaat').value    || null,
         adresseAusland:       document.getElementById('qstAdresseAusland').value   || null,
