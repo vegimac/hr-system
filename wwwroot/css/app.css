@@ -11085,14 +11085,18 @@ body.theme-dark .kd-btn-glass { background:rgba(255,255,255,0.10); border-color:
    Wichtige Eingabe → markante Segment-Pillen: gewählt = Kohle, sonst Glas.
    Steuert den Unterzeichner (Abgabe = Allgemein-Unterzeichner der Filiale,
    Versand = angemeldeter Benutzer). */
-.zst-wrap { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 4px; }
-.zst-pill { position:relative; display:flex; align-items:center; justify-content:center; gap:8px;
-            padding:13px 14px; border-radius:12px; border:1.5px solid rgba(60,55,48,0.22);
-            background:rgba(255,255,255,0.60); font-size:13.5px; font-weight:700; color:#3f3f3f;
-            cursor:pointer; text-align:center; line-height:1.25; transition:background .15s, color .15s, border-color .15s; }
+/* Kompakter Segment-Toggle (Walter 12.08.2026 v2: wie «Aktive | Inaktive |
+   Alle» — klein, zusammenhängend, gewähltes Segment Kohle). */
+.zst-wrap { display:inline-flex; margin:4px 0 2px; }
+.zst-pill { position:relative; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+            padding:6px 14px; border:1px solid rgba(60,55,48,0.28);
+            background:rgba(255,255,255,0.75); font-size:12.5px; font-weight:700; color:#3f3f3f;
+            cursor:pointer; text-align:center; line-height:1.2; white-space:nowrap;
+            transition:background .15s, color .15s; }
+.zst-pill:first-child { border-radius:10px 0 0 10px; }
+.zst-pill:last-child { border-radius:0 10px 10px 0; border-left:none; }
 .zst-pill input { position:absolute; opacity:0; pointer-events:none; }
-.zst-pill:has(input:checked) { background:#3f3f3f; color:#fff; border-color:#3f3f3f;
-                               box-shadow:0 5px 16px rgba(60,55,48,0.28); }
-.zst-pill:hover { border-color:rgba(60,55,48,0.45); }
+.zst-pill:has(input:checked) { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+.zst-pill:hover:not(:has(input:checked)) { background:rgba(255,255,255,0.95); }
 body.theme-dark .zst-pill { background:rgba(255,255,255,0.08); color:var(--dlg-text); border-color:rgba(255,255,255,0.22); }
 body.theme-dark .zst-pill:has(input:checked) { background:#e2e8f0; color:#1a1a1a; border-color:#e2e8f0; }
