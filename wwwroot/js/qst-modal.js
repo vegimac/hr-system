@@ -543,9 +543,33 @@ async function openQstEntry(id) {
     }
 }
 
+// Komplett-Sperre (Walter 12.08.2026, gleiche Logik wie Verträge):
+// abgeschlossene Versionen (ValidTo gesetzt) und in einem definitiv
+// abgeschlossenen Lohnlauf verwendete Einträge sind unveränderbar —
+// Änderungen laufen IMMER über einen neuen Eintrag. Der Server blockt
+// zusätzlich hart (QST_ABGESCHLOSSEN / LOHN_EDIT_LOCKED).
+function qstSetLocked(entry) {
+    const wrap   = document.getElementById('qstFormWrap');
+    const banner = document.getElementById('qstLockBanner');
+    const save   = document.getElementById('qstSaveBtn');
+    const locked = !!(entry && (entry.validTo || entry.inLohnVerwendet));
+    if (wrap) wrap.classList.toggle('qst-locked', locked);
+    if (save) save.style.display = locked ? 'none' : '';
+    if (banner) {
+        banner.style.display = locked ? 'block' : 'none';
+        if (locked) {
+            const grund = entry.validTo
+                ? `abgeschlossen (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)})`
+                : 'in einem definitiv abgeschlossenen Lohnlauf verwendet';
+            banner.innerHTML = `🔒 Diese QST-Version ist ${grund} und kann nicht mehr geändert werden — Änderungen über «+ Neuer Eintrag» in der QST-Liste.`;
+        }
+    }
+}
+
 function populateQstForm(entry) {
     const v = (id, val) => { const el = document.getElementById(id); if (el) el.value = val ?? ''; };
     const c = (id, val) => { const el = document.getElementById(id); if (el) el.checked = !!val; };
+    qstSetLocked(entry);
 
     v('qstValidFrom',      entry?.validFrom?.slice(0, 10)  ?? '');
     v('qstValidTo',        entry?.validTo?.slice(0, 10)    ?? '');

@@ -7755,7 +7755,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260810b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260812b"></script>
+<script src="js/qst-modal.js?v=20260812c"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260804b"></script>
@@ -8456,16 +8456,21 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
     </div>
 
-    <!-- Verlauf-Tabs: eine Pille pro QST-Version (Gültig ab → bis); Klick
-         lädt die Version ins Formular. Beschriftung Walter 12.08.2026. -->
-    <div style="padding:6px 20px 0;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;gap:8px;align-items:center">
-        <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:#8b8b8b;white-space:nowrap">Verlauf</span>
-        <div id="qstHistoryTabs" style="display:flex;gap:6px;flex-wrap:wrap;flex:1"></div>
+    <!-- Verlauf-Tabs AUSGEBLENDET (Walter 12.08.2026): die Versions-Auswahl
+         passiert einen Schritt vorher in der QST-Einträge-Liste des MA-Tabs —
+         das Modal zeigt genau EINE Version. Container bleibt als DOM-Ziel
+         für renderQstHistoryTabs erhalten. -->
+    <div style="display:none">
+        <div id="qstHistoryTabs"></div>
     </div>
 
     <!-- Formular — scrollt INNERHALB der Box (ma-modal-body: overflow+flex),
          sonst fallen die untersten Felder aus der 92vh-Box (Walter 12.08.2026) -->
     <div class="ma-modal-body" id="qstFormWrap">
+
+        <!-- Sperr-Banner (Walter 12.08.2026): abgeschlossene / im Lohnlauf
+             verwendete QST-Versionen sind unveränderbar — wie Verträge. -->
+        <div id="qstLockBanner" style="display:none;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;color:#854d0e"></div>
 
         <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
         <!-- Feldbreiten nach Inhalt (Walter 12.08.2026): Datum/Zahl schmal,
@@ -8664,10 +8669,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <!-- Aktionen -->
-        <div style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:6px;border-top:1px solid rgba(60,55,48,0.12)">
+        <div class="qst-actions" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;padding-top:6px;border-top:1px solid rgba(60,55,48,0.12)">
             <div id="qstSaveResult" style="font-size:12px;flex:1"></div>
             <button onclick="closeQstModal()" style="background:rgba(255,255,255,0.6);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Abbrechen</button>
-            <button onclick="saveQstEntry()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(60,55,48,0.22)">Speichern</button>
+            <button id="qstSaveBtn" onclick="saveQstEntry()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(60,55,48,0.22)">Speichern</button>
         </div>
     </div>
 </div>
@@ -8696,6 +8701,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 /* Wohnort-Felder sind reine Anzeige (Walter 12.08.2026): QST folgt IMMER der
    MA-Wohnadresse aus easy@work — keine manuelle Abweichung möglich. */
 #qstModal .qst-ro { background:#efece6 !important; color:#646464 !important; pointer-events:none !important; box-shadow:none !important; border-color:#e2ddd3 !important; }
+/* Komplett-Sperre abgeschlossener/verwendeter Versionen (Walter 12.08.2026):
+   alles ausser der Aktions-Zeile (Abbrechen) wird unklickbar + grau. */
+#qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea,button,label) { pointer-events:none !important; }
+#qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea) { background:#efece6 !important; color:#646464 !important; box-shadow:none !important; }
 #qstModal .qst-ro-hint { font-weight:400; font-size:8.5px; color:#94a3b8; letter-spacing:0; text-transform:none; }
 </style>
 

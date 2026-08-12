@@ -238,6 +238,18 @@ public class EmployeeQuellensteuerController : ControllerBase
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
+        // ABGESCHLOSSENE Version = unveränderbar (Walter 12.08.2026, gleiche
+        // Logik wie Verträge): hat der Eintrag ein Enddatum, ist er Historie —
+        // Änderungen laufen IMMER über einen neuen Eintrag.
+        if (entry.ValidTo != null)
+        {
+            return Conflict(new
+            {
+                error   = "QST_ABGESCHLOSSEN",
+                message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist abgeschlossen und kann nicht mehr geändert werden. Bitte einen neuen Eintrag erfassen."
+            });
+        }
+
         // Soft-Lock: Edit tabu erst nach Definitiv-Abschluss (DTA). Davor
         // (inkl. HR-Kontrolle) korrigierbar. Danach: neuen Eintrag anlegen.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
@@ -304,6 +316,16 @@ public class EmployeeQuellensteuerController : ControllerBase
         var entry = await _db.EmployeeQuellensteuer
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
+
+        // Abgeschlossene Version = Historie, nie löschen (Walter 12.08.2026).
+        if (entry.ValidTo != null)
+        {
+            return Conflict(new
+            {
+                error   = "QST_ABGESCHLOSSEN",
+                message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist abgeschlossen und kann nicht gelöscht werden."
+            });
+        }
 
         // Soft-Lock: Löschen erst nach Definitiv-Abschluss gesperrt.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
