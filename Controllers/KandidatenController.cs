@@ -719,10 +719,16 @@ public class KandidatenController : ControllerBase
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
             .OrderBy(t => t.SortOrder).ThenBy(t => t.Id)
             .FirstOrDefaultAsync();
+        // {Arbeitsort} (Walter 12.08.2026): Arbeitsort der Filiale wie im
+        // Vertrag (company_profile.work_location, Fallback Ort) — für
+        // informellere Sätze («…im McDonald's Team Reinach»).
+        var arbeitsort = !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim()
+                       : (cp?.City ?? "").Trim();
         if (tpl != null && !string.IsNullOrWhiteSpace(tpl.SmsText))
             smsText = tpl.SmsText
                 .Replace("{Vorname}", k.Vorname)
                 .Replace("{Firma}", firma)
+                .Replace("{Arbeitsort}", arbeitsort)
                 .Replace("{Wochentag}", wt)
                 .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
                 .Replace("{Zeit}", zeit)
@@ -752,7 +758,14 @@ public class KandidatenController : ControllerBase
         }
         else
         {
-            if (buchung.TerminId != termin.Id) { buchung.MaAntwort = null; buchung.MaAntwortAm = null; }
+            // Antwort zurücksetzen bei Termin-Wechsel ODER wenn der Kandidat
+            // abgesagt hatte (Walter 12.08.2026: «Senden wiederholen» = neue
+            // Chance zu antworten). Eine bestehende ZUSAGE bleibt erhalten —
+            // der neue Link zeigt dann direkt die Bestätigt-Seite.
+            if (buchung.TerminId != termin.Id || buchung.MaAntwort == "ABGELEHNT")
+            {
+                buchung.MaAntwort = null; buchung.MaAntwortAm = null;
+            }
             buchung.TerminId = termin.Id;
             buchung.Kandidat = maName;
             buchung.Telefon = tel;
@@ -844,17 +857,19 @@ public class KandidatenController : ControllerBase
             var filled = tplBody
                 .Replace("{Vorname}", k.Vorname ?? "")
                 .Replace("{Firma}", firma)
+                .Replace("{Arbeitsort}", !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim() : (cp?.City ?? "").Trim())
                 .Replace("{Wochentag}", wt)
                 .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
                 .Replace("{Zeit}", zeit);
             customIntro = "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
         }
-        // Offener Zustand: eigener Text oder Standard-Einladungssatz.
-        // Bestätigter Zustand: NUR der eigene Text (der Einladungssatz wäre
-        // nach der Bestätigung unpassend), sonst nichts.
+        // Offener Zustand: eigener Text oder Standard-Einladungssatz. Die
+        // BESTÄTIGT-Seite zeigt bewusst KEINEN Einladungstext (Walter
+        // 12.08.2026: Wiederholung läuft über «SMS erneut senden», nicht über
+        // einen zweiten Text auf der Link-Seite).
         var introHtml = customIntro
             ?? "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
-        var introHtmlBestaetigt = customIntro ?? "";
+        var introHtmlBestaetigt = "";
 
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
