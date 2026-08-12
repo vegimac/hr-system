@@ -343,7 +343,7 @@ async function hrKandBadge() {
 }
 
 function hrKandOpen() {
-    _ivModalShell('hrKandModal', '📨 Kandidaten prüfen', 1560);
+    _ivModalShell('hrKandModal', '📨 Kandidaten-Verwaltung', 1560);
     document.getElementById('hrKandModal').style.display = 'flex';
     hrKandReload();
 }

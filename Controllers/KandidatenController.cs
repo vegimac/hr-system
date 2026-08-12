@@ -772,19 +772,28 @@ public class KandidatenController : ControllerBase
     }
 
     // ── Öffentliche Landing-Page /willkommen/{token} ───────────────────────
+    // OneCrew-Look (Walter 11.08.2026): warmer Verlauf, Glas-Karte, ruhiger
+    // Kohlestift-Stil (Text #3f3f3f, Kohle-Pillen statt greller Farben).
     private static string WkHtml(string title, string inner) => $@"<!doctype html>
 <html lang='de'><head><meta charset='utf-8'>
 <meta name='viewport' content='width=device-width, initial-scale=1'>
 <meta name='robots' content='noindex'>
 <title>{title}</title>
 <style>
-  body {{ margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif; background:#f6f3ee; color:#3f3f3f; }}
-  .wrap {{ max-width:560px; margin:0 auto; padding:24px 16px; }}
-  .card {{ background:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.62);
-          border-radius:16px; padding:22px; box-shadow:0 8px 24px rgba(60,55,48,0.14); }}
-  h1 {{ font-size:20px; margin:0 0 12px; }}
+  body {{ margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+         background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);
+         background-attachment:fixed; min-height:100vh; color:#3f3f3f; }}
+  .wrap {{ max-width:560px; margin:0 auto; padding:28px 16px; }}
+  .card {{ background:rgba(255,255,255,0.60); border:1px solid rgba(255,255,255,0.70);
+          border-radius:18px; padding:24px 22px;
+          box-shadow:0 14px 40px rgba(70,64,55,0.16), inset 0 1px 0 rgba(255,255,255,0.58); }}
+  h1 {{ font-size:20px; font-weight:800; letter-spacing:-0.2px; margin:0 0 12px; color:#3f3f3f; }}
+  p {{ color:#646464; }}
+  .brand {{ display:flex; align-items:center; gap:8px; margin-bottom:14px;
+           font-weight:800; font-size:13px; letter-spacing:1.4px; text-transform:uppercase; color:#8b8b8b; }}
+  .brand::after {{ content:''; flex:1; height:1px; background:rgba(60,55,48,0.14); }}
 </style></head>
-<body><div class='wrap'><div class='card'>{inner}</div>
+<body><div class='wrap'><div class='card'><div class='brand'>OneCrew</div>{inner}</div>
 <div style='text-align:center;color:#b0aca4;font-size:11px;margin-top:14px'>OneCrew · Schaub Restaurants</div>
 </div></body></html>";
 
@@ -814,46 +823,47 @@ public class KandidatenController : ControllerBase
             ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
             : $"{termin.VonZeit:HH\\:mm}";
         var ort = string.IsNullOrWhiteSpace(cp?.City) ? "" : $" · {cp!.City}";
-        var terminBlock = $@"<div style='background:#eef2ff;border:1px solid #c7d2fe;border-radius:12px;padding:12px 14px;margin:12px 0;font-size:16px'>
+        // Termin-Box im ruhigen Kohlestift-Look: warmes Glas, Charcoal-Text.
+        var terminBlock = $@"<div style='background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px;margin:14px 0;font-size:16px;line-height:1.65;color:#3f3f3f;box-shadow:0 4px 14px rgba(70,64,55,0.08)'>
             📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
 
         string inner;
         if (buchung?.MaAntwort == "ANGENOMMEN")
             inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>{terminBlock}
-                <div style='background:#dcfce7;border:1px solid #86efac;border-radius:10px;padding:10px 12px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
-                <p style='margin-top:14px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;border-radius:12px;padding:10px 18px;font-weight:600'>In Kalender speichern</a></p>";
+                <div style='background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:10px 14px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
+                <p style='margin-top:16px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;border-radius:12px;padding:11px 20px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)'>In Kalender speichern</a></p>";
         else if (buchung?.MaAntwort == "ABGELEHNT" || buchung?.Status == "ABGESAGT")
             inner = $@"<h1>Willkommenstag abgesagt</h1>{terminBlock}
-                <div style='background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;color:#991b1b'>Du hast den Termin abgesagt. Das HR-Team meldet sich bei dir für einen neuen Termin.</div>";
+                <div style='background:#fee2e2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;color:#991b1b'>Du hast den Termin abgesagt. Das HR-Team meldet sich bei dir für einen neuen Termin.</div>";
         else if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
             inner = $@"<h1>Willkommenstag</h1>{terminBlock}<p>Dieser Termin liegt in der Vergangenheit — das HR-Team meldet sich bei dir.</p>";
         else
             inner = $@"<h1>Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!</h1>
-                <p>Wir laden dich zu deinem <b>Willkommenstag</b> (Onboarding) ein:</p>{terminBlock}
-                <p style='margin:4px 0 6px;color:#646464;font-size:14px'>Passt dir dieser Termin?</p>
+                <p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>{terminBlock}
+                <p style='margin:4px 0 8px;color:#646464;font-size:14px'>Passt dir dieser Termin?</p>
                 <div id='tmAsk' style='display:flex;gap:10px;flex-wrap:wrap'>
                     <form method='post' action='/willkommen/{token}/antwort' style='margin:0'>
                         <input type='hidden' name='antwort' value='JA'>
-                        <button type='submit' style='background:#166534;color:#fff;border:none;border-radius:12px;padding:11px 20px;font-size:16px;font-weight:700;cursor:pointer'>✓ Termin annehmen</button>
+                        <button type='submit' style='background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:12px 22px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(60,55,48,0.22)'>✓ Termin annehmen</button>
                     </form>
                     <button type='button'
                             onclick=""document.getElementById('tmAsk').style.display='none';document.getElementById('tmConfirm').style.display='block';""
-                            style='background:#fff;color:#991b1b;border:1px solid #fca5a5;border-radius:12px;padding:11px 20px;font-size:16px;font-weight:600;cursor:pointer'>✕ Termin absagen</button>
+                            style='background:rgba(255,255,255,0.72);color:#991b1b;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:12px 22px;font-size:16px;font-weight:600;cursor:pointer'>✕ Termin absagen</button>
                 </div>
-                <div id='tmConfirm' style='display:none;margin-top:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:12px;padding:12px'>
-                    <div style='font-size:15px;font-weight:700;color:#9a3412;margin-bottom:8px'>Willkommenstag wirklich absagen?</div>
-                    <div style='font-size:13px;color:#646464;margin-bottom:10px'>Das HR-Team meldet sich dann bei dir für einen neuen Termin.</div>
+                <div id='tmConfirm' style='display:none;margin-top:10px;background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:14px;padding:14px'>
+                    <div style='font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px'>Willkommenstag wirklich absagen?</div>
+                    <div style='font-size:13px;color:#646464;margin-bottom:12px'>Das HR-Team meldet sich dann bei dir für einen neuen Termin.</div>
                     <div style='display:flex;gap:10px;flex-wrap:wrap'>
                         <form method='post' action='/willkommen/{token}/antwort' style='margin:0'>
                             <input type='hidden' name='antwort' value='NEIN'>
-                            <button type='submit' style='background:#991b1b;color:#fff;border:none;border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:700;cursor:pointer'>Ja, absagen</button>
+                            <button type='submit' style='background:#991b1b;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:14.5px;font-weight:700;cursor:pointer'>Ja, absagen</button>
                         </form>
                         <button type='button'
                                 onclick=""document.getElementById('tmConfirm').style.display='none';document.getElementById('tmAsk').style.display='flex';""
-                                style='background:#fff;color:#3f3f3f;border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:9px 18px;font-size:14.5px;font-weight:600;cursor:pointer'>Nein</button>
+                                style='background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 20px;font-size:14.5px;font-weight:600;cursor:pointer'>Nein</button>
                     </div>
                 </div>
-                <p style='margin-top:14px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:rgba(255,255,255,0.7);color:#3f3f3f;text-decoration:none;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:9px 16px;font-weight:600;font-size:14px'>In Kalender speichern</a></p>";
+                <p style='margin-top:16px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:rgba(255,255,255,0.72);color:#3f3f3f;text-decoration:none;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:10px 18px;font-weight:600;font-size:14px'>In Kalender speichern</a></p>";
 
         return Content(WkHtml("Dein Willkommenstag", inner), "text/html; charset=utf-8");
     }

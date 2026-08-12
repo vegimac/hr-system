@@ -57,7 +57,7 @@ function _ivModalShell(id, titel, maxWidth) {
 
 // ── Einstieg (HR-Hub-Karte) ─────────────────────────────────────────────
 function hrIvOpen() {
-    _ivModalShell('hrIvModal', '🚀 Onboarding — HR-Büro-Kalender', 780);
+    _ivModalShell('hrIvModal', '📅 Welcome-Day-Verwaltung', 780);
     document.getElementById('hrIvModal').style.display = 'flex';
     hrIvReload();
 }
