@@ -1023,6 +1023,194 @@ public class ManagerDienstplanController : ControllerBase
                                    d[i - 1, j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1));
         return d[a.Length, b.Length];
     }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // Handy-Link / QR-Aushang (Walter-Vorgabe 12.08.2026)
+    //
+    // EIN globaler, unguessbarer Token (app_setting «Dienstplan.PublicToken»)
+    // → read-only Mobile-Seite /dienstplan/{token} über ALLE Filialen, ohne
+    // Login, unbeschränkt blätterbar. Verteilung als QR-Code-Aushang (kein
+    // SMS-Versand). Rotation macht alte QR-Aushänge ungültig.
+    // ═════════════════════════════════════════════════════════════════════
+    private const string DpPublicTokenKey = "Dienstplan.PublicToken";
+
+    private async Task<string> GetOrCreatePublicTokenAsync()
+    {
+        var s = await _db.AppSettings.FirstOrDefaultAsync(x => x.Key == DpPublicTokenKey);
+        if (s != null && !string.IsNullOrWhiteSpace(s.Value)) return s.Value;
+        var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        if (s == null) _db.AppSettings.Add(new AppSetting { Key = DpPublicTokenKey, Value = token });
+        else { s.Value = token; s.UpdatedAt = DateTime.UtcNow; }
+        await _db.SaveChangesAsync();
+        return token;
+    }
+
+    private async Task<string> BuildPublicUrlAsync(string token)
+    {
+        var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
+        var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
+            ? siteRow.SiteUrl.Trim() : "https://onecrew.ch/";
+        return $"{baseUrl.TrimEnd('/')}/dienstplan/{token}";
+    }
+
+    /// <summary>Link + QR-PNG für den Aushang (Token wird bei Bedarf erzeugt).</summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpGet("public-link")]
+    public async Task<IActionResult> GetPublicLink()
+    {
+        var token = await GetOrCreatePublicTokenAsync();
+        var url = await BuildPublicUrlAsync(token);
+        using var qrGen = new QRCoder.QRCodeGenerator();
+        using var qrData = qrGen.CreateQrCode(url, QRCoder.QRCodeGenerator.ECCLevel.Q);
+        var png = new QRCoder.PngByteQRCode(qrData).GetGraphic(12);
+        return Ok(new { url, qrPng = "data:image/png;base64," + Convert.ToBase64String(png) });
+    }
+
+    /// <summary>Token neu erzeugen — alle bisherigen QR-Aushänge werden ungültig.</summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("public-link/rotate")]
+    public async Task<IActionResult> RotatePublicLink()
+    {
+        var s = await _db.AppSettings.FirstOrDefaultAsync(x => x.Key == DpPublicTokenKey);
+        var token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+        if (s == null) _db.AppSettings.Add(new AppSetting { Key = DpPublicTokenKey, Value = token });
+        else { s.Value = token; s.UpdatedAt = DateTime.UtcNow; }
+        await _db.SaveChangesAsync();
+        return await GetPublicLink();
+    }
+
+    private static readonly string[] DpWo = { "So", "Mo", "Di", "Mi", "Do", "Fr", "Sa" };
+    private static readonly string[] DpMonate = { "", "Januar", "Februar", "März", "April", "Mai", "Juni",
+        "Juli", "August", "September", "Oktober", "November", "Dezember" };
+
+    /// <summary>Read-only Mobile-Ansicht des Manager-Dienstplans (alle Filialen).</summary>
+    [AllowAnonymous]
+    [HttpGet("/dienstplan/{token}")]
+    public async Task<IActionResult> PublicView(string token, [FromQuery] int? y, [FromQuery] int? m)
+    {
+        var stored = await _db.AppSettings.AsNoTracking()
+            .Where(x => x.Key == DpPublicTokenKey).Select(x => x.Value).FirstOrDefaultAsync();
+        if (string.IsNullOrWhiteSpace(stored) || !string.Equals(stored, token, StringComparison.Ordinal))
+            return NotFound("Link nicht gültig.");
+
+        var heute = DateOnly.FromDateTime(DateTime.Now);
+        var year = y is >= 2020 and <= 2100 ? y.Value : heute.Year;
+        var month = m is >= 1 and <= 12 ? m.Value : heute.Month;
+
+        var (zeilen, filialen, codes, feiertage, _) = await BuildMonthDataAsync(year, month);
+        var days = DateTime.DaysInMonth(year, month);
+        var prev = new DateOnly(year, month, 1).AddMonths(-1);
+        var next = new DateOnly(year, month, 1).AddMonths(1);
+        string Nav(DateOnly d, string label) =>
+            $"<a href='/dienstplan/{token}?y={d.Year}&m={d.Month}' style='text-decoration:none;background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:8px 16px;font-weight:800;color:#3f3f3f'>{label}</a>";
+
+        var codeStyle = codes.ToDictionary(c => c.Code, c => c.Farbe ?? "#ffffff", StringComparer.OrdinalIgnoreCase);
+        // Absenz-Overlay: gleiche Farben wie das Grid (DP_ABSENZ_STYLE).
+        var absStyle = new Dictionary<string, (string bg, string fg, string kz)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["FERIEN"] = ("#bbf7d0", "#166534", ""), ["KRANK"] = ("#fecaca", "#991b1b", "K"),
+            ["UNFALL"] = ("#fed7aa", "#9a3412", "U"), ["MUTTERSCHAFT"] = ("#e9d5ff", "#6b21a8", "MS"),
+        };
+        var ftSet = feiertage.Select(f => (f.CompanyProfileId, f.Datum)).ToHashSet();
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var fil in filialen.OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var maZeilen = zeilen.Where(z => z.CompanyProfileId == fil.Id).ToList();
+            if (maZeilen.Count == 0) continue;
+            sb.Append($"<div class='fil'><div class='filname'>{System.Net.WebUtility.HtmlEncode(fil.Name ?? "")}</div><div class='scroll'><table><thead><tr><th class='nm'></th>");
+            for (var d = 1; d <= days; d++)
+            {
+                var dt = new DateOnly(year, month, d);
+                var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                var ft = ftSet.Contains((fil.Id, dt));
+                var cls = (dt == heute ? "heute " : "") + (we ? "we" : "");
+                sb.Append($"<th class='{cls}'{(dt == heute ? " id='h" + fil.Id + "'" : "")}>{DpWo[(int)dt.DayOfWeek]}<br>{d}{(ft ? "<span class='ft'>●</span>" : "")}</th>");
+            }
+            sb.Append("</tr></thead><tbody>");
+            foreach (var z in maZeilen)
+            {
+                var name = $"{z.Vorname} {(z.Nachname.Length > 0 ? z.Nachname[..1] + "." : "")}".Trim();
+                sb.Append($"<tr><td class='nm{(z.IstGf ? " gf" : "")}'>{System.Net.WebUtility.HtmlEncode(name)}</td>");
+                for (var d = 1; d <= days; d++)
+                {
+                    var dt = new DateOnly(year, month, d);
+                    var iso = dt.ToString("yyyy-MM-dd");
+                    var abs = z.Absenzen.FirstOrDefault(a => a.Von <= dt && a.Bis >= dt);
+                    var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
+                    var cls = (dt == heute ? "heute " : "") + (we ? "we" : "");
+                    if (abs != null)
+                    {
+                        var st = absStyle.TryGetValue(abs.Typ, out var s2) ? s2 : ("#e2e8f0", "#475569", abs.Typ.Length > 2 ? abs.Typ[..2] : abs.Typ);
+                        sb.Append($"<td class='{cls}' style='background:{st.Item1};color:{st.Item2};font-weight:700'>{st.Item3}</td>");
+                    }
+                    else if (z.Zellen.TryGetValue(iso, out var code))
+                    {
+                        var bg = codeStyle.TryGetValue(code, out var f) ? f : "#ffffff";
+                        sb.Append($"<td class='{cls}' style='background:{bg};font-weight:700'>{System.Net.WebUtility.HtmlEncode(code)}</td>");
+                    }
+                    else sb.Append($"<td class='{cls}'></td>");
+                }
+                sb.Append("</tr>");
+            }
+            sb.Append("</tbody></table></div></div>");
+        }
+
+        var legende = string.Join("", codes.Select(c =>
+            $"<span class='lg'><span class='sw' style='background:{c.Farbe ?? "#fff"}'></span>{System.Net.WebUtility.HtmlEncode(c.Code)} = {System.Net.WebUtility.HtmlEncode(c.Bezeichnung ?? "")}</span>"))
+            + "<span class='lg'><span class='sw' style='background:#bbf7d0'></span>Ferien</span>"
+            + "<span class='lg'><span class='sw' style='background:#fecaca'></span>K = Krank</span>"
+            + "<span class='lg'><span class='sw' style='background:#fed7aa'></span>U = Unfall</span>"
+            + "<span class='lg'><span class='sw' style='background:#e9d5ff'></span>MS = Mutterschaft</span>"
+            + "<span class='lg'><span class='ft'>●</span> Feiertag</span>";
+
+        var html = $@"<!doctype html>
+<html lang='de'><head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'>
+<meta name='robots' content='noindex'>
+<title>Manager-Dienstplan</title>
+<style>
+  body {{ margin:0; font-family:-apple-system,'Segoe UI',Roboto,sans-serif;
+         background:linear-gradient(135deg,#f7f4ef 0%,#efebe3 48%,#faf8f5 100%);
+         background-attachment:fixed; min-height:100vh; color:#3f3f3f; }}
+  .wrap {{ max-width:980px; margin:0 auto; padding:18px 10px 28px; }}
+  .brand {{ display:flex; align-items:center; gap:8px; margin:0 4px 10px;
+           font-weight:800; font-size:12px; letter-spacing:1.4px; text-transform:uppercase; color:#8b8b8b; }}
+  .brand::after {{ content:''; flex:1; height:1px; background:rgba(60,55,48,0.14); }}
+  h1 {{ font-size:19px; font-weight:800; margin:0 4px 12px; }}
+  .nav {{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:0 4px 14px; }}
+  .mon {{ font-size:16px; font-weight:800; }}
+  .fil {{ background:rgba(255,255,255,0.60); border:1px solid rgba(255,255,255,0.70); border-radius:16px;
+         padding:12px 10px; margin-bottom:14px; box-shadow:0 10px 30px rgba(70,64,55,0.14); }}
+  .filname {{ font-weight:800; font-size:14.5px; margin:0 4px 8px; }}
+  .scroll {{ overflow-x:auto; -webkit-overflow-scrolling:touch; }}
+  table {{ border-collapse:separate; border-spacing:0; font-size:11.5px; }}
+  th, td {{ border-bottom:1px solid rgba(60,55,48,0.10); padding:4px 3px; text-align:center; min-width:30px; }}
+  th {{ font-size:10px; color:#8b8b8b; font-weight:700; line-height:1.25; }}
+  .nm {{ position:sticky; left:0; background:#f6f3ee; text-align:left; padding-left:6px; padding-right:8px;
+        min-width:92px; max-width:120px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+        font-weight:600; z-index:1; box-shadow:2px 0 4px rgba(60,55,48,0.08); }}
+  .nm.gf {{ font-weight:800; }}
+  .we {{ background:rgba(60,55,48,0.05); }}
+  .heute {{ outline:2px solid #3f3f3f; outline-offset:-2px; }}
+  th.heute {{ color:#3f3f3f; }}
+  .ft {{ color:#b91c1c; font-size:8px; display:block; line-height:1; }}
+  .legende {{ display:flex; flex-wrap:wrap; gap:8px 14px; margin:4px 6px 0; font-size:11.5px; color:#646464; }}
+  .lg {{ display:inline-flex; align-items:center; gap:5px; }}
+  .sw {{ width:12px; height:12px; border-radius:4px; border:1px solid rgba(60,55,48,0.18); display:inline-block; }}
+</style></head>
+<body><div class='wrap'>
+<div class='brand'>OneCrew</div>
+<h1>Manager-Dienstplan</h1>
+<div class='nav'>{Nav(prev, "‹ " + DpMonate[prev.Month])}<span class='mon'>{DpMonate[month]} {year}</span>{Nav(next, DpMonate[next.Month] + " ›")}</div>
+{sb}
+<div class='legende'>{legende}</div>
+<div style='text-align:center;color:#b0aca4;font-size:11px;margin-top:16px'>OneCrew · Schaub Restaurants · Stand {DateTime.Now:dd.MM.yyyy HH:mm}</div>
+</div>
+<script>var h=document.querySelector('th.heute');if(h)h.closest('.scroll').scrollLeft=Math.max(0,h.offsetLeft-120);</script>
+</body></html>";
+        return Content(html, "text/html; charset=utf-8");
+    }
 }
 
 // Geteilte Daten-Records für JSON-Grid UND PDF (ManagerDienstplanPdfService).

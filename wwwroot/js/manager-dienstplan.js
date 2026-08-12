@@ -442,6 +442,63 @@ function dpImportExcel() {
     inp.click();
 }
 
+// ── Handy-Link / QR-Aushang (Walter 12.08.2026) ──────────────────────────
+// EIN globaler Token-Link → read-only Mobile-Ansicht über alle Filialen.
+// Verteilung als QR-Aushang im Büro; «Neu generieren» macht alte QR ungültig.
+async function dpOpenQr() {
+    let data;
+    try {
+        const res = await fetch('/api/manager-dienstplan/public-link', { headers: ah() });
+        if (!res.ok) { showToast('Handy-Link konnte nicht geladen werden', 'error'); return; }
+        data = await res.json();
+    } catch { showToast('Verbindungsfehler', 'error'); return; }
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    _dpMgmtModal('📱 Handy-Link für Manager (QR-Aushang)', `
+        <div style="text-align:center">
+            <img id="dpQrImg" src="${data.qrPng}" alt="QR" style="width:260px;height:260px;border:1px solid rgba(60,55,48,0.14);border-radius:14px;background:#fff;padding:10px">
+            <div style="font-size:12.5px;color:#646464;margin:10px 0 2px">Scannen öffnet den Dienstplan read-only — ohne Login, immer aktuell, alle Filialen, frei blätterbar.</div>
+            <div id="dpQrUrl" style="font-family:monospace;font-size:11.5px;color:#8b8b8b;word-break:break-all;margin:6px 0 14px">${data.url}</div>
+            <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+                <button onclick="dpQrPrint()" style="${_dpBtnDark}">🖨 Aushang drucken</button>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('dpQrUrl').textContent).then(()=>showToast('Link kopiert','success'))"
+                        style="background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">Link kopieren</button>
+                ${isAdmin ? `<button onclick="dpQrRotate()" style="background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer;color:#991b1b">↻ Neu generieren</button>` : ''}
+            </div>
+            ${isAdmin ? `<div style="font-size:11px;color:#b0aca4;margin-top:8px">«Neu generieren» macht alle bisherigen QR-Aushänge ungültig.</div>` : ''}
+        </div>`);
+}
+
+function dpQrPrint() {
+    const img = document.getElementById('dpQrImg');
+    const url = document.getElementById('dpQrUrl')?.textContent || '';
+    if (!img) return;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><title>Manager-Dienstplan QR</title></head>
+        <body style="font-family:-apple-system,sans-serif;text-align:center;padding-top:60px">
+        <div style="font-size:26px;font-weight:800;letter-spacing:1px">Manager-Dienstplan</div>
+        <div style="font-size:15px;color:#666;margin:8px 0 30px">QR scannen — Dienstplan direkt auf dem Handy</div>
+        <img src="${img.src}" style="width:420px;height:420px">
+        <div style="font-family:monospace;font-size:12px;color:#999;margin-top:24px">${url}</div>
+        <script>window.onload=()=>window.print()<\/script></body></html>`);
+    w.document.close();
+}
+
+async function dpQrRotate() {
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm('Link neu generieren? Alle bisherigen QR-Aushänge werden ungültig.', { title: 'Handy-Link', yesLabel: 'Ja, neu generieren', noLabel: 'Abbrechen' })
+        : confirm('Link neu generieren? Alle bisherigen QR-Aushänge werden ungültig.');
+    if (!ok) return;
+    try {
+        const res = await fetch('/api/manager-dienstplan/public-link/rotate', { method: 'POST', headers: ah() });
+        if (!res.ok) { showToast('Neu generieren fehlgeschlagen', 'error'); return; }
+        const data = await res.json();
+        const img = document.getElementById('dpQrImg'); if (img) img.src = data.qrPng;
+        const u = document.getElementById('dpQrUrl'); if (u) u.textContent = data.url;
+        showToast('Neuer Handy-Link erzeugt', 'success');
+    } catch { showToast('Verbindungsfehler', 'error'); }
+}
+
 // ── Schulferien + Feiertage pflegen (Walter 09.08.2026) ──────────────────
 function _dpBranchName(cpId) {
     const f = (_dpData?.filialen || []).find(x => x.id === cpId);
