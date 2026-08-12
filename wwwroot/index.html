@@ -2611,6 +2611,11 @@
                 </div>
                 <div class="page-body">
                     <div class="card" style="padding:20px;max-width:760px">
+                        <!-- «← Zurück» wie immer oben rechts (Walter 12.08.2026) -->
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                            <button onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
+                        </div>
                         <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
                             <select id="aaEmpFilter" onchange="aaRenderEmpList()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;background:white">
@@ -2622,10 +2627,8 @@
                         </div>
                         <select id="aaEmpSelect" onchange="aaOnEmpChange()" style="width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;background:white"></select>
                         <div id="aaEmpHint" style="font-size:12px;color:#64748b;margin-top:6px"></div>
-                        <div style="margin-top:16px;display:flex;justify-content:flex-end">
-                            <button type="button" onclick="aaAbbrechen()"
-                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">← Zurück</button>
-                        </div>
+                        <!-- Der frühere Zurück-Button hier ist durch den
+                             «← Zurück» oben rechts in der Karte ersetzt (Walter 12.08.2026). -->
 
                         <div id="aaDetails" style="display:none;margin-top:18px">
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:14px 0 8px">2. Briefdetails</div>
@@ -2640,13 +2643,10 @@
                                 <label style="font-size:12.5px;color:#334155">Ort
                                     <input type="text" id="aaOrt" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
                                 </label>
-                                <div>
-                                    <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:5px;margin-top:2px">Zustellung</div>
-                                    <div class="zst-wrap">
-                                        <label class="zst-pill"><input type="radio" name="aaZustell" value="U" onchange="aaSignerInfoUpdate()">🏪 Abgabe durch Restaurant</label>
-                                        <label class="zst-pill"><input type="radio" name="aaZustell" value="E" checked onchange="aaSignerInfoUpdate()">📮 Versand an Mitarbeiter</label>
-                                    </div>
-                                </div>
+                                <!-- Keine Zustellart-Wahl (Walter 12.08.2026): die Aufforderung
+                                     geht IMMER per Einschreiben an den abwesenden MA. Verstecktes
+                                     Radio hält den bisherigen Eingeschrieben-Lesepfad am Leben. -->
+                                <div style="display:none"><input type="radio" name="aaZustell" value="E" checked></div>
                             </div>
 
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">3. Kontaktperson (Restaurantleiter)</div>
@@ -2662,16 +2662,18 @@
                                 </label>
                             </div>
 
-                            <!-- Unterzeichner folgt der Zustellung (HR-Idee, Walter 12.08.2026):
-                                 Versand (E) = angemeldeter Benutzer · Abgabe (U) = Allgemein-
-                                 Unterzeichner der Filiale. Dropdown = unsichtbare Datenquelle. -->
+                            <!-- Unterzeichner-Wahl wie früher (Walter 12.08.2026): die
+                                 Aufforderung wird versendet — hier wählt HR explizit, wer
+                                 unterschreibt (Filial-Berechtigte, ★ = Allgemein). -->
                             <div style="font-size:13px;font-weight:700;color:#0f172a;margin:18px 0 8px">4. Unterzeichner</div>
-                            <select id="aaSignerUserId" class="no-liquid" style="display:none"></select>
-                            <div id="aaSignerHint" style="font-size:12.5px;color:#3f3f3f;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:8px 12px"></div>
+                            <label style="display:block;font-size:12.5px;color:#334155">Wer unterzeichnet das Schreiben
+                                <select id="aaSignerUserId" onchange="aaSignerInfoUpdate()" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white"></select>
+                                <div id="aaSignerHint" style="font-size:11px;color:#64748b;margin-top:3px">Unterschrift + Klarname aus dem Benutzerprofil der gewählten Person.</div>
+                            </label>
 
-                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:nowrap">
                                 <button type="button" onclick="aaAbbrechen()"
-                                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">← Zurück</button>
+                                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                                 <button type="button" onclick="aaGenerate()"
                                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700;white-space:nowrap;box-shadow:0 6px 16px rgba(60,55,48,0.18)">📄 Aufforderung erstellen</button>
                             </div>
@@ -2689,6 +2691,11 @@
                 </div>
                 <div class="page-body">
                     <div class="card" style="padding:20px;max-width:760px">
+                        <!-- «← Zurück» wie immer oben rechts (Walter 12.08.2026) -->
+                        <div style="display:flex;justify-content:flex-end;margin-bottom:6px">
+                            <button onclick="pageBack()"
+                                    style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
+                        </div>
                         <!-- Schritt 1: Mitarbeiter -->
                         <div style="font-size:13px;font-weight:700;color:#0f172a;margin-bottom:8px">1. Mitarbeiter wählen</div>
                         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -2777,9 +2784,7 @@
 
                             <!-- Schritt 4: PDF + optional MA-Eintrag (Walter 21.07.2026:
                                  PDF speichert nichts; Eintragen ist eigener Schritt) -->
-                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
-                                <button onclick="pageBack()"
-                                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">← Zurück</button>
+                            <div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:nowrap">
                                 <button onclick="kuAbbrechen()"
                                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                                 <button type="button" onclick="kuEintragen()"
@@ -8848,7 +8853,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
 <script src="js/hr-lohnausweis.js?v=20260704p"></script>
 <script src="js/kuendigung.js?v=20260812b"></script>
-<script src="js/aufforderung-arbeit.js?v=20260812a"></script>
+<script src="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
