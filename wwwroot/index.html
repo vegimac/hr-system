@@ -8435,7 +8435,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      bleibt bestehen (eigenes kompaktes 4-Spalten-Raster), wird aber zur
      weissen Wert-Box angeglichen. -->
 <div id="qstModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3000;align-items:flex-start;justify-content:center;overflow-y:auto;padding:16px;">
-<div class="ma-modal-box" style="margin:auto;font-size:12.5px;max-width:1080px">
+<div class="ma-modal-box" style="margin:auto;font-size:12.5px;width:min(1260px,calc(100vw - 40px));max-width:1260px">
 
     <div class="ma-modal-head">
         <div>
@@ -8484,17 +8484,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  beim Speichern autoritativ; der Wohnort steht im Modal-Kopf.
                  Die unsichtbaren Felder bleiben als Datenträger für die
                  Tarif-Logik (onQstKantonChange etc.). -->
-            <div style="display:grid;grid-template-columns:170px 170px 1fr;gap:7px 10px">
+            <!-- 216px = 170px Datumsfeld + 46px Kalender-Knopf des Quickpick -->
+            <div style="display:grid;grid-template-columns:216px 216px 1fr;gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
-                <input type="date" id="qstValidFrom" class="qst-inp">
+                <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
             </div>
             <div>
                 <label class="qst-lbl">Gültig bis <span class="qst-ro-hint">automatisch</span></label>
                 <!-- Nur Anzeige (Walter 12.08.2026): ein QST-Enddatum entsteht
                      NUR systemisch — durch Folge-Eintrag, Bewilligungswechsel,
                      Befreiung oder Kantonswechsel/Umzug. Nie manuell. -->
-                <input type="date" id="qstValidTo" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off">
+                <input type="date" id="qstValidTo" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off" style="max-width:170px">
             </div>
             <div style="display:none">
                 <input type="text" id="qstGemeinde" tabindex="-1">
@@ -8530,8 +8531,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </select>
             </div>
             </div>
-            <!-- Zeile 2: Tarif + Zahlenfelder (schmal) + Checkboxen -->
-            <div style="display:grid;grid-template-columns:320px 130px 150px 150px 170px 1fr;gap:7px 10px;align-items:start">
+            <!-- Zeile 2: Tarif flexibel + Zahlenfelder schmal (Checkboxen in
+                 eigener Zeile darunter — ragten sonst aus dem Modal) -->
+            <div style="display:grid;grid-template-columns:minmax(260px,1fr) 120px 160px 140px 160px;gap:7px 10px;align-items:start">
             <div>
                 <label class="qst-lbl">Tarif</label>
                 <select id="qstTarifCode" onchange="onQstTarifChange()" class="qst-inp">
@@ -8576,17 +8578,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <label class="qst-lbl">Satzbest. Medianlohn</label>
                 <input type="number" id="qstMedianlohn" step="0.05" placeholder="CHF" class="qst-inp">
             </div>
-            <!-- 3 Checkboxen inline neben den Zahlenfeldern (spart eine Zeile) -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px">
+            </div>
+            <!-- Zeile 3: die 3 Checkboxen in voller Breite -->
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                 <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode()"> Kirchensteuer</label>
                 <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
             </div>
-            </div>
         </div>
 
         <div class="emp-section-title">Partner</div>
-        <div style="display:grid;grid-template-columns:1fr 110px 340px;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+        <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich -->
+        <div style="display:grid;grid-template-columns:1fr 120px 470px;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
