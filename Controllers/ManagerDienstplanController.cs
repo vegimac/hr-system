@@ -1251,14 +1251,17 @@ public class ManagerDienstplanController : ControllerBase
                max-height:calc(100vh - 165px); max-height:calc(100dvh - 165px); }}
   .dp-table {{ border-collapse:collapse; font-size:11.5px; width:max-content; }}
   .dp-table th, .dp-table td {{ border:1px solid rgba(60,55,48,0.12); text-align:center; min-width:27px; padding:2px 3px; }}
-  .dp-table thead th {{ background:#f6f3ee; font-weight:700; color:#646464; position:sticky; z-index:2; height:24px; box-sizing:border-box; }}
+  /* Kopf ÜBER den sticky Namen-/Filial-Zellen (z-index 5/6 > 3) — sonst
+     schieben sich die linken Zellen beim Runterscrollen über den Titel
+     (Walter-Bug 12.08.2026). */
+  .dp-table thead th {{ background:#f6f3ee; font-weight:700; color:#646464; position:sticky; z-index:5; height:24px; box-sizing:border-box; }}
   .dp-table thead tr:nth-child(1) th {{ top:0; }}
   .dp-table thead tr:nth-child(2) th {{ top:24px; }}
   .dp-table thead tr:nth-child(3) th {{ top:48px; }}
   .dp-side {{ position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important;
              padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap;
              overflow:hidden; text-overflow:ellipsis; }}
-  thead .dp-side {{ text-transform:uppercase; z-index:4; }}
+  thead .dp-side {{ text-transform:uppercase; z-index:6 !important; }}
   .dp-we {{ background:#efece6; }}
   .dp-branch td {{ background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px;
                   letter-spacing:.4px; text-align:left; padding:3px 8px; }}
