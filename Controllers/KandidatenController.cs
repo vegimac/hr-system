@@ -837,7 +837,7 @@ public class KandidatenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => t.BodyText)
             .FirstOrDefaultAsync();
-        string introHtml;
+        string? customIntro = null;
         if (!string.IsNullOrWhiteSpace(tplBody)
             && !tplBody.TrimStart().StartsWith("Vorlage für die Willkommenstag-SMS"))
         {
@@ -847,12 +847,14 @@ public class KandidatenController : ControllerBase
                 .Replace("{Wochentag}", wt)
                 .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
                 .Replace("{Zeit}", zeit);
-            introHtml = "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
+            customIntro = "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
         }
-        else
-        {
-            introHtml = "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
-        }
+        // Offener Zustand: eigener Text oder Standard-Einladungssatz.
+        // Bestätigter Zustand: NUR der eigene Text (der Einladungssatz wäre
+        // nach der Bestätigung unpassend), sonst nichts.
+        var introHtml = customIntro
+            ?? "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
+        var introHtmlBestaetigt = customIntro ?? "";
 
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
@@ -867,7 +869,8 @@ public class KandidatenController : ControllerBase
 
         string inner;
         if (buchung?.MaAntwort == "ANGENOMMEN")
-            inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>{terminBlock}
+            inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>
+                {introHtmlBestaetigt}{terminBlock}
                 <div style='background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:10px 14px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
                 {wegBlock}
                 <p style='margin-top:16px'><a href='/willkommen/{token}/kalender.ics' style='display:inline-block;background:#3f3f3f;color:#fff;text-decoration:none;border-radius:12px;padding:11px 20px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)'>In Kalender speichern</a></p>";
