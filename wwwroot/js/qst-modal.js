@@ -99,6 +99,26 @@ async function openQstModal(employeeId, employeeData) {
     document.getElementById('qstModal').style.display = 'flex';
 }
 
+// PLZ → Gemeinde/BFS/Steuerkanton automatisch füllen (Walter 12.08.2026,
+// Schweizer Standard-Konvention wie plzLookup bei den Adressen).
+async function qstPlzLookup(plz) {
+    const p = String(plz || '').trim();
+    if (!/^\d{4}$/.test(p)) return;
+    try {
+        const r = await fetch(`/api/swiss-locations/by-plz?plz=${p}`, { headers: ah() });
+        if (!r.ok) return;
+        const list = await r.json();
+        const hit = Array.isArray(list) ? list[0] : null;
+        if (!hit) return;
+        const g = document.getElementById('qstGemeinde');
+        const b = document.getElementById('qstGemeindeBfs');
+        const k = document.getElementById('qstSteuerkanton');
+        if (g) g.value = hit.gemeindename || hit.ortschaftsname || '';
+        if (b) b.value = hit.bfsNr ?? '';
+        if (k && hit.kantonskuerzel) { k.value = hit.kantonskuerzel; if (typeof onQstKantonChange === 'function') onQstKantonChange(); }
+    } catch (_) { /* Lookup ist nur Komfort */ }
+}
+
 function closeQstModal() {
     document.getElementById('qstModal').style.display = 'none';
     const empId = qstCurrentEmployeeId;

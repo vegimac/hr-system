@@ -214,6 +214,13 @@ public class EmployeeQuellensteuerController : ControllerBase
         dto.CreatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         dto.UpdatedAt  = dto.CreatedAt;
 
+        // Steuerkanton/Gemeinde/BFS IMMER aus der Wohnadresse des MA
+        // (Walter 12.08.2026): die QST folgt der easy@work-geführten
+        // Hauptadresse — Client-Werte werden ignoriert (keine manuelle
+        // Abweichung = keine falsche Steuermeldung). Die Spalten bleiben
+        // als eingefrorene Historie pro Gültigkeits-Version erhalten.
+        await ApplyWohnadresseAsync(dto, employeeId);
+
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(MapToDto(dto, firstAllowed));
@@ -244,10 +251,8 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         entry.ValidFrom                  = dto.ValidFrom;
         entry.ValidTo                    = dto.ValidTo;
-        entry.Steuerkanton               = dto.Steuerkanton;
-        entry.SteuerkantonName           = dto.SteuerkantonName;
-        entry.QstGemeinde                = dto.QstGemeinde;
-        entry.QstGemeindeBfsNr           = dto.QstGemeindeBfsNr;
+        // Wohnort-Kette server-autoritativ (Walter 12.08.2026) — siehe Create.
+        await ApplyWohnadresseAsync(entry, employeeId);
         entry.TarifvorschlagQst          = dto.TarifvorschlagQst;
         entry.TarifCode                  = dto.TarifCode;
         entry.TarifBezeichnung           = dto.TarifBezeichnung;
@@ -313,6 +318,47 @@ public class EmployeeQuellensteuerController : ControllerBase
     }
 
     /// <summary>Kantonskürzel → deutscher Kantonsname (für Meldung/Anzeige).</summary>
+    /// <summary>
+    /// Steuerkanton/Gemeinde/BFS aus der WOHNADRESSE des MA ableiten (Walter
+    /// 12.08.2026): einzige Quelle ist die easy@work-geführte Hauptadresse
+    /// (employee.canton_code/city/zip_code, BFS via Ortschaftsverzeichnis).
+    /// </summary>
+    private async Task ApplyWohnadresseAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        var e = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == employeeId)
+            .Select(x => new { x.CantonCode, x.City, x.ZipCode })
+            .FirstOrDefaultAsync();
+        if (e == null) return;
+
+        var kanton = (e.CantonCode ?? "").Trim().ToUpperInvariant();
+        entry.Steuerkanton     = kanton.Length > 0 ? kanton : null;
+        entry.SteuerkantonName = kanton.Length > 0 && KantonNamen.TryGetValue(kanton, out var kn) ? kn : null;
+        entry.QstGemeinde      = string.IsNullOrWhiteSpace(e.City) ? null : e.City.Trim();
+        entry.QstGemeindeBfsNr = null;
+
+        var plz = (e.ZipCode ?? "").Trim();
+        if (plz.Length == 4)
+        {
+            var locs = await _db.SwissLocations.AsNoTracking()
+                .Where(l => l.Plz4 == plz).ToListAsync();
+            var match = locs.FirstOrDefault(l => l.Gemeindename == entry.QstGemeinde)
+                     ?? locs.FirstOrDefault(l => l.Ortschaftsname == entry.QstGemeinde)
+                     ?? locs.FirstOrDefault();
+            if (match != null)
+            {
+                entry.QstGemeindeBfsNr = match.BfsNr;
+                if (string.IsNullOrWhiteSpace(entry.QstGemeinde))
+                    entry.QstGemeinde = match.Gemeindename;
+                if (string.IsNullOrWhiteSpace(entry.Steuerkanton) && !string.IsNullOrWhiteSpace(match.Kantonskuerzel))
+                {
+                    entry.Steuerkanton     = match.Kantonskuerzel.ToUpperInvariant();
+                    entry.SteuerkantonName = KantonNamen.TryGetValue(entry.Steuerkanton, out var kn2) ? kn2 : null;
+                }
+            }
+        }
+    }
+
     private static readonly Dictionary<string, string> KantonNamen = new(StringComparer.OrdinalIgnoreCase)
     {
         ["AG"] = "Aargau",       ["AI"] = "Appenzell Innerrhoden", ["AR"] = "Appenzell Ausserrhoden",
@@ -374,13 +420,21 @@ public class EmployeeQuellensteuerController : ControllerBase
                 message = $"Am {dto.UmzugsDatum:dd.MM.yyyy} ist keine QST-Version aktiv — bitte zuerst einen QST-Eintrag erfassen."
             });
 
-        // 2) Gleicher Kanton = kein Kantonswechsel.
-        var alterKanton = (aktiv.Steuerkanton ?? "").Trim().ToUpperInvariant();
-        if (string.Equals(alterKanton, neuerKanton, StringComparison.OrdinalIgnoreCase))
+        // 2) QST-History NUR bei Wechsel von ORT und/oder KANTON (Walter
+        //    12.08.2026): ändert sich nur Strasse/Hausnummer, bleibt die
+        //    QST-Zuständigkeit identisch — KEIN neuer History-Eintrag.
+        var alterKanton  = (aktiv.Steuerkanton ?? "").Trim().ToUpperInvariant();
+        var alteGemeinde = (aktiv.QstGemeinde ?? "").Trim();
+        var neueGemeindeMa = (emp.City ?? "").Trim();
+        bool kantonsWechsel = !string.Equals(alterKanton, neuerKanton, StringComparison.OrdinalIgnoreCase);
+        bool ortsWechsel    = neueGemeindeMa.Length > 0
+                              && !string.Equals(alteGemeinde, neueGemeindeMa, StringComparison.OrdinalIgnoreCase);
+        if (!kantonsWechsel && !ortsWechsel)
             return BadRequest(new
             {
-                error   = "KEIN_KANTONSWECHSEL",
-                message = $"Kein Kantonswechsel — die aktive QST-Version steht bereits auf Kanton «{neuerKanton}»."
+                error   = "KEIN_WECHSEL",
+                message = $"Weder Ort noch Kanton haben geändert (weiterhin {neueGemeindeMa} {neuerKanton}) — " +
+                          "ein Strassen-/Hausnummer-Wechsel braucht keinen neuen QST-Eintrag."
             });
 
         // 3) Wechselstichtag = 1. Tag des Monats NACH dem Umzugsdatum

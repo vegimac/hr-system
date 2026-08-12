@@ -7755,7 +7755,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260810b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260802a"></script>
+<script src="js/qst-modal.js?v=20260812a"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260804b"></script>
@@ -8467,8 +8467,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
         <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
         <!-- Feldbreiten nach Inhalt (Walter 12.08.2026): Datum/Zahl schmal,
-             nur Text-/Auswahlfelder flexibel. -->
-        <div class="qst-grid" style="display:grid;grid-template-columns:150px 150px 200px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+             nur Text-/Auswahlfelder flexibel. Reihenfolge PLZ → Gemeinde →
+             Kanton: die PLZ füllt Gemeinde, BFS und Steuerkanton automatisch
+             (Schweizer Standard-Konvention wie überall im Programm). -->
+        <div class="qst-grid" style="display:flex;flex-direction:column;gap:7px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+            <!-- Zeile 1: nur Gültigkeit. Steuerkanton/Gemeinde/BFS sind KEINE
+                 Eingaben mehr (Walter 12.08.2026): die QST folgt IMMER der
+                 easy@work-geführten Wohnadresse — der Server setzt die Werte
+                 beim Speichern autoritativ; der Wohnort steht im Modal-Kopf.
+                 Die unsichtbaren Felder bleiben als Datenträger für die
+                 Tarif-Logik (onQstKantonChange etc.). -->
+            <div style="display:grid;grid-template-columns:170px 170px 1fr;gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp">
@@ -8477,9 +8486,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <label class="qst-lbl">Gültig bis</label>
                 <input type="date" id="qstValidTo" class="qst-inp">
             </div>
-            <div>
-                <label class="qst-lbl">Steuerkanton</label>
-                <select id="qstSteuerkanton" onchange="onQstKantonChange()" class="qst-inp">
+            <div style="display:none">
+                <input type="text" id="qstGemeinde" tabindex="-1">
+                <input type="number" id="qstGemeindeBfs" tabindex="-1">
+                <select id="qstSteuerkanton" onchange="onQstKantonChange()" class="no-liquid" tabindex="-1">
                     <option value="">– wählen –</option>
                     <option value="AG">AG – Aargau</option>
                     <option value="AI">AI – Appenzell IR</option>
@@ -8509,14 +8519,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="ZH">ZH – Zürich</option>
                 </select>
             </div>
-            <div>
-                <label class="qst-lbl">QST-Gemeinde / BFS</label>
-                <div style="display:flex;gap:4px">
-                    <input type="text" id="qstGemeinde" placeholder="Gemeinde" class="qst-inp" style="flex:1">
-                    <input type="number" id="qstGemeindeBfs" placeholder="BFS" class="qst-inp" style="width:62px">
-                </div>
             </div>
-            <div style="grid-column:span 2">
+            <!-- Zeile 2: Tarif + Zahlenfelder (schmal) + Checkboxen -->
+            <div style="display:grid;grid-template-columns:320px 130px 150px 150px 170px 1fr;gap:7px 10px;align-items:start">
+            <div>
                 <label class="qst-lbl">Tarif</label>
                 <select id="qstTarifCode" onchange="onQstTarifChange()" class="qst-inp">
                     <option value="">– wählen –</option>
@@ -8558,10 +8564,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <input type="number" id="qstMedianlohn" step="0.05" placeholder="CHF" class="qst-inp">
             </div>
             <!-- 3 Checkboxen inline neben den Zahlenfeldern (spart eine Zeile) -->
-            <div style="grid-column:span 2;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding-bottom:1px">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px">
                 <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode()"> Kirchensteuer</label>
                 <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
+            </div>
             </div>
         </div>
 
@@ -8678,6 +8685,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 #qstModal .qst-cb  { min-height:25px !important; padding:3px 8px !important; }
 #qstModal .qst-lbl { margin-bottom:1px !important; }
 #qstModal #qstTarifHint { font-size:10.5px !important; line-height:1.25 !important; margin-top:2px !important; }
+/* Wohnort-Felder sind reine Anzeige (Walter 12.08.2026): QST folgt IMMER der
+   MA-Wohnadresse aus easy@work — keine manuelle Abweichung möglich. */
+#qstModal .qst-ro { background:#efece6 !important; color:#646464 !important; pointer-events:none !important; box-shadow:none !important; border-color:#e2ddd3 !important; }
+#qstModal .qst-ro-hint { font-weight:400; font-size:8.5px; color:#94a3b8; letter-spacing:0; text-transform:none; }
 </style>
 
 
