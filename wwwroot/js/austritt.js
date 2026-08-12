@@ -421,11 +421,20 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
     ov.id = 'azModal';
     ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
+    // Breites Zwei-Spalten-Layout im OneCrew-Look (Walter 12.08.2026):
+    // links Beurteilung/Daten/Zustellung, rechts Bereich + Aufgaben.
+    // Bei der Arbeitsbestätigung (nur 1 Satz) bleibt es einspaltig.
     ov.innerHTML = `
-        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:620px;width:100%;max-height:92vh;overflow:auto;padding:20px 22px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-            <div style="font-size:16px;font-weight:700;color:#3f3f3f;margin-bottom:2px">${_azBest ? 'Arbeitsbestätigung' : _azZwischen ? 'Zwischenzeugnis' : 'Arbeitszeugnis'} erstellen</div>
+        <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:${_azBest ? 640 : 1080}px;width:100%;max-height:92vh;overflow:auto;padding:22px 26px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:2px">
+                <div style="font-size:16px;font-weight:800;color:#3f3f3f">${_azBest ? 'Arbeitsbestätigung' : _azZwischen ? 'Zwischenzeugnis' : 'Arbeitszeugnis'} erstellen</div>
+                <button onclick="document.getElementById('azModal').remove()"
+                        class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
+            </div>
             <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : ''}</div>
 
+            <div style="display:grid;grid-template-columns:${_azBest ? '1fr' : '1fr 1.1fr'};gap:0 26px;align-items:start">
+            <div>
             <div style="${label};${_azBest ? 'display:none' : ''}">Qualität</div>
             <div style="display:${_azBest ? 'none' : 'grid'};grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
                 <label style="${pill}"><input type="radio" name="azQuali" value="sehr_gut"> Sehr gut</label>
@@ -463,26 +472,30 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
                 <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Versand: unterzeichnet der angemeldete Benutzer · Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale.</div>
             </div>
 
-            <div style="${label};${_azBest ? 'display:none' : ''}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
+            <label style="${pill};margin-bottom:16px;${(_azZwischen || _azBest) ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+            </div>
+
+            <div style="${_azBest ? 'display:none' : ''}">
+            <div style="${label}">Bereich (Schnellwahl — kreuzt die passenden Aufgaben an)</div>
             <div style="display:${_azBest ? 'none' : 'flex'};gap:8px;margin-bottom:12px">
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKueche" onchange="azQuickTasks()"> Küche</label>
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azKasse" checked onchange="azQuickTasks()"> Kasse</label>
                 <label style="${pill};flex:1;justify-content:center"><input type="checkbox" id="azDrive" checked onchange="azQuickTasks()"> Drive</label>
             </div>
 
-            <div style="${label};${_azBest ? 'display:none' : ''}">Aufgaben (Mehrfachauswahl — Umfang folgt der Funktion)</div>
+            <div style="${label}">Aufgaben (Mehrfachauswahl — Umfang folgt der Funktion)</div>
             <div style="display:${_azBest ? 'none' : 'flex'};flex-direction:column;gap:4px;margin-bottom:14px">
                 ${AZ_AUFGABEN.map((a, i) => `<label class="azTaskRow" data-group="${_azGroupOf(i)}" style="${pillS};padding:5px 9px;font-size:11.5px;line-height:1.3"><input type="checkbox" class="azAufgabe" data-i="${i}" value="${a.replace(/"/g, '&quot;')}"> <span>${a}</span></label>`).join('')}
             </div>
-
-            <label style="${pill};margin-bottom:16px;${(_azZwischen || _azBest) ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
+            </div>
+            </div>
 
             <div id="azAlert"></div>
-            <div style="display:flex;gap:10px;justify-content:flex-end">
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
                 <button onclick="document.getElementById('azModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                 <button id="azGoBtn" onclick="azGenerate()"
-                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">📄 PDF erstellen</button>
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)">📄 PDF erstellen</button>
             </div>
         </div>`;
     document.body.appendChild(ov);
