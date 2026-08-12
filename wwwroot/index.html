@@ -8585,7 +8585,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
             <!-- Zeile 3: die 3 Checkboxen in voller Breite -->
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                <label class="qst-cb"><input type="checkbox" id="qstKirchensteuer" onchange="buildQstCode()"> Kirchensteuer</label>
+                <!-- Nur Anzeige (Walter 12.08.2026): Kirchensteuer folgt der
+                     Konfession des MA — der Server ignoriert den Client-Wert. -->
+                <label class="qst-cb qst-cb-ro"><input type="checkbox" id="qstKirchensteuer" tabindex="-1" onchange="buildQstCode()"> Kirchensteuer <span class="qst-ro-hint">aus Konfession</span></label>
                 <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
             </div>
@@ -8710,6 +8712,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 /* Wohnort-Felder sind reine Anzeige (Walter 12.08.2026): QST folgt IMMER der
    MA-Wohnadresse aus easy@work — keine manuelle Abweichung möglich. */
 #qstModal .qst-ro { background:#efece6 !important; color:#646464 !important; pointer-events:none !important; box-shadow:none !important; border-color:#e2ddd3 !important; }
+#qstModal .qst-cb-ro { pointer-events:none !important; background:#efece6 !important; color:#646464 !important; box-shadow:none !important; cursor:default; }
 /* Komplett-Sperre abgeschlossener/verwendeter Versionen (Walter 12.08.2026):
    alles ausser der Aktions-Zeile (Abbrechen) wird unklickbar + grau. */
 #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea,button,label) { pointer-events:none !important; }

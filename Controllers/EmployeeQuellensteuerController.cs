@@ -229,6 +229,11 @@ public class EmployeeQuellensteuerController : ControllerBase
         // als eingefrorene Historie pro Gültigkeits-Version erhalten.
         await ApplyWohnadresseAsync(dto, employeeId);
 
+        // Kirchensteuer IMMER aus der Konfession des MA (Walter 12.08.2026):
+        // nur Anzeige im Modal, Client-Wert wird ignoriert. Der Y/N-Suffix im
+        // QST-Code wird passend nachgezogen.
+        await ApplyKirchensteuerAsync(dto, employeeId);
+
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(MapToDto(dto, firstAllowed));
@@ -283,8 +288,11 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.TarifCode                  = dto.TarifCode;
         entry.TarifBezeichnung           = dto.TarifBezeichnung;
         entry.AnzahlKinder               = dto.AnzahlKinder;
-        entry.Kirchensteuer              = dto.Kirchensteuer;
         entry.QstCode                    = dto.QstCode;
+        // Kirchensteuer server-autoritativ aus der Konfession (Walter
+        // 12.08.2026) — Client-Wert ignoriert, Y/N-Suffix im QstCode
+        // wird mitgezogen (siehe Create).
+        await ApplyKirchensteuerAsync(entry, employeeId);
         entry.SpezielBewilligt           = dto.SpezielBewilligt;
         entry.Kategorie                  = dto.Kategorie;
         entry.Prozentsatz                = dto.Prozentsatz;
@@ -393,6 +401,27 @@ public class EmployeeQuellensteuerController : ControllerBase
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// Kirchensteuer IMMER aus der Konfession des MA (Walter-Vorgabe
+    /// 12.08.2026): das Modal zeigt sie nur an, der Client-Wert wird in
+    /// Create UND Update ignoriert. Gleiche Ableitung wie der Tarif-Vorschlag
+    /// (QstTarifVorschlagLogic.IstKirchensteuerPflichtig). Der Y/N-Suffix
+    /// im QST-Code (z.B. C3N/C3Y) wird passend nachgezogen.
+    /// </summary>
+    private async Task ApplyKirchensteuerAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        var religion = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == employeeId)
+            .Select(x => x.Religion)
+            .FirstOrDefaultAsync();
+
+        entry.Kirchensteuer = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion);
+
+        var code = entry.QstCode?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
+            entry.QstCode = code[..^1] + (entry.Kirchensteuer ? "Y" : "N");
     }
 
     private static readonly Dictionary<string, string> KantonNamen = new(StringComparer.OrdinalIgnoreCase)
