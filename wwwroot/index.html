@@ -4297,10 +4297,14 @@
             </div>
             <!-- ═══ SOLLSTUNDEN-ÜBERSICHT (GF, Walter-Vorgabe 19.06.2026) ═══ -->
             <div class="page" id="page-sollstunden">
-                <div class="page-head"><div>
+                <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div>
                     <h1 class="page-title">Sollstunden-Übersicht</h1>
                     <p class="page-sub">Pro Mitarbeiter (FIX / FIX-M / MTP): wie viele Stunden im Monat zu leisten sind, wie viel bereits gearbeitet wurde und was Absenzen gutschreiben/abziehen — gerechnet mit derselben Logik wie der Lohnlauf.</p>
-                </div></div>
+                </div>
+                    <!-- «← Zurück» rechts, 58px unter der reservierten Sprach-/Theme-Zone -->
+                    <button onclick="pageBack()"
+                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
+                </div>
                 <div class="page-body">
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Monat
@@ -4321,10 +4325,14 @@
             </div>
             <!-- ═══ FERIEN-ÜBERSICHT (GF, Walter-Vorgabe 20.06.2026) ═══ -->
             <div class="page" id="page-ferien">
-                <div class="page-head"><div>
+                <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px"><div>
                     <h1 class="page-title">Ferien / Feiertage / Nacht</h1>
                     <p class="page-sub">Pro Mitarbeiter: aufgelaufener Anspruch von Januar bis und mit Stichtag-Monat, gegenübergestellt dem Bezug aus den Absenzen. Ferien + Feiertage in Tagen, Nacht-Saldo in Stunden (Vortrag aus Monatsblatt + Nachtstunden × 10% Zuschlag − Nacht-Kompensation; Saldo &gt; 9 h = gelb).</p>
-                </div></div>
+                </div>
+                    <!-- «← Zurück» rechts, 58px unter der reservierten Sprach-/Theme-Zone -->
+                    <button onclick="pageBack()"
+                            style="margin-top:58px;flex-shrink:0;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700">← Zurück</button>
+                </div>
                 <div class="page-body">
                     <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px">
                         <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Jahr
