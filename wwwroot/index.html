@@ -1613,6 +1613,10 @@
                             </div>
                             <div id="momTextMsg" style="font-size:12px;margin-top:6px"></div>
                         </div>
+                        <!-- Parkplatz: das Formular wird beim Bearbeiten in die jeweilige
+                             Typ-Karte/Zeile verschoben und vor jedem Re-Render hierher
+                             zurückgeholt (Walter 11.08.2026, Kalender-Look). -->
+                        <div id="momTextPark"></div>
 
                         <div id="momTextList"></div>
                     </div>
@@ -7756,7 +7760,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
 <script src="js/dok-struktur.js?v=20260720a"></script>
-<script src="js/moments.js?v=20260722b"></script>
+<script src="js/moments.js?v=20260811a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>

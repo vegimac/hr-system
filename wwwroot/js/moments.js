@@ -687,38 +687,78 @@ async function momTextLoadList() {
     momRenderTextList();
 }
 
+// Formular vor jedem Re-Render sicher «parken» — sonst würde es beim
+// innerHTML-Ersatz der Liste zerstört (es wandert beim Bearbeiten in die Zeile).
+function _momTextFormPark() {
+    const form = document.getElementById('momTextForm');
+    const park = document.getElementById('momTextPark');
+    if (form && park && form.parentElement !== park) park.appendChild(form);
+    if (form) form.style.display = 'none';
+}
+
+// Vorlagen-Liste im Kalender-Look (Walter 11.08.2026): eine Glas-Karte pro
+// Moment-Typ (prominenter Titel + «+ Vorlage»), darunter pro Vorlage eine
+// kompakte Zeile (Emotionsgrad | Titel | Vorschau | Aktionen). Bearbeiten
+// klappt DIREKT unter der Zeile auf.
 function momRenderTextList() {
     const el = document.getElementById('momTextList');
     if (!el) return;
-    if (!_momTextsAll.length) { el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Keine Vorlagen für diese Auswahl.</div>'; return; }
-    el.innerHTML = _momTextsAll.map(x => {
-        // SMS-Vorlagen (Vertrag / Bewilligung): Kurztext ist der relevante Inhalt —
-        // Mitteilung nur zusätzlich zeigen, falls vorhanden (Walter 19.07.2026).
-        const parts = [];
-        if (x.smsText) parts.push('📲 ' + x.smsText);
-        if (x.bodyText) parts.push(x.bodyText);
-        const preview = (parts.join('\n\n') || '').slice(0, 280);
-        return `
-        <div style="border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px;${x.isActive ? '' : 'opacity:0.6'}">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                <span style="font-size:12px;background:#f1efe9;color:#5a5348;border-radius:6px;padding:2px 8px">${escapeHtml(x.typeName || '')}</span>
-                <span style="font-size:12px;background:#f1f5f9;color:#475569;border-radius:6px;padding:2px 8px">${escapeHtml(x.toneName || '')}</span>
-                <strong style="font-size:13px">${escapeHtml(x.titel || '(ohne Titel)')}</strong>
-                ${x.isActive ? '' : '<span style="color:#b91c1c;font-size:12px">inaktiv</span>'}
-                <span style="margin-left:auto;display:flex;gap:6px">
-                    <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="momTextEdit(${x.id})">Bearbeiten</button>
-                    <button class="btn btn-outline" style="padding:4px 10px;font-size:12px" onclick="momTextToggle(${x.id})">${x.isActive ? 'Deaktivieren' : 'Aktivieren'}</button>
-                    <button class="btn btn-outline" style="padding:4px 10px;font-size:12px;color:#b91c1c" onclick="momTextDelete(${x.id})">Löschen</button>
-                </span>
+    _momTextFormPark();
+    const typeFilter = document.getElementById('momMgmtType')?.value || '';
+    const typen = _momTypesAll
+        .filter(t => (t.isActive || _momTextsAll.some(x => x.momentTypeId === t.id))
+                  && (!typeFilter || String(t.id) === typeFilter));
+    if (!typen.length) { el.innerHTML = '<div style="color:#94a3b8;font-size:13px">Keine Typen für diese Auswahl.</div>'; return; }
+    el.innerHTML = typen.map(t => {
+        const texte = _momTextsAll.filter(x => x.momentTypeId === t.id);
+        const rows = texte.length ? texte.map(x => {
+            const preview = ((x.smsText ? '📲 ' + x.smsText : '') || x.bodyText || '')
+                .replace(/\s+/g, ' ').slice(0, 110);
+            return `
+            <div style="display:grid;grid-template-columns:130px 220px 1fr auto;gap:10px;align-items:center;padding:7px 4px;border-top:1px solid rgba(60,55,48,0.08);${x.isActive ? '' : 'opacity:0.55'}">
+                <div><span class="kd-chip kd-chip-grau">${escapeHtml(x.toneName || '–')}</span></div>
+                <div><b style="font-size:13px">${escapeHtml(x.titel || '(ohne Titel)')}</b>
+                    ${x.isActive ? '' : ' <span class="kd-chip kd-chip-rot">inaktiv</span>'}</div>
+                <div class="kd-dim" style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(preview)}</div>
+                <div style="display:flex;gap:8px;align-items:center;justify-self:end">
+                    <button class="kd-btn-glass" onclick="momTextEdit(${x.id})">✎ Bearbeiten</button>
+                    <button class="kd-btn-glass" onclick="momTextToggle(${x.id})">${x.isActive ? 'Deaktivieren' : 'Aktivieren'}</button>
+                    <a class="kd-link" style="font-size:12px;color:#991b1b" onclick="momTextDelete(${x.id})">🗑</a>
+                </div>
             </div>
-            <div style="font-size:12px;color:#64748b;margin-top:6px;white-space:pre-wrap;max-height:72px;overflow:hidden">${escapeHtml(preview)}</div>
+            <div id="momTextSlot${x.id}"></div>`;
+        }).join('') : '<div class="kd-dim" style="font-size:12.5px;padding:4px 2px">Noch keine Vorlage — mit «+ Vorlage» anlegen.</div>';
+        return `
+        <div class="kd-day">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px">
+                <div class="kd-day-title" style="font-size:15.5px">${escapeHtml(t.name)}</div>
+                ${t.isActive ? '' : '<span class="kd-chip kd-chip-rot">Typ inaktiv</span>'}
+                <span class="kd-chip kd-chip-grau">${texte.length} Vorlage${texte.length === 1 ? '' : 'n'}</span>
+                <span style="flex:1"></span>
+                <button class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px" onclick="momTextNew(${t.id})">+ Vorlage</button>
+            </div>
+            ${rows}
+            <div id="momTextSlotNew${t.id}"></div>
         </div>`;
     }).join('');
 }
 
-function momTextNew() {
+// Formular in einen Ziel-Slot verschieben und zeigen (Kalender-Look:
+// Bearbeiten/Neu klappt direkt in der Typ-Karte auf).
+function _momTextFormShow(slotId) {
+    const form = document.getElementById('momTextForm');
+    const slot = slotId ? document.getElementById(slotId) : null;
+    if (form && slot && form.parentElement !== slot) slot.appendChild(form);
+    if (form) {
+        form.style.display = 'block';
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+}
+
+function momTextNew(typeId) {
+    const tid = typeId || parseInt(document.getElementById('momMgmtType')?.value, 10) || (_momTypesAll[0]?.id || '');
     document.getElementById('momTextId').value = '';
-    document.getElementById('momTextType').value = document.getElementById('momMgmtType')?.value || (_momTypesAll[0]?.id || '');
+    document.getElementById('momTextType').value = tid;
     document.getElementById('momTextTone').value = document.getElementById('momMgmtTone')?.value || (_momTonesAll[0]?.id || '');
     document.getElementById('momTextTitel').value = '';
     document.getElementById('momTextSms').value = '';
@@ -726,7 +766,7 @@ function momTextNew() {
     document.getElementById('momTextActive').checked = true;
     document.getElementById('momTextSort').value = '0';
     document.getElementById('momTextMsg').textContent = '';
-    document.getElementById('momTextForm').style.display = 'block';
+    _momTextFormShow(`momTextSlotNew${tid}`);
     momTextTypeChanged();
     momTextSmsCount();
 }
@@ -769,13 +809,12 @@ function momTextEdit(id) {
     document.getElementById('momTextActive').checked = !!x.isActive;
     document.getElementById('momTextSort').value = x.sortOrder || 0;
     document.getElementById('momTextMsg').textContent = '';
-    document.getElementById('momTextForm').style.display = 'block';
-    document.getElementById('momTextForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    _momTextFormShow(`momTextSlot${id}`);
     momTextTypeChanged();
     momTextSmsCount();
 }
 
-function momTextCancel() { document.getElementById('momTextForm').style.display = 'none'; }
+function momTextCancel() { _momTextFormPark(); }
 
 async function momTextSave() {
     const id = document.getElementById('momTextId').value;
@@ -799,7 +838,7 @@ async function momTextSave() {
     const r = await fetch(url, { method: id ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { msg.style.color = '#b91c1c'; msg.textContent = j.error || 'Fehler.'; return; }
-    document.getElementById('momTextForm').style.display = 'none';
+    _momTextFormPark();
     await momTextLoadList();
 }
 
