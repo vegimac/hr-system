@@ -4263,21 +4263,45 @@ function _familieMutterschaftHtml(employeeId, pregnancyDetails) {
     const empF = selectedEmployee;
     if (!empF || !IstWeiblich(empF.gender)) return '';
     const list = pregnancyDetails || [];
-    // Button nur wenn noch keine offene Schwangerschaft (ohne Geburt) —
-    // sonst «+ Schwangerschaft erfassen» weg (Walter 27.07.2026).
-    const hasOpen = list.some(d => d?.pregnancy && !d.pregnancy.geburtsdatum);
+    // Abgeschlossene Schwangerschaften ausblenden (Walter 12.08.2026):
+    // sichtbar ist nur die laufende (bis 16 Wochen nach Geburt/ET, gleiches
+    // Fenster wie Badge/Kündigungsschutz). Ältere sind Historie und stehen
+    // eingeklappt hinter «frühere anzeigen».
+    const _mtsHeute = new Date().toISOString().slice(0, 10);
+    const _mtsIsCurrent = d => {
+        const p = d?.pregnancy || {};
+        const basis = p.geburtsdatum || p.errechneterTermin;
+        if (!basis) return true; // ohne Datum sicherheitshalber zeigen
+        const ende = new Date(basis); ende.setDate(ende.getDate() + 16 * 7);
+        return ende.toISOString().slice(0, 10) >= _mtsHeute;
+    };
+    const current = list.filter(_mtsIsCurrent);
+    const older   = list.filter(d => !_mtsIsCurrent(d))
+        .sort((a, b) => String(b?.pregnancy?.errechneterTermin || '').localeCompare(String(a?.pregnancy?.errechneterTermin || '')));
+    // Button nur wenn keine LAUFENDE offene Schwangerschaft (ohne Geburt) —
+    // ältere/abgeschlossene blockieren «+ Schwangerschaft erfassen» nicht
+    // mehr (Walter 27.07.2026, präzisiert 12.08.2026).
+    const hasOpen = current.some(d => d?.pregnancy && !d.pregnancy.geburtsdatum);
     const addBtn = hasOpen ? '' : `
             <button type="button" class="btn-emp-add" style="padding:6px 14px;font-size:12px;margin-left:auto" onclick="mtsOpenNew(${employeeId})">+ Schwangerschaft erfassen</button>`;
+    const olderHtml = older.length ? `
+            <div style="margin-top:10px">
+                <a href="#" id="mtsOldToggle" style="font-size:12px;color:#8b8b8b;text-decoration:underline"
+                   onclick="document.getElementById('mtsOldWrap').style.display='block';this.style.display='none';return false">
+                   ${older.length} frühere Schwangerschaft${older.length > 1 ? 'en' : ''} anzeigen</a>
+                <div id="mtsOldWrap" style="display:none;opacity:0.75">${older.map(d => renderPregnancyCard(d)).join('')}</div>
+            </div>` : '';
     return `
         <div class="emp-section-title" style="margin-top:24px;display:flex;align-items:center;justify-content:space-between">
             <span>Mutterschaft</span>
             ${addBtn}
         </div>
         <div id="mutterschaftContent">
-            ${list.length
-                ? list.map(d => renderPregnancyCard(d)).join('')
-                : `<div class="emp-placeholder" style="padding:24px"><span>Keine Schwangerschaft erfasst.</span></div>`
+            ${current.length
+                ? current.map(d => renderPregnancyCard(d)).join('')
+                : `<div class="emp-placeholder" style="padding:24px"><span>${list.length ? 'Keine laufende Schwangerschaft.' : 'Keine Schwangerschaft erfasst.'}</span></div>`
             }
+            ${olderHtml}
         </div>`;
 }
 
