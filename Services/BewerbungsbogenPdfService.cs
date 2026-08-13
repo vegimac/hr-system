@@ -114,8 +114,21 @@ public class BewerbungsbogenPdfService
             // (Walter 03.08.2026).
             col.Item().PaddingTop(12).Element(e => CheckOptionsInline(e, "Konfession",
                 "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch", "Andere", "Keine"));
-            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Anzahl Kinder"));
-            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Namen, Geburtstag der Kinder"));
+            // Kinder-Block (Walter 13.08.2026): Zeile 1 = «Anzahl Kinder» +
+            // grosse Zähl-Box (wie AHV-Kästchen) + erste Schreiblinie für
+            // Name/Geburtstag; darunter eine zweite volle Linie für weitere.
+            col.Item().PaddingTop(12).Row(r =>
+            {
+                r.AutoItem().AlignBottom().PaddingBottom(3)
+                    .Text("Anzahl Kinder").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(8);
+                r.ConstantItem(19).AlignBottom().Element(b => b
+                    .Height(24).Border(0.8f).BorderColor(Line).Text(" "));
+                r.ConstantItem(14);
+                r.RelativeItem().AlignBottom().Element(f =>
+                    LabeledLine(f, "Name, Geburtstag der Kinder"));
+            });
+            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Weitere Kinder (Name, Geburtstag)"));
             col.Item().PaddingTop(12).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
@@ -425,14 +438,16 @@ public class BewerbungsbogenPdfService
             foreach (var h in new[] { "sehr gut", "gut", "Grundkenntnisse" })
                 t.Cell().PaddingBottom(4).AlignCenter().Text(h).FontSize(7.5f).FontColor(Ink);
 
+            // Kompakter (Walter 13.08.2026): PaddingVertical 6→3 spart Platz
+            // zugunsten des grösseren Kinder-Blocks auf Seite 1.
             void LangRow(string name, bool free = false)
             {
                 if (free)
-                    t.Cell().PaddingVertical(6).PaddingRight(8).Element(WriteLine);
+                    t.Cell().PaddingVertical(3).PaddingRight(8).Element(WriteLine);
                 else
-                    t.Cell().PaddingVertical(6).AlignMiddle().Text(name).FontSize(8.5f).FontColor(Ink);
+                    t.Cell().PaddingVertical(3).AlignMiddle().Text(name).FontSize(8.5f).FontColor(Ink);
                 for (var i = 0; i < 3; i++)
-                    t.Cell().PaddingVertical(6).AlignCenter().Element(Check);
+                    t.Cell().PaddingVertical(3).AlignCenter().Element(Check);
             }
             LangRow("Deutsch");
             LangRow("Englisch");
