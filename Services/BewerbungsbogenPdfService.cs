@@ -241,7 +241,7 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(20);
                 r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
-            col.Item().PaddingTop(14).Element(e =>
+            col.Item().PaddingTop(18).Element(e =>
                 SignatureLine(e, "Unterschrift des gesetzlichen Vertreters"));
         });
     }
@@ -300,7 +300,8 @@ public class BewerbungsbogenPdfService
         });
     }
 
-    /// <summary>Extra-hohe Schreibzeile fuer Unterschriften.</summary>
+    /// <summary>Extra-hohe Schreibzeile fuer Unterschriften — 38pt
+    /// (Walter 13.08.2026: grosszügiger, wird von Hand ausgefüllt).</summary>
     private static void SignatureLine(IContainer e, string label)
     {
         e.Row(r =>
@@ -308,7 +309,7 @@ public class BewerbungsbogenPdfService
             r.AutoItem().AlignBottom().PaddingBottom(2)
                 .Text(label).FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(8);
-            r.RelativeItem().Element(f => WriteLineAt(f, 24f));
+            r.RelativeItem().Element(f => WriteLineAt(f, 38f));
         });
     }
 
