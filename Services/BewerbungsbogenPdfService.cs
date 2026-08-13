@@ -127,6 +127,19 @@ public class BewerbungsbogenPdfService
             // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
             // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
             col.Item().PaddingTop(11).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
+            // Zuoberst wieder die Gesundheits-Frage aus dem alten Bogen
+            // (Walter 13.08.2026): chronische Krankheiten / Allergien,
+            // v.a. Hautallergien — mit Schreiblinie für Details.
+            col.Item().PaddingTop(5).Text("Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?")
+                .FontSize(8.5f).FontColor(Ink);
+            col.Item().PaddingTop(3).Row(r =>
+            {
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(10);
+                r.RelativeItem().AlignMiddle().Element(WriteLine);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+            });
             col.Item().PaddingTop(5).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
@@ -194,46 +207,28 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(10).Element(e =>
                 TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
 
-            // Ehepartner-Block gemäss altem Formular (Walter 13.08.2026) —
-            // ersetzt den früheren «Angaben über Partner»-Block.
+            // Partner-Block im bewährten OneCrew-Layout (Walter 13.08.2026):
+            // wie früher «Angaben über Partner», mit zwei Änderungen —
+            // AHV-Nummer als Ziffern-Boxen ANSTELLE des Geburtsorts und
+            // Geschlecht als W/M/D-Ankreuz (wie beim MA auf Seite 1).
             col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "Ehepartner(in)",
-                    "ausschliesslich von Mitarbeitenden auszufüllen, welche quellensteuerpflichtig sind"));
-            // Geburtsdatum als normale Schreiblinie (Walter 13.08.2026).
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Geburtsdatum"));
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Vorname", "Nationalität"));
-            // Zwei Zeilen statt einer (13.08.2026): beide Fragen nebeneinander
-            // waren breiter als das Blatt → DocumentLayoutException.
+                SectionHead(e, "Angaben über Partner",
+                    "auszufüllen, wenn quellensteuerpflichtig"));
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.AutoItem().AlignMiddle().Text("Lebt ihr in einem gemeinsamen Haushalt?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(10);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(10);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-                r.RelativeItem();
+                r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M", "D"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            col.Item().PaddingTop(5).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Hat dein/e Partner/in eine berufliche Aktivität?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(10);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(10);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-                r.RelativeItem();
-            });
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Aufenthaltsort"));
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.RelativeItem(0.9f).Element(f => LabeledLine(f, "Arbeitserlaubnis"));
-                r.ConstantItem(20);
-                r.AutoItem().AlignMiddle().Text("Bewilligung G, Aufenthalt:").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(10);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Täglich"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Wöchentlich"));
-                r.RelativeItem(0.3f);
+                r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(6).Element(AhvBoxes);
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse"));
 
             // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
             // frühere Kinder-Block von Seite 1 lebt jetzt hier).
