@@ -3014,12 +3014,15 @@ using (var scope = app.Services.CreateScope())
 
         -- ── BFS Lohnstrukturerhebung (Walter 13.08.2026) ────────────────────
         -- Doku: migrations-archive/add_lse_module.sql
+        -- ACHTUNG: keine geschweiften Klammern in ExecuteSqlRaw-SQL (String.Format-
+        -- Falle, Crash 13.08.2026) — darum config_json OHNE '…'-Default (das
+        -- EF-Model setzt den Leer-JSON-Default selbst).
         CREATE TABLE IF NOT EXISTS lse_version (
             id           serial PRIMARY KEY,
             survey_year  integer NOT NULL UNIQUE,
             spec_version text,
             is_active    boolean NOT NULL DEFAULT true,
-            config_json  text NOT NULL DEFAULT '{}',
+            config_json  text NOT NULL,
             created_at   timestamp without time zone NOT NULL DEFAULT now()
         );
         CREATE TABLE IF NOT EXISTS employee_lse (
