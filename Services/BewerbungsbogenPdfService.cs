@@ -96,7 +96,16 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "AHV-Nummer"));
             });
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geschlecht", "Zivilstand"));
+            // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
+            // «seit dem:» dahinter (Walter 13.08.2026).
+            col.Item().PaddingTop(12).Row(r =>
+            {
+                r.RelativeItem(1.0f).Element(e => CheckOptionsInline(e, "Geschlecht", "W", "M", "D"));
+                r.ConstantItem(16);
+                r.RelativeItem(1.1f).AlignBottom().Element(f => LabeledLine(f, "Zivilstand"));
+                r.ConstantItem(16);
+                r.RelativeItem(0.9f).AlignBottom().Element(f => LabeledLine(f, "seit dem:"));
+            });
             // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
             // (Walter 03.08.2026).
             col.Item().PaddingTop(12).Element(e => CheckOptionsInline(e, "Konfession",
