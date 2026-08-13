@@ -119,56 +119,6 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
-            // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
-            // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
-            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
-            col.Item().PaddingTop(8).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
-                r.ConstantItem(14);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
-            });
-            col.Item().PaddingTop(8).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Bist du vorbestraft?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-            });
-            col.Item().PaddingTop(8).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Musst du nächstens Militärservice leisten?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(12);
-                r.AutoItem().AlignMiddle().Text("Dauer:").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(6);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "vom"));
-                r.ConstantItem(8);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "bis"));
-            });
-            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
-                "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
-                "Falls ja, bitte eine Kopie beilegen"));
-            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
-                "Hast du schon in der Hotellerie/Restauration gearbeitet?",
-                "Falls ja, bitte eine Kopie der Arbeitsbescheinigungen/-zeugnisse beilegen"));
-            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
-                "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
-                "Falls ja, bitte die folgenden Informationen ausfüllen"));
-            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
             col.Item().PaddingTop(8).Element(LangGrid);
@@ -189,19 +139,71 @@ public class BewerbungsbogenPdfService
 
         page.Content().PaddingTop(2).Column(col =>
         {
+            // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
+            // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
+            col.Item().Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
+                r.ConstantItem(14);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
+            });
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Bist du vorbestraft?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+            });
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Musst du nächstens Militärservice leisten?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(12);
+                r.AutoItem().AlignMiddle().Text("Dauer:").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(6);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "vom"));
+                r.ConstantItem(8);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "bis"));
+            });
+            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+                "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
+                "Falls ja, bitte eine Kopie beilegen"));
+            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+                "Hast du schon in der Hotellerie/Restauration gearbeitet?",
+                "Falls ja, bitte eine Kopie der Arbeitsbescheinigungen/-zeugnisse beilegen"));
+            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+                "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
+                "Falls ja, bitte die folgenden Informationen ausfüllen"));
+            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
+
+            // (verschoben von Seite 1 — Seite 1 traegt jetzt die Verfuegbarkeit, 13.08.2026)
             // Ehepartner-Block gemäss altem Formular (Walter 13.08.2026) —
             // ersetzt den früheren «Angaben über Partner»-Block.
-            col.Item().Element(e =>
+            col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "Ehepartner(in)",
                     "ausschliesslich von Mitarbeitenden auszufüllen, welche quellensteuerpflichtig sind"));
-            col.Item().PaddingTop(8).Row(r =>
+            col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem(1.3f).Element(f => LabeledLine(f, "Name"));
                 r.ConstantItem(16);
                 r.RelativeItem(1.0f).AlignBottom().Element(f => DatumBoxes(f, "Geburtsdatum"));
             });
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Vorname", "Nationalität"));
-            col.Item().PaddingTop(8).Row(r =>
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Vorname", "Nationalität"));
+            col.Item().PaddingTop(6).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Lebt ihr in einem gemeinsamen Haushalt?").FontSize(8.5f).FontColor(Ink);
                 r.ConstantItem(10);
@@ -215,7 +217,7 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
             });
-            col.Item().PaddingTop(8).Row(r =>
+            col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem(0.9f).Element(f => LabeledLine(f, "Arbeitserlaubnis"));
                 r.ConstantItem(20);
@@ -226,17 +228,17 @@ public class BewerbungsbogenPdfService
                 r.AutoItem().Element(ch => CheckLabel(ch, "Wöchentlich"));
                 r.RelativeItem(0.3f);
             });
-            col.Item().PaddingTop(8).Element(AhvBoxes);
+            col.Item().PaddingTop(6).Element(AhvBoxes);
 
             // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
             // frühere Kinder-Block von Seite 1 lebt jetzt hier).
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "Kinder", null));
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Kinder", null));
             col.Item().PaddingTop(6).Element(KinderTabelle);
 
-            col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
             col.Item().PaddingTop(8).Text("Haben Sie schon einmal bei McDonald's gearbeitet?")
                 .FontSize(8.5f).FontColor(Body);
@@ -295,13 +297,13 @@ public class BewerbungsbogenPdfService
                 .FontSize(6.5f).FontColor(Muted).Italic();
 
             // Mehr Platz fuer Unterschrift (Walter 28.07.2026).
-            col.Item().PaddingTop(14).Row(r =>
+            col.Item().PaddingTop(10).Row(r =>
             {
                 r.RelativeItem().Element(f => SignatureLine(f, "Ort, Datum"));
                 r.ConstantItem(20);
                 r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
-            col.Item().PaddingTop(18).Element(e =>
+            col.Item().PaddingTop(12).Element(e =>
                 SignatureLine(e, "Unterschrift des gesetzlichen Vertreters"));
         });
     }
@@ -371,22 +373,22 @@ public class BewerbungsbogenPdfService
                     .Text(h).FontSize(7.5f).FontColor(Ink);
             for (var row = 0; row < 4; row++)
             {
-                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
-                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
-                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                t.Cell().PaddingVertical(3).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(3).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(3).AlignCenter().Row(x =>
                 {
                     x.AutoItem().Element(ch => CheckLabel(ch, "M"));
                     x.ConstantItem(8);
                     x.AutoItem().Element(ch => CheckLabel(ch, "W"));
                 });
-                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
-                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                t.Cell().PaddingVertical(3).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(3).AlignCenter().Row(x =>
                 {
                     x.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
                     x.ConstantItem(8);
                     x.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
                 });
-                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                t.Cell().PaddingVertical(3).AlignCenter().Row(x =>
                 {
                     x.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
                     x.ConstantItem(8);
