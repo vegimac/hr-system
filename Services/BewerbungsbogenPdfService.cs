@@ -7,7 +7,7 @@ namespace HrSystem.Services;
 /// <summary>
 /// Blanko-Bewerbungsbogen als PDF (Walter 27./28.07.2026).
 /// OneCrew-Stil (ruhig, monochrom) — grosszuegige Schreibzeilen fuer
-/// Handausfuellung. Alle Felder aus «Bewerbungsbogen neu.doc». 2 Seiten A4.
+/// Handausfuellung. Felder gemaess altem Formular (Walter 13.08.2026). 3 Seiten A4.
 /// </summary>
 public record BewerbungsbogenInput(
     string CompanyName,
@@ -40,6 +40,7 @@ public class BewerbungsbogenPdfService
         {
             container.Page(page => ComposePage1(page, d));
             container.Page(page => ComposePage2(page));
+            container.Page(page => ComposePage3(page));
         }).GeneratePdf();
     }
 
@@ -235,7 +236,18 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(8).Element(e => SectionHead(e, "Kinder", null));
             col.Item().PaddingTop(6).Element(KinderTabelle);
 
-            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Ergänzende Angaben", null));
+        });
+    }
+
+    private static void ComposePage3(PageDescriptor page)
+    {
+        ApplyPageChrome(page, withBanner: false);
+
+        page.Content().PaddingTop(2).Column(col =>
+        {
+            // Seite 3 (Walter 13.08.2026): Rest von Seite 2 — Einsparungen
+            // folgen nach Sichtung durch Walter.
+            col.Item().Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
