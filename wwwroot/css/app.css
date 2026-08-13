@@ -8142,12 +8142,21 @@
         .abs-day-item  { display:flex; flex-direction:column; align-items:center;
             border:1px solid #e2e8f0; border-radius:8px; padding:8px 10px; cursor:pointer;
             background:#f8fafc; gap:3px; transition:background .15s; min-width:0; }
-        .abs-day-item:has(input:checked) { background:#ece9e2; border-color:#d0c8b8; }
+        /* Walter-Vorgabe 13.08.2026: MARKANTE Unterscheidung — gewählte
+           («hätte gearbeitet», zählt ×WoStd÷5) Tage = dunkle Kohle-Kachel mit ✓,
+           nicht gewählte (zählen 0 h) = hell und gedimmt. */
+        .abs-day-item:has(input:checked) { background:#3f3f3f; border-color:#1a1a1a;
+            box-shadow:0 3px 10px rgba(60,55,48,0.28); }
+        .abs-day-item:has(input:checked) .abs-day-name { color:#fff; }
+        .abs-day-item:has(input:checked) .abs-day-date { color:#d6d3cd; }
+        .abs-day-item:has(input:checked) .abs-day-name::before { content:'✓ '; }
+        .abs-day-item:not(:has(input:checked)) { opacity:0.55; }
+        .abs-day-item:not(:has(input:checked)):hover { opacity:0.85; }
         /* Walter-Vorgabe 30.05.2026: Sa+So sind in der Gastro normale Arbeitstage —
            sie sollen visuell GLEICHWERTIG aussehen, nicht ausgegraut. Eine dezente
            gelbliche Tönung kennzeichnet sie nur als "Wochenende", ohne Disabled-Look. */
-        .abs-day-weekend { background:#fefce8; }
-        .abs-day-weekend:has(input:checked) { background:#ece9e2; }
+        .abs-day-weekend:not(:has(input:checked)) { background:#fefce8; }
+        .abs-day-weekend:has(input:checked) { background:#3f3f3f; }
         .abs-day-empty { /* unsichtbarer Platzhalter für Tage vor Mo der ersten Woche */
             background:transparent; border:none; cursor:default; visibility:hidden; }
         /* Schnellauswahl-Buttons (Mo-Fr / 5-2-Muster / Alle / Keine) */

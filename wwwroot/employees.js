@@ -8762,6 +8762,11 @@ async function renderAbsDayCheckboxes() {
         </label>`;
     });
     html += '</div>';
+    // Legende (Walter 13.08.2026): klarmachen, welche Tage zählen.
+    html += `<div style="margin-top:8px;font-size:11.5px;color:#64748b;display:flex;gap:16px;flex-wrap:wrap">
+        <span><span style="display:inline-block;width:12px;height:12px;background:#3f3f3f;border-radius:4px;vertical-align:-2px"></span> dunkel = hätte gearbeitet → zählt (× Wochenstunden ÷ 5)</span>
+        <span><span style="display:inline-block;width:12px;height:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;vertical-align:-2px"></span> hell = nicht eingeplant → zählt 0 h</span>
+    </div>`;
     box.innerHTML = html;
     calcAbsHoursPreview();
 }
