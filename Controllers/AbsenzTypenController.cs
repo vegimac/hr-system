@@ -132,6 +132,20 @@ public class AbsenzTypenController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Einmalige Altbestand-Bereinigung (Walter 13.08.2026): KRANK/UNFALL-
+    /// hours_credited aus der BESTEHENDEN «hätte gearbeitet»-Tagesauswahl neu
+    /// berechnen (Alt-Importe rechneten mit allen Kalendertagen). Die Auswahl
+    /// bleibt unangetastet. Nicht lohnwirksam — reine Anzeige. Idempotent.
+    /// </summary>
+    [HttpPost("wartung/krank-wochenende-fix")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> FixKrankWochenende()
+    {
+        var r = await _recalc.FixKrankUnfallHoursAsync();
+        return Ok(new { updated = r.Updated, unveraendert = r.SkippedNoChange });
+    }
+
     /// <summary>Neuen Typ anlegen — nur Superadmin</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] AbsenzTypDto dto)

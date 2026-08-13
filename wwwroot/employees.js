@@ -8174,7 +8174,12 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             // Walter-Vorgabe 09.06.2026 (final): nur ⋮-Menü, kein extra Stift —
             // Bearbeiten + Löschen leben im Menü.
             const actionsHtml  = isLocked
-                ? `<span title="Diese Absenz liegt in einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
+                ? `<span style="display:inline-flex;align-items:center;gap:6px">
+                       <button type="button" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")}, {readOnly:true})'
+                               title="Absenz im Detail ansehen (nur Ansicht)"
+                               style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:3px 10px;font-size:11.5px;cursor:pointer;color:#3f3f3f;font-weight:600">👁 Ansehen</button>
+                       <span title="Diese Absenz liegt in einer verarbeiteten Lohnperiode und ist nicht mehr editierbar." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>
+                   </span>`
                 : `<div class="dok-menu-wrap">
                        <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
                        <div class="dok-menu" id="absMenu-${a.id}">
@@ -8511,11 +8516,20 @@ async function getAbsenzTypen() {
 }
 
 // ── Absenz-Modal ───────────────────────────────────────────────
-async function openAbsenceModal(existing) {
+async function openAbsenceModal(existing, opts) {
     _absenzTypenCache = null;  // Cache invalidieren → frische Konfig holen
     const modal = document.getElementById('absenceModal');
     if (!modal) return;
     modal.style.display = 'flex';
+
+    // Nur-Ansicht-Modus (Walter 13.08.2026): gesperrte Absenzen («In Lohn
+    // verwendet») dürfen im Detail angeschaut, aber nicht geändert werden.
+    const absReadOnly = !!(opts && opts.readOnly);
+    modal.classList.toggle('abs-ro', absReadOnly);
+    const absRoBanner = document.getElementById('absReadOnlyBanner');
+    if (absRoBanner) absRoBanner.style.display = absReadOnly ? '' : 'none';
+    const absSaveBtn = document.getElementById('absSaveBtn');
+    if (absSaveBtn) absSaveBtn.style.display = absReadOnly ? 'none' : '';
 
     // Typen aus DB laden und Dropdown befüllen
     const typen = await getAbsenzTypen();

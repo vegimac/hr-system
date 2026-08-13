@@ -871,6 +871,24 @@ async function reloadQstTarife() {
 // ABSENZ-TYPEN ADMIN
 // ══════════════════════════════════════════════════════════════════
 
+// Einmalige Altbestand-Bereinigung (Walter 13.08.2026): Alt-Importe rechneten
+// hours_credited mit ALLEN Kalendertagen (16.80 statt 8.40). Neu wird aus der
+// bestehenden «hätte gearbeitet»-Tagesauswahl gerechnet — die Auswahl selbst
+// bleibt unangetastet (Sa/So werden NICHT pauschal entfernt, Gastro arbeitet
+// auch am Wochenende). Nur Anzeige — der Lohnlauf rechnete immer korrekt.
+async function atFixWochenende() {
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm('Krank-/Unfall-Stunden-Anzeige im Altbestand aus der «hätte gearbeitet»-Tagesauswahl neu berechnen? (Tagesauswahl bleibt unverändert — reine Anzeige-Korrektur, keine Lohnwirkung.)', { title: 'Bereinigung', yesLabel: 'Ja, neu berechnen', noLabel: 'Abbrechen' })
+        : confirm('Krank-/Unfall-Stunden im Altbestand neu berechnen?');
+    if (!ok) return;
+    try {
+        const r = await fetch('/api/absenz-typen/wartung/krank-wochenende-fix', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { showToast(j.message || j.error || 'Bereinigung fehlgeschlagen', 'error'); return; }
+        showToast(`Bereinigt: ${j.updated} Absenz(en) korrigiert, ${j.unveraendert} bereits korrekt`, 'success');
+    } catch (e) { showToast('Verbindungsfehler: ' + e.message, 'error'); }
+}
+
 async function loadAbsenzTypen() {
     const tbody = document.getElementById('absenzTypTable');
     if (!tbody) return;

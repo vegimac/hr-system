@@ -110,6 +110,55 @@ public class AbsenceHoursRecalcService
         return new RecalcResult(updated, skippedLocked, skippedNoChange);
     }
 
+    /// <summary>
+    /// Einmalige Altbestand-Bereinigung (Walter 13.08.2026): KRANK/UNFALL-
+    /// Absenzen aus Alt-Importen zeigen hours_credited mit ALLEN Kalendertagen
+    /// (z.B. 16.80 statt 8.40), obwohl die Tagesauswahl (worked_days) weniger
+    /// «hätte gearbeitet»-Tage enthält. Es werden NUR die Stunden aus der
+    /// BESTEHENDEN Tagesauswahl neu berechnet — die Auswahl selbst bleibt
+    /// unangetastet (Dienstplan-Regel: Sa/So NICHT pauschal entfernen, in der
+    /// Gastro wird auch am Wochenende gearbeitet; leer = Mo–Fr-Fallback).
+    /// hours_credited ist NICHT lohnwirksam (die Engine rechnet dynamisch) —
+    /// darum werden bewusst AUCH «In Lohn verwendet»-Absenzen korrigiert.
+    /// Idempotent: zweiter Lauf ändert nichts mehr.
+    /// </summary>
+    public async Task<RecalcResult> FixKrankUnfallHoursAsync()
+    {
+        var absences = await _db.Absences
+            .Where(a => a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL")
+            .ToListAsync();
+        if (absences.Count == 0) return new RecalcResult(0, 0, 0);
+
+        var typen = await _db.AbsenzTypen.AsNoTracking().ToListAsync();
+        var empIds = absences.Select(a => a.EmployeeId).Distinct().ToList();
+        var employments = await _db.Employments.AsNoTracking()
+            .Where(e => empIds.Contains(e.EmployeeId))
+            .ToListAsync();
+        var profiles = await _db.CompanyProfiles.AsNoTracking().ToDictionaryAsync(p => p.Id);
+
+        int updated = 0, skippedNoChange = 0;
+        foreach (var a in absences)
+        {
+            var typ = typen.FirstOrDefault(t => t.Code == a.AbsenceType);
+            if (typ == null) continue;
+            var emp = ResolveEmployment(employments, a);
+            profiles.TryGetValue(emp?.CompanyProfileId ?? 0, out var profile);
+
+            // Tagesauswahl UNVERÄNDERT übernehmen (leer → Mo–Fr-Fallback).
+            var dayList = ParseWorkedDays(a.WorkedDays, a.DateFrom, a.DateTo);
+            var newHours = ComputeHours(a.AbsenceType, emp?.EmploymentModel ?? "",
+                                        typ, profile, emp, dayList.Count, a.Prozent);
+
+            if (a.HoursCredited == newHours) { skippedNoChange++; continue; }
+
+            a.HoursCredited = newHours;
+            a.UpdatedAt     = DateTime.Now;
+            updated++;
+        }
+        if (updated > 0) await _db.SaveChangesAsync();
+        return new RecalcResult(updated, 0, skippedNoChange);
+    }
+
     private static Employment? ResolveEmployment(List<Employment> all, Absence a)
     {
         var fromDt = a.DateFrom.ToDateTime(TimeOnly.MinValue);

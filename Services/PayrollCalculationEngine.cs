@@ -1589,11 +1589,47 @@ public class PayrollCalculationEngine
             // (Code 75/65) — bei FIX/FIX-M bleibt das Korrektur-Modell.
             // Kürzung läuft über Stunden-Äquivalente → Soll (unten), nicht über
             // vorgerundete Tagessatz-CHF.
+            // Zähl-Tage = «hätte gearbeitet»-Auswahl der Absenz (worked_days,
+            // Dienstplan-Regel Walter 13.08.2026): NICHT pauschal Sa/So
+            // wegnehmen — in der Gastro wird auch am Wochenende gearbeitet.
+            // Massgeblich ist die Tagesauswahl im Absenz-Modal («Welche Tage
+            // hätte der/die Mitarbeitende gearbeitet?»). Nur wenn KEINE
+            // Auswahl gepflegt ist, gilt die Voll-Wochen-Abkürzung Mo–Fr
+            // (5 Tage/Woche, Sa+So weg).
+            HashSet<DateOnly> GeplantTage(string typ)
+            {
+                var set = new HashSet<DateOnly>();
+                foreach (var ab in absences.Where(x => x.AbsenceType == typ))
+                {
+                    List<DateOnly>? days = null;
+                    if (!string.IsNullOrWhiteSpace(ab.WorkedDays))
+                    {
+                        try
+                        {
+                            days = System.Text.Json.JsonSerializer
+                                .Deserialize<string[]>(ab.WorkedDays)!
+                                .Select(s => DateOnly.TryParse(s, out var d) ? d : (DateOnly?)null)
+                                .Where(d => d.HasValue).Select(d => d!.Value).ToList();
+                        }
+                        catch { days = null; }
+                    }
+                    if (days is { Count: > 0 }) { foreach (var d in days) set.Add(d); }
+                    else
+                    {
+                        for (var d = ab.DateFrom; d <= ab.DateTo; d = d.AddDays(1))
+                            if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                                set.Add(d);
+                    }
+                }
+                return set;
+            }
+            var krankGeplant  = GeplantTage("KRANK");
+            var unfallGeplant = GeplantTage("UNFALL");
             decimal mtpKrankWerktage = krankBreakdown
-                .Where(t => t.Datum.DayOfWeek != DayOfWeek.Saturday && t.Datum.DayOfWeek != DayOfWeek.Sunday)
+                .Where(t => krankGeplant.Contains(t.Datum))
                 .Sum(t => t.Prozent / 100m);
             decimal mtpUnfallWerktage = unfallBreakdown
-                .Where(t => t.Datum.DayOfWeek != DayOfWeek.Saturday && t.Datum.DayOfWeek != DayOfWeek.Sunday)
+                .Where(t => unfallGeplant.Contains(t.Datum))
                 .Sum(t => t.Prozent / 100m);
             // Tage-Anzeige (für Label/Saldo): mtpKrankTage/mtpUnfallTage spiegeln
             // die Werktag-Zählung, NICHT die Kalendertage. Das ist konsistent
@@ -1680,8 +1716,28 @@ public class PayrollCalculationEngine
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
                     if (ferienStundenAequivalent  > 0) teile.Add($"− {ferienStundenAequivalent:0.00}h Ferien");
-                    if (krankStundenAequivalent   > 0) teile.Add($"− {krankStundenAequivalent:0.00}h Krank");
-                    if (unfallStundenAequivalent  > 0) teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall");
+                    // Werktag/Wochenend-Split sichtbar machen (Walter 13.08.2026):
+                    // z.B. 4 Krank-Kalendertage = «2×4.20h + 2×0h» — Sa/So zählen
+                    // für die Festlohn-Kürzung mit 0 (Lohnersatz via KTG-Zeilen).
+                    // Aufschlüsselung (Walter 13.08.2026): geplante Arbeitstage
+                    // × Tagessatz + nicht eingeplante Tage × 0 — z.B.
+                    // «2×4.20h + 2×0h nicht eingeplant» bei 4 Kalendertagen.
+                    if (krankStundenAequivalent > 0)
+                    {
+                        decimal krankFrei = krankBreakdown.Sum(t => t.Prozent / 100m) - mtpKrankWerktage;
+                        string det = krankFrei > 0.004m
+                            ? $" [{mtpKrankWerktage:0.##}×{guaranteedH / 5m:0.00}h + {krankFrei:0.##}×0h nicht eingeplant]"
+                            : "";
+                        teile.Add($"− {krankStundenAequivalent:0.00}h Krank{det}");
+                    }
+                    if (unfallStundenAequivalent > 0)
+                    {
+                        decimal unfallFrei = unfallBreakdown.Sum(t => t.Prozent / 100m) - mtpUnfallWerktage;
+                        string det = unfallFrei > 0.004m
+                            ? $" [{mtpUnfallWerktage:0.##}×{guaranteedH / 5m:0.00}h + {unfallFrei:0.##}×0h nicht eingeplant]"
+                            : "";
+                        teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall{det}");
+                    }
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
                     mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
