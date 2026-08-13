@@ -124,25 +124,10 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(11).Element(e => SectionHead(e, "Sprachkenntnisse", null));
             col.Item().PaddingTop(8).Element(LangGrid);
 
-            // Verfügbarkeit von Seite 2 hierher verschoben (Walter 13.08.2026).
-            col.Item().PaddingTop(10).Element(e =>
-                SectionHead(e, "Verfügbarkeit & Eintritt",
-                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
-            col.Item().PaddingTop(6).Element(AvailabilityTable);
-            col.Item().PaddingTop(10).Element(e =>
-                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
-        });
-    }
-
-    private static void ComposePage2(PageDescriptor page)
-    {
-        ApplyPageChrome(page, withBanner: false);
-
-        page.Content().PaddingTop(2).Column(col =>
-        {
+            // Fragenkatalog von Seite 2 hierher (Walter 13.08.2026, Tausch mit Verfuegbarkeit).
             // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
             // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
-            col.Item().Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
+            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
             col.Item().PaddingTop(5).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
@@ -191,7 +176,25 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
+        });
+    }
+
+    private static void ComposePage2(PageDescriptor page)
+    {
+        ApplyPageChrome(page, withBanner: false);
+
+        page.Content().PaddingTop(2).Column(col =>
+        {
+
             // (verschoben von Seite 1 — Seite 1 traegt jetzt die Verfuegbarkeit, 13.08.2026)
+            // Verfuegbarkeit von Seite 1 hierher (Walter 13.08.2026, Tausch mit Fragenkatalog).
+            col.Item().Element(e =>
+                SectionHead(e, "Verfügbarkeit & Eintritt",
+                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
+            col.Item().PaddingTop(6).Element(AvailabilityTable);
+            col.Item().PaddingTop(10).Element(e =>
+                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
+
             // Ehepartner-Block gemäss altem Formular (Walter 13.08.2026) —
             // ersetzt den früheren «Angaben über Partner»-Block.
             col.Item().PaddingTop(12).Element(e =>
