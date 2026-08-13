@@ -87,15 +87,15 @@ public class BewerbungsbogenPdfService
 
             // Grosszuegige Schreibzeilen (Handschrift).
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Adresse", "E-Mail"));
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "E-Mail"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
             // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
             // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
             // bei Handausfüllung).
             // QST + AHV-Boxen auf EINER Zeile (Walter 13.08.2026) — der Bogen
             // MUSS auf 2 Seiten bleiben.
-            col.Item().PaddingTop(12).Row(r =>
+            col.Item().PaddingTop(9).Row(r =>
             {
                 r.AutoItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
                 r.ConstantItem(14);
@@ -103,7 +103,7 @@ public class BewerbungsbogenPdfService
             });
             // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
             // «seit dem:» dahinter (Walter 13.08.2026).
-            col.Item().PaddingTop(12).Row(r =>
+            col.Item().PaddingTop(9).Row(r =>
             {
                 r.RelativeItem(1.0f).Element(e => CheckOptionsInline(e, "Geschlecht", "W", "M", "D"));
                 r.ConstantItem(16);
@@ -113,19 +113,19 @@ public class BewerbungsbogenPdfService
             });
             // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
             // (Walter 03.08.2026).
-            col.Item().PaddingTop(12).Element(e => CheckOptionsInline(e, "Konfession",
+            col.Item().PaddingTop(9).Element(e => CheckOptionsInline(e, "Konfession",
                 "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch", "Andere", "Keine"));
             // Kinder-Block entfernt (Walter 13.08.2026) — dafür die
             // Verfügbarkeit von Seite 2 unten auf Seite 1 (siehe unten).
-            col.Item().PaddingTop(12).Element(e =>
+            col.Item().PaddingTop(9).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
 
-            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
+            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Sprachkenntnisse", null));
             col.Item().PaddingTop(8).Element(LangGrid);
 
             // Verfügbarkeit von Seite 2 hierher verschoben (Walter 13.08.2026).
-            col.Item().PaddingTop(14).Element(e =>
+            col.Item().PaddingTop(10).Element(e =>
                 SectionHead(e, "Verfügbarkeit & Eintritt",
                     "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
             col.Item().PaddingTop(6).Element(AvailabilityTable);
@@ -664,7 +664,7 @@ public class BewerbungsbogenPdfService
 
             foreach (var _ in days)
             {
-                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(12).PaddingHorizontal(4).Row(r =>
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(8).PaddingHorizontal(4).Row(r =>
                 {
                     r.RelativeItem().Element(f => WriteLineAt(f, 20f));
                     r.ConstantItem(4);

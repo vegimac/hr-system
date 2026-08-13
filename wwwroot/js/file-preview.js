@@ -220,7 +220,12 @@ async function previewUrlFetch(url, filenameFallback, headers) {
         const r = await fetch(url, { headers: headers || {} });
         if (!r.ok) {
             let msg = 'HTTP ' + r.status;
-            try { const j = await r.clone().json(); if (j && j.error) msg = j.error; }
+            // message + detail mit anzeigen (Walter 13.08.2026) — sonst ist die
+            // Ursache («BEWERBUNGSBOGEN_PDF_FEHLER») nicht diagnostizierbar.
+            try {
+                const j = await r.clone().json();
+                if (j && j.error) msg = [j.error, j.message, j.detail].filter(Boolean).join(' — ');
+            }
             catch (_) { try { const t = await r.text(); if (t) msg = t; } catch (__) {} }
             alert('Konnte Datei nicht laden: ' + msg);
             return false;
