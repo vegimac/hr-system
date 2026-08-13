@@ -130,9 +130,21 @@ public class BewerbungsbogenPdfService
             // Spalten-Layout (Walter 13.08.2026): Frage links in fester Spalte,
             // ☐ Ja / ☐ Nein fluchtend untereinander, Hinweis/Zusatzfeld rechts.
             // Grosszügigere Zeilenabstände (PaddingTop 8 statt 5).
-            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
-                "Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?",
-                rechts: f => LabeledLine(f, "welche:")));
+            // Gesundheitsfrage: Frage über die VOLLE Breite (Walter 13.08.2026 —
+            // «genug Platz für Text», kein 2-zeiliger Umbruch in der Spalte);
+            // Ja/Nein darunter in denselben fluchtenden Spalten wie die übrigen.
+            col.Item().PaddingTop(8)
+                .Text("Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?")
+                .FontSize(8.5f).FontColor(Ink);
+            col.Item().PaddingTop(4).Row(r =>
+            {
+                r.ConstantItem(258);
+                r.ConstantItem(42).AlignMiddle().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(8);
+                r.ConstantItem(52).AlignMiddle().Element(ch => CheckLabel(ch, "Nein"));
+                r.ConstantItem(10);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "welche:"));
+            });
             // Sozialleistungen: zwei Zeilen — Kästchen beginnen in derselben
             // Spalte wie die Ja/Nein-Kästchen, IV-Rente direkt vor dem
             // Invaliditätsgrad (Walter 13.08.2026).
@@ -371,17 +383,25 @@ public class BewerbungsbogenPdfService
     /// <summary>Zeile «Name des Arbeitgebers … Beschäftigungsgrad … Fix/Variabel … PLZ/Land».</summary>
     private static void ArbeitgeberZeile(IContainer e)
     {
+        // Kompakte Form (Walter 13.08.2026):
+        // Arbeitgeber ___  PLZ/Ort ___  ___ %  ☐ Fix  ☐ Var.  ___ Std/Wo
         e.Row(r =>
         {
-            r.RelativeItem(1.7f).Element(f => LabeledLine(f, "Name des Arbeitgebers"));
+            r.RelativeItem(1.4f).Element(f => LabeledLine(f, "Arbeitgeber"));
             r.ConstantItem(10);
-            r.RelativeItem(1.0f).Element(f => LabeledLine(f, "Beschäftigungsgrad"));
+            r.RelativeItem(1.0f).Element(f => LabeledLine(f, "PLZ/Ort"));
+            r.ConstantItem(10);
+            r.ConstantItem(30).AlignBottom().Element(WriteLine);
+            r.ConstantItem(3);
+            r.AutoItem().AlignBottom().PaddingBottom(1).Text("%").FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(10);
             r.AutoItem().AlignBottom().PaddingBottom(1).Element(ch => CheckLabel(ch, "Fix"));
             r.ConstantItem(8);
-            r.AutoItem().AlignBottom().PaddingBottom(1).Element(ch => CheckLabel(ch, "Variabel"));
+            r.AutoItem().AlignBottom().PaddingBottom(1).Element(ch => CheckLabel(ch, "Var."));
             r.ConstantItem(10);
-            r.RelativeItem(0.9f).Element(f => LabeledLine(f, "PLZ / Land"));
+            r.ConstantItem(36).AlignBottom().Element(WriteLine);
+            r.ConstantItem(3);
+            r.AutoItem().AlignBottom().PaddingBottom(1).Text("Std/Wo").FontSize(8.5f).FontColor(Ink);
         });
     }
 
