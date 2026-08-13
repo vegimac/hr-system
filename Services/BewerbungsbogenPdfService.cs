@@ -92,12 +92,10 @@ public class BewerbungsbogenPdfService
             // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
             // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
             // bei Handausfüllung).
-            col.Item().PaddingTop(12).Row(r =>
-            {
-                r.RelativeItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
-                r.ConstantItem(16);
-                r.RelativeItem(1.4f).AlignBottom().Element(AhvBoxes);
-            });
+            col.Item().PaddingTop(12).Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
+            // AHV-Boxen in eigener voller Zeile — die grossen Kästchen (20×24)
+            // brauchen mehr Breite als eine halbe Spalte.
+            col.Item().PaddingTop(12).Element(AhvBoxes);
             // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
             // «seit dem:» dahinter (Walter 13.08.2026).
             col.Item().PaddingTop(12).Row(r =>
@@ -308,15 +306,16 @@ public class BewerbungsbogenPdfService
             r.AutoItem().AlignBottom().PaddingBottom(3)
                 .Text("AHV-Nummer").FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(8);
+            // Grössere Kästchen für Handausfüllung (Walter 13.08.2026).
             int[] gruppen = { 3, 4, 4, 2 };
             for (var g = 0; g < gruppen.Length; g++)
             {
-                if (g > 0) r.ConstantItem(7);
+                if (g > 0) r.ConstantItem(9);
                 for (var i = 0; i < gruppen[g]; i++)
                 {
-                    if (i > 0) r.ConstantItem(2);
-                    r.ConstantItem(14).Element(b => b
-                        .Height(17).Border(0.8f).BorderColor(Line).Text(" "));
+                    if (i > 0) r.ConstantItem(2.5f);
+                    r.ConstantItem(20).Element(b => b
+                        .Height(24).Border(0.8f).BorderColor(Line).Text(" "));
                 }
             }
         });
