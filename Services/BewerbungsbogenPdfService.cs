@@ -197,15 +197,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "Ehepartner(in)",
                     "ausschliesslich von Mitarbeitenden auszufüllen, welche quellensteuerpflichtig sind"));
-            // Datum-Kästchen als AutoItem (feste Breite ~250pt) — als
-            // RelativeItem-Spalte war die Zeile breiter als das Blatt →
-            // DocumentLayoutException (13.08.2026).
-            col.Item().PaddingTop(6).Row(r =>
-            {
-                r.RelativeItem().Element(f => LabeledLine(f, "Name"));
-                r.ConstantItem(16);
-                r.AutoItem().AlignBottom().Element(f => DatumBoxes(f, "Geburtsdatum"));
-            });
+            // Geburtsdatum als normale Schreiblinie (Walter 13.08.2026).
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Geburtsdatum"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Vorname", "Nationalität"));
             // Zwei Zeilen statt einer (13.08.2026): beide Fragen nebeneinander
             // waren breiter als das Blatt → DocumentLayoutException.
@@ -261,37 +254,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
-            col.Item().PaddingTop(8).Text("Haben Sie schon einmal bei McDonald's gearbeitet?")
-                .FontSize(8.5f).FontColor(Body);
-            col.Item().PaddingTop(4).Row(r =>
-            {
-                r.AutoItem().Element(e => CheckLabel(e, "Ja"));
-                r.ConstantItem(10);
-                r.RelativeItem().Element(f => LabeledLine(f, "Ort"));
-                r.ConstantItem(10);
-                r.RelativeItem().Element(f => LabeledLine(f, "als"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(e => CheckLabel(e, "Nein"));
-            });
-
-            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Welche Angestellten kennen Sie?"));
-
-            col.Item().PaddingTop(8).Text(
-                    "Leiden Sie an einer chronischen Krankheit oder an einem Hautleiden?")
-                .FontSize(8.5f).FontColor(Body);
-            col.Item().PaddingTop(4).Row(r =>
-            {
-                r.AutoItem().Element(e => CheckLabel(e, "Ja"));
-                r.ConstantItem(10);
-                r.RelativeItem().AlignMiddle().Element(WriteLine);
-                r.ConstantItem(12);
-                r.AutoItem().Element(e => CheckLabel(e, "Nein"));
-            });
-
-            col.Item().PaddingTop(7).Element(e => YesNoRow(e, "Besteht Schwangerschaft?"));
-            col.Item().PaddingTop(5).Element(e => YesNoRow(e, "Sind Sie vorbestraft?"));
-            col.Item().PaddingTop(5).Element(e => YesNoRow(e, "Sind Sie bevormundet?"));
-            col.Item().PaddingTop(7).Element(e => LabeledLine(e, "Nächste militärische Verpflichtung"));
+            // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
+            // vorbestraft / bevormundet / Militaer) entfernt (Walter 13.08.2026).
 
             col.Item().PaddingTop(8).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
             col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
