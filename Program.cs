@@ -1364,101 +1364,6 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 
-    // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──
-    // Grundlage: technische BFS-Spezifikation LSE 2024, V1.4/12.2024.
-    // Codes/Bereiche/Pflichtfelder/Exportreihenfolge liegen als KONFIGURATION
-    // in lse_version.config_json — die Labels sind dort editierbar und werden
-    // beim Start NIE überschrieben (nur Insert in leere Version). LSE 2026 =
-    // neue Zeile mit eigener Konfiguration, keine Code-Änderung.
-    if (!db.LseVersions.Any(v => v.SurveyYear == 2024))
-    {
-        var lseConfig = new
-        {
-            columns = new[]
-            {
-                // A–S Unternehmensdaten (nur Zeile 2)
-                "surveyYear","name1","name2","name3","street","zipCode","town",
-                "postOfficeBoxNumber","postOfficeBoxText","lastName","firstName",
-                "emailAddress","phoneNumber","mobilephoneNumber","numberOfEmployeesOct",
-                "selection","payAgreement","uidBFS","Producer",
-                // T–AS Mitarbeiterdaten (pro MA eine Zeile)
-                "vn","education","universityDegree","entryDate","position","contract",
-                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
-                "leaveEntitlement","practicedProfessionOct","salaryOct","allowancesOct",
-                "familyAllowanceOct","socialContributionsOct","bvgLPPRegularContributionsOct",
-                "from","until","earnings13th","overtime","irregularPayments",
-                "fringeBenefits","capitalPayments","othersBenefits","burNr","inHouseID",
-            },
-            codes = new
-            {
-                education = new[]
-                {
-                    new { code = 1, label = "Universität / ETH" },
-                    new { code = 2, label = "Fachhochschule / Pädagogische Hochschule" },
-                    new { code = 3, label = "Höhere Berufsausbildung (eidg. Fachausweis, Diplom HF)" },
-                    new { code = 4, label = "Lehrkräfte-Ausbildung" },
-                    new { code = 5, label = "Matura" },
-                    new { code = 6, label = "Abgeschlossene Berufsausbildung (EFZ/EBA)" },
-                    new { code = 7, label = "Unternehmensinterne Ausbildung" },
-                    new { code = 8, label = "Ohne abgeschlossene Berufsausbildung" },
-                },
-                universityDegree = new[]
-                {
-                    new { code = 1, label = "Doktorat" },
-                    new { code = 2, label = "Master" },
-                    new { code = 3, label = "Bachelor" },
-                },
-                position = new[]
-                {
-                    new { code = 1, label = "Oberstes / oberes Kader" },
-                    new { code = 2, label = "Mittleres Kader" },
-                    new { code = 3, label = "Unteres Kader" },
-                    new { code = 4, label = "Unterstes Kader" },
-                    new { code = 5, label = "Ohne Kaderfunktion" },
-                },
-                contract = new[]
-                {
-                    new { code = 1, label = "Unbefristeter Vertrag" },
-                    new { code = 2, label = "Befristeter Vertrag" },
-                    new { code = 3, label = "Lehrvertrag" },
-                    new { code = 4, label = "Praktikumsvertrag" },
-                    new { code = 5, label = "Vertrag auf Abruf" },
-                    new { code = 6, label = "Temporärvertrag" },
-                    new { code = 7, label = "Anderer Vertrag" },
-                },
-                basisOfSalaryCalculation = new[]
-                {
-                    new { code = 1, label = "Monatslohn" },
-                    new { code = 2, label = "Stundenlohn" },
-                    new { code = 3, label = "Lektionslohn" },
-                },
-            },
-            ranges = new
-            {
-                vnMin = 7560000000001L, vnMax = 7569999999999L,
-                activityRateMin = 1, activityRateMax = 175,
-                leaveMin = 0, leaveMax = 99,
-                professionMaxLen = 255,
-            },
-            mandatory = new[]
-            {
-                "vn","education","entryDate","position","contract",
-                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
-                "leaveEntitlement","practicedProfessionOct","salaryOct",
-                "socialContributionsOct","from","until",
-            },
-            referenceMonth = 10,
-        };
-        db.LseVersions.Add(new LseVersion
-        {
-            SurveyYear = 2024,
-            SpecVersion = "1.4 / 12.2024",
-            IsActive = true,
-            ConfigJson = System.Text.Json.JsonSerializer.Serialize(lseConfig),
-        });
-        db.SaveChanges();
-    }
-
     // ── Verwarnungs-Verlauf (Walter 14.07.2026, idempotent) ──
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS employee_verwarnung (
@@ -3229,6 +3134,102 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_onboarding_wunsch_emp ON onboarding_wunsch (employee_id);
     ");
+
+    // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──
+    // Grundlage: technische BFS-Spezifikation LSE 2024, V1.4/12.2024.
+    // Codes/Bereiche/Pflichtfelder/Exportreihenfolge liegen als KONFIGURATION
+    // in lse_version.config_json — die Labels sind dort editierbar und werden
+    // beim Start NIE überschrieben (nur Insert in leere Version). LSE 2026 =
+    // neue Zeile mit eigener Konfiguration, keine Code-Änderung.
+    if (!db.LseVersions.Any(v => v.SurveyYear == 2024))
+    {
+        var lseConfig = new
+        {
+            columns = new[]
+            {
+                // A–S Unternehmensdaten (nur Zeile 2)
+                "surveyYear","name1","name2","name3","street","zipCode","town",
+                "postOfficeBoxNumber","postOfficeBoxText","lastName","firstName",
+                "emailAddress","phoneNumber","mobilephoneNumber","numberOfEmployeesOct",
+                "selection","payAgreement","uidBFS","Producer",
+                // T–AS Mitarbeiterdaten (pro MA eine Zeile)
+                "vn","education","universityDegree","entryDate","position","contract",
+                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
+                "leaveEntitlement","practicedProfessionOct","salaryOct","allowancesOct",
+                "familyAllowanceOct","socialContributionsOct","bvgLPPRegularContributionsOct",
+                "from","until","earnings13th","overtime","irregularPayments",
+                "fringeBenefits","capitalPayments","othersBenefits","burNr","inHouseID",
+            },
+            codes = new
+            {
+                education = new[]
+                {
+                    new { code = 1, label = "Universität / ETH" },
+                    new { code = 2, label = "Fachhochschule / Pädagogische Hochschule" },
+                    new { code = 3, label = "Höhere Berufsausbildung (eidg. Fachausweis, Diplom HF)" },
+                    new { code = 4, label = "Lehrkräfte-Ausbildung" },
+                    new { code = 5, label = "Matura" },
+                    new { code = 6, label = "Abgeschlossene Berufsausbildung (EFZ/EBA)" },
+                    new { code = 7, label = "Unternehmensinterne Ausbildung" },
+                    new { code = 8, label = "Ohne abgeschlossene Berufsausbildung" },
+                },
+                universityDegree = new[]
+                {
+                    new { code = 1, label = "Doktorat" },
+                    new { code = 2, label = "Master" },
+                    new { code = 3, label = "Bachelor" },
+                },
+                position = new[]
+                {
+                    new { code = 1, label = "Oberstes / oberes Kader" },
+                    new { code = 2, label = "Mittleres Kader" },
+                    new { code = 3, label = "Unteres Kader" },
+                    new { code = 4, label = "Unterstes Kader" },
+                    new { code = 5, label = "Ohne Kaderfunktion" },
+                },
+                contract = new[]
+                {
+                    new { code = 1, label = "Unbefristeter Vertrag" },
+                    new { code = 2, label = "Befristeter Vertrag" },
+                    new { code = 3, label = "Lehrvertrag" },
+                    new { code = 4, label = "Praktikumsvertrag" },
+                    new { code = 5, label = "Vertrag auf Abruf" },
+                    new { code = 6, label = "Temporärvertrag" },
+                    new { code = 7, label = "Anderer Vertrag" },
+                },
+                basisOfSalaryCalculation = new[]
+                {
+                    new { code = 1, label = "Monatslohn" },
+                    new { code = 2, label = "Stundenlohn" },
+                    new { code = 3, label = "Lektionslohn" },
+                },
+            },
+            ranges = new
+            {
+                vnMin = 7560000000001L, vnMax = 7569999999999L,
+                activityRateMin = 1, activityRateMax = 175,
+                leaveMin = 0, leaveMax = 99,
+                professionMaxLen = 255,
+            },
+            mandatory = new[]
+            {
+                "vn","education","entryDate","position","contract",
+                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
+                "leaveEntitlement","practicedProfessionOct","salaryOct",
+                "socialContributionsOct","from","until",
+            },
+            referenceMonth = 10,
+        };
+        db.LseVersions.Add(new LseVersion
+        {
+            SurveyYear = 2024,
+            SpecVersion = "1.4 / 12.2024",
+            IsActive = true,
+            ConfigJson = System.Text.Json.JsonSerializer.Serialize(lseConfig),
+        });
+        db.SaveChanges();
+    }
+
     // Dashboard-Warnung: Umzugsdatum aus easy@work-Adresswechsel bestätigen.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config
