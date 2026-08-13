@@ -197,13 +197,18 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "Ehepartner(in)",
                     "ausschliesslich von Mitarbeitenden auszufüllen, welche quellensteuerpflichtig sind"));
+            // Datum-Kästchen als AutoItem (feste Breite ~250pt) — als
+            // RelativeItem-Spalte war die Zeile breiter als das Blatt →
+            // DocumentLayoutException (13.08.2026).
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.RelativeItem(1.3f).Element(f => LabeledLine(f, "Name"));
+                r.RelativeItem().Element(f => LabeledLine(f, "Name"));
                 r.ConstantItem(16);
-                r.RelativeItem(1.0f).AlignBottom().Element(f => DatumBoxes(f, "Geburtsdatum"));
+                r.AutoItem().AlignBottom().Element(f => DatumBoxes(f, "Geburtsdatum"));
             });
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Vorname", "Nationalität"));
+            // Zwei Zeilen statt einer (13.08.2026): beide Fragen nebeneinander
+            // waren breiter als das Blatt → DocumentLayoutException.
             col.Item().PaddingTop(6).Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Lebt ihr in einem gemeinsamen Haushalt?").FontSize(8.5f).FontColor(Ink);
@@ -211,12 +216,16 @@ public class BewerbungsbogenPdfService
                 r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
                 r.ConstantItem(10);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-                r.ConstantItem(20);
+                r.RelativeItem();
+            });
+            col.Item().PaddingTop(5).Row(r =>
+            {
                 r.AutoItem().AlignMiddle().Text("Hat dein/e Partner/in eine berufliche Aktivität?").FontSize(8.5f).FontColor(Ink);
                 r.ConstantItem(10);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
                 r.ConstantItem(10);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                r.RelativeItem();
             });
             col.Item().PaddingTop(6).Row(r =>
             {
