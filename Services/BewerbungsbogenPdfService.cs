@@ -132,13 +132,55 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
-            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Schulen / Berufserfahrung", null));
-            col.Item().PaddingTop(10).Element(e =>
-                OpenLinesTable(e, new[] { "Schule", "Ort", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
-            col.Item().PaddingTop(14).Element(e =>
-                OpenLinesTable(e, new[] { "Bisherige Arbeitgeber", "tätig als", "von", "bis" },
-                    new[] { 2.4f, 1.4f, 0.7f, 0.7f }, 2));
+            // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
+            // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
+            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
+                r.ConstantItem(14);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
+            });
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Bist du vorbestraft?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+            });
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Musst du nächstens Militärservice leisten?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(12);
+                r.AutoItem().AlignMiddle().Text("Dauer:").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(6);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "vom"));
+                r.ConstantItem(8);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "bis"));
+            });
+            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
+                "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
+                "Falls ja, bitte eine Kopie beilegen"));
+            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
+                "Hast du schon in der Hotellerie/Restauration gearbeitet?",
+                "Falls ja, bitte eine Kopie der Arbeitsbescheinigungen/-zeugnisse beilegen"));
+            col.Item().PaddingTop(8).Element(e => FrageMitHinweis(e,
+                "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
+                "Falls ja, bitte die folgenden Informationen ausfüllen"));
+            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
@@ -264,6 +306,39 @@ public class BewerbungsbogenPdfService
 
     private static void Check(IContainer e) =>
         e.Width(12).Height(12).Border(1f).BorderColor(Ink);
+
+    /// <summary>Frage + ☐Nein ☐Ja + kursiver Hinweis (Walter 13.08.2026,
+    /// Block aus dem alten Bewerbungsformular).</summary>
+    private static void FrageMitHinweis(IContainer e, string frage, string hinweis)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignMiddle().Text(frage).FontSize(8.5f).FontColor(Ink);
+            r.ConstantItem(12);
+            r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+            r.ConstantItem(12);
+            r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+            r.ConstantItem(12);
+            r.RelativeItem().AlignMiddle().Text(hinweis).FontSize(7.5f).Italic().FontColor(Body);
+        });
+    }
+
+    /// <summary>Zeile «Name des Arbeitgebers … Beschäftigungsgrad … Fix/Variabel … PLZ/Land».</summary>
+    private static void ArbeitgeberZeile(IContainer e)
+    {
+        e.Row(r =>
+        {
+            r.RelativeItem(1.7f).Element(f => LabeledLine(f, "Name des Arbeitgebers"));
+            r.ConstantItem(10);
+            r.RelativeItem(1.0f).Element(f => LabeledLine(f, "Beschäftigungsgrad"));
+            r.ConstantItem(10);
+            r.AutoItem().AlignBottom().PaddingBottom(1).Element(ch => CheckLabel(ch, "Fix"));
+            r.ConstantItem(8);
+            r.AutoItem().AlignBottom().PaddingBottom(1).Element(ch => CheckLabel(ch, "Variabel"));
+            r.ConstantItem(10);
+            r.RelativeItem(0.9f).Element(f => LabeledLine(f, "PLZ / Land"));
+        });
+    }
 
     private static void CheckLabel(IContainer e, string label)
     {
