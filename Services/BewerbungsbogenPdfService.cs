@@ -89,12 +89,14 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e => TwoFields(e, "Adresse", "E-Mail"));
             col.Item().PaddingTop(12).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
             col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Geburtsort", "Heimatort"));
+            // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
+            // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
+            // bei Handausfüllung).
             col.Item().PaddingTop(12).Row(r =>
             {
                 r.RelativeItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
                 r.ConstantItem(16);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "AHV-Nummer"));
+                r.RelativeItem(1.4f).AlignBottom().Element(AhvBoxes);
             });
             // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
             // «seit dem:» dahinter (Walter 13.08.2026).
@@ -292,6 +294,31 @@ public class BewerbungsbogenPdfService
                 .Text(label).FontSize(8.5f).FontColor(Ink);
             r.ConstantItem(8);
             r.RelativeItem().Element(f => WriteLineAt(f, 24f));
+        });
+    }
+
+    /// <summary>
+    /// AHV-Nummer als Ziffern-Kästchen in den Gruppen 3·4·4·2 (756.XXXX.XXXX.XX)
+    /// — Walter 13.08.2026, bessere Lesbarkeit bei Handausfüllung.
+    /// </summary>
+    private static void AhvBoxes(IContainer e)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignBottom().PaddingBottom(3)
+                .Text("AHV-Nummer").FontSize(8.5f).FontColor(Ink);
+            r.ConstantItem(8);
+            int[] gruppen = { 3, 4, 4, 2 };
+            for (var g = 0; g < gruppen.Length; g++)
+            {
+                if (g > 0) r.ConstantItem(7);
+                for (var i = 0; i < gruppen[g]; i++)
+                {
+                    if (i > 0) r.ConstantItem(2);
+                    r.ConstantItem(14).Element(b => b
+                        .Height(17).Border(0.8f).BorderColor(Line).Text(" "));
+                }
+            }
         });
     }
 
