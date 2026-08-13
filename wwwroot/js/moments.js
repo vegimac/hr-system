@@ -777,6 +777,15 @@ function momTextTypeChanged() {
     if (!hint) return;
     const typeId = parseInt(document.getElementById('momTextType')?.value, 10);
     const t = _momTypesAll.find(x => x.id === typeId);
+    // Beim Willkommenstag ist «Titel/Betreff» die ÜBERSCHRIFT der Link-Seite
+    // (Walter 13.08.2026: Feld war nicht auffindbar) — Label klar umbenennen.
+    const titelLbl = document.getElementById('momTextTitelLabel');
+    if (titelLbl) {
+        const istWk = t && (t.code === 'WILLKOMMENSTAG' || t.code === 'WILLKOMMENSTAG_ERINNERUNG');
+        titelLbl.innerHTML = istWk
+            ? 'Überschrift der Link-Seite <span style="font-weight:400;color:#94a3b8">(z.B. «Herzlich willkommen im McDonald&#39;s Team {Arbeitsort}!»)</span>'
+            : 'Titel / Betreff';
+    }
     if (t && t.code === 'VERTRAG_LINK') {
         hint.style.display = 'block';
         hint.innerHTML = 'Arbeitsvertrag-Link: SMS kurz halten (max. 160). Platzhalter: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Link}</b> · <b>{GueltigBis}</b>. Die Mitteilung erscheint auf der Link-Seite.';
