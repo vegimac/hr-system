@@ -205,8 +205,14 @@ public class BewerbungsbogenPdfService
             // AHV-Nummer als Ziffern-Boxen ANSTELLE des Geburtsorts und
             // Geschlecht als W/M/D-Ankreuz (wie beim MA auf Seite 1).
             col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "Angaben über Partner",
-                    "auszufüllen, wenn quellensteuerpflichtig"));
+                SectionHead(e, "Angaben über Partner", null));
+            // Hinweis gut sichtbar als Badge statt kleinem Kursiv-Text
+            // (Walter 13.08.2026).
+            col.Item().PaddingTop(4).AlignLeft().Element(b => b
+                .Background(Soft).Border(0.8f).BorderColor(Line)
+                .PaddingVertical(3).PaddingHorizontal(8)
+                .Text("Nur auszufüllen, wenn quellensteuerpflichtig")
+                .SemiBold().FontSize(8.5f).FontColor(Ink));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(6).Row(r =>
             {
