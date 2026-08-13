@@ -144,11 +144,12 @@ public class BewerbungsbogenPdfService
             {
                 r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
                 r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
-                r.ConstantItem(12);
+                // IV-Rente direkt VOR dem Invaliditätsgrad (Walter 13.08.2026).
                 r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
                 r.ConstantItem(12);
                 r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
                 r.ConstantItem(14);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
             });
