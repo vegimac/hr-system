@@ -294,9 +294,8 @@ public class BewerbungsbogenPdfService
                         t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
                             .FontSize(8f).FontColor(Ink);
                     });
-                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Name"));
-                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Adresse"));
-                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Telefon"));
+                    // Nur Vorname Name + Unterschrift (Walter 13.08.2026).
+                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Vorname Name"));
                     c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Unterschrift"));
                 });
             });
