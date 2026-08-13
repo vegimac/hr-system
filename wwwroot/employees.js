@@ -13655,6 +13655,10 @@ async function loadVerwarnungenTab(employeeId) {
         if (!r.ok) { el.innerHTML = `<div style="color:#dc2626;padding:16px">Fehler beim Laden (${r.status})</div>`; return; }
         _vwList = await r.json();
         renderVerwarnungenTab(el);
+        // Bereich «BFS / Statistik» (Walter 13.08.2026) — kleine LSE-Ergänzungs-
+        // felder am Ende des Restaurant-Admin-Tabs (nicht prominent im Stamm).
+        if (typeof lseEmpBlockAppend === 'function' && ['admin', 'superuser'].includes(currentUser?.role))
+            lseEmpBlockAppend(el, employeeId);
     } catch (e) {
         el.innerHTML = `<div style="color:#dc2626;padding:16px">Netzwerkfehler: ${e.message}</div>`;
     }

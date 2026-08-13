@@ -39,6 +39,12 @@ public class CompanyProfile
     public string? LoginPasswordPrefix { get; set; }
 
     public string? Phone { get; set; }
+
+    /// <summary>BUR-Nummer der örtlichen Einheit (BFS-Betriebsregister,
+    /// 8 Zeichen) — für die LSE-Spalte AR «burNr» (Walter 13.08.2026).</summary>
+    public string? BurNr { get; set; }
+    /// <summary>UID fürs BFS (LSE-Spalte R «uidBFS», z.B. CHE-123.456.789).</summary>
+    public string? UidBfs { get; set; }
     public string? Email { get; set; }
 
     public decimal? NormalWeeklyHours { get; set; }

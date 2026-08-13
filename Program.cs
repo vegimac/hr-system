@@ -196,6 +196,7 @@ builder.Services.AddScoped<EmployeePostfachService>();
 builder.Services.AddSingleton<SimpleAesService>();
 // BFS-LSE-Export (Lohnstrukturerhebung)
 builder.Services.AddScoped<LseExportService>();
+builder.Services.AddScoped<LseDatenService>();   // BFS Lohnstrukturerhebung (Walter 13.08.2026)
 // Dashboard-Cockpit (Alarme: Bewilligungen, Probezeit, Verträge, Jubiläen ...)
 builder.Services.AddScoped<DashboardService>();
 // SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
@@ -1360,6 +1361,101 @@ using (var scope = app.Services.CreateScope())
             }
         }
 
+        db.SaveChanges();
+    }
+
+    // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──
+    // Grundlage: technische BFS-Spezifikation LSE 2024, V1.4/12.2024.
+    // Codes/Bereiche/Pflichtfelder/Exportreihenfolge liegen als KONFIGURATION
+    // in lse_version.config_json — die Labels sind dort editierbar und werden
+    // beim Start NIE überschrieben (nur Insert in leere Version). LSE 2026 =
+    // neue Zeile mit eigener Konfiguration, keine Code-Änderung.
+    if (!db.LseVersions.Any(v => v.SurveyYear == 2024))
+    {
+        var lseConfig = new
+        {
+            columns = new[]
+            {
+                // A–S Unternehmensdaten (nur Zeile 2)
+                "surveyYear","name1","name2","name3","street","zipCode","town",
+                "postOfficeBoxNumber","postOfficeBoxText","lastName","firstName",
+                "emailAddress","phoneNumber","mobilephoneNumber","numberOfEmployeesOct",
+                "selection","payAgreement","uidBFS","Producer",
+                // T–AS Mitarbeiterdaten (pro MA eine Zeile)
+                "vn","education","universityDegree","entryDate","position","contract",
+                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
+                "leaveEntitlement","practicedProfessionOct","salaryOct","allowancesOct",
+                "familyAllowanceOct","socialContributionsOct","bvgLPPRegularContributionsOct",
+                "from","until","earnings13th","overtime","irregularPayments",
+                "fringeBenefits","capitalPayments","othersBenefits","burNr","inHouseID",
+            },
+            codes = new
+            {
+                education = new[]
+                {
+                    new { code = 1, label = "Universität / ETH" },
+                    new { code = 2, label = "Fachhochschule / Pädagogische Hochschule" },
+                    new { code = 3, label = "Höhere Berufsausbildung (eidg. Fachausweis, Diplom HF)" },
+                    new { code = 4, label = "Lehrkräfte-Ausbildung" },
+                    new { code = 5, label = "Matura" },
+                    new { code = 6, label = "Abgeschlossene Berufsausbildung (EFZ/EBA)" },
+                    new { code = 7, label = "Unternehmensinterne Ausbildung" },
+                    new { code = 8, label = "Ohne abgeschlossene Berufsausbildung" },
+                },
+                universityDegree = new[]
+                {
+                    new { code = 1, label = "Doktorat" },
+                    new { code = 2, label = "Master" },
+                    new { code = 3, label = "Bachelor" },
+                },
+                position = new[]
+                {
+                    new { code = 1, label = "Oberstes / oberes Kader" },
+                    new { code = 2, label = "Mittleres Kader" },
+                    new { code = 3, label = "Unteres Kader" },
+                    new { code = 4, label = "Unterstes Kader" },
+                    new { code = 5, label = "Ohne Kaderfunktion" },
+                },
+                contract = new[]
+                {
+                    new { code = 1, label = "Unbefristeter Vertrag" },
+                    new { code = 2, label = "Befristeter Vertrag" },
+                    new { code = 3, label = "Lehrvertrag" },
+                    new { code = 4, label = "Praktikumsvertrag" },
+                    new { code = 5, label = "Vertrag auf Abruf" },
+                    new { code = 6, label = "Temporärvertrag" },
+                    new { code = 7, label = "Anderer Vertrag" },
+                },
+                basisOfSalaryCalculation = new[]
+                {
+                    new { code = 1, label = "Monatslohn" },
+                    new { code = 2, label = "Stundenlohn" },
+                    new { code = 3, label = "Lektionslohn" },
+                },
+            },
+            ranges = new
+            {
+                vnMin = 7560000000001L, vnMax = 7569999999999L,
+                activityRateMin = 1, activityRateMax = 175,
+                leaveMin = 0, leaveMax = 99,
+                professionMaxLen = 255,
+            },
+            mandatory = new[]
+            {
+                "vn","education","entryDate","position","contract",
+                "basisOfSalaryCalculation","contractualWorkingTime","activityRateOct",
+                "leaveEntitlement","practicedProfessionOct","salaryOct",
+                "socialContributionsOct","from","until",
+            },
+            referenceMonth = 10,
+        };
+        db.LseVersions.Add(new LseVersion
+        {
+            SurveyYear = 2024,
+            SpecVersion = "1.4 / 12.2024",
+            IsActive = true,
+            ConfigJson = System.Text.Json.JsonSerializer.Serialize(lseConfig),
+        });
         db.SaveChanges();
     }
 
@@ -3010,6 +3106,52 @@ using (var scope = app.Services.CreateScope())
         -- Durchführungs-Ort des Willkommenstags (Walter 12.08.2026): frei
         -- editierbar, NULL = Default «Schulungsraum, Luzernerstr. 2, Zofingen».
         ALTER TABLE hr_interview_termin ADD COLUMN IF NOT EXISTS ort text;
+
+        -- ── BFS Lohnstrukturerhebung (Walter 13.08.2026) ────────────────────
+        -- Doku: migrations-archive/add_lse_module.sql
+        CREATE TABLE IF NOT EXISTS lse_version (
+            id           serial PRIMARY KEY,
+            survey_year  integer NOT NULL UNIQUE,
+            spec_version text,
+            is_active    boolean NOT NULL DEFAULT true,
+            config_json  text NOT NULL DEFAULT '{}',
+            created_at   timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS employee_lse (
+            id                   serial PRIMARY KEY,
+            employee_id          integer NOT NULL UNIQUE REFERENCES employee(id) ON DELETE CASCADE,
+            education            integer,
+            university_degree    integer,
+            position_override    integer,
+            practiced_profession varchar(255),
+            in_house_id          varchar(50),
+            updated_at           timestamp without time zone NOT NULL DEFAULT now(),
+            updated_by           text
+        );
+        CREATE TABLE IF NOT EXISTS lse_lohnart_mapping (
+            id            serial PRIMARY KEY,
+            lohnart_code  text NOT NULL,
+            bezeichnung   text,
+            bfs_kategorie text,
+            gueltig_ab    date,
+            gueltig_bis   date,
+            confirmed     boolean NOT NULL DEFAULT false,
+            updated_at    timestamp without time zone NOT NULL DEFAULT now(),
+            updated_by    text
+        );
+        CREATE INDEX IF NOT EXISTS ix_lse_lohnart_mapping_code ON lse_lohnart_mapping (lohnart_code);
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS bur_nr varchar(8);
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS uid_bfs varchar(20);
+        CREATE TABLE IF NOT EXISTS lse_code_mapping (
+            id          serial PRIMARY KEY,
+            mapping_typ text NOT NULL,
+            source_code text NOT NULL,
+            bfs_code    integer,
+            confirmed   boolean NOT NULL DEFAULT false,
+            updated_at  timestamp without time zone NOT NULL DEFAULT now(),
+            updated_by  text,
+            UNIQUE (mapping_typ, source_code)
+        );
         CREATE TABLE IF NOT EXISTS hr_interview_buchung (
             id         serial PRIMARY KEY,
             termin_id  integer NOT NULL REFERENCES hr_interview_termin(id) ON DELETE CASCADE,

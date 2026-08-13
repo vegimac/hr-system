@@ -1016,6 +1016,7 @@ function showPage(name) {
     if (name === 'sollstunden') sollInit();
     if (name === 'ferien') ferienInit();
     if (name === 'alter-report') alterInit();
+    if (name === 'lse' && typeof lseInit === 'function') lseInit();
     if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
     if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();

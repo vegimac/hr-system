@@ -1782,6 +1782,20 @@
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:12px">
+                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser" style="opacity:1;cursor:pointer" onclick="showPage('lse')">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#fef3c7;color:#92400e">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">BFS Lohnstrukturerhebung</div>
+                                <div class="hr-card-status">LSE — Referenzmonat Oktober</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li>Daten laden → Fehler korrigieren → prüfen → BFS-Datei exportieren.</li>
+                        </ul>
+                    </div>
                     <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('sollstunden')">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#e0e7ff;color:#5a5348">
@@ -4348,6 +4362,35 @@
                         <span style="font-size:12px;color:#94a3b8">Anspruch Jan – Stichtag-Monat · Filiale = Sidebar</span>
                     </div>
                     <div id="ferResult"></div>
+                </div>
+            </div>
+            <!-- ═══ BFS LOHNSTRUKTURERHEBUNG (Walter-Vorgabe 13.08.2026) ═══
+                 Phase 1: Startmaske + Prüfmaske + Mappings. Ablauf:
+                 Daten laden → Fehler korrigieren → prüfen → BFS-Datei (Phase 2). -->
+            <div class="page fixhead" id="page-lse">
+                <div class="page-head"><div>
+                    <h1 class="page-title" style="display:flex;align-items:center;gap:18px">BFS Lohnstrukturerhebung
+                        <button onclick="pageBack()"
+                                style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px 14px;cursor:pointer;font-size:12.5px;font-weight:700">← Zurück</button></h1>
+                    <p class="page-sub">Lohnstrukturerhebung (LSE) — automatisch aus den bestehenden OneCrew-Daten. Referenzmonat Oktober. Fehlende BFS-Angaben werden markiert und direkt hier ergänzt.</p>
+                </div></div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin:0 0 10px">
+                    <label style="font-size:13px;color:#475569;display:flex;flex-direction:column;gap:4px">Erhebungsjahr
+                        <select id="lseYearSel" class="eaw-input" style="min-width:200px" onchange="lseYearChanged()"></select>
+                    </label>
+                    <div style="display:inline-flex">
+                        <button id="lseScopeAlle" onclick="lseSetScope('alle')" style="background:#3f3f3f;color:#fff;border:1px solid rgba(60,55,48,0.18);border-radius:10px 0 0 10px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">Ganzes Unternehmen</button>
+                        <button id="lseScopeFil" onclick="lseSetScope('filiale')" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.18);border-left:none;border-radius:0 10px 10px 0;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">Nur Sidebar-Filiale</button>
+                    </div>
+                    <span style="flex:1"></span>
+                    <button onclick="lsePruefen()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">🔍 Daten prüfen</button>
+                    <button onclick="lseShowMapping()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🧩 BFS-Zuordnungen</button>
+                    <button onclick="lseVorschau()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">👁 BFS-Vorschau</button>
+                    <button onclick="lseExport()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">📥 XLS exportieren</button>
+                </div>
+                <div id="lseStatusCards" style="margin-bottom:12px"></div>
+                <div class="page-body">
+                    <div id="lseBody"><div style="padding:14px;color:#8b8b8b">«🔍 Daten prüfen» lädt alle für die LSE relevanten Mitarbeitenden mit Ampel-Status; Zeile anklicken = nur die fehlenden Angaben ergänzen.</div></div>
                 </div>
             </div>
             <!-- ═══ ALTERSSTRUKTUR alle Filialen (Walter-Vorgabe 08.07.2026) ═══ -->
@@ -7736,7 +7779,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260812a"></script>
+<script src="js/app-core.js?v=20260813a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8098,7 +8141,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260812g"></script>
+<script src="employees.js?v=20260813a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -8915,6 +8958,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260812a"></script>
+<script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
 <script src="js/kandidaten.js?v=20260811j"></script>

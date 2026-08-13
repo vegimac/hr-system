@@ -88,6 +88,11 @@ public class AppDbContext : DbContext
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
     public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
     public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
+    // BFS Lohnstrukturerhebung (Walter 13.08.2026)
+    public DbSet<LseVersion>                LseVersions                 => Set<LseVersion>();
+    public DbSet<EmployeeLse>               EmployeeLse                 => Set<EmployeeLse>();
+    public DbSet<LseLohnartMapping>         LseLohnartMappings          => Set<LseLohnartMapping>();
+    public DbSet<LseCodeMapping>            LseCodeMappings             => Set<LseCodeMapping>();
     public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
     public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
@@ -523,6 +528,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.LoginPasswordPrefix).HasColumnName("login_password_prefix").HasMaxLength(5);
             entity.Property(e => e.Phone).HasColumnName("phone");
+            entity.Property(e => e.BurNr).HasColumnName("bur_nr").HasMaxLength(8);
+            entity.Property(e => e.UidBfs).HasColumnName("uid_bfs").HasMaxLength(20);
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.NormalWeeklyHours).HasColumnName("normal_weekly_hours");
             entity.Property(e => e.MaxWeeklyHours).HasColumnName("max_weekly_hours").HasColumnType("numeric(5,2)");
@@ -1285,6 +1292,71 @@ public class AppDbContext : DbContext
                   .WithMany()
                   .HasForeignKey(e => e.EmployeeId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── BFS Lohnstrukturerhebung (Walter 13.08.2026) ─────────────────────
+        modelBuilder.Entity<LseVersion>(entity =>
+        {
+            entity.ToTable("lse_version");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.SurveyYear).HasColumnName("survey_year");
+            entity.Property(e => e.SpecVersion).HasColumnName("spec_version");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.ConfigJson).HasColumnName("config_json");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.SurveyYear).IsUnique();
+        });
+        modelBuilder.Entity<EmployeeLse>(entity =>
+        {
+            entity.ToTable("employee_lse");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Education).HasColumnName("education");
+            entity.Property(e => e.UniversityDegree).HasColumnName("university_degree");
+            entity.Property(e => e.PositionOverride).HasColumnName("position_override");
+            entity.Property(e => e.PracticedProfession).HasColumnName("practiced_profession");
+            entity.Property(e => e.InHouseId).HasColumnName("in_house_id");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.HasIndex(e => e.EmployeeId).IsUnique();
+            entity.HasOne(e => e.Employee)
+                  .WithMany()
+                  .HasForeignKey(e => e.EmployeeId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<LseLohnartMapping>(entity =>
+        {
+            entity.ToTable("lse_lohnart_mapping");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.LohnartCode).HasColumnName("lohnart_code");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.BfsKategorie).HasColumnName("bfs_kategorie");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
+            entity.Property(e => e.Confirmed).HasColumnName("confirmed");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.HasIndex(e => e.LohnartCode);
+        });
+        modelBuilder.Entity<LseCodeMapping>(entity =>
+        {
+            entity.ToTable("lse_code_mapping");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.MappingTyp).HasColumnName("mapping_typ");
+            entity.Property(e => e.SourceCode).HasColumnName("source_code");
+            entity.Property(e => e.BfsCode).HasColumnName("bfs_code");
+            entity.Property(e => e.Confirmed).HasColumnName("confirmed");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.HasIndex(e => new { e.MappingTyp, e.SourceCode }).IsUnique();
         });
 
         // ── Manager-Dienstplan (Walter 08.08.2026) ───────────────────────────

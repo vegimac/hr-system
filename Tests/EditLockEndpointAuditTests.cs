@@ -147,6 +147,7 @@ public class EditLockEndpointAuditTests
         ["ManagerDienstplanController"]    = "Manager-Dienstplan (Schicht-Kürzel pro Tag) — reine Planung, keine Lohndaten",
         ["HrInterviewController"]          = "HR-Büro-Kalender Vorstellungsgespräche — reine Planung, keine Lohndaten",
         ["KandidatenController"]           = "Kandidaten-Pipeline GF→HR (Rekrutierung, Anhänge) — keine Lohndaten",
+        ["LseController"]                  = "BFS Lohnstrukturerhebung — Statistik-Mappings/Ergänzungsfelder, keine lohnwirksamen Daten",
         ["OnboardingDokumenteController"]  = "Onboarding-PDF-Ordner pro Filiale (Vertrags-Link-Anhänge) — reine Dateiablage, keine Lohndaten",
         ["LohndatenEmpfaengerController"]  = "Lohndatenempfänger-Katalog + Filial-Zuordnung (Mitglied-/Subnummer; beide Controller in dieser Datei) — Stammdaten, keine Lohndaten",
 
