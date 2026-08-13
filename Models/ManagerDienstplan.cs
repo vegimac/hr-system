@@ -109,6 +109,11 @@ public class HrInterviewTermin
     /// <summary>Anzahl verfügbare Plätze (Kandidaten) an diesem Termin.</summary>
     public int Plaetze { get; set; } = 1;
     public string? Bemerkung { get; set; }
+    /// <summary>Durchführungs-ORT (Walter 12.08.2026, frei editierbar) — der
+    /// Willkommenstag findet im Schulungsraum statt, NICHT im Restaurant.
+    /// Erscheint auf der Kandidaten-Link-Seite (📍-Zeile) + im Kalender-Eintrag.
+    /// NULL/leer = Default «Schulungsraum, Luzernerstr. 2, Zofingen».</summary>
+    public string? Ort { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public string? CreatedBy { get; set; }
 }

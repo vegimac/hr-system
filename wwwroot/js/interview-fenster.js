@@ -166,6 +166,7 @@ function _hrIvRenderDay() {
                     <b>🕐 ${t.von}${t.bis ? ' – ' + t.bis : ''}</b>
                     <span style="background:${frei > 0 ? '#dcfce7' : '#fecaca'};border-radius:8px;padding:1px 8px;font-size:11.5px;color:${frei > 0 ? '#166534' : '#991b1b'}">
                         ${frei} von ${t.plaetze} Plätzen frei</span>
+                    <span style="font-size:11.5px;color:#3f3f3f">📍 ${_ivEsc(t.ort || 'Schulungsraum, Luzernerstr. 2, Zofingen')}</span>
                     <span style="color:#8b8b8b">${_ivEsc(t.bemerkung || '')}</span>
                     <span style="flex:1"></span>
                     <button onclick="hrIvEditTermin(${t.id})" style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:2px 8px;font-size:12px;cursor:pointer;color:#3f3f3f" title="Termin bearbeiten">✎</button>
@@ -186,6 +187,8 @@ function _hrIvRenderDay() {
                 <input id="hrIvNeuBis" type="time" style="${_ivInp}"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
                 <input id="hrIvNeuPlaetze" type="number" min="1" max="50" value="1" style="${_ivInp};width:70px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ort (auf Kandidaten-Link + Kalender)
+                <input id="hrIvNeuOrt" value="Schulungsraum, Luzernerstr. 2, Zofingen" style="${_ivInp};min-width:250px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
                 <input id="hrIvNeuBem" placeholder="optional" style="${_ivInp};min-width:130px"></label>
             <button onclick="hrIvAddTermin()" style="${_ivBtnDark}">+ Termin anlegen</button>
@@ -198,6 +201,7 @@ async function hrIvAddTermin() {
         von: document.getElementById('hrIvNeuVon')?.value,
         bis: document.getElementById('hrIvNeuBis')?.value || null,
         plaetze: parseInt(document.getElementById('hrIvNeuPlaetze')?.value, 10) || 0,
+        ort: document.getElementById('hrIvNeuOrt')?.value || null,
         bemerkung: document.getElementById('hrIvNeuBem')?.value || null,
     };
     if (!dto.datum || !dto.von || dto.plaetze < 1) { showToast('Von-Zeit und Plätze angeben.', 'error'); return; }
@@ -225,6 +229,8 @@ function hrIvEditTermin(id) {
             ${belegt > 0 ? `<span style="font-size:11px;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;align-self:center">Zeit gesperrt — ${belegt} MA eingeladen. Verschieben = pro MA «⇄ Umbuchen» (nach Telefonat).</span>` : ''}
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
                 <input id="hrIvEdPlaetze" type="number" min="1" max="50" value="${t.plaetze}" style="${_ivInp};width:70px"></label>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ort (auf Kandidaten-Link + Kalender)
+                <input id="hrIvEdOrt" value="${_ivEsc(t.ort || 'Schulungsraum, Luzernerstr. 2, Zofingen')}" style="${_ivInp};min-width:250px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bemerkung
                 <input id="hrIvEdBem" value="${_ivEsc(t.bemerkung || '')}" style="${_ivInp};min-width:130px"></label>
             <button onclick="hrIvSaveTermin(${id})" style="${_ivBtnDark}">Speichern</button>
@@ -238,6 +244,7 @@ async function hrIvSaveTermin(id) {
         von: document.getElementById('hrIvEdVon')?.value,
         bis: document.getElementById('hrIvEdBis')?.value || null,
         plaetze: parseInt(document.getElementById('hrIvEdPlaetze')?.value, 10) || 0,
+        ort: document.getElementById('hrIvEdOrt')?.value || null,
         bemerkung: document.getElementById('hrIvEdBem')?.value || null,
     };
     if (!dto.von || dto.plaetze < 1) { showToast('Von-Zeit und Plätze angeben.', 'error'); return; }

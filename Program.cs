@@ -3007,6 +3007,9 @@ using (var scope = app.Services.CreateScope())
             created_by text
         );
         CREATE INDEX IF NOT EXISTS ix_hr_interview_termin_datum ON hr_interview_termin (datum);
+        -- Durchführungs-Ort des Willkommenstags (Walter 12.08.2026): frei
+        -- editierbar, NULL = Default «Schulungsraum, Luzernerstr. 2, Zofingen».
+        ALTER TABLE hr_interview_termin ADD COLUMN IF NOT EXISTS ort text;
         CREATE TABLE IF NOT EXISTS hr_interview_buchung (
             id         serial PRIMARY KEY,
             termin_id  integer NOT NULL REFERENCES hr_interview_termin(id) ON DELETE CASCADE,

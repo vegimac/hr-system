@@ -846,10 +846,17 @@ public class KandidatenController : ControllerBase
         var zeit = termin.BisZeit.HasValue
             ? $"{termin.VonZeit:HH\\:mm}–{termin.BisZeit.Value:HH\\:mm}"
             : $"{termin.VonZeit:HH\\:mm}";
-        var ort = string.IsNullOrWhiteSpace(cp?.City) ? "" : $" · {cp!.City}";
+        // Ortszeile in der Termin-Box (Walter 12.08.2026): der DURCHFÜHRUNGS-
+        // Ort des Willkommenstags (Schulungsraum!), NICHT das Restaurant —
+        // sonst steht der Kandidat im McDonald's. Frei editierbar pro Termin
+        // (Welcome-Day-Verwaltung, Feld «Ort»).
+        var arbeitsortLp = !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim() : (cp?.City ?? "").Trim();
+        var ortZeile = !string.IsNullOrWhiteSpace(termin.Ort)
+            ? termin.Ort!.Trim()
+            : "Schulungsraum, Luzernerstr. 2, Zofingen";
         // Termin-Box im ruhigen Kohlestift-Look: warmes Glas, Charcoal-Text.
         var terminBlock = $@"<div style='background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.14);border-radius:14px;padding:14px 16px;margin:14px 0;font-size:16px;line-height:1.65;color:#3f3f3f;box-shadow:0 4px 14px rgba(70,64,55,0.08)'>
-            📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {firma}{ort}</div>";
+            📅 <b>{wt}, {termin.Datum:dd.MM.yyyy}</b><br>🕘 {zeit} Uhr<br>📍 {System.Net.WebUtility.HtmlEncode(ortZeile)}</div>";
 
         // Texte der Link-Seite aus den Moments-Vorlagen (Walter 12.08.2026):
         //   OFFENE Einladung  → Mitteilung der Vorlage WILLKOMMENSTAG
@@ -858,33 +865,48 @@ public class KandidatenController : ControllerBase
         // die SMS: {Vorname} {Firma} {Arbeitsort} {Wochentag} {Datum} {Zeit}.
         // Fallback (leer oder noch der Seed-Beschreibungstext): offene Seite =
         // Standard-Einladungssatz, Bestätigt-Seite = kein Zusatztext.
-        var arbeitsortLp = !string.IsNullOrWhiteSpace(cp?.WorkLocation) ? cp!.WorkLocation!.Trim() : (cp?.City ?? "").Trim();
+        string FillPh(string s) => s
+            .Replace("{Vorname}", k.Vorname ?? "")
+            .Replace("{Firma}", firma)
+            .Replace("{Arbeitsort}", arbeitsortLp)
+            .Replace("{Wochentag}", wt)
+            .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
+            .Replace("{Zeit}", zeit);
         string? BuildIntro(string? body)
         {
             if (string.IsNullOrWhiteSpace(body)) return null;
             if (body.TrimStart().StartsWith("Vorlage für die Willkommenstag-SMS")) return null;
-            var filled = body
-                .Replace("{Vorname}", k.Vorname ?? "")
-                .Replace("{Firma}", firma)
-                .Replace("{Arbeitsort}", arbeitsortLp)
-                .Replace("{Wochentag}", wt)
-                .Replace("{Datum}", termin.Datum.ToString("dd.MM.yyyy"))
-                .Replace("{Zeit}", zeit);
-            return "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(filled) + "</p>";
+            return "<p style='margin:0;white-space:pre-line'>" + System.Net.WebUtility.HtmlEncode(FillPh(body)) + "</p>";
         }
-        var tplBody = await _db.MomentTexts.AsNoTracking()
+        // Titel/Betreff der Vorlage = ÜBERSCHRIFT der Link-Seite (Walter
+        // 12.08.2026, frei editierbar, z.B. «Herzlich willkommen im
+        // McDonald's Team {Arbeitsort}!»). Solange dort noch der Seed-Name
+        // («Willkommenstag-Einladung»/«-Erinnerung») steht → Standard-Titel.
+        string? BuildTitel(string? titel)
+        {
+            if (string.IsNullOrWhiteSpace(titel)) return null;
+            var tr = titel.Trim();
+            if (tr is "Willkommenstag-Einladung" or "Willkommenstag-Erinnerung") return null;
+            return System.Net.WebUtility.HtmlEncode(FillPh(tr));
+        }
+        var tplEinladung = await _db.MomentTexts.AsNoTracking()
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG")
             .OrderBy(t => t.SortOrder)
-            .Select(t => t.BodyText)
+            .Select(t => new { t.Titel, t.BodyText })
             .FirstOrDefaultAsync();
-        var tplBodyBest = await _db.MomentTexts.AsNoTracking()
+        var tplErinnerung = await _db.MomentTexts.AsNoTracking()
             .Where(t => t.IsActive && t.MomentType != null && t.MomentType.Code == "WILLKOMMENSTAG_ERINNERUNG")
             .OrderBy(t => t.SortOrder)
-            .Select(t => t.BodyText)
+            .Select(t => new { t.Titel, t.BodyText })
             .FirstOrDefaultAsync();
-        var introHtml = BuildIntro(tplBody)
+        var introHtml = BuildIntro(tplEinladung?.BodyText)
             ?? "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
-        var introHtmlBestaetigt = BuildIntro(tplBodyBest) ?? "";
+        var introHtmlBestaetigt = BuildIntro(tplErinnerung?.BodyText) ?? "";
+        var titelOffen      = BuildTitel(tplEinladung?.Titel)
+            ?? $"Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!";
+        var titelBestaetigt = BuildTitel(tplErinnerung?.Titel)
+            ?? BuildTitel(tplEinladung?.Titel)
+            ?? $"Herzlich willkommen bei {firma}!";
 
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
@@ -899,7 +921,7 @@ public class KandidatenController : ControllerBase
 
         string inner;
         if (buchung?.MaAntwort == "ANGENOMMEN")
-            inner = $@"<h1>Herzlich willkommen bei {firma}!</h1>
+            inner = $@"<h1>{titelBestaetigt}</h1>
                 {introHtmlBestaetigt}{terminBlock}
                 <div style='background:#dcfce7;border:1px solid #86efac;border-radius:12px;padding:10px 14px;color:#166534;font-weight:600'>✓ Du hast den Termin bestätigt — wir freuen uns auf dich!</div>
                 {wegBlock}
@@ -910,7 +932,7 @@ public class KandidatenController : ControllerBase
         else if (termin.Datum < DateOnly.FromDateTime(DateTime.Now))
             inner = $@"<h1>Willkommenstag</h1>{terminBlock}<p>Dieser Termin liegt in der Vergangenheit — das HR-Team meldet sich bei dir.</p>";
         else
-            inner = $@"<h1>Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!</h1>
+            inner = $@"<h1>{titelOffen}</h1>
                 {introHtml}{terminBlock}
                 <p style='margin:4px 0 8px;color:#646464;font-size:14px'>Passt dir dieser Termin?</p>
                 <div id='tmAsk' style='display:flex;gap:10px;flex-wrap:wrap'>
@@ -1013,7 +1035,12 @@ public class KandidatenController : ControllerBase
         if (termin == null) return NotFound();
         var cp = await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == k.CompanyProfileId);
         var firma = cp?.FullDisplayName ?? "McDonald's";
-        var ort = cp?.City ?? "";
+        // Kalender-Ort = DURCHFÜHRUNGS-Ort (Schulungsraum), nicht das
+        // Restaurant (Walter 12.08.2026) — sonst navigiert der Kandidat
+        // ins McDonald's.
+        var ort = !string.IsNullOrWhiteSpace(termin.Ort)
+            ? termin.Ort!.Trim()
+            : "Schulungsraum, Luzernerstr. 2, Zofingen";
 
         var start = termin.Datum.ToDateTime(termin.VonZeit);
         var ende = termin.Datum.ToDateTime(termin.BisZeit ?? termin.VonZeit.AddHours(1));
@@ -1029,7 +1056,7 @@ public class KandidatenController : ControllerBase
             $"DTSTART;TZID=Europe/Zurich:{Ics(start)}",
             $"DTEND;TZID=Europe/Zurich:{Ics(ende)}",
             $"SUMMARY:Willkommenstag {firma}",
-            $"LOCATION:{firma}{(string.IsNullOrWhiteSpace(ort) ? "" : ", " + ort)}",
+            $"LOCATION:{ort}",
             "DESCRIPTION:Dein Willkommenstag (Onboarding). Bitte pünktlich erscheinen — wir freuen uns auf dich!",
             "END:VEVENT",
             "END:VCALENDAR",

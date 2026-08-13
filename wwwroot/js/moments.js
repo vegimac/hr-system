@@ -785,10 +785,10 @@ function momTextTypeChanged() {
         hint.innerHTML = 'Bewilligung abgelaufen: SMS = kurzer Push (max. 160), ausführlicher Text ins Feld «Mitteilung». SMS-Platzhalter: <b>{Vorname}</b>. Mitteilung: <b>{Briefanrede}</b> · <b>{PermitCode}</b> · <b>{GueltigBis}</b> · <b>{SenderName}</b>. Der Link wird automatisch angehängt.';
     } else if (t && t.code === 'WILLKOMMENSTAG_ERINNERUNG') {
         hint.style.display = 'block';
-        hint.innerHTML = 'Willkommenstag-Erinnerung: dieser SMS-Text wird beim <b>«SMS erneut senden»</b> verwendet (statt der ersten Einladung). Das Feld «Mitteilung» ist der <b>Text auf der Link-Seite, NACHDEM der Kandidat bestätigt hat</b>. Platzhalter überall: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>.';
+        hint.innerHTML = 'Willkommenstag-Erinnerung: dieser SMS-Text wird beim <b>«SMS erneut senden»</b> verwendet (statt der ersten Einladung). <b>«Titel/Betreff» = Überschrift</b> und <b>«Mitteilung» = Text</b> auf der Link-Seite, NACHDEM der Kandidat bestätigt hat. Platzhalter überall: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>.';
     } else if (t && t.code === 'WILLKOMMENSTAG') {
         hint.style.display = 'block';
-        hint.innerHTML = 'Willkommenstag: SMS = kurzer Push mit Link (max. 160). Das Feld «Mitteilung» ist der <b>Begrüssungstext auf der Link-Seite</b> (zwischen Titel und Termin-Box). Platzhalter in beiden Feldern: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>. {Arbeitsort} = Ort wie im Vertrag (z.B. «Reinach»).';
+        hint.innerHTML = 'Willkommenstag: SMS = kurzer Push mit Link (max. 160). <b>«Titel/Betreff» = Überschrift der Link-Seite</b> (z.B. «Herzlich willkommen im McDonald&#39;s Team {Arbeitsort}!»), «Mitteilung» = Begrüssungstext darunter. Platzhalter in allen Feldern: <b>{Vorname}</b> · <b>{Firma}</b> · <b>{Arbeitsort}</b> · <b>{Wochentag}</b> · <b>{Datum}</b> · <b>{Zeit}</b>; in der SMS zusätzlich <b>{Link}</b>. {Arbeitsort} = Ort wie im Vertrag (z.B. «Reinach»).';
     } else {
         hint.style.display = 'none';
     }

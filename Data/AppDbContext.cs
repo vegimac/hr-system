@@ -1420,6 +1420,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BisZeit).HasColumnName("bis_zeit");
             entity.Property(e => e.Plaetze).HasColumnName("plaetze");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.Ort).HasColumnName("ort");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");

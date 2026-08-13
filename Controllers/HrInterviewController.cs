@@ -57,6 +57,7 @@ public class HrInterviewController : ControllerBase
             bis = t.BisZeit?.ToString("HH:mm"),
             t.Plaetze,
             t.Bemerkung,
+            t.Ort,
             buchungen = buchungen.Where(b => b.TerminId == t.Id).Select(b => new
             {
                 b.Id, b.Kandidat, b.Telefon, b.Bemerkung, b.MaAntwort,
@@ -71,6 +72,8 @@ public class HrInterviewController : ControllerBase
         public string? Bis { get; set; }     // optional
         public int Plaetze { get; set; }
         public string? Bemerkung { get; set; }
+        /// <summary>Durchführungs-Ort (Schulungsraum) — Walter 12.08.2026.</summary>
+        public string? Ort { get; set; }
     }
 
     [HttpPost("termine")]
@@ -102,6 +105,7 @@ public class HrInterviewController : ControllerBase
             BisZeit = bis,
             Plaetze = dto.Plaetze,
             Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
+            Ort = string.IsNullOrWhiteSpace(dto.Ort) ? null : dto.Ort.Trim(),
             CreatedAt = DateTime.Now,
             CreatedBy = await ActorNameAsync(),
         });
@@ -144,6 +148,7 @@ public class HrInterviewController : ControllerBase
         t.BisZeit = bis;
         t.Plaetze = dto.Plaetze;
         t.Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        t.Ort = string.IsNullOrWhiteSpace(dto.Ort) ? null : dto.Ort.Trim();
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
     }
