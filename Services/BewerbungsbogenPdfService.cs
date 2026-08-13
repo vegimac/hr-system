@@ -114,21 +114,8 @@ public class BewerbungsbogenPdfService
             // (Walter 03.08.2026).
             col.Item().PaddingTop(12).Element(e => CheckOptionsInline(e, "Konfession",
                 "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch", "Andere", "Keine"));
-            // Kinder-Block (Walter 13.08.2026): Zeile 1 = «Anzahl Kinder» +
-            // grosse Zähl-Box (wie AHV-Kästchen) + erste Schreiblinie für
-            // Name/Geburtstag; darunter eine zweite volle Linie für weitere.
-            col.Item().PaddingTop(12).Row(r =>
-            {
-                r.AutoItem().AlignBottom().PaddingBottom(3)
-                    .Text("Anzahl Kinder").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(8);
-                r.ConstantItem(19).AlignBottom().Element(b => b
-                    .Height(24).Border(0.8f).BorderColor(Line).Text(" "));
-                r.ConstantItem(14);
-                r.RelativeItem().AlignBottom().Element(f =>
-                    LabeledLine(f, "Name, Geburtstag der Kinder"));
-            });
-            col.Item().PaddingTop(12).Element(e => LabeledLine(e, "Weitere Kinder (Name, Geburtstag)"));
+            // Kinder-Block entfernt (Walter 13.08.2026) — dafür die
+            // Verfügbarkeit von Seite 2 unten auf Seite 1 (siehe unten).
             col.Item().PaddingTop(12).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
@@ -185,6 +172,14 @@ public class BewerbungsbogenPdfService
 
             col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
             col.Item().PaddingTop(8).Element(LangGrid);
+
+            // Verfügbarkeit von Seite 2 hierher verschoben (Walter 13.08.2026).
+            col.Item().PaddingTop(14).Element(e =>
+                SectionHead(e, "Verfügbarkeit & Eintritt",
+                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
+            col.Item().PaddingTop(6).Element(AvailabilityTable);
+            col.Item().PaddingTop(10).Element(e =>
+                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
         });
     }
 
@@ -194,26 +189,49 @@ public class BewerbungsbogenPdfService
 
         page.Content().PaddingTop(2).Column(col =>
         {
+            // Ehepartner-Block gemäss altem Formular (Walter 13.08.2026) —
+            // ersetzt den früheren «Angaben über Partner»-Block.
             col.Item().Element(e =>
-                SectionHead(e, "Verfügbarkeit & Eintritt",
-                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
-            col.Item().PaddingTop(6).Element(AvailabilityTable);
-            col.Item().PaddingTop(10).Element(e =>
-                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
-
-            col.Item().PaddingTop(10).Element(e =>
-                SectionHead(e, "Angaben über Partner", null));
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Geschlecht Partner", "Geburtsort"));
-            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Aufenthaltsort"));
+                SectionHead(e, "Ehepartner(in)",
+                    "ausschliesslich von Mitarbeitenden auszufüllen, welche quellensteuerpflichtig sind"));
             col.Item().PaddingTop(8).Row(r =>
             {
-                r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
+                r.RelativeItem(1.3f).Element(f => LabeledLine(f, "Name"));
                 r.ConstantItem(16);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
+                r.RelativeItem(1.0f).AlignBottom().Element(f => DatumBoxes(f, "Geburtsdatum"));
             });
-            col.Item().PaddingTop(8).Element(e =>
-                LabeledLine(e, "Arbeitgeber Partner, Adresse"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Vorname", "Nationalität"));
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Lebt ihr in einem gemeinsamen Haushalt?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(10);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                r.ConstantItem(20);
+                r.AutoItem().AlignMiddle().Text("Hat dein/e Partner/in eine berufliche Aktivität?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(10);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+            });
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.RelativeItem(0.9f).Element(f => LabeledLine(f, "Arbeitserlaubnis"));
+                r.ConstantItem(20);
+                r.AutoItem().AlignMiddle().Text("Bewilligung G, Aufenthalt:").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Täglich"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Wöchentlich"));
+                r.RelativeItem(0.3f);
+            });
+            col.Item().PaddingTop(8).Element(AhvBoxes);
+
+            // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
+            // frühere Kinder-Block von Seite 1 lebt jetzt hier).
+            col.Item().PaddingTop(12).Element(e => SectionHead(e, "Kinder", null));
+            col.Item().PaddingTop(6).Element(KinderTabelle);
 
             col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
@@ -306,6 +324,77 @@ public class BewerbungsbogenPdfService
 
     private static void Check(IContainer e) =>
         e.Width(12).Height(12).Border(1f).BorderColor(Ink);
+
+    /// <summary>Geburtsdatum als Ziffern-Kästchen TT·MM·JJJJ (Walter 13.08.2026).</summary>
+    private static void DatumBoxes(IContainer e, string label)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignBottom().PaddingBottom(3)
+                .Text(label).FontSize(8.5f).FontColor(Ink);
+            r.ConstantItem(8);
+            int[] gruppen = { 2, 2, 4 };
+            for (var g = 0; g < gruppen.Length; g++)
+            {
+                if (g > 0) r.ConstantItem(7);
+                for (var i = 0; i < gruppen[g]; i++)
+                {
+                    if (i > 0) r.ConstantItem(2);
+                    r.ConstantItem(19).Element(b => b
+                        .Height(24).Border(0.8f).BorderColor(Line).Text(" "));
+                }
+            }
+        });
+    }
+
+    /// <summary>
+    /// Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026): Name,
+    /// Vorname, Geschlecht M/W, Geburtsdatum, gleicher Haushalt Ja/Nein,
+    /// wenn nein in der CH Ja/Nein — 4 Leerzeilen für Handausfüllung.
+    /// </summary>
+    private static void KinderTabelle(IContainer e)
+    {
+        e.Table(t =>
+        {
+            t.ColumnsDefinition(c =>
+            {
+                c.RelativeColumn(1.2f);   // Name
+                c.RelativeColumn(1.2f);   // Vorname
+                c.RelativeColumn(0.75f);  // Geschlecht
+                c.RelativeColumn(1.0f);   // Geburtsdatum
+                c.RelativeColumn(0.95f);  // gleicher Haushalt
+                c.RelativeColumn(0.95f);  // wenn nein: in der CH
+            });
+            foreach (var h in new[] { "Name", "Vorname", "Geschlecht", "Geburtsdatum",
+                                      "Leben sie im gleichen Haushalt?", "Wenn nein: leben sie in der CH?" })
+                t.Cell().PaddingBottom(3).PaddingRight(6).AlignCenter()
+                    .Text(h).FontSize(7.5f).FontColor(Ink);
+            for (var row = 0; row < 4; row++)
+            {
+                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                {
+                    x.AutoItem().Element(ch => CheckLabel(ch, "M"));
+                    x.ConstantItem(8);
+                    x.AutoItem().Element(ch => CheckLabel(ch, "W"));
+                });
+                t.Cell().PaddingVertical(5).PaddingRight(8).Element(WriteLine);
+                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                {
+                    x.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                    x.ConstantItem(8);
+                    x.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                });
+                t.Cell().PaddingVertical(5).AlignCenter().Row(x =>
+                {
+                    x.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
+                    x.ConstantItem(8);
+                    x.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
+                });
+            }
+        });
+    }
 
     /// <summary>Frage + ☐Nein ☐Ja + kursiver Hinweis (Walter 13.08.2026,
     /// Block aus dem alten Bewerbungsformular).</summary>
