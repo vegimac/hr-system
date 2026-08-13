@@ -222,7 +222,9 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Aufenthaltsort"));
+            // Statt «Aufenthaltsort» (Walter 13.08.2026): Adresse nur, wenn
+            // sie von der des Bewerbers abweicht.
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Adresse (nur falls abweichend)"));
             col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
