@@ -127,67 +127,47 @@ public class BewerbungsbogenPdfService
             // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
             // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
             col.Item().PaddingTop(11).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
-            // Zuoberst wieder die Gesundheits-Frage aus dem alten Bogen
-            // (Walter 13.08.2026): chronische Krankheiten / Allergien,
-            // v.a. Hautallergien — mit Schreiblinie für Details.
-            col.Item().PaddingTop(5).Text("Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?")
-                .FontSize(8.5f).FontColor(Ink);
-            col.Item().PaddingTop(3).Row(r =>
+            // Spalten-Layout (Walter 13.08.2026): Frage links in fester Spalte,
+            // ☐ Ja / ☐ Nein fluchtend untereinander, Hinweis/Zusatzfeld rechts.
+            // Grosszügigere Zeilenabstände (PaddingTop 8 statt 5).
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?",
+                rechts: f => LabeledLine(f, "welche:")));
+            // Sozialleistungen: zwei Zeilen — Kästchen beginnen in derselben
+            // Spalte wie die Ja/Nein-Kästchen, IV-Rente direkt vor dem
+            // Invaliditätsgrad (Walter 13.08.2026).
+            col.Item().PaddingTop(8).Row(r =>
             {
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(10);
-                r.RelativeItem().AlignMiddle().Element(WriteLine);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-            });
-            col.Item().PaddingTop(5).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                // IV-Rente direkt VOR dem Invaliditätsgrad (Walter 13.08.2026).
+                r.ConstantItem(250).AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(8);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
                 r.ConstantItem(14);
+                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
+            });
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.ConstantItem(258);
+                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
+                r.ConstantItem(12);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
             });
-            col.Item().PaddingTop(5).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Bist du vorbestraft?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-            });
-            col.Item().PaddingTop(5).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().Text("Musst du nächstens Militärservice leisten?").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Nein"));
-                r.ConstantItem(12);
-                r.AutoItem().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(12);
-                r.AutoItem().AlignMiddle().Text("Dauer:").FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(6);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "vom"));
-                r.ConstantItem(8);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "bis"));
-            });
-            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e, "Bist du vorbestraft?"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Musst du nächstens Militärservice leisten?",
+                rechts: f => LabeledLine(f, "Dauer vom – bis")));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
-                "Falls ja, bitte eine Kopie beilegen"));
-            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+                hinweis: "Falls ja, bitte eine Kopie beilegen"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du schon in der Hotellerie/Restauration gearbeitet?",
-                "Falls ja, bitte eine Kopie der Arbeitsbescheinigungen/-zeugnisse beilegen"));
-            col.Item().PaddingTop(5).Element(e => FrageMitHinweis(e,
+                hinweis: "Falls ja, Kopie der Arbeitszeugnisse beilegen"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
-                "Falls ja, bitte die folgenden Informationen ausfüllen"));
-            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(7).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(8).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
+                hinweis: "Falls ja, bitte unten ausfüllen"));
+            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
         });
     }
@@ -501,6 +481,29 @@ public class BewerbungsbogenPdfService
                 x.ConstantItem(14);
                 x.AutoItem().Element(ch => CheckLabel(ch, "nein"));
             });
+        });
+    }
+
+    /// <summary>
+    /// Fragenkatalog-Zeile mit festen Spalten (Walter 13.08.2026):
+    /// Frage links (250pt), ☐ Ja / ☐ Nein in fluchtenden Spalten,
+    /// rechts optional ein Zusatzfeld (rechts) oder ein kursiver Hinweis.
+    /// Spaltensumme: 250+8+42+8+52+10 = 370 → Rest ~125pt (A4 ~495pt).
+    /// </summary>
+    private static void KatalogZeile(IContainer e, string frage,
+        Action<IContainer>? rechts = null, string? hinweis = null)
+    {
+        e.Row(r =>
+        {
+            r.ConstantItem(250).AlignMiddle().Text(frage).FontSize(8.5f).FontColor(Ink);
+            r.ConstantItem(8);
+            r.ConstantItem(42).AlignMiddle().Element(ch => CheckLabel(ch, "Ja"));
+            r.ConstantItem(8);
+            r.ConstantItem(52).AlignMiddle().Element(ch => CheckLabel(ch, "Nein"));
+            r.ConstantItem(10);
+            var rest = r.RelativeItem();
+            if (rechts != null) rest.AlignBottom().Element(el => rechts(el));
+            else if (hinweis != null) rest.AlignMiddle().Text(hinweis).FontSize(7.5f).Italic().FontColor(Muted);
         });
     }
 
