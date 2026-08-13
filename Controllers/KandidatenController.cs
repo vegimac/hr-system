@@ -902,11 +902,16 @@ public class KandidatenController : ControllerBase
         var introHtml = BuildIntro(tplEinladung?.BodyText)
             ?? "<p style='margin:0'>Wir laden dich zu deinem <b style='color:#3f3f3f'>Willkommenstag</b> (Onboarding) ein:</p>";
         var introHtmlBestaetigt = BuildIntro(tplErinnerung?.BodyText) ?? "";
+        // Standard-Titel OHNE Konfigurationszwang (Walter 13.08.2026): das
+        // Kandidaten-freundliche «McDonald's Team + Arbeitsort» statt des
+        // formellen Firmennamens. Das Titel/Betreff-Feld der Vorlage bleibt
+        // als optionale Übersteuerung.
+        var mcTeam = $"McDonald's Team {arbeitsortLp}".Trim();
         var titelOffen      = BuildTitel(tplEinladung?.Titel)
-            ?? $"Herzlich willkommen bei {firma}, {System.Net.WebUtility.HtmlEncode(k.Vorname)}!";
+            ?? System.Net.WebUtility.HtmlEncode($"Herzlich willkommen im {mcTeam}, {k.Vorname}!");
         var titelBestaetigt = BuildTitel(tplErinnerung?.Titel)
             ?? BuildTitel(tplEinladung?.Titel)
-            ?? $"Herzlich willkommen bei {firma}!";
+            ?? System.Net.WebUtility.HtmlEncode($"Herzlich willkommen im {mcTeam}!");
 
         // Wegbeschreibung (Walter 12.08.2026): Anfahrts-Skizze (Fussweg vom
         // Bahnhof grün, Parkplatz P, Haupteingang) unter den Termin-Details.
