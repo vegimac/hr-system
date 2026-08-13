@@ -267,15 +267,37 @@ public class BewerbungsbogenPdfService
                     "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
                 .FontSize(6.5f).FontColor(Muted).Italic();
 
-            // Mehr Platz fuer Unterschrift (Walter 28.07.2026).
-            col.Item().PaddingTop(10).Row(r =>
+            // Unterschriften-Bereich gemäss altem Bogen (Walter 13.08.2026):
+            // «Wichtig»-Satz, links Datum + Unterschrift (freier Schreibraum),
+            // rechts der Block für Minderjährige (gesetzlicher Vertreter).
+            col.Item().PaddingTop(8).Text(t =>
             {
-                r.RelativeItem().Element(f => SignatureLine(f, "Ort, Datum"));
-                r.ConstantItem(20);
-                r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
+                t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
+                t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
+                    .FontSize(8.5f).FontColor(Ink);
             });
-            col.Item().PaddingTop(12).Element(e =>
-                SignatureLine(e, "Unterschrift des gesetzlichen Vertreters"));
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
+                {
+                    c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
+                    c.Item().Height(64); // freier Schreibraum
+                });
+                r.ConstantItem(14);
+                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
+                {
+                    c.Item().Text(t =>
+                    {
+                        t.Span("Für Minderjährige").SemiBold().FontSize(8f).FontColor(Ink);
+                        t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
+                            .FontSize(8f).FontColor(Ink);
+                    });
+                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Name"));
+                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Adresse"));
+                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Telefon"));
+                    c.Item().PaddingTop(6).Element(f => LabeledLine(f, "Unterschrift"));
+                });
+            });
 
         });
     }
