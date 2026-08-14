@@ -1133,7 +1133,9 @@ public class ManagerDienstplanController : ControllerBase
             var dt = new DateOnly(year, month, t);
             var we = dt.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
             var mo = dt.DayOfWeek == DayOfWeek.Monday;
-            var cls = (we || mo) ? $" class='{(we ? "dp-we" : "")}{(mo ? " dp-mo" : "")}'" : "";
+            var istHeute = dt == heute;
+            var cls = (we || mo || istHeute)
+                ? $" class='{(we ? "dp-we" : "")}{(mo ? " dp-mo" : "")}{(istHeute ? " dp-today" : "")}'" : "";
             var kw = mo ? System.Globalization.ISOWeek.GetWeekOfYear(dt.ToDateTime(TimeOnly.MinValue)).ToString() : "";
             kwRow.Append($"<th{cls}>{kw}</th>");
             dayRow.Append($"<th{cls}{(dt == heute ? " id='dpToday'" : "")}>{t:00}</th>");
@@ -1162,7 +1164,7 @@ public class ManagerDienstplanController : ControllerBase
                     var mo = dt.DayOfWeek == DayOfWeek.Monday;
                     var ft = ftM.ContainsKey(dt);
                     var sf = sfM.ContainsKey(dt);
-                    var cls = "dp-brday" + (ft ? " dp-brft" : sf ? " dp-brsf" : "") + (mo ? " dp-mo" : "");
+                    var cls = "dp-brday" + (ft ? " dp-brft" : sf ? " dp-brsf" : "") + (mo ? " dp-mo" : "") + (dt == heute ? " dp-today" : "");
                     body.Append($"<td class='{cls}'{(ft ? $" title='{H(ftM[dt])}'" : sf ? $" title='{H(sfM[dt])}'" : "")}>{(ft ? "★" : "")}</td>");
                 }
                 body.Append("<td class='dp-sumfirst'></td><td></td><td></td><td></td><td></td></tr>");
@@ -1195,7 +1197,7 @@ public class ManagerDienstplanController : ControllerBase
             {
                 var dt = new DateOnly(year, month, t);
                 var iso = dt.ToString("yyyy-MM-dd");
-                var moCls = dt.DayOfWeek == DayOfWeek.Monday ? " dp-mo" : "";
+                var moCls = (dt.DayOfWeek == DayOfWeek.Monday ? " dp-mo" : "") + (dt == heute ? " dp-today" : "");
                 var abs = z.Absenzen.FirstOrDefault(a => a.Von <= dt && a.Bis >= dt);
                 if (abs != null)
                 {
@@ -1272,6 +1274,8 @@ public class ManagerDienstplanController : ControllerBase
   .dp-name {{ font-weight:600; }}
   .dp-gf {{ font-weight:800; }}
   .dp-table .dp-mo {{ border-left:2px solid #a39c8f !important; }}
+  .dp-table .dp-today {{ box-shadow: inset 2px 0 0 rgba(239,68,68,0.75), inset -2px 0 0 rgba(239,68,68,0.75); }}
+  .dp-table thead th.dp-today {{ background:#fecaca !important; color:#991b1b; }}
   .dp-table .dp-sum {{ background:#f6f3ee; font-weight:700; color:#3f3f3f; min-width:26px; }}
   .dp-table td.dp-weok {{ color:#166534; font-size:10.5px; }}
   .dp-table td.dp-wenok {{ color:#b91c1c; font-size:10.5px; }}
