@@ -1945,8 +1945,12 @@ async function eawAbsenceSync(dryRun) {
     }
     if (out) out.textContent = dryRun ? 'Vorschau wird geladen…' : 'Absenzen werden übertragen…';
     try {
-        const r = await fetch(`/api/easywork/absence-sync?companyProfileId=${cpId}&von=${von}&dryRun=${dryRun}`, {
-            method: 'POST', headers: ah() });
+        // Abgewählte NEU-Zeilen aus der Vorschau mitgeben (werden übersprungen).
+        const excludeRefs = dryRun ? [] : Array.from(document.querySelectorAll('.eawAbsPick'))
+            .filter(cb => !cb.checked).map(cb => cb.dataset.ref);
+        const inklFerien = document.getElementById('eawAbsFerien')?.checked === true;
+        const r = await fetch(`/api/easywork/absence-sync?companyProfileId=${cpId}&von=${von}&dryRun=${dryRun}&includeFerien=${inklFerien}`, {
+            method: 'POST', headers: ah(), body: JSON.stringify({ excludeRefs }) });
         const j = await r.json();
         if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
         const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -1954,6 +1958,9 @@ async function eawAbsenceSync(dryRun) {
         const fmtD = (iso) => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
         const rows = (j.zeilen || []).map(z => `
             <tr style="border-bottom:1px solid #e2e8f0">
+                <td style="padding:2px 4px">${z.aktion === 'NEU'
+                    ? `<input type="checkbox" class="eawAbsPick" data-ref="${esc(z.ref)}" checked title="Abwählen = diese Zeile NICHT importieren (z.B. Freiwunsch, der in easy als Ferien erfasst ist)">`
+                    : ''}</td>
                 <td style="padding:2px 6px;font-weight:700;color:${farbe[z.aktion] || '#0f172a'}">${esc(z.aktion)}</td>
                 <td style="padding:2px 6px">${esc(z.maName)}</td>
                 <td style="padding:2px 6px">${esc(z.code || '')}<span style="color:#94a3b8"> (${esc(z.easyTyp || '')})</span></td>
@@ -1964,7 +1971,7 @@ async function eawAbsenceSync(dryRun) {
         out.innerHTML = `
             <div style="margin-bottom:6px"><b>${j.dryRun ? 'Vorschau' : 'Übertragen'}:</b>
                 ${j.neu} neu · ${j.geaendert} geändert · ${j.geloescht} gelöscht · ${j.schonErfasst || 0} schon erfasst · <span style="color:${(j.fehler||0)>0?'#991b1b':'inherit'}">${j.fehler || 0} Fehler</span> · ${j.uebersprungen} übersprungen
-                <span style="color:#94a3b8">(ab ${fmtD(j.von)})</span></div>
+                <span style="color:#94a3b8">(ab ${fmtD(j.von)})</span>${j.dryRun ? ' — Häkchen bei NEU-Zeilen entfernen, um sie NICHT zu importieren (z.B. Freiwünsche, die in easy als Ferien erfasst sind).' : ''}</div>
             ${rows ? `<table style="border-collapse:collapse;width:100%">${rows}</table>`
                    : '<span style="color:#64748b">Keine Änderungen — alles aktuell.</span>'}`;
         if (btn) btn.style.display = j.dryRun && (j.neu + j.geaendert + j.geloescht + (j.schonErfasst || 0)) > 0 ? '' : 'none';

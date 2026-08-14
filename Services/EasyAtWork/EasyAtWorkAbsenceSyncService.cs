@@ -70,7 +70,8 @@ public class EasyAtWorkAbsenceSyncService
     /// vonDatum: nur Absenzen, deren ENDE ≥ vonDatum liegt (Vergangenheit
     /// kommt aus dem Mirus-Import).
     /// </summary>
-    public async Task<SyncResult> RunAsync(int companyProfileId, DateOnly vonDatum, bool dryRun, CancellationToken ct)
+    public async Task<SyncResult> RunAsync(int companyProfileId, DateOnly vonDatum, bool dryRun, CancellationToken ct,
+        HashSet<string>? excludeRefs = null, bool includeFerien = false)
     {
         var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
             .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct)
@@ -145,8 +146,13 @@ public class EasyAtWorkAbsenceSyncService
 
         await foreach (var el in FetchPagedAsync($"customers/{customerId}/absences", ct))
             Collect("A", el);
-        await foreach (var el in FetchPagedAsync($"customers/{customerId}/off_times", ct))
-            Collect("O", el);
+        // Ferien (off_times) vorerst DEAKTIVIERT (Walter 14.08.2026): in easy
+        // werden Freiwünsche teils fälschlich als Ferien (vacation=true)
+        // erfasst — erst wenn die Erfassung sauber ist, wird der Schalter
+        // «Ferien importieren» aktiviert.
+        if (includeFerien)
+            await foreach (var el in FetchPagedAsync($"customers/{customerId}/off_times", ct))
+                Collect("O", el);
 
         // Bestehende Sync-Absenzen (ref gesetzt) der betroffenen MA laden.
         var empIds = empByEaw.Values.Select(e => e.Id).ToList();
@@ -277,6 +283,17 @@ public class EasyAtWorkAbsenceSyncService
                 continue;
             }
 
+            // In der Vorschau abgewählte Zeilen (Walter 14.08.2026 — z.B.
+            // Freiwünsche, die in easy fälschlich als Ferien erfasst sind):
+            // NICHT anlegen; bestehende Sync-Absenzen bleiben unberührt.
+            if (excludeRefs != null && excludeRefs.Contains(r))
+            {
+                uebersprungen++;
+                zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
+                    w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent,
+                    "SKIP", "in der Vorschau abgewählt"));
+                continue;
+            }
             neu++;
             var tagesauswahl = BrauchtTagesauswahl(w.Code, w.EmpId, w.Von);
             zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
@@ -309,6 +326,9 @@ public class EasyAtWorkAbsenceSyncService
         //    (nur im Fenster ab vonDatum — ältere Sync-Refs bleiben stehen).
         foreach (var ex in existing)
         {
+            // Ferien-Quelle deaktiviert → bereits importierte O-Refs NICHT
+            // löschen (sie fehlen nur, weil off_times nicht abgerufen wurden).
+            if (!includeFerien && ex.EasyatworkRef!.StartsWith("O")) continue;
             if (wanted.ContainsKey(ex.EasyatworkRef!)) continue;
             if (ex.DateTo < vonDatum) continue;
             if (await IstGesperrtAsync(ex.EmployeeId, ex.DateFrom, ex.DateTo))

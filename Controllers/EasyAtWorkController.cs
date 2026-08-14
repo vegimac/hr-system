@@ -371,6 +371,12 @@ public class EasyAtWorkController : ControllerBase
     /// Details/Mapping siehe EasyAtWorkAbsenceSyncService. vonDatum default
     /// 01.01.2026 (Vergangenheit = Mirus-Import).
     /// </summary>
+    public class AbsenceSyncDto
+    {
+        /// <summary>In der Vorschau abgewählte Refs (z.B. «O341334») — werden nicht neu angelegt.</summary>
+        public List<string>? ExcludeRefs { get; set; }
+    }
+
     [Authorize(Roles = "admin,superuser")]
     [HttpPost("absence-sync")]
     public async Task<IActionResult> AbsenceSync(
@@ -378,12 +384,15 @@ public class EasyAtWorkController : ControllerBase
         [FromQuery] string? von,
         [FromQuery] bool dryRun,
         [FromServices] EasyAtWorkAbsenceSyncService syncService,
-        CancellationToken ct)
+        CancellationToken ct,
+        [FromBody] AbsenceSyncDto? dto = null,
+        [FromQuery] bool includeFerien = false)
     {
         var vonDatum = DateOnly.TryParse(von, out var vd) ? vd : new DateOnly(2026, 1, 1);
         try
         {
-            var r = await syncService.RunAsync(companyProfileId, vonDatum, dryRun, ct);
+            var exclude = dto?.ExcludeRefs is { Count: > 0 } ? dto.ExcludeRefs.ToHashSet() : null;
+            var r = await syncService.RunAsync(companyProfileId, vonDatum, dryRun, ct, exclude, includeFerien);
             return Ok(new
             {
                 dryRun,
