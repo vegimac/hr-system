@@ -222,3 +222,26 @@ public class BranchSchulferien
     public DateOnly Bis { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
+
+/// <summary>
+/// Ferienplaner für FIX-M-Manager (Walter-Vorgabe 14.08.2026): der GF plant
+/// Wunsch-Ferien als Balken (GEPLANT = orange, verschiebbar). «Definitiv
+/// setzen» erzeugt die echte Ferien-Absenz (AbsenceId) — der Balken wird
+/// grün und die Ferien erscheinen automatisch im Manager-Dienstplan.
+/// </summary>
+public class FerienPlanung
+{
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public DateOnly DateFrom { get; set; }
+    public DateOnly DateTo { get; set; }
+    /// <summary>GEPLANT | DEFINITIV</summary>
+    public string Status { get; set; } = "GEPLANT";
+    /// <summary>Beim Definitiv-Setzen erzeugte Ferien-Absenz.</summary>
+    public int? AbsenceId { get; set; }
+    // Walter-Vorgabe 30.06.2026: Lokalzeit — nie UtcNow.
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public string? CreatedBy { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public Employee? Employee { get; set; }
+}

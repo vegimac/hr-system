@@ -11118,3 +11118,14 @@ body.theme-dark .kd-btn-glass { background:rgba(255,255,255,0.10); border-color:
 .zst-pill:hover:not(:has(input:checked)) { background:rgba(255,255,255,0.95); }
 body.theme-dark .zst-pill { background:rgba(255,255,255,0.08); color:var(--dlg-text); border-color:rgba(255,255,255,0.22); }
 body.theme-dark .zst-pill:has(input:checked) { background:#e2e8f0; color:#1a1a1a; border-color:#e2e8f0; }
+
+/* ── Ferienplaner Manager (Walter 14.08.2026) ─────────────────────────── */
+.fpl-cell { height: 22px; min-width: 26px; cursor: default; user-select: none; }
+.fpl-cell[data-planbar="1"] { cursor: pointer; }
+.fpl-plan { background: #fdba74 !important; }          /* in Planung = orange */
+.fpl-fix  { background: #bbf7d0 !important; }          /* definitiv = grün */
+.fpl-plan.fpl-s, .fpl-fix.fpl-s { border-top-left-radius: 9px; border-bottom-left-radius: 9px; }
+.fpl-plan.fpl-e, .fpl-fix.fpl-e { border-top-right-radius: 9px; border-bottom-right-radius: 9px; }
+.fpl-sel { outline: 2px solid #6b7280; outline-offset: -2px; background: rgba(107,114,128,0.22) !important; }
+body.dark-mode .fpl-plan { background: #b45309 !important; }
+body.dark-mode .fpl-fix  { background: #166534 !important; }

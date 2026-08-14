@@ -95,6 +95,7 @@ public class AppDbContext : DbContext
     public DbSet<LseCodeMapping>            LseCodeMappings             => Set<LseCodeMapping>();
     public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
     public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
+    public DbSet<FerienPlanung>             FerienPlanungen             => Set<FerienPlanung>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
@@ -1360,6 +1361,24 @@ public class AppDbContext : DbContext
         });
 
         // ── Manager-Dienstplan (Walter 08.08.2026) ───────────────────────────
+        modelBuilder.Entity<FerienPlanung>(entity =>
+        {
+            entity.ToTable("ferien_planung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.DateFrom).HasColumnName("date_from");
+            entity.Property(e => e.DateTo).HasColumnName("date_to");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.AbsenceId).HasColumnName("absence_id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
         modelBuilder.Entity<ManagerDienstplanEntry>(entity =>
         {
             entity.ToTable("manager_dienstplan");

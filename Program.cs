@@ -2907,6 +2907,25 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS datum_offen boolean NOT NULL DEFAULT false;
     ");
 
+    // ── Ferienplaner (Walter 14.08.2026): GF plant Manager-Ferien als
+    // Balken; «definitiv» erzeugt die Ferien-Absenz (absence_id).
+    // Doku: migrations-archive/add_ferien_planung.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ferien_planung (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            date_from   date NOT NULL,
+            date_to     date NOT NULL,
+            status      text NOT NULL DEFAULT 'GEPLANT',
+            absence_id  integer REFERENCES absence(id) ON DELETE SET NULL,
+            created_at  timestamp without time zone NOT NULL DEFAULT now(),
+            created_by  text,
+            updated_at  timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_ferien_planung_emp
+            ON ferien_planung (employee_id, date_from);
+    ");
+
     // ── Manager-Dienstplan (Walter 08.08.2026, ersetzt Excel «Manager DP»):
     // Plan-Zellen pro FIX-M-MA/Tag + Kürzel-Katalog + Planungsrecht pro
     // User-Filiale. Doku: migrations-archive/add_manager_dienstplan.sql

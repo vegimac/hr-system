@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260813c">
+    <link rel="stylesheet" href="css/app.css?v=20260814a">
 </head>
 <body>
 
@@ -2981,6 +2981,7 @@
                     <div id="dpMonatTitel" style="font-size:15px;font-weight:700;color:#3f3f3f;min-width:150px;text-align:center"></div>
                     <button onclick="dpShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
                     <span style="flex:1"></span>
+                    <button onclick="fplOpenFromDp()" class="liquid-role-el" data-liquid-roles="admin,user" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🏖 Ferienplaner</button>
                     <button onclick="dpOpenSchulferien()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulferien</button>
                     <button onclick="dpOpenFeiertage()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎉 Feiertage</button>
                     <!-- Excel-Einmal-Import: UI entfernt (Walter 09.08.2026, Migration erledigt).
@@ -2990,6 +2991,26 @@
                 </div>
                 <div class="page-body">
                     <div id="dpGrid"></div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ FERIENPLANER MANAGER (Walter 14.08.2026) ═══════════════ -->
+            <div class="page liquid-mask fixhead" id="page-ferien-planer">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Ferienplaner Manager</h1>
+                        <p class="page-sub">Wunsch-Ferien mit der Maus aufziehen (orange = in Planung, per Ziehen verschiebbar). Klick auf den Balken setzt die Ferien definitiv — die Absenz wird erfasst und erscheint im Manager-Dienstplan.</p>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap">
+                    <button onclick="fplShift(-1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">‹</button>
+                    <div id="fplMonatTitel" style="font-size:15px;font-weight:700;color:#3f3f3f;min-width:150px;text-align:center"></div>
+                    <button onclick="fplShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
+                    <span style="flex:1"></span>
+                    <button onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
+                </div>
+                <div class="page-body">
+                    <div id="fplGrid"></div>
                 </div>
             </div>
 
@@ -7786,7 +7807,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260813a"></script>
+<script src="js/app-core.js?v=20260814a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8970,6 +8991,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ahv-anmeldung.js?v=20260806e"></script>
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260812a"></script>
+<script src="js/ferien-planer.js?v=20260814a"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>

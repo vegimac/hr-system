@@ -194,7 +194,8 @@ public class AbsenceHoursRecalcService
     /// <summary>
     /// 1/7 → alle Kalendertage; 1/5 (Default) → nur Mo–Fr.
     /// </summary>
-    private static List<string> BuildDaysForModus(DateOnly from, DateOnly to, string? modus)
+    // public seit 14.08.2026: auch vom FerienPlanungController genutzt.
+    public static List<string> BuildDaysForModus(DateOnly from, DateOnly to, string? modus)
     {
         var all = new List<string>();
         if (to < from) return all;
@@ -212,7 +213,8 @@ public class AbsenceHoursRecalcService
     /// Spiegelt PayrollCalculationEngine.ComputeAbsenzHours + UI-Sonderfälle
     /// (MTP/FLEX Ferien = 0, FLEX ohne UtpAuszahlung = 0, Unbezahlt = 0).
     /// </summary>
-    private static decimal ComputeHours(
+    // public seit 14.08.2026: auch vom FerienPlanungController genutzt.
+    public static decimal ComputeHours(
         string absenceType, string empModel, AbsenzTyp typ,
         CompanyProfile? profile, Employment? emp, int dayCount, decimal prozent)
     {
