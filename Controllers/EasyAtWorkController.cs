@@ -391,6 +391,8 @@ public class EasyAtWorkController : ControllerBase
                 neu = r.Neu,
                 geaendert = r.Geaendert,
                 geloescht = r.Geloescht,
+                schonErfasst = r.SchonErfasst,
+                fehler = r.Fehler,
                 uebersprungen = r.Uebersprungen,
                 zeilen = r.Zeilen,
             });

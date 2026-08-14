@@ -62,7 +62,7 @@ public class EasyAtWorkAbsenceSyncService
         string Von, string Bis, decimal Prozent, string Aktion, string? Hinweis);
 
     public record SyncResult(
-        int Neu, int Geaendert, int Geloescht, int Uebersprungen,
+        int Neu, int Geaendert, int Geloescht, int SchonErfasst, int Fehler, int Uebersprungen,
         List<SyncRow> Zeilen);
 
     /// <summary>
@@ -155,10 +155,10 @@ public class EasyAtWorkAbsenceSyncService
             .ToListAsync(ct);
         var existingByRef = existing.ToDictionary(a => a.EasyatworkRef!, a => a);
 
-        // Manuelle Absenzen für Konflikt-Check (ref NULL).
-        var manuelle = await _db.Absences.AsNoTracking()
+        // Manuelle Absenzen (ref NULL) — TRACKED, damit ein exakter Treffer
+        // beim Commit mit easy@work verknüpft werden kann (Walter 14.08.2026).
+        var manuelle = await _db.Absences
             .Where(a => a.EasyatworkRef == null && empIds.Contains(a.EmployeeId))
-            .Select(a => new { a.EmployeeId, a.AbsenceType, a.DateFrom, a.DateTo })
             .ToListAsync(ct);
 
         var profiles = await _db.CompanyProfiles.AsNoTracking().ToDictionaryAsync(p => p.Id, ct);
@@ -179,7 +179,27 @@ public class EasyAtWorkAbsenceSyncService
             return r.Locked;
         }
 
-        int neu = 0, geaendert = 0, geloescht = 0;
+        int neu = 0, geaendert = 0, geloescht = 0, schonErfasst = 0, fehler = 0;
+        // Vertragsmodell am Stichtag (für die Krank/Unfall-Tagesauswahl-Regel).
+        string Modell(int empId, DateOnly am)
+        {
+            var amDt = am.ToDateTime(TimeOnly.MinValue);
+            return employments
+                .Where(x => x.EmployeeId == empId
+                         && x.ContractStartDate <= amDt
+                         && (x.ContractEndDate == null || x.ContractEndDate >= amDt))
+                .OrderByDescending(x => x.ContractStartDate)
+                .Select(x => x.EmploymentModel)
+                .FirstOrDefault()
+                ?? employments.Where(x => x.EmployeeId == empId && x.IsActive)
+                    .OrderByDescending(x => x.ContractStartDate)
+                    .Select(x => x.EmploymentModel).FirstOrDefault() ?? "";
+        }
+        // Krank/Unfall bei FIX/FIX-M/MTP: Tagesauswahl («hätte gearbeitet»)
+        // muss der Benutzer nach dem Import im Absenzen-Tab eintragen.
+        bool BrauchtTagesauswahl(string code, int empId, DateOnly von)
+            => (code == "KRANK" || code == "UNFALL")
+               && Modell(empId, von) is "FIX" or "FIX-M" or "MTP";
         string Name(int empId) => empByEaw.Values.Where(e => e.Id == empId)
             .Select(e => $"{e.FirstName} {e.LastName}".Trim()).FirstOrDefault() ?? $"MA {empId}";
 
@@ -205,26 +225,47 @@ public class EasyAtWorkAbsenceSyncService
                     "UPDATE", $"vorher {ex.DateFrom:dd.MM.yyyy}–{ex.DateTo:dd.MM.yyyy} {ex.AbsenceType}"));
                 if (!dryRun)
                 {
+                    bool datumNeu = ex.DateFrom != w.Von || ex.DateTo != w.Bis;
                     ex.EmployeeId = w.EmpId;
                     ex.AbsenceType = w.Code;
                     ex.DateFrom = w.Von;
                     ex.DateTo = w.Bis;
                     ex.Prozent = w.Prozent;
                     FillHours(ex, w.Code, profiles, employments, typen);
+                    // Datumsänderung bei Krank/Unfall FIX/FIX-M/MTP: alte
+                    // Tagesauswahl passt nicht mehr → leeren + Hinweis.
+                    if (datumNeu && BrauchtTagesauswahl(w.Code, w.EmpId, w.Von))
+                        ex.WorkedDays = null;
                     ex.UpdatedAt = DateTime.Now;
                 }
                 continue;
             }
 
-            // Konflikt mit manueller/Mirus-Absenz? (pro Tag nur eine Absenz)
+            // Abgleich mit manuellen/Mirus-Absenzen (Walter 14.08.2026):
+            // EXAKT gleich (Typ + Von + Bis) → «schon erfasst», beim Commit
+            // wird die bestehende Absenz mit easy verknüpft (ref setzen) —
+            // künftige Syncs verfolgen dann Änderungen/Löschungen in easy.
+            var exakt = manuelle.FirstOrDefault(m => m.EmployeeId == w.EmpId
+                && m.AbsenceType == w.Code && m.DateFrom == w.Von && m.DateTo == w.Bis);
+            if (exakt != null)
+            {
+                schonErfasst++;
+                zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
+                    w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent,
+                    "SCHON_ERFASST", "bereits erfasst — wird mit easy@work verknüpft"));
+                if (!dryRun) exakt.EasyatworkRef = r;
+                continue;
+            }
+            // Abweichung in Datum ODER Typ → Fehlerprotokoll, NICHT importieren.
             var konflikt = manuelle.FirstOrDefault(m => m.EmployeeId == w.EmpId
                 && m.DateFrom <= w.Bis && m.DateTo >= w.Von);
             if (konflikt != null)
             {
-                uebersprungen++;
+                fehler++;
                 zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
                     w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent,
-                    "KONFLIKT", $"überlappt manuelle Absenz {konflikt.AbsenceType} {konflikt.DateFrom:dd.MM.yyyy}–{konflikt.DateTo:dd.MM.yyyy}"));
+                    "FEHLER", $"Abweichung zu erfasster Absenz {konflikt.AbsenceType} "
+                            + $"{konflikt.DateFrom:dd.MM.yyyy}–{konflikt.DateTo:dd.MM.yyyy} — nicht importiert, bitte manuell klären"));
                 continue;
             }
             if (await IstGesperrtAsync(w.EmpId, w.Von, w.Bis))
@@ -237,8 +278,10 @@ public class EasyAtWorkAbsenceSyncService
             }
 
             neu++;
+            var tagesauswahl = BrauchtTagesauswahl(w.Code, w.EmpId, w.Von);
             zeilen.Add(new SyncRow(r, w.EmpId, Name(w.EmpId), w.EasyTyp, w.Code,
-                w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent, "NEU", null));
+                w.Von.ToString("yyyy-MM-dd"), w.Bis.ToString("yyyy-MM-dd"), w.Prozent, "NEU",
+                tagesauswahl ? "⚠ Arbeitstage («hätte gearbeitet») im Absenzen-Tab eintragen" : null));
             if (!dryRun)
             {
                 var a = new Absence
@@ -249,11 +292,15 @@ public class EasyAtWorkAbsenceSyncService
                     DateTo = w.Bis,
                     Prozent = w.Prozent,
                     EasyatworkRef = r,
-                    Notes = $"easy@work-Sync ({w.EasyTyp})",
+                    Notes = $"easy@work-Sync ({w.EasyTyp})"
+                          + (tagesauswahl ? " · ⚠ Arbeitstage (Tagesauswahl) noch eintragen" : ""),
                     CreatedAt = DateTime.Now,
                     UpdatedAt = DateTime.Now,
                 };
                 FillHours(a, w.Code, profiles, employments, typen);
+                // Krank/Unfall FIX/FIX-M/MTP: Tagesauswahl bewusst LEER lassen —
+                // die Engine nutzt bis zur Pflege den Mo–Fr-Fallback (CLAUDE.md).
+                if (tagesauswahl) a.WorkedDays = null;
                 _db.Absences.Add(a);
             }
         }
@@ -281,7 +328,7 @@ public class EasyAtWorkAbsenceSyncService
 
         if (!dryRun) await _db.SaveChangesAsync(ct);
 
-        return new SyncResult(neu, geaendert, geloescht, uebersprungen,
+        return new SyncResult(neu, geaendert, geloescht, schonErfasst, fehler, uebersprungen,
             zeilen.OrderBy(z => z.MaName, StringComparer.OrdinalIgnoreCase).ThenBy(z => z.Von).ToList());
     }
 

@@ -1950,7 +1950,7 @@ async function eawAbsenceSync(dryRun) {
         const j = await r.json();
         if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
         const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-        const farbe = { NEU: '#166534', UPDATE: '#1e40af', DELETE: '#991b1b', KONFLIKT: '#9a3412', SKIP: '#8b8b8b' };
+        const farbe = { NEU: '#166534', UPDATE: '#1e40af', DELETE: '#991b1b', SCHON_ERFASST: '#0e7490', FEHLER: '#991b1b', KONFLIKT: '#9a3412', SKIP: '#8b8b8b' };
         const fmtD = (iso) => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
         const rows = (j.zeilen || []).map(z => `
             <tr style="border-bottom:1px solid #e2e8f0">
@@ -1963,11 +1963,11 @@ async function eawAbsenceSync(dryRun) {
             </tr>`).join('');
         out.innerHTML = `
             <div style="margin-bottom:6px"><b>${j.dryRun ? 'Vorschau' : 'Übertragen'}:</b>
-                ${j.neu} neu · ${j.geaendert} geändert · ${j.geloescht} gelöscht · ${j.uebersprungen} übersprungen/Konflikt
+                ${j.neu} neu · ${j.geaendert} geändert · ${j.geloescht} gelöscht · ${j.schonErfasst || 0} schon erfasst · <span style="color:${(j.fehler||0)>0?'#991b1b':'inherit'}">${j.fehler || 0} Fehler</span> · ${j.uebersprungen} übersprungen
                 <span style="color:#94a3b8">(ab ${fmtD(j.von)})</span></div>
             ${rows ? `<table style="border-collapse:collapse;width:100%">${rows}</table>`
                    : '<span style="color:#64748b">Keine Änderungen — alles aktuell.</span>'}`;
-        if (btn) btn.style.display = j.dryRun && (j.neu + j.geaendert + j.geloescht) > 0 ? '' : 'none';
+        if (btn) btn.style.display = j.dryRun && (j.neu + j.geaendert + j.geloescht + (j.schonErfasst || 0)) > 0 ? '' : 'none';
         if (!j.dryRun) showToast('Absenzen-Sync abgeschlossen.', 'success');
     } catch (e) {
         if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
