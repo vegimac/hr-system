@@ -241,6 +241,32 @@ public class FerienPlanungController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Verschmilzt den neuen Bereich mit angrenzenden (±1 Tag) oder
+    /// überlappenden GEPLANT-Balken desselben MA zu EINEM Balken — die
+    /// geschluckten Einträge werden entfernt (Walter 14.08.2026).
+    /// DEFINITIV-Balken mit Absenz bleiben unangetastet.
+    /// </summary>
+    private async Task<(DateOnly from, DateOnly to)> MergeGeplantAsync(
+        int employeeId, DateOnly from, DateOnly to, int? excludeId)
+    {
+        var nearFrom = from.AddDays(-1);
+        var nearTo   = to.AddDays(1);
+        var others = await _db.FerienPlanungen
+            .Where(p => p.EmployeeId == employeeId
+                     && (p.Status == "GEPLANT" || p.AbsenceId == null)
+                     && p.DateFrom <= nearTo && p.DateTo >= nearFrom)
+            .ToListAsync();
+        foreach (var o in others)
+        {
+            if (excludeId is int xid && o.Id == xid) continue;
+            if (o.DateFrom < from) from = o.DateFrom;
+            if (o.DateTo > to)     to = o.DateTo;
+            _db.FerienPlanungen.Remove(o);
+        }
+        return (from, to);
+    }
+
     // ── POST /api/ferien-planung ─────────────────────────────────────────
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] PlanungDto dto)
@@ -252,8 +278,12 @@ public class FerienPlanungController : ControllerBase
 
         var recht = await CheckPlanbarAsync(dto.EmployeeId);
         if (recht != null) return recht;
-        var overlap = await CheckPlanOverlapAsync(dto.EmployeeId, from, to);
-        if (overlap != null) return overlap;
+        if (to < from)
+            return BadRequest(new { error = "INVALID_RANGE", message = "Datum bis darf nicht vor Datum von liegen." });
+        // Angrenzende/überlappende GEPLANT-Balken automatisch zu EINEM
+        // Balken verschmelzen (Walter 14.08.2026 — Einzeltage werden so
+        // beim Weiterplanen aufgeräumt).
+        (from, to) = await MergeGeplantAsync(dto.EmployeeId, from, to, excludeId: null);
 
         var (_, _, actor) = await GetPlanRechteAsync();
         var p = new FerienPlanung
@@ -284,8 +314,9 @@ public class FerienPlanungController : ControllerBase
 
         var recht = await CheckPlanbarAsync(p.EmployeeId);
         if (recht != null) return recht;
-        var overlap = await CheckPlanOverlapAsync(p.EmployeeId, from, to, excludeId: id);
-        if (overlap != null) return overlap;
+        if (to < from)
+            return BadRequest(new { error = "INVALID_RANGE", message = "Datum bis darf nicht vor Datum von liegen." });
+        (from, to) = await MergeGeplantAsync(p.EmployeeId, from, to, excludeId: id);
 
         p.DateFrom  = from;
         p.DateTo    = to;

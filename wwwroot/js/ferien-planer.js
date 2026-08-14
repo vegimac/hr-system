@@ -10,6 +10,7 @@
 // ══════════════════════════════════════════════════════════════════════
 let _fplYear = null, _fplMonth = null, _fplData = null;
 let _fplDrag = null;   // {mode:'new'|'move', empId, startIso, curIso, plan?, moved}
+let _fplPending = null; // Klick-Klick-Planung: {empId, startIso} nach dem 1. Klick
 
 function fplInit() {
     if (_fplYear == null) {
@@ -25,6 +26,7 @@ function fplInit() {
 }
 
 function fplShift(delta) {
+    _fplPending = null;
     _fplMonth += delta;
     if (_fplMonth < 1)  { _fplMonth = 12; _fplYear--; }
     if (_fplMonth > 12) { _fplMonth = 1;  _fplYear++; }
@@ -134,7 +136,7 @@ function fplRender() {
                 tip = `In Planung ${_fplFmtD(pl.von)}–${_fplFmtD(pl.bis)}${z.planbar ? ' — Klick: definitiv setzen / löschen, Ziehen: verschieben' : ''}`;
                 attrs = ` data-plan="${pl.id}"`;
             } else if (z.planbar) {
-                tip = 'Ziehen, um Ferien zu planen';
+                tip = 'Ferien planen: über die Tage ziehen — oder Starttag anklicken, dann Endtag anklicken';
             }
             row += `<td class="${cls}"${attrs} data-emp="${z.employeeId}" data-iso="${iso}" data-planbar="${z.planbar ? 1 : 0}" id="fpl-${z.employeeId}-${iso}" title="${esc(tip)}"></td>`;
         }
@@ -242,6 +244,22 @@ async function _fplMouseUp() {
     if (!drag) return;
 
     if (drag.mode === 'new') {
+        // Klick ohne Ziehen: Klick-Klick-Planung (Walter 14.08.2026) —
+        // 1. Klick = Starttag (markiert), 2. Klick = Endtag → Balken.
+        // Gleicher Tag zweimal = 1 Ferientag. Ziehen geht weiterhin.
+        if (!drag.moved) {
+            if (_fplPending && _fplPending.empId === drag.empId) {
+                const [von, bis] = [_fplPending.startIso, drag.startIso].sort();
+                _fplPending = null;
+                await _fplApi('POST', '/api/ferien-planung', { employeeId: drag.empId, dateFrom: von, dateTo: bis });
+            } else {
+                _fplPending = { empId: drag.empId, startIso: drag.startIso };
+                document.getElementById(`fpl-${drag.empId}-${drag.startIso}`)?.classList.add('fpl-sel');
+                showToast(`Starttag ${_fplFmtD(drag.startIso)} gesetzt — jetzt den Endtag anklicken (gleicher Tag nochmals = 1 Tag).`, 'info');
+            }
+            return;
+        }
+        _fplPending = null;
         const [von, bis] = [drag.startIso, drag.curIso].sort();
         await _fplApi('POST', '/api/ferien-planung', { employeeId: drag.empId, dateFrom: von, dateTo: bis });
         return;
