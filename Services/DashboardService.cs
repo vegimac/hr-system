@@ -1710,7 +1710,26 @@ public class DashboardService
                         EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
                     });
                 }
-                CheckSchulung("schulung_peak", "Peak-Verifizierung", mg.SchulungPeakAm, pkMonate);
+                // Leeres Datum = ebenfalls warnen (Walter 14.08.2026):
+                // ohne Schulungsdatum keine Kontrolle möglich → kritisch.
+                if (mg.SchulungPeakAm is null)
+                {
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "schulung_peak",
+                        Severity = Severity("schulung_peak", 0, "warning", "critical"),
+                        Title    = "Schulung Peak-Verifizierung fehlt",
+                        Subtitle = $"{mg.FirstName} {mg.LastName} · Personalnr. {mg.EmployeeNumber} · "
+                                 + "kein Schulungsdatum erfasst — in der Liste «Manager Schulung» (HR → Kontrolle) nachtragen",
+                        EmployeeId     = mg.Id,
+                        EmployeeNumber = mg.EmployeeNumber,
+                        EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
+                    });
+                }
+                else
+                {
+                    CheckSchulung("schulung_peak", "Peak-Verifizierung", mg.SchulungPeakAm, pkMonate);
+                }
             }
         }
 
