@@ -134,7 +134,12 @@ public class MaEmailController : ControllerBase
                 ohneEmail.Add(new { e.Id, name });
                 continue;
             }
-            var ok = await _email.SendAsync(e.Email.Trim(), name, dto.Betreff.Trim(), html, text);
+            // bypassTestRedirect (Walter 14.08.2026): die Gruppen-E-Mail geht
+            // IMMER an die echten MA-Adressen — die globale Test-Umleitung
+            // gilt hier nicht (der GF wählt die Empfänger ja bewusst und
+            // bestätigt den Versand mit Rückfrage).
+            var ok = await _email.SendAsync(e.Email.Trim(), name, dto.Betreff.Trim(), html, text,
+                bypassTestRedirect: true);
             if (ok) gesendet.Add(new { e.Id, name, email = e.Email.Trim() });
             else fehlgeschlagen.Add(new { e.Id, name, email = e.Email.Trim() });
         }
