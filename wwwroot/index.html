@@ -2046,17 +2046,21 @@
                         </ul>
                     </div>
 
-                    <div class="hr-card hr-plan">
+                    <!-- Walter 14.08.2026: Karte geöffnet — erste Funktion ist die
+                         Gruppen-E-Mail (Filiale × Vertragsmodell). Lohnbeleg-Versand
+                         bleibt bewusst geschlossen; Rest der Liste = Planung. -->
+                    <div class="hr-card" style="opacity:1;cursor:pointer" onclick="showPage('ma-email')">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#ece9e2;color:#6b6152">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.maCorrespondence">Mitarbeiter-Korrespondenz</div>
-                                <div class="hr-card-status" data-i18n="hr.status.planned">In Planung</div>
+                                <div class="hr-card-status" style="color:#15803d">✓ Gruppen-E-Mail aktiv — Rest in Planung</div>
                             </div>
                         </div>
                         <ul>
+                            <li><b>Gruppen-E-Mail</b> — Filiale × Vertragsmodell, mit Empfänger-Vorschau <span style="color:#15803d">✓</span></li>
                             <li>Begrüssungsbrief / Welcome</li>
                             <li>Probezeit: Bestätigung / Verlängerung / Auflösung</li>
                             <li>Mitarbeitergespräch / Qualifikation</li>
@@ -3031,6 +3035,51 @@
                 </div>
                 <div class="page-body">
                     <div id="msBody"></div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ GRUPPEN-E-MAIL AN MA (Walter 14.08.2026) ═══════════════ -->
+            <div class="page liquid-mask fixhead" id="page-ma-email">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Gruppen-E-Mail an Mitarbeitende</h1>
+                        <p class="page-sub">Empfänger nach Filiale und Vertragsmodell wählen, Empfängerliste prüfen (einzelne abwählbar), dann senden. Jede Person erhält eine eigene E-Mail — Adressen bleiben privat. Der Versand von Lohnbelegen bleibt geschlossen.</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div class="card" style="padding:14px 16px;margin-bottom:12px">
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:4px">Filiale
+                                <select id="meBranch" class="ma-select" style="min-width:220px;margin:0"></select></label>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <span style="font-size:11px;color:#8b8b8b">Vertragsmodell
+                                    <button type="button" onclick="meAlleModelle(true)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">alle</button>
+                                    <button type="button" onclick="meAlleModelle(false)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">keine</button></span>
+                                <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#3f3f3f">
+                                    <label><input type="checkbox" id="meMod-FLEX" checked> FLEX</label>
+                                    <label><input type="checkbox" id="meMod-MTP" checked> MTP</label>
+                                    <label><input type="checkbox" id="meMod-FIX" checked> FIX</label>
+                                    <label><input type="checkbox" id="meMod-FIX-M" checked> FIX-M (Management)</label>
+                                </div>
+                            </div>
+                            <button onclick="meLadeEmpfaenger()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Empfänger laden</button>
+                        </div>
+                    </div>
+                    <div id="meListe" style="margin-bottom:12px"></div>
+                    <div class="card" style="padding:14px 16px">
+                        <div class="ma-field" style="margin-bottom:10px">
+                            <div class="ma-field-label">Betreff</div>
+                            <input type="text" id="meBetreff" class="ma-input" placeholder="z.B. Manager-Dienstplan — neuer Handy-Link">
+                        </div>
+                        <div class="ma-field">
+                            <div class="ma-field-label">Nachricht</div>
+                            <textarea id="meText" class="ma-textarea" rows="8" placeholder="Nachrichtentext… (Links einfach einfügen, z.B. der Dienstplan-Handy-Link aus dem QR-Fenster)"></textarea>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
+                            <button onclick="meSenden()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13.5px;font-weight:700;cursor:pointer">📧 E-Mail senden</button>
+                            <span id="meSendInfo" style="font-size:12.5px"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -9034,6 +9083,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260814d"></script>
+<script src="js/ma-email.js?v=20260814a"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>

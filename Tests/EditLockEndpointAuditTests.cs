@@ -45,6 +45,7 @@ public class EditLockEndpointAuditTests
         ["UserBranchController"]           = "User↔Filial-Zuordnung — keine Lohndaten",
         ["AdminSmtpController"]            = "SMTP-Konfiguration — keine Lohndaten",
         ["ManagerSchulungenController"]    = "Manager-Schulungen (Nothelfer/Peak/Seco) + eID/SSO — Katalog/Stammdaten, kein Lohn",
+        ["MaEmailController"]              = "Gruppen-E-Mail an MA — reiner Mail-Versand, keine Lohndaten",
         ["EcallController"]                = "eCall-SMS-Konfig + Test-Versand — keine Lohndaten",
         ["DvelopApiController"]            = "d.velop-API-Konfig + Read-only-Probe — keine Lohndaten",
         ["AppSettingsController"]          = "Globale App-Einstellung (Stempelzeiten-Aufbewahrung) — keine Lohndaten",
