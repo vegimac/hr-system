@@ -220,11 +220,25 @@ public class DocumentsController : ControllerBase
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
         foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");
 
+        // Wer hat abgelegt (Walter 14.08.2026): User-ID → Klarname auflösen.
+        var uploaderIds = docs.Where(d => d.HochgeladenVon.HasValue)
+            .Select(d => d.HochgeladenVon!.Value).Distinct().ToList();
+        var uploaderMap = (await _db.AppUsers.AsNoTracking()
+                .Where(u => uploaderIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username })
+                .ToListAsync())
+            .ToDictionary(u => u.Id, u =>
+            {
+                var voll = $"{u.FirstName} {u.LastName}".Trim();
+                return string.IsNullOrWhiteSpace(voll) ? u.Username : voll;
+            });
+
         var result = docs.Select(d => new {
             d.Id, d.EmployeeId, d.dokumentTypId, d.dokumentTypName, d.kategorieId, d.kategorieName,
             d.FilenameOriginal, d.MimeType, d.GroesseBytes, d.Bemerkung, d.GueltigVon, d.GueltigBis,
             d.HochgeladenAm, d.HochgeladenVon, d.ErstelltAm, d.GeaendertAm, d.DateiGeaendertAm,
             d.ZugriffAm, d.GeaendertVon, d.ZugriffVon, d.DvelopDokumentId,
+            hochgeladenVonName = d.HochgeladenVon.HasValue && uploaderMap.TryGetValue(d.HochgeladenVon.Value, out var un) ? un : null,
             linked   = linkedMap.ContainsKey(d.Id),
             linkedAs = linkedMap.TryGetValue(d.Id, out var lbls) ? lbls : null
         });

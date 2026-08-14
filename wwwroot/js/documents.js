@@ -1434,6 +1434,12 @@ function openDokEditModal(id) {
           <div>
             <div class="ma-modal-title">Dokument bearbeiten</div>
             <div class="ma-modal-sub" style="font-style:italic;word-break:break-all">${doc.filenameOriginal}</div>
+            <div class="ma-modal-sub" style="font-size:11px;color:#8b8b8b">${(() => {
+                if (!doc.hochgeladenAm) return '';
+                const d2 = new Date(doc.hochgeladenAm);
+                const wann = d2.toLocaleDateString('de-CH') + ', ' + d2.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+                return 'Abgelegt' + (doc.hochgeladenVonName ? ' von ' + doc.hochgeladenVonName : '') + ' am ' + wann;
+            })()}</div>
           </div>
           <button class="ma-modal-close" onclick="closeDokEditModal()">✕</button>
         </div>
