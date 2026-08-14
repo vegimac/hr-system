@@ -67,17 +67,19 @@ function msRender() {
             rows += `<tr><td colspan="8" style="background:#3f3f3f;color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:0">${esc(z.filiale || '')}</td></tr>`;
         }
         const name = `${z.vorname} ${z.nachname}`.trim();
+        // Alles auf EINER Zeile (Walter 14.08.2026): schmales Datumsfeld,
+        // «gültig bis»-Badge unmittelbar daneben.
         const dcell = (feld, cell) => `
-            <td style="padding:4px 8px;white-space:nowrap">
-                <input type="date" value="${cell?.am || ''}" onchange="msSaveRow(${z.employeeId})" id="ms-${feld}-${z.employeeId}" style="${inp};width:130px">
-                <div style="margin-top:2px">${_msBadge(cell)}</div>
+            <td style="padding:3px 6px;white-space:nowrap">
+                <input type="date" value="${cell?.am || ''}" onchange="msSaveRow(${z.employeeId})" id="ms-${feld}-${z.employeeId}" style="${inp};width:112px;padding:4px 5px">
+                <span style="margin-left:4px;vertical-align:middle">${_msBadge(cell)}</span>
             </td>`;
         rows += `
             <tr style="border-bottom:1px solid rgba(60,55,48,0.1)">
-                <td style="padding:4px 10px;font-weight:600;color:#3f3f3f;white-space:nowrap">${esc(name)}${z.istGf ? ' ★' : ''}</td>
-                <td style="padding:4px 8px;color:#8b8b8b;font-size:11.5px">${esc(z.employeeNumber || '')}</td>
-                <td style="padding:4px 8px"><input type="text" value="${esc(z.eid)}" placeholder="eID" onchange="msSaveRow(${z.employeeId})" id="ms-eid-${z.employeeId}" style="${inp};width:100px"></td>
-                <td style="padding:4px 8px"><input type="text" value="${esc(z.sso)}" placeholder="CH-OO-…" onchange="msSaveRow(${z.employeeId})" id="ms-sso-${z.employeeId}" style="${inp};width:180px"></td>
+                <td style="padding:3px 8px;font-weight:600;color:#3f3f3f;white-space:nowrap">${esc(name)}${z.istGf ? ' ★' : ''}</td>
+                <td style="padding:3px 6px;color:#8b8b8b;font-size:11.5px">${esc(z.employeeNumber || '')}</td>
+                <td style="padding:3px 3px 3px 6px"><input type="text" value="${esc(z.eid)}" placeholder="eID" onchange="msSaveRow(${z.employeeId})" id="ms-eid-${z.employeeId}" style="${inp};width:82px;padding:4px 6px"></td>
+                <td style="padding:3px 6px 3px 3px"><input type="text" value="${esc(z.sso)}" placeholder="CH-OO-…" onchange="msSaveRow(${z.employeeId})" id="ms-sso-${z.employeeId}" style="${inp};width:158px;padding:4px 6px"></td>
                 ${dcell('nh', z.nothelfer)}
                 ${dcell('pk', z.peak)}
                 ${dcell('se', z.seco)}
