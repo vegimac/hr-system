@@ -2926,6 +2926,25 @@ using (var scope = app.Services.CreateScope())
             ON ferien_planung (employee_id, date_from);
     ");
 
+    // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
+    // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
+    // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+            ADD COLUMN IF NOT EXISTS eid text,
+            ADD COLUMN IF NOT EXISTS sso text,
+            ADD COLUMN IF NOT EXISTS schulung_nothelfer_am date,
+            ADD COLUMN IF NOT EXISTS schulung_peak_am date,
+            ADD COLUMN IF NOT EXISTS schulung_seco_am date;
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('schulung_nothelfer', 'Schulung Nothelfer läuft ab',          TRUE, 60, 14, 'warning', 'critical', TRUE, 24, 60, 'red_overdue'),
+            ('schulung_peak',      'Schulung Peak-Verifizierung läuft ab', TRUE, 60, 14, 'warning', 'critical', TRUE, 25, 61, 'red_overdue'),
+            ('schulung_seco',      'Schulung Seco läuft ab',               TRUE, 60, 14, 'warning', 'critical', TRUE, 26, 62, 'red_overdue')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // ── Manager-Dienstplan (Walter 08.08.2026, ersetzt Excel «Manager DP»):
     // Plan-Zellen pro FIX-M-MA/Tag + Kürzel-Katalog + Planungsrecht pro
     // User-Filiale. Doku: migrations-archive/add_manager_dienstplan.sql

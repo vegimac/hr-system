@@ -170,6 +170,11 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CAusweisDokumentId).HasColumnName("c_ausweis_dokument_id");
             entity.Property(e => e.NightWorkExamValidUntil).HasColumnName("night_work_exam_valid_until").HasColumnType("date");
             entity.Property(e => e.NightWorkExamIssued).HasColumnName("night_work_exam_issued").HasColumnType("date");
+            entity.Property(e => e.Eid).HasColumnName("eid");
+            entity.Property(e => e.Sso).HasColumnName("sso");
+            entity.Property(e => e.SchulungNothelferAm).HasColumnName("schulung_nothelfer_am").HasColumnType("date");
+            entity.Property(e => e.SchulungPeakAm).HasColumnName("schulung_peak_am").HasColumnType("date");
+            entity.Property(e => e.SchulungSecoAm).HasColumnName("schulung_seco_am").HasColumnType("date");
             entity.Property(e => e.NightWorkExamEasyMismatch).HasColumnName("night_work_exam_easy_mismatch").HasDefaultValue(false);
             entity.Property(e => e.NightWorkExamDokumentId).HasColumnName("night_work_exam_dokument_id");
             entity.Property(e => e.NightWorkAusnahmeDokumentId).HasColumnName("night_work_ausnahme_dokument_id");

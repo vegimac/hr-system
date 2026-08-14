@@ -1656,6 +1656,66 @@ public class DashboardService
             }
         }
 
+        // ── Manager-Schulungen (Walter-Vorgabe 14.08.2026) ──────────────
+        // Nothelfer / Peak-Verifizierung / Seco laufen ab: Ablauf =
+        // Schulungsdatum + Gültigkeit (Monate, app_setting via
+        // SchulungConfig). Nur FIX-M-Manager mit aktivem Vertrag; fehlende
+        // Daten meldet die Schulungs-Übersicht, nicht das Dashboard.
+        if (Enabled("schulung_nothelfer") || Enabled("schulung_peak") || Enabled("schulung_seco"))
+        {
+            var schulSettings = await _db.AppSettings.AsNoTracking()
+                .Where(s => s.Key.StartsWith("Schulung."))
+                .ToDictionaryAsync(s => s.Key, s => s.Value);
+            int Monate(string key, int fallback) =>
+                SchulungConfig.ParseMonate(schulSettings.TryGetValue(key, out var v) ? v : null, fallback);
+            var nhMonate = Monate(SchulungConfig.KeyNothelfer, SchulungConfig.DefaultNothelfer);
+            var pkMonate = Monate(SchulungConfig.KeyPeak, SchulungConfig.DefaultPeak);
+            var seMonate = Monate(SchulungConfig.KeySeco, SchulungConfig.DefaultSeco);
+
+            var mgrs = await _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsPayrollExcluded
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                         && e.Employments.Any(em => em.IsActive
+                              && em.EmploymentModel == "FIX-M"
+                              && (companyProfileId == null || em.CompanyProfileId == companyProfileId)))
+                .Select(e => new
+                {
+                    e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
+                    e.SchulungNothelferAm, e.SchulungPeakAm, e.SchulungSecoAm,
+                })
+                .ToListAsync();
+
+            foreach (var mg in mgrs)
+            {
+                void CheckSchulung(string cat, string schulungName, DateTime? am, int monate)
+                {
+                    if (!Enabled(cat) || am is null) return;
+                    var bis = DateOnly.FromDateTime(am.Value).AddMonths(monate);
+                    int tage = bis.DayNumber - today.DayNumber;
+                    if (tage > WarnDays(cat, 60)) return;
+                    string phrase = tage < 0 ? $"seit {-tage} Tag(en) abgelaufen"
+                                  : tage == 0 ? "läuft heute ab"
+                                  : $"läuft in {tage} Tag(en) ab";
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = cat,
+                        Severity = Severity(cat, tage, "warning", "critical"),
+                        Title    = $"Schulung {schulungName} {phrase}",
+                        Subtitle = $"{mg.FirstName} {mg.LastName} · Personalnr. {mg.EmployeeNumber} · "
+                                 + $"{schulungName} vom {am:dd.MM.yyyy}, gültig bis {bis:dd.MM.yyyy}",
+                        DueDate  = bis.ToDateTime(TimeOnly.MinValue),
+                        DaysUntil = tage,
+                        EmployeeId     = mg.Id,
+                        EmployeeNumber = mg.EmployeeNumber,
+                        EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
+                    });
+                }
+                CheckSchulung("schulung_nothelfer", "Nothelfer", mg.SchulungNothelferAm, nhMonate);
+                CheckSchulung("schulung_peak", "Peak-Verifizierung", mg.SchulungPeakAm, pkMonate);
+                CheckSchulung("schulung_seco", "Seco", mg.SchulungSecoAm, seMonate);
+            }
+        }
+
         // ── Globale Austritts-Bedingung (Walter-Vorgabe 21.06.2026) ──
         // Dieselbe Regel wie bei der Nachtarbeit-Untersuchung auf ALLE
         // MA-bezogenen Warnungen anwenden: MA, deren Austritt ≤ heute + 30 Tage

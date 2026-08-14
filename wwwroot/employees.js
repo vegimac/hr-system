@@ -1400,6 +1400,11 @@ function loadUebersichtTab() {
                         : '<span class="ov-empty">–</span>')}</div>
             </div>
 
+            <div class="ov-pf"><div class="ov-pfl" title="Externe Mitarbeiter-ID (eID)">eID</div>
+            <input id="ov-eid" class="ov-softin" type="text" value="${esc(emp.eid)}" placeholder="z.B. e9727221" oninput="ovDirty()"></div>
+            <div class="ov-pf"><div class="ov-pfl" title="SSO-Kennung">SSO</div>
+            <input id="ov-sso" class="ov-softin" type="text" value="${esc(emp.sso)}" placeholder="z.B. CH-OO-…" oninput="ovDirty()"></div>
+
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
             <input id="ov-letterSalutation" class="ov-softin" type="text" value="${esc(emp.letterSalutation)}" oninput="ovDirty()"></div>
             <div class="ov-pf" title="Kommt aus easy@work (Nickname) — hier nicht editierbar">
@@ -5635,6 +5640,9 @@ async function saveEmpEdit() {
         // ZEMIS: Backend-Konvention — null = «nicht ändern», '' = «löschen».
         // Feld gerendert → Wert (oder '' zum Löschen) senden; sonst null.
         zemisNumber:  zemisEl ? (zemisEl.value || '').trim() : null,
+        // eID / SSO (Walter 14.08.2026) — gleiche Konvention wie ZEMIS.
+        eid:          formEl(null, 'ov-eid') ? (formVal(null, 'ov-eid') || '').trim() : null,
+        sso:          formEl(null, 'ov-sso') ? (formVal(null, 'ov-sso') || '').trim() : null,
         entryDate:    easyWorkLocked ? (toDateInput(emp.entryDate) || null) : (document.getElementById('ef-entry')?.value || null),
         exitDateSet:  true,
         exitDate:     exitVal || null,

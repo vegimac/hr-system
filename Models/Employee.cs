@@ -132,6 +132,18 @@ public class Employee
     /// </summary>
     public DateTime? NightWorkExamIssued { get; set; }
 
+    // ── eID / SSO + Manager-Schulungen (Walter-Vorgabe 14.08.2026) ──────
+    /// <summary>eID — externe Mitarbeiter-ID (alle MA, aus Nothelfer-Excel «ID»).</summary>
+    public string? Eid { get; set; }
+    /// <summary>SSO-Kennung (alle MA, z.B. «CH-OO-IRandjelovic»).</summary>
+    public string? Sso { get; set; }
+    /// <summary>Schulungsdatum Nothelfer (Manager) — Gültigkeit via app_setting Schulung.NothelferMonate.</summary>
+    public DateTime? SchulungNothelferAm { get; set; }
+    /// <summary>Schulungsdatum Peak-Verifizierung (Manager).</summary>
+    public DateTime? SchulungPeakAm { get; set; }
+    /// <summary>Schulungsdatum Seco (Manager).</summary>
+    public DateTime? SchulungSecoAm { get; set; }
+
     /// <summary>
     /// true = easy@work-«to» fehlt oder entspricht keiner UTC-Lesart dem Soll-Ende
     /// (Walter 26.07.2026). OneCrew speichert trotzdem das korrekte gerechnete Ende;

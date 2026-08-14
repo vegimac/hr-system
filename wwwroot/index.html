@@ -2982,6 +2982,7 @@
                     <button onclick="dpShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
                     <span style="flex:1"></span>
                     <button onclick="fplOpenFromDp()" class="liquid-role-el" data-liquid-roles="admin,user" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🏖 Ferienplaner</button>
+                    <button onclick="showPage('manager-schulungen')" class="liquid-role-el" data-liquid-roles="admin,superuser" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulungen</button>
                     <button onclick="dpOpenSchulferien()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulferien</button>
                     <button onclick="dpOpenFeiertage()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎉 Feiertage</button>
                     <!-- Excel-Einmal-Import: UI entfernt (Walter 09.08.2026, Migration erledigt).
@@ -3011,6 +3012,23 @@
                 </div>
                 <div class="page-body">
                     <div id="fplGrid"></div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ MANAGER-SCHULUNGEN (Walter 14.08.2026) ═══════════════ -->
+            <div class="page liquid-mask fixhead" id="page-manager-schulungen">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Manager-Schulungen</h1>
+                        <p class="page-sub">Nothelfer, Peak-Verifizierung und Seco pro Manager — mit Gültigkeitsdauer und Ablauf-Warnungen im Dashboard. eID + SSO aller Mitarbeitenden werden im Personal-Tab gepflegt.</p>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap">
+                    <span style="flex:1"></span>
+                    <button onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
+                </div>
+                <div class="page-body">
+                    <div id="msBody"></div>
                 </div>
             </div>
 
@@ -8169,7 +8187,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260813d"></script>
+<script src="employees.js?v=20260814a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -8992,6 +9010,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260812a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
+<script src="js/manager-schulungen.js?v=20260814a"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>

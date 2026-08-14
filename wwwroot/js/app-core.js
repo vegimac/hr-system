@@ -1009,6 +1009,7 @@ function showPage(name) {
     if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
     if (name === 'manager-dienstplan' && typeof dpInit === 'function') dpInit();
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
+    if (name === 'manager-schulungen' && typeof msInit === 'function') msInit();
     if (name === 'hr-hub' && typeof hrKandBadge === 'function') hrKandBadge();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();

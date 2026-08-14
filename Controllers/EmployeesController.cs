@@ -433,6 +433,8 @@ public class EmployeesController : ControllerBase
             currentPermitDokumentId   = currentPermitDokumentId,
             currentPermitDokumentName = currentPermitDokumentName,
             zemisNumber = employee.ZemisNumber,
+            eid = employee.Eid,
+            sso = employee.Sso,
             employee.QuellensteuerBefreitAb,
             // QST-Befreiung durch Steuerbehörde (Walter 26.05.2026)
             employee.QstBefreitDurchBehoerde,
@@ -604,6 +606,8 @@ public class EmployeesController : ControllerBase
         // Datum lebt nur noch auf EmployeePermitHistory.ValidTo. Frontend kann
         // das Feld noch senden, wird aber nicht mehr verarbeitet.
         if (dto.ZemisNumber is not null)   employee.ZemisNumber      = dto.ZemisNumber == "" ? null : dto.ZemisNumber;
+        if (dto.Eid is not null)           employee.Eid              = dto.Eid == "" ? null : dto.Eid.Trim();
+        if (dto.Sso is not null)           employee.Sso              = dto.Sso == "" ? null : dto.Sso.Trim();
         if (dto.QuellensteuerBefreitAbSet) employee.QuellensteuerBefreitAb = dto.QuellensteuerBefreitAb;
 
         // ── Ein-/Austritt ─────────────────────────────────────────────────
@@ -1688,6 +1692,9 @@ public class EmployeeUpdateDto
     // älteren Frontends), wird aber im Update-Pfad IGNORIERT (Walter 01.06.2026).
     public DateTime? PermitExpiryDate { get; set; }
     public string?   ZemisNumber      { get; set; }
+    /// <summary>eID / SSO (Walter 14.08.2026) — null = nicht ändern, "" = löschen.</summary>
+    public string?   Eid              { get; set; }
+    public string?   Sso              { get; set; }
 
     /// <summary>Wenn true, wird QuellensteuerBefreitAb gesetzt (auch wenn null → Befreiung aufheben).</summary>
     public bool      QuellensteuerBefreitAbSet { get; set; } = false;
