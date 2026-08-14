@@ -290,12 +290,14 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
-    /// Absenzen-Probe (Walter 09.08.2026): easy@work publiziert keine API-Doku —
-    /// dieser read-only Probe-Lauf testet die plausiblen Absenz-Endpunkte
-    /// (Laravel-Konventionen, analog zu den bestätigten availabilities) auf
-    /// Customer- und MA-Ebene durch und liefert Status + Roh-JSON pro Pfad.
-    /// 404 = Endpunkt existiert nicht, 200 mit Daten = Treffer → auf dieser
-    /// Basis bauen wir dann den echten Absenz-Sync. Es wird NICHTS geschrieben.
+    /// Absenzen-Probe (Walter 09.08.2026; Pfade am 14.08.2026 vom
+    /// easy@work-Support BESTÄTIGT): read-only Dump der Absenz-Quellen —
+    /// absence_types (Katalog), absences («unforeseen»: Krankheit etc.) und
+    /// off_times («planned»: Ferien/Freizeit; vacation=true = Ferien) auf
+    /// Customer- und MA-Ebene. Datums-Semantik laut Support: `dates` = UTC,
+    /// `business_dates` = lokales DATUM mit 00:00:00 (Zeitanteil verwerfen);
+    /// die Antwort nennt die Zuordnung in `_dates[]`/`_business_dates[]`.
+    /// Auf dieser Basis bauen wir den Absenz-Sync. Es wird NICHTS geschrieben.
     /// </summary>
     [HttpGet("debug/absence-probe")]
     public async Task<IActionResult> AbsenceProbe(
@@ -321,21 +323,18 @@ public class EasyAtWorkController : ControllerBase
             catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
         }
 
+        // Bestätigte Endpunkte (easy@work-Support 14.08.2026). Die früher
+        // geratenen Pfade (vacations/leaves/leave_requests/holidays) sind raus.
         var pfade = new List<string>
         {
-            $"customers/{customerId}/absences?per_page=5",
-            $"customers/{customerId}/absence_types?per_page=50",
-            $"customers/{customerId}/absencetypes?per_page=50",
-            $"customers/{customerId}/vacations?per_page=5",
-            $"customers/{customerId}/leaves?per_page=5",
-            $"customers/{customerId}/leave_requests?per_page=5",
-            $"customers/{customerId}/holidays?per_page=5",
+            $"customers/{customerId}/absence_types?per_page=100",
+            $"customers/{customerId}/absences?per_page=10",
+            $"customers/{customerId}/off_times?per_page=10",
         };
         if (eid.HasValue)
         {
-            pfade.Add($"customers/{customerId}/employees/{eid}/absences?per_page=50");
-            pfade.Add($"customers/{customerId}/employees/{eid}/vacations?per_page=50");
-            pfade.Add($"customers/{customerId}/employees/{eid}/leaves?per_page=50");
+            pfade.Add($"customers/{customerId}/employees/{eid}/absences?per_page=100");
+            pfade.Add($"customers/{customerId}/employees/{eid}/off_times?per_page=100");
         }
 
         object ParseBody(string b)
@@ -360,7 +359,9 @@ public class EasyAtWorkController : ControllerBase
         {
             customerId,
             easyAtWorkResourceId = eid,
-            hinweis = "Status 200 = Endpunkt existiert (Treffer). 404/405 = gibt es nicht. Auf Treffer-Basis bauen wir den Absenz-Sync.",
+            hinweis = "Support-bestätigte Endpunkte: absence_types (Katalog), absences (Krankheit etc.), off_times (Ferien/Freizeit; vacation=true = Ferien). "
+                    + "ACHTUNG UTC (Walter 14.08.2026): `dates`-Felder kommen wie ALLE easy@work-Timestamps in UTC → beim Sync IMMER EawDateUtil (UTC→Europe/Zurich), NIE den Roh-String als Kalendertag nehmen. "
+                    + "`business_dates` sollen laut Support lokale Daten mit 00:00:00 sein — an echten Beispielen (Absenz mit bekanntem Datum) GEGENPRÜFEN, bevor der Sync gebaut wird. Die Antwort nennt die Zuordnung in _dates[]/_business_dates[].",
             results,
         });
     }
