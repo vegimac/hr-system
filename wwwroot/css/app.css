@@ -11129,3 +11129,9 @@ body.theme-dark .zst-pill:has(input:checked) { background:#e2e8f0; color:#1a1a1a
 .fpl-sel { outline: 2px solid #6b7280; outline-offset: -2px; background: rgba(107,114,128,0.22) !important; }
 body.dark-mode .fpl-plan { background: #b45309 !important; }
 body.dark-mode .fpl-fix  { background: #166534 !important; }
+
+/* Manager-Schulungen (Walter 14.08.2026): der yp-field-wrap (Kalender-Button
+   des Datums-Quickpicks) streckt sich sonst auf 100% Zellbreite und schiebt
+   das «gültig bis»-Badge weit nach rechts — hier kompakt halten. */
+#msBody .yp-field-wrap { width: auto; flex: none; }
+#msBody .yp-field-wrap > input[type="date"] { flex: none; width: 108px; }
