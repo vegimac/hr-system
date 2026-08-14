@@ -11135,3 +11135,14 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
    das «gültig bis»-Badge weit nach rechts — hier kompakt halten. */
 #msBody .yp-field-wrap { width: auto; flex: none; }
 #msBody .yp-field-wrap > input[type="date"] { flex: none; width: 108px; }
+
+/* Manager-DP: heutige Spalte markieren (Walter 14.08.2026) — rote
+   Innenränder links+rechts pro Zelle ergeben eine durchgehende Spalten-
+   Markierung, die auch über farbige Absenz-/Code-Zellen sichtbar bleibt. */
+.dp-table .dp-today {
+    box-shadow: inset 2px 0 0 rgba(239, 68, 68, 0.75), inset -2px 0 0 rgba(239, 68, 68, 0.75);
+}
+.dp-table thead th.dp-today {
+    background: #fecaca !important;
+    color: #991b1b;
+}

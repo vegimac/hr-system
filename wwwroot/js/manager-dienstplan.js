@@ -88,6 +88,10 @@ function dpRender() {
         absMap[z.employeeId] = m;
     }
 
+    // Heutige Spalte markieren (Walter 14.08.2026): rote Spalten-Ränder
+    // über die ganze Tabelle + roter Kopf — via Klasse dp-today.
+    const todayIso = localIso(new Date());
+
     // Kopfzeilen: KW / Datum / Tag. Wochenende NUR hier gefärbt; vor jedem
     // Montag eine senkrechte Wochen-Trennlinie (wie in der alten Excel).
     let kwRow = '<tr><th class="dp-side">KW</th>';
@@ -97,7 +101,8 @@ function dpRender() {
         const dt = new Date(_dpYear, _dpMonth - 1, t);
         const we = dt.getDay() === 0 || dt.getDay() === 6;
         const mo = dt.getDay() === 1;
-        const cls = (we || mo) ? ` class="${we ? 'dp-we' : ''}${mo ? ' dp-mo' : ''}"` : '';
+        const heute = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}` === todayIso;
+        const cls = (we || mo || heute) ? ` class="${we ? 'dp-we' : ''}${mo ? ' dp-mo' : ''}${heute ? ' dp-today' : ''}"` : '';
         kwRow  += `<th${cls}>${mo ? _dpKw(dt) : ''}</th>`;
         dayRow += `<th${cls}>${String(t).padStart(2, '0')}</th>`;
         wdRow  += `<th${cls}>${wd[dt.getDay()]}</th>`;
@@ -138,7 +143,7 @@ function dpRender() {
                 const iso = `${_dpYear}-${String(_dpMonth).padStart(2, '0')}-${String(t).padStart(2, '0')}`;
                 const mo = new Date(_dpYear, _dpMonth - 1, t).getDay() === 1;
                 const ft = ftM[iso], sf = sfM[iso];
-                const cls = (ft ? ' dp-brft' : (sf ? ' dp-brsf' : '')) + (mo ? ' dp-mo' : '');
+                const cls = (ft ? ' dp-brft' : (sf ? ' dp-brsf' : '')) + (mo ? ' dp-mo' : '') + (iso === todayIso ? ' dp-today' : '');
                 const tip = [ft, sf].filter(Boolean).join(' · ');
                 brCells += `<td class="dp-brday${cls}"${tip ? ` data-tip="${esc(`${_dpFmtD(iso)} — ${tip}`)}"` : ''}>${ft ? '★' : ''}</td>`;
             }
@@ -152,7 +157,7 @@ function dpRender() {
             const dt = new Date(_dpYear, _dpMonth - 1, t);
             // Wochenende NICHT mehr in den Tageszellen färben (nur Kopf) —
             // dafür Wochen-Trennlinie vor jedem Montag (Walter 09.08.2026).
-            const moCls = dt.getDay() === 1 ? ' dp-mo' : '';
+            const moCls = (dt.getDay() === 1 ? ' dp-mo' : '') + (iso === todayIso ? ' dp-today' : '');
             const absTyp = absMap[z.employeeId][iso];
             if (absTyp) {
                 const st = DP_ABSENZ_STYLE[absTyp] || { bg: '#e2e8f0', fg: '#475569', kuerzel: absTyp.slice(0, 2) };
