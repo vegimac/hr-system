@@ -102,8 +102,9 @@ function msRender() {
             <tbody>${rows}</tbody>
         </table></div>
         <div style="font-size:11px;color:#8b8b8b;margin-top:8px">
-            Änderungen speichern automatisch. Ablauf-Warnungen erscheinen im Dashboard
-            (konfigurierbar unter System → Warnungen: «Schulung … läuft ab»).
+            Änderungen speichern automatisch. Im Dashboard warnt nur die
+            Peak-Verifizierung (System → Warnungen: «Schulung Peak-Verifizierung läuft ab») —
+            Nothelfer und Seco kontrollierst du über diese Liste.
             eID + SSO aller übrigen Mitarbeitenden werden im Personal-Tab gepflegt.
         </div>`;
 }

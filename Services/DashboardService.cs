@@ -1661,16 +1661,16 @@ public class DashboardService
         // Schulungsdatum + Gültigkeit (Monate, app_setting via
         // SchulungConfig). Nur FIX-M-Manager mit aktivem Vertrag; fehlende
         // Daten meldet die Schulungs-Übersicht, nicht das Dashboard.
-        if (Enabled("schulung_nothelfer") || Enabled("schulung_peak") || Enabled("schulung_seco"))
+        // Nur Peak-Verifizierung warnt (Walter 14.08.2026) — Nothelfer/Seco
+        // stehen in der Liste «Manager Schulung» (HR → Kontrolle).
+        if (Enabled("schulung_peak"))
         {
             var schulSettings = await _db.AppSettings.AsNoTracking()
                 .Where(s => s.Key.StartsWith("Schulung."))
                 .ToDictionaryAsync(s => s.Key, s => s.Value);
             int Monate(string key, int fallback) =>
                 SchulungConfig.ParseMonate(schulSettings.TryGetValue(key, out var v) ? v : null, fallback);
-            var nhMonate = Monate(SchulungConfig.KeyNothelfer, SchulungConfig.DefaultNothelfer);
             var pkMonate = Monate(SchulungConfig.KeyPeak, SchulungConfig.DefaultPeak);
-            var seMonate = Monate(SchulungConfig.KeySeco, SchulungConfig.DefaultSeco);
 
             var mgrs = await _db.Employees.AsNoTracking()
                 .Where(e => e.IsActive && !e.IsPayrollExcluded
@@ -1710,9 +1710,7 @@ public class DashboardService
                         EmployeeName   = $"{mg.FirstName} {mg.LastName}".Trim(),
                     });
                 }
-                CheckSchulung("schulung_nothelfer", "Nothelfer", mg.SchulungNothelferAm, nhMonate);
                 CheckSchulung("schulung_peak", "Peak-Verifizierung", mg.SchulungPeakAm, pkMonate);
-                CheckSchulung("schulung_seco", "Seco", mg.SchulungSecoAm, seMonate);
             }
         }
 

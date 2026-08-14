@@ -2936,12 +2936,13 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS schulung_nothelfer_am date,
             ADD COLUMN IF NOT EXISTS schulung_peak_am date,
             ADD COLUMN IF NOT EXISTS schulung_seco_am date;
+        -- Nur die Peak-Verifizierung warnt im Dashboard (Walter 14.08.2026);
+        -- Nothelfer + Seco laufen über die Liste «Manager Schulung» (HR → Kontrolle).
+        DELETE FROM dashboard_warning_config WHERE category IN ('schulung_nothelfer', 'schulung_seco');
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('schulung_nothelfer', 'Schulung Nothelfer läuft ab',          TRUE, 60, 14, 'warning', 'critical', TRUE, 24, 60, 'red_overdue'),
-            ('schulung_peak',      'Schulung Peak-Verifizierung läuft ab', TRUE, 60, 14, 'warning', 'critical', TRUE, 25, 61, 'red_overdue'),
-            ('schulung_seco',      'Schulung Seco läuft ab',               TRUE, 60, 14, 'warning', 'critical', TRUE, 26, 62, 'red_overdue')
+            ('schulung_peak', 'Schulung Peak-Verifizierung läuft ab', TRUE, 60, 14, 'warning', 'critical', TRUE, 24, 60, 'red_overdue')
         ON CONFLICT (category) DO NOTHING;
     ");
 
