@@ -503,7 +503,7 @@ function renderDokTableRow(d, showCategoryColumns) {
     // ohnehin im ⋮-Menü. Eine Aktion = eine Stelle, weniger visueller Lärm.
     const deleteItem = !canDelete ? ''
         : isLinked
-            ? `<div class="dok-menu-locked" title="Verknüpft als: ${linkedTitle} — erst die Verknüpfung lösen, dann löschbar">🔒 Verknüpft – nicht löschbar</div>`
+            ? `<div class="dok-menu-locked" title="Verknüpft als: ${linkedTitle} — erst die Verknüpfung lösen, dann löschbar">🔒 Verknüpft: ${linkedTitle}<br><span style="font-size:10.5px">nicht löschbar</span></div>`
             : `<button class="dok-menu-item danger" onclick="dokDelete(${d.id})">Löschen</button>`;
     const actions = `<div class="dok-actions">
         <div class="dok-menu-wrap">
