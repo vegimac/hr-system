@@ -26,7 +26,7 @@ async function msLoad() {
     }
 }
 
-function _msFmtD(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : ''; }
+function _msFmtD(iso) { return iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(2, 4)}` : ''; }
 
 function _msBadge(cell) {
     if (!cell || !cell.am) return '<span style="font-size:10.5px;color:#b0aca4">– kein Datum</span>';
@@ -67,12 +67,14 @@ function msRender() {
             rows += `<tr><td colspan="8" style="background:#3f3f3f;color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:0">${esc(z.filiale || '')}</td></tr>`;
         }
         const name = `${z.vorname} ${z.nachname}`.trim();
-        // Alles auf EINER Zeile (Walter 14.08.2026): schmales Datumsfeld,
-        // «gültig bis»-Badge unmittelbar daneben.
+        // Alles auf EINER Zeile (Walter 14.08.2026): Flex-Zelle — schmales
+        // Datumsfeld + «gültig bis»-Badge zwingend nebeneinander.
         const dcell = (feld, cell) => `
-            <td style="padding:3px 6px;white-space:nowrap">
-                <input type="date" value="${cell?.am || ''}" onchange="msSaveRow(${z.employeeId})" id="ms-${feld}-${z.employeeId}" style="${inp};width:112px;padding:4px 5px">
-                <span style="margin-left:4px;vertical-align:middle">${_msBadge(cell)}</span>
+            <td style="padding:3px 6px">
+                <div style="display:flex;align-items:center;gap:5px;white-space:nowrap">
+                    <input type="date" value="${cell?.am || ''}" onchange="msSaveRow(${z.employeeId})" id="ms-${feld}-${z.employeeId}" style="${inp};width:108px;padding:3px 4px;flex:none">
+                    ${_msBadge(cell)}
+                </div>
             </td>`;
         rows += `
             <tr style="border-bottom:1px solid rgba(60,55,48,0.1)">
@@ -82,7 +84,7 @@ function msRender() {
                 <td style="padding:3px 6px 3px 3px"><input type="text" value="${esc(z.sso)}" placeholder="CH-OO-…" onchange="msSaveRow(${z.employeeId})" id="ms-sso-${z.employeeId}" style="${inp};width:158px;padding:4px 6px"></td>
                 ${dcell('nh', z.nothelfer)}
                 ${dcell('pk', z.peak)}
-                ${dcell('se', z.seco)}
+                ${z.istGf ? dcell('se', z.seco) : '<td style="padding:3px 6px;color:#d4d0c8;font-size:11px">—</td>'}
                 <td></td>
             </tr>`;
     }
@@ -98,7 +100,7 @@ function msRender() {
                 <th style="padding:6px 8px">SSO</th>
                 <th style="padding:6px 8px">Nothelfer</th>
                 <th style="padding:6px 8px">Peak-Verifizierung</th>
-                <th style="padding:6px 8px">Seco</th>
+                <th style="padding:6px 8px" title="nur Geschäftsführer/in (★)">Seco (nur GF)</th>
                 <th></th>
             </tr></thead>
             <tbody>${rows}</tbody>
