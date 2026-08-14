@@ -1926,3 +1926,50 @@ async function eawVerschollenCheck(btn) {
         if (btn) { btn.disabled = false; btn.textContent = '🕵️ Verschollen-Check jetzt'; }
     }
 }
+
+
+// ── Absenz-Sync easy@work → OneCrew (Walter 14.08.2026) ─────────────────
+// Vorschau (dryRun) zeigt NEU/UPDATE/DELETE/KONFLIKT/SKIP pro Zeile;
+// «Übertragen» erscheint erst nach der Vorschau und fragt nochmals nach.
+async function eawAbsenceSync(dryRun) {
+    const out = document.getElementById('eawAbsSyncResult');
+    const btn = document.getElementById('eawAbsCommitBtn');
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { if (out) out.textContent = 'Bitte zuerst oben eine Filiale wählen.'; return; }
+    const von = document.getElementById('eawAbsVon')?.value || '2026-01-01';
+    if (!dryRun) {
+        const ok = await liquidConfirm(
+            'Absenzen jetzt aus easy@work übernehmen? Neue werden angelegt, geänderte angepasst, in easy gelöschte entfernt (gesperrte Lohnperioden bleiben unangetastet).',
+            { title: 'Absenzen-Sync', yesLabel: 'Ja, übertragen', noLabel: 'Abbrechen' });
+        if (!ok) return;
+    }
+    if (out) out.textContent = dryRun ? 'Vorschau wird geladen…' : 'Absenzen werden übertragen…';
+    try {
+        const r = await fetch(`/api/easywork/absence-sync?companyProfileId=${cpId}&von=${von}&dryRun=${dryRun}`, {
+            method: 'POST', headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        const farbe = { NEU: '#166534', UPDATE: '#1e40af', DELETE: '#991b1b', KONFLIKT: '#9a3412', SKIP: '#8b8b8b' };
+        const fmtD = (iso) => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+        const rows = (j.zeilen || []).map(z => `
+            <tr style="border-bottom:1px solid #e2e8f0">
+                <td style="padding:2px 6px;font-weight:700;color:${farbe[z.aktion] || '#0f172a'}">${esc(z.aktion)}</td>
+                <td style="padding:2px 6px">${esc(z.maName)}</td>
+                <td style="padding:2px 6px">${esc(z.code || '')}<span style="color:#94a3b8"> (${esc(z.easyTyp || '')})</span></td>
+                <td style="padding:2px 6px;white-space:nowrap">${fmtD(z.von)} – ${fmtD(z.bis)}</td>
+                <td style="padding:2px 6px">${z.prozent && z.prozent !== 100 ? z.prozent + '%' : ''}</td>
+                <td style="padding:2px 6px;color:#64748b">${esc(z.hinweis || '')}</td>
+            </tr>`).join('');
+        out.innerHTML = `
+            <div style="margin-bottom:6px"><b>${j.dryRun ? 'Vorschau' : 'Übertragen'}:</b>
+                ${j.neu} neu · ${j.geaendert} geändert · ${j.geloescht} gelöscht · ${j.uebersprungen} übersprungen/Konflikt
+                <span style="color:#94a3b8">(ab ${fmtD(j.von)})</span></div>
+            ${rows ? `<table style="border-collapse:collapse;width:100%">${rows}</table>`
+                   : '<span style="color:#64748b">Keine Änderungen — alles aktuell.</span>'}`;
+        if (btn) btn.style.display = j.dryRun && (j.neu + j.geaendert + j.geloescht) > 0 ? '' : 'none';
+        if (!j.dryRun) showToast('Absenzen-Sync abgeschlossen.', 'success');
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}

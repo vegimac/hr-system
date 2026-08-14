@@ -988,6 +988,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Absence>(entity =>
         {
             entity.ToTable("absence");
+            entity.Property(e => e.EasyatworkRef).HasColumnName("easyatwork_ref");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");

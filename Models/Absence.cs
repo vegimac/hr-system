@@ -29,6 +29,13 @@ public class Absence
 
     public string? Notes { get; set; }
 
+    /// <summary>
+    /// easy@work-Sync-Schlüssel (Walter 14.08.2026): «A{id}» aus absences,
+    /// «O{id}» aus off_times. NULL = manuell/Mirus erfasst (Sync tastet
+    /// solche Absenzen nie an).
+    /// </summary>
+    public string? EasyatworkRef { get; set; }
+
     // Walter-Vorgabe 30.06.2026: Lokalzeit — nie UtcNow (timestamp without time zone).
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;

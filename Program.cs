@@ -277,6 +277,7 @@ builder.Services.AddSingleton<EasyAtWorkClient>(sp =>
 builder.Services.AddScoped<EasyAtWorkTimepunchSyncService>();
 // Mitarbeiter-Stammdaten-Sync (Phase 3.1)
 builder.Services.AddScoped<EasyAtWorkEmployeeSyncService>();
+builder.Services.AddScoped<EasyAtWorkAbsenceSyncService>();
 // Status-Speicher für den asynchronen Filial-Import (Walter 29.06.2026).
 builder.Services.AddSingleton<EasyAtWorkImportJobService>();
 // Automatischer Stempelzeit-Sync (Walter-Vorgabe 19.06.2026): Orchestrator
@@ -2905,6 +2906,15 @@ using (var scope = app.Services.CreateScope())
             ON employee_wohnort_history (employee_id);
         ALTER TABLE employee_wohnort_history
             ADD COLUMN IF NOT EXISTS datum_offen boolean NOT NULL DEFAULT false;
+    ");
+
+    // ── easy@work-Absenz-Sync (Walter 14.08.2026): Upsert-Schlüssel an der
+    // Absenz («A{id}»/«O{id}»); NULL = manuell/Mirus.
+    // Doku: migrations-archive/add_absence_easyatwork_ref.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE absence ADD COLUMN IF NOT EXISTS easyatwork_ref text;
+        CREATE INDEX IF NOT EXISTS ix_absence_eaw_ref ON absence (easyatwork_ref)
+            WHERE easyatwork_ref IS NOT NULL;
     ");
 
     // ── Ferienplaner (Walter 14.08.2026): GF plant Manager-Ferien als

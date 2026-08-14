@@ -367,6 +367,41 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Absenz-Sync easy@work → OneCrew (Walter 14.08.2026): Vorschau + Commit.
+    /// Details/Mapping siehe EasyAtWorkAbsenceSyncService. vonDatum default
+    /// 01.01.2026 (Vergangenheit = Mirus-Import).
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("absence-sync")]
+    public async Task<IActionResult> AbsenceSync(
+        [FromQuery] int companyProfileId,
+        [FromQuery] string? von,
+        [FromQuery] bool dryRun,
+        [FromServices] EasyAtWorkAbsenceSyncService syncService,
+        CancellationToken ct)
+    {
+        var vonDatum = DateOnly.TryParse(von, out var vd) ? vd : new DateOnly(2026, 1, 1);
+        try
+        {
+            var r = await syncService.RunAsync(companyProfileId, vonDatum, dryRun, ct);
+            return Ok(new
+            {
+                dryRun,
+                von = vonDatum.ToString("yyyy-MM-dd"),
+                neu = r.Neu,
+                geaendert = r.Geaendert,
+                geloescht = r.Geloescht,
+                uebersprungen = r.Uebersprungen,
+                zeilen = r.Zeilen,
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { error = "SYNC_FEHLER", message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Diagnose-Dump NACH easy@work-ID (Walter 29.06.2026): holt für eine direkt
     /// angegebene easy@work-employee-Id ALLE erreichbaren Roh-JSON-Antworten. Der
     /// passende Customer wird automatisch über ALLE gemappten Filialen gesucht
