@@ -23,6 +23,36 @@ function maEmailInit() {
     _meEmpfaenger = [];
     const info = document.getElementById('meSendInfo');
     if (info) info.textContent = '';
+    _meLadeFunktionen();
+}
+
+// Funktions-Checkboxen aus dem JobGroup-Katalog (Walter 15.08.2026).
+// Default: alle an = kein Filter. Codes im data-code, Anzeige deutsch.
+let _meFunkGeladen = false;
+async function _meLadeFunktionen() {
+    const row = document.getElementById('meFunkRow');
+    if (!row || _meFunkGeladen) return;
+    try {
+        const r = await fetch('/api/jobgroups', { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        row.innerHTML = j.map(g =>
+            `<label><input type="checkbox" class="meFunkCb" data-code="${esc(g.code)}" checked> ${esc(g.displayName || g.code)}</label>`).join('');
+        _meFunkGeladen = true;
+    } catch (e) { /* Katalog nicht ladbar → Filter bleibt aus */ }
+}
+
+function _meFunktionen() {
+    const alle = Array.from(document.querySelectorAll('.meFunkCb'));
+    if (!alle.length) return '';                 // Katalog nicht geladen → kein Filter
+    const gewaehlt = alle.filter(cb => cb.checked);
+    if (gewaehlt.length === alle.length) return ''; // alle an = kein Filter
+    return gewaehlt.map(cb => cb.dataset.code).join(',');
+}
+
+function meAlleFunk(an) {
+    document.querySelectorAll('.meFunkCb').forEach(cb => { cb.checked = an; });
 }
 
 function _meModelle() {
@@ -44,9 +74,14 @@ async function meLadeEmpfaenger() {
     const branch = document.getElementById('meBranch')?.value || '';
     const modelle = _meModelle();
     if (!modelle) { showToast('Mindestens ein Vertragsmodell wählen.', 'error'); return; }
+    const alleFunk = document.querySelectorAll('.meFunkCb').length;
+    if (alleFunk && !document.querySelectorAll('.meFunkCb:checked').length) {
+        showToast('Mindestens eine Funktion wählen.', 'error'); return;
+    }
+    const funktionen = _meFunktionen();
     list.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">Wird geladen…</div>';
     try {
-        const q = `/api/ma-email/empfaenger?modelle=${encodeURIComponent(modelle)}${branch ? '&companyProfileId=' + branch : ''}`;
+        const q = `/api/ma-email/empfaenger?modelle=${encodeURIComponent(modelle)}${branch ? '&companyProfileId=' + branch : ''}${funktionen ? '&funktionen=' + encodeURIComponent(funktionen) : ''}`;
         const r = await fetch(q, { headers: ah() });
         const j = await r.json();
         if (!r.ok) { list.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
@@ -68,6 +103,7 @@ async function meLadeEmpfaenger() {
                     <td style="padding:3px 6px;font-weight:600;color:#3f3f3f;white-space:nowrap">${esc(e.name)}</td>
                     <td style="padding:3px 6px;color:#8b8b8b">${esc(e.filiale || '')}</td>
                     <td style="padding:3px 6px;color:#8b8b8b">${esc(e.modell || '')}</td>
+                    <td style="padding:3px 6px;color:#8b8b8b">${esc(e.funktion || '')}</td>
                     <td style="padding:3px 6px;color:${e.email ? '#646464' : '#b91c1c'}">${e.email ? esc(e.email) : 'keine E-Mail hinterlegt'}</td>
                 </tr>`).join('')}
             </table></div>`;

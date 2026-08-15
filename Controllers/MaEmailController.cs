@@ -39,11 +39,17 @@ public class MaEmailController : ControllerBase
     /// </summary>
     [HttpGet("empfaenger")]
     public async Task<IActionResult> Empfaenger(
-        [FromQuery] int? companyProfileId, [FromQuery] string? modelle)
+        [FromQuery] int? companyProfileId, [FromQuery] string? modelle,
+        [FromQuery] string? funktionen)
     {
         var wanted = (modelle ?? "")
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(m => m.ToUpperInvariant())
+            .ToHashSet();
+        // Funktions-Filter (Walter 15.08.2026): JobGroup-Codes, leer = alle.
+        var wantedFunk = (funktionen ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(f => f.ToUpperInvariant())
             .ToHashSet();
 
         var heute = DateTime.Today;
@@ -58,16 +64,30 @@ public class MaEmailController : ControllerBase
             .Select(em => new
             {
                 em.EmployeeId, em.CompanyProfileId, em.ContractStartDate, em.EmploymentModel,
+                em.JobGroupId, em.JobTitle,
                 em.Employee!.FirstName, em.Employee!.LastName, em.Employee!.EmployeeNumber,
                 em.Employee!.Email,
             })
             .ToListAsync();
 
+        // JobGroup-Code + deutscher Anzeigename (app_text JOB_GROUP).
+        var jobGroups = await _db.JobGroups.AsNoTracking()
+            .Select(j => new { j.Id, j.Code })
+            .ToDictionaryAsync(j => j.Id, j => j.Code);
+        var jgNames = await _db.AppTexts.AsNoTracking()
+            .Where(t => t.IsActive && t.Module == "JOB_GROUP" && t.LanguageCode == "de")
+            .ToDictionaryAsync(t => t.TextKey, t => t.Content);
+
         // Pro MA der jüngste laufende Vertrag bestimmt Modell + Filiale.
+        string? FunkCode(int? jobGroupId, string? jobTitle) =>
+            jobGroupId.HasValue && jobGroups.TryGetValue(jobGroupId.Value, out var jc) ? jc : jobTitle;
+
         var proMa = rows
             .GroupBy(x => x.EmployeeId)
             .Select(g => g.OrderByDescending(x => x.ContractStartDate).First())
             .Where(x => wanted.Count == 0 || wanted.Contains((x.EmploymentModel ?? "").ToUpperInvariant()))
+            .Where(x => wantedFunk.Count == 0
+                     || wantedFunk.Contains((FunkCode(x.JobGroupId, x.JobTitle) ?? "").ToUpperInvariant()))
             .ToList();
 
         var branches = await _db.CompanyProfiles.AsNoTracking()
@@ -87,6 +107,9 @@ public class MaEmailController : ControllerBase
                     ? (!string.IsNullOrWhiteSpace(b.WorkLocation) ? b.WorkLocation : (b.City ?? b.BranchName))
                     : null,
                 email = string.IsNullOrWhiteSpace(x.Email) ? null : x.Email.Trim(),
+                funktion = FunkCode(x.JobGroupId, x.JobTitle) is string fc && fc.Length > 0
+                    ? (jgNames.TryGetValue(fc + ".NAME", out var fn) ? fn : fc)
+                    : null,
             });
 
         return Ok(result);
