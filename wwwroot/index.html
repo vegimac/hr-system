@@ -1355,8 +1355,9 @@
                         <div class="admin-card-desc">Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan</div>
                     </div>
                     <div class="admin-card admin-hub-cat" data-cat="filialen" onclick="adminHubShowCat('filialen')">
-                        <div class="admin-card-icon" style="background:#dcfce7;color:#166534">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+                        <!-- Filialen-Grafik als Kategorie-Icon (Walter 15.08.2026), gleiche Groesse wie die anderen -->
+                        <div class="admin-card-icon" style="background:#dcfce7">
+                            <img src="img/Filialen.png?v=20260815a" alt="" style="width:26px;height:26px;object-fit:contain;display:block">
                         </div>
                         <div class="admin-card-title">Filialen & Benutzer</div>
                         <div class="admin-card-desc">Restaurants, Zugänge, Rollen, Filial-Berechtigungen</div>
@@ -1453,8 +1454,9 @@
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:18px">
                         <div class="admin-card" onclick="showPage('filialen')">
-                        <!-- Grosses Filialen-Bild statt Mini-Icon (Walter 15.08.2026) -->
-                        <img src="img/Filialen.png?v=20260815a" alt="" loading="lazy" style="width:96px;height:96px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-icon" style="background:#dcfce7;color:#166534">
+                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                        </div>
                         <div class="admin-card-title">Filialen</div>
                         <div class="admin-card-desc">Restaurants, Lohnperioden, Karenz-Settings</div>
                     </div>
