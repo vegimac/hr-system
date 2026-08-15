@@ -72,16 +72,17 @@ async function meLadeEmpfaenger() {
     const list = document.getElementById('meListe');
     if (!list) return;
     const branch = document.getElementById('meBranch')?.value || '';
+    // Modell ODER Funktion reicht (Walter 15.08.2026): kein Modell gewählt
+    // = alle Modelle, solange mindestens eine Funktion angehakt ist.
     const modelle = _meModelle();
-    if (!modelle) { showToast('Mindestens ein Vertragsmodell wählen.', 'error'); return; }
-    const alleFunk = document.querySelectorAll('.meFunkCb').length;
-    if (alleFunk && !document.querySelectorAll('.meFunkCb:checked').length) {
-        showToast('Mindestens eine Funktion wählen.', 'error'); return;
+    const funkGewaehlt = document.querySelectorAll('.meFunkCb:checked').length;
+    if (!modelle && !funkGewaehlt) {
+        showToast('Mindestens ein Vertragsmodell oder eine Funktion wählen.', 'error'); return;
     }
     const funktionen = _meFunktionen();
     list.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">Wird geladen…</div>';
     try {
-        const q = `/api/ma-email/empfaenger?modelle=${encodeURIComponent(modelle)}${branch ? '&companyProfileId=' + branch : ''}${funktionen ? '&funktionen=' + encodeURIComponent(funktionen) : ''}`;
+        const q = `/api/ma-email/empfaenger?${modelle ? 'modelle=' + encodeURIComponent(modelle) : ''}${branch ? '&companyProfileId=' + branch : ''}${funktionen ? '&funktionen=' + encodeURIComponent(funktionen) : ''}`;
         const r = await fetch(q, { headers: ah() });
         const j = await r.json();
         if (!r.ok) { list.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }

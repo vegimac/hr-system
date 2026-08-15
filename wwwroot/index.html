@@ -203,10 +203,7 @@
                         <img class="nav-icon-img" src="img/auswertung-icon.png?v=20260628a" alt="">
                         <span>Auswertungen</span>
                     </div>
-                    <div class="nav-item" data-page="manager-dienstplan" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M7 14h3M12 14h3M7 17.5h3M12 17.5h3"/></svg>
-                        <span>Manager-DP</span>
-                    </div>
+                    <!-- Manager-DP aus der Sidebar nach McAdmin verschoben (Walter 15.08.2026). -->
                 </div>
                 <!-- «Mirus Absenz Import» aus der Sidebar nach McAdmin verschoben (Walter 15.08.2026). -->
                 <div class="nav-section finance-section" style="display:none">
@@ -3126,6 +3123,10 @@
                         </button>
                         <!-- Aus der Sidebar hierher (Walter 15.08.2026) — nur admin,
                              wie die frühere import-section (syncLiquidDashboardCards). -->
+                        <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="M7 14h3M12 14h3M7 17.5h3M12 17.5h3"/></svg>
+                            <span>Manager-DP</span>
+                        </button>
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
                             <img src="img/mirus-absenz-import.png?v=20260815a" alt="" loading="lazy">
                             <span>Mirus Absenz<br>Import</span>
@@ -9134,7 +9135,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260814d"></script>
-<script src="js/ma-email.js?v=20260815a"></script>
+<script src="js/ma-email.js?v=20260815b"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
