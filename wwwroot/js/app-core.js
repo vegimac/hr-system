@@ -1092,7 +1092,12 @@ function populateBranchSelector() {
         o.value = b.id;
         // Walter 04.08.2026: kompakt «058-Oftringen» (Code + Ort) statt
         // «058 – Filiale Oftringen» — passt ohne Abschneiden in die Pille.
-        const ort = b.city || String(b.branchName || b.companyName || '').replace(/^Filiale\s+/i, '');
+        // Walter 15.08.2026: Arbeitsort (workLocation) zuerst; Kantons-Zusatz
+        // wie «(AG)» aus dem Ortsnamen entfernen (Reinach statt Reinach (AG)).
+        const ort = (b.workLocation
+            || b.city
+            || String(b.branchName || b.companyName || '').replace(/^Filiale\s+/i, ''))
+            .replace(/\s*\([^)]*\)\s*$/, '');
         o.textContent = `${b.restaurantCode ? b.restaurantCode + '-' : ''}${ort}`;
         sel.appendChild(o);
     });

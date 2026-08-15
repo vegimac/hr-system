@@ -15,7 +15,7 @@ function maEmailInit() {
     if (sel && typeof allBranches !== 'undefined') {
         const cur = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? String(fixedCompanyProfileId) : '';
         sel.innerHTML = '<option value="">Alle Filialen</option>' + (allBranches || [])
-            .map(b => `<option value="${b.id}" ${String(b.id) === cur ? 'selected' : ''}>${(b.restaurantCode ? b.restaurantCode + ' – ' : '')}${b.city || b.branchName || ''}</option>`)
+            .map(b => `<option value="${b.id}" ${String(b.id) === cur ? 'selected' : ''}>${(b.restaurantCode ? b.restaurantCode + ' – ' : '')}${(b.workLocation || b.city || b.branchName || '').replace(/\s*\([^)]*\)\s*$/, '')}</option>`)
             .join('');
     }
     const list = document.getElementById('meListe');
