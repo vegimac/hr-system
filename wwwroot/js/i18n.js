@@ -224,7 +224,7 @@ window.i18n = (function () {
         'ma.tab.family':             { de: 'Familie<br>Schwanger',         en: 'Family<br>Maternity' },
         'ma.tab.bank':               { de: 'Bank',                         en: 'Bank' },
         'ma.tab.permitQst':          { de: 'Bewilligung QST<br>Bank',      en: 'Permit WHT<br>Bank' },
-        'ma.tab.restAdmin':          { de: 'Restaurant<br>Admin',          en: 'Restaurant<br>Admin' },
+        'ma.tab.restAdmin':          { de: 'MA<br>Formulare',               en: 'Employee<br>Forms' },
         'ma.tab.verwarnungen':       { de: 'Verwarnungen',                 en: 'Warnings' },
         'ma.tab.qst':                { de: 'Quellensteuer',                en: 'Withholding tax' },
         'ma.tab.timeRecords':        { de: 'Stempelzeiten',                en: 'Time records' },
