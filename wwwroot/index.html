@@ -182,13 +182,10 @@
                         <img class="nav-icon-img" src="img/mitarbeiter-icon.png?v=20260628b" alt="">
                         <span data-i18n="side.employees">Mitarbeiter</span>
                     </div>
-                    <div class="nav-item" data-page="moments" onclick="showPage('moments')">
-                        <img class="nav-icon-img" src="img/moments-icon.png?v=20260630c" alt="">
-                        <span>Moments</span>
-                    </div>
                     <!-- McAdmin (Walter 15.08.2026): Sammelstelle für die
                          nicht-MA-bezogenen Restaurant-Funktionen — Inhalte
-                         werden schrittweise aus «MA Formulare» hierher gezogen. -->
+                         werden schrittweise aus «MA Formulare» hierher gezogen.
+                         Reihenfolge (Walter 15.08.2026): direkt unter Mitarbeiter. -->
                     <div class="nav-item" data-page="mcadmin" onclick="showPage('mcadmin')">
                         <img class="nav-icon-img" src="img/RestAdmin.png?v=20260815a" alt="">
                         <span>McAdmin</span>
@@ -211,13 +208,7 @@
                         <span>Manager-DP</span>
                     </div>
                 </div>
-                <!-- Datenimport: nur admin sichtbar. -->
-                <div class="nav-section import-section" style="display:none">
-                    <div class="nav-item" data-page="roster-absence-import" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
-                        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
-                        <span>Mirus Absenz Import</span>
-                    </div>
-                </div>
+                <!-- «Mirus Absenz Import» aus der Sidebar nach McAdmin verschoben (Walter 15.08.2026). -->
                 <div class="nav-section finance-section" style="display:none">
                     <div class="nav-item" data-page="lohn" onclick="showPage('lohn')">
                         <img class="nav-icon-img" src="img/lohn-icon.png?v=20260628a" alt="">
@@ -241,6 +232,14 @@
                     </div>
                 </div>
                 <!-- Systemeinstellungen: nur Admin -->
+                <!-- Moments ganz nach unten vor System (Walter 15.08.2026);
+                     Klasse people-section = gleiche Sichtbarkeits-Steuerung wie vorher. -->
+                <div class="nav-section people-section">
+                    <div class="nav-item" data-page="moments" onclick="showPage('moments')">
+                        <img class="nav-icon-img" src="img/moments-icon.png?v=20260630c" alt="">
+                        <span>Moments</span>
+                    </div>
+                </div>
                 <div class="nav-section admin-only-section" style="display:none">
                     <div class="nav-item" data-page="admin-hub" onclick="showPage('admin-hub')">
                         <img class="nav-icon-img" src="img/system-icon.png?v=20260628a" alt="">
@@ -3118,6 +3117,12 @@
                         <button type="button" class="ra-tile" onclick="showPage('absenz-kalender')">
                             <img src="img/absenzkalender.svg?v=20260815c" alt="" loading="lazy">
                             <span>Absenzkalender</span>
+                        </button>
+                        <!-- Aus der Sidebar hierher (Walter 15.08.2026) — nur admin,
+                             wie die frühere import-section (syncLiquidDashboardCards). -->
+                        <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
+                            <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m8 15 2 2 5-5"/></svg>
+                            <span>Mirus Absenz<br>Import</span>
                         </button>
                     </div>
                 </div>
