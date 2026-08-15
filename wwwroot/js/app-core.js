@@ -1332,6 +1332,21 @@ function openMySettings() {
                 </select>
             </label>
             <div id="mySetInfo" style="font-size:11.5px;color:#8b8b8b;margin-top:8px">Wird sofort gespeichert — gilt ab der nächsten Anmeldung.</div>
+
+            <div style="border-top:1px solid rgba(60,55,48,0.12);margin:16px 0 12px"></div>
+            <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin-bottom:8px">Passwort ändern</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+                <input type="password" id="mySetPwAlt" placeholder="Aktuelles Passwort" autocomplete="current-password"
+                       style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;font-size:13.5px;color:#3f3f3f">
+                <input type="password" id="mySetPwNeu" placeholder="Neues Passwort (mind. 8 Zeichen)" autocomplete="new-password"
+                       style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;font-size:13.5px;color:#3f3f3f">
+                <input type="password" id="mySetPwNeu2" placeholder="Neues Passwort wiederholen" autocomplete="new-password"
+                       style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;font-size:13.5px;color:#3f3f3f">
+                <div style="display:flex;align-items:center;gap:10px">
+                    <button onclick="saveMyPassword()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Passwort ändern</button>
+                    <span id="mySetPwInfo" style="font-size:11.5px;color:#8b8b8b"></span>
+                </div>
+            </div>
         </div>`;
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     document.body.appendChild(ov);
@@ -1350,4 +1365,36 @@ async function saveMyStartPage() {
     } catch (_) {
         if (info) { info.textContent = 'Verbindungsfehler.'; info.style.color = '#b91c1c'; }
     }
+}
+
+
+// Passwort ändern aus «Meine Einstellungen» (Walter 14.08.2026) —
+// nutzt den bestehenden Endpoint POST /api/auth/change-password
+// (Mindestlänge 8, aktuelles Passwort wird serverseitig geprüft).
+async function saveMyPassword() {
+    const alt = document.getElementById('mySetPwAlt')?.value || '';
+    const neu = document.getElementById('mySetPwNeu')?.value || '';
+    const neu2 = document.getElementById('mySetPwNeu2')?.value || '';
+    const info = document.getElementById('mySetPwInfo');
+    const zeig = (t, farbe) => { if (info) { info.textContent = t; info.style.color = farbe; } };
+
+    if (!alt || !neu) { zeig('Bitte aktuelles und neues Passwort eingeben.', '#b91c1c'); return; }
+    if (neu.length < 8) { zeig('Neues Passwort: mindestens 8 Zeichen.', '#b91c1c'); return; }
+    if (neu !== neu2) { zeig('Die neuen Passwörter stimmen nicht überein.', '#b91c1c'); return; }
+
+    zeig('Wird geändert…', '#64748b');
+    try {
+        const r = await fetch('/api/auth/change-password', {
+            method: 'POST', headers: ah(),
+            body: JSON.stringify({ currentPassword: alt, newPassword: neu }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { zeig(j.message || 'Ändern fehlgeschlagen.', '#b91c1c'); return; }
+        ['mySetPwAlt', 'mySetPwNeu', 'mySetPwNeu2'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        zeig('✓ Passwort geändert.', '#166534');
+        showToast('Passwort geändert.', 'success');
+    } catch (_) { zeig('Verbindungsfehler.', '#b91c1c'); }
 }
