@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260815d">
+    <link rel="stylesheet" href="css/app.css?v=20260815e">
 </head>
 <body>
 
@@ -1346,48 +1346,31 @@
                      im admin-card-Look, Klick blendet darunter das Karten-Grid der Kategorie
                      ein (adminHubShowCat in app-core.js, Wahl in localStorage.hrAdminHubCat).
                      KEINE Karte entfernt — alle 28 leben in den Kategorie-Gruppen. -->
-                <div id="adminHubCats" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:12px">
-                    <div class="admin-card admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')">
-                        <div class="admin-card-icon" style="background:#fef3c7;color:#92400e">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                        </div>
-                        <div class="admin-card-title">Lohn-Stammdaten</div>
-                        <div class="admin-card-desc">Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="filialen" onclick="adminHubShowCat('filialen')">
-                        <!-- Filialen-Grafik freistehend, etwas groesser (Walter 15.08.2026 v2) -->
-                        <img src="img/Filialen.png?v=20260815a" alt="" style="width:56px;height:56px;object-fit:contain;display:block;margin-bottom:8px">
-                        <div class="admin-card-title">Filialen & Benutzer</div>
-                        <div class="admin-card-desc">Restaurants, Zugänge, Rollen, Filial-Berechtigungen</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')">
-                        <div class="admin-card-icon" style="background:#ede9fe;color:#5b21b6">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                        </div>
-                        <div class="admin-card-title">Kataloge & Regeln</div>
-                        <div class="admin-card-desc">Absenz-Typen, Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente, Warnungen</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="import" onclick="adminHubShowCat('import')">
-                        <div class="admin-card-icon" style="background:#cffafe;color:#0e7490">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                        </div>
-                        <div class="admin-card-title">Import & Schnittstellen</div>
-                        <div class="admin-card-desc">easy@work API, Filial-Import, Archiv, Daten-Fix</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="komm" onclick="adminHubShowCat('komm')">
-                        <div class="admin-card-icon" style="background:#fce7f3;color:#9d174d">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
-                        </div>
-                        <div class="admin-card-title">Kommunikation</div>
-                        <div class="admin-card-desc">E-Mail, SMS, Moments-Texte, Postfach-Backfill</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')">
-                        <div class="admin-card-icon" style="background:#fef9c3;color:#854d0e">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                        </div>
-                        <div class="admin-card-title">Kontrolle & Datenpflege</div>
-                        <div class="admin-card-desc">Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung</div>
-                    </div>
+                <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span>Lohn-Stammdaten</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="filialen" onclick="adminHubShowCat('filialen')" title="Restaurants, Zugänge, Rollen, Filial-Berechtigungen">
+                        <img src="img/Filialen.png?v=20260815a" alt="" loading="lazy">
+                        <span>Filialen &amp; Benutzer</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Absenz-Typen, Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente, Warnungen">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+                        <span>Kataloge &amp; Regeln</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="import" onclick="adminHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        <span>Import &amp; Schnittstellen</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="komm" onclick="adminHubShowCat('komm')" title="E-Mail, SMS, Moments-Texte, Postfach-Backfill">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
+                        <span>Kommunikation</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                        <span>Kontrolle &amp; Datenpflege</span>
+                    </button>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-lohn" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:18px">
@@ -1927,35 +1910,23 @@
                      4 Kategorie-Kacheln, Klick blendet die HR-Karten der Kategorie ein
                      (hrHubShowCat in app-core.js, Wahl in localStorage.hrHrHubCat).
                      Alle 14 HR-Karten bleiben erhalten. -->
-                <div id="hrHubCats" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:16px;margin-top:12px">
-                    <div class="admin-card admin-hub-cat" data-cat="onb" onclick="hrHubShowCat('onb')">
-                        <div class="admin-card-icon" style="background:#eef2ff;color:#4338ca">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
-                        </div>
-                        <div class="admin-card-title">Onboarding & Austritt</div>
-                        <div class="admin-card-desc">Interview-Kalender, Kandidaten, On-/Offboarding, Kündigung & Zeugnisse</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="kontrolle" onclick="hrHubShowCat('kontrolle')">
-                        <div class="admin-card-icon" style="background:#fee2e2;color:#991b1b">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                        </div>
-                        <div class="admin-card-title">Kontrolle & Meldungen</div>
-                        <div class="admin-card-desc">Prüf-Listen, Manager Schulung, Krank- / Unfall-Meldungen</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="korr" onclick="hrHubShowCat('korr')">
-                        <div class="admin-card-icon" style="background:#ece9e2;color:#6b6152">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
-                        </div>
-                        <div class="admin-card-title">Korrespondenz</div>
-                        <div class="admin-card-desc">Mitarbeiter- & Behörden-Korrespondenz, Brief-Vorlagen</div>
-                    </div>
-                    <div class="admin-card admin-hub-cat" data-cat="ausw" onclick="hrHubShowCat('ausw')">
-                        <div class="admin-card-icon" style="background:#cffafe;color:#0e7490">
-                            <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-                        </div>
-                        <div class="admin-card-title">Auswertungen & Exporte</div>
-                        <div class="admin-card-desc">Lohnausweis, BFS-Lohnstrukturerhebung, Absenz-Auswertung, Reporting</div>
-                    </div>
+                <div class="ra-tile-row" id="hrHubCats" style="margin-top:12px;margin-bottom:0">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="onb" onclick="hrHubShowCat('onb')" title="Interview-Kalender, Kandidaten, On-/Offboarding, Kündigung &amp; Zeugnisse">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+                        <span>Onboarding &amp; Austritt</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="hrHubShowCat('kontrolle')" title="Prüf-Listen, Manager Schulung, Krank- / Unfall-Meldungen">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                        <span>Kontrolle &amp; Meldungen</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="korr" onclick="hrHubShowCat('korr')" title="Mitarbeiter- &amp; Behörden-Korrespondenz, Brief-Vorlagen">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="m22 6-10 7L2 6"/></svg>
+                        <span>Korrespondenz</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="ausw" onclick="hrHubShowCat('ausw')" title="Lohnausweis, BFS-Lohnstrukturerhebung, Absenz-Auswertung, Reporting">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="#3f3f3f" stroke-width="1.3" style="width:78px;height:78px;flex:0 0 78px;margin-top:auto"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+                        <span>Auswertungen &amp; Exporte</span>
+                    </button>
                 </div>
                 <div class="hr-hub-group" id="hrHubGrp-onb" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">

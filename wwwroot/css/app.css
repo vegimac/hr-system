@@ -11153,22 +11153,17 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
     color: #991b1b;
 }
 
-/* Systemeinstellungen Hauptkategorie-Kacheln (Walter 15.08.2026, markanter v2):
-   Kategorie-Kacheln groesser/fetter als die Unterkarten; aktive Kategorie =
-   gefuellte Kohle-Kachel (Liquid-Glass-Primaerlook) mit weissem Text. */
-.admin-hub-cat { border: 1.5px solid rgba(60,55,48,0.22); }
-.admin-hub-cat .admin-card-title { font-size: 16px; font-weight: 800; letter-spacing: 0.01em; }
-.admin-hub-cat.active {
-    background: #3f3f3f;
-    border-color: #3f3f3f;
-    box-shadow: 0 14px 36px rgba(60,55,48,0.32);
+/* Hauptkategorie-Kacheln System + HR-Hub (Walter 15.08.2026 v3):
+   Icon-Kacheln im ra-tile-Look — grosses Bild/SVG, kleine Schrift unten.
+   Aktive Kategorie = weisse Kachel mit Kohle-Rand (Kohle-Fuellung wuerde
+   die dunklen Sketch-Motive verschlucken). */
+.ra-tile.admin-hub-cat.active {
+    background: rgba(255,255,255,0.9);
+    border: 2px solid #3f3f3f;
+    box-shadow: 0 14px 36px rgba(60,55,48,0.28);
 }
-.admin-hub-cat.active .admin-card-title { color: #fff; }
-.admin-hub-cat.active .admin-card-desc  { color: rgba(255,255,255,0.72); }
-body.theme-dark .admin-hub-cat { border-color: rgba(255,255,255,0.25); }
-body.theme-dark .admin-hub-cat.active {
-    background: #e5e2db;
+.ra-tile.admin-hub-cat.active > span { font-weight: 800; }
+body.theme-dark .ra-tile.admin-hub-cat.active {
+    background: rgba(255,255,255,0.16);
     border-color: #e5e2db;
 }
-body.theme-dark .admin-hub-cat.active .admin-card-title { color: #1a1a1a; }
-body.theme-dark .admin-hub-cat.active .admin-card-desc  { color: rgba(26,26,26,0.65); }
