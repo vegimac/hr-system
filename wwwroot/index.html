@@ -3102,9 +3102,23 @@
                     </div>
                 </div>
                 <div class="page-body">
-                    <div class="card" style="padding:18px 20px;color:#646464;font-size:13.5px">
-                        Dieser Bereich ist vorbereitet — sag mir, welche Kacheln aus «MA Formulare» (bisher Restaurant Admin)
-                        hierher wandern sollen (z.B. Kandidat an HR, Onboarding-QR, Interview-Fenster …), dann ziehe ich sie um.
+                    <!-- Kacheln aus «MA Formulare» hierher verschoben (Walter 15.08.2026):
+                         Bewerbungsbogen (Blanko der Sidebar-Filiale), Kandidat an HR,
+                         Absenzkalender. Funktionen leben in employees.js / kandidaten.js
+                         (global geladen) und brauchen KEINEN selectedEmployee. -->
+                    <div class="ra-tile-row" style="margin-top:14px">
+                        <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf()">
+                            <img src="img/bewerbungsbogen.png?v=20260815c" alt="" loading="lazy">
+                            <span>Bewerbungsbogen</span>
+                        </button>
+                        <button type="button" class="ra-tile" onclick="openKandidatModal()">
+                            <img src="img/Kandidat-an-HR.png?v=20260815c" alt="" loading="lazy">
+                            <span>Kandidat an HR</span>
+                        </button>
+                        <button type="button" class="ra-tile" onclick="showPage('absenz-kalender')">
+                            <img src="img/absenzkalender.svg?v=20260815c" alt="" loading="lazy">
+                            <span>Absenzkalender</span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -8285,7 +8299,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260815c"></script>
+<script src="employees.js?v=20260815d"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

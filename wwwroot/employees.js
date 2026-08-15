@@ -13739,7 +13739,8 @@ function renderVerwarnungenTab(el) {
 function _raTilesHtml() {
     // Startseiten-Stil (Walter 15.07.2026 v5): Glas-Kachel, freigestelltes
     // Sketch-Icon oben, Beschriftung darunter.
-    // Reihenfolge Bewerbung zuerst (Walter 28.07.2026).
+    // Bewerbungsbogen / Kandidat an HR / Absenzkalender sind nach
+    // McAdmin gezogen (Walter 15.08.2026) — nicht MA-bezogen.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
             <img src="img/${encodeURI(img)}?v=20260815c" alt="" loading="lazy">
@@ -13750,15 +13751,12 @@ function _raTilesHtml() {
         ${tile('onboarding qr.png', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
         ${tile('face id zurück.png', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
-        ${tile('bewerbungsbogen.png', 'Bewerbungsbogen', 'raBewerbungsbogenPdf()')}
-        ${tile('Kandidat-an-HR.png', 'Kandidat an HR', 'openKandidatModal()')}
         ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
         ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
         ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
         ${tile('Aufforderung.png', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
         ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
         ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
-        ${tile('absenzkalender.svg', 'Absenzkalender', "showPage('absenz-kalender')")}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}
     </div>`;
