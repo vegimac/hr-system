@@ -588,6 +588,28 @@ function syncLiquidDashboardCards() {
     });
 }
 
+// ── Systemeinstellungen: Hauptkategorie-Kacheln (Walter 15.08.2026) ─────
+// Klick auf eine Kategorie-Kachel blendet das zugehoerige Karten-Grid ein;
+// die Wahl bleibt in localStorage erhalten.
+function adminHubShowCat(cat) {
+    document.querySelectorAll('.admin-hub-group').forEach(g => { g.style.display = 'none'; });
+    const grp = document.getElementById('adminHubGrp-' + cat);
+    if (grp) grp.style.display = '';
+    document.querySelectorAll('.admin-hub-cat').forEach(c =>
+        c.classList.toggle('active', c.dataset.cat === cat));
+    try { localStorage.hrAdminHubCat = cat; } catch (e) { /* egal */ }
+}
+(function () {
+    const init = () => {
+        let cat = 'lohn';
+        try { cat = localStorage.hrAdminHubCat || 'lohn'; } catch (e) { /* egal */ }
+        if (!document.getElementById('adminHubGrp-' + cat)) cat = 'lohn';
+        adminHubShowCat(cat);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+
 function openLiquidDocumentsCard() {
     showPage('mitarbeiter');
     setTimeout(() => {

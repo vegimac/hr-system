@@ -11152,3 +11152,12 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
     background: #fecaca !important;
     color: #991b1b;
 }
+
+/* Systemeinstellungen Hauptkategorie-Kacheln (Walter 15.08.2026) */
+.admin-hub-cat { border: 1px solid transparent; }
+.admin-hub-cat.active {
+    border-color: #3f3f3f;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 10px 30px rgba(60,55,48,0.18);
+}
+body.theme-dark .admin-hub-cat.active { border-color: #cbd5e1; background: rgba(255,255,255,0.10); }
