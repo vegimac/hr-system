@@ -129,6 +129,7 @@ public class AuthController : ControllerBase
                 user.Role,
                 user.Theme,
                 preferredLanguage = user.PreferredLanguage,
+                startPage = user.StartPage,
                 employeeId = user.EmployeeId,
                 isHrTeam   = user.IsHrTeam,
                 // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend
@@ -188,6 +189,7 @@ public class AuthController : ControllerBase
             user.Role,
             user.Theme,
             preferredLanguage  = user.PreferredLanguage,
+            startPage          = user.StartPage,
             user.FirstName,
             user.LastName,
             employeeId         = user.EmployeeId,
@@ -261,6 +263,29 @@ public class AuthController : ControllerBase
         user.PreferredLanguage = lang;
         await _context.SaveChangesAsync();
         return Ok(new { language = lang });
+    }
+
+    public record UpdateStartPageRequest(string? StartPage);
+
+    /// <summary>
+    /// Persönliche Startseite (Walter 14.08.2026) — analog language.
+    /// Leer/NULL = Dashboard (Default).
+    /// </summary>
+    [HttpPut("start-page")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung,lowuser")]
+    public async Task<IActionResult> UpdateStartPage([FromBody] UpdateStartPageRequest req)
+    {
+        var erlaubt = new[] { "dashboard", "todos", "mitarbeiter", "lohn", "manager-dienstplan" };
+        var sp = (req?.StartPage ?? "").Trim().ToLowerInvariant();
+        if (sp.Length > 0 && !erlaubt.Contains(sp))
+            return BadRequest(new { message = "Ungültige Startseite." });
+
+        var uid = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _context.AppUsers.FindAsync(uid);
+        if (user == null) return NotFound();
+        user.StartPage = sp.Length > 0 ? sp : null;
+        await _context.SaveChangesAsync();
+        return Ok(new { startPage = user.StartPage });
     }
 
     public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
@@ -353,6 +378,7 @@ public class AuthController : ControllerBase
                 target.Role,
                 target.Theme,
                 preferredLanguage = target.PreferredLanguage,
+                startPage = target.StartPage,
                 employeeId        = target.EmployeeId,
                 isHrTeam          = target.IsHrTeam,
                 canCompanyDokumente = target.CanCompanyDokumente,

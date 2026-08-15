@@ -40,6 +40,14 @@ public class AppUser
     public string PreferredLanguage { get; set; } = "de";
 
     /// <summary>
+    /// Persönliche Startseite beim Anmelden (Walter 14.08.2026):
+    /// dashboard | todos | mitarbeiter | lohn | manager-dienstplan.
+    /// NULL = Dashboard (bisheriges Verhalten). Pflege im
+    /// «⚙ Meine Einstellungen»-Dialog im Sidebar-Footer.
+    /// </summary>
+    public string? StartPage { get; set; }
+
+    /// <summary>
     /// Unterschrift als Bild (PNG/JPG-Bytes). Wird auf Formularen eingebettet
     /// (z.B. QST-Anmeldung, RAV-Zwischenverdienst). NULL = keine Unterschrift
     /// hinterlegt; Formulare bleiben dann an dieser Stelle leer.

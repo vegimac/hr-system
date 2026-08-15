@@ -2917,6 +2917,12 @@ using (var scope = app.Services.CreateScope())
             WHERE easyatwork_ref IS NOT NULL;
     ");
 
+    // ── Persönliche Startseite (Walter 14.08.2026):
+    // Doku: migrations-archive/add_user_start_page.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS start_page text;
+    ");
+
     // ── Ferienplaner (Walter 14.08.2026): GF plant Manager-Ferien als
     // Balken; «definitiv» erzeugt die Ferien-Absenz (absence_id).
     // Doku: migrations-archive/add_ferien_planung.sql

@@ -774,6 +774,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SignaturePng).HasColumnName("signature_png");
             entity.Property(e => e.Theme).HasColumnName("theme").HasMaxLength(20).HasDefaultValue("light");
             entity.Property(e => e.PreferredLanguage).HasColumnName("preferred_language").HasMaxLength(5).HasDefaultValue("de");
+            entity.Property(e => e.StartPage).HasColumnName("start_page");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.MustChangePassword).HasColumnName("must_change_password").HasDefaultValue(false);
             entity.Property(e => e.FailedLoginCount).HasColumnName("failed_login_count").HasDefaultValue(0);

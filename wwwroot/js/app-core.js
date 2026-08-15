@@ -860,6 +860,17 @@ async function startApp() {
     // Sichtbare Bereiche pro Benutzer ANWENDEN — als Letztes, damit es die
     // Rollen-Sichtbarkeit (Sektionen + Dashboard-Kacheln) überschreibt.
     applyAreaVisibility();
+
+    // ── Persönliche Startseite (Walter 14.08.2026) ──────────────────────
+    // Vom Benutzer im «⚙ Meine Einstellungen»-Dialog gewählt (app_user.
+    // start_page). NULL/dashboard = bisheriges Verhalten. 'todos' geht über
+    // dashOpenTodos() (lädt die Alarme), Rest über showPage — nur wenn die
+    // Seite existiert (Rollen-Schutz greift serverseitig ohnehin).
+    if (!isMaPostfach && currentUser.startPage && currentUser.startPage !== 'dashboard') {
+        const sp = currentUser.startPage;
+        if (sp === 'todos' && typeof dashOpenTodos === 'function') dashOpenTodos();
+        else if (document.getElementById('page-' + sp)) showPage(sp);
+    }
 }
 
 // Sichtbare-Bereiche-Filter (Walter 28.06.2026): Wenn der User eine eigene
@@ -1282,3 +1293,52 @@ function liquidPrompt(message, opts = {}) {
     });
 }
 window.liquidPrompt = liquidPrompt;
+
+
+// ── «⚙ Meine Einstellungen» (Walter 14.08.2026) ─────────────────────────
+// Persönlicher Dialog im Sidebar-Footer — erste Einstellung: Startseite
+// beim Anmelden (gespeichert am Benutzer, analog Sprache/Theme).
+function openMySettings() {
+    document.getElementById('mySettingsModal')?.remove();
+    const optionen = [
+        ['', 'Dashboard (Standard)'],
+        ['todos', 'To do'],
+        ['mitarbeiter', 'Mitarbeiter'],
+        ['lohn', 'Lohn'],
+        ['manager-dienstplan', 'Manager-Dienstplan'],
+    ];
+    const cur = currentUser?.startPage || '';
+    const ov = document.createElement('div');
+    ov.id = 'mySettingsModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:420px;width:100%;padding:20px 22px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                <div style="font-size:15px;font-weight:700;color:#3f3f3f">⚙ Meine Einstellungen</div>
+                <button onclick="document.getElementById('mySettingsModal').remove()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:4px 10px;font-size:13px;cursor:pointer;color:#3f3f3f">✕</button>
+            </div>
+            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:5px">Startseite beim Anmelden
+                <select id="mySetStartPage" onchange="saveMyStartPage()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;font-size:13.5px;color:#3f3f3f">
+                    ${optionen.map(([v, l]) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${l}</option>`).join('')}
+                </select>
+            </label>
+            <div id="mySetInfo" style="font-size:11.5px;color:#8b8b8b;margin-top:8px">Wird sofort gespeichert — gilt ab der nächsten Anmeldung.</div>
+        </div>`;
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+    document.body.appendChild(ov);
+}
+
+async function saveMyStartPage() {
+    const sp = document.getElementById('mySetStartPage')?.value || '';
+    const info = document.getElementById('mySetInfo');
+    try {
+        const r = await fetch('/api/auth/start-page', {
+            method: 'PUT', headers: ah(), body: JSON.stringify({ startPage: sp || null }),
+        });
+        if (!r.ok) { if (info) { info.textContent = 'Speichern fehlgeschlagen.'; info.style.color = '#b91c1c'; } return; }
+        if (currentUser) currentUser.startPage = sp || null;
+        if (info) { info.textContent = '✓ Gespeichert — gilt ab der nächsten Anmeldung.'; info.style.color = '#166534'; }
+    } catch (_) {
+        if (info) { info.textContent = 'Verbindungsfehler.'; info.style.color = '#b91c1c'; }
+    }
+}
