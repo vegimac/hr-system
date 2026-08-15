@@ -11153,11 +11153,22 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
     color: #991b1b;
 }
 
-/* Systemeinstellungen Hauptkategorie-Kacheln (Walter 15.08.2026) */
-.admin-hub-cat { border: 1px solid transparent; }
+/* Systemeinstellungen Hauptkategorie-Kacheln (Walter 15.08.2026, markanter v2):
+   Kategorie-Kacheln groesser/fetter als die Unterkarten; aktive Kategorie =
+   gefuellte Kohle-Kachel (Liquid-Glass-Primaerlook) mit weissem Text. */
+.admin-hub-cat { border: 1.5px solid rgba(60,55,48,0.22); }
+.admin-hub-cat .admin-card-title { font-size: 16px; font-weight: 800; letter-spacing: 0.01em; }
 .admin-hub-cat.active {
+    background: #3f3f3f;
     border-color: #3f3f3f;
-    background: rgba(255,255,255,0.85);
-    box-shadow: 0 10px 30px rgba(60,55,48,0.18);
+    box-shadow: 0 14px 36px rgba(60,55,48,0.32);
 }
-body.theme-dark .admin-hub-cat.active { border-color: #cbd5e1; background: rgba(255,255,255,0.10); }
+.admin-hub-cat.active .admin-card-title { color: #fff; }
+.admin-hub-cat.active .admin-card-desc  { color: rgba(255,255,255,0.72); }
+body.theme-dark .admin-hub-cat { border-color: rgba(255,255,255,0.25); }
+body.theme-dark .admin-hub-cat.active {
+    background: #e5e2db;
+    border-color: #e5e2db;
+}
+body.theme-dark .admin-hub-cat.active .admin-card-title { color: #1a1a1a; }
+body.theme-dark .admin-hub-cat.active .admin-card-desc  { color: rgba(26,26,26,0.65); }
