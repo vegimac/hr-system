@@ -1300,12 +1300,21 @@ window.liquidPrompt = liquidPrompt;
 // beim Anmelden (gespeichert am Benutzer, analog Sprache/Theme).
 function openMySettings() {
     document.getElementById('mySettingsModal')?.remove();
+    // Alle Sidebar-Hauptseiten (Walter 14.08.2026) — Seiten, die die eigene
+    // Rolle nicht sieht, greifen beim Start einfach nicht (Fallback Dashboard).
     const optionen = [
         ['', 'Dashboard (Standard)'],
         ['todos', 'To do'],
         ['mitarbeiter', 'Mitarbeiter'],
-        ['lohn', 'Lohn'],
-        ['manager-dienstplan', 'Manager-Dienstplan'],
+        ['moments', 'Moments'],
+        ['posteingang', 'Postfach'],
+        ['auswertungen', 'Auswertungen'],
+        ['manager-dienstplan', 'Manager-DP'],
+        ['roster-absence-import', 'Mirus Absenz Import'],
+        ['lohn', 'Lohnlauf'],
+        ['hr-hub', 'HR-Hub'],
+        ['fibu', 'FIBU'],
+        ['admin-hub', 'System'],
     ];
     const cur = currentUser?.startPage || '';
     const ov = document.createElement('div');

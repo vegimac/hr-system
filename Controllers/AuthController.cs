@@ -275,7 +275,13 @@ public class AuthController : ControllerBase
     [Authorize(Roles = "admin,superuser,user,buchhaltung,lowuser")]
     public async Task<IActionResult> UpdateStartPage([FromBody] UpdateStartPageRequest req)
     {
-        var erlaubt = new[] { "dashboard", "todos", "mitarbeiter", "lohn", "manager-dienstplan" };
+        // Alle Sidebar-Hauptseiten (Walter 14.08.2026: «auf alle seiten»).
+        var erlaubt = new[]
+        {
+            "dashboard", "todos", "mitarbeiter", "moments", "posteingang",
+            "auswertungen", "manager-dienstplan", "roster-absence-import",
+            "lohn", "hr-hub", "fibu", "admin-hub",
+        };
         var sp = (req?.StartPage ?? "").Trim().ToLowerInvariant();
         if (sp.Length > 0 && !erlaubt.Contains(sp))
             return BadRequest(new { message = "Ungültige Startseite." });
