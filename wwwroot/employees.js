@@ -13743,7 +13743,7 @@ function _raTilesHtml() {
     // McAdmin gezogen (Walter 15.08.2026) — nicht MA-bezogen.
     const tile = (img, title, onclick) => `
         <button type="button" class="ra-tile" onclick="${onclick}">
-            <img src="img/${encodeURI(img)}?v=20260815c" alt="" loading="lazy">
+            <img src="img/${encodeURI(img)}?v=20260815d" alt="" loading="lazy">
             <span>${title}</span>
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
