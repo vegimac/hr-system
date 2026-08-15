@@ -595,7 +595,7 @@ function adminHubShowCat(cat) {
     document.querySelectorAll('.admin-hub-group').forEach(g => { g.style.display = 'none'; });
     const grp = document.getElementById('adminHubGrp-' + cat);
     if (grp) grp.style.display = '';
-    document.querySelectorAll('.admin-hub-cat').forEach(c =>
+    document.querySelectorAll('#adminHubCats .admin-hub-cat').forEach(c =>
         c.classList.toggle('active', c.dataset.cat === cat));
     try { localStorage.hrAdminHubCat = cat; } catch (e) { /* egal */ }
 }
@@ -605,6 +605,26 @@ function adminHubShowCat(cat) {
         try { cat = localStorage.hrAdminHubCat || 'lohn'; } catch (e) { /* egal */ }
         if (!document.getElementById('adminHubGrp-' + cat)) cat = 'lohn';
         adminHubShowCat(cat);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+
+// HR-Hub: gleiche Mechanik fuer die 4 HR-Kategorien (Walter 15.08.2026).
+function hrHubShowCat(cat) {
+    document.querySelectorAll('.hr-hub-group').forEach(g => { g.style.display = 'none'; });
+    const grp = document.getElementById('hrHubGrp-' + cat);
+    if (grp) grp.style.display = '';
+    document.querySelectorAll('#hrHubCats .admin-hub-cat').forEach(c =>
+        c.classList.toggle('active', c.dataset.cat === cat));
+    try { localStorage.hrHrHubCat = cat; } catch (e) { /* egal */ }
+}
+(function () {
+    const init = () => {
+        let cat = 'onb';
+        try { cat = localStorage.hrHrHubCat || 'onb'; } catch (e) { /* egal */ }
+        if (!document.getElementById('hrHubGrp-' + cat)) cat = 'onb';
+        hrHubShowCat(cat);
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
