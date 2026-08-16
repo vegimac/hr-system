@@ -954,7 +954,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -1019,7 +1019,7 @@ function showPage(name) {
     // Systembereich in warmem Off-White (Walter 16.08.2026): Hub + alle
     // Admin-Sub-Pages bekommen den feinen Braun-Hintergrund der Startseite.
     document.body.classList.toggle('sys-bg',
-        name === 'admin-hub' || name === 'easyatwork' || _adminSubPages.includes(name));
+        name === 'admin-hub' || _adminSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub' : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
