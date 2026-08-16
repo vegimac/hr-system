@@ -1146,7 +1146,7 @@ function lpRender() {
         const tbadge = l.typ === 'ABZUG'
             ? '<span style="background:#fee2e2;color:#dc2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ABZUG</span>'
             : '<span style="background:#dcfce7;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600">ZULAGE</span>';
-        return `<tr class="lp-row" style="${bg}border-bottom:1px solid #f1f5f9">
+        return `<tr class="lp-row" style="${bg}border-bottom:1px solid rgba(60,55,48,0.08)">
             <td style="padding:10px 14px;font-weight:600;font-family:monospace;color:#6b6152">${l.code}</td>
             <td style="padding:10px 14px">${l.bezeichnung}</td>
             <td style="padding:10px 14px"><span style="background:${kbg};color:#374151;padding:2px 8px;border-radius:8px;font-size:12px">${l.kategorie || '—'}</span></td>
@@ -1155,9 +1155,9 @@ function lpRender() {
             <td style="padding:10px 14px;text-align:center">${chk(l.ktgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.bvgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.qstPflichtig)}</td>
-            <td style="padding:10px 8px;text-align:center;background:#f0fdf4;border-left:2px solid #86efac">${chk(l.zaehltAlsBasisFeiertag)}</td>
-            <td style="padding:10px 8px;text-align:center;background:#f0fdf4">${chk(l.zaehltAlsBasisFerien)}</td>
-            <td style="padding:10px 8px;text-align:center;background:#f0fdf4;border-right:2px solid #86efac">${chk(l.zaehltAlsBasis13ml)}</td>
+            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
+            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
+            <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
             <td style="padding:10px 14px;text-align:center;font-family:monospace;font-size:12px;color:#6366f1">${l.lohnausweisCode || '—'}</td>
             <td style="padding:10px 14px;text-align:center">${tbadge}</td>
             <td style="padding:10px 14px;text-align:right;white-space:nowrap">

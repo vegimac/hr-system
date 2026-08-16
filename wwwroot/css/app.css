@@ -11199,3 +11199,23 @@ body.sys-bg:not(.theme-dark) .sticky-page-head,
 body.sys-bg:not(.theme-dark) .sticky-section-head { background: #f6f3ee; }
 /* Tabellen-Kopfzellen mit sticky #fff-Grund wirken sonst als weisse Balken */
 body.sys-bg:not(.theme-dark) thead th { background: #f1ede5; }
+
+/* Glassy-Listen im Systembereich (Walter 16.08.2026, Lohnpositionen & Co.):
+   Spaltenkopf-Band + Zeilen in warmem Glas statt kaltem Grau/Weiss. */
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-cols-head-wrap {
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(255,255,255,0.66);
+    border-bottom: none;
+    backdrop-filter: blur(18px) saturate(125%);
+    -webkit-backdrop-filter: blur(18px) saturate(125%);
+    box-shadow: 0 8px 24px rgba(60,55,48,0.08);
+}
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-table-head thead th { color: #6b6152; }
+body.sys-bg:not(.theme-dark) .page.fixhead .fh-table-body td { border-bottom-color: rgba(60,55,48,0.08); }
+body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(255,255,255,0.6); }
+/* Gruen-Band FEI/FER/13.ML im Kopf: warm-transparent statt kalt-mint */
+#page-lohnpositionen .fh-table-head thead th.lp-th-green {
+    background: rgba(187,247,208,0.35) !important;
+}
+#page-lohnpositionen .fh-table-head thead th.lp-th-green-l { border-left: 2px solid rgba(22,101,52,0.25); }
+#page-lohnpositionen .fh-table-head thead th.lp-th-green-r { border-right: 2px solid rgba(22,101,52,0.25); }
