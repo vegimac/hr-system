@@ -73,13 +73,25 @@ public class LohnausweisPdfService
         using var pdf    = new PdfDocument(reader, writer);
 
         var form = PdfAcroForm.GetAcroForm(pdf, false);
-        form.SetNeedAppearances(true);
+        // KEIN SetNeedAppearances(true) mehr (Walter-Befund 16.08.2026):
+        // NeedAppearances delegiert das Zeichnen der Feldwerte an den
+        // PDF-Viewer — Adobe Acrobat rendert das, einfache/unabhaengige
+        // Renderer zeigen dann LEERE Textfelder. Ohne das Flag erzeugt
+        // iText beim SetValue eigene gueltige Appearance-Streams (/AP).
 
         Map(form, d);
 
         // Unterschrift im AG-Bestätigungs-Block einbetten
         if (signaturePng != null && signaturePng.Length > 0)
             EmbedSignature(pdf, form, signaturePng, signerName ?? "");
+
+        // FLATTEN (Walter-Vorgabe 16.08.2026): alle Feldwerte + Checkboxen
+        // werden fester Bestandteil des Seiteninhalts — identische Anzeige
+        // in jedem Viewer und beim Druck, keine Formularfelder mehr im
+        // ausgegebenen Lohnausweis. (Bearbeitet wird ohnehin nur im
+        // OneCrew-Vorschau-Modal, nie im PDF.) MUSS nach Map/EmbedSignature
+        // und vor EmbedBarcode/Close laufen.
+        form.FlattenFields();
 
         // ESTV-Barcode (PDF417) oben rechts (Position H) einbetten
         EmbedBarcode(pdf, d, companyUid);
