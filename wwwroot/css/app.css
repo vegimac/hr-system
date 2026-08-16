@@ -7258,8 +7258,10 @@
 
         /* Mutterschafts-Regeln — Spaltenbreiten (fixhead, Walter 23.07.2026) */
         #page-pregnancy-rules .pr-c-sort { width: 48px; }
-        #page-pregnancy-rules .pr-c-code { width: 110px; }
-        #page-pregnancy-rules .pr-c-bez { width: 16%; }
+        /* Walter 16.08.2026: Codes wie FERNBLEIBEN_RECHT liefen in die
+           Nachbarspalte — Spalte breiter, Pill bricht notfalls um. */
+        #page-pregnancy-rules .pr-c-code { width: 158px; }
+        #page-pregnancy-rules .pr-c-bez { width: 18%; }
         #page-pregnancy-rules .pr-c-besch { width: auto; }
         #page-pregnancy-rules .pr-c-gesetz { width: 140px; }
         #page-pregnancy-rules .pr-c-phase { width: 150px; }
@@ -11254,4 +11256,13 @@ body.theme-dark .sys-back-btn {
     background: rgba(255,255,255,0.08);
     border-color: rgba(255,255,255,0.25);
     color: #d6d3cc;
+}
+
+/* Mutterschafts-Regeln: Code-Pill sauber in der Zelle halten + warme Optik */
+#page-pregnancy-rules td code {
+    display: inline-block;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-all;
+    line-height: 1.35;
 }

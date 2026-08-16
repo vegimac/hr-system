@@ -56,7 +56,7 @@ function prRender() {
             : '<span style="background:#f1f5f9;color:#64748b;font-size:11px;padding:2px 8px;border-radius:8px">Inaktiv</span>';
         return `<tr style="${r.aktiv ? '' : 'opacity:0.55;'}">
             <td style="text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder}</td>
-            <td><code style="font-size:12px;font-weight:600;background:#f1f5f9;padding:2px 6px;border-radius:4px">${prEsc(r.code)}</code></td>
+            <td><code style="font-size:11.5px;font-weight:600;background:#efece5;color:#5a5348;padding:2px 7px;border-radius:6px">${prEsc(r.code)}</code></td>
             <td style="font-weight:500;color:#1e293b">${prEsc(r.bezeichnung)}${staffel}</td>
             <td style="color:#64748b;font-size:12.5px">${prEsc(r.beschreibung || '')}</td>
             <td style="color:#64748b;font-size:12px;white-space:nowrap">${prEsc(r.gesetz || '–')}</td>
