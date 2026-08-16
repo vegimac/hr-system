@@ -619,17 +619,23 @@ function renderBanks() {
         tbody.innerHTML = '<tr><td colspan="7" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Keine Einträge</td></tr>';
         return;
     }
+    // Kompakt + Glassy + Standard-⋮-Menue (Walter 16.08.2026, wie PLZ/Nationen)
     tbody.innerHTML = rows.map(b => `
-        <tr style="border-bottom:1px solid #f1f5f9">
-            <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${b.iid}</td>
-            <td style="padding:10px 14px;font-family:ui-monospace,Menlo,Consolas,monospace">${b.bic ?? '—'}</td>
-            <td style="padding:10px 14px">${b.name ?? ''}</td>
-            <td style="padding:10px 14px">${b.ort ?? ''}</td>
-            <td style="padding:10px 14px;color:#64748b">${b.strasse ?? ''}</td>
-            <td style="padding:10px 14px;color:#94a3b8;font-size:12px">${b.importedAt ? new Date(b.importedAt).toLocaleDateString('de-CH') : ''}</td>
-            <td style="padding:10px 14px;text-align:right;white-space:nowrap">
-                <button onclick='openBankEditModal(${JSON.stringify(b)})' style="border:none;background:#f1f5f9;color:#374151;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer;margin-right:4px">✏️</button>
-                <button onclick="deleteBank('${b.iid}')" style="border:none;background:#fee2e2;color:#dc2626;padding:4px 10px;border-radius:6px;font-size:12px;cursor:pointer">🗑</button>
+        <tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
+            <td style="padding:4px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;color:#3f3f3f">${b.iid}</td>
+            <td style="padding:4px 14px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#6b6152">${b.bic ?? '—'}</td>
+            <td style="padding:4px 14px;font-weight:600;color:#3f3f3f">${b.name ?? ''}</td>
+            <td style="padding:4px 14px;color:#3f3f3f">${b.ort ?? ''}</td>
+            <td style="padding:4px 14px;color:#8b8b8b">${b.strasse ?? ''}</td>
+            <td style="padding:4px 14px;color:#8b8b8b;font-size:12px">${b.importedAt ? new Date(b.importedAt).toLocaleDateString('de-CH') : ''}</td>
+            <td style="padding:4px 14px;text-align:right;white-space:nowrap">
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'bank-${b.iid}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-bank-${b.iid}">
+                        <button class="dok-menu-item" onclick='dokCloseAllMenus();openBankEditModal(${JSON.stringify(b)})'>Bearbeiten</button>
+                        <button class="dok-menu-item danger" onclick="dokCloseAllMenus();deleteBank('${b.iid}')">Löschen</button>
+                    </div>
+                </div>
             </td>
         </tr>`).join('');
 }

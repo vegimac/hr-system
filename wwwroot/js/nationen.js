@@ -50,42 +50,45 @@ function natRender() {
         return;
     }
 
+    // Kompakt + Glassy (Walter 16.08.2026): schmale Zeilen, warme Trenner,
+    // begrenzte Breite, dezenter Speichern-Button (Glas-Pill statt Kohle-Wand).
     el.innerHTML = `
-        <div class="card" style="padding:0;overflow:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <div class="card" style="padding:0;overflow:auto;max-width:980px">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px">
                 <thead>
-                    <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                        ${window.sortableHeader('Code',     'code',     _natSortState, '_natSortState', 'natRender', 'width:90px')}
-                        ${window.sortableHeader('Code 2',   'code2',    _natSortState, '_natSortState', 'natRender', 'width:140px')}
+                    <tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
+                        ${window.sortableHeader('Code',     'code',     _natSortState, '_natSortState', 'natRender', 'width:70px')}
+                        ${window.sortableHeader('Code 2',   'code2',    _natSortState, '_natSortState', 'natRender', 'width:110px')}
                         ${window.sortableHeader('Name',     'name',     _natSortState, '_natSortState', 'natRender')}
-                        ${window.sortableHeader('Aktiv',    'isActive', _natSortState, '_natSortState', 'natRender', 'width:120px')}
-                        ${isAdmin ? '<th style="padding:9px 12px;text-align:right;width:100px;color:#475569">Aktion</th>' : ''}
+                        ${window.sortableHeader('Aktiv',    'isActive', _natSortState, '_natSortState', 'natRender', 'width:100px')}
+                        ${isAdmin ? '<th style="padding:7px 12px;text-align:right;width:100px;color:#6b6152"></th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
                     ${rows.map(n => `
-                        <tr style="border-bottom:1px solid #f1f5f9" data-natid="${n.id}">
-                            <td style="padding:8px 12px;font-family:monospace;font-weight:600;color:#0f172a">${_e(n.code)}</td>
-                            <td style="padding:8px 12px">
+                        <tr style="border-bottom:1px solid rgba(60,55,48,0.08)" data-natid="${n.id}">
+                            <td style="padding:4px 12px;font-family:monospace;font-weight:600;color:#3f3f3f">${_e(n.code)}</td>
+                            <td style="padding:4px 12px">
                                 ${isAdmin
                                     ? `<input type="text" id="nat-code2-${n.id}" value="${_e(n.code2 || '')}" maxlength="4"
-                                              style="width:90px;padding:5px 8px;border:1px solid #cbd5e1;border-radius:5px;font-family:monospace;font-size:12.5px;text-transform:uppercase">`
-                                    : `<span style="font-family:monospace;color:#64748b">${_e(n.code2 || '–')}</span>`}
+                                              style="width:64px;padding:3px 8px;border:1px solid rgba(60,55,48,0.22);border-radius:8px;font-family:monospace;font-size:12px;text-transform:uppercase;background:rgba(255,255,255,0.7)">`
+                                    : `<span style="font-family:monospace;color:#8b8b8b">${_e(n.code2 || '–')}</span>`}
                             </td>
-                            <td style="padding:8px 12px;color:#475569">${_e(n.name)}</td>
-                            <td style="padding:8px 12px">
+                            <td style="padding:4px 12px;color:#3f3f3f">${_e(n.name)}</td>
+                            <td style="padding:4px 12px">
                                 ${isAdmin
                                     ? `<label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
                                            <input type="checkbox" id="nat-active-${n.id}" ${n.isActive ? 'checked' : ''}>
-                                           <span style="font-size:11.5px;color:#64748b">${n.isActive ? 'aktiv' : 'inaktiv'}</span>
+                                           <span style="font-size:11.5px;color:#8b8b8b">${n.isActive ? 'aktiv' : 'inaktiv'}</span>
                                        </label>`
                                     : (n.isActive
                                         ? '<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600">aktiv</span>'
                                         : '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:600">inaktiv</span>')}
                             </td>
                             ${isAdmin
-                                ? `<td style="padding:8px 12px;text-align:right">
-                                       <button class="btn-emp-add" onclick="natSave(${n.id})" style="padding:5px 10px;font-size:12px">Speichern</button>
+                                ? `<td style="padding:4px 12px;text-align:right">
+                                       <button onclick="natSave(${n.id})"
+                                               style="background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:3px 12px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">Speichern</button>
                                    </td>`
                                 : ''}
                         </tr>
