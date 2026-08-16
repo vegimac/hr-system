@@ -55,7 +55,7 @@ public class LohnausweisController : ControllerBase
     // ════════════════════════════════════════════════════════════════════════
     [HttpPost("{employeeId}/{year}/pdf")]
     public async Task<IActionResult> PdfFromPreview(int employeeId, int year,
-        [FromBody] LohnausweisData payload)
+        [FromBody] LohnausweisData payload, [FromQuery] bool final = false)
     {
         var emp = await _db.Employees
             .Include(e => e.Employments)
@@ -66,10 +66,64 @@ public class LohnausweisController : ControllerBase
         if (fresh != null)
             MergeStammdaten(payload, fresh);
 
+        if (final)
+        {
+            // ── FINALISIERUNG (Walter-Vorgabe 16.08.2026) ────────────────
+            // 1) Pflichtdaten — fehlende Felder blockieren den finalen
+            //    Lohnausweis mit einer klaren Aufzaehlung.
+            var fehlt = LohnausweisBarcodeService.PflichtdatenFehlen(payload);
+            if (fehlt.Count > 0)
+                return BadRequest(new
+                {
+                    error = "LOHNAUSWEIS_UNVOLLSTAENDIG",
+                    message = "Finaler Lohnausweis blockiert — es fehlen: " + string.Join(", ", fehlt),
+                    felder = fehlt,
+                });
+
+            // 2) DocID + CreationDate: beim ERSTEN Finalisieren einfrieren,
+            //    Wiederdruck traegt exakt dieselbe Identifikation.
+            var fin = await _db.LohnausweisFinals
+                .FirstOrDefaultAsync(f => f.EmployeeId == employeeId && f.Year == year);
+            if (fin == null)
+            {
+                fin = new LohnausweisFinal
+                {
+                    EmployeeId   = employeeId,
+                    Year         = year,
+                    DocId        = Guid.NewGuid(),
+                    CreationDate = DateTime.Now,
+                    CreatedBy    = User.Identity?.Name,
+                };
+                _db.LohnausweisFinals.Add(fin);
+                await _db.SaveChangesAsync();
+            }
+            payload.IstFinal          = true;
+            payload.DocId             = fin.DocId.ToString().ToUpperInvariant();
+            payload.CreationDateFinal = fin.CreationDate.ToString("yyyy-MM-ddTHH:mm:ss");
+
+            // 3) Qualitaets-Check: das v6-TxAB-XML muss gegen das offizielle
+            //    Swissdec-Schema validieren (der gedruckte Barcode bleibt v5).
+            var v6xml = LohnausweisBarcodeService.BuildXml(payload,
+                LohnausweisBarcodeService.TxAbSchemaVersion.V6_20260306);
+            var xsdFehler = LohnausweisBarcodeService.ValidateElm6(v6xml);
+            if (xsdFehler.Count > 0)
+                return BadRequest(new
+                {
+                    error = "TXAB_SCHEMA_INVALID",
+                    message = "TxAB-XML entspricht nicht dem Swissdec-Schema: "
+                              + string.Join(" | ", xsdFehler),
+                });
+        }
+
         var (signaturePng, signerName) = await GetSignerAsync();
 
         byte[] bytes;
         try { bytes = _pdf.Generate(payload, signaturePng, signerName, freshUid); }
+        catch (InvalidOperationException vex)
+        {
+            // Pflichtfeld-Validierung des Barcodes (Walter 16.08.2026)
+            return BadRequest(new { error = "BARCODE_VALIDIERUNG", message = vex.Message });
+        }
         catch (Exception ex) { return Problem("PDF konnte nicht erstellt werden: " + ex.Message); }
 
         var filename = $"Lohnausweis_{year}_{emp.LastName}_{emp.FirstName}.pdf";

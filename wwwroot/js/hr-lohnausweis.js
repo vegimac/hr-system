@@ -363,23 +363,34 @@ function laCollectFormData() {
 // ──────────────────────────────────────────────────────────────────────
 // PDF-GENERIERUNG: POST an Backend mit aktuellem Form-Stand
 // ──────────────────────────────────────────────────────────────────────
-async function laGeneratePdf() {
+async function laGeneratePdf(final = false) {
     if (!_laCurrentEmp?.id || !_laCurrentYear) return;
+    // Finalisierung (Walter 16.08.2026): erster Final-Druck vergibt die
+    // definitive DocID (UUID) + CreationDate — Wiederdrucke sind identisch.
+    if (final) {
+        const ok = await liquidConfirm(
+            `Finalen Lohnausweis ${_laCurrentYear} für ${_laCurrentEmp.name} erzeugen? `
+            + `Beim ersten Mal werden DocID und Erstellungsdatum definitiv vergeben; `
+            + `spätere Ausdrucke tragen dieselbe Identifikation.`,
+            { title: 'Lohnausweis finalisieren', yesLabel: 'Final erzeugen', noLabel: 'Abbrechen' });
+        if (!ok) return;
+    }
     const payload = laCollectFormData();
     try {
-        const r = await fetch(`/api/lohnausweis/${_laCurrentEmp.id}/${_laCurrentYear}/pdf`, {
+        const r = await fetch(`/api/lohnausweis/${_laCurrentEmp.id}/${_laCurrentYear}/pdf${final ? '?final=true' : ''}`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         if (!r.ok) {
             const errJson = await r.json().catch(() => ({}));
-            alert('PDF-Erstellung fehlgeschlagen: ' + (errJson.error || r.statusText));
+            alert((final ? 'Finaler Lohnausweis blockiert:\n' : 'PDF-Erstellung fehlgeschlagen: ')
+                + (errJson.message || errJson.error || r.statusText));
             return;
         }
         const blob = await r.blob();
         const name = (_laCurrentEmp.name || 'Lohnausweis').replace(/[^a-zA-Z0-9_-]/g, '_');
-        await previewFileModal(blob, `Lohnausweis_${_laCurrentYear}_${name}.pdf`);
+        await previewFileModal(blob, `Lohnausweis_${_laCurrentYear}_${name}${final ? '' : '_ENTWURF'}.pdf`);
     } catch (ex) {
         alert('Fehler beim PDF-Generieren: ' + ex.message);
     }

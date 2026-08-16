@@ -2960,6 +2960,21 @@ using (var scope = app.Services.CreateScope())
             ON ferien_planung (employee_id, date_from);
     ");
 
+    // Lohnausweis-Finalisierung (Walter 16.08.2026): DocID + CreationDate
+    // werden beim ersten «Final erzeugen» eingefroren (Wiederdruck stabil).
+    // Doku: migrations-archive/add_lohnausweis_final.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS lohnausweis_final (
+            id            serial PRIMARY KEY,
+            employee_id   integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            year          integer NOT NULL,
+            doc_id        uuid NOT NULL,
+            creation_date timestamp without time zone NOT NULL,
+            created_by    text,
+            UNIQUE (employee_id, year)
+        );
+    ");
+
     // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
     // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
     // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql

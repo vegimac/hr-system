@@ -25,6 +25,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Offizielle Swissdec-ELM-6.0-Schemata (Walter 16.08.2026) fuer die
+         XSD-Validierung des TxAB-Barcode-XMLs. -->
+    <None Include="TestData\Swissdec\*.xsd" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Referenz auf das Haupt-Projekt: gibt uns Zugriff auf
          HrSystem.Data.AppDbContext, HrSystem.Services.LohnEditLockService,
          alle Models, und alle Controller. -->

@@ -2895,7 +2895,8 @@
                         </div>
                         <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:white">
                             <button class="btn btn-outline" onclick="laPreviewClose()" data-i18n="qsta.btn.close">Schliessen</button>
-                            <button class="btn btn-success" onclick="laGeneratePdf()" data-i18n="la.btn.generate">PDF generieren</button>
+                            <button class="btn btn-outline" onclick="laGeneratePdf(false)">Entwurf-PDF</button>
+                            <button class="btn btn-success" onclick="laGeneratePdf(true)" title="Vergibt beim ersten Mal die definitive DocID + Erstellungsdatum — Wiederdrucke bleiben identisch">✓ Finaler Lohnausweis</button>
                         </div>
                     </div>
                 </div>
@@ -9151,7 +9152,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/kandidaten.js?v=20260811j"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
-<script src="js/hr-lohnausweis.js?v=20260816b"></script>
+<script src="js/hr-lohnausweis.js?v=20260816c"></script>
 <script src="js/kuendigung.js?v=20260812b"></script>
 <script src="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script src="js/aerzte.js?v=20260720b"></script>

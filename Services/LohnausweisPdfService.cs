@@ -116,7 +116,25 @@ public class LohnausweisPdfService
             // notwendig für unsere Binärdaten (Pre-Header + ZIP).
             barcode.SetCode(payload);
             barcode.SetErrorLevel(2);              // Fehlertoleranz-Level 2 (Swissdec-Standard)
-            barcode.SetAspectRatio(3.0f);          // Breites Format, lesefreundlich
+            // ── Symbol-Geometrie: FIXE 15 Spalten (Walter-Prüfung 16.08.2026) ──
+            // Exakte Rechnung fuer den realen Payload (~780 B ⇒ 662 Codewords
+            // inkl. SLD + EC-Level-2) im Feld H (225×90 pt), proportional
+            // gefittet, Zeilenhoehe = 3×Modulbreite:
+            //
+            //   Spalten  Zeilen  Ratio h/w  Modulbreite   Symbolgroesse
+            //      8       83      1.215      5.0 mil     26.1×31.8 mm  ← Swissdec-Soll 1.2
+            //     15       45      0.417      9.26 mil    76.2×31.8 mm  ← MAXIMUM im Feld H
+            //
+            //   Swissdec-Soll «Ratio 1.2 UND 12 mil» braeuchte 177×215 pt —
+            //   das Feld H bietet nur 225×90 pt. 12 mil sind im Feld H fuer
+            //   diesen Payload GRUNDSAETZLICH unerreichbar (breiteste
+            //   12-mil-Variante: 158 pt hoch; hoechste: 353 pt breit).
+            //   15 fixe Spalten liefern die maximal moegliche Modulbreite
+            //   (9.26 mil) — beste physisch erreichbare Scanbarkeit, und die
+            //   Geometrie ist DETERMINISTISCH (unabhaengig von der iText-
+            //   AspectRatio-Interpretation).
+            barcode.SetOptions(BarcodePDF417.PDF417_FIXED_COLUMNS);
+            barcode.SetCodeColumns(15);
 
             var page = pdf.GetPage(1);
             var canvas = new PdfCanvas(page);
@@ -132,14 +150,32 @@ public class LohnausweisPdfService
             const float BarcodeWidth  = 225f;   // x=320–545, lässt rechts ~50pt Rand für H-Label
             const float BarcodeHeight = 90f;    // y=620–710
 
+            // PROPORTIONALE Platzierung (Walter 16.08.2026): das fruehere
+            // AddXObjectFittedIntoRectangle hat das Symbol non-proportional auf
+            // die Zone gestreckt (Module verzerrt). Jetzt: uniform skalieren
+            // (Modulproportionen bleiben exakt), in der Zone zentrieren —
+            // maximale Modulbreite, beste Scanbarkeit.
             var formXObject = barcode.CreateFormXObject(ColorConstants.BLACK, pdf);
-            canvas.AddXObjectFittedIntoRectangle(
-                formXObject,
-                new Rectangle(BarcodeX, BarcodeY, BarcodeWidth, BarcodeHeight));
+            var bboxArr = formXObject.GetPdfObject().GetAsArray(PdfName.BBox);
+            float bw = bboxArr.GetAsNumber(2).FloatValue() - bboxArr.GetAsNumber(0).FloatValue();
+            float bh = bboxArr.GetAsNumber(3).FloatValue() - bboxArr.GetAsNumber(1).FloatValue();
+            if (bw <= 0 || bh <= 0) { bw = BarcodeWidth; bh = BarcodeHeight; }
+            float scale = Math.Min(BarcodeWidth / bw, BarcodeHeight / bh);
+            float px = BarcodeX + (BarcodeWidth  - bw * scale) / 2f;
+            float py = BarcodeY + (BarcodeHeight - bh * scale) / 2f;
+            canvas.AddXObjectWithTransformationMatrix(formXObject, scale, 0, 0, scale, px, py);
+        }
+        catch (InvalidOperationException)
+        {
+            // Pflichtfeld-Validierung (GrossIncome/NetIncome fehlt) —
+            // NICHT schlucken: der Aufrufer soll die Klartext-Meldung sehen
+            // statt still einen Lohnausweis ohne Barcode zu erhalten
+            // (Walter-Vorgabe 16.08.2026).
+            throw;
         }
         catch
         {
-            // Barcode-Erstellung darf den PDF-Druck nie blockieren.
+            // Technische Barcode-Fehler dürfen den PDF-Druck nicht blockieren.
             // Bei Fehler bleibt der Lohnausweis gültig — Steueramt müsste
             // Werte dann manuell abtippen.
         }
@@ -421,7 +457,13 @@ public class LohnausweisPdfService
             NumberGroupSeparator   = "'",
             NumberGroupSizes       = new[] { 3 }
         };
-        field.SetValue(value.Value.ToString("N2", swiss));
+        // Wegleitung zum Lohnausweis: Betraege in GANZEN Franken (Walter-
+        // Vorgabe 16.08.2026, kaufmaennisch gerundet). Identische Rundung
+        // wie im TxAB-Barcode (LohnausweisBarcodeService.FormatMoney) —
+        // PDF und Barcode duerfen nie auseinanderlaufen.
+        var gerundet = Math.Round(value.Value, 0, MidpointRounding.AwayFromZero);
+        if (gerundet == 0m) return;
+        field.SetValue(gerundet.ToString("N0", swiss));
     }
 
     /// <summary>
@@ -445,6 +487,14 @@ public class LohnausweisPdfService
 
 public class LohnausweisData
 {
+    // ── Finalisierung (Walter 16.08.2026) ────────────────────────────────
+    // Entwurf: DocID «Entwurf - Brouillon - Bozza», CreationDate = Druckzeit.
+    // Final:   persistierte UUID + eingefrorenes CreationDate (Wiederdruck
+    //          traegt dieselbe Identifikation — lohnausweis_final-Tabelle).
+    public bool    IstFinal { get; set; }
+    public string? DocId { get; set; }
+    public string? CreationDateFinal { get; set; }   // ISO yyyy-MM-ddTHH:mm:ss
+
     // Empfänger (Adresse oben links — typischerweise MA-Anschrift)
     public string? EmpfaengerAdresse { get; set; }
 

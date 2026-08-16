@@ -1,4 +1,7 @@
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
+using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Xml.Linq;
@@ -96,8 +99,27 @@ public class LohnausweisBarcodeService
         return h;
     }
 
-    private static readonly XNamespace Ns =
+    /// <summary>
+    /// TxAB-Schema-Version (Walter-Vorgabe 16.08.2026): v5 bleibt der
+    /// Produktiv-Default (von Mirus-Referenz-Barcode validiert, wird von den
+    /// Steuerverwaltungen heute eingelesen). v6 (ELM 6.0, Ausgabe 06.03.2026)
+    /// ist vorbereitet und per Parameter waehlbar — KEIN harter Ersatz.
+    /// </summary>
+    public enum TxAbSchemaVersion
+    {
+        /// <summary>ELM v5 — http://www.swissdec.ch/schema/sd/20200220/… (Mirus-kompatibel)</summary>
+        V5_20200220,
+        /// <summary>ELM v6 — urn:ch:swissdec:elm:v6:20260306:SalaryDeclarationTxAB</summary>
+        V6_20260306,
+    }
+
+    private static readonly XNamespace NsV5 =
         "http://www.swissdec.ch/schema/sd/20200220/SalaryDeclarationTxAB";
+    private static readonly XNamespace NsV6 =
+        "urn:ch:swissdec:elm:v6:20260306:SalaryDeclarationTxAB";
+
+    private static XNamespace NsFor(TxAbSchemaVersion v) =>
+        v == TxAbSchemaVersion.V6_20260306 ? NsV6 : NsV5;
 
     private static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
@@ -108,9 +130,10 @@ public class LohnausweisBarcodeService
     /// Header wird gemäss ELM 6.0 Anhang 5 Kapitel 2.2 dynamisch berechnet
     /// (Size + zufällige Identification pro Dokument).
     /// </summary>
-    public byte[] BuildPayload(LohnausweisData d)
+    public byte[] BuildPayload(LohnausweisData d,
+        TxAbSchemaVersion version = TxAbSchemaVersion.V5_20200220)
     {
-        var xml = BuildXml(d);
+        var xml = BuildXml(d, version);
         var xmlBytes = Encoding.UTF8.GetBytes(xml);
 
         // 1) ZIP-Container mit Datei "txab" bauen (Info-ZIP Format)
@@ -142,8 +165,27 @@ public class LohnausweisBarcodeService
     // ════════════════════════════════════════════════════════════════════
     // XML-AUFBAU (Swissdec SalaryDeclarationTxAB)
     // ════════════════════════════════════════════════════════════════════
-    private static string BuildXml(LohnausweisData d)
+    /// <summary>
+    /// Baut das TxAB-XML. PUBLIC fuer die Unit-Tests (v5-Invarianten +
+    /// v6-XSD-Validierung gegen SalaryDeclarationTxAB.xsd).
+    /// </summary>
+    public static string BuildXml(LohnausweisData d,
+        TxAbSchemaVersion version = TxAbSchemaVersion.V5_20200220)
     {
+        // ── Pflichtfeld-Validierung (Walter-Vorgabe 16.08.2026) ─────────
+        // GrossIncome und NetIncome sind im Swissdec-Schema [1..1] — ein
+        // Barcode ohne diese Werte waere ein unvollstaendiges, ungueltiges
+        // XML. Lieber hart abbrechen mit Klartext als still Murks liefern.
+        if (d.Ziffer8BruttoTotal is null)
+            throw new InvalidOperationException(
+                "Lohnausweis-Barcode: Ziffer 8 (Bruttolohn total / GrossIncome) fehlt — "
+                + "Pflichtfeld gemaess Swissdec-Schema. Barcode wird nicht erzeugt.");
+        if (d.Ziffer11Nettolohn is null)
+            throw new InvalidOperationException(
+                "Lohnausweis-Barcode: Ziffer 11 (Nettolohn / NetIncome) fehlt — "
+                + "Pflichtfeld gemaess Swissdec-Schema. Barcode wird nicht erzeugt.");
+
+        var Ns = NsFor(version);
         var company = new XElement(Ns + "Company",
             new XAttribute("UID-BFS",    d.CompanyUidFormatted ?? ""),
             new XAttribute("Person",     d.HrVerantwortlicherName ?? ""),
@@ -178,16 +220,29 @@ public class LohnausweisBarcodeService
         //   BVG-LPP-Contribution → NetIncome → DeductionAtSource →
         //   ChargeRule → Charges → OtherFringeBenefits → StandardRemark →
         //   Remark → Contact
+        // DocID/CreationDate (Walter 16.08.2026): Entwurf traegt die amtliche
+        // Entwurfs-Kennung, Final die persistierte UUID + das beim
+        // Finalisieren eingefrorene CreationDate (Wiederdruck-stabil).
+        var docId = d.IstFinal && !string.IsNullOrWhiteSpace(d.DocId)
+            ? d.DocId!
+            : "Entwurf - Brouillon - Bozza";
+        var creation = !string.IsNullOrWhiteSpace(d.CreationDateFinal)
+            ? d.CreationDateFinal!
+            : DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv);
         var s = new XElement(Ns + "S",
-            new XElement(Ns + "DocID", Guid.NewGuid().ToString().ToUpperInvariant()),
+            new XElement(Ns + "DocID", docId),
             // CreationDate: xs:dateTime, PFLICHT [1..1] gemäss ELM 6.0 Spec
-            new XElement(Ns + "CreationDate",
-                DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", Inv)),
+            new XElement(Ns + "CreationDate", creation),
             new XElement(Ns + "Period",
                 new XElement(Ns + "from",  ToIsoDate(d.PeriodeVon)),
                 new XElement(Ns + "until", ToIsoDate(d.PeriodeBis))
             )
         );
+
+        // Box F = unentgeltliche Befoerderung → leeres <FreeTransport/>
+        // (Schema-Reihenfolge: FreeTransport VOR CanteenLunchCheck).
+        if (d.BoxFFreierTransport)
+            s.Add(new XElement(Ns + "FreeTransport"));
 
         // Box G = Kantine gratis → leeres <CanteenLunchCheck/> einfügen
         if (d.BoxGKantineGratis)
@@ -197,9 +252,8 @@ public class LohnausweisBarcodeService
         if (d.Ziffer1Lohn is decimal lohn)
             s.Add(new XElement(Ns + "Income", FormatMoney(lohn)));
 
-        // Ziffer 8 → <GrossIncome>
-        if (d.Ziffer8BruttoTotal is decimal brutto)
-            s.Add(new XElement(Ns + "GrossIncome", FormatMoney(brutto)));
+        // Ziffer 8 → <GrossIncome> (Pflicht [1..1], oben validiert)
+        s.Add(new XElement(Ns + "GrossIncome", FormatMoney(d.Ziffer8BruttoTotal.Value)));
 
         // Ziffer 9 → <AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
         if (d.Ziffer9AhvIvEoAlvNbu is decimal sv && sv > 0)
@@ -217,9 +271,8 @@ public class LohnausweisBarcodeService
             s.Add(bvg);
         }
 
-        // Ziffer 11 → <NetIncome>
-        if (d.Ziffer11Nettolohn is decimal netto)
-            s.Add(new XElement(Ns + "NetIncome", FormatMoney(netto)));
+        // Ziffer 11 → <NetIncome> (Pflicht [1..1], oben validiert)
+        s.Add(new XElement(Ns + "NetIncome", FormatMoney(d.Ziffer11Nettolohn.Value)));
 
         // Ziffer 12 → <DeductionAtSource> (Quellensteuerabzug, ELM 6.0 Kap. 3.1)
         if (d.Ziffer12Quellensteuer is decimal qst && qst > 0)
@@ -236,6 +289,12 @@ public class LohnausweisBarcodeService
         if (remarks.Length > 0)
             s.Add(new XElement(Ns + "Remark", string.Join(" — ", remarks)));
 
+        // ELM v6: <S> braucht das Pflicht-Attribut addresseeIDRef (Pattern «#…»,
+        // offizielle Beispiele nutzen «#TAX» fuer den Steuer-Empfaenger).
+        // In v5 existiert das Attribut nicht — Mirus-Kompatibilitaet bleibt.
+        if (version == TxAbSchemaVersion.V6_20260306)
+            s.Add(new XAttribute("addresseeIDRef", "#TAX"));
+
         var t = new XElement(Ns + "T",
             new XAttribute("SID", "000"),
             new XAttribute("SysV", "001"),
@@ -250,14 +309,86 @@ public class LohnausweisBarcodeService
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // FINAL-VALIDIERUNG (Walter-Vorgabe 16.08.2026)
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Prueft die Pflichtdaten fuer einen FINALEN Lohnausweis und liefert
+    /// die Liste der fehlenden Felder in Benutzersprache (leer = ok).
+    /// Entwuerfe duerfen unvollstaendig sein — Final nicht.
+    /// </summary>
+    public static List<string> PflichtdatenFehlen(LohnausweisData d)
+    {
+        var fehlt = new List<string>();
+        void Check(string? v, string label) { if (string.IsNullOrWhiteSpace(v)) fehlt.Add(label); }
+
+        Check(d.AhvNummer,     "AHV-Nummer (Ziffer C)");
+        Check(d.Geburtsdatum,  "Geburtsdatum (Ziffer C)");
+        Check(d.Jahr,          "Steuerjahr (Ziffer D)");
+        Check(d.PeriodeVon,    "Periode von (Ziffer E)");
+        Check(d.PeriodeBis,    "Periode bis (Ziffer E)");
+        Check(d.MaLastname,    "Nachname Mitarbeiter/in");
+        Check(d.MaFirstname,   "Vorname Mitarbeiter/in");
+        Check(d.MaStreet,      "Strasse Mitarbeiter/in");
+        Check(d.MaZip,         "PLZ Mitarbeiter/in");
+        Check(d.MaCity,        "Ort Mitarbeiter/in");
+        Check(d.CompanyName,   "Arbeitgeber-Name");
+        Check(d.CompanyZip,    "Arbeitgeber-PLZ");
+        Check(d.CompanyCity,   "Arbeitgeber-Ort");
+        if (d.Ziffer1Lohn        is null) fehlt.Add("Ziffer 1 (Lohn)");
+        if (d.Ziffer8BruttoTotal is null) fehlt.Add("Ziffer 8 (Bruttolohn total)");
+        if (d.Ziffer11Nettolohn  is null) fehlt.Add("Ziffer 11 (Nettolohn)");
+        return fehlt;
+    }
+
+    private static System.Xml.Schema.XmlSchemaSet? _elm6Schemas;
+
+    /// <summary>
+    /// Validiert ein TxAB-XML gegen das OFFIZIELLE Swissdec-ELM-6-Schema
+    /// (Assets/Swissdec/SalaryDeclarationTxAB.xsd). Liefert die Liste der
+    /// Schema-Fehler (leer = valid). Wird beim Finalisieren als Qualitäts-
+    /// Check auf dem v6-XML ausgefuehrt — der produktive Barcode bleibt v5.
+    /// </summary>
+    public static List<string> ValidateElm6(string xml)
+    {
+        var fehler = new List<string>();
+        try
+        {
+            if (_elm6Schemas == null)
+            {
+                var dir = Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec");
+                // .NET Core: xs:include wird nur mit explizitem Resolver geladen
+                var set = new System.Xml.Schema.XmlSchemaSet
+                {
+                    XmlResolver = new System.Xml.XmlUrlResolver()
+                };
+                set.Add("urn:ch:swissdec:elm:v6:20260306:SalaryDeclarationTxAB",
+                        Path.Combine(dir, "SalaryDeclarationTxAB.xsd"));
+                set.Compile();
+                _elm6Schemas = set;
+            }
+            var doc = XDocument.Parse(xml);
+            System.Xml.Schema.Extensions.Validate(doc, _elm6Schemas,
+                (_, e) => fehler.Add(e.Message));
+        }
+        catch (Exception ex)
+        {
+            fehler.Add("XSD-Validierung nicht möglich: " + ex.Message);
+        }
+        return fehler;
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // HELPERS
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// CHF-Betrag mit Punkt-Dezimaltrennzeichen, 2 Nachkommastellen, keine
-    /// Tausendertrennzeichen. Beispiel: 1234.5 → "1234.50".
+    /// CHF-Betrag fuer den Barcode: GANZE Franken (kaufmaennisch gerundet,
+    /// Walter-Vorgabe 16.08.2026 — identisch zur PDF-Anzeige), Schema-Format
+    /// mit 2 Nachkommastellen. Beispiel: 1234.50 → "1235.00".
     /// </summary>
-    private static string FormatMoney(decimal v) => v.ToString("F2", Inv);
+    private static string FormatMoney(decimal v) =>
+        Math.Round(v, 0, MidpointRounding.AwayFromZero).ToString("F2", Inv);
 
     /// <summary>
     /// Schweizer Datum "dd.MM.yyyy" → ISO "yyyy-MM-dd". Leer → "".

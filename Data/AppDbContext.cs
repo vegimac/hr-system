@@ -96,6 +96,7 @@ public class AppDbContext : DbContext
     public DbSet<ManagerDienstplanEntry>    ManagerDienstplanEntries    => Set<ManagerDienstplanEntry>();
     public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
     public DbSet<FerienPlanung>             FerienPlanungen             => Set<FerienPlanung>();
+    public DbSet<LohnausweisFinal>          LohnausweisFinals           => Set<LohnausweisFinal>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
@@ -1383,6 +1384,21 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<LohnausweisFinal>(entity =>
+        {
+            entity.ToTable("lohnausweis_final");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Year).HasColumnName("year");
+            entity.Property(e => e.DocId).HasColumnName("doc_id");
+            entity.Property(e => e.CreationDate).HasColumnName("creation_date")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasIndex(e => new { e.EmployeeId, e.Year }).IsUnique();
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
         });
 
