@@ -68,32 +68,39 @@ function locRender() {
            </div>`
         : `<div style="font-size:11.5px;color:#64748b;margin-bottom:8px">${total} Treffer</div>`;
 
+    // Kompakt + Glassy (Walter 16.08.2026): schmale Zeilen, warme Trenner,
+    // Aktionen im Standard-⋮-Menue (statt Stift+Muelleimer, Konvention 09.06.2026).
     el.innerHTML = `
         ${cappedNote}
-        <div class="card" style="padding:0;overflow:auto">
-            <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <div class="card" style="padding:0;overflow:visible;max-width:1150px">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px">
                 <thead>
-                    <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
-                        ${window.sortableHeader('PLZ',        'plz4',           _locSortState, '_locSortState', 'locRender', 'width:90px')}
-                        ${window.sortableHeader('Ortschaft',  'ortschaftsname', _locSortState, '_locSortState', 'locRender')}
+                    <tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
+                        ${window.sortableHeader('PLZ',        'plz4',           _locSortState, '_locSortState', 'locRender', 'width:74px')}
+                        ${window.sortableHeader('Ortschaft',  'ortschaftsname', _locSortState, '_locSortState', 'locRender', 'width:30%')}
                         ${window.sortableHeader('Gemeinde',   'gemeindename',   _locSortState, '_locSortState', 'locRender')}
-                        ${window.sortableHeader('BFS-Nr',     'bfsNr',          _locSortState, '_locSortState', 'locRender', 'width:110px')}
-                        ${window.sortableHeader('Kanton',     'kantonskuerzel', _locSortState, '_locSortState', 'locRender', 'width:90px')}
-                        ${isAdmin ? '<th style="padding:9px 12px;text-align:right;width:110px;color:#475569">Aktion</th>' : ''}
+                        ${window.sortableHeader('BFS-Nr',     'bfsNr',          _locSortState, '_locSortState', 'locRender', 'width:84px')}
+                        ${window.sortableHeader('Kanton',     'kantonskuerzel', _locSortState, '_locSortState', 'locRender', 'width:70px')}
+                        ${isAdmin ? '<th style="padding:7px 12px;text-align:right;width:54px;color:#6b6152"></th>' : ''}
                     </tr>
                 </thead>
                 <tbody>
                     ${shown.map(l => `
-                        <tr style="border-bottom:1px solid #f1f5f9">
-                            <td style="padding:8px 12px;font-family:monospace;font-weight:600;color:#0f172a">${_e(l.plz4)}</td>
-                            <td style="padding:8px 12px;color:#0f172a;font-weight:600">${_e(l.ortschaftsname || l.gemeindename)}</td>
-                            <td style="padding:8px 12px;color:#64748b">${_e(l.gemeindename)}</td>
-                            <td style="padding:8px 12px;font-family:monospace;color:#64748b">${l.bfsNr}</td>
-                            <td style="padding:8px 12px;font-family:monospace;font-weight:600">${_e(l.kantonskuerzel)}</td>
+                        <tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
+                            <td style="padding:4px 12px;font-family:monospace;font-weight:600;color:#3f3f3f">${_e(l.plz4)}</td>
+                            <td style="padding:4px 12px;color:#3f3f3f;font-weight:600">${_e(l.ortschaftsname || l.gemeindename)}</td>
+                            <td style="padding:4px 12px;color:#8b8b8b">${_e(l.gemeindename)}</td>
+                            <td style="padding:4px 12px;font-family:monospace;color:#8b8b8b">${l.bfsNr}</td>
+                            <td style="padding:4px 12px;font-family:monospace;font-weight:600">${_e(l.kantonskuerzel)}</td>
                             ${isAdmin
-                                ? `<td style="padding:8px 12px;text-align:right;white-space:nowrap">
-                                       <button class="btn-emp-add" onclick="locOpenEdit(${l.id})" style="padding:4px 8px;font-size:12px">✎</button>
-                                       <button class="btn-emp-add" onclick="locDelete(${l.id})" style="padding:4px 8px;font-size:12px;background:#fee2e2;border-color:#fca5a5;color:#991b1b">🗑</button>
+                                ? `<td style="padding:4px 12px;text-align:right;white-space:nowrap">
+                                       <div style="position:relative;display:inline-block">
+                                           <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'loc-${l.id}')" title="Aktionen">⋮</button>
+                                           <div class="dok-menu" id="dokMenu-loc-${l.id}">
+                                               <button class="dok-menu-item" onclick="dokCloseAllMenus();locOpenEdit(${l.id})">Bearbeiten</button>
+                                               <button class="dok-menu-item danger" onclick="dokCloseAllMenus();locDelete(${l.id})">Löschen</button>
+                                           </div>
+                                       </div>
                                    </td>`
                                 : ''}
                         </tr>
