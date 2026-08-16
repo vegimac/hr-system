@@ -981,12 +981,22 @@ function applyAdminBreadcrumb(name) {
     document.querySelectorAll('.sys-back-row').forEach(el => el.remove());
     if (showAdminBack) {
         const page = document.getElementById('page-' + name);
-        if (page) {
+        // Walter 16.08.2026 final: der Zurueck-Button sitzt IMMER direkt
+        // rechts neben dem Haupttitel der Seite (Fallback: Seitenanfang).
+        const html = '<button type="button" class="sys-back-btn" onclick="showPage(\'admin-hub\')">' +
+            '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
+            ' Zur\u00fcck</button>';
+        const title = page?.querySelector('.page-title');
+        if (title) {
+            const wrap = document.createElement('span');
+            wrap.className = 'sys-back-row sys-back-next-to-title';
+            wrap.innerHTML = html;
+            title.appendChild(wrap);
+        } else if (page) {
             const row = document.createElement('div');
             row.className = 'sys-back-row';
-            row.innerHTML = '<button type="button" class="sys-back-btn" onclick="showPage(\'admin-hub\')">' +
-                '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
-                ' Zur\u00fcck</button>';
+            row.style.padding = '14px 32px 0';
+            row.innerHTML = html;
             page.insertBefore(row, page.firstChild);
         }
     }
