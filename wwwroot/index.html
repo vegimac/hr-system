@@ -2882,7 +2882,9 @@
 
                 <!-- Vorschau-Modal: editierbare Werte + PDF-Generierung -->
                 <div id="laPreviewModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.55)">
-                    <div style="position:absolute;top:3vh;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
+                    <!-- top:72px statt 3vh (Walter 16.08.2026): das ×-Kreuz lag in der
+                         reservierten langSwitcher-Zone oben rechts (bis ~y60). -->
+                    <div style="position:absolute;top:72px;left:5vw;right:5vw;bottom:3vh;background:white;border-radius:12px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
                         <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e2e8f0;background:#f8fafc">
                             <div>
                                 <div style="font-size:15px;font-weight:700;color:#0f172a" data-i18n="la.modal.title">Lohnausweis Vorschau</div>
