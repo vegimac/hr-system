@@ -61,11 +61,19 @@ function laRenderEmpList() {
 
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
 
+    // Walter-Bug 16.08.2026: massgebend ist der LAUFENDE Vertrag — ein MA,
+    // der frueher hier war (alter beendeter Vertrag), gehoert nicht mehr in
+    // die Liste dieser Filiale. Nur wenn KEIN laufender Vertrag existiert
+    // (Ausgetretene), zaehlt der letzte Vertrag ueberhaupt.
     const inThisBranch = (e) => {
         if (!cid) return true;
         const emps = e.employments || [];
         if (emps.length === 0) return true;
-        return emps.some(v => v.companyProfileId === cid || v.companyProfileId == null);
+        const heute = new Date().toISOString().slice(0, 10);
+        const laufend = emps.filter(v => v.isActive
+            && (!v.contractEndDate || String(v.contractEndDate).slice(0, 10) >= heute));
+        const relevant = laufend.length ? laufend : emps;
+        return relevant.some(v => v.companyProfileId === cid || v.companyProfileId == null);
     };
 
     let list = _laAllEmployees.filter(inThisBranch);
