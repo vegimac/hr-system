@@ -56,8 +56,16 @@ function renderDokAuditResults(rows) {
         return;
     }
 
+    // Filial-Namen fuer Klartext-Erklaerung (Walter 16.08.2026)
+    const codeName = (code) => {
+        const b = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => String(x.restaurantCode) === String(code));
+        const ort = b ? (b.workLocation || b.city || b.branchName || '') : '';
+        return ort ? `${code} (${ort})` : String(code);
+    };
     const trs = rows.map(r => {
         const suspectStr = (r.suspectedBranchCodes || []).join(', ');
+        const suspectNamed = (r.suspectedBranchCodes || []).map(codeName).join(', ');
+        const erklaerung = `Der Dateiname erwähnt ${suspectNamed} — der Mitarbeiter ist aber in ${codeName(r.currentBranchCode)} angestellt. Entweder ist das Dokument beim falschen MA abgelegt, oder der Bezug ist legitim (z.B. früherer Arbeitsort).`;
         return `<tr style="border-top:1px solid #f1f5f9;background:#fffbeb">
             <td style="padding:8px 12px">
                 <a href="javascript:void(0)" onclick="dokAuditOpenMa(${r.employeeId})"
@@ -78,21 +86,24 @@ function renderDokAuditResults(rows) {
                 </span>
                 <div style="font-size:10.5px;color:#94a3b8;margin-top:2px">aus Dateinamen erkannt</div>
             </td>
-            <td style="padding:8px 12px;font-size:12px;color:#475569;max-width:340px;word-break:break-all">
-                ${r.filename}
+            <td style="padding:8px 12px;font-size:12px;color:#475569;max-width:420px;word-break:break-word">
+                <b>${r.filename}</b>
                 <div style="font-size:10.5px;color:#94a3b8;margin-top:2px">
                     ${r.kategorie || ''}${r.typ ? ' · ' + r.typ : ''}
                 </div>
+                <div style="font-size:11.5px;color:#78350f;margin-top:4px;line-height:1.4">${erklaerung}</div>
             </td>
         </tr>`;
     }).join('');
 
     el.innerHTML = `
     <div style="padding:10px 14px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;margin-bottom:10px;font-size:12.5px;color:#78350f">
-        Achtung: das ist eine Heuristik. Es kann legitime Fälle geben wo der MA wirklich in der Filiale arbeitet
-        aber das Dokument einen anderen Filial-Namen erwähnt (z.B. weil der MA dort früher tätig war).
-        Falsche Treffer ignorieren — bei echten Fehlern via MA-Link öffnen + im Dokumente-Tab das Doku
-        bearbeiten und an den richtigen MA umhängen.
+        <b>Was diese Liste zeigt:</b> Dokumente, deren <b>Dateiname eine andere Filiale erwähnt</b> als die,
+        in welcher der Mitarbeiter angestellt ist — ein Hinweis darauf, dass das Dokument möglicherweise
+        <b>beim falschen Mitarbeiter abgelegt</b> wurde (z.B. Namensverwechslung beim Einscannen).<br>
+        <b>So prüfst du:</b> Auf den Namen klicken → Dokumente-Tab öffnet sich → Dokument ansehen.
+        Ist es falsch abgelegt, dort bearbeiten und dem richtigen MA zuordnen. Passt es (z.B. weil der MA
+        früher in dieser Filiale gearbeitet hat), kannst du den Eintrag einfach ignorieren.
     </div>
     <div class="card" style="padding:0;overflow:auto;max-height:65vh">
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">

@@ -272,6 +272,7 @@ function alRenderResults() {
             <td style="padding:6px 8px;white-space:nowrap">${alActionBadge(r.action)}</td>
             <td style="padding:6px 8px">
                 <div style="font-weight:600;color:#0f172a">${esc(_alEntityDe[r.entityType] || r.entityType)}</div>
+                ${r.docName ? `<div style="font-size:11.5px;color:#475569;word-break:break-all">${esc(r.docName)}</div>` : ''}
                 ${r.employeeNumber || r.employeeName
                     ? `<div style="font-size:12px;font-weight:700;color:#0f172a">${esc(r.employeeNumber || '')}${r.employeeName ? ' · ' + esc(r.employeeName) : ''}</div>
                        <div style="font-size:10.5px;color:#94a3b8;font-family:ui-monospace,Menlo,Consolas,monospace">id ${esc(r.entityId || '–')}</div>`

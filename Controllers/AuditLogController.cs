@@ -46,7 +46,7 @@ public class AuditLogController : ControllerBase
                           .Select(a => new AuditRowDto(
                               a.Id, a.CreatedAt, a.UserId, a.UserName, a.UserRole,
                               a.EntityType, a.EntityId, a.Action, a.ChangesJson,
-                              a.Route, a.IpAddress, null, null))
+                              a.Route, a.IpAddress, null, null, null))
                           .ToListAsync();
 
         var enriched = await EnrichEmployeesAsync(rows);
@@ -64,6 +64,7 @@ public class AuditLogController : ControllerBase
             ipAddress = r.IpAddress,
             employeeNumber = r.EmployeeNumber,
             employeeName = r.EmployeeName,
+            docName = r.DocName,
         }));
     }
 
@@ -156,7 +157,7 @@ public class AuditLogController : ControllerBase
             .Select(a => new AuditRowDto(
                 a.Id, a.CreatedAt, a.UserId, a.UserName, a.UserRole,
                 a.EntityType, a.EntityId, a.Action, a.ChangesJson,
-                a.Route, a.IpAddress, null, null))
+                a.Route, a.IpAddress, null, null, null))
             .ToListAsync();
         var enriched = await EnrichEmployeesAsync(rows);
 
@@ -257,11 +258,28 @@ public class AuditLogController : ControllerBase
 
     private async Task<List<AuditRowDto>> EnrichEmployeesAsync(List<AuditRowDto> rows)
     {
+        // Walter 16.08.2026: bei Dokument-Zeilen den Dateinamen + den MA des
+        // Dokuments aufloesen — «Dokument 6073» sagt sonst niemandem etwas.
+        var docIds = rows
+            .Where(r => r.EntityType == "EmployeeDokument" && int.TryParse(r.EntityId, out _))
+            .Select(r => int.Parse(r.EntityId!))
+            .Distinct().ToList();
+        var docMap = docIds.Count == 0
+            ? new Dictionary<int, (string Name, int EmpId)>()
+            : (await _db.EmployeeDokumente.AsNoTracking()
+                .Where(d => docIds.Contains(d.Id))
+                .Select(d => new { d.Id, d.FilenameOriginal, d.EmployeeId })
+                .ToListAsync())
+              .ToDictionary(d => d.Id, d => (Name: d.FilenameOriginal ?? "", EmpId: d.EmployeeId));
+
         var empIds = new List<int>();
         foreach (var r in rows)
         {
             var id0 = ExtractEmployeeId(r);
             if (id0.HasValue) empIds.Add(id0.Value);
+            if (r.EntityType == "EmployeeDokument" && int.TryParse(r.EntityId, out var did)
+                && docMap.TryGetValue(did, out var dinfo))
+                empIds.Add(dinfo.EmpId);
         }
         empIds = empIds.Distinct().ToList();
 
@@ -277,19 +295,26 @@ public class AuditLogController : ControllerBase
 
         return rows.Select(r =>
         {
-            string? nr = null, name = null;
+            string? nr = null, name = null, docName = null;
             var id = ExtractEmployeeId(r);
+            if (r.EntityType == "EmployeeDokument" && int.TryParse(r.EntityId, out var did)
+                && docMap.TryGetValue(did, out var dinfo))
+            {
+                docName = dinfo.Name;
+                id = dinfo.EmpId;
+            }
             if (id.HasValue && map.TryGetValue(id.Value, out var info))
             {
                 nr = info.Item1;
                 name = info.Item2;
             }
-            return r with { EmployeeNumber = nr, EmployeeName = name };
+            return r with { EmployeeNumber = nr, EmployeeName = name, DocName = docName };
         }).ToList();
     }
 
     private sealed record AuditRowDto(
         long Id, DateTime CreatedAt, int? UserId, string? UserName, string? UserRole,
         string EntityType, string? EntityId, string Action, string? ChangesJson,
-        string? Route, string? IpAddress, string? EmployeeNumber, string? EmployeeName);
+        string? Route, string? IpAddress, string? EmployeeNumber, string? EmployeeName,
+        string? DocName = null);
 }
