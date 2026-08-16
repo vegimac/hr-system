@@ -11219,3 +11219,7 @@ body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(2
 }
 #page-lohnpositionen .fh-table-head thead th.lp-th-green-l { border-left: 2px solid rgba(22,101,52,0.25); }
 #page-lohnpositionen .fh-table-head thead th.lp-th-green-r { border-right: 2px solid rgba(22,101,52,0.25); }
+
+/* System-Unterkarten: nur Bild + Headline (Walter 16.08.2026) — die
+   Beschreibungstexte bleiben im DOM (Suche/i18n), sind aber ausgeblendet. */
+.admin-hub-group .admin-card-desc { display: none; }
