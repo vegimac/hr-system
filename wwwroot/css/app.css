@@ -11178,5 +11178,24 @@ body.theme-dark .ra-tile.admin-hub-cat.active {
     border-color: #e5e2db;
 }
 
-/* Systembereich: warmes Off-White statt kaltem Grau (Walter 16.08.2026) */
+/* Systembereich: warmes Off-White statt kaltem Grau (Walter 16.08.2026).
+   v2 «wie beim Mitarbeiter»: auch die Karten und Sticky-Koepfe im warmen
+   Glas-Look (halbtransparentes Weiss auf beigem Grund) statt kaltem #fff. */
 body.sys-bg:not(.theme-dark) .main { background: #f6f3ee; }
+body.sys-bg:not(.theme-dark) .admin-card,
+body.sys-bg:not(.theme-dark) .card {
+    background: rgba(255,255,255,0.52);
+    border: 1px solid rgba(255,255,255,0.68);
+    box-shadow: 0 10px 30px rgba(60,55,48,0.10), inset 0 1px 1px rgba(255,255,255,0.8);
+}
+body.sys-bg:not(.theme-dark) .admin-card:hover {
+    background: rgba(255,255,255,0.78);
+    border-color: #3f3f3f;
+    box-shadow: 0 14px 34px rgba(60,55,48,0.18);
+}
+body.sys-bg:not(.theme-dark) .card-hd { border-bottom-color: rgba(60,55,48,0.10); }
+/* Sticky-Koepfe brauchen deckenden Grund — im Systembereich beige statt grau/weiss */
+body.sys-bg:not(.theme-dark) .sticky-page-head,
+body.sys-bg:not(.theme-dark) .sticky-section-head { background: #f6f3ee; }
+/* Tabellen-Kopfzellen mit sticky #fff-Grund wirken sonst als weisse Balken */
+body.sys-bg:not(.theme-dark) thead th { background: #f1ede5; }
