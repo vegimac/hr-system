@@ -162,20 +162,44 @@ public class LohnausweisPdfService
             const float BarcodeWidth  = 225f;   // x=320–545, lässt rechts ~50pt Rand für H-Label
             const float BarcodeHeight = 90f;    // y=620–710
 
-            // PROPORTIONALE Platzierung (Walter 16.08.2026): das fruehere
-            // AddXObjectFittedIntoRectangle hat das Symbol non-proportional auf
-            // die Zone gestreckt (Module verzerrt). Jetzt: uniform skalieren
-            // (Modulproportionen bleiben exakt), in der Zone zentrieren —
-            // maximale Modulbreite, beste Scanbarkeit.
-            var formXObject = barcode.CreateFormXObject(ColorConstants.BLACK, pdf);
-            var bboxArr = formXObject.GetPdfObject().GetAsArray(PdfName.BBox);
-            float bw = bboxArr.GetAsNumber(2).FloatValue() - bboxArr.GetAsNumber(0).FloatValue();
-            float bh = bboxArr.GetAsNumber(3).FloatValue() - bboxArr.GetAsNumber(1).FloatValue();
-            if (bw <= 0 || bh <= 0) { bw = BarcodeWidth; bh = BarcodeHeight; }
-            float scale = Math.Min(BarcodeWidth / bw, BarcodeHeight / bh);
-            float px = BarcodeX + (BarcodeWidth  - bw * scale) / 2f;
-            float py = BarcodeY + (BarcodeHeight - bh * scale) / 2f;
-            canvas.AddXObjectWithTransformationMatrix(formXObject, scale, 0, 0, scale, px, py);
+            // ── DIREKTES Zeichnen mit korrekter PDF417-Geometrie ────────
+            // BEFUND (Walter-Scan 16.08.2026, iText-Quellcode verifiziert):
+            // CreateFormXObject(color, doc) zeichnet mit DEFAULT_MODULE_SIZE
+            // fuer Breite UND Hoehe — Zeilenhoehe = 1×Modulbreite. Der
+            // PDF417-Standard (und Swissdec Kap. 2.3) verlangt Zeilenhoehe
+            // = 3×Modulbreite; iText dokumentiert selbst «the image will
+            // have to be scaled in the Y direction by yHeight». Genau daran
+            // scheiterte der Scanner (Mirus las, OneCrew nicht). Zusaetzlich
+            // ist die BBox des XObjects bei abweichender Modulhoehe falsch.
+            // ⇒ Direkt auf den Seiten-Canvas zeichnen: PlaceBarcode mit
+            //   expliziter Modulbreite und Zeilenhoehe = 3×Modulbreite,
+            //   unverzerrt in Feld H zentriert (bei ~780 B: 9.26 mil,
+            //   Symbol ~76×32 mm — Maximum im Feld, s. Geometrie-Nachweis).
+            barcode.PaintCode();
+            int   bitCols = barcode.GetBitColumns();          // Module inkl. Start/Stop
+            int   rows    = barcode.GetCodeRows();
+            const float RowHeightFactor = 3f;                 // PDF417-Norm: >= 3×
+            float moduleW = Math.Min(BarcodeWidth / bitCols,
+                                     BarcodeHeight / (rows * RowHeightFactor));
+            float symW = bitCols * moduleW;
+            float symH = rows * RowHeightFactor * moduleW;
+            float px = BarcodeX + (BarcodeWidth  - symW) / 2f;
+            float py = BarcodeY + (BarcodeHeight - symH) / 2f;
+
+            // Quiet Zone: weisser Grund unter Symbol + 4 Modulbreiten Rand
+            // (Richtlinie verlangt min. 2) — schuetzt vor Formularlinien.
+            float qz = 4f * moduleW;
+            canvas.SaveState();
+            canvas.SetFillColor(ColorConstants.WHITE);
+            canvas.Rectangle(px - qz, py - qz, symW + 2 * qz, symH + 2 * qz);
+            canvas.Fill();
+            canvas.RestoreState();
+
+            canvas.SaveState();
+            canvas.ConcatMatrix(1, 0, 0, 1, px, py);
+            barcode.PlaceBarcode(canvas, ColorConstants.BLACK,
+                                 moduleW, moduleW * RowHeightFactor);
+            canvas.RestoreState();
         }
         catch (InvalidOperationException)
         {
