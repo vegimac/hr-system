@@ -135,6 +135,46 @@ function alActionBadge(action) {
     return `<span style="display:inline-block;padding:2px 8px;border-radius:3px;background:${s.bg};color:${s.color};font-size:10.5px;font-weight:700;white-space:nowrap">${s.label}</span>`;
 }
 
+// ── Benutzerfreundliche Anzeige (Walter 16.08.2026) ─────────────────────
+// Die Liste zeigt Klartext statt Technik: deutsche Entitaets-/Feldnamen,
+// formatierte Zeitstempel, Sammel-Zeilen fuer «Dokument angesehen» und
+// «Anmeldung». Der volle technische Diff bleibt im Detail-Modal.
+const _alEntityDe = {
+    Employee: 'Mitarbeiter', EmployeeDokument: 'Dokument', Employment: 'Vertrag',
+    Absence: 'Absenz', ManagerDienstplanEntry: 'Manager-Dienstplan',
+    FerienPlanung: 'Ferienplanung', AppUser: 'Benutzerkonto',
+    PayrollSnapshot: 'Lohnabrechnung', PayrollSaldo: 'Lohn-Saldo',
+    PayrollPeriode: 'Lohnperiode', AkontoZahlung: 'Akonto-Zahlung',
+    EmployeeBankAccount: 'Bankverbindung', EmployeeQuellensteuer: 'Quellensteuer',
+    MailboxDocument: 'Postfach-Dokument', EmployeeTimeEntry: 'Stempelzeit',
+    CompanyProfile: 'Filiale', MomentText: 'Moments-Vorlage',
+    EmployeeAddress: 'Zusatzadresse', EmployeeFamilyMember: 'Familienmitglied',
+    EmployeeRecurringWage: 'Wiederkehrende Zulage', EmployeePermitHistory: 'Bewilligung',
+    LohnZulage: 'Lohnzulage', InterviewSlot: 'Interview-Fenster', Kandidat: 'Kandidat',
+};
+const _alFieldDe = {
+    ZugriffAm: 'Zugriff am', ZugriffVon: 'Zugriff von', LastLoginAt: 'Letzte Anmeldung',
+    UpdatedAt: 'Geändert am', CreatedAt: 'Erstellt am', CreatedBy: 'Erstellt von',
+    DateFrom: 'Von', DateTo: 'Bis', Code: 'Code', Status: 'Status',
+    Street: 'Strasse', HouseNumber: 'Nr.', Zip: 'PLZ', ZipCode: 'PLZ', City: 'Ort',
+    CantonCode: 'Kanton', FirstName: 'Vorname', LastName: 'Nachname',
+    Email: 'E-Mail', PhoneMobile: 'Telefon', IsActive: 'Aktiv',
+    FailedLoginCount: 'Fehlversuche', LockedUntil: 'Gesperrt bis',
+};
+function alFieldLabel(k) { return _alFieldDe[k] || k; }
+function alHumanValue(v) {
+    if (v === null || v === undefined || v === '') return '<i style="color:#94a3b8">leer</i>';
+    const s = String(v);
+    // ISO-Zeitstempel (mit/ohne Mikrosekunden/Zone) → dd.MM.yyyy HH:mm
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (m) return `${m[3]}.${m[2]}.${m[1]} ${m[4]}:${m[5]}`;
+    const d = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (d) return `${d[3]}.${d[2]}.${d[1]}`;
+    if (s === 'true') return 'ja';
+    if (s === 'false') return 'nein';
+    return esc(s.slice(0, 60));
+}
+
 function alChangesSummary(changesJson, action) {
     if (!changesJson) return '<span style="color:#94a3b8">–</span>';
     let obj;
@@ -150,22 +190,32 @@ function alChangesSummary(changesJson, action) {
         return 0;
     });
     if (action === 'UPDATE') {
-        // Nur die geaenderten Felder anzeigen (jeder Wert ist { old, new })
-        const parts = keys.slice(0, 4).map(k => {
+        // Sammel-Faelle in Klartext (Technik nur noch im Detail):
+        const kset = keys.filter(k => !['UpdatedAt', 'Xmin'].includes(k));
+        if (kset.length && kset.every(k => ['ZugriffAm', 'ZugriffVon'].includes(k))) {
+            const wann = obj.ZugriffAm && typeof obj.ZugriffAm === 'object' ? alHumanValue(obj.ZugriffAm.new) : '';
+            return `📄 Dokument angesehen${wann ? ' <span style="color:#8b8b8b">(' + wann + ')</span>' : ''}`;
+        }
+        if (kset.length && kset.every(k => ['LastLoginAt', 'FailedLoginCount', 'LockedUntil'].includes(k))) {
+            const wann = obj.LastLoginAt && typeof obj.LastLoginAt === 'object' ? alHumanValue(obj.LastLoginAt.new) : '';
+            return `🔐 Anmeldung${wann ? ' <span style="color:#8b8b8b">(' + wann + ')</span>' : ''}`;
+        }
+        const show = kset.length ? kset : keys;
+        const parts = show.slice(0, 4).map(k => {
             const v = obj[k];
-            if (v && typeof v === 'object' && 'new' in v) {
-                const oldV = v.old === null || v.old === undefined ? '<i style="color:#94a3b8">leer</i>' : esc(String(v.old).slice(0, 60));
-                const newV = v.new === null || v.new === undefined ? '<i style="color:#94a3b8">leer</i>' : esc(String(v.new).slice(0, 60));
-                return `<b>${esc(k)}</b>: ${oldV} → ${newV}`;
-            }
-            return `<b>${esc(k)}</b>: ${esc(String(v).slice(0, 60))}`;
+            if (v && typeof v === 'object' && 'new' in v)
+                return `<b>${esc(alFieldLabel(k))}</b>: ${alHumanValue(v.old)} → ${alHumanValue(v.new)}`;
+            return `<b>${esc(alFieldLabel(k))}</b>: ${alHumanValue(v)}`;
         });
-        const more = keys.length > 4 ? ` <span style="color:#94a3b8">+ ${keys.length - 4} weitere</span>` : '';
+        const more = show.length > 4 ? ` <span style="color:#94a3b8">+ ${show.length - 4} weitere</span>` : '';
         return parts.join('<br>') + more;
     }
-    // CREATE / DELETE — top-Level Felder kurz
-    const parts = keys.slice(0, 6).map(k => `<b>${esc(k)}</b>: ${esc(String(obj[k]).slice(0, 40))}`);
-    const more = keys.length > 6 ? ` <span style="color:#94a3b8">+ ${keys.length - 6} weitere</span>` : '';
+    // CREATE / DELETE — top-Level Felder kurz (ohne technische Ids/Timestamps)
+    const boring = ['Id', 'CreatedAt', 'UpdatedAt', 'Xmin'];
+    const show = keys.filter(k => !boring.includes(k));
+    const use = show.length ? show : keys;
+    const parts = use.slice(0, 5).map(k => `<b>${esc(alFieldLabel(k))}</b>: ${alHumanValue(obj[k])}`);
+    const more = use.length > 5 ? ` <span style="color:#94a3b8">+ ${use.length - 5} weitere</span>` : '';
     return parts.join(' · ') + more;
 }
 
@@ -214,12 +264,12 @@ function alRenderResults() {
         <tr style="border-bottom:1px solid #f1f5f9;vertical-align:top">
             <td style="padding:6px 8px;white-space:nowrap;color:#0f172a">${alFmtTime(r.createdAt)}</td>
             <td style="padding:6px 8px">
-                <div style="font-weight:600;color:#0f172a">${esc(r.userName || ('#' + (r.userId ?? '?')))}</div>
-                <div style="font-size:11px;color:#94a3b8;word-break:break-all">${esc(r.userRole || '')}${r.route ? ' · ' + esc(r.route) : ''}</div>
+                <div style="font-weight:600;color:#0f172a">${esc(r.userName || ((r.route || '').includes('/auth/login') ? 'Anmeldung' : 'System'))}</div>
+                <div style="font-size:11px;color:#94a3b8">${esc(r.userRole || '')}</div>
             </td>
             <td style="padding:6px 8px;white-space:nowrap">${alActionBadge(r.action)}</td>
             <td style="padding:6px 8px">
-                <div style="font-weight:600;color:#0f172a">${esc(r.entityType)}</div>
+                <div style="font-weight:600;color:#0f172a">${esc(_alEntityDe[r.entityType] || r.entityType)}</div>
                 ${r.employeeNumber || r.employeeName
                     ? `<div style="font-size:12px;font-weight:700;color:#0f172a">${esc(r.employeeNumber || '')}${r.employeeName ? ' · ' + esc(r.employeeName) : ''}</div>
                        <div style="font-size:10.5px;color:#94a3b8;font-family:ui-monospace,Menlo,Consolas,monospace">id ${esc(r.entityId || '–')}</div>`
