@@ -11227,9 +11227,15 @@ body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(2
 /* Einheitlicher Zurueck-Button auf allen System-Unterseiten (Walter 16.08.2026).
    Sitzt als eigene Zeile UNTER dem obersten Band (nie oben rechts — dort ist
    der langSwitcher reserviert). Liquid-Glas-Pill, Kohle-Text. */
-/* ca. 1 Zeile tiefer (Walter 16.08.2026) — nicht auf Hoehe des Top-Bands */
-.sys-back-row { padding: 46px 32px 0; flex: 0 0 auto; }
-.page.fixhead .sys-back-row { padding-bottom: 0; }
+/* Fixe Position rechts oben, direkt UNTER dem langSwitcher-Widget
+   (Walter 16.08.2026 final) — im ganzen Programm immer dieselbe Stelle. */
+.sys-back-row {
+    position: fixed;
+    top: 62px;
+    right: 18px;
+    z-index: 90;
+    padding: 0;
+}
 .sys-back-btn {
     display: inline-flex; align-items: center; gap: 7px;
     background: rgba(255,255,255,0.55);
