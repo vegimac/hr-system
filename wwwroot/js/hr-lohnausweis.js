@@ -296,6 +296,9 @@ function laCollectFormData() {
     // PropertyNameCaseInsensitive=true akzeptiert beide, aber wir senden camelCase
     // (matched dem Default JsonSerializerOptions in ASP.NET Core 8).
     return {
+        // Ziffer D (Steuerjahr) aus der Jahr-Auswahl — fehlte im Payload,
+        // darum blieb das D-Feld im PDF leer (Walter-Bug 16.08.2026).
+        jahr:                     String(parseInt(document.getElementById('laJahr')?.value, 10) || ''),
         empfaengerAdresse:        str('empfaengerAdresse'),
         istGanzesJahr:            bool('istGanzesJahr'),
         istLohnausweis:           bool('istLohnausweis'),

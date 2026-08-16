@@ -315,15 +315,22 @@ public static class LohnausweisBuildService
         DateTime? exit = emp.ExitDate;
         if (exit == null && emp.Employments != null && emp.Employments.Count > 0)
         {
-            exit = emp.Employments
-                .Where(e => e.ContractEndDate.HasValue)
-                .OrderByDescending(e => e.ContractEndDate)
-                .Select(e => e.ContractEndDate)
-                .FirstOrDefault();
+            // Walter-Bug 16.08.2026: hat der MA einen OFFENEN Vertrag (ohne
+            // Enddatum), ist er NICHT ausgetreten — das Enddatum eines alten
+            // Vorvertrags (z.B. 31.12.2024) darf die Periode nicht kappen.
+            var hatOffenenVertrag = emp.Employments.Any(e => e.ContractEndDate == null);
+            exit = hatOffenenVertrag
+                ? null
+                : emp.Employments
+                    .Where(e => e.ContractEndDate.HasValue)
+                    .OrderByDescending(e => e.ContractEndDate)
+                    .Select(e => e.ContractEndDate)
+                    .FirstOrDefault();
         }
 
         var effFrom = entry.HasValue && entry.Value > yearStart ? entry.Value : yearStart;
         var effTo   = exit.HasValue  && exit.Value  < yearEnd   ? exit.Value  : yearEnd;
+        if (effTo < effFrom) effTo = yearEnd; // Daten-Guard: nie verdrehte Periode ausgeben
         var ganzesJahr = effFrom <= yearStart && effTo >= yearEnd;
 
         return (
