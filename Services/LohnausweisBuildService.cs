@@ -53,12 +53,27 @@ public static class LohnausweisBuildService
             NumberGroupSeparator   = "'",
             NumberGroupSizes       = new[] { 3 }
         };
+        // Bemerkungen (Walter-Vorgabe 16.08.2026): NUR ganze Franken — wie
+        // auf dem restlichen Lohnausweis (kaufmaennisch gerundet, ohne .00).
         string? ktgBemerkung = aggregated.KtgTotal > 0
-            ? $"Krankengeldversicherung CHF {aggregated.KtgTotal.ToString("N2", swissNum)}"
+            ? $"Krankengeldversicherung CHF {Math.Round(aggregated.KtgTotal, 0, MidpointRounding.AwayFromZero).ToString("N0", swissNum)}"
             : null;
         string? lgavBemerkung = aggregated.LgavTotal > 0
-            ? $"L-GAV-Vollzugsbeitrag: CHF {aggregated.LgavTotal.ToString("N2", swissNum)}"
+            ? $"L-GAV-Vollzugsbeitrag: CHF {Math.Round(aggregated.LgavTotal, 0, MidpointRounding.AwayFromZero).ToString("N0", swissNum)}"
             : null;
+
+        // Teilzeit-Hinweis (Wegleitung Ziffer 15, Walter-Vorgabe 16.08.2026):
+        // bei Beschaeftigungsgrad < 100 % gehoert «X%-Stelle.» in die
+        // Bemerkungen — Pensum aus dem im Jahr zuletzt gueltigen Vertrag.
+        string? pensumBemerkung = null;
+        var jahresEnde = new DateTime(year, 12, 31);
+        var vertragImJahr = emp.Employments?
+            .Where(e2 => e2.ContractStartDate <= jahresEnde
+                      && (e2.ContractEndDate == null || e2.ContractEndDate >= new DateTime(year, 1, 1)))
+            .OrderByDescending(e2 => e2.ContractStartDate)
+            .FirstOrDefault();
+        if (vertragImJahr?.EmploymentPercentage is decimal pensum && pensum > 0 && pensum < 100)
+            pensumBemerkung = pensum.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) + "%-Stelle.";
 
         string? hrFullName = null;
         if (hrUser != null)
@@ -93,7 +108,9 @@ public static class LohnausweisBuildService
             Ziffer12Quellensteuer    = aggregated.QstBetrag,
             Ziffer141Bemerkungen     = null,
             Ziffer142Bemerkungen     = null,
-            Ziffer151Bemerkungen     = ktgBemerkung,
+            Ziffer151Bemerkungen     = string.Join(" ", new[] { pensumBemerkung, ktgBemerkung }
+                                           .Where(s => !string.IsNullOrWhiteSpace(s))) is string z15 && z15.Length > 0
+                                           ? z15 : null,
             Ziffer152Bemerkungen     = lgavBemerkung,
             Ziffer151Ort             = company?.City ?? "Meggen",
             Ziffer152Datum           = DateTime.Today.ToString("dd.MM.yyyy"),
