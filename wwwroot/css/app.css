@@ -11177,3 +11177,6 @@ body.theme-dark .ra-tile.admin-hub-cat.active {
     background: rgba(255,255,255,0.16);
     border-color: #e5e2db;
 }
+
+/* Systembereich: warmes Off-White statt kaltem Grau (Walter 16.08.2026) */
+body.sys-bg:not(.theme-dark) .main { background: #f6f3ee; }

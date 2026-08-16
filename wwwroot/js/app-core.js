@@ -988,6 +988,10 @@ function showPage(name) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('page-' + name)?.classList.add('active');
+    // Systembereich in warmem Off-White (Walter 16.08.2026): Hub + alle
+    // Admin-Sub-Pages bekommen den feinen Braun-Hintergrund der Startseite.
+    document.body.classList.toggle('sys-bg',
+        name === 'admin-hub' || name === 'easyatwork' || _adminSubPages.includes(name));
     const navPage = _adminSubPages.includes(name) ? 'admin-hub' : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
