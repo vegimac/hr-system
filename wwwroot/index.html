@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260816i">
+    <link rel="stylesheet" href="css/app.css?v=20260816j">
 </head>
 <body>
 
@@ -2890,7 +2890,12 @@
                                 <div style="font-size:15px;font-weight:700;color:#0f172a" data-i18n="la.modal.title">Lohnausweis Vorschau</div>
                                 <div id="laPreviewSub" style="font-size:12px;color:#64748b;margin-top:2px">–</div>
                             </div>
-                            <button onclick="laPreviewClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
+                            <div style="display:flex;align-items:center;gap:10px">
+                                <button type="button" class="sys-back-btn" onclick="laPreviewClose()">
+                                    <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                                    Zurück</button>
+                                <button onclick="laPreviewClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
+                            </div>
                         </div>
                         <div style="flex:1;overflow:auto;padding:18px 22px">
                             <div id="laFormGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:920px;margin:0 auto"></div>
@@ -9154,7 +9159,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/kandidaten.js?v=20260811j"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
-<script src="js/hr-lohnausweis.js?v=20260816c"></script>
+<script src="js/hr-lohnausweis.js?v=20260816d"></script>
 <script src="js/kuendigung.js?v=20260812b"></script>
 <script src="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script src="js/aerzte.js?v=20260720b"></script>

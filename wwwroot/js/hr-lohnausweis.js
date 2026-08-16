@@ -257,7 +257,7 @@ function laInput(name, label, value) {
     return `<label style="font-size:12px;color:#475569;display:block">
         <span style="display:block;margin-bottom:3px">${label}</span>
         <input type="text" id="la_${name}" value="${laEscape(String(v))}"
-               style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+               class="la-inp" style="width:100%;padding:7px 10px;border-radius:7px;font-size:13px">
     </label>`;
 }
 function laMoney(name, label, value) {
@@ -265,7 +265,7 @@ function laMoney(name, label, value) {
     return `<label style="font-size:12px;color:#475569;display:block">
         <span style="display:block;margin-bottom:3px">${label}</span>
         <input type="number" step="0.01" id="la_${name}" value="${v === null || v === undefined ? '' : v}"
-               style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+               class="la-inp" style="width:100%;padding:7px 10px;border-radius:7px;font-size:13px">
     </label>`;
 }
 function laTextarea(name, label, value, rows) {
@@ -273,7 +273,7 @@ function laTextarea(name, label, value, rows) {
     return `<label style="font-size:12px;color:#475569;display:block;grid-column:1 / -1">
         <span style="display:block;margin-bottom:3px">${label}</span>
         <textarea id="la_${name}" rows="${rows||2}"
-               style="width:100%;padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white;font-family:inherit;resize:vertical">${laEscape(String(v))}</textarea>
+               style="width:100%;padding:7px 10px;border:1px solid #b8b2a7;border-radius:7px;font-size:13px;background:white;font-family:inherit;resize:vertical">${laEscape(String(v))}</textarea>
     </label>`;
 }
 function laCheckbox(name, label, value) {

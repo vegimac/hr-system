@@ -11266,3 +11266,17 @@ body.theme-dark .sys-back-btn {
     word-break: break-all;
     line-height: 1.35;
 }
+
+/* Lohnausweis-Vorschau: deutlich erkennbare Eingabefelder (Walter 16.08.2026) */
+#laPreviewModal .la-inp,
+#laPreviewModal textarea {
+    border: 1px solid #b8b2a7;
+    background: #fbfaf7;
+}
+#laPreviewModal .la-inp:focus,
+#laPreviewModal textarea:focus {
+    outline: none;
+    border-color: #3f3f3f;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(63,63,63,0.10);
+}
