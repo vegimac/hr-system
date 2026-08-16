@@ -240,13 +240,28 @@ public class AuditLogController : ControllerBase
         return q;
     }
 
+    // Walter 16.08.2026: MA-Bezug auch aus dem ChangesJson ziehen («EmployeeId»
+    // als nackte Zahl ODER als {old/new}-Objekt) — damit zeigen z.B. Absenz-,
+    // Ferienplanungs- und Dienstplan-Zeilen Vorname/Name + MA-Nummer statt Id.
+    private static readonly System.Text.RegularExpressions.Regex _empIdRx =
+        new("\"EmployeeId\"\\s*:\\s*(?:\\{[^}]*?\"new\"\\s*:\\s*)?(\\d+)",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static int? ExtractEmployeeId(AuditRowDto r)
+    {
+        if (r.EntityType == "Employee" && int.TryParse(r.EntityId, out var id)) return id;
+        if (r.ChangesJson is null) return null;
+        var m = _empIdRx.Match(r.ChangesJson);
+        return m.Success && int.TryParse(m.Groups[1].Value, out var jid) ? jid : null;
+    }
+
     private async Task<List<AuditRowDto>> EnrichEmployeesAsync(List<AuditRowDto> rows)
     {
         var empIds = new List<int>();
         foreach (var r in rows)
         {
-            if (r.EntityType == "Employee" && int.TryParse(r.EntityId, out var id))
-                empIds.Add(id);
+            var id0 = ExtractEmployeeId(r);
+            if (id0.HasValue) empIds.Add(id0.Value);
         }
         empIds = empIds.Distinct().ToList();
 
@@ -263,8 +278,8 @@ public class AuditLogController : ControllerBase
         return rows.Select(r =>
         {
             string? nr = null, name = null;
-            if (r.EntityType == "Employee" && int.TryParse(r.EntityId, out var id)
-                && map.TryGetValue(id, out var info))
+            var id = ExtractEmployeeId(r);
+            if (id.HasValue && map.TryGetValue(id.Value, out var info))
             {
                 nr = info.Item1;
                 name = info.Item2;

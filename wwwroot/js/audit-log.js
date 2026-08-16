@@ -191,7 +191,9 @@ function alChangesSummary(changesJson, action) {
     });
     if (action === 'UPDATE') {
         // Sammel-Faelle in Klartext (Technik nur noch im Detail):
-        const kset = keys.filter(k => !['UpdatedAt', 'Xmin'].includes(k));
+        // Technische Verweise raus — der MA steht dank Backend-Anreicherung
+        // ohnehin mit Name + Nummer in der Entitaets-Spalte.
+        const kset = keys.filter(k => !['UpdatedAt', 'Xmin', 'EmployeeId', 'AbsenceId', 'EasyatworkRef'].includes(k));
         if (kset.length && kset.every(k => ['ZugriffAm', 'ZugriffVon'].includes(k))) {
             const wann = obj.ZugriffAm && typeof obj.ZugriffAm === 'object' ? alHumanValue(obj.ZugriffAm.new) : '';
             return `📄 Dokument angesehen${wann ? ' <span style="color:#8b8b8b">(' + wann + ')</span>' : ''}`;
@@ -211,7 +213,7 @@ function alChangesSummary(changesJson, action) {
         return parts.join('<br>') + more;
     }
     // CREATE / DELETE — top-Level Felder kurz (ohne technische Ids/Timestamps)
-    const boring = ['Id', 'CreatedAt', 'UpdatedAt', 'Xmin'];
+    const boring = ['Id', 'CreatedAt', 'UpdatedAt', 'Xmin', 'EmployeeId', 'AbsenceId', 'EasyatworkRef'];
     const show = keys.filter(k => !boring.includes(k));
     const use = show.length ? show : keys;
     const parts = use.slice(0, 5).map(k => `<b>${esc(alFieldLabel(k))}</b>: ${alHumanValue(obj[k])}`);
