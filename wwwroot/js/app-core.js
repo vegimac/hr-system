@@ -972,6 +972,22 @@ function applyAdminBreadcrumb(name) {
     // würde sie sonst in den Admin-Bereich ziehen, in den sie nicht gehören.
     const showAdminBack = _adminSubPages.includes(name) && currentUser?.role === 'admin';
     btn.style.display = showAdminBack ? 'inline-flex' : 'none';
+    // Walter-Vorgabe 16.08.2026: zusaetzlich ein IMMER GLEICHER Zurueck-
+    // Button IN der Seite (unterhalb der obersten Zeile, links) — der
+    // langSwitcher-Button oben rechts bleibt, aber die Sub-Pages bekommen
+    // einen sichtbaren Standard-Button als erstes Element der Page.
+    document.querySelectorAll('.sys-back-row').forEach(el => el.remove());
+    if (showAdminBack) {
+        const page = document.getElementById('page-' + name);
+        if (page) {
+            const row = document.createElement('div');
+            row.className = 'sys-back-row';
+            row.innerHTML = '<button type="button" class="sys-back-btn" onclick="showPage(\'admin-hub\')">' +
+                '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
+                ' Zur\u00fcck zu System</button>';
+            page.insertBefore(row, page.firstChild);
+        }
+    }
 }
 
 function showPage(name) {

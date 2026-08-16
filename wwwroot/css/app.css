@@ -11223,3 +11223,29 @@ body.sys-bg:not(.theme-dark) .page.fixhead .lp-row:hover td { background: rgba(2
 /* System-Unterkarten: nur Bild + Headline (Walter 16.08.2026) — die
    Beschreibungstexte bleiben im DOM (Suche/i18n), sind aber ausgeblendet. */
 .admin-hub-group .admin-card-desc { display: none; }
+
+/* Einheitlicher Zurueck-Button auf allen System-Unterseiten (Walter 16.08.2026).
+   Sitzt als eigene Zeile UNTER dem obersten Band (nie oben rechts — dort ist
+   der langSwitcher reserviert). Liquid-Glas-Pill, Kohle-Text. */
+.sys-back-row { padding: 12px 32px 0; flex: 0 0 auto; }
+.page.fixhead .sys-back-row { padding-bottom: 0; }
+.sys-back-btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(60,55,48,0.2);
+    border-radius: 12px;
+    padding: 6px 14px;
+    font-size: 12.5px; font-weight: 650; color: #3f3f3f;
+    cursor: pointer;
+    transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.sys-back-btn:hover {
+    background: rgba(255,255,255,0.85);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(60,55,48,0.16);
+}
+body.theme-dark .sys-back-btn {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.25);
+    color: #d6d3cc;
+}
