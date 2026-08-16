@@ -1226,7 +1226,7 @@ using (var scope = app.Services.CreateScope())
     {
         var _mtTypeIds = db.MomentTypes.ToDictionary(t => t.Code, t => t.Id);
         var _mtToneIds = db.MomentTones.ToDictionary(t => t.Code, t => t.Id);
-        void UpsertMomentText(string typeCode, string toneCode, string body)
+        void UpsertMomentText(string typeCode, string toneCode, string body, string? titel = null)
         {
             if (!_mtTypeIds.TryGetValue(typeCode, out var ti)) return;
             if (!_mtToneIds.TryGetValue(toneCode, out var oi)) return;
@@ -1236,40 +1236,58 @@ using (var scope = app.Services.CreateScope())
             if (exists) return;
             db.MomentTexts.Add(new MomentText {
                 MomentTypeId = ti, MomentToneId = oi,
+                Titel = titel,
                 // Signatur des Absenders am Ende (aus dem „Absender / HR"-Feld → {SenderName}).
                 BodyText = body + "\n\n{SenderName}",
                 LanguageCode = "de", Version = "1.0", RequiresReview = true,
                 IsActive = true, SortOrder = 0, CreatedAt = DateTime.Now });
         }
 
+        // Einmal-Nachtrag (Walter 16.08.2026): die 1.0-Seed-Vorlagen wurden
+        // ohne Titel angelegt — Titel nachtragen, NUR wo noch keiner steht.
+        db.Database.ExecuteSqlRaw("""
+            UPDATE moment_text mt SET titel = v.titel
+            FROM (VALUES
+                ('EmployeeBirthday',         'Alles Gute zum Geburtstag'),
+                ('WorkAnniversary',          'Zum Arbeitsjubilaeum'),
+                ('Appreciation',             'Danke fuer deinen Einsatz'),
+                ('PromotionCongratulations', 'Gratulation zur neuen Aufgabe'),
+                ('WelcomeBackVacation',      'Willkommen zurueck aus den Ferien'),
+                ('CareHeatNotice',           'Hitzetag - trag dir Sorge'),
+                ('WelcomeBackNeutral',       'Willkommen zurueck')
+            ) AS v(code, titel)
+            JOIN moment_type ty ON ty.code = v.code
+            WHERE mt.moment_type_id = ty.id AND mt.titel IS NULL AND mt.version = '1.0';
+            """);
+
         // EmployeeBirthday
-        UpsertMomentText("EmployeeBirthday", "Calm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Wir wünschen dir einen schönen Tag.");
-        UpsertMomentText("EmployeeBirthday", "Warm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Schön, dass du Teil unserer Crew bist. Wir wünschen dir einen wunderbaren Tag.");
-        UpsertMomentText("EmployeeBirthday", "Personal", "{Briefanrede}\nzu deinem Geburtstag wünsche ich dir von Herzen alles Gute. Schön, dass du bei uns bist und unsere Crew mitprägst.");
+        UpsertMomentText("EmployeeBirthday", "Calm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Wir wünschen dir einen schönen Tag.", "Alles Gute zum Geburtstag");
+        UpsertMomentText("EmployeeBirthday", "Warm",     "{Briefanrede}\nalles Gute zu deinem Geburtstag. Schön, dass du Teil unserer Crew bist. Wir wünschen dir einen wunderbaren Tag.", "Alles Gute zum Geburtstag");
+        UpsertMomentText("EmployeeBirthday", "Personal", "{Briefanrede}\nzu deinem Geburtstag wünsche ich dir von Herzen alles Gute. Schön, dass du bei uns bist und unsere Crew mitprägst.", "Alles Gute zum Geburtstag");
         // WorkAnniversary
-        UpsertMomentText("WorkAnniversary", "Calm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) Teil unserer Crew. Vielen Dank für deinen Einsatz.");
-        UpsertMomentText("WorkAnniversary", "Warm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) bei uns. Danke für deine Treue, deinen Einsatz und dafür, dass du Teil unserer Crew bist.");
-        UpsertMomentText("WorkAnniversary", "Personal", "{Briefanrede}\n{Years} Jahr(e) OneCrew. Das ist etwas Besonderes. Danke für deinen Einsatz, deine Treue und alles, was du in dieser Zeit beigetragen hast.");
+        UpsertMomentText("WorkAnniversary", "Calm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) Teil unserer Crew. Vielen Dank für deinen Einsatz.", "Zum Arbeitsjubiläum");
+        UpsertMomentText("WorkAnniversary", "Warm",     "{Briefanrede}\nheute bist du seit {Years} Jahr(en) bei uns. Danke für deine Treue, deinen Einsatz und dafür, dass du Teil unserer Crew bist.", "Zum Arbeitsjubiläum");
+        UpsertMomentText("WorkAnniversary", "Personal", "{Briefanrede}\n{Years} Jahr(e) OneCrew. Das ist etwas Besonderes. Danke für deinen Einsatz, deine Treue und alles, was du in dieser Zeit beigetragen hast.", "Zum Arbeitsjubiläum");
         // Appreciation
-        UpsertMomentText("Appreciation", "Calm",     "{Briefanrede}\nich möchte dir kurz Danke sagen. Dein Einsatz ist aufgefallen.");
-        UpsertMomentText("Appreciation", "Warm",     "{Briefanrede}\nich möchte dir persönlich Danke sagen. Dein Einsatz und deine Unterstützung werden sehr geschätzt.");
-        UpsertMomentText("Appreciation", "Personal", "{Briefanrede}\nich habe gesehen, wie du dich eingesetzt hast. Genau solche Momente machen unsere Crew stark. Danke dir dafür.");
+        UpsertMomentText("Appreciation", "Calm",     "{Briefanrede}\nich möchte dir kurz Danke sagen. Dein Einsatz ist aufgefallen.", "Danke für deinen Einsatz");
+        UpsertMomentText("Appreciation", "Warm",     "{Briefanrede}\nich möchte dir persönlich Danke sagen. Dein Einsatz und deine Unterstützung werden sehr geschätzt.", "Danke für deinen Einsatz");
+        UpsertMomentText("Appreciation", "Personal", "{Briefanrede}\nich habe gesehen, wie du dich eingesetzt hast. Genau solche Momente machen unsere Crew stark. Danke dir dafür.", "Danke für deinen Einsatz");
         // PromotionCongratulations
-        UpsertMomentText("PromotionCongratulations", "Calm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir wünschen dir viel Freude und Erfolg.");
-        UpsertMomentText("PromotionCongratulations", "Warm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir freuen uns sehr für dich und wünschen dir einen guten Start.");
-        UpsertMomentText("PromotionCongratulations", "Personal", "{Briefanrede}\nich freue mich sehr über deinen nächsten Schritt. Herzliche Gratulation zu deiner neuen Aufgabe. Du hast dir das verdient.");
+        UpsertMomentText("PromotionCongratulations", "Calm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir wünschen dir viel Freude und Erfolg.", "Gratulation zur neuen Aufgabe");
+        UpsertMomentText("PromotionCongratulations", "Warm",     "{Briefanrede}\nherzliche Gratulation zu deiner neuen Aufgabe. Wir freuen uns sehr für dich und wünschen dir einen guten Start.", "Gratulation zur neuen Aufgabe");
+        UpsertMomentText("PromotionCongratulations", "Personal", "{Briefanrede}\nich freue mich sehr über deinen nächsten Schritt. Herzliche Gratulation zu deiner neuen Aufgabe. Du hast dir das verdient.", "Gratulation zur neuen Aufgabe");
         // WelcomeBackVacation
-        UpsertMomentText("WelcomeBackVacation", "Calm",     "{Briefanrede}\nschön, dass du wieder zurück bist. Wir wünschen dir einen guten Start.");
-        UpsertMomentText("WelcomeBackVacation", "Warm",     "{Briefanrede}\nwillkommen zurück. Schön, dass du wieder da bist. Wir hoffen, du konntest die freie Zeit geniessen.");
-        UpsertMomentText("WelcomeBackVacation", "Personal", "{Briefanrede}\nschön, dass du wieder bei uns bist. Ich hoffe, du konntest gut abschalten und startest mit neuer Energie.");
+        UpsertMomentText("WelcomeBackVacation", "Calm",     "{Briefanrede}\nschön, dass du wieder zurück bist. Wir wünschen dir einen guten Start.", "Willkommen zurück aus den Ferien");
+        UpsertMomentText("WelcomeBackVacation", "Warm",     "{Briefanrede}\nwillkommen zurück. Schön, dass du wieder da bist. Wir hoffen, du konntest die freie Zeit geniessen.", "Willkommen zurück aus den Ferien");
+        UpsertMomentText("WelcomeBackVacation", "Personal", "{Briefanrede}\nschön, dass du wieder bei uns bist. Ich hoffe, du konntest gut abschalten und startest mit neuer Energie.", "Willkommen zurück aus den Ferien");
         // CareHeatNotice
-        UpsertMomentText("CareHeatNotice", "Calm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte trink genug und achte gut auf dich.");
-        UpsertMomentText("CareHeatNotice", "Warm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte denk daran, genug zu trinken und gut auf dich und deine Crew zu achten.");
-        UpsertMomentText("CareHeatNotice", "Personal", "{Briefanrede}\nmorgen wird ein heisser Tag. Bitte nimm dir bewusst Zeit zum Trinken und achte gut auf dich. Deine Gesundheit ist wichtig.");
+        UpsertMomentText("CareHeatNotice", "Calm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte trink genug und achte gut auf dich.", "Hitzetag — trag dir Sorge");
+        UpsertMomentText("CareHeatNotice", "Warm",     "{Briefanrede}\nmorgen wird es sehr heiss. Bitte denk daran, genug zu trinken und gut auf dich und deine Crew zu achten.", "Hitzetag — trag dir Sorge");
+        UpsertMomentText("CareHeatNotice", "Personal", "{Briefanrede}\nmorgen wird ein heisser Tag. Bitte nimm dir bewusst Zeit zum Trinken und achte gut auf dich. Deine Gesundheit ist wichtig.", "Hitzetag — trag dir Sorge");
         // WelcomeBackNeutral
-        UpsertMomentText("WelcomeBackNeutral", "Calm",     "{Briefanrede}\nschön, dass du wieder da bist. Wir wünschen dir einen guten Start.");
-        UpsertMomentText("WelcomeBackNeutral", "Warm",     "{Briefanrede}\nschön, dass du wieder bei uns bist. Wir freuen uns, dich wieder im Team zu haben.");
-        UpsertMomentText("WelcomeBackNeutral", "Personal", "{Briefanrede}\nschön, dich wieder bei uns zu haben. Starte ruhig, und melde dich, falls du Unterstützung brauchst.");
+        UpsertMomentText("WelcomeBackNeutral", "Calm",     "{Briefanrede}\nschön, dass du wieder da bist. Wir wünschen dir einen guten Start.", "Willkommen zurück");
+        UpsertMomentText("WelcomeBackNeutral", "Warm",     "{Briefanrede}\nschön, dass du wieder bei uns bist. Wir freuen uns, dich wieder im Team zu haben.", "Willkommen zurück");
+        UpsertMomentText("WelcomeBackNeutral", "Personal", "{Briefanrede}\nschön, dich wieder bei uns zu haben. Starte ruhig, und melde dich, falls du Unterstützung brauchst.", "Willkommen zurück");
 
         // VERTRAG_LINK (Walter 07.07.2026): SMS-Vorlage für den öffentlichen Vertrags-Link.
         // Hier zählt der SmsText (nicht der BodyText); Platzhalter {Vorname}/{Firma}/{Link}/{GueltigBis}
