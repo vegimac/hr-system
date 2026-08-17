@@ -1846,6 +1846,11 @@ public class PayrollController : HrControllerBase
         if (snap.IsFinal)  return Conflict(new { error = "Snapshot ist final — kann nicht mehr verändert werden." });
         if (snap.Periode?.Status != "provisorisch_abgeschlossen")
             return Conflict(new { error = "HR-Bestätigung nur in provisorisch abgeschlossener Periode möglich." });
+        // Idempotenz (Walter-Bug 17.08.2026, «da stockt es manchmal»): Doppelklick
+        // oder veraltete Liste — ist der Snapshot SCHON HR-bestätigt, ist das Ziel
+        // erreicht → Ok statt 409, das Frontend synct sich einfach neu.
+        if (snap.Status == "HR_BESTAETIGT")
+            return Ok(new { snap.Id, snap.Status, snap.HrBestaetigtAt, schonBestaetigt = true });
         if (snap.Status != "FREIGEGEBEN_GF")
             return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet FREIGEGEBEN_GF)." });
 
@@ -1869,6 +1874,9 @@ public class PayrollController : HrControllerBase
         if (!await CanAccessBranchAsync(snap.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
         if (snap.IsFinal) return Conflict(new { error = "Snapshot ist final." });
+        // Idempotenz (analog HrBestaetigen): schon zurückgezogen → Ok.
+        if (snap.Status == "FREIGEGEBEN_GF")
+            return Ok(new { snap.Id, snap.Status, schonZurueckgezogen = true });
         if (snap.Status != "HR_BESTAETIGT")
             return Conflict(new { error = $"Snapshot-Status ist {snap.Status} (erwartet HR_BESTAETIGT)." });
 

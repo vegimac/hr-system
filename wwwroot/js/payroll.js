@@ -2600,7 +2600,13 @@ async function lohnDefinitivAbschliessen() {
 // HR per-MA-Aktionen im Definitivlauf (Walter 19.05.2026, analog Akonto-Tab).
 // Backend-Endpoints existieren bereits unter /api/payroll/hr-bestaetigen/{snapshotId}
 // und /api/payroll/hr-zurueckziehen/{snapshotId}.
+let _lohnHrBusy = false;   // Doppelklick-Sperre (Walter-Bug 17.08.2026, «da stockt es manchmal»)
 async function lohnHrBestaetigen() {
+    if (_lohnHrBusy) return;
+    _lohnHrBusy = true;
+    try { await _lohnHrBestaetigenInner(); } finally { _lohnHrBusy = false; }
+}
+async function _lohnHrBestaetigenInner() {
     const s = lohnCurrentSlip;
     if (!s?.employeeId) return;
     const cid = s.companyId, year = s.year, month = s.month;
@@ -2615,6 +2621,10 @@ async function lohnHrBestaetigen() {
         });
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
+            // Zustand veraltet? Erst neu laden, dann melden — so ist die Liste
+            // nach dem Wegklicken der Meldung schon wieder korrekt (kein
+            // «zurück und wieder vor» mehr nötig).
+            await lohnWfRefresh();
             throw new Error(e.message || e.error || 'Fehler beim HR-Bestätigen');
         }
         // Walter-Vorgabe 20.05.2026: flüssig wie Akonto — KEIN voller
@@ -2648,6 +2658,7 @@ async function lohnHrZurueckziehen() {
         });
         if (!res.ok) {
             const e = await res.json().catch(() => ({}));
+            await lohnWfRefresh();   // Zustand resyncen, bevor die Meldung kommt
             throw new Error(e.message || e.error || 'Fehler beim Zurückziehen');
         }
         showToast('HR-Bestätigung zurückgezogen', 'success');

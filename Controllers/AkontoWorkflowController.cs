@@ -560,6 +560,9 @@ public class AkontoWorkflowController : HrControllerBase
                                    && p.Year == z.PeriodYear && p.Month == z.PeriodMonth);
         if (periode is null || periode.AkontoStatus != "IN_BEARBEITUNG_GF")
             return StatusCode(409, new { error = "Rückzug nur möglich solange Periode IN_BEARBEITUNG_GF ist." });
+        // Idempotenz: schon zurückgezogen → Ok (Doppelklick / veraltete Liste).
+        if (z.Status == "BERECHNET")
+            return Ok(new { z.Id, z.Status, schonZurueckgezogen = true });
         if (z.Status != "FREIGEGEBEN_GF")
             return StatusCode(409, new { error = $"Nur FREIGEGEBEN_GF-Datensätze sind rückziehbar (aktuell: {z.Status})." });
 
@@ -663,6 +666,10 @@ public class AkontoWorkflowController : HrControllerBase
             || (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN"))
             return StatusCode(409, new { error = "HR-Bestätigung nur möglich solange noch nicht ausbezahlt (aktuell: "
                                                 + (periode?.AkontoStatus ?? "?") + ")." });
+        // Idempotenz (Walter-Bug 17.08.2026): Doppelklick / veraltete Liste —
+        // schon HR-bestätigt ist kein Fehler, das Ziel ist erreicht.
+        if (z.Status == "HR_BESTAETIGT")
+            return Ok(new { z.Id, z.Status, schonBestaetigt = true });
         if (z.Status != "FREIGEGEBEN_GF")
             return StatusCode(409, new { error = $"Lohnblatt muss FREIGEGEBEN_GF sein (aktuell: {z.Status})." });
 
@@ -710,6 +717,9 @@ public class AkontoWorkflowController : HrControllerBase
             return StatusCode(409, new { error = "Periode nicht gefunden." });
         if (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN")
             return StatusCode(409, new { error = "Rücknahme nur möglich solange noch nicht ausbezahlt." });
+        // Idempotenz: schon zurückgezogen → Ok (Doppelklick / veraltete Liste).
+        if (z.Status == "FREIGEGEBEN_GF")
+            return Ok(new { z.Id, z.Status, schonZurueckgezogen = true });
         if (z.Status != "HR_BESTAETIGT")
             return StatusCode(409, new { error = $"Lohnblatt ist nicht HR_BESTAETIGT (aktuell: {z.Status})." });
 
