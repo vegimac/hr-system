@@ -642,11 +642,17 @@ public class PayrollCalculationEngine
                 nachtKompStunden += hours;
 
             // 2) Wohin fliessen die Stunden?
-            if (a.AbsenceType == "UNBEZ_URLAUB")
+            if (a.AbsenceType == "UNBEZ_URLAUB"
+                || a.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT")
             {
-                // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026): KEINE
+                // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026) und EO-Absenzen
+                // Mutterschaft/Vaterschaft (Walter-Entscheid 17.08.2026): KEINE
                 // Zeitgutschrift und KEINE Auszahlung — darf NICHT in
                 // feiertagStunden landen, sonst würde er fälschlich ausbezahlt.
+                // Der EO-Lohnersatz läuft AUSSCHLIESSLICH über die Zeilen
+                // 120.x/125.x (EO-Block bei den Zulagen) — würde die Absenz
+                // zusätzlich Stunden gutschreiben, entstünde eine Doppelzahlung
+                // (Walter-Test 17.08.2026: +53.57 h Phantom-Mehrstunden).
                 // Die Festlohn-/Sollstunden-Kürzung passiert pro Modell weiter
                 // unten (FIX/FIX-M: Festlohn-Split per Tagessatz; MTP: garantierte
                 // Soll-Stunden runter), analog FERIEN. UTP: keine Wirkung
@@ -1266,53 +1272,74 @@ public class PayrollCalculationEngine
         // EO-Tage = Kalendertage der Absenz im Periodenfenster (die Ausgleichs-
         // kasse entschädigt 7 Taggelder/Woche, Sa+So zählen mit).
         {
-            var eoTypen = new[]
-            {
-                ("MUTTERSCHAFT", "120.1", "125.1", "Mutterschaftsentschädigung EO", "Korr. Mutterschaftsentschädigung EO"),
-                ("VATERSCHAFT",  "120.2", "125.2", "Vaterschaftsentschädigung EO",  "Korr. Vaterschaftsentschädigung EO"),
-            };
+            // Alt-Katalog: der bestehende kombinierte Typ «MUTT_VATER»
+            // («Mutter-/Vaterschaftsurlaub») wird nach Geschlecht des MA auf
+            // Mutterschaft (120.1) bzw. Vaterschaft (120.2) gemappt.
             string eoModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
             bool eoFestlohnModell = eoModel is "MTP" or "FIX" or "FIX-M";
-            decimal? eoTagessatz100 = null;
-
-            foreach (var (eoTyp, codeEo, codeKorr, bezEo, bezKorr) in eoTypen)
+            int eoTageMutter = 0, eoTageVater = 0;
+            foreach (var a in absences)
             {
-                int eoTage = 0;
-                foreach (var a in absences.Where(x => x.AbsenceType == eoTyp))
+                bool istMutter = a.AbsenceType == "MUTTERSCHAFT";
+                bool istVater  = a.AbsenceType == "VATERSCHAFT";
+                if (a.AbsenceType == "MUTT_VATER")
                 {
-                    var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
-                    var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
-                    if (bis >= von) eoTage += bis.DayNumber - von.DayNumber + 1;
+                    bool weiblich = (employee.Gender ?? "").ToLowerInvariant().StartsWith("f")
+                                 || string.Equals((employee.Salutation ?? "").Trim(), "Frau", StringComparison.OrdinalIgnoreCase);
+                    istMutter = weiblich;
+                    istVater  = !weiblich;
                 }
-                if (eoTage == 0) continue;
+                if (!istMutter && !istVater) continue;
+                var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
+                var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
+                if (bis < von) continue;
+                int eoT = bis.DayNumber - von.DayNumber + 1;
+                if (istMutter) eoTageMutter += eoT; else eoTageVater += eoT;
+            }
 
-                eoTagessatz100 ??= (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
-                if (eoTagessatz100 is not > 0) continue;
-
-                decimal eoTaggeld = Math.Min(Math.Round(eoTagessatz100.Value * 0.80m, 2), 220m);
-
-                void EoAddLine(string code, string fallbackBez, decimal betrag, decimal satz)
+            if (eoTageMutter > 0 || eoTageVater > 0)
+            {
+                var eoSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
+                if (eoSatz100 is > 0)
                 {
-                    var lpEo = lohnposByCode.TryGetValue(code, out var l) ? l : null;
-                    zulagenSvLines.Add(new {
-                        bezeichnung = $"{lpEo?.Bezeichnung ?? fallbackBez} ({eoTage} Tage)",
-                        code,
-                        anzahl = (decimal?)eoTage, prozent = (decimal?)null,
-                        basis = (decimal?)satz, betrag });
-                    zulagenSvTotal += betrag;
-                    // Flag-getrieben — Fallback «alles pflichtig», falls die
-                    // Lohnposition (noch) nicht im Katalog ist.
-                    if (lpEo?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
-                    if (lpEo?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
-                    if (lpEo?.KtgPflichtig    ?? true) deltaKtg  += betrag;
-                    if (lpEo?.BvgPflichtig    ?? true) deltaBvg  += betrag;
-                    if (lpEo?.QstPflichtig    ?? true) deltaQst  += betrag;
-                    AddAmount(code, betrag);
-                }
+                    decimal eoTaggeld = Math.Min(Math.Round(eoSatz100.Value * 0.80m, 2), 220m);
 
-                EoAddLine(codeEo, bezEo, Math.Round(eoTaggeld * eoTage, 2), eoTaggeld);
-                if (eoFestlohnModell)
-                    EoAddLine(codeKorr, bezKorr, -Math.Round(eoTagessatz100.Value * eoTage, 2), eoTagessatz100.Value);
+                    void EoAddLine(string code, string fallbackBez, int tage, decimal betrag, decimal satz)
+                    {
+                        var lpEo = lohnposByCode.TryGetValue(code, out var l) ? l : null;
+                        zulagenSvLines.Add(new {
+                            bezeichnung = $"{lpEo?.Bezeichnung ?? fallbackBez} ({tage} Tage)",
+                            code,
+                            anzahl = (decimal?)tage, prozent = (decimal?)null,
+                            basis = (decimal?)satz, betrag });
+                        zulagenSvTotal += betrag;
+                        // Flag-getrieben — Fallback «alles pflichtig», falls die
+                        // Lohnposition (noch) nicht im Katalog ist.
+                        if (lpEo?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
+                        if (lpEo?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
+                        if (lpEo?.KtgPflichtig    ?? true) deltaKtg  += betrag;
+                        if (lpEo?.BvgPflichtig    ?? true) deltaBvg  += betrag;
+                        if (lpEo?.QstPflichtig    ?? true) deltaQst  += betrag;
+                        AddAmount(code, betrag);
+                    }
+
+                    if (eoTageMutter > 0)
+                    {
+                        EoAddLine("120.1", "Mutterschaftsentschädigung EO", eoTageMutter,
+                                  Math.Round(eoTaggeld * eoTageMutter, 2), eoTaggeld);
+                        if (eoFestlohnModell)
+                            EoAddLine("125.1", "Korr. Mutterschaftsentschädigung EO", eoTageMutter,
+                                      -Math.Round(eoSatz100.Value * eoTageMutter, 2), eoSatz100.Value);
+                    }
+                    if (eoTageVater > 0)
+                    {
+                        EoAddLine("120.2", "Vaterschaftsentschädigung EO", eoTageVater,
+                                  Math.Round(eoTaggeld * eoTageVater, 2), eoTaggeld);
+                        if (eoFestlohnModell)
+                            EoAddLine("125.2", "Korr. Vaterschaftsentschädigung EO", eoTageVater,
+                                      -Math.Round(eoSatz100.Value * eoTageVater, 2), eoSatz100.Value);
+                    }
+                }
             }
         }
 
