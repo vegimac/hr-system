@@ -60,14 +60,19 @@
 </div>
 <script>
     // Tageszeitabhängige, persönliche du-Begrüssung auf der Anmeldeseite
+    // (Walter-Vorgabe 17.08.2026: abwechslungsreiche Begrüssungen mit
+    // Augenzwinkern — pro Tageszeit ein kleiner Pool, zufällig gewählt).
     (function () {
         var h = new Date().getHours();
-        var g = (h < 5) ? 'Gute Nacht'
-              : (h < 11) ? 'Guten Morgen'
-              : (h < 13) ? 'Guten Tag'
-              : (h < 18) ? 'Guten Nachmittag'
-              : (h < 22) ? 'Guten Abend'
-              : 'Gute Nacht';
+        var pool =
+              (h < 5)  ? ['Hallo Nachteule', 'Noch wach?', 'Die Nachtschicht grüsst']
+            : (h < 8)  ? ['Hallo Frühaufsteher', 'Guten Morgen — Kaffee schon bereit?', 'Der frühe Vogel …']
+            : (h < 11) ? ['Guten Morgen', 'Schönen guten Morgen', 'Auf in den Tag']
+            : (h < 13) ? ['Guten Tag', 'Mahlzeit!', 'Hallo zur Mittagszeit']
+            : (h < 18) ? ['Guten Nachmittag', 'Schön, bist du da', 'Willkommen zurück']
+            : (h < 22) ? ['Guten Abend', 'Schönen Abend', 'Der Abend gehört dir']
+            :            ['Hallo Nachteule', 'Noch ein Spätdienst?', 'Gleich geschafft'];
+        var g = pool[Math.floor(Math.random() * pool.length)];
         var el = document.getElementById('loginGreeting');
         if (el) el.textContent = g;
     })();
