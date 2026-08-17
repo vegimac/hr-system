@@ -98,6 +98,7 @@ public class AppDbContext : DbContext
     public DbSet<FerienPlanung>             FerienPlanungen             => Set<FerienPlanung>();
     public DbSet<LohnausweisFinal>          LohnausweisFinals           => Set<LohnausweisFinal>();
     public DbSet<ElmLohnrasterEintrag>      ElmLohnraster               => Set<ElmLohnrasterEintrag>();
+    public DbSet<VertragsmodellLohnschema>  LohnschemaEintraege         => Set<VertragsmodellLohnschema>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
@@ -1436,6 +1437,25 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.VerwendetLohnposition).WithMany()
                   .HasForeignKey(e => e.VerwendetLohnpositionId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Lohnschema pro Vertragsmodell (Walter 17.08.2026)
+        modelBuilder.Entity<VertragsmodellLohnschema>(entity =>
+        {
+            entity.ToTable("vertragsmodell_lohnschema");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Modell).HasColumnName("modell");
+            entity.Property(e => e.LohnpositionId).HasColumnName("lohnposition_id");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.Modell, e.LohnpositionId, e.Art }).IsUnique();
+            entity.HasOne(e => e.Lohnposition).WithMany()
+                  .HasForeignKey(e => e.LohnpositionId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<ManagerDienstplanEntry>(entity =>

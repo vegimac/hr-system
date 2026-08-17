@@ -1231,6 +1231,10 @@ function renderEmployeeDetail(emp) {
 
         <!-- TAB: Zulagen & Abzüge -->
         <div class="emp-tab-content" id="emp-tab-zulagen">
+            <!-- Lohnschema-Block (Walter 17.08.2026): Standard-Lohnblatt des
+                 Vertragsmodells als read-only-Chips, gerendert von
+                 loadLohnschemaBlockForModel() in js/lohnschema.js -->
+            <div id="empLohnschemaBlock"></div>
             <!-- Uniformen-Depot (Walter Aug 2026) -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 <span>Uniformen-Depot</span>
@@ -2005,6 +2009,14 @@ function switchEmpTab(tab) {
     if (tab === 'zulagen'        && selectedEmployeeId) {
         // Walter-Vorgabe 26.05.2026: BVG-Zusatz + Recurring + Lohnabtretungen
         // teilen sich den neuen „Zulagen & Abzüge"-Tab.
+        // Lohnschema-Block (Walter 17.08.2026): Standard-Lohnblatt des
+        // Vertragsmodells — Modell aus dem aktiven Vertrag (gleiche Wahl wie
+        // das Header-Badge: jüngster aktiver Vertrag).
+        if (typeof loadLohnschemaBlockForModel === 'function') {
+            const _lsC = ((selectedEmployee?.employments) || []).filter(x => x.isActive)
+                .sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))[0];
+            loadLohnschemaBlockForModel(_lsC?.employmentModel || null);
+        }
         if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);

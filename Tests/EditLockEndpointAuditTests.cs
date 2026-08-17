@@ -40,6 +40,7 @@ public class EditLockEndpointAuditTests
     private static readonly Dictionary<string, string> LOCK_IRRELEVANT_CONTROLLERS = new()
     {
         ["ElmLohnrasterController"] = "ELM-Lohnraster-PickList — reiner Referenzkatalog ohne Lohnlauf-Datumsbezug (Walter 17.08.2026)",
+        ["LohnschemaController"] = "Lohnschema pro Vertragsmodell — reine Stammdaten/Anzeige, Engine liest das Schema nicht (Walter 17.08.2026)",
         // Authentifizierung / User-Verwaltung — kein Lohn-Bezug
         ["AuthController"]                 = "Login/Logout/Password — keine Lohndaten",
         ["UsersController"]                = "Benutzer-Stammdaten (Anlage, Rolle) — keine Lohndaten",

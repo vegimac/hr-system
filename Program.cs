@@ -3043,6 +3043,97 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
+    // ── Lohnschema pro Vertragsmodell (Walter 17.08.2026, Phase 2 des
+    // Konzepts docs/lohnschema-vertragsmodelle.docx): Standard-Lohnblatt
+    // pro Modell (FLEX/MTP/FIX/FIX-M/ALLE). Seed NUR in leere Tabelle,
+    // Aufloesung der Lohnpositionen per Code-Join (fehlende Codes werden
+    // uebersprungen). Doku: migrations-archive/add_vertragsmodell_lohnschema.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS vertragsmodell_lohnschema (
+            id              serial PRIMARY KEY,
+            modell          text NOT NULL,
+            lohnposition_id integer NOT NULL REFERENCES lohnposition(id) ON DELETE CASCADE,
+            art             text NOT NULL DEFAULT 'automatisch',
+            sort_order      integer NOT NULL DEFAULT 0,
+            bemerkung       text,
+            created_at      timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_vm_lohnschema
+            ON vertragsmodell_lohnschema (modell, lohnposition_id, art);
+
+        INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+        SELECT v.modell, lp.id, v.art, v.sort_order
+        FROM (VALUES
+            -- FLEX (Stundenlohn)
+            ('FLEX',  '20',    'automatisch', 10),
+            ('FLEX',  '55.10', 'automatisch', 20),
+            ('FLEX',  '50',    'automatisch', 30),
+            ('FLEX',  '195.1', 'saldo',       40),
+            ('FLEX',  '40.1',  'ereignis',    50),
+            ('FLEX',  '180.1', 'automatisch', 60),
+            ('FLEX',  '70',    'ereignis',    70),
+            ('FLEX',  '70.2',  'ereignis',    80),
+            ('FLEX',  '60',    'ereignis',    90),
+            ('FLEX',  '60.2',  'ereignis',   100),
+            ('FLEX',  '110.1', 'ereignis',   110),
+            ('FLEX',  '55.10', 'austritt',   120),
+            ('FLEX',  '40.1',  'austritt',   130),
+            ('FLEX',  '180.1', 'austritt',   140),
+            -- MTP (garantierte Stunden)
+            ('MTP',   '10',    'automatisch', 10),
+            ('MTP',   '4',     'automatisch', 20),
+            ('MTP',   '195.1', 'saldo',       30),
+            ('MTP',   '2',     'ereignis',    40),
+            ('MTP',   '3',     'automatisch', 50),
+            ('MTP',   '195.2', 'ereignis',    60),
+            ('MTP',   '180.1', 'saldo',       70),
+            ('MTP',   '70',    'ereignis',    80),
+            ('MTP',   '70.2',  'ereignis',    90),
+            ('MTP',   '60',    'ereignis',   100),
+            ('MTP',   '60.2',  'ereignis',   110),
+            ('MTP',   '110.1', 'ereignis',   120),
+            ('MTP',   '55.10', 'austritt',   130),
+            ('MTP',   '40.1',  'austritt',   140),
+            ('MTP',   '180.1', 'austritt',   150),
+            -- FIX (Monatslohn)
+            ('FIX',   '10',    'automatisch', 10),
+            ('FIX',   '2',     'ereignis',    20),
+            ('FIX',   '3',     'ereignis',    30),
+            ('FIX',   '180.1', 'saldo',       40),
+            ('FIX',   '75',    'ereignis',    50),
+            ('FIX',   '70',    'ereignis',    60),
+            ('FIX',   '70.2',  'ereignis',    70),
+            ('FIX',   '65',    'ereignis',    80),
+            ('FIX',   '60',    'ereignis',    90),
+            ('FIX',   '60.2',  'ereignis',   100),
+            ('FIX',   '110.1', 'ereignis',   110),
+            ('FIX',   '40.1',  'austritt',   120),
+            ('FIX',   '50',    'austritt',   130),
+            ('FIX',   '55.10', 'austritt',   140),
+            -- FIX-M (Management-Festlohn) — wie FIX; 13. ML gemaess Monatsraster
+            ('FIX-M', '10',    'automatisch', 10),
+            ('FIX-M', '2',     'ereignis',    20),
+            ('FIX-M', '3',     'ereignis',    30),
+            ('FIX-M', '180.1', 'saldo',       40),
+            ('FIX-M', '75',    'ereignis',    50),
+            ('FIX-M', '70',    'ereignis',    60),
+            ('FIX-M', '70.2',  'ereignis',    70),
+            ('FIX-M', '65',    'ereignis',    80),
+            ('FIX-M', '60',    'ereignis',    90),
+            ('FIX-M', '60.2',  'ereignis',   100),
+            ('FIX-M', '110.1', 'ereignis',   110),
+            ('FIX-M', '40.1',  'austritt',   120),
+            ('FIX-M', '50',    'austritt',   130),
+            ('FIX-M', '55.10', 'austritt',   140),
+            -- Fuer ALLE Modelle
+            ('ALLE',  '190.1', 'automatisch', 10),
+            ('ALLE',  '190.2', 'automatisch', 20),
+            ('ALLE',  '600.24','automatisch', 30)
+        ) AS v(modell, code, art, sort_order)
+        JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+        WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema LIMIT 1);
+    ");
+
     // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
     // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
     // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql
