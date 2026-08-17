@@ -1374,23 +1374,23 @@ public class PayrollCalculationEngine
         // Bezeichnungs-Prefix → Lohnposition-Code (längste Prefixe zuerst!).
         var bezToCodeMap = new (string prefix, string code)[]
         {
-            ("Festlohn für bezogene Ferien",     "2"),
-            ("Festlohn für bezogene Feiertage",  "3"),
-            ("Festlohn",                          "10"),    // greift NACH den zwei spezifischeren oben
-            ("Monatslohn",                        "10"),    // FIX-Block
-            ("MTP + Stunden",                     "4"),
+            ("Festlohn für bezogene Ferien",     "10.2"),
+            ("Festlohn für bezogene Feiertage",  "10.3"),
+            ("Festlohn",                          "10.1"),    // greift NACH den zwei spezifischeren oben
+            ("Monatslohn",                        "10.1"),    // FIX-Block
+            ("MTP + Stunden",                     "55.3"),
             ("Stundenlohn Ferien",                "22"),
             ("Stundenlohn",                       "20"),
-            ("Ausbezahlte Feiertage",             "50"),
-            ("Korrektur Krankheit",               "75"),
-            ("Krankheit (Karenzentschädigung)",   "70"),
+            ("Ausbezahlte Feiertage",             "50.1"),
+            ("Korrektur Krankheit",               "75.1"),
+            ("Krankheit (Karenzentschädigung)",   "70.1"),
             ("Krankheit (Taggeld 80%)",           "70.2"),
             ("Krankheit (Taggeld",                "70.2"),  // Fallback
-            ("Korrektur Unfall",                  "65"),
-            ("Unfall (Karenzentschädigung)",      "60"),
-            ("Unfall (Taggeld 80%)",              "60.2"),
-            ("Unfall (Taggeld",                   "60.2"),
-            ("Unbezahlter Urlaub",                "110"),
+            ("Korrektur Unfall",                  "65.1"),
+            ("Unfall (Karenzentschädigung)",      "60.2"),
+            ("Unfall (Taggeld 80%)",              "60.3"),
+            ("Unfall (Taggeld",                   "60.3"),
+            ("Unbezahlter Urlaub",                "110.1"),
             ("Feiertagentschädigung",             "_feiertag_ent"),
             ("Ferienentschädigung-Auszahlung",    "_ferien_ausz"),
             ("Ferienentschädigung",               "_ferien_ent"),
@@ -1711,7 +1711,7 @@ public class PayrollCalculationEngine
                         : shortReasonStart
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
-                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
+                    mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
                 } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
@@ -1740,13 +1740,13 @@ public class PayrollCalculationEngine
                         teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall{det}");
                     }
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
-                    mtpFestlohnLabel = $"{LabelFor("10", "Festlohn")} ({string.Join(" ", teile)})";
+                    mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
-                    mtpFestlohnLabel = LabelFor("10", "Festlohn");
+                    mtpFestlohnLabel = LabelFor("10.1", "Festlohn");
                 }
                 lohnLines.Add(new {
                     bezeichnung = mtpFestlohnLabel,
-                    code    = "10",
+                    code    = "10.1",
                     anzahl  = (decimal?)festlohnArbeitStunden,
                     prozent = (decimal?)null,
                     basis   = (decimal?)hourlyRate,
@@ -1754,7 +1754,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)festlohnArbeitBetrag
                 });
                 totalLohn += festlohnArbeitBetrag;
-                AddAmount("10", festlohnExact);
+                AddAmount("10.1", festlohnExact);
             }
 
             // Walter-Vorgabe 01.08.2026: Unbezahlter Urlaub auch auf dem
@@ -1782,7 +1782,7 @@ public class PayrollCalculationEngine
             if (feiertagAusz > 0)
             {
                 decimal feiertagStdAnzeige = Math.Round(feiertagStunden, 2);
-                lohnLines.Add(new { bezeichnung = $"{feiertagStdAnzeige} Ausbezahlte Feiertage", code = "50", anzahl = (decimal?)feiertagStdAnzeige, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
+                lohnLines.Add(new { bezeichnung = $"{feiertagStdAnzeige} Ausbezahlte Feiertage", code = "50.1", anzahl = (decimal?)feiertagStdAnzeige, prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
 
@@ -1797,9 +1797,9 @@ public class PayrollCalculationEngine
                 if (vormonatHourSaldo > 0) mtpStdLabel += $" + {vormonatHourSaldo:0.00}h Vormonat";
                 else if (vormonatHourSaldo < 0) mtpStdLabel += $" − {Math.Abs(vormonatHourSaldo):0.00}h Vormonat";
                 mtpStdLabel += ")";
-                lohnLines.Add(new { bezeichnung = mtpStdLabel, code = "4", anzahl = (decimal?)mehrstundenAus, prozent = (decimal?)100m, basis = (decimal?)hourlyRate, betrag = mtpBasis, accrued = (decimal?)mtpBasis });
+                lohnLines.Add(new { bezeichnung = mtpStdLabel, code = "55.3", anzahl = (decimal?)mehrstundenAus, prozent = (decimal?)100m, basis = (decimal?)hourlyRate, betrag = mtpBasis, accrued = (decimal?)mtpBasis });
                 totalLohn += mtpBasis;
-                AddAmount("4", mtpExact);  // exaktes Produkt für Flag-Summen
+                AddAmount("55.3", mtpExact);  // exaktes Produkt für Flag-Summen
             }
 
             // ── Krankheit: Lohnkürzung + 88%-Gutschrift (im Karenzfenster) ──
@@ -1852,8 +1852,8 @@ public class PayrollCalculationEngine
             if (krank88Mtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Karenzentschädigung)"),
-                    code    = "70",
+                    bezeichnung = LabelFor("70.1", "Krankheit (Karenzentschädigung)"),
+                    code    = "70.1",
                     anzahl  = (decimal?)krankTage88Mtp,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(krankTagesBasisMtp, 2),
@@ -1861,7 +1861,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)krank88Mtp
                 });
                 totalLohn += krank88Mtp;
-                AddAmount("70", krank88Mtp);
+                AddAmount("70.1", krank88Mtp);
             }
 
             // ── Unfall: Lohnkürzung + 88%-Gutschrift (im Karenzfenster) ───
@@ -1902,8 +1902,8 @@ public class PayrollCalculationEngine
             if (unfall88Mtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Karenzentschädigung)"),
-                    code    = "60",
+                    bezeichnung = LabelFor("60.2", "Unfall (Karenzentschädigung)"),
+                    code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Mtp,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
@@ -1911,7 +1911,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall88Mtp
                 });
                 totalLohn += unfall88Mtp;
-                AddAmount("60", unfall88Mtp);
+                AddAmount("60.2", unfall88Mtp);
             }
 
             // ── Feiertagentschädigung auf Lohnersatz (Walter-Vorgabe 04.08.2026) ──
@@ -1938,7 +1938,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "Feiertagentschädigung auf Lohnersatz",
-                        code    = "195.2",
+                        code    = "195.4",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)holidayPct,
                         basis   = (decimal?)Math.Round(lohnersatzSummeMtp, 2),
@@ -1965,7 +1965,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Ferienentschädigung",
-                    code    = "195.1",
+                    code    = vacationPct >= 13m ? "195.6" : "195.5",
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
                     basis   = (decimal?)Math.Round(ferienBasisExact, 2),
@@ -1976,9 +1976,9 @@ public class PayrollCalculationEngine
 
             if (feiertagEnt > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "3", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
+                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.4", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
-                AddAmount("3", feiertagEntExact);  // exakt für 13.ML-Flags
+                AddAmount("195.4", feiertagEntExact);  // exakt für 13.ML-Flags
             }
 
             // ── MTP Ferien-Auszahlung anteilsmässig aus Pott (Walter 09.05.2026) ─
@@ -2021,8 +2021,8 @@ public class PayrollCalculationEngine
                     ? $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2}, max {mtpFerienAuszahlungBetrag:F2})"
                     : $"({Math.Round(mtpFerienTage,2)} × {mtpAvgTagessatz:F2})";
                 lohnLines.Add(new {
-                    bezeichnung = $"{LabelFor("2", "Festlohn bezogene Ferien")} {_labelExtra}",
-                    code    = "2",
+                    bezeichnung = $"{LabelFor("10.2", "Festlohn bezogene Ferien")} {_labelExtra}",
+                    code    = "10.2",
                     anzahl  = (decimal?)Math.Round(mtpFerienTage, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
@@ -2030,7 +2030,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)mtpFerienAuszahlungBetrag
                 });
                 totalLohn += mtpFerienAuszahlungBetrag;
-                AddAmount("2", mtpFerienAuszahlungExact);
+                AddAmount("10.2", mtpFerienAuszahlungExact);
             }
 
             // Ferien-Geld-Saldo neu: Pott − Auszahlung (exakt, dann Schluss-Rundung)
@@ -2129,6 +2129,7 @@ public class PayrollCalculationEngine
                     decimal minusBetrag = ExitSettlementBetrag(neuerSaldo, hourlyRate); // negativ
                     lohnLines.Add(new {
                         bezeichnung = "Verrechnung Minusstunden (Austritt)",
+                        code    = "55.2",
                         anzahl  = (decimal?)Math.Round(neuerSaldo, 2),
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(hourlyRate, 2),
@@ -2306,8 +2307,8 @@ public class PayrollCalculationEngine
             if (unfall80Mtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
-                    code    = "60.2",
+                    bezeichnung = LabelFor("60.3", "Unfall (Taggeld 80%)"),
+                    code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Mtp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisMtp, 2),
@@ -2315,7 +2316,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Mtp
                 });
                 totalLohn += unfall80Mtp;
-                AddAmount("60.2", unfall80Mtp);
+                AddAmount("60.3", unfall80Mtp);
                 var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Mtp;
                 if (f.nbuv) deltaNbuv += unfall80Mtp;
@@ -2461,14 +2462,14 @@ public class PayrollCalculationEngine
 
             if (feiertagAusz > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", code = "50", anzahl = (decimal?)Math.Round(feiertagStunden, 2), prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
+                lohnLines.Add(new { bezeichnung = "Ausbezahlte Feiertage", code = "50.1", anzahl = (decimal?)Math.Round(feiertagStunden, 2), prozent = (decimal?)null, basis = (decimal?)null, betrag = feiertagAusz, accrued = (decimal?)feiertagAusz });
                 totalLohn += feiertagAusz;
             }
             if (feiertagEnt > 0)
             {
-                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "3", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisUtpExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
+                lohnLines.Add(new { bezeichnung = "Feiertagentschädigung", code = "195.2", anzahl = (decimal?)null, prozent = (decimal?)holidayPct, basis = (decimal?)Math.Round(feiertagBasisUtpExact, 2), betrag = feiertagEnt, accrued = (decimal?)feiertagEnt });
                 totalLohn += feiertagEnt;
-                AddAmount("50", feiertagEntExact);
+                AddAmount("195.2", feiertagEntExact);
             }
 
             // UTP-Kaskade: Ferien-Basis enthält auch die Feiertagentschädigung.
@@ -2480,7 +2481,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Ferienentschädigung",
-                    code    = "195.1",
+                    code    = vacationPct >= 13m ? "195.3" : "195.1",
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
                     basis   = (decimal?)Math.Round(ferienBasisUtpExact, 2),
@@ -2784,8 +2785,8 @@ public class PayrollCalculationEngine
             if (krank88Utp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Karenzentschädigung)"),
-                    code    = "70",
+                    bezeichnung = LabelFor("70.1", "Krankheit (Karenzentschädigung)"),
+                    code    = "70.1",
                     anzahl  = (decimal?)krankTage88Utp,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
@@ -2856,8 +2857,8 @@ public class PayrollCalculationEngine
             if (unfall88Utp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Karenzentschädigung)"),
-                    code    = "60",
+                    bezeichnung = LabelFor("60.2", "Unfall (Karenzentschädigung)"),
+                    code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Utp,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
@@ -2874,8 +2875,8 @@ public class PayrollCalculationEngine
             if (unfall80Utp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
-                    code    = "60.2",
+                    bezeichnung = LabelFor("60.3", "Unfall (Taggeld 80%)"),
+                    code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Utp,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(krankTagesBasisUtp, 2),
@@ -2883,7 +2884,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Utp
                 });
                 totalLohn += unfall80Utp;
-                AddAmount("60.2", unfall80Utp);
+                AddAmount("60.3", unfall80Utp);
                 var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Utp;
                 if (f.nbuv) deltaNbuv += unfall80Utp;
@@ -3058,7 +3059,7 @@ public class PayrollCalculationEngine
             lohnLines.Add(new
             {
                 bezeichnung = monatslohnLabel,
-                code    = "10",
+                code    = "10.1",
                 anzahl      = (decimal?)null,
                 prozent     = pct < 100m ? (decimal?)pct : (decimal?)null,
                 basis       = pct < 100m ? (decimal?)Math.Round(fteSalary, 2) : (decimal?)null,
@@ -3066,13 +3067,13 @@ public class PayrollCalculationEngine
                 accrued     = (decimal?)festlohnArbeitFix
             });
             totalLohn += festlohnArbeitFix;
-            AddAmount("10", festlohnArbeitFix);
+            AddAmount("10.1", festlohnArbeitFix);
 
             if (ferienBetragFix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("2", "Festlohn für bezogene Ferien"),
-                    code    = "2",
+                    bezeichnung = LabelFor("10.2", "Festlohn für bezogene Ferien"),
+                    code    = "10.2",
                     anzahl  = (decimal?)Math.Round(ferienTageGenommen, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)Math.Round(fixTagessatz, 2),
@@ -3080,14 +3081,14 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)ferienBetragFix
                 });
                 totalLohn += ferienBetragFix;
-                AddAmount("2", ferienExactFix);
+                AddAmount("10.2", ferienExactFix);
             }
 
             if (feiertagBetragFix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("3", "Festlohn für bezogene Feiertage"),
-                    code    = "3",
+                    bezeichnung = LabelFor("10.3", "Festlohn für bezogene Feiertage"),
+                    code    = "10.3",
                     anzahl  = (decimal?)Math.Round(feiertagTageGenommen, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)Math.Round(fixTagessatz, 2),
@@ -3095,7 +3096,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)feiertagBetragFix
                 });
                 totalLohn += feiertagBetragFix;
-                AddAmount("3", feiertagExactFix);
+                AddAmount("10.3", feiertagExactFix);
             }
 
             // ── Unbezahlter Urlaub: Festlohn-Kürzung (FIX / FIX-M) ─────────
@@ -3120,7 +3121,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)(-unbezUrlaubBetragFix)
                 });
                 totalLohn -= unbezUrlaubBetragFix;
-                AddAmount("10", -unbezUrlaubExactFix);
+                AddAmount("10.1", -unbezUrlaubExactFix);
             }
 
             // ── Krankheit: Lohnkürzung + 88%-Gutschrift (FIX / FIX-M) ──
@@ -3159,8 +3160,8 @@ public class PayrollCalculationEngine
             if (krankAbzugFix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("75", "Korrektur Krankheit"),
-                    code    = "75",
+                    bezeichnung = LabelFor("75.1", "Korrektur Krankheit"),
+                    code    = "75.1",
                     anzahl  = (decimal?)krankBreakdown.Count,
                     prozent = (decimal?)null,
                     basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
@@ -3168,13 +3169,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)(-krankAbzugFix)
                 });
                 totalLohn -= krankAbzugFix;
-                AddAmount("75", -krankAbzugFix);
+                AddAmount("75.1", -krankAbzugFix);
             }
             if (krank88Fix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("70", "Krankheit (Karenzentschädigung)"),
-                    code    = "70",
+                    bezeichnung = LabelFor("70.1", "Krankheit (Karenzentschädigung)"),
+                    code    = "70.1",
                     anzahl  = (decimal?)krankTage88Fix,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(krankTagesBasisFix, 2),
@@ -3182,7 +3183,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)krank88Fix
                 });
                 totalLohn += krank88Fix;
-                AddAmount("70", krank88Fix);
+                AddAmount("70.1", krank88Fix);
             }
 
             // ── Unfall FIX/FIX-M: identische Logik wie Krankheit ──────────
@@ -3218,8 +3219,8 @@ public class PayrollCalculationEngine
             if (unfallAbzugFix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("65", "Korrektur Unfall"),
-                    code    = "65",
+                    bezeichnung = "Korrektur Unfall",
+                    code    = "65.1",
                     anzahl  = (decimal?)unfallBreakdown.Count,
                     prozent = (decimal?)null,
                     basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
@@ -3227,13 +3228,13 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)(-unfallAbzugFix)
                 });
                 totalLohn -= unfallAbzugFix;
-                AddAmount("65", -unfallAbzugFix);
+                AddAmount("65.1", -unfallAbzugFix);
             }
             if (unfall88Fix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60", "Unfall (Karenzentschädigung)"),
-                    code    = "60",
+                    bezeichnung = LabelFor("60.2", "Unfall (Karenzentschädigung)"),
+                    code    = "60.2",
                     anzahl  = (decimal?)unfallTage88Fix,
                     prozent = (decimal?)88m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
@@ -3241,7 +3242,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall88Fix
                 });
                 totalLohn += unfall88Fix;
-                AddAmount("60", unfall88Fix);
+                AddAmount("60.2", unfall88Fix);
             }
 
             // ── Stunden-Saldo (FIX / FIX-M) ─────────────────────────────
@@ -3401,8 +3402,8 @@ public class PayrollCalculationEngine
             if (unfall80Fix > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = LabelFor("60.2", "Unfall (Taggeld 80%)"),
-                    code    = "60.2",
+                    bezeichnung = LabelFor("60.3", "Unfall (Taggeld 80%)"),
+                    code    = "60.3",
                     anzahl  = (decimal?)unfallTage80Fix,
                     prozent = (decimal?)80m,
                     basis   = (decimal?)Math.Round(unfallTagesBasisFix, 2),
@@ -3410,7 +3411,7 @@ public class PayrollCalculationEngine
                     accrued = (decimal?)unfall80Fix
                 });
                 totalLohn += unfall80Fix;
-                AddAmount("60.2", unfall80Fix);
+                AddAmount("60.3", unfall80Fix);
                 var f = LpFlagsOr("60.2", fallbackBvg: true, fallbackQst: true);
                 if (f.ahv)  deltaAhv  += unfall80Fix;
                 if (f.nbuv) deltaNbuv += unfall80Fix;
@@ -3465,6 +3466,7 @@ public class PayrollCalculationEngine
                         bezeichnung = neuerHourSaldoFix > 0
                             ? "Zeitsaldo Auszahlung (Austritt)"
                             : "Verrechnung Minusstunden (Austritt)",
+                            code    = "55.2",
                         anzahl  = (decimal?)Math.Round(neuerHourSaldoFix, 2),
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(exitStundensatzFix, 2),
@@ -3506,7 +3508,7 @@ public class PayrollCalculationEngine
                     decimal feiertagBetrag = ExitSettlementBetrag(feiertagTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {
                         bezeichnung = "Feiertag-Tage Auszahlung (Austritt)",
-                        code    = "50",
+                        code    = "50.1",
                         anzahl  = (decimal?)feiertagTageAnzeige,
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(fixTagessatz, 2),
