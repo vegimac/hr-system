@@ -1253,6 +1253,69 @@ public class PayrollCalculationEngine
             zulagenExtraTotal += b;
         }
 
+        // ── EO-Entschädigung Mutterschaft / Vaterschaft (Walter-Entscheid 17.08.2026) ──
+        // Entscheid 1a: EO-Taggeld als Lohnersatz-Zeile (ELM 120.1 / 120.2) —
+        // 80 % des 100%-Tagessatzes (KtgTagessatzService, gleiche Basis wie
+        // Krank/Unfall), Deckel CHF 220/Tag (Art. 16f EOG), KEINE Aufstockung.
+        // Festlohn-Modelle (MTP/FIX/FIX-M): der weiterlaufende Festlohn wird
+        // über eine NEGATIVE Korrektur-Zeile (ELM 125.1 / 125.2) um den vollen
+        // Tagessatz der EO-Kalendertage entlastet (Mirus-Korrektur-Modell).
+        // FLEX braucht keine Kürzung (bezahlt nur gestempelte Stunden).
+        // SV-Behandlung komplett FLAG-GETRIEBEN aus dem Lohnpositions-Katalog
+        // → in der Basen-Kontrolle (Schatten-Rechner) per Konstruktion grün.
+        // EO-Tage = Kalendertage der Absenz im Periodenfenster (die Ausgleichs-
+        // kasse entschädigt 7 Taggelder/Woche, Sa+So zählen mit).
+        {
+            var eoTypen = new[]
+            {
+                ("MUTTERSCHAFT", "120.1", "125.1", "Mutterschaftsentschädigung EO", "Korr. Mutterschaftsentschädigung EO"),
+                ("VATERSCHAFT",  "120.2", "125.2", "Vaterschaftsentschädigung EO",  "Korr. Vaterschaftsentschädigung EO"),
+            };
+            string eoModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
+            bool eoFestlohnModell = eoModel is "MTP" or "FIX" or "FIX-M";
+            decimal? eoTagessatz100 = null;
+
+            foreach (var (eoTyp, codeEo, codeKorr, bezEo, bezKorr) in eoTypen)
+            {
+                int eoTage = 0;
+                foreach (var a in absences.Where(x => x.AbsenceType == eoTyp))
+                {
+                    var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
+                    var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
+                    if (bis >= von) eoTage += bis.DayNumber - von.DayNumber + 1;
+                }
+                if (eoTage == 0) continue;
+
+                eoTagessatz100 ??= (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
+                if (eoTagessatz100 is not > 0) continue;
+
+                decimal eoTaggeld = Math.Min(Math.Round(eoTagessatz100.Value * 0.80m, 2), 220m);
+
+                void EoAddLine(string code, string fallbackBez, decimal betrag, decimal satz)
+                {
+                    var lpEo = lohnposByCode.TryGetValue(code, out var l) ? l : null;
+                    zulagenSvLines.Add(new {
+                        bezeichnung = $"{lpEo?.Bezeichnung ?? fallbackBez} ({eoTage} Tage)",
+                        code,
+                        anzahl = (decimal?)eoTage, prozent = (decimal?)null,
+                        basis = (decimal?)satz, betrag });
+                    zulagenSvTotal += betrag;
+                    // Flag-getrieben — Fallback «alles pflichtig», falls die
+                    // Lohnposition (noch) nicht im Katalog ist.
+                    if (lpEo?.AhvAlvPflichtig ?? true) deltaAhv  += betrag;
+                    if (lpEo?.NbuvPflichtig   ?? true) deltaNbuv += betrag;
+                    if (lpEo?.KtgPflichtig    ?? true) deltaKtg  += betrag;
+                    if (lpEo?.BvgPflichtig    ?? true) deltaBvg  += betrag;
+                    if (lpEo?.QstPflichtig    ?? true) deltaQst  += betrag;
+                    AddAmount(code, betrag);
+                }
+
+                EoAddLine(codeEo, bezEo, Math.Round(eoTaggeld * eoTage, 2), eoTaggeld);
+                if (eoFestlohnModell)
+                    EoAddLine(codeKorr, bezKorr, -Math.Round(eoTagessatz100.Value * eoTage, 2), eoTagessatz100.Value);
+            }
+        }
+
         // Saldo-Vortrag separat einsammeln — nur für die Saldi-Übersicht im
         // Lohnzettel (Initial-Vormonat). Wird im Result-Block übergeben.
         var vortragEntries = zulagenEntries.Where(IsVortrag).ToList();

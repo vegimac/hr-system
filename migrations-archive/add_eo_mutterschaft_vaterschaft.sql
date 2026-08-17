@@ -1,0 +1,11 @@
+-- ============================================================================
+-- EO Mutterschaft/Vaterschaft (Walter-Entscheid 17.08.2026): Doku-Kopie —
+-- die Migration läuft IDEMPOTENT beim Serverstart (Program.cs), TablePlus
+-- ist NICHT nötig. Inhalt: Lohnpositionen 120.1/120.2 (EO-Taggeld) und
+-- 125.1/125.2 (Korrektur Festlohn-Modelle) aus elm_lohnraster, Lohnschema-
+-- Zeilen (ALLE, ereignis), Absenz-Typ VATERSCHAFT (EF-Seed, Klon von
+-- MUTTERSCHAFT). Engine: EO-Block in PayrollCalculationEngine (gemeinsamer
+-- Zweig nach den Zulagen): 80% × KtgTagessatz100, Deckel CHF 220/Tag,
+-- Kalendertage; MTP/FIX/FIX-M zusätzlich negative Korrektur-Zeile mit dem
+-- vollen Tagessatz; FLEX ohne Kürzung. SV-Flags komplett aus dem Katalog.
+-- ============================================================================

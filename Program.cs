@@ -3134,6 +3134,51 @@ using (var scope = app.Services.CreateScope())
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema LIMIT 1);
     ");
 
+    // ── EO Mutterschaft/Vaterschaft (Walter-Entscheid 17.08.2026, «1a / keine
+    // Aufstockung / Vaterschaft mit»): Lohnpositionen 120.1/120.2 (EO-Taggeld)
+    // + 125.1/125.2 (Korrektur Festlohn-Modelle) aus dem Raster-Archiv anlegen
+    // (QST-Pflicht = AHV-Pflicht, bekannter Raster-Attribut-Fall) und als
+    // «bei Ereignis» ins Lohnschema ALLER Modelle aufnehmen. Idempotent.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
+             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active)
+        SELECT r.code, r.bezeichnung, COALESCE(r.gruppe, ''), 'ZULAGE',
+               COALESCE(r.ahv, true), COALESCE(r.uvg, true), COALESCE(r.ktg, true), COALESCE(r.bvg, true),
+               COALESCE(r.ahv, true), COALESCE(r.ml13, false), 99, true
+        FROM elm_lohnraster r
+        WHERE r.code IN ('120.1', '120.2', '125.1', '125.2')
+          AND NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = r.code AND lp.is_active = true);
+
+        INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+        SELECT 'ALLE', lp.id, 'ereignis', v.so
+        FROM (VALUES ('120.1', 40), ('120.2', 50), ('125.1', 60), ('125.2', 70)) AS v(code, so)
+        JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+        WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
+                          WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
+    ");
+
+    // Absenz-Typ VATERSCHAFT (10 Tage EO) — via EF geseedet (Model-Defaults),
+    // Konfiguration als Klon von MUTTERSCHAFT (gleiches Zeitgutschrift-Verhalten).
+    if (!db.AbsenzTypen.Any(t => t.Code == "VATERSCHAFT"))
+    {
+        var mutter = db.AbsenzTypen.FirstOrDefault(t => t.Code == "MUTTERSCHAFT");
+        db.AbsenzTypen.Add(new HrSystem.Models.AbsenzTyp
+        {
+            Code            = "VATERSCHAFT",
+            Bezeichnung     = "Vaterschaftsurlaub",
+            Aktiv           = true,
+            Zeitgutschrift  = mutter?.Zeitgutschrift ?? false,
+            GutschriftModus = mutter?.GutschriftModus,
+            UtpAuszahlung   = mutter?.UtpAuszahlung ?? false,
+            ReduziertSaldo  = mutter?.ReduziertSaldo,
+            BasisStunden    = mutter?.BasisStunden ?? "BETRIEB",
+            Pattern         = mutter?.Pattern ?? "KEIN",
+        });
+        db.SaveChanges();
+    }
+
     // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
     // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
     // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql
