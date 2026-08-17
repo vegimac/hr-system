@@ -30,15 +30,25 @@ public class ElmLohnrasterController : ControllerBase
         // Liste sofort zeigt, was schon im Lohn drin ist (Haekchen statt «—»).
         // Idempotent: nur unverlinkte Eintraege, nur exakte Code-Gleichheit,
         // nur wenn die Lohnposition nicht schon einem anderen Eintrag zugeordnet ist.
+        // ACHTUNG: nur Code-Gleichheit reicht NICHT — die OneCrew-Codes wurden bei
+        // der Migration vereinfacht und dieselbe Nummer kann etwas ANDERES bedeuten
+        // (OneCrew 60.2 = Unfall-Taggeld 80% vs. Raster 60.2 = Taggeld Karenz 88%).
+        // Darum verlangt der Auto-Match Code UND Kategorie/Gruppe (normalisiert).
+        // Alles andere laeuft ueber die manuelle Verknuepfung bzw. das einmalige
+        // Mapping-SQL (migrations-archive/link_elm_lohnraster_legacy.sql).
+        static string Norm(string? s) =>
+            new string((s ?? "").ToLowerInvariant().Where(char.IsLetterOrDigit).ToArray());
         var unverlinkt = await _db.ElmLohnraster
             .Where(e => e.VerwendetLohnpositionId == null)
             .ToListAsync();
         if (unverlinkt.Count > 0)
         {
-            var lohnposByCode = await _db.Lohnpositionen
+            var lohnposList = await _db.Lohnpositionen
+                .Select(l => new { l.Id, l.Code, l.Kategorie })
+                .ToListAsync();
+            var lohnposByCode = lohnposList
                 .GroupBy(l => l.Code)
-                .Select(g => g.First())
-                .ToDictionaryAsync(l => l.Code, l => l.Id);
+                .ToDictionary(g => g.Key, g => g.First());
             var schonBelegt = await _db.ElmLohnraster
                 .Where(e => e.VerwendetLohnpositionId != null)
                 .Select(e => e.VerwendetLohnpositionId!.Value)
@@ -47,10 +57,12 @@ public class ElmLohnrasterController : ControllerBase
             var geaendert = false;
             foreach (var e in unverlinkt)
             {
-                if (lohnposByCode.TryGetValue(e.Code, out var lpId) && !belegtSet.Contains(lpId))
+                if (lohnposByCode.TryGetValue(e.Code, out var lp)
+                    && !belegtSet.Contains(lp.Id)
+                    && Norm(lp.Kategorie) == Norm(e.Gruppe))
                 {
-                    e.VerwendetLohnpositionId = lpId;
-                    belegtSet.Add(lpId);
+                    e.VerwendetLohnpositionId = lp.Id;
+                    belegtSet.Add(lp.Id);
                     geaendert = true;
                 }
             }
