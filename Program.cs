@@ -2975,6 +2975,74 @@ using (var scope = app.Services.CreateScope())
         );
     ");
 
+    // ELM-Lohnraster-Referenzkatalog (Walter 17.08.2026): 309 Positionen als
+    // dauerhaftes Archiv (PickList). Seed NUR in leere Tabelle — der Katalog
+    // ist read-only-Referenz; Uebernahmen laufen ueber verwendet_lohnposition_id.
+    // Doku: migrations-archive/add_elm_lohnraster.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS elm_lohnraster (
+            id              serial PRIMARY KEY,
+            code            text NOT NULL UNIQUE,
+            pos             text NOT NULL,
+            sub             text,
+            bezeichnung     text NOT NULL,
+            gruppe          text,
+            typ             text NOT NULL,
+            text            text,
+            uebersetzung_it text,
+            uebersetzung_fr text,
+            lohnausweisfeld text,
+            statistik_code  text,
+            steuerung       text,
+            betrag_prozent  text,
+            inaktiv         boolean NOT NULL DEFAULT false,
+            ahv             boolean,
+            qst             boolean,
+            qst_periodisch  boolean,
+            bvg             boolean,
+            uvg             boolean,
+            uvgz            boolean,
+            ktg             boolean,
+            ml13            boolean,
+            attrs_json      text NOT NULL,
+            verwendet_lohnposition_id integer REFERENCES lohnposition(id) ON DELETE SET NULL
+        );
+    ");
+    if (!db.ElmLohnraster.Any())
+    {
+        var rasterPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec", "ElmLohnraster.json");
+        if (File.Exists(rasterPath))
+        {
+            using var rasterDoc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(rasterPath));
+            foreach (var el in rasterDoc.RootElement.EnumerateArray())
+            {
+                string? S(string n) => el.TryGetProperty(n, out var v) && v.ValueKind == System.Text.Json.JsonValueKind.String ? v.GetString() : null;
+                bool? B(string n) => el.TryGetProperty(n, out var v)
+                    ? v.ValueKind switch
+                      {
+                          System.Text.Json.JsonValueKind.True => true,
+                          System.Text.Json.JsonValueKind.False => false,
+                          _ => (bool?)null
+                      }
+                    : null;
+                db.ElmLohnraster.Add(new HrSystem.Models.ElmLohnrasterEintrag
+                {
+                    Code = S("code") ?? "", Pos = S("pos") ?? "", Sub = S("sub"),
+                    Bezeichnung = S("bezeichnung") ?? "", Gruppe = S("gruppe"),
+                    Typ = S("typ") ?? "LOHNART", Text = S("text"),
+                    UebersetzungIt = S("uebersetzungIt"), UebersetzungFr = S("uebersetzungFr"),
+                    Lohnausweisfeld = S("lohnausweisfeld"), StatistikCode = S("statistikCode"),
+                    Steuerung = S("steuerung"), BetragProzent = S("betragProzent"),
+                    Inaktiv = B("inaktiv") ?? false,
+                    Ahv = B("ahv"), Qst = B("qst"), QstPeriodisch = B("qstPeriodisch"),
+                    Bvg = B("bvg"), Uvg = B("uvg"), Uvgz = B("uvgz"), Ktg = B("ktg"), Ml13 = B("ml13"),
+                    AttrsJson = el.TryGetProperty("attrs", out var at) ? at.GetRawText() : "[]",
+                });
+            }
+            db.SaveChanges();
+        }
+    }
+
     // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
     // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
     // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql

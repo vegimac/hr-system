@@ -97,6 +97,7 @@ public class AppDbContext : DbContext
     public DbSet<DienstplanCode>            DienstplanCodes             => Set<DienstplanCode>();
     public DbSet<FerienPlanung>             FerienPlanungen             => Set<FerienPlanung>();
     public DbSet<LohnausweisFinal>          LohnausweisFinals           => Set<LohnausweisFinal>();
+    public DbSet<ElmLohnrasterEintrag>      ElmLohnraster               => Set<ElmLohnrasterEintrag>();
     public DbSet<DienstplanFeiertag>        DienstplanFeiertage         => Set<DienstplanFeiertag>();
     public DbSet<BranchSchulferien>         BranchSchulferien           => Set<BranchSchulferien>();
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
@@ -1400,6 +1401,41 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => new { e.EmployeeId, e.Year }).IsUnique();
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+
+        modelBuilder.Entity<ElmLohnrasterEintrag>(entity =>
+        {
+            entity.ToTable("elm_lohnraster");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Pos).HasColumnName("pos");
+            entity.Property(e => e.Sub).HasColumnName("sub");
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Gruppe).HasColumnName("gruppe");
+            entity.Property(e => e.Typ).HasColumnName("typ");
+            entity.Property(e => e.Text).HasColumnName("text");
+            entity.Property(e => e.UebersetzungIt).HasColumnName("uebersetzung_it");
+            entity.Property(e => e.UebersetzungFr).HasColumnName("uebersetzung_fr");
+            entity.Property(e => e.Lohnausweisfeld).HasColumnName("lohnausweisfeld");
+            entity.Property(e => e.StatistikCode).HasColumnName("statistik_code");
+            entity.Property(e => e.Steuerung).HasColumnName("steuerung");
+            entity.Property(e => e.BetragProzent).HasColumnName("betrag_prozent");
+            entity.Property(e => e.Inaktiv).HasColumnName("inaktiv");
+            entity.Property(e => e.Ahv).HasColumnName("ahv");
+            entity.Property(e => e.Qst).HasColumnName("qst");
+            entity.Property(e => e.QstPeriodisch).HasColumnName("qst_periodisch");
+            entity.Property(e => e.Bvg).HasColumnName("bvg");
+            entity.Property(e => e.Uvg).HasColumnName("uvg");
+            entity.Property(e => e.Uvgz).HasColumnName("uvgz");
+            entity.Property(e => e.Ktg).HasColumnName("ktg");
+            entity.Property(e => e.Ml13).HasColumnName("ml13");
+            entity.Property(e => e.AttrsJson).HasColumnName("attrs_json");
+            entity.Property(e => e.VerwendetLohnpositionId).HasColumnName("verwendet_lohnposition_id");
+            entity.HasIndex(e => e.Code).IsUnique();
+            entity.HasOne(e => e.VerwendetLohnposition).WithMany()
+                  .HasForeignKey(e => e.VerwendetLohnpositionId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<ManagerDienstplanEntry>(entity =>

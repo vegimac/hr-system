@@ -954,7 +954,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -1032,6 +1032,7 @@ function showPage(name) {
     if (name === 'fibu') fibuInit();
     if (name === 'dok-protokoll' && typeof dpInit === 'function') dpInit();
     if (name === 'benutzer') loadUsers();
+    if (name === 'elm-lohnraster' && typeof elrInit === 'function') elrInit();
     if (name === 'datenaufbewahrung' && typeof loadRetentionYears === 'function') loadRetentionYears();
     if (name === 'daten-fix' && typeof dfInit === 'function') dfInit();
     if (name === 'filialen') loadFilialen();
