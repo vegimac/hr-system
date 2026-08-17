@@ -3175,6 +3175,11 @@ using (var scope = app.Services.CreateScope())
             ReduziertSaldo  = mutter?.ReduziertSaldo,
             BasisStunden    = mutter?.BasisStunden ?? "BETRIEB",
             Pattern         = mutter?.Pattern ?? "KEIN",
+            // ACHTUNG: absenz_typ.created_at ist TIMESTAMPTZ (Ausnahme von der
+            // «timestamp without time zone»-Regel) → Npgsql verlangt Kind=Utc.
+            // Der Model-Default DateTime.Now (Kind=Local) crasht hier den
+            // Serverstart (Walter-Vorfall 17.08.2026, 502 nach EO-Deploy).
+            CreatedAt       = DateTime.UtcNow,
         });
         db.SaveChanges();
     }
