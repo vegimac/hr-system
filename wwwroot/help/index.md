@@ -16,6 +16,8 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 | Geburtstags-Gruss / Wertschätzung senden | [Moments](#moments) |
 | Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
 | Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
+| Jahres-Lohnausweis erstellen (Form 11 + Barcode) | [Jahres-Lohnausweis](#lohnausweis) |
+| Bewerbungsbogen, Kandidat an HR, Ferienplaner | [McAdmin](#mcadmin) |
 | Lohnabtretung / Pfändung an Behörde | [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
 | Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |
@@ -35,7 +37,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 
 ## So ist das Programm aufgebaut
 
-**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse …) liegen im Tab **Restaurant Admin**.
+**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse …) liegen im Tab **MA Formulare**.
 
 **Verträge** sagen, wie viel jemand verdient. Bei Änderungen legst du einen **neuen** Vertrag an (nicht den alten überschreiben).
 

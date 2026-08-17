@@ -7,13 +7,13 @@ Wenn ein Arbeitsverhältnis endet, brauchst du ein klares Datum, die richtigen F
 | Was | Wo |
 |---|---|
 | **Kündigung am / Kündigung per** am MA | Mitarbeiter → Übersicht → Karte **Anstellung** |
-| **Formulare** (Schreiben, Zeugnis, Aufhebung …) | Sidebar → **HR** → Menü Kündigung / Zeugnisse **oder** Restaurant Admin beim MA |
-| **Probezeit-Kündigung** | Mitarbeiter → Restaurant Admin → **Probezeit** |
+| **Formulare** (Schreiben, Zeugnis, Aufhebung …) | Sidebar → **HR** → Menü Kündigung / Zeugnisse **oder** MA Formulare beim MA |
+| **Probezeit-Kündigung** | Mitarbeiter → MA Formulare → **Probezeit** |
 | **Austritts-Feedback** (anonym) | Separater Link für den MA; Auswertung im HR-Bereich |
 
 ## Die Formulare im Überblick
 
-Im HR-Menü (und teilweise im Restaurant Admin):
+Im HR-Menü (und teilweise im MA Formulare):
 
 1. **Kündigung** — Schreiben erstellen; kann „Gekündigt am / per" am MA eintragen
 2. **Arbeitszeugnis** — Schlusszeugnis
@@ -38,7 +38,7 @@ Ablauf typisch: Formular ausfüllen → PDF-Vorschau → Drucken / Speichern →
 
 ## Probezeit
 
-1. Restaurant Admin → **Probezeit**
+1. MA Formulare → **Probezeit**
 2. Blanko **Probezeit Gespräch** drucken → Gespräch führen → Protokoll scannen als Dokument
 3. Im Modal: **Gesprächsdatum** + Protokoll **verknüpfen** (beides nötig)
 4. Bei Bedarf: **Kündigung während Probezeit** aus demselben Modal

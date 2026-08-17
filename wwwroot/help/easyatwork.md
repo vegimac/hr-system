@@ -57,3 +57,21 @@ Im **easy@work-Modul** (Admin): Button **«⚓ Probezeiten nachführen»**.
 **Lohn in easy@work leer bei FIX-M?** → Absichtlich möglich; Lohn nur in OneCrew setzen ([Verträge](#vertraege)).
 
 **MA wurde als FLEX statt MTP importiert?** → In easy@work `type_id` / Vertragsart MTP prüfen, dann Sync.
+
+
+## Absenzen aus easy@work importieren
+
+Im easy@work-Modul gibt es den **Absenzen-Import** (Vorschau → Import):
+
+- **NEU** (grün): Absenz existiert nur in easy@work → wird angelegt.
+  Einzelne Zeilen lassen sich vor dem Import **abwählen**.
+- **SCHON ERFASST** (türkis): Beginn, Ende und Typ stimmen mit einer manuell
+  erfassten Absenz überein → wird nur verknüpft, nichts geändert.
+- **FEHLER** (rot): Datum oder Typ weichen von der bereits erfassten Absenz ab
+  → wird NICHT importiert, sondern im Fehlerprotokoll gelistet — bitte von
+  Hand klären.
+- **Wichtig bei Krankheit/Unfall** (FIX / FIX-M / MTP): nach dem Import die
+  **Arbeitstage** («Welche Tage hätte er/sie gearbeitet?») in der Absenz
+  ergänzen — der Import kennt den Dienstplan nicht.
+- **Ferien sind vorerst ausgeschaltet**, weil easy@work auch Freiwünsche als
+  «Ferien» führt. Ferien kommen weiterhin aus dem Mirus-Import oder von Hand.

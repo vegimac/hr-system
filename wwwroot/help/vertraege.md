@@ -127,7 +127,7 @@ Der Vertrag wurde in mindestens einer abgeschlossenen oder laufenden Periode ben
 Neuer Vertrag mit Funktion „Shift Leader 1–6 Mt." (oder „Shift Leader 7+ Mt." je nach Erfahrung). Vertragsmodell wird automatisch auf FIX-M gesetzt — Shift Manager sind immer Management.
 
 **Mein MA macht eine Probezeit. Wie?**
-Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3 — daraus berechnet das System **Probezeit bis**. Fehlt die Probezeit nach easy@work-Import: Admin → easy@work → **«Probezeiten nachführen»** ([easy@work](#easyatwork)). Das Gespräch führst du unter **Restaurant Admin → Probezeit** (Datum + Protokoll verknüpfen). Details: [Mitarbeiter](#mitarbeiter).
+Bei der Vertragserfassung das Feld **„Probezeit (Monate)"** ausfüllen, z.B. 3 — daraus berechnet das System **Probezeit bis**. Fehlt die Probezeit nach easy@work-Import: Admin → easy@work → **«Probezeiten nachführen»** ([easy@work](#easyatwork)). Das Gespräch führst du unter **MA Formulare → Probezeit** (Datum + Protokoll verknüpfen). Details: [Mitarbeiter](#mitarbeiter).
 
 **Wann darf ich den Vertrag noch ändern?**
 Solange der Definitivlauf der Periode **nicht abgeschlossen** ist (Akonto und «provisorisch» sperren Verträge nicht). Danach nur noch Folge-Vertrag ab neuem Datum — siehe [Edit-Sperre](#edit-sperre).

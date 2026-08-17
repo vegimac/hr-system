@@ -10,7 +10,7 @@ Im Programm gibt es **sechs Rollen**. Jede sieht eine andere Welt — vom komple
 |---|---|---|
 | **admin** | Walter (Geschäftsinhaber) | ALLES. Über alle Filialen. Auch Systemeinstellungen, Audit-Log, Benutzerverwaltung. |
 | **superuser** | HR-Verantwortliche | Wie admin, aber ohne Systemeinstellungen. Über alle Filialen. |
-| **user** | Filial-Geschäftsführer | Nur die zugewiesenen Filialen. Voller Filial-Betrieb (Mitarbeiter inkl. Restaurant Admin, Verträge, Lohn-Vorbereitung, Posteingang, Bewilligung, Dokumente). Kein System-Admin, kein HR-4-Augen-Abschluss allein. |
+| **user** | Filial-Geschäftsführer | Nur die zugewiesenen Filialen. Voller Filial-Betrieb (Mitarbeiter inkl. MA Formulare, Verträge, Lohn-Vorbereitung, Posteingang, Bewilligung, Dokumente). Kein System-Admin, kein HR-4-Augen-Abschluss allein. |
 | **buchhaltung** | Buchhaltungs-Personal | Wie superuser PLUS Fibu-Bereich. Aber auf zugewiesene Filialen beschränkt. |
 | **lowuser** | Eingeschränkter Benutzer | Nur Dashboard, Mitarbeiter und Verträge. Kein Lohnlauf, kein HR-Bereich, keine Systemeinstellungen, kein Datenimport. |
 | **employee** | Mitarbeiter selbst | Nur das eigene Postfach + eigene Lohnzettel. Kein Programm-Zugang. |
@@ -35,7 +35,7 @@ Das 4-Augen-Prinzip: GF bereitet vor und gibt frei, HR bestätigt und sendet. Ad
 
 **superuser** — Dashboard, Mitarbeiter, Verträge, Lohn, Lohnperioden, Posteingang, HR-Modul (RAV, QST-Anmeldung, Lohnausweis, BFS-LSE), aber **keine** Systemeinstellungen.
 
-**user** (GF) — Dashboard, Mitarbeiter (inkl. Restaurant Admin: Verwarnung, Probezeit, Zeugnisse, Face ID, Onboarding-QR), Verträge, Lohn (GF-Schritte), Posteingang, Bewilligungen, Dokumente ablegen/löschen. Filtert automatisch auf die zugeteilten Filialen. Systemeinstellungen und HR-Abschluss (DTA) bleiben HR/Admin.
+**user** (GF) — Dashboard, Mitarbeiter (inkl. MA Formulare: Verwarnung, Probezeit, Zeugnisse, Face ID, Onboarding-QR), Verträge, Lohn (GF-Schritte), Posteingang, Bewilligungen, Dokumente ablegen/löschen. Filtert automatisch auf die zugeteilten Filialen. Systemeinstellungen und HR-Abschluss (DTA) bleiben HR/Admin.
 
 **buchhaltung** — wie superuser, plus zusätzlich der **Buchhaltungs-Bereich** (Fibu-Journal, Saldo-Listen). Filtert ebenfalls auf zugeteilte Filialen.
 
@@ -83,13 +83,13 @@ Damit greifen alle bestehenden HR-Berechtigungen automatisch, und zusätzlich de
 
 Ausführlich: [MA-Postfach](#postfach-ma).
 
-Kurz: Restaurant Admin → **Postfach-Passwort** oder **Onboarding-QR**. Login mit Personalnummer; erstes Passwort = Personalnummer (muss gewechselt werden).
+Kurz: MA Formulare → **Postfach-Passwort** oder **Onboarding-QR**. Login mit Personalnummer; erstes Passwort = Personalnummer (muss gewechselt werden).
 
 ## Passwort-Reset
 
 **Eigenes Passwort:** Benutzerverwaltung → eigener Eintrag → „Passwort ändern".
 
-**MA-Postfach-Passwort:** MA-Detail → Restaurant Admin → **Postfach-Passwort**. Setzt es zurück auf die Personalnummer + hebt eine evtl. Login-Sperre (zu viele falsche Versuche) gleich mit auf.
+**MA-Postfach-Passwort:** MA-Detail → MA Formulare → **Postfach-Passwort**. Setzt es zurück auf die Personalnummer + hebt eine evtl. Login-Sperre (zu viele falsche Versuche) gleich mit auf.
 
 **User-Passwort eines anderen Users (admin only):** Benutzerverwaltung → User wählen → „Passwort setzen".
 

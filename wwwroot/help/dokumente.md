@@ -154,3 +154,12 @@ Globale Suche **⌘K** mit Dateiname oder Bemerkung. Oder einzeln durch die MA s
 - **Vorschau zeigt „HTTP 404"** → die Datei existiert in der DB aber nicht physisch auf dem Server. Wende dich an Admin — meistens nach einem Backup-Restore-Problem.
 - **Office-Datei zeigt „Datei wird umgewandelt..."** dauert ewig → LibreOffice-Service hat sich aufgehängt. Server-Neustart hilft.
 - **Datei beim Hochladen rejected** → meist Pfad-Problem mit Sonderzeichen oder zu lange Dateinamen. Datei umbenennen (ohne `/`, `\`, `:`, `?`, `*`, Sonderzeichen).
+
+
+## Falsch abgelegtes Dokument umhängen
+
+Beim **Bearbeiten** eines Dokuments kann der Mitarbeiter gewechselt werden —
+so wandert ein versehentlich falsch abgelegtes Doku zum richtigen MA.
+Im Bearbeiten-Fenster steht zudem **wer** das Dokument **wann** abgelegt hat;
+verknüpfte Dokumente (z.B. an eine Absenz gebunden) zeigen im ⋮-Menü ein
+🔒-Label und sind nicht löschbar.

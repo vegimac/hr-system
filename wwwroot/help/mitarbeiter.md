@@ -8,7 +8,7 @@ Sidebar **Mitarbeiter**:
 
 - **Links:** Liste mit Suche und Filter *Aktive · Inaktive · Alle*. Filiale = Sidebar oben.
 - **Rechts:** Detail mit Tabs.
-- **Praxis-Aktionen:** Tab **Restaurant Admin** (Kacheln).
+- **Praxis-Aktionen:** Tab **MA Formulare** (Kacheln).
 - **easy@work synchronisieren:** oben rechts beim MA.
 
 ## Neuen Mitarbeiter anlegen
@@ -56,7 +56,7 @@ Drei Blöcke (Bank oben, dann Bewilligung, dann QST):
 2. **Bewilligungen** — Verlauf; SMS-Erinnerung möglich
 3. **Quellensteuer** — Banner + Tarif / Behörden-Befreiung — Details: [QST](#qst)
 
-### Restaurant Admin
+### MA Formulare
 Icon-Kacheln für den Filial-Alltag:
 
 | Kachel | Was sie tut |
@@ -104,7 +104,7 @@ Häkchen **„MA ohne Lohn"**: kein Lohnlauf, oft kein Postfach/Bank. Für easy@
 
 ## Austritt
 
-Kündigung am/per in der Anstellung-Karte; Formulare über Restaurant Admin oder [HR](#hr-hub). Ausführlich: [Kündigung & Austritt](#austritt).
+Kündigung am/per in der Anstellung-Karte; Formulare über MA Formulare oder [HR](#hr-hub). Ausführlich: [Kündigung & Austritt](#austritt).
 
 ## Häufige Stolpersteine
 

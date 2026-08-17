@@ -19,7 +19,7 @@ Es gibt auch die eigene Seite **„To do"** in der Sidebar — gleiche Liste, et
 | **QST-Pflicht offen** | MA → Bewilligung QST Bank → „Höchsten Tarif erfassen" oder Behörden-Befreiung |
 | **Bewilligung fehlt / läuft ab** | Bewilligung erfassen oder MA per SMS erinnern |
 | **Ehepartner-Dokument fehlt** | Pass/C-Ausweis des Ehepartners in Familie verknüpfen (wichtig für QST) |
-| **Probezeitgespräch offen** | Restaurant Admin → Probezeit: Datum + Protokoll verknüpfen |
+| **Probezeitgespräch offen** | MA Formulare → Probezeit: Datum + Protokoll verknüpfen |
 | **Probezeit endet bald** | Gespräch führen oder Kündigung in Probezeit prüfen |
 | **Vertragsende / Austritt** | Austritt sauber erfassen — siehe [Kündigung & Austritt](#austritt) |
 | **Verfügbarkeit fehlt** | In easy@work pflegen, dann MA synchronisieren |
@@ -45,3 +45,13 @@ Das dürfen **HR / Admin** ausführen. Details: [Mindestlöhne](#mindestloehne).
 **HR:** Dashboard aller Filialen → QST/Bewilligung/Dokumente → Lohnlauf HR-Schritte → Formulare im [HR-Bereich](#hr-hub).
 
 **Buchhaltung:** Nach Definitiv-Abschluss → [Fibu](#fibu).
+
+
+## Meine Einstellungen (⚙ unten in der Sidebar)
+
+Jede Benutzerin / jeder Benutzer kann selbst festlegen:
+
+- **Startseite**: welche Seite nach dem Login erscheint (Dashboard, To-do,
+  Mitarbeiter, Lohn, HR-Hub … — alle Sidebar-Seiten wählbar).
+- **Passwort ändern**: neues Passwort direkt im selben Dialog setzen
+  (mind. 8 Zeichen).

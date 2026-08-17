@@ -20,7 +20,7 @@ Dieses Kapitel hilft **dir als GF/HR**, dem MA den Einstieg zu erklären.
 
 ## Wenn der MA nicht mehr rein kommt
 
-Im Mitarbeiter → Tab **Restaurant Admin**:
+Im Mitarbeiter → Tab **MA Formulare**:
 
 | Kachel | Wirkung |
 |---|---|

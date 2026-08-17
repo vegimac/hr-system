@@ -2,6 +2,8 @@
 
 Die Sidebar **System** ist die Schaltzentrale. Nur Rolle **admin**. Hier pflegst du Kataloge, Benutzer, Importer und Schnittstellen.
 
+Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten**, **Filialen & Benutzer**, **Verzeichnisse & Vorgaben**, **Import & Schnittstellen**, **Kommunikation** und **Kontrolle & Datenpflege**. Ein Klick auf die Kategorie zeigt die Karten darunter; die Auswahl bleibt gespeichert. Auf jeder Unterseite führt der **«← Zurück»-Button** neben dem Titel wieder hierher.
+
 ## Karten-Übersicht (was wofür)
 
 | Karte | Zweck |

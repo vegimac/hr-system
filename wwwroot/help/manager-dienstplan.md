@@ -64,3 +64,23 @@ In beiden Fenstern kannst du oben nach **Jahr und Filiale filtern**; Neues erfas
 - Namen erscheinen als «Vorname N.» — der volle Name steht im Tooltip.
 - Monat wechseln: **‹ ›** oben links. Jeder Monat ist unabhängig planbar, auch weit im Voraus.
 - Wochenenden sind in der Kopfzeile schattiert; die dickere Linie markiert den **Wochenstart (Montag)**.
+
+
+## Ferienplaner (GF)
+
+Neben der Monatswahl gibt es für Geschäftsführer den Button **Ferienplaner** —
+ein Schwester-Kalender nur für die Ferienplanung der Manager:
+
+1. Mit der Maus über mehrere Tage **ziehen** (oder Klick auf Start- und
+   End-Tag) → ein **oranger Balken** = geplant. Balken lassen sich verschieben;
+   angrenzende Planungen verschmelzen automatisch.
+2. Über das Balken-Menü **«definitiv»** setzen → der Balken wird **grün** und
+   die Ferien werden als Absenz beim MA eingetragen (erscheinen auch im
+   normalen Manager-DP).
+3. Rücknahme ist möglich — mit Rückfrage; die Absenz wird dabei entfernt.
+
+## Weitere Neuerungen
+
+- Die **Heute-Spalte** ist rot markiert — auf dem Desktop und im Handy-Link.
+- Der **Handy-Link** (nur Lesen, ohne Login) lässt sich bequem per
+  **Gruppen-E-Mail** ans Management-Team schicken (HR-Hub → Korrespondenz).

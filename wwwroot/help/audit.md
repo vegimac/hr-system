@@ -102,3 +102,18 @@ Default-Filter (letzte 7 Tage) lädt in <1 Sekunde. Wenn du auf 2'000 Zeilen geh
 - **Keine Einträge angezeigt obwohl du was geändert hast** → Filter „Von/Bis" prüfen. Default ist letzte 7 Tage; wenn du eine Änderung von vor 2 Wochen suchst, Datum anpassen.
 - **CSV-Export hat leere Zellen** → manche Felder sind in den Audit-Einträgen nicht gesetzt (z.B. IP bei System-Operationen). Nicht ungewöhnlich.
 - **Diff zeigt JSON statt Klartext** → die Detail-Ansicht zeigt den rohen JSON-Diff. Im Detail-Modal ist's hübsch formatiert.
+
+
+## Lesbare Anzeige (neu)
+
+Die Liste zeigt Klartext statt Technik:
+
+- «📄 **Dokument angesehen**» statt roher Zugriffs-Zeitstempel — mit
+  **Dateiname** und dem **Mitarbeiter des Dokuments**.
+- «🔐 **Anmeldung**» statt Login-Feldern.
+- Deutsche Namen für Bereiche (Dokument, Vertrag, Ferienplanung …) und Felder
+  (Von/Bis, Strasse, PLZ …); Datumswerte im Format TT.MM.JJJJ.
+- Bei Absenzen, Ferienplanung und Dienstplan steht der **MA mit Name und
+  Nummer** direkt in der Zeile.
+
+Der vollständige technische Diff bleibt hinter **«Detail»** verfügbar.

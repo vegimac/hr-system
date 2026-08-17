@@ -14,7 +14,7 @@ Absenzen (Krankheit, Unfall, Ferien, Militär …) beeinflussen den Lohn. Stempe
 
 ## Absenzkalender
 
-**Mitarbeiter → Restaurant Admin → Absenzkalender** (oder direkt die Seite)
+**Mitarbeiter → MA Formulare → Absenzkalender** (oder direkt die Seite)
 
 Monatsübersicht der Filiale: wer ist wann abwesend, wo knirscht es personell. Praktisch für die Planung im Restaurant.
 
