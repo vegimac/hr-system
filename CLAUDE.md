@@ -61,7 +61,7 @@ Danach kurz: Hard-Reload (Cmd+Shift+R). Branch-Name = **nur** der aktive Feature
 Walter arbeitet **immer nur mit einem Branch** — sonst liegen Fixes verstreut und er
 weiss nicht, welchen Befehl er deployen soll.
 
-- **Aktiver Branch** (alles Neue hier rein): `cursor/stundenkontrolle-monatsblatt-3bcf`
+- **Aktiver Branch** (alles Neue hier rein): `main` (Stand 17.08.2026 — der frühere Sammelbranch `cursor/stundenkontrolle-monatsblatt-3bcf` ist gemergt und gelöscht; gearbeitet wird direkt auf `main`, bis Walter explizit einen neuen Feature-Branch verlangt)
 - **VERBOTEN:** neuer `cursor/…-3bcf` von `main` abzweigen «für das nächste Thema», solange der aktive Branch nicht in `main` ist. Cloud-Agent-Default «feature branch from main» gilt hier **nicht**.
 - Folge-Arbeit = weiter auf diesem Branch committen + pushen + denselben Deploy-Befehl.
 - Alte offene PRs/Branches nur noch mergen **in diesen einen Branch**, nicht parallel weiterbauen.

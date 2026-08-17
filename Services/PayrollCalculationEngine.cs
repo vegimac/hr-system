@@ -1762,6 +1762,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
+                    code    = "110.1",
                     anzahl  = (decimal?)Math.Round(mtpUnbezUrlaubTage, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
@@ -1933,6 +1934,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "Feiertagentschädigung auf Lohnersatz",
+                        code    = "195.2",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)holidayPct,
                         basis   = (decimal?)Math.Round(lohnersatzSummeMtp, 2),
@@ -1959,6 +1961,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Ferienentschädigung",
+                    code    = "195.1",
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
                     basis   = (decimal?)Math.Round(ferienBasisExact, 2),
@@ -2099,6 +2102,7 @@ public class PayrollCalculationEngine
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldo, hourlyRate);
                     lohnLines.Add(new {
                         bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldo, 2),
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(hourlyRate, 2),
@@ -2137,6 +2141,7 @@ public class PayrollCalculationEngine
                     decimal fgAusz = ferienGeldSaldoNeu;   // bereits auf 2 Dez.
                     lohnLines.Add(new {
                         bezeichnung = "Ferien-Geld Auszahlung (Austritt)",
+                        code    = "40.1",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)null,
                         basis   = (decimal?)null,
@@ -2187,6 +2192,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -2212,6 +2218,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (akt. Monat)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -2224,6 +2231,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (Saldo-Auszahlung)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)null,
                         basis       = (decimal?)null,
@@ -2253,6 +2261,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)mtp13Basis,
@@ -2417,6 +2426,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
+                    code    = "110.1",
                     anzahl  = (decimal?)Math.Round(unbezUrlaubTageFerien, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)null,
@@ -2429,6 +2439,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Nacht-Kompensation",
+                    code    = "55.10",
                     anzahl  = (decimal?)Math.Round(utpAuszahlungStunden, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)hourlyRate,
@@ -2459,6 +2470,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Ferienentschädigung",
+                    code    = "195.1",
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)vacationPct,
                     basis   = (decimal?)Math.Round(ferienBasisUtpExact, 2),
@@ -2552,6 +2564,7 @@ public class PayrollCalculationEngine
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldoUtp, hourlyRate);
                     lohnLines.Add(new {
                         bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldoUtp, 2),
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(hourlyRate, 2),
@@ -2571,6 +2584,7 @@ public class PayrollCalculationEngine
                     decimal fgAusz = ferienGeldSaldoNeu;   // bereits auf 2 Dez.
                     lohnLines.Add(new {
                         bezeichnung = "Ferien-Geld Auszahlung (Austritt)",
+                        code    = "40.1",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)null,
                         basis   = (decimal?)null,
@@ -2629,6 +2643,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                            code    = "180.1",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -2645,6 +2660,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn (Probe.Z. Rückstellung)",
+                            code    = "180.1",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -2663,6 +2679,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = "13. Monatslohn",
+                            code    = "180.1",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)thirteenthPct,
                             basis       = (decimal?)basis13,
@@ -2689,6 +2706,7 @@ public class PayrollCalculationEngine
                     {
                         lohnLines.Add(new {
                             bezeichnung = saldoPayoutLabelUtp,
+                            code    = "180.1",
                             anzahl      = (decimal?)null,
                             prozent     = (decimal?)null,
                             basis       = (decimal?)null,
@@ -2881,6 +2899,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "Feiertagentschädigung auf Lohnersatz",
+                        code    = "195.2",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)holidayPct,
                         basis   = (decimal?)Math.Round(lohnersatzSummeUtp, 2),
@@ -3073,6 +3092,7 @@ public class PayrollCalculationEngine
             {
                 lohnLines.Add(new {
                     bezeichnung = "Unbezahlter Urlaub",
+                    code    = "110.1",
                     anzahl  = (decimal?)Math.Round(unbezUrlaubTageFix, 2),
                     prozent = (decimal?)null,
                     basis   = (decimal?)Math.Round(fixTagessatz, 2),
@@ -3260,6 +3280,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)fix13Basis,
@@ -3285,6 +3306,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (akt. Monat)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)fix13Basis,
@@ -3297,6 +3319,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (Saldo-Auszahlung)",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)null,
                         basis       = (decimal?)null,
@@ -3318,6 +3341,7 @@ public class PayrollCalculationEngine
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn",
+                        code    = "180.1",
                         anzahl      = (decimal?)null,
                         prozent     = (decimal?)thirteenthPct,
                         basis       = (decimal?)fix13Basis,
@@ -3395,6 +3419,7 @@ public class PayrollCalculationEngine
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldoFix, exitStundensatzFix);
                     lohnLines.Add(new {
                         bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldoFix, 2),
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(exitStundensatzFix, 2),
@@ -3436,6 +3461,7 @@ public class PayrollCalculationEngine
                         bezeichnung = ferienTageAnzeige > 0
                             ? "Ferien-Tage Auszahlung (Austritt)"
                             : "Verrechnung Ferien-Vorbezug (Austritt)",
+                            code    = "40.1",
                         anzahl  = (decimal?)ferienTageAnzeige,
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(fixTagessatz, 2),
@@ -3454,6 +3480,7 @@ public class PayrollCalculationEngine
                     decimal feiertagBetrag = ExitSettlementBetrag(feiertagTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {
                         bezeichnung = "Feiertag-Tage Auszahlung (Austritt)",
+                        code    = "50",
                         anzahl  = (decimal?)feiertagTageAnzeige,
                         prozent = (decimal?)null,
                         basis   = (decimal?)Math.Round(fixTagessatz, 2),

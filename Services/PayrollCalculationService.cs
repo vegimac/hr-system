@@ -127,6 +127,7 @@ public static class PayrollCalculations
                 lohnLines.Add(new
                 {
                     bezeichnung = $"Ferienentschädigung-Auszahlung ({tageGenommen:F1} Tage)",
+                    code        = "40.1",
                     anzahl      = (decimal?)tageGenommen,
                     prozent     = (decimal?)null,
                     basis       = (decimal?)null,
