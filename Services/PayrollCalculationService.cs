@@ -171,7 +171,11 @@ public static class PayrollCalculations
         // legt den Vergleich als «schattenBasen» in den Slip-JSON. null =
         // keine Schatten-Rechnung (z.B. Korrektur-Lauf — dort sind die Basen
         // per Konstruktion flag-getrieben).
-        Dictionary<string, Lohnposition>? lohnposByCode = null)
+        Dictionary<string, Lohnposition>? lohnposByCode = null,
+        // BVG-Wartefrist-Korrektur (Krank/Unfall): Engine-Aufschlag auf die
+        // BVG-Basis OHNE Lohnzeile — wird der Schatten-Rechnung explizit
+        // mitgegeben und dort separat ausgewiesen.
+        decimal schattenBvgKorrektur = 0m)
     {
         // Abzüge berechnen
         decimal totalAbzuege = 0;
@@ -627,7 +631,7 @@ public static class PayrollCalculations
             svBasisQst  = Math.Round(svBases.Qst,  2),
             schattenBasen = lohnposByCode is null
                 ? null
-                : SchattenBasenService.Compute(lohnLines, lohnposByCode, svBases),
+                : SchattenBasenService.Compute(lohnLines, lohnposByCode, svBases, schattenBvgKorrektur),
         };
     }
 

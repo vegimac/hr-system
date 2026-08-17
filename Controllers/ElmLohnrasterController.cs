@@ -127,7 +127,12 @@ public class ElmLohnrasterController : ControllerBase
             NbuvPflichtig   = e.Uvg  ?? true,
             KtgPflichtig    = e.Ktg  ?? true,
             BvgPflichtig    = e.Bvg  ?? true,
-            QstPflichtig    = e.Qst ?? e.QstPeriodisch ?? true,
+            // ACHTUNG (Walter-Erkenntnis 17.08.2026, Basen-Kontrolle Juli):
+            // das Raster-Attribut «qstpfl» ist im Export durchgängig LEER und
+            // «Periodische Lohnart (QST)» beschreibt nur die Periodizität,
+            // NICHT die Pflicht. QST-Pflicht folgt in der Praxis der AHV-
+            // Pflicht (steuerbar was AHV-pflichtig ist; Spesen etc. beide frei).
+            QstPflichtig    = e.Ahv ?? true,
             ZaehltAlsBasis13ml = e.Ml13 ?? false,
             Lohnausweisfeld = laFeld,
             IsActive        = true,

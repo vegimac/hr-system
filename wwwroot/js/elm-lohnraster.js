@@ -54,8 +54,11 @@ function elrRender() {
     if (nurOffen) rows = rows.filter(e => !e.verwendetLohnpositionId);
 
     const istLohnart = typ === 'LOHNART' || typ === '';
+    // QST-Spalte bewusst entfernt (Walter-Erkenntnis 17.08.2026): das Raster-
+    // Attribut «qstpfl» ist im Export leer — die Anzeige war irreführend.
+    // Bei der Übernahme gilt: QST-Pflicht = AHV-Pflicht.
     const flagKopf = istLohnart
-        ? '<th class="elr-c">AHV</th><th class="elr-c">UVG</th><th class="elr-c">KTG</th><th class="elr-c">BVG</th><th class="elr-c">QST</th><th class="elr-c">13.ML</th>'
+        ? '<th class="elr-c">AHV</th><th class="elr-c">UVG</th><th class="elr-c">KTG</th><th class="elr-c">BVG</th><th class="elr-c">13.ML</th>'
         : '';
     const anzVerwendet = rows.filter(e => e.verwendetLohnpositionId).length;
     el.innerHTML = `
@@ -76,7 +79,7 @@ function elrRender() {
             const flags = istLohnart
                 ? `<td class="elr-c">${_elrFlag(e.ahv)}</td><td class="elr-c">${_elrFlag(e.uvg)}</td>
                    <td class="elr-c">${_elrFlag(e.ktg)}</td><td class="elr-c">${_elrFlag(e.bvg)}</td>
-                   <td class="elr-c">${_elrFlag(e.qst ?? e.qstPeriodisch)}</td><td class="elr-c">${_elrFlag(e.ml13)}</td>`
+                   <td class="elr-c">${_elrFlag(e.ml13)}</td>`
                 : '';
             // Haekchen-Spalte: nur Lohnarten sind an-/abwaehlbar. SV-Abzuege/Absenzen
             // sind reine Referenz (eigene Module) → kein Kaestchen.
@@ -265,10 +268,15 @@ async function elrSchattenReport() {
               row += `<tr><td colspan="8" style="padding:1px 8px 6px 24px;color:#b45309;font-size:11.5px">
                   ⚠ Zeilen ohne Code: ${ohne.map(o => `${_elrEsc(o.bezeichnung)} (${Number(o.betrag).toFixed(2)})`).join(' · ')}</td></tr>`;
           }
+          const wf = Number(s.bvgWartefristKorrektur || 0);
+          if (wf > 0) {
+              row += `<tr><td colspan="8" style="padding:1px 8px 6px 24px;color:#8b8b8b;font-size:11.5px">
+                  ℹ BVG inkl. Wartefrist-Korrektur Krank/Unfall: +${wf.toFixed(2)}</td></tr>`;
+          }
           return row;
       }).join('')}
       </tbody></table>
-    <p style="margin:10px 0 0;color:#b0aca3;font-size:11.5px">Bekannte legitime BVG-Differenz: BVG-Wartefrist-Korrektur bei MTP-Krank/Unfall (Engine-Aufschlag ohne Lohnzeile).</p>`;
+    <p style="margin:10px 0 0;color:#b0aca3;font-size:11.5px">Die BVG-Wartefrist-Korrektur (Krank/Unfall) ist in der Nachrechnung eingerechnet und wird pro MA als ℹ-Zeile ausgewiesen.</p>`;
 }
 
 function elrDetail(id) {

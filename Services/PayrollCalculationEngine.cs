@@ -2399,7 +2399,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
-                lohnposByCode: lohnposByCode);
+                lohnposByCode: lohnposByCode,
+                schattenBvgKorrektur: krankBvgKorrekturMtp + unfallBvgKorrekturMtp);
             return new OkObjectResult(result);
         }
         else if (isUTP)
@@ -3010,7 +3011,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
-                lohnposByCode: lohnposByCode);
+                lohnposByCode: lohnposByCode,
+                schattenBvgKorrektur: krankBvgKorrekturUtp + unfallBvgKorrekturUtp);
             return new OkObjectResult(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -3583,7 +3585,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
-                lohnposByCode: lohnposByCode);
+                lohnposByCode: lohnposByCode,
+                schattenBvgKorrektur: krankBvgKorrekturFix + unfallBvgKorrekturFix);
             return new OkObjectResult(result);
         }
       } // end try

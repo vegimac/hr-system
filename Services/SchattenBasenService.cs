@@ -31,9 +31,13 @@ public static class SchattenBasenService
     public static object Compute(
         IEnumerable<object> lohnLines,
         Dictionary<string, Lohnposition> lohnposByCode,
-        SvBases engine)
+        SvBases engine,
+        // BVG-Wartefrist-Korrektur (MTP/FLEX/FIX Krank/Unfall): Engine-Aufschlag
+        // OHNE Lohnzeile — wird der Schatten-BVG-Basis explizit zugerechnet und
+        // separat ausgewiesen, damit die Differenz trotzdem 0.00 zeigt.
+        decimal bvgWartefristKorrektur = 0m)
     {
-        decimal ahv = 0, nbuv = 0, ktg = 0, bvg = 0, qst = 0;
+        decimal ahv = 0, nbuv = 0, ktg = 0, bvg = bvgWartefristKorrektur, qst = 0;
         var ohneCode = new List<object>();
         decimal ohneCodeSumme = 0;
 
@@ -83,6 +87,7 @@ public static class SchattenBasenService
             ok   = alleOk,
             ohneCode,
             ohneCodeSumme = Math.Round(ohneCodeSumme, 2),
+            bvgWartefristKorrektur = Math.Round(bvgWartefristKorrektur, 2),
         };
     }
 }
