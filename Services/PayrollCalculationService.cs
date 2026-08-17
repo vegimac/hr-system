@@ -164,7 +164,14 @@ public static class PayrollCalculations
         // Jan–Nov desselben Jahres (ungedeckelt, Proxy auch für NBU). NUR im
         // Dezember gesetzt (sonst null = flache Monatsdeckelung). Leere Liste =
         // Dezember ohne Vormonate (z.B. MA-Eintritt im Dezember).
-        List<decimal>? ytdSvBasesDezember = null)
+        List<decimal>? ytdSvBasesDezember = null,
+        // Schatten-Basen-Rechner (Swissdec Schritt 2, Walter 17.08.2026):
+        // wenn der Lohnpositions-Katalog mitgegeben wird, rechnet BuildResult
+        // die SV-Basen ein zweites Mal aus den Lohnzeilen-Codes × Flags und
+        // legt den Vergleich als «schattenBasen» in den Slip-JSON. null =
+        // keine Schatten-Rechnung (z.B. Korrektur-Lauf — dort sind die Basen
+        // per Konstruktion flag-getrieben).
+        Dictionary<string, Lohnposition>? lohnposByCode = null)
     {
         // Abzüge berechnen
         decimal totalAbzuege = 0;
@@ -612,6 +619,15 @@ public static class PayrollCalculations
             svBasisAhv  = Math.Round(svBases.Ahv,  2),
             svBasisBvg  = Math.Round(svBases.Bvg,  2),
             qstBetrag   = Math.Round(qstBetragOut, 2),
+            // Schatten-Basen-Vergleich (Swissdec Schritt 2) — komplette Basen
+            // fürs Protokoll + Flag-Nachrechnung. Reine Diagnose, kein Einfluss
+            // auf Beträge; null wenn kein Katalog übergeben wurde.
+            svBasisNbuv = Math.Round(svBases.Nbuv, 2),
+            svBasisKtg  = Math.Round(svBases.Ktg,  2),
+            svBasisQst  = Math.Round(svBases.Qst,  2),
+            schattenBasen = lohnposByCode is null
+                ? null
+                : SchattenBasenService.Compute(lohnLines, lohnposByCode, svBases),
         };
     }
 

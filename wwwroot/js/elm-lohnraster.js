@@ -11,6 +11,16 @@ let _elrLohnpos = [];
 async function elrInit() {
     const el = document.getElementById('elrList');
     if (el) el.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px;padding:20px">Wird geladen…</div>';
+    // Perioden-Wahl für die Basen-Kontrolle initialisieren (Default: aktueller Monat)
+    const selM = document.getElementById('elrSchattenMonat');
+    if (selM && !selM.options.length) {
+        const mon = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+        selM.innerHTML = mon.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+        const now = new Date();
+        selM.value = String(now.getMonth() + 1);
+        const j = document.getElementById('elrSchattenJahr');
+        if (j) j.value = String(now.getFullYear());
+    }
     try {
         const [r1, r2] = await Promise.all([
             fetch('/api/elm-lohnraster', { headers: ah() }),
@@ -181,6 +191,84 @@ async function elrLoesen(id) {
     const r = await fetch(`/api/elm-lohnraster/${id}/loesen`, { method: 'POST', headers: ah() });
     if (!r.ok) { showToast('Fehler beim Lösen', 'error'); return; }
     elrInit();
+}
+
+// ── Schatten-Basen-Report (Swissdec Schritt 2) ─────────────────────────
+// Rechnet alle MA der global gewählten Filiale + Periode read-only durch
+// und zeigt pro MA die Differenz Flag-Nachrechnung vs. Engine-Basen.
+async function elrSchattenReport() {
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
+    if (!cpId) { showToast('Bitte zuerst in der Sidebar eine Filiale wählen.', 'error'); return; }
+    const month = parseInt(document.getElementById('elrSchattenMonat')?.value, 10);
+    const year  = parseInt(document.getElementById('elrSchattenJahr')?.value, 10);
+    if (!month || !year) { showToast('Monat/Jahr fehlt.', 'error'); return; }
+
+    let m = document.getElementById('elrSchattenModal');
+    if (!m) {
+        m = document.createElement('div');
+        m.id = 'elrSchattenModal';
+        m.style.cssText = 'display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5)';
+        m.innerHTML = `<div style="position:absolute;top:70px;left:50%;transform:translateX(-50%);width:960px;max-width:94vw;max-height:80vh;background:#faf8f5;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);display:flex;flex-direction:column;overflow:hidden">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(60,55,48,0.12)">
+                <b id="elrSchattenTitle" style="font-size:14.5px;color:#3f3f3f">Basen-Kontrolle</b>
+                <button onclick="document.getElementById('elrSchattenModal').style.display='none'" style="background:none;border:none;font-size:20px;cursor:pointer;color:#8b8b8b">×</button>
+            </div>
+            <div id="elrSchattenBody" style="flex:1;overflow:auto;padding:14px 20px;font-size:12.5px"></div></div>`;
+        m.onclick = (ev) => { if (ev.target === m) m.style.display = 'none'; };
+        document.body.appendChild(m);
+    }
+    const body = document.getElementById('elrSchattenBody');
+    body.innerHTML = '<div style="color:#8b8b8b;padding:16px">Alle Mitarbeitenden werden durchgerechnet — das kann eine Weile dauern…</div>';
+    m.style.display = 'block';
+
+    let d;
+    try {
+        const r = await fetch(`/api/payroll/schatten-report?companyProfileId=${cpId}&year=${year}&month=${month}`, { headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); body.innerHTML = `<div style="color:#b91c1c;padding:16px">${_elrEsc(j.message || j.error || ('HTTP ' + r.status))}</div>`; return; }
+        d = await r.json();
+    } catch (e) { body.innerHTML = `<div style="color:#b91c1c;padding:16px">${_elrEsc(e.message)}</div>`; return; }
+
+    document.getElementById('elrSchattenTitle').textContent =
+        `Basen-Kontrolle ${String(month).padStart(2, '0')}.${year} — ${d.okCount}/${d.total} OK` +
+        (d.diffCount ? `, ${d.diffCount} mit Differenz` : '') +
+        (d.fehlerCount ? `, ${d.fehlerCount} Fehler` : '');
+
+    const diffCell = (c) => {
+        if (!c) return '<td style="padding:3px 8px;color:#cbd5e1;text-align:right">·</td>';
+        const dv = Number(c.diff || 0);
+        return c.ok
+            ? '<td style="padding:3px 8px;text-align:right;color:#16a34a">0.00</td>'
+            : `<td style="padding:3px 8px;text-align:right;color:#b91c1c;font-weight:700" title="Flags: ${c.schatten} / Engine: ${c.engine}">${dv > 0 ? '+' : ''}${dv.toFixed(2)}</td>`;
+    };
+    body.innerHTML = `
+    <p style="margin:0 0 10px;color:#8b8b8b;font-size:12px">Differenz = Nachrechnung aus Lohnarten-Flags − Engine-Basis. Grün 0.00 = beide Wege identisch (Toleranz ${Number(d.toleranz).toFixed(2)}).
+       Rote Werte mit Maus-Tooltip (beide Beträge). «Zeilen ohne Code» sind noch nicht getaggte Lohnzeilen.</p>
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid rgba(60,55,48,0.18);color:#6b6152">
+        <th style="text-align:left;padding:4px 8px">Mitarbeiter/in</th><th style="text-align:left;padding:4px 8px">Modell</th>
+        <th style="text-align:right;padding:4px 8px">AHV</th><th style="text-align:right;padding:4px 8px">NBU</th>
+        <th style="text-align:right;padding:4px 8px">KTG</th><th style="text-align:right;padding:4px 8px">BVG</th>
+        <th style="text-align:right;padding:4px 8px">QST</th><th style="text-align:center;padding:4px 8px">Status</th>
+      </tr></thead><tbody>
+      ${d.rows.map(r => {
+          const s = r.schatten || {};
+          const ohne = (s.ohneCode || []);
+          const status = r.fehler
+              ? `<span style="color:#b91c1c" title="${_elrEsc(r.fehler)}">Fehler</span>`
+              : (r.ok ? '<span style="color:#16a34a;font-weight:700">✓</span>' : '<span style="color:#b91c1c;font-weight:700">≠</span>');
+          let row = `<tr style="border-bottom:1px solid rgba(60,55,48,0.07)">
+              <td style="padding:3px 8px;color:#3f3f3f">${_elrEsc(r.name)} <span style="color:#b0aca3;font-size:11px">${_elrEsc(r.nummer || '')}</span></td>
+              <td style="padding:3px 8px;color:#8b8b8b">${_elrEsc(r.modell || '')}</td>
+              ${diffCell(s.ahv)}${diffCell(s.nbuv)}${diffCell(s.ktg)}${diffCell(s.bvg)}${diffCell(s.qst)}
+              <td style="padding:3px 8px;text-align:center">${status}</td></tr>`;
+          if (ohne.length) {
+              row += `<tr><td colspan="8" style="padding:1px 8px 6px 24px;color:#b45309;font-size:11.5px">
+                  ⚠ Zeilen ohne Code: ${ohne.map(o => `${_elrEsc(o.bezeichnung)} (${Number(o.betrag).toFixed(2)})`).join(' · ')}</td></tr>`;
+          }
+          return row;
+      }).join('')}
+      </tbody></table>
+    <p style="margin:10px 0 0;color:#b0aca3;font-size:11.5px">Bekannte legitime BVG-Differenz: BVG-Wartefrist-Korrektur bei MTP-Krank/Unfall (Engine-Aufschlag ohne Lohnzeile).</p>`;
 }
 
 function elrDetail(id) {

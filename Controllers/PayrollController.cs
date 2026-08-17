@@ -380,6 +380,77 @@ public class PayrollController : HrControllerBase
         return await _calcEngine.CalculateAsync(employeeId, year, month, companyProfileId, isCorrection);
     }
 
+    // ── Schatten-Basen-Report (Swissdec Schritt 2, Walter-Vorgabe 17.08.2026) ──
+    // Rechnet alle MA der Filiale+Periode READ-ONLY durch und aggregiert den
+    // «schattenBasen»-Block aus jedem Slip: Flag-Nachrechnung (Lohnzeilen-Codes ×
+    // Lohnpositions-Flags) vs. Engine-Basen pro Kategorie (AHV/NBU/KTG/BVG/QST).
+    // Reine Diagnose — persistiert nichts (Preview-Grundsatz 20.05.2026).
+    [HttpGet("schatten-report")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> SchattenReport(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var (periodFrom, periodTo) = CalcPeriod(year, month);
+        var pFrom = periodFrom.ToDateTime(TimeOnly.MinValue);
+        var pTo   = periodTo.ToDateTime(TimeOnly.MaxValue);
+
+        var emps = await (
+            from emp in _db.Employments.AsNoTracking()
+            join e in _db.Employees.AsNoTracking() on emp.EmployeeId equals e.Id
+            where emp.CompanyProfileId == companyProfileId
+               && !e.IsPayrollExcluded
+               && emp.ContractStartDate <= pTo
+               && (emp.ContractEndDate == null || emp.ContractEndDate >= pFrom)
+            select new { emp.EmployeeId, e.FirstName, e.LastName,
+                         Number = e.EmployeeNumber, emp.EmploymentModel }
+        ).ToListAsync();
+        var byEmp = emps.GroupBy(x => x.EmployeeId).Select(g => g.First())
+            .OrderBy(x => x.FirstName ?? "").ThenBy(x => x.LastName ?? "").ToList();
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        var rows = new List<object>();
+        int okCount = 0, diffCount = 0, fehlerCount = 0;
+        foreach (var m in byEmp)
+        {
+            JsonNode? schatten = null; string? fehler = null;
+            try
+            {
+                var calc = await _calcEngine.CalculateAsync(m.EmployeeId, year, month, companyProfileId);
+                if (calc is OkObjectResult okRes && okRes.Value is not null)
+                    schatten = JsonNode.Parse(JsonSerializer.Serialize(okRes.Value, camel))?["schattenBasen"];
+                else
+                    fehler = "Berechnung nicht möglich (kein OK-Resultat).";
+            }
+            catch (Exception ex) { fehler = ex.Message; }
+
+            bool ok = schatten?["ok"]?.GetValue<bool>() ?? false;
+            if (fehler != null) fehlerCount++;
+            else if (ok) okCount++;
+            else diffCount++;
+            rows.Add(new
+            {
+                employeeId = m.EmployeeId,
+                name       = $"{m.FirstName} {m.LastName}".Trim(),
+                nummer     = m.Number,
+                modell     = m.EmploymentModel,
+                ok,
+                fehler,
+                schatten,
+            });
+        }
+
+        return Ok(new
+        {
+            companyProfileId, year, month,
+            total = rows.Count, okCount, diffCount, fehlerCount,
+            toleranz = SchattenBasenService.Toleranz,
+            rows,
+        });
+    }
+
     /// <summary>
     /// Kandidaten für Korrekturlohn: MA mit Vertrag in der Filiale, die in
     /// der Periode keinen laufenden Vertrag mehr haben (ausgetreten / inaktiv).
