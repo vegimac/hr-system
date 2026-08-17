@@ -54,37 +54,56 @@ function lsRender() {
     const rowsModell = _lsAll.filter(e => e.modell === _lsModell).sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
     const rowsAlle   = _lsAll.filter(e => e.modell === 'ALLE').sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 
-    const table = (rows, editable) => rows.length ? `
-        <div class="card" style="padding:0;overflow:visible;max-width:1100px">
+    // Gruppierung nach Art (wie ein Lohnzettel gelesen wird): automatisch →
+    // Saldo → Ereignis → Austritt → manuell; innerhalb der Gruppe SortOrder.
+    const artReihenfolge = ['automatisch', 'saldo', 'ereignis', 'austritt', 'manuell'];
+    const artGruppenTitel = {
+        automatisch: 'Automatisch — jeden Monat',
+        saldo:       'Automatisch — in den Saldo / Pott',
+        ereignis:    'Bei Ereignis (Krankheit, Unfall, Ferienbezug …)',
+        austritt:    'Beim Austritt (Schlussabrechnung)',
+        manuell:     'Manuell erfassbar',
+    };
+    const zeile = (e, editable) => `
+        <tr class="ls-row">
+            <td style="font-family:monospace;font-weight:600;color:#3f3f3f">${_lsEsc(e.code)}</td>
+            <td style="color:#3f3f3f">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${_LS_ART_COLOR[e.art] || '#8b8b8b'};margin-right:7px;vertical-align:1px"></span>${_lsEsc(e.bezeichnung)}
+                ${e.typ === 'ABZUG' ? '<span style="color:#b91c1c;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
+            <td>
+                ${editable
+                    ? `<select onchange="lsChangeArt(${e.id}, this)">
+                         ${_LS_ARTEN.map(([v, l]) => `<option value="${v}" ${v === e.art ? 'selected' : ''}>${l}</option>`).join('')}
+                       </select>`
+                    : `<span style="color:${_LS_ART_COLOR[e.art] || '#8b8b8b'};font-size:12px;font-weight:600">${_lsEsc(_LS_ART_LABEL[e.art] || e.art)}</span>`}
+            </td>
+            <td class="elr-c">${_lsFlag(e.ahv)}</td><td class="elr-c">${_lsFlag(e.nbuv)}</td>
+            <td class="elr-c">${_lsFlag(e.ktg)}</td><td class="elr-c">${_lsFlag(e.bvg)}</td>
+            <td class="elr-c">${_lsFlag(e.qst)}</td><td class="elr-c">${_lsFlag(e.ml13)}</td>
+            <td style="text-align:right">
+                ${editable ? `<button class="dok-menu-btn ls-del" title="Aus dem Schema entfernen" onclick="lsRemove(${e.id})" style="width:auto;padding:2px 7px;font-size:11.5px">✕</button>` : ''}
+            </td>
+        </tr>`;
+    const table = (rows, editable, mitGruppen = true) => rows.length ? `
+        <div class="card" style="padding:0 0 6px;overflow:visible;max-width:1100px">
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
             <th style="text-align:left;padding:6px 12px;width:64px">Code</th>
             <th style="text-align:left;padding:6px 12px">Lohnposition</th>
-            <th style="text-align:left;padding:6px 12px;width:225px">Art</th>
+            <th style="text-align:left;padding:6px 12px;width:215px">Art</th>
             <th class="elr-c" style="width:44px">AHV</th><th class="elr-c" style="width:44px">NBU</th>
             <th class="elr-c" style="width:44px">KTG</th><th class="elr-c" style="width:44px">BVG</th>
             <th class="elr-c" style="width:44px">QST</th><th class="elr-c" style="width:50px">13.ML</th>
-            <th style="width:46px"></th>
+            <th style="width:44px"></th>
         </tr></thead><tbody>
-        ${rows.map(e => `
-            <tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
-                <td style="padding:4px 12px;font-family:monospace;font-weight:600;color:#3f3f3f">${_lsEsc(e.code)}</td>
-                <td style="padding:4px 12px;color:#3f3f3f">${_lsEsc(e.bezeichnung)}
-                    ${e.typ === 'ABZUG' ? '<span style="color:#b91c1c;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
-                <td style="padding:4px 12px">
-                    ${editable
-                        ? `<select onchange="lsChangeArt(${e.id}, this)" style="padding:4px 8px;border-radius:8px;font-size:12px">
-                             ${_LS_ARTEN.map(([v, l]) => `<option value="${v}" ${v === e.art ? 'selected' : ''}>${l}</option>`).join('')}
-                           </select>`
-                        : `<span style="color:${_LS_ART_COLOR[e.art] || '#8b8b8b'};font-size:12px;font-weight:600">${_lsEsc(_LS_ART_LABEL[e.art] || e.art)}</span>`}
-                </td>
-                <td class="elr-c">${_lsFlag(e.ahv)}</td><td class="elr-c">${_lsFlag(e.nbuv)}</td>
-                <td class="elr-c">${_lsFlag(e.ktg)}</td><td class="elr-c">${_lsFlag(e.bvg)}</td>
-                <td class="elr-c">${_lsFlag(e.qst)}</td><td class="elr-c">${_lsFlag(e.ml13)}</td>
-                <td style="padding:4px 8px;text-align:right">
-                    ${editable ? `<button class="dok-menu-btn" title="Aus dem Schema entfernen" onclick="lsRemove(${e.id})" style="width:auto;padding:3px 8px;font-size:12px">✕</button>` : ''}
-                </td>
-            </tr>`).join('')}
+        ${mitGruppen
+            ? artReihenfolge.map(art => {
+                  const g = rows.filter(e => e.art === art);
+                  if (!g.length) return '';
+                  return `<tr class="ls-group"><td colspan="10">${artGruppenTitel[art]}</td></tr>`
+                       + g.map(e => zeile(e, editable)).join('');
+              }).join('')
+            : rows.map(e => zeile(e, editable)).join('')}
         </tbody></table></div>`
         : '<div style="color:#b0aca3;font-size:12.5px;padding:12px 4px">Keine Positionen hinterlegt.</div>';
 
@@ -110,6 +129,7 @@ async function lsChangeArt(id, sel) {
     const e = _lsAll.find(x => x.id === id);
     if (e) e.art = sel.value;
     showToast('Art geändert.', 'success');
+    lsRender();   // Zeile wandert in die passende Art-Gruppe
 }
 
 async function lsRemove(id) {
