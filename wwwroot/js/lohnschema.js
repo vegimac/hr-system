@@ -17,7 +17,9 @@ const _LS_ARTEN = [
     ['manuell',     'manuell'],
 ];
 const _LS_ART_LABEL = Object.fromEntries(_LS_ARTEN);
-const _LS_ART_COLOR = { automatisch: '#166534', saldo: '#0e7490', ereignis: '#8b8b8b', austritt: '#92400e', manuell: '#6b21a8' };
+// Gedämpfte Liquid-Glass-Palette (17.08.2026): Salbei / Petrol / warmes Grau /
+// Bernstein / Violett — gleiche Farben wie die CSS-Klassen ls-g-*/ls-a-*.
+const _LS_ART_COLOR = { automatisch: '#4d7c5f', saldo: '#4e7f8c', ereignis: '#8a8478', austritt: '#a1794a', manuell: '#7d6b96' };
 
 async function lsInit() {
     const el = document.getElementById('lsContent');
@@ -34,7 +36,7 @@ async function lsInit() {
 }
 
 function _lsEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-function _lsFlag(v) { return v ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#dc2626;opacity:.55">–</span>'; }
+function _lsFlag(v) { return v ? '<span class="ls-on">✓</span>' : '<span class="ls-off">–</span>'; }
 
 function lsSetModell(m) {
     _lsModell = m;
@@ -65,11 +67,10 @@ function lsRender() {
         manuell:     'Manuell erfassbar',
     };
     const zeile = (e, editable) => `
-        <tr class="ls-row">
+        <tr class="ls-row ls-a-${e.art}">
             <td style="font-family:monospace;font-weight:600;color:#3f3f3f">${_lsEsc(e.code)}</td>
-            <td style="color:#3f3f3f">
-                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${_LS_ART_COLOR[e.art] || '#8b8b8b'};margin-right:7px;vertical-align:1px"></span>${_lsEsc(e.bezeichnung)}
-                ${e.typ === 'ABZUG' ? '<span style="color:#b91c1c;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
+            <td style="color:#3f3f3f">${_lsEsc(e.bezeichnung)}
+                ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
             <td>
                 ${editable
                     ? `<select onchange="lsChangeArt(${e.id}, this)">
@@ -100,7 +101,7 @@ function lsRender() {
             ? artReihenfolge.map(art => {
                   const g = rows.filter(e => e.art === art);
                   if (!g.length) return '';
-                  return `<tr class="ls-group"><td colspan="10">${artGruppenTitel[art]}</td></tr>`
+                  return `<tr class="ls-group ls-g-${art}"><td colspan="10"><span class="ls-gdot"></span>${artGruppenTitel[art]}</td></tr>`
                        + g.map(e => zeile(e, editable)).join('');
               }).join('')
             : rows.map(e => zeile(e, editable)).join('')}

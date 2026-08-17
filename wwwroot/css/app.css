@@ -11281,28 +11281,48 @@ body.theme-dark .sys-back-btn {
     box-shadow: 0 0 0 3px rgba(63,63,63,0.10);
 }
 
-/* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art ── */
+/* ── Lohnschema-Seite (Walter 17.08.2026): kompakte Tabelle, gruppiert nach Art.
+   Farbwelt Liquid-Glass (gedaempft, kein grelles Signal-Rot/Gruen):
+   automatisch = Salbei · saldo = Petrol · ereignis = warmes Grau ·
+   austritt = Bernstein · manuell = gedaempftes Violett ── */
 #page-lohnschema table tbody td { padding: 4px 12px; }
 #page-lohnschema tr.ls-group td {
-    padding: 14px 12px 5px;
+    padding: 15px 12px 5px;
     font-size: 10.5px; letter-spacing: .09em; font-weight: 700;
-    color: #8b8b8b; text-transform: uppercase;
+    text-transform: uppercase;
     border-bottom: none;
 }
 #page-lohnschema tr.ls-group:first-child td { padding-top: 8px; }
+#page-lohnschema .ls-gdot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:8px; }
+#page-lohnschema tr.ls-g-automatisch td { color:#4d7c5f; }  #page-lohnschema tr.ls-g-automatisch .ls-gdot { background:#4d7c5f; }
+#page-lohnschema tr.ls-g-saldo td       { color:#4e7f8c; }  #page-lohnschema tr.ls-g-saldo .ls-gdot       { background:#4e7f8c; }
+#page-lohnschema tr.ls-g-ereignis td    { color:#8a8478; }  #page-lohnschema tr.ls-g-ereignis .ls-gdot    { background:#8a8478; }
+#page-lohnschema tr.ls-g-austritt td    { color:#a1794a; }  #page-lohnschema tr.ls-g-austritt .ls-gdot    { background:#a1794a; }
+#page-lohnschema tr.ls-g-manuell td     { color:#7d6b96; }  #page-lohnschema tr.ls-g-manuell .ls-gdot     { background:#7d6b96; }
 #page-lohnschema tbody tr.ls-row { border-bottom: 1px solid rgba(60,55,48,0.07); }
 #page-lohnschema tbody tr.ls-row:hover { background: rgba(255,255,255,0.5); }
-/* Liquid-Select-Trigger in der Art-Spalte: flach + kompakt statt grosser Pille */
+/* Zeilen-Akzent links in der Art-Farbe (dezent) */
+#page-lohnschema tr.ls-a-automatisch td:first-child { box-shadow: inset 3px 0 0 rgba(77,124,95,.45); }
+#page-lohnschema tr.ls-a-saldo       td:first-child { box-shadow: inset 3px 0 0 rgba(78,127,140,.45); }
+#page-lohnschema tr.ls-a-ereignis    td:first-child { box-shadow: inset 3px 0 0 rgba(138,132,120,.35); }
+#page-lohnschema tr.ls-a-austritt    td:first-child { box-shadow: inset 3px 0 0 rgba(161,121,74,.45); }
+#page-lohnschema tr.ls-a-manuell     td:first-child { box-shadow: inset 3px 0 0 rgba(125,107,150,.45); }
+/* Liquid-Select-Trigger: flach, kompakt, in der Art-Farbe getoent */
 #page-lohnschema td .lqsel-btn {
     padding: 3px 26px 3px 10px !important;
     font-size: 11.5px !important;
     border-radius: 8px !important;
-    background: rgba(255,255,255,0.38) !important;
-    border: 1px solid rgba(60,55,48,0.13) !important;
     box-shadow: none !important;
     min-height: 0 !important;
-    color: #6b6152 !important;
 }
+#page-lohnschema tr.ls-a-automatisch .lqsel-btn { color:#3d6b4f !important; background:rgba(77,124,95,.08) !important;  border:1px solid rgba(77,124,95,.28) !important; }
+#page-lohnschema tr.ls-a-saldo       .lqsel-btn { color:#3f6a76 !important; background:rgba(78,127,140,.08) !important; border:1px solid rgba(78,127,140,.28) !important; }
+#page-lohnschema tr.ls-a-ereignis    .lqsel-btn { color:#6f6a5f !important; background:rgba(138,132,120,.08) !important;border:1px solid rgba(138,132,120,.26) !important; }
+#page-lohnschema tr.ls-a-austritt    .lqsel-btn { color:#8a6437 !important; background:rgba(161,121,74,.09) !important; border:1px solid rgba(161,121,74,.30) !important; }
+#page-lohnschema tr.ls-a-manuell     .lqsel-btn { color:#695882 !important; background:rgba(125,107,150,.08) !important;border:1px solid rgba(125,107,150,.28) !important; }
+/* SV-Flags: Haekchen gedaempft gruen, «nicht pflichtig» neutral (kein Fehler-Rot) */
+#page-lohnschema .ls-on  { color:#4d9964; }
+#page-lohnschema .ls-off { color:#cfc9be; }
 /* Entfernen-Knopf: erst beim Zeilen-Hover richtig sichtbar */
-#page-lohnschema .ls-del { opacity: .3; transition: opacity .15s; }
+#page-lohnschema .ls-del { opacity: .25; transition: opacity .15s; }
 #page-lohnschema tbody tr:hover .ls-del { opacity: 1; }
