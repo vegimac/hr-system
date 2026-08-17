@@ -25,6 +25,38 @@ public class ElmLohnrasterController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
+        // Auto-Match (Walter-Vorgabe 17.08.2026): bestehende OneCrew-Lohnpositionen
+        // mit identischem Code werden beim Laden automatisch verknuepft, damit die
+        // Liste sofort zeigt, was schon im Lohn drin ist (Haekchen statt «—»).
+        // Idempotent: nur unverlinkte Eintraege, nur exakte Code-Gleichheit,
+        // nur wenn die Lohnposition nicht schon einem anderen Eintrag zugeordnet ist.
+        var unverlinkt = await _db.ElmLohnraster
+            .Where(e => e.VerwendetLohnpositionId == null)
+            .ToListAsync();
+        if (unverlinkt.Count > 0)
+        {
+            var lohnposByCode = await _db.Lohnpositionen
+                .GroupBy(l => l.Code)
+                .Select(g => g.First())
+                .ToDictionaryAsync(l => l.Code, l => l.Id);
+            var schonBelegt = await _db.ElmLohnraster
+                .Where(e => e.VerwendetLohnpositionId != null)
+                .Select(e => e.VerwendetLohnpositionId!.Value)
+                .ToListAsync();
+            var belegtSet = new HashSet<int>(schonBelegt);
+            var geaendert = false;
+            foreach (var e in unverlinkt)
+            {
+                if (lohnposByCode.TryGetValue(e.Code, out var lpId) && !belegtSet.Contains(lpId))
+                {
+                    e.VerwendetLohnpositionId = lpId;
+                    belegtSet.Add(lpId);
+                    geaendert = true;
+                }
+            }
+            if (geaendert) await _db.SaveChangesAsync();
+        }
+
         var rows = await _db.ElmLohnraster.AsNoTracking()
             .Include(e => e.VerwendetLohnposition)
             .ToListAsync();
@@ -54,8 +86,19 @@ public class ElmLohnrasterController : ControllerBase
             return Conflict(new { error = "SCHON_VERWENDET", message = "Diese Position ist bereits in OneCrew übernommen." });
         if (e.Typ != "LOHNART")
             return BadRequest(new { error = "NUR_LOHNARTEN", message = "Nur Lohnarten können als Lohnposition übernommen werden — SV-Abzüge/Absenzarten werden über SV-Sätze bzw. Absenz-Typen gepflegt." });
-        if (await _db.Lohnpositionen.AnyAsync(l => l.Code == e.Code))
-            return Conflict(new { error = "CODE_BELEGT", message = $"Code «{e.Code}» existiert bereits als Lohnposition — bitte stattdessen «Verknüpfen» nutzen." });
+        // Existiert der Code schon als Lohnposition → direkt verknuepfen statt Fehler
+        // (Haekchen-Semantik: «ist in OneCrew» — egal ob neu angelegt oder schon da).
+        var vorhanden = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Code == e.Code);
+        if (vorhanden != null)
+        {
+            var anderweitigBelegt = await _db.ElmLohnraster
+                .AnyAsync(x => x.VerwendetLohnpositionId == vorhanden.Id && x.Id != id);
+            if (anderweitigBelegt)
+                return Conflict(new { error = "LOHNPOSITION_BELEGT", message = $"Lohnposition «{e.Code}» ist bereits einem anderen Raster-Eintrag zugeordnet." });
+            e.VerwendetLohnpositionId = vorhanden.Id;
+            await _db.SaveChangesAsync();
+            return Ok(new { lohnpositionId = vorhanden.Id, code = vorhanden.Code, verknuepft = true });
+        }
 
         // Lohnausweisfeld «9.  Beiträge …» → Kurzcode «9»
         string? laFeld = null;
