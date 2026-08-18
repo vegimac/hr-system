@@ -69,7 +69,7 @@ function lsRender() {
     const zeile = (e, editable) => `
         <tr class="ls-row ls-a-${e.art}">
             <td style="font-family:monospace;font-weight:600;color:#3f3f3f">${_lsEsc(e.code)}</td>
-            <td style="color:#3f3f3f">${_lsEsc(e.bezeichnung)}
+            <td style="color:#3f3f3f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${_lsEsc(e.bezeichnung)}">${_lsEsc(e.bezeichnung)}
                 ${e.typ === 'ABZUG' ? '<span style="color:#8a6437;font-size:10.5px;font-weight:700;margin-left:5px">ABZUG</span>' : ''}</td>
             <td>
                 ${editable
@@ -87,15 +87,15 @@ function lsRender() {
         </tr>`;
     const table = (rows, editable, mitGruppen = true) => rows.length ? `
         <div class="card" style="padding:0 0 4px;overflow:visible">
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
-            <th style="text-align:left;padding:4px 10px;width:60px">Code</th>
+            <th style="text-align:left;padding:4px 8px;width:52px">Code</th>
             <th style="text-align:left;padding:6px 12px">Lohnposition</th>
-            <th style="text-align:left;padding:4px 8px;width:132px">Art</th>
-            <th class="elr-c" style="width:28px">AHV</th><th class="elr-c" style="width:28px">NBU</th>
-            <th class="elr-c" style="width:28px">KTG</th><th class="elr-c" style="width:28px">BVG</th>
-            <th class="elr-c" style="width:28px">QST</th><th class="elr-c" style="width:38px">13.ML</th>
-            <th style="width:32px"></th>
+            <th style="text-align:left;padding:4px 8px;width:128px">Art</th>
+            <th class="elr-c" style="width:24px;font-size:10px">AHV</th><th class="elr-c" style="width:24px;font-size:10px">NBU</th>
+            <th class="elr-c" style="width:24px;font-size:10px">KTG</th><th class="elr-c" style="width:24px;font-size:10px">BVG</th>
+            <th class="elr-c" style="width:24px;font-size:10px">QST</th><th class="elr-c" style="width:32px;font-size:10px">13.ML</th>
+            <th style="width:30px"></th>
         </tr></thead><tbody>
         ${mitGruppen
             ? artReihenfolge.map(art => {
