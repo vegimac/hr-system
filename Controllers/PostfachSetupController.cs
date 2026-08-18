@@ -42,9 +42,9 @@ public class PostfachSetupController : ControllerBase
     /// schaltet (dann Konstante auf null setzen). Der eigentliche Empfänger wird
     /// im Betreff + Mail-Kopf ausgewiesen.
     /// </summary>
-    // TESTMODUS wieder aktiv (Walter 18.08.2026, Testlauf mit neuem Mail-Layout) —
-    // zum Scharfschalten auf null setzen.
-    private const string? AppLinkTestRedirect = "walter.schaub@gmail.com";
+    // SCHARF (Walter 18.08.2026): Mails gehen an die echte MA-Adresse.
+    // Für einen Testlauf wieder "walter.schaub@gmail.com" eintragen.
+    private const string? AppLinkTestRedirect = null;
 
     private int? UserId() =>
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
