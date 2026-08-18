@@ -11313,8 +11313,8 @@ body.theme-dark .sys-back-btn {
    und HART auf die Zellenbreite begrenzt (Kollision Art/AHV, 18.08.2026) */
 #page-lohnschema td .lqsel { width: 100%; max-width: 100%; display: block; }
 #page-lohnschema td .lqsel-btn {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: calc(100% - 14px) !important;
+    max-width: calc(100% - 14px) !important;
     min-width: 0 !important;
     box-sizing: border-box !important;
     overflow: hidden;

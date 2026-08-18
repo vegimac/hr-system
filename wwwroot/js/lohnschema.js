@@ -90,11 +90,11 @@ function lsRender() {
         <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
             <th style="text-align:left;padding:4px 8px;width:7%">Code</th>
-            <th style="text-align:left;padding:4px 10px;width:31%">Lohnposition</th>
-            <th style="text-align:left;padding:4px 8px;width:19%">Art</th>
-            <th class="elr-c" style="width:6.5%">AHV</th><th class="elr-c" style="width:6.5%">NBU</th>
-            <th class="elr-c" style="width:6.5%">KTG</th><th class="elr-c" style="width:6.5%">BVG</th>
-            <th class="elr-c" style="width:6.5%">QST</th><th class="elr-c" style="width:7%">13.ML</th>
+            <th style="text-align:left;padding:4px 10px;width:32%">Lohnposition</th>
+            <th style="text-align:left;padding:4px 8px;width:21%">Art</th>
+            <th class="elr-c" style="width:5.5%">AHV</th><th class="elr-c" style="width:5.5%">NBU</th>
+            <th class="elr-c" style="width:5.5%">KTG</th><th class="elr-c" style="width:5.5%">BVG</th>
+            <th class="elr-c" style="width:5.5%">QST</th><th class="elr-c" style="width:6%">13.ML</th>
             <th style="width:4.5%"></th>
         </tr></thead><tbody>
         ${mitGruppen
