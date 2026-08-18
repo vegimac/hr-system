@@ -54,7 +54,11 @@ public class EasyAtWorkAbsenceSyncService
         "PAID_LEAVE" => "BEZ_ABSENZ",
         "UNPAID_LEAVE" => "UNBEZ_URLAUB",
         "SCHOOL" => "SCHULUNG",
-        _ => null,   // PUBLIC_HOLIDAY*, WEEKLY_DAY_OFF*, *COMPENSATION, Unbekanntes
+        // Nacht-Kompensation ist LOHNRELEVANT (reduziert den Nacht-Saldo,
+        // Katalog NACHT_KOMP) — im Gegensatz zu den übrigen Kompensations-
+        // Typen, die bewusst draussen bleiben (Walter 18.08.2026).
+        var s when s.Contains("NIGHT") && s.Contains("COMPENSATION") => "NACHT_KOMP",
+        _ => null,   // PUBLIC_HOLIDAY*, WEEKLY_DAY_OFF*, übrige *COMPENSATION, Unbekanntes
     };
 
     public record SyncRow(
