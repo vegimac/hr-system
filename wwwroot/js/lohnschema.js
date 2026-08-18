@@ -20,6 +20,8 @@ const _LS_ART_LABEL = Object.fromEntries(_LS_ARTEN);
 // Gedämpfte Liquid-Glass-Palette (17.08.2026): Salbei / Petrol / warmes Grau /
 // Bernstein / Violett — gleiche Farben wie die CSS-Klassen ls-g-*/ls-a-*.
 const _LS_ART_COLOR = { automatisch: '#4d7c5f', saldo: '#4e7f8c', ereignis: '#8a8478', austritt: '#a1794a', manuell: '#7d6b96' };
+// Kräftigere Variante für die Gruppen-Titel der Karten (Walter 18.08.2026)
+const _LS_ART_COLOR_TITEL = { automatisch: '#2e6245', saldo: '#2c6274', ereignis: '#6b6350', austritt: '#8f5c1f', manuell: '#5c4585' };
 
 async function lsInit() {
     const el = document.getElementById('lsContent');
@@ -109,7 +111,7 @@ function lsRender() {
         const cards = artReihenfolge.map(art => {
             const g = rows.filter(e => e.art === art);
             if (!g.length) return '';
-            const c = _LS_ART_COLOR[art] || '#8b8b8b';
+            const c = _LS_ART_COLOR_TITEL[art] || '#6a6456';
             const html = `
             <div class="card ls-gcard">
                 <div class="ls-gtitle" style="color:${c}"><span class="ls-gdot" style="background:${c}"></span>${artGruppenTitel[art]}</div>
