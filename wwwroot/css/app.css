@@ -11397,3 +11397,19 @@ body.theme-dark .sys-back-btn {
     box-shadow: 0 2px 7px rgba(60, 55, 48, 0.13) !important;
     border-radius: 11px !important;
 }
+
+/* ── Lohnschema-Karten: durchgehend warme Fläche wie die MA-Karten (Walter 18.08.2026 v2).
+   Zwei Übersteuerungen nötig: (1) der ov-Verlauf startete fast weiss → gleichmässiger warm,
+   (2) das fixhead-Muster zwingt thead auf Grau-Blau #f1f5f9 !important → warmer Kopf per ID-Selektor. ── */
+#page-lohnschema .ls-2col .card {
+    padding: 8px 10px 10px !important;
+    background-image: linear-gradient(165deg, #faf6ee 0%, #f1ebe0 50%, #e7dfd3 100%),
+                      linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+}
+#page-lohnschema.fixhead .page-body .ls-2col table thead th {
+    background: #ece5d8 !important;
+    border-bottom: none;
+    box-shadow: 0 1px 0 rgba(90, 80, 65, 0.16);
+    color: #6f6a5f;
+}
+#page-lohnschema .ls-2col tbody tr:hover { background: rgba(255, 255, 255, 0.45); }
