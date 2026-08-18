@@ -11833,3 +11833,11 @@ body.theme-dark .dp-branch td { background: #3f3f3f !important; color: #fff !imp
 body.theme-dark .dp-table td.dp-weok { color: #166534 !important; }
 body.theme-dark .dp-table td.dp-wenok { color: #b91c1c !important; }
 body.theme-dark .dp-we { background: #efece6; }
+
+/* Manager-DP: Kopfzeilen (KW/Datum/Tag) — das fixhead-Dark-Muster hat höhere
+   Spezifität, darum hier per Page-ID final hell erzwungen (Walter 18.08.2026) */
+body.theme-dark #page-manager-dienstplan .dp-table thead th {
+    background: #f6f3ee !important;
+    color: #646464 !important;
+    box-shadow: none !important;
+}
