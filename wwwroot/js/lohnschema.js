@@ -114,7 +114,7 @@ function lsRender() {
             const c = _LS_ART_COLOR_TITEL[art] || '#6a6456';
             const html = `
             <div class="card ls-gcard">
-                <div class="ls-gtitle" style="color:${c}"><span class="ls-gdot" style="background:${c}"></span>${artGruppenTitel[art]}</div>
+                <div class="ls-gtitle" style="background:${c}"><span class="ls-gdot" style="background:rgba(255,255,255,0.9)"></span>${artGruppenTitel[art]}</div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                     ${colgroupHtml}${first ? theadHtml : ''}
                     <tbody>${g.map(e => zeile(e, editable)).join('')}</tbody>
