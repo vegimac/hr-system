@@ -9547,7 +9547,9 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 /* Kandidat an HR: Quermotiv → volle Kachelbreite ausnutzen */
 .ra-tile img[src*="Kandidat-an-HR.png"] { width: 110px; height: 110px; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
-body.theme-dark .ra-tile img { filter: invert(0.88) hue-rotate(180deg); }
+/* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
+   mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */
+body.theme-dark .ra-tile img { filter: invert(0.96) hue-rotate(180deg) brightness(1.35) contrast(1.25); }
 /* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
 body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
 /* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
@@ -11789,3 +11791,18 @@ body.theme-dark #page-mindestloehne .mw-section-head { color: #e2e8f0; }
 /* Inline-helle Panels/Verläufe in JS-gebauten Modals → dunkles Glas */
 body.theme-dark div[style*="eeece4"] { background: var(--dlg-glass) !important; }
 body.theme-dark div[style*="#f6f3ee"] { background: rgba(255, 255, 255, 0.04) !important; border-color: var(--dlg-glass-border) !important; }
+
+/* ── Familien-Maske noch kompakter (Walter 18.08.2026): letzte ~100px Höhe
+   einsparen, damit sie komplett ohne Scrollen passt — hell + dunkel. ── */
+.family-modal-box .emp-field-grid,
+.family-modal-box .emp-field-grid-2,
+.family-modal-box .emp-field-grid-3 { gap: 4px 10px; padding-top: 3px; padding-bottom: 5px; }
+body.theme-dark .family-modal-box .emp-field-grid,
+body.theme-dark .family-modal-box .emp-field-grid-2,
+body.theme-dark .family-modal-box .emp-field-grid-3 { padding: 6px 10px 8px !important; }
+.family-modal-box .emp-field-value { min-height: 24px; padding-top: 2px; padding-bottom: 2px; }
+#familyModal .fmf-checkbox-card { min-height: 24px !important; padding-top: 2px !important; padding-bottom: 2px !important; }
+#familyModal .fmf-radio-row { padding: 6px 10px !important; }
+.family-modal-box .emp-section-title { margin-top: 4px !important; }
+.family-modal-box .fmf-label { margin-bottom: 1px; }
+.family-modal-box .fmf-row { margin-bottom: 6px; }
