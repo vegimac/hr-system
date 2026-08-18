@@ -906,7 +906,7 @@ async function pbOpenCropper(id) {
     m.onclick = e => { if (e.target === m) pbCropClose(); };
     const defName = (doc?.employee?.name ? doc.employee.name + ' ' : '') + 'Dokument';
     m.innerHTML = `
-    <div class="modal" style="width:min(1100px,calc(100vw - 40px));max-height:calc(100vh - 60px);overflow-y:auto;padding:18px 22px">
+    <div class="modal" style="width:calc(100vw - 48px);height:calc(100vh - 48px);max-width:none;max-height:none;padding:14px 22px;display:flex;flex-direction:column;overflow:hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
             <div style="font-size:16px;font-weight:800;color:#3f3f3f">✂️ Foto zuschneiden → PDF</div>
             <button onclick="pbCropClose()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#8b8b8b">✕</button>
@@ -923,10 +923,16 @@ async function pbOpenCropper(id) {
                 <input type="range" id="pbCropBright" min="50" max="180" step="1" value="100" style="width:140px" oninput="pbCropRender()">
                 <span id="pbCropBrightVal" style="min-width:40px;text-align:right;font-variant-numeric:tabular-nums">100%</span>
             </label>
+            <label style="display:flex;align-items:center;gap:6px">🔍 Zoom
+                <input type="range" id="pbCropZoom" min="10" max="250" step="1" value="100" style="width:160px" oninput="pbCropApplyZoom()">
+                <span id="pbCropZoomVal" style="min-width:40px;text-align:right;font-variant-numeric:tabular-nums">100%</span>
+            </label>
         </div>
-        <div id="pbCropStage" style="position:relative;display:inline-block;max-width:100%;cursor:crosshair;user-select:none;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2)">
-            <canvas id="pbCropCanvas" style="max-width:100%;max-height:52vh;display:block;border-radius:8px"></canvas>
-            <div id="pbCropSel" style="display:none;position:absolute;border:2px dashed #1a1a1a;background:rgba(255,255,255,0.25);pointer-events:none"></div>
+        <div id="pbCropScroll" style="flex:1;min-height:200px;overflow:auto;background:rgba(60,55,48,0.07);border-radius:10px;padding:10px">
+            <div id="pbCropStage" style="position:relative;display:inline-block;cursor:crosshair;user-select:none;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2)">
+                <canvas id="pbCropCanvas" style="display:block;border-radius:8px"></canvas>
+                <div id="pbCropSel" style="display:none;position:absolute;border:2px dashed #1a1a1a;background:rgba(255,255,255,0.25);pointer-events:none"></div>
+            </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap">
             <button onclick="pbCropReset()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">Ganzes Bild</button>
@@ -1066,7 +1072,30 @@ function pbCropRender() {
     ctx.drawImage(im, -W / 2, -H / 2);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.filter = 'none';
+    pbCropFitZoom();
     pbCropReset();   // Auswahl passt nach Dreh/Helligkeit nicht mehr
+}
+
+// Zoom: Anzeigegrösse des Arbeits-Canvas (Walter 18.08.2026). >100% = Ausschnitt
+// vergrössern, der graue Container scrollt dann.
+function pbCropApplyZoom() {
+    const cv = document.getElementById('pbCropCanvas');
+    const z = parseInt(document.getElementById('pbCropZoom')?.value || '100', 10);
+    const zv = document.getElementById('pbCropZoomVal');
+    if (zv) zv.textContent = z + '%';
+    if (cv && cv.width) cv.style.width = Math.round(cv.width * z / 100) + 'px';
+    pbCropReset();
+}
+
+// Nach dem Rendern: Zoom so setzen, dass das Bild ins Fenster passt
+function pbCropFitZoom() {
+    const cv = document.getElementById('pbCropCanvas');
+    const sc = document.getElementById('pbCropScroll');
+    const slider = document.getElementById('pbCropZoom');
+    if (!cv || !sc || !slider || !cv.width) return;
+    const fit = Math.min((sc.clientWidth - 24) / cv.width, (sc.clientHeight - 24) / cv.height, 1);
+    slider.value = Math.max(10, Math.round(fit * 100));
+    pbCropApplyZoom();
 }
 
 function pbCropRotBy(delta) {
