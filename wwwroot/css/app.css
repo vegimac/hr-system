@@ -11712,3 +11712,29 @@ body:not(.theme-dark) #qstModal .qst-cb {
 }
 body:not(.theme-dark) #qstModal .qst-cb-ro { background: rgba(60, 55, 48, 0.06) !important; }
 body:not(.theme-dark) #qstModal .ma-modal-head + div[style*="rgba(255,255,255,0.5)"] { background: rgba(255, 255, 255, 0.30) !important; }
+
+/* ── QST-Modal Dark Mode nachgezogen (Walter 18.08.2026): der Style-Block von
+   Mai war nicht theme-gescoped — Creme-RO-Felder + unlesbare Labels im Dunkeln. ── */
+body.theme-dark #qstModal .qst-lbl { color: #94a3b8; }
+body.theme-dark #qstModal .qst-ro-hint { color: #64748b; }
+body.theme-dark #qstModal .qst-ro,
+body.theme-dark #qstModal .qst-cb-ro,
+body.theme-dark #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea) {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: #94a3b8 !important;
+    border-color: var(--dlg-glass-border) !important;
+}
+body.theme-dark #qstModal .qst-cb {
+    background: transparent;
+    border: 1px solid var(--dlg-glass-border);
+    color: #e2e8f0;
+    box-shadow: none;
+}
+body.theme-dark #qstModal .ma-modal-head + div[style*="rgba(255,255,255,0.5)"] {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-bottom-color: var(--dlg-glass-border) !important;
+}
+body.theme-dark #qstModal div[style*="f6f3ee"] {
+    background: transparent !important;
+    border-color: var(--dlg-glass-border) !important;
+}
