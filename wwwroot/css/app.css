@@ -11841,3 +11841,11 @@ body.theme-dark #page-manager-dienstplan .dp-table thead th {
     color: #646464 !important;
     box-shadow: none !important;
 }
+
+/* ── Admin-Kachel-Icons im Dark Mode (Walter 18.08.2026): invertiert + screen-
+   Blend — dadurch verschwinden auch die weissen Boxen der PNG-Hintergründe
+   (Lohnraster ELM, Lohnschema), übrig bleiben helle, kräftige Striche. ── */
+body.theme-dark .admin-card img {
+    mix-blend-mode: screen;
+    filter: invert(1) hue-rotate(180deg) brightness(1.55) contrast(1.2);
+}
