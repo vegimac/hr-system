@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260819b">
+    <link rel="stylesheet" href="css/app.css?v=20260819c">
 </head>
 <body>
 
@@ -4067,7 +4067,7 @@
 
                 <!-- Formular (Drawer-Style) -->
                 <div id="svFormOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:1000" onclick="svCloseForm()"></div>
-                <div id="svFormPanel" style="display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);width:780px;max-width:calc(100vw - 48px);max-height:calc(100vh - 100px);background:#faf8f5;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.32);z-index:1001;overflow-y:auto;padding:24px 30px 28px">
+                <div id="svFormPanel" style="display:none;position:fixed;top:70px;left:50%;transform:translateX(-50%);width:1080px;max-width:calc(100vw - 48px);max-height:calc(100vh - 90px);background:#faf8f5;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.32);z-index:1001;overflow-y:auto;padding:24px 30px 28px">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
                         <h2 id="svFormTitle" style="font-size:17px;font-weight:700;color:#0f172a">Satz bearbeiten</h2>
                         <button onclick="svCloseForm()" style="background:none;border:none;cursor:pointer;color:#64748b;font-size:20px">✕</button>
@@ -4079,46 +4079,46 @@
                              „Neu ab"-Modus von svOpenForm() befüllt + sichtbar
                              gemacht — erklärt, dass der Vorgänger automatisch
                              begrenzt wird. -->
-                        <div id="svFormHint" style="display:none;padding:10px 12px;background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;font-size:12px;color:#6b6152;margin-bottom:16px;line-height:1.4"></div>
+                        <div id="svFormHint" style="display:none;padding:8px 12px;background:#ece9e2;border:1px solid #d0c8b8;border-radius:8px;font-size:12px;color:#6b6152;margin-bottom:12px;line-height:1.4"></div>
 
-                        <div style="margin-bottom:14px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Typ *</label>
-                            <select id="svCode" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                                <option value="AHV">AHV / IV / EO</option>
-                                <option value="ALV">ALV – Arbeitslosenversicherung</option>
-                                <option value="NBUV">NBUV – Nichtberufsunfall</option>
-                                <option value="KTG">KTG – Krankentaggeld</option>
-                                <option value="BVG">BVG – Uno Basis</option>
-                                <option value="BVG_ZUSATZ">BVG_ZUSATZ – Uno Int McD (Kader)</option>
-                            </select>
-                        </div>
-
-                        <div style="margin-bottom:14px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Bezeichnung *</label>
-                            <input id="svName" required maxlength="100" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                        </div>
-
-                        <div style="margin-bottom:14px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Beschreibung</label>
-                            <input id="svDescription" maxlength="200" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                        <!-- Kompaktes Raster (Walter 18.08.2026): alles auf einer Maske ohne Scrollen -->
+                        <div style="display:grid;grid-template-columns:1.1fr 1.5fr 1.5fr;gap:12px;margin-bottom:12px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Typ *</label>
+                                <select id="svCode" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                    <option value="AHV">AHV / IV / EO</option>
+                                    <option value="ALV">ALV – Arbeitslosenversicherung</option>
+                                    <option value="NBUV">NBUV – Nichtberufsunfall</option>
+                                    <option value="KTG">KTG – Krankentaggeld</option>
+                                    <option value="BVG">BVG – Uno Basis</option>
+                                    <option value="BVG_ZUSATZ">BVG_ZUSATZ – Uno Int McD (Kader)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Bezeichnung *</label>
+                                <input id="svName" required maxlength="100" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Beschreibung</label>
+                                <input id="svDescription" maxlength="200" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                            </div>
                         </div>
 
                         <!-- SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler
                              Standard; Filiale gewählt = Abweichung nur dort (gewinnt
                              gegen den Standard mit gleichem Fach-Schlüssel). Optionen
                              werden in svOpenForm() aus allBranches gefüllt. -->
-                        <div style="margin-bottom:14px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für</label>
-                            <select id="svCompanyProfile" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
-                                <option value="">Alle Filialen (Standard)</option>
-                            </select>
-                            <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">Filiale gewählt = Abweichung nur für diese Filiale — sie gewinnt dort gegen den Standard-Satz.</div>
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:14px">
+                        <div style="display:grid;grid-template-columns:1.4fr 1.2fr 0.8fr;gap:12px;margin-bottom:12px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für</label>
+                                <select id="svCompanyProfile" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                    <option value="">Alle Filialen (Standard)</option>
+                                </select>
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">Filiale gewählt = Abweichung nur für diese Filiale — sie gewinnt dort gegen den Standard-Satz.</div>
+                            </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gilt für Vertragstyp</label>
-                                <select id="svEmploymentModel" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                <select id="svEmploymentModel" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                     <option value="">Alle Vertragstypen</option>
                                     <option value="FLEX">FLEX – Stundenlohn</option>
                                     <option value="MTP">MTP – Garantierte Stunden</option>
@@ -4128,7 +4128,7 @@
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Versicherer führen z.B. beim KTG zeitweise getrennte Frauen-/Männer-Sätze — dann zwei Zeilen (F/M) erfassen, am einfachsten per Duplizieren.">Geschlecht</label>
-                                <select id="svGender" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                <select id="svGender" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                     <option value="">Alle</option>
                                     <option value="F">Nur Frauen</option>
                                     <option value="M">Nur Männer</option>
@@ -4136,7 +4136,7 @@
                             </div>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 0.7fr 0.7fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz AN % *</label>
                                 <input id="svRate" type="number" step="0.0001" min="0" max="100" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
@@ -4147,15 +4147,12 @@
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Berechnungsbasis</label>
-                                <select id="svBasisType" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px">
+                                <select id="svBasisType" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                     <option value="gross">Bruttolohn</option>
                                     <option value="bvg_basis">BVG-Basis (Brutto − Koord.-Abzug)</option>
                                     <option value="coord_deduction">Koordinationsabzug (fix)</option>
                                 </select>
                             </div>
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Alter von</label>
                                 <input id="svMinAge" type="number" min="0" max="99" placeholder="–" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
@@ -4166,7 +4163,7 @@
                             </div>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Freibetrag/Mt. (CHF)</label>
                                 <input id="svFreibetrag" type="number" step="0.01" min="0" placeholder="–" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
@@ -4175,35 +4172,6 @@
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Koord.-Abzug/Mt. (CHF)</label>
                                 <input id="svCoordDeduction" type="number" step="0.01" min="0" placeholder="–" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                             </div>
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
-                                <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">ALV/NBU: 12'350 (= 148'200/Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
-                            </div>
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Max. Basis/Mt. flach (CHF)</label>
-                                <input id="svMaxBaseFlat" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG Max. pflichtiger Betrag: 5'355 (koordinierte Basis), flacher Monats-Cap ohne Jahresausgleich.</div>
-                            </div>
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Min. Basis/Mt. (CHF)</label>
-                                <input id="svMinBase" type="number" step="0.01" min="0" placeholder="– (keine Untergrenze)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG Min. pflichtige (koordinierte) Basis: 315. Versicherte zahlen mind. darauf.</div>
-                            </div>
-                            <div>
-                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Eintrittsschwelle/Jahr (CHF)</label>
-                                <input id="svEntryThreshold" type="number" step="0.01" min="0" placeholder="– (keine Schwelle)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                                <div style="font-size:10.5px;color:#94a3b8;margin-top:3px">BVG: 22'680. Jahreslohn (Monat × 12) drunter → nicht versichert.</div>
-                            </div>
-                        </div>
-
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gültig ab *</label>
                                 <input id="svValidFrom" type="date" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
@@ -4214,27 +4182,50 @@
                             </div>
                         </div>
 
-                        <div style="margin-bottom:20px">
-                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer">
-                                <input type="checkbox" id="svOnlyQst"> Nur für Quellensteuer-pflichtige MA
-                            </label>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
+                                <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">ALV/NBU: 12'350 (= 148'200/Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Max. Basis/Mt. flach (CHF)</label>
+                                <input id="svMaxBaseFlat" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">BVG Max. pflichtiger Betrag: 5'355 (koordinierte Basis), flacher Monats-Cap ohne Jahresausgleich.</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Min. Basis/Mt. (CHF)</label>
+                                <input id="svMinBase" type="number" step="0.01" min="0" placeholder="– (keine Untergrenze)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">BVG Min. pflichtige (koordinierte) Basis: 315. Versicherte zahlen mind. darauf.</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Eintrittsschwelle/Jahr (CHF)</label>
+                                <input id="svEntryThreshold" type="number" step="0.01" min="0" placeholder="– (keine Schwelle)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">BVG: 22'680. Jahreslohn (Monat × 12) drunter → nicht versichert.</div>
+                            </div>
                         </div>
 
-                        <div style="margin-bottom:20px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Fibu-Position (für Fibu-Journal / Abacus)</label>
-                            <input id="svFibuPosition" type="number" min="0" step="1" placeholder="z.B. 500" style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                            <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">Mirus-Lohnart-Nummer, die diesen SV-Satz mit dem Kontoplan verbindet (AHV→500, ALV→510, KTG→530, NBU→540, BVG→550, BVG-Zusatz→590). Leer = nicht verbucht.</div>
+                        <div style="display:grid;grid-template-columns:1fr 1.6fr 1.4fr;gap:12px;margin-bottom:14px;align-items:start">
+                            <div style="padding-top:24px">
+                                <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#374151;cursor:pointer">
+                                    <input type="checkbox" id="svOnlyQst"> Nur für QST-pflichtige MA
+                                </label>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Fibu-Position (für Fibu-Journal / Abacus)</label>
+                                <input id="svFibuPosition" type="number" min="0" step="1" placeholder="z.B. 500" style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">ELM-Lohnart-Nummer, die diesen SV-Satz mit dem Kontoplan verbindet (AHV→500, ALV→510, KTG→530, NBU→540, BVG→550, BVG-Zusatz→590). Leer = nicht verbucht.</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Reihenfolge auf Lohnzettel</label>
+                                <input id="svSortOrder" type="number" min="0" step="1" placeholder="99" style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">Kleinere Zahlen erscheinen zuerst. Tipp: in 10er-Schritten vergeben (10, 20, 30…).</div>
+                            </div>
                         </div>
 
-                        <div style="margin-bottom:20px">
-                            <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Reihenfolge auf Lohnzettel</label>
-                            <input id="svSortOrder" type="number" min="0" step="1" placeholder="99" style="width:120px;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
-                            <div style="font-size:11.5px;color:#94a3b8;margin-top:4px">Kleinere Zahlen erscheinen zuerst. Tipp: in 10er-Schritten vergeben (10, 20, 30…), dann bleibt Platz zum Einschieben.</div>
-                        </div>
-
-                        <div style="display:flex;gap:10px">
-                            <button type="submit" class="btn-primary" style="flex:1">Speichern</button>
-                            <button type="button" onclick="svCloseForm()" style="flex:1;padding:9px 16px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;background:white">Abbrechen</button>
+                        <div style="display:flex;gap:10px;justify-content:flex-end">
+                            <button type="button" onclick="svCloseForm()" style="padding:9px 22px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;cursor:pointer;background:white">Abbrechen</button>
+                            <button type="submit" class="btn-primary" style="padding:9px 28px">Speichern</button>
                         </div>
                         <div id="svFormErr" style="display:none;margin-top:10px;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#dc2626"></div>
                     </form>
