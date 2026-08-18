@@ -199,7 +199,7 @@ function mwRender() {
 
     if (mwShowAll) {
         const rel = mwRelevantVersions(mwAllRules);
-        if (infoEl) infoEl.textContent = `${rel.length} Versionen (in Verwendung + neu)`;
+        if (infoEl) infoEl.textContent = `${rel.length} Versionen (aktuell + neu)`;
         cont.innerHTML = rel.length
             ? mwRenderHistory(rel)
             : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
@@ -211,7 +211,7 @@ function mwRender() {
         cont.innerHTML = '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
         return;
     }
-    if (infoEl) infoEl.textContent = (split ? 'in Verwendung + neu' : 'aktuelle Sätze') + (abDatum ? ` · neu ab ${mwFmtDate(abDatum)}` : '');
+    if (infoEl) infoEl.textContent = (split ? 'aktuell + neu' : 'aktuelle Sätze') + (abDatum ? ` · ab ${mwFmtDate(abDatum)}` : '');
 
     const youthRules = mwAllRules.filter(r => r.ageMax != null);
 
@@ -238,7 +238,7 @@ function mwRelevantVersions(rules) {
 // Erklär-Banner über der Matrix, wenn eine neue (noch nicht verwendete) Version
 // neben der bereits verwendeten existiert.
 function mwRenderPlanHint(abDatum) {
-    const body = `Linke Spalte „in Verwendung" = bereits in einem Lohnlauf verwendet (grau, Referenz). Rechte Spalte <b>neu ab ${mwFmtDate(abDatum)}</b> = neuer Satz, anklicken zum Bestätigen/Anpassen. <b style="color:#047857">Grün</b> = Betrag geändert, <b style="color:#d97706">Orange</b> = bestätigt &amp; unverändert, <b style="color:#dc2626">Rot</b> = noch nicht bestätigt.`;
+    const body = `Linke Spalte «Aktuell» = bereits in einem Lohnlauf verwendet (grau, Referenz). Rechte Spalte <b>ab ${mwFmtDate(abDatum)}</b> = neuer Satz, anklicken zum Bestätigen/Anpassen. <b style="color:#047857">Grün</b> = Betrag geändert, <b style="color:#d97706">Orange</b> = bestätigt &amp; unverändert, <b style="color:#dc2626">Rot</b> = noch nicht bestätigt.`;
     return `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint">${body}</div></div>`;
 }
 
@@ -288,7 +288,7 @@ function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
         thead = `<tr><th class="mw-th-row">Funktion / Modell</th>${head}</tr>`;
     } else {
         const top = MW_EDU.map(e => `<th colspan="2" class="mw-edu-top">${e.label}<span class="mw-sub">${e.sub}</span></th>`).join('');
-        const sub = MW_EDU.map(() => `<th class="mw-sub-cur">in Verwendung</th><th class="mw-fut-col mw-sub-fut">neu ab ${mwShortDate(abDatum)}</th>`).join('');
+        const sub = MW_EDU.map(() => `<th class="mw-sub-cur">Aktuell</th><th class="mw-fut-col mw-sub-fut">ab ${mwFmtDate(abDatum)}</th>`).join('');
         thead = `<tr><th class="mw-th-row" rowspan="2">Funktion / Modell</th>${top}</tr><tr>${sub}</tr>`;
     }
 
@@ -363,8 +363,8 @@ function mwRenderYouth(rules, split, abDatum) {
                 <th class="mw-th-row">Ausbildung</th>
                 <th class="mw-th-row">Alter</th>
                 <th class="mw-th-row">Einheit</th>
-                <th>${split ? 'in Verwendung' : 'Betrag'}</th>
-                ${split ? `<th class="mw-fut-col mw-sub-fut">neu ab ${mwShortDate(abDatum)}</th>` : ''}
+                <th>${split ? 'Aktuell' : 'Betrag'}</th>
+                ${split ? `<th class="mw-fut-col mw-sub-fut">ab ${mwFmtDate(abDatum)}</th>` : ''}
             </tr></thead>
             <tbody>${rows}</tbody>
         </table>
