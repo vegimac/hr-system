@@ -988,6 +988,11 @@ function openAbsenzTypForm(t) {
     document.getElementById('atBasisFix').value = d.basisFix ?? d.basisStunden ?? 'BETRIEB';
     document.getElementById('atBasisMtp').value = d.basisMtp ?? d.basisStundenMtp ?? 'GARANTIE';
     atFlexZwToggle();
+    // EO-Typen: Spezial-Mechanik-Hinweis einblenden (Wirkung bewusst leer)
+    const eoHint = document.getElementById('atEoHint');
+    if (eoHint) eoHint.style.display =
+        ['MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT'].includes((d.code ?? '').toUpperCase())
+            ? 'block' : 'none';
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
