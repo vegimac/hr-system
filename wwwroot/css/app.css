@@ -11309,8 +11309,17 @@ body.theme-dark .sys-back-btn {
 #page-lohnschema tr.ls-a-ereignis    td:first-child { box-shadow: inset 3px 0 0 rgba(138,132,120,.35); }
 #page-lohnschema tr.ls-a-austritt    td:first-child { box-shadow: inset 3px 0 0 rgba(161,121,74,.45); }
 #page-lohnschema tr.ls-a-manuell     td:first-child { box-shadow: inset 3px 0 0 rgba(125,107,150,.45); }
-/* Liquid-Select-Trigger: flach, kompakt, in der Art-Farbe getoent */
+/* Liquid-Select-Trigger: flach, kompakt, in der Art-Farbe getoent —
+   und HART auf die Zellenbreite begrenzt (Kollision Art/AHV, 18.08.2026) */
+#page-lohnschema td .lqsel { width: 100%; max-width: 100%; display: block; }
 #page-lohnschema td .lqsel-btn {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     padding: 1px 22px 1px 8px !important;
     font-size: 11px !important;
     border-radius: 8px !important;
