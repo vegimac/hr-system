@@ -14009,7 +14009,7 @@ async function openVerwarnungModal(id) {
     ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
 
-    const pill = 'display:flex;align-items:center;gap:7px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:#3f3f3f';
+    const pill = 'display:flex;align-items:center;gap:7px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:#3f3f3f';
     const heute = new Date();
     const heuteIso = `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
 

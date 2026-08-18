@@ -410,8 +410,8 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
         : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator'];
     const vorschlag = emp ? _azFunktionVorschlag(emp, female) : funktionen[0];
 
-    const pill = 'display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.5px;font-weight:600;color:#3f3f3f';
-    const pillS = 'display:flex;align-items:flex-start;gap:8px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:12px;color:#3f3f3f';
+    const pill = 'display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.5px;font-weight:600;color:#3f3f3f';
+    const pillS = 'display:flex;align-items:flex-start;gap:8px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:12px;color:#3f3f3f';
     const label = 'font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:6px';
     const inp = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 12px;font-size:13px;color:#3f3f3f';
 
