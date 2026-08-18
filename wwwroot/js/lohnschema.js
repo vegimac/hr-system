@@ -218,22 +218,8 @@ async function lsAddCommit() {
 // Zeigt das Standard-Lohnblatt des Vertragsmodells des MA. Container wird
 // von employees.js bereitgestellt (#empLohnschemaBlock).
 async function loadLohnschemaBlockForModel(model) {
+    // Walter 18.08.2026: KEINE Lohnschema-Anzeige mehr im MA-Detail —
+    // weder Chips noch Info-Zeile. Das Schema lebt nur in der Stammdaten-Kachel.
     const el = document.getElementById('empLohnschemaBlock');
-    if (!el) return;
-    if (!model) { el.innerHTML = ''; return; }
-    let rows = [];
-    try {
-        const r = await fetch(`/api/lohnschema?modell=${encodeURIComponent(model)}`, { headers: ah() });
-        rows = r.ok ? await r.json() : [];
-    } catch { el.innerHTML = ''; return; }
-    if (!rows.length) { el.innerHTML = ''; return; }
-    rows.sort((a, b) => (a.modell === 'ALLE' ? 1 : 0) - (b.modell === 'ALLE' ? 1 : 0) || a.sortOrder - b.sortOrder);
-    // Kompakt (Walter 18.08.2026): keine Chip-Details im MA-Detail — eine
-    // dezente Zeile genügt; Details stehen in der Lohnschema-Kachel.
-    el.innerHTML = `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:#8b8b8b">
-            <span><b style="color:#6b6152">Lohnschema ${_lsEsc(model)}</b> · ${rows.length} Standard-Lohnpositionen (automatisch gemäss Vertragsmodell)</span>
-            <button type="button" onclick="showPage('lohnschema')"
-                    style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:12px;font-weight:600;text-decoration:underline;padding:0">ansehen →</button>
-        </div>`;
+    if (el) el.innerHTML = '';
 }
