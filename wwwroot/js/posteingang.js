@@ -912,8 +912,20 @@ async function pbOpenCropper(id) {
             <button onclick="pbCropClose()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#8b8b8b">✕</button>
         </div>
         <div style="font-size:12px;color:#6b6152;margin-bottom:8px">Mit der Maus einen Rahmen aufziehen (ohne Rahmen = ganzes Bild). Dann «Seite übernehmen» — weitere Fotos (z.B. Ausweis-Rückseite) unten anfügen.</div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:12px;color:#6b6152">
+            <button onclick="pbCropRotBy(-90)" title="90° nach links" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:5px 10px;font-size:13px;cursor:pointer;color:#3f3f3f">↺ 90°</button>
+            <button onclick="pbCropRotBy(90)" title="90° nach rechts" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:5px 10px;font-size:13px;cursor:pointer;color:#3f3f3f">↻ 90°</button>
+            <label style="display:flex;align-items:center;gap:6px">Drehen
+                <input type="range" id="pbCropRot" min="-180" max="180" step="1" value="0" style="width:180px" oninput="pbCropRender()">
+                <span id="pbCropRotVal" style="min-width:36px;text-align:right;font-variant-numeric:tabular-nums">0°</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px">Helligkeit
+                <input type="range" id="pbCropBright" min="50" max="180" step="1" value="100" style="width:140px" oninput="pbCropRender()">
+                <span id="pbCropBrightVal" style="min-width:40px;text-align:right;font-variant-numeric:tabular-nums">100%</span>
+            </label>
+        </div>
         <div id="pbCropStage" style="position:relative;display:inline-block;max-width:100%;cursor:crosshair;user-select:none;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2)">
-            <img id="pbCropImg" style="max-width:100%;max-height:56vh;display:block;border-radius:8px" draggable="false">
+            <canvas id="pbCropCanvas" style="max-width:100%;max-height:52vh;display:block;border-radius:8px"></canvas>
             <div id="pbCropSel" style="display:none;position:absolute;border:2px dashed #1a1a1a;background:rgba(255,255,255,0.25);pointer-events:none"></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap">
@@ -1015,16 +1027,56 @@ async function pbLoadThumbs() {
 }
 
 async function pbCropLoadImage(docId) {
-    const r = await fetch(`/api/mailbox/${docId}/preview`, { headers: ah() });
-    if (!r.ok) { alert('Bild konnte nicht geladen werden.'); return; }
-    const blob = await r.blob();
-    const url = URL.createObjectURL(blob);
-    const img = document.getElementById('pbCropImg');
-    img.onload = () => { _pbCrop.natW = img.naturalWidth; _pbCrop.natH = img.naturalHeight; };
-    img.src = url;
+    const url = await pbThumbUrl(docId);
+    if (!url) { alert('Bild konnte nicht geladen werden.'); return; }
+    const im = new Image();
+    im.onload = () => {
+        _pbCrop.srcImg = im;
+        const rot = document.getElementById('pbCropRot');
+        const br  = document.getElementById('pbCropBright');
+        if (rot) rot.value = 0;
+        if (br)  br.value = 100;
+        pbCropRender();
+    };
+    im.src = url;
     _pbCrop.curDocId = docId;
     pbCropMarkThumbs();
-    pbCropReset();
+}
+
+// Arbeits-Canvas neu zeichnen: Rotation (beliebig) + Helligkeit (Walter 18.08.2026)
+function pbCropRender() {
+    const im = _pbCrop?.srcImg;
+    const cv = document.getElementById('pbCropCanvas');
+    if (!im || !cv) return;
+    const deg = parseInt(document.getElementById('pbCropRot')?.value || '0', 10);
+    const bright = parseInt(document.getElementById('pbCropBright')?.value || '100', 10);
+    const rv = document.getElementById('pbCropRotVal');    if (rv) rv.textContent = deg + '°';
+    const bv = document.getElementById('pbCropBrightVal'); if (bv) bv.textContent = bright + '%';
+    const rad = deg * Math.PI / 180;
+    const W = im.naturalWidth, H = im.naturalHeight;
+    const bw = Math.round(Math.abs(Math.cos(rad)) * W + Math.abs(Math.sin(rad)) * H);
+    const bh = Math.round(Math.abs(Math.sin(rad)) * W + Math.abs(Math.cos(rad)) * H);
+    cv.width = bw; cv.height = bh;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, bw, bh);
+    ctx.filter = `brightness(${bright}%)`;
+    ctx.translate(bw / 2, bh / 2);
+    ctx.rotate(rad);
+    ctx.drawImage(im, -W / 2, -H / 2);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.filter = 'none';
+    pbCropReset();   // Auswahl passt nach Dreh/Helligkeit nicht mehr
+}
+
+function pbCropRotBy(delta) {
+    const rot = document.getElementById('pbCropRot');
+    if (!rot) return;
+    let v = parseInt(rot.value || '0', 10) + delta;
+    if (v > 180) v -= 360;
+    if (v < -180) v += 360;
+    rot.value = v;
+    pbCropRender();
 }
 
 function pbCropReset() {
@@ -1036,18 +1088,18 @@ function pbCropReset() {
 // Aktuelle Auswahl (oder ganzes Bild) als JPEG-Seite übernehmen
 function pbCropTakePage() {
     return new Promise(resolve => {
-        const img = document.getElementById('pbCropImg');
-        if (!img || !img.naturalWidth) { resolve(false); return; }
-        const scaleX = img.naturalWidth / img.clientWidth;
-        const scaleY = img.naturalHeight / img.clientHeight;
+        const cv = document.getElementById('pbCropCanvas');
+        if (!cv || !cv.width) { resolve(false); return; }
+        const scaleX = cv.width / cv.clientWidth;
+        const scaleY = cv.height / cv.clientHeight;
         const s = _pbCrop.sel;
         const sx = s ? Math.round(s.x * scaleX) : 0;
         const sy = s ? Math.round(s.y * scaleY) : 0;
-        const sw = s ? Math.max(1, Math.round(s.w * scaleX)) : img.naturalWidth;
-        const sh = s ? Math.max(1, Math.round(s.h * scaleY)) : img.naturalHeight;
+        const sw = s ? Math.max(1, Math.round(s.w * scaleX)) : cv.width;
+        const sh = s ? Math.max(1, Math.round(s.h * scaleY)) : cv.height;
         const c = document.createElement('canvas');
         c.width = sw; c.height = sh;
-        c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        c.getContext('2d').drawImage(cv, sx, sy, sw, sh, 0, 0, sw, sh);
         c.toBlob(blob => {
             if (!blob) { resolve(false); return; }
             const url = URL.createObjectURL(blob);
