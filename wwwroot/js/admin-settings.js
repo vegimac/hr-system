@@ -1430,15 +1430,23 @@ function svRender() {
     // Höchstlohn) als kleine 2. Zeile in der Basis-Spalte — damit man BVG-Limits &
     // Höchstlöhne auf einen Blick sieht, ohne ins Bearbeiten-Formular zu müssen.
     const chf = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-    const svLimits = (r) => {
+    const svLimitParts = (r) => {
         const parts = [];
         if (r.coordinationDeduction != null) parts.push(`Koord. ${chf(r.coordinationDeduction)}`);
-        if (r.minBaseMonthly       != null) parts.push(`min ${chf(r.minBaseMonthly)}`);
-        if (r.maxBaseFlatMonthly   != null) parts.push(`max ${chf(r.maxBaseFlatMonthly)}`);
+        if (r.minBaseMonthly != null && r.maxBaseFlatMonthly != null) {
+            parts.push(`${chf(r.minBaseMonthly)}–${chf(r.maxBaseFlatMonthly)}`);
+        } else {
+            if (r.minBaseMonthly     != null) parts.push(`min ${chf(r.minBaseMonthly)}`);
+            if (r.maxBaseFlatMonthly != null) parts.push(`max ${chf(r.maxBaseFlatMonthly)}`);
+        }
         if (r.maxBaseMonthly       != null) parts.push(`Höchst. ${chf(r.maxBaseMonthly)}`);
-        if (r.entryThresholdYearly != null) parts.push(`Eintritt ${chf(r.entryThresholdYearly)}/J`);
+        if (r.entryThresholdYearly != null) parts.push(`Eintr. ${chf(r.entryThresholdYearly)}/J`);
         if (r.freibetragMonthly    != null) parts.push(`Freibetr. ${chf(r.freibetragMonthly)}`);
-        return parts.length ? `<span style="font-size:10.5px;color:#94a3b8;white-space:nowrap"> · ${parts.join(' · ')}</span>` : '';
+        return parts;
+    };
+    const svLimits = (r) => {
+        const parts = svLimitParts(r);
+        return parts.length ? `<div style="font-size:10px;color:#94a3b8;line-height:1.25;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${parts.join(' · ')}</div>` : '';
     };
     // Datum IMMER TT.MM.JJJJ (Walter-Vorgabe, gilt überall). Backend liefert ISO.
     const fmtDate = d => {
@@ -1502,7 +1510,7 @@ function svRender() {
             <td style="padding:4px 12px;font-weight:500;color:#1e293b"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
             <td style="padding:4px 12px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
-            <td style="padding:4px 12px;color:#64748b;font-size:12px;white-space:nowrap">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
+            <td style="padding:4px 12px;color:#64748b;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${[(basisLabel[r.basisType] ?? r.basisType), ...svLimitParts(r)].join(' · ')}">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
             <td style="padding:4px 12px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
             <td style="padding:4px 12px">${modelBadge}</td>
             <td style="padding:4px 12px;font-size:12px;white-space:nowrap">${(() => {
