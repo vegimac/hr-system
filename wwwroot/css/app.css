@@ -7210,15 +7210,15 @@
            Namen in EINER Zeile — Platz kommt aus den Zahlen-/Kurzspalten. */
         #page-sv-saetze .sv-c-nr { width: 3%; }
         #page-sv-saetze .sv-c-typ { width: 6%; }
-        #page-sv-saetze .sv-c-name { width: 22%; }
+        #page-sv-saetze .sv-c-name { width: 19.5%; }
         #page-sv-saetze .sv-c-an { width: 6%; }
         #page-sv-saetze .sv-c-ag { width: 6%; }
-        #page-sv-saetze .sv-c-basis { width: 13%; }
-        #page-sv-saetze .sv-c-alter { width: 5%; }
-        #page-sv-saetze .sv-c-vertrag { width: 6%; }
-        #page-sv-saetze .sv-c-fibu { width: 8.5%; }
-        #page-sv-saetze .sv-c-ab { width: 6.5%; }
-        #page-sv-saetze .sv-c-bis { width: 6.5%; }
+        #page-sv-saetze .sv-c-basis { width: 19%; }
+        #page-sv-saetze .sv-c-alter { width: 4.5%; }
+        #page-sv-saetze .sv-c-vertrag { width: 4.5%; }
+        #page-sv-saetze .sv-c-fibu { width: 8%; }
+        #page-sv-saetze .sv-c-ab { width: 5.5%; }
+        #page-sv-saetze .sv-c-bis { width: 5.5%; }
         #page-sv-saetze .sv-c-status { width: 5.5%; }
         #page-sv-saetze .sv-c-act { width: 4%; }
 
