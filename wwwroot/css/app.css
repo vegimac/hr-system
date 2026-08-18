@@ -115,8 +115,10 @@
                 inset 0 1px 0 rgba(235, 248, 255, 0.32),
                 inset 0 -1px 0 rgba(0, 8, 24, 0.35);
             --dlg-text-strong:  #ffffff;
-            --dlg-text:         #e8f0fa;
-            --dlg-text-soft:    #a9bfd8;
+            /* Walter 18.08.2026 (Test): Nebentexte im Dark Mode weisser statt hellblau.
+               Vorher: --dlg-text #e8f0fa · --dlg-text-soft #a9bfd8 (bei Nichtgefallen zurück). */
+            --dlg-text:         #f1f5f9;
+            --dlg-text-soft:    #d7dee8;
             --dlg-text-muted:   #8ba1ba;
             --dlg-active:       rgba(45, 105, 180, 0.50);
             --dlg-active-text:  #ffffff;
