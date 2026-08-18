@@ -11808,3 +11808,16 @@ body.theme-dark .family-modal-box .emp-field-grid-3 { padding: 6px 10px 8px !imp
 .family-modal-box .emp-section-title { margin-top: 4px !important; }
 .family-modal-box .fmf-label { margin-bottom: 1px; }
 .family-modal-box .fmf-row { margin-bottom: 6px; }
+
+/* ── Uniformen-Depot im Dark Mode (Walter 18.08.2026): helles Blau-Glas statt
+   Braun; Grün bei Zurückbezahlt, Rot bei Verfallen. Hell bleibt unverändert. ── */
+body.theme-dark .ud-card { background: rgba(96, 165, 250, 0.10) !important; border-color: rgba(96, 165, 250, 0.45) !important; }
+body.theme-dark .ud-card.ud-ZURUECKBEZAHLT { background: rgba(52, 211, 153, 0.10) !important; border-color: rgba(52, 211, 153, 0.45) !important; }
+body.theme-dark .ud-card.ud-VERFALLEN { background: rgba(248, 113, 113, 0.10) !important; border-color: rgba(248, 113, 113, 0.40) !important; }
+body.theme-dark .ud-amt { color: #f1f5f9 !important; }
+body.theme-dark .ud-card div[style*="#64748b"],
+body.theme-dark .ud-card div[style*="#94a3b8"] { color: var(--dlg-text-soft) !important; }
+body.theme-dark .ud-pill { background: rgba(255, 255, 255, 0.10) !important; border-color: var(--dlg-glass-border) !important; }
+body.theme-dark .ud-card.ud-EINBEHALTEN .ud-pill { color: #fcd34d !important; }
+body.theme-dark .ud-card.ud-ZURUECKBEZAHLT .ud-pill { color: #6ee7b7 !important; }
+body.theme-dark .ud-card.ud-VERFALLEN .ud-pill { color: #fca5a5 !important; }

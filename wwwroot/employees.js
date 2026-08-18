@@ -3793,7 +3793,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
     sorted.forEach(e => {
         const isCurrent = !e.validTo;
         const vonStr   = e.validFrom ? formatDate(e.validFrom) : '–';
-        const bisStr   = e.validTo   ? formatDate(e.validTo)   : 'offen';
+        const bisStr   = e.validTo   ? formatDate(e.validTo)   : '…';
         const kanton   = e.steuerkanton   ?? '–';
         const code     = e.qstCode        ?? (e.tarifCode ? `${e.tarifCode}${e.anzahlKinder ?? 0}${e.kirchensteuer ? 'Y' : 'N'}` : '–');
         const kinder   = e.anzahlKinder   ?? 0;
@@ -3807,7 +3807,7 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                 <div>
                     <div class="emp-family-name" style="display:flex;align-items:center;gap:8px">
                         ${isCurrent ? '<span style="background:#f6f3ee;color:#6b7280;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em">AKTUELL</span>' : ''}
-                        <span>${vonStr} → ${bisStr}</span>
+                        <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
                         Kanton <strong>${kanton}</strong> · Code <strong>${code}</strong> · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
@@ -13339,14 +13339,14 @@ function renderUniformDepotTab(el, d) {
         ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:10px">Rückgabe/Verfall wird beim <strong>Austritt</strong> (letzter Lohn) entschieden.</div>`
         : '');
     el.innerHTML = `
-        <div style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
+        <div class="ud-card ud-${esc(d.status || '')}" style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
                 <div>
-                    <div style="font-size:15px;font-weight:700;color:#1a1a1a">CHF ${bal}</div>
+                    <div class="ud-amt" style="font-size:15px;font-weight:700;color:#1a1a1a">CHF ${bal}</div>
                     <div style="font-size:12px;color:#64748b;margin-top:2px">Belastet: ${esc(charged)}</div>
                     ${refund}${ret}${bem}
                 </div>
-                <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
+                <span class="ud-pill" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
             </div>
             ${actions}
         </div>`;
@@ -13414,7 +13414,7 @@ function renderBvgZusatzTab(el, entries) {
                 <div>
                     <div class="emp-family-name" style="display:flex;align-items:center;gap:8px">
                         ${isCurrent ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.04em">AKTIV</span>' : ''}
-                        <span>${vonStr} → ${bisStr}</span>
+                        <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     ${bem}
                 </div>
