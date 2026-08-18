@@ -11477,3 +11477,8 @@ body.theme-dark .sys-back-btn {
 #page-mindestloehne .mw-table td.mw-fut-col { background: rgba(255, 255, 255, 0.62); }
 #page-mindestloehne .mw-table tbody tr:hover td.mw-fut-col { background: rgba(255, 255, 255, 0.9); }
 #page-mindestloehne .mw-planhint { color: #6a6456; background: rgba(255, 255, 255, 0.5); border-bottom: none; }
+
+/* ── Mindestlöhne: Ausbildungsstufen-Kopf (IA/IB/II/IIIA/IIIB/IV) = die entscheidende
+   Info → grösser, fetter, schwärzer (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table thead tr:first-child th { font-size: 13.5px; font-weight: 800; color: #1f1f1f; }
+#page-mindestloehne .mw-table thead tr:first-child th .mw-sub { font-size: 10.5px; font-weight: 600; color: #6f6a5f; }
