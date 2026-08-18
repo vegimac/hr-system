@@ -11853,3 +11853,7 @@ body.theme-dark .admin-card img {
 /* Lohnraster-ELM-Icon: die Zeichnung hat viel Innenrand im PNG und wirkt sonst
    winzig — deutlich grösser als die übrigen Kachel-Icons (Walter 18.08.2026) */
 .admin-card img[src*="lohnraster-elm"] { width: 156px !important; height: 156px !important; }
+
+/* Lohnschema + Absenz-Typen: ebenfalls viel PNG-Innenrand — grösser (Walter 18.08.2026) */
+.admin-card img[src*="lohnkat-lohnschema"] { width: 140px !important; height: 140px !important; }
+.admin-card img[src*="vvkat-absenz-typen"] { width: 140px !important; height: 140px !important; }
