@@ -241,15 +241,19 @@
         }
 
         /* Upload-Bereich (FAB + Modal) */
+        /* Beschriftete Pille statt nacktem «+» (Walter 18.08.2026) —
+           «Dokument senden» versteht jede/r, das Plus sagte den meisten nichts. */
         .pf-fab {
             position: fixed;
             right: 18px; bottom: 22px;
-            width: 60px; height: 60px;
-            border-radius: 50%;
+            border-radius: 999px;
             background: var(--primary);
             color: #fff;
             border: none;
-            font-size: 28px;
+            font-size: 15px;
+            font-weight: 700;
+            padding: 15px 22px;
+            display: flex; align-items: center; gap: 8px;
             cursor: pointer;
             box-shadow: 0 6px 20px rgba(37,99,235,0.45);
             z-index: 50;
@@ -908,7 +912,7 @@
     </div>
 </div>
 
-<button class="pf-fab" id="upFab" onclick="openUpload()" title="Dokument senden">+</button>
+<button class="pf-fab" id="upFab" onclick="openUpload()">📷 Dokument senden</button>
 
 <header class="pf-header">
     <div class="pf-header-row">
