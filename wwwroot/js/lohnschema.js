@@ -10,8 +10,8 @@ let _lsLohnpos = [];
 let _lsModell = localStorage.getItem('hrLsModell') || 'FLEX';
 
 const _LS_ARTEN = [
-    ['automatisch', 'automatisch (jeden Monat)'],
-    ['saldo',       'automatisch — in den Saldo'],
+    ['automatisch', 'autom. Monat'],
+    ['saldo',       'autom. Saldo'],
     ['ereignis',    'bei Ereignis'],
     ['austritt',    'beim Austritt'],
     ['manuell',     'manuell'],
@@ -91,11 +91,11 @@ function lsRender() {
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
             <th style="text-align:left;padding:4px 10px;width:60px">Code</th>
             <th style="text-align:left;padding:6px 12px">Lohnposition</th>
-            <th style="text-align:left;padding:4px 10px;width:195px">Art</th>
-            <th class="elr-c" style="width:34px">AHV</th><th class="elr-c" style="width:34px">NBU</th>
-            <th class="elr-c" style="width:34px">KTG</th><th class="elr-c" style="width:34px">BVG</th>
-            <th class="elr-c" style="width:34px">QST</th><th class="elr-c" style="width:44px">13.ML</th>
-            <th style="width:38px"></th>
+            <th style="text-align:left;padding:4px 8px;width:132px">Art</th>
+            <th class="elr-c" style="width:28px">AHV</th><th class="elr-c" style="width:28px">NBU</th>
+            <th class="elr-c" style="width:28px">KTG</th><th class="elr-c" style="width:28px">BVG</th>
+            <th class="elr-c" style="width:28px">QST</th><th class="elr-c" style="width:38px">13.ML</th>
+            <th style="width:32px"></th>
         </tr></thead><tbody>
         ${mitGruppen
             ? artReihenfolge.map(art => {
