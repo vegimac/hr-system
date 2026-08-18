@@ -725,7 +725,8 @@ public class MailboxController : ControllerBase
     public async Task<IActionResult> ImagesToPdf(
         [FromForm] List<IFormFile> pages,
         [FromForm] int sourceDocumentId,
-        [FromForm] string? fileName)
+        [FromForm] string? fileName,
+        [FromForm] bool onePage = false)
     {
         if (pages == null || pages.Count == 0)
             return BadRequest(new { error = "Keine Bilder übermittelt." });
@@ -738,6 +739,14 @@ public class MailboxController : ControllerBase
         var name = string.IsNullOrWhiteSpace(fileName) ? "Dokument.pdf" : fileName.Trim();
         if (!name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) name += ".pdf";
 
+        var imageBytes = new List<byte[]>();
+        foreach (var p in pages)
+        {
+            using var s = new MemoryStream();
+            await p.CopyToAsync(s);
+            imageBytes.Add(s.ToArray());
+        }
+
         byte[] pdfBytes;
         var ms = new MemoryStream();
         using (var writer = new iText.Kernel.Pdf.PdfWriter(ms))
@@ -745,16 +754,42 @@ public class MailboxController : ControllerBase
         {
             var layout = new iText.Layout.Document(pdf);
             layout.SetMargins(0, 0, 0, 0);
-            for (int i = 0; i < pages.Count; i++)
+            if (onePage)
             {
-                byte[] bytes;
-                using (var s = new MemoryStream()) { await pages[i].CopyToAsync(s); bytes = s.ToArray(); }
-                var data = iText.IO.Image.ImageDataFactory.Create(bytes);
-                var ps = new iText.Kernel.Geom.PageSize(data.GetWidth(), data.GetHeight());
-                if (i == 0) pdf.SetDefaultPageSize(ps);
-                else layout.Add(new iText.Layout.Element.AreaBreak(ps));
-                var img = new iText.Layout.Element.Image(data).SetFixedPosition(i + 1, 0, 0);
-                layout.Add(img);
+                // Klassische «Ausweiskopie» (Walter 18.08.2026): ALLE Bilder
+                // untereinander auf EINEM A4-Blatt, zentriert, gemeinsam skaliert.
+                var a4 = iText.Kernel.Geom.PageSize.A4;
+                pdf.SetDefaultPageSize(a4);
+                const float margin = 28f, gap = 16f;
+                float availW = a4.GetWidth() - 2 * margin;
+                float availH = a4.GetHeight() - 2 * margin;
+                var datas = imageBytes.Select(iText.IO.Image.ImageDataFactory.Create).ToList();
+                float totalH = datas.Sum(d => availW / d.GetWidth() * d.GetHeight()) + gap * (datas.Count - 1);
+                float f = totalH > availH ? availH / totalH : 1f;
+                float y = a4.GetHeight() - margin;
+                foreach (var data in datas)
+                {
+                    float w = availW * f;
+                    float h = data.GetHeight() * (availW / data.GetWidth()) * f;
+                    y -= h;
+                    var img = new iText.Layout.Element.Image(data);
+                    img.ScaleAbsolute(w, h);
+                    img.SetFixedPosition(1, margin + (availW - w) / 2, y);
+                    layout.Add(img);
+                    y -= gap * f;
+                }
+            }
+            else
+            {
+                for (int i = 0; i < imageBytes.Count; i++)
+                {
+                    var data = iText.IO.Image.ImageDataFactory.Create(imageBytes[i]);
+                    var ps = new iText.Kernel.Geom.PageSize(data.GetWidth(), data.GetHeight());
+                    if (i == 0) pdf.SetDefaultPageSize(ps);
+                    else layout.Add(new iText.Layout.Element.AreaBreak(ps));
+                    var img = new iText.Layout.Element.Image(data).SetFixedPosition(i + 1, 0, 0);
+                    layout.Add(img);
+                }
             }
             layout.Close();
         }

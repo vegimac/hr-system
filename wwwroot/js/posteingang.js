@@ -288,6 +288,7 @@ async function pbLoadList() {
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
             const docJson = JSON.stringify(d).replace(/'/g, '&#39;');
             return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
+                ${_pbIsImgDoc(d) ? `<img data-pbthumb="${d.id}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;flex:none;cursor:pointer">` : ''}
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                         ${previewBtn}
@@ -311,6 +312,7 @@ async function pbLoadList() {
                 </div>
             </div>`;
         }).join('');
+        pbLoadThumbs();
     } catch (err) {
         list.innerHTML = `<div style="padding:16px;background:#fef2f2;color:#b91c1c;border-radius:7px;font-size:13px">Fehler: ${err.message}</div>`;
     }
@@ -918,11 +920,14 @@ async function pbOpenCropper(id) {
             <button onclick="pbCropReset()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">Ganzes Bild</button>
             <button onclick="pbCropTakePage()" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 16px;font-size:12.5px;font-weight:700;cursor:pointer">✓ Seite übernehmen</button>
             <span style="flex:1"></span>
-            <select id="pbCropNextSel" style="max-width:320px;padding:6px 10px;border-radius:10px;font-size:12px"></select>
-            <button onclick="pbCropLoadNext()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">+ Bild laden</button>
+            <span style="font-size:11.5px;color:#8b8578">Weitere Bilder aus diesem Postfach: anklicken zum Laden</span>
+            <div id="pbCropThumbs" style="display:flex;gap:6px;flex-wrap:wrap"></div>
         </div>
         <div id="pbCropPages" style="display:flex;gap:8px;flex-wrap:wrap;min-height:8px;margin-bottom:10px"></div>
         <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px">
+            <label style="font-size:12px;color:#6b6152;display:flex;align-items:center;gap:6px;margin-right:auto">
+                <input type="checkbox" id="pbCropOnePage" checked> Alle Seiten auf 1 A4-Blatt (Ausweiskopie)
+            </label>
             <label style="font-size:12px;color:#6b6152">Dateiname
                 <input id="pbCropName" value="${defName}" style="margin-left:6px;padding:6px 10px;border-radius:10px;font-size:12.5px;width:260px">
             </label>
@@ -962,16 +967,51 @@ async function pbOpenCropper(id) {
         drag = null;
     });
 
-    pbCropFillNextSel();
+    pbCropFillThumbs();
     await pbCropLoadImage(id);
 }
 
-function pbCropFillNextSel() {
-    const sel = document.getElementById('pbCropNextSel');
-    if (!sel) return;
-    const opts = _pbLastDocs.filter(d => _pbIsImgDoc(d))
-        .map(d => `<option value="${d.id}">${(d.originalFilename || ('Bild ' + d.id))}${d.uploader ? ' · ' + (d.uploader.name || '') : ''}</option>`);
-    sel.innerHTML = opts.length ? opts.join('') : '<option value="">— keine weiteren Bilder —</option>';
+// Thumbnail-Leiste der Bild-Einträge im aktuellen Postfach (Walter 18.08.2026)
+async function pbCropFillThumbs() {
+    const host = document.getElementById('pbCropThumbs');
+    if (!host) return;
+    const imgs = _pbLastDocs.filter(d => _pbIsImgDoc(d));
+    host.innerHTML = imgs.map(d => `
+        <img data-cropthumb="${d.id}" onclick="pbCropLoadImage(${d.id})" title="${(d.originalFilename || '').replace(/"/g, '&quot;')}"
+             style="width:44px;height:44px;object-fit:cover;border-radius:7px;border:2px solid rgba(60,55,48,0.2);background:#fff;cursor:pointer">`).join('');
+    for (const d of imgs) {
+        const el = host.querySelector(`[data-cropthumb="${d.id}"]`);
+        if (el) el.src = await pbThumbUrl(d.id);
+    }
+    pbCropMarkThumbs();
+}
+
+function pbCropMarkThumbs() {
+    document.querySelectorAll('#pbCropThumbs [data-cropthumb]').forEach(el => {
+        el.style.borderColor = parseInt(el.dataset.cropthumb, 10) === _pbCrop?.curDocId ? '#1a1a1a' : 'rgba(60,55,48,0.2)';
+    });
+}
+
+// Thumb-Cache: Objekt-URLs pro Dokument-Id (Preview braucht Auth-Header,
+// darum fetch → Blob-URL statt direktem <img src>).
+const _pbThumbCache = {};
+async function pbThumbUrl(id) {
+    if (_pbThumbCache[id]) return _pbThumbCache[id];
+    try {
+        const r = await fetch(`/api/mailbox/${id}/preview`, { headers: ah() });
+        if (!r.ok) return '';
+        _pbThumbCache[id] = URL.createObjectURL(await r.blob());
+        return _pbThumbCache[id];
+    } catch { return ''; }
+}
+
+// Mini-Vorschauen in der Posteingang-Liste nachladen (max. 30, lazily)
+async function pbLoadThumbs() {
+    const els = [...document.querySelectorAll('#pbList [data-pbthumb]')].slice(0, 30);
+    for (const el of els) {
+        const url = await pbThumbUrl(parseInt(el.dataset.pbthumb, 10));
+        if (url) el.src = url; else el.style.display = 'none';
+    }
 }
 
 async function pbCropLoadImage(docId) {
@@ -983,6 +1023,7 @@ async function pbCropLoadImage(docId) {
     img.onload = () => { _pbCrop.natW = img.naturalWidth; _pbCrop.natH = img.naturalHeight; };
     img.src = url;
     _pbCrop.curDocId = docId;
+    pbCropMarkThumbs();
     pbCropReset();
 }
 
@@ -990,12 +1031,6 @@ function pbCropReset() {
     if (_pbCrop) _pbCrop.sel = null;
     const el = document.getElementById('pbCropSel');
     if (el) el.style.display = 'none';
-}
-
-async function pbCropLoadNext() {
-    const sel = document.getElementById('pbCropNextSel');
-    const id = parseInt(sel?.value, 10);
-    if (id) await pbCropLoadImage(id);
 }
 
 // Aktuelle Auswahl (oder ganzes Bild) als JPEG-Seite übernehmen
@@ -1051,6 +1086,7 @@ async function pbCropSave() {
         _pbCrop.pages.forEach((p, i) => fd.append('pages', p.blob, `seite-${i + 1}.jpg`));
         fd.append('sourceDocumentId', String(_pbCrop.sourceId));
         fd.append('fileName', document.getElementById('pbCropName')?.value || 'Dokument');
+        fd.append('onePage', document.getElementById('pbCropOnePage')?.checked ? 'true' : 'false');
         const r = await fetch('/api/mailbox/images-to-pdf', {
             method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd,
         });
