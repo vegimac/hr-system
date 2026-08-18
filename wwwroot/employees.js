@@ -1003,12 +1003,8 @@ function renderEmployeeDetail(emp) {
         _hcBadges.push(`<span class="emp-hbadge hb-ok">● ${_t('ma.detail.statusActive','Aktiv')}</span>`);
     else
         _hcBadges.push(`<span class="emp-hbadge hb-inak">● ${_t('ma.detail.statusInactive','Inaktiv')}</span>`);
-    // App-/Postfach-Status (Walter 18.08.2026): wird asynchron gefüllt —
-    // grün = eingerichtet, gelb = Link gesendet, grau = noch nichts.
-    if (!emp.isPayrollExcluded) {
-        _hcBadges.push(`<span class="emp-hbadge" id="empAppChip" style="display:none;cursor:pointer" onclick="postfachSetupQr(${emp.id})" title="Klick: Link/QR senden"></span>`);
-        requestAnimationFrame(() => pfLoadAppChip(emp.id));
-    }
+    // App-/Postfach-Status (Walter 18.08.2026): sitzt NICHT in der oberen
+    // Badge-Zeile (dort ist kein Platz), sondern klein unter der E-Mail.
     if (window._activePregnancy) {
         const _p = window._activePregnancy;
         const _mutTxt = _p.geburtsdatum
@@ -1065,8 +1061,11 @@ function renderEmployeeDetail(emp) {
     const _hcPhoneVal = emp.phoneMobile
         ? `<span class="emp-hfact-with-act"><a class="emp-hfact-act" href="tel:${esc(_hcPhoneHref)}" title="Anrufen: ${esc(emp.phoneMobile)}" aria-label="Anrufen">${_hcActIcon('tel')}</a><span class="emp-hfact-txt" title="${esc(emp.phoneMobile)}">${esc(emp.phoneMobile)}</span></span>`
         : null;
+    const _appChip = emp.isPayrollExcluded ? '' :
+        `<span id="empAppChip" style="display:none;font-size:10.5px;font-weight:600;padding:1px 8px;border-radius:8px;cursor:pointer;margin-top:2px;width:fit-content" onclick="postfachSetupQr(${emp.id})" title="Klick: Link/QR senden"></span>`;
+    if (!emp.isPayrollExcluded) requestAnimationFrame(() => pfLoadAppChip(emp.id));
     const _hcEmailVal = emp.email
-        ? `<span class="emp-hfact-with-act"><a class="emp-hfact-act" href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)}" aria-label="E-Mail schreiben">${_hcActIcon('mail')}</a><span class="emp-hfact-txt" title="${esc(emp.email)}">${esc(emp.email)}</span></span>`
+        ? `<span class="emp-hfact-with-act" style="display:flex;flex-direction:column;align-items:flex-start"><span style="display:flex;align-items:center;gap:6px"><a class="emp-hfact-act" href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)}" aria-label="E-Mail schreiben">${_hcActIcon('mail')}</a><span class="emp-hfact-txt" title="${esc(emp.email)}">${esc(emp.email)}</span></span>${_appChip}</span>`
         : null;
 
     panel.innerHTML = `
