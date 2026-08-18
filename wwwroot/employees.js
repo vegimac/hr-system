@@ -1003,6 +1003,12 @@ function renderEmployeeDetail(emp) {
         _hcBadges.push(`<span class="emp-hbadge hb-ok">● ${_t('ma.detail.statusActive','Aktiv')}</span>`);
     else
         _hcBadges.push(`<span class="emp-hbadge hb-inak">● ${_t('ma.detail.statusInactive','Inaktiv')}</span>`);
+    // App-/Postfach-Status (Walter 18.08.2026): wird asynchron gefüllt —
+    // grün = eingerichtet, gelb = Link gesendet, grau = noch nichts.
+    if (!emp.isPayrollExcluded) {
+        _hcBadges.push(`<span class="emp-hbadge" id="empAppChip" style="display:none;cursor:pointer" onclick="postfachSetupQr(${emp.id})" title="Klick: Link/QR senden"></span>`);
+        requestAnimationFrame(() => pfLoadAppChip(emp.id));
+    }
     if (window._activePregnancy) {
         const _p = window._activePregnancy;
         const _mutTxt = _p.geburtsdatum
@@ -12663,6 +12669,31 @@ async function pfSendAppLinkMail(employeeId) {
     } finally {
         if (btn) btn.disabled = false;
     }
+}
+
+// Kleiner App-Status-Chip im MA-Header (Walter 18.08.2026)
+async function pfLoadAppChip(employeeId) {
+    const el = document.getElementById('empAppChip');
+    if (!el) return;
+    try {
+        const r = await fetch(`/api/postfach-setup/status/${employeeId}`, { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        const fmt = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
+        if (j.usedAt || j.lastLoginAt) {
+            el.style.background = '#dcfce7'; el.style.color = '#166534';
+            el.innerHTML = `📱 App eingerichtet${j.lastLoginAt ? ' · Login ' + fmt(j.lastLoginAt) : ''}`;
+        } else if (j.hasToken) {
+            el.style.background = '#fef3c7'; el.style.color = '#92400e';
+            el.innerHTML = j.openedAt
+                ? `📱 Link geöffnet ${fmt(j.openedAt)} — noch nicht eingerichtet`
+                : `📱 Link gesendet ${fmt(j.createdAt)} — noch nicht geöffnet`;
+        } else {
+            el.style.background = 'rgba(60,55,48,0.08)'; el.style.color = '#8b8578';
+            el.innerHTML = '📱 App nicht eingerichtet';
+        }
+        el.style.display = '';
+    } catch { /* Chip bleibt versteckt */ }
 }
 
 // HR: alle Face-ID-/Passkey-Geräte eines MA löschen (z.B. bei Geräteverlust).
