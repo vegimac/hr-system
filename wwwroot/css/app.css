@@ -11666,3 +11666,14 @@ body:not(.theme-dark) #svFormPanel,
 body:not(.theme-dark) #page-aufforderung-arbeit .card {
     background-image: linear-gradient(165deg, #efe7d8 0%, #eae1cf 50%, #e4dac5 100%) !important;
 }
+
+/* ── ov-Standard v3 (Walter 18.08.2026): die alte #familyModal-ID-Regel
+   (#f6f3ee !important) stach die Klassen-Regel aus — hier mit ID-Spezifität
+   final übersteuert: Sektions-Flächen weg, nur Eingabefelder weiss. ── */
+body:not(.theme-dark) #familyModal .emp-field-grid,
+body:not(.theme-dark) #familyModal .emp-field-grid-2,
+body:not(.theme-dark) #familyModal .emp-field-grid-3,
+body:not(.theme-dark) #familyModal .fmf-addr-card {
+    background: transparent !important;
+    border-color: transparent !important;
+}
