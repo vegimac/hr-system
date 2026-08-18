@@ -21,7 +21,9 @@ const _LS_ART_LABEL = Object.fromEntries(_LS_ARTEN);
 // Bernstein / Violett — gleiche Farben wie die CSS-Klassen ls-g-*/ls-a-*.
 const _LS_ART_COLOR = { automatisch: '#4d7c5f', saldo: '#4e7f8c', ereignis: '#8a8478', austritt: '#a1794a', manuell: '#7d6b96' };
 // Kräftigere Variante für die Gruppen-Titel der Karten (Walter 18.08.2026)
-const _LS_ART_COLOR_TITEL = { automatisch: '#1e6b40', saldo: '#136179', ereignis: '#6d5a2e', austritt: '#a85c08', manuell: '#5b3f9e' };
+const _LS_ART_COLOR_TITEL = { automatisch: '#0f7a40', saldo: '#0a6f8f', ereignis: '#7a611f', austritt: '#c05f00', manuell: '#6a3fc0' };
+// Zarter Farbhauch als Unterlage des Titels (kein Vollband — Walter 18.08.2026)
+const _LS_ART_TITEL_BG = { automatisch: 'rgba(15,122,64,0.10)', saldo: 'rgba(10,111,143,0.10)', ereignis: 'rgba(122,97,31,0.10)', austritt: 'rgba(192,95,0,0.10)', manuell: 'rgba(106,63,192,0.09)' };
 
 async function lsInit() {
     const el = document.getElementById('lsContent');
@@ -114,7 +116,7 @@ function lsRender() {
             const c = _LS_ART_COLOR_TITEL[art] || '#6a6456';
             const html = `
             <div class="card ls-gcard">
-                <div class="ls-gtitle" style="background:${c}"><span class="ls-gdot" style="background:rgba(255,255,255,0.9)"></span>${artGruppenTitel[art]}</div>
+                <div class="ls-gtitle" style="color:${c};background:${_LS_ART_TITEL_BG[art] || 'transparent'}"><span class="ls-gdot" style="background:${c}"></span>${artGruppenTitel[art]}</div>
                 <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
                     ${colgroupHtml}${first ? theadHtml : ''}
                     <tbody>${g.map(e => zeile(e, editable)).join('')}</tbody>
