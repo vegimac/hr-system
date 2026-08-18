@@ -11482,3 +11482,12 @@ body.theme-dark .sys-back-btn {
    Info → grösser, fetter, schwärzer (Walter 18.08.2026) ── */
 #page-mindestloehne .mw-table thead tr:first-child th { font-size: 13.5px; font-weight: 800; color: #1f1f1f; }
 #page-mindestloehne .mw-table thead tr:first-child th .mw-sub { font-size: 10.5px; font-weight: 600; color: #6f6a5f; }
+
+/* ── Mindestlöhne: kompakter, damit die Seite ohne Scrollen passt (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table td { padding: 2px 12px; }
+#page-mindestloehne .mw-table th { padding: 3px 12px; }
+#page-mindestloehne .mw-table thead tr:first-child th { font-size: 12.5px; }
+#page-mindestloehne .mw-amount span { padding: 1px 8px; }
+#page-mindestloehne .mw-section-head { padding: 5px 14px; }
+#page-mindestloehne .mw-planhint { padding: 3px 12px; }
+#page-mindestloehne .card { margin-bottom: 10px; }
