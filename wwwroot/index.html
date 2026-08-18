@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260817b">
+    <link rel="stylesheet" href="css/app.css?v=20260818a">
 </head>
 <body>
 
@@ -5185,63 +5185,63 @@
                         </div>
                     </div>
                     <!-- Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026, Liquid-Karten 18.08.) -->
-                    <div style="background:#ece5d8;border:1px solid #dbd0bd;border-radius:14px;padding:14px 16px;margin-bottom:16px">
+                    <div style="margin-bottom:16px">
                         <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Wirkung pro Vertragsmodell</div>
                         <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:14px">
-                            <div style="background:rgba(255,255,255,0.82);border:1px solid rgba(255,255,255,1);box-shadow:0 2px 8px rgba(60,55,48,0.14);border-radius:12px;padding:12px 14px">
-                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">FIX / FIX-M</div>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                            <div class="at-mx-card">
+                                <div class="at-mx-kopf">FIX / FIX-M</div>
+                                <span class="at-mx-lbl">Wirkung</span>
                                 <select id="atWirkFix" class="f-input">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <span class="at-mx-lbl">Zählweise</span>
                                 <select id="atZwFix" class="f-input">
                                     <option value="KALENDER">1/7 — alle Kalendertage</option>
                                     <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
                                     <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <span class="at-mx-lbl">Basis</span>
                                 <select id="atBasisFix" class="f-input">
                                     <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
                                     <option value="VERTRAG">Vertrag — Pensum-adjustiert</option>
                                 </select>
                             </div>
-                            <div style="background:rgba(255,255,255,0.82);border:1px solid rgba(255,255,255,1);box-shadow:0 2px 8px rgba(60,55,48,0.14);border-radius:12px;padding:12px 14px">
-                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">MTP</div>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                            <div class="at-mx-card">
+                                <div class="at-mx-kopf">MTP</div>
+                                <span class="at-mx-lbl">Wirkung</span>
                                 <select id="atWirkMtp" class="f-input">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <span class="at-mx-lbl">Zählweise</span>
                                 <select id="atZwMtp" class="f-input">
                                     <option value="KALENDER">1/7 — alle Kalendertage</option>
                                     <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
                                     <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <span class="at-mx-lbl">Basis</span>
                                 <select id="atBasisMtp" class="f-input">
                                     <option value="GARANTIE">Garantie — sein Wochenpensum</option>
                                     <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
                                 </select>
                             </div>
-                            <div style="background:rgba(255,255,255,0.82);border:1px solid rgba(255,255,255,1);box-shadow:0 2px 8px rgba(60,55,48,0.14);border-radius:12px;padding:12px 14px">
-                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">FLEX</div>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                            <div class="at-mx-card">
+                                <div class="at-mx-kopf">FLEX</div>
+                                <span class="at-mx-lbl">Wirkung</span>
                                 <select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle()">
                                     <option value="AUSZAHLUNG">als Stundenlohn auszahlen</option>
                                     <option value="KEINE">Stunden neutral</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <span class="at-mx-lbl">Zählweise</span>
                                 <select id="atZwFlex" class="f-input">
                                     <option value="KALENDER">1/7 — alle Kalendertage</option>
                                     <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
                                     <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
                                 </select>
-                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <span class="at-mx-lbl">Basis</span>
                                 <div style="padding:8px 2px;color:#8b8b8b;font-size:13px">Betrieb (fix)</div>
                             </div>
                         </div>

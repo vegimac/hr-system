@@ -11326,3 +11326,22 @@ body.theme-dark .sys-back-btn {
 /* Entfernen-Knopf: erst beim Zeilen-Hover richtig sichtbar */
 #page-lohnschema .ls-del { opacity: .25; transition: opacity .15s; }
 #page-lohnschema tbody tr:hover .ls-del { opacity: 1; }
+
+
+/* ── Absenz-Matrix im MA-Masken-Look (ov-card-Rezept, Walter 18.08.2026) ── */
+.at-mx-card {
+    border: 1px solid transparent;
+    border-radius: 16px;
+    padding: 12px 16px;
+    background-color: #f4f0e8;
+    background-image: linear-gradient(160deg, #fffcf8 0%, #f7f3eb 42%, #efe9df 78%, #e8e1d6 100%),
+                      linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(210,200,185,0.55) 35%, rgba(120,110,95,0.22) 62%, rgba(255,255,255,0.88) 100%);
+    background-origin: padding-box, border-box;
+    background-clip: padding-box, border-box;
+    box-shadow: 0 0 0 1px rgba(90,80,65,0.12), 0 0 22px rgba(90,80,65,0.08),
+                0 6px 14px rgba(60,55,48,0.10), 0 20px 42px rgba(60,55,48,0.16),
+                inset 0 1px 0 rgba(255,255,255,0.92), inset 0 -1px 0 rgba(90,80,65,0.08);
+    min-width: 0;
+}
+.at-mx-kopf { font-weight: 700; color: #2f2f2f; font-size: 13px; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(60,55,48,0.10); }
+.at-mx-lbl  { display: block; font-size: 11px; font-weight: 600; color: #7a7a7a; text-transform: uppercase; letter-spacing: 0.03em; margin: 10px 0 4px; }
