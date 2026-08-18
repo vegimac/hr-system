@@ -11620,3 +11620,36 @@ body:not(.theme-dark) .iv-modal-box .emp-field-grid-3 {
     background: rgba(255, 255, 255, 0.20) !important;
     border-color: rgba(60, 55, 48, 0.10) !important;
 }
+
+/* ── Familien-/MA-Modal-Sektionen KOMPLETT flächenlos (Walter 18.08.2026 v2):
+   nur noch Titel + weisse Eingabefelder auf der warmen Karte — wie SV-Formular. ── */
+body:not(.theme-dark) .family-modal-box .emp-field-grid,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-3 {
+    background: transparent !important;
+    border-color: transparent !important;
+    padding-left: 0;
+    padding-right: 0;
+}
+/* Auswahl-Kacheln (Adresse) + Checkbox-Pille: warm-transparent, Auswahl über Rand */
+body:not(.theme-dark) #familyModal .fmf-radio-row {
+    background: transparent !important;
+    border: 1px solid rgba(60, 55, 48, 0.20) !important;
+    box-shadow: none !important;
+}
+body:not(.theme-dark) #familyModal .fmf-radio-row:has(input:checked) {
+    border-color: #3f3f3f !important;
+    background: rgba(255, 255, 255, 0.30) !important;
+    box-shadow: 0 0 0 1px #3f3f3f inset !important;
+}
+body:not(.theme-dark) #familyModal .fmf-checkbox-card {
+    background: transparent !important;
+    border: 1px solid rgba(60, 55, 48, 0.20) !important;
+    box-shadow: none !important;
+}
