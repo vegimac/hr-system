@@ -89,13 +89,13 @@ function lsRender() {
         <div class="card" style="padding:0 0 4px;overflow:visible">
         <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
-            <th style="text-align:left;padding:4px 8px;width:52px">Code</th>
-            <th style="text-align:left;padding:6px 12px">Lohnposition</th>
-            <th style="text-align:left;padding:4px 8px;width:128px">Art</th>
-            <th class="elr-c" style="width:24px;font-size:10px">AHV</th><th class="elr-c" style="width:24px;font-size:10px">NBU</th>
-            <th class="elr-c" style="width:24px;font-size:10px">KTG</th><th class="elr-c" style="width:24px;font-size:10px">BVG</th>
-            <th class="elr-c" style="width:24px;font-size:10px">QST</th><th class="elr-c" style="width:32px;font-size:10px">13.ML</th>
-            <th style="width:30px"></th>
+            <th style="text-align:left;padding:4px 8px;width:7%">Code</th>
+            <th style="text-align:left;padding:4px 10px;width:33%">Lohnposition</th>
+            <th style="text-align:left;padding:4px 8px;width:17%">Art</th>
+            <th class="elr-c" style="width:6.5%">AHV</th><th class="elr-c" style="width:6.5%">NBU</th>
+            <th class="elr-c" style="width:6.5%">KTG</th><th class="elr-c" style="width:6.5%">BVG</th>
+            <th class="elr-c" style="width:6.5%">QST</th><th class="elr-c" style="width:7%">13.ML</th>
+            <th style="width:4.5%"></th>
         </tr></thead><tbody>
         ${mitGruppen
             ? artReihenfolge.map(art => {
