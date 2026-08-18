@@ -11499,3 +11499,6 @@ body.theme-dark .sys-back-btn {
 
 /* Mindestlöhne: auch die Stufen-Titel (IA/IB/…) auf die rechte Fluchtlinie (Walter 18.08.2026) */
 #page-mindestloehne .mw-table th.mw-edu-top { text-align: right; padding-right: 20px; }
+
+/* SV-Sätze: Kopfzellen laufen nicht mehr in den Nachbarn (Walter 18.08.2026) */
+#page-sv-saetze .fh-table-head th { overflow: hidden; text-overflow: ellipsis; }
