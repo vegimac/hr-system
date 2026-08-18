@@ -11514,3 +11514,7 @@ body:not(.theme-dark) .dok-menu {
 }
 body:not(.theme-dark) .dok-menu-item { background: #ffffff !important; }
 body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
+
+/* ── SV-Formular als mittiges, breites Modal (Walter 18.08.2026): die Feld-Paare
+   verteilen sich auf der Breite; einspaltige Felder bleiben voll breit. ── */
+#svFormPanel form > div { max-width: 100%; }
