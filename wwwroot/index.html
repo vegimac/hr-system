@@ -5170,18 +5170,22 @@
                 <div id="absenzTypForm" class="at-mx-card" style="display:none;padding:20px;margin-top:12px;flex:0 0 auto">
                     <div style="font-weight:600;margin-bottom:14px" id="absenzTypFormTitle">Absenz-Typ bearbeiten</div>
                     <input type="hidden" id="atId">
-                    <div style="display:grid;grid-template-columns:120px 1fr 80px;gap:12px;margin-bottom:14px">
-                        <div>
-                            <label class="f-label">Code *</label>
-                            <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase">
-                        </div>
-                        <div>
-                            <label class="f-label">Bezeichnung *</label>
-                            <input type="text" id="atBez" class="f-input" placeholder="z.B. Krankheit">
-                        </div>
-                        <div>
-                            <label class="f-label">Sort</label>
-                            <input type="number" id="atSort" class="f-input" value="99" min="1" max="999">
+                    <!-- Kopf-Box Absenz-Typ (Walter 18.08.2026): eigene ov-Karte, hervorgehoben -->
+                    <div class="at-mx-card" style="padding:14px 16px;margin-bottom:16px">
+                        <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Absenz-Typ</div>
+                        <div style="display:grid;grid-template-columns:140px 1fr 90px;gap:14px">
+                            <div>
+                                <span class="at-mx-lbl" style="margin-top:0">Code *</span>
+                                <input type="text" id="atCode" class="f-input" placeholder="z.B. KRANK" style="text-transform:uppercase;font-weight:700">
+                            </div>
+                            <div>
+                                <span class="at-mx-lbl" style="margin-top:0">Bezeichnung *</span>
+                                <input type="text" id="atBez" class="f-input" placeholder="z.B. Krankheit" style="font-weight:600">
+                            </div>
+                            <div>
+                                <span class="at-mx-lbl" style="margin-top:0">Sort</span>
+                                <input type="number" id="atSort" class="f-input" value="99" min="1" max="999">
+                            </div>
                         </div>
                     </div>
                     <!-- Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026, Liquid-Karten 18.08.) -->
