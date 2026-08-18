@@ -8481,8 +8481,9 @@
             display: flex; align-items: flex-start; gap: 10px;
             cursor: pointer; margin: 0;
             padding: 10px 12px; border-radius: 10px;
-            background: #fff; border: 1px solid #e2ddd3;
-            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+            /* Walter 18.08.2026: nur EINGABEFELDER weiss — Auswahl-Kacheln warm-transparent */
+            background: rgba(255, 255, 255, 0.28); border: 1px solid rgba(60, 55, 48, 0.14);
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
             transition: border-color .12s, box-shadow .12s, background .12s;
         }
         #familyModal .fmf-radio-row:hover {
@@ -8491,7 +8492,7 @@
         }
         #familyModal .fmf-radio-row:has(input:checked) {
             border-color: #3f3f3f;
-            background: #faf8f5;
+            background: rgba(255, 255, 255, 0.45);
             box-shadow: 0 0 0 1px #3f3f3f inset;
         }
         #familyModal .fmf-radio-row > input[type="radio"] {
@@ -11586,4 +11587,36 @@ body:not(.theme-dark) #page-aufforderung-arbeit .card .lqsel-btn {
     border: 1px solid rgba(255, 255, 255, 0.95) !important;
     border-radius: 10px !important;
     box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+/* ── «Alles Weiss weg ausser dem Eingabefeld» (Walter 18.08.2026, SV-Vorbild) ──
+   1) kd-day-Karten (Arbeits-Aufforderung, Kündigungs-Masken): warme Fläche statt
+      Halbtransparent-Weiss, Felder als weisse Pillen. */
+body:not(.theme-dark) .kd-day {
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    border: 1px solid transparent !important;
+}
+body:not(.theme-dark) .kd-day input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .kd-day select,
+body:not(.theme-dark) .kd-day textarea,
+body:not(.theme-dark) .kd-day .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+/* 2) Sektions-Panels IN den Modals (Person/Aufenthalt/Typ&Zeitraum …): nur noch
+      ein Hauch Gruppierung statt heller Fläche — die MA-Maske selbst bleibt
+      unangetastet (Regel ist auf die Modal-Container beschränkt). */
+body:not(.theme-dark) .family-modal-box .emp-field-grid,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .family-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .ma-modal-box .emp-field-grid-3,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-2,
+body:not(.theme-dark) .iv-modal-box .emp-field-grid-3 {
+    background: rgba(255, 255, 255, 0.20) !important;
+    border-color: rgba(60, 55, 48, 0.10) !important;
 }
