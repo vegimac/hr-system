@@ -11653,3 +11653,16 @@ body:not(.theme-dark) #familyModal .fmf-checkbox-card {
     border: 1px solid rgba(60, 55, 48, 0.20) !important;
     box-shadow: none !important;
 }
+
+/* ── ov-Standard v2 (Walter 18.08.2026): Kartenfläche durchgehend SATT warm —
+   der alte Verlauf startete oben fast weiss, dadurch standen Labels im oberen
+   Modalbereich auf Quasi-Weiss. Neu: dunklere, flachere Rampe. ── */
+body:not(.theme-dark) .modal,
+body:not(.theme-dark) .ma-modal-box,
+body:not(.theme-dark) .family-modal-box,
+body:not(.theme-dark) .iv-modal-box,
+body:not(.theme-dark) .kd-day,
+body:not(.theme-dark) #svFormPanel,
+body:not(.theme-dark) #page-aufforderung-arbeit .card {
+    background-image: linear-gradient(165deg, #efe7d8 0%, #eae1cf 50%, #e4dac5 100%) !important;
+}
