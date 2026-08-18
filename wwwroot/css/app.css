@@ -11491,3 +11491,8 @@ body.theme-dark .sys-back-btn {
 #page-mindestloehne .mw-section-head { padding: 5px 14px; }
 #page-mindestloehne .mw-planhint { padding: 3px 12px; }
 #page-mindestloehne .card { margin-bottom: 10px; }
+
+/* ── Mindestlöhne: rechtsbündige Fluchtlinie — Kopfzeile auf dieselbe rechte Kante
+   wie die Betrags-Pills (12px Zelle + 8px Pill-Innenabstand) (Walter 18.08.2026) ── */
+#page-mindestloehne .mw-table th:not(.mw-edu-top) { padding-right: 20px; }
+#page-mindestloehne .mw-amount span { min-width: 0; }
