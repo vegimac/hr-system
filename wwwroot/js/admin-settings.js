@@ -976,17 +976,18 @@ function openAbsenzTypForm(t) {
     document.getElementById('atCode').value  = d.code ?? '';
     document.getElementById('atBez').value   = d.bezeichnung ?? '';
     document.getElementById('atSort').value  = d.sortOrder ?? 99;
-    document.getElementById('atZg').checked  = d.zeitgutschrift ?? true;
     document.getElementById('atAktiv').checked = d.aktiv ?? true;
-    const modus = d.gutschriftModus;
-    if (modus === '1/7') document.getElementById('atModus17').checked = true;
-    else document.getElementById('atModus15').checked = true;
-    document.getElementById('atModusWrap').style.display = 'block';
-    document.getElementById('atBasisStunden').value   = d.basisStunden   ?? 'BETRIEB';
-    const bsMtp = document.getElementById('atBasisStundenMtp');
-    if (bsMtp) bsMtp.value = d.basisStundenMtp ?? 'GARANTIE';
+    // Matrix pro Vertragsmodell (18.08.2026) — Fallback aus Legacy-Feldern
+    const zwLegacy = (d.gutschriftModus === '1/7') ? 'KALENDER' : 'ARBEITSTAGE';
+    document.getElementById('atWirkFix').checked  = d.wirkungFix  ?? d.zeitgutschrift ?? true;
+    document.getElementById('atWirkMtp').checked  = d.wirkungMtp  ?? d.zeitgutschrift ?? true;
+    document.getElementById('atWirkFlex').checked = d.wirkungFlex ?? d.utpAuszahlung  ?? false;
+    document.getElementById('atZwFix').value  = d.zaehlweiseFix  ?? zwLegacy;
+    document.getElementById('atZwMtp').value  = d.zaehlweiseMtp  ?? zwLegacy;
+    document.getElementById('atZwFlex').value = d.zaehlweiseFlex ?? zwLegacy;
+    document.getElementById('atBasisFix').value = d.basisFix ?? d.basisStunden ?? 'BETRIEB';
+    document.getElementById('atBasisMtp').value = d.basisMtp ?? d.basisStundenMtp ?? 'GARANTIE';
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
-    document.getElementById('atUtpAuszahlung').checked = d.utpAuszahlung ?? false;
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
     const zvSel = document.getElementById('atZvKuerzel');
@@ -1041,17 +1042,25 @@ async function saveAbsenzTyp() {
     const id  = document.getElementById('atId').value;
     const code = document.getElementById('atCode').value.toUpperCase().trim();
     const bez  = document.getElementById('atBez').value.trim();
-    const zg   = document.getElementById('atZg').checked;
-    const modus = document.querySelector('input[name="atModus"]:checked')?.value ?? null;
-
     if (!code) { alert('Bitte Code eingeben.'); return; }
     if (!bez)  { alert('Bitte Bezeichnung eingeben.'); return; }
-    if (!modus) { alert('Bitte Berechnungsmodus wählen (1/5 oder 1/7).'); return; }
 
-    const basisStunden   = document.getElementById('atBasisStunden').value || 'BETRIEB';
-    const basisStundenMtp = document.getElementById('atBasisStundenMtp')?.value || 'GARANTIE';
+    // Matrix (18.08.2026) — Legacy-Felder werden daraus abgeleitet (Brücke
+    // für Alt-Leser wie die hours_credited-Nachrechnung).
+    const wirkungFix  = document.getElementById('atWirkFix').checked;
+    const wirkungMtp  = document.getElementById('atWirkMtp').checked;
+    const wirkungFlex = document.getElementById('atWirkFlex').checked;
+    const zaehlweiseFix  = document.getElementById('atZwFix').value;
+    const zaehlweiseMtp  = document.getElementById('atZwMtp').value;
+    const zaehlweiseFlex = document.getElementById('atZwFlex').value;
+    const basisFix = document.getElementById('atBasisFix').value || 'BETRIEB';
+    const basisMtp = document.getElementById('atBasisMtp').value || 'GARANTIE';
+    const zg    = wirkungFix || wirkungMtp;
+    const modus = zaehlweiseFix === 'KALENDER' ? '1/7' : '1/5';
+    const basisStunden    = basisFix;
+    const basisStundenMtp = basisMtp;
     const reduziertRaw   = document.getElementById('atReduziertSaldo').value;
-    const utpAuszahlung  = document.getElementById('atUtpAuszahlung').checked;
+    const utpAuszahlung  = wirkungFlex;
     const verlaengertProbezeit = document.getElementById('atVerlaengertProbezeit')?.checked ?? false;
     const zvKuerzelRaw   = document.getElementById('atZvKuerzel')?.value || '';
 
@@ -1062,6 +1071,9 @@ async function saveAbsenzTyp() {
         aktiv: document.getElementById('atAktiv').checked,
         basisStunden,
         basisStundenMtp,
+        wirkungFix, wirkungMtp, wirkungFlex,
+        zaehlweiseFix, zaehlweiseMtp, zaehlweiseFlex,
+        basisFix, basisMtp,
         reduziertSaldo: reduziertRaw === '' ? null : reduziertRaw,
         utpAuszahlung,
         verlaengertProbezeit,

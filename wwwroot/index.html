@@ -5184,74 +5184,66 @@
                             <input type="number" id="atSort" class="f-input" value="99" min="1" max="999">
                         </div>
                     </div>
-                    <div style="display:flex;gap:32px;align-items:flex-start;margin-bottom:16px">
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-                            <input type="checkbox" id="atZg" onchange="onAtZgChange()">
-                            <span>
-                                <span style="font-weight:500">Zeitgutschrift</span>
-                                <span style="color:#64748b;font-size:12px;display:block">FIX/MTP bekommen Stunden gutgeschrieben</span>
-                            </span>
-                        </label>
-                        <div id="atModusWrap" style="display:block">
-                            <div class="f-label" style="margin-bottom:2px">Berechnungsmodus *</div>
-                            <div style="color:#64748b;font-size:11px;margin-bottom:6px">Teiler für die Tag-/Stunden-Rechnung — gilt für die Zeitgutschrift UND für Lohn-Kürzungen ohne Gutschrift (z.B. unbezahlter Urlaub: 1/7).</div>
-                            <div style="display:flex;gap:12px">
-                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:2px solid #e2e8f0;border-radius:8px" id="atModus15Label">
-                                    <input type="radio" name="atModus" id="atModus15" value="1/5">
-                                    <span>
-                                        <strong>1/5</strong>
-                                        <span style="color:#64748b;font-size:12px;display:block">Wochenstunden ÷ 5</span>
-                                        <span style="color:#64748b;font-size:11px">pro Arbeitstag</span>
-                                    </span>
-                                </label>
-                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;border:2px solid #e2e8f0;border-radius:8px" id="atModus17Label">
-                                    <input type="radio" name="atModus" id="atModus17" value="1/7">
-                                    <span>
-                                        <strong>1/7</strong>
-                                        <span style="color:#64748b;font-size:12px;display:block">Wochenstunden ÷ 7</span>
-                                        <span style="color:#64748b;font-size:11px">pro Kalendertag</span>
-                                    </span>
-                                </label>
-                            </div>
-                        </div>
+                    <!-- Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026) -->
+                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px">
+                        <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Wirkung pro Vertragsmodell</div>
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead><tr style="color:#475569">
+                                <th style="text-align:left;padding:4px 8px;width:110px"></th>
+                                <th style="text-align:left;padding:4px 8px">FIX / FIX-M</th>
+                                <th style="text-align:left;padding:4px 8px">MTP</th>
+                                <th style="text-align:left;padding:4px 8px">FLEX</th>
+                            </tr></thead>
+                            <tbody>
+                            <tr style="border-top:1px solid #f1f5f9">
+                                <td style="padding:8px;color:#475569;font-weight:600">Wirkung</td>
+                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkFix"> Stunden gutschreiben</label></td>
+                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkMtp"> Stunden gutschreiben</label></td>
+                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkFlex"> als Stundenlohn auszahlen</label></td>
+                            </tr>
+                            <tr style="border-top:1px solid #f1f5f9">
+                                <td style="padding:8px;color:#475569;font-weight:600">Zählweise</td>
+                                <td style="padding:8px"><select id="atZwFix" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
+                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
+                                <td style="padding:8px"><select id="atZwMtp" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
+                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
+                                <td style="padding:8px"><select id="atZwFlex" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
+                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
+                            </tr>
+                            <tr style="border-top:1px solid #f1f5f9">
+                                <td style="padding:8px;color:#475569;font-weight:600">Basis</td>
+                                <td style="padding:8px"><select id="atBasisFix" class="f-input">
+                                    <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
+                                    <option value="VERTRAG">Vertrag — Pensum-adjustiert</option>
+                                </select></td>
+                                <td style="padding:8px"><select id="atBasisMtp" class="f-input">
+                                    <option value="GARANTIE">Garantie — sein Wochenpensum</option>
+                                    <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
+                                </select></td>
+                                <td style="padding:8px;color:#64748b">Betrieb (fix)</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                        <div style="color:#64748b;font-size:11px;margin-top:8px">Der Katalog zeigt, was gerechnet wird — z.B. Krankheit: MTP Garantie + laut Dienstplan · Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
                     </div>
 
                     <!-- Erweiterte Einstellungen -->
                     <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px">
                         <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Erweiterte Einstellungen</div>
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-                            <div>
-                                <label class="f-label" for="atBasisStunden">Basis für 1/5 und 1/7</label>
-                                <select id="atBasisStunden" class="f-input">
-                                    <option value="BETRIEB">Betrieb — Filial-Wochenstunden (z.B. 42h)</option>
-                                    <option value="VERTRAG">Vertrag — MTP-Sollstunden (sonst Betrieb)</option>
-                                </select>
-                                <div style="color:#64748b;font-size:11px;margin-top:4px">Wirkt auf die Berechnung der Zeitgutschrift.</div>
-                                <label class="f-label" for="atBasisStundenMtp" style="margin-top:12px">Basis bei MTP</label>
-                                <select id="atBasisStundenMtp" class="f-input">
-                                    <option value="GARANTIE">Garantie — sein garantiertes Wochenpensum (z.B. 25h ÷ 5)</option>
-                                    <option value="BETRIEB">Betrieb — Filial-Wochenstunden (z.B. 42h ÷ 5)</option>
-                                </select>
-                                <div style="color:#64748b;font-size:11px;margin-top:4px">Der MTP hat quasi seine eigene Betriebsarbeitszeit (Garantie) — z.B. Krankheit: Garantie · Nacht-Kompensation: Betrieb.</div>
-                            </div>
-                            <div>
-                                <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
-                                <select id="atReduziertSaldo" class="f-input">
-                                    <option value="">Keiner</option>
-                                    <option value="NACHT_STUNDEN">Nacht-Saldo (Stunden)</option>
-                                    <option value="FERIEN_TAGE">Ferien-Saldo (Tage)</option>
-                                    <option value="FEIERTAG_TAGE">Feiertag-Saldo (Tage)</option>
-                                </select>
-                                <div style="color:#64748b;font-size:11px;margin-top:4px">Welcher Saldo wird durch diese Absenz reduziert?</div>
-                            </div>
+                        <div style="max-width:380px">
+                            <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
+                            <select id="atReduziertSaldo" class="f-input">
+                                <option value="">Keiner</option>
+                                <option value="NACHT_STUNDEN">Nacht-Saldo (Stunden)</option>
+                                <option value="FERIEN_TAGE">Ferien-Saldo (Tage)</option>
+                                <option value="FEIERTAG_TAGE">Feiertag-Saldo (Tage)</option>
+                            </select>
+                            <div style="color:#64748b;font-size:11px;margin-top:4px">Welcher Saldo wird durch diese Absenz reduziert?</div>
                         </div>
-                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
-                            <input type="checkbox" id="atUtpAuszahlung">
-                            <span>
-                                <span style="font-weight:500">FLEX — als Stundenlohn auszahlen</span>
-                                <span style="color:#64748b;font-size:12px;display:block">Bei FLEX-Mitarbeitenden werden die Absenz-Stunden wie normal gearbeitete Stunden vergütet (z.B. Nacht-Kompensation).</span>
-                            </span>
-                        </label>
+                        
                         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:14px">
                             <input type="checkbox" id="atVerlaengertProbezeit">
                             <span>
@@ -8092,7 +8084,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260818a"></script>
+<script src="js/admin-settings.js?v=20260818b"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>

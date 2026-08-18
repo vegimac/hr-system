@@ -1,4 +1,4 @@
-# Absenz-Typ-Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026 — FIXIERT, Bau ausstehend)
+# Absenz-Typ-Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026 — Etappe 1–3 GEBAUT, Legacy-Felder folgen nach Grün-Lauf)
 
 Ersetzt die verstreuten Felder (Zeitgutschrift, GutschriftModus, BasisStunden,
 BasisStundenMtp, UtpAuszahlung) durch eine 3-Spalten-Matrix pro Absenz-Typ.
