@@ -1446,7 +1446,7 @@ function svRender() {
     };
     const svLimits = (r) => {
         const parts = svLimitParts(r);
-        return parts.length ? `<div style="font-size:10px;color:#94a3b8;line-height:1.25;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${parts.join(' · ')}</div>` : '';
+        return parts.length ? `<div style="font-size:10px;color:#6f6a5f;line-height:1.25;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${parts.join(' · ')}</div>` : '';
     };
     // Datum IMMER TT.MM.JJJJ (Walter-Vorgabe, gilt überall). Backend liefert ISO.
     const fmtDate = d => {
@@ -1466,20 +1466,20 @@ function svRender() {
     // valid_from in der Zukunft → Künftig.
     const _todayIso = new Date().toISOString().slice(0, 10);
     const svStatus = (r) => {
-        if (!r.isActive) return { label: 'Inaktiv', bg: '#f1f5f9', fg: '#64748b', dim: true };
+        if (!r.isActive) return { label: 'Inaktiv', bg: '#f1f5f9', fg: '#4f4c45', dim: true };
         const vt = r.validTo   ? String(r.validTo).slice(0, 10)   : null;
         const vf = r.validFrom ? String(r.validFrom).slice(0, 10) : null;
-        if (vt && vt < _todayIso) return { label: 'Abgelaufen', bg: '#f1f5f9', fg: '#94a3b8', dim: true };
+        if (vt && vt < _todayIso) return { label: 'Abgelaufen', bg: '#f1f5f9', fg: '#6f6a5f', dim: true };
         if (vf && vf > _todayIso) return { label: 'Künftig',    bg: '#ece9e2', fg: '#6b6152', dim: false };
         return { label: 'Aktiv', bg: '#dcfce7', fg: '#166534', dim: false };
     };
 
     const rowHtml = (r) => {
-        const col  = codeColor[r.code] ?? '#64748b';
+        const col  = codeColor[r.code] ?? '#4f4c45';
         const rate = Number(r.rate ?? 0);
         const modelBadge = r.employmentModelCode
             ? `<span style="font-size:10.5px;font-weight:600;padding:1px 7px;border-radius:8px;background:#fef3c7;color:#92400e">${r.employmentModelCode}</span>`
-            : '<span style="color:#cbd5e1;font-size:12px">alle</span>';
+            : '<span style="color:#a39d90;font-size:12px">alle</span>';
         // Walter-Vorgabe 18.05.2026: in einem nicht-offenen Lohnlauf
         // verwendete Sätze sind gesperrt — „Bearbeiten" deaktiviert, dafür
         // „Neu ab" als Versionierungs-Workflow. Lock-Pille analog Bank/Vertrag.
@@ -1503,24 +1503,24 @@ function svRender() {
             : '';
         const st = svStatus(r);
         return `<tr style="${st.dim ? 'opacity:0.5;' : ''}">
-            <td style="padding:4px 12px;text-align:center;color:#64748b;font-variant-numeric:tabular-nums">${r.sortOrder ?? 99}</td>
+            <td style="padding:4px 12px;text-align:center;color:#4f4c45;font-variant-numeric:tabular-nums">${r.sortOrder ?? 99}</td>
             <td style="padding:4px 12px">
                 <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
             </td>
             <td style="padding:4px 12px;font-weight:500;color:#1e293b"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
             <td style="padding:4px 12px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
-            <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#cbd5e1'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
-            <td style="padding:4px 12px;color:#64748b;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${[(basisLabel[r.basisType] ?? r.basisType), ...svLimitParts(r)].join(' · ')}">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
-            <td style="padding:4px 12px;text-align:center;color:#64748b;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
+            <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#a39d90'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
+            <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${[(basisLabel[r.basisType] ?? r.basisType), ...svLimitParts(r)].join(' · ')}">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
+            <td style="padding:4px 12px;text-align:center;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtAge(r.minAge, r.maxAge)}${r.gender === 'F' ? ' <span title="Nur Frauen" style="font-weight:700;color:#be185d">♀</span>' : r.gender === 'M' ? ' <span title="Nur Männer" style="font-weight:700;color:#1d4ed8">♂</span>' : ''}</td>
             <td style="padding:4px 12px">${modelBadge}</td>
             <td style="padding:4px 12px;font-size:12px;white-space:nowrap">${(() => {
-                if (r.fibuPosition == null) return '<span style="color:#cbd5e1">—</span>';
+                if (r.fibuPosition == null) return '<span style="color:#a39d90">—</span>';
                 const k = svKontoByPos[r.fibuPosition];
-                const kontoTxt = k ? ` <span style="color:#94a3b8">→ ${k.gegen}</span>` : ' <span style="color:#f59e0b" title="Position nicht im Kontoplan">→ ?</span>';
+                const kontoTxt = k ? ` <span style="color:#6f6a5f">→ ${k.gegen}</span>` : ' <span style="color:#f59e0b" title="Position nicht im Kontoplan">→ ?</span>';
                 return `<span style="font-weight:600;font-family:monospace">${r.fibuPosition}</span>${kontoTxt}`;
             })()}</td>
-            <td style="padding:4px 12px;color:#64748b;font-size:12px;white-space:nowrap">${fmtDate(r.validFrom)}</td>
-            <td style="padding:4px 12px;color:#64748b;font-size:12px;white-space:nowrap">${fmtDate(r.validTo)}</td>
+            <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtDate(r.validFrom)}</td>
+            <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap">${fmtDate(r.validTo)}</td>
             <td style="padding:4px 12px;text-align:center">
                 <span style="font-size:11px;padding:2px 9px;border-radius:10px;white-space:nowrap;background:${st.bg};color:${st.fg}">${st.label}</span>
             </td>
