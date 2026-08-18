@@ -11518,3 +11518,19 @@ body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
 /* ── SV-Formular als mittiges, breites Modal (Walter 18.08.2026): die Feld-Paare
    verteilen sich auf der Breite; einspaltige Felder bleiben voll breit. ── */
 #svFormPanel form > div { max-width: 100%; }
+
+/* ── SV-Formular im ov-Look (Walter 18.08.2026): warme Karte statt weiss-auf-weiss,
+   Eingabefelder als weisse Pillen mit Schatten (MA-Masken-Prinzip). ── */
+#svFormPanel {
+    background-color: #f1ebe0 !important;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+    box-shadow: 0 0 0 1px rgba(90, 80, 65, 0.10), 0 25px 60px rgba(60, 55, 48, 0.35) !important;
+}
+#svFormPanel input:not([type="checkbox"]), #svFormPanel select, #svFormPanel .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+#svFormPanel label { color: #3f3f3f !important; }
+#svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.55) !important; }
