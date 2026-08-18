@@ -228,16 +228,12 @@ async function loadLohnschemaBlockForModel(model) {
     } catch { el.innerHTML = ''; return; }
     if (!rows.length) { el.innerHTML = ''; return; }
     rows.sort((a, b) => (a.modell === 'ALLE' ? 1 : 0) - (b.modell === 'ALLE' ? 1 : 0) || a.sortOrder - b.sortOrder);
+    // Kompakt (Walter 18.08.2026): keine Chip-Details im MA-Detail — eine
+    // dezente Zeile genügt; Details stehen in der Lohnschema-Kachel.
     el.innerHTML = `
-        <div style="margin-bottom:18px">
-            <h3 style="font-size:13.5px;color:#3f3f3f;margin:0 0 6px">Lohnschema — Vertragsmodell ${_lsEsc(model)}</h3>
-            <div style="display:flex;flex-wrap:wrap;gap:5px">
-                ${rows.map(e => `
-                    <span title="${_lsEsc(_LS_ART_LABEL[e.art] || e.art)}" style="display:inline-flex;gap:5px;align-items:center;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.14);border-radius:9px;padding:3px 9px;font-size:11.5px;color:#3f3f3f">
-                        <b style="font-family:monospace">${_lsEsc(e.code)}</b> ${_lsEsc(e.bezeichnung)}
-                        <span style="width:7px;height:7px;border-radius:50%;background:${_LS_ART_COLOR[e.art] || '#8b8b8b'}"></span>
-                    </span>`).join('')}
-            </div>
-            <div style="color:#b0aca3;font-size:10.5px;margin-top:5px">● grün = automatisch · blau = Saldo · grau = bei Ereignis · braun = Austritt · violett = manuell</div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:12px;color:#8b8b8b">
+            <span><b style="color:#6b6152">Lohnschema ${_lsEsc(model)}</b> · ${rows.length} Standard-Lohnpositionen (automatisch gemäss Vertragsmodell)</span>
+            <button type="button" onclick="showPage('lohnschema')"
+                    style="background:none;border:none;cursor:pointer;color:#6b7280;font-size:12px;font-weight:600;text-decoration:underline;padding:0">ansehen →</button>
         </div>`;
 }

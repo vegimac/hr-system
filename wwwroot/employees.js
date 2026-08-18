@@ -1236,9 +1236,8 @@ function renderEmployeeDetail(emp) {
                  loadLohnschemaBlockForModel() in js/lohnschema.js -->
             <div id="empLohnschemaBlock"></div>
             <!-- Uniformen-Depot (Walter Aug 2026) -->
-            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+            <div class="emp-section-title" style="display:flex;align-items:center;gap:8px" title="CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt">
                 <span>Uniformen-Depot</span>
-                <span style="font-size:11px;font-weight:400;color:#94a3b8">CHF 50 beim 1. Lohn · Rückerstattung bei ordentlichem Austritt</span>
             </div>
             <div id="uniformDepotContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
@@ -13338,16 +13337,15 @@ function renderUniformDepotTab(el, d) {
         </div>` : (d.status === 'EINBEHALTEN' && Number(d.balance || 0) > 0 && !hasExit
         ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:10px">Rückgabe/Verfall wird beim <strong>Austritt</strong> (letzter Lohn) entschieden.</div>`
         : '');
+    // Schlank (Walter 18.08.2026): eine kompakte Zeile statt grosser Block.
     el.innerHTML = `
-        <div class="ud-card ud-${esc(d.status || '')}" style="padding:14px 16px;background:${st.bg};border:1px solid ${st.border};border-radius:10px">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-                <div>
-                    <div class="ud-amt" style="font-size:15px;font-weight:700;color:#1a1a1a">CHF ${bal}</div>
-                    <div style="font-size:12px;color:#64748b;margin-top:2px">Belastet: ${esc(charged)}</div>
-                    ${refund}${ret}${bem}
-                </div>
-                <span class="ud-pill" style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border}">${st.label}</span>
+        <div class="ud-card ud-${esc(d.status || '')}" style="padding:7px 12px;background:${st.bg};border:1px solid ${st.border};border-radius:10px;font-size:12px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <b class="ud-amt" style="font-size:13px;color:#1a1a1a">CHF ${bal}</b>
+                <span style="color:#64748b">Belastet: ${esc(charged)}</span>
+                <span class="ud-pill" style="font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;background:#fff;color:${st.color};border:1px solid ${st.border};margin-left:auto">${st.label}</span>
             </div>
+            ${refund}${ret}${bem}
             ${actions}
         </div>`;
 }
