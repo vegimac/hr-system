@@ -1275,8 +1275,11 @@ public class PayrollCalculationEngine
             // Alt-Katalog: der bestehende kombinierte Typ «MUTT_VATER»
             // («Mutter-/Vaterschaftsurlaub») wird nach Geschlecht des MA auf
             // Mutterschaft (120.1) bzw. Vaterschaft (120.2) gemappt.
+            // Korrektur-Zeile 125.x NUR bei FIX/FIX-M (Monatslohn läuft weiter).
+            // MTP kürzt stattdessen das SOLL im 1/7-Kalender (Walter 18.08.2026,
+            // transparent wie Krankheit — siehe eoStundenAequivalent im MTP-Block).
             string eoModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
-            bool eoFestlohnModell = eoModel is "MTP" or "FIX" or "FIX-M";
+            bool eoFestlohnModell = eoModel is "FIX" or "FIX-M";
             int eoTageMutter = 0, eoTageVater = 0;
             foreach (var a in absences)
             {
@@ -1743,13 +1746,24 @@ public class PayrollCalculationEngine
                 .Where(a => a.AbsenceType == "UNBEZ_URLAUB")
                 .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
             decimal unbezUrlaubStundenAequivalent = mtpUnbezUrlaubTage * guaranteedH / 7m;
+            // EO Mutterschaft/Vaterschaft (Walter-Entscheid 18.08.2026): bei MTP
+            // wird das SOLL gekürzt — transparent wie bei Krankheit, aber im
+            // 1/7-KALENDER wie Ferien (es gibt keinen Dienstplan während der
+            // Mutterschaft; die EO zahlt 7 Taggelder/Woche, Sa+So zählen mit).
+            // Der Lohnersatz kommt über die EO-Zeile 120.x — bei MTP gibt es
+            // darum KEINE Korrektur-Zeile 125.x (die bleibt FIX/FIX-M).
+            decimal mtpEoTage = absences
+                .Where(a => a.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT")
+                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+            decimal eoStundenAequivalent = mtpEoTage * guaranteedH / 7m;
             // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
             // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
             decimal sollStundenExakt = sollStundenVollExakt
                 - ferienStundenAequivalent
                 - krankStundenAequivalent
                 - unfallStundenAequivalent
-                - unbezUrlaubStundenAequivalent;
+                - unbezUrlaubStundenAequivalent
+                - eoStundenAequivalent;
             // Cap: bei voll abgedeckter Periode kann das Stunden-Total der
             // Abzüge das Pro-Rata-Soll geringfügig übersteigen (Ferien 1/7 +
             // Krank 1/5 mischen sich) → auf 0 clampen.
@@ -1802,7 +1816,7 @@ public class PayrollCalculationEngine
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
                     mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
-                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0) {
+                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
@@ -1830,6 +1844,8 @@ public class PayrollCalculationEngine
                         teile.Add($"− {unfallStundenAequivalent:0.00}h Unfall{det}");
                     }
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
+                    // EO: 1/7-Kalender wie Ferien (kein Dienstplan während Mutterschaft)
+                    if (eoStundenAequivalent > 0) teile.Add($"− {eoStundenAequivalent:0.00}h Mutter-/Vaterschaft");
                     mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
                     mtpFestlohnLabel = LabelFor("10.1", "Festlohn");

@@ -1352,7 +1352,7 @@
                      ein (adminHubShowCat in app-core.js, Wahl in localStorage.hrAdminHubCat).
                      KEINE Karte entfernt — alle 28 leben in den Kategorie-Gruppen. -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster, Lohnschema, Absenz-Typen">
                         <img src="img/lohn-stammdaten.png?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
@@ -1360,7 +1360,7 @@
                         <img src="img/Filialen.png?v=20260816a" alt="" loading="lazy">
                         <span>Filialen &amp; Benutzer</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Absenz-Typen, Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente, Warnungen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente, Warnungen">
                         <img src="img/Verzeichnisse-Vorgaben.png?v=20260816a" alt="" loading="lazy">
                         <span>Verzeichnisse &amp; Vorgaben</span>
                     </button>
@@ -1429,6 +1429,11 @@
                         <div class="admin-card-title">Lohnschema</div>
                         <div class="admin-card-desc">Standard-Lohnblatt pro Vertragsmodell (FLEX/MTP/FIX/FIX-M)</div>
                     </div>
+                        <div class="admin-card" onclick="showPage('absenz-typen')">
+                        <img src="img/vvkat-absenz-typen.png?v=20260816a" alt="" loading="lazy" style="width:94px;height:94px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Absenz-Typen</div>
+                        <div class="admin-card-desc">Krank, Unfall, Ferien, Mutterschaft — lohnwirksame Zeitgutschrift-Regeln</div>
+                    </div>
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
@@ -1447,11 +1452,6 @@
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-kataloge" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
-                        <div class="admin-card" onclick="showPage('absenz-typen')">
-                        <img src="img/vvkat-absenz-typen.png?v=20260816a" alt="" loading="lazy" style="width:94px;height:94px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Absenz-Typen</div>
-                        <div class="admin-card-desc">Krank, Unfall, Ferien, Nacht-Komp, etc.</div>
-                    </div>
                         <div class="admin-card" onclick="showPage('aerzte')">
                         <img src="img/vvkat-aerzte.png?v=20260816a" alt="" loading="lazy" style="width:94px;height:94px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Ärzte</div>
