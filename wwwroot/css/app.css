@@ -11348,7 +11348,8 @@ body.theme-dark .sys-back-btn {
 /* ── Absenz-Matrix + Absenz-Typen-Seite im MA-Masken-Look (ov-card-Rezept, Walter 18.08.2026) ── */
 .at-mx-card,
 #page-absenz-typen .fh-list-card,
-#page-absenz-typen .at-info-box {
+#page-absenz-typen .at-info-box,
+#page-lohnschema .ls-2col .card {
     border: 1px solid transparent;
     border-radius: 16px;
     padding: 12px 16px;
@@ -11369,3 +11370,9 @@ body.theme-dark .sys-back-btn {
 /* Lohnschema: Modell-Blatt links, «Für alle Modelle» rechts (Walter 18.08.2026) */
 .ls-2col { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 1500px) { .ls-2col { grid-template-columns: 1fr; } }
+
+
+/* Lohnschema-Karten: Tabelle folgt den runden ov-Ecken (18.08.2026) */
+#page-lohnschema .ls-2col .card { padding: 4px 6px 6px !important; }
+#page-lohnschema .ls-2col thead th:first-child { border-top-left-radius: 12px; }
+#page-lohnschema .ls-2col thead th:last-child  { border-top-right-radius: 12px; }
