@@ -11738,3 +11738,54 @@ body.theme-dark #qstModal div[style*="f6f3ee"] {
     background: transparent !important;
     border-color: var(--dlg-glass-border) !important;
 }
+
+/* ── Dark-Mode-PARITÄT für alle neuen ov-Flächen (Walter 18.08.2026, Muster =
+   QST-Modal): dunkles Glas statt Greige, Glas-Felder statt weisser Pillen,
+   lesbare Labels. Fängt auch Inline-Styles der JS-Modals ab. ── */
+body.theme-dark #svFormPanel {
+    background: var(--dlg-glass) !important;
+    background-image: none !important;
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55) !important;
+}
+body.theme-dark #svFormPanel label { color: #94a3b8 !important; }
+body.theme-dark #svFormPanel input:not([type="checkbox"]),
+body.theme-dark #svFormPanel select,
+body.theme-dark #svFormPanel .lqsel-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+}
+body.theme-dark #svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.06) !important; color: #cbd5e1 !important; border-color: var(--dlg-glass-border) !important; }
+
+body.theme-dark .at-mx-card,
+body.theme-dark #page-absenz-typen .fh-list-card,
+body.theme-dark #page-absenz-typen .at-info-box,
+body.theme-dark #page-mindestloehne .card,
+body.theme-dark #page-lohnschema .ls-2col .card {
+    background: var(--dlg-glass) !important;
+    background-image: none !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    box-shadow: none !important;
+}
+body.theme-dark .at-mx-card .f-input,
+body.theme-dark .at-mx-card input[type="text"],
+body.theme-dark .at-mx-card input[type="number"],
+body.theme-dark .at-mx-card .lqsel-btn {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid var(--dlg-glass-border) !important;
+    color: #e2e8f0 !important;
+    box-shadow: none !important;
+}
+/* Tabellen-Bahnen + Köpfe der neuen Seiten */
+body.theme-dark #page-lohnschema .ls-2col tbody tr.ls-row td { background: rgba(255, 255, 255, 0.03); }
+body.theme-dark #page-lohnschema .ls-2col tbody tr.ls-row:hover td { background: rgba(255, 255, 255, 0.08); }
+body.theme-dark #page-lohnschema.fixhead .page-body .ls-2col table thead th { background: #2a3446 !important; color: #94a3b8; box-shadow: 0 1px 0 var(--dlg-glass-border); }
+body.theme-dark #page-mindestloehne.fixhead .page-body table thead th { background: #2a3446 !important; color: #94a3b8; }
+body.theme-dark #page-mindestloehne .mw-table th.mw-fut-col { background: rgba(255, 255, 255, 0.05) !important; }
+body.theme-dark #page-mindestloehne .mw-table td.mw-fut-col { background: rgba(255, 255, 255, 0.05); }
+body.theme-dark #page-mindestloehne .mw-table tbody tr:hover td.mw-fut-col { background: rgba(255, 255, 255, 0.10); }
+body.theme-dark #page-mindestloehne .mw-section-head { color: #e2e8f0; }
+/* Inline-helle Panels/Verläufe in JS-gebauten Modals → dunkles Glas */
+body.theme-dark div[style*="eeece4"] { background: var(--dlg-glass) !important; }
+body.theme-dark div[style*="#f6f3ee"] { background: rgba(255, 255, 255, 0.04) !important; border-color: var(--dlg-glass-border) !important; }
