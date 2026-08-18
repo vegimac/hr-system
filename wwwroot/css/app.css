@@ -11496,3 +11496,6 @@ body.theme-dark .sys-back-btn {
    wie die Betrags-Pills (12px Zelle + 8px Pill-Innenabstand) (Walter 18.08.2026) ── */
 #page-mindestloehne .mw-table th:not(.mw-edu-top) { padding-right: 20px; }
 #page-mindestloehne .mw-amount span { min-width: 0; }
+
+/* Mindestlöhne: auch die Stufen-Titel (IA/IB/…) auf die rechte Fluchtlinie (Walter 18.08.2026) */
+#page-mindestloehne .mw-table th.mw-edu-top { text-align: right; padding-right: 20px; }
