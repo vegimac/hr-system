@@ -86,16 +86,16 @@ function lsRender() {
             </td>
         </tr>`;
     const table = (rows, editable, mitGruppen = true) => rows.length ? `
-        <div class="card" style="padding:0 0 4px;overflow:visible;max-width:1060px">
+        <div class="card" style="padding:0 0 4px;overflow:visible">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
             <th style="text-align:left;padding:4px 10px;width:60px">Code</th>
             <th style="text-align:left;padding:6px 12px">Lohnposition</th>
-            <th style="text-align:left;padding:6px 12px;width:215px">Art</th>
-            <th class="elr-c" style="width:44px">AHV</th><th class="elr-c" style="width:44px">NBU</th>
-            <th class="elr-c" style="width:44px">KTG</th><th class="elr-c" style="width:44px">BVG</th>
-            <th class="elr-c" style="width:44px">QST</th><th class="elr-c" style="width:50px">13.ML</th>
-            <th style="width:44px"></th>
+            <th style="text-align:left;padding:4px 10px;width:195px">Art</th>
+            <th class="elr-c" style="width:34px">AHV</th><th class="elr-c" style="width:34px">NBU</th>
+            <th class="elr-c" style="width:34px">KTG</th><th class="elr-c" style="width:34px">BVG</th>
+            <th class="elr-c" style="width:34px">QST</th><th class="elr-c" style="width:44px">13.ML</th>
+            <th style="width:38px"></th>
         </tr></thead><tbody>
         ${mitGruppen
             ? artReihenfolge.map(art => {
@@ -113,9 +113,13 @@ function lsRender() {
             <span style="flex:1"></span>
             <button onclick="lsAddDialog()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">+ Position hinzufügen</button>
         </div>
-        ${table(rowsModell, true)}
-        <h3 style="font-size:13px;color:#3f3f3f;margin:14px 0 6px">Für alle Modelle</h3>
-        ${table(rowsAlle, true)}
+        <div class="ls-2col">
+            <div>${table(rowsModell, true)}</div>
+            <div>
+                <h3 style="font-size:13px;color:#3f3f3f;margin:0 0 6px">Für alle Modelle</h3>
+                ${table(rowsAlle, true)}
+            </div>
+        </div>
         <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Das Schema ist Dokumentation der Engine-Realität (verifiziert durch die Basen-Kontrolle) —
         es steuert die Berechnung nicht. Eine Änderung hier ändert keinen Lohn.</p>`;
 }

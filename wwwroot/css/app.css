@@ -11349,3 +11349,8 @@ body.theme-dark .sys-back-btn {
 }
 .at-mx-kopf { font-weight: 700; color: #2f2f2f; font-size: 13px; margin-bottom: 10px; padding-bottom: 7px; border-bottom: 1px solid rgba(60,55,48,0.10); }
 .at-mx-lbl  { display: block; font-size: 11px; font-weight: 600; color: #7a7a7a; text-transform: uppercase; letter-spacing: 0.03em; margin: 10px 0 4px; }
+
+
+/* Lohnschema: Modell-Blatt links, «Für alle Modelle» rechts (Walter 18.08.2026) */
+.ls-2col { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 18px; align-items: start; }
+@media (max-width: 1500px) { .ls-2col { grid-template-columns: 1fr; } }
