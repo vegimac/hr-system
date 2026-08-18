@@ -12580,11 +12580,11 @@ async function postfachSetupQr(employeeId) {
         const res = await fetch(`/api/postfach-setup/create/${employeeId}`, { method: 'POST', headers: ah() });
         const j = await res.json().catch(() => ({}));
         if (!res.ok) { alert(j.error || j.message || 'Fehler beim Erzeugen des QR-Codes.'); return; }
-        showSetupQrModal(j);
+        showSetupQrModal(j, employeeId);
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
-function showSetupQrModal(j) {
+function showSetupQrModal(j, employeeId) {
     let ov = document.getElementById('setupQrModal');
     if (!ov) {
         ov = document.createElement('div');
@@ -12606,8 +12606,37 @@ function showSetupQrModal(j) {
                 <input id="setupQrLink" readonly value="${esc(j.url)}" style="flex:1;min-width:0;font-size:12px;padding:10px 12px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;background:rgba(255,255,255,0.55);color:#3f3f3f">
                 <button style="background:#3f3f3f;color:#faf8f5;border:0;white-space:nowrap;font-weight:600;font-size:13px;padding:10px 16px;border-radius:12px;cursor:pointer;box-shadow:0 6px 16px rgba(60,55,48,0.18)" onclick="(function(){var e=document.getElementById('setupQrLink');e.select();navigator.clipboard&&navigator.clipboard.writeText(e.value);})()">Link kopieren</button>
             </div>
+            <!-- App-Link per E-Mail (Walter 18.08.2026) — für bestehende MA aus der Ferne -->
+            <div style="margin-top:14px;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px;text-align:left">
+                <button id="setupQrMailBtn" onclick="pfSendAppLinkMail(${employeeId})"
+                        style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f;width:100%">📧 Link per E-Mail an den MA senden</button>
+                <div id="setupQrMailStatus" style="font-size:12px;color:#6b6152;margin-top:6px"></div>
+            </div>
         </div>`;
     ov.style.display = 'flex';
+}
+
+// App-Link per E-Mail an bestehenden MA (Walter 18.08.2026). Solange der
+// TESTMODUS im Backend aktiv ist, wird die Mail an Walter umgeleitet —
+// der Status-Text weist das aus.
+async function pfSendAppLinkMail(employeeId) {
+    const btn = document.getElementById('setupQrMailBtn');
+    const st = document.getElementById('setupQrMailStatus');
+    if (btn) { btn.disabled = true; btn.textContent = 'Sende E-Mail…'; }
+    try {
+        const r = await fetch(`/api/postfach-setup/send-app-link/${employeeId}`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || j.message || ('HTTP ' + r.status));
+        if (st) st.innerHTML = j.redirected
+            ? `✅ Gesendet an <b>${esc(j.sentTo)}</b> <span style="color:#92400e">(TESTMODUS — eigentlicher Empfänger: ${esc(j.empEmail || '–')})</span>`
+            : `✅ Gesendet an <b>${esc(j.sentTo)}</b>`;
+        if (btn) btn.textContent = '📧 Erneut senden';
+    } catch (e) {
+        if (st) st.innerHTML = `<span style="color:#b91c1c">Fehler: ${esc(e.message)}</span>`;
+        if (btn) btn.textContent = '📧 Link per E-Mail an den MA senden';
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 // HR: alle Face-ID-/Passkey-Geräte eines MA löschen (z.B. bei Geräteverlust).

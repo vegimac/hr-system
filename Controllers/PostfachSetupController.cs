@@ -29,11 +29,20 @@ public class PostfachSetupController : ControllerBase
     private readonly AppDbContext _db;
     private readonly EmployeePostfachService _postfach;
     private readonly IConfiguration _config;
+    private readonly EmailService _email;
 
-    public PostfachSetupController(AppDbContext db, EmployeePostfachService postfach, IConfiguration config)
+    public PostfachSetupController(AppDbContext db, EmployeePostfachService postfach, IConfiguration config, EmailService email)
     {
-        _db = db; _postfach = postfach; _config = config;
+        _db = db; _postfach = postfach; _config = config; _email = email;
     }
+
+    /// <summary>
+    /// TESTMODUS (Walter-Vorgabe 18.08.2026): App-Link-Mails gehen NICHT an den
+    /// MA, sondern umgeleitet an diese Adresse — bis Walter den Versand scharf
+    /// schaltet (dann Konstante auf null setzen). Der eigentliche Empfänger wird
+    /// im Betreff + Mail-Kopf ausgewiesen.
+    /// </summary>
+    private const string? AppLinkTestRedirect = "walter.schaub@gmail.com";
 
     private int? UserId() =>
         int.TryParse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
@@ -105,6 +114,81 @@ public class PostfachSetupController : ControllerBase
             firstName = emp.FirstName,
             username  = user.Username,
         });
+    }
+
+    // ── HR: App-Link per E-MAIL an bestehenden MA (Walter-Vorgabe 18.08.2026).
+    // Gleiche Token-Mechanik wie der QR, aber 7 Tage gültig und als Mail mit
+    // Kurz-Anleitung. Kostenlos (statt SMS); SMS bleibt als Kanal-Reserve.
+    [HttpPost("send-app-link/{employeeId:int}")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> SendAppLink(int employeeId)
+    {
+        var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null) return NotFound(new { error = "Mitarbeiter nicht gefunden." });
+        if (string.IsNullOrWhiteSpace(emp.Email))
+            return BadRequest(new { error = "Beim MA ist keine E-Mail-Adresse hinterlegt." });
+
+        var primary = await _postfach.GetPrimaryCompanyAsync(employeeId);
+        await _postfach.EnsureAccountAsync(emp, primary);
+        var user = await _db.AppUsers.FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        if (user == null) return BadRequest(new { error = "Postfach-Account konnte nicht angelegt werden." });
+
+        var old = await _db.PostfachSetupTokens.Where(t => t.AppUserId == user.Id && t.UsedAt == null).ToListAsync();
+        if (old.Count > 0) _db.PostfachSetupTokens.RemoveRange(old);
+
+        var (token, hash) = NewToken();
+        var expiresAt = DateTime.Now.AddDays(7);
+        _db.PostfachSetupTokens.Add(new PostfachSetupToken
+        {
+            AppUserId = user.Id,
+            TokenHash = hash,
+            Purpose   = "onboarding",
+            ExpiresAt = expiresAt,
+            CreatedAt = DateTime.Now,
+            CreatedBy = UserId(),
+        });
+        await _db.SaveChangesAsync();
+
+        var siteRow = await _db.SmtpSettings.AsNoTracking().FirstOrDefaultAsync();
+        var baseUrl = (siteRow != null && !string.IsNullOrWhiteSpace(siteRow.SiteUrl))
+            ? siteRow.SiteUrl.Trim() : "https://onecrew.ch/";
+        var url = $"{baseUrl.TrimEnd('/')}/setup.html?t={token}";
+        var anleitungUrl = $"{baseUrl.TrimEnd('/')}/anleitung.html";
+
+        var to = AppLinkTestRedirect ?? emp.Email!.Trim();
+        var redirected = AppLinkTestRedirect != null;
+        var subject = redirected
+            ? $"[TEST — eigentlich an {emp.Email}] Dein OneCrew-Postfach"
+            : "Dein OneCrew-Postfach";
+        var bisTxt = expiresAt.ToString("dd.MM.yyyy");
+
+        var testHinweis = redirected
+            ? $"<div style='background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#92400e'>TESTMODUS — diese Mail wäre an <b>{emp.Email}</b> gegangen.</div>"
+            : "";
+        var html = $@"<div style='font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;background:#f4f0e8;border-radius:16px;padding:28px 30px;color:#3f3f3f'>
+            {testHinweis}
+            <h2 style='margin:0 0 6px;font-size:20px'>Hallo {emp.FirstName}</h2>
+            <p style='font-size:14px;line-height:1.55;margin:0 0 18px'>Ab sofort hast du dein persönliches <b>OneCrew-Postfach</b> auf dem Handy: Lohnabrechnungen, Dokumente senden und Mitteilungen — alles an einem Ort.</p>
+            <p style='text-align:center;margin:22px 0'>
+                <a href='{url}' style='background:#1a1a1a;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 30px;border-radius:12px;display:inline-block'>Postfach jetzt einrichten</a>
+            </p>
+            <p style='font-size:12px;color:#8b8578;text-align:center;margin:0 0 22px'>Der Link ist persönlich und bis {bisTxt} gültig.</p>
+            <div style='background:#ffffff;border-radius:12px;padding:16px 18px;font-size:13.5px;line-height:1.7'>
+                <b>So geht es — in 4 Schritten:</b><br>
+                ① Link oben antippen und dein eigenes Passwort festlegen.<br>
+                ② Danach bietet dir die App <b>Face ID / Fingerabdruck</b> an — empfohlen, dann brauchst du kein Passwort mehr.<br>
+                ③ App aufs Handy: iPhone → Teilen-Symbol → «Zum Home-Bildschirm». Android → Menü → «App installieren».<br>
+                ④ Dokumente senden: einfach ein <b>Foto</b> machen (z.B. Ausweis) und abschicken — den Rest erledigt das Büro.
+            </div>
+            <p style='font-size:12.5px;margin:16px 0 0'>Die ausführliche Anleitung mit Bildern: <a href='{anleitungUrl}' style='color:#6b7280'>{anleitungUrl}</a></p>
+            <p style='font-size:12.5px;color:#8b8578;margin:18px 0 0'>Fragen? Melde dich bei deiner Restaurantleitung.<br>Schaub Restaurants GmbH</p>
+        </div>";
+        var text = $"Hallo {emp.FirstName}\n\nDein persönliches OneCrew-Postfach: {url}\n(gültig bis {bisTxt})\n\n1. Link öffnen und Passwort festlegen\n2. Face ID aktivieren (empfohlen)\n3. iPhone: Teilen -> Zum Home-Bildschirm / Android: App installieren\n4. Dokumente: Foto machen und senden - den Rest erledigt das Büro\n\nAnleitung: {anleitungUrl}\n\nSchaub Restaurants GmbH";
+
+        var ok = await _email.SendAsync(to, $"{emp.FirstName} {emp.LastName}", subject, html, text);
+        if (!ok) return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen (SMTP prüfen)." });
+
+        return Ok(new { sentTo = to, redirected, empEmail = emp.Email, expiresAt });
     }
 
     // ── MA: Token prüfen (Landing zeigt Begrüssung) ─────────────────────
