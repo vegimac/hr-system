@@ -11025,7 +11025,7 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
 .dp-side { position:sticky; left:0; background:#f6f3ee !important; z-index:3; text-align:left !important; padding:2px 8px !important; min-width:110px; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .dp-name { font-weight:600; color:#3f3f3f; background:#fff !important; }
 .dp-gf { font-weight:800; }
-body.theme-dark .dp-gf { color:#fff !important; }
+
 .dp-we { background:#efece6; }
 .dp-branch td { background:#3f3f3f !important; color:#fff !important; font-weight:700; font-size:11px; letter-spacing:.4px; text-align:left; padding:3px 8px; }
 .dp-cell { font-weight:700; color:#3f3f3f; user-select:none; }
@@ -11046,17 +11046,17 @@ body.theme-dark .dp-gf { color:#fff !important; }
 .dp-table td.dp-wenok { color:#b91c1c; font-size:10.5px; letter-spacing:.3px; }
 .dp-table .dp-sumfirst { border-left:2px solid #a39c8f !important; }
 .dp-branch td.dp-sumfirst { border-left-color:#a39c8f; }
-body.theme-dark .dp-table .dp-mo, body.theme-dark .dp-table .dp-sumfirst { border-left-color:#4a5a72 !important; }
-body.theme-dark .dp-table .dp-sum { background:#1c2a40; color:#cbd5e1; }
+
+
 .dp-branch td.dp-brft { background:#f87171 !important; color:#fff !important; }
 .dp-branch td.dp-brsf { background:#93c5fd !important; }
 td.dp-cell.dp-ftday { background:#fdeaea; }
-body.theme-dark td.dp-cell.dp-ftday { background:rgba(248,113,113,0.16); }
-body.theme-dark .dp-scroll { background:rgba(8,18,34,0.6); }
-body.theme-dark .dp-table thead th, body.theme-dark .dp-side { background:#1c2a40 !important; color:#cbd5e1; }
-body.theme-dark .dp-name { background:rgba(8,18,34,0.6) !important; color:#e8edf4; }
-body.theme-dark .dp-we { background:rgba(255,255,255,0.05); }
-body.theme-dark .dp-cell { color:#e8edf4; }
+
+/* Dark Mode = HELLE INSEL (Walter 18.08.2026): die Zellfarben kommen inline aus
+   dem Kürzel-Katalog (Pastell) — ein halb-dunkles Grid war unlesbar. Der Plan
+   sieht deshalb in beiden Themes identisch aus, wie ein Papier-Dienstplan. */
+body.theme-dark .dp-scroll { background:#fff; border-color:rgba(60,55,48,0.25); }
+body.theme-dark .dp-table td { background:#fff; }
 /* Grid scrollt INTERN (nicht der page-body) — nur so bleiben die sticky
    Datum-/Tag-Kopfzeilen und die Namensspalte beim Scrollen stehen.
    (Der frühere @media-print-Hack ist raus — Drucken läuft übers PDF.) */
