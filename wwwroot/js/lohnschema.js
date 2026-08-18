@@ -86,10 +86,10 @@ function lsRender() {
             </td>
         </tr>`;
     const table = (rows, editable, mitGruppen = true) => rows.length ? `
-        <div class="card" style="padding:0 0 6px;overflow:visible;max-width:1100px">
-        <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <div class="card" style="padding:0 0 4px;overflow:visible;max-width:1060px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
-            <th style="text-align:left;padding:6px 12px;width:64px">Code</th>
+            <th style="text-align:left;padding:4px 10px;width:60px">Code</th>
             <th style="text-align:left;padding:6px 12px">Lohnposition</th>
             <th style="text-align:left;padding:6px 12px;width:215px">Art</th>
             <th class="elr-c" style="width:44px">AHV</th><th class="elr-c" style="width:44px">NBU</th>
@@ -114,7 +114,7 @@ function lsRender() {
             <button onclick="lsAddDialog()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:12.5px;font-weight:600;cursor:pointer">+ Position hinzufügen</button>
         </div>
         ${table(rowsModell, true)}
-        <h3 style="font-size:14px;color:#3f3f3f;margin:22px 0 8px">Für alle Modelle</h3>
+        <h3 style="font-size:13px;color:#3f3f3f;margin:14px 0 6px">Für alle Modelle</h3>
         ${table(rowsAlle, true)}
         <p style="color:#b0aca3;font-size:11.5px;margin-top:14px">Das Schema ist Dokumentation der Engine-Realität (verifiziert durch die Basen-Kontrolle) —
         es steuert die Berechnung nicht. Eine Änderung hier ändert keinen Lohn.</p>`;
