@@ -712,6 +712,78 @@ public class MailboxController : ControllerBase
         return Ok();
     }
 
+    // ── POST: Zugeschnittene Foto(s) → EIN PDF als NEUER Eintrag im selben
+    // Postfach (Walter-Vorgabe 18.08.2026). Das Frontend schneidet die Bilder
+    // clientseitig zu (Canvas) und schickt sie als JPEG-Seiten; die Quelle
+    // bestimmt das Ziel-Postfach (gleiches Target wie das Original-Foto).
+    // Typischer Fall: MA sendet Ausweis Vorder-/Rückseite als 2 Fotos →
+    // HR schneidet zu → 1 PDF mit 2 Seiten im selben Postfach; die Fotos
+    // können danach gelöscht werden (separater Delete, mit Rückfrage im UI).
+    [HttpPost("images-to-pdf")]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
+    public async Task<IActionResult> ImagesToPdf(
+        [FromForm] List<IFormFile> pages,
+        [FromForm] int sourceDocumentId,
+        [FromForm] string? fileName)
+    {
+        if (pages == null || pages.Count == 0)
+            return BadRequest(new { error = "Keine Bilder übermittelt." });
+
+        var src = await _db.MailboxDocuments.AsNoTracking()
+            .FirstOrDefaultAsync(d => d.Id == sourceDocumentId);
+        if (src == null) return NotFound(new { error = "Quell-Eintrag nicht gefunden." });
+        if (!await UserCanViewDocumentAsync(src)) return Forbid();
+
+        var name = string.IsNullOrWhiteSpace(fileName) ? "Dokument.pdf" : fileName.Trim();
+        if (!name.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) name += ".pdf";
+
+        byte[] pdfBytes;
+        var ms = new MemoryStream();
+        using (var writer = new iText.Kernel.Pdf.PdfWriter(ms))
+        using (var pdf = new iText.Kernel.Pdf.PdfDocument(writer))
+        {
+            var layout = new iText.Layout.Document(pdf);
+            layout.SetMargins(0, 0, 0, 0);
+            for (int i = 0; i < pages.Count; i++)
+            {
+                byte[] bytes;
+                using (var s = new MemoryStream()) { await pages[i].CopyToAsync(s); bytes = s.ToArray(); }
+                var data = iText.IO.Image.ImageDataFactory.Create(bytes);
+                var ps = new iText.Kernel.Geom.PageSize(data.GetWidth(), data.GetHeight());
+                if (i == 0) pdf.SetDefaultPageSize(ps);
+                else layout.Add(new iText.Layout.Element.AreaBreak(ps));
+                var img = new iText.Layout.Element.Image(data).SetFixedPosition(i + 1, 0, 0);
+                layout.Add(img);
+            }
+            layout.Close();
+        }
+        pdfBytes = ms.ToArray();
+
+        var storageName = Guid.NewGuid().ToString("N") + ".pdf";
+        var dir = Path.Combine(_storagePath, "mailbox", src.CompanyProfileId.ToString());
+        Directory.CreateDirectory(dir);
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storageName), pdfBytes);
+
+        var doc = new MailboxDocument
+        {
+            CompanyProfileId = src.CompanyProfileId,
+            UploadedBy       = GetCurrentUserId(),
+            UploadedAt       = DateTime.Now,
+            OriginalFilename = name,
+            StorageFilename  = storageName,
+            MimeType         = "application/pdf",
+            FileSizeBytes    = pdfBytes.Length,
+            Bemerkung        = $"PDF aus {pages.Count} Foto(s) erstellt",
+            EmployeeId       = src.EmployeeId,
+            TargetType       = src.TargetType,
+            TargetUserId     = src.TargetUserId,
+        };
+        _db.MailboxDocuments.Add(doc);
+        await _db.SaveChangesAsync();
+        return Ok(new { id = doc.Id, name });
+    }
+
     /// <summary>
     /// Dokument in ein anderes Postfach verschieben oder weiterleiten
     /// (Walter 25.07.2026). mode: «move» = verschieben, «forward» = Kopie.

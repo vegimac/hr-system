@@ -18,6 +18,7 @@ let _pbSelectedTypId = null;
 //   - Browser-Tab im Hintergrund (Visibility API)
 //   - Ein Modal (Upload, Verschieben) oder Preview offen ist
 let _pbAutoTimer = null;
+let _pbLastDocs = [];          // zuletzt geladene Liste (für Foto→PDF-Mehrseiten)
 const PB_REFRESH_MS = 20000;
 
 function pbAnyModalOpen() {
@@ -246,6 +247,7 @@ async function pbLoadList() {
         const r = await fetch(url, { headers: ah() });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         docs = await r.json();
+        _pbLastDocs = docs || [];
         if (!docs.length) {
             list.innerHTML = '<div style="padding:32px;text-align:center;color:#94a3b8;font-size:13px;background:#f8fafc;border-radius:10px">Posteingang ist leer 📭</div>';
             pbUpdateBadge();
@@ -540,14 +542,23 @@ async function pbDoUpload(e) {
     }
 }
 
+
+// Content-Disposition → Dateiname (Walter 18.08.2026): filename*=UTF-8''…
+// bevorzugen und dekodieren — vorher stand der ganze Header im Titel.
+function pbCdFilename(cd, fallback) {
+    cd = cd || '';
+    const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+    if (star) { try { return decodeURIComponent(star[1].trim()); } catch { /* weiter */ } }
+    const plain = /filename="?([^";]+)"?/i.exec(cd);
+    return plain ? plain[1].trim() : fallback;
+}
+
 async function pbDownload(id) {
     try {
         const r = await fetch(`/api/mailbox/${id}/download`, { headers: ah() });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
-        const cd = r.headers.get('Content-Disposition') || '';
-        const fnMatch = /filename="?([^"]+)"?/.exec(cd);
-        const fn = fnMatch ? fnMatch[1] : `posteingang-${id}`;
+        const fn = pbCdFilename(r.headers.get('Content-Disposition'), `posteingang-${id}`);
         // PDF/Bilder → Vorschaufenster; andere Typen (Word/Excel…) → direkt speichern.
         await previewFileModal(blob, fn);
     } catch (err) { alert('Download-Fehler: ' + err.message); }
@@ -829,9 +840,7 @@ async function pbOpenPreview(id) {
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const blob = await r.blob();
         _pbPreviewUrl = URL.createObjectURL(blob);
-        const cd = r.headers.get('Content-Disposition') || '';
-        const fnMatch = /filename="?([^"]+)"?/.exec(cd);
-        const fn = fnMatch ? fnMatch[1] : `dokument-${id}`;
+        const fn = pbCdFilename(r.headers.get('Content-Disposition'), `dokument-${id}`);
         document.getElementById('pbPreviewTitle').textContent = '👁 ' + fn;
 
         const mime = blob.type || '';
@@ -841,7 +850,12 @@ async function pbOpenPreview(id) {
         if (isPdf) {
             body.innerHTML = `<iframe src="${_pbPreviewUrl}" style="width:100%;height:100%;border:none;background:white"></iframe>`;
         } else if (isImg) {
-            body.innerHTML = `<img src="${_pbPreviewUrl}" style="max-width:100%;max-height:100%;background:white"/>`;
+            body.innerHTML = `
+                <div style="padding:6px 10px;display:flex;gap:8px;border-bottom:1px solid rgba(60,55,48,0.15)">
+                    <button onclick="pbClosePreview();pbOpenCropper(${id})"
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer">✂️ Zuschneiden → PDF</button>
+                </div>
+                <div style="text-align:center;overflow:auto;height:calc(100% - 44px)"><img src="${_pbPreviewUrl}" style="max-width:100%;max-height:100%;background:white"/></div>`;
         } else {
             body.innerHTML = `<div style="padding:24px;text-align:center;color:#475569">
                 <div style="font-size:14px;margin-bottom:12px">Keine Vorschau für diesen Dateityp möglich.</div>
@@ -861,3 +875,217 @@ function pbClosePreview() {
 // Beim App-Start einmal Badge aktualisieren
 window.addEventListener('DOMContentLoaded', () => setTimeout(pbUpdateBadge, 1500));
 
+
+// ═══════════════════════════════════════════════════════════════════════
+//  Foto → PDF (Walter-Vorgabe 18.08.2026)
+//  Bild(er) aus dem Postfach clientseitig zuschneiden (Canvas), der Server
+//  macht daraus EIN mehrseitiges PDF und legt es als NEUEN Eintrag im
+//  selben Postfach ab (POST /api/mailbox/images-to-pdf). Typischer Fall:
+//  Ausweis Vorder-/Rückseite = 2 Fotos → 1 PDF mit 2 Seiten. Danach
+//  Rückfrage, ob die Original-Fotos gelöscht werden sollen.
+// ═══════════════════════════════════════════════════════════════════════
+let _pbCrop = null;   // { sourceId, img, natW, natH, sel, pages:[{blob,url,srcId}], usedIds:Set }
+
+function _pbIsImgDoc(d) {
+    if (!d || d.messageBody) return false;
+    const fn = d.originalFilename || '';
+    return (d.mimeType || '').startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(fn);
+}
+
+async function pbOpenCropper(id) {
+    const doc = _pbLastDocs.find(x => x.id === id);
+    _pbCrop = { sourceId: id, img: null, natW: 0, natH: 0, sel: null, pages: [], usedIds: new Set() };
+
+    let m = document.getElementById('pbCropModal');
+    if (m) m.remove();
+    m = document.createElement('div');
+    m.id = 'pbCropModal';
+    m.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;padding:20px';
+    m.onclick = e => { if (e.target === m) pbCropClose(); };
+    const defName = (doc?.employee?.name ? doc.employee.name + ' ' : '') + 'Dokument';
+    m.innerHTML = `
+    <div class="modal" style="width:min(1100px,calc(100vw - 40px));max-height:calc(100vh - 60px);overflow-y:auto;padding:18px 22px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:16px;font-weight:800;color:#3f3f3f">✂️ Foto zuschneiden → PDF</div>
+            <button onclick="pbCropClose()" style="background:none;border:none;cursor:pointer;font-size:20px;color:#8b8b8b">✕</button>
+        </div>
+        <div style="font-size:12px;color:#6b6152;margin-bottom:8px">Mit der Maus einen Rahmen aufziehen (ohne Rahmen = ganzes Bild). Dann «Seite übernehmen» — weitere Fotos (z.B. Ausweis-Rückseite) unten anfügen.</div>
+        <div id="pbCropStage" style="position:relative;display:inline-block;max-width:100%;cursor:crosshair;user-select:none;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2)">
+            <img id="pbCropImg" style="max-width:100%;max-height:56vh;display:block;border-radius:8px" draggable="false">
+            <div id="pbCropSel" style="display:none;position:absolute;border:2px dashed #1a1a1a;background:rgba(255,255,255,0.25);pointer-events:none"></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap">
+            <button onclick="pbCropReset()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">Ganzes Bild</button>
+            <button onclick="pbCropTakePage()" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 16px;font-size:12.5px;font-weight:700;cursor:pointer">✓ Seite übernehmen</button>
+            <span style="flex:1"></span>
+            <select id="pbCropNextSel" style="max-width:320px;padding:6px 10px;border-radius:10px;font-size:12px"></select>
+            <button onclick="pbCropLoadNext()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">+ Bild laden</button>
+        </div>
+        <div id="pbCropPages" style="display:flex;gap:8px;flex-wrap:wrap;min-height:8px;margin-bottom:10px"></div>
+        <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px">
+            <label style="font-size:12px;color:#6b6152">Dateiname
+                <input id="pbCropName" value="${defName}" style="margin-left:6px;padding:6px 10px;border-radius:10px;font-size:12.5px;width:260px">
+            </label>
+            <button onclick="pbCropClose()" style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:8px 16px;font-size:13px;cursor:pointer;color:#3f3f3f">Abbrechen</button>
+            <button id="pbCropSaveBtn" onclick="pbCropSave()" style="background:#1a1a1a;color:#fff;border:none;border-radius:10px;padding:8px 20px;font-size:13px;font-weight:700;cursor:pointer">📄 PDF erstellen &amp; ablegen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+
+    // Drag-Auswahl
+    const stage = document.getElementById('pbCropStage');
+    let drag = null;
+    stage.addEventListener('mousedown', e => {
+        const r = stage.getBoundingClientRect();
+        drag = { x0: e.clientX - r.left, y0: e.clientY - r.top };
+        e.preventDefault();
+    });
+    window.addEventListener('mousemove', e => {
+        if (!drag) return;
+        const r = stage.getBoundingClientRect();
+        const x1 = Math.min(Math.max(e.clientX - r.left, 0), r.width);
+        const y1 = Math.min(Math.max(e.clientY - r.top, 0), r.height);
+        const sel = {
+            x: Math.min(drag.x0, x1), y: Math.min(drag.y0, y1),
+            w: Math.abs(x1 - drag.x0), h: Math.abs(y1 - drag.y0),
+        };
+        _pbCrop.sel = sel;
+        const el = document.getElementById('pbCropSel');
+        if (el) {
+            el.style.display = 'block';
+            el.style.left = sel.x + 'px'; el.style.top = sel.y + 'px';
+            el.style.width = sel.w + 'px'; el.style.height = sel.h + 'px';
+        }
+    });
+    window.addEventListener('mouseup', () => {
+        if (drag && _pbCrop?.sel && (_pbCrop.sel.w < 8 || _pbCrop.sel.h < 8)) pbCropReset();
+        drag = null;
+    });
+
+    pbCropFillNextSel();
+    await pbCropLoadImage(id);
+}
+
+function pbCropFillNextSel() {
+    const sel = document.getElementById('pbCropNextSel');
+    if (!sel) return;
+    const opts = _pbLastDocs.filter(d => _pbIsImgDoc(d))
+        .map(d => `<option value="${d.id}">${(d.originalFilename || ('Bild ' + d.id))}${d.uploader ? ' · ' + (d.uploader.name || '') : ''}</option>`);
+    sel.innerHTML = opts.length ? opts.join('') : '<option value="">— keine weiteren Bilder —</option>';
+}
+
+async function pbCropLoadImage(docId) {
+    const r = await fetch(`/api/mailbox/${docId}/preview`, { headers: ah() });
+    if (!r.ok) { alert('Bild konnte nicht geladen werden.'); return; }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const img = document.getElementById('pbCropImg');
+    img.onload = () => { _pbCrop.natW = img.naturalWidth; _pbCrop.natH = img.naturalHeight; };
+    img.src = url;
+    _pbCrop.curDocId = docId;
+    pbCropReset();
+}
+
+function pbCropReset() {
+    if (_pbCrop) _pbCrop.sel = null;
+    const el = document.getElementById('pbCropSel');
+    if (el) el.style.display = 'none';
+}
+
+async function pbCropLoadNext() {
+    const sel = document.getElementById('pbCropNextSel');
+    const id = parseInt(sel?.value, 10);
+    if (id) await pbCropLoadImage(id);
+}
+
+// Aktuelle Auswahl (oder ganzes Bild) als JPEG-Seite übernehmen
+function pbCropTakePage() {
+    return new Promise(resolve => {
+        const img = document.getElementById('pbCropImg');
+        if (!img || !img.naturalWidth) { resolve(false); return; }
+        const scaleX = img.naturalWidth / img.clientWidth;
+        const scaleY = img.naturalHeight / img.clientHeight;
+        const s = _pbCrop.sel;
+        const sx = s ? Math.round(s.x * scaleX) : 0;
+        const sy = s ? Math.round(s.y * scaleY) : 0;
+        const sw = s ? Math.max(1, Math.round(s.w * scaleX)) : img.naturalWidth;
+        const sh = s ? Math.max(1, Math.round(s.h * scaleY)) : img.naturalHeight;
+        const c = document.createElement('canvas');
+        c.width = sw; c.height = sh;
+        c.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        c.toBlob(blob => {
+            if (!blob) { resolve(false); return; }
+            const url = URL.createObjectURL(blob);
+            _pbCrop.pages.push({ blob, url, srcId: _pbCrop.curDocId });
+            _pbCrop.usedIds.add(_pbCrop.curDocId);
+            pbCropRenderPages();
+            pbCropReset();
+            resolve(true);
+        }, 'image/jpeg', 0.92);
+    });
+}
+
+function pbCropRenderPages() {
+    const host = document.getElementById('pbCropPages');
+    if (!host) return;
+    host.innerHTML = _pbCrop.pages.map((p, i) => `
+        <div style="position:relative">
+            <img src="${p.url}" style="height:72px;border-radius:6px;border:1px solid rgba(60,55,48,0.25);background:#fff">
+            <span style="position:absolute;left:4px;bottom:4px;background:#1a1a1a;color:#fff;font-size:10px;font-weight:700;border-radius:6px;padding:1px 6px">S. ${i + 1}</span>
+            <button onclick="_pbCrop.pages.splice(${i},1);pbCropRenderPages()" title="Seite entfernen"
+                    style="position:absolute;top:-6px;right:-6px;background:#fff;border:1px solid #cbd5e1;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer;line-height:1">✕</button>
+        </div>`).join('');
+}
+
+async function pbCropSave() {
+    if (!_pbCrop) return;
+    // Bequemlichkeit: noch keine Seite übernommen → aktuelle Ansicht nehmen
+    if (_pbCrop.pages.length === 0) {
+        const ok = await pbCropTakePage();
+        if (!ok || _pbCrop.pages.length === 0) { alert('Keine Seite übernommen.'); return; }
+    }
+    const btn = document.getElementById('pbCropSaveBtn');
+    btn.disabled = true; btn.textContent = 'Erstelle PDF…';
+    try {
+        const fd = new FormData();
+        _pbCrop.pages.forEach((p, i) => fd.append('pages', p.blob, `seite-${i + 1}.jpg`));
+        fd.append('sourceDocumentId', String(_pbCrop.sourceId));
+        fd.append('fileName', document.getElementById('pbCropName')?.value || 'Dokument');
+        const r = await fetch('/api/mailbox/images-to-pdf', {
+            method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd,
+        });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try { const j = await r.json(); msg = j.message || j.error || msg; } catch { }
+            throw new Error(msg);
+        }
+        const usedIds = [..._pbCrop.usedIds];
+        pbCropClose();
+        await pbLoadList();
+        if (typeof showToast === 'function') showToast('PDF im Postfach abgelegt.', 'success');
+        // Original-Fotos löschen? (Walter: die Fotos werden danach nicht mehr gebraucht)
+        const frage = usedIds.length === 1
+            ? 'Original-Foto jetzt löschen? Das PDF ist im Postfach abgelegt.'
+            : `Die ${usedIds.length} Original-Fotos jetzt löschen? Das PDF ist im Postfach abgelegt.`;
+        const del = typeof liquidConfirm === 'function'
+            ? await liquidConfirm(frage, { title: 'Fotos aufräumen', yesLabel: 'Löschen', noLabel: 'Behalten' })
+            : confirm(frage);
+        if (del) {
+            for (const id of usedIds) {
+                try { await fetch(`/api/mailbox/${id}`, { method: 'DELETE', headers: ah() }); } catch { }
+            }
+            await pbLoadList();
+            await pbRefreshPostfachCounts();
+            await pbUpdateBadge();
+        }
+    } catch (err) {
+        alert('Fehler: ' + err.message);
+        btn.disabled = false; btn.textContent = '📄 PDF erstellen & ablegen';
+    }
+}
+
+function pbCropClose() {
+    _pbCrop?.pages?.forEach(p => URL.revokeObjectURL(p.url));
+    _pbCrop = null;
+    document.getElementById('pbCropModal')?.remove();
+}
