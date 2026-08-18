@@ -1493,6 +1493,7 @@ function svRender() {
             <div class="dok-menu-wrap" style="display:inline-block">
                 <button class="dok-menu-btn" onclick="svToggleMenu(event, ${r.id})" title="Aktionen">⋮</button>
                 <div class="dok-menu" id="svMenu-${r.id}">
+                    <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'view')">👁 Ansehen</button>
                     ${editItem}
                     <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'new-version')">Neu ab Datum</button>
                     <button class="dok-menu-item" onclick="svOpenForm(${rateJson}, 'duplicate')" title="Alle Werte übernehmen und als NEUEN Satz speichern — z.B. für eine Filial-Abweichung">⧉ Duplizieren</button>
@@ -1649,6 +1650,7 @@ function svOpenForm(rate, mode) {
     const titleMap = {
         'new':         isDuplicate ? `Neuer SV-Satz — Kopie von «${rate?.name ?? rate?.code ?? ''}»` : 'Neuer SV-Satz',
         'edit':        'SV-Satz bearbeiten',
+        'view':        `SV-Satz ansehen — ${rate?.name ?? rate?.code ?? ''}`,
         'new-version': `Neue Version ab — ${rate?.name ?? rate?.code ?? ''}`,
     };
     document.getElementById('svFormTitle').textContent = titleMap[_svFormMode];
@@ -1721,9 +1723,20 @@ function svOpenForm(rate, mode) {
         }
     }
 
+    // «Ansehen» (Walter 18.08.2026): dieselbe Maske mit allen Infos, aber
+    // read-only — alle Felder gesperrt, Speichern-Knopf versteckt.
+    const isView = _svFormMode === 'view';
+    document.querySelectorAll('#svFormPanel input, #svFormPanel select').forEach(el => {
+        if (el.id === 'svCompanyProfile') return;   // hat oben eigene disabled-Logik
+        el.disabled = isView;
+    });
+    if (isView && cpSel) cpSel.disabled = true;
+    const submitBtn = document.querySelector('#svForm button[type="submit"]');
+    if (submitBtn) submitBtn.style.display = isView ? 'none' : '';
+
     document.getElementById('svFormOverlay').style.display = 'block';
     document.getElementById('svFormPanel').style.display   = 'block';
-    document.getElementById(_svFormMode === 'new-version' ? 'svValidFrom' : 'svName').focus();
+    if (!isView) document.getElementById(_svFormMode === 'new-version' ? 'svValidFrom' : 'svName').focus();
 }
 
 function svCloseForm() {
