@@ -1142,6 +1142,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ReduziertSaldo).HasColumnName("reduziert_saldo").HasMaxLength(20);
             entity.Property(e => e.BasisStunden).HasColumnName("basis_stunden").HasMaxLength(10).HasDefaultValue("BETRIEB");
             entity.Property(e => e.BasisStundenMtp).HasColumnName("basis_stunden_mtp").HasMaxLength(10).HasDefaultValue("GARANTIE");
+            entity.Property(e => e.WirkungFix).HasColumnName("wirkung_fix").HasDefaultValue(true);
+            entity.Property(e => e.WirkungMtp).HasColumnName("wirkung_mtp").HasDefaultValue(true);
+            entity.Property(e => e.WirkungFlex).HasColumnName("wirkung_flex").HasDefaultValue(false);
+            entity.Property(e => e.ZaehlweiseFix).HasColumnName("zaehlweise_fix").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");
+            entity.Property(e => e.ZaehlweiseMtp).HasColumnName("zaehlweise_mtp").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");
+            entity.Property(e => e.ZaehlweiseFlex).HasColumnName("zaehlweise_flex").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");
+            entity.Property(e => e.BasisFix).HasColumnName("basis_fix").HasMaxLength(10).HasDefaultValue("BETRIEB");
+            entity.Property(e => e.BasisMtp).HasColumnName("basis_mtp").HasMaxLength(10).HasDefaultValue("GARANTIE");
             entity.Property(e => e.LohnpositionAuszahlungCode).HasColumnName("lohnposition_auszahlung_code").HasMaxLength(20);
             entity.Property(e => e.LohnpositionKuerzungCode).HasColumnName("lohnposition_kuerzung_code").HasMaxLength(20);
             entity.Property(e => e.Pattern).HasColumnName("pattern").HasMaxLength(20).HasDefaultValue("KEIN");

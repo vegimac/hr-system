@@ -61,6 +61,20 @@ public class AbsenzTyp
     /// </summary>
     public string BasisStundenMtp { get; set; } = "GARANTIE";
 
+    // ── Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026, FIXIERT) ──
+    // docs/absenz-matrix-konzept.md — Wirkung/Zählweise/Basis pro Spalte.
+    // Zählweise: KALENDER (1/7) | ARBEITSTAGE (1/5 Mo–Fr) | DIENSTPLAN
+    // (1/5 nur «hätte gearbeitet»-Tage, Fallback Mo–Fr).
+    // Die Legacy-Felder oben bleiben bis nach dem Grün-Lauf als Brücke.
+    public bool   WirkungFix     { get; set; } = true;
+    public bool   WirkungMtp     { get; set; } = true;
+    public bool   WirkungFlex    { get; set; } = false;
+    public string ZaehlweiseFix  { get; set; } = "ARBEITSTAGE";
+    public string ZaehlweiseMtp  { get; set; } = "ARBEITSTAGE";
+    public string ZaehlweiseFlex { get; set; } = "ARBEITSTAGE";
+    public string BasisFix       { get; set; } = "BETRIEB";
+    public string BasisMtp       { get; set; } = "GARANTIE";
+
     /// <summary>
     /// Lohnposition-Code für die Auszahlung dieser Absenz (z.B. "70" für
     /// Krankheits-Karenzentschädigung, "2" für Festlohn für bezogene Ferien).

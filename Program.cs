@@ -3175,6 +3175,45 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
+    // Absenz-Typ-MATRIX pro Vertragsmodell (Walter-Konzept 18.08.2026,
+    // docs/absenz-matrix-konzept.md): 8 Spalten, einmaliger VERHALTENSGLEICHER
+    // Backfill aus den Legacy-Feldern (nur bei Spalten-Neuanlage — User-Edits
+    // werden bei spaeteren Starts NIE ueberschrieben). EO-Typen: Wirkung
+    // ueberall NEIN (regulaere Doppelzahlungs-Sperre statt Engine-Hardcode).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                           WHERE table_name = 'absenz_typ' AND column_name = 'wirkung_fix') THEN
+                ALTER TABLE absenz_typ
+                    ADD COLUMN wirkung_fix     boolean     NOT NULL DEFAULT true,
+                    ADD COLUMN wirkung_mtp     boolean     NOT NULL DEFAULT true,
+                    ADD COLUMN wirkung_flex    boolean     NOT NULL DEFAULT false,
+                    ADD COLUMN zaehlweise_fix  varchar(12) NOT NULL DEFAULT 'ARBEITSTAGE',
+                    ADD COLUMN zaehlweise_mtp  varchar(12) NOT NULL DEFAULT 'ARBEITSTAGE',
+                    ADD COLUMN zaehlweise_flex varchar(12) NOT NULL DEFAULT 'ARBEITSTAGE',
+                    ADD COLUMN basis_fix       varchar(10) NOT NULL DEFAULT 'BETRIEB',
+                    ADD COLUMN basis_mtp       varchar(10) NOT NULL DEFAULT 'GARANTIE';
+                UPDATE absenz_typ SET
+                    wirkung_fix  = zeitgutschrift,
+                    wirkung_mtp  = zeitgutschrift,
+                    wirkung_flex = utp_auszahlung,
+                    zaehlweise_fix = CASE WHEN gutschrift_modus = '1/7' THEN 'KALENDER'
+                                          WHEN code IN ('KRANK', 'UNFALL') THEN 'DIENSTPLAN'
+                                          ELSE 'ARBEITSTAGE' END,
+                    zaehlweise_mtp = CASE WHEN gutschrift_modus = '1/7' THEN 'KALENDER'
+                                          WHEN code IN ('KRANK', 'UNFALL') THEN 'DIENSTPLAN'
+                                          ELSE 'ARBEITSTAGE' END,
+                    zaehlweise_flex = CASE WHEN gutschrift_modus = '1/7' THEN 'KALENDER'
+                                           ELSE 'ARBEITSTAGE' END,
+                    basis_fix = COALESCE(NULLIF(basis_stunden, ''), 'BETRIEB'),
+                    basis_mtp = COALESCE(NULLIF(basis_stunden_mtp, ''), 'GARANTIE');
+                UPDATE absenz_typ SET wirkung_fix = false, wirkung_mtp = false, wirkung_flex = false
+                 WHERE code IN ('MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT');
+            END IF;
+        END $$;
+    ");
+
     // Absenz-Typ VATERSCHAFT (10 Tage EO) — via EF geseedet (Model-Defaults),
     // Konfiguration als Klon von MUTTERSCHAFT (gleiches Zeitgutschrift-Verhalten).
     if (!db.AbsenzTypen.Any(t => t.Code == "VATERSCHAFT"))
@@ -3191,6 +3230,14 @@ using (var scope = app.Services.CreateScope())
             ReduziertSaldo  = mutter?.ReduziertSaldo,
             BasisStunden    = mutter?.BasisStunden ?? "BETRIEB",
             Pattern         = mutter?.Pattern ?? "KEIN",
+            // EO-Typ: Matrix-Wirkung überall NEIN (Doppelzahlungs-Sperre),
+            // Zählweise Kalender (EO = 7 Taggelder/Woche).
+            WirkungFix      = false,
+            WirkungMtp      = false,
+            WirkungFlex     = false,
+            ZaehlweiseFix   = "KALENDER",
+            ZaehlweiseMtp   = "KALENDER",
+            ZaehlweiseFlex  = "KALENDER",
             // ACHTUNG: absenz_typ.created_at ist TIMESTAMPTZ (Ausnahme von der
             // «timestamp without time zone»-Regel) → Npgsql verlangt Kind=Utc.
             // Der Model-Default DateTime.Now (Kind=Local) crasht hier den

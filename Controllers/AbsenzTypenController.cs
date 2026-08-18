@@ -39,7 +39,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.SortOrder, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.WirkungFix, t.WirkungMtp, t.WirkungFlex, t.ZaehlweiseFix, t.ZaehlweiseMtp, t.ZaehlweiseFlex, t.BasisFix, t.BasisMtp, t.SortOrder, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -53,7 +53,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.WirkungFix, t.WirkungMtp, t.WirkungFlex, t.ZaehlweiseFix, t.ZaehlweiseMtp, t.ZaehlweiseFlex, t.BasisFix, t.BasisMtp, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -108,6 +108,14 @@ public class AbsenzTypenController : ControllerBase
         typ.ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
             ? null
             : dto.ZwischenverdienstKuerzel.ToUpper().Trim();
+        // Matrix (18.08.2026): direkt aus dto oder Brücke aus Legacy-Feldern.
+        var mxAlt = (typ.WirkungFix, typ.WirkungMtp, typ.WirkungFlex,
+                     typ.ZaehlweiseFix, typ.ZaehlweiseMtp, typ.ZaehlweiseFlex,
+                     typ.BasisFix, typ.BasisMtp);
+        AbsenzTypMatrixMapper.Apply(typ, dto);
+        needsRecalc = needsRecalc || mxAlt != (typ.WirkungFix, typ.WirkungMtp, typ.WirkungFlex,
+                     typ.ZaehlweiseFix, typ.ZaehlweiseMtp, typ.ZaehlweiseFlex,
+                     typ.BasisFix, typ.BasisMtp);
 
         await _db.SaveChangesAsync();
 
@@ -185,6 +193,7 @@ public class AbsenzTypenController : ControllerBase
                 ? null
                 : dto.ZwischenverdienstKuerzel.ToUpper().Trim()
         };
+        AbsenzTypMatrixMapper.Apply(typ, dto);
         _db.AbsenzTypen.Add(typ);
         await _db.SaveChangesAsync();
         return Ok(new {
@@ -248,5 +257,40 @@ public record AbsenzTypDto(
     string? ZwischenverdienstKuerzel = null,
     bool    VerlaengertProbezeit     = false,
     // Basis bei MTP (Walter 18.08.2026): GARANTIE | BETRIEB
-    string? BasisStundenMtp          = "GARANTIE"
+    string? BasisStundenMtp          = "GARANTIE",
+    // Matrix pro Vertragsmodell (18.08.2026) — null = aus Legacy-Feldern ableiten
+    bool?   WirkungFix               = null,
+    bool?   WirkungMtp               = null,
+    bool?   WirkungFlex              = null,
+    string? ZaehlweiseFix            = null,
+    string? ZaehlweiseMtp            = null,
+    string? ZaehlweiseFlex           = null,
+    string? BasisFix                 = null,
+    string? BasisMtp                 = null
 );
+
+public static class AbsenzTypMatrixMapper
+{
+    /// <summary>Brücke: Matrix aus Legacy-Feldern ableiten (Backfill-Formel),
+    /// solange das alte Formular noch Legacy-Felder sendet.</summary>
+    public static void Apply(AbsenzTyp typ, AbsenzTypDto dto)
+    {
+        string ZwAbleiten(bool flexSpalte)
+        {
+            if ((dto.GutschriftModus ?? "") == "1/7") return "KALENDER";
+            var c = (dto.Code ?? "").ToUpperInvariant();
+            if (!flexSpalte && (c == "KRANK" || c == "UNFALL")) return "DIENSTPLAN";
+            return "ARBEITSTAGE";
+        }
+        typ.WirkungFix     = dto.WirkungFix     ?? dto.Zeitgutschrift;
+        typ.WirkungMtp     = dto.WirkungMtp     ?? dto.Zeitgutschrift;
+        typ.WirkungFlex    = dto.WirkungFlex    ?? dto.UtpAuszahlung;
+        typ.ZaehlweiseFix  = dto.ZaehlweiseFix  ?? ZwAbleiten(false);
+        typ.ZaehlweiseMtp  = dto.ZaehlweiseMtp  ?? ZwAbleiten(false);
+        typ.ZaehlweiseFlex = dto.ZaehlweiseFlex ?? ZwAbleiten(true);
+        typ.BasisFix       = dto.BasisFix
+            ?? (string.IsNullOrWhiteSpace(dto.BasisStunden) ? "BETRIEB" : dto.BasisStunden);
+        typ.BasisMtp       = dto.BasisMtp
+            ?? (string.IsNullOrWhiteSpace(dto.BasisStundenMtp) ? "GARANTIE" : dto.BasisStundenMtp.ToUpper());
+    }
+}

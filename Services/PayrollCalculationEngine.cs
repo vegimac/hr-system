@@ -582,6 +582,47 @@ public class PayrollCalculationEngine
         //
         // Walter 31.07.2026: EXAKT zurückgeben — keine Zwischenrundung.
         // Runden erst am Schluss (Anzeige / CHF / Saldo-Felder).
+        // ── Matrix-Helfer (Walter-Konzept 18.08.2026): Zählweise + Basis +
+        // Wirkung kommen pro Vertragsmodell aus dem Absenz-Typ-Katalog
+        // (docs/absenz-matrix-konzept.md). Backfill war verhaltensgleich.
+        string _matrixModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
+        bool _mxIsMtp  = _matrixModel == "MTP";
+        bool _mxIsFix  = _matrixModel is "FIX" or "FIX-M";
+        string MatrixZaehlweise(AbsenzTyp t) =>
+            _mxIsMtp ? t.ZaehlweiseMtp : _mxIsFix ? t.ZaehlweiseFix : t.ZaehlweiseFlex;
+        bool MatrixWirkung(AbsenzTyp t) =>
+            _mxIsMtp ? t.WirkungMtp : _mxIsFix ? t.WirkungFix : t.WirkungFlex;
+        // Tage gemäss Zählweise (VERHALTENSGLEICH zum Alt-System):
+        //   KALENDER    = alle Tage (÷7)
+        //   ARBEITSTAGE = alle Kalendertage (÷5) — wie das bisherige 1/5;
+        //                 ein Ruhetag am Sa/So zählt weiterhin mit
+        //   DIENSTPLAN  = nur «hätte gearbeitet»-Auswahl (÷5, Fallback Mo–Fr)
+        decimal ZaehlTage(Absence a, string zaehlweise)
+        {
+            var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
+            var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
+            if (bis < von) return 0;
+            if (zaehlweise != "DIENSTPLAN")
+                return bis.DayNumber - von.DayNumber + 1;
+            if (!string.IsNullOrWhiteSpace(a.WorkedDays))
+            {
+                try
+                {
+                    return System.Text.Json.JsonSerializer
+                        .Deserialize<string[]>(a.WorkedDays)!
+                        .Select(s2 => DateOnly.TryParse(s2, out var d2) ? d2 : (DateOnly?)null)
+                        .Where(d2 => d2.HasValue && d2!.Value >= von && d2.Value <= bis)
+                        .Count();
+                }
+                catch { /* Fallback Mo–Fr unten */ }
+            }
+            int werktage = 0;
+            for (var d = von; d <= bis; d = d.AddDays(1))
+                if (d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    werktage++;
+            return werktage;
+        }
+
         decimal ComputeAbsenzHours(Absence a, AbsenzTyp typCfg)
         {
             int daysInPeriod = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
@@ -600,18 +641,16 @@ public class PayrollCalculationEngine
             // statt 25 h/5 = 5 h.
             if (emp.EmploymentModel == "MTP")
             {
-                // Basis bei MTP pro Absenz-Typ konfigurierbar (Walter 18.08.2026,
-                // Feld «Basis bei MTP» im Absenz-Typ): der MTP hat quasi seine
-                // eigene Betriebsarbeitszeit — das Garantie-Pensum (Default,
-                // z.B. Krankheit 25/5). BETRIEB = Filial-Wochenstunden (z.B.
-                // Nacht-Kompensation 42/5 — der Ruhetag entschädigt eine volle
-                // Betriebs-Schicht). Der Katalog zeigt, was gerechnet wird.
-                if (!string.Equals(typCfg.BasisStundenMtp, "BETRIEB", StringComparison.OrdinalIgnoreCase))
+                // Matrix-Basis MTP (Walter 18.08.2026): GARANTIE (Default) =
+                // sein garantiertes Wochenpensum (die «eigene Betriebsarbeits-
+                // zeit» des MTP, z.B. Krankheit 25/5) · BETRIEB = Filial-
+                // Wochenstunden (z.B. Nacht-Kompensation 42/5).
+                if (!string.Equals(typCfg.BasisMtp, "BETRIEB", StringComparison.OrdinalIgnoreCase))
                     weeklyH = emp.GuaranteedHoursPerWeek
                            ?? emp.WeeklyHours
                            ?? betriebWeekly;
             }
-            else if (typCfg.BasisStunden == "VERTRAG")
+            else if (typCfg.BasisFix == "VERTRAG")
             {
                 if (emp.EmploymentModel == "FIX" || emp.EmploymentModel == "FIX-M")
                 {
@@ -627,10 +666,15 @@ public class PayrollCalculationEngine
                 // UTP: bleibt auf betriebWeekly
             }
 
-            string modus = typCfg.GutschriftModus ?? "1/5";
-            decimal divisor = modus == "1/7" ? 7m : 5m;
+            // Matrix-Zählweise (Walter 18.08.2026): KALENDER = 1/7 über alle
+            // Tage · ARBEITSTAGE = 1/5 über Mo–Fr · DIENSTPLAN = 1/5 über die
+            // «hätte gearbeitet»-Auswahl (Fallback Mo–Fr).
+            string zw = MatrixZaehlweise(typCfg);
+            decimal tage = ZaehlTage(a, zw);
+            if (tage <= 0) return 0;
+            decimal divisor = zw == "KALENDER" ? 7m : 5m;
             decimal prozent = a.Prozent > 0 ? a.Prozent : 100m;
-            return daysInPeriod * weeklyH / divisor * prozent / 100m;
+            return tage * weeklyH / divisor * prozent / 100m;
         }
 
         foreach (var a in absences)
@@ -669,9 +713,9 @@ public class PayrollCalculationEngine
             }
             else if (isUTP)
             {
-                // UTP: nur wenn der Typ explizit UTP-Auszahlung aktiviert hat
-                // (heute: NACHT_KOMP). Sonst keine automatische Wirkung.
-                if (typCfg.UtpAuszahlung)
+                // FLEX: nur wenn die Matrix-Spalte «Wirkung FLEX» aktiv ist
+                // (heute: NACHT_KOMP, SCHULUNG). Sonst keine automatische Wirkung.
+                if (MatrixWirkung(typCfg))
                     utpAuszahlungStunden += hours;
             }
             else if (isMTP && a.AbsenceType == "FERIEN")
@@ -696,12 +740,13 @@ public class PayrollCalculationEngine
                 absenzGutschrift += hours;
                 AddBreakdown(a.AbsenceType, hours);
             }
-            else if (a.AbsenceType == "FEIERTAG" || !typCfg.Zeitgutschrift)
+            else if (a.AbsenceType == "FEIERTAG" || !MatrixWirkung(typCfg))
             {
-                // Feiertag (ausbezahlt) oder Typ ohne Zeitgutschrift (MTP): separat ausbezahlen.
+                // Feiertag (ausbezahlt) oder Typ ohne Matrix-Wirkung (MTP/FIX):
+                // separat ausbezahlen.
                 feiertagStunden += hours;
             }
-            else if (typCfg.Zeitgutschrift)
+            else if (MatrixWirkung(typCfg))
             {
                 // Alle anderen Typen mit Zeitgutschrift (KRANK, UNFALL, SCHULUNG, MILITAER etc.)
                 // Walter-Vorgabe 30.05.2026: bei MTP werden KRANK und UNFALL
@@ -1771,7 +1816,7 @@ public class PayrollCalculationEngine
             {
                 decimal tage = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
                 if (tage <= 0) continue;
-                decimal divisor = GetAbsenzTyp(a.AbsenceType).GutschriftModus == "1/5" ? 5m : 7m;
+                decimal divisor = GetAbsenzTyp(a.AbsenceType).ZaehlweiseMtp == "KALENDER" ? 7m : 5m;
                 mtpEoTage += tage;
                 eoStundenAequivalent += tage * guaranteedH / divisor;
             }
