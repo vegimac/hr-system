@@ -5197,9 +5197,20 @@
                             <tbody>
                             <tr style="border-top:1px solid #f1f5f9">
                                 <td style="padding:8px;color:#475569;font-weight:600">Wirkung</td>
-                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkFix"> Stunden gutschreiben</label></td>
-                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkMtp"> Stunden gutschreiben</label></td>
-                                <td style="padding:8px"><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="atWirkFlex" onchange="atFlexZwToggle()"> als Stundenlohn auszahlen</label></td>
+                                <td style="padding:8px"><select id="atWirkFix" class="f-input">
+                                    <option value="GUTSCHRIFT">Stunden gutschreiben</option>
+                                    <option value="SOLL_KUERZUNG">Soll reduzieren</option>
+                                    <option value="KEINE">kein Zeiteinfluss</option>
+                                </select></td>
+                                <td style="padding:8px"><select id="atWirkMtp" class="f-input">
+                                    <option value="GUTSCHRIFT">Stunden gutschreiben</option>
+                                    <option value="SOLL_KUERZUNG">Soll reduzieren</option>
+                                    <option value="KEINE">kein Zeiteinfluss</option>
+                                </select></td>
+                                <td style="padding:8px"><select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle()">
+                                    <option value="AUSZAHLUNG">als Stundenlohn auszahlen</option>
+                                    <option value="KEINE">kein Zeiteinfluss</option>
+                                </select></td>
                             </tr>
                             <tr style="border-top:1px solid #f1f5f9">
                                 <td style="padding:8px;color:#475569;font-weight:600">Zählweise</td>
@@ -8087,7 +8098,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260818d"></script>
+<script src="js/admin-settings.js?v=20260818e"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>

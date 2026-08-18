@@ -979,9 +979,11 @@ function openAbsenzTypForm(t) {
     document.getElementById('atAktiv').checked = d.aktiv ?? true;
     // Matrix pro Vertragsmodell (18.08.2026) — Fallback aus Legacy-Feldern
     const zwLegacy = (d.gutschriftModus === '1/7') ? 'KALENDER' : 'ARBEITSTAGE';
-    document.getElementById('atWirkFix').checked  = d.wirkungFix  ?? d.zeitgutschrift ?? true;
-    document.getElementById('atWirkMtp').checked  = d.wirkungMtp  ?? d.zeitgutschrift ?? true;
-    document.getElementById('atWirkFlex').checked = d.wirkungFlex ?? d.utpAuszahlung  ?? false;
+    // Wirkung dreistufig (18.08.2026) — Legacy-bool wird auf Strings gemappt
+    const wLegacyFm = (d.zeitgutschrift ?? true) ? 'GUTSCHRIFT' : 'KEINE';
+    document.getElementById('atWirkFix').value  = d.wirkungFix  ?? wLegacyFm;
+    document.getElementById('atWirkMtp').value  = d.wirkungMtp  ?? wLegacyFm;
+    document.getElementById('atWirkFlex').value = d.wirkungFlex ?? ((d.utpAuszahlung ?? false) ? 'AUSZAHLUNG' : 'KEINE');
     document.getElementById('atZwFix').value  = d.zaehlweiseFix  ?? zwLegacy;
     document.getElementById('atZwMtp').value  = d.zaehlweiseMtp  ?? zwLegacy;
     document.getElementById('atZwFlex').value = d.zaehlweiseFlex ?? zwLegacy;
@@ -1053,20 +1055,20 @@ async function saveAbsenzTyp() {
 
     // Matrix (18.08.2026) — Legacy-Felder werden daraus abgeleitet (Brücke
     // für Alt-Leser wie die hours_credited-Nachrechnung).
-    const wirkungFix  = document.getElementById('atWirkFix').checked;
-    const wirkungMtp  = document.getElementById('atWirkMtp').checked;
-    const wirkungFlex = document.getElementById('atWirkFlex').checked;
+    const wirkungFix  = document.getElementById('atWirkFix').value;
+    const wirkungMtp  = document.getElementById('atWirkMtp').value;
+    const wirkungFlex = document.getElementById('atWirkFlex').value;
     const zaehlweiseFix  = document.getElementById('atZwFix').value;
     const zaehlweiseMtp  = document.getElementById('atZwMtp').value;
     const zaehlweiseFlex = document.getElementById('atZwFlex').value;
     const basisFix = document.getElementById('atBasisFix').value || 'BETRIEB';
     const basisMtp = document.getElementById('atBasisMtp').value || 'GARANTIE';
-    const zg    = wirkungFix || wirkungMtp;
+    const zg    = wirkungFix === 'GUTSCHRIFT' || wirkungMtp === 'GUTSCHRIFT';
     const modus = zaehlweiseFix === 'KALENDER' ? '1/7' : '1/5';
     const basisStunden    = basisFix;
     const basisStundenMtp = basisMtp;
     const reduziertRaw   = document.getElementById('atReduziertSaldo').value;
-    const utpAuszahlung  = wirkungFlex;
+    const utpAuszahlung  = wirkungFlex === 'AUSZAHLUNG';
     const verlaengertProbezeit = document.getElementById('atVerlaengertProbezeit')?.checked ?? false;
     const zvKuerzelRaw   = document.getElementById('atZvKuerzel')?.value || '';
 
@@ -2260,7 +2262,7 @@ async function fzDelete() {
 // FLEX-Zählweise nur relevant, wenn «als Stundenlohn auszahlen» aktiv ist
 // (FLEX hat kein Soll — ohne Auszahlung bewirkt die Absenz nichts).
 function atFlexZwToggle() {
-    const an = document.getElementById('atWirkFlex')?.checked ?? false;
+    const an = document.getElementById('atWirkFlex')?.value === 'AUSZAHLUNG';
     const zw = document.getElementById('atZwFlex');
     if (!zw) return;
     zw.disabled = !an;

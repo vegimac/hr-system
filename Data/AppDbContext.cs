@@ -1142,9 +1142,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ReduziertSaldo).HasColumnName("reduziert_saldo").HasMaxLength(20);
             entity.Property(e => e.BasisStunden).HasColumnName("basis_stunden").HasMaxLength(10).HasDefaultValue("BETRIEB");
             entity.Property(e => e.BasisStundenMtp).HasColumnName("basis_stunden_mtp").HasMaxLength(10).HasDefaultValue("GARANTIE");
-            entity.Property(e => e.WirkungFix).HasColumnName("wirkung_fix").HasDefaultValue(true);
-            entity.Property(e => e.WirkungMtp).HasColumnName("wirkung_mtp").HasDefaultValue(true);
-            entity.Property(e => e.WirkungFlex).HasColumnName("wirkung_flex").HasDefaultValue(false);
+            entity.Property(e => e.WirkungFix).HasColumnName("wirkung_fix").HasMaxLength(14).HasDefaultValue("GUTSCHRIFT");
+            entity.Property(e => e.WirkungMtp).HasColumnName("wirkung_mtp").HasMaxLength(14).HasDefaultValue("GUTSCHRIFT");
+            entity.Property(e => e.WirkungFlex).HasColumnName("wirkung_flex").HasMaxLength(14).HasDefaultValue("KEINE");
             entity.Property(e => e.ZaehlweiseFix).HasColumnName("zaehlweise_fix").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");
             entity.Property(e => e.ZaehlweiseMtp).HasColumnName("zaehlweise_mtp").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");
             entity.Property(e => e.ZaehlweiseFlex).HasColumnName("zaehlweise_flex").HasMaxLength(12).HasDefaultValue("ARBEITSTAGE");

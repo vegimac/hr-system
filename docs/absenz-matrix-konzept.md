@@ -35,3 +35,13 @@ Gemeinsam bleiben: Reduziert Saldo, Verlängert Probezeit, ALK-Kürzel, Sort, Ak
 
 Die Matrix steuert NUR die Stunden-Rechnung. Fach-Mechanik bleibt typgebunden
 (Karenz/Taggeld, Ferien-Pott, EO-Zeilen 120.x/125.x, UNBEZ_URLAUB-Neutralität).
+
+## Endausbau «Wirkung dreistufig» (Walter bestätigt 18.08.2026 — GEBAUT)
+Die Wirkung-Zeile bekommt pro Spalte DREI Zustände statt Häkchen:
+  GUTSCHRIFT (Stunden aufs Ist-Konto) · SOLL_KUERZUNG (Stunden vom Soll-Konto,
+  Lohnersatz gemäss Typ-Mechanik) · KEINE (kein Zeiteinfluss).
+Damit stünde auch bei Ferien/Mutterschaft/unbez. Urlaub explizit
+«Soll reduzieren» in der Matrix, statt versteckt in der Typ-Mechanik.
+Aufwand: grösserer Engine-Eingriff — die Soll-Kürzungen sind mit ihren
+Lohnersatz-Mechaniken verwoben (Ferien-Pott, Karenz/Taggeld, EO 120.x).
+Bau erst nach längerem Grün-Lauf der heutigen Matrix.

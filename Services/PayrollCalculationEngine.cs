@@ -590,8 +590,12 @@ public class PayrollCalculationEngine
         bool _mxIsFix  = _matrixModel is "FIX" or "FIX-M";
         string MatrixZaehlweise(AbsenzTyp t) =>
             _mxIsMtp ? t.ZaehlweiseMtp : _mxIsFix ? t.ZaehlweiseFix : t.ZaehlweiseFlex;
-        bool MatrixWirkung(AbsenzTyp t) =>
+        // Wirkung dreistufig (18.08.2026): GUTSCHRIFT | SOLL_KUERZUNG | KEINE
+        // (FLEX: AUSZAHLUNG | KEINE).
+        string MatrixWirkungArt(AbsenzTyp t) =>
             _mxIsMtp ? t.WirkungMtp : _mxIsFix ? t.WirkungFix : t.WirkungFlex;
+        bool MatrixWirkung(AbsenzTyp t) =>
+            MatrixWirkungArt(t) is "GUTSCHRIFT" or "AUSZAHLUNG";
         // Tage gemäss Zählweise (VERHALTENSGLEICH zum Alt-System):
         //   KALENDER    = alle Tage (÷7)
         //   ARBEITSTAGE = alle Kalendertage (÷5) — wie das bisherige 1/5;
@@ -740,11 +744,23 @@ public class PayrollCalculationEngine
                 absenzGutschrift += hours;
                 AddBreakdown(a.AbsenceType, hours);
             }
-            else if (a.AbsenceType == "FEIERTAG" || !MatrixWirkung(typCfg))
+            else if (MatrixWirkungArt(typCfg) == "SOLL_KUERZUNG")
             {
-                // Feiertag (ausbezahlt) oder Typ ohne Matrix-Wirkung (MTP/FIX):
-                // separat ausbezahlen.
+                // Soll-Kürzung (18.08.2026): im Stunden-Verteiler NEUTRAL —
+                // die Kürzung + der Lohnersatz laufen über die Typ-Mechanik
+                // (MTP-Soll-Blöcke, FIX-Split/Korrektur, Ferien-Pott, EO).
+                AddBreakdown(a.AbsenceType, hours);
+            }
+            else if (a.AbsenceType == "FEIERTAG")
+            {
+                // Feiertag (ausbezahlt): separat ausbezahlen.
                 feiertagStunden += hours;
+            }
+            else if (!MatrixWirkung(typCfg))
+            {
+                // KEINE = wirklich kein Zeiteinfluss (18.08.2026 — vorher
+                // wurden Typen ohne Zeitgutschrift bei MTP separat ausbezahlt;
+                // bewusste Korrektur, betrifft z.B. FREI_KOMP).
             }
             else if (MatrixWirkung(typCfg))
             {

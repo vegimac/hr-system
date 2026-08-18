@@ -3214,6 +3214,40 @@ using (var scope = app.Services.CreateScope())
         END $$;
     ");
 
+    // Wirkung DREISTUFIG (Walter 18.08.2026): bool-Spalten → varchar
+    // GUTSCHRIFT | SOLL_KUERZUNG | KEINE (FLEX: AUSZAHLUNG | KEINE).
+    // Einmalig (Guard: Spaltentyp boolean). Soll-Kürzer explizit gesetzt;
+    // BEWUSSTE KORREKTUR: FREI_KOMP war zuvor «!Zeitgutschrift → separat
+    // ausbezahlen» — neu KEINE = wirklich neutral (im Abnahme-Test prüfen).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM information_schema.columns
+                       WHERE table_name = 'absenz_typ' AND column_name = 'wirkung_fix'
+                         AND data_type = 'boolean') THEN
+                ALTER TABLE absenz_typ
+                    ALTER COLUMN wirkung_fix DROP DEFAULT,
+                    ALTER COLUMN wirkung_fix TYPE varchar(14)
+                        USING CASE WHEN wirkung_fix THEN 'GUTSCHRIFT' ELSE 'KEINE' END,
+                    ALTER COLUMN wirkung_fix SET DEFAULT 'GUTSCHRIFT',
+                    ALTER COLUMN wirkung_mtp DROP DEFAULT,
+                    ALTER COLUMN wirkung_mtp TYPE varchar(14)
+                        USING CASE WHEN wirkung_mtp THEN 'GUTSCHRIFT' ELSE 'KEINE' END,
+                    ALTER COLUMN wirkung_mtp SET DEFAULT 'GUTSCHRIFT',
+                    ALTER COLUMN wirkung_flex DROP DEFAULT,
+                    ALTER COLUMN wirkung_flex TYPE varchar(14)
+                        USING CASE WHEN wirkung_flex THEN 'AUSZAHLUNG' ELSE 'KEINE' END,
+                    ALTER COLUMN wirkung_flex SET DEFAULT 'KEINE';
+                -- Soll-Kürzer sichtbar machen (Typ-Mechanik unverändert):
+                UPDATE absenz_typ SET wirkung_mtp = 'SOLL_KUERZUNG'
+                 WHERE code IN ('FERIEN', 'KRANK', 'UNFALL', 'UNBEZ_URLAUB',
+                                'MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT');
+                UPDATE absenz_typ SET wirkung_fix = 'SOLL_KUERZUNG'
+                 WHERE code IN ('UNBEZ_URLAUB', 'MUTT_VATER', 'MUTTERSCHAFT', 'VATERSCHAFT');
+            END IF;
+        END $$;
+    ");
+
     // Absenz-Typ VATERSCHAFT (10 Tage EO) — via EF geseedet (Model-Defaults),
     // Konfiguration als Klon von MUTTERSCHAFT (gleiches Zeitgutschrift-Verhalten).
     if (!db.AbsenzTypen.Any(t => t.Code == "VATERSCHAFT"))
@@ -3232,9 +3266,9 @@ using (var scope = app.Services.CreateScope())
             Pattern         = mutter?.Pattern ?? "KEIN",
             // EO-Typ: Matrix-Wirkung überall NEIN (Doppelzahlungs-Sperre),
             // Zählweise Kalender (EO = 7 Taggelder/Woche).
-            WirkungFix      = false,
-            WirkungMtp      = false,
-            WirkungFlex     = false,
+            WirkungFix      = "SOLL_KUERZUNG",
+            WirkungMtp      = "SOLL_KUERZUNG",
+            WirkungFlex     = "KEINE",
             ZaehlweiseFix   = "KALENDER",
             ZaehlweiseMtp   = "KALENDER",
             ZaehlweiseFlex  = "KALENDER",

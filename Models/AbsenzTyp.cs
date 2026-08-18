@@ -66,9 +66,12 @@ public class AbsenzTyp
     // Zählweise: KALENDER (1/7) | ARBEITSTAGE (1/5 Mo–Fr) | DIENSTPLAN
     // (1/5 nur «hätte gearbeitet»-Tage, Fallback Mo–Fr).
     // Die Legacy-Felder oben bleiben bis nach dem Grün-Lauf als Brücke.
-    public bool   WirkungFix     { get; set; } = true;
-    public bool   WirkungMtp     { get; set; } = true;
-    public bool   WirkungFlex    { get; set; } = false;
+    // Wirkung dreistufig (Walter 18.08.2026): GUTSCHRIFT (Stunden aufs
+    // Ist-Konto) | SOLL_KUERZUNG (Stunden vom Soll, Lohnersatz gemäss
+    // Typ-Mechanik) | KEINE (kein Zeiteinfluss). FLEX: AUSZAHLUNG | KEINE.
+    public string WirkungFix     { get; set; } = "GUTSCHRIFT";
+    public string WirkungMtp     { get; set; } = "GUTSCHRIFT";
+    public string WirkungFlex    { get; set; } = "KEINE";
     public string ZaehlweiseFix  { get; set; } = "ARBEITSTAGE";
     public string ZaehlweiseMtp  { get; set; } = "ARBEITSTAGE";
     public string ZaehlweiseFlex { get; set; } = "ARBEITSTAGE";

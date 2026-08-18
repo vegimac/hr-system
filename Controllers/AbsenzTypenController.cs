@@ -259,9 +259,9 @@ public record AbsenzTypDto(
     // Basis bei MTP (Walter 18.08.2026): GARANTIE | BETRIEB
     string? BasisStundenMtp          = "GARANTIE",
     // Matrix pro Vertragsmodell (18.08.2026) — null = aus Legacy-Feldern ableiten
-    bool?   WirkungFix               = null,
-    bool?   WirkungMtp               = null,
-    bool?   WirkungFlex              = null,
+    string? WirkungFix               = null,
+    string? WirkungMtp               = null,
+    string? WirkungFlex              = null,
     string? ZaehlweiseFix            = null,
     string? ZaehlweiseMtp            = null,
     string? ZaehlweiseFlex           = null,
@@ -282,9 +282,9 @@ public static class AbsenzTypMatrixMapper
             if (!flexSpalte && (c == "KRANK" || c == "UNFALL")) return "DIENSTPLAN";
             return "ARBEITSTAGE";
         }
-        typ.WirkungFix     = dto.WirkungFix     ?? dto.Zeitgutschrift;
-        typ.WirkungMtp     = dto.WirkungMtp     ?? dto.Zeitgutschrift;
-        typ.WirkungFlex    = dto.WirkungFlex    ?? dto.UtpAuszahlung;
+        typ.WirkungFix     = dto.WirkungFix     ?? (dto.Zeitgutschrift ? "GUTSCHRIFT" : "KEINE");
+        typ.WirkungMtp     = dto.WirkungMtp     ?? (dto.Zeitgutschrift ? "GUTSCHRIFT" : "KEINE");
+        typ.WirkungFlex    = dto.WirkungFlex    ?? (dto.UtpAuszahlung ? "AUSZAHLUNG" : "KEINE");
         typ.ZaehlweiseFix  = dto.ZaehlweiseFix  ?? ZwAbleiten(false);
         typ.ZaehlweiseMtp  = dto.ZaehlweiseMtp  ?? ZwAbleiten(false);
         typ.ZaehlweiseFlex = dto.ZaehlweiseFlex ?? ZwAbleiten(true);
