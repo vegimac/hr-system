@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260818a">
+    <link rel="stylesheet" href="css/app.css?v=20260818b">
 </head>
 <body>
 
@@ -5122,11 +5122,11 @@
                     </div>
                 </div>
                 <div class="at-info-box">
-                    <strong>Hinweis:</strong> Bei <strong>FIX/MTP</strong> wirkt die <em>Zeitgutschrift</em> (Stunden werden zu den Sollstunden addiert).
-                    Bei <strong>FLEX</strong> wirkt der separate Schalter <em>FLEX — als Stundenlohn auszahlen</em>: nur Absenz-Typen mit gesetztem Flag (z.B. Nacht-Kompensation, Schulung) bekommen die Stunden als Lohn ausbezahlt.
+                    <strong>Hinweis:</strong> Pro Vertragsmodell (FIX/FIX-M · MTP · FLEX) wird die <strong>Wirkung</strong> definiert —
+                    <em>Stunden gutschreiben</em> (aufs Ist-Konto), <em>Soll reduzieren</em> (Lohnersatz gemäss Typ-Mechanik: Ferien-Pott, Karenz/Taggeld, EO) oder <em>Stunden neutral</em>.
+                    Bei FLEX heisst die Wirkung <em>als Stundenlohn auszahlen</em> (z.B. Nacht-Kompensation).
                     <span style="display:block;margin-top:4px;color:#6b7280">
-                        <strong>1/5</strong> = Wochenstunden ÷ 5 pro Arbeitstag &nbsp;·&nbsp;
-                        <strong>1/7</strong> = Wochenstunden ÷ 7 pro Kalendertag
+                        <strong>Zählweise:</strong> 1/7 = alle Kalendertage &nbsp;·&nbsp; 1/5 pauschal = Kalendertage ÷ 5 &nbsp;·&nbsp; 1/5 laut Dienstplan = nur «hätte gearbeitet»-Tage
                     </span>
                 </div>
                 <div class="fh-cols-head-wrap">
@@ -5167,7 +5167,7 @@
                 </div>
 
                 <!-- Inline Edit-Formular -->
-                <div id="absenzTypForm" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px;margin-top:12px;flex:0 0 auto">
+                <div id="absenzTypForm" class="at-mx-card" style="display:none;padding:20px;margin-top:12px;flex:0 0 auto">
                     <div style="font-weight:600;margin-bottom:14px" id="absenzTypFormTitle">Absenz-Typ bearbeiten</div>
                     <input type="hidden" id="atId">
                     <div style="display:grid;grid-template-columns:120px 1fr 80px;gap:12px;margin-bottom:14px">
@@ -5252,8 +5252,8 @@
                     </div>
 
                     <!-- Erweiterte Einstellungen -->
-                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px">
-                        <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Erweiterte Einstellungen</div>
+                    <div class="at-mx-card" style="padding:14px 16px;margin-bottom:16px">
+                        <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Erweiterte Einstellungen</div>
                         <div style="max-width:380px">
                             <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
                             <select id="atReduziertSaldo" class="f-input">

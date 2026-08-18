@@ -11328,8 +11328,10 @@ body.theme-dark .sys-back-btn {
 #page-lohnschema tbody tr:hover .ls-del { opacity: 1; }
 
 
-/* ── Absenz-Matrix im MA-Masken-Look (ov-card-Rezept, Walter 18.08.2026) ── */
-.at-mx-card {
+/* ── Absenz-Matrix + Absenz-Typen-Seite im MA-Masken-Look (ov-card-Rezept, Walter 18.08.2026) ── */
+.at-mx-card,
+#page-absenz-typen .fh-list-card,
+#page-absenz-typen .at-info-box {
     border: 1px solid transparent;
     border-radius: 16px;
     padding: 12px 16px;
