@@ -408,6 +408,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Purpose).HasColumnName("purpose");
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.HasIndex(e => e.TokenHash).IsUnique();
@@ -424,6 +425,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TokenHash).HasColumnName("token_hash");
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
@@ -2085,6 +2087,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
@@ -2109,6 +2112,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UsedAt).HasColumnName("used_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.RevokedAt).HasColumnName("revoked_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");

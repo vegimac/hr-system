@@ -22,6 +22,9 @@ public class PostfachSetupToken
     public DateTime ExpiresAt { get; set; }
     public DateTime? UsedAt { get; set; }
 
+    /// <summary>Erster Aufruf der Setup-Seite (= «Link geöffnet», Walter 18.08.2026).</summary>
+    public DateTime? OpenedAt { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public int? CreatedBy { get; set; }
 }

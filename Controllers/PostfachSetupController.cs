@@ -42,6 +42,8 @@ public class PostfachSetupController : ControllerBase
     /// schaltet (dann Konstante auf null setzen). Der eigentliche Empfänger wird
     /// im Betreff + Mail-Kopf ausgewiesen.
     /// </summary>
+    // TESTMODUS wieder aktiv (Walter 18.08.2026, Testlauf mit neuem Mail-Layout) —
+    // zum Scharfschalten auf null setzen.
     private const string? AppLinkTestRedirect = "walter.schaub@gmail.com";
 
     private int? UserId() =>
@@ -119,9 +121,11 @@ public class PostfachSetupController : ControllerBase
     // ── HR: App-Link per E-MAIL an bestehenden MA (Walter-Vorgabe 18.08.2026).
     // Gleiche Token-Mechanik wie der QR, aber 7 Tage gültig und als Mail mit
     // Kurz-Anleitung. Kostenlos (statt SMS); SMS bleibt als Kanal-Reserve.
+    public record AppLinkDto(string? DokumentWunsch);
+
     [HttpPost("send-app-link/{employeeId:int}")]
     [Authorize(Roles = "admin,superuser")]
-    public async Task<IActionResult> SendAppLink(int employeeId)
+    public async Task<IActionResult> SendAppLink(int employeeId, [FromBody] AppLinkDto? dto = null)
     {
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId);
         if (emp == null) return NotFound(new { error = "Mitarbeiter nicht gefunden." });
@@ -162,6 +166,10 @@ public class PostfachSetupController : ControllerBase
             : "Dein OneCrew-Postfach";
         var bisTxt = expiresAt.ToString("dd.MM.yyyy");
 
+        var wunsch = dto?.DokumentWunsch?.Trim();
+        var wunschHtml = string.IsNullOrWhiteSpace(wunsch) ? "" :
+            $"<div style='background:#ffffff;border-left:5px solid #1a1a1a;border-radius:10px;padding:14px 16px;margin:0 0 18px;font-size:15px'>📄 <b>Bitte sende uns:</b> {System.Net.WebUtility.HtmlEncode(wunsch)}</div>";
+
         var testHinweis = redirected
             ? $"<div style='background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#92400e'>TESTMODUS — diese Mail wäre an <b>{emp.Email}</b> gegangen.</div>"
             : "";
@@ -169,6 +177,7 @@ public class PostfachSetupController : ControllerBase
             {testHinweis}
             <h2 style='margin:0 0 6px;font-size:20px'>Hallo {emp.FirstName}</h2>
             <p style='font-size:14px;line-height:1.55;margin:0 0 18px'>Ab sofort hast du dein persönliches <b>OneCrew-Postfach</b> auf dem Handy: Lohnabrechnungen, Dokumente senden und Mitteilungen — alles an einem Ort.</p>
+            {wunschHtml}
             <p style='text-align:center;margin:22px 0'>
                 <a href='{url}' style='background:#1a1a1a;color:#ffffff;text-decoration:none;font-weight:700;font-size:15px;padding:13px 30px;border-radius:12px;display:inline-block'>Postfach jetzt einrichten</a>
             </p>
@@ -180,10 +189,13 @@ public class PostfachSetupController : ControllerBase
                 ③ App aufs Handy: iPhone → Teilen-Symbol → «Zum Home-Bildschirm». Android → Menü → «App installieren».<br>
                 ④ Dokumente senden: einfach ein <b>Foto</b> machen (z.B. Ausweis) und abschicken — den Rest erledigt das Büro.
             </div>
-            <p style='font-size:12.5px;margin:16px 0 0'>Die ausführliche Anleitung mit Bildern: <a href='{anleitungUrl}' style='color:#6b7280'>{anleitungUrl}</a></p>
+            <p style='text-align:center;margin:20px 0 0'>
+                <a href='{anleitungUrl}' style='display:inline-block;background:#ffffff;color:#3f3f3f;text-decoration:none;font-weight:700;font-size:15px;padding:12px 28px;border-radius:12px;border:1px solid #d8d2c6'>📖 Anleitung mit Bildern ansehen</a>
+            </p>
             <p style='font-size:12.5px;color:#8b8578;margin:18px 0 0'>Fragen? Melde dich bei deiner Restaurantleitung.<br>Schaub Restaurants GmbH</p>
         </div>";
-        var text = $"Hallo {emp.FirstName}\n\nDein persönliches OneCrew-Postfach: {url}\n(gültig bis {bisTxt})\n\n1. Link öffnen und Passwort festlegen\n2. Face ID aktivieren (empfohlen)\n3. iPhone: Teilen -> Zum Home-Bildschirm / Android: App installieren\n4. Dokumente: Foto machen und senden - den Rest erledigt das Büro\n\nAnleitung: {anleitungUrl}\n\nSchaub Restaurants GmbH";
+        var wunschText = string.IsNullOrWhiteSpace(wunsch) ? "" : $"\n\nBITTE SENDE UNS: {wunsch}";
+        var text = $"Hallo {emp.FirstName}{wunschText}\n\nDein persönliches OneCrew-Postfach: {url}\n(gültig bis {bisTxt})\n\n1. Link öffnen und Passwort festlegen\n2. Face ID aktivieren (empfohlen)\n3. iPhone: Teilen -> Zum Home-Bildschirm / Android: App installieren\n4. Dokumente: Foto machen und senden - den Rest erledigt das Büro\n\nAnleitung: {anleitungUrl}\n\nSchaub Restaurants GmbH";
 
         var ok = await _email.SendAsync(to, $"{emp.FirstName} {emp.LastName}", subject, html, text);
         if (!ok) return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen (SMTP prüfen)." });
@@ -192,6 +204,28 @@ public class PostfachSetupController : ControllerBase
     }
 
     // ── MA: Token prüfen (Landing zeigt Begrüssung) ─────────────────────
+    // ── HR: Status des letzten Links (gesendet / geöffnet / eingerichtet) ──
+    [HttpGet("status/{employeeId:int}")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> Status(int employeeId)
+    {
+        var user = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.EmployeeId == employeeId);
+        if (user == null) return Ok(new { hasToken = false });
+        var t = await _db.PostfachSetupTokens.AsNoTracking()
+            .Where(x => x.AppUserId == user.Id)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync();
+        return Ok(new
+        {
+            hasToken   = t != null,
+            createdAt  = t?.CreatedAt,
+            expiresAt  = t?.ExpiresAt,
+            openedAt   = t?.OpenedAt,
+            usedAt     = t?.UsedAt,
+            lastLoginAt = user.LastLoginAt,
+        });
+    }
+
     private async Task<PostfachSetupToken?> FindValidAsync(string? token)
     {
         if (string.IsNullOrWhiteSpace(token)) return null;
@@ -208,6 +242,12 @@ public class PostfachSetupController : ControllerBase
     {
         var t = await FindValidAsync(token);
         if (t == null) return StatusCode(410, new { error = "Dieser Link ist ungültig oder abgelaufen." });
+        // «Link geöffnet»-Stempel (Walter 18.08.2026): erster Aufruf der Setup-Seite.
+        if (t.OpenedAt == null)
+        {
+            t.OpenedAt = DateTime.Now;
+            await _db.SaveChangesAsync();
+        }
         return Ok(new { ok = true, firstName = t.AppUser?.FirstName, username = t.AppUser?.Username });
     }
 

@@ -1432,6 +1432,8 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE UNIQUE INDEX IF NOT EXISTS ux_postfach_setup_token_hash ON postfach_setup_token (token_hash);
         CREATE INDEX IF NOT EXISTS ix_postfach_setup_token_user ON postfach_setup_token (app_user_id);
+        -- «Link geöffnet»-Tracking (Walter 18.08.2026)
+        ALTER TABLE postfach_setup_token ADD COLUMN IF NOT EXISTS opened_at timestamp without time zone;
 
         -- Öffentlicher Vertrags-Link-Token (Walter 07.07.2026) ─────────────────
         CREATE TABLE IF NOT EXISTS contract_share_token (

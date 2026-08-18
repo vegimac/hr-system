@@ -12608,12 +12608,34 @@ function showSetupQrModal(j, employeeId) {
             </div>
             <!-- App-Link per E-Mail (Walter 18.08.2026) — für bestehende MA aus der Ferne -->
             <div style="margin-top:14px;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px;text-align:left">
+                <input id="setupQrDokWunsch" placeholder="Benötigtes Dokument (optional) — z.B. Ausweis Vorder- und Rückseite"
+                       style="width:100%;box-sizing:border-box;font-size:12.5px;padding:9px 12px;border:1px solid rgba(0,0,0,0.10);border-radius:12px;background:#fff;color:#3f3f3f;margin-bottom:8px">
                 <button id="setupQrMailBtn" onclick="pfSendAppLinkMail(${employeeId})"
                         style="background:transparent;border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f;width:100%">📧 Link per E-Mail an den MA senden</button>
                 <div id="setupQrMailStatus" style="font-size:12px;color:#6b6152;margin-top:6px"></div>
+                <div id="setupQrTokenStatus" style="font-size:12px;color:#6b6152;margin-top:8px;border-top:1px dashed rgba(60,55,48,0.15);padding-top:8px">Lade Status…</div>
             </div>
         </div>`;
     ov.style.display = 'flex';
+    pfLoadSetupStatus(employeeId);
+}
+
+// Status «gesendet / geöffnet / eingerichtet» des letzten Links (Walter 18.08.2026)
+async function pfLoadSetupStatus(employeeId) {
+    const el = document.getElementById('setupQrTokenStatus');
+    if (!el || !employeeId) return;
+    const fmt = d => d ? new Date(d).toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : null;
+    try {
+        const r = await fetch(`/api/postfach-setup/status/${employeeId}`, { headers: ah() });
+        const j = r.ok ? await r.json() : null;
+        if (!j || !j.hasToken) { el.innerHTML = 'Noch kein Link erzeugt.'; return; }
+        const teile = [`Link erzeugt: <b>${fmt(j.createdAt)}</b>`];
+        teile.push(j.openedAt ? `✅ geöffnet ${fmt(j.openedAt)}` : '⏳ noch nicht geöffnet');
+        teile.push(j.usedAt ? `✅ eingerichtet ${fmt(j.usedAt)}` : '⏳ Passwort noch nicht gesetzt');
+        if (j.lastLoginAt) teile.push(`letzter App-Login ${fmt(j.lastLoginAt)}`);
+        el.innerHTML = teile.join(' · ')
+            + ` &nbsp;<a href="#" onclick="pfLoadSetupStatus(${employeeId});return false" style="color:#6b7280">aktualisieren</a>`;
+    } catch { el.textContent = 'Status nicht verfügbar.'; }
 }
 
 // App-Link per E-Mail an bestehenden MA (Walter 18.08.2026). Solange der
@@ -12624,7 +12646,11 @@ async function pfSendAppLinkMail(employeeId) {
     const st = document.getElementById('setupQrMailStatus');
     if (btn) { btn.disabled = true; btn.textContent = 'Sende E-Mail…'; }
     try {
-        const r = await fetch(`/api/postfach-setup/send-app-link/${employeeId}`, { method: 'POST', headers: ah() });
+        const r = await fetch(`/api/postfach-setup/send-app-link/${employeeId}`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentWunsch: document.getElementById('setupQrDokWunsch')?.value || null }),
+        });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || j.message || ('HTTP ' + r.status));
         if (st) st.innerHTML = j.redirected
