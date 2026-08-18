@@ -21,7 +21,7 @@ const _LS_ART_LABEL = Object.fromEntries(_LS_ARTEN);
 // Bernstein / Violett — gleiche Farben wie die CSS-Klassen ls-g-*/ls-a-*.
 const _LS_ART_COLOR = { automatisch: '#4d7c5f', saldo: '#4e7f8c', ereignis: '#8a8478', austritt: '#a1794a', manuell: '#7d6b96' };
 // Kräftigere Variante für die Gruppen-Titel der Karten (Walter 18.08.2026)
-const _LS_ART_COLOR_TITEL = { automatisch: '#2e6245', saldo: '#2c6274', ereignis: '#6b6350', austritt: '#8f5c1f', manuell: '#5c4585' };
+const _LS_ART_COLOR_TITEL = { automatisch: '#1e6b40', saldo: '#136179', ereignis: '#6d5a2e', austritt: '#a85c08', manuell: '#5b3f9e' };
 
 async function lsInit() {
     const el = document.getElementById('lsContent');
