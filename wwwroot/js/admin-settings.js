@@ -2266,6 +2266,5 @@ function atFlexZwToggle() {
     const zw = document.getElementById('atZwFlex');
     if (!zw) return;
     zw.disabled = !an;
-    const wrap = zw.closest('td');
-    if (wrap) wrap.style.opacity = an ? '1' : '0.4';
+    zw.style.opacity = an ? '1' : '0.4';
 }

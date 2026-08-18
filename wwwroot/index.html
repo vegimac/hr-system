@@ -5184,64 +5184,71 @@
                             <input type="number" id="atSort" class="f-input" value="99" min="1" max="999">
                         </div>
                     </div>
-                    <!-- Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026) -->
-                    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;margin-bottom:16px">
-                        <div style="font-size:12px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:10px">Wirkung pro Vertragsmodell</div>
-                        <table style="width:100%;border-collapse:collapse;font-size:13px">
-                            <thead><tr style="color:#475569">
-                                <th style="text-align:left;padding:4px 8px;width:110px"></th>
-                                <th style="text-align:left;padding:4px 8px">FIX / FIX-M</th>
-                                <th style="text-align:left;padding:4px 8px">MTP</th>
-                                <th style="text-align:left;padding:4px 8px">FLEX</th>
-                            </tr></thead>
-                            <tbody>
-                            <tr style="border-top:1px solid #f1f5f9">
-                                <td style="padding:8px;color:#475569;font-weight:600">Wirkung</td>
-                                <td style="padding:8px"><select id="atWirkFix" class="f-input">
+                    <!-- Matrix pro Vertragsmodell (Walter-Konzept 18.08.2026, Liquid-Karten 18.08.) -->
+                    <div style="background:#f6f3ee;border:1px solid #e8e2d6;border-radius:14px;padding:14px 16px;margin-bottom:16px">
+                        <div style="font-size:12px;font-weight:700;color:#6b6152;text-transform:uppercase;letter-spacing:0.04em;margin-bottom:12px">Wirkung pro Vertragsmodell</div>
+                        <div style="display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:14px">
+                            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.95);box-shadow:0 1px 5px rgba(60,55,48,0.10);border-radius:12px;padding:12px 14px">
+                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">FIX / FIX-M</div>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                                <select id="atWirkFix" class="f-input">
                                     <option value="GUTSCHRIFT">Stunden gutschreiben</option>
                                     <option value="SOLL_KUERZUNG">Soll reduzieren</option>
                                     <option value="KEINE">Stunden neutral</option>
-                                </select></td>
-                                <td style="padding:8px"><select id="atWirkMtp" class="f-input">
-                                    <option value="GUTSCHRIFT">Stunden gutschreiben</option>
-                                    <option value="SOLL_KUERZUNG">Soll reduzieren</option>
-                                    <option value="KEINE">Stunden neutral</option>
-                                </select></td>
-                                <td style="padding:8px"><select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle()">
-                                    <option value="AUSZAHLUNG">als Stundenlohn auszahlen</option>
-                                    <option value="KEINE">Stunden neutral</option>
-                                </select></td>
-                            </tr>
-                            <tr style="border-top:1px solid #f1f5f9">
-                                <td style="padding:8px;color:#475569;font-weight:600">Zählweise</td>
-                                <td style="padding:8px"><select id="atZwFix" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <select id="atZwFix" class="f-input">
+                                    <option value="KALENDER">1/7 — alle Kalendertage</option>
                                     <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
-                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
-                                <td style="padding:8px"><select id="atZwMtp" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
-                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
-                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
-                                <td style="padding:8px"><select id="atZwFlex" class="f-input"><option value="KALENDER">1/7 — alle Kalendertage</option>
-                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
-                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option></select></td>
-                            </tr>
-                            <tr style="border-top:1px solid #f1f5f9">
-                                <td style="padding:8px;color:#475569;font-weight:600">Basis</td>
-                                <td style="padding:8px"><select id="atBasisFix" class="f-input">
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <select id="atBasisFix" class="f-input">
                                     <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
                                     <option value="VERTRAG">Vertrag — Pensum-adjustiert</option>
-                                </select></td>
-                                <td style="padding:8px"><select id="atBasisMtp" class="f-input">
+                                </select>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.95);box-shadow:0 1px 5px rgba(60,55,48,0.10);border-radius:12px;padding:12px 14px">
+                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">MTP</div>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                                <select id="atWirkMtp" class="f-input">
+                                    <option value="GUTSCHRIFT">Stunden gutschreiben</option>
+                                    <option value="SOLL_KUERZUNG">Soll reduzieren</option>
+                                    <option value="KEINE">Stunden neutral</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <select id="atZwMtp" class="f-input">
+                                    <option value="KALENDER">1/7 — alle Kalendertage</option>
+                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <select id="atBasisMtp" class="f-input">
                                     <option value="GARANTIE">Garantie — sein Wochenpensum</option>
                                     <option value="BETRIEB">Betrieb — Filial-Wochenstunden</option>
-                                </select></td>
-                                <td style="padding:8px;color:#64748b">Betrieb (fix)</td>
-                            </tr>
-                            </tbody>
-                        </table>
-                        <div id="atEoHint" style="display:none;margin-top:8px;padding:8px 12px;background:#fdf3e7;border:1px solid #e8d5b8;border-radius:8px;color:#8a6437;font-size:12px">
-                            <b>EO-Typ (Mutterschaft/Vaterschaft):</b> «Wirkung» bleibt bewusst überall leer — der Lohnersatz läuft automatisch über die EO-Zeilen 120.x (Taggeld 80%, Deckel CHF&nbsp;220) bzw. 125.x (Korrektur FIX/FIX-M). Die MTP-Soll-Kürzung nutzt die hier gewählte Zählweise und Basis (1/7 Kalender × Garantie-Pensum). Ein gesetztes Wirkung-Häkchen würde die Stunden doppelt vergüten.
+                                </select>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.95);box-shadow:0 1px 5px rgba(60,55,48,0.10);border-radius:12px;padding:12px 14px">
+                                <div style="font-weight:700;color:#3f3f3f;font-size:13px;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid rgba(60,55,48,0.10)">FLEX</div>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Wirkung</span>
+                                <select id="atWirkFlex" class="f-input" onchange="atFlexZwToggle()">
+                                    <option value="AUSZAHLUNG">als Stundenlohn auszahlen</option>
+                                    <option value="KEINE">Stunden neutral</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Zählweise</span>
+                                <select id="atZwFlex" class="f-input">
+                                    <option value="KALENDER">1/7 — alle Kalendertage</option>
+                                    <option value="ARBEITSTAGE">1/5 — pauschal (Kalendertage ÷ 5)</option>
+                                    <option value="DIENSTPLAN">1/5 — laut Dienstplan («hätte gearbeitet»)</option>
+                                </select>
+                                <span style="display:block;font-size:11px;font-weight:600;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.03em;margin:10px 0 4px">Basis</span>
+                                <div style="padding:8px 2px;color:#8b8b8b;font-size:13px">Betrieb (fix)</div>
+                            </div>
                         </div>
-                        <div style="color:#64748b;font-size:11px;margin-top:8px">Der Katalog zeigt, was gerechnet wird — z.B. Krankheit: MTP Garantie + laut Dienstplan · Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
+                        <div id="atEoHint" style="display:none;margin-top:12px;padding:8px 12px;background:#fdf3e7;border:1px solid #e8d5b8;border-radius:8px;color:#8a6437;font-size:12px">
+                            <b>EO-Typ (Mutterschaft/Vaterschaft):</b> «Wirkung» bleibt bewusst überall auf Soll reduzieren/neutral — der Lohnersatz läuft automatisch über die EO-Zeilen 120.x (Taggeld 80%, Deckel CHF&nbsp;220) bzw. 125.x (Korrektur FIX/FIX-M). Die MTP-Soll-Kürzung nutzt die hier gewählte Zählweise und Basis. Ein «Stunden gutschreiben» würde doppelt vergüten.
+                        </div>
+                        <div style="color:#8b8b8b;font-size:11px;margin-top:10px">Der Katalog zeigt, was gerechnet wird — z.B. Krankheit: MTP Garantie + laut Dienstplan · Nacht-Kompensation: Betrieb, 1/5 pauschal · Ferien/Mutterschaft: 1/7 Kalender.</div>
                     </div>
 
                     <!-- Erweiterte Einstellungen -->
@@ -8098,7 +8105,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260818e"></script>
+<script src="js/admin-settings.js?v=20260818f"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
