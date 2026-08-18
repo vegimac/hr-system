@@ -11849,3 +11849,7 @@ body.theme-dark .admin-card img {
     mix-blend-mode: screen;
     filter: invert(1) hue-rotate(180deg) brightness(1.55) contrast(1.2);
 }
+
+/* Lohnraster-ELM-Icon: die Zeichnung hat viel Innenrand im PNG und wirkt sonst
+   winzig — deutlich grösser als die übrigen Kachel-Icons (Walter 18.08.2026) */
+.admin-card img[src*="lohnraster-elm"] { width: 156px !important; height: 156px !important; }
