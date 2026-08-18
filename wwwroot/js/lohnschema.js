@@ -85,10 +85,12 @@ function lsRender() {
                 ${editable ? `<button class="dok-menu-btn ls-del" title="Aus dem Schema entfernen" onclick="lsRemove(${e.id})" style="width:auto;padding:2px 7px;font-size:11.5px">✕</button>` : ''}
             </td>
         </tr>`;
-    const table = (rows, editable, mitGruppen = true) => rows.length ? `
-        <div class="card" style="padding:0 0 4px;overflow:visible">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
-        <thead><tr style="background:rgba(255,255,255,0.55);border-bottom:1px solid rgba(60,55,48,0.14)">
+    // Pro Art-Gruppe eine EIGENE ov-Karte mit Zwischenraum (Walter 18.08.2026,
+    // Vorbild MA-Maske: Anstellung / Verträge als getrennte Boxen).
+    // Spalten-Kopf nur in der ersten Karte — die Karten sind gleich breit
+    // (table-layout:fixed, identische %-Spalten), die Spalten fluchten also.
+    const theadHtml = `
+        <thead><tr>
             <th style="text-align:left;padding:4px 8px;width:7%">Code</th>
             <th style="text-align:left;padding:4px 10px;width:32%">Lohnposition</th>
             <th style="text-align:left;padding:4px 8px;width:21%">Art</th>
@@ -96,17 +98,31 @@ function lsRender() {
             <th class="elr-c" style="width:5.5%">KTG</th><th class="elr-c" style="width:5.5%">BVG</th>
             <th class="elr-c" style="width:5.5%">QST</th><th class="elr-c" style="width:6%">13.ML</th>
             <th style="width:4.5%"></th>
-        </tr></thead><tbody>
-        ${mitGruppen
-            ? artReihenfolge.map(art => {
-                  const g = rows.filter(e => e.art === art);
-                  if (!g.length) return '';
-                  return `<tr class="ls-group ls-g-${art}"><td colspan="10"><span class="ls-gdot"></span>${artGruppenTitel[art]}</td></tr>`
-                       + g.map(e => zeile(e, editable)).join('');
-              }).join('')
-            : rows.map(e => zeile(e, editable)).join('')}
-        </tbody></table></div>`
-        : '<div style="color:#b0aca3;font-size:12.5px;padding:12px 4px">Keine Positionen hinterlegt.</div>';
+        </tr></thead>`;
+    const colgroupHtml = `
+        <colgroup><col style="width:7%"><col style="width:32%"><col style="width:21%">
+        <col style="width:5.5%"><col style="width:5.5%"><col style="width:5.5%"><col style="width:5.5%">
+        <col style="width:5.5%"><col style="width:6%"><col style="width:4.5%"></colgroup>`;
+    const table = (rows, editable) => {
+        if (!rows.length) return '<div style="color:#b0aca3;font-size:12.5px;padding:12px 4px">Keine Positionen hinterlegt.</div>';
+        let first = true;
+        const cards = artReihenfolge.map(art => {
+            const g = rows.filter(e => e.art === art);
+            if (!g.length) return '';
+            const c = _LS_ART_COLOR[art] || '#8b8b8b';
+            const html = `
+            <div class="card ls-gcard">
+                <div class="ls-gtitle" style="color:${c}"><span class="ls-gdot" style="background:${c}"></span>${artGruppenTitel[art]}</div>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed">
+                    ${colgroupHtml}${first ? theadHtml : ''}
+                    <tbody>${g.map(e => zeile(e, editable)).join('')}</tbody>
+                </table>
+            </div>`;
+            first = false;
+            return html;
+        }).join('');
+        return `<div class="ls-gstack">${cards}</div>`;
+    };
 
     el.innerHTML = `
         <div style="display:flex;gap:8px;align-items:center;margin:2px 0 14px">${pills}
