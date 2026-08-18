@@ -4540,7 +4540,7 @@ function showFamilyDetailPopup(memberId) {
 
     const html = `
         <div style="position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:2000;display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeFamilyDetailPopup()">
-            <div style="background:linear-gradient(165deg,#f4ede0 0%,#efe7d7 50%,#eae1cf 100%);border-radius:14px;width:480px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.2);overflow:hidden">
+            <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:14px;width:480px;max-width:92vw;box-shadow:0 12px 48px rgba(0,0,0,0.2);overflow:hidden">
                 <div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
                     <div>
                         <div style="font-size:16px;font-weight:700;color:#0f172a">${esc(name)}</div>
@@ -11001,7 +11001,7 @@ function openKtgOverrideModal(employeeId, autoTagessatz100, karenzAbgeschlossen,
     const html = `
         <div id="ktgOvBackdrop" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
              onclick="if(event.target===this) closeKtgOverrideModal()">
-            <div style="background:linear-gradient(165deg,#f4ede0 0%,#efe7d7 50%,#eae1cf 100%);border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
+            <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:12px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
                 <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0">
                     <div style="font-size:15px;font-weight:700;color:#1e293b">KTG/UVG-Tagessatz übersteuern</div>
                     <div style="font-size:12px;color:#64748b;margin-top:2px">Auto-Berechnung: CHF ${Number(autoTagessatz100).toFixed(2)} / Tag (100 %)</div>
@@ -11714,7 +11714,7 @@ function openEmployeeAddressModal(existing) {
     ).join('');
 
     modal.innerHTML = `
-    <div style="background:linear-gradient(165deg,#f4ede0 0%,#efe7d7 50%,#eae1cf 100%);border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto">
+    <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,0.25);margin:auto">
         <div style="padding:14px 22px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:700;color:#1e293b">${isNew ? _t('addr.modalTitleNew','Adresse hinzufügen') : _t('addr.modalTitleEdit','Adresse bearbeiten')}</div>
             <button onclick="closeEmployeeAddressModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
@@ -12701,7 +12701,7 @@ function showInitialPasswordModal(username, password) {
         document.body.appendChild(overlay);
     }
     overlay.innerHTML = `
-        <div style="background:linear-gradient(165deg,#f4ede0 0%,#efe7d7 50%,#eae1cf 100%);border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
+        <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:14px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,0.28);overflow:hidden">
             <div style="padding:18px 22px;background:linear-gradient(180deg,#ece9e2,#fff);border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
                 <span style="font-size:20px">📬</span>
                 <div>
@@ -13090,7 +13090,7 @@ async function openPermitHistoryModal(entryId) {
 
     modal.innerHTML = `
         <div style="display:flex;gap:14px;align-items:stretch;max-width:1100px;width:100%;max-height:90vh">
-        <div style="background:linear-gradient(165deg,#f4ede0 0%,#efe7d7 50%,#eae1cf 100%);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
+        <div style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:14px;max-width:540px;width:100%;max-height:90vh;overflow:auto;padding:22px 24px;flex-shrink:0">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <h3 style="margin:0;font-size:18px;color:#0f172a">${isEdit ? _t('permit.modalTitleEdit','Bewilligung bearbeiten') : _t('permit.modalTitleNew','Neue Bewilligung')}</h3>
                 <button onclick="closePermitHistoryModal()" style="background:none;border:none;font-size:22px;color:#94a3b8;cursor:pointer">×</button>
