@@ -1752,10 +1752,22 @@ public class PayrollCalculationEngine
             // Mutterschaft; die EO zahlt 7 Taggelder/Woche, Sa+So zählen mit).
             // Der Lohnersatz kommt über die EO-Zeile 120.x — bei MTP gibt es
             // darum KEINE Korrektur-Zeile 125.x (die bleibt FIX/FIX-M).
-            decimal mtpEoTage = absences
-                .Where(a => a.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT")
-                .Sum(a => (decimal)CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
-            decimal eoStundenAequivalent = mtpEoTage * guaranteedH / 7m;
+            // Der DIVISOR kommt aus dem Absenz-Typ-Katalog (GutschriftModus
+            // «1/7» / «1/5», Walter 18.08.2026: «so sieht man in der Absenz,
+            // was wirklich gerechnet wird»). Default/leer = 1/7-Kalender.
+            // Das Zeitgutschrift-FLAG bleibt für EO-Typen bewusst engine-
+            // neutralisiert (Doppelzahlungs-Sperre im Stunden-Verteiler).
+            decimal mtpEoTage = 0m;
+            decimal eoStundenAequivalent = 0m;
+            foreach (var a in absences.Where(x =>
+                x.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT"))
+            {
+                decimal tage = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
+                if (tage <= 0) continue;
+                decimal divisor = GetAbsenzTyp(a.AbsenceType).GutschriftModus == "1/5" ? 5m : 7m;
+                mtpEoTage += tage;
+                eoStundenAequivalent += tage * guaranteedH / divisor;
+            }
             // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
             // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
             decimal sollStundenExakt = sollStundenVollExakt
