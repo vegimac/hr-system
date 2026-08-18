@@ -11534,3 +11534,23 @@ body:not(.theme-dark) .dok-menu-item:hover { background: #f4f0e8 !important; }
 }
 #svFormPanel label { color: #3f3f3f !important; }
 #svFormPanel #svFormHint { background: rgba(255, 255, 255, 0.55) !important; }
+
+/* ── ov-Eingabemasken-STANDARD (Walter 18.08.2026): Eingabemaske = warme Karte,
+   Felder = weisse Pillen mit Schatten. Zentral für die generische .modal-Klasse;
+   die MA-/Familien-/Interview-Masken tragen den Look bereits über eigene Klassen.
+   Neue Modals: .modal verwenden ODER dieses Muster übernehmen. ── */
+body:not(.theme-dark) .modal {
+    background-color: #f1ebe0 !important;
+    background-image: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+}
+body:not(.theme-dark) .modal-hd { background: #f7f2e9; border-bottom-color: rgba(60, 55, 48, 0.10); }
+body:not(.theme-dark) .modal-ft { border-top-color: rgba(60, 55, 48, 0.10); }
+body:not(.theme-dark) .modal input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .modal select,
+body:not(.theme-dark) .modal textarea,
+body:not(.theme-dark) .modal .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}

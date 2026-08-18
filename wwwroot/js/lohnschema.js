@@ -175,10 +175,10 @@ function lsAddDialog() {
         m = document.createElement('div');
         m.id = 'lsAddModal';
         m.style.cssText = 'display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5)';
-        m.innerHTML = `<div style="position:absolute;top:120px;left:50%;transform:translateX(-50%);width:480px;background:#faf8f5;border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);padding:18px 22px">
+        m.innerHTML = `<div style="position:absolute;top:120px;left:50%;transform:translateX(-50%);width:480px;background:linear-gradient(165deg,#f7f2e9 0%,#efe8db 55%,#e7dfd0 100%);border-radius:16px;box-shadow:0 25px 60px rgba(0,0,0,0.35);padding:18px 22px">
             <b id="lsAddTitle" style="font-size:14px;color:#3f3f3f;display:block;margin-bottom:12px"></b>
             <label style="font-size:12px;color:#8b8b8b">Lohnposition</label>
-            <select id="lsAddPos" style="width:100%;padding:8px 10px;border-radius:8px;font-size:13px;margin:4px 0 12px"></select>
+            <select id="lsAddPos" style="width:100%;padding:8px 10px;border-radius:10px;font-size:13px;margin:4px 0 12px;background:#fff;border:1px solid rgba(255,255,255,0.95);box-shadow:0 2px 6px rgba(60,55,48,0.13)"></select>
             <label style="font-size:12px;color:#8b8b8b">Art</label>
             <select id="lsAddArt" style="width:100%;padding:8px 10px;border-radius:8px;font-size:13px;margin:4px 0 4px">
                 ${_LS_ARTEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
