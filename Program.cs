@@ -3159,6 +3159,22 @@ using (var scope = app.Services.CreateScope())
                           WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
     ");
 
+    // Basis bei MTP pro Absenz-Typ (Walter-Vorgabe 18.08.2026): GARANTIE
+    // (Garantie-Pensum, Default — z.B. Krankheit) oder BETRIEB (Filial-
+    // Wochenstunden — z.B. Nacht-Kompensation). Einmalige Spalten-Anlage im
+    // DO-Block (Backfill NACHT_KOMP=BETRIEB nur bei Neuanlage der Spalte —
+    // User-Edits werden bei spaeteren Starts NIE ueberschrieben).
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                           WHERE table_name = 'absenz_typ' AND column_name = 'basis_stunden_mtp') THEN
+                ALTER TABLE absenz_typ ADD COLUMN basis_stunden_mtp varchar(10) NOT NULL DEFAULT 'GARANTIE';
+                UPDATE absenz_typ SET basis_stunden_mtp = 'BETRIEB' WHERE code = 'NACHT_KOMP';
+            END IF;
+        END $$;
+    ");
+
     // Absenz-Typ VATERSCHAFT (10 Tage EO) — via EF geseedet (Model-Defaults),
     // Konfiguration als Klon von MUTTERSCHAFT (gleiches Zeitgutschrift-Verhalten).
     if (!db.AbsenzTypen.Any(t => t.Code == "VATERSCHAFT"))

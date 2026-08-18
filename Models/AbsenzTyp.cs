@@ -53,6 +53,15 @@ public class AbsenzTyp
     public string BasisStunden { get; set; } = "BETRIEB";
 
     /// <summary>
+    /// Basis bei MTP (Walter-Vorgabe 18.08.2026): der MTP hat quasi seine
+    /// eigene «Betriebsarbeitszeit» — das Garantie-Pensum. Pro Absenz-Typ
+    /// wählbar, womit die 1/5- bzw. 1/7-Rechnung bei MTP arbeitet:
+    ///   GARANTIE (Default) = garantierte Wochenstunden (z.B. Krankheit: 25/5)
+    ///   BETRIEB            = Filial-Wochenstunden (z.B. Nacht-Komp: 42/5)
+    /// </summary>
+    public string BasisStundenMtp { get; set; } = "GARANTIE";
+
+    /// <summary>
     /// Lohnposition-Code für die Auszahlung dieser Absenz (z.B. "70" für
     /// Krankheits-Karenzentschädigung, "2" für Festlohn für bezogene Ferien).
     /// Null = keine Auszahlungs-Lohnposition (z.B. SCHULUNG → nur Saldo).

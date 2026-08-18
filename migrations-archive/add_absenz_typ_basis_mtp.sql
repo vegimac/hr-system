@@ -1,0 +1,9 @@
+-- ============================================================================
+-- Basis bei MTP pro Absenz-Typ (Walter 18.08.2026): GARANTIE (Garantie-Pensum,
+-- Default — z.B. Krankheit 25/5) oder BETRIEB (Filial-Wochenstunden — z.B.
+-- Nacht-Kompensation 42/5). Läuft IDEMPOTENT beim Serverstart (Program.cs,
+-- DO-Block mit einmaligem NACHT_KOMP-Backfill) — TablePlus nicht nötig.
+-- Engine: ComputeAbsenzHours liest typCfg.BasisStundenMtp statt des früheren
+-- Hardcode-Overrides «MTP immer Garantie» (Ausnahme Nacht war zuvor über
+-- ReduziertSaldo erkannt). UI: Feld «Basis bei MTP» im Absenz-Typ-Formular.
+-- ============================================================================

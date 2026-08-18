@@ -600,9 +600,16 @@ public class PayrollCalculationEngine
             // statt 25 h/5 = 5 h.
             if (emp.EmploymentModel == "MTP")
             {
-                weeklyH = emp.GuaranteedHoursPerWeek
-                       ?? emp.WeeklyHours
-                       ?? betriebWeekly;
+                // Basis bei MTP pro Absenz-Typ konfigurierbar (Walter 18.08.2026,
+                // Feld «Basis bei MTP» im Absenz-Typ): der MTP hat quasi seine
+                // eigene Betriebsarbeitszeit — das Garantie-Pensum (Default,
+                // z.B. Krankheit 25/5). BETRIEB = Filial-Wochenstunden (z.B.
+                // Nacht-Kompensation 42/5 — der Ruhetag entschädigt eine volle
+                // Betriebs-Schicht). Der Katalog zeigt, was gerechnet wird.
+                if (!string.Equals(typCfg.BasisStundenMtp, "BETRIEB", StringComparison.OrdinalIgnoreCase))
+                    weeklyH = emp.GuaranteedHoursPerWeek
+                           ?? emp.WeeklyHours
+                           ?? betriebWeekly;
             }
             else if (typCfg.BasisStunden == "VERTRAG")
             {

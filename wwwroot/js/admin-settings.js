@@ -983,6 +983,8 @@ function openAbsenzTypForm(t) {
     else document.getElementById('atModus15').checked = true;
     document.getElementById('atModusWrap').style.display = 'block';
     document.getElementById('atBasisStunden').value   = d.basisStunden   ?? 'BETRIEB';
+    const bsMtp = document.getElementById('atBasisStundenMtp');
+    if (bsMtp) bsMtp.value = d.basisStundenMtp ?? 'GARANTIE';
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     document.getElementById('atUtpAuszahlung').checked = d.utpAuszahlung ?? false;
     const vpEl = document.getElementById('atVerlaengertProbezeit');
@@ -1047,6 +1049,7 @@ async function saveAbsenzTyp() {
     if (!modus) { alert('Bitte Berechnungsmodus wählen (1/5 oder 1/7).'); return; }
 
     const basisStunden   = document.getElementById('atBasisStunden').value || 'BETRIEB';
+    const basisStundenMtp = document.getElementById('atBasisStundenMtp')?.value || 'GARANTIE';
     const reduziertRaw   = document.getElementById('atReduziertSaldo').value;
     const utpAuszahlung  = document.getElementById('atUtpAuszahlung').checked;
     const verlaengertProbezeit = document.getElementById('atVerlaengertProbezeit')?.checked ?? false;
@@ -1058,6 +1061,7 @@ async function saveAbsenzTyp() {
         sortOrder: parseInt(document.getElementById('atSort').value) || 99,
         aktiv: document.getElementById('atAktiv').checked,
         basisStunden,
+        basisStundenMtp,
         reduziertSaldo: reduziertRaw === '' ? null : reduziertRaw,
         utpAuszahlung,
         verlaengertProbezeit,

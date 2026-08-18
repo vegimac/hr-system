@@ -1141,6 +1141,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.VerlaengertProbezeit).HasColumnName("verlaengert_probezeit").HasDefaultValue(false);
             entity.Property(e => e.ReduziertSaldo).HasColumnName("reduziert_saldo").HasMaxLength(20);
             entity.Property(e => e.BasisStunden).HasColumnName("basis_stunden").HasMaxLength(10).HasDefaultValue("BETRIEB");
+            entity.Property(e => e.BasisStundenMtp).HasColumnName("basis_stunden_mtp").HasMaxLength(10).HasDefaultValue("GARANTIE");
             entity.Property(e => e.LohnpositionAuszahlungCode).HasColumnName("lohnposition_auszahlung_code").HasMaxLength(20);
             entity.Property(e => e.LohnpositionKuerzungCode).HasColumnName("lohnposition_kuerzung_code").HasMaxLength(20);
             entity.Property(e => e.Pattern).HasColumnName("pattern").HasMaxLength(20).HasDefaultValue("KEIN");

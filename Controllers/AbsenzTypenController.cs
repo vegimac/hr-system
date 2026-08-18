@@ -39,7 +39,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.SortOrder, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -53,7 +53,7 @@ public class AbsenzTypenController : ControllerBase
             .OrderBy(t => t.SortOrder)
             .Select(t => new {
                 t.Id, t.Code, t.Bezeichnung, t.Zeitgutschrift, t.GutschriftModus,
-                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
+                t.UtpAuszahlung, t.VerlaengertProbezeit, t.ReduziertSaldo, t.BasisStunden, t.BasisStundenMtp, t.SortOrder, t.Aktiv, t.ZwischenverdienstKuerzel
             })
             .ToListAsync();
         return Ok(list);
@@ -85,6 +85,10 @@ public class AbsenzTypenController : ControllerBase
             || !string.Equals(
                 string.IsNullOrWhiteSpace(typ.BasisStunden) ? "BETRIEB" : typ.BasisStunden,
                 string.IsNullOrWhiteSpace(dto.BasisStunden) ? "BETRIEB" : dto.BasisStunden,
+                StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(
+                string.IsNullOrWhiteSpace(typ.BasisStundenMtp) ? "GARANTIE" : typ.BasisStundenMtp,
+                string.IsNullOrWhiteSpace(dto.BasisStundenMtp) ? "GARANTIE" : dto.BasisStundenMtp,
                 StringComparison.OrdinalIgnoreCase);
 
         typ.Code             = dto.Code.ToUpper().Trim();
@@ -98,6 +102,7 @@ public class AbsenzTypenController : ControllerBase
         typ.VerlaengertProbezeit = dto.VerlaengertProbezeit;
         typ.ReduziertSaldo   = string.IsNullOrWhiteSpace(dto.ReduziertSaldo) ? null : dto.ReduziertSaldo;
         typ.BasisStunden     = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden;
+        typ.BasisStundenMtp  = string.IsNullOrWhiteSpace(dto.BasisStundenMtp) ? "GARANTIE" : dto.BasisStundenMtp.ToUpper();
         typ.SortOrder        = dto.SortOrder;
         typ.Aktiv            = dto.Aktiv;
         typ.ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
@@ -170,9 +175,12 @@ public class AbsenzTypenController : ControllerBase
             VerlaengertProbezeit = dto.VerlaengertProbezeit,
             ReduziertSaldo  = string.IsNullOrWhiteSpace(dto.ReduziertSaldo) ? null : dto.ReduziertSaldo,
             BasisStunden    = string.IsNullOrWhiteSpace(dto.BasisStunden)   ? "BETRIEB" : dto.BasisStunden,
+            BasisStundenMtp = string.IsNullOrWhiteSpace(dto.BasisStundenMtp) ? "GARANTIE" : dto.BasisStundenMtp.ToUpper(),
             SortOrder       = dto.SortOrder,
             Aktiv           = true,
-            CreatedAt       = DateTime.Now,
+            // absenz_typ.created_at ist TIMESTAMPTZ → UTC Pflicht
+            // (gleiche Falle wie der 502-Startcrash vom 17.08.2026).
+            CreatedAt       = DateTime.UtcNow,
             ZwischenverdienstKuerzel = string.IsNullOrWhiteSpace(dto.ZwischenverdienstKuerzel)
                 ? null
                 : dto.ZwischenverdienstKuerzel.ToUpper().Trim()
@@ -238,5 +246,7 @@ public record AbsenzTypDto(
     string? ReduziertSaldo           = null,
     string? BasisStunden             = "BETRIEB",
     string? ZwischenverdienstKuerzel = null,
-    bool    VerlaengertProbezeit     = false
+    bool    VerlaengertProbezeit     = false,
+    // Basis bei MTP (Walter 18.08.2026): GARANTIE | BETRIEB
+    string? BasisStundenMtp          = "GARANTIE"
 );

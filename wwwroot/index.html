@@ -5227,6 +5227,12 @@
                                     <option value="VERTRAG">Vertrag — MTP-Sollstunden (sonst Betrieb)</option>
                                 </select>
                                 <div style="color:#64748b;font-size:11px;margin-top:4px">Wirkt auf die Berechnung der Zeitgutschrift.</div>
+                                <label class="f-label" for="atBasisStundenMtp" style="margin-top:12px">Basis bei MTP</label>
+                                <select id="atBasisStundenMtp" class="f-input">
+                                    <option value="GARANTIE">Garantie — sein garantiertes Wochenpensum (z.B. 25h ÷ 5)</option>
+                                    <option value="BETRIEB">Betrieb — Filial-Wochenstunden (z.B. 42h ÷ 5)</option>
+                                </select>
+                                <div style="color:#64748b;font-size:11px;margin-top:4px">Der MTP hat quasi seine eigene Betriebsarbeitszeit (Garantie) — z.B. Krankheit: Garantie · Nacht-Kompensation: Betrieb.</div>
                             </div>
                             <div>
                                 <label class="f-label" for="atReduziertSaldo">Reduziert Saldo</label>
@@ -8086,7 +8092,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260816b"></script>
+<script src="js/admin-settings.js?v=20260818a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260708flex"></script>
