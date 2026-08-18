@@ -1229,7 +1229,7 @@ function openDokUploadModal() {
     const modalHtml = `
     <div id="dokUploadOverlay" style="position:fixed;inset:0;background:rgba(15,23,42,0.4);z-index:9999;
          display:flex;align-items:center;justify-content:center" onclick="if(event.target===this)closeDokUploadModal()">
-        <div style="background:white;border-radius:14px;width:520px;max-width:92vw;padding:22px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
+        <div class="modal" style="border-radius:14px;width:520px;max-width:92vw;padding:22px 26px;box-shadow:0 20px 60px rgba(0,0,0,0.2)">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
                 <h3 style="margin:0;font-size:17px;font-weight:700;color:#0f172a">Dokument hochladen</h3>
                 <button onclick="closeDokUploadModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">×</button>

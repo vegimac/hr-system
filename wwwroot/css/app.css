@@ -11554,3 +11554,36 @@ body:not(.theme-dark) .modal .lqsel-btn {
     border-radius: 10px !important;
     box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
 }
+
+/* ── Erfassungs-Masken auf den neuen ov-Standard gehoben (Walter 18.08.2026):
+   satterer Warm-Verlauf (wie SV-Formular) statt der blassen Stufe vom 12.08.,
+   Felder als weisse Pillen. Deckt: Familienangehörige, Absenz, Lohnabtretung
+   (ma-modal), Verwarnung, Arbeitszeugnis, Interview (iv-modal),
+   Arbeits-Aufforderung (Page-Card). «Dokument hochladen» hängt neu an .modal. ── */
+body:not(.theme-dark) .family-modal-box,
+body:not(.theme-dark) .ma-modal-box,
+body:not(.theme-dark) .iv-modal-box,
+body:not(.theme-dark) #page-aufforderung-arbeit .card {
+    background: linear-gradient(165deg, #f7f2e9 0%, #efe8db 55%, #e7dfd0 100%) !important;
+}
+body:not(.theme-dark) .family-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .family-modal-box select,
+body:not(.theme-dark) .family-modal-box textarea,
+body:not(.theme-dark) .family-modal-box .lqsel-btn,
+body:not(.theme-dark) .ma-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .ma-modal-box select,
+body:not(.theme-dark) .ma-modal-box textarea,
+body:not(.theme-dark) .ma-modal-box .lqsel-btn,
+body:not(.theme-dark) .iv-modal-box input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) .iv-modal-box select,
+body:not(.theme-dark) .iv-modal-box textarea,
+body:not(.theme-dark) .iv-modal-box .lqsel-btn,
+body:not(.theme-dark) #page-aufforderung-arbeit .card input:not([type="checkbox"]):not([type="radio"]),
+body:not(.theme-dark) #page-aufforderung-arbeit .card select,
+body:not(.theme-dark) #page-aufforderung-arbeit .card textarea,
+body:not(.theme-dark) #page-aufforderung-arbeit .card .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
