@@ -987,6 +987,7 @@ function openAbsenzTypForm(t) {
     document.getElementById('atZwFlex').value = d.zaehlweiseFlex ?? zwLegacy;
     document.getElementById('atBasisFix').value = d.basisFix ?? d.basisStunden ?? 'BETRIEB';
     document.getElementById('atBasisMtp').value = d.basisMtp ?? d.basisStundenMtp ?? 'GARANTIE';
+    atFlexZwToggle();
     document.getElementById('atReduziertSaldo').value = d.reduziertSaldo ?? '';
     const vpEl = document.getElementById('atVerlaengertProbezeit');
     if (vpEl) vpEl.checked = d.verlaengertProbezeit ?? false;
@@ -2248,4 +2249,16 @@ async function fzDelete() {
     } catch (e) {
         alert(`Verbindungsfehler: ${e.message}`);
     }
+}
+
+
+// FLEX-Zählweise nur relevant, wenn «als Stundenlohn auszahlen» aktiv ist
+// (FLEX hat kein Soll — ohne Auszahlung bewirkt die Absenz nichts).
+function atFlexZwToggle() {
+    const an = document.getElementById('atWirkFlex')?.checked ?? false;
+    const zw = document.getElementById('atZwFlex');
+    if (!zw) return;
+    zw.disabled = !an;
+    const wrap = zw.closest('td');
+    if (wrap) wrap.style.opacity = an ? '1' : '0.4';
 }
