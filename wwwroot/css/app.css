@@ -11332,11 +11332,16 @@ body.theme-dark .sys-back-btn {
     box-shadow: none !important;
     min-height: 0 !important;
 }
-#page-lohnschema tr.ls-a-automatisch .lqsel-btn { color:#3d6b4f !important; background:rgba(77,124,95,.08) !important;  border:1px solid rgba(77,124,95,.28) !important; }
-#page-lohnschema tr.ls-a-saldo       .lqsel-btn { color:#3f6a76 !important; background:rgba(78,127,140,.08) !important; border:1px solid rgba(78,127,140,.28) !important; }
-#page-lohnschema tr.ls-a-ereignis    .lqsel-btn { color:#6f6a5f !important; background:rgba(138,132,120,.08) !important;border:1px solid rgba(138,132,120,.26) !important; }
-#page-lohnschema tr.ls-a-austritt    .lqsel-btn { color:#8a6437 !important; background:rgba(161,121,74,.09) !important; border:1px solid rgba(161,121,74,.30) !important; }
-#page-lohnschema tr.ls-a-manuell     .lqsel-btn { color:#695882 !important; background:rgba(125,107,150,.08) !important;border:1px solid rgba(125,107,150,.28) !important; }
+#page-lohnschema .ls-2col .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 6px rgba(60, 55, 48, 0.12) !important;
+}
+#page-lohnschema tr.ls-a-automatisch .lqsel-btn { color: #3d6b4f !important; }
+#page-lohnschema tr.ls-a-saldo       .lqsel-btn { color: #3f6a76 !important; }
+#page-lohnschema tr.ls-a-ereignis    .lqsel-btn { color: #6f6a5f !important; }
+#page-lohnschema tr.ls-a-austritt    .lqsel-btn { color: #8a6437 !important; }
+#page-lohnschema tr.ls-a-manuell     .lqsel-btn { color: #695882 !important; }
 /* SV-Flags: Haekchen gedaempft gruen, «nicht pflichtig» neutral (kein Fehler-Rot) */
 #page-lohnschema .ls-on  { color:#4d9964; }
 #page-lohnschema .ls-off { color:#cfc9be; }
@@ -11376,3 +11381,19 @@ body.theme-dark .sys-back-btn {
 #page-lohnschema .ls-2col .card { padding: 4px 6px 6px !important; }
 #page-lohnschema .ls-2col thead th:first-child { border-top-left-radius: 12px; }
 #page-lohnschema .ls-2col thead th:last-child  { border-top-right-radius: 12px; }
+
+
+/* ── ov-Karten-Prinzip «warme Karte, weisse Controls» (Walter 18.08.2026) ── */
+.at-mx-card .f-input,
+.at-mx-card input[type="text"], .at-mx-card input[type="number"] {
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.95);
+    border-radius: 11px;
+    box-shadow: 0 2px 7px rgba(60, 55, 48, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+.at-mx-card .lqsel-btn {
+    background: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.95) !important;
+    box-shadow: 0 2px 7px rgba(60, 55, 48, 0.13) !important;
+    border-radius: 11px !important;
+}
