@@ -11697,3 +11697,18 @@ body:not(.theme-dark) #familyModal .fmf-addr-card {
 .family-modal-box .fmf-row { margin-bottom: 8px; }
 .family-modal-box .family-modal-head { padding: 14px 24px 10px; }
 .family-modal-box .family-modal-foot { padding: 10px 24px; }
+
+/* ── QST-Modal auf ov-Standard (Walter 18.08.2026): Sektions-Panels flächenlos,
+   Checkbox-Pillen transparent mit Rand — nur Eingabefelder weiss. ── */
+body:not(.theme-dark) #qstModal .qst-grid,
+body:not(.theme-dark) #qstModal div[style*="f6f3ee"] {
+    background: transparent !important;
+    border-color: transparent !important;
+}
+body:not(.theme-dark) #qstModal .qst-cb {
+    background: transparent;
+    border: 1px solid rgba(60, 55, 48, 0.22);
+    box-shadow: none;
+}
+body:not(.theme-dark) #qstModal .qst-cb-ro { background: rgba(60, 55, 48, 0.06) !important; }
+body:not(.theme-dark) #qstModal .ma-modal-head + div[style*="rgba(255,255,255,0.5)"] { background: rgba(255, 255, 255, 0.30) !important; }
