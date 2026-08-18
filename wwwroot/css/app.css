@@ -9546,14 +9546,14 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 .ra-tile img[src*="bewerbungsbogen.png"] { width: 104px; height: 104px; }
 /* Kandidat an HR: Quermotiv → volle Kachelbreite ausnutzen */
 .ra-tile img[src*="Kandidat-an-HR.png"] { width: 110px; height: 110px; }
-body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #d6d3cc; }
+body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #f1f5f9; }
 /* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
    mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */
-body.theme-dark .ra-tile img { filter: invert(0.96) hue-rotate(180deg) brightness(1.35) contrast(1.25); }
+body.theme-dark .ra-tile img { filter: invert(1) hue-rotate(180deg) brightness(1.7) contrast(1.3); }
 /* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
-body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: none; }
+body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: brightness(1.45) contrast(1.15); }
 /* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
-body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: none; }
+body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45) contrast(1.15); }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
