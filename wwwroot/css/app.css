@@ -11821,3 +11821,15 @@ body.theme-dark .ud-pill { background: rgba(255, 255, 255, 0.10) !important; bor
 body.theme-dark .ud-card.ud-EINBEHALTEN .ud-pill { color: #fcd34d !important; }
 body.theme-dark .ud-card.ud-ZURUECKBEZAHLT .ud-pill { color: #6ee7b7 !important; }
 body.theme-dark .ud-card.ud-VERFALLEN .ud-pill { color: #fca5a5 !important; }
+
+/* ── Manager-DP helle Insel v2 (Walter 18.08.2026): generische Dark-Table-Regeln
+   färbten die Schrift hell — hier hart auf die Hell-Optik zurückgezwungen. ── */
+body.theme-dark .dp-table td { color: #3f3f3f !important; }
+body.theme-dark .dp-table thead th { background: #f6f3ee !important; color: #646464 !important; }
+body.theme-dark .dp-side { background: #f6f3ee !important; color: #3f3f3f !important; }
+body.theme-dark .dp-name { background: #fff !important; color: #3f3f3f !important; }
+body.theme-dark .dp-table .dp-sum { background: #f6f3ee !important; color: #3f3f3f !important; }
+body.theme-dark .dp-branch td { background: #3f3f3f !important; color: #fff !important; }
+body.theme-dark .dp-table td.dp-weok { color: #166534 !important; }
+body.theme-dark .dp-table td.dp-wenok { color: #b91c1c !important; }
+body.theme-dark .dp-we { background: #efece6; }
