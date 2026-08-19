@@ -365,10 +365,13 @@ public class EasyAtWorkEmployeeSyncService
                 }
             }
 
-            if (!found && e.EasyMissingSince == null)
+            if (!found)
             {
-                // Unvollständige Liste → keine NEUEN Markierungen.
-                if (listeUnvollstaendig) continue;
+                // Unvollständige Liste → keine NEUEN Markierungen; bereits
+                // markierte MA werden trotzdem re-verifiziert (Selbstheilung,
+                // Walter 19.08.2026 — vorher blieb eine Markierung kleben,
+                // bis der MA wieder in einer Aktivliste stand).
+                if (listeUnvollstaendig && e.EasyMissingSince == null) continue;
                 // Verifikation per Einzelabfrage (Walter-Bug 07.08.2026, Senada):
                 // die ?active=-Liste FLATTERT gelegentlich (MA fehlt in einem
                 // Lauf, ist im nächsten wieder drin) — vor dem Markieren den MA
@@ -394,8 +397,8 @@ public class EasyAtWorkEmployeeSyncService
                         {
                             wirklichWeg = false;
                             notes.Add(direkt.From != null && direkt.From > activeAt
-                                ? $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Eintritt erst am {direkt.From:dd.MM.yyyy} — künftiger MA, KEINE Markierung."
-                                : $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): fehlte in der Aktivliste, Einzelabfrage findet ihn aber aktiv (Customer {m.EasyAtWorkCustomerId}) — KEINE Markierung (Listen-Flattern).");
+                                ? $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Eintritt erst am {direkt.From:dd.MM.yyyy} — künftiger MA, keine Verschollen-Markierung."
+                                : $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): fehlte in der Aktivliste, Einzelabfrage findet ihn aber (Customer {m.EasyAtWorkCustomerId}) — keine Verschollen-Markierung (Listen-Flattern).");
                             break;
                         }
                     }
@@ -406,13 +409,27 @@ public class EasyAtWorkEmployeeSyncService
                 }
                 if (wirklichWeg && verifikationGestoert)
                 {
-                    notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Verifikation unvollständig (API-Fehler bei mind. einem Customer) — im Zweifel KEINE Markierung.");
+                    notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Verifikation unvollständig (API-Fehler bei mind. einem Customer) — im Zweifel keine Änderung.");
                     continue;
                 }
-                if (!wirklichWeg) continue;
-                e.EasyMissingSince = activeAt;
-                notes.Add($"⚠ {e.FirstName} {e.LastName} ({e.EmployeeNumber}) in keiner easy@work-Aktivliste — Austritt prüfen.");
-                changed = true;
+                if (!wirklichWeg)
+                {
+                    // Selbstheilung: bestehende Markierung aufheben, wenn die
+                    // Einzelabfrage den MA findet (z.B. künftiger Eintritt).
+                    if (e.EasyMissingSince != null)
+                    {
+                        e.EasyMissingSince = null;
+                        notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Einzelabfrage findet ihn — Verschollen-Warnung aufgehoben.");
+                        changed = true;
+                    }
+                    continue;
+                }
+                if (e.EasyMissingSince == null)
+                {
+                    e.EasyMissingSince = activeAt;
+                    notes.Add($"⚠ {e.FirstName} {e.LastName} ({e.EmployeeNumber}) in keiner easy@work-Aktivliste — Austritt prüfen.");
+                    changed = true;
+                }
             }
             else if (found && e.EasyMissingSince != null)
             {
