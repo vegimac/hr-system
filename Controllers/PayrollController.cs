@@ -1430,6 +1430,20 @@ public class PayrollController : HrControllerBase
         if (srvNode["pausiert"] is { } pausNode && pausNode.GetValueKind() == JsonValueKind.True)
             return Conflict(new { error = "Mitarbeiter ist in diesem Monat über die KTG-Versicherung abgerechnet (Pause) — keine Bestätigung möglich." });
 
+        // ── Phase 3 · Etappe 1 (Walter 18.08.2026): Basen-Differenz-Riegel ──
+        // Produktive Basen = Katalog-Flags; weicht die verdrahtete Kontroll-
+        // rechnung um mehr als 5 Rappen ab, ist etwas faul (Flag geändert?
+        // neue Lohnart ohne Code?) → Bestätigen gesperrt, zuerst Basen-
+        // Kontrolle in der Kachel «Lohnraster (ELM)» prüfen.
+        if (srvNode["basenDiffMax"] is { } bdNode
+            && bdNode.GetValueKind() == JsonValueKind.Number
+            && bdNode.GetValue<decimal>() > 0.05m)
+            return Conflict(new
+            {
+                error = "BASEN_DIFFERENZ",
+                message = $"Basen-Kontrolle: Katalog-Flags und Kontrollrechnung weichen um CHF {bdNode.GetValue<decimal>():0.00} ab — Bestätigen gesperrt. Bitte Basen-Kontrolle (Kachel «Lohnraster ELM») prüfen.",
+            });
+
         // ── Mindestlohn-Sperre (Walter-Vorgabe 20.05.2026) ─────────────────────
         // Liegt der vertragliche Lohn am Periodenende unter dem L-GAV-Mindestlohn,
         // ist die Bestätigung HART gesperrt — erst Lohn korrigieren. Der Lohn wird

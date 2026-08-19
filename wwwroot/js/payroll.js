@@ -1531,6 +1531,12 @@ function renderLohnSlip(s, targetEl) {
     const _corrBanner = s.isCorrection
         ? `<div style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">Korrekturlohn / Sonderlohn<span style="font-weight:400;display:block;margin-top:2px">Nur manuelle Zulagen/Abzüge (+ Depot-Refund). Keine Stempelzeiten, Absenzen oder Saldo-Fortschreibung.</span></div>`
         : '';
+    // Phase 3 Etappe 1 (Walter 18.08.2026): produktive SV-Basen = Katalog-Flags.
+    // Differenz zur verdrahteten Kontrollrechnung → roter Riegel (Confirm blockt
+    // serverseitig mit 409 BASEN_DIFFERENZ).
+    const _basenBanner = (s.basenDiffMax != null && Number(s.basenDiffMax) > 0.05)
+        ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">⚠ Basen-Kontrolle: Differenz CHF ${Number(s.basenDiffMax).toFixed(2)} zwischen Katalog-Flags und Kontrollrechnung — Bestätigen gesperrt.<div style="font-weight:400;margin-top:2px">Prüfen unter Lohn-Stammdaten → Lohnraster (ELM) → Basen-Kontrolle.</div></div>`
+        : '';
     // Helfer: "Gerechnet" — Wert wenn vorhanden und ungleich Betrag, sonst leer
     const renderAccrued = (l) => {
         const acc = l.accrued != null ? Number(l.accrued) : Number(l.betrag);
@@ -1563,7 +1569,7 @@ function renderLohnSlip(s, targetEl) {
 
     mount.innerHTML = `
     <div class="ls-wrap" style="padding-top:2px;padding-bottom:3px">
-        ${_corrBanner}
+        ${_basenBanner}${_corrBanner}
         ${_mwBanner}
         <!-- Header-Div und Sektion-Titel (Lohn, Abzüge) weggelassen
              (Walter-Vorgabe 01.06.2026): Periode/Filiale stehen bereits

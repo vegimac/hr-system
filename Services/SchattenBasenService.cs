@@ -28,18 +28,21 @@ public static class SchattenBasenService
     /// <summary>Rundungs-Toleranz pro Kategorie (Rappen-Rauschen).</summary>
     public const decimal Toleranz = 0.05m;
 
-    public static object Compute(
+    /// <summary>
+    /// Phase 3 Etappe 1 (Walter 18.08.2026): Basen-Akkumulation aus den
+    /// Katalog-Flags als EIGENE Funktion — sie ist seither die PRODUKTIVE
+    /// Basen-Quelle in BuildResult; Compute() nutzt dieselbe Funktion für den
+    /// Vergleich gegen die verdrahtete Kontrollrechnung.
+    /// </summary>
+    public static SvBases ComputeBases(
         IEnumerable<object> lohnLines,
         Dictionary<string, Lohnposition> lohnposByCode,
-        SvBases engine,
-        // BVG-Wartefrist-Korrektur (MTP/FLEX/FIX Krank/Unfall): Engine-Aufschlag
-        // OHNE Lohnzeile — wird der Schatten-BVG-Basis explizit zugerechnet und
-        // separat ausgewiesen, damit die Differenz trotzdem 0.00 zeigt.
-        decimal bvgWartefristKorrektur = 0m)
+        decimal bvgWartefristKorrektur,
+        out List<object> ohneCode, out decimal ohneCodeSumme)
     {
         decimal ahv = 0, nbuv = 0, ktg = 0, bvg = bvgWartefristKorrektur, qst = 0;
-        var ohneCode = new List<object>();
-        decimal ohneCodeSumme = 0;
+        ohneCode = new List<object>();
+        ohneCodeSumme = 0;
 
         foreach (var line in lohnLines)
         {
@@ -61,6 +64,21 @@ public static class SchattenBasenService
             if (lp.BvgPflichtig)    bvg  += betrag;
             if (lp.QstPflichtig)    qst  += betrag;
         }
+        return new SvBases(ahv, nbuv, ktg, bvg, qst);
+    }
+
+    public static object Compute(
+        IEnumerable<object> lohnLines,
+        Dictionary<string, Lohnposition> lohnposByCode,
+        SvBases engine,
+        // BVG-Wartefrist-Korrektur (MTP/FLEX/FIX Krank/Unfall): Engine-Aufschlag
+        // OHNE Lohnzeile — wird der Schatten-BVG-Basis explizit zugerechnet und
+        // separat ausgewiesen, damit die Differenz trotzdem 0.00 zeigt.
+        decimal bvgWartefristKorrektur = 0m)
+    {
+        var flags = ComputeBases(lohnLines, lohnposByCode, bvgWartefristKorrektur,
+                                 out var ohneCode, out var ohneCodeSumme);
+        decimal ahv = flags.Ahv, nbuv = flags.Nbuv, ktg = flags.Ktg, bvg = flags.Bvg, qst = flags.Qst;
 
         static object Cat(decimal schatten, decimal eng) => new
         {

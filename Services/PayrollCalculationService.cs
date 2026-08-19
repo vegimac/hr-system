@@ -177,6 +177,28 @@ public static class PayrollCalculations
         // mitgegeben und dort separat ausgewiesen.
         decimal schattenBvgKorrektur = 0m)
     {
+        // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
+        // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
+        // positionen (SchattenBasenService.ComputeBases); die verdrahtete
+        // Engine-Rechnung (Parameter svBases) läuft als KONTROLLE weiter.
+        // Differenz > 0.05 → basenDiffMax im Result, ConfirmPayroll blockt
+        // mit 409 BASEN_DIFFERENZ. Rollback = diesen Block entfernen.
+        SvBases kontrollBases = svBases;
+        decimal basenDiffMax = 0m;
+        string basenQuelle = "engine";
+        if (lohnposByCode != null)
+        {
+            svBases = SchattenBasenService.ComputeBases(
+                lohnLines, lohnposByCode, schattenBvgKorrektur, out _, out _);
+            basenQuelle = "katalog";
+            basenDiffMax = Math.Max(
+                Math.Max(Math.Abs(svBases.Ahv - kontrollBases.Ahv),
+                         Math.Abs(svBases.Nbuv - kontrollBases.Nbuv)),
+                Math.Max(Math.Max(Math.Abs(svBases.Ktg - kontrollBases.Ktg),
+                                  Math.Abs(svBases.Bvg - kontrollBases.Bvg)),
+                         Math.Abs(svBases.Qst - kontrollBases.Qst)));
+        }
+
         // Abzüge berechnen
         decimal totalAbzuege = 0;
         decimal qstBetragOut = 0m;   // für Snapshot-Denormalisierung
@@ -631,7 +653,10 @@ public static class PayrollCalculations
             svBasisQst  = Math.Round(svBases.Qst,  2),
             schattenBasen = lohnposByCode is null
                 ? null
-                : SchattenBasenService.Compute(lohnLines, lohnposByCode, svBases, schattenBvgKorrektur),
+                : SchattenBasenService.Compute(lohnLines, lohnposByCode, kontrollBases, schattenBvgKorrektur),
+            // Phase 3 Etappe 1: Quelle der produktiven Basen + max. Abweichung
+            basenQuelle,
+            basenDiffMax = Math.Round(basenDiffMax, 2),
         };
     }
 
