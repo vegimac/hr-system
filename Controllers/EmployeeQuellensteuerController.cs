@@ -205,9 +205,21 @@ public class EmployeeQuellensteuerController : ControllerBase
             });
         }
 
-        // Vorherigen offenen Eintrag abschliessen (ValidTo = dto.ValidFrom - 1 Tag)
+        // GLEICHES Gültig-ab wie bestehende(r) Eintrag/Einträge → ÜBERSCHREIBEN
+        // statt Dublette (Walter-Vorgabe 19.08.2026, Fall Gazale: 2× «1.9. bis …»):
+        // alle Versionen mit identischem Startdatum entfernen — der neue Eintrag
+        // ersetzt sie. Der Soft-Lock oben schützt bereits abgerechnete Perioden.
+        var gleicheStart = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId && q.ValidFrom == dto.ValidFrom)
+            .ToListAsync();
+        if (gleicheStart.Count > 0)
+            _db.EmployeeQuellensteuer.RemoveRange(gleicheStart);
+
+        // ANDERES (späteres) Gültig-ab → vorherigen offenen Eintrag abschliessen
+        // (ValidTo = neues Gültig-ab − 1 Tag)
         var previous = await _db.EmployeeQuellensteuer
-            .Where(q => q.EmployeeId == employeeId && q.ValidTo == null)
+            .Where(q => q.EmployeeId == employeeId && q.ValidTo == null
+                     && q.ValidFrom != dto.ValidFrom)
             .OrderByDescending(q => q.ValidFrom)
             .FirstOrDefaultAsync();
         if (previous != null && previous.ValidFrom < dto.ValidFrom)
