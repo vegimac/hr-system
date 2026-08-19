@@ -100,8 +100,62 @@ public class AkontoTerminController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { success = true, count = saved });
     }
+
+    // POST /api/akonto-termine/copy-to-all
+    // Überträgt die Akonto-Termine EINER Filiale (Quelle, Jahr) auf ALLE
+    // anderen Filialen — Upsert pro Monat (Walter-Vorgabe 19.08.2026,
+    // analog «Auf alle Filialen übertragen» bei den Filial-Einstellungen).
+    [HttpPost("copy-to-all")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> CopyToAll([FromBody] AkontoTermineCopyDto dto)
+    {
+        var quelle = await _db.AkontoTermine
+            .Where(t => t.CompanyProfileId == dto.CompanyProfileId && t.Year == dto.Year)
+            .ToListAsync();
+        if (quelle.Count == 0)
+            return BadRequest(new { error = "Quell-Filiale hat für dieses Jahr keine Termine — zuerst speichern." });
+
+        var zielIds = await _db.CompanyProfiles
+            .Where(c => c.Id != dto.CompanyProfileId)
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        var bestehende = await _db.AkontoTermine
+            .Where(t => t.Year == dto.Year && t.CompanyProfileId != dto.CompanyProfileId)
+            .ToListAsync();
+
+        int upserts = 0;
+        foreach (var zielId in zielIds)
+        {
+            foreach (var q in quelle)
+            {
+                var row = bestehende.FirstOrDefault(x => x.CompanyProfileId == zielId && x.Month == q.Month);
+                if (row == null)
+                {
+                    _db.AkontoTermine.Add(new AkontoTermin
+                    {
+                        CompanyProfileId = zielId,
+                        Year             = dto.Year,
+                        Month            = q.Month,
+                        PayoutDate       = q.PayoutDate,
+                        CreatedAt        = DateTime.UtcNow,
+                        UpdatedAt        = DateTime.UtcNow
+                    });
+                }
+                else
+                {
+                    row.PayoutDate = q.PayoutDate;
+                    row.UpdatedAt  = DateTime.UtcNow;
+                }
+                upserts++;
+            }
+        }
+        await _db.SaveChangesAsync();
+        return Ok(new { success = true, filialen = zielIds.Count, termine = upserts });
+    }
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────
 public record AkontoTerminEintragDto(int Month, string PayoutDate);
 public record AkontoTermineSaveDto(int CompanyProfileId, int Year, List<AkontoTerminEintragDto> Termine);
+public record AkontoTermineCopyDto(int CompanyProfileId, int Year);

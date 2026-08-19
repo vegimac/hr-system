@@ -484,6 +484,7 @@ function renderFilialenDetail(b) {
                         <input type="number" id="einAkontoStdTag" class="ef-input" style="width:54px;display:inline-block;margin-left:4px" min="1" max="28" value="23">
                     </label>
                     <button class="btn btn-outline" style="font-size:11.5px;padding:4px 10px" onclick="generateAkontoTermine(${b.id})">↻ Jahr generieren</button>
+                    <button class="btn btn-outline" style="font-size:11.5px;padding:4px 10px" onclick="copyAkontoTermineToAll(${b.id})">→ Auf alle Filialen übertragen</button>
                     <button class="btn btn-primary" style="font-size:11.5px;padding:4px 12px;background:#16a34a" onclick="saveAkontoTermine(${b.id})">💾 Termine speichern</button>
                 </div>
                 <div id="einAkontoTermineGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px 10px"></div>
@@ -678,6 +679,42 @@ function generateAkontoTermine(branchId) {
         const inp = document.getElementById('einAkontoTermin-' + m);
         if (inp) inp.value = akontoDefaultDate(year, m, stdTag);
     }
+}
+
+// Akonto-Termine des gewählten Jahres auf ALLE Filialen übertragen
+// (Walter 19.08.2026): speichert zuerst die aktuelle Filiale, kopiert dann.
+async function copyAkontoTermineToAll(branchId) {
+    const yearSel = document.getElementById('einAkontoYear');
+    const year = yearSel ? parseInt(yearSel.value, 10) : new Date().getFullYear();
+    const frage = `Akonto-Termine ${year} dieser Filiale auf ALLE anderen Filialen übertragen? Bestehende Termine der anderen Filialen für ${year} werden überschrieben.`;
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm(frage, { title: 'Auf alle Filialen übertragen', yesLabel: 'Übertragen', noLabel: 'Abbrechen' })
+        : confirm(frage);
+    if (!ok) return;
+
+    // Zuerst die aktuelle Filiale speichern (damit die Kopie den Grid-Stand hat)
+    const termine = [];
+    for (let m = 1; m <= 12; m++) {
+        const v = document.getElementById('einAkontoTermin-' + m)?.value;
+        if (v) termine.push({ month: m, payoutDate: v });
+    }
+    if (!termine.length) { alert('Keine Akonto-Termine erfasst — bitte zuerst «Jahr generieren».'); return; }
+    try {
+        let r = await fetch('/api/akonto-termine/save', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: branchId, year, termine })
+        });
+        if (!r.ok) throw new Error('Speichern fehlgeschlagen (HTTP ' + r.status + ')');
+        r = await fetch('/api/akonto-termine/copy-to-all', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ companyProfileId: branchId, year })
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || j.message || ('HTTP ' + r.status));
+        if (typeof showToast === 'function')
+            showToast(`Akonto-Termine ${year} auf ${j.filialen} Filialen übertragen.`, 'success');
+        else alert(`Übertragen auf ${j.filialen} Filialen.`);
+    } catch (e) { alert('Fehler: ' + e.message); }
 }
 
 async function saveAkontoTermine(branchId) {
