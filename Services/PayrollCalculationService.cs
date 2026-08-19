@@ -731,6 +731,79 @@ public static class PayrollCalculations
     /// Kaufmännische Rundung auf 5 Rappen (Schlussresultat).
     /// 0.025 wird aufgerundet (MidpointRounding.AwayFromZero).
     /// </summary>
+    // ── Militär / Zivildienst / Zivilschutz — L-GAV Art. 28 (Walter 19.08.2026) ──
+    // Reine, unit-testbare Stufen-Mathematik. Aufrufer (Engine) liefert die
+    // GECLIPPTEN Dienst-Spannen der Periode plus die Roh-Spannen der
+    // Vor-Dienste; hier wird pro Kalendertag der wievielte Diensttag im
+    // ARBEITSJAHR bestimmt (gemeinsamer Topf beider Typen) und eingestuft:
+    // 1–25 → 100 % · 26 … Berner Skala → 88 % · danach → EO 80 %.
+
+    /// <summary>Beginn des Arbeitsjahres (Eintritts-Jubiläum), das d enthält.</summary>
+    public static DateOnly ArbeitsjahrStart(DateOnly eintritt, DateOnly d)
+    {
+        var start = eintritt.AddYears(Math.Max(0, d.Year - eintritt.Year));
+        if (start > d) start = start.AddYears(-1);
+        return start;
+    }
+
+    /// <summary>Berner Skala (Art. 324a OR), Anspruch in Tagen pro Dienstjahr (Monat = 30 Tage).</summary>
+    public static int BernerSkalaTage(int dienstjahr) => dienstjahr switch
+    {
+        <= 1 => 21, 2 => 30, <= 4 => 60, <= 9 => 90,
+        <= 14 => 120, <= 19 => 150, _ => 180,
+    };
+
+    public readonly record struct MilitaerStufen(
+        int Mil100, int Mil88, int Mil80, int Ziv100, int Ziv88, int Ziv80)
+    {
+        public int Total => Mil100 + Mil88 + Mil80 + Ziv100 + Ziv88 + Ziv80;
+    }
+
+    /// <summary>
+    /// Stuft die Dienst-Kalendertage der Periode nach L-GAV Art. 28 ein.
+    /// dienste = auf die Periode geclippte Spannen (From ≤ To) mit Typ-Flag;
+    /// vorDienste = ROHE Spannen früherer/überlappender Dienste (werden hier
+    /// aufs laufende Arbeitsjahr und vor Periodenbeginn geclippt). Die 25
+    /// 100%-Tage zählen in die 324a-Frist HINEIN; Arbeitsjahr-Wechsel
+    /// INNERHALB der Periode setzt den Topf zurück.
+    /// </summary>
+    public static MilitaerStufen MilitaerStufenTage(
+        DateOnly eintritt, DateOnly periodFrom, DateOnly periodTo,
+        IEnumerable<(DateOnly From, DateOnly To, bool IstMilitaer)> dienste,
+        IEnumerable<(DateOnly From, DateOnly To)> vorDienste)
+    {
+        var ajStart    = ArbeitsjahrStart(eintritt, periodFrom);
+        int dienstjahr = (ajStart.Year - eintritt.Year) + 1;
+        int skalaTage  = BernerSkalaTage(dienstjahr);
+
+        int lauf = 0;
+        foreach (var v in vorDienste)
+        {
+            var von = v.From < ajStart ? ajStart : v.From;
+            var bis = v.To >= periodFrom ? periodFrom.AddDays(-1) : v.To;
+            if (bis >= von) lauf += bis.DayNumber - von.DayNumber + 1;
+        }
+
+        int m100 = 0, m88 = 0, m80 = 0, z100 = 0, z88 = 0, z80 = 0;
+        foreach (var a in dienste.OrderBy(x => x.From))
+        {
+            for (var d = a.From; d <= a.To; d = d.AddDays(1))
+            {
+                var ajS = ArbeitsjahrStart(eintritt, d);
+                if (ajS > ajStart)
+                {
+                    ajStart = ajS; lauf = 0;
+                    dienstjahr++; skalaTage = BernerSkalaTage(dienstjahr);
+                }
+                lauf++;
+                if      (lauf <= 25)        { if (a.IstMilitaer) m100++; else z100++; }
+                else if (lauf <= skalaTage) { if (a.IstMilitaer) m88++;  else z88++;  }
+                else                        { if (a.IstMilitaer) m80++;  else z80++;  }
+            }
+        }
+        return new MilitaerStufen(m100, m88, m80, z100, z88, z80);
+    }
+
     public static decimal Round05(decimal value)
         => Math.Round(value / 0.05m, 0, MidpointRounding.AwayFromZero) * 0.05m;
 

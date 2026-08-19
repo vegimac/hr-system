@@ -1437,64 +1437,30 @@ public class PayrollCalculationEngine
                 .ToList();
             if (milAbs.Count > 0)
             {
-                static DateOnly ArbeitsjahrStart(DateOnly eintritt, DateOnly d)
-                {
-                    var start = eintritt.AddYears(Math.Max(0, d.Year - eintritt.Year));
-                    if (start > d) start = start.AddYears(-1);
-                    return start;
-                }
-                // Berner Skala (Art. 324a OR): 1. Dienstjahr 3 Wochen, 2. Jahr
-                // 1 Monat, 3.–4. Jahr 2 Mt., 5.–9. Jahr 3 Mt., 10.–14. Jahr 4 Mt.,
-                // 15.–19. Jahr 5 Mt., ab 20. Jahr 6 Mt. (Monat = 30 Tage).
-                static int BernerSkalaTage(int dienstjahr) => dienstjahr switch
-                {
-                    <= 1 => 21, 2 => 30, <= 4 => 60, <= 9 => 90,
-                    <= 14 => 120, <= 19 => 150, _ => 180,
-                };
-
                 var eintrittD = employee.EntryDate.HasValue
                     ? DateOnly.FromDateTime(employee.EntryDate.Value)
                     : new DateOnly(periodFrom.Year, 1, 1);   // Fallback: Kalenderjahr
-                var ajStart = ArbeitsjahrStart(eintrittD, periodFrom);
-                int dienstjahr = (ajStart.Year - eintrittD.Year) + 1;
-                int skalaTage  = BernerSkalaTage(dienstjahr);
 
-                // Vor-Diensttage im laufenden Arbeitsjahr (beide Typen, VOR der Periode)
+                // Vor-Diensttage im laufenden Arbeitsjahr (beide Typen, VOR der
+                // Periode, über alle Filialen — Absenzen hängen am MA).
+                var milAjStart = PayrollCalculations.ArbeitsjahrStart(eintrittD, periodFrom);
                 var vorListe = await _db.Absences.AsNoTracking()
                     .Where(x => x.EmployeeId == employeeId
                              && (x.AbsenceType == "MILITAER" || x.AbsenceType == "ZIVILSCHUTZ")
-                             && x.DateTo >= ajStart && x.DateFrom < periodFrom)
+                             && x.DateTo >= milAjStart && x.DateFrom < periodFrom)
                     .Select(x => new { x.DateFrom, x.DateTo })
                     .ToListAsync();
-                int lauf = 0;
-                foreach (var v in vorListe)
-                {
-                    var vv = v.DateFrom < ajStart ? ajStart : v.DateFrom;
-                    var vb = v.DateTo >= periodFrom ? periodFrom.AddDays(-1) : v.DateTo;
-                    if (vb >= vv) lauf += vb.DayNumber - vv.DayNumber + 1;
-                }
 
-                int m100 = 0, m88 = 0, m80 = 0, z100 = 0, z88 = 0, z80 = 0;
-                foreach (var a in milAbs)
-                {
-                    var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
-                    var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
-                    for (var d = von; d <= bis; d = d.AddDays(1))
-                    {
-                        // Arbeitsjahr-Wechsel INNERHALB der Periode → Topf neu
-                        var ajS = ArbeitsjahrStart(eintrittD, d);
-                        if (ajS > ajStart)
-                        {
-                            ajStart = ajS; lauf = 0;
-                            dienstjahr++; skalaTage = BernerSkalaTage(dienstjahr);
-                        }
-                        lauf++;
-                        bool istMil = a.AbsenceType == "MILITAER";
-                        if      (lauf <= 25)        { if (istMil) m100++; else z100++; }
-                        else if (lauf <= skalaTage) { if (istMil) m88++;  else z88++;  }
-                        else                        { if (istMil) m80++;  else z80++;  }
-                    }
-                }
+                // Reine Stufen-Mathematik (unit-getestet, Tests/MilitaerArt28Tests.cs)
+                var stufen = PayrollCalculations.MilitaerStufenTage(
+                    eintrittD, periodFrom, periodTo,
+                    milAbs.Select(a => (
+                        a.DateFrom < periodFrom ? periodFrom : a.DateFrom,
+                        a.DateTo   > periodTo   ? periodTo   : a.DateTo,
+                        a.AbsenceType == "MILITAER")),
+                    vorListe.Select(v => (v.DateFrom, v.DateTo)));
+                int m100 = stufen.Mil100, m88 = stufen.Mil88, m80 = stufen.Mil80;
+                int z100 = stufen.Ziv100, z88 = stufen.Ziv88, z80 = stufen.Ziv80;
 
                 if (m100 + m88 + m80 + z100 + z88 + z80 > 0)
                 {
@@ -3595,6 +3561,26 @@ public class PayrollCalculationEngine
             decimal weeklySoll   = emp.WeeklyHours ?? (normalWeekly * pct / 100m);
             int periodDays       = periodTo.DayNumber - periodFrom.DayNumber + 1;
             decimal sollStundenFixExakt = weeklySoll / 7m * periodDays;
+            // Absenzen mit Matrix-Wirkung «Soll reduzieren» (FIX): Militär/
+            // Zivilschutz (L-GAV Art. 28) + EO Mutter-/Vaterschaft — während
+            // dieser Tage schuldet der MA keine Arbeitszeit. Ohne Kürzung
+            // entstünde ein unverschuldeter MINUS-Zeitsaldo (Walter-Test
+            // 19.08.2026: −32 h bei 23 Diensttagen, weil die alte Zeitgutschrift
+            // bewusst neutralisiert ist). Geld läuft separat: Monatslohn
+            // weiter, ± Korrektur-/Ersatz-Zeilen (85.x/95.x/125.x, 80.x/90.x).
+            decimal sollStundenFixVollExakt = sollStundenFixExakt;
+            decimal fixSollKuerzungExakt = 0m;
+            foreach (var aK in absences)
+            {
+                var cfgK = GetAbsenzTyp(aK.AbsenceType);
+                if (cfgK.WirkungFix != "SOLL_KUERZUNG") continue;
+                decimal tageK = CountAbsenceDaysInPeriod(aK, periodFrom, periodTo);
+                if (tageK <= 0) continue;
+                decimal divisorK = cfgK.ZaehlweiseFix == "KALENDER" ? 7m : 5m;
+                fixSollKuerzungExakt += tageK * weeklySoll / divisorK;
+            }
+            if (fixSollKuerzungExakt > sollStundenFixExakt) fixSollKuerzungExakt = sollStundenFixExakt;
+            sollStundenFixExakt -= fixSollKuerzungExakt;
             decimal sollStundenFix = Math.Round(sollStundenFixExakt, 2);
 
             // Ist-/Saldo-Berechnung (wie MTP, aber ohne Payout) — exaktes Soll:
@@ -3885,6 +3871,7 @@ public class PayrollCalculationEngine
                     NeuerHourSaldo:       neuerHourSaldoFix,
                     WorkedHours:          workedHours,
                     SollStunden:          sollStundenFix,
+                    SollStundenVoll:      Math.Round(sollStundenFixVollExakt, 2),
                     Mehrstunden:          0,
                     AbsenzGutschrift:     Math.Round(absenzGutschrift, 2),
                     AbsenzBreakdown:      absenzBreakdown.ToDictionary(

@@ -1478,7 +1478,7 @@ function renderStundenCard(s) {
         <div style="padding:8px 18px 14px">
             ${row('Soll voll (Pro-Rata)', fNum(sollVoll) + ' h')}
             ${ferienRed > 0 ? row('− Ferien (1/7-Kalender)', '−' + fNum(ferienRed) + ' h', { color:'#dc2626' }) : ''}
-            ${krankUnfallRed > 0 ? row(isMtp ? '− Krank/Unfall (1/5-Werktag)' : '− Krank/Unfall', '−' + fNum(krankUnfallRed) + ' h', { color:'#dc2626' }) : ''}
+            ${krankUnfallRed > 0 ? row(isMtp ? '− Krank/Unfall (1/5-Werktag)' : '− Absenz-Kürzung (Krank/Unfall/Militär/EO)', '−' + fNum(krankUnfallRed) + ' h', { color:'#dc2626' }) : ''}
             ${row('Effektives Soll', fNum(soll) + ' h', { bold:true })}
             ${row('Gestempelt (Ist)', fNum(worked) + ' h')}
             ${absenz > 0 ? row('+ Absenz-Gutschrift', '+' + fNum(absenz) + ' h', { muted:true }) : ''}
