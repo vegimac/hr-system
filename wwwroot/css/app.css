@@ -11857,3 +11857,20 @@ body.theme-dark .admin-card img {
 /* Lohnschema + Absenz-Typen: ebenfalls viel PNG-Innenrand — grösser (Walter 18.08.2026) */
 .admin-card img[src*="lohnkat-lohnschema"] { width: 140px !important; height: 140px !important; }
 .admin-card img[src*="vvkat-absenz-typen"] { width: 140px !important; height: 140px !important; }
+
+/* ── Abgeleitete (nicht klickbare) Checkbox-Pillen klar erkennbar (Walter 19.08.2026):
+   gestrichelter Rand wie die Doku-Chips + gedämpft — z.B. «Kirchensteuer aus
+   Konfession» im QST-Modal. Klickbare Pillen bleiben mit durchgezogenem Rand. ── */
+body:not(.theme-dark) #qstModal .qst-cb-ro {
+    background: rgba(60, 55, 48, 0.04) !important;
+    border: 1px dashed rgba(60, 55, 48, 0.30) !important;
+    color: #8b8578 !important;
+    box-shadow: none !important;
+    cursor: default !important;
+}
+#qstModal .qst-cb-ro input[type=checkbox] { opacity: 0.45; }
+body.theme-dark #qstModal .qst-cb-ro {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px dashed var(--dlg-glass-border) !important;
+    color: #94a3b8 !important;
+}

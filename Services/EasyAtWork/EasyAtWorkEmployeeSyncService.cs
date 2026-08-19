@@ -384,12 +384,18 @@ public class EasyAtWorkEmployeeSyncService
                     {
                         var direkt = await _client.GetEmployeeByIdAsync(
                             m.EasyAtWorkCustomerId, e.EasyAtWorkEmployeeId.Value, ct);
+                        // Walter-Bug 19.08.2026 (Gazale, Eintritt 01.09.): die
+                        // ?active=heute-Liste filtert VERTRAGSBASIERT — ein MA
+                        // mit KÜNFTIGEM Eintritt (From > heute) fehlt dort
+                        // legitim, existiert aber. Verschollen ist nur, wer per
+                        // Einzelabfrage fehlt ODER ein abgelaufenes Ende hat.
                         if (direkt != null
-                            && (direkt.From == null || direkt.From <= activeAt)
                             && (direkt.To == null || direkt.To >= activeAt))
                         {
                             wirklichWeg = false;
-                            notes.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): fehlte in der Aktivliste, Einzelabfrage findet ihn aber aktiv (Customer {m.EasyAtWorkCustomerId}) — KEINE Markierung (Listen-Flattern).");
+                            notes.Add(direkt.From != null && direkt.From > activeAt
+                                ? $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): Eintritt erst am {direkt.From:dd.MM.yyyy} — künftiger MA, KEINE Markierung."
+                                : $"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): fehlte in der Aktivliste, Einzelabfrage findet ihn aber aktiv (Customer {m.EasyAtWorkCustomerId}) — KEINE Markierung (Listen-Flattern).");
                             break;
                         }
                     }
