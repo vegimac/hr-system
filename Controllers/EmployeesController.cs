@@ -1245,6 +1245,21 @@ public class EmployeesController : ControllerBase
     public async Task<IActionResult> GetQstPflicht(int id, [FromQuery] DateOnly? stichtag, [FromServices] QstPflichtCheckService check)
     {
         var date = stichtag ?? DateOnly.FromDateTime(DateTime.Today);
+        // Künftiger Eintritt (Übertritt, Walter 19.08.2026): ohne expliziten
+        // Stichtag am VERTRAGSBEGINN prüfen statt an heute — sonst meldet der
+        // Banner «keine QST» obwohl der Eintrag ab Vertragsstart existiert
+        // (Folge war eine Doppelerfassung). Stichtag = max(heute, frühester
+        // Beginn eines laufenden/künftigen aktiven Vertrags).
+        if (stichtag == null)
+        {
+            var heute = DateTime.Today;
+            var minStart = await _context.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == id && em.IsActive
+                          && (em.ContractEndDate == null || em.ContractEndDate >= heute))
+                .MinAsync(em => (DateTime?)em.ContractStartDate);
+            if (minStart.HasValue && minStart.Value.Date > heute)
+                date = DateOnly.FromDateTime(minStart.Value);
+        }
         var result = await check.CheckAsync(id, date);
 
         // Walter-Vorgabe 13.06.2026: aktuell verknüpfte Beleg-Doku-IDs
