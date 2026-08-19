@@ -687,7 +687,7 @@ function _kdAngenommenInner(k) {
             ${step(2, 'Termin-Bestätigung des Kandidaten abwarten', bestOk, smsOk && !bestOk)}
             ${step(3, 'MA mit obigen Daten in easy@work erfassen · Sync/Import nach OneCrew', false, bestOk)}
             ${step(4, 'Mit dem importierten MA verknüpfen — Anhänge wandern in die Personalakte, die Termin-Buchung geht an den MA über', false, false)}
-            ${step(5, 'Vertrags-SMS über «2 · Vertrags-SMS senden» (Vertrag + Dokumente) · nach dem Tag: Onboarding abschliessen', false, false)}
+            ${step(5, 'Zum Onboarding-Tag AUSDRUCKEN: Vertrag · Erstunterweisung · Sicherheitsblatt · Lebensmittelhygiene — dazu Vertrags-SMS über «2 · Vertrags-SMS senden» · nach dem Tag: Onboarding abschliessen', false, false)}
         </div>`;
     return `
         ${_kdKopf(k)}${_kdDetails(k)}
