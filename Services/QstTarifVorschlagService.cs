@@ -74,7 +74,11 @@ public class QstTarifVorschlagService
         {
             try
             {
-                tarife = _tarifService.GetTarifKombinationen(emp.CantonCode, stichtag.Year);
+                // Walter-Vorgabe 19.08.2026: Tarife vor 2026 werden NICHT
+                // integriert (Testjahr 2026, scharf ab 2027). Historische
+                // Gültig-ab-Daten (z.B. Eintritt 2024) prüfen darum gegen
+                // das früheste geführte Tarifjahr 2026 statt zu warnen.
+                tarife = _tarifService.GetTarifKombinationen(emp.CantonCode, Math.Max(stichtag.Year, 2026));
             }
             catch
             {
@@ -197,7 +201,7 @@ public static class QstTarifVorschlagLogic
         if (string.IsNullOrWhiteSpace(steuerkanton))
             warnings.Add("Wohnkanton ist nicht gepflegt — Tariftabelle konnte nicht geprüft werden.");
         else if (!gefunden && tarifTabelle.Count == 0)
-            warnings.Add($"Keine Tarifdaten für Kanton {steuerkanton} im Jahr {stichtag.Year} geladen.");
+            warnings.Add($"Keine Tarifdaten für Kanton {steuerkanton} im Jahr {Math.Max(stichtag.Year, 2026)} geladen.");
 
         return new QstTarifVorschlagResult(
             Steuerkanton:           steuerkanton,

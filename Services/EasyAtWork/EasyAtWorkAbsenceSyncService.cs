@@ -50,6 +50,9 @@ public class EasyAtWorkAbsenceSyncService
         "SICKNESS" or "CHILD_SICKNESS" or "MATERNITY_SICKNESS" => "KRANK",
         "ACCIDENT" => "UNFALL",
         "MILITARY" => "MILITAER",
+        // Zivilschutz/Zivildienst (L-GAV Art. 28, Walter 19.08.2026) — easy
+        // führt je nach Konfiguration CIVIL_PROTECTION / CIVIL_SERVICE o.ä.
+        var z when z.Contains("CIVIL") || z.Contains("ZIVIL") => "ZIVILSCHUTZ",
         "MATERNITY" or "PATERNITY" => "MUTT_VATER",
         "PAID_LEAVE" => "BEZ_ABSENZ",
         "UNPAID_LEAVE" => "UNBEZ_URLAUB",

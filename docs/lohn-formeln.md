@@ -151,6 +151,27 @@ FLEX      : keine Kürzung (kein Soll)
 EO-Absenzen sind im Stunden-Verteiler NEUTRAL (wie unbezahlter Urlaub) — sonst Doppelzahlung.
 SV-Behandlung der EO-Zeilen komplett über Katalog-Flags (EO ist UVG-frei etc.).
 
+## 7b. Militär / Zivildienst / Zivilschutz (L-GAV Art. 28)
+
+```
+Stufen pro ARBEITSJAHR (ab Eintrittsdatum, gemeinsamer Tage-Topf, RS zählt gleich):
+  Diensttag 1–25          : 100 % Bruttolohn        (80.1 Militär / 90.1 Zivilschutz)
+  Tag 26 … Berner Skala   : 88 % des Lohnes         (80.2 / 90.2)
+  danach                  : EO-Entschädigung 80 %   (80.3 / 90.3)
+Die 25 100%-Tage zählen in die 324a-Frist HINEIN (L-GAV-Kommentar).
+Berner Skala (Dienstjahr): 1 → 21 Tg · 2 → 30 · 3–4 → 60 · 5–9 → 90 · 10–14 → 120 · 15–19 → 150 · 20+ → 180
+Tagessatz  = KtgTagessatzService (Tagessatz100)
+Tages-Caps (Referenz-Lohnarten): 100 % max 275.– · 88 %/80 % max 245.–
+Diensttage = KALENDERtage (Dienst läuft Sa+So durch)
+
+MTP       : Soll-Kürzung 1/7 (Divisor aus Katalog) + Stufen-Zeilen
+FIX/FIX-M : Tag 1–25 keine Zeilen (Monatslohn = 100 % implizit); ab Tag 26
+            NEGATIVE Korrektur 85.1/95.1 (voller Tagessatz) + 88/80-Zeilen
+FLEX      : nur Stufen-Zeilen, keine Kürzung
+```
+SV-Flags aus dem Raster: AHV/QST/KTG/BVG ja, **UVG nein**, 13. ML nur auf der 100 %-Zeile.
+Bewusste Abweichung: «BVG auf 100 % rechnen» (Referenz) nicht übernommen — Basen flag-rein.
+
 ## 8. SV-Abzüge (BuildResult — die Abzugs-Engine)
 
 Pro SV-Satz (Tabelle `social_insurance_rate`, versioniert, Filial-Abweichungen möglich):

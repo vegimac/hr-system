@@ -3283,6 +3283,71 @@ using (var scope = app.Services.CreateScope())
         db.SaveChanges();
     }
 
+    // ── Militär / Zivildienst / Zivilschutz nach L-GAV Art. 28 (Walter-Entscheid
+    // 19.08.2026): Stufen 100 % (Tag 1–25 im Arbeitsjahr) / 88 % (bis Berner
+    // Skala) / EO 80 % — Lohnpositionen 80.1–80.3 + 85.1 (Militär) und
+    // 90.1–90.3 + 95.1 (Zivilschutz) aus dem Raster-Archiv (QST = AHV-Regel),
+    // dazu «bei Ereignis» im Lohnschema ALLER Modelle. Idempotent.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition
+            (code, bezeichnung, kategorie, typ,
+             ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig,
+             qst_pflichtig, zaehlt_als_basis_13ml, sort_order, is_active)
+        SELECT r.code, r.bezeichnung, COALESCE(r.gruppe, ''), 'ZULAGE',
+               COALESCE(r.ahv, true), COALESCE(r.uvg, false), COALESCE(r.ktg, true), COALESCE(r.bvg, true),
+               COALESCE(r.ahv, true), COALESCE(r.ml13, false), 99, true
+        FROM elm_lohnraster r
+        WHERE r.code IN ('80.1', '80.2', '80.3', '85.1', '90.1', '90.2', '90.3', '95.1')
+          AND NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = r.code AND lp.is_active = true);
+
+        INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+        SELECT 'ALLE', lp.id, 'ereignis', v.so
+        FROM (VALUES ('80.1', 80), ('80.2', 81), ('80.3', 82), ('85.1', 83),
+                     ('90.1', 84), ('90.2', 85), ('90.3', 86), ('95.1', 87)) AS v(code, so)
+        JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+        WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
+                          WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
+
+        -- MILITAER: EINMALIGER Matrix-Flip vom Alt-Backfill (Zeitgutschrift →
+        -- GUTSCHRIFT) auf das Art.-28-Modell — Guard am ALT-Zustand, damit
+        -- spätere User-Edits im Katalog NIE überschrieben werden.
+        UPDATE absenz_typ
+           SET wirkung_fix = 'SOLL_KUERZUNG', wirkung_mtp = 'SOLL_KUERZUNG',
+               wirkung_flex = 'KEINE',
+               zaehlweise_fix = 'KALENDER', zaehlweise_mtp = 'KALENDER',
+               zaehlweise_flex = 'KALENDER'
+         WHERE code = 'MILITAER' AND wirkung_mtp = 'GUTSCHRIFT';
+    ");
+
+    // Absenz-Typ ZIVILSCHUTZ (Klon MILITAER) — via EF geseedet.
+    if (!db.AbsenzTypen.Any(t => t.Code == "ZIVILSCHUTZ"))
+    {
+        var mil = db.AbsenzTypen.FirstOrDefault(t => t.Code == "MILITAER");
+        db.AbsenzTypen.Add(new HrSystem.Models.AbsenzTyp
+        {
+            Code            = "ZIVILSCHUTZ",
+            Bezeichnung     = "Zivilschutz / Zivildienst",
+            Aktiv           = true,
+            Zeitgutschrift  = false,
+            GutschriftModus = mil?.GutschriftModus,
+            UtpAuszahlung   = false,
+            ReduziertSaldo  = mil?.ReduziertSaldo,
+            BasisStunden    = mil?.BasisStunden ?? "BETRIEB",
+            Pattern         = mil?.Pattern ?? "KEIN",
+            ZwischenverdienstKuerzel = "E",
+            WirkungFix      = "SOLL_KUERZUNG",
+            WirkungMtp      = "SOLL_KUERZUNG",
+            WirkungFlex     = "KEINE",
+            ZaehlweiseFix   = "KALENDER",
+            ZaehlweiseMtp   = "KALENDER",
+            ZaehlweiseFlex  = "KALENDER",
+            // ACHTUNG: absenz_typ.created_at ist TIMESTAMPTZ → Kind=Utc Pflicht
+            // (Walter-Vorfall 17.08.2026, 502 nach EO-Deploy).
+            CreatedAt       = DateTime.UtcNow,
+        });
+        db.SaveChanges();
+    }
+
     // ── eID/SSO + Manager-Schulungen (Walter 14.08.2026):
     // Nothelfer / Peak-Verifizierung / Seco als Schulungsdatum, Gültigkeit
     // (Monate) via app_setting. Doku: migrations-archive/add_schulungen_eid_sso.sql

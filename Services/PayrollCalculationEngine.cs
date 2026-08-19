@@ -698,7 +698,8 @@ public class PayrollCalculationEngine
 
             // 2) Wohin fliessen die Stunden?
             if (a.AbsenceType == "UNBEZ_URLAUB"
-                || a.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT")
+                || a.AbsenceType is "MUTT_VATER" or "MUTTERSCHAFT" or "VATERSCHAFT"
+                || a.AbsenceType is "MILITAER" or "ZIVILSCHUTZ")
             {
                 // Unbezahlter Urlaub (Walter-Vorgabe 27.06.2026) und EO-Absenzen
                 // Mutterschaft/Vaterschaft (Walter-Entscheid 17.08.2026): KEINE
@@ -1414,6 +1415,137 @@ public class PayrollCalculationEngine
             }
         }
 
+        // ── Militär / Zivildienst / Zivilschutz — L-GAV Art. 28 (Walter-Entscheid 19.08.2026) ──
+        // Stufen pro ARBEITSJAHR (ab Eintrittsdatum; GEMEINSAMER Tage-Topf beider Typen):
+        //   Diensttag 1–25             → 100 % Bruttolohn        (80.1 Militär / 90.1 Zivilschutz)
+        //   Tag 26 bis Berner Skala    → 88 % des Lohnes         (80.2 / 90.2)
+        //   danach                     → EO-Entschädigung 80 %   (80.3 / 90.3)
+        // Die 25 100%-Tage zählen in die 324a-Frist HINEIN (L-GAV-Kommentar);
+        // die Rekrutenschule zählt gleich wie WK. Tages-Caps gemäss Referenz-
+        // Lohnarten (Walter 19.08.2026): 100 % max 275.– · 88 %/80 % max 245.–.
+        // FIX/FIX-M: Monatslohn läuft weiter — Tag 1–25 KEINE Zeilen (100 %
+        // implizit), ab Tag 26 NEGATIVE Korrektur 85.1/95.1 (voller Tagessatz)
+        // + 88/80-Zeilen. MTP: Soll-Kürzung 1/7 (Matrix) + Zeilen 100/88/80.
+        // FLEX: nur Zeilen. Diensttage = KALENDERtage (Dienst läuft Sa+So).
+        // Bewusste Abweichung zur Referenz: «BVG auf 100 % rechnen» (Hoch-
+        // rechnung der BVG-Basis bei 88/80) NICHT übernommen — Basen bleiben
+        // flag-rein auf dem effektiven Betrag (Basen-Kontrolle-Konsistenz).
+        {
+            var milAbs = absences
+                .Where(a => a.AbsenceType is "MILITAER" or "ZIVILSCHUTZ")
+                .OrderBy(a => a.DateFrom)
+                .ToList();
+            if (milAbs.Count > 0)
+            {
+                static DateOnly ArbeitsjahrStart(DateOnly eintritt, DateOnly d)
+                {
+                    var start = eintritt.AddYears(Math.Max(0, d.Year - eintritt.Year));
+                    if (start > d) start = start.AddYears(-1);
+                    return start;
+                }
+                // Berner Skala (Art. 324a OR): 1. Dienstjahr 3 Wochen, 2. Jahr
+                // 1 Monat, 3.–4. Jahr 2 Mt., 5.–9. Jahr 3 Mt., 10.–14. Jahr 4 Mt.,
+                // 15.–19. Jahr 5 Mt., ab 20. Jahr 6 Mt. (Monat = 30 Tage).
+                static int BernerSkalaTage(int dienstjahr) => dienstjahr switch
+                {
+                    <= 1 => 21, 2 => 30, <= 4 => 60, <= 9 => 90,
+                    <= 14 => 120, <= 19 => 150, _ => 180,
+                };
+
+                var eintrittD = employee.EntryDate.HasValue
+                    ? DateOnly.FromDateTime(employee.EntryDate.Value)
+                    : new DateOnly(periodFrom.Year, 1, 1);   // Fallback: Kalenderjahr
+                var ajStart = ArbeitsjahrStart(eintrittD, periodFrom);
+                int dienstjahr = (ajStart.Year - eintrittD.Year) + 1;
+                int skalaTage  = BernerSkalaTage(dienstjahr);
+
+                // Vor-Diensttage im laufenden Arbeitsjahr (beide Typen, VOR der Periode)
+                var vorListe = await _db.Absences.AsNoTracking()
+                    .Where(x => x.EmployeeId == employeeId
+                             && (x.AbsenceType == "MILITAER" || x.AbsenceType == "ZIVILSCHUTZ")
+                             && x.DateTo >= ajStart && x.DateFrom < periodFrom)
+                    .Select(x => new { x.DateFrom, x.DateTo })
+                    .ToListAsync();
+                int lauf = 0;
+                foreach (var v in vorListe)
+                {
+                    var vv = v.DateFrom < ajStart ? ajStart : v.DateFrom;
+                    var vb = v.DateTo >= periodFrom ? periodFrom.AddDays(-1) : v.DateTo;
+                    if (vb >= vv) lauf += vb.DayNumber - vv.DayNumber + 1;
+                }
+
+                int m100 = 0, m88 = 0, m80 = 0, z100 = 0, z88 = 0, z80 = 0;
+                foreach (var a in milAbs)
+                {
+                    var von = a.DateFrom < periodFrom ? periodFrom : a.DateFrom;
+                    var bis = a.DateTo   > periodTo   ? periodTo   : a.DateTo;
+                    for (var d = von; d <= bis; d = d.AddDays(1))
+                    {
+                        // Arbeitsjahr-Wechsel INNERHALB der Periode → Topf neu
+                        var ajS = ArbeitsjahrStart(eintrittD, d);
+                        if (ajS > ajStart)
+                        {
+                            ajStart = ajS; lauf = 0;
+                            dienstjahr++; skalaTage = BernerSkalaTage(dienstjahr);
+                        }
+                        lauf++;
+                        bool istMil = a.AbsenceType == "MILITAER";
+                        if      (lauf <= 25)        { if (istMil) m100++; else z100++; }
+                        else if (lauf <= skalaTage) { if (istMil) m88++;  else z88++;  }
+                        else                        { if (istMil) m80++;  else z80++;  }
+                    }
+                }
+
+                if (m100 + m88 + m80 + z100 + z88 + z80 > 0)
+                {
+                    var milSatz100 = (await _ktgService.CalculateAsync(employeeId, companyProfileId))?.Tagessatz100;
+                    if (milSatz100 is > 0)
+                    {
+                        string milModel = (emp.EmploymentModel ?? "").ToUpperInvariant();
+                        bool milFestlohn = milModel is "FIX" or "FIX-M";
+                        decimal s100 = Math.Min(milSatz100.Value, 275m);
+                        decimal s88  = Math.Min(Math.Round(milSatz100.Value * 0.88m, 2), 245m);
+                        decimal s80  = Math.Min(Math.Round(milSatz100.Value * 0.80m, 2), 245m);
+
+                        void MilAddLine(string code, string fallbackBez, int tage, decimal satz, bool negativ = false)
+                        {
+                            if (tage <= 0) return;
+                            decimal betrag = Math.Round(satz * tage, 2) * (negativ ? -1m : 1m);
+                            var lpM = lohnposByCode.TryGetValue(code, out var l) ? l : null;
+                            zulagenSvLines.Add(new {
+                                bezeichnung = $"{lpM?.Bezeichnung ?? fallbackBez} ({tage} Tage)",
+                                code,
+                                anzahl = (decimal?)tage, prozent = (decimal?)null,
+                                basis = (decimal?)satz, betrag });
+                            zulagenSvTotal += betrag;
+                            if (lpM?.AhvAlvPflichtig ?? true)  deltaAhv  += betrag;
+                            // Militär-/EO-Taggelder sind UVG-FREI — Fallback bewusst nein.
+                            if (lpM?.NbuvPflichtig   ?? false) deltaNbuv += betrag;
+                            if (lpM?.KtgPflichtig    ?? true)  deltaKtg  += betrag;
+                            if (lpM?.BvgPflichtig    ?? true)  deltaBvg  += betrag;
+                            if (lpM?.QstPflichtig    ?? true)  deltaQst  += betrag;
+                            AddAmount(code, betrag);
+                        }
+
+                        if (!milFestlohn)
+                        {
+                            MilAddLine("80.1", "Militärtaggeld 100%",        m100, s100);
+                            MilAddLine("90.1", "Lohn bei Zivilschutz 100%",  z100, s100);
+                        }
+                        MilAddLine("80.2", "Militärtaggeld 88%",        m88, s88);
+                        MilAddLine("90.2", "Lohn bei Zivilschutz 88%",  z88, s88);
+                        MilAddLine("80.3", "Militärtaggeld 80%",        m80, s80);
+                        MilAddLine("90.3", "Lohn bei Zivilschutz 80%",  z80, s80);
+                        if (milFestlohn)
+                        {
+                            MilAddLine("85.1", "Korrektur Militärtaggeld",    m88 + m80, milSatz100.Value, negativ: true);
+                            MilAddLine("95.1", "Korrektur Lohn Zivilschutz",  z88 + z80, milSatz100.Value, negativ: true);
+                        }
+                    }
+                }
+            }
+        }
+
         // Saldo-Vortrag separat einsammeln — nur für die Saldi-Übersicht im
         // Lohnzettel (Initial-Vormonat). Wird im Result-Block übergeben.
         var vortragEntries = zulagenEntries.Where(IsVortrag).ToList();
@@ -1836,6 +1968,19 @@ public class PayrollCalculationEngine
                 mtpEoTage += tage;
                 eoStundenAequivalent += tage * guaranteedH / divisor;
             }
+            // Militär/Zivilschutz (L-GAV Art. 28, Walter 19.08.2026): SOLL-
+            // Kürzung wie EO — Divisor aus dem Katalog (Default 1/7-Kalender),
+            // Lohnersatz über die Stufen-Zeilen 80.x/90.x im Zulagen-Block.
+            decimal mtpMilitaerTage = 0m;
+            decimal militaerStundenAequivalent = 0m;
+            foreach (var a in absences.Where(x => x.AbsenceType is "MILITAER" or "ZIVILSCHUTZ"))
+            {
+                decimal tage = CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
+                if (tage <= 0) continue;
+                decimal divisor = GetAbsenzTyp(a.AbsenceType).ZaehlweiseMtp == "KALENDER" ? 7m : 5m;
+                mtpMilitaerTage += tage;
+                militaerStundenAequivalent += tage * guaranteedH / divisor;
+            }
             // Sollstunden für Stunden-Saldo + Festlohn-Anzahl-Spalte —
             // mit EXAKTEN Werten, dann Cap auf 0 (Festlohn kann nie negativ).
             decimal sollStundenExakt = sollStundenVollExakt
@@ -1843,7 +1988,8 @@ public class PayrollCalculationEngine
                 - krankStundenAequivalent
                 - unfallStundenAequivalent
                 - unbezUrlaubStundenAequivalent
-                - eoStundenAequivalent;
+                - eoStundenAequivalent
+                - militaerStundenAequivalent;
             // Cap: bei voll abgedeckter Periode kann das Stunden-Total der
             // Abzüge das Pro-Rata-Soll geringfügig übersteigen (Ferien 1/7 +
             // Krank 1/5 mischen sich) → auf 0 clampen.
@@ -1896,7 +2042,7 @@ public class PayrollCalculationEngine
                             ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                             : $"Austritt {periodTo:dd.MM.yyyy}";
                     mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({shortPeriodDays} von {normalPeriodDays} Tagen – {reasonTxt})";
-                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0) {
+                } else if (mtpFerienTage > 0 || mtpKrankTage > 0 || mtpUnfallTage > 0 || mtpUnbezUrlaubTage > 0 || mtpEoTage > 0 || mtpMilitaerTage > 0) {
                     // Walter-Vorgabe 30.05.2026: nur Stunden im Label, keine CHF.
                     // Soll-Stunden minus Stunden-Äquivalente pro Absenz-Typ.
                     var teile = new List<string> { $"{sollStundenVoll:0.00}h Soll" };
@@ -1926,6 +2072,7 @@ public class PayrollCalculationEngine
                     if (unbezUrlaubStundenAequivalent > 0) teile.Add($"− {unbezUrlaubStundenAequivalent:0.00}h Unbez. Urlaub");
                     // EO: 1/7-Kalender wie Ferien (kein Dienstplan während Mutterschaft)
                     if (eoStundenAequivalent > 0) teile.Add($"− {eoStundenAequivalent:0.00}h Mutter-/Vaterschaft");
+                    if (militaerStundenAequivalent > 0) teile.Add($"− {militaerStundenAequivalent:0.00}h Militär/Zivilschutz");
                     mtpFestlohnLabel = $"{LabelFor("10.1", "Festlohn")} ({string.Join(" ", teile)})";
                 } else {
                     mtpFestlohnLabel = LabelFor("10.1", "Festlohn");
