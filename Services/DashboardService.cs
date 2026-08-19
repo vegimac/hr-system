@@ -651,9 +651,24 @@ public class DashboardService
                                || Enabled("employee_doku_fehlt"))
             ? await qstCandidatesQ.Select(e => e.Id).ToListAsync()
             : new List<int>();
+        // Künftige Eintritte (z.B. Übertritt Sursee→Oftringen, Vertrag ab 1.9.):
+        // QST am VERTRAGSBEGINN prüfen statt an heute — vor Vertragsbeginn gehört
+        // der MA in keinen Lohnlauf, «heute keine QST» ist dann kein Problem
+        // (Walter-Vorgabe 19.08.2026, Fall Gazale). Stichtag pro MA =
+        // max(heute, frühester Beginn eines laufenden/künftigen Vertrags).
+        var qstHeuteDt = now.Date;
+        var qstVertragsStart = await _db.Employments.AsNoTracking()
+            .Where(em => em.IsActive && qstCandidateIds.Contains(em.EmployeeId)
+                      && (em.ContractEndDate == null || em.ContractEndDate >= qstHeuteDt))
+            .GroupBy(em => em.EmployeeId)
+            .Select(g => new { g.Key, Min = g.Min(x => x.ContractStartDate) })
+            .ToDictionaryAsync(x => x.Key, x => x.Min);
         foreach (var empId in qstCandidateIds)
         {
-            var r = await _qstCheck.CheckAsync(empId, qstStichtag);
+            var effQstStichtag = qstStichtag;
+            if (qstVertragsStart.TryGetValue(empId, out var vsStart) && vsStart.Date > qstHeuteDt)
+                effQstStichtag = DateOnly.FromDateTime(vsStart);
+            var r = await _qstCheck.CheckAsync(empId, effQstStichtag);
 
             // 3c.i) QST-Pflicht offen — critical, blockt Lohnlauf
             if (r.IsPflichtOffen && Enabled("qst_pflicht_offen"))

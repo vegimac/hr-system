@@ -2272,12 +2272,13 @@
             --emp-text-soft: #7a7a7a;
             --emp-blue: #3f3f3f;
             /* Opaker Innen-Verlauf = Volumen (analog Dark) */
-            --emp-fill: #f4f0e8;
-            --emp-fill-grad: linear-gradient(160deg,
-                                #fffcf8 0%,
-                                #f7f3eb 42%,
-                                #efe9df 78%,
-                                #e8e1d6 100%);
+            /* v4-Greige wie alle Erfassungsmasken (Walter 19.08.2026) —
+               vorher: #f4f0e8 + Verlauf #fffcf8→#e8e1d6 (oben fast weiss). */
+            --emp-fill: #e9e6dd;
+            --emp-fill-grad: linear-gradient(165deg,
+                                #eeece4 0%,
+                                #e7e4db 50%,
+                                #dfdcd1 100%);
             /* Pearl/Kohle-Rim statt Eisblau */
             --emp-rim: linear-gradient(135deg,
                                 rgba(255, 255, 255, 0.98) 0%,
@@ -10547,12 +10548,13 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
             --emp-text: #4a4a4a;
             --emp-text-soft: #7a7a7a;
             --emp-blue: #3f3f3f;
-            --emp-fill: #f4f0e8;
-            --emp-fill-grad: linear-gradient(160deg,
-                                #fffcf8 0%,
-                                #f7f3eb 42%,
-                                #efe9df 78%,
-                                #e8e1d6 100%);
+            /* v4-Greige wie alle Erfassungsmasken (Walter 19.08.2026) —
+               vorher: #f4f0e8 + Verlauf #fffcf8→#e8e1d6 (oben fast weiss). */
+            --emp-fill: #e9e6dd;
+            --emp-fill-grad: linear-gradient(165deg,
+                                #eeece4 0%,
+                                #e7e4db 50%,
+                                #dfdcd1 100%);
             --emp-rim: linear-gradient(135deg,
                                 rgba(255, 255, 255, 0.98) 0%,
                                 rgba(210, 200, 185, 0.55) 35%,
