@@ -6081,21 +6081,10 @@ async function famLoadSpouseDocs(member) {
         }
         // 2) spouse-getypte Dokus
         spouseDocs.forEach(d => pushDoc(d, ''));
-        // 3) Postfach-Eingänge des MA (nur Einträge MIT Datei)
-        try {
-            const rp = await fetch(`/api/mailbox?type=EMPLOYEE&employeeId=${selectedEmployeeId}`, { headers: ah() });
-            if (rp.ok) {
-                const pf = await rp.json();
-                (Array.isArray(pf) ? pf : []).filter(m => m.originalFilename).slice(0, 25).forEach(m => {
-                    entries.push({
-                        previewUrl: `/api/mailbox/${m.id}/preview`,
-                        filename:   m.originalFilename || 'dokument',
-                        label:      `📥 Postfach: ${(m.bemerkung || '').trim() || m.originalFilename}`
-                                  + (m.uploadedAt ? ' · ' + formatDate(m.uploadedAt) : '')
-                    });
-                });
-            }
-        } catch (_) { /* best-effort */ }
+        // 3) BEWUSST KEINE Postfach-Eingänge (Walter-Vorgabe 20.08.2026):
+        // nur beim MA ABGELEGTE Dokumente anzeigen — ein Doku im Postfach
+        // muss zuerst beim MA abgelegt werden, sonst könnten falsche/fremde
+        // Dokus erscheinen (Postfach kann Sammel-/Momentaufnahmen enthalten).
         // 4) übrige Dokumente aus dem Doku-Tab (neueste zuerst)
         (alleDocs || [])
             .sort((a, b) => String(b.geaendertAm || b.hochgeladenAm || '').localeCompare(String(a.geaendertAm || a.hochgeladenAm || '')))
