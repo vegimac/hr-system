@@ -8300,6 +8300,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
             </div>
 
+            <!-- Walter-Vorgabe 20.08.2026: QST-Abzug-Daten gibt es nur bei
+                 KINDERN (Kinderziffer im Tarif) — beim Ehepartner/anderen
+                 Typen ist die ganze Sektion versteckt (fmQstBlocksVisibility). -->
+            <div id="fmQstSection">
             <div class="emp-section-title" data-i18n="fam.section.qst">Quellensteuer (QST)</div>
             <div class="emp-field-grid-3">
                 <div class="fmf-field">
@@ -8312,13 +8316,14 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <!-- Kind 18+: Erstausbildung verlängert die Kinderziffer (KS 45).
                      Nur bei MemberType=Kind sichtbar. -->
-                <div class="fmf-field" id="fmErstausbildungField" style="display:none">
+                <div class="fmf-field" id="fmErstausbildungField">
                     <label class="fmf-label">Erstausbildung (ab 18)</label>
                     <label class="fmf-checkbox-card" title="Kind steht in beruflicher/schulischer ERSTausbildung — Kinderziffer läuft über den 18. Geburtstag hinaus. Beleg (Lehrvertrag/Immatrikulation) im Dokumente-Tab hinterlegen.">
                         <input type="checkbox" id="fmInErstausbildung">
                         <span class="fmf-checkbox-text">in Erstausbildung</span>
                     </label>
                 </div>
+            </div>
             </div>
         </div>
         <div class="family-modal-foot">
@@ -8450,7 +8455,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260820a"></script>
+<script src="employees.js?v=20260820b"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

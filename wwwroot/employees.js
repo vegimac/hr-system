@@ -4716,8 +4716,10 @@ function fmTypeChanged() {
 function fmQstBlocksVisibility(type) {
     const erwerbSec = document.getElementById('fmErwerbSection');
     if (erwerbSec) erwerbSec.style.display = (type === 'Ehepartner') ? '' : 'none';
-    const erstFeld = document.getElementById('fmErstausbildungField');
-    if (erstFeld) erstFeld.style.display = (type === 'Kind') ? '' : 'none';
+    // Walter-Vorgabe 20.08.2026: die GANZE QST-Sektion (Abzug ab/bis +
+    // Erstausbildung) gibt es nur bei Kindern — beim Ehepartner & Co. weg.
+    const qstSec = document.getElementById('fmQstSection');
+    if (qstSec) qstSec.style.display = (type === 'Kind') ? '' : 'none';
 }
 
 // Segment-Pille Erwerbstätig lesen/schreiben ('' = Frage offen).
