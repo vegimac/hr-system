@@ -169,7 +169,7 @@ FIX/FIX-M : Tag 1–25 keine Zeilen (Monatslohn = 100 % implizit); ab Tag 26
             NEGATIVE Korrektur 85.1/95.1 (voller Tagessatz) + 88/80-Zeilen
 FLEX      : nur Stufen-Zeilen, keine Kürzung
 ```
-SV-Flags aus dem Raster: AHV/QST/KTG/BVG ja, **UVG nein**, 13. ML nur auf der 100 %-Zeile.
+SV-Flags aus dem Raster: AHV/QST/KTG/BVG ja, **UVG nein** (Taggeld UND Korrektur → NBU läuft bewusst auf dem vollen Monatslohn weiter, Swissdec-Standard, Walter 19.08.2026), 13. ML nur auf der 100 %-Zeile.
 Bewusste Abweichung: «BVG auf 100 % rechnen» (Referenz) nicht übernommen — Basen flag-rein.
 
 ## 8. SV-Abzüge (BuildResult — die Abzugs-Engine)
