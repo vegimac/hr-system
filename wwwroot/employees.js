@@ -6036,54 +6036,93 @@ async function famLoadSpouseDocs(member) {
     }
     panel.style.display = 'none';
     try {
+        // ── Quellen sammeln (Walter-Vorgabe 20.08.2026, «beim Erfassen des
+        // Ehemanns ein Dokument daneben anzeigen»): nicht mehr NUR die
+        // spouse-getypten Dokus — zusätzlich ALLE Dokumente des MA und die
+        // Postfach-Eingänge (dort landet die frisch geschickte Ausweiskopie/
+        // Heiratsurkunde meistens zuerst). Reihenfolge im Dropdown:
+        // verknüpftes Doku → spouse-Dokus → Postfach (neueste zuerst) →
+        // übrige Doku-Tab-Dokumente.
+        const entries = [];
+        const seenDoc = new Set();
+        const pushDoc = (d, prefix) => {
+            if (!d || seenDoc.has('d' + d.id)) return;
+            seenDoc.add('d' + d.id);
+            entries.push({
+                previewUrl: `/api/documents/preview/${d.id}`,
+                filename:   d.filenameOriginal || 'dokument',
+                label:      `${prefix}${(d.bemerkung || '').trim() || d.filenameOriginal || 'Dokument'}`
+                          + (d.geaendertAm || d.hochgeladenAm ? ' · ' + formatDate(d.geaendertAm || d.hochgeladenAm) : '')
+            });
+        };
+
         const r = await fetch(`/api/documents/by-field?employeeId=${selectedEmployeeId}&code=spouse&all=true`, { headers: ah() });
-        let docs = r.ok ? await r.json() : [];
-        if (!Array.isArray(docs)) docs = [];
-        // Direkt verknüpftes Doku ergänzen (falls nicht spouse-getypt) und
-        // ZUOBERST einreihen — es ist der explizit gewählte Ausweis.
+        let spouseDocs = r.ok ? await r.json() : [];
+        if (!Array.isArray(spouseDocs)) spouseDocs = [];
+
+        let alleDocs = [];
+        try {
+            const rd = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
+            if (rd.ok) alleDocs = await rd.json() || [];
+        } catch (_) { /* best-effort */ }
+
+        // 1) explizit verknüpftes Doku zuoberst
         if (member?.dokumentId) {
-            if (!docs.some(d => d.id === member.dokumentId)) {
-                try {
-                    const rd = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah() });
-                    if (rd.ok) {
-                        const alle = await rd.json();
-                        const dm = (alle || []).find(d => d.id === member.dokumentId);
-                        if (dm) docs.unshift(dm);
-                    }
-                } catch (_) { /* best-effort */ }
-            } else {
-                docs = [docs.find(d => d.id === member.dokumentId)]
-                    .concat(docs.filter(d => d.id !== member.dokumentId));
-            }
+            const dm = spouseDocs.find(d => d.id === member.dokumentId)
+                    || (alleDocs || []).find(d => d.id === member.dokumentId);
+            pushDoc(dm, '');
         }
-        if (docs.length === 0) return;
-        window._famDocs = docs;
+        // 2) spouse-getypte Dokus
+        spouseDocs.forEach(d => pushDoc(d, ''));
+        // 3) Postfach-Eingänge des MA (nur Einträge MIT Datei)
+        try {
+            const rp = await fetch(`/api/mailbox?type=EMPLOYEE&employeeId=${selectedEmployeeId}`, { headers: ah() });
+            if (rp.ok) {
+                const pf = await rp.json();
+                (Array.isArray(pf) ? pf : []).filter(m => m.originalFilename).slice(0, 25).forEach(m => {
+                    entries.push({
+                        previewUrl: `/api/mailbox/${m.id}/preview`,
+                        filename:   m.originalFilename || 'dokument',
+                        label:      `📥 Postfach: ${(m.bemerkung || '').trim() || m.originalFilename}`
+                                  + (m.uploadedAt ? ' · ' + formatDate(m.uploadedAt) : '')
+                    });
+                });
+            }
+        } catch (_) { /* best-effort */ }
+        // 4) übrige Dokumente aus dem Doku-Tab (neueste zuerst)
+        (alleDocs || [])
+            .sort((a, b) => String(b.geaendertAm || b.hochgeladenAm || '').localeCompare(String(a.geaendertAm || a.hochgeladenAm || '')))
+            .slice(0, 25)
+            .forEach(d => pushDoc(d, '📂 '));
+
+        if (entries.length === 0) return;
+        window._famDocs = entries;
         panel.style.display = 'flex';
         const nameEl = document.getElementById('fam-docname');
-        if (docs.length > 1) {
+        if (entries.length > 1) {
             nameEl.innerHTML = `<select onchange="famShowSpouseDoc(parseInt(this.value))"
                 style="max-width:100%;background:rgba(255,255,255,0.7);border:1px solid #e2ddd3;border-radius:10px;padding:5px 9px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">
-                ${docs.map(d => `<option value="${d.id}">${esc((d.bemerkung || '').trim() || d.filenameOriginal || 'Dokument')}${d.hochgeladenAm ? ' · ' + formatDate(d.hochgeladenAm) : ''}</option>`).join('')}
+                ${entries.map((d, i) => `<option value="${i}">${esc(d.label)}</option>`).join('')}
             </select>`;
         }
-        await famShowSpouseDoc(docs[0].id);
+        await famShowSpouseDoc(0);
     } catch (_) { /* Panel bleibt unsichtbar */ }
 }
 
-async function famShowSpouseDoc(docId) {
-    const doc = (window._famDocs || []).find(d => d.id === docId);
+async function famShowSpouseDoc(idx) {
+    const doc = (window._famDocs || [])[idx];
     if (!doc) return;
     if ((window._famDocs || []).length <= 1) {
         const nameEl = document.getElementById('fam-docname');
-        if (nameEl) nameEl.textContent = (doc.bemerkung || '').trim() || doc.filenameOriginal || 'Ausweis Ehepartner';
+        if (nameEl) nameEl.textContent = doc.label || 'Ausweis Ehepartner';
     }
     const zoomBtn = document.getElementById('fam-doczoom');
     if (zoomBtn) {
         zoomBtn.style.display = 'inline-flex';
-        zoomBtn.onclick = () => previewUrlFetch(`/api/documents/preview/${doc.id}`, doc.filenameOriginal || 'ausweis', ah());
+        zoomBtn.onclick = () => previewUrlFetch(doc.previewUrl, doc.filename || 'ausweis', ah());
     }
     try {
-        const pr = await fetch(`/api/documents/preview/${doc.id}`, { headers: ah() });
+        const pr = await fetch(doc.previewUrl, { headers: ah() });
         if (!pr.ok) return;
         const blob = await pr.blob();
         const url = URL.createObjectURL(blob);

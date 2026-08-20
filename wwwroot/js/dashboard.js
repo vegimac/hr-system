@@ -92,6 +92,7 @@ const DASH_CATEGORY_META = {
     umzug_datum_offen:      { label: 'Umzugsdatum bestätigen',  icon: '🚚', color: '#b45309' },
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     qst_partner_daten:      { label: 'Ehepartner-Angaben unvollständig (QST)', icon: '💍', color: '#b91c1c' },
+    kind_geschlecht_fehlt:  { label: 'Kind ohne Geschlecht (Familie)', icon: '🧒', color: '#b45309' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
     night_work_untersuch_fehlt: { label: 'Nacht Untersuch fehlt', icon: '🌙', color: '#991b1b' },
@@ -355,7 +356,7 @@ function renderDashTodoRow(a) {
     const onClick = a.employeeId
         ? ((a.category === 'qst_pflicht_offen' || a.category === 'qst_kanton_mismatch')
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
-            : (a.category === 'spouse_doku_fehlt' || a.category === 'qst_partner_daten')
+            : (a.category === 'spouse_doku_fehlt' || a.category === 'qst_partner_daten' || a.category === 'kind_geschlecht_fehlt')
                 ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
                 : a.category === 'employee_doku_fehlt'
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
@@ -508,6 +509,7 @@ function dashTodoOnClick(a) {
             case 'qst_kanton_mismatch': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'spouse_doku_fehlt':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'qst_partner_daten':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
+            case 'kind_geschlecht_fehlt': return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'employee_doku_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'schwangerschaft':     return `onclick="dashOpenEmployeePregnancy(${a.employeeId})"`;
             case 'permit_expiring':
@@ -654,7 +656,7 @@ function renderDashAlertRow(a) {
     const onClick = a.employeeId
         ? ((a.category === 'qst_pflicht_offen' || a.category === 'qst_kanton_mismatch')
             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
-            : (a.category === 'spouse_doku_fehlt' || a.category === 'qst_partner_daten')
+            : (a.category === 'spouse_doku_fehlt' || a.category === 'qst_partner_daten' || a.category === 'kind_geschlecht_fehlt')
                 ? `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`
                 : a.category === 'employee_doku_fehlt'
                     ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`

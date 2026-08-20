@@ -793,6 +793,46 @@ public class DashboardService
             }
         }
 
+        // ── 3c.iii-b) Kind ohne Geschlecht (Walter-Vorgabe 20.08.2026) ─────
+        // Datenqualitäts-Warnung: bei einem Kind ohne hinterlegtes Geschlecht
+        // fehlt eine Pflichtangabe für QST-Anmeldung/Behördenformulare.
+        // Warnung (kein Block), Klick → Familie-Tab des MA.
+        if (Enabled("kind_geschlecht_fehlt"))
+        {
+            var kgEmpQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsPayrollExcluded && !e.IsHidden
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            if (companyProfileId.HasValue)
+                kgEmpQ = kgEmpQ.Where(e =>
+                    e.Employments.Any(em => em.CompanyProfileId == companyProfileId.Value && em.IsActive));
+            var kgRows = await kgEmpQ
+                .SelectMany(e => _db.EmployeeFamilyMembers
+                    .Where(f => f.EmployeeId == e.Id
+                             && f.MemberType == "Kind"
+                             && f.DateOfDeath == null
+                             && (f.Gender == null || f.Gender == ""))
+                    .Select(f => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
+                                       KindVorname = f.FirstName }))
+                .ToListAsync();
+            foreach (var grp in kgRows.GroupBy(x => x.Id))
+            {
+                var first = grp.First();
+                var kids = string.Join(", ", grp.Select(k => (k.KindVorname ?? "").Trim())
+                                                .Where(s => s.Length > 0));
+                if (kids.Length == 0) kids = "Kind ohne Namen";
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "kind_geschlecht_fehlt",
+                    Severity = SeverityState("kind_geschlecht_fehlt", "warning"),
+                    Title    = "Kind ohne Geschlecht — Familie ergänzen",
+                    Subtitle = $"{first.FirstName} {first.LastName} · Personalnr. {first.EmployeeNumber} · {kids}",
+                    EmployeeId     = first.Id,
+                    EmployeeNumber = first.EmployeeNumber,
+                    EmployeeName   = $"{first.FirstName} {first.LastName}".Trim()
+                });
+            }
+        }
+
         // ── 3c.iv) QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026) ─────
         // Der QST-Tarif richtet sich IMMER nach dem Wohnkanton des MA
         // (employee.canton_code). Ändert die Adresse (manuell ODER via

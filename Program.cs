@@ -443,6 +443,16 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (category) DO NOTHING;
     ");
 
+    // Kind ohne Geschlecht (Walter 20.08.2026): Datenqualitäts-Warnung —
+    // Pflichtangabe für QST-Anmeldung/Behördenformulare fehlt.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('kind_geschlecht_fehlt', 'Kind ohne Geschlecht (Familie)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 28, 60, 'none')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // AHV-Nummer fehlt (Walter 06.08.2026): kritische Warnung für aktive MA
     // mit laufendem Vertrag ohne AHV-Nummer.
     db.Database.ExecuteSqlRaw(@"
