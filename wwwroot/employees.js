@@ -6098,6 +6098,9 @@ async function famLoadSpouseDocs(member) {
         if (entries.length === 0) return;
         window._famDocs = entries;
         panel.style.display = 'flex';
+        // Box schmaler machen, damit Panel + Erfassung nebeneinander passen
+        // (CSS-Regel #familyModal.fam-docs-open, Walter 20.08.2026).
+        modal.classList.add('fam-docs-open');
         const nameEl = document.getElementById('fam-docname');
         if (entries.length > 1) {
             nameEl.innerHTML = `<select onchange="famShowSpouseDoc(parseInt(this.value))"
@@ -6263,7 +6266,9 @@ function openEmployeeAddressModalFromFamily() {
 }
 
 function closeFamilyModal() {
-    document.getElementById('familyModal').style.display = 'none';
+    const modal = document.getElementById('familyModal');
+    modal.style.display = 'none';
+    modal.classList.remove('fam-docs-open');
     editingFamilyMemberId = null;
 }
 

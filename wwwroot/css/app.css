@@ -11876,3 +11876,20 @@ body.theme-dark #qstModal .qst-cb-ro {
     border: 1px dashed var(--dlg-glass-border) !important;
     color: #94a3b8 !important;
 }
+
+/* ── Familien-Modal mit Dokumenten-Panel (Walter 20.08.2026) ─────────────
+   Beim Erfassen/Bearbeiten des Ehepartners (QST-Anmeldung, Ausweiskopie)
+   bzw. beim Neueintritt (Bewerbungsbogen) wird rechts ein Dokument des MA
+   angezeigt. Damit BEIDES nebeneinander Platz hat, wird die Erfassungsbox
+   schmaler, sobald das Panel offen ist (Klasse fam-docs-open auf #familyModal,
+   gesetzt in famLoadSpouseDocs). Auf schmalen Fenstern (<1000px) verschwindet
+   das Panel — die Erfassung hat Vorrang. */
+#familyModal.fam-docs-open .family-modal-box {
+    width: min(760px, 55vw);
+    flex-shrink: 0;
+}
+#familyModal.fam-docs-open #fam-docpanel { display: flex; }
+@media (max-width: 1000px) {
+    #familyModal.fam-docs-open .family-modal-box { width: min(1080px, calc(100vw - 40px)); }
+    #familyModal.fam-docs-open #fam-docpanel { display: none !important; }
+}
