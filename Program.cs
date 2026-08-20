@@ -432,6 +432,17 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (category) DO NOTHING;
     ");
 
+    // Ehepartner-Angaben unvollständig (Walter 20.08.2026): verheirateter
+    // QST-pflichtiger MA ohne komplette Partner-Daten (Nationalität,
+    // Bewilligung, Erwerbstätig-Frage, Arbeitgeber) — blockt den Lohnlauf.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('qst_partner_daten', 'Ehepartner-Angaben unvollständig (QST)', TRUE, NULL, NULL, 'critical', NULL, FALSE, 27, 17, 'red')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // AHV-Nummer fehlt (Walter 06.08.2026): kritische Warnung für aktive MA
     // mit laufendem Vertrag ohne AHV-Nummer.
     db.Database.ExecuteSqlRaw(@"
@@ -2349,6 +2360,17 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_family_member
             ADD COLUMN IF NOT EXISTS phone VARCHAR(50);
+    ");
+
+    // Walter 20.08.2026: QST-Relevanz-Felder am Familienmitglied —
+    // Ehepartner: erwerbstätig (NULL = Frage offen) + Arbeitgeber + Arbeitsort;
+    // Kind: in Erstausbildung (Kinderziffer über 18 hinaus, KS 45).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member
+            ADD COLUMN IF NOT EXISTS erwerbstaetig      BOOLEAN,
+            ADD COLUMN IF NOT EXISTS arbeitgeber_name   VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS arbeitgeber_ort    VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS in_erstausbildung  BOOLEAN NOT NULL DEFAULT FALSE;
     ");
 
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber

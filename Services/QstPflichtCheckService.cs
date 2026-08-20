@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Services;
@@ -58,7 +59,22 @@ public class QstPflichtCheckService
         // History des MA mitliefern, damit das Frontend den 📎-Doku-Picker
         // auf GENAU diesen History-Eintrag richten kann (statt auf das alte
         // Employee.CAusweisDokumentId-Feld). NULL bei allen anderen Gründen.
-        int? CurrentPermitHistoryId = null
+        int? CurrentPermitHistoryId = null,
+        // Walter-Vorgabe 20.08.2026: Partner-Daten-Vollständigkeit.
+        // Bei einem VERHEIRATETEN, QST-pflichtigen MA (keine Befreiung über
+        // den Ehepartner) müssen die Partner-Angaben komplett sein:
+        // Eintrag vorhanden, Nationalität, bei Ausländer die Bewilligung,
+        // Erwerbstätig-Frage beantwortet, bei «erwerbstätig» der Arbeitgeber.
+        // Fehlt etwas → PartnerDatenFehlen=true (blockt den Lohnlauf mit
+        // 409 QST_PARTNER_DATEN_FEHLEN), Maengel = Klartext-Liste fürs UI.
+        bool PartnerDatenFehlen = false,
+        List<string>? PartnerDatenMaengel = null,
+        // Walter-Vorgabe 20.08.2026: Tarif-Plausibilitäts-WARNUNGEN (kein
+        // Block) zur aktiven QST-Erfassung am Stichtag: verheiratet⇒B/C,
+        // C⇒Partner erwerbstätig, B⇒Partner nicht erwerbstätig, H⇒alleinstehend
+        // + Kind im selben Haushalt (+ Konkubinat nur mit höherem Einkommen),
+        // A mit Kinderziffer nur mit Behördenbewilligung («Speziell bewilligt»).
+        List<string>? TarifWarnungen = null
     );
 
     public async Task<QstPflichtCheckResult> CheckAsync(int employeeId, DateOnly stichtag)
@@ -144,9 +160,10 @@ public class QstPflichtCheckService
         bool isVerheiratet = !string.IsNullOrWhiteSpace(emp.MaritalStatus)
                           && (emp.MaritalStatus!.Equals("verheiratet", StringComparison.OrdinalIgnoreCase)
                            || emp.MaritalStatus!.Equals("eingetragene Partnerschaft", StringComparison.OrdinalIgnoreCase));
+        EmployeeFamilyMember? spouse = null;
         if (isVerheiratet)
         {
-            var spouse = await _db.EmployeeFamilyMembers
+            spouse = await _db.EmployeeFamilyMembers
                 .Include(f => f.NationalityRef)
                 .Include(f => f.PermitType)
                 .Where(f => f.EmployeeId == employeeId
@@ -181,19 +198,124 @@ public class QstPflichtCheckService
             }
         }
 
+        // ── Partner-Daten-Vollständigkeit (Walter-Vorgabe 20.08.2026) ──
+        // Ab hier ist der MA QST-pflichtig (keine Befreiung gegriffen). Ist er
+        // verheiratet, MÜSSEN die Ehepartner-Angaben komplett sein — sie
+        // entscheiden über Befreiung (CH/C) und Tarif B vs. C. Fehlt etwas,
+        // blockt der Lohnlauf mit 409 QST_PARTNER_DATEN_FEHLEN.
+        List<string>? partnerMaengel = null;
+        if (isVerheiratet)
+        {
+            partnerMaengel = new List<string>();
+            if (spouse == null)
+            {
+                partnerMaengel.Add("Ehepartner-Eintrag fehlt (Familie-Tab: Ehepartner mit Nationalität/Bewilligung erfassen)");
+            }
+            else
+            {
+                if (spouse.NationalityId == null)
+                    partnerMaengel.Add("Nationalität des Ehepartners fehlt");
+                else if (!string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase)
+                         && spouse.PermitTypeId == null)
+                    partnerMaengel.Add("Bewilligung des Ehepartners fehlt (Ausländer/in)");
+                if (spouse.Erwerbstaetig == null)
+                    partnerMaengel.Add("Erwerbstätig-Frage zum Ehepartner nicht beantwortet");
+                else if (spouse.Erwerbstaetig == true && string.IsNullOrWhiteSpace(spouse.ArbeitgeberName))
+                    partnerMaengel.Add("Arbeitgeber des erwerbstätigen Ehepartners fehlt");
+            }
+            if (partnerMaengel.Count == 0) partnerMaengel = null;
+        }
+        bool partnerFehlen = partnerMaengel != null;
+
         // ── MA ist QST-pflichtig. Gibt es eine Erfassung am Stichtag? ──
-        bool hasErfassung = await _db.EmployeeQuellensteuer
-            .AnyAsync(q => q.EmployeeId == employeeId
-                        && q.ValidFrom <= stichtag
-                        && (q.ValidTo == null || q.ValidTo >= stichtag));
+        var erfassung = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId
+                     && q.ValidFrom <= stichtag
+                     && (q.ValidTo == null || q.ValidTo >= stichtag))
+            .OrderByDescending(q => q.ValidFrom)
+            .ThenByDescending(q => q.Id)
+            .FirstOrDefaultAsync();
+        bool hasErfassung = erfassung != null;
+
+        // ── Tarif-Plausibilität (Walter-Vorgabe 20.08.2026, nur WARNUNGEN) ──
+        var tarifWarnungen = hasErfassung
+            ? await BuildTarifWarnungenAsync(employeeId, erfassung!, isVerheiratet, spouse, stichtag)
+            : null;
 
         if (hasErfassung)
             return new QstPflichtCheckResult(false, true, true, null,
-                "QST-pflichtig — Erfassung vorhanden.");
+                partnerFehlen
+                    ? "QST-pflichtig — Erfassung vorhanden, aber Ehepartner-Angaben unvollständig: "
+                      + string.Join(" · ", partnerMaengel!)
+                    : "QST-pflichtig — Erfassung vorhanden.",
+                PartnerDatenFehlen: partnerFehlen,
+                PartnerDatenMaengel: partnerMaengel,
+                TarifWarnungen: tarifWarnungen);
 
         return new QstPflichtCheckResult(true, true, false, null,
             "QST-Pflicht offen — kein Befreiungs-Grund, keine QST-Erfassung. "
-            + "Höchsten Tarif erfassen ODER Befreiungs-Schreiben der Steuerbehörde hinterlegen.");
+            + "Höchsten Tarif erfassen ODER Befreiungs-Schreiben der Steuerbehörde hinterlegen.",
+            PartnerDatenFehlen: partnerFehlen,
+            PartnerDatenMaengel: partnerMaengel);
+    }
+
+    /// <summary>
+    /// Tarif-Plausibilitäts-Warnungen zur aktiven QST-Erfassung (KS 45):
+    /// verheiratet ⇒ B/C (nicht A/H) · Tarif C ⇒ Partner erwerbstätig ·
+    /// Tarif B ⇒ Partner NICHT erwerbstätig · Tarif H ⇒ alleinstehend + mind.
+    /// ein QST-berechtigtes Kind im selben Haushalt (im Konkubinat nur beim
+    /// Elternteil mit dem höheren Bruttoeinkommen) · Tarif A mit Kinderziffer
+    /// nur mit Behördenbewilligung («Speziell bewilligt»). Reine Warnungen —
+    /// KEIN Lohnlauf-Block (die Verantwortung für den Tarif bleibt bei HR).
+    /// </summary>
+    private async Task<List<string>?> BuildTarifWarnungenAsync(
+        int employeeId, EmployeeQuellensteuer erfassung, bool isVerheiratet,
+        EmployeeFamilyMember? spouse, DateOnly stichtag)
+    {
+        var t = (erfassung.TarifCode ?? "").Trim().ToUpperInvariant();
+        if (t.Length == 0) return null;
+        var w = new List<string>();
+
+        if (isVerheiratet && (t == "A" || t == "H"))
+            w.Add($"Zivilstand «verheiratet», aber Tarif {t} — für Verheiratete gilt B (Alleinverdiener) oder C (Doppelverdiener).");
+
+        if (t == "C" && spouse?.Erwerbstaetig == false)
+            w.Add("Tarif C (Doppelverdiener), aber der Ehepartner ist als NICHT erwerbstätig erfasst — Tarif B prüfen.");
+        if (t == "B" && spouse?.Erwerbstaetig == true)
+            w.Add("Tarif B (Alleinverdiener), aber der Ehepartner ist erwerbstätig — Tarif C prüfen.");
+
+        if (t == "H")
+        {
+            if (!isVerheiratet)
+            {
+                // Kind im selben Haushalt nötig (Nachweis: Wohnsitzbescheinigung).
+                var kinderRaw = await _db.EmployeeFamilyMembers.AsNoTracking()
+                    .Where(f => f.EmployeeId == employeeId
+                             && f.MemberType == "Kind"
+                             && f.DateOfDeath == null)
+                    .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil,
+                                       f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
+                    .ToListAsync();
+                var imHaushalt = kinderRaw.Count(f =>
+                    f.AlternativeAddressId == null
+                    && QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
+                        f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
+                        f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
+                        f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
+                        f.AlternativeAddressId,
+                        f.InErstausbildung), stichtag));
+                if (imHaushalt == 0)
+                    w.Add("Tarif H (Halbfamilie) verlangt mind. ein QST-berechtigtes Kind im SELBEN Haushalt — keines erfasst.");
+                if (erfassung.LivesInKonkubinat && !erfassung.HasHigherIncomeThanPartner)
+                    w.Add("Konkubinat: Tarif H erhält NUR der Elternteil mit dem höheren Bruttoeinkommen — «höheres Einkommen als Partner» ist nicht gesetzt.");
+            }
+        }
+
+        if (t == "A" && erfassung.AnzahlKinder > 0 && !erfassung.SpezielBewilligt)
+            w.Add($"Tarif A mit Kinderziffer {erfassung.AnzahlKinder}: A1–9 gibt es NUR mit Bewilligung der Steuerbehörde "
+                + "(dann «Speziell bewilligt» setzen) — sonst gilt A0; Alimente laufen über die nachträgliche ordentliche Veranlagung.");
+
+        return w.Count > 0 ? w : null;
     }
 
     /// <summary>Mass-Variante für Dashboard/Lohnlauf-Check: gibt die MA-IDs zurück, bei denen <see cref="QstPflichtCheckResult.IsPflichtOffen"/> = true ist.</summary>

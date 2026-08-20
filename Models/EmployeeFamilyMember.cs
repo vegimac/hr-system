@@ -59,6 +59,28 @@ public class EmployeeFamilyMember
     /// <summary>Nationalität (FK auf Nationality-Tabelle, wie beim MA).</summary>
     public int? NationalityId { get; set; }
 
+    // ── QST-Relevanz (Walter-Vorgabe 20.08.2026) ────────────────────────────
+    /// <summary>
+    /// Ehepartner: erwerbstätig? NULL = Frage noch nicht beantwortet (blockt
+    /// bei QST-pflichtigen verheirateten MA den Lohnlauf), true/false = erfasst.
+    /// Entscheidet Tarif B (Alleinverdiener) vs. C (Doppelverdiener) und wird
+    /// 1:1 in die kantonale QST-Anmeldung übernommen.
+    /// </summary>
+    public bool? Erwerbstaetig { get; set; }
+
+    /// <summary>Ehepartner: Arbeitgeber-Name (Pflicht wenn erwerbstätig).</summary>
+    public string? ArbeitgeberName { get; set; }
+
+    /// <summary>Ehepartner: Arbeitsort (Ort, ggf. mit Kanton), z.B. «Luzern LU».</summary>
+    public string? ArbeitgeberOrt { get; set; }
+
+    /// <summary>
+    /// Kind: steht in beruflicher/schulischer ERSTausbildung. Relevant ab dem
+    /// 18. Geburtstag — ohne dieses Flag (oder explizites QstDeductibleUntil)
+    /// endet die QST-Kinderziffer automatisch mit 18 (KS 45 Ziff. 3.2.2).
+    /// </summary>
+    public bool InErstausbildung { get; set; } = false;
+
     /// <summary>
     /// Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Dokument
     /// dieses Familienmitglieds (Pass / ID-Karte für Schweizer Spouse, oder

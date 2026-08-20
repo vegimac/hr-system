@@ -648,7 +648,8 @@ public class DashboardService
         // (spart den teuren Per-MA-CheckAsync bei allen deaktiviert).
         var qstCandidateIds = (Enabled("qst_pflicht_offen")
                                || Enabled("spouse_doku_fehlt")
-                               || Enabled("employee_doku_fehlt"))
+                               || Enabled("employee_doku_fehlt")
+                               || Enabled("qst_partner_daten"))
             ? await qstCandidatesQ.Select(e => e.Id).ToListAsync()
             : new List<int>();
         // Künftige Eintritte (z.B. Übertritt Sursee→Oftringen, Vertrag ab 1.9.):
@@ -691,6 +692,36 @@ public class DashboardService
                     EmployeeNumber = emp.EmployeeNumber,
                     EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
                 });
+            }
+            // 3c.i-b) Ehepartner-Angaben unvollständig (Walter-Vorgabe
+            // 20.08.2026): verheirateter QST-pflichtiger MA ohne komplette
+            // Partner-Daten — blockt den Lohnlauf (409 QST_PARTNER_DATEN_
+            // FEHLEN). Eigenes if (kein else): kann zusammen mit «QST-Pflicht
+            // offen» auftreten. Klick → Familie-Tab.
+            if (r.PartnerDatenFehlen && Enabled("qst_partner_daten"))
+            {
+                var empP = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+                if (empP != null)
+                {
+                    var maengel = string.Join(" · ", r.PartnerDatenMaengel ?? new List<string>());
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "qst_partner_daten",
+                        Severity = SeverityState("qst_partner_daten", "critical"),
+                        Title    = "Ehepartner-Angaben unvollständig (QST) — Lohnlauf gesperrt",
+                        TitleKey = "alert.qstPartnerDaten",
+                        Subtitle = $"{empP.FirstName} {empP.LastName} · Personalnr. {empP.EmployeeNumber} · {maengel}",
+                        SubtitleKey = "subtitle.qstPartnerDaten",
+                        SubtitleArgs = new Dictionary<string, object> {
+                            ["name"]   = $"{empP.FirstName} {empP.LastName}".Trim(),
+                            ["empNr"]  = empP.EmployeeNumber,
+                            ["grund"]  = maengel
+                        },
+                        EmployeeId     = empP.Id,
+                        EmployeeNumber = empP.EmployeeNumber,
+                        EmployeeName   = $"{empP.FirstName} {empP.LastName}".Trim()
+                    });
+                }
             }
             // 3c.ii) Ausweis Ehegatte fehlt (Walter-Vorgabe 12.06.2026)
             // Befreiung über Ehepartner (CH oder C) gilt, aber der Beleg

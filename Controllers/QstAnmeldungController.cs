@@ -288,6 +288,16 @@ public class QstAnmeldungController : ControllerBase
                 if (string.IsNullOrWhiteSpace(ehepartner.FirstName))  Add("Ehepartner: Vorname",      "familie");
                 if (string.IsNullOrWhiteSpace(ehepartner.Gender))     Add("Ehepartner: Geschlecht",   "familie");
                 if (!ehepartner.DateOfBirth.HasValue)                 Add("Ehepartner: Geburtsdatum", "familie");
+                // Walter-Vorgabe 20.08.2026: Nationalität + Erwerbstätig-Frage
+                // sind fürs Anmeldeformular Pflicht (Tarif B vs. C, EP-Erwerb-
+                // Kreuz auf dem Kantonsformular).
+                if (ehepartner.NationalityId == null)                 Add("Ehepartner: Nationalität", "familie");
+                if (ehepartner.Erwerbstaetig == null)
+                    Add("Ehepartner: erwerbstätig Ja/Nein", "familie",
+                        "Bitte im Familie-Tab beim Ehepartner die Erwerbstätig-Frage beantworten (entscheidet Tarif B oder C).");
+                else if (ehepartner.Erwerbstaetig == true && string.IsNullOrWhiteSpace(ehepartner.ArbeitgeberName))
+                    Add("Ehepartner: Arbeitgeber", "familie",
+                        "Der Ehepartner ist erwerbstätig — bitte Arbeitgeber-Name (und Arbeitsort) erfassen.");
             }
         }
 
@@ -475,7 +485,12 @@ public class QstAnmeldungController : ControllerBase
             EpVorname       = ehepartner?.FirstName,
             EpGeburtsdatum  = ehepartner?.DateOfBirth?.ToString("dd.MM.yyyy"),
             EpSvNummer      = ehepartner?.SocialSecurityNumber,
-            EpHatErwerbJaNein = Nein, // Default Nein
+            // Walter-Vorgabe 20.08.2026: EP-Erwerbstätig kommt aus dem echten
+            // Familien-Feld (vorher fix «Nein» — bei Tarif C faktisch falsch
+            // auf dem Behördenformular). NULL = Frage offen → kein Kreuz.
+            EpHatErwerbJaNein = ehepartner?.Erwerbstaetig == true  ? Ja
+                              : ehepartner?.Erwerbstaetig == false ? Nein
+                              : null,
 
             // Kinder
             AnzahlKinder    = kinder.Count > 0 ? kinder.Count.ToString() : null,

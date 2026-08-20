@@ -360,6 +360,26 @@ public class MinimumWageRulesController : ControllerBase
                 });
             }
 
+            // Ehepartner-Angaben unvollständig (Walter-Vorgabe 20.08.2026) —
+            // blockt ConfirmPayroll/Freigeben mit QST_PARTNER_DATEN_FEHLEN,
+            // erscheint hier im selben «mit Lohnproblem»-Aggregat.
+            if (qstChk.PartnerDatenFehlen)
+            {
+                underpaid.Add(new
+                {
+                    employeeId = em.EmployeeId,
+                    firstName  = em.Employee!.FirstName,
+                    lastName   = em.Employee!.LastName,
+                    problem    = "QST_PARTNER",
+                    Minimum    = (decimal?)null,
+                    Actual     = (decimal?)null,
+                    Unit       = (string?)null,
+                    Difference = (decimal?)null,
+                    Message    = "Ehepartner-Angaben unvollständig: "
+                        + string.Join(" · ", qstChk.PartnerDatenMaengel ?? new List<string>())
+                });
+            }
+
             // QST-Kanton ≠ Wohnkanton (Walter-Vorgabe 04.08.2026, historisiert
             // 12.08.2026): der QST-Tarif richtet sich IMMER nach dem Wohnkanton
             // — aber nach dem Wohnkanton IN DER PERIODE (Wohnort-Historie am

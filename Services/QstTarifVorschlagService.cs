@@ -51,14 +51,15 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId })
+            .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
             .ToListAsync();
         var kinder = kinderRaw
             .Select(f => new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : (DateOnly?)null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
-                f.AlternativeAddressId
+                f.AlternativeAddressId,
+                f.InErstausbildung
             ))
             .ToList();
 
@@ -101,7 +102,10 @@ public record QstKindInput(
     DateOnly? QstDeductibleFrom,
     DateOnly? QstDeductibleUntil,
     DateOnly? DateOfBirth,
-    int?      AlternativeAddressId   // null = lebt im selben Haushalt
+    int?      AlternativeAddressId,      // null = lebt im selben Haushalt
+    // Walter-Vorgabe 20.08.2026: Kind in beruflicher/schulischer ERSTausbildung
+    // — verlängert die QST-Berechtigung über den 18. Geburtstag hinaus (KS 45).
+    bool      InErstausbildung = false
 );
 
 /// <summary>Resultat eines Tarifvorschlags. Geht 1:1 als JSON ans Frontend.</summary>
@@ -191,9 +195,28 @@ public static class QstTarifVorschlagLogic
             ? $"Konfession '{religion}' -> kirchensteuerpflichtig (Y)"
             : $"Konfession '{(string.IsNullOrWhiteSpace(religion) ? "nicht erfasst" : religion)}' -> keine Kirchensteuer (N)");
 
-        // 4) Tariftabelle prüfen + Fallbacks
+        // 4) Kinderziffer je Tarif (Walter-Vorgabe 20.08.2026, KS 45):
+        //    • H  → NUR Kinder im selben Haushalt (die anderen zählen nicht)
+        //    • A  → IMMER 0: A1–9 gibt es nur mit Bewilligung der Steuer-
+        //           behörde (Härtefall) — der Vorschlag darf das nie
+        //           automatisch setzen (Alimente laufen über die NOV).
+        //    • B/C → alle QST-berechtigten Kinder (Unterhalt zur Hauptsache,
+        //           Haushalt nicht zwingend).
+        var zifferBasis = tarif switch
+        {
+            "H" => kinderImSelbenHaushalt,
+            "A" => 0,
+            _   => berechneteKinderTotal
+        };
+        if (tarif == "A" && berechneteKinderTotal > 0)
+            warnings.Add($"{berechneteKinderTotal} Kind(er) erfasst, aber Tarif A → Kinderziffer 0. "
+                + "A1–9 nur mit Bewilligung der Steuerbehörde («Speziell bewilligt» + manuell setzen).");
+        if (tarif == "H" && kinderImSelbenHaushalt < berechneteKinderTotal)
+            begruendung.Add($"Tarif H zählt nur die {kinderImSelbenHaushalt} Kind(er) im selben Haushalt");
+
+        // Tariftabelle prüfen + Fallbacks
         var (effektiveKinder, effektiveKirche, gefunden) = FindeTarifInTabelle(
-            tarifTabelle, tarif, berechneteKinderTotal, kirchensteuer, warnings);
+            tarifTabelle, tarif, zifferBasis, kirchensteuer, warnings);
 
         var qstCode = $"{tarif}{effektiveKinder}{(effektiveKirche ? "Y" : "N")}";
         var bezeichnung = TarifBezeichnungen.GetValueOrDefault(tarif);
@@ -239,7 +262,12 @@ public static class QstTarifVorschlagLogic
         var dob   = k.DateOfBirth.Value;
         if (dob > stichtag) return false;                    // noch nicht geboren
         var dob18 = dob.AddYears(18);
-        return dob18 >= stichtag;                            // unter 18 am Stichtag
+        if (dob18 >= stichtag) return true;                  // unter 18 am Stichtag
+        // Walter-Vorgabe 20.08.2026 (KS 45): ab dem 18. Geburtstag zählt das
+        // Kind nur noch, wenn es in ERSTausbildung steht (Lehrvertrag/
+        // Immatrikulation als Beleg hinterlegen) — sonst endet die
+        // Kinderziffer automatisch mit 18.
+        return k.InErstausbildung;
     }
 
     private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung)

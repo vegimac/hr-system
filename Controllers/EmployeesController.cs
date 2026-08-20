@@ -1323,6 +1323,11 @@ public class EmployeesController : ControllerBase
             // Ehepartner-Beleg + Family-Member-ID für den Doku-Verknüpfungs-PATCH.
             spouseFamilyMemberId = spouseFamilyId,
             spouseDokumentId     = spouseDokumentId,
+            // Walter-Vorgabe 20.08.2026: Partner-Vollständigkeit (blockt Lohn)
+            // + Tarif-Plausibilitäts-Warnungen für den QST-Tab-Banner.
+            partnerDatenFehlen  = result.PartnerDatenFehlen,
+            partnerDatenMaengel = result.PartnerDatenMaengel,
+            tarifWarnungen      = result.TarifWarnungen,
             stichtag = date
         });
     }

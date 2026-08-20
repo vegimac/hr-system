@@ -464,6 +464,12 @@ public class AkontoWorkflowController : HrControllerBase
         var qstChk = await _qstCheck.CheckAsync(z.EmployeeId, mwTo);
         if (qstChk.IsPflichtOffen)
             return StatusCode(409, new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+        // Walter-Vorgabe 20.08.2026: unvollständige Ehepartner-Angaben blocken
+        // auch den Akonto-Lauf (analog ConfirmPayroll).
+        if (qstChk.PartnerDatenFehlen)
+            return StatusCode(409, new { error = "QST_PARTNER_DATEN_FEHLEN",
+                message = "Ehepartner-Angaben unvollständig: "
+                    + string.Join(" · ", qstChk.PartnerDatenMaengel ?? new List<string>()) });
 
         z.Status            = "FREIGEGEBEN_GF";
         z.GfFreigegebenAt   = DateTime.UtcNow;

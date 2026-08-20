@@ -125,11 +125,15 @@ public class QstTarifVorschlagLogicTests
             tarifTabelle: StandardTabelle());
 
         Assert.Equal("A",   res.TarifCode);
-        Assert.Equal(1,     res.AnzahlKinder);            // Kinderzahl bleibt, Tarif aber A
+        // Walter-Vorgabe 20.08.2026 (KS 45): Tarif A ⇒ Kinderziffer IMMER 0 —
+        // A1–9 gibt es nur mit Bewilligung der Steuerbehörde (Härtefall).
+        // Das Kind bleibt in BerechneteKinder sichtbar + eine Warnung erklärt es.
+        Assert.Equal(0,     res.AnzahlKinder);
         Assert.Equal(1,     res.BerechneteKinder);
         Assert.Equal(0,     res.KinderImSelbenHaushalt);
         Assert.False(res.Kirchensteuer);
-        Assert.Equal("A1N", res.QstCode);
+        Assert.Equal("A0N", res.QstCode);
+        Assert.Contains(res.Warnings, w => w.Contains("Bewilligung der Steuerbehörde"));
         Assert.True(res.InTariftabelleGefunden);
     }
 
@@ -377,12 +381,33 @@ public class QstTarifVorschlagLogicTests
             stichtag:     Stichtag,
             tarifTabelle: StandardTabelle());
 
-        // 2 QST-berechtigte Kinder, 1 davon im Haushalt → H mit 2 Kindern
+        // 2 QST-berechtigte Kinder, 1 davon im Haushalt → H. Walter-Vorgabe
+        // 20.08.2026 (KS 45): die H-Kinderziffer zählt NUR die Kinder im
+        // selben Haushalt → H1, nicht H2.
         Assert.Equal("H",   res.TarifCode);
-        Assert.Equal(2,     res.AnzahlKinder);
+        Assert.Equal(1,     res.AnzahlKinder);
         Assert.Equal(2,     res.BerechneteKinder);
         Assert.Equal(1,     res.KinderImSelbenHaushalt);
-        Assert.Equal("H2N", res.QstCode);
+        Assert.Equal("H1N", res.QstCode);
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Erstausbildung (Walter-Vorgabe 20.08.2026, KS 45): ab dem 18.
+    // Geburtstag zählt ein Kind nur noch mit InErstausbildung=true
+    // (explizite Von/Bis-Daten behalten Vorrang).
+    // ──────────────────────────────────────────────────────────────────
+    [Fact]
+    public void Kind19_OhneErstausbildung_NichtBerechtigt()
+    {
+        var k = new QstKindInput(null, null, new DateOnly(2007, 1, 1), null);
+        Assert.False(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));
+    }
+
+    [Fact]
+    public void Kind19_MitErstausbildung_Berechtigt()
+    {
+        var k = new QstKindInput(null, null, new DateOnly(2007, 1, 1), null, InErstausbildung: true);
+        Assert.True(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));
     }
 
     // ──────────────────────────────────────────────────────────────────

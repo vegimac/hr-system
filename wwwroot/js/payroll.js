@@ -1515,6 +1515,8 @@ function renderLohnSlip(s, targetEl) {
     if (_mwWarn) {
         if (_mwWarn.problem === 'NO_SALARY')   _mwHead = '⚠ Lohnsumme fehlt — Bestätigen gesperrt';
         else if (_mwWarn.problem === 'QST_OFFEN') _mwHead = '⚠ QST-Pflicht offen — Bestätigen gesperrt';
+        // Ehepartner-Angaben unvollständig (Walter 20.08.2026): harter Block.
+        else if (_mwWarn.problem === 'QST_PARTNER') _mwHead = '⚠ Ehepartner-Angaben unvollständig (QST) — Bestätigen gesperrt';
         // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): NUR Warnung, KEIN Block
         // — daher ohne «Bestätigen gesperrt» im Titel.
         else if (_mwWarn.problem === 'QST_KANTON_MISMATCH') _mwHead = '⚠ QST-Kanton stimmt nicht mit Wohnkanton überein — Tarif im QST-Tab prüfen';
@@ -1524,6 +1526,9 @@ function renderLohnSlip(s, targetEl) {
     // Gleicher Sprung bei QST_KANTON_MISMATCH (Walter 04.08.2026).
     const _qstSprung = _mwWarn && (_mwWarn.problem === 'QST_OFFEN' || _mwWarn.problem === 'QST_KANTON_MISMATCH')
         ? `<div style="margin-top:6px"><button onclick="window.activeEmpId=${_lohnSelectedEmpId};showPage('mitarbeiter');setTimeout(()=>switchEmpTab('quellensteuer'),250)" style="background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">→ QST im MA-Tab erfassen</button></div>`
+        // Ehepartner-Angaben (Walter 20.08.2026): Sprung in den Familie-Tab.
+        : _mwWarn && _mwWarn.problem === 'QST_PARTNER'
+        ? `<div style="margin-top:6px"><button onclick="window.activeEmpId=${_lohnSelectedEmpId};showPage('mitarbeiter');setTimeout(()=>switchEmpTab('familie'),250)" style="background:#dc2626;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">→ Ehepartner im Familie-Tab vervollständigen</button></div>`
         : '';
     const _mwBanner = (_mwWarn && !s.isCorrection)
         ? `<div style="background:#fee2e2;border:1px solid #fca5a5;color:#991b1b;border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;font-weight:600">${_mwHead}<div style="font-weight:400;margin-top:2px">${String(_mwWarn.message || '').replace(/</g,'&lt;')}</div>${_qstSprung}</div>`
@@ -2027,6 +2032,9 @@ async function confirmLohn() {
         } else if (_lohnProb.problem === 'QST_OFFEN') {
             head = 'Bestätigen gesperrt — QST-Pflicht offen.';
             hint = 'Bitte im MA-Tab → Quellensteuer den höchsten Tarif erfassen oder die Behörden-Befreiung hinterlegen.';
+        } else if (_lohnProb.problem === 'QST_PARTNER') {
+            head = 'Bestätigen gesperrt — Ehepartner-Angaben unvollständig (QST).';
+            hint = 'Bitte im MA-Tab → Familie den Ehepartner vervollständigen (Nationalität, Bewilligung, erwerbstätig Ja/Nein, Arbeitgeber).';
         }
         alert(head + '\n\n' + (_lohnProb.message || 'Lohnproblem.') + '\n\n' + hint);
         return;

@@ -100,6 +100,11 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Walter-Vorgabe 07.06.2026: NationalityCode mitliefern, damit das
         // Frontend „CH-Bürger" statt „ohne Bewilligung" anzeigen kann.
         nationalityCode = m.NationalityRef?.Code,
+        // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
+        m.Erwerbstaetig,
+        m.ArbeitgeberName,
+        m.ArbeitgeberOrt,
+        m.InErstausbildung,
         // Walter-Vorgabe 13.06.2026: Beleg-Doku-FK durchreichen — das Frontend
         // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
         // Beleg im Vorschau-Panel öffnen.
@@ -167,6 +172,12 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.PermitExpiryDate     = member.PermitExpiryDate;
         existing.ZemisNumber          = string.IsNullOrWhiteSpace(member.ZemisNumber) ? null : member.ZemisNumber.Trim();
         existing.NationalityId        = member.NationalityId;
+        // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder (Ehepartner-Erwerb,
+        // Kind-Erstausbildung).
+        existing.Erwerbstaetig        = member.Erwerbstaetig;
+        existing.ArbeitgeberName      = string.IsNullOrWhiteSpace(member.ArbeitgeberName) ? null : member.ArbeitgeberName.Trim();
+        existing.ArbeitgeberOrt       = string.IsNullOrWhiteSpace(member.ArbeitgeberOrt)  ? null : member.ArbeitgeberOrt.Trim();
+        existing.InErstausbildung     = member.InErstausbildung;
         existing.UpdatedAt            = DateTime.Now;
 
         await _context.SaveChangesAsync();

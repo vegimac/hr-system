@@ -721,6 +721,7 @@ function _akWfRenderMaList() {
         if (_mwW) {
             if (_mwW.problem === 'NO_SALARY')   _mwLbl = '⚠ Lohn fehlt';
             else if (_mwW.problem === 'QST_OFFEN') _mwLbl = '⚠ QST';
+            else if (_mwW.problem === 'QST_PARTNER') _mwLbl = '⚠ Ehepartner';
             // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): Warnung, kein Block.
             else if (_mwW.problem === 'QST_KANTON_MISMATCH') _mwLbl = '⚠ QST-Kanton';
         }
@@ -1351,6 +1352,10 @@ async function akWfFreigeben(id) {
     if (_zProb && _zProb.problem !== 'QST_KANTON_MISMATCH') {
         const head = _zProb.problem === 'NO_SALARY'
             ? 'Freigabe gesperrt — Lohnsumme fehlt.'
+            : _zProb.problem === 'QST_OFFEN'
+            ? 'Freigabe gesperrt — QST-Pflicht offen.'
+            : _zProb.problem === 'QST_PARTNER'
+            ? 'Freigabe gesperrt — Ehepartner-Angaben unvollständig (QST).'
             : 'Freigabe gesperrt — Mindestlohn unterschritten.';
         alert(head + '\n\n'
             + (_zProb.message || 'Lohnproblem im Vertrag.')

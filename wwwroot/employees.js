@@ -3729,9 +3729,48 @@ async function qstBefreiungSpeichern() {
     loadQuellensteuerTab(empId);
 }
 
+// Walter-Vorgabe 20.08.2026: roter Banner «Ehepartner-Angaben unvollständig»
+// — der Lohnlauf ist gesperrt, bis Nationalität/Bewilligung/Erwerbstätig-
+// Frage/Arbeitgeber des Ehepartners im Familie-Tab erfasst sind.
+function renderQstPartnerBanner(pflicht) {
+    if (!pflicht?.partnerDatenFehlen) return '';
+    const maengel = (pflicht.partnerDatenMaengel || [])
+        .map(m => `<li style="margin:2px 0">${esc(m)}</li>`).join('');
+    return `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;margin-bottom:14px">
+        <div style="font-weight:700;color:#b91c1c;font-size:13.5px;display:flex;align-items:center;gap:8px">
+            ⚠ Ehepartner-Angaben unvollständig — Lohnlauf gesperrt
+        </div>
+        <ul style="margin:6px 0 8px 18px;padding:0;font-size:12.5px;color:#7f1d1d">${maengel}</ul>
+        <button onclick="switchEmpTab('familie')"
+                style="background:#3f3f3f;color:#fff;border:1px solid #1a1a1a;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer">
+            → Ehepartner im Familie-Tab vervollständigen
+        </button>
+    </div>`;
+}
+
+// Walter-Vorgabe 20.08.2026: orange Tarif-Plausibilitäts-Warnungen (KS 45)
+// — reine Hinweise, kein Block (verheiratet⇒B/C, C⇒Partner arbeitet, H-Regeln,
+// A-Kinderziffer nur mit Behördenbewilligung).
+function renderQstTarifWarnBanner(pflicht) {
+    const w = pflicht?.tarifWarnungen || [];
+    if (!w.length) return '';
+    return `
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;margin-bottom:14px">
+        <div style="font-weight:700;color:#92400e;font-size:13px">Tarif prüfen (KS 45)</div>
+        <ul style="margin:6px 0 0 18px;padding:0;font-size:12.5px;color:#854d0e">
+            ${w.map(x => `<li style="margin:2px 0">${esc(x)}</li>`).join('')}
+        </ul>
+    </div>`;
+}
+
 function renderQuellensteuerTab(el, entries, pflicht) {
     // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
     const banner = renderQstPflichtBanner(pflicht)
+                 // Walter-Vorgabe 20.08.2026: Ehepartner-Angaben unvollständig
+                 // (blockt Lohnlauf) + Tarif-Plausibilitäts-Warnungen.
+                 + renderQstPartnerBanner(pflicht)
+                 + renderQstTarifWarnBanner(pflicht)
                  // Walter-Vorgabe 04.08.2026: Kantonswechsel-Hinweis direkt
                  // darunter — Wohnkanton ≠ Kanton der aktuellen QST-Version
                  // → «🚚 Umzug erfassen» (Monatsregel Kreisschreiben 45).
@@ -4443,6 +4482,19 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 } else {
                     spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-warn" title="Keine Bewilligung erfasst">⚠ Keine Bewilligung</span>`;
                 }
+                // Walter-Vorgabe 20.08.2026: Erwerbstätig-Badge am Ehepartner —
+                // rot wenn die Frage offen ist (blockt bei QST-pflichtigen
+                // verheirateten MA den Lohnlauf).
+                if (m.erwerbstaetig === true) {
+                    const agTxt = [m.arbeitgeberName, m.arbeitgeberOrt].filter(Boolean).join(', ');
+                    spousePermitBadge += `<span class="fam-tile-badge" style="background:#dcfce7;color:#166534" title="Erwerbstätig${agTxt ? ' bei ' + esc(agTxt) : ''}">💼 erwerbstätig${agTxt ? ' · ' + esc(agTxt) : ''}</span>`;
+                    if (!m.arbeitgeberName)
+                        spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Arbeitgeber fehlt — blockt den Lohnlauf">⚠ Arbeitgeber fehlt</span>`;
+                } else if (m.erwerbstaetig === false) {
+                    spousePermitBadge += `<span class="fam-tile-badge" title="Nicht erwerbstätig">nicht erwerbstätig</span>`;
+                } else {
+                    spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Erwerbstätig-Frage offen — blockt bei QST-pflichtigen verheirateten MA den Lohnlauf">⚠ Erwerbstätig?</span>`;
+                }
                 const hasSpouseDok = !!m.dokumentId;
                 if (hasSpouseDok) {
                     spouseDocBtn = `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();qstOpenBefreiungsDok(${employeeId}, ${m.dokumentId})" title="Verknüpftes Beleg-Dokument öffnen">📄 Doku</button>
@@ -4451,6 +4503,12 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 } else {
                     spouseDocBtn = `<button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'spouse',{spouseFamilyMemberId:${m.id}})" title="Beleg-Dokument verknüpfen">📎 Doku</button>`;
                 }
+            }
+
+            // Walter-Vorgabe 20.08.2026: Kind in Erstausbildung — Kinderziffer
+            // läuft über den 18. Geburtstag hinaus (KS 45; Beleg hinterlegen).
+            if (type === 'Kind' && m.inErstausbildung) {
+                spousePermitBadge += `<span class="fam-tile-badge" style="background:#dbeafe;color:#1d4ed8" title="In Erstausbildung — QST-Kinderziffer läuft über 18 hinaus (Lehrvertrag/Immatrikulation als Beleg)">🎓 Erstausbildung</span>`;
             }
 
             let addrBadge = '';
@@ -4650,6 +4708,37 @@ function fmTypeChanged() {
     if ((type === 'Kind' || type === 'Ehepartner') && maLast && !lastEl.value.trim()) {
         lastEl.value = maLast;
     }
+    fmQstBlocksVisibility(type);
+}
+
+// Walter-Vorgabe 20.08.2026: typ-abhängige QST-Blöcke im Familien-Modal —
+// Erwerbstätigkeit nur beim Ehepartner, Erstausbildung nur beim Kind.
+function fmQstBlocksVisibility(type) {
+    const erwerbSec = document.getElementById('fmErwerbSection');
+    if (erwerbSec) erwerbSec.style.display = (type === 'Ehepartner') ? '' : 'none';
+    const erstFeld = document.getElementById('fmErstausbildungField');
+    if (erstFeld) erstFeld.style.display = (type === 'Kind') ? '' : 'none';
+}
+
+// Segment-Pille Erwerbstätig lesen/schreiben ('' = Frage offen).
+function fmSetErwerb(val) {
+    const want = val === true ? 'ja' : val === false ? 'nein' : '';
+    document.querySelectorAll('input[name="fmErwerb"]').forEach(r => { r.checked = (r.value === want); });
+    fmErwerbChanged();
+}
+function fmGetErwerb() {
+    const r = document.querySelector('input[name="fmErwerb"]:checked');
+    return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
+}
+function fmErwerbChanged() {
+    // Arbeitgeber-Felder nur bei «Ja» aktiv — bei Nein/offen ausgegraut.
+    const aktiv = fmGetErwerb() === true;
+    ['fmArbeitgeberName', 'fmArbeitgeberOrt'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !aktiv;
+        el.style.opacity = aktiv ? '' : '0.5';
+    });
 }
 
 // Analog für das MA-Edit-Modal — Alter neben dem Geburtsdatum-Input.
@@ -5845,6 +5934,15 @@ function openFamilyModal(member) {
     document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
     document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
 
+    // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder — Ehepartner-Erwerb +
+    // Kind-Erstausbildung (+ typ-abhängige Sichtbarkeit).
+    fmSetErwerb(member?.erwerbstaetig ?? null);
+    document.getElementById('fmArbeitgeberName').value = member?.arbeitgeberName ?? '';
+    document.getElementById('fmArbeitgeberOrt').value  = member?.arbeitgeberOrt  ?? '';
+    const erstCb = document.getElementById('fmInErstausbildung');
+    if (erstCb) erstCb.checked = member?.inErstausbildung ?? false;
+    fmQstBlocksVisibility(member?.memberType ?? 'Kind');
+
     // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
     //    (gleiche Listen wie beim MA-Edit-Modal). Vorausgewählt wird der
     //    bestehende Wert; bei NEU der Wert vom MA als Default.
@@ -6150,6 +6248,11 @@ async function saveFamilyMember() {
         permitExpiryDate:       document.getElementById('fmPermitExpiry').value       || null,
         zemisNumber:            (document.getElementById('fmZemisNumber').value || '').trim() || null,
         nationalityId:          Number.isFinite(nationalityId) && nationalityId > 0 ? nationalityId : null,
+        // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
+        erwerbstaetig:          fmGetErwerb(),
+        arbeitgeberName:        (document.getElementById('fmArbeitgeberName')?.value || '').trim() || null,
+        arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value  || '').trim() || null,
+        inErstausbildung:       document.getElementById('fmInErstausbildung')?.checked ?? false,
         // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };
 

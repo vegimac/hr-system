@@ -880,6 +880,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
             entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(40);
             entity.Property(e => e.NationalityId).HasColumnName("nationality_id");
+            // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder (Ehepartner-Erwerb,
+            // Kind-Erstausbildung) — siehe QstPflichtCheckService.
+            entity.Property(e => e.Erwerbstaetig).HasColumnName("erwerbstaetig");
+            entity.Property(e => e.ArbeitgeberName).HasColumnName("arbeitgeber_name").HasMaxLength(150);
+            entity.Property(e => e.ArbeitgeberOrt).HasColumnName("arbeitgeber_ort").HasMaxLength(120);
+            entity.Property(e => e.InErstausbildung).HasColumnName("in_erstausbildung");
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");

@@ -8059,7 +8059,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260813a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260808a"></script>
+<script src="js/dashboard.js?v=20260820a"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -8076,7 +8076,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260803i"></script>
 <script src="js/absence-report.js?v=20260704p"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260804a"></script>
+<script src="js/akonto-workflow.js?v=20260820a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/branches-detail.js?v=20260819a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
@@ -8095,7 +8095,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260819a"></script>
 <script src="js/contracts-edit.js?v=20260806a"></script>
-<script src="js/payroll.js?v=20260819b"></script>
+<script src="js/payroll.js?v=20260820a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
@@ -8273,6 +8273,33 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  (Code-Pfad bleibt unverändert für Rückwärtskompatibilität). -->
             <div id="fmAllowanceList" style="display:none"></div>
 
+            <!-- ── Erwerbstätigkeit Ehepartner (Walter 20.08.2026) ─────────
+                 Nur bei MemberType=Ehepartner sichtbar (fmQstBlocksVisibility).
+                 Entscheidet Tarif B vs. C und geht 1:1 in die kantonale
+                 QST-Anmeldung. «–» = Frage offen → blockt bei QST-pflichtigen
+                 verheirateten MA den Lohnlauf. -->
+            <div id="fmErwerbSection" style="display:none">
+                <div class="emp-section-title">Erwerbstätigkeit Ehepartner</div>
+                <div class="emp-field-grid-3">
+                    <div class="fmf-field">
+                        <label class="fmf-label">Erwerbstätig?</label>
+                        <div style="display:flex;gap:8px;align-items:center;min-height:34px">
+                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
+                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
+                            <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
+                        </div>
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Arbeitgeber</label>
+                        <input class="fmf-input" id="fmArbeitgeberName" type="text" placeholder="Firma / Arbeitgeber">
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Arbeitsort</label>
+                        <input class="fmf-input" id="fmArbeitgeberOrt" type="text" placeholder="z.B. Luzern LU">
+                    </div>
+                </div>
+            </div>
+
             <div class="emp-section-title" data-i18n="fam.section.qst">Quellensteuer (QST)</div>
             <div class="emp-field-grid-3">
                 <div class="fmf-field">
@@ -8282,6 +8309,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="fmf-field">
                     <label class="fmf-label" data-i18n="fam.field.qstUntil">QST abzugsberechtigt bis</label>
                     <input class="fmf-input" id="fmQstUntil" type="date">
+                </div>
+                <!-- Kind 18+: Erstausbildung verlängert die Kinderziffer (KS 45).
+                     Nur bei MemberType=Kind sichtbar. -->
+                <div class="fmf-field" id="fmErstausbildungField" style="display:none">
+                    <label class="fmf-label">Erstausbildung (ab 18)</label>
+                    <label class="fmf-checkbox-card" title="Kind steht in beruflicher/schulischer ERSTausbildung — Kinderziffer läuft über den 18. Geburtstag hinaus. Beleg (Lehrvertrag/Immatrikulation) im Dokumente-Tab hinterlegen.">
+                        <input type="checkbox" id="fmInErstausbildung">
+                        <span class="fmf-checkbox-text">in Erstausbildung</span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -8414,7 +8450,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260819i"></script>
+<script src="employees.js?v=20260820a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

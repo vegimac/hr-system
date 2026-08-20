@@ -1498,6 +1498,13 @@ public class PayrollController : HrControllerBase
             var qstChk = await _qstCheck.CheckAsync(dto.EmployeeId, mwTo);
             if (qstChk.IsPflichtOffen)
                 return Conflict(new { error = "QST_PFLICHT_OFFEN", message = qstChk.Message });
+            // Walter-Vorgabe 20.08.2026: verheirateter QST-pflichtiger MA
+            // ohne vollständige Ehepartner-Angaben (Nationalität, Bewilligung,
+            // Erwerbstätig-Frage, Arbeitgeber) → Lohnlauf gesperrt.
+            if (qstChk.PartnerDatenFehlen)
+                return Conflict(new { error = "QST_PARTNER_DATEN_FEHLEN",
+                    message = "Ehepartner-Angaben unvollständig: "
+                        + string.Join(" · ", qstChk.PartnerDatenMaengel ?? new List<string>()) });
         }
 
         decimal SrvDec(string key)
