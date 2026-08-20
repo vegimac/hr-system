@@ -6173,6 +6173,45 @@ async function fmFillPermitAndNationalitySelects(currentPermitTypeId, currentNat
     }
 }
 
+// ── Orts-Vorwärtssuche (Walter 20.08.2026) ─────────────────────────────
+// Wer die PLZ nicht kennt, tippt den Ortsnamen an («Reid» → Reiden LU …);
+// die Auswahl füllt PLZ + Ort + Kanton. Wiederverwendbar: im HTML
+// oninput="ortNameSuggest(this, '<plzId>', '<ortId>', '<kantonId>')".
+let _ortSugTimer = null, _ortSugBox = null;
+function ortSugClose() { if (_ortSugBox) { _ortSugBox.remove(); _ortSugBox = null; } }
+function ortNameSuggest(inp, plzId, ortId, kantonId) {
+    clearTimeout(_ortSugTimer);
+    const q = (inp.value || '').trim();
+    if (q.length < 2 || /^\d/.test(q)) { ortSugClose(); return; }
+    _ortSugTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(`/api/swiss-locations/by-name?q=${encodeURIComponent(q)}`, { headers: ah() });
+            if (!res.ok) return;
+            const locs = await res.json();
+            ortSugClose();
+            if (!Array.isArray(locs) || !locs.length) return;
+            const r = inp.getBoundingClientRect();
+            const box = document.createElement('div');
+            box.style.cssText = `position:fixed;left:${r.left}px;top:${r.bottom + 4}px;width:${Math.max(r.width, 260)}px;z-index:9000;background:#fff;border:1px solid #e2ddd3;border-radius:10px;box-shadow:0 12px 28px rgba(60,55,48,0.18);max-height:240px;overflow:auto`;
+            box.innerHTML = locs.map((l, i) =>
+                `<div data-i="${i}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f">${esc(l.plz4)} ${esc(l.ortschaftsname)} <span style="color:#8b8b8b">${esc(l.kantonskuerzel || '')}</span></div>`).join('');
+            box.addEventListener('mousedown', e => {   // mousedown feuert VOR blur
+                const t = e.target.closest('[data-i]');
+                if (!t) return;
+                const l = locs[parseInt(t.getAttribute('data-i'), 10)];
+                const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+                set(plzId, l.plz4); set(ortId, l.ortschaftsname); set(kantonId, l.kantonskuerzel);
+                ortSugClose();
+                e.preventDefault();
+            });
+            document.body.appendChild(box);
+            _ortSugBox = box;
+            const closeOnBlur = () => { setTimeout(ortSugClose, 150); inp.removeEventListener('blur', closeOnBlur); };
+            inp.addEventListener('blur', closeOnBlur);
+        } catch (_) { /* best-effort */ }
+    }, 250);
+}
+
 // ── Adresse-Auswahl im Familienmitglied-Modal ──────────────────────────
 // Zeigt entweder "Lebt beim MA" (Hauptadresse) oder "Andere Adresse"
 // (Dropdown der employee_address des MA). Dropdown wird live aus dem

@@ -65,6 +65,33 @@ public class SwissLocationsController : ControllerBase
         return Ok(list);
     }
 
+    // GET /api/swiss-locations/by-name?q=reid — Orts-VORWÄRTSSUCHE
+    // (Walter 20.08.2026): wer die PLZ nicht kennt, tippt den Ortsnamen an
+    // («Reid» → Reiden LU, Reidermoos LU, …); die Auswahl füllt PLZ + Ort +
+    // Kanton. Treffer, die mit der Eingabe BEGINNEN, zuerst. Max. 25.
+    [HttpGet("by-name")]
+    public async Task<IActionResult> GetByName([FromQuery] string q)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+            return Ok(Array.Empty<object>());
+        var qLower = q.Trim().ToLower();
+        var raw = await _db.SwissLocations
+            .Where(l => l.Ortschaftsname.ToLower().Contains(qLower))
+            .OrderBy(l => l.Ortschaftsname.ToLower().StartsWith(qLower) ? 0 : 1)
+            .ThenBy(l => l.Ortschaftsname)
+            .ThenBy(l => l.Plz4)
+            .Take(25)
+            .Select(l => new { l.Plz4, l.Ortschaftsname, l.Kantonskuerzel })
+            .ToListAsync();
+        var list = raw.Select(l => new {
+            plz4           = l.Plz4,
+            ortschaftsname = EasyAtWorkEmployeeSyncService.StripCityCantonSuffix(l.Ortschaftsname)
+                             ?? l.Ortschaftsname,
+            kantonskuerzel = l.Kantonskuerzel
+        }).ToList();
+        return Ok(list);
+    }
+
     // POST /api/swiss-locations/learn — unbekannte PLZ lernen (Walter 06.08.2026).
     // Sonder-PLZ (Postfach-Adressen wie «5001 Aarau SPS») stehen nicht im
     // amtlichen Ortschaftsverzeichnis. Trägt der User Ort (+ Kanton) von Hand
