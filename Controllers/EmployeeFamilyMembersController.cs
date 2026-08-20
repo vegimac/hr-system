@@ -103,7 +103,11 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
         m.Erwerbstaetig,
         m.ArbeitgeberName,
+        m.ArbeitgeberStrasse,
+        m.ArbeitgeberPlz,
         m.ArbeitgeberOrt,
+        m.ArbeitgeberKanton,
+        m.Stellenantritt,
         m.InErstausbildung,
         // Walter-Vorgabe 13.06.2026: Beleg-Doku-FK durchreichen — das Frontend
         // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
@@ -175,8 +179,12 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder (Ehepartner-Erwerb,
         // Kind-Erstausbildung).
         existing.Erwerbstaetig        = member.Erwerbstaetig;
-        existing.ArbeitgeberName      = string.IsNullOrWhiteSpace(member.ArbeitgeberName) ? null : member.ArbeitgeberName.Trim();
-        existing.ArbeitgeberOrt       = string.IsNullOrWhiteSpace(member.ArbeitgeberOrt)  ? null : member.ArbeitgeberOrt.Trim();
+        existing.ArbeitgeberName      = string.IsNullOrWhiteSpace(member.ArbeitgeberName)    ? null : member.ArbeitgeberName.Trim();
+        existing.ArbeitgeberStrasse   = string.IsNullOrWhiteSpace(member.ArbeitgeberStrasse) ? null : member.ArbeitgeberStrasse.Trim();
+        existing.ArbeitgeberPlz       = string.IsNullOrWhiteSpace(member.ArbeitgeberPlz)     ? null : member.ArbeitgeberPlz.Trim();
+        existing.ArbeitgeberOrt       = string.IsNullOrWhiteSpace(member.ArbeitgeberOrt)     ? null : member.ArbeitgeberOrt.Trim();
+        existing.ArbeitgeberKanton    = string.IsNullOrWhiteSpace(member.ArbeitgeberKanton)  ? null : member.ArbeitgeberKanton.Trim();
+        existing.Stellenantritt       = member.Stellenantritt;
         existing.InErstausbildung     = member.InErstausbildung;
         existing.UpdatedAt            = DateTime.Now;
 

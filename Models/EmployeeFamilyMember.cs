@@ -71,8 +71,20 @@ public class EmployeeFamilyMember
     /// <summary>Ehepartner: Arbeitgeber-Name (Pflicht wenn erwerbstätig).</summary>
     public string? ArbeitgeberName { get; set; }
 
-    /// <summary>Ehepartner: Arbeitsort (Ort, ggf. mit Kanton), z.B. «Luzern LU».</summary>
+    /// <summary>Ehepartner: Arbeitgeber Strasse/Nr. (Walter 20.08.2026 — analog QST-Anmeldeformular).</summary>
+    public string? ArbeitgeberStrasse { get; set; }
+
+    /// <summary>Ehepartner: Arbeitgeber PLZ (mit Ort/Kanton-Auto-Lookup im UI).</summary>
+    public string? ArbeitgeberPlz { get; set; }
+
+    /// <summary>Ehepartner: Arbeitgeber Ort.</summary>
     public string? ArbeitgeberOrt { get; set; }
+
+    /// <summary>Ehepartner: Arbeitgeber Kanton (Kürzel, z.B. «AG»).</summary>
+    public string? ArbeitgeberKanton { get; set; }
+
+    /// <summary>Ehepartner: Stellenantritt beim Arbeitgeber.</summary>
+    public DateTime? Stellenantritt { get; set; }
 
     /// <summary>
     /// Kind: steht in beruflicher/schulischer ERSTausbildung. Relevant ab dem

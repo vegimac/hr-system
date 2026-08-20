@@ -884,7 +884,11 @@ public class AppDbContext : DbContext
             // Kind-Erstausbildung) — siehe QstPflichtCheckService.
             entity.Property(e => e.Erwerbstaetig).HasColumnName("erwerbstaetig");
             entity.Property(e => e.ArbeitgeberName).HasColumnName("arbeitgeber_name").HasMaxLength(150);
+            entity.Property(e => e.ArbeitgeberStrasse).HasColumnName("arbeitgeber_strasse").HasMaxLength(150);
+            entity.Property(e => e.ArbeitgeberPlz).HasColumnName("arbeitgeber_plz").HasMaxLength(10);
             entity.Property(e => e.ArbeitgeberOrt).HasColumnName("arbeitgeber_ort").HasMaxLength(120);
+            entity.Property(e => e.ArbeitgeberKanton).HasColumnName("arbeitgeber_kanton").HasMaxLength(10);
+            entity.Property(e => e.Stellenantritt).HasColumnName("stellenantritt").HasColumnType("date");
             entity.Property(e => e.InErstausbildung).HasColumnName("in_erstausbildung");
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).

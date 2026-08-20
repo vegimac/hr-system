@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260820e">
+    <link rel="stylesheet" href="css/app.css?v=20260820f">
 </head>
 <body>
 
@@ -8280,10 +8280,14 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  verheirateten MA den Lohnlauf. -->
             <div id="fmErwerbSection" style="display:none">
                 <div class="emp-section-title">Erwerbstätigkeit Ehepartner</div>
-                <div class="emp-field-grid-3">
+                <!-- Kompakt in 2 Zeilen (Walter 20.08.2026, analog QST-Anmelde-
+                     formular): Zeile 1 = Frage + Arbeitgeber + Strasse/Nr.,
+                     Zeile 2 = PLZ (mit Ort/Kanton-Auto-Lookup) + Ort + Kanton
+                     + Stellenantritt. -->
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px">
                     <div class="fmf-field">
                         <label class="fmf-label">Erwerbstätig?</label>
-                        <div style="display:flex;gap:8px;align-items:center;min-height:34px">
+                        <div style="display:flex;gap:6px;align-items:center;min-height:34px">
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
@@ -8294,10 +8298,30 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <input class="fmf-input" id="fmArbeitgeberName" type="text" placeholder="Firma / Arbeitgeber">
                     </div>
                     <div class="fmf-field">
-                        <label class="fmf-label">Arbeitsort</label>
-                        <input class="fmf-input" id="fmArbeitgeberOrt" type="text" placeholder="z.B. Luzern LU">
+                        <label class="fmf-label">Strasse / Nr.</label>
+                        <input class="fmf-input" id="fmArbeitgeberStrasse" type="text" placeholder="z.B. Industriestrasse 13">
                     </div>
                 </div>
+                <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:10px">
+                    <div class="fmf-field">
+                        <label class="fmf-label">PLZ</label>
+                        <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665"
+                               oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'fmArbeitgeberOrt', 'fmArbeitgeberKanton', null, 'fmAgPlzHint')">
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Ort</label>
+                        <input class="fmf-input" id="fmArbeitgeberOrt" type="text" placeholder="z.B. Oftringen">
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Kanton</label>
+                        <input class="fmf-input" id="fmArbeitgeberKanton" type="text" maxlength="2" placeholder="AG">
+                    </div>
+                    <div class="fmf-field">
+                        <label class="fmf-label">Stellenantritt</label>
+                        <input class="fmf-input" id="fmStellenantritt" type="date">
+                    </div>
+                </div>
+                <div id="fmAgPlzHint" style="font-size:11.5px;margin-top:4px"></div>
             </div>
 
             <!-- Walter-Vorgabe 20.08.2026: QST-Abzug-Daten gibt es nur bei
@@ -8455,7 +8479,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260820e"></script>
+<script src="employees.js?v=20260820f"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

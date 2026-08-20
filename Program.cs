@@ -2377,10 +2377,14 @@ using (var scope = app.Services.CreateScope())
     // Kind: in Erstausbildung (Kinderziffer über 18 hinaus, KS 45).
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_family_member
-            ADD COLUMN IF NOT EXISTS erwerbstaetig      BOOLEAN,
-            ADD COLUMN IF NOT EXISTS arbeitgeber_name   VARCHAR(150),
-            ADD COLUMN IF NOT EXISTS arbeitgeber_ort    VARCHAR(120),
-            ADD COLUMN IF NOT EXISTS in_erstausbildung  BOOLEAN NOT NULL DEFAULT FALSE;
+            ADD COLUMN IF NOT EXISTS erwerbstaetig       BOOLEAN,
+            ADD COLUMN IF NOT EXISTS arbeitgeber_name    VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS arbeitgeber_strasse VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS arbeitgeber_plz     VARCHAR(10),
+            ADD COLUMN IF NOT EXISTS arbeitgeber_ort     VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS arbeitgeber_kanton  VARCHAR(10),
+            ADD COLUMN IF NOT EXISTS stellenantritt      DATE,
+            ADD COLUMN IF NOT EXISTS in_erstausbildung   BOOLEAN NOT NULL DEFAULT FALSE;
     ");
 
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber

@@ -11893,3 +11893,15 @@ body.theme-dark #qstModal .qst-cb-ro {
     #familyModal.fam-docs-open .family-modal-box { width: min(1080px, calc(100vw - 40px)); }
     #familyModal.fam-docs-open #fam-docpanel { display: none !important; }
 }
+
+/* ── Familien-Modal kompakter (Walter 20.08.2026) ────────────────────────
+   Mit Arbeitgeber-Adresse + Stellenantritt muss die Maske ohne Scrollen
+   passen: engere Abstände, kleinere Paddings. */
+#familyModal .family-modal-head { padding: 14px 20px 10px; }
+#familyModal .family-modal-body { padding: 14px 20px; }
+#familyModal .family-modal-foot { padding: 10px 20px; }
+#familyModal .emp-section-title { margin-top: 12px !important; margin-bottom: 6px !important; }
+#familyModal .emp-field-grid,
+#familyModal .emp-field-grid-3 { gap: 8px 10px !important; margin-bottom: 8px !important; }
+#familyModal .fmf-field { gap: 3px; }
+#familyModal .fmf-input, #familyModal .fmf-select { padding: 6px 9px !important; }

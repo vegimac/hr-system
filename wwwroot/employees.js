@@ -4735,7 +4735,8 @@ function fmGetErwerb() {
 function fmErwerbChanged() {
     // Arbeitgeber-Felder nur bei «Ja» aktiv — bei Nein/offen ausgegraut.
     const aktiv = fmGetErwerb() === true;
-    ['fmArbeitgeberName', 'fmArbeitgeberOrt'].forEach(id => {
+    ['fmArbeitgeberName', 'fmArbeitgeberStrasse', 'fmArbeitgeberPlz',
+     'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
         el.disabled = !aktiv;
@@ -5958,8 +5959,14 @@ function openFamilyModal(member) {
     // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder — Ehepartner-Erwerb +
     // Kind-Erstausbildung (+ typ-abhängige Sichtbarkeit).
     fmSetErwerb(member?.erwerbstaetig ?? null);
-    document.getElementById('fmArbeitgeberName').value = member?.arbeitgeberName ?? '';
-    document.getElementById('fmArbeitgeberOrt').value  = member?.arbeitgeberOrt  ?? '';
+    document.getElementById('fmArbeitgeberName').value    = member?.arbeitgeberName    ?? '';
+    document.getElementById('fmArbeitgeberStrasse').value = member?.arbeitgeberStrasse ?? '';
+    document.getElementById('fmArbeitgeberPlz').value     = member?.arbeitgeberPlz     ?? '';
+    document.getElementById('fmArbeitgeberOrt').value     = member?.arbeitgeberOrt     ?? '';
+    document.getElementById('fmArbeitgeberKanton').value  = member?.arbeitgeberKanton  ?? '';
+    document.getElementById('fmStellenantritt').value     = toDateInput(member?.stellenantritt);
+    const agHint = document.getElementById('fmAgPlzHint');
+    if (agHint) agHint.innerHTML = '';
     const erstCb = document.getElementById('fmInErstausbildung');
     if (erstCb) erstCb.checked = member?.inErstausbildung ?? false;
     fmQstBlocksVisibility(member?.memberType ?? 'Kind');
@@ -6315,8 +6322,12 @@ async function saveFamilyMember() {
         nationalityId:          Number.isFinite(nationalityId) && nationalityId > 0 ? nationalityId : null,
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
         erwerbstaetig:          fmGetErwerb(),
-        arbeitgeberName:        (document.getElementById('fmArbeitgeberName')?.value || '').trim() || null,
-        arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value  || '').trim() || null,
+        arbeitgeberName:        (document.getElementById('fmArbeitgeberName')?.value    || '').trim() || null,
+        arbeitgeberStrasse:     (document.getElementById('fmArbeitgeberStrasse')?.value || '').trim() || null,
+        arbeitgeberPlz:         (document.getElementById('fmArbeitgeberPlz')?.value     || '').trim() || null,
+        arbeitgeberOrt:         (document.getElementById('fmArbeitgeberOrt')?.value     || '').trim() || null,
+        arbeitgeberKanton:      (document.getElementById('fmArbeitgeberKanton')?.value  || '').trim().toUpperCase() || null,
+        stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
         inErstausbildung:       document.getElementById('fmInErstausbildung')?.checked ?? false,
         // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };

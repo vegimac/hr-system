@@ -216,9 +216,10 @@ public class BewerbungsbogenPdfService
                     .Italic().FontSize(8.5f).FontColor(Body);
             });
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
+            // Geschlecht Partner nur noch W/M (Walter 20.08.2026, kein D mehr).
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M", "D"));
+                r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
