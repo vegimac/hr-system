@@ -5168,6 +5168,20 @@ async function getPermitTypes() {
 function natMakeCombo(sel) {
     if (!sel || sel._natCombo || sel.disabled) return;   // easy@work-gesperrt → nativ lassen
     sel._natCombo = true;
+    // Walter-Bug 20.08.2026 («zwei Felder»): der globale liquid-select-Enhancer
+    // hat das Select evtl. schon in ein .lqsel-wrap (Button + Panel) umgebaut —
+    // dann stünden Combo-Input UND Liquid-Button doppelt da. Liquid-Wrap
+    // rückbauen; das Select wird gleich darunter zur unsichtbaren Datenquelle
+    // des Combo-Controls (.no-liquid = erlaubte technische Ausnahme, verhindert
+    // dass der MutationObserver es erneut umbaut).
+    const lqWrap = sel.closest('.lqsel-wrap');
+    if (lqWrap && lqWrap.parentNode) {
+        lqWrap.parentNode.insertBefore(sel, lqWrap);
+        lqWrap.remove();
+        sel._lq = false;
+        sel.style.display = '';
+    }
+    sel.classList.add('no-liquid');
     const readOpts = () => Array.from(sel.options).map(o => ({ value: o.value, label: (o.textContent || '').trim() }));
     let opts = readOpts();
     const wrap = document.createElement('div');
@@ -5194,6 +5208,11 @@ function natMakeCombo(sel) {
     function render(q) {
         const Q = norm(q);
         items = opts.filter(o => o.value !== '' && (!Q || norm(o.label).includes(Q)));
+        // Walter 20.08.2026: Treffer, die mit der Eingabe BEGINNEN, zuerst
+        // («bul» → Bulgarien vor Ländern, die «bul» nur enthalten).
+        if (Q) items.sort((a, b) =>
+            (norm(b.label).startsWith(Q) ? 1 : 0) - (norm(a.label).startsWith(Q) ? 1 : 0)
+            || a.label.localeCompare(b.label));
         hi = items.length ? 0 : -1;
         list.innerHTML = items.slice(0, 300).map((o, i) =>
             `<div data-i="${i}" style="padding:7px 12px;font-size:13px;cursor:pointer;color:#3f3f3f;${i === hi ? 'background:#ece9e2' : ''}">${esc(o.label)}</div>`).join('')
