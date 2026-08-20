@@ -232,7 +232,16 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse"));
+            // Arbeitgeber Partner mit GENUG Platz für die volle Adresse +
+            // Stellenantritt (Walter 20.08.2026 — Angaben landen 1:1 in den
+            // neuen Ehepartner-Feldern des Familien-Tabs).
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse (Strasse/Nr., PLZ, Ort)"));
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.RelativeItem().Element(e => LabeledLine(e, "Stellenantritt Partner (Datum)"));
+                r.ConstantItem(16);
+                r.RelativeItem();
+            });
 
             // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
             // frühere Kinder-Block von Seite 1 lebt jetzt hier).
