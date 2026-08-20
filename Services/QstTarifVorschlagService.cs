@@ -51,15 +51,28 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
             .ToListAsync();
+        // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
+        // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
+        // ist belegt in Ausbildung (gleiche Logik wie QstPflichtCheckService).
+        var kindIds = kinderRaw.Select(f => f.Id).ToList();
+        var azKindIds = kindIds.Count == 0
+            ? new HashSet<int>()
+            : (await _db.FamilyMemberAllowances.AsNoTracking()
+                .Where(a => kindIds.Contains(a.FamilyMemberId)
+                         && a.AllowanceType == "AZ"
+                         && a.ValidFrom <= stichtag
+                         && (a.ValidTo == null || a.ValidTo >= stichtag))
+                .Select(a => a.FamilyMemberId)
+                .ToListAsync()).ToHashSet();
         var kinder = kinderRaw
             .Select(f => new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : (DateOnly?)null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
                 f.AlternativeAddressId,
-                f.InErstausbildung
+                f.InErstausbildung || azKindIds.Contains(f.Id)
             ))
             .ToList();
 
@@ -254,7 +267,13 @@ public static class QstTarifVorschlagLogic
         if (k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue)
         {
             if (k.QstDeductibleFrom.HasValue  && k.QstDeductibleFrom.Value  > stichtag) return false;
-            if (k.QstDeductibleUntil.HasValue && k.QstDeductibleUntil.Value < stichtag) return false;
+            // Walter-Vorgabe 20.08.2026: das «bis»-Datum wird beim Erfassen
+            // automatisch auf den 18. Geburtstag vorbefüllt. Steht das Kind in
+            // ERSTausbildung (Flag oder aktive Ausbildungszulage), verlängert
+            // das über ein abgelaufenes «bis» hinaus — sonst müsste HR das
+            // Datum von Hand löschen.
+            if (k.QstDeductibleUntil.HasValue && k.QstDeductibleUntil.Value < stichtag)
+                return k.InErstausbildung;
             return true;
         }
         // 2) Geburtsdatum-Fallback

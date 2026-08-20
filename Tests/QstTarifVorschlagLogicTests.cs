@@ -410,6 +410,22 @@ public class QstTarifVorschlagLogicTests
         Assert.True(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));
     }
 
+    [Fact]
+    public void Kind18_AbgelaufenesUntil_ErstausbildungUeberstimmt()
+    {
+        // Fall Stole (Walter 20.08.2026): «bis» wurde beim Erfassen automatisch
+        // auf den 18. Geburtstag gesetzt und ist abgelaufen — Erstausbildung
+        // (Flag oder aktive AZ) verlängert darüber hinaus.
+        var k = new QstKindInput(
+            QstDeductibleFrom:    new DateOnly(2008, 2, 2),
+            QstDeductibleUntil:   new DateOnly(2026, 2, 2),   // 18. Geburtstag, vor Stichtag
+            DateOfBirth:          new DateOnly(2008, 2, 2),
+            AlternativeAddressId: null,
+            InErstausbildung:     true);
+        Assert.True(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));
+        Assert.False(QstTarifVorschlagLogic.IstQstBerechtigt(k with { InErstausbildung = false }, Stichtag));
+    }
+
     // ──────────────────────────────────────────────────────────────────
     // IstQstBerechtigt — Direkter Unit-Test der Frist-Helper-Methode.
     // ──────────────────────────────────────────────────────────────────

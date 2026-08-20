@@ -276,6 +276,51 @@ public class QstPflichtCheckService
         if (t.Length == 0) return null;
         var w = new List<string>();
 
+        // ── Kinder am Stichtag zählen (Walter-Vorgabe 20.08.2026) ──
+        // Erstausbildung wird zusätzlich aus einer AKTIVEN Ausbildungszulage
+        // (AZ) abgeleitet — wer AZ bekommt, ist belegt in Ausbildung.
+        var kinderRaw = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Kind"
+                     && f.DateOfDeath == null)
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
+                               f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
+            .ToListAsync();
+        var kindIds = kinderRaw.Select(f => f.Id).ToList();
+        var azKindIds = kindIds.Count == 0
+            ? new HashSet<int>()
+            : (await _db.FamilyMemberAllowances.AsNoTracking()
+                .Where(a => kindIds.Contains(a.FamilyMemberId)
+                         && a.AllowanceType == "AZ"
+                         && a.ValidFrom <= stichtag
+                         && (a.ValidTo == null || a.ValidTo >= stichtag))
+                .Select(a => a.FamilyMemberId)
+                .ToListAsync()).ToHashSet();
+        var kinderChecked = kinderRaw.Select(f => new
+        {
+            f.AlternativeAddressId,
+            Berechtigt = QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
+                f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
+                f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
+                f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
+                f.AlternativeAddressId,
+                f.InErstausbildung || azKindIds.Contains(f.Id)), stichtag)
+        }).ToList();
+        int berechtigtTotal   = kinderChecked.Count(k => k.Berechtigt);
+        int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.AlternativeAddressId == null);
+
+        // ── Kinderziffer-Abgleich (Walter 20.08.2026): erfasste Ziffer vs.
+        // berechnete QST-berechtigte Kinder — reagiert z.B. wenn ein Kind 18
+        // wird und keine Erstausbildung (und keine laufende AZ) erfasst ist.
+        int sollZiffer = t == "H" ? berechtigtHaushalt : berechtigtTotal;
+        if ((t == "B" || t == "C" || t == "H") && erfassung.AnzahlKinder != sollZiffer)
+        {
+            w.Add(erfassung.AnzahlKinder > sollZiffer
+                ? $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber nur {sollZiffer} Kind(er) am Stichtag QST-berechtigt — "
+                  + "z.B. Kind 18 geworden ohne Erstausbildung/Ausbildungszulage. Neuen QST-Eintrag mit korrekter Ziffer anlegen."
+                : $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber {sollZiffer} Kind(er) wären QST-berechtigt — Ziffer prüfen (zu Gunsten des MA).");
+        }
+
         if (isVerheiratet && (t == "A" || t == "H"))
             w.Add($"Zivilstand «verheiratet», aber Tarif {t} — für Verheiratete gilt B (Alleinverdiener) oder C (Doppelverdiener).");
 
@@ -284,31 +329,13 @@ public class QstPflichtCheckService
         if (t == "B" && spouse?.Erwerbstaetig == true)
             w.Add("Tarif B (Alleinverdiener), aber der Ehepartner ist erwerbstätig — Tarif C prüfen.");
 
-        if (t == "H")
+        if (t == "H" && !isVerheiratet)
         {
-            if (!isVerheiratet)
-            {
-                // Kind im selben Haushalt nötig (Nachweis: Wohnsitzbescheinigung).
-                var kinderRaw = await _db.EmployeeFamilyMembers.AsNoTracking()
-                    .Where(f => f.EmployeeId == employeeId
-                             && f.MemberType == "Kind"
-                             && f.DateOfDeath == null)
-                    .Select(f => new { f.QstDeductibleFrom, f.QstDeductibleUntil,
-                                       f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
-                    .ToListAsync();
-                var imHaushalt = kinderRaw.Count(f =>
-                    f.AlternativeAddressId == null
-                    && QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
-                        f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
-                        f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
-                        f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
-                        f.AlternativeAddressId,
-                        f.InErstausbildung), stichtag));
-                if (imHaushalt == 0)
-                    w.Add("Tarif H (Halbfamilie) verlangt mind. ein QST-berechtigtes Kind im SELBEN Haushalt — keines erfasst.");
-                if (erfassung.LivesInKonkubinat && !erfassung.HasHigherIncomeThanPartner)
-                    w.Add("Konkubinat: Tarif H erhält NUR der Elternteil mit dem höheren Bruttoeinkommen — «höheres Einkommen als Partner» ist nicht gesetzt.");
-            }
+            // Kind im selben Haushalt nötig (Nachweis: Wohnsitzbescheinigung).
+            if (berechtigtHaushalt == 0)
+                w.Add("Tarif H (Halbfamilie) verlangt mind. ein QST-berechtigtes Kind im SELBEN Haushalt — keines erfasst.");
+            if (erfassung.LivesInKonkubinat && !erfassung.HasHigherIncomeThanPartner)
+                w.Add("Konkubinat: Tarif H erhält NUR der Elternteil mit dem höheren Bruttoeinkommen — «höheres Einkommen als Partner» ist nicht gesetzt.");
         }
 
         if (t == "A" && erfassung.AnzahlKinder > 0 && !erfassung.SpezielBewilligt)
