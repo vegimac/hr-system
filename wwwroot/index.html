@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260820f">
+    <link rel="stylesheet" href="css/app.css?v=20260820g">
 </head>
 <body>
 
@@ -8175,13 +8175,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <input class="fmf-input" id="fmPhone" type="tel" placeholder="+41 79 333 44 55"
                            oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">
                 </div>
-                <div class="fmf-field">
-                    <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
-                    <label class="fmf-checkbox-card">
-                        <input type="checkbox" id="fmLivesInSwitzerland">
-                        <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
-                    </label>
-                </div>
             </div>
 
             <!-- ── Aufenthalt + Nationalität (analog MA): nur relevant für ──
@@ -8226,6 +8219,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <select class="fmf-select" id="fmNationalityId">
                         <option value="">–</option>
                     </select>
+                </div>
+                <!-- Kompaktierung (Walter 20.08.2026): Checkbox aus der Person-
+                     Sektion hierher in die freie Zelle neben der Nationalität —
+                     spart eine ganze Zeile. -->
+                <div class="fmf-field">
+                    <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
+                    <label class="fmf-checkbox-card">
+                        <input type="checkbox" id="fmLivesInSwitzerland">
+                        <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
+                    </label>
                 </div>
             </div>
 
@@ -8284,10 +8287,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      formular): Zeile 1 = Frage + Arbeitgeber + Strasse/Nr.,
                      Zeile 2 = PLZ (mit Ort/Kanton-Auto-Lookup) + Ort + Kanton
                      + Stellenantritt. -->
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;margin-bottom:10px">
+                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 10px;margin-bottom:6px">
                     <div class="fmf-field">
                         <label class="fmf-label">Erwerbstätig?</label>
-                        <div style="display:flex;gap:6px;align-items:center;min-height:34px">
+                        <div style="display:flex;gap:6px;align-items:center;min-height:28px">
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
@@ -8302,7 +8305,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <input class="fmf-input" id="fmArbeitgeberStrasse" type="text" placeholder="z.B. Industriestrasse 13">
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:10px">
+                <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:6px 10px">
                     <div class="fmf-field">
                         <label class="fmf-label">PLZ</label>
                         <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665"

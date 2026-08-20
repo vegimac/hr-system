@@ -11905,3 +11905,23 @@ body.theme-dark #qstModal .qst-cb-ro {
 #familyModal .emp-field-grid-3 { gap: 8px 10px !important; margin-bottom: 8px !important; }
 #familyModal .fmf-field { gap: 3px; }
 #familyModal .fmf-input, #familyModal .fmf-select { padding: 6px 9px !important; }
+
+/* ── Familien-Modal: OHNE Scrollen (Walter 20.08.2026, Verschärfung) ─────
+   Alles noch enger: kleinere Feld-/Label-Grössen, flache Adress-Karten,
+   knappe Sektionsabstände. Ziel: Ehepartner-Maske inkl. Erwerbstätigkeit
+   passt komplett in 92vh. */
+#familyModal .family-modal-head { padding: 10px 20px 8px; }
+#familyModal .family-modal-body { padding: 10px 20px 12px; }
+#familyModal .family-modal-foot { padding: 8px 20px; }
+#familyModal .emp-section-title { margin-top: 8px !important; margin-bottom: 4px !important; font-size: 12.5px; }
+#familyModal .emp-field-grid,
+#familyModal .emp-field-grid-3 { gap: 6px 10px !important; margin-bottom: 6px !important; }
+#familyModal .fmf-field { gap: 2px; }
+#familyModal .fmf-label { font-size: 11px; }
+#familyModal .fmf-input, #familyModal .fmf-select { padding: 5px 8px !important; font-size: 12.5px; }
+#familyModal .fmf-checkbox-card { min-height: 20px !important; }
+#familyModal .fmf-addr-card { padding: 6px 8px !important; margin-bottom: 0 !important; }
+#familyModal .fmf-radio-row { padding: 3px 8px !important; margin: 0 !important; }
+#familyModal .fmf-radio-row * { font-size: 12px !important; line-height: 1.3 !important; }
+#familyModal .fmf-radio-hint, #familyModal .fmf-addr-alt-hint { font-size: 10.5px !important; }
+#familyModal .zst-pill { padding: 4px 10px; font-size: 12px; }
