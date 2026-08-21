@@ -311,7 +311,8 @@ const EMP_SPECIAL_FILTERS = {
 // Stempelzeiten + Absenzen bleiben getrennte Tabs (Walter-Feedback).
 // Tab «KTG/UVG» entfernt 17.07.2026 — Tagessatz lebt bei Absenzen + Übersicht.
 const _empTabsOrder = ['uebersicht', 'familie', 'quellensteuer', 'verwarnungen',
-                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente'];
+                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente',
+                       'historie'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -404,8 +405,12 @@ function applyEmpFilter() {
     const isActiveEffective = e => e.isActive && !isArchivedAlt(e);
 
     let filtered = _empAllRaw;
-    if (_empFilter === 'aktiv')   filtered = filtered.filter(isActiveEffective);
-    if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !isActiveEffective(e));
+    // Walter-Vorgabe 20.08.2026 (Fall Gazale, ersetzt das harte Ausblenden
+    // des Heimatfilial-Prinzips vom 05.08.2026): der Status-Filter läuft NEU
+    // erst NACH dem Filial-Filter und ist FILIAL-BEWUSST — ein Übertritts-MA
+    // ist in der neuen Filiale aktiv, in der alten aber «inaktiv (Übertritt)»
+    // und bleibt dort unter Inaktiv/Alle sichtbar (QST-/Lohn-Historie!).
+    filtered.forEach(e => { e._branchUebertritt = null; });
 
     // Phantom-MA ohne Lohn (isPayrollExcluded, z.B. Supervisor Nihat) in den
     // normalen Ansichten AUSBLENDEN (Walter 12.08.2026) — sie sind nur
@@ -460,18 +465,34 @@ function applyEmpFilter() {
                     && (!v.contractEndDate || new Date(v.contractEndDate) >= today));
             const activeCpids = [...new Set(withCp.filter(laeuft).map(v => Number(v.companyProfileId)))];
             if (activeCpids.length) {
-                // Irgendwo aktiv → NUR in diesen Filialen sichtbar (als Aktiver).
-                if (!activeCpids.includes(cpid)) return false;
-                return _empFilter !== 'inaktiv';
+                // Hier aktiv → sichtbar (Status-Filter entscheidet unten).
+                if (activeCpids.includes(cpid)) return true;
+                // Walter-Vorgabe 20.08.2026: hatte der MA hier FRÜHER einen
+                // Vertrag, bleibt er in dieser Filiale als «Übertritt»
+                // sichtbar (zählt als inaktiv) — sonst verliert die alte
+                // Filiale jede Spur (Fall Gazale Sursee→Oftringen).
+                if (!withCp.some(v => Number(v.companyProfileId) === cpid)) return false;
+                const zielB = (typeof allBranches !== 'undefined' ? allBranches : [])
+                    .find(b => activeCpids.includes(Number(b.id)));
+                e._branchUebertritt = zielB
+                    ? `${(zielB.restaurantCode || '').replace(/^0+/, '')} ${zielB.city || zielB.branchName || ''}`.trim()
+                    : 'andere Filiale';
+                return true;
             }
             // Nirgends aktiv → Heimat = Filiale des zuletzt beendeten Vertrags.
             const letzte = withCp.slice().sort((a, b) =>
                 String(b.contractEndDate || b.contractStartDate || '')
                     .localeCompare(String(a.contractEndDate || a.contractStartDate || '')))[0];
             if (Number(letzte.companyProfileId) !== cpid) return false;
-            return _empFilter !== 'aktiv';
+            return true;
         });
     }
+
+    // Status-Filter — filial-bewusst (Walter 20.08.2026): Übertritts-MA
+    // zählen in der alten Filiale als inaktiv, obwohl e.isActive=true.
+    const istHierAktiv = e => isActiveEffective(e) && !e._branchUebertritt;
+    if (_empFilter === 'aktiv')   filtered = filtered.filter(istHierAktiv);
+    if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !istHierAktiv(e));
 
     // Letzte vergebene Personalnummern der Filiale (Walter 12.07.2026, Versuch):
     // die zwei HÖCHSTEN rein numerischen Nummern mit Filial-Präfix — als
@@ -646,7 +667,10 @@ function renderEmployeeList(employees) {
         const active = e.id === selectedEmployeeId ? 'active liquid-employee-row-active' : '';
         // "alt"-Suffix → archiviert; konsistent mit applyEmpFilter
         const isArchivedAlt = (e.employeeNumber || '').toLowerCase().endsWith('alt');
-        const isInactive = !e.isActive || isArchivedAlt;
+        // Übertritts-MA (Walter 20.08.2026): in der alten Filiale wie inaktiv
+        // darstellen, mit eigenem Label «Übertritt → Ziel-Filiale».
+        const isUebertritt = !!e._branchUebertritt;
+        const isInactive = !e.isActive || isArchivedAlt || isUebertritt;
         // Modell-Pille (FIX, FIX-M, MTP, UTP) — Walter-Bug 16.05.2026:
         // die frühere Strict-Filterung (matchEmps NUR aus dem aktiven Filial-
         // companyProfileId) hat Legacy-Verträge ohne CompanyProfileId und MA
@@ -700,7 +724,9 @@ function renderEmployeeList(employees) {
         <div class="emp-list-item liquid-employee-row ${active}${(e.isPregnant || e.isMaternity) ? ' emp-list-pregnant' : ''}" onclick="selectEmployee(${e.id})"${isInactive ? ' style="opacity:0.65"' : ''}>
             <div class="emp-avatar ${isFemale ? 'female' : ''}">${initials}</div>
             <div style="flex:1;min-width:0">
-                <div class="emp-list-name">${name}${isInactive ? ' <span style="color:#94a3b8;font-weight:400;font-size:11px">(inaktiv)</span>' : ''}</div>
+                <div class="emp-list-name">${name}${isUebertritt
+                    ? ` <span style="color:#b45309;font-weight:600;font-size:11px" title="MA arbeitet jetzt in einer anderen Filiale — Dossier/Historie hier weiterhin einsehbar">(Übertritt → ${esc(e._branchUebertritt)})</span>`
+                    : isInactive ? ' <span style="color:#94a3b8;font-weight:400;font-size:11px">(inaktiv)</span>' : ''}</div>
                 <div class="emp-list-nr">${e.employeeNumber ?? ''}</div>
             </div>
             ${schwangerBadge}${modelBadge}${kepLohnBadge}
@@ -1117,6 +1143,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
             <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
+            <div class="emp-tab"        data-tab="historie"   onclick="switchEmpTab('historie')" title="Zeitachse: Verträge, Übertritte, Umzüge, QST, Bewilligungen">${_t('ma.tab.history','Historie')}</div>
         </div>
     </div>
     <div class="emp-detail-body">
@@ -1298,6 +1325,13 @@ function renderEmployeeDetail(emp) {
 <!-- TAB: Dokumente -->
         <div class="emp-tab-content" id="emp-tab-dokumente">
             <div id="empTabDokumente">
+                <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
+            </div>
+        </div>
+        <!-- TAB: Historie (Walter 20.08.2026) — read-only Zeitachse aus
+             vorhandenen Daten (Verträge, Übertritte, Umzüge, QST, Bewilligungen). -->
+        <div class="emp-tab-content" id="emp-tab-historie">
+            <div id="historieContent">
                 <div class="emp-placeholder" style="height:200px">${_t('ma.loading','Wird geladen...')}</div>
             </div>
         </div>
@@ -2027,6 +2061,7 @@ function switchEmpTab(tab) {
         loadLohnAssignmentsTab(selectedEmployeeId);
     }
     if (tab === 'dokumente'      && selectedEmployeeId) loadEmpDokumente(selectedEmployeeId);
+    if (tab === 'historie'       && selectedEmployeeId) loadHistorieTab(selectedEmployeeId);
 
     // MA-Liste links bleibt jetzt auf ALLEN Sub-Tabs sichtbar (auch Dokumente).
     // Walter wollte konsistentes Verhalten zu Stempelzeiten — schnelles
@@ -2035,6 +2070,65 @@ function switchEmpTab(tab) {
     // Code-Stelle noch dranhängt, hier defensiv weg.
     const empLayout = document.querySelector('.emp-layout');
     if (empLayout) empLayout.classList.remove('emp-layout-dokumente');
+}
+
+// ══════════════════════════════════════════════
+// HISTORIE-TAB (Walter 20.08.2026) — read-only Zeitachse
+// aus vorhandenen Daten, gruppiert nach Jahr. Kein Pflegeaufwand.
+// ══════════════════════════════════════════════
+async function loadHistorieTab(employeeId) {
+    const el = document.getElementById('historieContent');
+    if (!el) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/historie`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = '<div class="emp-placeholder">Historie konnte nicht geladen werden.</div>'; return; }
+        const events = await res.json();
+        if (!Array.isArray(events) || !events.length) {
+            el.innerHTML = '<div class="emp-placeholder">Noch keine Ereignisse vorhanden.</div>';
+            return;
+        }
+        const typColor = t => ({
+            eintritt:     '#166534',
+            vertrag:      '#1d4ed8',
+            vertrag_ende: '#6b7280',
+            umzug:        '#b45309',
+            umzug_kanton: '#b91c1c',
+            qst:          '#7c3aed',
+            permit:       '#0e7490',
+            nummer:       '#6b7280',
+            app:          '#166534',
+            austritt:     '#b91c1c'
+        }[t] || '#6b7280');
+        let html = `<div class="emp-section-title" style="margin-top:0">Zeitachse</div>
+        <div style="font-size:12px;color:#8b8b8b;margin-bottom:12px">
+            Automatisch aus Verträgen, Wohnort-Historie, QST-Versionen, Bewilligungen und Personalnummern
+            zusammengestellt — nichts zu pflegen. Neueste Ereignisse zuoberst.
+        </div>`;
+        let jahr = null;
+        html += '<div style="border-left:2px solid #d5d0c6;margin-left:8px;padding-left:0">';
+        events.forEach(ev => {
+            const d  = ev.datum ? new Date(ev.datum) : null;
+            const j  = d ? d.getFullYear() : 'ohne Datum';
+            if (j !== jahr) {
+                jahr = j;
+                html += `<div style="margin:14px 0 6px -8px;display:flex;align-items:center;gap:8px">
+                    <span style="background:#3f3f3f;color:#fff;font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px">${j}</span>
+                </div>`;
+            }
+            const dStr = d ? d.toLocaleDateString('de-CH') : '–';
+            const kritisch = ev.typ === 'umzug_kanton';
+            html += `
+            <div style="display:flex;gap:10px;align-items:flex-start;padding:5px 0 5px 0;margin-left:-5px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${typColor(ev.typ)};margin-top:5px;flex-shrink:0"></span>
+                <span style="font-size:12px;color:#8b8b8b;width:78px;flex-shrink:0;margin-top:1px">${dStr}</span>
+                <span style="font-size:13px;color:${kritisch ? '#b91c1c' : '#3f3f3f'};${kritisch ? 'font-weight:600;' : ''}line-height:1.4">${ev.icon || ''} ${esc(ev.text || '')}</span>
+            </div>`;
+        });
+        html += '</div>';
+        el.innerHTML = html;
+    } catch {
+        el.innerHTML = '<div class="emp-placeholder">Verbindungsfehler.</div>';
+    }
 }
 
 // ══════════════════════════════════════════════

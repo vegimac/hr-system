@@ -1333,6 +1333,137 @@ public class EmployeesController : ControllerBase
     }
 
     // ══════════════════════════════════════════════════════════════════
+    // HISTORIE / ZEITACHSE (Walter-Vorgabe 20.08.2026, Fall Gazale)
+    // ──────────────────────────────────────────────────────────────────
+    // Read-only Aggregat AUS VORHANDENEN Daten — keine neue Tabelle, kein
+    // Pflegeaufwand. Zweck: bei Steueramts-/Behörden-Rückfragen die ganze
+    // Geschichte eines MA (Übertritte, Funktionswechsel, Umzüge mit
+    // Kantonswechsel, QST-Versionen, Bewilligungen, Nummernwechsel) auf
+    // einen Blick, statt sie aus vier Tabs zusammenzusuchen.
+    // ══════════════════════════════════════════════════════════════════
+    [HttpGet("{id:int}/historie")]
+    public async Task<IActionResult> GetHistorie(int id)
+    {
+        var emp = await _context.Employees.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == id);
+        if (emp == null) return NotFound();
+
+        var events = new List<(DateOnly? Datum, int Prio, string Icon, string Text, string Typ)>();
+        void Add(DateOnly? datum, string icon, string text, string typ, int prio = 0)
+            => events.Add((datum, prio, icon, text, typ));
+        static DateOnly? D(DateTime? dt) => dt.HasValue ? DateOnly.FromDateTime(dt.Value) : null;
+
+        // Eintritt ins Unternehmen
+        if (emp.EntryDate.HasValue)
+            Add(D(emp.EntryDate), "🏁", "Eintritt ins Unternehmen", "eintritt", -10);
+
+        // Verträge: Beginn + Ende, mit Filiale/Funktion/Modell/Lohn
+        var emps = await _context.Employments.AsNoTracking()
+            .Include(x => x.CompanyProfile)
+            .Where(x => x.EmployeeId == id)
+            .OrderBy(x => x.ContractStartDate)
+            .ToListAsync();
+        string Fil(Employment x) => x.CompanyProfile == null ? "ohne Filiale"
+            : $"{(x.CompanyProfile.RestaurantCode ?? "").TrimStart('0')} {x.CompanyProfile.City ?? x.CompanyProfile.BranchName ?? ""}".Trim();
+        foreach (var x in emps)
+        {
+            var lohn = x.HourlyRate.HasValue ? $"CHF {x.HourlyRate:0.00}/h"
+                     : x.MonthlySalary.HasValue ? $"CHF {x.MonthlySalary:0.00}/Mt."
+                     : x.MonthlySalaryFte.HasValue ? $"CHF {x.MonthlySalaryFte:0.00}/Mt. (100 %)" : "";
+            Add(DateOnly.FromDateTime(x.ContractStartDate), "📄",
+                $"Vertrag begonnen — {Fil(x)}: {x.EmploymentModel} {(x.JobTitle ?? "").Trim()}{(lohn == "" ? "" : " · " + lohn)}".Trim(),
+                "vertrag");
+            if (x.ContractEndDate.HasValue)
+                Add(DateOnly.FromDateTime(x.ContractEndDate.Value), "🚪",
+                    $"Vertrag beendet — {Fil(x)}", "vertrag_ende", 5);
+        }
+
+        // Umzüge (Wohnort-Historie) inkl. Kantonswechsel-Marke
+        var wohnorte = await _context.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == id)
+            .OrderBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToListAsync();
+        string? vorherKanton = null;
+        foreach (var h in wohnorte)
+        {
+            var kantonsWechsel = vorherKanton != null && h.KantonCode != null
+                && !string.Equals(vorherKanton, h.KantonCode, StringComparison.OrdinalIgnoreCase);
+            var txt = $"Wohnort: {h.Plz} {h.Ort}{(h.KantonCode == null ? "" : " " + h.KantonCode)}"
+                    + (kantonsWechsel ? $" — KANTONSWECHSEL {vorherKanton} → {h.KantonCode} (QST!)" : "")
+                    + (h.DatumOffen ? " · Datum unbestätigt" : "");
+            Add(h.GueltigAb, "🚚", txt, kantonsWechsel ? "umzug_kanton" : "umzug");
+            if (h.KantonCode != null) vorherKanton = h.KantonCode;
+        }
+
+        // QST-Versionen
+        var qst = await _context.EmployeeQuellensteuer.AsNoTracking()
+            .Where(q => q.EmployeeId == id)
+            .OrderBy(q => q.ValidFrom)
+            .ToListAsync();
+        foreach (var q in qst)
+            Add(q.ValidFrom, "🧾",
+                $"QST-Erfassung {q.QstCode ?? q.TarifCode} · Kanton {q.Steuerkanton}"
+                + (q.ValidTo.HasValue ? $" (bis {q.ValidTo:dd.MM.yyyy})" : ""), "qst");
+
+        // Bewilligungen
+        var permits = await _context.EmployeePermitHistories.AsNoTracking()
+            .Include(p => p.PermitType)
+            .Where(p => p.EmployeeId == id)
+            .OrderBy(p => p.ValidFrom)
+            .ToListAsync();
+        foreach (var p in permits)
+            Add(p.ValidFrom, "🪪",
+                $"Bewilligung {p.PermitType?.Code ?? "?"}"
+                + (p.ValidTo.HasValue ? $" (gültig bis {p.ValidTo:dd.MM.yyyy})" : ""), "permit");
+
+        // Personalnummern-Wechsel (Aliase = frühere Nummern)
+        var aliase = await _context.EmployeeNumberAliases.AsNoTracking()
+            .Where(a => a.EmployeeId == id)
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+        foreach (var a in aliase)
+            Add(a.ValidTo ?? a.ValidFrom ?? D(a.CreatedAt), "🔢",
+                $"Frühere Personalnummer {a.Number} (heute {emp.EmployeeNumber})", "nummer");
+
+        // MA-App eingerichtet (best-effort über den Postfach-Login)
+        try
+        {
+            var appUserIds = await _context.AppUsers.AsNoTracking()
+                .Where(u => u.EmployeeId == id)
+                .Select(u => u.Id)
+                .ToListAsync();
+            if (appUserIds.Count > 0)
+            {
+                var used = await _context.PostfachSetupTokens.AsNoTracking()
+                    .Where(t => appUserIds.Contains(t.AppUserId) && t.UsedAt != null)
+                    .OrderBy(t => t.UsedAt)
+                    .Select(t => t.UsedAt)
+                    .FirstOrDefaultAsync();
+                if (used.HasValue)
+                    Add(D(used), "📱", "MA-App / Postfach eingerichtet", "app");
+            }
+        }
+        catch { /* best-effort */ }
+
+        // Austritt (globales Feld)
+        if (emp.ExitDate.HasValue)
+            Add(D(emp.ExitDate), "🏳️", "Austritt aus dem Unternehmen", "austritt", 9);
+
+        // Neueste zuoberst; gleiche Tage nach Priorität, undatiert zuunterst.
+        var sorted = events
+            .OrderByDescending(e => e.Datum ?? DateOnly.MinValue)
+            .ThenByDescending(e => e.Prio)
+            .Select(e => new {
+                datum = e.Datum,
+                icon  = e.Icon,
+                text  = e.Text,
+                typ   = e.Typ
+            })
+            .ToList();
+        return Ok(sorted);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
     // MA LÖSCHEN (Walter-Vorgabe 12.06.2026)
     // ──────────────────────────────────────────────────────────────────
     // Zwei Pfade je nachdem, ob der MA Lohn-Daten hat:

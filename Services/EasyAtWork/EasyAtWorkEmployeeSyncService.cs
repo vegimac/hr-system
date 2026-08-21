@@ -3799,6 +3799,27 @@ public class EasyAtWorkEmployeeSyncService
                 && string.Equals(h.Plz ?? "", neuPlz ?? "", StringComparison.OrdinalIgnoreCase)
                 && string.Equals(h.Ort ?? "", neuOrt ?? "", StringComparison.OrdinalIgnoreCase)))
             return;
+        // Zwischenstands-Bereinigung (Walter-Vorgabe 20.08.2026): unbestätigte
+        // (DatumOffen) Sync-Einträge sind PROVISORISCH. Kommt ein weiterer
+        // Adresswechsel, BEVOR das Umzugsdatum bestätigt wurde, ersetzt der
+        // neue Stand die Zwischenstände — sonst entstehen 1-Tages-Splitter
+        // («20.8.–20.8.», Fall Gazale). Bestätigte Einträge bleiben immer.
+        var provisorisch = hist.Where(h => h.DatumOffen).ToList();
+        if (provisorisch.Count > 0)
+        {
+            _db.EmployeeWohnortHistories.RemoveRange(provisorisch);
+            hist = hist.Where(h => !h.DatumOffen).ToList();
+        }
+        // Ping-Pong zurück auf den letzten BESTÄTIGTEN Stand → kein Umzug,
+        // gar kein neuer Eintrag.
+        var letzterFix = hist
+            .OrderByDescending(h => h.GueltigAb ?? DateOnly.MinValue)
+            .ThenByDescending(h => h.Id)
+            .FirstOrDefault();
+        if (letzterFix != null
+            && string.Equals(letzterFix.Plz ?? "", neuPlz ?? "", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(letzterFix.Ort ?? "", neuOrt ?? "", StringComparison.OrdinalIgnoreCase))
+            return;
         if (hist.Count == 0)
         {
             _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
