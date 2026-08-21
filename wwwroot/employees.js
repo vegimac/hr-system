@@ -4316,14 +4316,35 @@ async function deleteQstEntry(entryId) {
     if (!selectedEmployeeId || !entryId) return;
     if (!(await liquidConfirm('Diesen Quellensteuer-Eintrag wirklich löschen?\n\nDer aktuelle QST-Status wird automatisch neu ermittelt.'))) return;
     try {
-        const res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}`, {
+        let res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}`, {
             method: 'DELETE', headers: ah()
         });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const j = await res.json().catch(() => ({}));
-            alert(j.message || j.error || 'Fehler beim Löschen.');
-            return;
+            // Admin-Force-Delete für abgeschlossene Historie-Versionen
+            // (Walter 21.08.2026): Fehlerfassungen/Testdaten bereinigen.
+            // Die Lohnlauf-Sperre bleibt auch für den Admin bestehen.
+            if (j.error === 'QST_ABGESCHLOSSEN' && currentUser?.role === 'admin') {
+                if (!(await liquidConfirm(
+                    'Diese QST-Version ist abgeschlossene HISTORIE.\n\n'
+                    + 'Als Admin kannst du sie trotzdem endgültig löschen — z.B. bei einer '
+                    + 'Fehlerfassung. Danach fehlt dieser Zeitraum in der QST-Zeitachse.\n\n'
+                    + 'Wirklich endgültig löschen?',
+                    { title: 'Historie löschen (Admin)', yesLabel: 'Endgültig löschen', noLabel: 'Abbrechen' }))) return;
+                res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}?force=true`, {
+                    method: 'DELETE', headers: ah()
+                });
+                if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+                if (!res.ok) {
+                    const j2 = await res.json().catch(() => ({}));
+                    alert(j2.message || j2.error || 'Fehler beim Löschen.');
+                    return;
+                }
+            } else {
+                alert(j.message || j.error || 'Fehler beim Löschen.');
+                return;
+            }
         }
         if (typeof loadQuellensteuerTab === 'function') {
             await loadQuellensteuerTab(selectedEmployeeId);

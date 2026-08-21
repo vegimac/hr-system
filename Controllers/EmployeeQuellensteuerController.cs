@@ -370,21 +370,27 @@ public class EmployeeQuellensteuerController : ControllerBase
         return Ok(entry);
     }
 
-    // DELETE /api/employees/{employeeId}/quellensteuer/{id}
+    // DELETE /api/employees/{employeeId}/quellensteuer/{id}[?force=true]
     [HttpDelete("{id:int}")]
-    public async Task<IActionResult> Delete(int employeeId, int id)
+    public async Task<IActionResult> Delete(int employeeId, int id, [FromQuery] bool force = false)
     {
         var entry = await _db.EmployeeQuellensteuer
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
 
         // Abgeschlossene Version = Historie, nie löschen (Walter 12.08.2026).
-        if (entry.ValidTo != null)
+        // AUSNAHME (Walter 21.08.2026): Admin darf mit ?force=true auch
+        // Historie-Einträge löschen (Fehlerfassungen/Testdaten im Testjahr
+        // 2026). Die Lohnlauf-Sperre unten gilt WEITERHIN für alle — auch
+        // force bypasst keine definitiv abgeschlossene Periode (CLAUDE.md:
+        // kein Rollen-Bypass beim LohnEditLock).
+        if (entry.ValidTo != null && !(force && User.IsInRole("admin")))
         {
             return Conflict(new
             {
                 error   = "QST_ABGESCHLOSSEN",
                 message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist abgeschlossen und kann nicht gelöscht werden."
+                    + (User.IsInRole("admin") ? " Als Admin kannst du das Löschen erzwingen." : "")
             });
         }
 
