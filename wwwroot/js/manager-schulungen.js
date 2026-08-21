@@ -159,9 +159,12 @@ function msRender() {
         rows = `<tr><td colspan="8" style="padding:18px 10px;color:#8b8b8b;font-size:12.5px">Für diese Filiale ist kein FIX-M-Manager erfasst.</td></tr>`;
     }
 
+    // Fixer Kopf (Walter 21.08.2026): Hinweis + Filial-Wahl in #msHead
+    // (VOR .page-body → bleibt beim Scrollen stehen); nur die Liste scrollt.
+    const headEl = document.getElementById('msHead');
+    if (headEl) headEl.innerHTML = cfg + filBar;
+
     el.innerHTML = `
-        ${cfg}
-        ${filBar}
         <div class="card" style="padding:0">
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
             <!-- Sticky-Kopf (Walter 21.08.2026): Titel bleibt beim Scrollen stehen.

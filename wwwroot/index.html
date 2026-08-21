@@ -3126,6 +3126,9 @@
                          über McAdmin → zurück nach McAdmin, sonst Dienstplan. -->
                     <button id="msBackBtn" onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
                 </div>
+                <!-- Fixer Kopf (Walter 21.08.2026): Gültigkeits-Hinweis + Filial-Wahl
+                     bleiben beim Scrollen stehen (fixhead: alles VOR .page-body fix). -->
+                <div id="msHead"></div>
                 <div class="page-body">
                     <div id="msBody"></div>
                 </div>
@@ -9317,7 +9320,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
-<script src="js/manager-schulungen.js?v=20260821e"></script>
+<script src="js/manager-schulungen.js?v=20260821f"></script>
 <script src="js/ma-email.js?v=20260815c"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>
