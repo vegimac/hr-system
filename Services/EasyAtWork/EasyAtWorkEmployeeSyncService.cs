@@ -321,22 +321,37 @@ public class EasyAtWorkEmployeeSyncService
         // Bei unvollständiger Liste werden nur AUFHEBUNGEN gemacht, keine
         // neuen Markierungen (wir können «fehlt überall» nicht beweisen).
         bool listeUnvollstaendig = false;
+        // Walter-Bug 20.08.2026 (Gazale, Übertritt Sursee→Oftringen mit Lücke
+        // 19.8.–31.8.): beim Filialwechsel zeigt unsere Verknüpfung noch auf
+        // den ALTEN (beendeten) easy-Datensatz, der NEUE beginnt erst in der
+        // Zukunft und fehlt darum in der «heute aktiv»-Liste → Fehlalarm.
+        // Darum ZUSÄTZLICH die Aktivliste in +45 Tagen laden: künftige
+        // Eintritte/Übertritte stehen dort, die Nummern-Umhängung greift und
+        // hebt die Warnung auf. (Eintritte weiter als 45 Tage weg deckt die
+        // Einzelabfrage unten ab, sofern die Id stimmt.)
+        var stichtage = new[] { activeAt, activeAt.AddDays(45) };
         foreach (var m in mappings)
         {
-            List<EawEmployee> rows;
-            try { rows = await _client.GetAllEmployeesActiveAtAsync(m.EasyAtWorkCustomerId, activeAt, ct); }
-            catch (Exception ex)
+            foreach (var stichtag in stichtage)
             {
-                notes.Add($"Customer {m.EasyAtWorkCustomerId} nicht abrufbar ({ex.Message}) — Liste unvollständig, keine NEUEN Markierungen in diesem Lauf.");
-                listeUnvollstaendig = true;
-                continue;
-            }
-            foreach (var r in rows)
-            {
-                seen.Add(r.Id);
-                if (r.UserId.HasValue) seen.Add(r.UserId.Value); // Legacy: teils user_id gespeichert
-                var nr = NurZiffern(r.Number);
-                if (nr.Length > 0 && !byNumber.ContainsKey(nr)) byNumber[nr] = r;
+                List<EawEmployee> rows;
+                try { rows = await _client.GetAllEmployeesActiveAtAsync(m.EasyAtWorkCustomerId, stichtag, ct); }
+                catch (Exception ex)
+                {
+                    if (stichtag == activeAt)
+                    {
+                        notes.Add($"Customer {m.EasyAtWorkCustomerId} nicht abrufbar ({ex.Message}) — Liste unvollständig, keine NEUEN Markierungen in diesem Lauf.");
+                        listeUnvollstaendig = true;
+                    }
+                    continue;
+                }
+                foreach (var r in rows)
+                {
+                    seen.Add(r.Id);
+                    if (r.UserId.HasValue) seen.Add(r.UserId.Value); // Legacy: teils user_id gespeichert
+                    var nr = NurZiffern(r.Number);
+                    if (nr.Length > 0 && !byNumber.ContainsKey(nr)) byNumber[nr] = r;
+                }
             }
         }
 
