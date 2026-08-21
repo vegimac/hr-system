@@ -1388,7 +1388,7 @@ public class EmployeesController : ControllerBase
         {
             var kantonsWechsel = vorherKanton != null && h.KantonCode != null
                 && !string.Equals(vorherKanton, h.KantonCode, StringComparison.OrdinalIgnoreCase);
-            var txt = $"Wohnort: {h.Plz} {h.Ort}{(h.KantonCode == null ? "" : " " + h.KantonCode)}"
+            var txt = $"Wohnort: {(string.IsNullOrWhiteSpace(h.Strasse) ? "" : h.Strasse + ", ")}{h.Plz} {h.Ort}{(h.KantonCode == null ? "" : " " + h.KantonCode)}"
                     + (kantonsWechsel ? $" — KANTONSWECHSEL {vorherKanton} → {h.KantonCode} (QST!)" : "")
                     + (h.DatumOffen ? " · Datum unbestätigt" : "");
             Add(h.GueltigAb, "🚚", txt, kantonsWechsel ? "umzug_kanton" : "umzug");

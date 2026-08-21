@@ -2962,6 +2962,9 @@ using (var scope = app.Services.CreateScope())
             ON employee_wohnort_history (employee_id);
         ALTER TABLE employee_wohnort_history
             ADD COLUMN IF NOT EXISTS datum_offen boolean NOT NULL DEFAULT false;
+        -- Walter 20.08.2026: genaue Strasse mit-historisieren (Behörden-Rückfragen).
+        ALTER TABLE employee_wohnort_history
+            ADD COLUMN IF NOT EXISTS strasse text;
     ");
 
     // ── easy@work-Absenz-Sync (Walter 14.08.2026): Upsert-Schlüssel an der

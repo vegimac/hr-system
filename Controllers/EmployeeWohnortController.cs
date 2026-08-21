@@ -54,6 +54,7 @@ public class EmployeeWohnortController : ControllerBase
             result.Add(new
             {
                 h.Id, h.Plz, h.Ort, kantonCode = h.KantonCode,
+                strasse = h.Strasse,   // Walter 20.08.2026: Strasse mit-historisiert
                 gueltigAb = h.GueltigAb?.ToString("yyyy-MM-dd"),
                 gueltigBis = bis?.ToString("yyyy-MM-dd"),
                 datumOffen = h.DatumOffen,

@@ -14713,7 +14713,7 @@ async function umzugLoadHistorie(empId) {
         el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
             + list.map(h => `<div id="umzugRow-${h.id}" style="display:flex;align-items:center;gap:8px;font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
                 <div style="flex:1;min-width:0">
-                    ${esc(h.plz)} ${esc(h.ort)} <b>${esc(h.kantonCode)}</b>
+                    ${h.strasse ? esc(h.strasse) + ', ' : ''}${esc(h.plz)} ${esc(h.ort)} <b>${esc(h.kantonCode)}</b>
                     <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
                     ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
                 </div>

@@ -768,13 +768,14 @@ public class EasyAtWorkEmployeeSyncService
         // Übernahme sichern — bei PLZ/Ort-Wechsel entsteht unten ein
         // Historie-Eintrag mit offenem Umzugsdatum.
         var altPlzSync = emp.ZipCode; var altOrtSync = emp.City; var altKantonSync = emp.CantonCode;
+        var altStrasseSync = emp.Street;   // Walter 20.08.2026: Strasse mit-historisieren
         SetString("Strasse", emp.Street, master.Street, v => emp.Street = v);
         SetString("PLZ", emp.ZipCode, master.ZipCode, v => emp.ZipCode = v);
         SetString("Ort", emp.City, master.City, v => emp.City = v);
         SetString("Kanton", emp.CantonCode, master.CantonCode, v => emp.CantonCode = v);
         if (result.UpdatedFields.Contains("PLZ") || result.UpdatedFields.Contains("Ort"))
         {
-            await ErfasseWohnortWechselAsync(emp, altPlzSync, altOrtSync, altKantonSync, ct);
+            await ErfasseWohnortWechselAsync(emp, altPlzSync, altOrtSync, altKantonSync, altStrasseSync, ct);
             result.UpdatedFields.Add("Wohnort-Historie (Umzugsdatum bestätigen)");
         }
         SetString("Land", emp.Country, master.Country, v => emp.Country = v);
@@ -2309,8 +2310,9 @@ public class EasyAtWorkEmployeeSyncService
                     // sichern, nach ApplyDiffs ggf. Historie-Eintrag mit
                     // offenem Umzugsdatum anlegen (easy bleibt Adress-Master).
                     var altPlzUp = emp.ZipCode; var altOrtUp = emp.City; var altKantonUp = emp.CantonCode;
+                    var altStrasseUp = emp.Street;   // Walter 20.08.2026
                     ApplyDiffs(emp, row.Diffs, master);
-                    await ErfasseWohnortWechselAsync(emp, altPlzUp, altOrtUp, altKantonUp, ct);
+                    await ErfasseWohnortWechselAsync(emp, altPlzUp, altOrtUp, altKantonUp, altStrasseUp, ct);
                     // Nachtarbeit: Beginn aus easy, Ende gerechnet (Walter 26.07.2026).
                     if (master.NightWorkExamIssued.HasValue)
                     {
@@ -3775,7 +3777,7 @@ public class EasyAtWorkEmployeeSyncService
     /// Nur für BESTEHENDE MA aufrufen (nach der Adress-Übernahme).
     /// </summary>
     private async Task ErfasseWohnortWechselAsync(
-        Employee emp, string? altPlz, string? altOrt, string? altKanton, CancellationToken ct)
+        Employee emp, string? altPlz, string? altOrt, string? altKanton, string? altStrasse, CancellationToken ct)
     {
         if (emp.Id <= 0) return;   // Neuanlage = Erstadresse, kein Umzug
         var neuPlz = emp.ZipCode?.Trim();
@@ -3826,6 +3828,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 EmployeeId = emp.Id,
                 Plz = altPlz?.Trim(), Ort = altOrt?.Trim(), KantonCode = altKanton?.Trim(),
+                Strasse = altStrasse?.Trim(),   // Walter 20.08.2026: Strasse mit-historisieren
                 GueltigAb = null,
                 Bemerkung = "Bestandsadresse (automatisch beim easy@work-Adresswechsel)",
             });
@@ -3834,9 +3837,10 @@ public class EasyAtWorkEmployeeSyncService
         {
             EmployeeId = emp.Id,
             Plz = neuPlz, Ort = neuOrt, KantonCode = emp.CantonCode?.Trim(),
+            Strasse = emp.Street?.Trim(),       // Walter 20.08.2026: Strasse mit-historisieren
             GueltigAb = DateOnly.FromDateTime(DateTime.Today),
             DatumOffen = true,
-            Bemerkung = $"aus easy@work übernommen (vorher {altPlz} {altOrt}) — Umzugsdatum bestätigen",
+            Bemerkung = $"aus easy@work übernommen (vorher {altStrasse} {altPlz} {altOrt}) — Umzugsdatum bestätigen",
         });
     }
 

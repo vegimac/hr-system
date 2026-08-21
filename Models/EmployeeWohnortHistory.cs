@@ -22,6 +22,14 @@ public class EmployeeWohnortHistory
     public string? Ort { get; set; }
     public string? KantonCode { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 20.08.2026: auch die genaue STRASSE festhalten —
+    /// wenig Daten, aber wertvoll bei späteren Behörden-Rückfragen
+    /// (Betreibungsamt/RAV/Steueramt: «wo wohnte X am Stichtag?»).
+    /// Rückwirkend nicht befüllbar; ab jetzt schreibt der Sync sie mit.
+    /// </summary>
+    public string? Strasse { get; set; }
+
     /// <summary>NULL = «seit jeher» (initialer Eintrag aus der Bestandsadresse).</summary>
     public DateOnly? GueltigAb { get; set; }
 

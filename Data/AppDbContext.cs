@@ -1314,6 +1314,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Plz).HasColumnName("plz");
             entity.Property(e => e.Ort).HasColumnName("ort");
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code");
+            // Walter 20.08.2026: genaue Strasse mit-historisieren.
+            entity.Property(e => e.Strasse).HasColumnName("strasse");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
             entity.Property(e => e.DatumOffen).HasColumnName("datum_offen");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
