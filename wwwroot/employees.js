@@ -11928,6 +11928,12 @@ async function deleteBankAccount(id) {
 
 const EMP_ADDRESS_TYPES = [
     'Korrespondenzadresse',
+    // Walter 21.08.2026: eigene Typen für getrennt lebende Familien —
+    // wichtig bei QST-/Halbfamilien-Abklärungen (wo wohnt der Partner /
+    // das Kind?). Die Typen sind Beschriftungen; die Verknüpfung läuft wie
+    // immer über das Familienmitglied (Andere Adresse → diese wählen).
+    'Adresse Ehepartner',
+    'Anderer Elternteil (Kind)',
     'Ferienwohnung',
     'Sozialamt',
     'Arbeitgeber',

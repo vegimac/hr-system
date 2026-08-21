@@ -3930,10 +3930,12 @@
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-sex {
             max-width: 44px;
         }
-        /* ZEMIS-Nr. ist kurz (z.B. 22295241.0) — Feld nicht auf Spaltenbreite strecken */
+        /* ZEMIS-Nr. — Feld nicht auf Spaltenbreite strecken, aber breit genug
+           für das lange Format «017.335.114-6» (Walter 21.08.2026: 118px
+           schnitt die letzte Ziffer ab). */
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-zemis .ov-softin {
-            width: 118px;
-            max-width: 118px;
+            width: 150px;
+            max-width: 150px;
         }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-slot > .ov-pf {
             width: 100%;
