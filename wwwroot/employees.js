@@ -6444,14 +6444,42 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
         } catch { /* still */ }
     }
 
+    // «Lebt beim Ehepartner» (Walter 21.08.2026): nur anbieten, wenn ein
+    // Ehepartner mit ANDERER Adresse existiert und nicht gerade der
+    // Ehepartner selbst bearbeitet wird — übernimmt dessen Zusatzadresse
+    // (wichtig für QST/Halbfamilie: Kind nicht im Haushalt des MA).
+    const spouseRow  = document.getElementById('fmAddrSpouseRow');
+    const spouseRad  = document.getElementById('fmAddrSpouse');
+    const spouseSum  = document.getElementById('fmAddrSpouseSummary');
+    const editiertTyp = document.getElementById('fmMemberType')?.value;
+    const spouse = (window._familyMembersCache || []).find(m =>
+        m.memberType === 'Ehepartner' && m.alternativeAddressId
+        && m.id !== editingFamilyMemberId);
+    window._fmSpouseAltAddrId = (editiertTyp !== 'Ehepartner' && spouse)
+        ? spouse.alternativeAddressId : null;
+    if (spouseRow) {
+        spouseRow.style.display = window._fmSpouseAltAddrId ? '' : 'none';
+        if (spouseSum && spouse) {
+            const a = spouse.alternativeAddress;
+            spouseSum.textContent = a
+                ? [ [a.street].filter(Boolean).join(' '),
+                    [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' ') ]
+                    .filter(Boolean).join(', ')
+                : `${spouse.firstName ?? ''} ${spouse.lastName ?? ''}`.trim();
+        }
+    }
+
     // Initial-Modus setzen
-    const useAlt = !!currentAlternativeAddressId;
+    const useSpouse = !!(window._fmSpouseAltAddrId && currentAlternativeAddressId
+        && Number(currentAlternativeAddressId) === Number(window._fmSpouseAltAddrId));
+    const useAlt = !!currentAlternativeAddressId && !useSpouse;
     if (sameRadio && altRadio) {
-        sameRadio.checked = !useAlt;
+        sameRadio.checked = !useAlt && !useSpouse;
         altRadio.checked  = useAlt;
     }
+    if (spouseRad) spouseRad.checked = useSpouse;
     if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
-    if (select && currentAlternativeAddressId) select.value = String(currentAlternativeAddressId);
+    if (select && useAlt) select.value = String(currentAlternativeAddressId);
 }
 
 function fmAddrModeChanged() {
@@ -6489,11 +6517,15 @@ function closeFamilyModal() {
 async function saveFamilyMember() {
     if (!selectedEmployeeId) return;
 
-    // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA.
+    // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA;
+    // "spouse" (Walter 21.08.2026) = Zusatzadresse des Ehepartners übernehmen.
     // Wenn "same" oder leeres Dropdown → AlternativeAddressId = null
+    const addrUseSpouse = document.getElementById('fmAddrSpouse')?.checked && window._fmSpouseAltAddrId;
     const addrUseAlt = document.getElementById('fmAddrAlt')?.checked;
     const addrSelVal = document.getElementById('fmAlternativeAddressId')?.value || '';
-    const alternativeAddressId = (addrUseAlt && addrSelVal) ? parseInt(addrSelVal, 10) : null;
+    const alternativeAddressId = addrUseSpouse
+        ? Number(window._fmSpouseAltAddrId)
+        : (addrUseAlt && addrSelVal) ? parseInt(addrSelVal, 10) : null;
 
     // Aufenthalt + Nationalität: leer = null. Permit-Type-Id und
     // Nationality-Id sind FK in der DB.

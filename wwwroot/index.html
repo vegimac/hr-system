@@ -8259,6 +8259,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <span class="fmf-radio-hint" id="fmAddrEmpSummary"></span>
                     </span>
                 </label>
+                <!-- Walter 21.08.2026: Kind lebt beim (getrennt lebenden)
+                     Ehepartner — übernimmt automatisch dessen Zusatzadresse.
+                     Nur sichtbar, wenn der Ehepartner eine andere Adresse hat
+                     (fmRefreshAddressUi). Wichtig für QST/Halbfamilie. -->
+                <label class="fmf-radio-row" id="fmAddrSpouseRow" style="display:none">
+                    <input type="radio" name="fmAddrMode" id="fmAddrSpouse" value="spouse"
+                           onchange="fmAddrModeChanged()">
+                    <span class="fmf-radio-body">
+                        <span class="fmf-radio-title">Lebt beim Ehepartner</span>
+                        <span class="fmf-radio-hint" id="fmAddrSpouseSummary"></span>
+                    </span>
+                </label>
                 <label class="fmf-radio-row">
                     <input type="radio" name="fmAddrMode" id="fmAddrAlt" value="alt"
                            onchange="fmAddrModeChanged()">
@@ -8499,7 +8511,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260821c"></script>
+<script src="employees.js?v=20260821d"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
