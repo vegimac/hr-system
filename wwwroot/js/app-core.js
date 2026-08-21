@@ -1192,6 +1192,13 @@ function onBranchChange() {
 
     if (currentPageName === 'mitarbeiter') {
         loadMitarbeiterList();
+    } else if (currentPageName === 'manager-schulungen') {
+        // Walter 21.08.2026: beim McAdmin-Einstieg folgt die Liste der
+        // Sidebar-Filiale — Wechsel oben links filtert sofort neu.
+        if (typeof _msVonMcAdmin !== 'undefined' && _msVonMcAdmin) {
+            _msFiliale = currentBranchId ? String(currentBranchId) : '';
+            if (typeof msRender === 'function') msRender();
+        }
     } else if (currentPageName === 'vertraege') {
         loadVtList();
     } else if (currentPageName === 'lohn') {
