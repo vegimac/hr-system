@@ -310,9 +310,11 @@ const EMP_SPECIAL_FILTERS = {
 // Menü-Etappe 1 (Zeiten-Kombi) am 17.07.2026 wieder zurückgenommen —
 // Stempelzeiten + Absenzen bleiben getrennte Tabs (Walter-Feedback).
 // Tab «KTG/UVG» entfernt 17.07.2026 — Tagessatz lebt bei Absenzen + Übersicht.
+// «historie» ist KEIN eigener Tab-Pill mehr (Walter 20.08.2026, Platz) —
+// erreichbar über die 🕘-Pille im Dokumente-Kopf; switchEmpTab('historie')
+// funktioniert weiterhin (Dokumente-Pill bleibt dabei aktiv markiert).
 const _empTabsOrder = ['uebersicht', 'familie', 'quellensteuer', 'verwarnungen',
-                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente',
-                       'historie'];
+                       'stempelzeiten', 'absenzen', 'verfuegbarkeit', 'zulagen', 'dokumente'];
 
 // Stempelzeiten: persistente Periode-Auswahl über MA-Wechsel hinweg
 let _stempelGlobalPeriodeId = null;
@@ -1142,8 +1144,7 @@ function renderEmployeeDetail(emp) {
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesKtg','Absenzen /<br>KTG/UVG')}</div>
             <div class="emp-tab"        data-tab="verfuegbarkeit" onclick="switchEmpTab('verfuegbarkeit')" style="line-height:1.2;text-align:center">${_t('ma.tab.availability','Verfügbarkeit')}</div>
             <div class="emp-tab"        data-tab="zulagen"    onclick="switchEmpTab('zulagen')" style="line-height:1.2;text-align:center">${_t('ma.tab.zulagenAbzuege','Zulagen Abzüge<br>Abtretung BVG')}</div>
-            <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')">${_t('ma.tab.docs','Dokumente')}</div>
-            <div class="emp-tab"        data-tab="historie"   onclick="switchEmpTab('historie')" title="Zeitachse: Verträge, Übertritte, Umzüge, QST, Bewilligungen">${_t('ma.tab.history','Historie')}</div>
+            <div class="emp-tab"        data-tab="dokumente"  onclick="switchEmpTab('dokumente')" style="line-height:1.2;text-align:center">Dokumente /<br>Historie</div>
         </div>
     </div>
     <div class="emp-detail-body">
@@ -1979,7 +1980,10 @@ function switchEmpTab(tab) {
     if (tab === 'personal') tab = 'uebersicht';
     activeEmpTab = tab;
     document.querySelectorAll('.emp-tab').forEach(t =>
-        t.classList.toggle('active', t.dataset.tab === tab));
+        // Historie hat keinen eigenen Pill (Walter 20.08.2026) — die
+        // Dokumente-Pill «Dokumente / Historie» bleibt aktiv markiert.
+        t.classList.toggle('active', t.dataset.tab === tab
+            || (tab === 'historie' && t.dataset.tab === 'dokumente')));
     document.querySelectorAll('.emp-tab-content').forEach(c =>
         c.classList.toggle('active', c.id === 'emp-tab-' + tab));
     // Übersicht / Dokumente / Stempelzeiten / Absenzen: Detail-Body ohne Scroll
@@ -2099,7 +2103,13 @@ async function loadHistorieTab(employeeId) {
             app:          '#166534',
             austritt:     '#b91c1c'
         }[t] || '#6b7280');
-        let html = `<div class="emp-section-title" style="margin-top:0">Zeitachse</div>
+        let html = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div class="emp-section-title" style="margin-top:0;margin-bottom:0">Zeitachse</div>
+            <button onclick="switchEmpTab('dokumente')"
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);color:#3f3f3f;border-radius:12px;padding:5px 14px;font-size:12.5px;font-weight:600;cursor:pointer">
+                ← Dokumente
+            </button>
+        </div>
         <div style="font-size:12px;color:#8b8b8b;margin-bottom:12px">
             Automatisch aus Verträgen, Wohnort-Historie, QST-Versionen, Bewilligungen und Personalnummern
             zusammengestellt — nichts zu pflegen. Neueste Ereignisse zuoberst.

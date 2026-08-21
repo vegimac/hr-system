@@ -1379,9 +1379,13 @@ public class EmployeesController : ControllerBase
         }
 
         // Umzüge (Wohnort-Historie) inkl. Kantonswechsel-Marke
+        // NULL-GueltigAb = Bestandsadresse «seit jeher» → gehört an den ANFANG
+        // der Kette (Postgres sortiert NULLs bei ASC sonst ans ENDE — dann
+        // zeigte die Kantonswechsel-Marke falsch herum, Walter-Bug 20.08.2026).
         var wohnorte = await _context.EmployeeWohnortHistories.AsNoTracking()
             .Where(h => h.EmployeeId == id)
-            .OrderBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1)
+            .ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
             .ToListAsync();
         string? vorherKanton = null;
         foreach (var h in wohnorte)

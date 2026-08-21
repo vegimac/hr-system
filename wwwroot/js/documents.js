@@ -257,8 +257,15 @@ function renderDokumenteUi() {
         <div class="dok-tree">${treeHtml}</div>
         <div class="dok-list">
             <div class="dok-list-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-                <div>${header} <span style="color:#94a3b8;font-weight:400">(${filtered.length})</span></div>
-                <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <div style="flex:1;min-width:0">${header} <span style="color:#94a3b8;font-weight:400">(${filtered.length})</span></div>
+                <!-- Historie-Pille mittig (Walter 20.08.2026): ersetzt den
+                     eigenen Tab — Dokumente + Historie teilen sich den Platz. -->
+                <button onclick="switchEmpTab('historie')"
+                        title="Zeitachse: Verträge, Übertritte, Umzüge (QST-Kantonswechsel), Bewilligungen, Personalnummern"
+                        style="flex-shrink:0;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);color:#3f3f3f;border-radius:12px;padding:6px 18px;font-size:13px;font-weight:600;cursor:pointer">
+                    🕘 Historie
+                </button>
+                <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0">
                     <!-- d.velop Import nur noch unter System (Walter 19.07.2026). -->
                     <button class="btn btn-primary" onclick="openDokUploadModal()"
                             style="padding:6px 14px;font-size:13px;white-space:nowrap">
