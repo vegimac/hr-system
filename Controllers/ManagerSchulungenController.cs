@@ -185,6 +185,15 @@ public class ManagerSchulungenController : ControllerBase
         public int SecoMonate { get; set; }
     }
 
+    // ── GET /api/manager-schulungen/settings ─────────────────────────────
+    /// <summary>Nur die Gültigkeitsdauern (für System → Warnungen, Walter 21.08.2026).</summary>
+    [HttpGet("settings")]
+    public async Task<IActionResult> GetSettings()
+    {
+        var (nh, pk, se) = await LoadMonateAsync();
+        return Ok(new { nothelferMonate = nh, peakMonate = pk, secoMonate = se });
+    }
+
     // ── PUT /api/manager-schulungen/settings ─────────────────────────────
     /// <summary>Gültigkeitsdauer pro Schulung in Monaten (admin).</summary>
     [Authorize(Roles = "admin")]

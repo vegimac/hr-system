@@ -81,13 +81,15 @@ function msRender() {
 
     // Gültigkeits-Konfig (admin editierbar) + Import
     const inp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12.5px;color:#3f3f3f';
+    // Gültigkeits-Konfig wohnt seit 21.08.2026 unter System → Warnungen
+    // (Walter: «da es sich um Warnungen handelt») — hier nur noch die
+    // aktuellen Werte als Hinweis + der Excel-Import (admin).
     const cfg = kompakt ? '' : `
-        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 12px;margin-bottom:12px">
-            <div style="font-size:12.5px;color:#646464;font-weight:600">Gültigkeit (Monate):</div>
-            ${[['Nothelfer', 'msCfgNh', d.settings.nothelferMonate], ['Peak-Verif.', 'msCfgPk', d.settings.peakMonate], ['Seco', 'msCfgSe', d.settings.secoMonate]].map(([l, id, v]) => `
-                <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">${l}
-                    <input id="${id}" type="number" min="1" max="240" value="${v}" style="${inp};width:76px" ${isAdmin ? '' : 'disabled'}></label>`).join('')}
-            ${isAdmin ? `<button onclick="msSaveSettings()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Speichern</button>` : ''}
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 12px;margin-bottom:12px">
+            <div style="font-size:12px;color:#8b8b8b">
+                Gültigkeit: Nothelfer <b>${d.settings.nothelferMonate}</b> · Peak-Verif. <b>${d.settings.peakMonate}</b> ·
+                Seco <b>${d.settings.secoMonate}</b> Monate — Pflege unter <b>System → Warnungen</b>.
+            </div>
             <span style="flex:1"></span>
             ${isAdmin ? `<button onclick="msImportExcel()" style="background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;color:#3f3f3f">📥 Excel importieren</button>` : ''}
         </div>`;

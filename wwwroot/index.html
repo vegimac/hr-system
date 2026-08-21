@@ -4375,6 +4375,25 @@
                         </div>
                     </div>
                     <p class="wc-hint">Am Vierpfeil-Griff ziehen — <b>diese Reihenfolge ist die ToDo-Reihenfolge</b> (nach Speichern). Warnfarbe: Standard (schwarz) · Immer rot · Rot wenn abgelaufen.</p>
+                    <!-- Schulungs-Gültigkeit (Walter 21.08.2026): hierher verschoben,
+                         weil daraus die Ablauf-Warnungen + Ampeln entstehen. Von der
+                         Manager-Schulungen-Seite entfernt. -->
+                    <div class="card" style="margin-top:14px;padding:14px 16px">
+                        <div style="font-size:13.5px;font-weight:700;color:#3f3f3f;margin-bottom:4px">Schulungs-Gültigkeit (Monate)</div>
+                        <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">
+                            Ab dem erfassten Schulungsdatum gilt die Schulung so viele Monate — daraus rechnen sich
+                            die «bis»-Daten, die Ampeln in der Manager-Schulungs-Liste und die Ablauf-Warnungen oben.
+                        </div>
+                        <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap">
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Nothelfer
+                                <input id="wcSchulNh" type="number" min="1" max="240" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12.5px;width:80px"></label>
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Peak-Verif.
+                                <input id="wcSchulPk" type="number" min="1" max="240" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12.5px;width:80px"></label>
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Seco
+                                <input id="wcSchulSe" type="number" min="1" max="240" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12.5px;width:80px"></label>
+                            <button id="wcSchulSaveBtn" onclick="wcSchulSave()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Speichern</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <!-- ═══ EASY@WORK API (Walter 17.06.2026, Phase 1 Foundation) ═══ -->
@@ -8118,7 +8137,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260818a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
-<script src="js/warning-config.js?v=20260722u"></script>
+<script src="js/warning-config.js?v=20260821a"></script>
 <script src="js/easyatwork.js?v=20260814d"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
@@ -9317,7 +9336,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
-<script src="js/manager-schulungen.js?v=20260821c"></script>
+<script src="js/manager-schulungen.js?v=20260821d"></script>
 <script src="js/ma-email.js?v=20260815c"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>

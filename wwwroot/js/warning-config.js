@@ -42,6 +42,7 @@ async function wcInit() {
             || (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         wcSyncPriorities();
         wcRender();
+        wcSchulLoad();   // Schulungs-Gültigkeit (Walter 21.08.2026)
     } catch (e) {
         if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="padding:24px;color:#dc2626;font-size:13px">Verbindungsfehler: ${escapeHtml(e.message)}</td></tr>`;
     }
@@ -234,5 +235,49 @@ async function wcSave() {
         alert('Verbindungsfehler: ' + e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
+    }
+}
+
+// ── Schulungs-Gültigkeit (Walter 21.08.2026) ────────────────────────────
+// Hierher verschoben (vorher auf der Manager-Schulungen-Seite): aus den
+// Monaten entstehen die «bis»-Daten, Ampeln und Ablauf-Warnungen —
+// Konfiguration «wann warnt das System» gehört in die Warnungsverwaltung.
+async function wcSchulLoad() {
+    try {
+        const r = await fetch('/api/manager-schulungen/settings', { headers: ah() });
+        if (!r.ok) return;
+        const s = await r.json();
+        const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        set('wcSchulNh', s.nothelferMonate);
+        set('wcSchulPk', s.peakMonate);
+        set('wcSchulSe', s.secoMonate);
+        // Nur admin darf speichern (Server erzwingt es ebenfalls).
+        const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+        ['wcSchulNh', 'wcSchulPk', 'wcSchulSe'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = !isAdmin;
+        });
+        const btn = document.getElementById('wcSchulSaveBtn');
+        if (btn) btn.style.display = isAdmin ? '' : 'none';
+    } catch (_) { /* best-effort */ }
+}
+
+async function wcSchulSave() {
+    const v = (id) => parseInt(document.getElementById(id)?.value, 10);
+    const body = { nothelferMonate: v('wcSchulNh'), peakMonate: v('wcSchulPk'), secoMonate: v('wcSchulSe') };
+    if ([body.nothelferMonate, body.peakMonate, body.secoMonate].some(x => !Number.isFinite(x) || x < 1)) {
+        showToast('Bitte gültige Monatswerte (≥ 1) eingeben.', 'error');
+        return;
+    }
+    try {
+        const r = await fetch('/api/manager-schulungen/settings', {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!r.ok) { showToast('Speichern fehlgeschlagen (HTTP ' + r.status + ').', 'error'); return; }
+        showToast('Schulungs-Gültigkeit gespeichert.', 'success');
+    } catch (_) {
+        showToast('Verbindungsfehler.', 'error');
     }
 }
