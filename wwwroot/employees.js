@@ -1472,13 +1472,10 @@ function loadUebersichtTab() {
                         style="cursor:pointer" onclick="switchEmpTab('quellensteuer')">
                     <div class="ov-pfl">Bewilligung</div>
                     <div class="ov-pfv">${emp.permitType
-                        ? `<b>${esc(emp.permitType.code)}</b>${(() => {
-                            // Kurzformat (Walter 20.08.2026): «B 31.8.27» statt
-                            // «B · bis 31.08.2027» — spart Platz in der Zelle.
-                            if (!emp.permitExpiryDate) return '';
-                            const d = new Date(emp.permitExpiryDate);
-                            return isNaN(d) ? '' : ` ${d.getDate()}.${d.getMonth() + 1}.${String(d.getFullYear()).slice(-2)}`;
-                        })()}`
+                        // Walter-Vorgabe 20.08.2026 (final): B sticht ins Auge
+                        // (fett, Link-Look — Klick springt zur Bewilligung),
+                        // «bis dd.mm.jjjj» klein und nicht fett daneben.
+                        ? `<b style="font-size:15px;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(60,55,48,0.35)">${esc(emp.permitType.code)}</b>${emp.permitExpiryDate ? `<span style="font-size:11.5px;font-weight:400;color:#8b8b8b"> bis ${formatDate(emp.permitExpiryDate)}</span>` : ''}`
                         : '<span class="ov-empty" style="color:#b91c1c;font-weight:600">– keine erfasst –</span>'}</div>
                 </div>`}
 
