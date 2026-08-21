@@ -1462,7 +1462,25 @@ function loadUebersichtTab() {
                 ${_relOpt('andere', _t('ma.value.religion.andere','Andere'))}
                 ${_relOpt('keine', _t('ma.value.religion.keine','Keine'))}
             </select></div>
-            <div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>
+            ${istCH
+                ? `<div class="ov-pf ov-pf-z2-empty" aria-hidden="true"></div>`
+                // Walter-Vorgabe 20.08.2026: letzte Bewilligung direkt in der
+                // MA-Maske (freie Zelle über der ZEMIS-Nr.) — read-only Info
+                // aus der jüngsten Permit-History (emp.permitType/Expiry),
+                // Klick springt in den Bewilligungs-Tab.
+                : `<div class="ov-pf" title="Neueste Bewilligung — Klick öffnet den Tab «Bewilligung QST Bank»"
+                        style="cursor:pointer" onclick="switchEmpTab('quellensteuer')">
+                    <div class="ov-pfl">Bewilligung</div>
+                    <div class="ov-pfv">${emp.permitType
+                        ? `<b>${esc(emp.permitType.code)}</b>${(() => {
+                            // Kurzformat (Walter 20.08.2026): «B 31.8.27» statt
+                            // «B · bis 31.08.2027» — spart Platz in der Zelle.
+                            if (!emp.permitExpiryDate) return '';
+                            const d = new Date(emp.permitExpiryDate);
+                            return isNaN(d) ? '' : ` ${d.getDate()}.${d.getMonth() + 1}.${String(d.getFullYear()).slice(-2)}`;
+                        })()}`
+                        : '<span class="ov-empty" style="color:#b91c1c;font-weight:600">– keine erfasst –</span>'}</div>
+                </div>`}
 
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
