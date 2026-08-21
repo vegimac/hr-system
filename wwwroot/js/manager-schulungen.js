@@ -162,17 +162,14 @@ function msRender() {
     el.innerHTML = `
         ${cfg}
         ${filBar}
-        <div class="card" style="padding:0;overflow:auto">
+        <div class="card" style="padding:0">
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <!-- Sticky-Kopf (Walter 21.08.2026): Titel bleibt beim Scrollen stehen.
+                 Dafür KEIN overflow:auto auf der Card (bricht position:sticky,
+                 CLAUDE.md fixhead-Muster) — der Scroll läuft im .page-body. -->
             <thead><tr style="color:#8b8b8b;font-size:11px;text-align:left">
-                <th style="padding:6px 10px">Manager</th>
-                <th style="padding:6px 8px">Pers.-Nr.</th>
-                <th style="padding:6px 8px">eID</th>
-                <th style="padding:6px 8px">SSO</th>
-                <th style="padding:6px 8px">Nothelfer</th>
-                <th style="padding:6px 8px">Peak-Verifizierung</th>
-                <th style="padding:6px 8px" title="nur Geschäftsführer/in (★)">Seco (nur GF)</th>
-                <th></th>
+                ${['Manager', 'Pers.-Nr.', 'eID', 'SSO', 'Nothelfer', 'Peak-Verifizierung', 'Seco (nur GF)', '']
+                    .map((t, i) => `<th style="padding:6px ${i === 0 ? '10px' : '8px'};position:sticky;top:0;background:#eef1f6;z-index:2;box-shadow:0 1px 0 rgba(60,55,48,0.12)"${t === 'Seco (nur GF)' ? ' title="nur Geschäftsführer/in (★)"' : ''}>${t}</th>`).join('')}
             </tr></thead>
             <tbody>${rows}</tbody>
         </table></div>
