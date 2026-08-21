@@ -106,6 +106,14 @@ public class EmployeeQuellensteuer
     /// <summary>Wochenaufenthalter/in mit wöchentlicher Rückkehr.</summary>
     public bool IsWochenaufenthalter { get; set; } = false;
 
+    // ── Beleg (Walter-Vorgabe 21.08.2026) ────────────────────────────────────
+    /// <summary>
+    /// Tarifbestätigung der Steuerbehörde als verknüpftes Dokument
+    /// (FK auf employee_dokument, ON DELETE SET NULL) — gleicher Mechanismus
+    /// wie Ehepartner-Ausweis/Bewilligungs-Beleg. Pro QST-Version ein Beleg.
+    /// </summary>
+    public int? DokumentId { get; set; }
+
     // ── Audit ────────────────────────────────────────────────────────────────
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

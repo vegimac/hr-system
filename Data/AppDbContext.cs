@@ -2225,6 +2225,8 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.Steuerkanton).HasColumnName("steuerkanton").HasMaxLength(10);

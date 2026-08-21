@@ -70,6 +70,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.LivesInKonkubinat, q.HasJointParentalCare,
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
         q.IsGrenzgaenger, q.IsWochenaufenthalter,
+        // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
+        q.DokumentId,
         q.CreatedAt, q.UpdatedAt,
         // True wenn ValidFrom < FirstAllowedDate (Definitiv der Periode
         // abgeschlossen / DTA erstellt — Soft-Lock wie Verträge).
@@ -179,6 +181,37 @@ public class EmployeeQuellensteuerController : ControllerBase
         if (entry is null) return NotFound();
         return Ok(entry);
     }
+
+    /// <summary>
+    /// Walter-Vorgabe 21.08.2026: Tarifbestätigung der Steuerbehörde als
+    /// Beleg-Dokument an eine QST-Version hängen (oder lösen, dokumentId=null).
+    /// Reiner Beleg — bewusst OHNE Lohn-Edit-Lock (ändert keine Tarif-Daten),
+    /// analog Family-Member-/Permit-History-Dokument-PATCH.
+    /// PATCH /api/employees/{employeeId}/quellensteuer/{id}/dokument
+    /// </summary>
+    [HttpPatch("{id:int}/dokument")]
+    public async Task<IActionResult> SetDokument(int employeeId, int id, [FromBody] QstDokumentDto dto)
+    {
+        var entry = await _db.EmployeeQuellensteuer
+            .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
+        if (entry is null) return NotFound();
+
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk)
+                return BadRequest(new { error = "DOKUMENT_INVALID",
+                    message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        }
+
+        entry.DokumentId = dto.DokumentId;
+        entry.UpdatedAt  = DateTime.Now;
+        await _db.SaveChangesAsync();
+        return Ok(new { id = entry.Id, dokumentId = entry.DokumentId });
+    }
+
+    public class QstDokumentDto { public int? DokumentId { get; set; } }
 
     // POST /api/employees/{employeeId}/quellensteuer
     // Neuen QST-Eintrag anlegen; schliesst vorherigen Eintrag automatisch ab

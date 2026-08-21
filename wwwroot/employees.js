@@ -2420,7 +2420,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
     if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
           'night_work_exam', 'night_work_ausnahme',
           'probezeit_gespraech1', 'probezeit_gespraech2',
-          'lohn_assignment'].includes(kind)) return;
+          'lohn_assignment', 'qst_tarif'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2440,6 +2440,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2'
                           ? ['probezeitgespraech', 'probezeit_gespraech']
                       : kind === 'lohn_assignment'     ? ['lohnabtretung', 'pfaendung', 'pfändung']
+                      : kind === 'qst_tarif'           ? ['qst', 'quellensteuer', 'tarif']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2451,6 +2452,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                            ? /(probezeit)/i
                        : kind === 'lohn_assignment'
                            ? /(pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso)/i
+                       : kind === 'qst_tarif'
+                           ? /(tarif|quellensteuer|qst|steuer)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2497,6 +2500,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'probezeit_gespraech1' ? 'Probezeitgespräch 1: Protokoll verknüpfen'
                    : kind === 'probezeit_gespraech2' ? 'Probezeitgespräch 2: Protokoll verknüpfen'
                    : kind === 'lohn_assignment'     ? 'Lohnabtretung: Beleg-Dokument verknüpfen'
+                   : kind === 'qst_tarif'           ? 'QST-Tarifbestätigung verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -2512,6 +2516,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das ausgefüllte Probezeitgespräch-Protokoll (Typ «Probezeitgespräch» unter Mitarbeiterentwicklung). Oder lade ein neues hoch.'
                         : kind === 'lohn_assignment'
                             ? 'Wähle das Abtretungs-/Pfändungsdokument — ohne Beleg ist die Lohnabtretung im Lohnlauf unwirksam. Oder lade ein neues hoch.'
+                        : kind === 'qst_tarif'
+                            ? 'Wähle die Tarifbestätigung / Tarifmeldung der Steuerbehörde zu dieser QST-Version — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -2630,7 +2636,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         // Walter 14.06.2026: für kind='permit_history' der konkrete History-Eintrag.
         permitHistoryId: extra?.permitHistoryId || null,
         // Walter 02.08.2026: Lohnabtretung-Beleg.
-        lohnAssignmentId: extra?.lohnAssignmentId || null
+        lohnAssignmentId: extra?.lohnAssignmentId || null,
+        // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
+        qstEntryId: extra?.qstEntryId || null
     };
 }
 
@@ -2714,6 +2722,12 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             const famId = ctx.spouseFamilyMemberId;
             if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/family/${famId}/dokument`;
+            body = JSON.stringify({ dokumentId });
+        } else if (kind === 'qst_tarif') {
+            // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
+            const qstId = ctx.qstEntryId;
+            if (!qstId) { alert('QST-Eintrag-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/quellensteuer/${qstId}/dokument`;
             body = JSON.stringify({ dokumentId });
         } else if (kind === 'behoerden_befreiung') {
             // Gültig-ab/bis ermitteln: erst formInfo (Upload-Pfad), sonst aus
@@ -3975,9 +3989,17 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                         Kanton <strong>${kanton}</strong> · Code <strong>${code}</strong> · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
                     </div>
                 </div>
+                <!-- Tarifbestätigung als Beleg (Walter 21.08.2026) — auch bei
+                     gesperrten Einträgen verknüpfbar (reiner Beleg, kein Lock). -->
+                ${e.dokumentId
+                    ? `<span style="display:inline-flex;gap:4px;align-items:center;margin-left:auto;margin-right:8px;flex-shrink:0">
+                        <button class="fam-tile-doc fam-tile-doc-ok" onclick="qstOpenBefreiungsDok(${selectedEmployeeId}, ${e.dokumentId})" title="Tarifbestätigung öffnen">📄 Tarifbestätigung</button>
+                        <button class="fam-tile-doc" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Anderes Dokument verknüpfen">↻</button>
+                        <button class="fam-tile-doc fam-tile-doc-danger" onclick="qstTarifDokUnlink(${e.id})" title="Verknüpfung lösen">✕</button></span>`
+                    : `<button class="fam-tile-doc" style="margin-left:auto;margin-right:8px;flex-shrink:0" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Tarifbestätigung der Steuerbehörde verknüpfen">📎 Tarifbestätigung</button>`}
                 ${e.inLohnVerwendet
-                    ? `<span title="Dieser QST-Eintrag gehört zu einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>`
-                    : `<div class="dok-menu-wrap" style="flex-shrink:0;margin-left:auto">
+                    ? `<span title="Dieser QST-Eintrag gehört zu einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;flex-shrink:0">🔒 In Lohn verwendet</span>`
+                    : `<div class="dok-menu-wrap" style="flex-shrink:0">
                         <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="qstMenu-${e.id}">
                             <button class="dok-menu-item" onclick="openQstFromTab(${e.id})">Bearbeiten</button>
@@ -4003,6 +4025,23 @@ function renderQuellensteuerTab(el, entries, pflicht) {
 
 // Aktuelle (heute gültige) QST-Version — jüngstes validFrom, Tie-Break id
 // (gleiche Auswahl wie Dashboard-Warnung qst_kanton_mismatch).
+// Tarifbestätigung von der QST-Version lösen (Walter 21.08.2026) —
+// das Dokument selbst bleibt im Doku-Tab erhalten.
+async function qstTarifDokUnlink(entryId) {
+    if (!(await liquidConfirm('Verknüpfung zur Tarifbestätigung lösen? Das Dokument selbst bleibt erhalten.'))) return;
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/quellensteuer/${entryId}/dokument`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: null })
+        });
+        if (!res.ok) { alert('Lösen fehlgeschlagen.'); return; }
+        loadQuellensteuerTab(selectedEmployeeId);
+    } catch {
+        alert('Verbindungsfehler.');
+    }
+}
+
 function _qstCurrentVersion(entries) {
     const d = new Date();
     const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

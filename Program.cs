@@ -2420,6 +2420,14 @@ using (var scope = app.Services.CreateScope())
         END$$;
     ");
 
+    // Walter 21.08.2026: Tarifbestätigung der Steuerbehörde als Beleg-Doku
+    // pro QST-Version (gleicher Mechanismus wie Ehepartner-/Bewilligungs-Beleg).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_quellensteuer
+            ADD COLUMN IF NOT EXISTS dokument_id INTEGER
+            REFERENCES employee_dokument(id) ON DELETE SET NULL;
+    ");
+
     // QST-Tarif-relevante Stammdaten an employee_quellensteuer (versioniert via valid_from/to)
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_quellensteuer
