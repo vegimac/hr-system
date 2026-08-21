@@ -16,13 +16,29 @@ namespace HrSystem.Controllers;
 /// SchulungConfig). Einmal-Import aus der Excel «Nothelfer_…xlsx».
 /// Warnungen laufen über DashboardService (schulung_nothelfer/peak/seco).
 /// </summary>
-[Authorize(Roles = "admin,superuser")]
+// Walter-Vorgabe 21.08.2026: auch GF (Rolle «user») dürfen rein — aber NUR
+// für ihre eigenen Filialen (user_branch_access, serverseitig gefiltert).
+// Settings + Excel-Import bleiben admin-only (Attribute an den Methoden).
+[Authorize(Roles = "admin,superuser,user")]
 [ApiController]
 [Route("api/manager-schulungen")]
 public class ManagerSchulungenController : ControllerBase
 {
     private readonly AppDbContext _db;
     public ManagerSchulungenController(AppDbContext db) { _db = db; }
+
+    private bool IsHrRole() => User.IsInRole("admin") || User.IsInRole("superuser");
+
+    /// <summary>Filialen des eingeloggten GF (user_branch_access) — leer bei HR-Rollen.</summary>
+    private async Task<List<int>> GetGfBranchIdsAsync()
+    {
+        var idStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var uid)) return new List<int>();
+        return await _db.UserBranchAccesses.AsNoTracking()
+            .Where(a => a.UserId == uid)
+            .Select(a => a.CompanyProfileId)
+            .ToListAsync();
+    }
 
     private async Task<(int nothelfer, int peak, int seco)> LoadMonateAsync()
     {
@@ -75,6 +91,14 @@ public class ManagerSchulungenController : ControllerBase
             .Select(g => g.OrderByDescending(x => x.ContractStartDate).First())
             .ToList();
 
+        // GF sieht NUR die eigenen Filialen (Walter 21.08.2026).
+        if (!IsHrRole())
+        {
+            var eigene = await GetGfBranchIdsAsync();
+            proMa = proMa.Where(x => x.CompanyProfileId.HasValue
+                                  && eigene.Contains(x.CompanyProfileId.Value)).ToList();
+        }
+
         var branches = await _db.CompanyProfiles.AsNoTracking()
             .Select(c => new { c.Id, c.RestaurantCode, c.City, c.BranchName, c.WorkLocation })
             .ToListAsync();
@@ -125,6 +149,22 @@ public class ManagerSchulungenController : ControllerBase
     {
         var emp = await _db.Employees.FindAsync(empId);
         if (emp is null) return NotFound();
+
+        // GF darf nur Manager der EIGENEN Filialen pflegen (Walter 21.08.2026):
+        // massgebend ist die Filiale des jüngsten aktiven FIX-M-Vertrags.
+        if (!IsHrRole())
+        {
+            var eigene = await GetGfBranchIdsAsync();
+            var maBranch = await _db.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == empId && em.IsActive
+                          && em.EmploymentModel == "FIX-M" && em.CompanyProfileId != null)
+                .OrderByDescending(em => em.ContractStartDate)
+                .Select(em => em.CompanyProfileId)
+                .FirstOrDefaultAsync();
+            if (maBranch == null || !eigene.Contains(maBranch.Value))
+                return StatusCode(403, new { error = "BRANCH_FORBIDDEN",
+                    message = "Dieser Manager gehört nicht zu Ihrer Filiale." });
+        }
 
         static DateTime? P(string? s) =>
             DateTime.TryParse(s, out var d) ? d.Date : null;

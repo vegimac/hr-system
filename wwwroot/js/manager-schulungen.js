@@ -69,10 +69,15 @@ function msRender() {
     const d = _msData;
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    // GF (Rolle «user», Walter 21.08.2026): sieht NUR die eigene Filiale
+    // (Server filtert bereits auf user_branch_access) — daher weder die
+    // Gültigkeits-Konfig-Zeile noch den Filial-Wähler anzeigen; die Filiale
+    // wird oben links in der Sidebar gewählt.
+    const isGf = typeof currentUser !== 'undefined' && currentUser?.role === 'user';
 
     // Gültigkeits-Konfig (admin editierbar) + Import
     const inp = 'background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12.5px;color:#3f3f3f';
-    const cfg = `
+    const cfg = isGf ? '' : `
         <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px 12px;margin-bottom:12px">
             <div style="font-size:12.5px;color:#646464;font-weight:600">Gültigkeit (Monate):</div>
             ${[['Nothelfer', 'msCfgNh', d.settings.nothelferMonate], ['Peak-Verif.', 'msCfgPk', d.settings.peakMonate], ['Seco', 'msCfgSe', d.settings.secoMonate]].map(([l, id, v]) => `
@@ -100,7 +105,7 @@ function msRender() {
     }
     fils.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { sensitivity: 'base' }));
     if (_msFiliale && !fils.some(f => String(f.id) === String(_msFiliale))) _msFiliale = '';
-    const filBar = `
+    const filBar = isGf ? '' : `
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;align-items:center;gap:6px">Filiale
                 <select onchange="msSetFiliale(this.value)" style="${inp};min-width:200px">
