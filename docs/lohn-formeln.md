@@ -216,6 +216,19 @@ Tarifcode      = Tarif (A/B/C/…) + Kinderzahl + Kirchensteuer J/N   (z.B. C2N)
 Betrag         = Basis × kantonaler Tarifsatz (QuellensteuerTarifService, Kreisschreiben 45)
 Mindestbetrag  : kantonal (z.B. LU 13.–) — greift VOR dem 0-Return
 Mehrere Arbeitgeber (Variante B): satzbestimmende Hochrechnung B1/B2/B3
+
+Kurzmonat (Ein-/Austritt unter dem Monat, KS 45 Monatsmodell — 21.08.2026):
+  Besteuert wird der IST-Betrag, satzbestimmend zählt der volle Monat.
+  Nur der PERIODISCHE Kern wird hochgerechnet, aperiodische Teile
+  (13. ML, Schlussabrechnung, Zulagen) ohne Hochrechnung:
+    FIX/FIX-M : Satzbasis = IST − Kurz-Monatslohn + voller Monatslohn
+    MTP       : Satzbasis = IST + WoStd/7 × (Monatstage − Kurztage) × Stundenlohn
+    FLEX      : keine Hochrechnung (Stundenlohn, Variante A: IST zählt)
+  Bei gleichzeitigem Nebenjob (Variante B) gilt der HÖHERE der beiden Sätze.
+  Schutz: satzbestimmend nie unter IST-Brutto.
+
+Korrekturlohn: bewusst KEIN Auto-QST — Nachzahlungen nach Austritt brauchen
+  eine manuelle QST-Korrektur-Position (z.B. 565).
 ```
 
 ## 10. Netto & Auszahlung

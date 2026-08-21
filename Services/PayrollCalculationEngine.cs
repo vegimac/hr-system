@@ -2645,6 +2645,24 @@ public class PayrollCalculationEngine
             // (siehe ausführlicher Kommentar im UTP-Block).
             decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesMtp.Qst, workedHours, company);
+            // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026): bei
+            // untermonatigem Ein-/Austritt wird der IST-Betrag besteuert, aber
+            // zum SATZ des vollen Monats — nur der PERIODISCHE Kern (Garantie-
+            // Festlohn) wird hochgerechnet; aperiodische Teile (13. ML,
+            // Schlussabrechnung, Zulagen) zählen satzbestimmend OHNE
+            // Hochrechnung. Umsetzung: fehlende Festlohn-Differenz voller
+            // Monat − Kurzmonat auf die IST-Basis addieren.
+            if (isShortPeriod && guaranteedH > 0 && hourlyRate > 0)
+            {
+                var mtpFestDiff = Math.Round(
+                    guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate, 2);
+                if (mtpFestDiff > 0)
+                {
+                    var satzKurzMtp = svBasesMtp.Qst + mtpFestDiff;
+                    if (!satzBruttoMtp.HasValue || satzKurzMtp > satzBruttoMtp.Value)
+                        satzBruttoMtp = satzKurzMtp;
+                }
+            }
             var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp);
             if (qstRule is not null) deductions.Add(qstRule);
 
@@ -3858,6 +3876,18 @@ public class PayrollCalculationEngine
             decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesFix.Qst, workedHours: 0, company,
                 pensumPct: emp.EmploymentPercentage);
+            // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026):
+            // untermonatiger Ein-/Austritt → besteuert wird der IST-Betrag,
+            // satzbestimmend zählt aber der VOLLE Monatslohn (nur der
+            // periodische Kern wird hochgerechnet; 13. ML/Schlussabrechnung/
+            // Zulagen ohne Hochrechnung). Umsetzung: Kurz-Monatslohn in der
+            // Satzbasis durch den vollen Monatslohn ersetzen.
+            if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary)
+            {
+                var satzKurzFix = svBasesFix.Qst - monthSalary + monthSalaryFull;
+                if (!satzBruttoFix.HasValue || satzKurzFix > satzBruttoFix.Value)
+                    satzBruttoFix = satzKurzFix;
+            }
             var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
