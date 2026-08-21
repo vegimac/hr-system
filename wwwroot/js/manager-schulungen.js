@@ -9,8 +9,32 @@
 //  Einmal-Import aus der Excel «Nothelfer_…xlsx» (admin).
 // ══════════════════════════════════════════════════════════════════════
 let _msData = null;
+// Filial-Filter (Walter 21.08.2026): '' = alle Filialen (Einstieg HR-Hub →
+// Kontrolle), sonst die CompanyProfileId. Der McAdmin-Einstieg setzt den
+// Filter auf die in der Sidebar gewählte Filiale.
+let _msFiliale = '';
+let _msVonMcAdmin = false;
 
 function msInit() { msLoad(); }
+
+/** McAdmin-Einstieg: gleiche Liste, aber auf die Sidebar-Filiale vorgefiltert. */
+function msOpenFiliale() {
+    _msFiliale = (typeof currentBranchId !== 'undefined' && currentBranchId) ? String(currentBranchId) : '';
+    _msVonMcAdmin = true;
+    showPage('manager-schulungen');
+}
+
+/** Einstieg HR-Hub → Kontrolle: immer ALLE Filialen (unverändertes Verhalten). */
+function msOpenAlle() {
+    _msFiliale = '';
+    _msVonMcAdmin = false;
+    showPage('manager-schulungen');
+}
+
+function msSetFiliale(v) {
+    _msFiliale = v || '';
+    msRender();
+}
 
 async function msLoad() {
     const el = document.getElementById('msBody');
@@ -59,9 +83,40 @@ function msRender() {
             ${isAdmin ? `<button onclick="msImportExcel()" style="background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer;color:#3f3f3f">📥 Excel importieren</button>` : ''}
         </div>`;
 
+    // Zurück-Button je nach Einstieg (Walter 21.08.2026).
+    const back = document.getElementById('msBackBtn');
+    if (back) {
+        back.textContent = _msVonMcAdmin ? '← Zurück zu McAdmin' : '← Zurück zum Dienstplan';
+        back.onclick = () => showPage(_msVonMcAdmin ? 'mcadmin' : 'manager-dienstplan');
+    }
+
+    // ── Filial-Filter (Walter 21.08.2026) ───────────────────────────────
+    // Auswahl aus den geladenen Zeilen (nur Filialen mit FIX-M-Managern).
+    const fils = [];
+    for (const z of d.zeilen) {
+        if (z.companyProfileId && !fils.some(f => f.id === z.companyProfileId)) {
+            fils.push({ id: z.companyProfileId, name: z.filiale || '' });
+        }
+    }
+    fils.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de', { sensitivity: 'base' }));
+    if (_msFiliale && !fils.some(f => String(f.id) === String(_msFiliale))) _msFiliale = '';
+    const filBar = `
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+            <label style="font-size:11px;color:#8b8b8b;display:flex;align-items:center;gap:6px">Filiale
+                <select onchange="msSetFiliale(this.value)" style="${inp};min-width:200px">
+                    <option value=""${_msFiliale ? '' : ' selected'}>Alle Filialen</option>
+                    ${fils.map(f => `<option value="${f.id}"${String(f.id) === String(_msFiliale) ? ' selected' : ''}>${esc(f.name)}</option>`).join('')}
+                </select></label>
+            ${_msFiliale ? `<button type="button" onclick="msSetFiliale('')" style="background:rgba(255,255,255,0.72);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:5px 12px;font-size:12px;font-weight:600;cursor:pointer;color:#3f3f3f">Alle Filialen zeigen</button>` : ''}
+        </div>`;
+
+    const zeilen = _msFiliale
+        ? d.zeilen.filter(z => String(z.companyProfileId) === String(_msFiliale))
+        : d.zeilen;
+
     let lastFil = null;
     let rows = '';
-    for (const z of d.zeilen) {
+    for (const z of zeilen) {
         if (z.filiale !== lastFil) {
             lastFil = z.filiale;
             rows += `<tr><td colspan="8" style="background:#3f3f3f;color:#fff;font-weight:700;font-size:12px;padding:4px 10px;border-radius:0">${esc(z.filiale || '')}</td></tr>`;
@@ -89,8 +144,13 @@ function msRender() {
             </tr>`;
     }
 
+    if (!rows) {
+        rows = `<tr><td colspan="8" style="padding:18px 10px;color:#8b8b8b;font-size:12.5px">Für diese Filiale ist kein FIX-M-Manager erfasst.</td></tr>`;
+    }
+
     el.innerHTML = `
         ${cfg}
+        ${filBar}
         <div class="card" style="padding:0;overflow:auto">
         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
             <thead><tr style="color:#8b8b8b;font-size:11px;text-align:left">

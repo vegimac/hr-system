@@ -11037,6 +11037,17 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
    Tag — Feiertag rot (★), Schulferien blaues Band; Tageszellen am Feiertag
    leicht rot getönt. !important nötig gegen .dp-branch td. */
 .dp-branch td.dp-brday { padding:0; font-size:10px; text-align:center; }
+/* To-do-Tooltip (Walter 21.08.2026): ersetzt den winzigen nativen title auf
+   den Pendenz-Zeilen — deutlich grössere Schrift, Umbruch, Titel fett. */
+.td-tip { position:fixed; z-index:9600; display:none; max-width:520px;
+          background:#3f3f3f; color:#fff; border-radius:12px; padding:12px 16px;
+          box-shadow:0 10px 30px rgba(60,55,48,0.34); pointer-events:none;
+          line-height:1.45; }
+.td-tip .td-tip-h { font-size:16.5px; font-weight:700; }
+.td-tip .td-tip-s { font-size:15px; font-weight:500; color:#e8e4dd; margin-top:5px; }
+body.theme-dark .td-tip { background:#1f1d1a; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+.td-row[data-todotip] { cursor:pointer; }
+
 .dp-tip { position:fixed; z-index:9500; background:#3f3f3f; color:#fff; font-size:12px; font-weight:600;
           padding:5px 10px; border-radius:8px; box-shadow:0 6px 18px rgba(60,55,48,0.3);
           pointer-events:none; white-space:nowrap; display:none; }

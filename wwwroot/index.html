@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260820g">
+    <link rel="stylesheet" href="css/app.css?v=20260821a">
 </head>
 <body>
 
@@ -2042,7 +2042,7 @@
                         <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('kontrolle')">1&nbsp;·&nbsp;Lücken in Personalakten</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('dok-protokoll')">2&nbsp;·&nbsp;Dokument-Upload-Protokoll</button>
-                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('manager-schulungen')">3&nbsp;·&nbsp;Manager Schulung</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="msOpenAlle()">3&nbsp;·&nbsp;Manager Schulung</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
@@ -3079,7 +3079,7 @@
                     <button onclick="dpShift(1)" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer;color:#3f3f3f">›</button>
                     <span style="flex:1"></span>
                     <button onclick="fplOpenFromDp()" class="liquid-role-el" data-liquid-roles="admin,user" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🏖 Ferienplaner</button>
-                    <button onclick="showPage('manager-schulungen')" class="liquid-role-el" data-liquid-roles="admin,superuser" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulungen</button>
+                    <button onclick="msOpenAlle()" class="liquid-role-el" data-liquid-roles="admin,superuser" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulungen</button>
                     <button onclick="dpOpenSchulferien()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎓 Schulferien</button>
                     <button onclick="dpOpenFeiertage()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">🎉 Feiertage</button>
                     <!-- Excel-Einmal-Import: UI entfernt (Walter 09.08.2026, Migration erledigt).
@@ -3122,7 +3122,9 @@
                 </div>
                 <div style="display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap">
                     <span style="flex:1"></span>
-                    <button onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
+                    <!-- Ziel richtet sich nach dem Einstieg (Walter 21.08.2026):
+                         über McAdmin → zurück nach McAdmin, sonst Dienstplan. -->
+                    <button id="msBackBtn" onclick="showPage('manager-dienstplan')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer;color:#3f3f3f">← Zurück zum Dienstplan</button>
                 </div>
                 <div class="page-body">
                     <div id="msBody"></div>
@@ -3211,6 +3213,16 @@
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
                             <img src="img/MGR-DP.png?v=20260815a" alt="" loading="lazy">
                             <span>Manager-DP</span>
+                        </button>
+                        <!-- Manager-Schulung pro Filiale (Walter 21.08.2026): dieselbe Liste
+                             wie im HR-Hub → Kontrolle, beim Einstieg über McAdmin aber auf
+                             die in der Sidebar gewählte Filiale vorgefiltert. Der Eintrag im
+                             HR-Hub bleibt unverändert bestehen. -->
+                        <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser" onclick="msOpenFiliale()" title="Manager-Schulung — Nothelfer / Peak-Verifizierung / Seco der gewählten Filiale">
+                            <!-- Eigenes Schulungs-Icon (Walter 21.08.2026): Trainer am
+                                 Kalender + Zertifikat — nicht die Kontrolle-Lupe. -->
+                            <img src="img/manager-schulung.png?v=20260821a" alt="" loading="lazy">
+                            <span>Manager<br>Schulung</span>
                         </button>
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
                             <img src="img/mirus-absenz-import.png?v=20260815a" alt="" loading="lazy">
@@ -8059,7 +8071,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260813a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260820b"></script>
+<script src="js/dashboard.js?v=20260821a"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -9304,7 +9316,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akis-meldung.js?v=20260806d"></script>
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
-<script src="js/manager-schulungen.js?v=20260814d"></script>
+<script src="js/manager-schulungen.js?v=20260821a"></script>
 <script src="js/ma-email.js?v=20260815c"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260812a"></script>

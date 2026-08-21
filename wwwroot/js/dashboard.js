@@ -580,7 +580,10 @@ function renderTodoSketchRow(a) {
     const { title, subtitle } = dashResolveAlertTexts(a);
     const tip = subtitle ? `${title} — ${subtitle}` : title;
     const critCls = dashIsRedAlert(a) ? ' td-crit' : '';
-    return `<div class="td-row" ${dashTodoOnClick(a)} title="${_e(tip)}">
+    // Eigener Tooltip statt nativem title (Walter 21.08.2026): der native
+    // ist winzig und nicht formatierbar — .td-tip ist deutlich grösser,
+    // bricht um und zeigt Titel fett über der Detailzeile.
+    return `<div class="td-row" ${dashTodoOnClick(a)} data-todotip="${_e(tip)}">
         <span class="td-check"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="12" stroke-width="1.8"/></svg></span>
         <span class="td-text">
             <span class="td-title${critCls}">${_e(title)}</span>
@@ -758,3 +761,65 @@ function dashOpenEmployeeProbezeit(employeeId) {
 
 function dashOpenLohnlauf() { showPage('lohnlauf'); }
 
+// ══════════════════════════════════════════════════════════════════════
+//  TO-DO-TOOLTIP (Walter 21.08.2026)
+//  Hover über eine Pendenz-Zeile → grosse, umbrechende Info-Box.
+//  Delegiert auf document, damit sie in JEDER To-do-Liste greift
+//  (Dashboard-Panel, Seite «To do», gefilterte Listen).
+// ══════════════════════════════════════════════════════════════════════
+function _todoTipEl() {
+    let t = document.getElementById('todoTip');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'todoTip';
+        t.className = 'td-tip';
+        document.body.appendChild(t);
+    }
+    return t;
+}
+
+function todoTipShow(row) {
+    const text = row.getAttribute('data-todotip');
+    if (!text) return;
+    const t = _todoTipEl();
+    // Erster Teil vor « — » = Titel (fett), Rest = Detail.
+    const i = text.indexOf(' — ');
+    t.innerHTML = '';
+    const head = document.createElement('div');
+    head.className = 'td-tip-h';
+    head.textContent = i > 0 ? text.slice(0, i) : text;
+    t.appendChild(head);
+    if (i > 0) {
+        const sub = document.createElement('div');
+        sub.className = 'td-tip-s';
+        sub.textContent = text.slice(i + 3);
+        t.appendChild(sub);
+    }
+    t.style.display = 'block';
+    const r = row.getBoundingClientRect();
+    const w = t.offsetWidth, h = t.offsetHeight;
+    let left = r.left + Math.min(240, r.width / 2) - w / 2;
+    left = Math.max(8, Math.min(window.innerWidth - w - 8, left));
+    // Bevorzugt oberhalb; kein Platz → unterhalb der Zeile.
+    let top = r.top - h - 10;
+    if (top < 8) top = Math.min(window.innerHeight - h - 8, r.bottom + 10);
+    t.style.left = left + 'px';
+    t.style.top = top + 'px';
+}
+
+function todoTipHide() {
+    const t = document.getElementById('todoTip');
+    if (t) t.style.display = 'none';
+}
+
+document.addEventListener('mouseover', (e) => {
+    const row = e.target.closest?.('.td-row[data-todotip]');
+    if (row) todoTipShow(row);
+});
+document.addEventListener('mouseout', (e) => {
+    const row = e.target.closest?.('.td-row[data-todotip]');
+    if (row && !row.contains(e.relatedTarget)) todoTipHide();
+});
+// Beim Scrollen / Klicken sofort weg — sonst klebt die Box im Bild.
+document.addEventListener('scroll', todoTipHide, true);
+document.addEventListener('click', todoTipHide, true);
