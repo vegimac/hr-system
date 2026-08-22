@@ -115,12 +115,14 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "prod" ]; then
     sudo systemctl start hr-system
 
     # Prod-Port zur Laufzeit aus Unit/Env lesen (NICHT hart verdrahten).
+    # Prod bindet laut Unit an localhost:5000 (verifiziert B0, 22.08.2026) —
+    # das Muster akzeptiert localhost UND 127.0.0.1.
     UNITDUMP=$(sudo systemctl cat hr-system 2>/dev/null || true)
-    PROD_PORT=$(echo "$UNITDUMP" | grep -oE '127\.0\.0\.1:[0-9]+' | head -n 1 | cut -d: -f2)
+    PROD_PORT=$(echo "$UNITDUMP" | grep -oE '(127\.0\.0\.1|localhost):[0-9]+' | head -n 1 | awk -F: '{print $NF}')
     if [ -z "$PROD_PORT" ]; then
         ENVFILE=$(echo "$UNITDUMP" | grep -E '^EnvironmentFile=' | head -n 1 | cut -d= -f2- | sed 's/^-//')
         if [ -n "$ENVFILE" ] && sudo test -f "$ENVFILE"; then
-            PROD_PORT=$(sudo grep -oE '127\.0\.0\.1:[0-9]+' "$ENVFILE" 2>/dev/null | head -n 1 | cut -d: -f2)
+            PROD_PORT=$(sudo grep -oE '(127\.0\.0\.1|localhost):[0-9]+' "$ENVFILE" 2>/dev/null | head -n 1 | awk -F: '{print $NF}')
         fi
     fi
 
