@@ -1486,3 +1486,35 @@ async function saveMyPassword() {
         showToast('Passwort geändert.', 'success');
     } catch (_) { zeig('Verbindungsfehler.', '#b91c1c'); }
 }
+
+// ══════════════════════════════════════════════
+// INSTANZ-BANNER (Testumgebung — Bauplan v1.2, Walter-Go 22.08.2026)
+// Holt /api/instance-info (AllowAnonymous, siehe Program.cs). Ist das Label
+// gesetzt (nur auf der Testinstanz via ENV INSTANCE_LABEL), erscheint oben
+// mittig ein fixer gelber Banner. pointer-events:none — er verdeckt nichts
+// Bedienbares und liegt bewusst AUSSERHALB der reservierten Zone oben rechts
+// (#langSwitcher). Auf Produktiv ist das Label leer → kein Banner, kein DOM.
+// ══════════════════════════════════════════════
+(function () {
+    try {
+        fetch('/api/instance-info')
+            .then(r => (r.ok ? r.json() : null))
+            .then(j => {
+                const label = j && j.label ? String(j.label).trim() : '';
+                if (!label) return;
+                if (document.getElementById('instanceBanner')) return;
+                const el = document.createElement('div');
+                el.id = 'instanceBanner';
+                el.textContent = '⚠ ' + label;
+                el.style.cssText =
+                    'position:fixed;top:0;left:50%;transform:translateX(-50%);' +
+                    'z-index:99999;pointer-events:none;' +
+                    'background:#fde047;color:#713f12;' +
+                    'font:700 13px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;' +
+                    'padding:6px 22px;border-radius:0 0 12px 12px;' +
+                    'box-shadow:0 2px 8px rgba(60,55,48,0.25);letter-spacing:0.04em;';
+                document.body.appendChild(el);
+            })
+            .catch(function () { /* kein Banner bei Fehler — Produktiv-Verhalten */ });
+    } catch (_) { /* niemals den App-Start stören */ }
+})();

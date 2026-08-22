@@ -3864,6 +3864,17 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Instanz-Kennung (Testumgebungs-Banner, Bauplan v1.2 — Walter-Go 22.08.2026):
+// liefert das ENV-Label INSTANCE_LABEL (auf Produktiv leer → kein Banner).
+// AllowAnonymous ist PFLICHT, weil die FallbackPolicy sonst Login verlangt —
+// der Banner muss aber schon auf der Login-Seite sichtbar sein. Der Endpoint
+// verrät nichts Sensibles (nur das Label) und dient zusätzlich dem
+// Deploy-Gesundheits-Check in deploy.sh (Kanarienvogel).
+app.MapGet("/api/instance-info", () => Results.Ok(new
+{
+    label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? ""
+})).AllowAnonymous();
+
 // Bank-Master: Initial-Seed aus CSV falls DB-Tabelle leer, Cache laden
 using (var scope = app.Services.CreateScope())
 {
