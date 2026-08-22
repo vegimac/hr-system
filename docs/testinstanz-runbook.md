@@ -6,7 +6,7 @@ Stand: 22.08.2026 · Go von Walter + ChatGPT + Cursor · Ausführung: Walter per
 - Claude greift NICHT auf den Server zu — Walter tippt jedes Kommando selbst.
 - Nie echte Daten in die Testinstanz. Nie Secrets teilen. Nie ein DB-User für zwei DBs. Nie ein gemeinsames Dokumentenverzeichnis.
 - Jeder Block endet mit einem ✅-Prüfpunkt. Stimmt der Prüfpunkt nicht → STOPP, nichts weiter tippen, Claude fragen.
-- Produktiv (`hr-system`, DB `hr_system`, `/var/www/hr-system`) wird in diesem Runbook NIE verändert — nur gelesen. Einzige Ausnahme: die zwei GRANT/REVOKE-Zeilen in B2 (ändern nichts am laufenden Betrieb, nur explizite Rechte).
+- Produktiv (`hr-system`, DB `hrsystem`, `/var/www/hr-system`) wird in diesem Runbook NIE verändert — nur gelesen. Einzige Ausnahme: die zwei GRANT/REVOKE-Zeilen in B2 (ändern nichts am laufenden Betrieb, nur explizite Rechte).
 
 ---
 
@@ -27,7 +27,8 @@ echo "NEU-4 (Basic-Auth Türsteher): $(openssl rand -base64 15 | tr -d '/+=')"
 | `<NEU-2>` | JWT-Secret der Testinstanz (eigener Schlüsselbund!) |
 | `<NEU-3>` | Initial-Passwort des Test-Admins (ADMIN_INIT_PASSWORD) |
 | `<NEU-4>` | Basic-Auth-Passwort für den nginx-Türsteher (Ergänzung E2) |
-| `<PROD-USER>` | DB-User von Produktiv, aus B0 (erwartet: `postgres`) |
+
+**Verifiziert am 22.08.2026 (Trockenübung):** Die Produktiv-DB heisst **`hrsystem`** (NICHT hr_system), ihr Besitzer/App-User ist **`hrapp`** (Nicht-Superuser — sehr gut, echter eigener Schlüssel). Die Restore-Probe des Prod-Backups war erfolgreich (491 employees, Probe-DB danach gelöscht).
 
 ---
 
@@ -37,14 +38,14 @@ echo "NEU-4 (Basic-Auth Türsteher): $(openssl rand -base64 15 | tr -d '/+=')"
 ssh ubuntu@83.228.209.119
 ```
 
-**B0.1 — Manuelles Prod-Backup (DB):**
+**B0.1 — Manuelles Prod-Backup:** einfach das bestehende Backup-Skript von Hand laufen lassen (macht DB + Dokumente + Swiss Backup):
 
 ```bash
-sudo -u postgres pg_dump -Fc hr_system -f /tmp/hr_system-vor-testinstanz-$(date +%Y%m%d).dump
-ls -lh /tmp/hr_system-vor-testinstanz-*.dump
+sudo /usr/local/bin/hr-system-backup.sh
+ls -lh /var/backups/hr-system/ | tail -4
 ```
 
-✅ Die Datei existiert und ist mehrere MB gross.
+✅ Zwei frische Dateien mit heutigem Datum/Uhrzeit. (Erledigt 22.08.2026, inkl. Restore-Probe in Wegwerf-DB.)
 
 **B0.2 — Prod-Unit lesen (nichts ändern):**
 
@@ -54,13 +55,13 @@ sudo systemctl cat hr-system
 
 Notieren: `WorkingDirectory`, `ExecStart`, `EnvironmentFile` (erwartet `/etc/hr-system/env`), `User`.
 
-**B0.3 — Prod-DB-User verifizieren:**
+**B0.3 — Prod-DB-Verbindung verifizieren (Name + User):**
 
 ```bash
-sudo grep -E "DefaultConnection|Username" /var/www/hr-system/appsettings.json
+sudo grep -iE "connection|database|username" /etc/hr-system/env
 ```
 
-✅ Erwartet `Username=postgres` → dann ist `<PROD-USER>` = `postgres`. Steht dort etwas anderes, DAS als `<PROD-USER>` verwenden.
+✅ Erwartet: Datenbank **`hrsystem`**, User **`hrapp`** (verifiziert 22.08.2026 via `psql \l`). Das env-File übersteuert die appsettings.json — massgeblich ist, was HIER steht. Passwörter nicht in den Chat kopieren.
 
 **B0.4 — Prod-StoragePath verifizieren (WICHTIGSTER STOPP):**
 
@@ -99,28 +100,32 @@ dig +short test.onecrew.ch
 
 ## B2 · Datenbank — exakte Reihenfolge (TablePlus oder psql, als postgres)
 
-Reiner SQL-Block, Zeile für Zeile (TablePlus: als Superuser verbunden; `<NEU-1>` und `<PROD-USER>` einsetzen):
+Reiner SQL-Block, Zeile für Zeile (TablePlus: als Superuser verbunden; `<NEU-1>` einsetzen):
+
+Die Produktiv-DB heisst **`hrsystem`** mit App-User **`hrapp`** (verifiziert 22.08.2026 — NICHT hr_system/postgres!). `hrapp` ist KEIN Superuser, darum ist das GRANT vor dem REVOKE hier zwingend — ohne würde die REVOKE-Zeile Produktiv aussperren:
 
 ```sql
 CREATE ROLE hr_test LOGIN PASSWORD '<NEU-1>';
 CREATE DATABASE hr_system_test OWNER hr_test;
 
--- GRANT VOR REVOKE — IMMER, auch wenn <PROD-USER> Superuser ist
--- (Cursor-Auflage v1.2: erst explizit erlauben, dann PUBLIC wegnehmen):
-GRANT CONNECT ON DATABASE hr_system TO "<PROD-USER>";
+-- GRANT VOR REVOKE — ZWINGEND (hrapp ist Nicht-Superuser; ohne dieses
+-- GRANT würde das REVOKE unten die laufende Produktiv-App aussperren):
+GRANT CONNECT ON DATABASE hrsystem TO hrapp;
 
-REVOKE CONNECT ON DATABASE hr_system      FROM PUBLIC;
+REVOKE CONNECT ON DATABASE hrsystem       FROM PUBLIC;
 REVOKE CONNECT ON DATABASE hr_system_test FROM PUBLIC;
 GRANT  CONNECT ON DATABASE hr_system_test TO hr_test;
 ```
 
+Direkt danach prüfen, dass Produktiv noch lebt: Browser onecrew.ch neu laden, Login geht. 🛑 Falls nicht: sofort `GRANT CONNECT ON DATABASE hrsystem TO hrapp;` ausführen.
+
 **Sofortiger Negativ-Beweis** (per SSH — DAS ist der Kern der ganzen Isolation):
 
 ```bash
-psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hr_system" -c "SELECT 1"
+psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hrsystem" -c "SELECT 1"
 ```
 
-✅ MUSS SCHEITERN mit «permission denied for database hr_system». Klappt der Zugriff → 🛑 STOPP, Claude fragen.
+✅ MUSS SCHEITERN mit «permission denied for database hrsystem». Klappt der Zugriff → 🛑 STOPP, Claude fragen.
 
 ```bash
 psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hr_system_test" -c "SELECT 1"
@@ -128,7 +133,15 @@ psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hr_system_test" -c "SELECT 1"
 
 ✅ Muss klappen (Antwort `1`).
 
-> **Ergänzung E1 (nur Doku, nichts tun):** Der Superuser `postgres` erreicht `hr_system_test` trotz REVOKE weiterhin — Superuser lassen sich nicht per REVOKE aussperren. Das PASS-Kriterium ist deshalb bewusst nur «hr_test ↛ hr_system». **Pflicht vor Instanz 3 / erstem Fremdkunden:** eigener Nicht-Superuser `hr_prod` für Produktiv (nur CONNECT + Rechte auf `hr_system`); dann kommt das neue PASS «hr_prod ↛ hr_system_test» dazu.
+**Bonus-Beweis in Gegenrichtung** (ohne Passwort, rein lesend — weil hrapp ein echter Nicht-Superuser ist, können wir das schon HEUTE prüfen, nicht erst vor Instanz 3):
+
+```bash
+sudo -u postgres psql -c "SELECT has_database_privilege('hrapp','hr_system_test','CONNECT');"
+```
+
+✅ Antwort `f` (false) — Produktiv-User kommt nicht in die Test-DB.
+
+> **Ergänzung E1 (nur Doku, nichts tun):** Der Superuser `postgres` erreicht `hr_system_test` trotz REVOKE weiterhin — Superuser lassen sich nicht per REVOKE aussperren. Die PASS-Kriterien sind «hr_test ↛ hrsystem» und (Bonus, dank Nicht-Superuser hrapp schon heute prüfbar) «hrapp ↛ hr_system_test». Die ursprüngliche E1-Auflage «vor Instanz 3 eigenen Nicht-Superuser für Produktiv anlegen» ist damit faktisch bereits erfüllt — `hrapp` IST dieser User. Offen bleibt nur der Hausmeister-Hinweis: `postgres` selbst kann jede Tür öffnen (unvermeidbar, nur Walter nutzt ihn).
 
 ---
 
@@ -367,7 +380,7 @@ sudo crontab -e
 Vorher die Prod-Referenz notieren:
 
 ```bash
-psql -U postgres -d hr_system -c "SELECT count(*) FROM employee"
+sudo -u postgres psql -d hrsystem -c "SELECT count(*) FROM employee"
 ```
 
 Dann (JEDEN DB-Namen laut lesen, bevor Enter gedrückt wird!):
@@ -398,7 +411,7 @@ sudo systemctl start hr-system-test
 ✅ Test läuft wieder (Banner + Login) UND die Prod-Zeilenzahl von oben ist unverändert:
 
 ```bash
-psql -U postgres -d hr_system -c "SELECT count(*) FROM employee"
+sudo -u postgres psql -d hrsystem -c "SELECT count(*) FROM employee"
 ```
 
 ---
@@ -407,7 +420,7 @@ psql -U postgres -d hr_system -c "SELECT count(*) FROM employee"
 
 | # | Prüfung | Wie | PASS |
 |---|---|---|---|
-| 1 | hr_test kommt nicht in hr_system | `psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hr_system" -c "SELECT 1"` scheitert | ☐ |
+| 1 | hr_test kommt nicht in hrsystem | `psql "postgresql://hr_test:<NEU-1>@127.0.0.1/hrsystem" -c "SELECT 1"` scheitert | ☐ |
 | 2 | Prod-Login/MA-Liste unverändert | Browser onecrew.ch: Login + Mitarbeiterliste normal | ☐ |
 | 3 | Prod-Token auf Test ungültig | Auf onecrew.ch in der Browser-Konsole `localStorage.hrToken` kopieren; `curl -H "Authorization: Bearer <TOKEN>" https://test.onecrew.ch/api/auth/me -u walter:<NEU-4>` → 401 | ☐ |
 | 4 | Test-MA erscheint nicht in Prod | Auf Test einen Kunst-MA anlegen («Testina Muster»), auf Prod suchen → nicht vorhanden | ☐ |
@@ -426,7 +439,7 @@ Erst wenn alle 12 auf PASS stehen, ist das Muster «eine Instanz pro Kunde» bew
 
 ## E · Die drei dokumentierten Ergänzungen (Schlusskontrolle 22.08.2026)
 
-- **E1 postgres-Superuser-Ausnahme:** siehe Kasten in B2. Nichts tun bis Instanz 3 / erster Fremdkunde — dann `hr_prod` (Nicht-Superuser) für Produktiv + neues PASS «hr_prod ↛ hr_system_test».
+- **E1 postgres-Superuser-Ausnahme:** siehe Kasten in B2. Produktiv nutzt bereits den Nicht-Superuser `hrapp` (verifiziert 22.08.2026) — die E1-Pflicht ist damit faktisch erfüllt; der Bonus-Beweis «hrapp ↛ hr_system_test» läuft in B2 gleich mit. Nur der Superuser `postgres` bleibt als unvermeidbarer Hausmeister-Schlüssel dokumentiert.
 - **E2 Türsteher:** umgesetzt in B6.3 (Basic Auth, ACME-Pfad frei). Für Swissdec-Prüfungen bei Bedarf gezielt öffnen (Zeilen auskommentieren + reload), danach wieder schliessen.
 - **E3 Atomic Deploy (nur notiert, nicht bauen):** spätere Verbesserung — `releases/`-Verzeichnisse + `current`-Symlink statt stop→wipe→unpack. Der Storage liegt ohnehin ausserhalb `/var/www` und ist vom Wipe nie betroffen.
 
