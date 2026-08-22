@@ -297,9 +297,35 @@ sudo chmod 640 /etc/nginx/.htpasswd-test
 sudo chown root:www-data /etc/nginx/.htpasswd-test
 ```
 
-Dann im Block `location / { … }` von `test.onecrew.ch` (certbot hat die Datei erweitert) ZWEI Zeilen ergänzen:
+Dann die Datei auf die FINALE Struktur bringen (Lehren aus dem Erstaufbau 22./23.08.2026 — der Türsteher schützt NUR die HTML-Shell; `/api/` und statische Assets sind ausgenommen, sonst Endlos-Passwort-Popups):
 
 ```nginx
+    # 1) /api/ OHNE Basic Auth — die App schickt eigene Authorization:
+    #    Bearer-Header (JWT); Basic Auth im selben Header-Feld kollidiert
+    #    damit und blockiert JEDEN API-Call. Die API schützt sich selbst
+    #    (FallbackPolicy + JWT), exakt wie auf Produktiv.
+    location /api/ {
+        auth_basic off;
+        proxy_pass http://127.0.0.1:5100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 2) Statische Assets OHNE Basic Auth — Web-Manifest + dessen Icons
+    #    holt Chrome grundsätzlich ohne Anmeldedaten (Popup-Schleife!),
+    #    und fehlende Bilder (tote CSS-Referenzen) lösten ebenfalls
+    #    Popups aus. Auf Produktiv sind diese Dateien ohnehin öffentlich.
+    location ~* \.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|webmanifest|map)$ {
+        auth_basic off;
+        proxy_pass http://127.0.0.1:5100;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+    }
+
+    # 3) Die HTML-Shell (Login-Seite etc.) BLEIBT hinter dem Türsteher:
     location / {
         auth_basic "OneCrew Testumgebung";
         auth_basic_user_file /etc/nginx/.htpasswd-test;
@@ -307,6 +333,8 @@ Dann im Block `location / { … }` von `test.onecrew.ch` (certbot hat die Datei 
         ...
     }
 ```
+
+**Browser-Fallen (erlebt am 22.08.2026):** Chrome merkt sich falsche Basic-Auth-Eingaben im Sitzungs-Gedächtnis (nur Cmd+Q leert es) und füllt gern die E-Mail-Adresse statt `walter` ein — im nginx-access.log steht der abgewiesene Benutzername in Spalte 2. Notlösung: zweiten htpasswd-User mit der E-Mail-Adresse anlegen (`htpasswd -B -b` OHNE `-c`).
 
 ```bash
 sudo nginx -t && sudo systemctl reload nginx
@@ -319,15 +347,26 @@ Hinweis: die Deploy-Checks laufen auf `127.0.0.1:5100` an nginx vorbei — der T
 
 ## Erst-Deploy + Ersteinrichtung
 
-Auf dem **Mac**:
+**⚠ Schema-Bauplan zuerst (Lehre vom 22.08.2026):** Das Programm kann eine KOMPLETT leere DB nicht selbst aufbauen — es ist in eine bestehende DB hineingewachsen (Startup-Crash «relation company_profile does not exist»). Vor dem ersten Start braucht die neue DB den Bauplan des Prod-Schemas — NUR Struktur, NULL Daten (verletzt die Kunstdaten-Regel nicht):
+
+```bash
+sudo systemctl stop hr-system-test
+sudo -u postgres pg_dump --schema-only -Fc hrsystem -f /tmp/schema.dump
+pg_restore --no-owner --no-acl -d "postgresql://hr_test:<NEU-1>@127.0.0.1/hr_system_test" /tmp/schema.dump
+sudo rm /tmp/schema.dump
+```
+
+(Später-Punkt: Programm beibringen, das Grundhaus selbst zu bauen — dann entfällt dieser Schritt.)
+
+Dann auf dem **Mac**:
 
 ```bash
 cd /Users/Walter/projects/hr-system && ./deploy.sh test
 ```
 
-Der Erststart legt alle Tabellen an und seedet — der Check wartet bis 300 s. ✅ Meldung «✓ Testinstanz gesund (HTTP 200 + Label)».
+Der Erststart seedet die Kataloge — der Check wartet bis 300 s. ✅ Meldung «✓ Testinstanz gesund (HTTP 200 + Label)».
 
-Browser: `https://test.onecrew.ch` → Türsteher (walter/`<NEU-4>`) → gelber Banner **«⚠ TESTUMGEBUNG — KUNSTDATEN»** → Login `admin` / `<NEU-3>`.
+Browser: `https://test.onecrew.ch` → Türsteher (walter/`<NEU-4>`) → gelber Banner **«⚠ TESTUMGEBUNG — KUNSTDATEN»** → App-Login: **`walter.schaub@gmail.com`** / `<NEU-3>` (der Seed legt den Erst-Admin mit dieser E-Mail an, NICHT als «admin»!).
 
 Danach der volle Staffel-Lauf einmal komplett:
 
