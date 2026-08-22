@@ -1427,12 +1427,15 @@ public class DashboardService
                 if (leaveAt.HasValue
                     && DateOnly.FromDateTime(leaveAt.Value) <= nwExitCutoff) continue;
 
-                // Abgelaufenes Arztzeugnis IMMER melden (Walter-Vorgabe 12.07.2026):
-                // auch wenn der MA aktuell nicht dokumentationspflichtig viele Nächte
-                // arbeitet — vor der nächsten Nacht-Planung muss erneuert werden.
-                // Läuft als «seit X Tagen abgelaufen» weiter, verschwindet nie von
-                // selbst. (Für dokupflichtige Nacht-MA übernimmt weiter unten die
-                // «Nachweise fehlen»-Karte — keine Doppel-Meldung.)
+                // Walter-Vorgabe 21.08.2026 (Fall Gazale, ERSETZT «immer melden»
+                // vom 12.07.2026): Nachtarbeit-Warnungen erscheinen NUR, wenn
+                // die gesetzliche Untersuch-Pflicht tatsächlich besteht
+                // (>18 Nächte im rollierenden 6-Wochen-Fenster, ArGV1 Art. 30).
+                // Ein abgelaufenes Alt-Zeugnis ohne aktuelle Nachtarbeit
+                // (Nacht in Sursee → Tagdienst Oftringen) erzeugt KEINE Warnung
+                // mehr; die MA-Maske zeigt stattdessen einen grauen Info-Chip.
+                // Selbstheilend in beide Richtungen: arbeitet der MA wieder
+                // >18 Nächte, kommen die Warnungen automatisch zurück.
                 int? abgelaufenSeit = emp.NightWorkExamValidUntil.HasValue
                     && DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value) < today
                     ? today.DayNumber - DateOnly.FromDateTime(emp.NightWorkExamValidUntil.Value).DayNumber
@@ -1448,48 +1451,22 @@ public class DashboardService
                     ist45Plus = alter >= 45;
                 }
                 string hinweis45 = ist45Plus ? " · ab 45: Zeugnis nur 1 Jahr gültig" : "";
-                void MeldeAbgelaufen()
-                {
-                    if (abgelaufenSeit == null || !Enabled("night_work_exam_expiring")) return;
-                    alerts.Add(new DashboardAlert
-                    {
-                        Category = "night_work_exam_expiring",
-                        Severity = Severity("night_work_exam_expiring", -abgelaufenSeit.Value, "warning", "critical"),
-                        Title    = $"Nachtarbeit-Arztzeugnis seit {abgelaufenSeit} Tag(en) abgelaufen",
-                        Subtitle = $"{emp.FirstName} {emp.LastName} · Personalnr. {emp.EmployeeNumber} · gültig bis {emp.NightWorkExamValidUntil:dd.MM.yyyy} — vor der nächsten Nacht-Planung erneuern{hinweis45}",
-                        DueDate  = emp.NightWorkExamValidUntil,
-                        DaysUntil = -abgelaufenSeit.Value,   // negativ = abgelaufen (ToDo: rote Schrift)
-                        EmployeeId     = emp.Id,
-                        EmployeeNumber = emp.EmployeeNumber,
-                        EmployeeName   = $"{emp.FirstName} {emp.LastName}".Trim()
-                    });
-                }
-
-                // Datum erfasst = Nachtarbeit geplant → Dokumente prüfen
-                // (Walter 19.07.2026). Zusätzlich ArGV1 Art. 30 (>18 Nächte/42 Tage).
-                bool hasPlannedDates = emp.NightWorkExamIssued.HasValue
-                                    || emp.NightWorkExamValidUntil.HasValue;
+                // «MeldeAbgelaufen» (immer melden, 12.07.2026) und die
+                // «geplant»-Heuristik über erfasste Zeugnis-Daten (19.07.2026)
+                // sind per Walter-Vorgabe 21.08.2026 ERSETZT: massgebend ist
+                // allein die Untersuch-Pflicht-Schwelle (nw.RequiresDocuments).
 
                 NightWorkComplianceService.Result nw;
                 if (!nightDatesByEmp.TryGetValue(emp.Id, out var dates) || dates.Count == 0)
-                {
-                    if (!hasPlannedDates)
-                    {
-                        MeldeAbgelaufen(); // nur Ablauf, keine Doku-Pflicht
-                        continue;
-                    }
-                    // Datum erfasst = geplant → unten Dokumente prüfen (kein Doppel-Ablauf-Alert).
                     nw = new NightWorkComplianceService.Result(0, null, null, false);
-                }
                 else
-                {
                     nw = NightWorkComplianceService.Evaluate(dates, today);
-                    if (!nw.RequiresDocuments && !hasPlannedDates)
-                    {
-                        MeldeAbgelaufen();
-                        continue;
-                    }
-                }
+
+                // Harte Schwelle (Walter 21.08.2026): KEINE Untersuch-Pflicht
+                // (≤18 Nächte/6 Wochen) → keine Nachtarbeit-Warnungen, auch
+                // nicht bei abgelaufenem Alt-Zeugnis oder erfasstem Datum
+                // («geplant»-Heuristik vom 19.07.2026 damit ebenfalls ersetzt).
+                if (!nw.RequiresDocuments) continue;
 
                 // Enddatum-Kontrolle (Walter 26.07.2026): OneCrew speichert das
                 // gerechnete Soll-Ende; Flag kommt vom Sync wenn easy-«to» abweicht.

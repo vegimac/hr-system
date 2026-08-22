@@ -3041,6 +3041,21 @@ function _nwMissingDocsHtml(emp) {
     const hasDates = !!(emp.nightWorkExamValidUntil || emp.nightWorkExamIssued);
     // Ohne geplante Nachtarbeit (kein Datum) und ohne ArGV1-Pflicht → keine Hinweise.
     if (!requires && !hasDates) return '';
+    // Walter-Vorgabe 21.08.2026 (Fall Gazale, ersetzt «immer melden» vom
+    // 12.07.2026): rote Chips NUR bei tatsächlicher Untersuch-Pflicht
+    // (>18 Nächte im 6-Wochen-Fenster). Ein abgelaufenes Alt-Zeugnis ohne
+    // aktuelle Nachtarbeit → grauer Info-Chip statt rot; arbeitet der MA
+    // wieder >18 Nächte, werden die Chips automatisch wieder rot.
+    if (!requires) {
+        const vu = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
+        const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+        if (vu && vu < t0) {
+            return `<span class="nw-warn-chip" style="background:#f1efe9;border-color:#d5d0c6;color:#8b8b8b"
+                title="Zeugnis war gültig bis ${vu.toLocaleDateString('de-CH')} — zurzeit keine Untersuch-Pflicht (≤18 Nächte/6 Wochen), daher ohne Folge. Vor erneuter Nacht-Planung erneuern.">Zeugnis abgelaufen · zzt. keine Nachtarbeit</span>`;
+        }
+        // Zeugnis noch gültig oder nur Datum erfasst → kein Lärm.
+        return '';
+    }
 
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const validUntil = emp.nightWorkExamValidUntil ? new Date(emp.nightWorkExamValidUntil) : null;
