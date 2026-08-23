@@ -127,6 +127,18 @@ async function previewFileModal(blob, filename, opts) {
     const kind = _fpKind(filename, blob && blob.type);
     if (!kind) { await saveBlobAsk(blob, filename); return; }   // nicht anzeigbar → direkt speichern
     const modal = _fpEnsureModal();
+    // Fenster-Geometrie bei jedem Öffnen zurücksetzen (Walter 23.08.2026):
+    // nach Verschieben/Vergrössern blieb die Pixel-Geometrie für ALLE weiteren
+    // Vorschauen kleben — hing das Fenster teils ausserhalb des Bildschirms,
+    // wirkte das PDF «nicht bis unten scrollbar». Jedes Öffnen startet wieder
+    // vollflächig sichtbar; verschieben/ziehen bleibt pro Ansicht möglich.
+    const _fpBox = document.getElementById('filePreviewBox');
+    if (_fpBox) {
+        _fpBox.style.position = 'absolute';
+        _fpBox.style.left = '5vw';  _fpBox.style.right  = '5vw';
+        _fpBox.style.top  = '3vh';  _fpBox.style.bottom = '3vh';
+        _fpBox.style.width = 'auto'; _fpBox.style.height = 'auto';
+    }
     if (_fpUrl) URL.revokeObjectURL(_fpUrl);
     _fpBlob = blob;
     _fpName = filename || 'datei';
