@@ -193,7 +193,22 @@ function _empNationalityCode(e) {
 // Filter-Registry — ein Eintrag pro Spezialfilter-Option im Dropdown.
 // `predicate` liefert true für MA, die im Resultat bleiben sollen.
 // `prepare`  optional: async Initialisierung (z.B. Cache befüllen).
+// Vertragsmodell des MA bestimmen (Walter 23.08.2026, Modell-Filter):
+// gleiche Prioritäten wie das Modell-Badge in der Liste — aktiver Vertrag
+// zuerst, sonst neuester. «UTP» ist der Legacy-Alias für FLEX (Rename 08.07.).
+function _empModelOf(e) {
+    const all = e.employments || [];
+    const m = all.find(v => v.isActive)?.employmentModel || all[0]?.employmentModel || '';
+    const up = String(m).toUpperCase();
+    return up === 'UTP' ? 'FLEX' : up;
+}
+
 const EMP_SPECIAL_FILTERS = {
+    // Vertragsmodell-Filter (Walter 23.08.2026): ganz oben im Dropdown.
+    'model-flex':  { predicate: (e) => _empModelOf(e) === 'FLEX' },
+    'model-mtp':   { predicate: (e) => _empModelOf(e) === 'MTP' },
+    'model-fix':   { predicate: (e) => _empModelOf(e) === 'FIX' },
+    'model-fixm':  { predicate: (e) => _empModelOf(e) === 'FIX-M' },
     // MA mit laufender Probezeit (Walter 21.07.2026).
     // Listen-API (/api/employees) liefert probationEndDate am Employment,
     // nicht flach am MA — gleiche Quelle wie Header-Badge «Probezeit bis».

@@ -480,6 +480,10 @@
                                         onchange="setEmpSpecialFilter(this.value)"
                                         style="width:100%;padding:5px 8px;font-size:11.5px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer">
                                     <option value="">Alle Mitarbeiter</option>
+                                    <option value="model-flex">Vertrag: FLEX</option>
+                                    <option value="model-mtp">Vertrag: MTP</option>
+                                    <option value="model-fix">Vertrag: FIX</option>
+                                    <option value="model-fixm">Vertrag: FIX-M</option>
                                     <option value="in-probezeit">In Probezeit</option>
                                     <option value="in-absence">Krank / Unfall / Mutterschaft (aktuell)</option>
                                     <option value="no-bank">Ohne Bankverbindung</option>
@@ -3232,6 +3236,36 @@
                             <img src="img/mirus-absenz-import.png?v=20260815a" alt="" loading="lazy">
                             <span>Mirus Absenz<br>Import</span>
                         </button>
+                    </div>
+
+                    <!-- Kündigung / Zeugnisse auch im McAdmin (Walter 23.08.2026):
+                         identische Karte wie im HR-Hub (dort bleibt sie bestehen) —
+                         gleiche 9 Menüpunkte, gleiche globalen Funktionen
+                         (kuendigung.js / zdOpen). AUCH für GF «user» (Walter
+                         23.08.2026: GF muss Kündigung/Aufhebung/Verwarnung sofort
+                         erstellen können) — die drei Controller (Kuendigung/
+                         Arbeitszeugnis/EmployeeVerwarnung) erlauben user bereits. -->
+                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,user" style="opacity:1;max-width:380px;margin-top:22px">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title">Kündigung / Zeugnisse</div>
+                                <div class="hr-card-status">Dokument wählen — direkt zum Ablauf</div>
+                            </div>
+                        </div>
+                        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
+                            <button type="button" class="kz-menu-item" onclick="showPage('kuendigung')">1&nbsp;·&nbsp;Kündigung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('arbeitszeugnis')">2&nbsp;·&nbsp;Arbeitszeugnis</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('zwischen')">3&nbsp;·&nbsp;Zwischenzeugnis</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('best')">4&nbsp;·&nbsp;Arbeitsbestätigung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('verwarnung')">5&nbsp;·&nbsp;Verwarnung</button>
+                            <button type="button" class="kz-menu-item" onclick="showPage('aufforderung-arbeit')">6&nbsp;·&nbsp;Arbeits Aufforderung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">7&nbsp;·&nbsp;Kündigungsrückzug</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">8&nbsp;·&nbsp;Kündigungsbestätigung</button>
+                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8511,7 +8545,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260821e"></script>
+<script src="employees.js?v=20260823a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
