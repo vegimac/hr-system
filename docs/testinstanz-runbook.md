@@ -474,6 +474,20 @@ sudo -u postgres psql -d hrsystem -c "SELECT count(*) FROM employee"
 
 Erst wenn alle 12 auf PASS stehen, ist das Muster «eine Instanz pro Kunde» bewiesen.
 
+> **✅ ABNAHME DURCHGEFÜHRT 23.08.2026 — ALLE 12 PUNKTE PASS** (plus Bonus «hrapp ↛ hr_system_test»).
+> Belege: Isolations-Beweise per psql (f/f) · JWT-Schlüssel VERSCHIEDEN · smtp_setting leer · easy@work-Autosync wartet brav auf 05:00, keine Fehlerschleife · StoragePaths getrennt unter /var/data · Testina Muster (999001) nur auf Test, Prod-Suche leer · Test-Upload unter /var/data/hr-system-test/documents/mailbox/1/ · Deploy-Log 23.08.: 10:08 test=ok prod=ok → 10:14 test=FEHLER prod=- (absichtlicher Kanarienvogel-Crashtest, Prod lief weiter) → 10:23 test=ok prod=ok · Restore-Test B8 morgens bestanden (Musterhausen überlebt, Prod 491 unverändert).
+> Das Muster «eine Instanz pro Kunde» ist damit BEWIESEN.
+
+---
+
+## Testdaten-Konzept (Walter-Frage 23.08.2026): easy@work auf Test
+
+**Entschieden: KEIN nachgebautes Test-easy@work** (Fremd-API imitieren = Fass ohne Boden; man testet am Ende die Attrappe). easy bleibt auf Test schlicht unkonfiguriert (= aus, Auto-Sync überspringt sauber). Swissdec-Musterfälle brauchen easy nicht:
+
+- **MA + Verträge:** normal über die UI erfassen (Verträge-Modul funktioniert ohne easy).
+- **Stempelzeiten** (FLEX/MTP-Fälle): direkt per SQL in die Test-DB — fixfertige, reproduzierbare Kunstdaten-Skripte pro Musterfall (Claude erstellt sie bei Bedarf). Der API-Schreibweg bleibt bewusst zu (Read-only-Regel gilt auch auf Test).
+- **Ausbaustufe bei Bedarf:** kleiner «Kunstdaten-Stempelzeiten»-Knopf, der NUR bei gesetztem INSTANCE_LABEL erscheint — erst bauen, wenn der Bedarf real ist.
+
 ---
 
 ## E · Die drei dokumentierten Ergänzungen (Schlusskontrolle 22.08.2026)
@@ -481,6 +495,13 @@ Erst wenn alle 12 auf PASS stehen, ist das Muster «eine Instanz pro Kunde» bew
 - **E1 postgres-Superuser-Ausnahme:** siehe Kasten in B2. Produktiv nutzt bereits den Nicht-Superuser `hrapp` (verifiziert 22.08.2026) — die E1-Pflicht ist damit faktisch erfüllt; der Bonus-Beweis «hrapp ↛ hr_system_test» läuft in B2 gleich mit. Nur der Superuser `postgres` bleibt als unvermeidbarer Hausmeister-Schlüssel dokumentiert.
 - **E2 Türsteher:** umgesetzt in B6.3 (Basic Auth, ACME-Pfad frei). Für Swissdec-Prüfungen bei Bedarf gezielt öffnen (Zeilen auskommentieren + reload), danach wieder schliessen.
 - **E3 Atomic Deploy (nur notiert, nicht bauen):** spätere Verbesserung — `releases/`-Verzeichnisse + `current`-Symlink statt stop→wipe→unpack. Der Storage liegt ohnehin ausserhalb `/var/www` und ist vom Wipe nie betroffen.
+
+**Weitere Später-Punkte (aus dem Erstaufbau):**
+
+- App soll mit 0 Filialen sauber starten und zur Filial-Anlage führen (aktuell: Dashboard reagiert nicht, bis per SQL eine company_profile-Zeile existiert — Workaround siehe Erst-Deploy).
+- Tote Bild-Verweise in `css/app.css` entfernen (Zeilen ~9089/9940: `img/liquid-glass-arches-reference.png` existiert nicht — löste hinter dem Türsteher die Popup-Jagd aus).
+- Programm beibringen, das DB-Grundhaus selbst zu bauen (dann entfällt der Schema-Bootstrap-Schritt).
+- Optional-kosmetisch: Prod-Pfade von `hr-system` auf `onecrew-srgmbh`-Schema umbenennen (Walter-Idee 22.08.; nur mit eigener ruhiger Viertelstunde + Backup, betrifft Unit, Backup-Skript und Storage-Pfad).
 
 ---
 
