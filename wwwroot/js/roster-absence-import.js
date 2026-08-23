@@ -348,16 +348,24 @@ async function rosterImportCommit() {
         const upd = data.updated || 0;
         document.getElementById('rosterImportAlert').innerHTML = `
             <div style="padding:14px 18px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:9px;font-size:14px">
-                <b>Import:</b> ${data.created} Absenzen erfasst${upd > 0 ? `, ${upd} korrigiert` : ''}${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}.${locked > 0 ? '' : ' Fenster wird in 2 Sekunden geschlossen…'}
+                <b>Import:</b> ${data.created} Absenzen erfasst${upd > 0 ? `, ${upd} korrigiert` : ''}${data.duplicates > 0 ? `, ${data.duplicates} Dubletten übersprungen` : ''}${data.skipped > 0 ? `, ${data.skipped} ohne MA-Zuordnung übersprungen` : ''}. Nächste Datei kann direkt hochgeladen werden.
             </div>${lockedNote}`;
         document.getElementById('rosterImportPreview').innerHTML = '';
         document.getElementById('rosterImportSummary').innerHTML = '';
         document.getElementById('rosterImportPeriodInfo').innerHTML = '';
         btn.textContent = 'Absenzen erfassen';
+        btn.disabled = true;
         _raRows = [];
-        // Bei gesperrten Perioden NICHT automatisch schliessen — der User soll
-        // die Meldung lesen können.
-        if (locked === 0) setTimeout(() => { if (typeof showPage === 'function') showPage('admin-hub'); }, 2000);
+        // Walter-Vorgabe 23.08.2026: NICHT mehr zu den Systemeinstellungen
+        // springen (alte Importer-Konvention) — beim Mirus-Absenzen-Import
+        // werden typischerweise 3 Dienstplan-Dateien (pro Vertragstyp) direkt
+        // nacheinander importiert. Erfolgsmeldung bleibt stehen, Formular
+        // wird für die nächste Datei geleert, die Seite bleibt offen.
+        _raFile = null;
+        _raBranchEmployees = [];
+        _raManual = {};
+        const fiNext = document.getElementById('rosterImportFileInput');
+        if (fiNext) fiNext.value = '';
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
         btn.disabled = false;
