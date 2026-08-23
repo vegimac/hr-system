@@ -2652,10 +2652,17 @@ public class PayrollCalculationEngine
             // Schlussabrechnung, Zulagen) zählen satzbestimmend OHNE
             // Hochrechnung. Umsetzung: fehlende Festlohn-Differenz voller
             // Monat − Kurzmonat auf die IST-Basis addieren.
+            // Walter-Vorgabe 23.08.2026: die FEIERTAGSENTSCHÄDIGUNG auf dem
+            // fehlenden Festlohn-Anteil gehört MIT in den Satz — sie ist beim
+            // MTP monatlich ausbezahlter, periodischer Lohn (ein echter Voll-
+            // monat hätte sie enthalten). Feriengeld + 13. bewusst NICHT:
+            // die fliessen im Pott-Modell auch im Vollmonat nicht zu und
+            // heben Satz+Steuer erst im Auszahlungs-/Bezugsmonat.
             if (isShortPeriod && guaranteedH > 0 && hourlyRate > 0)
             {
                 var mtpFestDiff = Math.Round(
-                    guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate, 2);
+                    guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate
+                    * (1m + holidayPct / 100m), 2);
                 if (mtpFestDiff > 0)
                 {
                     var satzKurzMtp = svBasesMtp.Qst + mtpFestDiff;

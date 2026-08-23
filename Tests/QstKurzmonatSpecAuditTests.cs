@@ -44,6 +44,11 @@ public class QstKurzmonatSpecAuditTests
     {
         // guaranteedH / 7 × (normalPeriodDays − shortPeriodDays) × hourlyRate.
         Assert.Contains("(normalPeriodDays - shortPeriodDays) * hourlyRate", Engine);
+        // Walter-Vorgabe 23.08.2026: Feiertagsentschädigung auf dem fehlenden
+        // Festlohn-Anteil gehört MIT in den satzbestimmenden Vollmonat (beim
+        // MTP monatlich ausbezahlter, periodischer Lohn). Feriengeld + 13.
+        // bewusst NICHT (Pott-Modell — fliessen auch im Vollmonat nicht zu).
+        Assert.Contains("* (1m + holidayPct / 100m)", Engine);
         Assert.Contains("svBasesMtp.Qst + mtpFestDiff", Engine);
     }
 

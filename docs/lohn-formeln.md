@@ -223,6 +223,12 @@ Kurzmonat (Ein-/Austritt unter dem Monat, KS 45 Monatsmodell — 21.08.2026):
   (13. ML, Schlussabrechnung, Zulagen) ohne Hochrechnung:
     FIX/FIX-M : Satzbasis = IST − Kurz-Monatslohn + voller Monatslohn
     MTP       : Satzbasis = IST + WoStd/7 × (Monatstage − Kurztage) × Stundenlohn
+                            × (1 + Feiertags-%)          (Walter 23.08.2026:
+                Feiertagsentschädigung ist beim MTP monatlich ausbezahlter,
+                periodischer Lohn → gehört in den Vollmonats-Satz. Feriengeld
+                + 13. bewusst NICHT — Pott-Modell, fliessen auch im Vollmonat
+                nicht zu; sie heben Satz+Steuer erst im Bezugs-/
+                Auszahlungsmonat.)
     FLEX      : keine Hochrechnung (Stundenlohn, Variante A: IST zählt)
   Bei gleichzeitigem Nebenjob (Variante B) gilt der HÖHERE der beiden Sätze.
   Schutz: satzbestimmend nie unter IST-Brutto.
