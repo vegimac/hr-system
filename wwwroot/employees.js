@@ -156,6 +156,7 @@ let _empFilter = 'aktiv';
 let _empSpecialFilter = '';
 // Caches für Spezialfilter — lazy geladen beim ersten Aktivieren.
 let _empIdsWithActiveBank   = null;   // MA-IDs mit aktiver Bankverbindung
+let _empIdsWithVerwarnung   = null;   // MA-IDs mit nicht-stornierter Verwarnung (Filter 23.08.2026)
 let _empIdsWithActiveQst    = null;   // MA-IDs mit aktivem QST-Tarif
 let _empIdsWithPermitHistory = null;  // MA-IDs mit MINDESTENS einem Permit-History-Eintrag
 let _empIdsWithExpiredPermit = null;  // MA-IDs mit abgelaufener massgebender Bewilligung
@@ -209,6 +210,21 @@ const EMP_SPECIAL_FILTERS = {
     'model-mtp':   { predicate: (e) => _empModelOf(e) === 'MTP' },
     'model-fix':   { predicate: (e) => _empModelOf(e) === 'FIX' },
     'model-fixm':  { predicate: (e) => _empModelOf(e) === 'FIX-M' },
+    // MA mit mind. einer nicht-stornierten Verwarnung (Walter 23.08.2026).
+    // Bei jedem Wählen frisch geladen (Verwarnungen können storniert werden).
+    'has-verwarnung': {
+        prepare: async () => {
+            try {
+                const r = await fetch('/api/verwarnungen/employee-ids',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithVerwarnung = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithVerwarnung = new Set(); }
+        },
+        predicate: (e) => _empIdsWithVerwarnung
+            && _empIdsWithVerwarnung.has(Number(e.id))
+    },
     // MA mit laufender Probezeit (Walter 21.07.2026).
     // Listen-API (/api/employees) liefert probationEndDate am Employment,
     // nicht flach am MA — gleiche Quelle wie Header-Badge «Probezeit bis».

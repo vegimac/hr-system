@@ -61,6 +61,22 @@ public class EmployeeVerwarnungController : ControllerBase
     public IActionResult GetGruende() => Ok(StandardGruende);
 
     /// <summary>
+    /// MA-IDs mit mindestens einer NICHT-stornierten Verwarnung (Walter
+    /// 23.08.2026) — für den Spezial-Filter «Mit Verwarnung» in der MA-Liste
+    /// (gleiches Muster wie employee-bank-accounts/active-employee-ids).
+    /// </summary>
+    [HttpGet("employee-ids")]
+    public async Task<IActionResult> GetEmployeeIds()
+    {
+        var ids = await _db.EmployeeVerwarnungen.AsNoTracking()
+            .Where(v => !v.Storniert)
+            .Select(v => v.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        return Ok(ids);
+    }
+
+    /// <summary>
     /// Dokument-Typ für Verwarnungs-Uploads (Walter 28.07.2026):
     /// «Mitarbeiterentwicklung › Abmahnung» — nicht mehr eigener Typ «Verwarnung».
     /// Find-or-create, damit der Upload ohne manuelle Typ-Wahl läuft.
