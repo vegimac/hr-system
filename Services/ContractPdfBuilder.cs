@@ -49,7 +49,8 @@ public static class ContractPdfBuilder
     /// Vertrags-PDF. Gibt null zurück, wenn das Employment nicht existiert oder
     /// keine (gültige) Filiale hat.
     /// </summary>
-    public static async Task<byte[]?> BuildAsync(AppDbContext db, int employmentId)
+    public static async Task<byte[]?> BuildAsync(AppDbContext db, int employmentId,
+                                                 int? signerUserId = null)
     {
         var employment = await db.Employments
             .Include(e => e.Employee)
@@ -69,6 +70,30 @@ public static class ContractPdfBuilder
             .Where(s => s.CompanyProfileId == employment.CompanyProfileId.Value
                      && s.IsDefault == true)
             .FirstOrDefaultAsync();
+
+        // Unterzeichner-Wahl (Walter 23.08.2026): Default = Allgemein-
+        // Unterzeichner der Filiale (IsDefault). Optional kann der EINGELOGGTE
+        // Benutzer als Unterzeichner gewählt werden (signerUserId — der
+        // Controller stellt sicher, dass das NUR die eigene User-Id sein kann,
+        // nie eine Drittperson). FunctionTitle kommt dann aus dessen
+        // Branch-Access dieser Filiale, falls vorhanden.
+        var signatoryName  = signatory != null
+            ? $"{signatory.User.FirstName} {signatory.User.LastName}".Trim()
+            : "";
+        var signatoryTitle = signatory?.FunctionTitle ?? "";
+        if (signerUserId.HasValue)
+        {
+            var su = await db.AppUsers.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == signerUserId.Value);
+            if (su != null)
+            {
+                signatoryName = $"{su.FirstName} {su.LastName}".Trim();
+                var acc = await db.UserBranchAccesses.AsNoTracking()
+                    .FirstOrDefaultAsync(a => a.UserId == su.Id
+                        && a.CompanyProfileId == employment.CompanyProfileId.Value);
+                signatoryTitle = acc?.FunctionTitle ?? "";
+            }
+        }
 
         var salaryType = employment.SalaryType ?? GetSalaryType(employment.EmploymentModel);
         var jobTitleDisplay = await GetJobTitleDisplayName(db, employment.JobTitle, "de") ?? employment.JobTitle ?? "";
@@ -126,10 +151,8 @@ public static class ContractPdfBuilder
             WorkLocation:            !string.IsNullOrWhiteSpace(company.WorkLocation)
                                          ? company.WorkLocation
                                          : (company.City ?? ""),
-            SignatoryName:           signatory != null
-                                         ? $"{signatory.User.FirstName} {signatory.User.LastName}".Trim()
-                                         : "",
-            SignatoryTitle:          signatory?.FunctionTitle ?? "",
+            SignatoryName:           signatoryName,
+            SignatoryTitle:          signatoryTitle,
             SignatureCity:           company.City ?? "",
             ContractDate:            DateTime.Today,
             DefaultVacationWeeks:    company.DefaultVacationWeeks,

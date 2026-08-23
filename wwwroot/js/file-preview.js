@@ -101,6 +101,7 @@ function _fpEnsureModal() {
         + '<span id="filePreviewDossierStatus" style="font-size:12px"></span>'
         + '</div>'
         + '<div style="display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid #e2e8f0;background:white">'
+        + '<span id="filePreviewExtra" style="margin-right:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:#475569"></span>'
         + '<button id="filePreviewDossierBtn" onclick="filePreviewDossierToggle()" style="display:none;padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">📁 Ins Dossier ablegen</button>'
         + '<button onclick="filePreviewPrint()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">🖨 Drucken</button>'
         + '<button onclick="filePreviewDownload()" style="padding:7px 16px;border:1px solid #cbd5e1;background:white;border-radius:7px;font-size:13px;cursor:pointer;color:#0f172a">⬇ Herunterladen</button>'
@@ -142,7 +143,28 @@ async function previewFileModal(blob, filename, opts) {
     if (dosBtn)  dosBtn.style.display = _fpEmpId ? '' : 'none';
     if (dosForm) dosForm.style.display = 'none';
     if (dosStat) dosStat.textContent = '';
+    // Extra-Zone links in der Knopfleiste (Walter 23.08.2026, z.B.
+    // Unterzeichner-Umschalter beim Vertrags-PDF) — bei jedem Öffnen leeren;
+    // Aufrufer setzt sie danach via filePreviewSetExtra().
+    filePreviewSetExtra('');
     modal.style.display = 'block';
+}
+
+// ── Extra-Steuerelemente in der Vorschau-Knopfleiste (Walter 23.08.2026) ──
+function filePreviewSetExtra(html) {
+    const el = document.getElementById('filePreviewExtra');
+    if (el) el.innerHTML = html || '';
+}
+
+// Tauscht das angezeigte Dokument aus, ohne das Fenster zu schliessen
+// (z.B. nach Unterzeichner-Wechsel neu erzeugtes Vertrags-PDF).
+function filePreviewReplaceBlob(blob, filename) {
+    if (_fpUrl) URL.revokeObjectURL(_fpUrl);
+    _fpBlob = blob;
+    if (filename) _fpName = filename;
+    _fpUrl = URL.createObjectURL(blob);
+    const frame = document.getElementById('filePreviewFrame');
+    if (frame) frame.src = _fpUrl;
 }
 
 // ── «Ins Dossier ablegen» (Walter 06.08.2026) ──────────────────────────

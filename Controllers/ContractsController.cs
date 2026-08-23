@@ -27,9 +27,54 @@ public class ContractsController : ControllerBase
             .FirstOrDefaultAsync();
     }
 
-    [HttpGet("employment/{employmentId}/pdf")]
-    public async Task<IActionResult> DownloadContractPdf(int employmentId)
+    /// <summary>Eingeloggte User-Id aus dem JWT (nie aus dem Request-Body).</summary>
+    private int? GetUserId()
     {
+        var raw = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return int.TryParse(raw, out var id) ? id : null;
+    }
+
+    /// <summary>
+    /// Unterzeichner-Auswahl fürs Vertrags-PDF (Walter 23.08.2026): liefert den
+    /// Allgemein-Unterzeichner der Vertrags-Filiale + den eingeloggten Benutzer.
+    /// Das Frontend zeigt daraus den Umschalter im Vorschaufenster.
+    /// </summary>
+    [HttpGet("employment/{employmentId}/signer-options")]
+    public async Task<IActionResult> GetSignerOptions(int employmentId)
+    {
+        var employment = await _context.Employments.AsNoTracking()
+            .FirstOrDefaultAsync(e => e.Id == employmentId);
+        if (employment?.CompanyProfileId == null) return NotFound();
+
+        var def = await _context.UserBranchAccesses.AsNoTracking()
+            .Include(s => s.User)
+            .Where(s => s.CompanyProfileId == employment.CompanyProfileId.Value && s.IsDefault)
+            .FirstOrDefaultAsync();
+
+        var uid = GetUserId();
+        var me  = uid.HasValue
+            ? await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid.Value)
+            : null;
+
+        return Ok(new
+        {
+            defaultSignerName   = def != null ? $"{def.User.FirstName} {def.User.LastName}".Trim() : "",
+            defaultSignerUserId = def?.UserId,
+            currentUserId       = me?.Id,
+            currentUserName     = me != null ? $"{me.FirstName} {me.LastName}".Trim() : "",
+            isCurrentUserDefault = def != null && me != null && def.UserId == me.Id
+        });
+    }
+
+    [HttpGet("employment/{employmentId}/pdf")]
+    public async Task<IActionResult> DownloadContractPdf(int employmentId, [FromQuery] int? signerUserId = null)
+    {
+        // Unterzeichner-Wahl (Walter 23.08.2026): erlaubt ist NUR die eigene
+        // User-Id (eingeloggter Benutzer unterschreibt selbst) — nie eine
+        // Drittperson (Unterschriften-Konvention: keine fremden Namen).
+        if (signerUserId.HasValue && signerUserId.Value != GetUserId())
+            return Forbid();
+
         // PDF-Bau ausgelagert nach ContractPdfBuilder (Walter 07.07.2026) — dieselbe
         // Methode nutzt der öffentliche Token-Link (ContractShareController). Für den
         // Dateinamen wird hier noch der MA + Startdatum geladen.
@@ -41,7 +86,7 @@ public class ContractsController : ControllerBase
         var employee = employment.Employee;
         if (employee == null) return BadRequest("Employee not found.");
 
-        var pdfBytes = await ContractPdfBuilder.BuildAsync(_context, employmentId);
+        var pdfBytes = await ContractPdfBuilder.BuildAsync(_context, employmentId, signerUserId);
         if (pdfBytes == null) return BadRequest("Contract PDF could not be generated.");
 
         var fileName = $"Vertrag_{employee.LastName}_{employee.FirstName}_{employment.ContractStartDate:yyyyMMdd}.pdf";

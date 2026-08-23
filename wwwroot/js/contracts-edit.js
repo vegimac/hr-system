@@ -1264,8 +1264,47 @@ async function downloadContractPdf() {
         const cd = res.headers.get('Content-Disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
         await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
+        vtInjectSignerSelector(employmentId);
     } catch (err) { alert('Fehler: ' + err.message); }
     finally { if (btnPdf) { btnPdf.textContent = '📄 Vertrag als PDF'; btnPdf.disabled = false; } }
+}
+
+// ── Unterzeichner-Umschalter im Vertrags-Vorschaufenster (Walter 23.08.2026) ──
+// Default = Allgemein-Unterzeichner der Filiale; der EINGELOGGTE Benutzer kann
+// sich selbst als Unterzeichner wählen (z.B. Nihat statt GF). Der Umschalter
+// erscheint NUR, wenn der Eingeloggte nicht ohnehin der Allgemein-Unterzeichner
+// ist. Serverseitig ist ausschliesslich die eigene User-Id erlaubt.
+async function vtInjectSignerSelector(employmentId) {
+    try {
+        const r = await fetch(`/api/contracts/employment/${employmentId}/signer-options`,
+                              { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!r.ok) return;
+        const o = await r.json();
+        if (!o.currentUserId || o.isCurrentUserDefault) return;
+        const defLabel = o.defaultSignerName
+            ? `${o.defaultSignerName} (Allgemein)` : 'Allgemein-Unterzeichner';
+        filePreviewSetExtra(
+            'Unterzeichner: '
+            + `<select id="vtSignerSelect" onchange="vtSignerChanged(${employmentId})"`
+            + ' style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px;background:white;max-width:260px">'
+            + `<option value="">${defLabel}</option>`
+            + `<option value="${o.currentUserId}">${o.currentUserName} (ich)</option>`
+            + '</select>');
+    } catch (_) { /* Umschalter ist optionaler Komfort */ }
+}
+
+async function vtSignerChanged(employmentId) {
+    const sel = document.getElementById('vtSignerSelect');
+    const uid = sel ? sel.value : '';
+    if (sel) sel.disabled = true;
+    try {
+        const url = `/api/contracts/employment/${employmentId}/pdf`
+                  + (uid ? `?signerUserId=${uid}` : '');
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
+        filePreviewReplaceBlob(await res.blob());
+    } catch (e) { alert('Fehler: ' + e.message); }
+    finally { if (sel) sel.disabled = false; }
 }
 
 function setupDropzone() {
