@@ -276,6 +276,38 @@ public class QstPflichtCheckService
         if (t.Length == 0) return null;
         var w = new List<string>();
 
+        // ── Kirchensteuer (Y/N) vs. Konfession des MA (Walter-Vorgabe 23.08.2026,
+        // Fall «A0Y ohne Konfession») ─────────────────────────────────────────
+        // Kirchensteuer-pflichtig sind nur die Landeskirchen-Konfessionen
+        // (röm.-katholisch / christkatholisch / evang.-reformiert); «Keine» und
+        // «Andere» gehören zu einem …N-Tarif. Fehlende Konfession bei …Y →
+        // zuerst die Konfession in der MA-Maske erfassen.
+        var religionCode = (await _db.Employees.AsNoTracking()
+            .Where(e => e.Id == employeeId)
+            .Select(e => e.Religion)
+            .FirstOrDefaultAsync() ?? "").Trim().ToLowerInvariant();
+        var religionLabel = religionCode switch
+        {
+            "roemisch_katholisch"    => "Röm.-katholisch",
+            "christ_katholisch"      => "Christ-katholisch",
+            "evangelisch_reformiert" => "Evang.-reformiert",
+            "andere"                 => "Andere",
+            "keine"                  => "Keine",
+            _                        => religionCode
+        };
+        var istLandeskirche = religionCode is "roemisch_katholisch"
+                                          or "christ_katholisch"
+                                          or "evangelisch_reformiert";
+        if (erfassung.Kirchensteuer && religionCode.Length == 0)
+            w.Add("Tarif MIT Kirchensteuer (…Y), aber beim MA ist KEINE Konfession erfasst — "
+                + "Konfession in der MA-Maske nachtragen oder Tarif auf …N korrigieren.");
+        else if (erfassung.Kirchensteuer && !istLandeskirche)
+            w.Add($"Tarif MIT Kirchensteuer (…Y), aber die Konfession «{religionLabel}» ist "
+                + "nicht kirchensteuerpflichtig — Tarif …N prüfen.");
+        else if (!erfassung.Kirchensteuer && istLandeskirche)
+            w.Add($"Konfession «{religionLabel}» ist kirchensteuerpflichtig, der Tarif ist aber "
+                + "OHNE Kirchensteuer (…N) — Tarif …Y prüfen.");
+
         // ── Kinder am Stichtag zählen (Walter-Vorgabe 20.08.2026) ──
         // Erstausbildung wird zusätzlich aus einer AKTIVEN Ausbildungszulage
         // (AZ) abgeleitet — wer AZ bekommt, ist belegt in Ausbildung.
