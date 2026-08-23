@@ -303,6 +303,8 @@ async function downloadContractPdfById(employeeId, contractId) {
         const cd   = res.headers.get('Content-Disposition') || '';
         const match = cd.match(/filename="?([^"]+)"?/);
         await previewFileModal(blob, match ? match[1] : 'Vertrag.pdf');
+        // Unterzeichner-Umschalter (Walter 23.08.2026, global aus contracts-edit.js).
+        if (typeof vtInjectSignerSelector === 'function') vtInjectSignerSelector(contractId);
     } catch (err) { alert('Fehler: ' + err.message); }
     finally { if (btn) { btn.textContent = '📄 PDF'; btn.disabled = false; } }
 }

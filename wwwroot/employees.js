@@ -1891,6 +1891,9 @@ function ctrToggleMenu(event, id) { rowMenuToggle(event, 'ctr', id); }
 async function openEmpContractPdf(contractId, printAfterOpen) {
     const filename = `Arbeitsvertrag_${contractId}.pdf`;
     const ok = await previewUrlFetch(`/api/contracts/employment/${contractId}/pdf`, filename, ah());
+    // Unterzeichner-Umschalter in der Vorschau (Walter 23.08.2026) —
+    // Funktion lebt global in contracts-edit.js.
+    if (ok && typeof vtInjectSignerSelector === 'function') vtInjectSignerSelector(contractId);
     if (ok && printAfterOpen) {
         setTimeout(() => {
             if (typeof filePreviewPrint === 'function') filePreviewPrint();

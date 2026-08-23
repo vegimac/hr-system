@@ -1280,15 +1280,20 @@ async function vtInjectSignerSelector(employmentId) {
                               { headers: { 'Authorization': `Bearer ${authToken}` } });
         if (!r.ok) return;
         const o = await r.json();
-        if (!o.currentUserId || o.isCurrentUserDefault) return;
+        if (!o.currentUserId) return;
+        // Immer anzeigen (Walter 23.08.2026): Default = Allgemein-Unterzeichner,
+        // zweite Option = der eingeloggte Benutzer. Ist der Eingeloggte selbst
+        // der Allgemein-Unterzeichner, gibt es nur den einen Eintrag (Info).
         const defLabel = o.defaultSignerName
             ? `${o.defaultSignerName} (Allgemein)` : 'Allgemein-Unterzeichner';
+        const ichOption = o.isCurrentUserDefault ? ''
+            : `<option value="${o.currentUserId}">${o.currentUserName} (ich)</option>`;
         filePreviewSetExtra(
             'Unterzeichner: '
             + `<select id="vtSignerSelect" onchange="vtSignerChanged(${employmentId})"`
             + ' style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px;background:white;max-width:260px">'
             + `<option value="">${defLabel}</option>`
-            + `<option value="${o.currentUserId}">${o.currentUserName} (ich)</option>`
+            + ichOption
             + '</select>');
     } catch (_) { /* Umschalter ist optionaler Komfort */ }
 }
