@@ -2233,7 +2233,14 @@ async function loadQuellensteuerTab(employeeId) {
         if (permitsRes.ok) {
             _permitHistoryCache = await permitsRes.json();
         }
-        renderQuellensteuerTab(el, entries, pflicht);
+        // Walter-Vorgabe 23.08.2026: Server-Tarifvorschlag mitladen — bei
+        // Tarif-Warnungen zeigt die AKTUELL-Zeile gleich den RICHTIGEN Code.
+        let vorschlag = null;
+        try {
+            const vr = await fetch(`/api/employees/${employeeId}/quellensteuer/vorschlag`, { headers: ah() });
+            if (vr.ok) vorschlag = await vr.json();
+        } catch (_) { /* Vorschlag ist Komfort */ }
+        renderQuellensteuerTab(el, entries, pflicht, vorschlag);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
@@ -3946,13 +3953,16 @@ function renderQstTarifWarnBanner(pflicht) {
     </div>`;
 }
 
-function renderQuellensteuerTab(el, entries, pflicht) {
+function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
     // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
+    // Walter-Vorgabe 23.08.2026: die Tarif-Plausibilitäts-Warnungen wandern
+    // vom Kopf-Banner DIREKT in die AKTUELL-Zeile der QST-Liste (roter Code
+    // + Warntext + richtiger Vorschlags-Code) — kein renderQstTarifWarnBanner
+    // mehr im Kopf.
     const banner = renderQstPflichtBanner(pflicht)
                  // Walter-Vorgabe 20.08.2026: Ehepartner-Angaben unvollständig
-                 // (blockt Lohnlauf) + Tarif-Plausibilitäts-Warnungen.
+                 // (blockt Lohnlauf).
                  + renderQstPartnerBanner(pflicht)
-                 + renderQstTarifWarnBanner(pflicht)
                  // Walter-Vorgabe 04.08.2026: Kantonswechsel-Hinweis direkt
                  // darunter — Wohnkanton ≠ Kanton der aktuellen QST-Version
                  // → «🚚 Umzug erfassen» (Monatsregel Kreisschreiben 45).
@@ -4026,6 +4036,19 @@ function renderQuellensteuerTab(el, entries, pflicht) {
         const code     = e.tarifCode
             ? `${e.tarifCode}${e.anzahlKinder ?? 0}${e.kirchensteuer ? 'Y' : 'N'}`
             : (e.qstCode ?? '–');
+        // Tarif-Warnungen direkt in der AKTUELL-Zeile (Walter 23.08.2026):
+        // falscher Code ROT, daneben der richtige Server-Vorschlag in Grün.
+        const zeilenWarnungen = (isCurrent && Array.isArray(pflicht?.tarifWarnungen))
+            ? pflicht.tarifWarnungen : [];
+        const vorschlagCode = (vorschlag && vorschlag.qstCode) ? vorschlag.qstCode : '';
+        const codeHtml = zeilenWarnungen.length
+            ? `<strong style="color:#b91c1c">⚠ ${code}</strong>`
+              + (vorschlagCode && vorschlagCode !== code
+                    ? ` <span style="color:#15803d;font-weight:700">→ richtig wäre ${vorschlagCode}</span>` : '')
+            : `<strong>${code}</strong>`;
+        const warnZeilenHtml = zeilenWarnungen.length
+            ? `<div style="font-size:12px;color:#b91c1c;margin-top:5px;line-height:1.45">${zeilenWarnungen.map(x => '⚠ ' + esc(x)).join('<br>')}</div>`
+            : '';
         const kinder   = e.anzahlKinder   ?? 0;
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
@@ -4040,8 +4063,8 @@ function renderQuellensteuerTab(el, entries, pflicht) {
                         <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
-                        Kanton <strong>${kanton}</strong> · Code <strong>${code}</strong> · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
-                    </div>
+                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
+                    </div>${warnZeilenHtml}
                 </div>
                 <!-- Tarifbestätigung als Beleg (Walter 21.08.2026) — auch bei
                      gesperrten Einträgen verknüpfbar (reiner Beleg, kein Lock). -->
