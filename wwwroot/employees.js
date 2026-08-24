@@ -14404,17 +14404,58 @@ function _raTilesHtml() {
 }
 
 // Blanko-Bewerbungsbogen der gewählten Filiale (Walter 27.07.2026).
-// Blanko «Quellensteuer-Informationen» (Walter 23.08.2026) — gleiche
-// Machart wie der Bewerbungsbogen: Filiale aus dem Sidebar-Selektor,
-// Vorschaufenster mit Drucken/Herunterladen.
+// «Quellensteuer-Informationen» (Walter 23.08.2026 v2): kleiner Dialog mit
+// MA-Auswahl — MA gewählt = Formular mit allen bekannten Angaben vorbefüllt,
+// keine Auswahl = Blanko. Filiale aus dem Sidebar-Selektor.
 async function raQstInfoPdf() {
     const cpId = fixedCompanyProfileId
         || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
         || selectedEmployee?.employments?.[0]?.companyProfileId;
     if (!cpId) return alert('Bitte zuerst eine Filiale wählen.');
+
+    // MA der Filiale laden (aktive Verträge in dieser Filiale), Vorname-sortiert.
+    let maListe = [];
+    try {
+        const lookup = typeof loadEmployeeLookup === 'function' ? await loadEmployeeLookup() : [];
+        maListe = (lookup || [])
+            .filter(e => (e.employments || []).some(v =>
+                Number(v.companyProfileId) === Number(cpId) && v.isActive))
+            .sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '')
+                         || (a.lastName || '').localeCompare(b.lastName || ''));
+    } catch (_) { /* Dialog geht auch ohne Liste (nur Blanko) */ }
+
+    document.getElementById('qstInfoDlg')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'qstInfoDlg';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:440px;width:92%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Quellensteuer-Informationen</div>
+        <div style="font-size:12.5px;color:#646464;margin-bottom:12px">
+            Mitarbeiter wählen = Formular mit den bekannten Angaben vorbefüllt.<br>
+            Ohne Auswahl = leeres Formular zum Handausfüllen.
+        </div>
+        <select id="qstInfoDlgMa" style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:10px;font-size:13.5px;background:white">
+            <option value="">— Blanko (ohne Mitarbeiter) —</option>
+            ${maListe.map(m => `<option value="${m.id}">${esc((m.firstName || '') + ' ' + (m.lastName || ''))}${m.employeeNumber ? ' · ' + m.employeeNumber : ''}</option>`).join('')}
+        </select>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+            <button onclick="document.getElementById('qstInfoDlg').remove()"
+                style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Abbrechen</button>
+            <button onclick="raQstInfoPdfGo(${cpId})"
+                style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Formular öffnen</button>
+        </div>
+    </div>`;
+    wrap.addEventListener('click', ev => { if (ev.target === wrap) wrap.remove(); });
+    document.body.appendChild(wrap);
+}
+
+async function raQstInfoPdfGo(cpId) {
+    const empId = document.getElementById('qstInfoDlgMa')?.value || '';
+    document.getElementById('qstInfoDlg')?.remove();
     try {
         await previewUrlFetch(
-            `/api/qst-info-formular/pdf?companyProfileId=${cpId}`,
+            `/api/qst-info-formular/pdf?companyProfileId=${cpId}${empId ? `&employeeId=${empId}` : ''}`,
             'Quellensteuer-Informationen.pdf',
             ah());
     } catch (e) { alert('Fehler: ' + e.message); }
