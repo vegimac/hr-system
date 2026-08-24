@@ -137,25 +137,28 @@ public class QstInfoFormularPdfService
 
             var zs = (p.Zivilstand ?? "").ToLowerInvariant();
             col.Item().PaddingTop(11).Text("Zivilstand").SemiBold().FontSize(9f);
+            // Alle 6 Optionen in EINER Zeile (Walter 23.08.2026): «getrennt»
+            // statt «getrennt lebend», Partnerschaft abgekürzt — passt so.
             col.Item().PaddingTop(4).Row(r =>
             {
                 r.AutoItem().Element(e => CheckLabel(e, "ledig", zs == "ledig"));
-                r.ConstantItem(16);
+                r.ConstantItem(12);
                 r.AutoItem().Element(e => CheckLabel(e, "verheiratet", zs == "verheiratet"));
-                r.ConstantItem(16);
-                r.AutoItem().Element(e => CheckLabel(e, "eingetragene Partnerschaft", zs == "eingetragen"));
-                r.ConstantItem(16);
+                r.ConstantItem(12);
+                r.AutoItem().Element(e => CheckLabel(e, "eingetr. Partnerschaft", zs == "eingetragen"));
+                r.ConstantItem(12);
                 r.AutoItem().Element(e => CheckLabel(e, "geschieden", zs == "geschieden"));
-                r.ConstantItem(16);
+                r.ConstantItem(12);
                 r.AutoItem().Element(e => CheckLabel(e, "verwitwet", zs == "verwitwet"));
+                r.ConstantItem(12);
+                r.AutoItem().Element(e => CheckLabel(e, "getrennt", p.GetrenntLebend));
             });
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.AutoItem().Element(e => CheckLabel(e, "getrennt lebend", p.GetrenntLebend));
-                r.ConstantItem(22);
                 r.RelativeItem(3).Element(e => LabeledLine(e, "Zivilstand seit", p.ZivilstandSeit));
                 r.ConstantItem(18);
                 r.RelativeItem(3).Element(e => LabeledLine(e, "getrennt seit", p.GetrenntSeit));
+                r.RelativeItem(3);
             });
 
             var kf = (p.Konfession ?? "").ToLowerInvariant();
