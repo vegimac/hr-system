@@ -6123,6 +6123,9 @@ async function saveEmpEdit() {
                     reloadLohnAfterQstChange(selectedEmployeeId);
                 }
             }
+            // QST-Prüfroutine (Walter 23.08.2026): Zivilstand/Konfession
+            // können den Tarif kippen — Auffälligkeiten sofort melden.
+            qstRecheckNachAenderung(selectedEmployeeId);
         }
     } catch {
         alert('Verbindungsfehler beim Speichern.');
@@ -6133,6 +6136,32 @@ function parseFloatOrNull(val) {
     if (val === '' || val === null || val === undefined) return null;
     const n = parseFloat(val);
     return isNaN(n) ? null : n;
+}
+
+// ── QST-Prüfroutine nach Stammdaten-Änderungen (Walter-Vorgabe 23.08.2026) ──
+// Läuft nach JEDEM Speichern der MA-Stammdaten (Zivilstand/Konfession) und
+// nach Anlegen/Ändern/Löschen von Familienmitgliedern (Ehepartner/Kind).
+// Holt die zentrale Prüfung (/qst-pflicht) und zeigt bei Auffälligkeiten
+// einen deutlichen Dialog mit Sprung in den QST-Tab — z.B. «Tarif A, aber
+// Kind im Haushalt → H1 prüfen» nach dem Löschen des Ehepartners.
+async function qstRecheckNachAenderung(empId) {
+    if (!empId) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/qst-pflicht`, { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        const hinweise = [];
+        if (j.isPflichtOffen) hinweise.push(j.message || 'QST-Pflicht offen — Erfassung fehlt.');
+        if (Array.isArray(j.partnerDatenMaengel)) hinweise.push(...j.partnerDatenMaengel);
+        if (Array.isArray(j.tarifWarnungen))      hinweise.push(...j.tarifWarnungen);
+        if (!hinweise.length) return;
+        const msg = 'Die Änderung betrifft die Quellensteuer:\n\n• '
+                  + hinweise.slice(0, 3).join('\n\n• ')
+                  + (hinweise.length > 3 ? `\n\n… und ${hinweise.length - 3} weitere Hinweise.` : '');
+        const go = await liquidConfirm(msg, {
+            title: 'QST prüfen', yesLabel: 'QST-Tab öffnen', noLabel: 'Später' });
+        if (go && typeof switchEmpTab === 'function') switchEmpTab('quellensteuer');
+    } catch (_) { /* Prüfung ist Komfort — nie den Speicher-Fluss stören */ }
 }
 
 // ══════════════════════════════════════════════
@@ -6638,6 +6667,9 @@ async function saveFamilyMember() {
         }
         closeFamilyModal();
         loadFamilieTab(selectedEmployeeId);
+        // QST-Prüfroutine (Walter 23.08.2026): Ehepartner/Kind-Änderungen
+        // können Tarif + Kinderziffer kippen — sofort melden.
+        qstRecheckNachAenderung(selectedEmployeeId);
     } catch {
         alert('Verbindungsfehler.');
     }
@@ -6652,6 +6684,9 @@ async function deleteFamilyMember(id) {
         });
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadFamilieTab(selectedEmployeeId);
+        // QST-Prüfroutine (Walter 23.08.2026): z.B. Ehemann gelöscht
+        // (Scheidung) → Tarif B/C stimmt nicht mehr, oder H-Ziffer ändert.
+        qstRecheckNachAenderung(selectedEmployeeId);
     } catch {
         alert('Verbindungsfehler.');
     }

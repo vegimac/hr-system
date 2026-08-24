@@ -649,7 +649,8 @@ public class DashboardService
         var qstCandidateIds = (Enabled("qst_pflicht_offen")
                                || Enabled("spouse_doku_fehlt")
                                || Enabled("employee_doku_fehlt")
-                               || Enabled("qst_partner_daten"))
+                               || Enabled("qst_partner_daten")
+                               || Enabled("qst_tarif_warnung"))
             ? await qstCandidatesQ.Select(e => e.Id).ToListAsync()
             : new List<int>();
         // Künftige Eintritte (z.B. Übertritt Sursee→Oftringen, Vertrag ab 1.9.):
@@ -720,6 +721,36 @@ public class DashboardService
                         EmployeeId     = empP.Id,
                         EmployeeNumber = empP.EmployeeNumber,
                         EmployeeName   = $"{empP.FirstName} {empP.LastName}".Trim()
+                    });
+                }
+            }
+            // 3c.i-c) QST-Tarif-Plausibilität für ALLE MA (Walter-Vorgabe
+            // 23.08.2026, «Suche bei allen MA»): z.B. Tarif A mit Kinderziffer
+            // ohne Behörden-Bewilligung/Beleg, A statt H bei Alleinerziehenden,
+            // Kirchensteuer vs. Konfession, Kinderziffer-Abweichung. Reiner
+            // HINWEIS (kein Lohnlauf-Block) — Klick springt in den QST-Tab.
+            if (Enabled("qst_tarif_warnung") && r.TarifWarnungen is { Count: > 0 })
+            {
+                var empT = await _db.Employees.FirstOrDefaultAsync(x => x.Id == empId);
+                if (empT != null)
+                {
+                    var grundT = string.Join(" · ", r.TarifWarnungen);
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "qst_tarif_warnung",
+                        Severity = SeverityState("qst_tarif_warnung", "warning"),
+                        Title    = "QST-Tarif prüfen (Plausibilität)",
+                        TitleKey = "alert.qstTarifWarnung",
+                        Subtitle = $"{empT.FirstName} {empT.LastName} · Personalnr. {empT.EmployeeNumber} · {grundT}",
+                        SubtitleKey = "subtitle.qstTarifWarnung",
+                        SubtitleArgs = new Dictionary<string, object> {
+                            ["name"]  = $"{empT.FirstName} {empT.LastName}".Trim(),
+                            ["empNr"] = empT.EmployeeNumber,
+                            ["grund"] = grundT
+                        },
+                        EmployeeId     = empT.Id,
+                        EmployeeNumber = empT.EmployeeNumber,
+                        EmployeeName   = $"{empT.FirstName} {empT.LastName}".Trim()
                     });
                 }
             }

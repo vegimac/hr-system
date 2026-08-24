@@ -92,6 +92,7 @@ const DASH_CATEGORY_META = {
     umzug_datum_offen:      { label: 'Umzugsdatum bestätigen',  icon: '🚚', color: '#b45309' },
     spouse_doku_fehlt:      { i18nKey: 'dash.cat.spouseDokuFehlt',  label: 'Ausweis Ehepartner',     icon: '🪪', color: '#b91c1c' },
     qst_partner_daten:      { label: 'Ehepartner-Angaben unvollständig (QST)', icon: '💍', color: '#b91c1c' },
+    qst_tarif_warnung:      { label: 'QST-Tarif prüfen (Plausibilität)', icon: '🧾', color: '#b45309' },
     kind_geschlecht_fehlt:  { label: 'Kind ohne Geschlecht (Familie)', icon: '🧒', color: '#b45309' },
     employee_doku_fehlt:    { i18nKey: 'dash.cat.employeeDokuFehlt',label: 'Ausweis Mitarbeiter',    icon: '🪪', color: '#b91c1c' },
     schwangerschaft:        { i18nKey: 'dash.cat.pregnancy',        label: 'Mutterschaft',           icon: '🤰', color: '#be185d' },
@@ -507,6 +508,7 @@ function dashTodoOnClick(a) {
             // QST-Kanton ≠ Wohnkanton (Walter 04.08.2026): direkt in den
             // QST-Tab des MA — dort wird der Tarif korrigiert.
             case 'qst_kanton_mismatch': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
+            case 'qst_tarif_warnung':   return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'spouse_doku_fehlt':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'qst_partner_daten':   return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;
             case 'kind_geschlecht_fehlt': return `onclick="dashOpenEmployeeFamilie(${a.employeeId})"`;

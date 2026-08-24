@@ -353,6 +353,19 @@ public class QstPflichtCheckService
                 : $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber {sollZiffer} Kind(er) wären QST-berechtigt — Ziffer prüfen (zu Gunsten des MA).");
         }
 
+        // Tarif A trotz berechtigter Kinder (Walter-Vorgabe 23.08.2026, Fall
+        // Gazale: geschieden, Kind lebt bei ihr, Erfassung stand auf A0N):
+        // Alleinstehende MIT QST-berechtigtem Kind im SELBEN Haushalt gehören
+        // in den Halbfamilien-Tarif H — nicht A. Eine Kinderziffer auf A
+        // (A1–A9) gäbe es nur mit ausdrücklicher Behördenbewilligung.
+        if (t == "A" && !isVerheiratet && berechtigtHaushalt > 0)
+            w.Add($"Tarif A erfasst, aber {berechtigtHaushalt} QST-berechtigte(s) Kind(er) im selben Haushalt — "
+                + $"als Alleinerziehende(r) ist Tarif H{berechtigtHaushalt} zu prüfen "
+                + "(Kinderziffer auf A nur mit Behördenbewilligung).");
+        else if (t == "A" && !isVerheiratet && berechtigtTotal > 0 && !erfassung.SpezielBewilligt)
+            w.Add($"Tarif A erfasst und {berechtigtTotal} QST-berechtigte(s) Kind(er) AUSSERHALB des Haushalts — "
+                + "ein Kinderabzug auf Tarif A (A1–A9) braucht eine Behördenbewilligung; sonst bleibt A0.");
+
         if (isVerheiratet && (t == "A" || t == "H"))
             w.Add($"Zivilstand «verheiratet», aber Tarif {t} — für Verheiratete gilt B (Alleinverdiener) oder C (Doppelverdiener).");
 
@@ -373,6 +386,13 @@ public class QstPflichtCheckService
         if (t == "A" && erfassung.AnzahlKinder > 0 && !erfassung.SpezielBewilligt)
             w.Add($"Tarif A mit Kinderziffer {erfassung.AnzahlKinder}: A1–9 gibt es NUR mit Bewilligung der Steuerbehörde "
                 + "(dann «Speziell bewilligt» setzen) — sonst gilt A0; Alimente laufen über die nachträgliche ordentliche Veranlagung.");
+        // Walter-Vorgabe 23.08.2026: «Speziell bewilligt» ohne verknüpften
+        // Beleg (Bewilligungsschreiben der Steuerbehörde) — das Häkchen allein
+        // reicht als Audit-Nachweis nicht; das Schreiben gehört verknüpft.
+        else if (t == "A" && erfassung.AnzahlKinder > 0 && erfassung.SpezielBewilligt
+                 && erfassung.DokumentId == null)
+            w.Add($"Tarif A{erfassung.AnzahlKinder} ist als «speziell bewilligt» markiert, aber es ist KEIN "
+                + "Beleg-Dokument verknüpft — das Bewilligungsschreiben der Steuerbehörde beim QST-Eintrag hinterlegen.");
 
         return w.Count > 0 ? w : null;
     }

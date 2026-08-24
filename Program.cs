@@ -443,6 +443,17 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (category) DO NOTHING;
     ");
 
+    // QST-Tarif-Plausibilität für alle MA (Walter 23.08.2026): Tarif A mit
+    // Kinderziffer ohne Bewilligung/Beleg, A statt H bei Alleinerziehenden,
+    // Kirchensteuer vs. Konfession, Kinderziffer-Abweichung — reiner Hinweis.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('qst_tarif_warnung', 'QST-Tarif prüfen (Plausibilität)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 29, 19, 'none')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // Kind ohne Geschlecht (Walter 20.08.2026): Datenqualitäts-Warnung —
     // Pflichtangabe für QST-Anmeldung/Behördenformulare fehlt.
     db.Database.ExecuteSqlRaw(@"
