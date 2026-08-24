@@ -729,11 +729,23 @@ public class EmployeePermitHistoryController : ControllerBase
             .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
         if (entry == null) return NotFound();
 
+        // AUSNAHME (Walter-Vorgabe 23.08.2026, analog zum Create): das Löschen
+        // ist lohn-neutral, solange ein ANDERER Eintrag derselben Kategorie
+        // bestehen bleibt (z.B. Doppel-Erfassung derselben B-Verlängerung —
+        // der MA bleibt danach lückenlos in derselben Kategorie, QST-Pflicht
+        // und Lohnrechnung ändern sich rückwirkend nicht). Nur wenn der
+        // LETZTE Eintrag einer Kategorie verschwinden würde, bleibt der Lock.
+        var gleicheKategorieBleibt = entry.PermitTypeId.HasValue
+            && await _db.EmployeePermitHistories.AsNoTracking()
+                .AnyAsync(h => h.EmployeeId == employeeId
+                            && h.Id != entry.Id
+                            && h.PermitTypeId == entry.PermitTypeId);
+
         var branchIdD     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowedD = branchIdD.HasValue
             ? await _editLock.GetFirstAllowedDateAsync(User, branchIdD.Value)
             : null;
-        if (firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
+        if (!gleicheKategorieBleibt && firstAllowedD.HasValue && entry.ValidFrom < firstAllowedD.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
