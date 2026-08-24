@@ -698,6 +698,20 @@ public class DocumentsController : ControllerBase
     {
         var m = Regex.Match(txt, @"\bCHE\s+([LBCGNF])\1?\b");
         if (m.Success) return m.Groups[1].Value;
+        // MRZ-Dokumentencode «A<Kategorie>CHE<Serie>» (Walter 23.08.2026,
+        // Fall Gazale): Zeile 1 der Karten-MRZ lautet z.B. ABCHEGA1259406… —
+        // der Kategorie-Buchstabe steht zwischen führendem A und CHE. Die
+        // Serien-Nr dahinter (2 Buchstaben + 7 Ziffern) macht Fehltreffer im
+        // Fliesstext praktisch unmöglich; bewusst CASE-SENSITIVE (schliesst
+        // Wörter wie «Arche» aus). Die MRZ ist das verlässlichste Signal —
+        // OCR-optimierte Schrift, auf der Karte mehrfach vorhanden.
+        m = Regex.Match(txt, @"\bA([LBCGNF])CHE[A-Z]{2}\d{7}");
+        if (m.Success) return m.Groups[1].Value;
+        // OCR-Verwechslungs-Toleranz NUR für dieses MRZ-Muster: B wird auf
+        // schwachen Scans gern als R gelesen (Gazale: «ARCHEGA…»). Bewusst
+        // einzig R→B — keine weiteren Mappings ohne belegten Fall.
+        m = Regex.Match(txt, @"\bARCHE[A-Z]{2}\d{7}");
+        if (m.Success) return "B";
         m = Regex.Match(txt, @"Ausweis\s+([LBCGNF])\b", RegexOptions.IgnoreCase);
         if (m.Success) return m.Groups[1].Value.ToUpperInvariant();
         // Neueres Karten-Layout (Walter 12.07.2026, B-Ausweis Tomova):
