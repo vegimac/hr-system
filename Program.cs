@@ -158,6 +158,7 @@ builder.Services.AddScoped<AufforderungZurArbeitPdfService>();
 builder.Services.AddScoped<ArbeitszeugnisPdfService>();
 builder.Services.AddScoped<VerwarnungPdfService>();
 builder.Services.AddScoped<BewerbungsbogenPdfService>();
+builder.Services.AddScoped<QstInfoFormularPdfService>();
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();
 builder.Services.AddScoped<MutterschaftPdfService>();

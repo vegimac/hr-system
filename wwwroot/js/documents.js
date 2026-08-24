@@ -488,10 +488,16 @@ function renderDokTableRow(d, showCategoryColumns) {
     const erstelltIso = d.erstelltAm || d.gueltigVon || d.hochgeladenAm;
     const clickable = isPdf || isImg || isOffice;
     const titleAttr = (d.filenameOriginal || '').replace(/"/g,'&quot;');
+    // Wer hat hochgeladen (Walter-Vorgabe 23.08.2026): kleines graues
+    // ⬆-Kürzel hinter der Beschreibung — der Name kommt vom Server
+    // (hochgeladenVonName, seit 14.08. in der API).
+    const uploaderTag = d.hochgeladenVonName
+        ? ` <span style="font-size:11px;color:#8b8b8b;white-space:nowrap" title="Hochgeladen von ${esc(d.hochgeladenVonName)}${d.hochgeladenAm ? ' am ' + fmtD(d.hochgeladenAm) : ''}">⬆ ${esc(d.hochgeladenVonName)}</span>`
+        : '';
     const description = clickable
-        ? `<span class="dok-name-line" style="cursor:pointer;color:#6b7280;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`
-        : `<span class="dok-name-line" title="${titleAttr}">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}`;
-    const dateCells = `<td class="dok-date-cell">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td>`;
+        ? `<span class="dok-name-line" style="cursor:pointer;color:#6b7280;text-decoration:underline" title="Vorschau öffnen: ${titleAttr}" onclick="dokOpenPreviewPanel(${d.id})">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}${uploaderTag}`
+        : `<span class="dok-name-line" title="${titleAttr}">${icon}${beschreibungInner}</span>${typeTag}${expiryBadge ? ' ' + expiryBadge : ''}${uploaderTag}`;
+    const dateCells = `<td class="dok-date-cell" title="Hochgeladen${d.hochgeladenVonName ? ' von ' + esc(d.hochgeladenVonName) : ''}${d.hochgeladenAm ? ' am ' + fmtD(d.hochgeladenAm) : ''}">${fmtD(erstelltIso)}</td><td class="dok-date-cell">${fmtD(d.geaendertAm)}</td>`;
 
     // Download + Löschen nur für Admin/Superuser. Normaler Benutzer kann
     // Vorschau, Einzel-Upload, Bearbeiten — aber keine Datei lokal ziehen

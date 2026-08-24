@@ -14404,6 +14404,22 @@ function _raTilesHtml() {
 }
 
 // Blanko-Bewerbungsbogen der gewählten Filiale (Walter 27.07.2026).
+// Blanko «Quellensteuer-Informationen» (Walter 23.08.2026) — gleiche
+// Machart wie der Bewerbungsbogen: Filiale aus dem Sidebar-Selektor,
+// Vorschaufenster mit Drucken/Herunterladen.
+async function raQstInfoPdf() {
+    const cpId = fixedCompanyProfileId
+        || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
+        || selectedEmployee?.employments?.[0]?.companyProfileId;
+    if (!cpId) return alert('Bitte zuerst eine Filiale wählen.');
+    try {
+        await previewUrlFetch(
+            `/api/qst-info-formular/pdf?companyProfileId=${cpId}`,
+            'Quellensteuer-Informationen.pdf',
+            ah());
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
 async function raBewerbungsbogenPdf() {
     const cpId = fixedCompanyProfileId
         || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
