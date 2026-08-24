@@ -275,13 +275,13 @@ public class QstInfoFormularPdfService
                 r.ConstantItem(18);
                 r.RelativeItem(3).Element(e => LabeledLine(e, "Stellenantritt (Datum)", p.PartnerStellenantritt));
             });
+            // Haupt-/Nebenerwerb bewusst weggelassen (Walter 23.08.2026):
+            // das offizielle Anmeldeformular fragt es beim Partner nicht,
+            // tarifrelevant ist nur OB der Partner erwerbstätig ist.
             col.Item().PaddingTop(7).Row(r =>
             {
-                r.AutoItem().Element(e => CheckLabel(e, "Haupterwerb", false));
-                r.ConstantItem(16);
-                r.AutoItem().Element(e => CheckLabel(e, "Nebenerwerb", false));
-                r.ConstantItem(22);
                 r.RelativeItem(3).Element(e => LabeledLine(e, "Arbeitskanton", p.PartnerArbeitskanton));
+                r.RelativeItem(6);
             });
 
             // 5 · Kinder
@@ -346,8 +346,10 @@ public class QstInfoFormularPdfService
 
     private static void Check(IContainer e, bool isChecked)
     {
+        // Kreuz als ASCII-«X» (Walter 23.08.2026): das Unicode-✕ fehlt in
+        // Arial-Print und wurde als �-Kästchen gedruckt.
         var box = e.Width(12).Height(12).Border(1f).BorderColor(Ink);
-        if (isChecked) box.AlignCenter().AlignMiddle().Text("✕").FontSize(9f).Bold().FontColor(Ink);
+        if (isChecked) box.AlignCenter().AlignMiddle().Text("X").FontSize(9.5f).Bold().FontColor(Ink);
         else box.Text("");
     }
 
