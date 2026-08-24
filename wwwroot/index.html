@@ -1364,7 +1364,7 @@
                         <img src="img/Filialen.png?v=20260816a" alt="" loading="lazy">
                         <span>Filialen &amp; Benutzer</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente, Warnungen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente">
                         <img src="img/Verzeichnisse-Vorgaben.png?v=20260816a" alt="" loading="lazy">
                         <span>Verzeichnisse &amp; Vorgaben</span>
                     </button>
@@ -1376,7 +1376,7 @@
                         <img src="img/Kommunikation.png?v=20260816a" alt="" loading="lazy">
                         <span>Kommunikation</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Warnungen, Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung">
                         <img src="img/KontrolleDatenpflege.png?v=20260816a" alt="" loading="lazy">
                         <span>Kontrolle &amp; Datenpflege</span>
                     </button>
@@ -1481,11 +1481,6 @@
                         <div class="admin-card-title">Dokument-Struktur</div>
                         <div class="admin-card-desc">Kategorien & Typen für Personaldossier</div>
                     </div>
-                        <div class="admin-card" onclick="showPage('warnungen')">
-                        <img src="img/vvkat-warnungen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Warnungen</div>
-                        <div class="admin-card-desc">Dashboard-Warnungen: an/aus, Priorität, Warnfarbe, Vorlauf, Schweregrad</div>
-                    </div>
                     </div>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-import" style="display:none">
@@ -1538,6 +1533,14 @@
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-kontrolle" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <!-- Warnungen aus «Verzeichnisse & Vorgaben» hierher
+                             verschoben (Walter-Vorgabe 23.08.2026): Pflege der
+                             Dashboard-Warnungen gehört zur Kontrolle/Datenpflege. -->
+                        <div class="admin-card" onclick="showPage('warnungen')">
+                        <img src="img/vvkat-warnungen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Warnungen</div>
+                        <div class="admin-card-desc">Dashboard-Warnungen: an/aus, Priorität, Warnfarbe, Vorlauf, Schweregrad</div>
+                    </div>
                         <div class="admin-card admin-only-card" onclick="showPage('audit-log')">
                         <img src="img/kontkat-audit-log.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Aktivitäts-Log</div>
@@ -8546,7 +8549,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260823d"></script>
+<script src="employees.js?v=20260823e"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

@@ -470,9 +470,24 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         entry.Kirchensteuer = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion);
 
-        var code = entry.QstCode?.Trim().ToUpperInvariant();
-        if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
-            entry.QstCode = code[..^1] + (entry.Kirchensteuer ? "Y" : "N");
+        // Walter-Vorgabe 23.08.2026 (Fall Hristijan: tarif_code=A, aber
+        // qst_code=C0N in der DB → Liste/Lohnzettel zeigten C0N, gerechnet
+        // wurde mit A!): qst_code ist ein reiner ANZEIGE-Cache und wird
+        // server-seitig IMMER aus Tarif + Kinderziffer + Kirchensteuer
+        // abgeleitet — nie mehr aus dem Client übernommen. Nur wenn kein
+        // TarifCode existiert (%-Sonderfälle), bleibt der bisherige Wert
+        // mit nachgezogenem Y/N-Suffix stehen.
+        if (!string.IsNullOrWhiteSpace(entry.TarifCode))
+        {
+            entry.QstCode = $"{entry.TarifCode.Trim().ToUpperInvariant()}"
+                          + $"{entry.AnzahlKinder}{(entry.Kirchensteuer ? "Y" : "N")}";
+        }
+        else
+        {
+            var code = entry.QstCode?.Trim().ToUpperInvariant();
+            if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
+                entry.QstCode = code[..^1] + (entry.Kirchensteuer ? "Y" : "N");
+        }
     }
 
     private static readonly Dictionary<string, string> KantonNamen = new(StringComparer.OrdinalIgnoreCase)

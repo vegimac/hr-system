@@ -4094,7 +4094,13 @@ public class PayrollCalculationEngine
         // 0%-Stufe). Sonst denkt der GF, die QST sei «nicht berechnet».
         if (qstBetrag < 0) qstBetrag = 0;
 
-        string qstCode     = einstellung.QstCode ?? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}";
+        // Walter-Vorgabe 23.08.2026: der Lohnzettel-Text zeigt IMMER den Code,
+        // mit dem tatsächlich gerechnet wird (TarifCode+Kinder+Kirchensteuer) —
+        // qst_code ist nur Anzeige-Cache und war vereinzelt inkonsistent
+        // (A gerechnet, C0N angezeigt). Fallback qst_code nur ohne TarifCode.
+        string qstCode     = !string.IsNullOrWhiteSpace(einstellung.TarifCode)
+            ? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}"
+            : (einstellung.QstCode ?? "");
 
         return new DeductionRule
         {

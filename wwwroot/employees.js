@@ -4020,7 +4020,12 @@ function renderQuellensteuerTab(el, entries, pflicht) {
         const vonStr   = e.validFrom ? formatDate(e.validFrom) : '–';
         const bisStr   = e.validTo   ? formatDate(e.validTo)   : '…';
         const kanton   = e.steuerkanton   ?? '–';
-        const code     = e.qstCode        ?? (e.tarifCode ? `${e.tarifCode}${e.anzahlKinder ?? 0}${e.kirchensteuer ? 'Y' : 'N'}` : '–');
+        // Walter-Vorgabe 23.08.2026: IMMER aus den gerechneten Feldern
+        // zusammensetzen (tarifCode+Kinder+Kirchensteuer) — qstCode ist nur
+        // Cache und war vereinzelt inkonsistent (zeigte C0N, gerechnet A).
+        const code     = e.tarifCode
+            ? `${e.tarifCode}${e.anzahlKinder ?? 0}${e.kirchensteuer ? 'Y' : 'N'}`
+            : (e.qstCode ?? '–');
         const kinder   = e.anzahlKinder   ?? 0;
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
