@@ -242,11 +242,26 @@ public class EmployeePermitHistoryController : ControllerBase
             return BadRequest(new { error = "Gültig bis darf nicht vor Gültig ab liegen." });
 
         // Walter 17.05.2026: ValidFrom darf nicht rückwirkend in verarbeitete Periode.
+        // AUSNAHME (Walter-Vorgabe 23.08.2026, Fall «neuer Ausweis einlesen»):
+        // eine VERLÄNGERUNG derselben Kategorie (z.B. B → B, Ausstellungsdatum
+        // liegt in einer verarbeiteten Periode) ist lohn-neutral — weder
+        // QST-Pflicht noch irgendeine Lohnrechnung ändern sich dadurch
+        // rückwirkend. Der Lock greift nur noch bei KATEGORIE-WECHSEL
+        // (z.B. B → C: QST-Pflicht kippt!) oder Einbürgerung (Typ → NULL).
+        var vorherigerTypId = await _db.EmployeePermitHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == employeeId)
+            .OrderByDescending(h => h.ValidFrom)
+            .Select(h => h.PermitTypeId)
+            .FirstOrDefaultAsync();
+        var gleicheKategorie = vorherigerTypId.HasValue
+                            && dto.PermitTypeId.HasValue
+                            && vorherigerTypId.Value == dto.PermitTypeId.Value;
+
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = branchId.HasValue
             ? await _editLock.GetFirstAllowedDateAsync(User, branchId.Value)
             : null;
-        if (firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
+        if (!gleicheKategorie && firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
