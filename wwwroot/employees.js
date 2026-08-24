@@ -13601,6 +13601,9 @@ function togglePermitHistory() {
 }
 
 async function openPermitHistoryModal(entryId) {
+    // Auto-Verknüpfung des gelesenen Ausweis-Dokus (Walter 23.08.2026):
+    // wird beim OCR gesetzt, beim Öffnen des Modals zurückgesetzt.
+    window._phfOcrDocId = null;
     if (!selectedEmployeeId) return;
     const permitTypes = await getPermitTypes();
     const entry = entryId ? (_permitHistoryCache.find(h => h.id === entryId) || null) : null;
@@ -13761,7 +13764,10 @@ async function savePermitHistoryEntry(entryId) {
         permitTypeId:     permitTypeRaw ? parseInt(permitTypeRaw) : null,
         validFrom:        document.getElementById('phf-validFrom').value,
         validTo:          document.getElementById('phf-validTo').value || null,
-        note:             document.getElementById('phf-note').value.trim() || null
+        note:             document.getElementById('phf-note').value.trim() || null,
+        // Gelesener Ausweis-Scan automatisch mitverknüpfen (Walter 23.08.2026,
+        // nur beim Neu-Anlegen — bestehende Einträge behalten ihr Doku).
+        dokumentId:       !entryId && window._phfOcrDocId ? window._phfOcrDocId : null
     };
     const errEl = document.getElementById('phf-error');
     errEl.textContent = '';
@@ -14150,6 +14156,10 @@ async function phfOcrPermit(docId) {
             res.textContent = j.message || j.error || ('OCR fehlgeschlagen (HTTP ' + r.status + ')');
             return;
         }
+        // Walter-Vorgabe 23.08.2026: der gelesene Ausweis-Scan wird beim
+        // Speichern automatisch mit dem neuen Bewilligungs-Eintrag verknüpft
+        // (dokumentId im Create-DTO) — kein manuelles «Doku verknüpfen» mehr.
+        window._phfOcrDocId = docId;
         const parts = [];
         if (j.permitCode) {
             const typId = window._phfPermitCodeMap?.[j.permitCode.toUpperCase()];
