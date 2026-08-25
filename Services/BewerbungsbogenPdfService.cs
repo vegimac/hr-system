@@ -89,6 +89,19 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "E-Mail"));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            // Notfallkontakt (Walter 25.08.2026 v3): bei den Personalien des
+            // Kandidaten — direkt nach Geb.-Datum/Nationalität, fett, eine Zeile.
+            col.Item().PaddingTop(9).Row(r =>
+            {
+                r.AutoItem().AlignBottom().PaddingBottom(2)
+                    .Text("Notfallkontakt").Bold().FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Name"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Beziehung"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
+            });
             // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
             // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
             // bei Handausfüllung).
@@ -176,8 +189,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
                 hinweis: "Falls ja, bitte unten ausfüllen"));
+            // Walter 25.08.2026: 2 statt 3 Zeilen — «so viele Arbeitgeber hat niemand».
             col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
 
@@ -254,20 +267,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
-            // Notfallkontakt (Walter-Vorgabe 25.08.2026, verdichtet v2: der
-            // Bogen MUSS auf 2 Seiten bleiben): EINE Zeile innerhalb von
-            // «Ergänzende Angaben» — fetter Lead + drei fette Schreibfelder.
-            col.Item().PaddingTop(6).Row(r =>
-            {
-                r.AutoItem().AlignBottom().PaddingBottom(2)
-                    .Text("Notfallkontakt").Bold().FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(10);
-                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Name"));
-                r.ConstantItem(12);
-                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Beziehung"));
-                r.ConstantItem(12);
-                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
-            });
+            // Notfallkontakt: seit 25.08.2026 v3 auf SEITE 1 bei den
+            // Personalien (nach Geb.-Datum/Nationalität) — hier entfernt.
 
             // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
             // vorbestraft / bevormundet / Militaer) entfernt (Walter 13.08.2026).

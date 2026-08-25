@@ -1136,7 +1136,8 @@ function renderEmployeeDetail(emp) {
         ? `<span class="emp-hfact-with-act">${_hcNf.telefon
                 ? `<a class="emp-hfact-act" href="tel:${esc(_hcNfHref)}" title="Notfallkontakt anrufen: ${esc(_hcNf.telefon)}" aria-label="Notfallkontakt anrufen">${_hcActIcon('tel')}</a>`
                 : ''}<span class="emp-hfact-txt" style="cursor:pointer" onclick="openNotfallModal()"
-                title="${esc(_hcNf.name)}${_hcNf.beziehung ? ' (' + esc(_hcNf.beziehung) + ')' : ''}${_hcNf.telefon ? ' · ' + esc(_hcNf.telefon) : ' — Telefon fehlt'} — Klick: ändern">${esc(_hcNf.name)}${_hcNf.telefon
+                title="Notfallkontakt — Klick: ändern">${esc(_hcNf.name)}${_hcNf.beziehung
+                ? ` <span style="color:#8b8b8b;font-weight:500">(${esc(_hcNf.beziehung)})</span>` : ''}${_hcNf.telefon
                 ? ` · ${esc(_hcNf.telefon)}`
                 : ' · <span style="color:#b91c1c">Tel. fehlt</span>'}</span></span>`
         : `<span style="color:#8b8b8b;font-weight:500;cursor:pointer" onclick="openNotfallModal()" title="Notfallkontakt erfassen">– erfassen –</span>`;
@@ -1165,8 +1166,8 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-hfact">
                         <div class="emp-hfact-l">${_t('ma.detail.entryDate','Eintritt')}</div>
                         <div class="emp-hfact-v">${(emp.entryDate ? entry : null) || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div>
-                        <div style="display:flex;align-items:center;gap:5px;margin-top:2px;width:380px;font-size:12.5px">
-                            <span>🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:3px;width:460px;font-size:15px;font-weight:700;color:#0a0a0a">
+                            <span style="font-size:22px;line-height:1">🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
                         </div>
                     </div>
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
