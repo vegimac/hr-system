@@ -1127,6 +1127,20 @@ function renderEmployeeDetail(emp) {
         ? `<span class="emp-hfact-with-act" style="display:flex;flex-direction:column;align-items:flex-start"><span style="display:flex;align-items:center;gap:6px"><a class="emp-hfact-act" href="mailto:${esc(emp.email)}" title="E-Mail an ${esc(emp.email)}" aria-label="E-Mail schreiben">${_hcActIcon('mail')}</a><span class="emp-hfact-txt" title="${esc(emp.email)}">${esc(emp.email)}</span></span>${_appChip}</span>`
         : null;
 
+    // 🆘 Notfallkontakt als 5. Fakten-Spalte (Walter 25.08.2026): kompakt
+    // Name · Nummer (anrufbar), Beziehung im Tooltip; Klick auf den Text
+    // öffnet das Notfall-Modal. Ohne Erfassung: «– erfassen –» in grau.
+    const _hcNf = emp.notfallKontakt;
+    const _hcNfHref = (_hcNf?.telefon || '').replace(/[\s\-().]/g, '');
+    const _hcNotfallVal = _hcNf
+        ? `<span class="emp-hfact-with-act">${_hcNf.telefon
+                ? `<a class="emp-hfact-act" href="tel:${esc(_hcNfHref)}" title="Notfallkontakt anrufen: ${esc(_hcNf.telefon)}" aria-label="Notfallkontakt anrufen">${_hcActIcon('tel')}</a>`
+                : ''}<span class="emp-hfact-txt" style="cursor:pointer" onclick="openNotfallModal()"
+                title="${esc(_hcNf.name)}${_hcNf.beziehung ? ' (' + esc(_hcNf.beziehung) + ')' : ''}${_hcNf.telefon ? ' · ' + esc(_hcNf.telefon) : ' — Telefon fehlt'} — Klick: ändern">${esc(_hcNf.name)}${_hcNf.telefon
+                ? ` · ${esc(_hcNf.telefon)}`
+                : ' · <span style="color:#b91c1c">Tel. fehlt</span>'}</span></span>`
+        : `<span style="color:#8b8b8b;font-weight:500;cursor:pointer" onclick="openNotfallModal()" title="Notfallkontakt erfassen">– erfassen –</span>`;
+
     panel.innerHTML = `
     <div class="emp-detail-header">
         <div style="display:flex;align-items:flex-start;justify-content:flex-start;gap:16px">
@@ -1147,6 +1161,7 @@ function renderEmployeeDetail(emp) {
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
+                    ${_hcFact('🆘 Notfall', _hcNotfallVal)}
                 </div>
             </div>
             <!-- Rechte Aktions-Spalte ABSOLUT positioniert (Walter 17.07.2026:

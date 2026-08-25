@@ -3651,7 +3651,8 @@
            festen X-Positionen, springt bei keinem MA. Spart eine Zeile. */
         .emp-hfacts {
             display: grid;
-            grid-template-columns: 150px 250px 230px minmax(0, 1fr);
+            /* 5. Spalte «Notfall» (Walter 25.08.2026) — Kopf bleibt gleich hoch */
+            grid-template-columns: 150px 250px 230px minmax(0, 1.15fr) minmax(0, 1fr);
             margin-top: 10px;
         }
         .emp-hfact { min-width: 0; padding: 0 16px 0 0; }
