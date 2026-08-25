@@ -1,22 +1,42 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
-  <!-- Notfallkontakte (Walter 25.08.2026) — Kohle-Skizzen-Stil wie die
-       übrigen McAdmin-Kacheln: Listenblatt + Notfall-Kreuz + Telefonhörer -->
-  <g stroke="#3a3a3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-    <!-- Listenblatt, leicht schräg für den Hand-Skizzen-Look -->
-    <path d="M24 16 L79 13.5 Q82.5 13.4 82.7 17 L85 96 Q85.2 99.5 81.7 99.7 L27.5 102.2 Q24 102.4 23.8 98.8 L21.7 19.6 Q21.5 16.2 24 16 Z" fill="#ffffff"/>
-    <!-- Listenzeilen: Punkt + Linie -->
-    <circle cx="31.5" cy="34" r="1.6" fill="#3a3a3a" stroke="none"/>
-    <path d="M38 33.4 L72 32.2"/>
-    <circle cx="32" cy="48" r="1.6" fill="#3a3a3a" stroke="none"/>
-    <path d="M38.5 47.4 L74 46.2"/>
-    <circle cx="32.5" cy="62" r="1.6" fill="#3a3a3a" stroke="none"/>
-    <path d="M39 61.4 L68 60.4"/>
-    <circle cx="33" cy="76" r="1.6" fill="#3a3a3a" stroke="none"/>
-    <path d="M39.5 75.4 L64 74.6"/>
-    <!-- Notfall-Kreuz im Kreis, oben rechts überlappend -->
-    <circle cx="92" cy="34" r="19" fill="#ffffff"/>
-    <path d="M92 24.5 L92 43.5 M82.5 34 L101.5 34" stroke-width="6"/>
-    <!-- Telefonhörer unten rechts -->
-    <path d="M72 92 Q70 86 76.5 83.5 L81 82 Q84 81.2 85.5 84 L87.5 88 Q88.7 90.6 86.3 92.4 L84 94 Q87 100 93.5 103.5 L95.5 101.5 Q97.5 99.4 100 100.9 L104 103.3 Q106.7 105 105.6 108 L104 112.3 Q102 118 96 116 Q84 112 77.5 103.5 Q73.5 98.4 72 92 Z" fill="#ffffff"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 280">
+    <!-- Kohle-Skizzen-Icon «Notfallkontakte» (Walter 25.08.2026)
+         Stil wie absenzkalender.svg / Walters Sketch-PNGs: wacklige
+         Doppelstriche (C-Kurven), rau gefüllte Akzente, Schraffur. -->
+    <g fill="none" stroke="#4a4a4a" stroke-linecap="round" stroke-linejoin="round">
+
+        <!-- Listenblatt: leicht schräg, wackliger Rahmen, doppelt nachgezogen -->
+        <path d="M62 40 C60 96 61 160 64 232 C112 236 158 235 196 232 C199 168 198 104 195 46 C150 41 104 39 62 40 Z"
+              stroke-width="6"/>
+        <path d="M67 46 C65 98 66 158 68 226 C112 229 154 229 190 226 C192 166 191 106 189 52"
+              stroke-width="2.5" opacity="0.45"/>
+
+        <!-- Eselsohr oben rechts -->
+        <path d="M172 42 C173 52 174 60 176 66 C183 65 190 64 196 62" stroke-width="4"/>
+
+        <!-- Listenzeilen: Punkt + wacklige Linie -->
+        <ellipse cx="84" cy="84" rx="4.5" ry="4" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M100 84 C126 82 152 82 172 84" stroke-width="5"/>
+        <ellipse cx="85" cy="120" rx="4.5" ry="4" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M101 120 C128 118 154 118 176 120" stroke-width="5"/>
+        <ellipse cx="85" cy="156" rx="4.5" ry="4" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M101 156 C124 154 146 154 164 156" stroke-width="5"/>
+        <ellipse cx="86" cy="192" rx="4.5" ry="4" fill="#4a4a4a" stroke-width="2"/>
+        <path d="M102 192 C122 190 140 190 156 192" stroke-width="5"/>
+
+        <!-- Notfall-Kreuz oben rechts: rau gefüllter Kreis, weisses Kreuz -->
+        <path d="M196 34 C214 28 234 36 242 52 C250 69 244 90 228 98 C211 106 190 100 182 83 C174 66 180 42 196 34 Z"
+              fill="#4a4a4a" stroke-width="5"/>
+        <path d="M199 40 C214 35 230 41 237 54 C244 68 240 85 226 92"
+              stroke="#5f5f5f" stroke-width="2" opacity="0.5"/>
+        <path d="M212 47 C211 60 211 73 212 85 M193 66 C206 65 219 65 231 66"
+              stroke="#f4f2ec" stroke-width="9"/>
+
+        <!-- Telefonhörer unten rechts: wacklige Skizze, leicht gedreht -->
+        <path d="M170 208 C166 196 172 188 184 185 C190 183 195 185 197 191 C199 196 200 201 197 205 C195 208 192 210 190 212 C196 224 206 234 218 239 C221 236 224 234 228 233 C232 232 236 234 238 239 C240 244 241 249 239 254 C236 262 228 265 219 262 C196 254 178 234 170 208 Z"
+              fill="#f4f2ec" stroke-width="6"/>
+        <path d="M178 210 C186 228 200 244 218 253" stroke-width="2.5" opacity="0.45"/>
+
+        <!-- Klingel-Striche am Hörer (Notfall-Akzent) -->
+        <path d="M156 236 C152 240 149 243 146 247 M162 248 C160 252 158 256 156 260" stroke-width="3.5"/>
+    </g>
 </svg>

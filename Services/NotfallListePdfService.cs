@@ -33,6 +33,8 @@ public class NotfallListePdfService
 
     public byte[] Generate(NotfallListeInput d)
     {
+        QuestPDF.Settings.License = LicenseType.Community;
+
         return Document.Create(doc =>
         {
             doc.Page(page =>
