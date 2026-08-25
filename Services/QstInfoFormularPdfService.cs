@@ -211,11 +211,12 @@ public class QstInfoFormularPdfService
             });
             col.Item().PaddingTop(7).Row(r =>
             {
+                // Bruttolohn dort ENTFERNT (Walter 25.08.2026: «das Einkommen
+                // muss nicht erfasst werden, nur die Stellenprozent»).
                 r.RelativeItem(2).Element(e => LabeledLine(e, "Pensum dort (%)"));
                 r.ConstantItem(18);
                 r.AutoItem().AlignBottom().PaddingBottom(1).Element(e => CheckLabel(e, "Pensum nicht ermittelbar", false));
-                r.ConstantItem(18);
-                r.RelativeItem(3).Element(e => LabeledLine(e, "Bruttolohn dort (CHF/Monat)"));
+                r.RelativeItem(3);
             });
             col.Item().PaddingTop(7).Element(e =>
                 LabeledLine(e, "Gesamtpensum ALLER Erwerbstätigkeiten (% oder Std./Woche)", p.GesamtPensum));

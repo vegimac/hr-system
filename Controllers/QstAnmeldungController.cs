@@ -476,8 +476,17 @@ public class QstAnmeldungController : ControllerBase
                                   : qst.IsWochenaufenthalter                 ? "1"
                                   : null,
 
-            // Andere Erwerbstätigkeit — Override hat Vorrang, sonst Default Nein.
-            HatAndereErwerbJaNein = (overrides?.HasOtherEmployment == true) ? Ja : Nein,
+            // Andere Erwerbstätigkeit — Override hat Vorrang, sonst aus der
+            // QST-Erfassung (Walter 25.08.2026: Adresse des weiteren AG wird
+            // dort erfasst und fliesst hier aufs Behördenformular).
+            HatAndereErwerbJaNein = (overrides?.HasOtherEmployment ?? qst?.WeitereBeschaftigungen ?? false) ? Ja : Nein,
+            AndereArbeitgeberName          = qst?.WeitereAgName,
+            AndereArbeitgeberStrasse       = qst?.WeitereAgStrasse,
+            AndereArbeitgeberPlzOrtKanton  = qst == null ? null
+                : (string.Join(" ", new[] { qst.WeitereAgPlz, qst.WeitereAgOrt, qst.WeitereAgKanton }
+                    .Where(s => !string.IsNullOrWhiteSpace(s))).Trim() is { Length: > 0 } wagOrt ? wagOrt : null),
+            AndereArbeitgeberLand          = qst?.WeitereAgLand,
+            GesamtPensumProzent            = qst?.GesamtpensumWeitereAg?.ToString("0.##"),
 
             // Ehepartner
             EpGeschlecht    = ehepartner != null ? MapGeschlecht(ehepartner.Gender) : null,

@@ -66,6 +66,9 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.PartnerEmployeeId, q.PartnerEinkommenVon, q.PartnerEinkommenBis,
         q.ArbeitsortKanton, q.WeitereBeschaftigungen,
         q.GesamtpensumWeitereAg, q.GesamteinkommenWeitereAg,
+        // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse.
+        q.WeitereAgName, q.WeitereAgStrasse, q.WeitereAgPlz,
+        q.WeitereAgOrt, q.WeitereAgKanton, q.WeitereAgLand,
         q.Halbfamilie, q.WohnsitzAusland, q.Wohnsitzstaat, q.AdresseAusland,
         q.LivesInKonkubinat, q.HasJointParentalCare,
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
@@ -356,6 +359,13 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.WeitereBeschaftigungen     = dto.WeitereBeschaftigungen;
         entry.GesamtpensumWeitereAg      = dto.GesamtpensumWeitereAg;
         entry.GesamteinkommenWeitereAg   = dto.GesamteinkommenWeitereAg;
+        // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse.
+        entry.WeitereAgName              = dto.WeitereAgName;
+        entry.WeitereAgStrasse           = dto.WeitereAgStrasse;
+        entry.WeitereAgPlz               = dto.WeitereAgPlz;
+        entry.WeitereAgOrt               = dto.WeitereAgOrt;
+        entry.WeitereAgKanton            = dto.WeitereAgKanton;
+        entry.WeitereAgLand              = dto.WeitereAgLand;
         entry.Halbfamilie                = dto.Halbfamilie;
         entry.WohnsitzAusland            = dto.WohnsitzAusland;
         entry.Wohnsitzstaat              = dto.Wohnsitzstaat;

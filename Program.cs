@@ -2419,6 +2419,18 @@ using (var scope = app.Services.CreateScope())
            AND lebt_im_haushalt = TRUE;
     ");
 
+    // Walter 25.08.2026: anderer Arbeitgeber des MA in der QST-Erfassung —
+    // volle Adresse fürs kantonale Anmeldeformular (Einkommen entfällt).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_quellensteuer
+            ADD COLUMN IF NOT EXISTS weitere_ag_name    VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS weitere_ag_strasse VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS weitere_ag_plz     VARCHAR(10),
+            ADD COLUMN IF NOT EXISTS weitere_ag_ort     VARCHAR(120),
+            ADD COLUMN IF NOT EXISTS weitere_ag_kanton  VARCHAR(10),
+            ADD COLUMN IF NOT EXISTS weitere_ag_land    VARCHAR(60);
+    ");
+
     // Walter 25.08.2026: Konkubinat-Felder (docs/konkubinat-qst-konzept.md) —
     // K-Partner: hat der MA das höhere Bruttoeinkommen? (H1 vs. A0);
     // Kind: gemeinsames Kind mit dem Konkubinatspartner? NULL = Frage offen.

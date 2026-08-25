@@ -72,6 +72,17 @@ public class EmployeeQuellensteuer
     /// <summary>Gesamtpensum bei weiteren Arbeitgebern in %</summary>
     public decimal? GesamtpensumWeitereAg { get; set; }
 
+    // ── Anderer Arbeitgeber des MA (Walter-Vorgabe 25.08.2026): das
+    //    kantonale Anmeldeformular verlangt die VOLLE Adresse des weiteren
+    //    Arbeitgebers (Name/Strasse/PLZ/Ort/Kanton/Land) — das Einkommen
+    //    wird bewusst NICHT mehr erfasst, nur das Stellenpensum. ─────────
+    public string? WeitereAgName    { get; set; }
+    public string? WeitereAgStrasse { get; set; }
+    public string? WeitereAgPlz     { get; set; }
+    public string? WeitereAgOrt     { get; set; }
+    public string? WeitereAgKanton  { get; set; }
+    public string? WeitereAgLand    { get; set; }
+
     /// <summary>Gesamteinkommen bei weiteren Arbeitgebern pro Monat in CHF</summary>
     public decimal? GesamteinkommenWeitereAg { get; set; }
 

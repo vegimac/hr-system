@@ -2261,6 +2261,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ArbeitsortKanton).HasColumnName("arbeitsort_kanton").HasMaxLength(10);
             entity.Property(e => e.WeitereBeschaftigungen).HasColumnName("weitere_beschaeftigungen").HasDefaultValue(false);
             entity.Property(e => e.GesamtpensumWeitereAg).HasColumnName("gesamtpensum_weitere_ag").HasColumnType("numeric(5,2)");
+            // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse
+            // fürs kantonale Anmeldeformular; Einkommen wird nicht mehr erfasst.
+            entity.Property(e => e.WeitereAgName).HasColumnName("weitere_ag_name").HasMaxLength(150);
+            entity.Property(e => e.WeitereAgStrasse).HasColumnName("weitere_ag_strasse").HasMaxLength(150);
+            entity.Property(e => e.WeitereAgPlz).HasColumnName("weitere_ag_plz").HasMaxLength(10);
+            entity.Property(e => e.WeitereAgOrt).HasColumnName("weitere_ag_ort").HasMaxLength(120);
+            entity.Property(e => e.WeitereAgKanton).HasColumnName("weitere_ag_kanton").HasMaxLength(10);
+            entity.Property(e => e.WeitereAgLand).HasColumnName("weitere_ag_land").HasMaxLength(60);
             entity.Property(e => e.GesamteinkommenWeitereAg).HasColumnName("gesamteinkommen_weitere_ag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.Halbfamilie).HasColumnName("halbfamilie").HasMaxLength(100);
             entity.Property(e => e.WohnsitzAusland).HasColumnName("wohnsitz_ausland").HasMaxLength(100);

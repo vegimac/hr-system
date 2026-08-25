@@ -657,7 +657,15 @@ function populateQstForm(entry) {
     v('qstPartnerVon',     entry?.partnerEinkommenVon?.slice(0,10) ?? '');
     v('qstPartnerBis',     entry?.partnerEinkommenBis?.slice(0,10) ?? '');
     v('qstGesamtpensum',   entry?.gesamtpensumWeitereAg   ?? '');
-    v('qstGesamteinkommen',entry?.gesamteinkommenWeitereAg ?? '');
+    // Anderer Arbeitgeber des MA (Walter 25.08.2026) — volle Adresse; das
+    // Einkommen wird nicht mehr erfasst (Altwert bleibt in der DB erhalten).
+    v('qstWagName',    entry?.weitereAgName    ?? '');
+    v('qstWagStrasse', entry?.weitereAgStrasse ?? '');
+    v('qstWagPlz',     entry?.weitereAgPlz     ?? '');
+    v('qstWagOrt',     entry?.weitereAgOrt     ?? '');
+    v('qstWagKanton',  entry?.weitereAgKanton  ?? '');
+    v('qstWagLand',    entry?.weitereAgLand    ?? '');
+    window._qstGesEinkommenAlt = entry?.gesamteinkommenWeitereAg ?? null;
     qstSetHalbfamilie(entry?.halbfamilie ?? '');
     v('qstWohnsitzAusland',entry?.wohnsitzAusland          ?? '');
     v('qstWohnsitzstaat',  entry?.wohnsitzstaat            ?? '');
@@ -719,11 +727,12 @@ function buildQstCode() {
 
 function toggleQstWeitere() {
     const checked = document.getElementById('qstWeitere')?.checked;
-    // Im neuen kompakten Layout: zwei separate Wrapper im 3-Spalten-Grid
-    const f1 = document.getElementById('qstWeitereField1');
-    const f2 = document.getElementById('qstWeitereField2');
-    if (f1) f1.style.display = checked ? 'block' : 'none';
-    if (f2) f2.style.display = checked ? 'block' : 'none';
+    // Walter 25.08.2026: vier Wrapper — Arbeitgeber/Strasse/Pensum + volle
+    // Adresszeile (PLZ/Ort/Kanton/Land) für das Anmeldeformular.
+    ['qstWeitereField1', 'qstWeitereField2', 'qstWeitereField3', 'qstWeitereField4'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = checked ? 'block' : 'none';
+    });
     // Backwards-compat (falls noch irgendwo ein Element mit der alten ID existiert)
     const legacy = document.getElementById('qstWeitereFields');
     if (legacy) legacy.style.display = checked ? 'flex' : 'none';
@@ -767,7 +776,16 @@ async function saveQstEntry() {
         partnerEinkommenBis:  document.getElementById('qstPartnerBis').value       || null,
         weitereBeschaftigungen: document.getElementById('qstWeitere').checked,
         gesamtpensumWeitereAg:  parseFloat(document.getElementById('qstGesamtpensum').value)    || null,
-        gesamteinkommenWeitereAg: parseFloat(document.getElementById('qstGesamteinkommen').value) || null,
+        // Einkommen wird nicht mehr erfasst (Walter 25.08.2026) — Altwert
+        // unverändert mitschicken, damit bestehende Daten nicht gelöscht werden.
+        gesamteinkommenWeitereAg: window._qstGesEinkommenAlt ?? null,
+        // Anderer Arbeitgeber des MA — volle Adresse (Anmeldeformular).
+        weitereAgName:    document.getElementById('qstWagName')?.value.trim()    || null,
+        weitereAgStrasse: document.getElementById('qstWagStrasse')?.value.trim() || null,
+        weitereAgPlz:     document.getElementById('qstWagPlz')?.value.trim()     || null,
+        weitereAgOrt:     document.getElementById('qstWagOrt')?.value.trim()     || null,
+        weitereAgKanton:  (document.getElementById('qstWagKanton')?.value.trim().toUpperCase()) || null,
+        weitereAgLand:    document.getElementById('qstWagLand')?.value.trim()    || null,
         halbfamilie:          qstGetHalbfamilie()                                  || null,
         wohnsitzAusland:      document.getElementById('qstWohnsitzAusland').value  || null,
         wohnsitzstaat:        document.getElementById('qstWohnsitzstaat').value    || null,

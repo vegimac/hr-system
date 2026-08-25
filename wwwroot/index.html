@@ -8206,7 +8206,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260819a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260825b"></script>
+<script src="js/qst-modal.js?v=20260825c"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -9257,17 +9257,48 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
         <!-- Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
         <div style="display:grid;grid-template-columns:auto 180px 220px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
-            <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap">
+            <!-- Walter-Frage 25.08.2026: bezieht sich auf den MA (nicht den
+                 Partner) — Label präzisiert. Partner-Erwerb lebt im Familie-Tab. -->
+            <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap"
+                   title="Der/die MA hat neben Schaub weitere Arbeitgeber — KS-45-Hochrechnung für den satzbestimmenden Lohn. Die Erwerbstätigkeit des Ehe-/Konkubinatspartners wird im Familie-Tab erfasst.">
                 <input type="checkbox" id="qstWeitere" onchange="toggleQstWeitere()">
-                Weitere Beschäftigungen
+                Weitere Beschäftigungen des MA
             </label>
+            <!-- Walter 25.08.2026: VOLLE Adresse des anderen Arbeitgebers
+                 (wie auf dem kantonalen Anmeldeformular) — das Einkommen wird
+                 bewusst NICHT mehr erfasst, nur das Stellenpensum. -->
             <div id="qstWeitereField1" style="display:none">
+                <label class="qst-lbl">Arbeitgeber (Name)</label>
+                <input type="text" id="qstWagName" class="qst-inp" placeholder="Firma / Arbeitgeber">
+            </div>
+            <div id="qstWeitereField2" style="display:none">
+                <label class="qst-lbl">Strasse / Nr.</label>
+                <input type="text" id="qstWagStrasse" class="qst-inp" placeholder="z.B. Industriestrasse 13">
+            </div>
+            <div id="qstWeitereField3" style="display:none">
                 <label class="qst-lbl">Pensum weitere AG (%)</label>
                 <input type="number" id="qstGesamtpensum" step="1" min="0" max="100" class="qst-inp">
             </div>
-            <div id="qstWeitereField2" style="display:none">
-                <label class="qst-lbl">Einkommen weitere AG (CHF/Mt.)</label>
-                <input type="number" id="qstGesamteinkommen" step="0.05" class="qst-inp">
+            <div id="qstWeitereField4" style="display:none;grid-column:1 / -1">
+                <div style="display:grid;grid-template-columns:90px 1fr 90px 140px;gap:7px 10px">
+                    <div>
+                        <label class="qst-lbl">PLZ</label>
+                        <input type="text" id="qstWagPlz" class="qst-inp" inputmode="numeric" maxlength="4" placeholder="4665"
+                               oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'qstWagOrt', 'qstWagKanton', null, null)">
+                    </div>
+                    <div>
+                        <label class="qst-lbl">Ort</label>
+                        <input type="text" id="qstWagOrt" class="qst-inp" placeholder="z.B. Oftringen">
+                    </div>
+                    <div>
+                        <label class="qst-lbl">Kanton</label>
+                        <input type="text" id="qstWagKanton" class="qst-inp" maxlength="2" placeholder="AG">
+                    </div>
+                    <div>
+                        <label class="qst-lbl">Land</label>
+                        <input type="text" id="qstWagLand" class="qst-inp" placeholder="CH">
+                    </div>
+                </div>
             </div>
         </div>
 
