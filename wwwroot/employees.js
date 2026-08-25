@@ -6494,10 +6494,13 @@ async function famLoadSpouseDocs(member) {
         // nur beim MA ABGELEGTE Dokumente anzeigen — ein Doku im Postfach
         // muss zuerst beim MA abgelegt werden, sonst könnten falsche/fremde
         // Dokus erscheinen (Postfach kann Sammel-/Momentaufnahmen enthalten).
-        // 4) übrige Dokumente aus dem Doku-Tab (neueste zuerst)
+        // 4) übrige Dokumente aus dem Doku-Tab (neueste zuerst).
+        // Walter-Bug 25.08.2026: das frühere .slice(0, 25) hat bei MA mit
+        // vielen Krank-/Taggeld-Belegen ältere Dokus (z.B. «Anmeldung
+        // Quellensteuer») aus dem Dropdown gedrängt — ALLE anzeigen,
+        // das Dropdown scrollt.
         (alleDocs || [])
             .sort((a, b) => String(b.geaendertAm || b.hochgeladenAm || '').localeCompare(String(a.geaendertAm || a.hochgeladenAm || '')))
-            .slice(0, 25)
             .forEach(d => pushDoc(d, '📂 '));
 
         if (entries.length === 0) return;
