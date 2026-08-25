@@ -39,7 +39,9 @@ public class NotfallListePdfService
         {
             doc.Page(page =>
             {
-                page.Size(PageSizes.A4);
+                // Quer (Walter 25.08.2026): Platz für die Ankreuz-Beziehung
+                // und breite Schreiblinien; MA-Nr dafür weggelassen.
+                page.Size(PageSizes.A4.Landscape());
                 page.Margin(1.5f, Unit.Centimetre);
                 page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(9f).FontColor(Body));
 
@@ -60,12 +62,11 @@ public class NotfallListePdfService
                 {
                     t.ColumnsDefinition(c =>
                     {
-                        c.ConstantColumn(52);   // MA-Nr
-                        c.RelativeColumn(3);    // Vorname
-                        c.RelativeColumn(3);    // Name
-                        c.RelativeColumn(4);    // Notfall Name
-                        c.RelativeColumn(3);    // Beziehung
-                        c.RelativeColumn(3.4f); // Telefon
+                        c.RelativeColumn(2.6f); // Vorname
+                        c.RelativeColumn(2.6f); // Name
+                        c.RelativeColumn(3.6f); // Notfall Name
+                        c.RelativeColumn(4.2f); // Beziehung (Ankreuz-Reihe)
+                        c.RelativeColumn(3.0f); // Telefon
                     });
 
                     // Kopfzeile (wiederholt auf jeder Seite)
@@ -75,7 +76,6 @@ public class NotfallListePdfService
                             .BorderBottom(1f).BorderColor(Ink)
                             .PaddingVertical(4).PaddingHorizontal(4)
                             .Text(s).Bold().FontSize(8.5f).FontColor(Ink);
-                        Th("MA-Nr");
                         Th("Vorname");
                         Th("Name");
                         Th("Notfall — Name");
@@ -96,14 +96,50 @@ public class NotfallListePdfService
                                 .FontSize(9f).FontColor(Body);
                             if (fett) txt.Bold();
                         }
-                        Td(z.EmpNr);
                         Td(z.Vorname);
                         Td(z.Name);
                         Td(z.NotfallName, fett: true);
-                        Td(z.NotfallBeziehung);
+                        BeziehungCell(t, z.NotfallBeziehung);
                         Td(z.NotfallTelefon, fett: true);
                     }
                 });
+
+                static void BeziehungCell(TableDescriptor t, string? bez)
+                {
+                    // Ankreuz-Reihe (Walter 25.08.2026): ☐ Partner ☐ Kind
+                    // ☐ Andere ______ — bei erfasster Beziehung wird das
+                    // passende Kästchen mit X markiert (Ehepartner → Partner),
+                    // sonst bleibt alles leer zum Handankreuzen.
+                    var b = (bez ?? "").Trim().ToLowerInvariant();
+                    bool isPartner = b.Contains("partner") || b.Contains("ehe");
+                    bool isKind    = !isPartner && b.Contains("kind");
+                    bool isAndere  = b.Length > 0 && !isPartner && !isKind;
+
+                    t.Cell().BorderBottom(0.55f).BorderColor(Line)
+                        .PaddingVertical(3).PaddingHorizontal(4)
+                        .MinHeight(20).AlignBottom().PaddingBottom(2)
+                        .Row(r =>
+                        {
+                            void Chk(bool on, string label)
+                            {
+                                r.AutoItem().AlignMiddle().Width(9).Height(9)
+                                    .Border(0.8f).BorderColor(Body)
+                                    .AlignCenter().AlignMiddle()
+                                    .Text(on ? "X" : " ").Bold().FontSize(7f).FontColor(Ink);
+                                r.ConstantItem(3);
+                                r.AutoItem().AlignMiddle().Text(label).FontSize(7.5f).FontColor(Body);
+                                r.ConstantItem(7);
+                            }
+                            Chk(isPartner, "Partner");
+                            Chk(isKind, "Kind");
+                            Chk(isAndere, "Andere");
+                            // Schreiblinie für «Andere» — bei erfasstem
+                            // Freitext steht er direkt auf der Linie.
+                            r.RelativeItem().AlignBottom()
+                                .BorderBottom(0.55f).BorderColor(Line)
+                                .Text(isAndere ? bez! : " ").FontSize(7.5f).FontColor(Body);
+                        });
+                }
 
                 page.Footer().AlignRight().Text(txt =>
                 {
