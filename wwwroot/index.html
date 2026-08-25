@@ -8371,6 +8371,23 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 (erwerbstätig&nbsp;⇒&nbsp;C&nbsp;Doppelverdiener, nicht erwerbstätig&nbsp;⇒&nbsp;B).
             </div>
 
+            <!-- Gemeinsames Kind mit dem Konkubinatspartner (Walter 25.08.2026,
+                 docs/konkubinat-qst-konzept.md; prominent VOR der Adresse —
+                 Walter: «zu wichtig, um unten versteckt zu sein»): nur sichtbar
+                 bei Typ Kind UND wenn beim MA ein Konkubinatspartner erfasst
+                 ist. Entscheidet, ob die H1/A0-Einkommensregel greift. -->
+            <div id="fmGemKindRow" style="display:none;margin-bottom:12px">
+                <div class="fmf-field">
+                    <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Gemeinsames Kind mit dem Konkubinatspartner?
+                        <span style="font-weight:400;color:#8b8b8b">(nur mit gemeinsamem Kind gilt die H1/A0-Einkommensregel)</span></label>
+                    <div style="display:flex;gap:6px;align-items:center;min-height:28px">
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="" checked> –</label>
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="ja"> Ja</label>
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="nein"> Nein</label>
+                    </div>
+                </div>
+            </div>
+
             <!-- ── Adresse: lebt beim MA oder eigene (Zusatz-)Adresse ────────────── -->
             <div class="emp-section-title" data-i18n="fam.section.address">Adresse</div>
             <div class="fmf-addr-card">
@@ -8529,21 +8546,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <input type="checkbox" id="fmInErstausbildung">
                         <span class="fmf-checkbox-text">in Erstausbildung</span>
                     </label>
-                </div>
-            </div>
-            <!-- Gemeinsames Kind mit dem Konkubinatspartner (Walter 25.08.2026,
-                 docs/konkubinat-qst-konzept.md): nur sichtbar bei Typ Kind UND
-                 wenn beim MA ein Konkubinatspartner erfasst ist. Entscheidet,
-                 ob die H1/A0-Einkommensregel greift. -->
-            <div id="fmGemKindRow" style="display:none;margin-top:8px">
-                <div class="fmf-field">
-                    <label class="fmf-label">Gemeinsames Kind mit dem Konkubinatspartner?
-                        <span style="font-weight:400;color:#8b8b8b">(nur mit gemeinsamem Kind gilt die H1/A0-Einkommensregel)</span></label>
-                    <div style="display:flex;gap:6px;align-items:center;min-height:28px">
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="" checked> –</label>
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="ja"> Ja</label>
-                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="nein"> Nein</label>
-                    </div>
                 </div>
             </div>
             </div>
