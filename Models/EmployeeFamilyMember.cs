@@ -37,6 +37,16 @@ public class EmployeeFamilyMember
 
     public int? AlternativeAddressId { get; set; }
 
+    /// <summary>
+    /// Walter-Vorgabe 25.08.2026: lebt der/die Angehörige im GLEICHEN Haushalt
+    /// wie der MA? Ersetzt die frühere Ableitung «AlternativeAddressId == null
+    /// = im Haushalt» — die kannte den Zustand «nicht im Haushalt, ohne
+    /// erfasste Adresse» (ausgezogenes Kind) nicht. true = Hauptadresse MA;
+    /// false = eigener Haushalt (mit oder ohne AlternativeAddressId).
+    /// Für die QST-Haushalt-Logik (H-Tarif) ist NUR dieses Flag massgebend.
+    /// </summary>
+    public bool LebtImHaushalt { get; set; } = true;
+
     public DateTime? QstDeductibleFrom { get; set; }
     public DateTime? QstDeductibleUntil { get; set; }
 

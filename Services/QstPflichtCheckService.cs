@@ -316,7 +316,8 @@ public class QstPflichtCheckService
                      && f.MemberType == "Kind"
                      && f.DateOfDeath == null)
             .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
-                               f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
+                               f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung,
+                               f.LebtImHaushalt })
             .ToListAsync();
         var kindIds = kinderRaw.Select(f => f.Id).ToList();
         var azKindIds = kindIds.Count == 0
@@ -330,16 +331,18 @@ public class QstPflichtCheckService
                 .ToListAsync()).ToHashSet();
         var kinderChecked = kinderRaw.Select(f => new
         {
-            f.AlternativeAddressId,
+            // Walter 25.08.2026: expliziter Haushalt-Status statt Adress-Ableitung.
+            f.LebtImHaushalt,
             Berechtigt = QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
                 f.AlternativeAddressId,
-                f.InErstausbildung || azKindIds.Contains(f.Id)), stichtag)
+                f.InErstausbildung || azKindIds.Contains(f.Id),
+                f.LebtImHaushalt), stichtag)
         }).ToList();
         int berechtigtTotal   = kinderChecked.Count(k => k.Berechtigt);
-        int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.AlternativeAddressId == null);
+        int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt);
 
         // ── Kinderziffer-Abgleich (Walter 20.08.2026): erfasste Ziffer vs.
         // berechnete QST-berechtigte Kinder — reagiert z.B. wenn ein Kind 18

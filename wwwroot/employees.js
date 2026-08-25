@@ -4776,6 +4776,10 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 const tip  = [a.description, [a.street, a.street2].filter(Boolean).join(' / '), ort, land].filter(Boolean).join(' · ');
                 const short = ort || a.description || a.country || 'andere Adresse';
                 addrBadge = `<span class="fam-tile-badge fam-tile-badge-addr" title="${esc(tip)}">📍 ${esc(short)}</span>`;
+            } else if (m.lebtImHaushalt === false) {
+                // Walter 25.08.2026: nicht (mehr) im Haushalt, ohne erfasste
+                // Adresse (z.B. erwachsenes, ausgezogenes Kind) — QST-relevant.
+                addrBadge = `<span class="fam-tile-badge fam-tile-badge-addr" title="Lebt nicht (mehr) im gleichen Haushalt — keine Adresse erfasst">📍 nicht im Haushalt</span>`;
             }
 
             const memberJson = JSON.stringify(m).replace(/"/g, '&quot;');
@@ -6282,7 +6286,7 @@ function openFamilyModal(member) {
     }
 
     // ── Adresse: Radio-Modus + Dropdown der MA-Zusatzadressen befüllen
-    fmRefreshAddressUi(member?.alternativeAddressId ?? null);
+    fmRefreshAddressUi(member?.alternativeAddressId ?? null, member?.lebtImHaushalt);
 
     // Zulagen-Block ist seit 18.05.2026 aus dem Modal entfernt (Walter:
     // Zulagen leben jetzt INLINE pro Kind in der Familie-Tab). Der
@@ -6499,11 +6503,14 @@ function ortNameSuggest(inp, plzId, ortId, kantonId) {
 }
 
 // ── Adresse-Auswahl im Familienmitglied-Modal ──────────────────────────
-// Zeigt entweder "Lebt beim MA" (Hauptadresse) oder "Andere Adresse"
-// (Dropdown der employee_address des MA). Dropdown wird live aus dem
-// Backend befüllt — beim Speichern legen wir alternativeAddressId mit.
-async function fmRefreshAddressUi(currentAlternativeAddressId) {
-    const sameRadio = document.getElementById('fmAddrSameAsEmp');
+// Drei Zustände (Walter 25.08.2026): "same" = Ja, gleicher Haushalt;
+// "extern" = Nein, nicht (mehr) im Haushalt (ohne erfasste Adresse);
+// "alt"/"spouse" = andere bekannte Adresse (Zusatzadressen des MA bzw.
+// die des Ehepartners). Dropdown wird live aus dem Backend befüllt —
+// beim Speichern legen wir alternativeAddressId + lebtImHaushalt mit.
+async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
+    const sameRadio   = document.getElementById('fmAddrSameAsEmp');
+    const externRadio = document.getElementById('fmAddrExtern');
     const altRadio  = document.getElementById('fmAddrAlt');
     const summaryEl = document.getElementById('fmAddrEmpSummary');
     const altBox    = document.getElementById('fmAddrAltBox');
@@ -6576,14 +6583,17 @@ async function fmRefreshAddressUi(currentAlternativeAddressId) {
         }
     }
 
-    // Initial-Modus setzen
+    // Initial-Modus setzen (Walter 25.08.2026: lebtImHaushalt === false ohne
+    // Adresse → «Nein, nicht im Haushalt»; undefined = Neuerfassung → «Ja»)
     const useSpouse = !!(window._fmSpouseAltAddrId && currentAlternativeAddressId
         && Number(currentAlternativeAddressId) === Number(window._fmSpouseAltAddrId));
     const useAlt = !!currentAlternativeAddressId && !useSpouse;
+    const useExtern = !useAlt && !useSpouse && lebtImHaushalt === false;
     if (sameRadio && altRadio) {
-        sameRadio.checked = !useAlt && !useSpouse;
+        sameRadio.checked = !useAlt && !useSpouse && !useExtern;
         altRadio.checked  = useAlt;
     }
+    if (externRadio) externRadio.checked = useExtern;
     if (spouseRad) spouseRad.checked = useSpouse;
     if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
     if (select && useAlt) select.value = String(currentAlternativeAddressId);
@@ -6625,14 +6635,19 @@ async function saveFamilyMember() {
     if (!selectedEmployeeId) return;
 
     // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA;
-    // "spouse" (Walter 21.08.2026) = Zusatzadresse des Ehepartners übernehmen.
-    // Wenn "same" oder leeres Dropdown → AlternativeAddressId = null
+    // "spouse" (Walter 21.08.2026) = Zusatzadresse des Ehepartners übernehmen;
+    // "extern" (Walter 25.08.2026) = nicht (mehr) im Haushalt, keine Adresse.
+    // Wenn "same" oder leeres Dropdown → AlternativeAddressId = null.
+    // lebtImHaushalt = true NUR bei "same" — massgebend für die QST-Haushalt-
+    // Logik (H-Tarif); der Server erzwingt zusätzlich Adresse ⇒ false.
     const addrUseSpouse = document.getElementById('fmAddrSpouse')?.checked && window._fmSpouseAltAddrId;
     const addrUseAlt = document.getElementById('fmAddrAlt')?.checked;
+    const addrUseExtern = document.getElementById('fmAddrExtern')?.checked;
     const addrSelVal = document.getElementById('fmAlternativeAddressId')?.value || '';
     const alternativeAddressId = addrUseSpouse
         ? Number(window._fmSpouseAltAddrId)
         : (addrUseAlt && addrSelVal) ? parseInt(addrSelVal, 10) : null;
+    const lebtImHaushalt = !(addrUseSpouse || addrUseAlt || addrUseExtern);
 
     // Aufenthalt + Nationalität: leer = null. Permit-Type-Id und
     // Nationality-Id sind FK in der DB.
@@ -6660,6 +6675,7 @@ async function saveFamilyMember() {
         phone:                  phoneFmt || null,
         livesInSwitzerland:     document.getElementById('fmLivesInSwitzerland').checked,
         alternativeAddressId,
+        lebtImHaushalt,
         qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
         qstDeductibleUntil:     document.getElementById('fmQstUntil').value           || null,
         permitTypeId:           Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null,
@@ -13381,7 +13397,9 @@ async function deleteEmployeeAddress(addrId) {
         await loadEmployeeAddressesTab(selectedEmployeeId);
         // Familie-Modal: Dropdown/Felder aktualisieren, falls offen.
         if (document.getElementById('fmAddrAlt') && typeof fmRefreshAddressUi === 'function') {
-            try { await fmRefreshAddressUi(null); } catch {}
+            // Walter 25.08.2026: «Nein, nicht im Haushalt»-Auswahl beibehalten.
+            const ext = document.getElementById('fmAddrExtern')?.checked;
+            try { await fmRefreshAddressUi(null, ext ? false : undefined); } catch {}
         }
     } catch(e) {
         alert('Verbindungsfehler: ' + e.message);

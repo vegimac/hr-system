@@ -2399,6 +2399,24 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS in_erstausbildung   BOOLEAN NOT NULL DEFAULT FALSE;
     ");
 
+    // Walter 25.08.2026: expliziter Haushalt-Status am Familienmitglied.
+    // Bisher wurde «lebt im selben Haushalt» aus AlternativeAddressId == null
+    // ABGELEITET — damit gab es keinen Zustand «lebt NICHT im Haushalt, aber
+    // ohne erfasste Adresse» (z.B. erwachsenes Kind ausgezogen). Neu 3 Fälle:
+    // lebt_im_haushalt=TRUE → Hauptadresse MA; FALSE + alternative_address_id
+    // → bekannte andere Adresse (z.B. bei Vater/Mutter); FALSE ohne Adresse
+    // → ausgezogen/eigener Haushalt. Backfill idempotent: eine Zusatzadresse
+    // bedeutet immer «nicht im Haushalt» (Server-Guard erzwingt das auch bei
+    // jedem Save), daher darf das UPDATE bei jedem Start laufen.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member
+            ADD COLUMN IF NOT EXISTS lebt_im_haushalt BOOLEAN NOT NULL DEFAULT TRUE;
+        UPDATE employee_family_member
+           SET lebt_im_haushalt = FALSE
+         WHERE alternative_address_id IS NOT NULL
+           AND lebt_im_haushalt = TRUE;
+    ");
+
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber
     // sich in jedem Kanton, in dem er QST-pflichtige MA beschäftigt, separat
     // anmelden muss und dort eine eigene Nummer erhält. Eine Filiale kann

@@ -874,6 +874,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Allowance2Until).HasColumnName("allowance_2_until").HasColumnType("date");
             entity.Property(e => e.Allowance3Until).HasColumnName("allowance_3_until").HasColumnType("date");
             entity.Property(e => e.AlternativeAddressId).HasColumnName("alternative_address_id");
+            // Walter-Vorgabe 25.08.2026: expliziter Haushalt-Status (3 Fälle
+            // im Familien-Modal) — massgebend für die QST-Haushalt-Logik.
+            entity.Property(e => e.LebtImHaushalt).HasColumnName("lebt_im_haushalt").HasDefaultValue(true);
             entity.Property(e => e.QstDeductibleFrom).HasColumnName("qst_deductible_from").HasColumnType("date");
             entity.Property(e => e.QstDeductibleUntil).HasColumnName("qst_deductible_until").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");

@@ -170,7 +170,8 @@ public class QstInfoFormularController : ControllerBase
                 return new QstInfoKind(
                     Name:          $"{f.LastName} {f.FirstName}".Trim(),
                     Geburtsdatum:  Dt(f.DateOfBirth),
-                    Haushalt:      f.AlternativeAddressId == null ? true : false,
+                    // Walter 25.08.2026: expliziter Haushalt-Status statt Adress-Ableitung.
+                    Haushalt:      f.LebtImHaushalt,
                     // Erstausbildung nur ab 18 relevant — darunter bleibt das
                     // Kästchen leer (der MA muss dort nichts ankreuzen).
                     Erstausbildung: alter >= 18 ? f.InErstausbildung : (bool?)null);

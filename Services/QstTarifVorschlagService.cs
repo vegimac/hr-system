@@ -51,7 +51,7 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung })
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt })
             .ToListAsync();
         // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
         // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
@@ -72,7 +72,8 @@ public class QstTarifVorschlagService
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : (DateOnly?)null,
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
                 f.AlternativeAddressId,
-                f.InErstausbildung || azKindIds.Contains(f.Id)
+                f.InErstausbildung || azKindIds.Contains(f.Id),
+                f.LebtImHaushalt
             ))
             .ToList();
 
@@ -115,10 +116,14 @@ public record QstKindInput(
     DateOnly? QstDeductibleFrom,
     DateOnly? QstDeductibleUntil,
     DateOnly? DateOfBirth,
-    int?      AlternativeAddressId,      // null = lebt im selben Haushalt
+    int?      AlternativeAddressId,      // erfasste andere Adresse (falls bekannt)
     // Walter-Vorgabe 20.08.2026: Kind in beruflicher/schulischer ERSTausbildung
     // — verlängert die QST-Berechtigung über den 18. Geburtstag hinaus (KS 45).
-    bool      InErstausbildung = false
+    bool      InErstausbildung = false,
+    // Walter-Vorgabe 25.08.2026: expliziter Haushalt-Status aus dem Familien-
+    // Modal (true = lebt beim MA). NULL = nicht übergeben (alte Aufrufer/Tests)
+    // → Fallback auf die frühere Ableitung AlternativeAddressId == null.
+    bool?     LebtImHaushalt = null
 );
 
 /// <summary>Resultat eines Tarifvorschlags. Geht 1:1 als JSON ans Frontend.</summary>
@@ -185,8 +190,9 @@ public static class QstTarifVorschlagLogic
         {
             if (!IstQstBerechtigt(k, stichtag)) continue;
             berechneteKinderTotal++;
-            // AlternativeAddressId == null → lebt beim MA (Hauptadresse)
-            if (k.AlternativeAddressId == null) kinderImSelbenHaushalt++;
+            // Walter 25.08.2026: expliziter Haushalt-Status massgebend;
+            // Fallback (NULL, alte Aufrufer): AlternativeAddressId == null.
+            if (k.LebtImHaushalt ?? (k.AlternativeAddressId == null)) kinderImSelbenHaushalt++;
         }
         if (berechneteKinderTotal > 0)
         {

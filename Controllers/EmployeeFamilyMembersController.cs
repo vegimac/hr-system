@@ -85,6 +85,8 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.Allowance2Until,
         m.Allowance3Until,
         m.AlternativeAddressId,
+        // Walter-Vorgabe 25.08.2026: expliziter Haushalt-Status (3 Fälle).
+        m.LebtImHaushalt,
         m.QstDeductibleFrom,
         m.QstDeductibleUntil,
         m.PermitTypeId,
@@ -140,6 +142,10 @@ public class EmployeeFamilyMembersController : ControllerBase
         // tatsächlich zum gleichen MA gehört (Schutz vor Cross-MA-IDs).
         member.AlternativeAddressId = await ValidateAlternativeAddressAsync(employeeId, member.AlternativeAddressId);
 
+        // Walter 25.08.2026: Konsistenz-Guard — eine erfasste Zusatzadresse
+        // bedeutet IMMER «nicht im gleichen Haushalt».
+        if (member.AlternativeAddressId != null) member.LebtImHaushalt = false;
+
         _context.EmployeeFamilyMembers.Add(member);
         await _context.SaveChangesAsync();
 
@@ -178,6 +184,9 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.NationalityId        = member.NationalityId;
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder (Ehepartner-Erwerb,
         // Kind-Erstausbildung).
+        // Walter 25.08.2026: Haushalt-Status — Guard: Zusatzadresse gesetzt
+        // bedeutet immer «nicht im gleichen Haushalt».
+        existing.LebtImHaushalt       = existing.AlternativeAddressId != null ? false : member.LebtImHaushalt;
         existing.Erwerbstaetig        = member.Erwerbstaetig;
         existing.ArbeitgeberName      = string.IsNullOrWhiteSpace(member.ArbeitgeberName)    ? null : member.ArbeitgeberName.Trim();
         existing.ArbeitgeberStrasse   = string.IsNullOrWhiteSpace(member.ArbeitgeberStrasse) ? null : member.ArbeitgeberStrasse.Trim();
