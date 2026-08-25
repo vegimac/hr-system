@@ -401,7 +401,11 @@ public class QstPflichtCheckService
             w.Add($"Tarif A erfasst, aber {berechtigtHaushalt} QST-berechtigte(s) Kind(er) im selben Haushalt — "
                 + $"als Alleinerziehende(r) ist Tarif H{berechtigtHaushalt} zu prüfen "
                 + "(Kinderziffer auf A nur mit Behördenbewilligung).");
-        else if (t == "A" && !isVerheiratet && berechtigtTotal > 0 && !erfassung.SpezielBewilligt)
+        // «AUSSERHALB»-Variante NUR wenn wirklich kein Haushalts-Kind da ist
+        // (Walter-Bug 25.08.2026: mit K-Partner rutschte das Haushalts-Kind
+        // fälschlich hierher, weil die erste Warnung Konkubinat-gedämpft ist).
+        else if (t == "A" && !isVerheiratet && berechtigtHaushalt == 0
+                 && berechtigtTotal > 0 && !erfassung.SpezielBewilligt)
             w.Add($"Tarif A erfasst und {berechtigtTotal} QST-berechtigte(s) Kind(er) AUSSERHALB des Haushalts — "
                 + "ein Kinderabzug auf Tarif A (A1–A9) braucht eine Behördenbewilligung; sonst bleibt A0.");
 
