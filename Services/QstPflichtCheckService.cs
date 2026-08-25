@@ -378,12 +378,26 @@ public class QstPflichtCheckService
                 : $"Kinderziffer {erfassung.AnzahlKinder} erfasst, aber {sollZiffer} Kind(er) wären QST-berechtigt — Ziffer prüfen (zu Gunsten des MA).");
         }
 
+        // Konkubinatspartner VOR den A/H-Warnungen laden (Walter 25.08.2026):
+        // mit K-Partner gilt die Konkubinats-Entscheidtabelle — die generische
+        // «A → H prüfen»-Warnung wäre dann falsch (A0 ist KORREKT, wenn der
+        // Partner mehr verdient).
+        var kPartner = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Konkubinatspartner"
+                     && f.DateOfDeath == null)
+            .OrderByDescending(f => f.Id)
+            .Select(f => new { f.MaHatHoeheresEinkommen, f.Erwerbstaetig })
+            .FirstOrDefaultAsync();
+
         // Tarif A trotz berechtigter Kinder (Walter-Vorgabe 23.08.2026, Fall
         // Gazale: geschieden, Kind lebt bei ihr, Erfassung stand auf A0N):
         // Alleinstehende MIT QST-berechtigtem Kind im SELBEN Haushalt gehören
         // in den Halbfamilien-Tarif H — nicht A. Eine Kinderziffer auf A
         // (A1–A9) gäbe es nur mit ausdrücklicher Behördenbewilligung.
-        if (t == "A" && !isVerheiratet && berechtigtHaushalt > 0)
+        // NICHT bei erfasstem K-Partner (dann entscheidet die Konkubinats-
+        // Logik unten, Walter 25.08.2026).
+        if (t == "A" && !isVerheiratet && berechtigtHaushalt > 0 && kPartner == null)
             w.Add($"Tarif A erfasst, aber {berechtigtHaushalt} QST-berechtigte(s) Kind(er) im selben Haushalt — "
                 + $"als Alleinerziehende(r) ist Tarif H{berechtigtHaushalt} zu prüfen "
                 + "(Kinderziffer auf A nur mit Behördenbewilligung).");
@@ -434,13 +448,6 @@ public class QstPflichtCheckService
                     + "Partnerschaft — Konkubinatspartner gemeint? Typ im Familie-Tab umstellen "
                     + "(ein Konkubinatspartner mit CH/C befreit NICHT von der QST).");
         }
-        var kPartner = await _db.EmployeeFamilyMembers.AsNoTracking()
-            .Where(f => f.EmployeeId == employeeId
-                     && f.MemberType == "Konkubinatspartner"
-                     && f.DateOfDeath == null)
-            .OrderByDescending(f => f.Id)
-            .Select(f => new { f.MaHatHoeheresEinkommen, f.Erwerbstaetig })
-            .FirstOrDefaultAsync();
         if (kPartner != null && !isVerheiratet)
         {
             int haushaltJa    = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt && k.GemeinsamesKindMitPartner == true);
@@ -475,6 +482,11 @@ public class QstPflichtCheckService
                     if (kPartner.Erwerbstaetig == null)
                         w.Add("Gemeinsames Kind im Konkubinat: Erwerbstätigkeit des Konkubinatspartners im Familie-Tab erfassen.");
                 }
+                // Alle Haushalts-Kinder explizit NICHT gemeinsam → MA ist
+                // alleinerziehend, H wäre richtig (Walter 25.08.2026).
+                if (haushaltJa == 0 && haushaltOffen == 0 && haushaltNein > 0 && t == "A")
+                    w.Add("Konkubinat, aber die Haushalts-Kinder sind NICHT vom Partner — als Alleinerziehende(r) "
+                        + $"ist Tarif H{haushaltNein} zu prüfen.");
             }
             // W3: gespeicherte Erfassungs-Flags vs. Familie-Tab (die Erfassung
             // wird bei Familie-Änderungen bewusst NICHT still mutiert).

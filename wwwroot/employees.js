@@ -5074,13 +5074,18 @@ function fmGetErwerb() {
 }
 // Konkubinat (Walter 25.08.2026): Einkommensfrage (K-Partner) + Gemeinsames-
 // Kind-Frage (Kind) — gleiche 3-Zustands-Pillen wie Erwerbstätig.
-function fmSetMaEink(val) {
-    const want = val === true ? 'ja' : val === false ? 'nein' : '';
-    document.querySelectorAll('input[name="fmMaEink"]').forEach(r => { r.checked = (r.value === want); });
+// ACHTUNG SPIEGELUNG (Walter 25.08.2026 v3): Das UI fragt aus PARTNER-
+// Perspektive («Ist das Einkommen des K-Partners höher als das des MA?»),
+// gespeichert wird aber ma_hat_hoeheres_einkommen aus MA-Perspektive.
+// DB true (MA verdient mehr)  → Radio «Nein» (Partner verdient NICHT mehr)
+// DB false (Partner mehr)     → Radio «Ja»
+function fmSetMaEink(dbVal) {
+    const want = dbVal === true ? 'nein' : dbVal === false ? 'ja' : '';
+    document.querySelectorAll('input[name="fmPartnerMehr"]').forEach(r => { r.checked = (r.value === want); });
 }
 function fmGetMaEink() {
-    const r = document.querySelector('input[name="fmMaEink"]:checked');
-    return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
+    const r = document.querySelector('input[name="fmPartnerMehr"]:checked');
+    return r?.value === 'ja' ? false : r?.value === 'nein' ? true : null;
 }
 function fmSetGemKind(val) {
     const want = val === true ? 'ja' : val === false ? 'nein' : '';

@@ -8511,14 +8511,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <!-- Einkommensfrage Konkubinat (Walter 25.08.2026 v2: NACH der
                      Erwerbstätigkeit — erscheint nur bei Typ Konkubinatspartner
                      UND Erwerbstätig = Ja; bei Nein greift automatisch H1). -->
+                <!-- Frage aus PARTNER-Perspektive (Walter 25.08.2026 v3: «ich
+                     bin ja beim K-Partner» — die MA-Perspektive war eine
+                     Falle). Gespeichert wird weiterhin ma_hat_hoeheres_
+                     einkommen (MA-Perspektive) — fmGet/SetMaEink SPIEGELN. -->
                 <div id="fmEinkommenRow" style="display:none;margin-top:10px">
                     <div class="fmf-field">
-                        <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Hat der/die MA das höhere Bruttoeinkommen als der Partner?
-                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → Tarif H1 · Nein → A0 — nie beide H1)</span></label>
+                        <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Ist das Einkommen des Konkubinatspartners höher als das des MA?
+                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → MA erhält A0 · Nein → MA erhält H1 — nie beide H1)</span></label>
                         <div style="display:flex;gap:6px;align-items:center;min-height:28px">
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="" checked> –</label>
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="ja"> Ja</label>
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="nein"> Nein</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="" checked> –</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="ja"> Ja</label>
+                            <label class="zst-pill"><input type="radio" name="fmPartnerMehr" value="nein"> Nein</label>
                         </div>
                     </div>
                 </div>
@@ -8679,7 +8683,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260825q"></script>
+<script src="employees.js?v=20260825r"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
