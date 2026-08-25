@@ -1466,27 +1466,9 @@ function loadUebersichtTab() {
     //   Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
     //   Briefanrede | Nickname | Sex | Konfession | —
     //   Zivilstand | seit | Ledigname | Nationalität | ZEMIS
-    // ── Notfallkontakt (Walter-Vorgabe 25.08.2026): genau EINER pro MA —
-    // entweder aus der Familie verknüpft (Name/Telefon live) oder freie
-    // Person (Schwester, Nachbar …). Anzeige als eigene Zeile unter dem
-    // Personalien-Raster; Pflege über das kleine Notfall-Modal.
-    const nfK = emp.notfallKontakt;
-    let nfVal;
-    if (nfK) {
-        const nfTel = nfK.telefon
-            ? `<a href="tel:${esc((nfK.telefon || '').replace(/\s/g, ''))}" style="color:inherit;text-decoration:none;font-weight:700">${esc(nfK.telefon)}</a>`
-            : `<span style="color:#b91c1c;font-weight:600">Telefon fehlt${nfK.source === 'familie' ? ' — beim Familienmitglied ergänzen' : ''}</span>`;
-        nfVal = `<b>${esc(nfK.name)}</b>${nfK.beziehung ? ` <span style="color:#8b8b8b">(${esc(nfK.beziehung)})</span>` : ''} · ${nfTel}`;
-    } else {
-        nfVal = '<span class="ov-empty">– keiner erfasst –</span>';
-    }
-    const nfRow = `
-        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:9px;border-top:1px dashed rgba(60,55,48,0.22)">
-            <div class="ov-pfl" style="white-space:nowrap">🆘 Notfallkontakt</div>
-            <div style="font-size:13px;min-width:0">${nfVal}</div>
-            <button type="button" onclick="openNotfallModal()" title="Notfallkontakt erfassen/ändern"
-                style="margin-left:auto;height:24px;display:inline-flex;align-items:center;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:8px;padding:0 10px;font-size:11px;font-weight:600;color:#3f3f3f;cursor:pointer;white-space:nowrap">✎ ${nfK ? 'ändern' : 'erfassen'}</button>
-        </div>`;
+    // Notfallkontakt: Anzeige lebt seit 25.08.2026 (v4) ausschliesslich im
+    // MA-Kopf (🆘-Zeile unter dem Eintrittsdatum, Klick = Modal) — die
+    // frühere Zusatz-Zeile in der Personalien-Karte ist raus (Walter).
 
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
@@ -1575,7 +1557,6 @@ function loadUebersichtTab() {
                 : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
             <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
         </div>
-        ${nfRow}
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
