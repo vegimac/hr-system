@@ -9256,7 +9256,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
         </div>
         <!-- Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
-        <div style="display:grid;grid-template-columns:auto 180px 220px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+        <!-- Layout kompakt (Walter 25.08.2026 v2): Zeile 1 = Checkbox + Name
+             (breit) + Strasse (breit) · Zeile 2 = PLZ/Ort/Kanton/Land/Pensum. -->
+        <div style="display:grid;grid-template-columns:auto 1.4fr 1.1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
             <!-- Walter-Frage 25.08.2026: bezieht sich auf den MA (nicht den
                  Partner) — Label präzisiert. Partner-Erwerb lebt im Familie-Tab. -->
             <label class="qst-cb" style="padding-bottom:6px;white-space:nowrap"
@@ -9275,12 +9277,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <label class="qst-lbl">Strasse / Nr.</label>
                 <input type="text" id="qstWagStrasse" class="qst-inp" placeholder="z.B. Industriestrasse 13">
             </div>
-            <div id="qstWeitereField3" style="display:none">
-                <label class="qst-lbl">Pensum weitere AG (%)</label>
-                <input type="number" id="qstGesamtpensum" step="1" min="0" max="100" class="qst-inp">
-            </div>
             <div id="qstWeitereField4" style="display:none;grid-column:1 / -1">
-                <div style="display:grid;grid-template-columns:90px 1fr 90px 140px;gap:7px 10px">
+                <div style="display:grid;grid-template-columns:80px 1.3fr 64px 90px 150px;gap:7px 10px">
                     <div>
                         <label class="qst-lbl">PLZ</label>
                         <input type="text" id="qstWagPlz" class="qst-inp" inputmode="numeric" maxlength="4" placeholder="4665"
@@ -9297,6 +9295,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <div>
                         <label class="qst-lbl">Land</label>
                         <input type="text" id="qstWagLand" class="qst-inp" placeholder="CH">
+                    </div>
+                    <div>
+                        <label class="qst-lbl">Pensum dort (%)</label>
+                        <input type="number" id="qstGesamtpensum" step="1" min="0" max="100" class="qst-inp">
                     </div>
                 </div>
             </div>
