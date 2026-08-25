@@ -4705,7 +4705,11 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
         groups[m.memberType].push(m);
     });
 
-    const typeOrder = ['Ehepartner', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
+    // Walter-Bug 25.08.2026: Konkubinatspartner fehlte in der Reihenfolge →
+    // Karte verschwand nach dem Typ-Wechsel. Zusätzlich Robustheits-Netz:
+    // UNBEKANNTE Typen werden hinten angehängt statt verschluckt.
+    const typeOrder = ['Ehepartner', 'Konkubinatspartner', 'Kind', 'Mutter', 'Vater', 'Sonstige'];
+    Object.keys(groups).forEach(t => { if (!typeOrder.includes(t)) typeOrder.push(t); });
     // Walter-Vorgabe 13.06.2026: roter Warnbanner ganz oben, wenn die QST-
     // Befreiung über den Ehepartner läuft und das Beleg-Doku noch nicht am
     // Family-Member verknüpft ist. Klick öffnet das gleiche Auswahl+Upload-
@@ -4735,6 +4739,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     const typeLabel = (type, count) => {
         const isEn = window.i18n && window.i18n.getLang && i18n.getLang() === 'en';
         if (type === 'Kind' && count > 1) return isEn ? 'Children' : 'Kinder';
+        if (type === 'Konkubinatspartner') return 'Konkubinatspartner/in';
         return _t('fam.value.type.' + type, type);
     };
     const yearsLabel = window.i18n && window.i18n.getLang && i18n.getLang() === 'en' ? 'years' : 'Jahre';
