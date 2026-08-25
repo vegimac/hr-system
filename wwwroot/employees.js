@@ -6818,7 +6818,17 @@ async function saveFamilyMember() {
             body: JSON.stringify(payload)
         });
         if (!res.ok) {
-            alert('Fehler beim Speichern.');
+            // Klartext statt generisch (Walter-Bug 25.08.2026: DB-Constraint-
+            // Fehler beim neuen Typ Konkubinatspartner war unsichtbar).
+            let msg = 'Fehler beim Speichern.';
+            try {
+                const j = await res.clone().json();
+                msg = j.message || j.detail || j.error || j.title || msg;
+            } catch {
+                const txt = await res.text().catch(() => '');
+                if (txt) msg = txt.slice(0, 300);
+            }
+            alert(msg);
             return;
         }
         closeFamilyModal();

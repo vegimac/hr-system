@@ -2427,6 +2427,23 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS ma_hat_hoeheres_einkommen    BOOLEAN,
             ADD COLUMN IF NOT EXISTS gemeinsames_kind_mit_partner BOOLEAN;
     ");
+    // Alt-CHECK auf member_type wegräumen (Walter-Bug 25.08.2026: «Fehler beim
+    // Speichern» beim neuen Typ Konkubinatspartner — die Ur-Tabelle hatte einen
+    // CHECK mit der alten Typen-Liste; gleiche Falle wie akonto_zahlung.status).
+    // Die Typen validiert das UI-Dropdown, ein DB-Constraint ist hier nur im Weg.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        DECLARE c RECORD;
+        BEGIN
+            FOR c IN SELECT conname FROM pg_constraint
+                      WHERE conrelid = 'employee_family_member'::regclass
+                        AND contype  = 'c'
+                        AND pg_get_constraintdef(oid) ILIKE '%member_type%'
+            LOOP
+                EXECUTE 'ALTER TABLE employee_family_member DROP CONSTRAINT ' || quote_ident(c.conname);
+            END LOOP;
+        END $$;
+    ");
 
     // Walter 25.08.2026: Notfallkontakt am MA — genau einer, entweder als
     // Verknüpfung auf ein Familienmitglied (FK, ON DELETE SET NULL) oder als
