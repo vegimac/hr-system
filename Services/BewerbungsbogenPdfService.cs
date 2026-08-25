@@ -254,18 +254,19 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
-            // Notfallkontakt (Walter-Vorgabe 25.08.2026): FETT hervorgehoben —
-            // Name, Beziehung und Nummer der Person, die im Notfall zu
-            // verständigen ist. Landet nach der Anstellung im MA-Notfall-Block.
-            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Notfallkontakt",
-                "Wen dürfen wir im Notfall verständigen?"));
+            // Notfallkontakt (Walter-Vorgabe 25.08.2026, verdichtet v2: der
+            // Bogen MUSS auf 2 Seiten bleiben): EINE Zeile innerhalb von
+            // «Ergänzende Angaben» — fetter Lead + drei fette Schreibfelder.
             col.Item().PaddingTop(6).Row(r =>
             {
-                r.RelativeItem(5).Element(f => BoldLabeledLine(f, "Name"));
-                r.ConstantItem(16);
-                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Beziehung"));
-                r.ConstantItem(16);
-                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Telefon"));
+                r.AutoItem().AlignBottom().PaddingBottom(2)
+                    .Text("Notfallkontakt").Bold().FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Name"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Beziehung"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
             });
 
             // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
@@ -298,7 +299,7 @@ public class BewerbungsbogenPdfService
             // Unterschriften-Bereich gemäss altem Bogen (Walter 13.08.2026):
             // «Wichtig»-Satz, links Datum + Unterschrift (freier Schreibraum),
             // rechts der Block für Minderjährige (gesetzlicher Vertreter).
-            col.Item().PaddingTop(8).Text(t =>
+            col.Item().PaddingTop(6).Text(t =>
             {
                 t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
                 t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
@@ -309,7 +310,7 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
                 {
                     c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                    c.Item().Height(64); // freier Schreibraum
+                    c.Item().Height(54); // freier Schreibraum (v2: 2-Seiten-Zwang)
                 });
                 r.ConstantItem(14);
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
@@ -322,8 +323,8 @@ public class BewerbungsbogenPdfService
                     });
                     // Nur Vorname Name + Unterschrift, grosszügige Abstände
                     // (Walter 13.08.2026).
-                    c.Item().PaddingTop(14).Element(f => LabeledLine(f, "Vorname Name"));
-                    c.Item().PaddingTop(16).Element(f => LabeledLine(f, "Unterschrift"));
+                    c.Item().PaddingTop(10).Element(f => LabeledLine(f, "Vorname Name"));
+                    c.Item().PaddingTop(12).Element(f => LabeledLine(f, "Unterschrift"));
                 });
             });
 

@@ -1162,10 +1162,11 @@ function renderEmployeeDetail(emp) {
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
                     <!-- 🆘 Notfall in der 2. Grid-Zeile direkt unter «Eintritt»
-                         (Walter 25.08.2026 v2) — Klasse setzt grid-column 1/3. -->
-                    <div class="emp-hfact emp-hfact-notfall">
-                        <div class="emp-hfact-l">🆘 Notfall</div>
-                        <div class="emp-hfact-v">${_hcNotfallVal}</div>
+                         (Walter 25.08.2026 v3): NUR EINE Zeile — Icon + Wert
+                         nebeneinander, kein eigenes Label darüber. -->
+                    <div class="emp-hfact emp-hfact-notfall" style="display:flex;align-items:center;gap:6px">
+                        <span class="emp-hfact-l" style="margin-bottom:0">🆘</span>
+                        <div class="emp-hfact-v" style="min-width:0">${_hcNotfallVal}</div>
                     </div>
                 </div>
             </div>
@@ -15201,33 +15202,37 @@ function _nfEnsureModal() {
     bg.id = 'notfallModalBg';
     bg.className = 'modal-bg';
     bg.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center';
+    // ov-Eingabemasken-Standard (Walter 25.08.2026, CLAUDE.md): Auswahl als
+    // transparente Kacheln mit Rand (Auswahl = dunkler Rand #3f3f3f), weisse
+    // Eingabe-Pillen, Kohle-Pille primär / Glas-Pille sekundär. Alles inline
+    // gestylt, weil das Modal dynamisch in <body> hängt (fmf-/ce-Klassen der
+    // anderen Modals greifen hier nicht).
     bg.innerHTML = `
-    <div class="modal" style="max-width:560px;width:92%">
+    <div class="modal" style="max-width:620px;width:92%">
         <div class="modal-hd">
             <span class="modal-hd-title">🆘 Notfallkontakt</span>
             <button class="modal-x" onclick="closeNotfallModal()">×</button>
         </div>
         <div class="modal-body">
-            <label class="fmf-radio-row">
-                <input type="radio" name="nfMode" id="nfModeFam" value="fam" onchange="nfModeChanged()">
-                <span class="fmf-radio-body">
-                    <span class="fmf-radio-title">Aus der Familie wählen</span>
-                    <span class="fmf-radio-hint">Verknüpfung — Telefonnummer bleibt automatisch aktuell, wenn sie im Familie-Tab ändert.</span>
-                </span>
-            </label>
-            <div id="nfFamBox" style="display:none;margin:6px 0 10px 26px">
-                <select id="nfFamSelect" class="fmf-select" style="min-width:320px" onchange="nfFamSelectionHint()"></select>
-                <div id="nfFamHint" style="font-size:11.5px;color:#b45309;margin-top:4px"></div>
+            <div style="display:flex;gap:10px">
+                <label id="nfTileFam" style="flex:1;border:1.5px solid rgba(60,55,48,0.20);border-radius:12px;padding:10px 12px;cursor:pointer;background:transparent">
+                    <input type="radio" name="nfMode" id="nfModeFam" value="fam" style="display:none" onchange="nfModeChanged()">
+                    <div style="font-weight:700;font-size:13px;color:#3f3f3f">Aus der Familie wählen</div>
+                    <div style="font-size:11.5px;color:#8b8b8b;margin-top:2px">Verknüpfung — die Nummer bleibt automatisch aktuell.</div>
+                </label>
+                <label id="nfTileFrei" style="flex:1;border:1.5px solid rgba(60,55,48,0.20);border-radius:12px;padding:10px 12px;cursor:pointer;background:transparent">
+                    <input type="radio" name="nfMode" id="nfModeFrei" value="frei" style="display:none" onchange="nfModeChanged()">
+                    <div style="font-weight:700;font-size:13px;color:#3f3f3f">Andere Person</div>
+                    <div style="font-size:11.5px;color:#8b8b8b;margin-top:2px">z.B. Schwester, Nachbar — nicht im Familie-Tab.</div>
+                </label>
             </div>
-            <label class="fmf-radio-row" style="margin-top:6px">
-                <input type="radio" name="nfMode" id="nfModeFrei" value="frei" onchange="nfModeChanged()">
-                <span class="fmf-radio-body">
-                    <span class="fmf-radio-title">Andere Person</span>
-                    <span class="fmf-radio-hint">z.B. Schwester, Nachbar, Freund — wird nicht im Familie-Tab geführt.</span>
-                </span>
-            </label>
-            <div id="nfFreiBox" style="display:none;margin:6px 0 4px 26px">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div id="nfFamBox" style="display:none;margin-top:14px">
+                <div class="ov-pfl">Familienmitglied</div>
+                <select id="nfFamSelect" style="width:100%" onchange="nfFamSelectionHint()"></select>
+                <div id="nfFamHint" style="font-size:11.5px;color:#b45309;margin-top:5px"></div>
+            </div>
+            <div id="nfFreiBox" style="display:none;margin-top:14px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                     <div>
                         <div class="ov-pfl">Name</div>
                         <input id="nfName" class="ef-input" type="text" placeholder="Vorname Nachname">
@@ -15252,9 +15257,9 @@ function _nfEnsureModal() {
             </div>
         </div>
         <div class="modal-ft" style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
-            <button type="button" id="nfRemoveBtn" onclick="nfRemove()" style="display:none;margin-right:auto;background:transparent;border:1px solid #fca5a5;color:#b91c1c;border-radius:10px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Entfernen</button>
-            <button type="button" class="ce-btn ce-btn-ghost" onclick="closeNotfallModal()">Abbrechen</button>
-            <button type="button" class="ce-btn ce-btn-primary" onclick="saveNotfallKontakt()">Speichern</button>
+            <button type="button" id="nfRemoveBtn" onclick="nfRemove()" style="display:none;margin-right:auto;background:transparent;border:1px solid #fca5a5;color:#b91c1c;border-radius:12px;padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer">Entfernen</button>
+            <button type="button" onclick="closeNotfallModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer">Abbrechen</button>
+            <button type="button" onclick="saveNotfallKontakt()" style="background:#3f3f3f;border:none;border-radius:12px;padding:8px 22px;font-size:13px;font-weight:600;color:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.28)">Speichern</button>
         </div>
     </div>`;
     document.body.appendChild(bg);
@@ -15287,6 +15292,12 @@ async function openNotfallModal() {
     const nf = selectedEmployee?.notfallKontakt;
     const hatFam = fam.length > 0;
     document.getElementById('nfModeFam').disabled = !hatFam;
+    // Ohne Familienmitglieder: Kachel ausgegraut und nicht wählbar.
+    const _nfTileFam = document.getElementById('nfTileFam');
+    if (_nfTileFam) {
+        _nfTileFam.style.opacity = hatFam ? '1' : '0.45';
+        _nfTileFam.style.pointerEvents = hatFam ? '' : 'none';
+    }
     if (nf && nf.source === 'familie') {
         document.getElementById('nfModeFam').checked = true;
         sel.value = String(nf.familyMemberId);
@@ -15316,6 +15327,15 @@ function nfModeChanged() {
     const famChecked = document.getElementById('nfModeFam')?.checked;
     document.getElementById('nfFamBox').style.display  = famChecked ? '' : 'none';
     document.getElementById('nfFreiBox').style.display = famChecked ? 'none' : '';
+    // Kachel-Optik: gewählte Kachel = dunkler Rand + leicht gefüllt
+    // (ov-Eingabemasken-Standard, wie die Auswahl-Kacheln der SV-Maske).
+    const mark = (el, on) => {
+        if (!el) return;
+        el.style.borderColor = on ? '#3f3f3f' : 'rgba(60,55,48,0.20)';
+        el.style.background  = on ? 'rgba(255,255,255,0.45)' : 'transparent';
+    };
+    mark(document.getElementById('nfTileFam'), famChecked);
+    mark(document.getElementById('nfTileFrei'), !famChecked);
     nfFamSelectionHint();
 }
 
