@@ -332,7 +332,19 @@ function qstFmtDe(iso) {
     return s.slice(8,10) + '.' + s.slice(5,7) + '.' + s.slice(0,4);
 }
 
-// Hint-Zeile unter „Anzahl Kinder": grün wenn manuell == auto,
+// Ziel-KINDERZIFFER für den Code (Walter 25.08.2026, Fall Konkubinat):
+// die Ziffer folgt dem TARIF, nicht der rohen Kinderzahl — der Server-
+// Vorschlag rechnet das korrekt (A → 0, auch mit berechtigtem Kind, z.B.
+// Konkubinat wenn der Partner mehr verdient; H → Haushalts-Kinder).
+// Fallback ohne geladenen Vorschlag: lokale Zählung wie bisher.
+function qstZielKinderZiffer(stichtag) {
+    const sv = _qstServerVorschlag;
+    if (sv && typeof sv.anzahlKinder === 'number' && !sv.abklaerungNoetig)
+        return { ziffer: sv.anzahlKinder, tarif: sv.tarifCode || '' };
+    return { ziffer: qstAutoKinderCount(stichtag), tarif: '' };
+}
+
+// Hint-Zeile unter „Anzahl Kinder": grün wenn manuell == Ziel-Ziffer,
 // rot mit „Auto übernehmen"-Button wenn Differenz.
 function qstUpdateAutoKinderHint() {
     const inp  = document.getElementById('qstKinder');
@@ -341,6 +353,7 @@ function qstUpdateAutoKinderHint() {
     const stichtag = document.getElementById('qstValidFrom')?.value || '';
     if (!stichtag) { hint.innerHTML = ''; return; }
     const auto   = qstAutoKinderCount(stichtag);
+    const ziel   = qstZielKinderZiffer(stichtag);
     const manual = parseInt(inp.value || '0', 10) || 0;
     const stichtagDe = qstFmtDe(stichtag);
 
@@ -363,11 +376,15 @@ function qstUpdateAutoKinderHint() {
     // Walter 12.08.2026: immer zeigen, wie viele Kinder ERFASST sind —
     // zusätzlich zur Zahl der am Stichtag QST-berechtigten.
     const erfasst = `${_qstFamilyKinder.length} Kind${_qstFamilyKinder.length===1?'':'er'} im Familie-Tab`;
-    if (manual === auto) {
-        hint.innerHTML = `<span style="color:#16a34a">✓ ${erfasst} · ${auto} QST-abzugsberechtigt am ${stichtagDe} (${quelle})</span>`;
+    // Tarif-Abweichung sichtbar machen (Walter 25.08.2026): z.B. Konkubinat
+    // mit Partner-Mehrverdienst → 1 Kind berechtigt, aber Tarif A → Ziffer 0.
+    const tarifNote = (ziel.tarif && ziel.ziffer !== auto)
+        ? ` · Tarif ${ziel.tarif} → Ziffer ${ziel.ziffer}` : '';
+    if (manual === ziel.ziffer) {
+        hint.innerHTML = `<span style="color:#16a34a">✓ ${erfasst} · ${auto} QST-abzugsberechtigt am ${stichtagDe} (${quelle})${tarifNote}</span>`;
     } else {
         hint.innerHTML = `
-            <span style="color:#dc2626">⚠ ${erfasst} · Auto: ${auto} (${quelle}), manuell eingetragen: ${manual}</span>
+            <span style="color:#dc2626">⚠ ${erfasst} · Auto: ${ziel.ziffer}${tarifNote ? ' (' + tarifNote.slice(3) + ')' : ' (' + quelle + ')'}, manuell eingetragen: ${manual}</span>
             <button type="button" onclick="qstApplyAutoKinder()"
                     style="margin-left:6px;background:#1a1a1a;color:#fff;border:none;padding:2px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600">Auto übernehmen</button>`;
     }
@@ -379,7 +396,8 @@ function qstApplyAutoKinder() {
     const inp = document.getElementById('qstKinder');
     const stichtag = document.getElementById('qstValidFrom')?.value || '';
     if (!inp || !stichtag) return;
-    inp.value = qstAutoKinderCount(stichtag);
+    // Ziel-Ziffer folgt dem Tarif (Walter 25.08.2026) — nicht der rohen Zahl.
+    inp.value = qstZielKinderZiffer(stichtag).ziffer;
     if (typeof buildQstCode === 'function') buildQstCode();
     qstUpdateAutoKinderHint();
     qstSuggestTarif();
