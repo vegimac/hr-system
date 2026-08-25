@@ -155,12 +155,45 @@ async function loadQstHistory(employeeId) {
 // QST-Eintrags aus.
 async function loadQstFamilyKinder(employeeId) {
     _qstFamilyKinder = [];
+    window._qstKPartner = null;
     try {
         const res = await fetch(`/api/employees/${employeeId}/family`, { headers: ah() });
         if (!res.ok) return;
         const members = await res.json();
         _qstFamilyKinder = (members || []).filter(m => m.memberType === 'Kind');
+        // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+        // Familie-Tab ist die QUELLE für Konkubinat + Einkommensfrage.
+        window._qstKPartner = (members || []).find(m =>
+            m.memberType === 'Konkubinatspartner' && !m.dateOfDeath) || null;
     } catch { /* leerer Cache */ }
+}
+
+// Konkubinat-Checkboxen aus dem Familie-Tab befüllen + sperren (Walter
+// 25.08.2026): mit K-Partner sind «Konkubinat» und «Höh. Einkommen» nur
+// noch Anzeige — der Server überschreibt die Werte beim Speichern ohnehin
+// (ApplyKonkubinatAsync). Ohne K-Partner bleiben sie editierbar (Alt-Fälle).
+function qstApplyKonkubinatLock() {
+    const konk = document.getElementById('qstLivesInKonkubinat');
+    const eink = document.getElementById('qstHasHigherIncomeThanPartner');
+    if (!konk || !eink) return;
+    const kp = window._qstKPartner;
+    if (kp) {
+        konk.checked = true;
+        eink.checked = kp.maHatHoeheresEinkommen === true;
+        konk.disabled = true;
+        eink.disabled = true;
+        konk.parentElement.title = 'Aus dem Familie-Tab (Konkubinatspartner erfasst) — Pflege dort.';
+        eink.parentElement.title = 'Aus dem Familie-Tab (Einkommensfrage beim Konkubinatspartner) — Pflege dort.';
+        konk.parentElement.style.opacity = '0.65';
+        eink.parentElement.style.opacity = '0.65';
+    } else {
+        konk.disabled = false;
+        eink.disabled = false;
+        konk.parentElement.style.opacity = '';
+        eink.parentElement.style.opacity = '';
+        konk.parentElement.title = '';
+        eink.parentElement.title = '';
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -624,6 +657,8 @@ function populateQstForm(entry) {
     c('qstHasHigherIncomeThanPartner', entry?.hasHigherIncomeThanPartner);
     c('qstIsGrenzgaenger',             entry?.isGrenzgaenger);
     c('qstIsWochenaufenthalter',       entry?.isWochenaufenthalter);
+    // Konkubinat aus dem Familie-Tab befüllen + sperren (Walter 25.08.2026).
+    qstApplyKonkubinatLock();
 
     toggleQstWeitere();
     document.getElementById('qstSaveResult').textContent = '';

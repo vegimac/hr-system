@@ -213,9 +213,30 @@ public class QstPflichtCheckService
             }
             else
             {
+                // Auslands-Partner (Walter-Vorgabe 25.08.2026, Fall Flüchtlings-
+                // familien: Frau in der Schweiz, Mann in der Ukraine): lebt der
+                // Ehepartner NICHT in der Schweiz, braucht er selbstverständlich
+                // KEINE Schweizer Bewilligung — der Mangel entfällt. «Nicht in
+                // der Schweiz» = nicht im Haushalt des MA + Häkchen «In der
+                // Schweiz lebend» leer + keine CH-Zusatzadresse (leeres Land
+                // gilt vorsichtshalber als CH → Pflicht bleibt). Nationalität
+                // und die Erwerbstätig-Frage bleiben auch dann Pflicht — für
+                // Tarif B vs. C zählt auch Einkommen im AUSLAND (KS 45).
+                bool partnerInSchweiz = spouse.LebtImHaushalt || spouse.LivesInSwitzerland;
+                if (!partnerInSchweiz && spouse.AlternativeAddressId != null)
+                {
+                    var land = await _db.EmployeeAddresses.AsNoTracking()
+                        .Where(a => a.Id == spouse.AlternativeAddressId.Value)
+                        .Select(a => a.Country)
+                        .FirstOrDefaultAsync();
+                    var l = (land ?? "").Trim().ToLowerInvariant();
+                    if (l.Length == 0 || l == "ch" || l.StartsWith("schweiz") || l.StartsWith("suisse") || l.StartsWith("svizzera"))
+                        partnerInSchweiz = true;
+                }
                 if (spouse.NationalityId == null)
                     partnerMaengel.Add("Nationalität des Ehepartners fehlt");
-                else if (!string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase)
+                else if (partnerInSchweiz
+                         && !string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase)
                          && spouse.PermitTypeId == null)
                     partnerMaengel.Add("Bewilligung des Ehepartners fehlt (Ausländer/in)");
                 if (spouse.Erwerbstaetig == null)
@@ -317,7 +338,7 @@ public class QstPflichtCheckService
                      && f.DateOfDeath == null)
             .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
                                f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung,
-                               f.LebtImHaushalt })
+                               f.LebtImHaushalt, f.GemeinsamesKindMitPartner })
             .ToListAsync();
         var kindIds = kinderRaw.Select(f => f.Id).ToList();
         var azKindIds = kindIds.Count == 0
@@ -333,6 +354,7 @@ public class QstPflichtCheckService
         {
             // Walter 25.08.2026: expliziter Haushalt-Status statt Adress-Ableitung.
             f.LebtImHaushalt,
+            f.GemeinsamesKindMitPartner,
             Berechtigt = QstTarifVorschlagLogic.IstQstBerechtigt(new QstKindInput(
                 f.QstDeductibleFrom.HasValue  ? DateOnly.FromDateTime(f.QstDeductibleFrom.Value)  : null,
                 f.QstDeductibleUntil.HasValue ? DateOnly.FromDateTime(f.QstDeductibleUntil.Value) : null,
@@ -396,6 +418,72 @@ public class QstPflichtCheckService
                  && erfassung.DokumentId == null)
             w.Add($"Tarif A{erfassung.AnzahlKinder} ist als «speziell bewilligt» markiert, aber es ist KEIN "
                 + "Beleg-Dokument verknüpft — das Bewilligungsschreiben der Steuerbehörde beim QST-Eintrag hinterlegen.");
+
+        // ── Konkubinats-Warnungen W2–W7 (Walter 25.08.2026,
+        //    docs/konkubinat-qst-konzept.md) — alle orange, keine Blocks. ──
+        // W4: «Ehepartner» erfasst, MA aber nicht verheiratet → vermutlich
+        // Konkubinat (findet Alt-Fälle wie Stingaciu zur Hand-Umstellung).
+        if (!isVerheiratet)
+        {
+            bool hatEhepartnerEintrag = await _db.EmployeeFamilyMembers.AsNoTracking()
+                .AnyAsync(f => f.EmployeeId == employeeId
+                            && f.MemberType == "Ehepartner"
+                            && f.DateOfDeath == null);
+            if (hatEhepartnerEintrag)
+                w.Add("Familien-Eintrag «Ehepartner» vorhanden, aber der Zivilstand ist nicht verheiratet/eingetragene "
+                    + "Partnerschaft — Konkubinatspartner gemeint? Typ im Familie-Tab umstellen "
+                    + "(ein Konkubinatspartner mit CH/C befreit NICHT von der QST).");
+        }
+        var kPartner = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Konkubinatspartner"
+                     && f.DateOfDeath == null)
+            .OrderByDescending(f => f.Id)
+            .Select(f => new { f.MaHatHoeheresEinkommen, f.Erwerbstaetig })
+            .FirstOrDefaultAsync();
+        if (kPartner != null && !isVerheiratet)
+        {
+            int haushaltJa    = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt && k.GemeinsamesKindMitPartner == true);
+            int haushaltNein  = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt && k.GemeinsamesKindMitPartner == false);
+            int haushaltOffen = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt && k.GemeinsamesKindMitPartner == null);
+
+            if (haushaltJa > 0 && haushaltNein > 0)
+            {
+                // W7: gemischter Fall — kein Automatismus.
+                w.Add("Gemischter Konkubinatsfall (gemeinsame UND nicht-gemeinsame Kinder im Haushalt): "
+                    + "Tarif mit der QST-Behörde abklären — das System macht bewusst keinen Vorschlag.");
+            }
+            else
+            {
+                if (haushaltOffen > 0)
+                    // W5: Gemeinsam-Frage offen.
+                    w.Add("Konkubinatspartner erfasst: beim Kind/bei den Kindern die Frage "
+                        + "«gemeinsames Kind mit dem Konkubinatspartner?» beantworten (Familie-Tab).");
+                if (haushaltJa > 0)
+                {
+                    if (kPartner.MaHatHoeheresEinkommen == null)
+                        // W6: Einkommensfrage offen.
+                        w.Add("Gemeinsames Kind im Konkubinat: Einkommensfrage beim Konkubinatspartner offen "
+                            + "(«Hat der/die MA das höhere Bruttoeinkommen?») — bis dahin gilt konservativ A0.");
+                    else if (kPartner.MaHatHoeheresEinkommen == true && t == "A")
+                        // W2: H1 prüfen.
+                        w.Add("Konkubinat mit gemeinsamem Kind und höherem Einkommen des MA — Tarif H1 prüfen (nie beide H1).");
+                    else if (kPartner.MaHatHoeheresEinkommen == false && t == "H")
+                        w.Add("Konkubinat: der Partner verdient mehr — H1 gehört zum Partner, für den/die MA gilt A0.");
+                    if (kPartner.Erwerbstaetig == null)
+                        w.Add("Gemeinsames Kind im Konkubinat: Erwerbstätigkeit des Konkubinatspartners im Familie-Tab erfassen.");
+                }
+            }
+            // W3: gespeicherte Erfassungs-Flags vs. Familie-Tab (die Erfassung
+            // wird bei Familie-Änderungen bewusst NICHT still mutiert).
+            if (!erfassung.LivesInKonkubinat)
+                w.Add("Konkubinatspartner im Familie-Tab erfasst, aber die aktive QST-Erfassung trägt das "
+                    + "Konkubinat-Häkchen nicht — neue Erfassung speichern (Werte kommen automatisch aus dem Familie-Tab).");
+            else if (kPartner.MaHatHoeheresEinkommen != null
+                     && erfassung.HasHigherIncomeThanPartner != kPartner.MaHatHoeheresEinkommen.Value)
+                w.Add("«Höheres Einkommen»-Angabe der aktiven QST-Erfassung widerspricht dem Familie-Tab — "
+                    + "neue Erfassung speichern.");
+        }
 
         return w.Count > 0 ? w : null;
     }

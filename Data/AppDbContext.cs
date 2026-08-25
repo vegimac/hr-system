@@ -899,6 +899,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ArbeitgeberKanton).HasColumnName("arbeitgeber_kanton").HasMaxLength(10);
             entity.Property(e => e.Stellenantritt).HasColumnName("stellenantritt").HasColumnType("date");
             entity.Property(e => e.InErstausbildung).HasColumnName("in_erstausbildung");
+            // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
+            entity.Property(e => e.MaHatHoeheresEinkommen).HasColumnName("ma_hat_hoeheres_einkommen");
+            entity.Property(e => e.GemeinsamesKindMitPartner).HasColumnName("gemeinsames_kind_mit_partner");
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");

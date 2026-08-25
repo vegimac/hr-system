@@ -279,6 +279,13 @@ public class EmployeeQuellensteuerController : ControllerBase
         // QST-Code wird passend nachgezogen.
         await ApplyKirchensteuerAsync(dto, employeeId);
 
+        // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026,
+        // docs/konkubinat-qst-konzept.md): ist ein Konkubinatspartner erfasst,
+        // werden Konkubinat-Häkchen + Einkommensfrage von dort übernommen —
+        // Client-Werte werden ignoriert. Ohne K-Partner bleibt der Client-Wert
+        // (Alt-Fälle ohne Familien-Eintrag).
+        await ApplyKonkubinatAsync(dto, employeeId);
+
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(MapToDto(dto, firstAllowed));
@@ -364,10 +371,35 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.IsGrenzgaenger             = dto.IsGrenzgaenger;
         entry.IsWochenaufenthalter       = dto.IsWochenaufenthalter;
 
+        // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026) — analog
+        // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.
+        await ApplyKonkubinatAsync(entry, employeeId);
+
         entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
         await _db.SaveChangesAsync();
         return Ok(entry);
+    }
+
+    /// <summary>
+    /// Konkubinats-Flags server-autoritativ aus dem Familie-Tab (Walter
+    /// 25.08.2026, docs/konkubinat-qst-konzept.md): ist ein Konkubinatspartner
+    /// erfasst, ist der Familie-Tab die QUELLE — das QST-Modal zeigt die zwei
+    /// Checkboxen nur noch gesperrt an. Ohne K-Partner bleiben die Client-
+    /// Werte (Rückwärtskompatibilität für Alt-Erfassungen).
+    /// </summary>
+    private async Task ApplyKonkubinatAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        var kp = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Konkubinatspartner"
+                     && f.DateOfDeath == null)
+            .OrderByDescending(f => f.Id)
+            .Select(f => new { f.MaHatHoeheresEinkommen })
+            .FirstOrDefaultAsync();
+        if (kp == null) return;
+        entry.LivesInKonkubinat          = true;
+        entry.HasHigherIncomeThanPartner = kp.MaHatHoeheresEinkommen == true;
     }
 
     // DELETE /api/employees/{employeeId}/quellensteuer/{id}[?force=true]

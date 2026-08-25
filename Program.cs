@@ -2419,6 +2419,15 @@ using (var scope = app.Services.CreateScope())
            AND lebt_im_haushalt = TRUE;
     ");
 
+    // Walter 25.08.2026: Konkubinat-Felder (docs/konkubinat-qst-konzept.md) —
+    // K-Partner: hat der MA das höhere Bruttoeinkommen? (H1 vs. A0);
+    // Kind: gemeinsames Kind mit dem Konkubinatspartner? NULL = Frage offen.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member
+            ADD COLUMN IF NOT EXISTS ma_hat_hoeheres_einkommen    BOOLEAN,
+            ADD COLUMN IF NOT EXISTS gemeinsames_kind_mit_partner BOOLEAN;
+    ");
+
     // Walter 25.08.2026: Notfallkontakt am MA — genau einer, entweder als
     // Verknüpfung auf ein Familienmitglied (FK, ON DELETE SET NULL) oder als
     // freie Person (Name/Beziehung/Telefon, z.B. Schwester/Nachbar).

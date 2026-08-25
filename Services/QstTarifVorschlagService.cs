@@ -51,8 +51,21 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt })
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner })
             .ToListAsync();
+
+        // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+        // liefert die Einkommensfrage in die Entscheidtabelle H1/A0.
+        var kPartnerEinkommen = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Konkubinatspartner"
+                     && f.DateOfDeath == null)
+            .OrderByDescending(f => f.Id)
+            .Select(f => new { f.MaHatHoeheresEinkommen })
+            .FirstOrDefaultAsync();
+        var konkubinat = kPartnerEinkommen != null
+            ? new QstKonkubinatInput(kPartnerEinkommen.MaHatHoeheresEinkommen)
+            : null;
         // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
         // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
         // ist belegt in Ausbildung (gleiche Logik wie QstPflichtCheckService).
@@ -73,7 +86,8 @@ public class QstTarifVorschlagService
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : (DateOnly?)null,
                 f.AlternativeAddressId,
                 f.InErstausbildung || azKindIds.Contains(f.Id),
-                f.LebtImHaushalt
+                f.LebtImHaushalt,
+                f.GemeinsamesKindMitPartner
             ))
             .ToList();
 
@@ -107,7 +121,8 @@ public class QstTarifVorschlagService
             steuerkanton: emp.CantonCode,
             kinder:       kinder,
             stichtag:     stichtag,
-            tarifTabelle: tarife);
+            tarifTabelle: tarife,
+            konkubinat:   konkubinat);
     }
 }
 
@@ -123,7 +138,20 @@ public record QstKindInput(
     // Walter-Vorgabe 25.08.2026: expliziter Haushalt-Status aus dem Familien-
     // Modal (true = lebt beim MA). NULL = nicht übergeben (alte Aufrufer/Tests)
     // → Fallback auf die frühere Ableitung AlternativeAddressId == null.
-    bool?     LebtImHaushalt = null
+    bool?     LebtImHaushalt = null,
+    // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+    // Gemeinsames Kind mit dem Konkubinatspartner? NULL = Frage offen.
+    bool?     GemeinsamesKind = null
+);
+
+/// <summary>
+/// Konkubinatspartner-Input für die Vorschlag-Logik (Walter 25.08.2026,
+/// docs/konkubinat-qst-konzept.md). NULL-Objekt = kein K-Partner erfasst.
+/// </summary>
+public record QstKonkubinatInput(
+    // Hat der/die MA das höhere Bruttoeinkommen als der Partner?
+    // NULL = Frage offen (→ konservativ A0 + Warnung).
+    bool? MaHatHoeheresEinkommen
 );
 
 /// <summary>Resultat eines Tarifvorschlags. Geht 1:1 als JSON ans Frontend.</summary>
@@ -139,7 +167,11 @@ public record QstTarifVorschlagResult(
     bool     InTariftabelleGefunden,
     string   Begruendung,
     IReadOnlyList<string> Warnings,
-    DateOnly Stichtag
+    DateOnly Stichtag,
+    // Walter 25.08.2026: gemischter Konkubinatsfall (gemeinsame + nicht-
+    // gemeinsame Kinder im Haushalt) — KEIN automatischer Vorschlag, das
+    // Frontend zeigt stattdessen «Mit QST-Behörde abklären».
+    bool     AbklaerungNoetig = false
 );
 
 /// <summary>
@@ -177,7 +209,9 @@ public static class QstTarifVorschlagLogic
         string?                       steuerkanton,
         IReadOnlyList<QstKindInput>   kinder,
         DateOnly                      stichtag,
-        IReadOnlyList<QstTarifInfo>   tarifTabelle)
+        IReadOnlyList<QstTarifInfo>   tarifTabelle,
+        // Konkubinats-Logik (Walter 25.08.2026): NULL = kein K-Partner erfasst.
+        QstKonkubinatInput?           konkubinat = null)
     {
         var warnings   = new List<string>();
         var begruendung = new List<string>();
@@ -186,13 +220,22 @@ public static class QstTarifVorschlagLogic
         // QST-berechtigt", da der H-Tarif explizit den selben Haushalt verlangt.
         var berechneteKinderTotal       = 0;
         var kinderImSelbenHaushalt = 0;
+        // Konkubinat (Walter 25.08.2026): Haushalts-Kinder nach der Frage
+        // «gemeinsames Kind mit dem K-Partner?» klassifizieren.
+        int gemeinsamJa = 0, gemeinsamNein = 0, gemeinsamOffen = 0;
         foreach (var k in kinder)
         {
             if (!IstQstBerechtigt(k, stichtag)) continue;
             berechneteKinderTotal++;
             // Walter 25.08.2026: expliziter Haushalt-Status massgebend;
             // Fallback (NULL, alte Aufrufer): AlternativeAddressId == null.
-            if (k.LebtImHaushalt ?? (k.AlternativeAddressId == null)) kinderImSelbenHaushalt++;
+            if (k.LebtImHaushalt ?? (k.AlternativeAddressId == null))
+            {
+                kinderImSelbenHaushalt++;
+                if (k.GemeinsamesKind == true) gemeinsamJa++;
+                else if (k.GemeinsamesKind == false) gemeinsamNein++;
+                else gemeinsamOffen++;
+            }
         }
         if (berechneteKinderTotal > 0)
         {
@@ -204,6 +247,54 @@ public static class QstTarifVorschlagLogic
 
         // 2) Tarif-Buchstaben
         var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung);
+
+        // 2b) Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+        // greift nur, wenn ein K-Partner erfasst ist UND der Vorschlag H wäre
+        // (= nicht verheiratet + Kind im Haushalt). Entscheidtabelle:
+        //   alle Haushalts-Kinder NICHT gemeinsam → H bleibt (alleinerziehend)
+        //   gemeinsames Kind + MA verdient mehr   → H bleibt (nie beide H1)
+        //   gemeinsames Kind + Partner verdient mehr → A0 (H1 beim Partner)
+        //   Fragen offen → konservativ A0 + Warnung (lieber zu viel abziehen)
+        //   gemeinsam UND nicht-gemeinsam gemischt → KEIN Vorschlag,
+        //   «Mit QST-Behörde abklären» (AbklaerungNoetig=true).
+        bool abklaerungNoetig = false;
+        if (konkubinat != null && tarif == "H")
+        {
+            if (gemeinsamJa > 0 && gemeinsamNein > 0)
+            {
+                abklaerungNoetig = true;
+                begruendung.Add("Konkubinat mit gemeinsamen UND nicht-gemeinsamen Kindern im Haushalt — kein automatischer Vorschlag, mit der QST-Behörde abklären");
+                warnings.Add("Gemischter Konkubinatsfall (gemeinsame und nicht-gemeinsame Kinder im Haushalt): Tarif mit der QST-Behörde abklären.");
+            }
+            else if (gemeinsamJa > 0)
+            {
+                if (konkubinat.MaHatHoeheresEinkommen == true)
+                {
+                    begruendung.Add("Konkubinat mit gemeinsamem Kind — MA hat das höhere Bruttoeinkommen → H (nie beide H1)");
+                }
+                else if (konkubinat.MaHatHoeheresEinkommen == false)
+                {
+                    tarif = "A";
+                    begruendung.Add("Konkubinat mit gemeinsamem Kind — der Partner verdient mehr → A0 (H1 gehört zum Partner)");
+                }
+                else
+                {
+                    tarif = "A";
+                    begruendung.Add("Konkubinat mit gemeinsamem Kind — Einkommensfrage offen → konservativ A0");
+                    warnings.Add("Einkommensfrage beim Konkubinatspartner offen («Hat der/die MA das höhere Bruttoeinkommen?») — bis dahin konservativ A0.");
+                }
+            }
+            else if (gemeinsamOffen > 0)
+            {
+                tarif = "A";
+                begruendung.Add("Konkubinat — Frage «gemeinsames Kind?» bei Haushalts-Kindern offen → konservativ A0");
+                warnings.Add("Konkubinatspartner erfasst: beim Kind/bei den Kindern die Frage «gemeinsames Kind mit dem Konkubinatspartner?» beantworten.");
+            }
+            else
+            {
+                begruendung.Add("Konkubinat — Haushalts-Kind(er) NICHT vom Partner → H bleibt (alleinerziehend)");
+            }
+        }
 
         // 3) Kirchensteuer — Begründung IMMER nennen (Walter 12.08.2026):
         // auch bei «keine Kirchensteuer» soll sichtbar sein, WELCHE Konfession
@@ -257,7 +348,8 @@ public static class QstTarifVorschlagLogic
             InTariftabelleGefunden: gefunden,
             Begruendung:            string.Join(" · ", begruendung),
             Warnings:               warnings,
-            Stichtag:               stichtag);
+            Stichtag:               stichtag,
+            AbklaerungNoetig:       abklaerungNoetig);
     }
 
     /// <summary>

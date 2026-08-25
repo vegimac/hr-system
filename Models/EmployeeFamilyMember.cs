@@ -5,7 +5,7 @@ public class EmployeeFamilyMember
     public int Id { get; set; }
     public int EmployeeId { get; set; }
 
-    public string MemberType { get; set; } = "Kind"; // Kind, Ehepartner, Mutter, Vater, Sonstige
+    public string MemberType { get; set; } = "Kind"; // Kind, Ehepartner, Konkubinatspartner, Mutter, Vater, Sonstige
     public string? Gender { get; set; }
     public string? FamilyStatus { get; set; }
 
@@ -102,6 +102,21 @@ public class EmployeeFamilyMember
     /// endet die QST-Kinderziffer automatisch mit 18 (KS 45 Ziff. 3.2.2).
     /// </summary>
     public bool InErstausbildung { get; set; } = false;
+
+    // ── Konkubinats-Logik (Walter-Vorgabe 25.08.2026,
+    //    docs/konkubinat-qst-konzept.md) ────────────────────────────────────
+    /// <summary>
+    /// Typ Konkubinatspartner: Hat der/die MA das HÖHERE Bruttoeinkommen als
+    /// dieser Partner? Entscheidet bei gemeinsamem Kind im Haushalt H1 (Ja)
+    /// vs. A0 (Nein). NULL = Frage offen (→ konservativ A0 + Warnung).
+    /// </summary>
+    public bool? MaHatHoeheresEinkommen { get; set; }
+
+    /// <summary>
+    /// Typ Kind: Gemeinsames Kind mit dem Konkubinatspartner? Nur relevant,
+    /// wenn beim MA ein Konkubinatspartner erfasst ist. NULL = Frage offen.
+    /// </summary>
+    public bool? GemeinsamesKindMitPartner { get; set; }
 
     /// <summary>
     /// Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Dokument

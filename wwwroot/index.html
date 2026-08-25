@@ -8206,7 +8206,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260819a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260812e"></script>
+<script src="js/qst-modal.js?v=20260825a"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -8263,6 +8263,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <select class="fmf-select" id="fmMemberType" onchange="fmTypeChanged()">
                         <option value="Kind"       data-i18n="fam.value.type.Kind">Kind</option>
                         <option value="Ehepartner" data-i18n="fam.value.type.Ehepartner">Ehepartner</option>
+                        <!-- Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-
+                             qst-konzept.md): befreit NIE von der QST (auch mit
+                             CH/C) — H1/A0-Logik läuft über gemeinsames Kind. -->
+                        <option value="Konkubinatspartner">Konkubinatspartner/in</option>
                         <option value="Mutter"     data-i18n="fam.value.type.Mutter">Mutter</option>
                         <option value="Vater"      data-i18n="fam.value.type.Vater">Vater</option>
                         <option value="Sonstige"   data-i18n="fam.value.type.Sonstige">Sonstige</option>
@@ -8353,10 +8357,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="fmf-field">
                     <label class="fmf-label" data-i18n="fam.field.livesInCh">In der Schweiz lebend</label>
                     <label class="fmf-checkbox-card">
-                        <input type="checkbox" id="fmLivesInSwitzerland">
+                        <input type="checkbox" id="fmLivesInSwitzerland" onchange="fmUpdateAuslandHint()">
                         <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
                     </label>
                 </div>
+            </div>
+            <!-- Auslands-Partner-Hinweis (Walter 25.08.2026, Fall Flüchtlings-
+                 familien): erscheint nur bei Ehepartner, der nicht in der
+                 Schweiz lebt — fmUpdateAuslandHint() in employees.js. -->
+            <div id="fmAuslandHint" style="display:none;margin-top:6px;padding:7px 11px;border-radius:10px;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.18);font-size:11.5px;color:#646464">
+                🌍 Partner lebt im Ausland: <b>keine Schweizer Bewilligung nötig</b> — es kommt keine Warnung.
+                Wichtig: Erwerbstätigkeit im <b>Ausland</b> zählt für den Tarif trotzdem
+                (erwerbstätig&nbsp;⇒&nbsp;C&nbsp;Doppelverdiener, nicht erwerbstätig&nbsp;⇒&nbsp;B).
             </div>
 
             <!-- ── Adresse: lebt beim MA oder eigene (Zusatz-)Adresse ────────────── -->
@@ -8435,7 +8447,21 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  QST-Anmeldung. «–» = Frage offen → blockt bei QST-pflichtigen
                  verheirateten MA den Lohnlauf. -->
             <div id="fmErwerbSection" style="display:none">
-                <div class="emp-section-title">Erwerbstätigkeit Ehepartner</div>
+                <div class="emp-section-title" id="fmErwerbTitle">Erwerbstätigkeit Ehepartner</div>
+                <!-- Einkommensfrage Konkubinat (Walter 25.08.2026): nur bei Typ
+                     Konkubinatspartner sichtbar — entscheidet bei gemeinsamem
+                     Kind im Haushalt H1 (MA verdient mehr) vs. A0. -->
+                <div id="fmEinkommenRow" style="display:none;margin-bottom:8px">
+                    <div class="fmf-field">
+                        <label class="fmf-label">Hat der/die MA das höhere Bruttoeinkommen als der Partner?
+                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → Tarif H1 · Nein → A0 — nie beide H1)</span></label>
+                        <div style="display:flex;gap:6px;align-items:center;min-height:28px">
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="" checked> –</label>
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="ja"> Ja</label>
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="nein"> Nein</label>
+                        </div>
+                    </div>
+                </div>
                 <!-- Kompakt in 2 Zeilen (Walter 20.08.2026, analog QST-Anmelde-
                      formular): Zeile 1 = Frage + Arbeitgeber + Strasse/Nr.,
                      Zeile 2 = PLZ (mit Ort/Kanton-Auto-Lookup) + Ort + Kanton
@@ -8503,6 +8529,21 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <input type="checkbox" id="fmInErstausbildung">
                         <span class="fmf-checkbox-text">in Erstausbildung</span>
                     </label>
+                </div>
+            </div>
+            <!-- Gemeinsames Kind mit dem Konkubinatspartner (Walter 25.08.2026,
+                 docs/konkubinat-qst-konzept.md): nur sichtbar bei Typ Kind UND
+                 wenn beim MA ein Konkubinatspartner erfasst ist. Entscheidet,
+                 ob die H1/A0-Einkommensregel greift. -->
+            <div id="fmGemKindRow" style="display:none;margin-top:8px">
+                <div class="fmf-field">
+                    <label class="fmf-label">Gemeinsames Kind mit dem Konkubinatspartner?
+                        <span style="font-weight:400;color:#8b8b8b">(nur mit gemeinsamem Kind gilt die H1/A0-Einkommensregel)</span></label>
+                    <div style="display:flex;gap:6px;align-items:center;min-height:28px">
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="" checked> –</label>
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="ja"> Ja</label>
+                        <label class="zst-pill"><input type="radio" name="fmGemKind" value="nein"> Nein</label>
+                    </div>
                 </div>
             </div>
             </div>
@@ -8636,7 +8677,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260825l"></script>
+<script src="employees.js?v=20260825n"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

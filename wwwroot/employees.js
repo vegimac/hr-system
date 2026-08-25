@@ -4081,10 +4081,15 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
         const zeilenWarnungen = (isCurrent && Array.isArray(pflicht?.tarifWarnungen))
             ? pflicht.tarifWarnungen : [];
         const vorschlagCode = (vorschlag && vorschlag.qstCode) ? vorschlag.qstCode : '';
+        // Gemischter Konkubinatsfall (Walter 25.08.2026): KEIN Vorschlag —
+        // stattdessen «Mit QST-Behörde abklären» in Orange.
+        const abklaeren = !!(vorschlag && vorschlag.abklaerungNoetig);
         const codeHtml = zeilenWarnungen.length
             ? `<strong style="color:#b91c1c">⚠ ${code}</strong>`
-              + (vorschlagCode && vorschlagCode !== code
-                    ? ` <span style="color:#15803d;font-weight:700">→ richtig wäre ${vorschlagCode}</span>` : '')
+              + (abklaeren
+                    ? ` <span style="color:#b45309;font-weight:700">→ Mit QST-Behörde abklären</span>`
+                    : (vorschlagCode && vorschlagCode !== code
+                        ? ` <span style="color:#15803d;font-weight:700">→ richtig wäre ${vorschlagCode}</span>` : ''))
             : `<strong>${code}</strong>`;
         const warnZeilenHtml = zeilenWarnungen.length
             ? `<div style="font-size:12px;color:#b91c1c;margin-top:5px;line-height:1.45">${zeilenWarnungen.map(x => '⚠ ' + esc(x)).join('<br>')}</div>`
@@ -4806,6 +4811,14 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             if (type === 'Kind' && m.inErstausbildung) {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#dbeafe;color:#1d4ed8" title="In Erstausbildung — QST-Kinderziffer läuft über 18 hinaus (Lehrvertrag/Immatrikulation als Beleg)">🎓 Erstausbildung</span>`;
             }
+            // Konkubinat (Walter 25.08.2026): gemeinsames Kind mit dem
+            // K-Partner — entscheidet die H1/A0-Einkommensregel.
+            if (type === 'Kind' && m.gemeinsamesKindMitPartner === true) {
+                spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Gemeinsames Kind mit dem Konkubinatspartner — H1/A0 nach höherem Bruttoeinkommen (nie beide H1)">👪 gemeinsames Kind</span>`;
+            }
+            if (type === 'Konkubinatspartner') {
+                spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Konkubinat — befreit NICHT von der QST (auch mit CH/C); H1/A0 läuft über das gemeinsame Kind">💞 Konkubinat</span>`;
+            }
 
             let addrBadge = '';
             if (m.alternativeAddress) {
@@ -5014,12 +5027,31 @@ function fmTypeChanged() {
 // Walter-Vorgabe 20.08.2026: typ-abhängige QST-Blöcke im Familien-Modal —
 // Erwerbstätigkeit nur beim Ehepartner, Erstausbildung nur beim Kind.
 function fmQstBlocksVisibility(type) {
+    // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+    // Erwerbstätigkeits-Block auch hier sichtbar (freiwillig, angemahnt erst
+    // bei gemeinsamem Kind), plus die Einkommensfrage H1/A0.
     const erwerbSec = document.getElementById('fmErwerbSection');
-    if (erwerbSec) erwerbSec.style.display = (type === 'Ehepartner') ? '' : 'none';
+    if (erwerbSec) erwerbSec.style.display = (type === 'Ehepartner' || type === 'Konkubinatspartner') ? '' : 'none';
+    const erwerbTitle = document.getElementById('fmErwerbTitle');
+    if (erwerbTitle) erwerbTitle.textContent = type === 'Konkubinatspartner'
+        ? 'Erwerbstätigkeit Konkubinatspartner/in'
+        : 'Erwerbstätigkeit Ehepartner';
+    const einkRow = document.getElementById('fmEinkommenRow');
+    if (einkRow) einkRow.style.display = (type === 'Konkubinatspartner') ? '' : 'none';
+    // Gemeinsames-Kind-Frage: nur bei Kind UND wenn beim MA ein
+    // Konkubinatspartner erfasst ist.
+    const gemRow = document.getElementById('fmGemKindRow');
+    if (gemRow) {
+        const hatKPartner = (window._familyMembersCache || []).some(m =>
+            m.memberType === 'Konkubinatspartner' && !m.dateOfDeath);
+        gemRow.style.display = (type === 'Kind' && hatKPartner) ? '' : 'none';
+    }
     // Walter-Vorgabe 20.08.2026: die GANZE QST-Sektion (Abzug ab/bis +
     // Erstausbildung) gibt es nur bei Kindern — beim Ehepartner & Co. weg.
     const qstSec = document.getElementById('fmQstSection');
     if (qstSec) qstSec.style.display = (type === 'Kind') ? '' : 'none';
+    // Auslands-Partner-Hinweis hängt am Typ (nur Ehepartner) — mitschalten.
+    if (typeof fmUpdateAuslandHint === 'function') fmUpdateAuslandHint();
 }
 
 // Segment-Pille Erwerbstätig lesen/schreiben ('' = Frage offen).
@@ -5030,6 +5062,24 @@ function fmSetErwerb(val) {
 }
 function fmGetErwerb() {
     const r = document.querySelector('input[name="fmErwerb"]:checked');
+    return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
+}
+// Konkubinat (Walter 25.08.2026): Einkommensfrage (K-Partner) + Gemeinsames-
+// Kind-Frage (Kind) — gleiche 3-Zustands-Pillen wie Erwerbstätig.
+function fmSetMaEink(val) {
+    const want = val === true ? 'ja' : val === false ? 'nein' : '';
+    document.querySelectorAll('input[name="fmMaEink"]').forEach(r => { r.checked = (r.value === want); });
+}
+function fmGetMaEink() {
+    const r = document.querySelector('input[name="fmMaEink"]:checked');
+    return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
+}
+function fmSetGemKind(val) {
+    const want = val === true ? 'ja' : val === false ? 'nein' : '';
+    document.querySelectorAll('input[name="fmGemKind"]').forEach(r => { r.checked = (r.value === want); });
+}
+function fmGetGemKind() {
+    const r = document.querySelector('input[name="fmGemKind"]:checked');
     return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
 }
 function fmErwerbChanged() {
@@ -6288,6 +6338,9 @@ function openFamilyModal(member) {
     // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder — Ehepartner-Erwerb +
     // Kind-Erstausbildung (+ typ-abhängige Sichtbarkeit).
     fmSetErwerb(member?.erwerbstaetig ?? null);
+    // Konkubinat (Walter 25.08.2026): Einkommens- + Gemeinsames-Kind-Frage.
+    fmSetMaEink(member?.maHatHoeheresEinkommen ?? null);
+    fmSetGemKind(member?.gemeinsamesKindMitPartner ?? null);
     document.getElementById('fmArbeitgeberName').value    = member?.arbeitgeberName    ?? '';
     document.getElementById('fmArbeitgeberStrasse').value = member?.arbeitgeberStrasse ?? '';
     document.getElementById('fmArbeitgeberPlz').value     = member?.arbeitgeberPlz     ?? '';
@@ -6636,9 +6689,25 @@ async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
     if (spouseRad) spouseRad.checked = useSpouse;
     if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
     if (select && useAlt) select.value = String(currentAlternativeAddressId);
+    fmUpdateAuslandHint();
+}
+
+// Auslands-Partner-Hinweis (Walter 25.08.2026, Fall Flüchtlingsfamilien):
+// nur bei Ehepartner sichtbar, der NICHT im Haushalt lebt und dessen
+// «In der Schweiz lebend»-Häkchen leer ist — dann braucht er keine CH-
+// Bewilligung (Server lässt den Lohnlauf-Block entsprechend weg), aber die
+// Erwerbstätig-Frage bleibt tarif-relevant (Auslandseinkommen ⇒ Tarif C).
+function fmUpdateAuslandHint() {
+    const hint = document.getElementById('fmAuslandHint');
+    if (!hint) return;
+    const istEhepartner = (document.getElementById('fmMemberType')?.value || '') === 'Ehepartner';
+    const inCh   = document.getElementById('fmLivesInSwitzerland')?.checked;
+    const imHaus = document.getElementById('fmAddrSameAsEmp')?.checked;
+    hint.style.display = (istEhepartner && !inCh && !imHaus) ? '' : 'none';
 }
 
 function fmAddrModeChanged() {
+    fmUpdateAuslandHint();
     const useAlt = document.getElementById('fmAddrAlt')?.checked;
     const altBox = document.getElementById('fmAddrAltBox');
     if (altBox) altBox.style.display = useAlt ? 'block' : 'none';
@@ -6723,6 +6792,9 @@ async function saveFamilyMember() {
         nationalityId:          Number.isFinite(nationalityId) && nationalityId > 0 ? nationalityId : null,
         // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder.
         erwerbstaetig:          fmGetErwerb(),
+        // Konkubinat (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
+        maHatHoeheresEinkommen:     fmGetMaEink(),
+        gemeinsamesKindMitPartner:  fmGetGemKind(),
         arbeitgeberName:        (document.getElementById('fmArbeitgeberName')?.value    || '').trim() || null,
         arbeitgeberStrasse:     (document.getElementById('fmArbeitgeberStrasse')?.value || '').trim() || null,
         arbeitgeberPlz:         (document.getElementById('fmArbeitgeberPlz')?.value     || '').trim() || null,

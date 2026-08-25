@@ -468,4 +468,93 @@ public class QstTarifVorschlagLogicTests
         var k   = new QstKindInput(null, null, dob, null);
         Assert.True(QstTarifVorschlagLogic.IstQstBerechtigt(k, Stichtag));
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Konkubinat (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
+    // Entscheidtabelle H1/A0 über das GEMEINSAME Kind + Einkommensfrage.
+    // ──────────────────────────────────────────────────────────────────
+    private static QstKindInput KonkKind(bool? gemeinsam) => new(
+        QstDeductibleFrom:    new DateOnly(2020, 1, 1),
+        QstDeductibleUntil:   new DateOnly(2030, 1, 1),
+        DateOfBirth:          new DateOnly(2018, 5, 5),
+        AlternativeAddressId: null,
+        GemeinsamesKind:      gemeinsam);
+
+    private QstTarifVorschlagResult BerechneKonkubinat(bool? gemeinsam, bool? maMehr)
+        => QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       new[] { KonkKind(gemeinsam) },
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle(),
+            konkubinat:   new QstKonkubinatInput(maMehr));
+
+    [Fact]
+    public void Konkubinat_GemeinsamesKind_MaVerdientMehr_ErgibtH()
+    {
+        var res = BerechneKonkubinat(gemeinsam: true, maMehr: true);
+        Assert.Equal("H", res.TarifCode);
+        Assert.False(res.AbklaerungNoetig);
+    }
+
+    [Fact]
+    public void Konkubinat_GemeinsamesKind_PartnerVerdientMehr_ErgibtA0()
+    {
+        // H1 gehört dem Partner — der MA bekommt A0 (nie beide H1).
+        var res = BerechneKonkubinat(gemeinsam: true, maMehr: false);
+        Assert.Equal("A", res.TarifCode);
+        Assert.Equal(0, res.AnzahlKinder);
+        Assert.False(res.AbklaerungNoetig);
+    }
+
+    [Fact]
+    public void Konkubinat_GemeinsamesKind_EinkommensfrageOffen_KonservativA0MitWarnung()
+    {
+        var res = BerechneKonkubinat(gemeinsam: true, maMehr: null);
+        Assert.Equal("A", res.TarifCode);
+        Assert.Contains(res.Warnings, w => w.Contains("Einkommensfrage"));
+    }
+
+    [Fact]
+    public void Konkubinat_KindNichtGemeinsam_BleibtH()
+    {
+        // Kind aus früherer Beziehung → MA ist alleinerziehend, H bleibt.
+        var res = BerechneKonkubinat(gemeinsam: false, maMehr: null);
+        Assert.Equal("H", res.TarifCode);
+        Assert.False(res.AbklaerungNoetig);
+    }
+
+    [Fact]
+    public void Konkubinat_GemischteKinder_KeinVorschlag_AbklaerungNoetig()
+    {
+        // Gemeinsames UND nicht-gemeinsames Kind im Haushalt → kein
+        // Automatismus, «Mit QST-Behörde abklären» (Walter 25.08.2026).
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       new[] { KonkKind(true), KonkKind(false) },
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle(),
+            konkubinat:   new QstKonkubinatInput(true));
+        Assert.True(res.AbklaerungNoetig);
+        Assert.Contains(res.Warnings, w => w.Contains("abklären"));
+    }
+
+    [Fact]
+    public void Konkubinat_OhneKPartner_LogikUnveraendert()
+    {
+        // Kein K-Partner übergeben → bisheriges Verhalten (H bei Kind im
+        // Haushalt), Konkubinats-Zweig greift nicht.
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       new[] { KonkKind(null) },
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle());
+        Assert.Equal("H", res.TarifCode);
+        Assert.False(res.AbklaerungNoetig);
+    }
 }

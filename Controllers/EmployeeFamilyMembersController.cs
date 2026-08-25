@@ -111,6 +111,9 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.ArbeitgeberKanton,
         m.Stellenantritt,
         m.InErstausbildung,
+        // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
+        m.MaHatHoeheresEinkommen,
+        m.GemeinsamesKindMitPartner,
         // Walter-Vorgabe 13.06.2026: Beleg-Doku-FK durchreichen — das Frontend
         // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
         // Beleg im Vorschau-Panel öffnen.
@@ -195,6 +198,9 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.ArbeitgeberKanton    = string.IsNullOrWhiteSpace(member.ArbeitgeberKanton)  ? null : member.ArbeitgeberKanton.Trim();
         existing.Stellenantritt       = member.Stellenantritt;
         existing.InErstausbildung     = member.InErstausbildung;
+        // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
+        existing.MaHatHoeheresEinkommen     = member.MaHatHoeheresEinkommen;
+        existing.GemeinsamesKindMitPartner  = member.GemeinsamesKindMitPartner;
         existing.UpdatedAt            = DateTime.Now;
 
         await _context.SaveChangesAsync();
