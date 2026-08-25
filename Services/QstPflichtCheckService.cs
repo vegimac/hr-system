@@ -461,8 +461,10 @@ public class QstPflichtCheckService
                         + "«gemeinsames Kind mit dem Konkubinatspartner?» beantworten (Familie-Tab).");
                 if (haushaltJa > 0)
                 {
-                    if (kPartner.MaHatHoeheresEinkommen == null)
-                        // W6: Einkommensfrage offen.
+                    if (kPartner.MaHatHoeheresEinkommen == null && kPartner.Erwerbstaetig != false)
+                        // W6: Einkommensfrage offen — ausser der Partner ist als
+                        // NICHT erwerbstätig erfasst (dann greift automatisch H1,
+                        // AG/ESTV-Praxis: MA = zwangsläufig Hauptunterhalt).
                         w.Add("Gemeinsames Kind im Konkubinat: Einkommensfrage beim Konkubinatspartner offen "
                             + "(«Hat der/die MA das höhere Bruttoeinkommen?») — bis dahin gilt konservativ A0.");
                     else if (kPartner.MaHatHoeheresEinkommen == true && t == "A")

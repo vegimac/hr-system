@@ -22,6 +22,10 @@ obwohl Konkubinat.)
 
 - **Nie beide H1** (der besser verdienende Elternteil = Hauptunterhalt → H1,
   der andere A0).
+- **Partner nicht erwerbstätig** (Walter 25.08.2026, AG/ESTV-Praxis «beide
+  erwerbstätig» als Voraussetzung): hat der K-Partner kein Erwerbseinkommen,
+  ist der MA zwangsläufig Hauptunterhaltsträger → **automatisch H1**, auch
+  ohne beantwortete Einkommensfrage (keine W6-Warnung).
 - **Gemischter Fall (gemeinsame UND nicht-gemeinsame Kinder im Haushalt):
   KEIN Automatismus** — das System macht keinen Tarifvorschlag, sondern zeigt
   die Meldung **«Mit QST-Behörde abklären»** (Walter 25.08.2026).

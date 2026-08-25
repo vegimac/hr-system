@@ -61,10 +61,11 @@ public class QstTarifVorschlagService
                      && f.MemberType == "Konkubinatspartner"
                      && f.DateOfDeath == null)
             .OrderByDescending(f => f.Id)
-            .Select(f => new { f.MaHatHoeheresEinkommen })
+            .Select(f => new { f.MaHatHoeheresEinkommen, f.Erwerbstaetig })
             .FirstOrDefaultAsync();
         var konkubinat = kPartnerEinkommen != null
-            ? new QstKonkubinatInput(kPartnerEinkommen.MaHatHoeheresEinkommen)
+            ? new QstKonkubinatInput(kPartnerEinkommen.MaHatHoeheresEinkommen,
+                                     kPartnerEinkommen.Erwerbstaetig)
             : null;
         // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
         // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
@@ -151,7 +152,11 @@ public record QstKindInput(
 public record QstKonkubinatInput(
     // Hat der/die MA das höhere Bruttoeinkommen als der Partner?
     // NULL = Frage offen (→ konservativ A0 + Warnung).
-    bool? MaHatHoeheresEinkommen
+    bool? MaHatHoeheresEinkommen,
+    // Walter 25.08.2026 (AG/ESTV-Praxis): ist der K-Partner NICHT erwerbstätig,
+    // hat er kein Erwerbseinkommen → der MA ist zwangsläufig Hauptunterhalts-
+    // träger → automatisch H1, auch ohne beantwortete Einkommensfrage.
+    bool? PartnerErwerbstaetig = null
 );
 
 /// <summary>Resultat eines Tarifvorschlags. Geht 1:1 als JSON ans Frontend.</summary>
@@ -268,11 +273,18 @@ public static class QstTarifVorschlagLogic
             }
             else if (gemeinsamJa > 0)
             {
-                if (konkubinat.MaHatHoeheresEinkommen == true)
+                // AG/ESTV-Praxis (Walter 25.08.2026): Partner nicht erwerbstätig
+                // = kein Erwerbseinkommen → MA ist zwangsläufig Hauptunterhalt
+                // → wie «MA verdient mehr» behandeln (auch ohne Antwort).
+                var maMehr = konkubinat.MaHatHoeheresEinkommen
+                    ?? (konkubinat.PartnerErwerbstaetig == false ? true : (bool?)null);
+                if (maMehr == true)
                 {
-                    begruendung.Add("Konkubinat mit gemeinsamem Kind — MA hat das höhere Bruttoeinkommen → H (nie beide H1)");
+                    begruendung.Add(konkubinat.MaHatHoeheresEinkommen == null
+                        ? "Konkubinat mit gemeinsamem Kind — Partner nicht erwerbstätig → MA ist Hauptunterhaltsträger → H"
+                        : "Konkubinat mit gemeinsamem Kind — MA hat das höhere Bruttoeinkommen → H (nie beide H1)");
                 }
-                else if (konkubinat.MaHatHoeheresEinkommen == false)
+                else if (maMehr == false)
                 {
                     tarif = "A";
                     begruendung.Add("Konkubinat mit gemeinsamem Kind — der Partner verdient mehr → A0 (H1 gehört zum Partner)");

@@ -517,6 +517,24 @@ public class QstTarifVorschlagLogicTests
     }
 
     [Fact]
+    public void Konkubinat_PartnerNichtErwerbstaetig_AutomatischH()
+    {
+        // AG/ESTV-Praxis (Walter 25.08.2026): Partner ohne Erwerbseinkommen →
+        // MA ist zwangsläufig Hauptunterhaltsträger → H1 ohne offene Frage.
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       new[] { KonkKind(true) },
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle(),
+            konkubinat:   new QstKonkubinatInput(MaHatHoeheresEinkommen: null,
+                                                 PartnerErwerbstaetig: false));
+        Assert.Equal("H", res.TarifCode);
+        Assert.DoesNotContain(res.Warnings, w => w.Contains("Einkommensfrage"));
+    }
+
+    [Fact]
     public void Konkubinat_KindNichtGemeinsam_BleibtH()
     {
         // Kind aus früherer Beziehung → MA ist alleinerziehend, H bleibt.
