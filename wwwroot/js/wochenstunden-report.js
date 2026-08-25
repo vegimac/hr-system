@@ -110,7 +110,7 @@ function wsRender() {
             <span style="color:#8b8b8b">Ø = gestempelte Stunden (Tag + Nacht) ÷ effektive Wochen des MA
             (Eintritt/Austritt im Zeitraum werden berücksichtigt).</span>
         </div>
-        <div class="card" style="padding:0;overflow:auto">
+        <div class="card" style="padding:0">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead><tr style="background:#f1efe9">
                 <th style="padding:7px 10px;text-align:left">Vorname</th>

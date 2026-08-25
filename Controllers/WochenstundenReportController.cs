@@ -48,11 +48,26 @@ public class WochenstundenReportController : ControllerBase
             .ToListAsync();
         var empIds = contracts.Select(c => c.EmployeeId).Distinct().ToList();
 
-        var emps = await _db.Employees.AsNoTracking()
-            .Where(e => empIds.Contains(e.Id) && !e.IsPayrollExcluded && !e.IsHidden)
+        // Nur aktive MA — gleiche Regeln wie die Notfallkontakte-Liste
+        // (Walter 25.08.2026): erfasste Kündigung/Aufhebung → raus; gesetzter
+        // Austritt → raus, AUSSER er liegt ~6 Monate nach Eintritt (±30 Tage
+        // = typische Befristung); Zweifelsfall → drin.
+        var empsRaw = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id) && !e.IsPayrollExcluded && !e.IsHidden
+                     && e.IsActive
+                     && e.KuendigungPer == null
+                     && e.KuendigungAusgesprochenAm == null
+                     && (e.Austrittsgrund == null || e.Austrittsgrund == ""))
             .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
                                e.EntryDate, e.ExitDate })
             .ToListAsync();
+        var emps = empsRaw.Where(e =>
+        {
+            if (e.ExitDate == null) return true;                 // kein Austritt
+            if (e.EntryDate == null) return true;                // Zweifelsfall → drin
+            var sechsMonate = e.EntryDate.Value.AddMonths(6);
+            return Math.Abs((e.ExitDate.Value - sechsMonate).TotalDays) <= 30; // Befristung
+        }).ToList();
 
         // Stempelzeiten im Zeitraum, pro MA aufsummiert (Tag + Nacht absolut —
         // gleiche Logik wie absH im Stempelzeiten-Tab: totalHours war in
