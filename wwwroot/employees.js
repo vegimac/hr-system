@@ -1166,7 +1166,10 @@ function renderEmployeeDetail(emp) {
                     <div class="emp-hfact">
                         <div class="emp-hfact-l">${_t('ma.detail.entryDate','Eintritt')}</div>
                         <div class="emp-hfact-v">${(emp.entryDate ? entry : null) || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-top:3px;width:460px;font-size:15px;font-weight:700;color:#0a0a0a">
+                        <!-- Feste Höhe 28px (Walter 25.08.2026 v5): mit Anruf-Knopf
+                             (28px) und ohne («– erfassen –», ~20px Text) gleich
+                             hoch — sonst springt der Kopf beim MA-Wechsel. -->
+                        <div style="display:flex;align-items:center;gap:8px;margin-top:3px;width:460px;height:28px;font-size:15px;font-weight:700;color:#0a0a0a">
                             <span style="font-size:22px;line-height:1">🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
                         </div>
                     </div>

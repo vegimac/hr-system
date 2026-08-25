@@ -49,12 +49,30 @@ public class NotfallListeController : ControllerBase
             .Distinct()
             .ToListAsync();
 
-        var emps = await _db.Employees.AsNoTracking()
-            .Where(e => empIds.Contains(e.Id) && e.IsActive && !e.IsPayrollExcluded)
+        // Walter 25.08.2026 (final): Austretende MA kommen NICHT auf den
+        // Aushang — MIT einer Ausnahme für Befristungen. Regeln:
+        //   1) Erfasste Kündigung/Aufhebung (Kündigungs-Felder/Austrittsgrund) → raus.
+        //   2) Austrittsdatum gesetzt → raus, AUSSER es liegt «ziemlich genau»
+        //      6 Monate nach dem Eintritt (±30 Tage) = typische Befristung,
+        //      die i.d.R. verlängert wird → bleibt drauf.
+        //   3) Zweifelsfall (z.B. Eintritt unbekannt) → auf die Liste.
+        var empsRaw = await _db.Employees.AsNoTracking()
+            .Where(e => empIds.Contains(e.Id) && e.IsActive && !e.IsPayrollExcluded
+                     && e.KuendigungPer == null
+                     && e.KuendigungAusgesprochenAm == null
+                     && (e.Austrittsgrund == null || e.Austrittsgrund == ""))
             .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
+                               e.EntryDate, e.ExitDate,
                                e.NotfallFamilyMemberId, e.NotfallName,
                                e.NotfallBeziehung, e.NotfallTelefon })
             .ToListAsync();
+        var emps = empsRaw.Where(e =>
+        {
+            if (e.ExitDate == null) return true;                 // kein Austritt
+            if (e.EntryDate == null) return true;                // Zweifelsfall → Liste
+            var sechsMonate = e.EntryDate.Value.AddMonths(6);
+            return Math.Abs((e.ExitDate.Value - sechsMonate).TotalDays) <= 30; // Befristung
+        }).ToList();
 
         // FK-Verknüpfungen auf Familienmitglieder LIVE auflösen.
         var fmIds = emps.Where(e => e.NotfallFamilyMemberId != null)
