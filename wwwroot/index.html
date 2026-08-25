@@ -8465,20 +8465,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  verheirateten MA den Lohnlauf. -->
             <div id="fmErwerbSection" style="display:none">
                 <div class="emp-section-title" id="fmErwerbTitle">Erwerbstätigkeit Ehepartner</div>
-                <!-- Einkommensfrage Konkubinat (Walter 25.08.2026): nur bei Typ
-                     Konkubinatspartner sichtbar — entscheidet bei gemeinsamem
-                     Kind im Haushalt H1 (MA verdient mehr) vs. A0. -->
-                <div id="fmEinkommenRow" style="display:none;margin-bottom:8px">
-                    <div class="fmf-field">
-                        <label class="fmf-label">Hat der/die MA das höhere Bruttoeinkommen als der Partner?
-                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → Tarif H1 · Nein → A0 — nie beide H1)</span></label>
-                        <div style="display:flex;gap:6px;align-items:center;min-height:28px">
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="" checked> –</label>
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="ja"> Ja</label>
-                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="nein"> Nein</label>
-                        </div>
-                    </div>
-                </div>
                 <!-- Kompakt in 2 Zeilen (Walter 20.08.2026, analog QST-Anmelde-
                      formular): Zeile 1 = Frage + Arbeitgeber + Strasse/Nr.,
                      Zeile 2 = PLZ (mit Ort/Kanton-Auto-Lookup) + Ort + Kanton
@@ -8522,6 +8508,20 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </div>
                 </div>
                 <div id="fmAgPlzHint" style="font-size:11.5px;margin-top:4px"></div>
+                <!-- Einkommensfrage Konkubinat (Walter 25.08.2026 v2: NACH der
+                     Erwerbstätigkeit — erscheint nur bei Typ Konkubinatspartner
+                     UND Erwerbstätig = Ja; bei Nein greift automatisch H1). -->
+                <div id="fmEinkommenRow" style="display:none;margin-top:10px">
+                    <div class="fmf-field">
+                        <label class="fmf-label" style="font-weight:700;color:#3f3f3f">Hat der/die MA das höhere Bruttoeinkommen als der Partner?
+                            <span style="font-weight:400;color:#8b8b8b">(bei gemeinsamem Kind: Ja → Tarif H1 · Nein → A0 — nie beide H1)</span></label>
+                        <div style="display:flex;gap:6px;align-items:center;min-height:28px">
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="" checked> –</label>
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="ja"> Ja</label>
+                            <label class="zst-pill"><input type="radio" name="fmMaEink" value="nein"> Nein</label>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Walter-Vorgabe 20.08.2026: QST-Abzug-Daten gibt es nur bei
@@ -8679,7 +8679,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260825p"></script>
+<script src="employees.js?v=20260825q"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

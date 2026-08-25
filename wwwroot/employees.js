@@ -5041,8 +5041,11 @@ function fmQstBlocksVisibility(type) {
     if (erwerbTitle) erwerbTitle.textContent = type === 'Konkubinatspartner'
         ? 'Erwerbstätigkeit Konkubinatspartner/in'
         : 'Erwerbstätigkeit Ehepartner';
+    // Einkommensfrage erst NACH «Erwerbstätig = Ja» (Walter 25.08.2026 v2) —
+    // bei Nein greift automatisch H1, bei offen ist die Frage noch irrelevant.
     const einkRow = document.getElementById('fmEinkommenRow');
-    if (einkRow) einkRow.style.display = (type === 'Konkubinatspartner') ? '' : 'none';
+    if (einkRow) einkRow.style.display =
+        (type === 'Konkubinatspartner' && fmGetErwerb() === true) ? '' : 'none';
     // Gemeinsames-Kind-Frage: nur bei Kind UND wenn beim MA ein
     // Konkubinatspartner erfasst ist.
     const gemRow = document.getElementById('fmGemKindRow');
@@ -5097,6 +5100,13 @@ function fmErwerbChanged() {
         el.disabled = !aktiv;
         el.style.opacity = aktiv ? '' : '0.5';
     });
+    // Konkubinat (Walter 25.08.2026 v2): Einkommensfrage erst bei
+    // «Erwerbstätig = Ja» einblenden — bei Nein greift automatisch H1.
+    const einkRow = document.getElementById('fmEinkommenRow');
+    if (einkRow) {
+        const istK = (document.getElementById('fmMemberType')?.value || '') === 'Konkubinatspartner';
+        einkRow.style.display = (istK && aktiv) ? '' : 'none';
+    }
 }
 
 // Analog für das MA-Edit-Modal — Alter neben dem Geburtsdatum-Input.
