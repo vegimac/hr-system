@@ -254,6 +254,20 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
+            // Notfallkontakt (Walter-Vorgabe 25.08.2026): FETT hervorgehoben —
+            // Name, Beziehung und Nummer der Person, die im Notfall zu
+            // verständigen ist. Landet nach der Anstellung im MA-Notfall-Block.
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Notfallkontakt",
+                "Wen dürfen wir im Notfall verständigen?"));
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.RelativeItem(5).Element(f => BoldLabeledLine(f, "Name"));
+                r.ConstantItem(16);
+                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Beziehung"));
+                r.ConstantItem(16);
+                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Telefon"));
+            });
+
             // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
             // vorbestraft / bevormundet / Militaer) entfernt (Walter 13.08.2026).
 
@@ -469,6 +483,19 @@ public class BewerbungsbogenPdfService
         e.Height(height).AlignBottom()
             .BorderBottom(0.55f).BorderColor(Line)
             .Text(" ");
+    }
+
+    /// <summary>Wie LabeledLine, aber FETTE Beschriftung — Notfallkontakt
+    /// (Walter-Vorgabe 25.08.2026: soll ins Auge stechen).</summary>
+    private static void BoldLabeledLine(IContainer e, string label)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignBottom().PaddingBottom(2)
+                .Text(label).Bold().FontSize(8.5f).FontColor(Ink);
+            r.ConstantItem(8);
+            r.RelativeItem().Element(WriteLine);
+        });
     }
 
     private static void LabeledLine(IContainer e, string label)

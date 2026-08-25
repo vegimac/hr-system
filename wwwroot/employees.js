@@ -15364,3 +15364,32 @@ async function nfRemove() {
         await selectEmployee(selectedEmployeeId);
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
+
+// ── Notfallkontakte-Liste der Filiale (Walter 25.08.2026): PDF-Aushang
+// aus McAdmin — eine Zeile pro aktivem MA, fehlende Kontakte als
+// Schreiblinien zum Handnachtrag. Vorschaufenster wie Bewerbungsbogen.
+async function raNotfallListePdf() {
+    const cpId = fixedCompanyProfileId
+        || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
+        || selectedEmployee?.employments?.[0]?.companyProfileId;
+    if (!cpId) return alert('Bitte zuerst eine Filiale wählen.');
+    try {
+        if (typeof previewUrlFetch === 'function') {
+            await previewUrlFetch(
+                `/api/notfall-liste/pdf?companyProfileId=${cpId}`,
+                'Notfallkontakte.pdf',
+                ah());
+            return;
+        }
+        const r = await fetch(`/api/notfall-liste/pdf?companyProfileId=${cpId}`, { headers: ah() });
+        if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            return alert(err.message || err.error || ('PDF fehlgeschlagen: HTTP ' + r.status));
+        }
+        const blob = await r.blob();
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, 'Notfallkontakte.pdf');
+        else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, 'Notfallkontakte.pdf');
+    } catch (e) {
+        alert('Notfallkontakte-Liste fehlgeschlagen: ' + (e?.message || e));
+    }
+}

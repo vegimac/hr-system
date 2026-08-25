@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Notfallkontakte (Walter 25.08.2026) — Kohle-Skizzen-Stil wie die
+       übrigen McAdmin-Kacheln: Listenblatt + Notfall-Kreuz + Telefonhörer -->
+  <g stroke="#3a3a3a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Listenblatt, leicht schräg für den Hand-Skizzen-Look -->
+    <path d="M24 16 L79 13.5 Q82.5 13.4 82.7 17 L85 96 Q85.2 99.5 81.7 99.7 L27.5 102.2 Q24 102.4 23.8 98.8 L21.7 19.6 Q21.5 16.2 24 16 Z" fill="#ffffff"/>
+    <!-- Listenzeilen: Punkt + Linie -->
+    <circle cx="31.5" cy="34" r="1.6" fill="#3a3a3a" stroke="none"/>
+    <path d="M38 33.4 L72 32.2"/>
+    <circle cx="32" cy="48" r="1.6" fill="#3a3a3a" stroke="none"/>
+    <path d="M38.5 47.4 L74 46.2"/>
+    <circle cx="32.5" cy="62" r="1.6" fill="#3a3a3a" stroke="none"/>
+    <path d="M39 61.4 L68 60.4"/>
+    <circle cx="33" cy="76" r="1.6" fill="#3a3a3a" stroke="none"/>
+    <path d="M39.5 75.4 L64 74.6"/>
+    <!-- Notfall-Kreuz im Kreis, oben rechts überlappend -->
+    <circle cx="92" cy="34" r="19" fill="#ffffff"/>
+    <path d="M92 24.5 L92 43.5 M82.5 34 L101.5 34" stroke-width="6"/>
+    <!-- Telefonhörer unten rechts -->
+    <path d="M72 92 Q70 86 76.5 83.5 L81 82 Q84 81.2 85.5 84 L87.5 88 Q88.7 90.6 86.3 92.4 L84 94 Q87 100 93.5 103.5 L95.5 101.5 Q97.5 99.4 100 100.9 L104 103.3 Q106.7 105 105.6 108 L104 112.3 Q102 118 96 116 Q84 112 77.5 103.5 Q73.5 98.4 72 92 Z" fill="#ffffff"/>
+  </g>
+</svg>

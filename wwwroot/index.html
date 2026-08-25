@@ -3226,6 +3226,14 @@
                             <img src="img/lohnkat-qst-tarife.png?v=20260816a" alt="" loading="lazy">
                             <span>QST-Info<br>Formular</span>
                         </button>
+                        <!-- Notfallkontakte-Liste (Walter 25.08.2026): PDF-Aushang
+                             pro Filiale — MA-Nr/Vorname/Name + Notfall-Name/
+                             Beziehung/Telefon; fehlende Kontakte = Schreiblinien
+                             zum Handnachtrag. -->
+                        <button type="button" class="ra-tile" onclick="raNotfallListePdf()" title="Notfallkontakte — Liste aller aktiven MA der Filiale mit Notfall-Name, Beziehung und Telefon (leere Zeilen zum Handnachtrag)">
+                            <img src="img/notfall-kontakte.svg?v=20260825a" alt="" loading="lazy">
+                            <span>Notfall<br>Kontakte</span>
+                        </button>
                         <!-- Aus der Sidebar hierher (Walter 15.08.2026) — nur admin,
                              wie die frühere import-section (syncLiquidDashboardCards). -->
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
@@ -8570,7 +8578,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260825b"></script>
+<script src="employees.js?v=20260825c"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
