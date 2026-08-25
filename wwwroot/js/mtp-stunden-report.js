@@ -71,18 +71,23 @@ function mtpwRender() {
             const absMark = Number(w.absenz) > 0 ? '<span style="color:#b45309">*</span>' : '';
             return `<td style="padding:6px 8px;text-align:right" title="${tip}">${fmt(w.total)}${absMark}</td>`;
         }).join('');
-        // Keine Toleranz (Walter): jede Abweichung vom Garantie-Wert färbt.
+        // Keine Toleranz (Walter 25.08.2026, Farben final): ÜBER Garantie =
+        // GRÜN (Garantie erfüllt), UNTER Garantie = ROT.
         let avgHtml = '<span style="color:#cbd5e1">–</span>';
         if (r.avg != null) {
             const avg = Number(r.avg), gar = Number(r.garantiertH || 0);
-            const color = avg > gar ? '#b91c1c' : (avg < gar ? '#b45309' : '#15803d');
+            const color = avg >= gar ? '#15803d' : '#b91c1c';
             const delta = avg - gar;
             const deltaTxt = (delta >= 0 ? '+' : '') + delta.toFixed(2);
             avgHtml = `<span style="color:${color};font-weight:700" title="Abweichung zur Garantie: ${deltaTxt} h/Wo">${fmt(avg)}</span>`;
         }
+        // Schwangerschaft/Mutterschutz wie in der MA-Liste (Walter 25.08.2026).
+        const preg = r.mutterschutz
+            ? ' <span title="Mutterschutz — 16 Wochen nach Geburt">🍼</span>'
+            : (r.schwanger ? ' <span title="Schwangerschaft aktiv">🤰</span>' : '');
         return `<tr>
             <td style="padding:6px 10px;white-space:nowrap">${esc(r.vorname ?? '')}</td>
-            <td style="padding:6px 10px;white-space:nowrap">${esc(r.name ?? '')}</td>
+            <td style="padding:6px 10px;white-space:nowrap">${esc(r.name ?? '')}${preg}</td>
             <td style="padding:6px 10px;text-align:right;font-weight:600">${fmt(r.garantiertH)}</td>
             ${cells}
             <td style="padding:6px 10px;text-align:right">${avgHtml}</td>
@@ -93,8 +98,9 @@ function mtpwRender() {
         <div style="margin-bottom:10px;color:#64748b;font-size:13px">
             ${d.rows.length} MTP-MA · nur VOLLE Wochen (Mo–So) bis heute ·
             Zelle = gestempelte Stunden + angerechnete Absenz (<span style="color:#b45309">*</span> = enthält Absenz, Details im Tooltip) ·
-            <span style="color:#b91c1c;font-weight:600">rot = über Garantie</span> ·
-            <span style="color:#b45309;font-weight:600">orange = unter Garantie</span>
+            <span style="color:#15803d;font-weight:600">grün = Garantie erreicht/übertroffen</span> ·
+            <span style="color:#b91c1c;font-weight:600">rot = unter Garantie</span> ·
+            🤰 Schwanger / 🍼 Mutterschutz
         </div>
         <div class="card" style="padding:0">
         <table style="width:100%;border-collapse:collapse;font-size:13px">

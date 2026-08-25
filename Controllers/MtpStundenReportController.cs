@@ -112,6 +112,19 @@ public class MtpStundenReportController : ControllerBase
                 .ToListAsync())
             .GroupBy(t => t.Code).ToDictionary(g => g.Key, g => g.First().ZaehlweiseMtp);
 
+        // Schwangerschaft/Mutterschutz-Badge (Walter 25.08.2026) — gleiche
+        // Fenster-Logik wie die MA-Liste (16 Wochen nach Geburt/ET).
+        var pregRaw = await _db.EmployeePregnancies.AsNoTracking()
+            .Where(p => p.IsActive && ids.Contains(p.EmployeeId))
+            .Select(p => new { p.EmployeeId, p.Geburtsdatum, p.ErrechneterTermin })
+            .ToListAsync();
+        var pregWindow = pregRaw
+            .Where(p => (p.Geburtsdatum ?? p.ErrechneterTermin).AddDays(16 * 7) >= today)
+            .ToList();
+        var maternitySet = pregWindow.Where(p => p.Geburtsdatum != null).Select(p => p.EmployeeId).ToHashSet();
+        var pregnantSet  = pregWindow.Where(p => p.Geburtsdatum == null).Select(p => p.EmployeeId)
+            .Where(id => !maternitySet.Contains(id)).ToHashSet();
+
         var punchLookup = punches.ToLookup(p => p.EmployeeId);
         var absLookup = absences.ToLookup(a => a.EmployeeId);
         var contractsByEmp = contracts.ToLookup(c => c.EmployeeId);
@@ -221,6 +234,8 @@ public class MtpStundenReportController : ControllerBase
             {
                 vorname = e.FirstName,
                 name = e.LastName,
+                schwanger = pregnantSet.Contains(e.Id),
+                mutterschutz = maternitySet.Contains(e.Id),
                 garantiertH,
                 weeks = weekVals,
                 avg = cnt > 0 ? Math.Round(sum / cnt, 2) : (decimal?)null
