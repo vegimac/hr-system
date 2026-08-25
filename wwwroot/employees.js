@@ -1157,17 +1157,21 @@ function renderEmployeeDetail(emp) {
                 <div class="emp-hvertrag">${_hcVertragLine}</div>
                 <!-- EINE Fakten-Zeile, fixe Spalten: Eintritt|Geburtstag|Telefon|E-Mail -->
                 <div class="emp-hfacts">
-                    ${_hcFact(_t('ma.detail.entryDate','Eintritt'), emp.entryDate ? entry : null)}
+                    <!-- Eintritt + 🆘 Notfall DIREKT darunter in derselben Zelle
+                         (Walter 25.08.2026 v4: keine eigene Grid-Zeile mehr —
+                         sitzt wie der App-Chip unter der E-Mail). Feste Breite
+                         380px darf optisch unter «Geburtstag» durchlaufen, die
+                         2. Zeile ist dort leer. -->
+                    <div class="emp-hfact">
+                        <div class="emp-hfact-l">${_t('ma.detail.entryDate','Eintritt')}</div>
+                        <div class="emp-hfact-v">${(emp.entryDate ? entry : null) || '<span style="color:#8b8b8b;font-weight:500">–</span>'}</div>
+                        <div style="display:flex;align-items:center;gap:5px;margin-top:2px;width:380px;font-size:12.5px">
+                            <span>🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
+                        </div>
+                    </div>
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
-                    <!-- 🆘 Notfall in der 2. Grid-Zeile direkt unter «Eintritt»
-                         (Walter 25.08.2026 v3): NUR EINE Zeile — Icon + Wert
-                         nebeneinander, kein eigenes Label darüber. -->
-                    <div class="emp-hfact emp-hfact-notfall" style="display:flex;align-items:center;gap:6px">
-                        <span class="emp-hfact-l" style="margin-bottom:0">🆘</span>
-                        <div class="emp-hfact-v" style="min-width:0">${_hcNotfallVal}</div>
-                    </div>
                 </div>
             </div>
             <!-- Rechte Aktions-Spalte ABSOLUT positioniert (Walter 17.07.2026:

@@ -3654,15 +3654,8 @@
             grid-template-columns: 150px 250px 230px minmax(0, 1fr);
             margin-top: 10px;
         }
-        /* 🆘 Notfall (Walter 25.08.2026, v2): 2. Zeile DIREKT unter «Eintritt»
-           — nutzt den leeren Raum unter der Fakten-Zeile, spannt über die
-           ersten zwei Spalten (150px wären zu schmal für Name + Nummer). */
-        .emp-hfact-notfall {
-            grid-column: 1 / span 2;
-            border-left: none !important;
-            padding-left: 0 !important;
-            margin-top: 7px;
-        }
+        /* 🆘 Notfall (Walter 25.08.2026 v4): lebt jetzt IN der Eintritt-Zelle
+           (employees.js, direkt unter dem Datum) — keine eigene Grid-Zeile. */
         .emp-hfact { min-width: 0; padding: 0 16px 0 0; }
         .emp-hfacts .emp-hfact:nth-child(n+2) {
             border-left: 1px solid #eee8de;
