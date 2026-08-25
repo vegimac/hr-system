@@ -524,6 +524,9 @@ function applyEmpFilter() {
     // Status-Filter — filial-bewusst (Walter 20.08.2026): Übertritts-MA
     // zählen in der alten Filiale als inaktiv, obwohl e.isActive=true.
     const istHierAktiv = e => isActiveEffective(e) && !e._branchUebertritt;
+    // Anzahl aktive MA der Filiale (Walter 25.08.2026) — VOR dem Status-
+    // Filter zählen, damit die Zahl auch bei «Inaktive»/«Alle» stimmt.
+    const _anzAktiv = filtered.filter(istHierAktiv).length;
     if (_empFilter === 'aktiv')   filtered = filtered.filter(istHierAktiv);
     if (_empFilter === 'inaktiv') filtered = filtered.filter(e => !istHierAktiv(e));
 
@@ -550,8 +553,11 @@ function applyEmpFilter() {
                 .slice(0, 2);
             // Eine Zeile — sonst überlappen lange Nummern das Suchfeld
             // (Walter 18.07.2026).
-            lnPanel.setAttribute('data-lastnums',
-                lnTop.length ? 'letzte Nr. ' + lnTop.join(' · ') : '');
+            // Anzahl aktive MA davor (Walter 25.08.2026) — gleiche Zeile,
+            // gleicher Stil wie «letzte Nr.».
+            const lnParts = [`${_anzAktiv} aktiv`];
+            if (lnTop.length) lnParts.push('letzte Nr. ' + lnTop.join(' · '));
+            lnPanel.setAttribute('data-lastnums', lnParts.join(' · '));
         }
     } catch (_) { /* reine Anzeige-Hilfe */ }
 
