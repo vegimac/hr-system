@@ -3993,6 +3993,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
                 Bewilligungen
                 ${permitDocBtn}
                 ${selectedEmployee?.zemisNumber ? `<span style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border-radius:999px;padding:2px 10px;text-transform:none;letter-spacing:0" title="ZEMIS-Nummer (Ausländerregister) — von der Ausweis-Rückseite">ZEMIS ${esc(selectedEmployee.zemisNumber)}</span>` : ''}
+                ${(window._permHistCount || 0) > 0 ? `<button id="permHistPill" onclick="permHistToggle()" title="Ältere Bewilligungen ein-/ausblenden" style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border:none;border-radius:999px;padding:2px 10px;cursor:pointer;text-transform:none;letter-spacing:0">🕘 History (${window._permHistCount})</button>` : ''}
             </span>
             ${isOpsRole() ? `
             <button class="btn-emp-add" onclick="openPermitHistoryModal(null)">
@@ -13473,7 +13474,7 @@ function renderPermitListHtml(entries) {
         return (b.validFrom || '').localeCompare(a.validFrom || '');
     });
 
-    const rowsHtml = sorted.map(h => {
+    const cards = sorted.map(h => {
         const fromTxt   = h.validFrom ? formatDate(h.validFrom) : '–';
         const toTxt     = h.validTo   ? formatDate(h.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
         const code      = h.permitCode || (h.permitTypeId ? 'Typ ' + h.permitTypeId : '<span style="color:#94a3b8">— keine —</span>');
@@ -13540,7 +13541,7 @@ function renderPermitListHtml(entries) {
                 </div>
             </div>` : ''}
         </div>`;
-    }).join('');
+    });   // Array — erste Karte sichtbar, Rest im History-Container (23.08.2026)
 
     // Walter-Vorgabe 07.06.2026 (final): Überlappungen sind nicht mehr
     // erlaubt — neue Einträge schliessen den Vorgänger automatisch ab. Wenn
@@ -13551,16 +13552,33 @@ function renderPermitListHtml(entries) {
                ⚠ <strong>Überlappung erkannt:</strong> Zwei oder mehr Einträge teilen sich einen Zeitraum (vermutlich Import-Altlasten). Bitte den älteren Eintrag bearbeiten und sein Bis-Datum auf den Tag vor dem Beginn der nächsten Bewilligung setzen.
            </div>`
         : '';
-    const scrollWrap = list.length > 3
-        ? 'max-height:280px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:6px;padding:6px;background:#fff'
-        : '';
+    // Walter-Vorgabe 23.08.2026: standardmässig NUR die neueste Bewilligung
+    // zeigen — die älteren wandern in einen History-Container, den die
+    // 🕘-Pille im Titel («History (N)») auf-/zuklappt. Zähler global für
+    // renderQuellensteuerTab (baut die Titel-Zeile NACH diesem Aufruf).
+    window._permHistCount = Math.max(0, cards.length - 1);
+    const restCards = cards.slice(1).join('');
     return `
         ${overlapHint}
-        ${list.length > 3 ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px">${list.length} Bewilligungen · ↕ scrollbar</div>` : ''}
-        <div style="${scrollWrap}">
-            ${rowsHtml}
-        </div>
+        ${cards[0] || ''}
+        ${restCards
+            ? `<div id="permHistWrap" style="display:none">${restCards}</div>`
+            : ''}
         <div class="permitSmsBox" style="margin-top:8px"></div>`;
+}
+
+// History-Pille im Bewilligungen-Titel (Walter 23.08.2026): klappt die
+// älteren Bewilligungen auf/zu — standardmässig ist nur die neueste sichtbar.
+function permHistToggle() {
+    const w = document.getElementById('permHistWrap');
+    if (!w) return;
+    const offen = w.style.display !== 'none';
+    w.style.display = offen ? 'none' : '';
+    const p = document.getElementById('permHistPill');
+    if (p) {
+        p.style.background = offen ? '#ece9e2' : '#3f3f3f';
+        p.style.color      = offen ? '#6b7280' : '#ffffff';
+    }
 }
 
 // HR: Erinnerungs-SMS bei abgelaufener Bewilligung (Walter 19.07.2026).
