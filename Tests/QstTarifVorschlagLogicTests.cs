@@ -491,6 +491,35 @@ public class QstTarifVorschlagLogicTests
             konkubinat:   new QstKonkubinatInput(maMehr));
 
     [Fact]
+    public void Verheiratet_EhepartnerNichtErwerbstaetig_ErgibtB()
+    {
+        // Walter 25.08.2026 v2: Erwerbstätig-Frage aus dem Familie-Tab
+        // entscheidet B vs. C — Partner nicht erwerbstätig → B (Alleinverdiener).
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "verheiratet",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       Array.Empty<QstKindInput>(),
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle(),
+            ehepartnerErwerbstaetig: false);
+        Assert.Equal("B", res.TarifCode);
+    }
+
+    [Fact]
+    public void Verheiratet_ErwerbFrageOffen_BleibtCDefault()
+    {
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "verheiratet",
+            religion:     "keine",
+            steuerkanton: "LU",
+            kinder:       Array.Empty<QstKindInput>(),
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle());
+        Assert.Equal("C", res.TarifCode);
+    }
+
+    [Fact]
     public void Konkubinat_GemeinsamesKind_MaVerdientMehr_ErgibtH()
     {
         var res = BerechneKonkubinat(gemeinsam: true, maMehr: true);

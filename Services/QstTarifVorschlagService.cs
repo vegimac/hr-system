@@ -67,6 +67,16 @@ public class QstTarifVorschlagService
             ? new QstKonkubinatInput(kPartnerEinkommen.MaHatHoeheresEinkommen,
                                      kPartnerEinkommen.Erwerbstaetig)
             : null;
+
+        // Ehepartner-Erwerbstätigkeit (Walter 25.08.2026 v2): entscheidet bei
+        // Verheirateten B (Alleinverdiener) vs. C (Doppelverdiener).
+        var ehepartnerErwerb = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId
+                     && f.MemberType == "Ehepartner"
+                     && f.DateOfDeath == null)
+            .OrderByDescending(f => f.Id)
+            .Select(f => f.Erwerbstaetig)
+            .FirstOrDefaultAsync();
         // Walter-Vorgabe 20.08.2026: Erstausbildung zusätzlich aus einer am
         // Stichtag AKTIVEN Ausbildungszulage (AZ) ableiten — wer AZ bekommt,
         // ist belegt in Ausbildung (gleiche Logik wie QstPflichtCheckService).
@@ -123,7 +133,8 @@ public class QstTarifVorschlagService
             kinder:       kinder,
             stichtag:     stichtag,
             tarifTabelle: tarife,
-            konkubinat:   konkubinat);
+            konkubinat:   konkubinat,
+            ehepartnerErwerbstaetig: ehepartnerErwerb);
     }
 }
 
@@ -221,7 +232,11 @@ public static class QstTarifVorschlagLogic
         DateOnly                      stichtag,
         IReadOnlyList<QstTarifInfo>   tarifTabelle,
         // Konkubinats-Logik (Walter 25.08.2026): NULL = kein K-Partner erfasst.
-        QstKonkubinatInput?           konkubinat = null)
+        QstKonkubinatInput?           konkubinat = null,
+        // Walter 25.08.2026 v2: Erwerbstätigkeit des EHEPARTNERS aus dem
+        // Familie-Tab — entscheidet bei Verheirateten B (Alleinverdiener)
+        // vs. C (Doppelverdiener). NULL = Frage offen → C-Default bleibt.
+        bool?                         ehepartnerErwerbstaetig = null)
     {
         var warnings   = new List<string>();
         var begruendung = new List<string>();
@@ -256,7 +271,7 @@ public static class QstTarifVorschlagLogic
         }
 
         // 2) Tarif-Buchstaben
-        var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung);
+        var tarif = WaehleTarif(zivilstand, kinderImSelbenHaushalt, begruendung, ehepartnerErwerbstaetig);
 
         // 2b) Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
         // greift nur, wenn ein K-Partner erfasst ist UND der Vorschlag H wäre
@@ -411,7 +426,8 @@ public static class QstTarifVorschlagLogic
         return k.InErstausbildung;
     }
 
-    private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung)
+    private static string WaehleTarif(string? zivilstand, int kinderImHaushalt, List<string> begruendung,
+        bool? ehepartnerErwerbstaetig = null)
     {
         var z = (zivilstand ?? "").Trim().ToLowerInvariant();
         var verheiratet = z.Contains("verheiratet")
@@ -421,7 +437,19 @@ public static class QstTarifVorschlagLogic
 
         if (verheiratet)
         {
-            begruendung.Add($"Zivilstand '{zivilstand}' -> C (Doppelverdiener als Default; bei Alleinverdiener auf B wechseln)");
+            // Walter 25.08.2026 v2: die Erwerbstätig-Frage aus dem Familie-Tab
+            // entscheidet B vs. C — nur bei OFFENER Frage bleibt der C-Default.
+            if (ehepartnerErwerbstaetig == false)
+            {
+                begruendung.Add($"Zivilstand '{zivilstand}' + Ehepartner NICHT erwerbstätig -> B (Alleinverdiener)");
+                return "B";
+            }
+            if (ehepartnerErwerbstaetig == true)
+            {
+                begruendung.Add($"Zivilstand '{zivilstand}' + Ehepartner erwerbstätig -> C (Doppelverdiener)");
+                return "C";
+            }
+            begruendung.Add($"Zivilstand '{zivilstand}' -> C (Doppelverdiener als Default; Erwerbstätig-Frage beim Ehepartner offen — bei Alleinverdiener B)");
             return "C";
         }
         if (alleinerziehend_basis && kinderImHaushalt > 0)
