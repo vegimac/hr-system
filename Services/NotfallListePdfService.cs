@@ -62,11 +62,15 @@ public class NotfallListePdfService
                 {
                     t.ColumnsDefinition(c =>
                     {
-                        c.RelativeColumn(2.6f); // Vorname
-                        c.RelativeColumn(2.6f); // Name
-                        c.RelativeColumn(3.6f); // Notfall Name
-                        c.RelativeColumn(4.2f); // Beziehung (Ankreuz-Reihe)
-                        c.RelativeColumn(3.0f); // Telefon
+                        // Walter 25.08.2026 v2: Vorname/Name schmaler → Notfall-
+                        // Name rückt nach links; Beziehung deutlich breiter,
+                        // damit die «Andere»-Linie Platz für Schwester/Bruder/
+                        // Mutter … hat.
+                        c.RelativeColumn(2.0f); // Vorname
+                        c.RelativeColumn(2.0f); // Name
+                        c.RelativeColumn(3.2f); // Notfall Name
+                        c.RelativeColumn(5.6f); // Beziehung (Ankreuz-Reihe + Linie)
+                        c.RelativeColumn(2.8f); // Telefon
                     });
 
                     // Kopfzeile (wiederholt auf jeder Seite)
