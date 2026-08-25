@@ -1109,6 +1109,7 @@ function showPage(name) {
     if (name === 'lse' && typeof lseInit === 'function') lseInit();
     if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
     if (name === 'wochenstunden-report' && typeof wsInit === 'function') wsInit();
+    if (name === 'mtp-stunden-report' && typeof mtpwInit === 'function') mtpwInit();
     if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
@@ -1307,6 +1308,9 @@ function onBranchChange() {
     } else if (currentPageName === 'wochenstunden-report') {
         // Ø Wochenstunden folgt der Sidebar-Filiale (Walter 25.08.2026).
         if (typeof wsLoad === 'function') wsLoad();
+    } else if (currentPageName === 'mtp-stunden-report') {
+        // MTP-Stunden-Kontrolle folgt der Sidebar-Filiale (Walter 25.08.2026).
+        if (typeof mtpwLoad === 'function') mtpwLoad();
     }
 
     // Mirus-Digest-Vorschau folgt der Sidebar-Filiale (Walter 23.07.2026).

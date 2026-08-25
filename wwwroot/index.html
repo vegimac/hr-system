@@ -2340,7 +2340,7 @@
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.reporting">Auswertungen / Reporting</div>
-                                <div class="hr-card-status" style="color:#15803d">4 Reports verfügbar — Zeile anklicken</div>
+                                <div class="hr-card-status" style="color:#15803d">5 Reports verfügbar — Zeile anklicken</div>
                             </div>
                         </div>
                         <ul>
@@ -2348,6 +2348,7 @@
                             <li style="cursor:pointer" onclick="showPage('fluktuation-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Fluktuation</b>: Ein-/Austritte, Austrittsgründe (Donut), Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('exit-survey-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Austritts-Feedback</b>: anonyme Fragebogen-Antworten (Filiale, Note, Gründe) <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li style="cursor:pointer" onclick="showPage('wochenstunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>Ø Wochenstunden</b>: gestempelte Stunden pro MA, Zeitraum frei — Sidebar-Filiale oder alle <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
+                            <li style="cursor:pointer" onclick="showPage('mtp-stunden-report')" onmouseover="this.style.background='rgba(15,23,42,0.04)'" onmouseout="this.style.background=''"><b>MTP-Stunden-Kontrolle</b>: Garantie vs. Ist pro Woche inkl. Absenzen — Sidebar-Filiale <span style="color:#15803d">✓ verfügbar → öffnen</span></li>
                             <li class="hr-idea"><b>Personalbestand</b>: FTE / Headcount pro Filiale</li>
                             <li class="hr-idea">Verteilung Vertragstyp (FIX / MTP / FLEX)</li>
                             <li class="hr-idea">Eintritte / Austritte pro Monat (Trendlinie)</li>
@@ -4761,6 +4762,29 @@
                         <button type="button" class="btn-primary" onclick="flukLoad()" style="align-self:center">🔄 Aktualisieren</button>
                     </div>
                     <div id="flukResult"></div>
+                </div>
+            </div>
+
+            <!-- MTP-Stunden-Kontrolle (Walter 25.08.2026) -->
+            <div class="page fixhead" id="page-mtp-stunden-report">
+                <div class="page-head"><div>
+                    <h1 class="page-title">MTP-Stunden-Kontrolle</h1>
+                    <p class="page-sub">Garantie vs. gestempelte Stunden + angerechnete Absenzen · eine Spalte pro Woche · Filiale aus der Sidebar.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px;align-self:center">← Zurück</button>
+                        <div class="ma-field" style="min-width:140px">
+                            <div class="ma-field-label">Von</div>
+                            <input type="date" id="mtpwFrom" class="ma-input" onchange="mtpwLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                        </div>
+                        <div class="ma-field" style="min-width:140px">
+                            <div class="ma-field-label">Bis</div>
+                            <input type="date" id="mtpwTo" class="ma-input" onchange="mtpwLoad()" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:4px 9px;min-height:27px;font-size:13px;width:100%;box-shadow:0 1px 2px rgba(15,23,42,0.08)">
+                        </div>
+                        <button type="button" class="btn-primary" onclick="mtpwLoad()" style="align-self:center">🔄 Aktualisieren</button>
+                    </div>
+                    <div id="mtpwResult"></div>
                 </div>
             </div>
 
@@ -8150,7 +8174,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260825a"></script>
+<script src="js/app-core.js?v=20260825b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8213,6 +8237,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/alters-report.js?v=20260708h"></script>
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
+<script src="js/mtp-stunden-report.js?v=20260825a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
