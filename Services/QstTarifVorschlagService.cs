@@ -176,7 +176,12 @@ public record QstTarifVorschlagResult(
     // Walter 25.08.2026: gemischter Konkubinatsfall (gemeinsame + nicht-
     // gemeinsame Kinder im Haushalt) — KEIN automatischer Vorschlag, das
     // Frontend zeigt stattdessen «Mit QST-Behörde abklären».
-    bool     AbklaerungNoetig = false
+    bool     AbklaerungNoetig = false,
+    // Walter 25.08.2026 v2: positiver Erklär-Text für den Konkubinats-
+    // Sonderfall («1 Kind · Konkubinat · Partner höheres Einkommen → A0
+    // korrekt») — die QST-Zeile zeigt ihn grün an, damit klar ist, WARUM
+    // trotz Kind A0 (bzw. H1) richtig ist.
+    string?  KonkubinatInfo = null
 );
 
 /// <summary>
@@ -263,6 +268,7 @@ public static class QstTarifVorschlagLogic
         //   gemeinsam UND nicht-gemeinsam gemischt → KEIN Vorschlag,
         //   «Mit QST-Behörde abklären» (AbklaerungNoetig=true).
         bool abklaerungNoetig = false;
+        string? konkubinatInfo = null;
         if (konkubinat != null && tarif == "H")
         {
             if (gemeinsamJa > 0 && gemeinsamNein > 0)
@@ -278,16 +284,21 @@ public static class QstTarifVorschlagLogic
                 // → wie «MA verdient mehr» behandeln (auch ohne Antwort).
                 var maMehr = konkubinat.MaHatHoeheresEinkommen
                     ?? (konkubinat.PartnerErwerbstaetig == false ? true : (bool?)null);
+                var kindTxt = gemeinsamJa == 1 ? "1 gemeinsames Kind" : $"{gemeinsamJa} gemeinsame Kinder";
                 if (maMehr == true)
                 {
                     begruendung.Add(konkubinat.MaHatHoeheresEinkommen == null
                         ? "Konkubinat mit gemeinsamem Kind — Partner nicht erwerbstätig → MA ist Hauptunterhaltsträger → H"
                         : "Konkubinat mit gemeinsamem Kind — MA hat das höhere Bruttoeinkommen → H (nie beide H1)");
+                    konkubinatInfo = konkubinat.MaHatHoeheresEinkommen == null
+                        ? $"{kindTxt} · Konkubinat · Partner nicht erwerbstätig → MA ist Hauptunterhalt, Tarif H korrekt"
+                        : $"{kindTxt} · Konkubinat · MA hat das höhere Einkommen → Tarif H korrekt (nie beide H1)";
                 }
                 else if (maMehr == false)
                 {
                     tarif = "A";
                     begruendung.Add("Konkubinat mit gemeinsamem Kind — der Partner verdient mehr → A0 (H1 gehört zum Partner)");
+                    konkubinatInfo = $"{kindTxt} · Konkubinat · Partner hat das höhere Einkommen → A0 korrekt (H1 gehört zum Partner)";
                 }
                 else
                 {
@@ -361,7 +372,8 @@ public static class QstTarifVorschlagLogic
             Begruendung:            string.Join(" · ", begruendung),
             Warnings:               warnings,
             Stichtag:               stichtag,
-            AbklaerungNoetig:       abklaerungNoetig);
+            AbklaerungNoetig:       abklaerungNoetig,
+            KonkubinatInfo:         konkubinatInfo);
     }
 
     /// <summary>

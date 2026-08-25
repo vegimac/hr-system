@@ -4091,9 +4091,16 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
                     : (vorschlagCode && vorschlagCode !== code
                         ? ` <span style="color:#15803d;font-weight:700">→ richtig wäre ${vorschlagCode}</span>` : ''))
             : `<strong>${code}</strong>`;
-        const warnZeilenHtml = zeilenWarnungen.length
+        let warnZeilenHtml = zeilenWarnungen.length
             ? `<div style="font-size:12px;color:#b91c1c;margin-top:5px;line-height:1.45">${zeilenWarnungen.map(x => '⚠ ' + esc(x)).join('<br>')}</div>`
             : '';
+        // Konkubinats-Sonderfall positiv erklären (Walter 25.08.2026: «zeigen,
+        // dass obwohl ein Kind, wegen K-Partner A0N richtig ist») — grüne
+        // Info-Zeile, wenn der erfasste Code dem Vorschlag entspricht.
+        if (isCurrent && !zeilenWarnungen.length && vorschlag?.konkubinatInfo
+            && vorschlagCode && vorschlagCode === code) {
+            warnZeilenHtml += `<div style="font-size:12px;color:#15803d;margin-top:5px;line-height:1.45">✓ ${esc(vorschlag.konkubinatInfo)}</div>`;
+        }
         const kinder   = e.anzahlKinder   ?? 0;
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
