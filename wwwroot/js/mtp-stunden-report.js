@@ -102,12 +102,21 @@ function mtpwRender() {
         const preg = r.mutterschutz
             ? ' <span title="Mutterschutz — 16 Wochen nach Geburt">🍼</span>'
             : (r.schwanger ? ' <span title="Schwangerschaft aktiv">🤰</span>' : '');
+        // Stunden-Saldo «aktuell» wie in der MA-Maske (Walter 25.08.2026):
+        // + grün, − rot, «–» wenn kein laufender Vertrag im aktuellen Monat.
+        let saldoHtml = '<span style="color:#cbd5e1">–</span>';
+        if (r.saldoAktuell != null) {
+            const sv = Number(r.saldoAktuell);
+            const sc = sv >= 0 ? '#15803d' : '#b91c1c';
+            saldoHtml = `<span style="color:${sc};font-weight:700" title="Stunden-Saldo per heute (wie MA-Maske «aktuell»)">${(sv > 0 ? '+' : '') + sv.toFixed(2)}</span>`;
+        }
         return `<tr>
             <td style="padding:6px 10px;white-space:nowrap">${esc(r.vorname ?? '')}</td>
             <td style="padding:6px 10px;white-space:nowrap">${esc(r.name ?? '')}${preg}</td>
-            <td style="padding:6px 10px;text-align:right;font-weight:600">${fmt(r.garantiertH)}</td>
+            <td style="padding:6px 10px;text-align:right;font-weight:800;color:#0a0a0a">${fmt(r.garantiertH)}</td>
             ${cells}
             <td style="padding:6px 10px;text-align:right">${avgHtml}</td>
+            <td style="padding:6px 10px;text-align:right">${saldoHtml}</td>
         </tr>`;
     }).join('');
 
@@ -128,6 +137,7 @@ function mtpwRender() {
                 <th style="padding:7px 10px;text-align:right" title="Garantierte Wochenstunden aus dem MTP-Vertrag">Garantie</th>
                 ${wkTh}
                 <th style="padding:7px 10px;text-align:right">Ø h/Wo</th>
+                <th style="padding:7px 10px;text-align:right" title="Stunden-Saldo per heute — gleiche Zahl wie die Saldi-Karte «aktuell» in der MA-Maske">Saldo<br><span style="font-weight:500;color:#94a3b8">aktuell</span></th>
             </tr></thead>
             <tbody>${tr || '<tr><td colspan="99" style="padding:16px;color:#8b8b8b">Keine MTP-Verträge in dieser Filiale im Zeitraum.</td></tr>'}</tbody>
         </table>

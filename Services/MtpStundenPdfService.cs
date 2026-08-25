@@ -7,7 +7,11 @@ namespace HrSystem.Services;
 // ── Daten-Typen der MTP-Stunden-Kontrolle (Controller + PDF teilen sie) ──
 public record MtpWeekCell(decimal Total, decimal Gearbeitet, decimal Absenz);
 public record MtpRow(string? Vorname, string? Name, bool Schwanger, bool Mutterschutz,
-                     decimal GarantiertH, List<MtpWeekCell?> Weeks, decimal? Avg);
+                     decimal GarantiertH, List<MtpWeekCell?> Weeks, decimal? Avg,
+                     // Stunden-Saldo «aktuell» wie in der MA-Maske (Walter
+                     // 25.08.2026): Vormonats-Saldo + (gearbeitet + Absenz-
+                     // Gutschrift − reduziertes Soll) per Stichtag heute.
+                     decimal? SaldoAktuell);
 public record MtpStundenData(DateOnly From, DateOnly To, List<DateOnly> Wochen, List<MtpRow> Rows);
 
 /// <summary>
@@ -62,6 +66,7 @@ public class MtpStundenPdfService
                         c.RelativeColumn(1.1f);  // Garantie
                         foreach (var _ in d.Wochen) c.RelativeColumn(1.15f);
                         c.RelativeColumn(1.2f);  // Ø
+                        c.RelativeColumn(1.2f);  // Saldo aktuell
                     });
 
                     t.Header(h =>
@@ -85,6 +90,7 @@ public class MtpStundenPdfService
                             Th($"KW{System.Globalization.ISOWeek.GetWeekOfYear(mo.ToDateTime(TimeOnly.MinValue))}",
                                mo.ToString("dd.MM."), right: true);
                         Th("Ø h/Wo", right: true);
+                        Th("Saldo", "aktuell", right: true);
                     });
 
                     foreach (var r in d.Rows)
@@ -100,7 +106,8 @@ public class MtpStundenPdfService
                             if (nameSuffix.Length > 0)
                                 txt.Span(nameSuffix).FontSize(6.5f).Italic().FontColor("#be5a83");
                         });
-                        Td().AlignRight().Text(r.GarantiertH.ToString("0.00")).SemiBold().FontSize(8f);
+                        // Garantie FETT (Walter 25.08.2026).
+                        Td().AlignRight().Text(r.GarantiertH.ToString("0.00")).Bold().FontSize(8f).FontColor(Ink);
                         foreach (var w in r.Weeks)
                         {
                             var cell = Td().AlignRight();
@@ -115,6 +122,12 @@ public class MtpStundenPdfService
                         if (r.Avg == null) avgCell.Text("–").FontColor(Muted);
                         else avgCell.Text(r.Avg.Value.ToString("0.00")).Bold().FontSize(8.5f)
                             .FontColor(r.Avg.Value >= r.GarantiertH ? Gruen : Rot);
+                        // Saldo aktuell wie MA-Maske: + grün, − rot.
+                        var saldoCell = Td().AlignRight();
+                        if (r.SaldoAktuell == null) saldoCell.Text("–").FontColor(Muted);
+                        else saldoCell.Text((r.SaldoAktuell.Value > 0 ? "+" : "") + r.SaldoAktuell.Value.ToString("0.00"))
+                            .Bold().FontSize(8.5f)
+                            .FontColor(r.SaldoAktuell.Value >= 0 ? Gruen : Rot);
                     }
                 });
 

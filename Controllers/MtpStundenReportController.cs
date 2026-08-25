@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using HrSystem.Data;
 using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -26,10 +28,13 @@ public class MtpStundenReportController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly MtpStundenPdfService _pdf;
-    public MtpStundenReportController(AppDbContext db, MtpStundenPdfService pdf)
+    private readonly PayrollCalculationEngine _calcEngine;
+    public MtpStundenReportController(AppDbContext db, MtpStundenPdfService pdf,
+        PayrollCalculationEngine calcEngine)
     {
         _db = db;
         _pdf = pdf;
+        _calcEngine = calcEngine;
     }
 
     [HttpGet]
@@ -62,7 +67,8 @@ public class MtpStundenReportController : ControllerBase
                 {
                     total = w.Total, gearbeitet = w.Gearbeitet, absenz = w.Absenz
                 }),
-                avg = r.Avg
+                avg = r.Avg,
+                saldoAktuell = r.SaldoAktuell
             })
         });
     }
@@ -200,6 +206,9 @@ public class MtpStundenReportController : ControllerBase
         var absLookup = absences.ToLookup(a => a.EmployeeId);
         var contractsByEmp = contracts.ToLookup(c => c.EmployeeId);
 
+        // Stunden-Saldo «aktuell» pro MA (wie MA-Maske) — Engine-Rechnung.
+        var saldoAktuell = await BuildSaldoAktuellAsync(ids, companyProfileId);
+
         var rows = emps.Select(e =>
         {
             var c = contractsByEmp[e.Id].OrderByDescending(x => x.ContractStartDate).First();
@@ -298,7 +307,8 @@ public class MtpStundenReportController : ControllerBase
                 e.FirstName, e.LastName,
                 pregnantSet.Contains(e.Id), maternitySet.Contains(e.Id),
                 garantiertH, weekVals,
-                cnt > 0 ? Math.Round(sum / cnt, 2) : null);
+                cnt > 0 ? Math.Round(sum / cnt, 2) : null,
+                saldoAktuell.TryGetValue(e.Id, out var sa) ? sa : null);
         })
         // Sortierung (Walter 25.08.2026 v2): grösstes MINUS (Ø − Garantie)
         // zuoberst, grösstes Plus zuunterst; MA ohne Ø ganz unten.
@@ -307,6 +317,76 @@ public class MtpStundenReportController : ControllerBase
         .ToList();
 
         return new MtpStundenData(fromD, toD, wochen, rows);
+    }
+
+    /// <summary>
+    /// Stunden-Saldo «aktuell» pro MA — SPIEGELT den Stichtag-Block von
+    /// PayrollController.SollstundenReport (stSaldo): Vormonats-Saldo +
+    /// (gearbeitet bis heute + anteilige Absenz-Gutschrift − anteiliges
+    /// reduziertes Soll). Gleiche Engine (CalculateAsync), gleiche Formeln —
+    /// bei Änderungen dort BEIDE Stellen nachführen.
+    /// </summary>
+    private async Task<Dictionary<int, decimal>> BuildSaldoAktuellAsync(List<int> ids, int companyProfileId)
+    {
+        var result = new Dictionary<int, decimal>();
+        if (ids.Count == 0) return result;
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var (periodFrom, periodTo) = PayrollCalculations.CalcPeriod(today.Year, today.Month);
+        var stich = today;
+        if (stich > periodTo) stich = periodTo;
+        int daysInMonth    = periodTo.DayNumber - periodFrom.DayNumber + 1;
+        int daysToStichtag = stich.DayNumber - periodFrom.DayNumber + 1;
+        decimal dayRatio   = daysInMonth > 0 ? (decimal)daysToStichtag / daysInMonth : 1m;
+
+        var workedToStich = (await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => ids.Contains(t.EmployeeId)
+                         && t.EntryDate >= periodFrom && t.EntryDate <= stich)
+                .ToListAsync())
+            .GroupBy(t => t.EmployeeId)
+            .ToDictionary(g => g.Key, g => TimeEntryHours.SumAbsolute(g));
+
+        var absInPeriod = await _db.Absences.AsNoTracking()
+            .Where(a => ids.Contains(a.EmployeeId)
+                     && a.DateFrom <= periodTo && a.DateTo >= periodFrom)
+            .ToListAsync();
+        var absByEmp = absInPeriod.GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        foreach (var id in ids)
+        {
+            IActionResult calc;
+            try { calc = await _calcEngine.CalculateAsync(id, today.Year, today.Month, companyProfileId); }
+            catch { continue; }
+            if (calc is not OkObjectResult ok || ok.Value is null) continue;
+            var node = JsonNode.Parse(JsonSerializer.Serialize(ok.Value, camel));
+            decimal Dv(string key)
+            {
+                var v = node?[key];
+                if (v is null) return 0m;
+                try { return v.GetValue<decimal>(); }
+                catch { try { return (decimal)v.GetValue<double>(); } catch { return 0m; } }
+            }
+            decimal sollBrutto  = Dv("sollStundenVoll");     // MTP: Soll vor Absenz-Reduktion
+            decimal sollNetto   = Dv("sollStunden");
+            decimal reduktion   = Math.Max(0, sollBrutto - sollNetto);
+            decimal absGutMonat = Dv("absenzGutschrift");
+            decimal vormonat    = Dv("vormonatHourSaldo");
+
+            decimal absFrac = 0m;
+            if (absByEmp.TryGetValue(id, out var aList))
+            {
+                int dFull = aList.Sum(a => PayrollCalculations.CountAbsenceDaysInPeriod(a, periodFrom, periodTo));
+                int dUpTo = aList.Sum(a => PayrollCalculations.CountAbsenceDaysInPeriod(a, periodFrom, stich));
+                absFrac = dFull > 0 ? (decimal)dUpTo / dFull : 0m;
+            }
+            decimal stGearb      = workedToStich.TryGetValue(id, out var w) ? w : 0m;
+            decimal stSollRedRaw = sollBrutto * dayRatio - reduktion * absFrac;
+            decimal stAbsGut     = absGutMonat * absFrac;
+            result[id] = Math.Round(vormonat + (stGearb + stAbsGut - stSollRedRaw), 2);
+        }
+        return result;
     }
 
     private static DateOnly? ParseDate(string? s)
