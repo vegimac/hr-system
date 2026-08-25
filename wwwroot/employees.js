@@ -1440,6 +1440,28 @@ function loadUebersichtTab() {
     //   Strasse | PLZ | Ort+Kt. | Telefon 2 | AHV
     //   Briefanrede | Nickname | Sex | Konfession | —
     //   Zivilstand | seit | Ledigname | Nationalität | ZEMIS
+    // ── Notfallkontakt (Walter-Vorgabe 25.08.2026): genau EINER pro MA —
+    // entweder aus der Familie verknüpft (Name/Telefon live) oder freie
+    // Person (Schwester, Nachbar …). Anzeige als eigene Zeile unter dem
+    // Personalien-Raster; Pflege über das kleine Notfall-Modal.
+    const nfK = emp.notfallKontakt;
+    let nfVal;
+    if (nfK) {
+        const nfTel = nfK.telefon
+            ? `<a href="tel:${esc((nfK.telefon || '').replace(/\s/g, ''))}" style="color:inherit;text-decoration:none;font-weight:700">${esc(nfK.telefon)}</a>`
+            : `<span style="color:#b91c1c;font-weight:600">Telefon fehlt${nfK.source === 'familie' ? ' — beim Familienmitglied ergänzen' : ''}</span>`;
+        nfVal = `<b>${esc(nfK.name)}</b>${nfK.beziehung ? ` <span style="color:#8b8b8b">(${esc(nfK.beziehung)})</span>` : ''} · ${nfTel}`;
+    } else {
+        nfVal = '<span class="ov-empty">– keiner erfasst –</span>';
+    }
+    const nfRow = `
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:9px;border-top:1px dashed rgba(60,55,48,0.22)">
+            <div class="ov-pfl" style="white-space:nowrap">🆘 Notfallkontakt</div>
+            <div style="font-size:13px;min-width:0">${nfVal}</div>
+            <button type="button" onclick="openNotfallModal()" title="Notfallkontakt erfassen/ändern"
+                style="margin-left:auto;height:24px;display:inline-flex;align-items:center;background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:8px;padding:0 10px;font-size:11px;font-weight:600;color:#3f3f3f;cursor:pointer;white-space:nowrap">✎ ${nfK ? 'ändern' : 'erfassen'}</button>
+        </div>`;
+
     const kPers = _ovCard('Personalien & Adresse', null, '', `
         <div class="ov-pers-body">
         <div class="ov-pers-aligned">
@@ -1527,6 +1549,7 @@ function loadUebersichtTab() {
                 : `<div class="ov-pf ov-pf-zemis"><div class="ov-pfl">ZEMIS-Nr.</div>
             <input id="ov-zemisNumber" class="ov-softin" type="text" value="${esc(emp.zemisNumber)}" placeholder="${_t('ma.placeholder.zemis','z.B. 12345678.9')}" maxlength="14" oninput="ovDirty()"></div>`}
         </div>
+        ${nfRow}
         </div>`,
         `<button id="ovSaveBtn" class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
 
@@ -15139,4 +15162,205 @@ async function umzugEntryDelete(id) {
         showToast('Eintrag gelöscht.', 'success');
         umzugLoadHistorie(_umzugEmpId);
     } catch (_) { showToast('Verbindungsfehler.', 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// NOTFALLKONTAKT (Walter-Vorgabe 25.08.2026)
+// Genau EIN Notfallkontakt pro MA, Anzeige in der Personalien-Karte.
+// Zwei Erfassungsarten im Modal: (a) aus der Familie wählen (Verknüpfung
+// per FK — Name/Telefon werden live aus dem Familie-Tab gelesen), (b)
+// freie Person (Name + Beziehung + Telefon, z.B. Schwester/Nachbar —
+// landet bewusst NICHT im Familie-Tab). Speichern via
+// PATCH /api/employees/{id}/notfall — der easy@work-Re-Import fasst die
+// Felder nicht an (eigener Endpoint, nicht im grossen Update()-DTO).
+// ══════════════════════════════════════════════════════════════════════
+
+function _nfEnsureModal() {
+    if (document.getElementById('notfallModalBg')) return;
+    const bg = document.createElement('div');
+    bg.id = 'notfallModalBg';
+    bg.className = 'modal-bg';
+    bg.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center';
+    bg.innerHTML = `
+    <div class="modal" style="max-width:560px;width:92%">
+        <div class="modal-hd">
+            <span class="modal-hd-title">🆘 Notfallkontakt</span>
+            <button class="modal-x" onclick="closeNotfallModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <label class="fmf-radio-row">
+                <input type="radio" name="nfMode" id="nfModeFam" value="fam" onchange="nfModeChanged()">
+                <span class="fmf-radio-body">
+                    <span class="fmf-radio-title">Aus der Familie wählen</span>
+                    <span class="fmf-radio-hint">Verknüpfung — Telefonnummer bleibt automatisch aktuell, wenn sie im Familie-Tab ändert.</span>
+                </span>
+            </label>
+            <div id="nfFamBox" style="display:none;margin:6px 0 10px 26px">
+                <select id="nfFamSelect" class="fmf-select" style="min-width:320px" onchange="nfFamSelectionHint()"></select>
+                <div id="nfFamHint" style="font-size:11.5px;color:#b45309;margin-top:4px"></div>
+            </div>
+            <label class="fmf-radio-row" style="margin-top:6px">
+                <input type="radio" name="nfMode" id="nfModeFrei" value="frei" onchange="nfModeChanged()">
+                <span class="fmf-radio-body">
+                    <span class="fmf-radio-title">Andere Person</span>
+                    <span class="fmf-radio-hint">z.B. Schwester, Nachbar, Freund — wird nicht im Familie-Tab geführt.</span>
+                </span>
+            </label>
+            <div id="nfFreiBox" style="display:none;margin:6px 0 4px 26px">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div>
+                        <div class="ov-pfl">Name</div>
+                        <input id="nfName" class="ef-input" type="text" placeholder="Vorname Nachname">
+                    </div>
+                    <div>
+                        <div class="ov-pfl">Beziehung</div>
+                        <input id="nfBeziehung" class="ef-input" type="text" list="nfBezList" placeholder="z.B. Schwester, Nachbar">
+                        <datalist id="nfBezList">
+                            <option value="Ehepartner/in"></option>
+                            <option value="Eltern"></option>
+                            <option value="Geschwister"></option>
+                            <option value="Kind"></option>
+                            <option value="Freund/in"></option>
+                            <option value="Nachbar/in"></option>
+                        </datalist>
+                    </div>
+                    <div>
+                        <div class="ov-pfl">Telefon</div>
+                        <input id="nfTelefon" class="ef-input" type="tel" placeholder="+41 79 333 44 55">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-ft" style="display:flex;gap:10px;justify-content:flex-end;align-items:center">
+            <button type="button" id="nfRemoveBtn" onclick="nfRemove()" style="display:none;margin-right:auto;background:transparent;border:1px solid #fca5a5;color:#b91c1c;border-radius:10px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Entfernen</button>
+            <button type="button" class="ce-btn ce-btn-ghost" onclick="closeNotfallModal()">Abbrechen</button>
+            <button type="button" class="ce-btn ce-btn-primary" onclick="saveNotfallKontakt()">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(bg);
+}
+
+async function openNotfallModal() {
+    if (!selectedEmployeeId) return;
+    _nfEnsureModal();
+
+    // Familienmitglieder laden (sortiert nach Vorname, Walter-Konvention)
+    let fam = [];
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/family`, { headers: ah() });
+        if (res.ok) fam = await res.json();
+    } catch { /* still */ }
+    fam = (fam || []).filter(m => !m.dateOfDeath);
+    fam.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || '') || (a.lastName || '').localeCompare(b.lastName || ''));
+    const sel = document.getElementById('nfFamSelect');
+    sel.innerHTML = '<option value="">— Familienmitglied wählen —</option>';
+    fam.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.id;
+        const name = `${m.firstName ?? ''} ${m.lastName ?? ''}`.trim();
+        opt.textContent = `${name} (${m.memberType || '—'})${m.phone ? '' : ' — ⚠ kein Telefon'}`;
+        sel.appendChild(opt);
+    });
+    window._nfFamCache = fam;
+
+    // Vorbelegung aus dem geladenen MA
+    const nf = selectedEmployee?.notfallKontakt;
+    const hatFam = fam.length > 0;
+    document.getElementById('nfModeFam').disabled = !hatFam;
+    if (nf && nf.source === 'familie') {
+        document.getElementById('nfModeFam').checked = true;
+        sel.value = String(nf.familyMemberId);
+    } else if (nf) {
+        document.getElementById('nfModeFrei').checked = true;
+        document.getElementById('nfName').value = nf.name || '';
+        document.getElementById('nfBeziehung').value = nf.beziehung || '';
+        document.getElementById('nfTelefon').value = nf.telefon || '';
+    } else {
+        // Default: Familie wenn vorhanden, sonst freie Person
+        document.getElementById(hatFam ? 'nfModeFam' : 'nfModeFrei').checked = true;
+        document.getElementById('nfName').value = '';
+        document.getElementById('nfBeziehung').value = '';
+        document.getElementById('nfTelefon').value = '';
+    }
+    document.getElementById('nfRemoveBtn').style.display = nf ? '' : 'none';
+    nfModeChanged();
+    document.getElementById('notfallModalBg').style.display = 'flex';
+}
+
+function closeNotfallModal() {
+    const bg = document.getElementById('notfallModalBg');
+    if (bg) bg.style.display = 'none';
+}
+
+function nfModeChanged() {
+    const famChecked = document.getElementById('nfModeFam')?.checked;
+    document.getElementById('nfFamBox').style.display  = famChecked ? '' : 'none';
+    document.getElementById('nfFreiBox').style.display = famChecked ? 'none' : '';
+    nfFamSelectionHint();
+}
+
+function nfFamSelectionHint() {
+    const hint = document.getElementById('nfFamHint');
+    if (!hint) return;
+    const id = parseInt(document.getElementById('nfFamSelect')?.value || '', 10);
+    const m = (window._nfFamCache || []).find(x => x.id === id);
+    hint.textContent = (m && !m.phone)
+        ? 'Beim gewählten Familienmitglied ist keine Telefonnummer erfasst — bitte im Familie-Tab ergänzen.'
+        : '';
+}
+
+async function saveNotfallKontakt() {
+    if (!selectedEmployeeId) return;
+    let body;
+    if (document.getElementById('nfModeFam')?.checked) {
+        const fid = parseInt(document.getElementById('nfFamSelect')?.value || '', 10);
+        if (!Number.isFinite(fid) || fid <= 0) { alert('Bitte ein Familienmitglied wählen.'); return; }
+        body = { familyMemberId: fid };
+    } else {
+        const name = (document.getElementById('nfName')?.value || '').trim();
+        const bez  = (document.getElementById('nfBeziehung')?.value || '').trim();
+        let tel    = (document.getElementById('nfTelefon')?.value || '').trim();
+        if (!name) { alert('Bitte den Namen des Notfallkontakts erfassen.'); return; }
+        if (!tel)  { alert('Bitte eine Telefonnummer erfassen.'); return; }
+        const fmt = window.formatPhoneIntl ? window.formatPhoneIntl(tel) : tel;
+        if (window.formatPhoneIntl && !/^\+\d{2}\s\d{2}\s\d{3}\s\d{2}\s\d{2}$/.test(fmt)) {
+            alert('Telefon-Format ungültig (erwartet +99 99 999 99 99, z.B. +41 79 409 43 33).');
+            document.getElementById('nfTelefon')?.focus();
+            return;
+        }
+        tel = fmt;
+        body = { name, beziehung: bez || null, telefon: tel };
+    }
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/notfall`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            let msg = 'Speichern fehlgeschlagen.';
+            try { const j = await res.json(); msg = j.message || j.error || msg; } catch {}
+            alert(msg); return;
+        }
+        closeNotfallModal();
+        await selectEmployee(selectedEmployeeId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+async function nfRemove() {
+    if (!selectedEmployeeId) return;
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm('Notfallkontakt wirklich entfernen?', { title: 'Notfallkontakt', yesLabel: 'Entfernen', noLabel: 'Abbrechen' })
+        : confirm('Notfallkontakt wirklich entfernen?');
+    if (!ok) return;
+    try {
+        const res = await fetch(`/api/employees/${selectedEmployeeId}/notfall`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+        if (!res.ok) { alert('Entfernen fehlgeschlagen.'); return; }
+        closeNotfallModal();
+        await selectEmployee(selectedEmployeeId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }

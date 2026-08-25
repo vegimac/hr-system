@@ -43,6 +43,20 @@ public class Employee
     public string? Phone2 { get; set; }
     public string? Email { get; set; }
 
+    // ── Notfallkontakt (Walter-Vorgabe 25.08.2026) ──────────────────────────
+    // Genau EIN Notfallkontakt pro MA, zwei Erfassungsarten:
+    //   a) Verknüpfung auf ein Familienmitglied (NotfallFamilyMemberId gesetzt,
+    //      Name/Telefon werden LIVE aus employee_family_member gelesen — bleibt
+    //      automatisch aktuell, wenn dort die Nummer ändert)
+    //   b) freie Person (Name + Beziehung + Telefon, z.B. Schwester/Nachbar —
+    //      landet bewusst NICHT im Familie-Tab, der bleibt QST-Territorium)
+    // Pflege ausschliesslich über PATCH /api/employees/{id}/notfall — der
+    // grosse Update()-Pfad (easy@work-Re-Import!) fasst die Felder nicht an.
+    public int? NotfallFamilyMemberId { get; set; }
+    public string? NotfallName { get; set; }
+    public string? NotfallBeziehung { get; set; }
+    public string? NotfallTelefon { get; set; }
+
     public DateTime? EntryDate { get; set; }
     public DateTime? ExitDate { get; set; }
 

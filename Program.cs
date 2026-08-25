@@ -2417,6 +2417,25 @@ using (var scope = app.Services.CreateScope())
            AND lebt_im_haushalt = TRUE;
     ");
 
+    // Walter 25.08.2026: Notfallkontakt am MA — genau einer, entweder als
+    // Verknüpfung auf ein Familienmitglied (FK, ON DELETE SET NULL) oder als
+    // freie Person (Name/Beziehung/Telefon, z.B. Schwester/Nachbar).
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee
+            ADD COLUMN IF NOT EXISTS notfall_family_member_id INTEGER,
+            ADD COLUMN IF NOT EXISTS notfall_name             VARCHAR(150),
+            ADD COLUMN IF NOT EXISTS notfall_beziehung        VARCHAR(100),
+            ADD COLUMN IF NOT EXISTS notfall_telefon          VARCHAR(50);
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_employee_notfall_family_member') THEN
+                ALTER TABLE employee
+                    ADD CONSTRAINT fk_employee_notfall_family_member
+                    FOREIGN KEY (notfall_family_member_id)
+                    REFERENCES employee_family_member(id) ON DELETE SET NULL;
+            END IF;
+        END $$;
+    ");
+
     // SSL-Nummern pro (Filiale, Kanton) — eigene Tabelle, weil ein Arbeitgeber
     // sich in jedem Kanton, in dem er QST-pflichtige MA beschäftigt, separat
     // anmelden muss und dort eine eigene Nummer erhält. Eine Filiale kann

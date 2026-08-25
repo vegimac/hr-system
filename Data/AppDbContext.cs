@@ -147,6 +147,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LanguageCode).HasColumnName("language_code");
             entity.Property(e => e.PhoneMobile).HasColumnName("phone_mobile");
             entity.Property(e => e.Phone2).HasColumnName("phone2").HasMaxLength(50);
+            // Notfallkontakt (Walter-Vorgabe 25.08.2026): FK-Verknüpfung auf ein
+            // Familienmitglied ODER freie Person — Pflege nur via PATCH /notfall.
+            entity.Property(e => e.NotfallFamilyMemberId).HasColumnName("notfall_family_member_id");
+            entity.Property(e => e.NotfallName).HasColumnName("notfall_name").HasMaxLength(150);
+            entity.Property(e => e.NotfallBeziehung).HasColumnName("notfall_beziehung").HasMaxLength(100);
+            entity.Property(e => e.NotfallTelefon).HasColumnName("notfall_telefon").HasMaxLength(50);
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.EntryDate).HasColumnName("entry_date").HasColumnType("date");
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");

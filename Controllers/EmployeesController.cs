@@ -123,6 +123,50 @@ public class EmployeesController : ControllerBase
     }
     public record ZemisDto(string? ZemisNr);
 
+    /// <summary>
+    /// Notfallkontakt setzen/ändern/entfernen (Walter-Vorgabe 25.08.2026).
+    /// Entweder FamilyMemberId (Verknüpfung — Name/Telefon live aus der
+    /// Familie) ODER Name+Beziehung+Telefon (freie Person). Alles leer =
+    /// Notfallkontakt entfernen. Bewusst eigener PATCH: der grosse
+    /// Update()-Pfad (easy@work-Re-Import) darf die Felder nie überschreiben.
+    /// </summary>
+    [HttpPatch("{id:int}/notfall")]
+    public async Task<IActionResult> SetNotfallKontakt(int id, [FromBody] NotfallDto dto)
+    {
+        var emp = await _context.Employees.FindAsync(id);
+        if (emp == null) return NotFound();
+
+        if (dto.FamilyMemberId is > 0)
+        {
+            // Schutz: das Familienmitglied muss zu DIESEM MA gehören.
+            var ok = await _context.EmployeeFamilyMembers
+                .AnyAsync(f => f.Id == dto.FamilyMemberId.Value && f.EmployeeId == id);
+            if (!ok)
+                return BadRequest(new { error = "NOTFALL_FM_FREMD",
+                    message = "Das gewählte Familienmitglied gehört nicht zu diesem Mitarbeiter." });
+            emp.NotfallFamilyMemberId = dto.FamilyMemberId;
+            emp.NotfallName = null;
+            emp.NotfallBeziehung = null;
+            emp.NotfallTelefon = null;
+        }
+        else
+        {
+            var name = string.IsNullOrWhiteSpace(dto.Name) ? null : dto.Name.Trim();
+            var tel  = string.IsNullOrWhiteSpace(dto.Telefon) ? null : dto.Telefon.Trim();
+            if (name != null && tel == null)
+                return BadRequest(new { error = "NOTFALL_TELEFON_FEHLT",
+                    message = "Bitte eine Telefonnummer zum Notfallkontakt erfassen." });
+            emp.NotfallFamilyMemberId = null;
+            emp.NotfallName = name;
+            emp.NotfallBeziehung = string.IsNullOrWhiteSpace(dto.Beziehung) ? null : dto.Beziehung.Trim();
+            emp.NotfallTelefon = tel;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+    public record NotfallDto(int? FamilyMemberId, string? Name, string? Beziehung, string? Telefon);
+
     [HttpGet("lookup")]
     public async Task<IActionResult> GetLookup()
     {
@@ -285,6 +329,37 @@ public class EmployeesController : ControllerBase
             natName = !string.IsNullOrWhiteSpace(nameDe) ? nameDe : natCode;
         }
 
+        // Notfallkontakt auflösen (Walter 25.08.2026): bei FK-Verknüpfung
+        // kommen Name/Beziehung/Telefon LIVE aus dem Familienmitglied.
+        object? notfallKontakt = null;
+        if (employee.NotfallFamilyMemberId != null)
+        {
+            var nfFm = await _context.EmployeeFamilyMembers.AsNoTracking()
+                .Where(f => f.Id == employee.NotfallFamilyMemberId.Value)
+                .Select(f => new { f.Id, f.FirstName, f.LastName, f.MemberType, f.Phone })
+                .FirstOrDefaultAsync();
+            if (nfFm != null)
+                notfallKontakt = new
+                {
+                    source = "familie",
+                    familyMemberId = nfFm.Id,
+                    name = ($"{nfFm.FirstName} {nfFm.LastName}").Trim(),
+                    beziehung = nfFm.MemberType,
+                    telefon = nfFm.Phone
+                };
+        }
+        else if (!string.IsNullOrWhiteSpace(employee.NotfallName))
+        {
+            notfallKontakt = new
+            {
+                source = "frei",
+                familyMemberId = (int?)null,
+                name = employee.NotfallName,
+                beziehung = employee.NotfallBeziehung,
+                telefon = employee.NotfallTelefon
+            };
+        }
+
         // permitExpiryDate (abgeleitet) + permitType:
         // Walter-Vorgabe 07.06.2026 (final): „neueste" = höchstes ValidTo,
         // bei Gleichheit ÄLTESTES ValidFrom (= Original-Eintrag, nicht
@@ -380,6 +455,9 @@ public class EmployeesController : ControllerBase
             employee.PhoneMobile,
             employee.Phone2,
             employee.Email,
+            // Notfallkontakt (Walter 25.08.2026): aufgelöst — bei Familie-
+            // Verknüpfung mit Live-Daten aus employee_family_member.
+            notfallKontakt,
             employee.EntryDate,
             employee.ExitDate,
             // Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
