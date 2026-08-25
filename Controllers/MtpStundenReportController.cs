@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,13 +10,14 @@ namespace HrSystem.Controllers;
 /// MTP-Stunden-Kontrolle (Walter-Vorgabe 25.08.2026): pro MTP-MA eine
 /// Wochenspalte (ISO Mo–So) mit gestempelten Stunden PLUS angerechneten
 /// Absenz-Stunden, letzte Spalte Ø — Vergleich gegen die garantierten
-/// Wochenstunden (keine Toleranz, jede Abweichung zählt).
+/// Wochenstunden (keine Toleranz). Sortierung: grösstes Minus zuoberst,
+/// grösstes Plus zuunterst (Walter 25.08.2026 v2).
 /// Absenz-Anrechnung spiegelt die MTP-Lohnlogik (PayrollCalculationEngine):
 ///   Ferien/unbez. Urlaub = 1/7-Kalender · Krank/Unfall = 1/5 pro geplantem
 ///   Tag (worked_days, Fallback Mo–Fr, × Prozent) · EO/Militär/Zivilschutz =
 ///   Divisor aus dem Absenz-Typ-Katalog (ZaehlweiseMtp KALENDER→7, sonst 5).
 /// Nur VOLLE Wochen bis heute; Wochen vor Eintritt/nach Austritt = «–»
-/// (zählen nicht in den Ø). GET-only, rein lesend.
+/// (zählen nicht in den Ø). GET-only, rein lesend; /pdf = A4-quer-Ausdruck.
 /// </summary>
 [ApiController]
 [Route("api/reports/mtp-stunden")]
@@ -23,7 +25,12 @@ namespace HrSystem.Controllers;
 public class MtpStundenReportController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public MtpStundenReportController(AppDbContext db) => _db = db;
+    private readonly MtpStundenPdfService _pdf;
+    public MtpStundenReportController(AppDbContext db, MtpStundenPdfService pdf)
+    {
+        _db = db;
+        _pdf = pdf;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Get(
@@ -34,6 +41,71 @@ public class MtpStundenReportController : ControllerBase
         if (companyProfileId <= 0)
             return BadRequest(new { error = "FILIALE_FEHLT", message = "Bitte eine Filiale wählen." });
 
+        var d = await BuildAsync(from, to, companyProfileId);
+        return Ok(new
+        {
+            from = d.From.ToString("yyyy-MM-dd"),
+            to = d.To.ToString("yyyy-MM-dd"),
+            weeks = d.Wochen.Select(mo => new
+            {
+                monday = mo.ToString("yyyy-MM-dd"),
+                kw = System.Globalization.ISOWeek.GetWeekOfYear(mo.ToDateTime(TimeOnly.MinValue))
+            }),
+            rows = d.Rows.Select(r => new
+            {
+                vorname = r.Vorname,
+                name = r.Name,
+                schwanger = r.Schwanger,
+                mutterschutz = r.Mutterschutz,
+                garantiertH = r.GarantiertH,
+                weeks = r.Weeks.Select(w => w == null ? null : new
+                {
+                    total = w.Total, gearbeitet = w.Gearbeitet, absenz = w.Absenz
+                }),
+                avg = r.Avg
+            })
+        });
+    }
+
+    /// <summary>GET /api/reports/mtp-stunden/pdf — A4 quer, gleiche Daten.</summary>
+    [HttpGet("pdf")]
+    public async Task<IActionResult> GetPdf(
+        [FromQuery] string? from,
+        [FromQuery] string? to,
+        [FromQuery] int companyProfileId)
+    {
+        if (companyProfileId <= 0)
+            return BadRequest(new { error = "FILIALE_FEHLT", message = "Bitte eine Filiale wählen." });
+
+        var cp = await _db.CompanyProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == companyProfileId);
+        if (cp is null)
+            return NotFound(new { error = "FILIALE_NICHT_GEFUNDEN", message = "Filiale nicht gefunden." });
+        var titel = string.Join(" ", new[] { cp.RestaurantCode, cp.City }
+            .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
+        if (string.IsNullOrWhiteSpace(titel)) titel = cp.BranchName ?? "";
+
+        var d = await BuildAsync(from, to, companyProfileId);
+        byte[] bytes;
+        try
+        {
+            bytes = _pdf.Generate(d, titel);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new
+            {
+                error = "MTP_STUNDEN_PDF_FEHLER",
+                message = "PDF konnte nicht erzeugt werden.",
+                detail = ex.GetBaseException().Message
+            });
+        }
+        return File(bytes, "application/pdf", "MTP-Stunden-Kontrolle.pdf");
+    }
+
+    // ── gemeinsame Daten-Berechnung für JSON + PDF ──────────────────────────
+    private async Task<MtpStundenData> BuildAsync(string? from, string? to, int companyProfileId)
+    {
         var today = DateOnly.FromDateTime(DateTime.Today);
         var toD   = ParseDate(to) ?? today;
         var fromD = ParseDate(from) ?? toD.AddMonths(-2);
@@ -47,8 +119,7 @@ public class MtpStundenReportController : ControllerBase
         for (var mo = start; mo.AddDays(6) <= endCap; mo = mo.AddDays(7))
             wochen.Add(mo);
         if (wochen.Count == 0)
-            return Ok(new { from = fromD.ToString("yyyy-MM-dd"), to = toD.ToString("yyyy-MM-dd"),
-                            weeks = Array.Empty<object>(), rows = Array.Empty<object>() });
+            return new MtpStundenData(fromD, toD, wochen, new List<MtpRow>());
         var w0 = wochen[0];
         var w1 = wochen[^1].AddDays(6);
         var w0Dt = w0.ToDateTime(TimeOnly.MinValue);
@@ -129,12 +200,6 @@ public class MtpStundenReportController : ControllerBase
         var absLookup = absences.ToLookup(a => a.EmployeeId);
         var contractsByEmp = contracts.ToLookup(c => c.EmployeeId);
 
-        var weekMeta = wochen.Select(mo => new
-        {
-            monday = mo.ToString("yyyy-MM-dd"),
-            kw = System.Globalization.ISOWeek.GetWeekOfYear(mo.ToDateTime(TimeOnly.MinValue))
-        }).ToList();
-
         var rows = emps.Select(e =>
         {
             var c = contractsByEmp[e.Id].OrderByDescending(x => x.ContractStartDate).First();
@@ -176,7 +241,7 @@ public class MtpStundenReportController : ControllerBase
             var krankGeplant  = GeplantTage("KRANK");
             var unfallGeplant = GeplantTage("UNFALL");
 
-            var weekVals = new List<object?>();
+            var weekVals = new List<MtpWeekCell?>();
             decimal sum = 0m; int cnt = 0;
             foreach (var mo in wochen)
             {
@@ -225,33 +290,23 @@ public class MtpStundenReportController : ControllerBase
                 }
 
                 var tot = Math.Round(gearbeitet + absenz, 2);
-                weekVals.Add(new { total = tot, gearbeitet = Math.Round(gearbeitet, 2),
-                                   absenz = Math.Round(absenz, 2) });
+                weekVals.Add(new MtpWeekCell(tot, Math.Round(gearbeitet, 2), Math.Round(absenz, 2)));
                 sum += tot; cnt++;
             }
 
-            return new
-            {
-                vorname = e.FirstName,
-                name = e.LastName,
-                schwanger = pregnantSet.Contains(e.Id),
-                mutterschutz = maternitySet.Contains(e.Id),
-                garantiertH,
-                weeks = weekVals,
-                avg = cnt > 0 ? Math.Round(sum / cnt, 2) : (decimal?)null
-            };
+            return new MtpRow(
+                e.FirstName, e.LastName,
+                pregnantSet.Contains(e.Id), maternitySet.Contains(e.Id),
+                garantiertH, weekVals,
+                cnt > 0 ? Math.Round(sum / cnt, 2) : null);
         })
-        .OrderBy(r => r.vorname ?? "", StringComparer.OrdinalIgnoreCase)
-        .ThenBy(r => r.name ?? "", StringComparer.OrdinalIgnoreCase)
+        // Sortierung (Walter 25.08.2026 v2): grösstes MINUS (Ø − Garantie)
+        // zuoberst, grösstes Plus zuunterst; MA ohne Ø ganz unten.
+        .OrderBy(r => r.Avg == null ? decimal.MaxValue : r.Avg.Value - r.GarantiertH)
+        .ThenBy(r => r.Vorname ?? "", StringComparer.OrdinalIgnoreCase)
         .ToList();
 
-        return Ok(new
-        {
-            from = fromD.ToString("yyyy-MM-dd"),
-            to = toD.ToString("yyyy-MM-dd"),
-            weeks = weekMeta,
-            rows
-        });
+        return new MtpStundenData(fromD, toD, wochen, rows);
     }
 
     private static DateOnly? ParseDate(string? s)

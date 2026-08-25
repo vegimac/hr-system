@@ -49,6 +49,23 @@ async function mtpwLoad() {
     }
 }
 
+// PDF-Ausdruck (A4 quer) im Vorschaufenster — gleiche Parameter wie die Ansicht.
+async function mtpwPdf() {
+    const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        ? fixedCompanyProfileId : null;
+    if (!branchId) return alert('Bitte zuerst oben links in der Sidebar eine Filiale wählen.');
+    const from = document.getElementById('mtpwFrom')?.value || '';
+    const to = document.getElementById('mtpwTo')?.value || '';
+    const qs = new URLSearchParams({ companyProfileId: branchId });
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    try {
+        await previewUrlFetch(`/api/reports/mtp-stunden/pdf?${qs.toString()}`, 'MTP-Stunden-Kontrolle.pdf', ah());
+    } catch (e) {
+        alert('PDF fehlgeschlagen: ' + (e?.message || e));
+    }
+}
+
 function mtpwRender() {
     const box = document.getElementById('mtpwResult');
     if (!box || !_mtpwData) return;
@@ -100,7 +117,8 @@ function mtpwRender() {
             Zelle = gestempelte Stunden + angerechnete Absenz (<span style="color:#b45309">*</span> = enthält Absenz, Details im Tooltip) ·
             <span style="color:#15803d;font-weight:600">grün = Garantie erreicht/übertroffen</span> ·
             <span style="color:#b91c1c;font-weight:600">rot = unter Garantie</span> ·
-            🤰 Schwanger / 🍼 Mutterschutz
+            🤰 Schwanger / 🍼 Mutterschutz ·
+            sortiert: grösstes Minus zuoberst
         </div>
         <div class="card" style="padding:0">
         <table style="width:100%;border-collapse:collapse;font-size:13px">
