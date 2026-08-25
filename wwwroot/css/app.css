@@ -3651,9 +3651,17 @@
            festen X-Positionen, springt bei keinem MA. Spart eine Zeile. */
         .emp-hfacts {
             display: grid;
-            /* 5. Spalte «Notfall» (Walter 25.08.2026) — Kopf bleibt gleich hoch */
-            grid-template-columns: 150px 250px 230px minmax(0, 1.15fr) minmax(0, 1fr);
+            grid-template-columns: 150px 250px 230px minmax(0, 1fr);
             margin-top: 10px;
+        }
+        /* 🆘 Notfall (Walter 25.08.2026, v2): 2. Zeile DIREKT unter «Eintritt»
+           — nutzt den leeren Raum unter der Fakten-Zeile, spannt über die
+           ersten zwei Spalten (150px wären zu schmal für Name + Nummer). */
+        .emp-hfact-notfall {
+            grid-column: 1 / span 2;
+            border-left: none !important;
+            padding-left: 0 !important;
+            margin-top: 7px;
         }
         .emp-hfact { min-width: 0; padding: 0 16px 0 0; }
         .emp-hfacts .emp-hfact:nth-child(n+2) {

@@ -1161,7 +1161,12 @@ function renderEmployeeDetail(emp) {
                     ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
-                    ${_hcFact('🆘 Notfall', _hcNotfallVal)}
+                    <!-- 🆘 Notfall in der 2. Grid-Zeile direkt unter «Eintritt»
+                         (Walter 25.08.2026 v2) — Klasse setzt grid-column 1/3. -->
+                    <div class="emp-hfact emp-hfact-notfall">
+                        <div class="emp-hfact-l">🆘 Notfall</div>
+                        <div class="emp-hfact-v">${_hcNotfallVal}</div>
+                    </div>
                 </div>
             </div>
             <!-- Rechte Aktions-Spalte ABSOLUT positioniert (Walter 17.07.2026:
