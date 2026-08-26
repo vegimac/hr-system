@@ -892,7 +892,7 @@ async function eawEmergencySync() {
         const notes = (j.notes || []).map(n => `<div>· ${n}</div>`).join('');
         out.innerHTML = `<div style="font-size:13px;padding:8px;line-height:1.5">
             <b>🆘 Notfallkontakte:</b> ${j.uebernommen} übernommen/aktualisiert ·
-            ${j.manuellBehalten} manuell behalten · ${j.geloescht} entfernt (in easy gelöscht)
+            ${j.manuellBehalten} manuell behalten — in easy gelöschte Kontakte bleiben in OneCrew erhalten
             ${notes ? `<div style="margin-top:6px;color:#64748b">${notes}</div>` : ''}</div>`;
     } catch (e) {
         if (out) out.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px">Verbindungsfehler: ${e.message}</div>`;

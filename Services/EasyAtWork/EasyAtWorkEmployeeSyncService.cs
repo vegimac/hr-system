@@ -1071,16 +1071,11 @@ public class EasyAtWorkEmployeeSyncService
 
         if (aktiv == null)
         {
-            // In easy gelöscht/keiner vorhanden → sync-gepflegten Kontakt räumen.
-            if (emp.NotfallEasyatworkId != null)
-            {
-                emp.NotfallEasyatworkId = null;
-                emp.NotfallName = null;
-                emp.NotfallBeziehung = null;
-                emp.NotfallTelefon = null;
-                notes.Add("Notfallkontakt: in easy@work gelöscht → in OneCrew entfernt.");
-                return true;
-            }
+            // In easy gelöscht/keiner vorhanden → Kontakt in OneCrew BEHALTEN
+            // (Walter 26.08.2026: «lieber ein veralteter Notfallkontakt als
+            // keiner»). Er wird ersetzt, sobald in easy wieder einer erfasst
+            // ist. Bewusst KEIN Auto-Löschen — das hatte zudem MA anderer
+            // Filialen fälschlich getroffen (Kontakt liegt in anderem Customer).
             return false;
         }
 
@@ -1111,11 +1106,13 @@ public class EasyAtWorkEmployeeSyncService
         var kontakte = await _client.GetEmergencyContactsAsync(customerId, ct);
         var eawIds = kontakte.Select(k => k.EmployeeId).Distinct().ToList();
 
-        // Alle MA mit easy@work-Id — auch die OHNE Kontakt in easy (für die
-        // Lösch-Regel bei sync-gepflegten Kontakten).
+        // NUR MA, deren easy@work-Id in DIESER Customer-Liste vorkommt —
+        // MA anderer Filialen bleiben unangetastet (Walter-Bug 26.08.2026:
+        // die frühere Zusatz-Klausel zog fremde MA rein und «löschte» deren
+        // Kontakte fälschlich).
         var emps = await _db.Employees
             .Where(e => e.EasyAtWorkEmployeeId != null
-                     && (eawIds.Contains(e.EasyAtWorkEmployeeId.Value) || e.NotfallEasyatworkId != null))
+                     && eawIds.Contains(e.EasyAtWorkEmployeeId.Value))
             .ToListAsync(ct);
 
         int uebernommen = 0, manuellBehalten = 0, geloescht = 0;
