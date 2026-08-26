@@ -14,6 +14,21 @@ Das System prüft das **automatisch** für dich. Konkret: **Ein MA ist QST-pflic
 
 In allen anderen Fällen → **QST-pflichtig**.
 
+⚠️ **Konkubinat befreit NIE:** Ein **Konkubinatspartner** mit CH-Pass oder
+C-Ausweis befreit den MA **nicht** — die Befreiung über den Partner gilt nur
+bei **Ehe oder eingetragener Partnerschaft**. Darum im Familie-Tab immer den
+richtigen Typ wählen: «Ehepartner» vs. «Konkubinatspartner/in».
+
+## Der empfohlene Ablauf (5 Schritte)
+
+1. **Bewerbungsbogen** (McAdmin) vollständig ausfüllen lassen — erste Quelle für alle QST-Angaben.
+2. **MA erfassen**: Nationalität, Bewilligung, Zivilstand + seit, Konfession, Wohnadresse (der Wohnkanton bestimmt, welcher Kanton die Steuer erhält).
+3. **Familie-Tab komplett**: Ehepartner (erwerbstätig? + Arbeitgeber), Konkubinatspartner (erwerbstätig? + Einkommensfrage), Kinder (Haushalt, gemeinsames Kind, Erstausbildung ab 18).
+4. **QST-Informationsformular** (McAdmin → «QST-Info Formular») drucken und ZUSAMMEN mit dem MA ausfüllen — deckt alle Fragen des kantonalen Anmeldeformulars ab. Antworten in OneCrew nachtragen.
+5. **QST-Erfassung** anlegen (Vorschlag prüfen/übernehmen) + **QST-Anmeldung** (PDF) an die kantonale Steuerbehörde.
+
+📄 Das ausführliche **QST-Benutzer-Manual** (Word, druckbar) liegt unter `docs/QST-Benutzer-Manual.docx`.
+
 ## Wo erfasse ich das?
 
 Sidebar **Mitarbeiter → MA wählen → Tab „Bewilligung QST Bank"**.
@@ -84,9 +99,25 @@ Beispiele:
 Bei verheirateten MA hat der **Ehepartner direkten Einfluss auf den Tarif**:
 
 - **Alleinverdiener** (Partner ohne eigenes Einkommen) → **Tarif B**
-- **Doppelverdiener** (beide arbeiten) → **Tarif C**
+- **Doppelverdiener** (beide arbeiten) → **Tarif C** — Achtung: auch Erwerbseinkommen des Partners im **Ausland** zählt!
 
-Erfass den Ehepartner im **Familie-Tab** mit allen Angaben (Nationalität, Bewilligung, Einkommens-Zeitraum). Wenn der Partner Schweizer oder C-Ausweis-Inhaber ist, ist der MA übrigens **gar nicht QST-pflichtig** — siehe oben Bedingung 4 oder 5.
+Erfass den Ehepartner im **Familie-Tab** mit allen Angaben (Nationalität, Bewilligung, Erwerbstätig-Frage + Arbeitgeber). Der **Tarifvorschlag wertet die Erwerbstätig-Frage automatisch aus** (nicht erwerbstätig → B, erwerbstätig → C, offen → C als sicherer Default). Wenn der Partner Schweizer oder C-Ausweis-Inhaber ist, ist der MA übrigens **gar nicht QST-pflichtig** — siehe oben Bedingung 4 oder 5.
+
+**Partner lebt im Ausland** (z.B. Flüchtlingsfamilien): keine Schweizer Bewilligung nötig — «In der Schweiz lebend» leer lassen und die Auslandsadresse als Zusatzadresse erfassen. Es kommt dann keine Bewilligungs-Warnung.
+
+## Konkubinat (unverheiratetes Paar)
+
+Das Konkubinat interessiert die QST nur über das **gemeinsame Kind**. Regel (AG/ESTV-Praxis): Der Elternteil mit dem **höheren Bruttoeinkommen** (= Hauptunterhalt) erhält **H1**, der andere **A0** — **nie beide H1**. So erfasst du es:
+
+1. Partner im Familie-Tab als Typ **«Konkubinatspartner/in»** anlegen (💞-Badge).
+2. Beim Partner: **Erwerbstätig?** beantworten — bei «Ja» erscheint die Frage «**Ist das Einkommen des Konkubinatspartners höher als das des MA?**». Bei «nicht erwerbstätig» gilt automatisch H1 für den MA.
+3. Beim **Kind**: «**Gemeinsames Kind mit dem Konkubinatspartner? Ja/Nein**» (steht prominent vor der Adresse; erscheint nur, wenn ein K-Partner erfasst ist).
+
+OneCrew leitet daraus den Tarif ab und **sperrt die Konkubinat-Häkchen im QST-Modal** (Werte kommen automatisch aus dem Familie-Tab). Ist der Tarif korrekt, zeigt die QST-Zeile eine **grüne Erklär-Zeile** («1 gemeinsames Kind · Konkubinat · Partner hat das höhere Einkommen → A0 korrekt»). Bei **gemischten Fällen** (gemeinsame UND nicht-gemeinsame Kinder) macht das System bewusst **keinen Vorschlag** — Meldung «Mit QST-Behörde abklären».
+
+## Weitere Beschäftigungen des MA
+
+Hat der MA **neben Schaub weitere Arbeitgeber**, in der QST-Erfassung «Weitere Beschäftigungen des MA» ankreuzen und die **volle Adresse** des anderen Arbeitgebers (Name, Strasse, PLZ/Ort/Kanton, Land) plus das **Pensum in %** erfassen — das Einkommen wird nicht mehr erfasst. Diese Angaben fliessen automatisch auf die kantonale **QST-Anmeldung**, und der satzbestimmende Lohn wird hochgerechnet.
 
 ## Was wird auf dem Lohnzettel angezeigt?
 
@@ -133,7 +164,7 @@ Im QST-Tab unter „Zusätzliche Angaben" → **„Wohnsitz Ausland"** ausfülle
 Wohnort im Ausland, Arbeitsort in CH, **tägliche Rückkehr** zum Wohnort. Das System hat eine eigene Checkbox dafür unter „Tarif-relevante Stammdaten".
 
 **Halbfamilie?**
-Wenn der MA mit eigenen Kindern alleinerziehend ist aber im Konkubinat lebt (also nicht verheiratet). Beeinflusst den Tarif (H vs. A).
+Alleinerziehend mit Kind im gleichen Haushalt → Tarif H. Lebt der MA im Konkubinat, entscheidet das gemeinsame Kind + die Einkommensfrage (siehe Abschnitt «Konkubinat» oben).
 
 ## Häufige Stolpersteine
 

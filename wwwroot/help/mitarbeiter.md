@@ -38,22 +38,30 @@ Mehr zur Schnittstelle: [easy@work](#easyatwork).
 Karten auf einen Blick:
 
 - **Personalien & Adresse** — Strasse, PLZ, Ort, Kanton, Telefon, AHV, Zivilstand, Nationalität, ZEMIS, Ledigname … (viele Felder direkt speicherbar)
+- **🆘 Notfallkontakt** — eine Zeile im Kopf, direkt unter dem Eintrittsdatum: Name (Beziehung) · Telefon mit Anruf-Knopf. Klick öffnet die Erfassung: entweder **aus der Familie verknüpft** (Nummer bleibt automatisch aktuell) oder **freie Person** (z.B. Schwester, Nachbar). Die Druckliste aller Notfallkontakte gibt es in [McAdmin](#mcadmin).
 - **Anstellung** — Eintritt, Austritt, L-GAV, Kündigung am/per, Probezeit bis, Probezeitgespräch-Status
 - **Nachtarbeit** — Pflicht-Badge, Nächte-Zähler, Arztzeugnis / Ausnahme verknüpfen, SECO-Formulare drucken
 - **Verträge** — kompakte Liste + Saldi der Periode
 - **Weitere Adressen** — eigene Box unter den Personalien (1 Zeile sichtbar, Rest scrollbar; Beschreibung neben dem Titel)
 
 ### Familie / Schwanger
-Ehepartner, Kinder, **Kinderzulagen** (versioniert).  
+Ehepartner, **Konkubinatspartner/in** (💞), Kinder, **Kinderzulagen** (versioniert).  
 Bei Frauen zusätzlich **Schwangerschaft / Mutterschaft**: Termin, Fahrplan, Formulare, Fristen. Aktive Schwangerschaft → Badge neben dem Namen. Die **Arztbestätigung** kannst du mit dem errechneten Termin verknüpfen (Checkliste).
 
-💡 Ehepartner-Nationalität / C-Ausweis / Pass-Dokument beeinflussen die [Quellensteuer](#qst).
+Wichtige QST-Fragen leben direkt hier:
+
+- **Adresse jedes Angehörigen — 3 Zustände**: lebt im gleichen Haushalt / lebt NICHT (mehr) im Haushalt (ohne Adresse) / andere Adresse. Der Haushalt-Status steuert den H-Tarif.
+- **Ehepartner**: erwerbstätig? + Arbeitgeber-Adresse (entscheidet Tarif B vs. C). Partner im Ausland → «In der Schweiz lebend» leer lassen, keine Bewilligung nötig.
+- **Konkubinatspartner/in**: erwerbstätig? — bei Ja zusätzlich «Ist das Einkommen des Partners höher als das des MA?» (entscheidet H1 vs. A0).
+- **Kind**: «Gemeinsames Kind mit dem Konkubinatspartner?» + ab 18 «in Erstausbildung» (verlängert die Kinderziffer).
+
+💡 Ehepartner-Nationalität / C-Ausweis / Pass-Dokument beeinflussen die [Quellensteuer](#qst) — ein Konkubinatspartner mit CH/C befreit dagegen NIE.
 
 ### Bewilligung QST Bank
 Drei Blöcke (Bank oben, dann Bewilligung, dann QST):
 
 1. **Bank** — versioniert, eine Hauptbank, optionale Aufteilung
-2. **Bewilligungen** — Verlauf; SMS-Erinnerung möglich
+2. **Bewilligungen** — nur die **neueste** Bewilligung sichtbar; ältere hinter der Pille **«🕘 History»** im Titel. SMS-Erinnerung möglich; beim Einscannen werden Art/Ablauf/ZEMIS automatisch gelesen und das Dokument gleich verknüpft
 3. **Quellensteuer** — Banner + Tarif / Behörden-Befreiung — Details: [QST](#qst)
 
 ### MA Formulare
