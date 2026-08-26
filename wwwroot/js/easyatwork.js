@@ -856,6 +856,26 @@ async function eawAbsenceProbe() {
     }
 }
 
+// Notfallkontakte-Probe (Walter 26.08.2026): easy@work führt unter «Mein
+// Unternehmen → Notfallkontakte» eine Liste — Probe testet die plausiblen
+// API-Pfade durch (gleiche Methode wie Verfügbarkeit/Absenzen). Status 200
+// = Treffer → danach bauen wir den Import.
+async function eawEmergencyProbe() {
+    const out = document.getElementById('eawDumpResult');
+    const number = (document.getElementById('eawDumpNumber')?.value || '').trim();
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { if (out) out.textContent = 'Bitte zuerst oben eine Filiale wählen.'; return; }
+    if (out) out.textContent = 'Notfallkontakt-Endpunkte werden durchgetestet…';
+    try {
+        const r = await fetch(`/api/easywork/debug/emergency-probe?companyProfileId=${cpId}${number ? '&number=' + encodeURIComponent(number) : ''}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.textContent = 'Fehler: ' + (j?.message || j?.error || ('HTTP ' + r.status)); return; }
+        out.textContent = JSON.stringify(j, null, 2);
+    } catch (e) {
+        if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
+    }
+}
+
 // API-Dump nach easy@work-ID: holt die Roh-Felder direkt für eine ID. Der
 // passende Customer wird serverseitig über alle gemappten Filialen gesucht —
 // so sieht Walter, welche Personalnummer easy@work für diese ID liefert.

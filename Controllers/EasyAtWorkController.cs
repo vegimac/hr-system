@@ -367,6 +367,81 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Notfallkontakte-Probe (Walter 26.08.2026): easy@work führt unter
+    /// «Mein Unternehmen → Notfallkontakte» eine Liste (Employee, Name,
+    /// Beziehung, Telefon) — es gibt aber keine öffentliche API-Doku. Diese
+    /// Probe testet read-only die plausiblen Laravel-Pfade auf Customer- und
+    /// MA-Ebene durch (gleiche Methode, mit der Verfügbarkeit + Absenzen
+    /// gefunden wurden). Status 200 = Endpunkt existiert → danach bauen wir
+    /// den Import. Personalnummer optional.
+    /// </summary>
+    [HttpGet("debug/emergency-probe")]
+    public async Task<IActionResult> EmergencyContactProbe(
+        [FromQuery] int companyProfileId, [FromQuery] string? number, CancellationToken ct)
+    {
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        int? eid = null;
+        if (!string.IsNullOrWhiteSpace(number))
+        {
+            try
+            {
+                var eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct);
+                eid = eawList.FirstOrDefault(e => (e.Number ?? "").Trim() == number.Trim())?.Id;
+                if (eid == null)
+                    return NotFound(new { error = "NOT_IN_CUSTOMER", message = $"Personalnr. {number} nicht in easy@work-Customer {customerId} gefunden." });
+            }
+            catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        }
+
+        var pfade = new List<string>
+        {
+            $"customers/{customerId}/emergency_contacts?per_page=10",
+            $"customers/{customerId}/emergency-contacts?per_page=10",
+            $"customers/{customerId}/contacts?per_page=10",
+            $"customers/{customerId}/relatives?per_page=10",
+        };
+        if (eid.HasValue)
+        {
+            pfade.Add($"customers/{customerId}/employees/{eid}/emergency_contacts");
+            pfade.Add($"customers/{customerId}/employees/{eid}/contacts");
+            pfade.Add($"customers/{customerId}/employees/{eid}/relatives");
+        }
+
+        object ParseBody(string b)
+        {
+            if (string.IsNullOrWhiteSpace(b)) return "";
+            try { return JsonSerializer.Deserialize<JsonElement>(b); }
+            catch { return b.Length > 3000 ? b[..3000] + "…" : b; }
+        }
+
+        var results = new List<object>();
+        foreach (var p in pfade)
+        {
+            try
+            {
+                var (st, body) = await _client.GetRawAsync(p, ct);
+                results.Add(new { path = p, status = st, body = ParseBody(body) });
+            }
+            catch (Exception ex) { results.Add(new { path = p, status = -1, error = ex.Message }); }
+        }
+
+        return Ok(new
+        {
+            customerId,
+            easyAtWorkResourceId = eid,
+            hinweis = "Geratene Pfade (keine API-Doku) — Status 200 = Treffer. Bei lauter 404: "
+                    + "Pfadnamen dem easy@work-Support schicken und nach dem Notfallkontakte-Endpoint fragen "
+                    + "(gleiches Vorgehen wie bei Verfügbarkeit/Absenzen).",
+            results,
+        });
+    }
+
+    /// <summary>
     /// Absenz-Sync easy@work → OneCrew (Walter 14.08.2026): Vorschau + Commit.
     /// Details/Mapping siehe EasyAtWorkAbsenceSyncService. vonDatum default
     /// 01.01.2026 (Vergangenheit = Mirus-Import).
