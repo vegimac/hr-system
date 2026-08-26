@@ -466,3 +466,20 @@ public class EawAvailabilityDay
     [JsonIgnore] public DateOnly? LocalDate => EawDateUtil.ParseSwissDate(FromRaw ?? DateRaw);
     [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
 }
+
+/// <summary>
+/// Notfallkontakt aus easy@work (Walter 26.08.2026, Endpunkt per Probe
+/// gefunden: GET customers/{c}/emergency_contacts, Laravel-paginiert).
+/// employee_id = easy@work-Employee-Id (→ Employee.EasyAtWorkEmployeeId).
+/// </summary>
+public class EawEmergencyContact
+{
+    [JsonPropertyName("id")]          public long    Id           { get; set; }
+    [JsonPropertyName("employee_id")] public int     EmployeeId   { get; set; }
+    [JsonPropertyName("name")]        public string? Name         { get; set; }
+    [JsonPropertyName("relation")]    public string? Relation     { get; set; }
+    [JsonPropertyName("phone")]       public string? Phone        { get; set; }
+    [JsonPropertyName("updated_at")]  public string? UpdatedAtRaw { get; set; }
+    [JsonPropertyName("deleted_at")]  public string? DeletedAtRaw { get; set; }
+    [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
+}

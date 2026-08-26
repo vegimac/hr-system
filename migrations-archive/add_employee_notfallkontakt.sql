@@ -18,3 +18,9 @@ DO $$ BEGIN
             REFERENCES employee_family_member(id) ON DELETE SET NULL;
     END IF;
 END $$;
+
+-- Walter 26.08.2026: easy@work führt Notfallkontakte (Mein Unternehmen →
+-- Notfallkontakte; API customers/{c}/emergency_contacts, per Probe gefunden).
+-- Herkunfts-Id für den Sync — manuelle Erfassung löscht sie (Handpflege gewinnt).
+ALTER TABLE employee
+    ADD COLUMN IF NOT EXISTS notfall_easyatwork_id BIGINT;

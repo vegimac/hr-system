@@ -136,6 +136,11 @@ public class EmployeesController : ControllerBase
         var emp = await _context.Employees.FindAsync(id);
         if (emp == null) return NotFound();
 
+        // Handpflege gewinnt (Walter 26.08.2026): jede manuelle Änderung löst
+        // die easy@work-Verknüpfung — der Sync fasst den Kontakt danach nicht
+        // mehr an, bis er wieder leer ist.
+        emp.NotfallEasyatworkId = null;
+
         if (dto.FamilyMemberId is > 0)
         {
             // Schutz: das Familienmitglied muss zu DIESEM MA gehören.
@@ -352,7 +357,8 @@ public class EmployeesController : ControllerBase
         {
             notfallKontakt = new
             {
-                source = "frei",
+                // «easy» = vom easy@work-Sync gepflegt (Walter 26.08.2026).
+                source = employee.NotfallEasyatworkId != null ? "easy" : "frei",
                 familyMemberId = (int?)null,
                 name = employee.NotfallName,
                 beziehung = employee.NotfallBeziehung,

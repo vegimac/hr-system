@@ -153,6 +153,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NotfallName).HasColumnName("notfall_name").HasMaxLength(150);
             entity.Property(e => e.NotfallBeziehung).HasColumnName("notfall_beziehung").HasMaxLength(100);
             entity.Property(e => e.NotfallTelefon).HasColumnName("notfall_telefon").HasMaxLength(50);
+            entity.Property(e => e.NotfallEasyatworkId).HasColumnName("notfall_easyatwork_id");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.EntryDate).HasColumnName("entry_date").HasColumnType("date");
             entity.Property(e => e.ExitDate).HasColumnName("exit_date").HasColumnType("date");

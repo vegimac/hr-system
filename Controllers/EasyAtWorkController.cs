@@ -442,6 +442,33 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Notfallkontakte-Import easy@work → OneCrew (Walter 26.08.2026): holt
+    /// die emergency_contacts-Liste des Customers (EIN Call) und übernimmt
+    /// sie in Employee.Notfall* — gemappt via EasyAtWorkEmployeeId. Regeln:
+    /// manuelle OneCrew-Erfassung gewinnt; sync-gepflegte Kontakte folgen
+    /// easy (Update + Löschung). Der Einzel-MA-Sync macht dasselbe pro MA.
+    /// </summary>
+    [Authorize(Roles = "admin,superuser")]
+    [HttpPost("emergency-contacts/sync")]
+    public async Task<IActionResult> SyncEmergencyContacts([FromQuery] int companyProfileId, CancellationToken ct)
+    {
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        try
+        {
+            var (uebernommen, manuellBehalten, geloescht, notes) =
+                await _empSync.SyncEmergencyContactsForBranchAsync(mapping.EasyAtWorkCustomerId, ct);
+            return Ok(new { uebernommen, manuellBehalten, geloescht, notes });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(502, new { error = "EAW_SYNC_FAILED", message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Absenz-Sync easy@work → OneCrew (Walter 14.08.2026): Vorschau + Commit.
     /// Details/Mapping siehe EasyAtWorkAbsenceSyncService. vonDatum default
     /// 01.01.2026 (Vergangenheit = Mirus-Import).

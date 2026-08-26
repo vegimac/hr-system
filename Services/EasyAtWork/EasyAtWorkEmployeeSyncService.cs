@@ -1008,10 +1008,135 @@ public class EasyAtWorkEmployeeSyncService
             _log.LogWarning(ex, "Einzel-MA Schwangerschafts-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
         }
 
+        // ── Notfallkontakt aus easy@work (Walter 26.08.2026) ──
+        // Endpunkt per Probe gefunden: customers/{c}/emergency_contacts.
+        // Best-effort; manuelle OneCrew-Erfassung gewinnt (siehe Methode).
+        try
+        {
+            var kontakte = await _client.GetEmergencyContactsAsync(matchedCustomerId!.Value, ct);
+            if (ApplyEmergencyContact(emp,
+                    kontakte.Where(k => k.EmployeeId == eaw.Id).ToList(), result.Notes))
+            {
+                await _db.SaveChangesAsync(ct);
+                result.UpdatedFields.Add("Notfallkontakt");
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Notes.Add($"Notfallkontakt-Sync übersprungen: {ex.Message}");
+            _log.LogWarning(ex, "Einzel-MA Notfallkontakt-Sync für Employee {Id} fehlgeschlagen.", emp.Id);
+        }
+
         result.Success = true;
         if (result.UpdatedFields.Count == 0 && result.SkippedContracts.Count == 0)
             result.Notes.Add("Keine Änderungen — Cowork war bereits aktuell.");
         return result;
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    //  Notfallkontakt-Sync (Walter 26.08.2026)
+    //  easy@work «Mein Unternehmen → Notfallkontakte» → Employee.Notfall*.
+    //  Regeln:
+    //    • OneCrew leer                     → easy-Kontakt übernehmen
+    //    • OneCrew-Kontakt VON easy (Id)    → Update/Löschung folgt easy
+    //    • OneCrew-Kontakt MANUELL erfasst  → NICHT anfassen (Handpflege
+    //      gewinnt; Notiz, wenn easy etwas anderes hätte)
+    //  Bei mehreren easy-Kontakten pro MA zählt der NEUESTE (höchste Id).
+    // ═════════════════════════════════════════════════════════════════════
+    private static string FormatNotfallPhone(string? raw)
+    {
+        var d = new string((raw ?? "").Where(char.IsDigit).ToArray());
+        if ((raw ?? "").StartsWith("+")) d = "+" + d;
+        if (d.StartsWith("0041")) d = "+41" + d[4..];
+        else if (d.StartsWith("0") && d.Length == 10) d = "+41" + d[1..];
+        if (d.StartsWith("+") && d.Length == 12)
+            return $"{d[..3]} {d[3..5]} {d[5..8]} {d[8..10]} {d[10..12]}";
+        return (raw ?? "").Trim();
+    }
+
+    private static bool ApplyEmergencyContact(Employee emp, List<EawEmergencyContact> kontakte, List<string> notes)
+    {
+        var aktiv = kontakte.Where(k => !k.IsDeleted && !string.IsNullOrWhiteSpace(k.Name))
+                            .OrderByDescending(k => k.Id)
+                            .FirstOrDefault();
+
+        bool manuell = emp.NotfallEasyatworkId == null
+                    && (emp.NotfallFamilyMemberId != null || !string.IsNullOrWhiteSpace(emp.NotfallName));
+        if (manuell)
+        {
+            if (aktiv != null)
+                notes.Add("Notfallkontakt: manuelle OneCrew-Erfassung bleibt — easy@work-Kontakt nicht übernommen.");
+            return false;
+        }
+
+        if (aktiv == null)
+        {
+            // In easy gelöscht/keiner vorhanden → sync-gepflegten Kontakt räumen.
+            if (emp.NotfallEasyatworkId != null)
+            {
+                emp.NotfallEasyatworkId = null;
+                emp.NotfallName = null;
+                emp.NotfallBeziehung = null;
+                emp.NotfallTelefon = null;
+                notes.Add("Notfallkontakt: in easy@work gelöscht → in OneCrew entfernt.");
+                return true;
+            }
+            return false;
+        }
+
+        var name = aktiv.Name!.Trim();
+        var bez  = string.IsNullOrWhiteSpace(aktiv.Relation) ? null : aktiv.Relation.Trim();
+        var tel  = string.IsNullOrWhiteSpace(aktiv.Phone) ? null : FormatNotfallPhone(aktiv.Phone);
+        if (emp.NotfallEasyatworkId == aktiv.Id && emp.NotfallName == name
+            && emp.NotfallBeziehung == bez && emp.NotfallTelefon == tel)
+            return false;
+
+        emp.NotfallEasyatworkId = aktiv.Id;
+        emp.NotfallFamilyMemberId = null;
+        emp.NotfallName = name;
+        emp.NotfallBeziehung = bez;
+        emp.NotfallTelefon = tel;
+        notes.Add($"Notfallkontakt aus easy@work übernommen: {name}{(bez != null ? $" ({bez})" : "")}.");
+        return true;
+    }
+
+    /// <summary>
+    /// Bulk-Import der Notfallkontakte für EINE Filiale (Walter 26.08.2026):
+    /// eine Liste pro Customer, gemappt über Employee.EasyAtWorkEmployeeId.
+    /// Gleiche Regeln wie der Einzel-Sync (Handpflege gewinnt).
+    /// </summary>
+    public async Task<(int uebernommen, int manuellBehalten, int geloescht, List<string> notes)>
+        SyncEmergencyContactsForBranchAsync(int customerId, CancellationToken ct = default)
+    {
+        var kontakte = await _client.GetEmergencyContactsAsync(customerId, ct);
+        var eawIds = kontakte.Select(k => k.EmployeeId).Distinct().ToList();
+
+        // Alle MA mit easy@work-Id — auch die OHNE Kontakt in easy (für die
+        // Lösch-Regel bei sync-gepflegten Kontakten).
+        var emps = await _db.Employees
+            .Where(e => e.EasyAtWorkEmployeeId != null
+                     && (eawIds.Contains(e.EasyAtWorkEmployeeId.Value) || e.NotfallEasyatworkId != null))
+            .ToListAsync(ct);
+
+        int uebernommen = 0, manuellBehalten = 0, geloescht = 0;
+        var notes = new List<string>();
+        foreach (var emp in emps)
+        {
+            var eigene = kontakte.Where(k => k.EmployeeId == emp.EasyAtWorkEmployeeId).ToList();
+            var localNotes = new List<string>();
+            var changed = ApplyEmergencyContact(emp, eigene, localNotes);
+            foreach (var n in localNotes)
+                notes.Add($"{emp.FirstName} {emp.LastName}: {n}");
+            if (changed)
+            {
+                if (emp.NotfallEasyatworkId == null) geloescht++;
+                else uebernommen++;
+            }
+            else if (localNotes.Any(n => n.Contains("manuelle")))
+                manuellBehalten++;
+        }
+        await _db.SaveChangesAsync(ct);
+        return (uebernommen, manuellBehalten, geloescht, notes);
     }
 
     // ═════════════════════════════════════════════════════════════════════

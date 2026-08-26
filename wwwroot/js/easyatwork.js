@@ -876,6 +876,27 @@ async function eawEmergencyProbe() {
     }
 }
 
+// Notfallkontakte-Import (Walter 26.08.2026): easy@work emergency_contacts →
+// Employee.Notfall* für alle MA der Filiale. Handpflege in OneCrew gewinnt.
+async function eawEmergencySync() {
+    const out = document.getElementById('eawSyncResult');
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { if (out) out.innerHTML = '<div style="color:#b91c1c;font-size:13px;padding:8px">Bitte zuerst oben eine Filiale wählen.</div>'; return; }
+    if (out) out.innerHTML = '<div style="color:#64748b;font-size:13px;padding:8px">⏳ Notfallkontakte werden aus easy@work übernommen…</div>';
+    try {
+        const r = await fetch(`/api/easywork/emergency-contacts/sync?companyProfileId=${cpId}`, { method: 'POST', headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px">Fehler: ${j?.message || j?.error || ('HTTP ' + r.status)}</div>`; return; }
+        const notes = (j.notes || []).map(n => `<div>· ${n}</div>`).join('');
+        out.innerHTML = `<div style="font-size:13px;padding:8px;line-height:1.5">
+            <b>🆘 Notfallkontakte:</b> ${j.uebernommen} übernommen/aktualisiert ·
+            ${j.manuellBehalten} manuell behalten · ${j.geloescht} entfernt (in easy gelöscht)
+            ${notes ? `<div style="margin-top:6px;color:#64748b">${notes}</div>` : ''}</div>`;
+    } catch (e) {
+        if (out) out.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px">Verbindungsfehler: ${e.message}</div>`;
+    }
+}
+
 // API-Dump nach easy@work-ID: holt die Roh-Felder direkt für eine ID. Der
 // passende Customer wird serverseitig über alle gemappten Filialen gesucht —
 // so sieht Walter, welche Personalnummer easy@work für diese ID liefert.

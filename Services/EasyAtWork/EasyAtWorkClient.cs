@@ -250,6 +250,26 @@ public class EasyAtWorkClient
         return all;
     }
 
+    /// <summary>
+    /// Notfallkontakte des Customers (Walter 26.08.2026, Endpunkt per Probe
+    /// bestätigt). Kleine Liste (~20 Einträge) — komplett paginiert laden.
+    /// </summary>
+    public async Task<List<EawEmergencyContact>> GetEmergencyContactsAsync(int customerId, CancellationToken ct = default)
+    {
+        var all = new List<EawEmergencyContact>();
+        int page = 1;
+        while (true)
+        {
+            var res = await GetJsonAsync<EawPaginated<EawEmergencyContact>>(
+                $"customers/{customerId}/emergency_contacts?per_page=200&page={page}", ct);
+            if (res.Data != null) all.AddRange(res.Data);
+            if (res.LastPage == null || page >= res.LastPage.Value) break;
+            page++;
+            if (page > 20) break;
+        }
+        return all;
+    }
+
     public Task<EawPaginated<EawTimepunch>> GetTimepunchesAsync(int customerId, DateOnly from, DateOnly to, CancellationToken ct = default)
         => GetJsonAsync<EawPaginated<EawTimepunch>>(
             $"customers/{customerId}/timepunches?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);

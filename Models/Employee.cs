@@ -56,6 +56,13 @@ public class Employee
     public string? NotfallName { get; set; }
     public string? NotfallBeziehung { get; set; }
     public string? NotfallTelefon { get; set; }
+    /// <summary>
+    /// Walter 26.08.2026: easy@work-Herkunft (emergency_contacts-Id). Gesetzt
+    /// = der Kontakt wird vom easy@work-Sync gepflegt (Update/Löschung folgt
+    /// easy). Manuelle Erfassung über PATCH /notfall löscht die Id — ab dann
+    /// gewinnt die Handpflege und der Sync fasst den Kontakt nicht mehr an.
+    /// </summary>
+    public long? NotfallEasyatworkId { get; set; }
 
     public DateTime? EntryDate { get; set; }
     public DateTime? ExitDate { get; set; }

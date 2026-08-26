@@ -2465,7 +2465,11 @@ using (var scope = app.Services.CreateScope())
             ADD COLUMN IF NOT EXISTS notfall_family_member_id INTEGER,
             ADD COLUMN IF NOT EXISTS notfall_name             VARCHAR(150),
             ADD COLUMN IF NOT EXISTS notfall_beziehung        VARCHAR(100),
-            ADD COLUMN IF NOT EXISTS notfall_telefon          VARCHAR(50);
+            ADD COLUMN IF NOT EXISTS notfall_telefon          VARCHAR(50),
+            -- Walter 26.08.2026: Herkunft easy@work (emergency_contacts) —
+            -- gesetzt = vom Sync gepflegt; manuelle Erfassung löscht die Id
+            -- (Handpflege gewinnt, Sync fasst den Kontakt nicht mehr an).
+            ADD COLUMN IF NOT EXISTS notfall_easyatwork_id    BIGINT;
         DO $$ BEGIN
             IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_employee_notfall_family_member') THEN
                 ALTER TABLE employee
