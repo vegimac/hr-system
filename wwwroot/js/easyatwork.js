@@ -879,7 +879,9 @@ async function eawEmergencyProbe() {
 // Notfallkontakte-Import (Walter 26.08.2026): easy@work emergency_contacts →
 // Employee.Notfall* für alle MA der Filiale. Handpflege in OneCrew gewinnt.
 async function eawEmergencySync() {
-    const out = document.getElementById('eawSyncResult');
+    // Knopf lebt in der MA-Stammdaten-Sync-Sektion (Walter 26.08.2026 v2 —
+    // war anfangs beim Stempelzeiten-Sync versteckt).
+    const out = document.getElementById('eawEmpSyncResult');
     const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
     if (!cpId) { if (out) out.innerHTML = '<div style="color:#b91c1c;font-size:13px;padding:8px">Bitte zuerst oben eine Filiale wählen.</div>'; return; }
     if (out) out.innerHTML = '<div style="color:#64748b;font-size:13px;padding:8px">⏳ Notfallkontakte werden aus easy@work übernommen…</div>';

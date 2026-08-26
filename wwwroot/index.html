@@ -4483,7 +4483,6 @@
                         <button class="btn-primary" id="eawSyncCommitBtn" onclick="eawSyncCommit()">💾 Importieren</button>
                         <button class="btn-secondary" onclick="eawSyncPreview()" title="Optional: zeigt vorab, was importiert würde — schreibt nichts">🔍 Vorschau</button>
                         <button class="btn-secondary" onclick="eawAnchorProbation()" title="Nur MA mit Eintritt in den letzten 4 Monaten: fehlende Probezeiten anlegen und an erster Stempelzeit ab Eintritt verankern">⚓ Probezeiten nachführen</button>
-                        <button class="btn-secondary" onclick="eawEmergencySync()" title="Notfallkontakte aus easy@work (Mein Unternehmen → Notfallkontakte) für alle MA der Filiale übernehmen — manuell in OneCrew erfasste Kontakte bleiben unangetastet">🆘 Notfallkontakte importieren</button>
                     </div>
                     <div id="eawSyncResult"></div>
 
@@ -4504,6 +4503,7 @@
                         <button class="btn-secondary" id="eawEmpSyncCommitBtn" onclick="eawEmpSyncCommit()" disabled>💾 Ausgewählte importieren</button>
                         <button class="btn-secondary" style="background:#fef3c7;border-color:#fde68a;color:#92400e" onclick="eawEmpRepairIds()">🛠 easy@work-IDs korrigieren</button>
                         <button class="btn-secondary" onclick="eawEmpPrintResult()" title="Import-Meldungen als PDF sichern / drucken">🖨 PDF</button>
+                        <button class="btn-secondary" onclick="eawEmergencySync()" title="Notfallkontakte aus easy@work (Mein Unternehmen → Notfallkontakte) für alle MA der Filiale übernehmen — manuell in OneCrew erfasste Kontakte bleiben unangetastet">🆘 Notfallkontakte importieren</button>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-bottom:10px">
                         <strong>Alle</strong> = aktive + alle seit dem 1.1.2025 Ausgetretenen (Pre-Mirus-Austritte vor 2025 werden ausgelassen). <strong>Nur aktive</strong> = nur aktuell beschäftigte MA. Geschrieben wird beim Import nur, was du pro MA auswählst.
@@ -8233,7 +8233,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260818a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260826b"></script>
+<script src="js/easyatwork.js?v=20260826c"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>
