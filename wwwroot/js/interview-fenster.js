@@ -9,6 +9,31 @@
 //  Einstieg: HR-Hub → Karte «Vorstellungsgespräche» (admin/superuser).
 // ══════════════════════════════════════════════════════════════════════
 
+// ── Schlaue Uhrzeit-Eingabe (Walter-Vorgabe 28.08.2026) ────────────────
+// Das native type="time" war mühsam zu bedienen. Stattdessen Tippfeld mit
+// Parser: «9» → 09:00 · «930»/«0930» → 09:30 · «9:30»/«9.30»/«9,30» → 09:30.
+// Unsinn (25:70 etc.) → Feld leeren + Toast. Leer bleibt leer (Bis optional).
+function _ivTimeParse(v) {
+    v = (v || '').trim().replace(',', ':').replace('.', ':');
+    if (!v) return '';
+    let h, m;
+    if (v.includes(':')) {
+        const p = v.split(':');
+        h = parseInt(p[0], 10);
+        m = parseInt(p[1] || '0', 10);
+    } else if (/^\d+$/.test(v)) {
+        if (v.length <= 2) { h = parseInt(v, 10); m = 0; }
+        else { h = parseInt(v.slice(0, -2), 10); m = parseInt(v.slice(-2), 10); }
+    } else return null;
+    if (isNaN(h) || isNaN(m) || h > 23 || m > 59) return null;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+function _ivTimeFmt(inp) {
+    const p = _ivTimeParse(inp.value);
+    if (p === null) { inp.value = ''; showToast('Uhrzeit nicht verstanden — z.B. «9», «930» oder «9:30» tippen.', 'error'); }
+    else inp.value = p;
+}
+
 const _ivWd = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 const _ivMon = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 
@@ -182,9 +207,9 @@ function _hrIvRenderDay() {
         ${rows || '<div style="color:#8b8b8b;margin-bottom:8px">Noch keine Termine an diesem Tag.</div>'}
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.45);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:10px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von
-                <input id="hrIvNeuVon" type="time" style="${_ivInp}"></label>
+                <input id="hrIvNeuVon" type="text" inputmode="numeric" placeholder="z.B. 930" onblur="_ivTimeFmt(this)" style="${_ivInp};width:86px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis (optional)
-                <input id="hrIvNeuBis" type="time" style="${_ivInp}"></label>
+                <input id="hrIvNeuBis" type="text" inputmode="numeric" placeholder="optional" onblur="_ivTimeFmt(this)" style="${_ivInp};width:86px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
                 <input id="hrIvNeuPlaetze" type="number" min="1" max="50" value="1" style="${_ivInp};width:70px"></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ort (auf Kandidaten-Link + Kalender)
@@ -198,8 +223,8 @@ function _hrIvRenderDay() {
 async function hrIvAddTermin() {
     const dto = {
         datum: _hrIvSelDay,
-        von: document.getElementById('hrIvNeuVon')?.value,
-        bis: document.getElementById('hrIvNeuBis')?.value || null,
+        von: _ivTimeParse(document.getElementById('hrIvNeuVon')?.value) || null,
+        bis: _ivTimeParse(document.getElementById('hrIvNeuBis')?.value) || null,
         plaetze: parseInt(document.getElementById('hrIvNeuPlaetze')?.value, 10) || 0,
         ort: document.getElementById('hrIvNeuOrt')?.value || null,
         bemerkung: document.getElementById('hrIvNeuBem')?.value || null,
@@ -223,9 +248,9 @@ function hrIvEditTermin(id) {
     el.innerHTML = `
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;background:rgba(255,255,255,0.7);border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px;margin-top:6px">
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Von${belegt > 0 ? ' 🔒' : ''}
-                <input id="hrIvEdVon" type="time" value="${t.von}"${zeitLock}></label>
+                <input id="hrIvEdVon" type="text" inputmode="numeric" onblur="_ivTimeFmt(this)" value="${t.von}"${zeitLock}></label>
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Bis (optional)${belegt > 0 ? ' 🔒' : ''}
-                <input id="hrIvEdBis" type="time" value="${t.bis || ''}"${zeitLock}></label>
+                <input id="hrIvEdBis" type="text" inputmode="numeric" placeholder="optional" onblur="_ivTimeFmt(this)" value="${t.bis || ''}"${zeitLock}></label>
             ${belegt > 0 ? `<span style="font-size:11px;color:#854d0e;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:4px 8px;align-self:center">Zeit gesperrt — ${belegt} MA eingeladen. Verschieben = pro MA «⇄ Umbuchen» (nach Telefonat).</span>` : ''}
             <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Plätze
                 <input id="hrIvEdPlaetze" type="number" min="1" max="50" value="${t.plaetze}" style="${_ivInp};width:70px"></label>
@@ -241,8 +266,8 @@ function hrIvEditTermin(id) {
 async function hrIvSaveTermin(id) {
     const dto = {
         datum: null,
-        von: document.getElementById('hrIvEdVon')?.value,
-        bis: document.getElementById('hrIvEdBis')?.value || null,
+        von: _ivTimeParse(document.getElementById('hrIvEdVon')?.value) || null,
+        bis: _ivTimeParse(document.getElementById('hrIvEdBis')?.value) || null,
         plaetze: parseInt(document.getElementById('hrIvEdPlaetze')?.value, 10) || 0,
         ort: document.getElementById('hrIvEdOrt')?.value || null,
         bemerkung: document.getElementById('hrIvEdBem')?.value || null,
