@@ -4798,14 +4798,21 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 // Walter-Vorgabe 20.08.2026: Erwerbstätig-Badge am Ehepartner —
                 // rot wenn die Frage offen ist (blockt bei QST-pflichtigen
                 // verheirateten MA den Lohnlauf).
+                // Pflicht-Badges nur, wenn der MA verheiratet UND nicht getrennt
+                // ist (Walter 26.08.2026, Fall Helmt Zug: bei Zivilstand
+                // «getrennt» gilt Tarif A/H — Arbeitgeber/Erwerb des Ehepartners
+                // sind dann irrelevant, der Server blockt auch nicht mehr).
+                const _msFam = ((selectedEmployee?.zivilstand ?? selectedEmployee?.maritalStatus) || '').toLowerCase();
+                const _partnerPflicht = (_msFam.includes('verheiratet') || (_msFam.includes('partnerschaft') && !_msFam.includes('aufgel')))
+                    && !_msFam.includes('getrennt') && !selectedEmployee?.separatedSince;
                 if (m.erwerbstaetig === true) {
                     const agTxt = [m.arbeitgeberName, m.arbeitgeberOrt].filter(Boolean).join(', ');
                     spousePermitBadge += `<span class="fam-tile-badge" style="background:#dcfce7;color:#166534" title="Erwerbstätig${agTxt ? ' bei ' + esc(agTxt) : ''}">💼 erwerbstätig${agTxt ? ' · ' + esc(agTxt) : ''}</span>`;
-                    if (!m.arbeitgeberName)
+                    if (!m.arbeitgeberName && _partnerPflicht)
                         spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Arbeitgeber fehlt — blockt den Lohnlauf">⚠ Arbeitgeber fehlt</span>`;
                 } else if (m.erwerbstaetig === false) {
                     spousePermitBadge += `<span class="fam-tile-badge" title="Nicht erwerbstätig">nicht erwerbstätig</span>`;
-                } else {
+                } else if (_partnerPflicht) {
                     spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Erwerbstätig-Frage offen — blockt bei QST-pflichtigen verheirateten MA den Lohnlauf">⚠ Erwerbstätig?</span>`;
                 }
                 const hasSpouseDok = !!m.dokumentId;
