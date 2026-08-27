@@ -273,6 +273,11 @@ public class ElmAnnualDeclarationBuilder
             new XElement(C + "UID-BFS", new XElement(Ep + "UID", uid)),
             branches.Select(b2 => new XElement(C + "Workplace",
                 new XAttribute("workplaceID", $"#wp{b2.Id}"),
+                // BUR-Nummer = offizielle Betriebsstätten-Kennung (Muster A63837147);
+                // nur mitgeben, wenn sie dem XSD-Pattern [A-Z][0-9]{8} entspricht.
+                Regex.IsMatch((b2.BurNummer ?? "").Trim(), "^[A-Z][0-9]{8}$")
+                    ? new XElement(C + "BUR-REE-Number", b2.BurNummer!.Trim())
+                    : null,
                 new XElement(C + "AddressExtended",
                     new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(b2.ZipCode) ? "0000" : b2.ZipCode!.Trim()),
                     new XElement(C + "City", string.IsNullOrWhiteSpace(b2.City) ? "Unbekannt" : b2.City!.Trim())))),

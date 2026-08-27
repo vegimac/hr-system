@@ -177,6 +177,30 @@ ist einmal komplett durchgespielt. Erkenntnis: Business State
 `COMPLETION_RELEASE_MISSING` = Empfänger verlangt Browser-Freigabe über
 den mitgelieferten Completion-Link (key+password in URL, Testsystem).
 
+**Filial-Mitgliednummern (Walter-Info 28.08.2026):** JEDE Filiale hat bei
+der AHV-Ausgleichskasse UND bei allen anderen Lohndatenempfängern eine
+EIGENE Mitgliednummer (Mirus: «Mitgliednummer» pro Betrieb; in OneCrew
+bereits korrekt abgebildet im Empfänger-Katalog `LohndatenEmpfaenger` +
+`CompanyProfileEmpfaenger.Mitgliednummer/Subnummer`). ELM unterstützt das:
+mehrere Addressees/Institutions pro Domäne (maxOccurs unbounded, inkl.
+AK-CC-SubNumber), jeder MA-Lohnblock verweist per `addresseeIDRef` auf
+seine Nummer. **Konsequenz für E5:** Der Generator stellt von der einen
+elm_stammdaten-Abrechnungsnummer (E2/E3-Vereinfachung) auf den
+Empfänger-Katalog um — ein Addressee pro Filial-Mitgliednummer, Personen
+nach Filiale zugeordnet (Mehrfilialen-MA = mehrere Lohnblöcke).
+Erstberatungs-/GastroSocial-Frage: Meldung pro Mitgliednummer wie heute
+abgerechnet — oder konsolidiert?
+
+**Filial-UIDs (Walter-Info 28.08.2026):** Jede Filiale hat als
+Zweigniederlassung ihre EIGENE UID (z.B. Sursee CHE-300.834.691,
+Oftringen CHE-262.373.037) — bereits in den Filial-Stammdaten erfasst.
+Für die Meldung gilt: CompanyDescription/UID-BFS = UID der RECHTSEINHEIT
+(Hauptsitz der GmbH — via E3-Karte erfassen, NICHT der Filial-Fallback!);
+die Filialen erscheinen als Workplaces, dort ist die BUR-Nummer die
+vorgesehene Kennung (CompanyProfile.BurNummer vorhanden, z.B. Oftringen
+A63837147 — Workplace um BUR-REE-Number ergänzen = kleiner E5-Punkt).
+Zweigniederlassungs-UIDs braucht die Lohnmeldung selbst nicht.
+
 Nächste Schritte:
 
 1. **E3:** Stammdaten Rechtseinheit (UID, AK-Nummer GastroSocial,
