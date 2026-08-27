@@ -927,7 +927,10 @@ function applyAreaVisibility() {
     // (vorher in der Mitarbeiter-Sektion mitgefahren) — der Bereich «moments»
     // existiert aber in keiner allowedAreas-Auswahl → Eintrag verschwand.
     // Moments ist Kommunikation für alle → wie dashboard/todos immer sichtbar.
-    const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments' || allowed.has(area);
+    // «swissdec» ist admin-only (eigene nav-section) und kein wählbarer
+    // 8-Bereiche-Eintrag — nicht durch die Bereichs-Auswahl filtern.
+    const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments'
+        || area === 'swissdec' || allowed.has(area);
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
@@ -1114,6 +1117,7 @@ function showPage(name) {
     if (name === 'fluktuation-report' && typeof flukInit === 'function') flukInit();
     if (name === 'wochenstunden-report' && typeof wsInit === 'function') wsInit();
     if (name === 'mtp-stunden-report' && typeof mtpwInit === 'function') mtpwInit();
+    if (name === 'swissdec' && typeof swissdecInit === 'function') swissdecInit();
     if (name === 'exit-survey-report' && typeof esInit === 'function') esInit();
     if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
