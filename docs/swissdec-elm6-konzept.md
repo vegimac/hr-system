@@ -132,17 +132,43 @@ E1-Erkenntnisse (27.08.2026, live getestet):
 - **Ping gegen Prod: ERFOLGREICH** — PingResponse mit Distributor-UserAgent
   («swissdec distributor 2026.08 PROD») + Systemzeit. Verbindung, SOAP 1.1,
   ELM-6.0-Namespaces und TLS vom VPS damit bewiesen.
-- **CheckInteroperability gegen Prod: Fault `Client.security`** — «rejected …
-  non-certified transmitter or has not been signed». Ab CheckInteroperability
-  verlangt der Prod-Distributor WS-Security-signierte Nachrichten von
-  zertifizierten Transmittern (Antworten kommen ebenfalls signiert, X509).
-  → Übungen laufen auf dem Refapps Receiver; die Signatur-Infrastruktur
-  (Transmitter-Zertifikat) ist ein Baustein der Zertifizierungs-Etappen.
+- **CheckInteroperability gegen Prod UND Refapps: Fault `Client.security`** —
+  «rejected … non-certified transmitter or has not been signed». Ab
+  CheckInteroperability verlangen BEIDE Umgebungen WS-Security-signierte
+  Nachrichten (Antworten kommen ebenfalls signiert, X509).
+
+**Zertifikatsfrage geklärt (SecurityTransmitter_d.pdf, Version 2024.05, liegt
+in `docs/swissdec/`):**
+- Das **ERP-/Transmitter-Zertifikat wird erst NACH erfolgreicher
+  Zertifizierung von Swissdec ausgestellt** (Swissdec = eigene CA/RA, Kap.
+  3.1/3.2). Es gibt KEINEN öffentlichen Test-Keystore zum Herunterladen; für
+  die Entwicklung führt der Weg über die Swissdec-Erstberatung/
+  Zertifizierungsvereinbarung (dort wird der Entwicklungs-Zugang geregelt).
+- Zusätzlich zur Signatur muss **jede Operation ausser Ping VERSCHLÜSSELT**
+  werden (WS-Encryption mit dem Public Key des Distributors; Reihenfolge:
+  zuerst signieren, dann verschlüsseln — Kap. 3.3). Algorithmen: Signatur
+  X.509v3/BinarySecurityToken, Verschlüsselung rsa-oaep-mgf1p +
+  aes256-cbc. Der signierte Umfang ist immer Body + Timestamp.
+- **Offizieller Übungsweg ohne eigenes Zertifikat = Refapps-TRANSMITTER**
+  (Web-Applikation der Testinfrastruktur, RefApps_Schnelleinstieg.pdf):
+  fertiges XML hochladen → DeclareSalary → GetStatus; die Refapps signiert/
+  verschlüsselt selbst. E2–E4 laufen darüber — **nicht blockiert**.
+- Die «Certificates»-Tabelle + RegisterOrganizationAuthentication im
+  Refapps-Transmitter betreffen das **SUA-Zertifikat** (Unternehmens-Ausweis,
+  «Default Refapps SUA Certificate») — NICHT das Transmitter-Zertifikat.
+- **Konsequenz für E1:** Ping = erledigt (beide Umgebungen grün).
+  CheckInteroperability aus OneCrew heraus (= E1b: WS-Security Signierung +
+  Verschlüsselung im ElmTransmitterClient) wird NACH Erhalt des
+  Entwicklungs-Zertifikats gebaut — Zertifikat via Erstberatung anfragen
+  (Punkt 1 der offenen Punkte, ohnehin Pflichtweg für E9).
 
 ## 7. Nächster konkreter Schritt
 
-**E1 bauen:** SOAP-Client-Gerüst aus `SalaryDeclarationService.wsdl`,
-Ping + CheckInteroperability gegen den Refapps Receiver (URL aus der
-Testinfrastruktur), Ergebnis sichtbar in einer kleinen Admin-Seite
-«Elektronische Lohnmeldung (ELM)». Ab dann haben wir einen bewiesenen
-Draht zu Swissdec und bauen Etappe für Etappe darauf auf.
+E1 (Ping) ist erledigt — beide Umgebungen antworten. Parallel zwei Stränge:
+
+1. **E2 bauen:** ElmDeclarationBuilder — AnnualSalaryDeclaration (Domäne AHV)
+   aus Testinstanz-Kunstdaten, XSD-valid. Getestet wird über den
+   **Refapps-Transmitter** (XML hochladen, Refapps signiert selbst).
+2. **Zertifikat anstossen:** Kontakt Swissdec (Erstberatung) für das
+   Entwicklungs-/Transmitter-Zertifikat → danach E1b (Signierung +
+   Verschlüsselung im ElmTransmitterClient, CheckInteroperability grün).

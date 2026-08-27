@@ -4789,8 +4789,9 @@
                         <div style="font-weight:700;font-size:14px;margin-bottom:8px">Etappenplan (docs/swissdec-elm6-konzept.md)</div>
                         <table style="width:100%;border-collapse:collapse;font-size:12.5px">
                             <tbody>
-                                <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindungstest — Ping + CheckInteroperability</td><td style="padding:3px 8px;width:130px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">in Arbeit</span></td></tr>
-                                <tr><td style="padding:3px 8px;font-weight:700">E2</td><td style="padding:3px 8px">XML-Generator Jahresmeldung AHV (Kunstdaten Testinstanz, XSD-valid)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
+                                <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindungstest — Ping <span style="color:#166534;font-weight:600">✓ erledigt (Prod + Refapps)</span> · CheckInteroperability wartet auf Transmitter-Zertifikat (E1b)</td><td style="padding:3px 8px;width:130px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">Ping ✓</span></td></tr>
+                                <tr><td style="padding:3px 8px;font-weight:700">E1b</td><td style="padding:3px 8px">WS-Security (Signatur + Verschlüsselung) — braucht Entwicklungs-Zertifikat von Swissdec (Erstberatung; Swissdec = eigene CA, kein Test-Keystore öffentlich)</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">wartet</span></td></tr>
+                                <tr><td style="padding:3px 8px;font-weight:700">E2</td><td style="padding:3px 8px">XML-Generator Jahresmeldung AHV (Kunstdaten Testinstanz, XSD-valid) — Test via Refapps-Transmitter-Webapp (signiert selbst, kein Zertifikat nötig)</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">nächste</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit (UID, Kassen-/Versicherer-/Vertragsnummern)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E4</td><td style="padding:3px 8px">Erste Übermittlung an Refapps Receiver (3-Schritt-Protokoll + Quittungen)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E5</td><td style="padding:3px 8px">Alle Jahres-Domänen (FAK, UVG, UVGZ, KTG, BVG, Lohnausweis)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
@@ -4808,6 +4809,8 @@
                             <b>Ping</b> prüft die Erreichbarkeit + vergleicht die Systemzeiten; <b>CheckInteroperability</b> testet Umlaute und Zahlformate über die ganze SOAP-Strecke.
                             Endpoint-URL: entweder der <b>Refapps Receiver</b> aus der Swissdec-Testinfrastruktur (dort in der Refapps-Receiver-App nachschauen)
                             oder der produktive Distributor (Ping ist dort für Support-Zwecke erlaubt — nur manuell, nie automatisiert).
+                            <br><b>Hinweis:</b> CheckInteroperability wird zurzeit mit «Client.security» abgewiesen — das ist korrekt so: ab dieser Operation verlangt Swissdec
+                            eine WS-Security-Signatur mit dem Transmitter-Zertifikat, das erst über die Swissdec-Erstberatung/Zertifizierung erhältlich ist (E1b).
                         </p>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
                             <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px;flex:1;min-width:420px">Endpoint-URL
