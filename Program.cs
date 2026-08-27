@@ -3759,6 +3759,8 @@ using (var scope = app.Services.CreateScope())
             uvg_versicherer        varchar(120),
             uvg_kunden_nummer      varchar(40),
             uvg_vertrags_nummer    varchar(40),
+            uvg_uid                varchar(20),
+            uvg_versichert_seit    date,
             uvgz_versicherer       varchar(120),
             uvgz_kunden_nummer     varchar(40),
             uvgz_vertrags_nummer   varchar(40),
@@ -3768,9 +3770,15 @@ using (var scope = app.Services.CreateScope())
             bvg_versicherer        varchar(120),
             bvg_kunden_nummer      varchar(40),
             bvg_vertrags_nummer    varchar(40),
+            bvg_uid                varchar(20),
+            bvg_versichert_seit    date,
             updated_at             timestamp without time zone NOT NULL DEFAULT now(),
             updated_by             varchar(150)
         );
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_uid varchar(20);
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_versichert_seit date;
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_uid varchar(20);
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_versichert_seit date;
     ");
 
     // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──

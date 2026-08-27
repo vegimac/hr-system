@@ -316,10 +316,10 @@ public class ElmAnnualDeclarationBuilder
                         new XElement(Sd + "AHV-AVS",
                             new XAttribute("addresseeIDRef", "#ahv"),
                             new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
-                            new XElement(Sd + "UVG-LAA-Insurance",
-                                new XElement(Sd + "NoneWithReason", "UVG-Meldung folgt in Aufbau-Etappe E5")),
-                            new XElement(Sd + "BVG-LPP-Insurance",
-                                new XElement(Sd + "NoneWithReason", "BVG-Meldung folgt in Aufbau-Etappe E5")))),
+                            InsuranceBlock("UVG-LAA-Insurance", st?.UvgVersicherer, st?.UvgUid, st?.UvgVersichertSeit,
+                                "UVG-Meldung folgt in Aufbau-Etappe E5"),
+                            InsuranceBlock("BVG-LPP-Insurance", st?.BvgVersicherer, st?.BvgUid, st?.BvgVersichertSeit,
+                                "BVG-Meldung folgt in Aufbau-Etappe E5"))),
                     new XElement(Sd + "SalaryTotals",
                         new XElement(Sd + "AHV-AVS-Totals",
                             new XAttribute("addresseeIDRef", "#ahv"),
@@ -338,6 +338,24 @@ public class ElmAnnualDeclarationBuilder
         var xsdFehler = _validator.Validate(xml);
 
         return new BuildResult(xml, persons.Count, skipped, totalAhv, totalAlv, warn, xsdFehler);
+    }
+
+    /// <summary>
+    /// UVG-/BVG-Versicherungsblock im AHV-Institutions-Teil: mit Name + UID +
+    /// «versichert seit» (aus elm_stammdaten, E3) — sonst NoneWithReason.
+    /// InsuranceControlType = choice( Name+UID-BFS+ValidAsOf | NoneWithReason ).
+    /// </summary>
+    private static XElement InsuranceBlock(string elementName, string? name, string? uid, DateOnly? seit, string fallbackGrund)
+    {
+        name = (name ?? "").Trim();
+        uid = (uid ?? "").Trim();
+        if (name.Length > 0 && seit != null && Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
+            return new XElement(Sd + elementName,
+                new XElement(Sd + "Name", name),
+                new XElement(Sd + "UID-BFS", new XElement(Ep + "UID", uid)),
+                new XElement(Sd + "ValidAsOf", seit.Value.ToString("yyyy-MM-dd")));
+        return new XElement(Sd + elementName,
+            new XElement(Sd + "NoneWithReason", fallbackGrund));
     }
 
     private static string MapCivilStatus(string? ms)

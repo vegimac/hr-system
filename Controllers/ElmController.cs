@@ -87,9 +87,11 @@ public class ElmController : ControllerBase
         string? AkName, string? AkKassenNummer, string? AkAbrechnungsNummer,
         string? FakKassenNummer, string? FakAbrechnungsNummer,
         string? UvgVersicherer, string? UvgKundenNummer, string? UvgVertragsNummer,
+        string? UvgUid, DateOnly? UvgVersichertSeit,
         string? UvgzVersicherer, string? UvgzKundenNummer, string? UvgzVertragsNummer,
         string? KtgVersicherer, string? KtgKundenNummer, string? KtgVertragsNummer,
-        string? BvgVersicherer, string? BvgKundenNummer, string? BvgVertragsNummer);
+        string? BvgVersicherer, string? BvgKundenNummer, string? BvgVertragsNummer,
+        string? BvgUid, DateOnly? BvgVersichertSeit);
 
     [HttpGet("stammdaten")]
     public async Task<IActionResult> GetStammdaten(CancellationToken ct)
@@ -113,9 +115,11 @@ public class ElmController : ControllerBase
         s.AkName = T(dto.AkName); s.AkKassenNummer = T(dto.AkKassenNummer); s.AkAbrechnungsNummer = T(dto.AkAbrechnungsNummer);
         s.FakKassenNummer = T(dto.FakKassenNummer); s.FakAbrechnungsNummer = T(dto.FakAbrechnungsNummer);
         s.UvgVersicherer = T(dto.UvgVersicherer); s.UvgKundenNummer = T(dto.UvgKundenNummer); s.UvgVertragsNummer = T(dto.UvgVertragsNummer);
+        s.UvgUid = T(dto.UvgUid); s.UvgVersichertSeit = dto.UvgVersichertSeit;
         s.UvgzVersicherer = T(dto.UvgzVersicherer); s.UvgzKundenNummer = T(dto.UvgzKundenNummer); s.UvgzVertragsNummer = T(dto.UvgzVertragsNummer);
         s.KtgVersicherer = T(dto.KtgVersicherer); s.KtgKundenNummer = T(dto.KtgKundenNummer); s.KtgVertragsNummer = T(dto.KtgVertragsNummer);
         s.BvgVersicherer = T(dto.BvgVersicherer); s.BvgKundenNummer = T(dto.BvgKundenNummer); s.BvgVertragsNummer = T(dto.BvgVertragsNummer);
+        s.BvgUid = T(dto.BvgUid); s.BvgVersichertSeit = dto.BvgVersichertSeit;
         s.UpdatedAt = DateTime.Now;
         s.UpdatedBy = User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 

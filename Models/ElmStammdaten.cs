@@ -29,6 +29,9 @@ public class ElmStammdaten
     public string? UvgVersicherer { get; set; }
     public string? UvgKundenNummer { get; set; }
     public string? UvgVertragsNummer { get; set; }
+    /// <summary>UID des UVG-Versicherers (fürs XML: UVG-LAA-Insurance).</summary>
+    public string? UvgUid { get; set; }
+    public DateOnly? UvgVersichertSeit { get; set; }
 
     // ── UVGZ ──────────────────────────────────────────────────────────
     public string? UvgzVersicherer { get; set; }
@@ -44,6 +47,9 @@ public class ElmStammdaten
     public string? BvgVersicherer { get; set; }
     public string? BvgKundenNummer { get; set; }
     public string? BvgVertragsNummer { get; set; }
+    /// <summary>UID der BVG-Vorsorgeeinrichtung (fürs XML: BVG-LPP-Insurance).</summary>
+    public string? BvgUid { get; set; }
+    public DateOnly? BvgVersichertSeit { get; set; }
 
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
     public string? UpdatedBy { get; set; }

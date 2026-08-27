@@ -19,9 +19,11 @@ const _elmStFields = {
     elmStAkName: 'akName', elmStAkKasse: 'akKassenNummer', elmStAkAbr: 'akAbrechnungsNummer',
     elmStFakKasse: 'fakKassenNummer', elmStFakAbr: 'fakAbrechnungsNummer',
     elmStUvgVers: 'uvgVersicherer', elmStUvgKd: 'uvgKundenNummer', elmStUvgVertr: 'uvgVertragsNummer',
+    elmStUvgUid: 'uvgUid', elmStUvgSeit: 'uvgVersichertSeit',
     elmStUvgzVers: 'uvgzVersicherer', elmStUvgzKd: 'uvgzKundenNummer', elmStUvgzVertr: 'uvgzVertragsNummer',
     elmStKtgVers: 'ktgVersicherer', elmStKtgKd: 'ktgKundenNummer', elmStKtgVertr: 'ktgVertragsNummer',
-    elmStBvgVers: 'bvgVersicherer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer'
+    elmStBvgVers: 'bvgVersicherer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer',
+    elmStBvgUid: 'bvgUid', elmStBvgSeit: 'bvgVersichertSeit'
 };
 
 async function elmStammLoad() {
@@ -31,7 +33,7 @@ async function elmStammLoad() {
         const j = await r.json();
         for (const [id, key] of Object.entries(_elmStFields)) {
             const el = document.getElementById(id);
-            if (el) el.value = j[key] || '';
+            if (el) el.value = (j[key] || '').toString().slice(0, el.type === 'date' ? 10 : undefined) || '';
         }
         const s = document.getElementById('elmStammStatus');
         if (s && j.updatedAt) s.textContent = `Zuletzt gespeichert: ${new Date(j.updatedAt).toLocaleDateString('de-CH')}`;

@@ -737,6 +737,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.UvgVersicherer).HasColumnName("uvg_versicherer").HasMaxLength(120);
             entity.Property(e => e.UvgKundenNummer).HasColumnName("uvg_kunden_nummer").HasMaxLength(40);
             entity.Property(e => e.UvgVertragsNummer).HasColumnName("uvg_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.UvgUid).HasColumnName("uvg_uid").HasMaxLength(20);
+            entity.Property(e => e.UvgVersichertSeit).HasColumnName("uvg_versichert_seit").HasColumnType("date");
             entity.Property(e => e.UvgzVersicherer).HasColumnName("uvgz_versicherer").HasMaxLength(120);
             entity.Property(e => e.UvgzKundenNummer).HasColumnName("uvgz_kunden_nummer").HasMaxLength(40);
             entity.Property(e => e.UvgzVertragsNummer).HasColumnName("uvgz_vertrags_nummer").HasMaxLength(40);
@@ -746,6 +748,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgVersicherer).HasColumnName("bvg_versicherer").HasMaxLength(120);
             entity.Property(e => e.BvgKundenNummer).HasColumnName("bvg_kunden_nummer").HasMaxLength(40);
             entity.Property(e => e.BvgVertragsNummer).HasColumnName("bvg_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.BvgUid).HasColumnName("bvg_uid").HasMaxLength(20);
+            entity.Property(e => e.BvgVersichertSeit).HasColumnName("bvg_versichert_seit").HasColumnType("date");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").HasMaxLength(150);
         });
