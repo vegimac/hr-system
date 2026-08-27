@@ -91,7 +91,23 @@ async function elmAnnualBuild() {
 }
 
 function elmAnnualDownload() {
-    if (!_elmAnnualXml) return;
-    const blob = new Blob([_elmAnnualXml], { type: 'application/xml' });
-    saveBlobAsk(blob, `elm-jahresmeldung-ahv-${_elmAnnualYearBuilt || 'jahr'}.xml`);
+    if (!_elmAnnualXml) {
+        alert('Bitte zuerst «XML erzeugen & prüfen» klicken — das XML liegt nur direkt nach dem Erzeugen bereit.');
+        return;
+    }
+    const name = `elm-jahresmeldung-ahv-${_elmAnnualYearBuilt || 'jahr'}.xml`;
+    try {
+        const blob = new Blob([_elmAnnualXml], { type: 'application/xml' });
+        saveBlobAsk(blob, name);
+    } catch (e) {
+        // Fallback ohne Blob-Konstruktor (Browser-Erweiterungen wie
+        // «location-spoofing» kapern new Blob() und werfen — Walter 28.08.2026):
+        // data:-URL + Anker-Klick lädt direkt in den Downloads-Ordner.
+        const a = document.createElement('a');
+        a.href = 'data:application/xml;charset=utf-8,' + encodeURIComponent(_elmAnnualXml);
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    }
 }
