@@ -10,6 +10,51 @@ function swissdecInit() {
     if (el && !el.value) el.value = localStorage.getItem('elmEndpointUrl') || '';
     const y = document.getElementById('elmAnnualYear');
     if (y && !y.value) y.value = new Date().getFullYear();
+    elmStammLoad();
+}
+
+// ── E3: Stammdaten Rechtseinheit ────────────────────────────────────────────
+const _elmStFields = {
+    elmStUid: 'uid',
+    elmStAkName: 'akName', elmStAkKasse: 'akKassenNummer', elmStAkAbr: 'akAbrechnungsNummer',
+    elmStFakKasse: 'fakKassenNummer', elmStFakAbr: 'fakAbrechnungsNummer',
+    elmStUvgVers: 'uvgVersicherer', elmStUvgKd: 'uvgKundenNummer', elmStUvgVertr: 'uvgVertragsNummer',
+    elmStUvgzVers: 'uvgzVersicherer', elmStUvgzKd: 'uvgzKundenNummer', elmStUvgzVertr: 'uvgzVertragsNummer',
+    elmStKtgVers: 'ktgVersicherer', elmStKtgKd: 'ktgKundenNummer', elmStKtgVertr: 'ktgVertragsNummer',
+    elmStBvgVers: 'bvgVersicherer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer'
+};
+
+async function elmStammLoad() {
+    try {
+        const r = await fetch('/api/elm/stammdaten', { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        for (const [id, key] of Object.entries(_elmStFields)) {
+            const el = document.getElementById(id);
+            if (el) el.value = j[key] || '';
+        }
+        const s = document.getElementById('elmStammStatus');
+        if (s && j.updatedAt) s.textContent = `Zuletzt gespeichert: ${new Date(j.updatedAt).toLocaleDateString('de-CH')}`;
+    } catch { /* still */ }
+}
+
+async function elmStammSave() {
+    const dto = {};
+    for (const [id, key] of Object.entries(_elmStFields))
+        dto[key] = document.getElementById(id)?.value || null;
+    const s = document.getElementById('elmStammStatus');
+    try {
+        const r = await fetch('/api/elm/stammdaten', {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(dto)
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { if (s) { s.textContent = j.message || 'Speichern fehlgeschlagen.'; s.style.color = '#b91c1c'; } return; }
+        if (s) { s.textContent = '✓ Gespeichert — die Nummern fliessen ab jetzt ins Meldungs-XML.'; s.style.color = '#166534'; }
+    } catch (e) {
+        if (s) { s.textContent = 'Verbindungsfehler: ' + e.message; s.style.color = '#b91c1c'; }
+    }
 }
 
 function elmSetUrl(url) {

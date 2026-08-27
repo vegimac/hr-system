@@ -60,21 +60,33 @@ public class ElmAnnualDeclarationBuilder
                 new List<string> { "Keine Filialen (CompanyProfiles) vorhanden." }, new List<string>());
         var main = branches[0];
 
-        var uid = (main.UidBfs ?? main.UidNummer ?? "").Trim();
+        // E3-Stammdaten der Rechtseinheit (eine Zeile) — primäre Quelle;
+        // Fallback: CompanyProfile-Felder, zuletzt Platzhalter + Hinweis.
+        var st = await _db.ElmStammdaten.AsNoTracking()
+            .OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+
+        var uid = (st?.Uid ?? main.UidBfs ?? main.UidNummer ?? "").Trim();
         if (!Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
         {
-            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (E3: Stammdaten Rechtseinheit).");
+            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (E3-Karte: Stammdaten Rechtseinheit erfassen).");
             uid = "CHE-123.123.123";
         }
 
-        var akNummer = (main.AhvKasse ?? "").Trim();
-        var akMatch = Regex.Match(akNummer, @"[\d.\-/]{3,}");
-        akNummer = akMatch.Success ? akMatch.Value : "";
-        if (string.IsNullOrEmpty(akNummer))
+        // Kassen-Nummer = Adressierung (Addressee), Abrechnungs-Nummer =
+        // unsere Kundennummer bei der Kasse (AK-CC-CustomerNumber).
+        var akKasse = (st?.AkKassenNummer ?? "").Trim();
+        if (string.IsNullOrEmpty(akKasse))
         {
-            warn.Add("AHV-Ausgleichskassen-Nummer fehlt — Platzhalter 001.234 eingesetzt (E3: Stammdaten Rechtseinheit).");
-            akNummer = "001.234";
+            var legacy = Regex.Match(main.AhvKasse ?? "", @"[\d.\-/]{3,}");
+            akKasse = legacy.Success ? legacy.Value : "";
         }
+        if (string.IsNullOrEmpty(akKasse))
+        {
+            warn.Add("AHV-Ausgleichskassen-Nummer fehlt — Platzhalter 001.234 eingesetzt (E3-Karte: Stammdaten Rechtseinheit erfassen).");
+            akKasse = "001.234";
+        }
+        var akAbrechnung = (st?.AkAbrechnungsNummer ?? "").Trim();
+        if (string.IsNullOrEmpty(akAbrechnung)) akAbrechnung = akKasse;
 
         // ── Lohndaten des Jahres (alle Filialen, STORNIERTE ausgenommen) ──
         var rows = await (from s in _db.PayrollSnapshots
@@ -292,7 +304,7 @@ public class ElmAnnualDeclarationBuilder
                     new XElement(Sdc + "Addressees",
                         new XElement(Sdc + "Addressee",
                             new XAttribute("addresseeID", "#ahv"),
-                            new XElement(Ep + "AddresseeIdentification", akNummer),
+                            new XElement(Ep + "AddresseeIdentification", akKasse),
                             new XElement(Ep + "ProcessByDistributor", "true"))),
                     // Übungs-/Testmeldung — nie als Produktivmeldung werten:
                     new XElement(Sdc + "TestCase")),
@@ -303,7 +315,7 @@ public class ElmAnnualDeclarationBuilder
                     new XElement(Sd + "Institutions",
                         new XElement(Sd + "AHV-AVS",
                             new XAttribute("addresseeIDRef", "#ahv"),
-                            new XElement(Sd + "AK-CC-CustomerNumber", akNummer),
+                            new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
                             new XElement(Sd + "UVG-LAA-Insurance",
                                 new XElement(Sd + "NoneWithReason", "UVG-Meldung folgt in Aufbau-Etappe E5")),
                             new XElement(Sd + "BVG-LPP-Insurance",

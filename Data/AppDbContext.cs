@@ -76,6 +76,7 @@ public class AppDbContext : DbContext
     public DbSet<PayrollPeriodeAudit>   PayrollPeriodeAudits   => Set<PayrollPeriodeAudit>();
     public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
+    public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
     public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
     public DbSet<AkontoZahlung>         AkontoZahlungen        => Set<AkontoZahlung>();
@@ -719,6 +720,34 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LanguageCode).HasColumnName("language_code");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+        });
+
+        // Swissdec-E3: Stammdaten Rechtseinheit (Walter 28.08.2026)
+        modelBuilder.Entity<ElmStammdaten>(entity =>
+        {
+            entity.ToTable("elm_stammdaten");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Uid).HasColumnName("uid").HasMaxLength(20);
+            entity.Property(e => e.AkName).HasColumnName("ak_name").HasMaxLength(120);
+            entity.Property(e => e.AkKassenNummer).HasColumnName("ak_kassen_nummer").HasMaxLength(40);
+            entity.Property(e => e.AkAbrechnungsNummer).HasColumnName("ak_abrechnungs_nummer").HasMaxLength(40);
+            entity.Property(e => e.FakKassenNummer).HasColumnName("fak_kassen_nummer").HasMaxLength(40);
+            entity.Property(e => e.FakAbrechnungsNummer).HasColumnName("fak_abrechnungs_nummer").HasMaxLength(40);
+            entity.Property(e => e.UvgVersicherer).HasColumnName("uvg_versicherer").HasMaxLength(120);
+            entity.Property(e => e.UvgKundenNummer).HasColumnName("uvg_kunden_nummer").HasMaxLength(40);
+            entity.Property(e => e.UvgVertragsNummer).HasColumnName("uvg_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.UvgzVersicherer).HasColumnName("uvgz_versicherer").HasMaxLength(120);
+            entity.Property(e => e.UvgzKundenNummer).HasColumnName("uvgz_kunden_nummer").HasMaxLength(40);
+            entity.Property(e => e.UvgzVertragsNummer).HasColumnName("uvgz_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.KtgVersicherer).HasColumnName("ktg_versicherer").HasMaxLength(120);
+            entity.Property(e => e.KtgKundenNummer).HasColumnName("ktg_kunden_nummer").HasMaxLength(40);
+            entity.Property(e => e.KtgVertragsNummer).HasColumnName("ktg_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.BvgVersicherer).HasColumnName("bvg_versicherer").HasMaxLength(120);
+            entity.Property(e => e.BvgKundenNummer).HasColumnName("bvg_kunden_nummer").HasMaxLength(40);
+            entity.Property(e => e.BvgVertragsNummer).HasColumnName("bvg_vertrags_nummer").HasMaxLength(40);
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").HasMaxLength(150);
         });
 
         modelBuilder.Entity<Nationality>(entity =>

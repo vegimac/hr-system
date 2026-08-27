@@ -1,6 +1,10 @@
+using System.Security.Claims;
+using HrSystem.Data;
+using HrSystem.Models;
 using HrSystem.Services.Elm;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace HrSystem.Controllers;
 
@@ -18,10 +22,12 @@ public class ElmController : ControllerBase
 {
     private readonly ElmTransmitterClient _client;
     private readonly ElmAnnualDeclarationBuilder _builder;
-    public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder)
+    private readonly AppDbContext _db;
+    public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder, AppDbContext db)
     {
         _client = client;
         _builder = builder;
+        _db = db;
     }
 
     public record ElmUrlDto(string Url);
@@ -70,5 +76,50 @@ public class ElmController : ControllerBase
             xsdFehler = r.XsdFehler,
             valid = r.XsdFehler.Count == 0 && r.Xml.Length > 0
         });
+    }
+
+    // ── E3: Stammdaten Rechtseinheit (Walter 28.08.2026) ──────────────
+    // EINE Zeile (Meldeeinheit). Kein Lohn-Edit → EditLock unkritisch
+    // (Controller ist in der Audit-Whitelist).
+
+    public record ElmStammdatenDto(
+        string? Uid,
+        string? AkName, string? AkKassenNummer, string? AkAbrechnungsNummer,
+        string? FakKassenNummer, string? FakAbrechnungsNummer,
+        string? UvgVersicherer, string? UvgKundenNummer, string? UvgVertragsNummer,
+        string? UvgzVersicherer, string? UvgzKundenNummer, string? UvgzVertragsNummer,
+        string? KtgVersicherer, string? KtgKundenNummer, string? KtgVertragsNummer,
+        string? BvgVersicherer, string? BvgKundenNummer, string? BvgVertragsNummer);
+
+    [HttpGet("stammdaten")]
+    public async Task<IActionResult> GetStammdaten(CancellationToken ct)
+    {
+        var s = await _db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+        return Ok(s ?? new ElmStammdaten());
+    }
+
+    [HttpPut("stammdaten")]
+    public async Task<IActionResult> SaveStammdaten([FromBody] ElmStammdatenDto dto, CancellationToken ct)
+    {
+        var uid = (dto.Uid ?? "").Trim();
+        if (uid.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
+            return BadRequest(new { error = "UID_INVALID", message = "UID bitte im Format CHE-XXX.XXX.XXX erfassen." });
+
+        var s = await _db.ElmStammdaten.OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
+        if (s == null) { s = new ElmStammdaten(); _db.ElmStammdaten.Add(s); }
+
+        static string? T(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+        s.Uid = T(uid);
+        s.AkName = T(dto.AkName); s.AkKassenNummer = T(dto.AkKassenNummer); s.AkAbrechnungsNummer = T(dto.AkAbrechnungsNummer);
+        s.FakKassenNummer = T(dto.FakKassenNummer); s.FakAbrechnungsNummer = T(dto.FakAbrechnungsNummer);
+        s.UvgVersicherer = T(dto.UvgVersicherer); s.UvgKundenNummer = T(dto.UvgKundenNummer); s.UvgVertragsNummer = T(dto.UvgVertragsNummer);
+        s.UvgzVersicherer = T(dto.UvgzVersicherer); s.UvgzKundenNummer = T(dto.UvgzKundenNummer); s.UvgzVertragsNummer = T(dto.UvgzVertragsNummer);
+        s.KtgVersicherer = T(dto.KtgVersicherer); s.KtgKundenNummer = T(dto.KtgKundenNummer); s.KtgVertragsNummer = T(dto.KtgVertragsNummer);
+        s.BvgVersicherer = T(dto.BvgVersicherer); s.BvgKundenNummer = T(dto.BvgKundenNummer); s.BvgVertragsNummer = T(dto.BvgVertragsNummer);
+        s.UpdatedAt = DateTime.Now;
+        s.UpdatedBy = User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        await _db.SaveChangesAsync(ct);
+        return Ok(s);
     }
 }

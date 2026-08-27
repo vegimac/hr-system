@@ -4792,7 +4792,7 @@
                                 <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindungstest — Ping <span style="color:#166534;font-weight:600">✓ erledigt (Prod + Refapps)</span> · CheckInteroperability wartet auf Transmitter-Zertifikat (E1b)</td><td style="padding:3px 8px;width:130px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">Ping ✓</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E1b</td><td style="padding:3px 8px">WS-Security (Signatur + Verschlüsselung) — braucht Entwicklungs-Zertifikat von Swissdec (Erstberatung; Swissdec = eigene CA, kein Test-Keystore öffentlich)</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">wartet</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E2</td><td style="padding:3px 8px">XML-Generator Jahresmeldung AHV — 28.08.2026 mit Kunstdaten via Refapps-Transmitter übermittelt: DeclareAnnualSalary SUCCESS · GetStatus ACCEPTED · Completion released (voller Zyklus)</td><td style="padding:3px 8px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">erledigt ✓</span></td></tr>
-                                <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit (UID, Kassen-/Versicherer-/Vertragsnummern)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
+                                <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit (UID, Kassen-/Versicherer-/Vertragsnummern) — Erfassungskarte unten; echte Nummern eintragen = Platzhalter weg</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">erfassen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E4</td><td style="padding:3px 8px">Erste Übermittlung an Refapps Receiver (3-Schritt-Protokoll + Quittungen)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E5</td><td style="padding:3px 8px">Alle Jahres-Domänen (FAK, UVG, UVGZ, KTG, BVG, Lohnausweis)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E6</td><td style="padding:3px 8px">QST-Monatsmeldung inkl. EMA + Korrekturen</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
@@ -4841,6 +4841,63 @@
                             <button type="button" class="btn-secondary" id="elmAnnualDlBtn" onclick="elmAnnualDownload()" style="display:none">⬇ XML herunterladen</button>
                         </div>
                         <div id="elmAnnualResult" style="font-size:12.5px"></div>
+                    </div>
+
+                    <div class="card" style="padding:16px 18px;max-width:980px;margin-top:16px">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">E3 · Stammdaten Rechtseinheit</div>
+                        <p style="font-size:12.5px;color:#64748b;margin:0 0 12px">
+                            Einmal pro Rechtseinheit (nicht pro Filiale) — diese Nummern ersetzen die Platzhalter im Meldungs-XML.
+                            Quelle: Versicherungspolicen / GastroSocial-Abrechnungen. Auf der Testinstanz mit Kunstwerten üben.
+                        </p>
+                        <div style="display:grid;grid-template-columns:150px 1fr 170px 170px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:900px">
+                            <div style="font-weight:700">UID</div>
+                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <div></div><div></div>
+
+                            <div style="font-weight:700;grid-column:1">&nbsp;</div>
+                            <div style="color:#8b8b8b;font-size:11px">Name</div>
+                            <div style="color:#8b8b8b;font-size:11px">Kassen-Nr. (Adresse)</div>
+                            <div style="color:#8b8b8b;font-size:11px">Abrechnungs-/Kunden-Nr.</div>
+
+                            <div style="font-weight:700">AHV-Ausgleichskasse</div>
+                            <input id="elmStAkName" placeholder="z.B. GastroSocial" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStAkKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStAkAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+
+                            <div style="font-weight:700">FAK</div>
+                            <div style="color:#8b8b8b;font-size:11.5px">meist gleiche Kasse</div>
+                            <input id="elmStFakKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStFakAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+
+                            <div style="font-weight:700;grid-column:1">&nbsp;</div>
+                            <div style="color:#8b8b8b;font-size:11px">Versicherer</div>
+                            <div style="color:#8b8b8b;font-size:11px">Kunden-Nr.</div>
+                            <div style="color:#8b8b8b;font-size:11px">Vertrags-Nr.</div>
+
+                            <div style="font-weight:700">UVG</div>
+                            <input id="elmStUvgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+
+                            <div style="font-weight:700">UVG-Zusatz</div>
+                            <input id="elmStUvgzVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgzKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgzVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+
+                            <div style="font-weight:700">KTG</div>
+                            <input id="elmStKtgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStKtgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStKtgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+
+                            <div style="font-weight:700">BVG</div>
+                            <input id="elmStBvgVers" placeholder="z.B. GastroSocial PK" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStBvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStBvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                        </div>
+                        <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+                            <button type="button" class="btn-primary" onclick="elmStammSave()">💾 Speichern</button>
+                            <span id="elmStammStatus" style="font-size:12px;color:#8b8b8b"></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -8319,7 +8376,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260828b"></script>
+<script src="js/swissdec.js?v=20260828c"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
