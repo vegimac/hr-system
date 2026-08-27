@@ -37,7 +37,7 @@ public class QstTarifVorschlagService
         var emp = await _db.Employees
             .Where(e => e.Id == employeeId)
             .Select(e => new {
-                e.Id, e.MaritalStatus, e.Religion, e.CantonCode
+                e.Id, e.MaritalStatus, e.Religion, e.CantonCode, e.SeparatedSince
             })
             .FirstOrDefaultAsync();
         if (emp == null) return null;
@@ -126,8 +126,22 @@ public class QstTarifVorschlagService
             }
         }
 
+        // TATSÄCHLICHE Trennung (Walter 26.08.2026, KS 45): rechtlich noch
+        // «verheiratet», aber «Getrennt seit» gesetzt → tarifseitig wie
+        // getrennt (A bzw. H mit Kind). Wirksam ab dem FOLGEMONAT der
+        // Trennung (AG-Praxis: Trennung 15.08. → neuer Tarif ab 01.09.).
+        var zivilstandEff = emp.MaritalStatus;
+        if (emp.SeparatedSince.HasValue)
+        {
+            var trennungAb = new DateOnly(emp.SeparatedSince.Value.Year, emp.SeparatedSince.Value.Month, 1)
+                .AddMonths(1);
+            var zl = (zivilstandEff ?? "").ToLowerInvariant();
+            if (trennungAb <= stichtag && (zl.Contains("verheiratet") || zl.Contains("partnerschaft")))
+                zivilstandEff = "getrennt";
+        }
+
         return QstTarifVorschlagLogic.Berechne(
-            zivilstand:   emp.MaritalStatus,
+            zivilstand:   zivilstandEff,
             religion:     emp.Religion,
             steuerkanton: emp.CantonCode,
             kinder:       kinder,

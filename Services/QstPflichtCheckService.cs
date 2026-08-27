@@ -157,11 +157,23 @@ public class QstPflichtCheckService
         }
 
         // ── 4./5. Ehepartner CH oder C-Ausweis? ──
-        bool isVerheiratet = !string.IsNullOrWhiteSpace(emp.MaritalStatus)
-                          && (emp.MaritalStatus!.Equals("verheiratet", StringComparison.OrdinalIgnoreCase)
-                           || emp.MaritalStatus!.Equals("eingetragene Partnerschaft", StringComparison.OrdinalIgnoreCase));
+        // Zivilstand-Normalisierung: «eingetragene Partnerschaft» kommt je nach
+        // Quelle mit Leerzeichen ODER Unterstrich («eingetragene_partnerschaft»).
+        var msNorm = (emp.MaritalStatus ?? "").Trim().ToLowerInvariant();
+        bool isVerheiratet = msNorm == "verheiratet"
+                          || (msNorm.Contains("partnerschaft") && !msNorm.Contains("aufgel"));
+        // TATSÄCHLICHE Trennung beendet die Ehegatten-Befreiung (Walter
+        // 26.08.2026, KS 45: Befreiung nur solange rechtlich UND tatsächlich
+        // ungetrennt — nicht erst die Scheidung zählt!). Wirksam ab dem
+        // FOLGEMONAT der Trennung (AG-Praxis: Trennung 15.08. → QST ab 01.09.),
+        // darum greift sie erst, wenn der Monatserste NACH dem Trennungsmonat
+        // ≤ Stichtag liegt.
+        bool trennungWirksam = emp.SeparatedSince.HasValue
+            && new DateOnly(emp.SeparatedSince.Value.Year, emp.SeparatedSince.Value.Month, 1)
+                   .AddMonths(1) <= stichtag;
+        bool verheiratetUngetrennt = isVerheiratet && !trennungWirksam;
         EmployeeFamilyMember? spouse = null;
-        if (isVerheiratet)
+        if (verheiratetUngetrennt)
         {
             spouse = await _db.EmployeeFamilyMembers
                 .Include(f => f.NationalityRef)
@@ -204,7 +216,7 @@ public class QstPflichtCheckService
         // entscheiden über Befreiung (CH/C) und Tarif B vs. C. Fehlt etwas,
         // blockt der Lohnlauf mit 409 QST_PARTNER_DATEN_FEHLEN.
         List<string>? partnerMaengel = null;
-        if (isVerheiratet)
+        if (verheiratetUngetrennt)
         {
             partnerMaengel = new List<string>();
             if (spouse == null)
@@ -260,7 +272,11 @@ public class QstPflichtCheckService
 
         // ── Tarif-Plausibilität (Walter-Vorgabe 20.08.2026, nur WARNUNGEN) ──
         var tarifWarnungen = hasErfassung
-            ? await BuildTarifWarnungenAsync(employeeId, erfassung!, isVerheiratet, spouse, stichtag)
+            // getrennt-lebende Verheiratete zählen tarifseitig NICHT mehr als
+            // verheiratet (A/H statt B/C, Walter 26.08.2026) — aber der
+            // Ehepartner-Eintrag im Familie-Tab ist korrekt (kein W4).
+            ? await BuildTarifWarnungenAsync(employeeId, erfassung!, verheiratetUngetrennt, spouse, stichtag,
+                  istGetrenntVerheiratet: isVerheiratet && trennungWirksam)
             : null;
 
         if (hasErfassung)
@@ -291,7 +307,11 @@ public class QstPflichtCheckService
     /// </summary>
     private async Task<List<string>?> BuildTarifWarnungenAsync(
         int employeeId, EmployeeQuellensteuer erfassung, bool isVerheiratet,
-        EmployeeFamilyMember? spouse, DateOnly stichtag)
+        EmployeeFamilyMember? spouse, DateOnly stichtag,
+        // Walter 26.08.2026: rechtlich verheiratet, aber tatsächlich getrennt
+        // (Folgemonat-Regel) — tarifseitig wie alleinstehend, aber der
+        // Ehepartner-Eintrag im Familie-Tab ist KORREKT (W4 unterdrücken).
+        bool istGetrenntVerheiratet = false)
     {
         var t = (erfassung.TarifCode ?? "").Trim().ToUpperInvariant();
         if (t.Length == 0) return null;
@@ -441,7 +461,7 @@ public class QstPflichtCheckService
         //    docs/konkubinat-qst-konzept.md) — alle orange, keine Blocks. ──
         // W4: «Ehepartner» erfasst, MA aber nicht verheiratet → vermutlich
         // Konkubinat (findet Alt-Fälle wie Stingaciu zur Hand-Umstellung).
-        if (!isVerheiratet)
+        if (!isVerheiratet && !istGetrenntVerheiratet)
         {
             bool hatEhepartnerEintrag = await _db.EmployeeFamilyMembers.AsNoTracking()
                 .AnyAsync(f => f.EmployeeId == employeeId

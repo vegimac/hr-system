@@ -163,6 +163,9 @@ Im QST-Tab unter „Zusätzliche Angaben" → **„Wohnsitz Ausland"** ausfülle
 **Was bedeutet „Grenzgänger"?**
 Wohnort im Ausland, Arbeitsort in CH, **tägliche Rückkehr** zum Wohnort. Das System hat eine eigene Checkbox dafür unter „Tarif-relevante Stammdaten".
 
+**Trennung vom befreienden Ehepartner (CH/C)?**
+Schon die **tatsächliche Trennung** beendet die Befreiung — nicht erst die Scheidung! Im MA-Stamm «Getrennt seit» erfassen: ab dem **Folgemonat** wird der MA QST-pflichtig und der Tarifvorschlag wechselt auf A bzw. H (mit Kind im Haushalt). Beispiel: Trennung 15.08. → QST ab 01.09. Erhält der MA später selbst den C-Ausweis, endet die Pflicht wieder.
+
 **Halbfamilie?**
 Alleinerziehend mit Kind im gleichen Haushalt → Tarif H. Lebt der MA im Konkubinat, entscheidet das gemeinsame Kind + die Einkommensfrage (siehe Abschnitt «Konkubinat» oben).
 
