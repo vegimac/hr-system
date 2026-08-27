@@ -17,7 +17,12 @@ namespace HrSystem.Controllers;
 public class ElmController : ControllerBase
 {
     private readonly ElmTransmitterClient _client;
-    public ElmController(ElmTransmitterClient client) => _client = client;
+    private readonly ElmAnnualDeclarationBuilder _builder;
+    public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder)
+    {
+        _client = client;
+        _builder = builder;
+    }
 
     public record ElmUrlDto(string Url);
 
@@ -41,5 +46,29 @@ public class ElmController : ControllerBase
             return BadRequest(new { error = "URL_INVALID", message = "Bitte eine gültige Endpoint-URL angeben." });
         var r = await _client.CheckInteroperabilityAsync(dto.Url.Trim(), ct);
         return Ok(r);
+    }
+
+    /// <summary>
+    /// E2: Jahresmeldung AHV als DeclareAnnualSalary-XML erzeugen + gegen
+    /// die ELM-6.0-Schemas validieren. Nur mit KUNSTDATEN (test.onecrew.ch)
+    /// im Refapps-Transmitter hochladen — nie Echtdaten.
+    /// </summary>
+    [HttpGet("annual-ahv/{year:int}")]
+    public async Task<IActionResult> AnnualAhv(int year, CancellationToken ct)
+    {
+        if (year < 2020 || year > 2100)
+            return BadRequest(new { error = "YEAR_INVALID", message = "Bitte ein gültiges Jahr angeben." });
+        var r = await _builder.BuildAhvAsync(year, ct);
+        return Ok(new
+        {
+            xml = r.Xml,
+            personen = r.Personen,
+            uebersprungen = r.Uebersprungen,
+            totalAhv = r.TotalAhv,
+            totalAlv = r.TotalAlv,
+            warnungen = r.Warnungen,
+            xsdFehler = r.XsdFehler,
+            valid = r.XsdFehler.Count == 0 && r.Xml.Length > 0
+        });
     }
 }

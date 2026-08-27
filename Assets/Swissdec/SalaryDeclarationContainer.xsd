@@ -1,0 +1,1708 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+    Version: 6.0-20260306
+    Schema Revision: 20260306
+    Buildnumber: ffdfc5424c
+--><xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" attributeFormDefault="unqualified" elementFormDefault="qualified" targetNamespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" version="0.0">
+    <xs:import namespace="urn:ch:swissdec:basis:v1:20260306:components" schemaLocation="SwissdecComponents.xsd"/>
+    <xs:import namespace="urn:ch:swissdec:common:v3:20260306" schemaLocation="Common.xsd"/>
+    <xs:import namespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" schemaLocation="SalaryDeclaration.xsd"/>
+    <xs:complexType name="DeclareAnnualSalaryRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Job" type="sdc:DeclareAnnualSalaryJobType"/>
+                    <xs:element ref="sd:AnnualSalaryDeclaration"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryJobType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressees" type="sdc:DeclareAnnualSalaryAddresseesType"/>
+            <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+            <xs:element minOccurs="0" name="Substitution" type="sdc:DeclareAnnualSalarySubstitutionType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAddresseesType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Angaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="ep:AddresseeJobType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalarySubstitutionType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Entschädigung Job</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Indemnisation Emploi</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Indennizzo lavoro</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="PredecessorDeclarationIDWithAcceptedState" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GetStatusFromDeclareAnnualSalaryResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:GetStatusResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressees" type="sdc:DeclareAnnualSalaryJobStateType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="sdc:DeclareAnnualSalaryAddresseeJobStateType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAddresseeJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeJobType">
+                <xs:choice>
+                    <xs:group ref="ep:WorkingStateGroup"/>
+                    <xs:element name="Success" type="sdc:DeclareAnnualSalaryAddresseeSuccessJobStateType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAddresseeSuccessJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="AddresseeContext" type="sdc:DeclareAnnualSalaryAddresseeContextType"/>
+            <xs:element name="Credentials" type="ep:CredentialsType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAddresseeSuccessConsumerJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="sdc:DeclareAnnualSalaryAddresseeSuccessJobStateType">
+                <xs:choice>
+                    <xs:element minOccurs="0" name="Completion" type="ep:AccessInformationType"/>
+                    <xs:element minOccurs="0" name="DialogMessage" type="ep:EmptyType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeDeclareAnnualSalaryRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:SynchronizeRequestType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="sd:AnnualSalaryDeclarationAddresseeType"/>
+                    <xs:element name="Case" type="sdc:DeclareAnnualSalaryCaseType"/>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="sd:SupportedMinorSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:DeclareAnnualSalaryCaseContextType"/>
+            <xs:element minOccurs="0" name="ReceivedState" type="sdc:DeclareAnnualSalaryStateType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryCaseContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Kontext des Falls</translation>
+        <technical>Dieses Element enthält Informationen und Identifikatoren zum Fall.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Contexte de la demande</translation>
+        <technical>Cet élément contient des informations et des identifiants relatifs au cas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Contesto della richiesta</translation>
+        <technical>Questo elemento contiene informazioni e identificatori relativi al caso.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:CaseContextType">
+                <xs:sequence>
+                    <xs:element name="DeclarationID" type="ep:IDType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Fachverfahrensspezifische Fallnummer des Distributors.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Numéro de dossier spécifique à la procédure du distributeur.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Numero di caso specifico della procedura tecnica del distributore.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:simpleType name="DeclareAnnualSalaryStateType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Accepted"/>
+            <xs:enumeration value="CompletionReleaseMissing"/>
+            <xs:enumeration value="DialogMessagePending"/>
+            <xs:enumeration value="Processing"/>
+            <xs:enumeration value="Finished"/>
+            <xs:enumeration value="Rejected"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="SynchronizeDeclareAnnualSalaryResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:choice>
+                    <xs:element name="Error" type="ep:ErrorResponseType"/>
+                    <xs:element name="SynchronizeDeclareAnnualSalaryConsumer" type="sdc:SynchronizeDeclareAnnualSalaryConsumerType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeDeclareAnnualSalaryConsumerType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Dieses Element synchronisiert die Jahreslohnmeldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Cet élément synchronise la déclaration annuelle des salaires.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Questo elemento sincronizza la dichiarazione salariale annuale.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="ep:AddresseeType"/>
+                    <xs:element name="Case" type="sdc:DeclareAnnualSalaryConsumerCaseType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryConsumerCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:DeclareAnnualSalaryCaseContextType"/>
+            <xs:element name="State" type="sdc:DeclareAnnualSalaryStateType"/>
+            <xs:element minOccurs="0" name="Completion" type="ep:CompletionType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+            <xs:group ref="sd:SynchronizeDeclareAnnualSalaryConsumerStoriesGroup"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAvailableType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Informationen zur Verfügbarkeit</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur la disponibilité</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sulla disponibilità</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="DeclarationID" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareAnnualSalaryAddresseeContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Kontextangaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations contextuelles sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni contestuali sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseContextType">
+                <xs:sequence>
+                    <xs:element name="DeclarationID" type="ep:IDType"/>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Job" type="sdc:DeclareMonthlySalaryJobType"/>
+                    <xs:element ref="sd:MonthlySalaryDeclaration"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryJobType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressees" type="sdc:DeclareMonthlySalaryAddresseesType"/>
+            <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+            <xs:element minOccurs="0" name="Substitution" type="sdc:DeclareMonthlySalarySubstitutionType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAddresseesType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Angaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="ep:AddresseeJobType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalarySubstitutionType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Entschädigung Job</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Indemnisation Emploi</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Indennizzo lavoro</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="PredecessorDeclarationIDWithAcceptedState" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GetStatusFromDeclareMonthlySalaryResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:GetStatusResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressees" type="sdc:DeclareMonthlySalaryJobStateType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="sdc:DeclareMonthlySalaryAddresseeJobStateType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAddresseeJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeJobType">
+                <xs:choice>
+                    <xs:group ref="ep:WorkingStateGroup"/>
+                    <xs:element name="Success" type="sdc:DeclareMonthlySalaryAddresseeSuccessJobStateType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAddresseeSuccessJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="AddresseeContext" type="sdc:DeclareMonthlySalaryAddresseeContextType"/>
+            <xs:element name="Credentials" type="ep:CredentialsType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAddresseeSuccessConsumerJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="sdc:DeclareMonthlySalaryAddresseeSuccessJobStateType">
+                <xs:choice>
+                    <xs:element minOccurs="0" name="Completion" type="ep:AccessInformationType"/>
+                    <xs:element minOccurs="0" name="DialogMessage" type="ep:EmptyType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeDeclareMonthlySalaryRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:SynchronizeRequestType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="sd:MonthlySalaryDeclarationAddresseeType"/>
+                    <xs:element name="Case" type="sdc:DeclareMonthlySalaryCaseType"/>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="sd:SupportedMinorSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:DeclareMonthlySalaryCaseContextType"/>
+            <xs:element minOccurs="0" name="ReceivedState" type="sdc:DeclareMonthlySalaryStateType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryCaseContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Kontext des Falls</translation>
+        <technical>Dieses Element enthält Informationen und Identifikatoren zum Fall.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Contexte de la demande</translation>
+        <technical>Cet élément contient des informations et des identifiants relatifs au cas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Contesto della richiesta</translation>
+        <technical>Questo elemento contiene informazioni e identificatori relativi al caso.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:CaseContextType">
+                <xs:sequence>
+                    <xs:element name="DeclarationID" type="ep:IDType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Fachverfahrensspezifische Fallnummer des Distributors.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Numéro de dossier spécifique à la procédure du distributeur.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Numero di caso specifico della procedura tecnica del distributore.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:simpleType name="DeclareMonthlySalaryStateType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Accepted"/>
+            <xs:enumeration value="CompletionReleaseMissing"/>
+            <xs:enumeration value="DialogMessagePending"/>
+            <xs:enumeration value="Processing"/>
+            <xs:enumeration value="Finished"/>
+            <xs:enumeration value="Rejected"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="SynchronizeDeclareMonthlySalaryResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:choice>
+                    <xs:element name="Error" type="ep:ErrorResponseType"/>
+                    <xs:element name="SynchronizeDeclareMonthlySalaryConsumer" type="sdc:SynchronizeDeclareMonthlySalaryConsumerType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeDeclareMonthlySalaryConsumerType">
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="ep:AddresseeType"/>
+                    <xs:element name="Case" type="sdc:DeclareMonthlySalaryConsumerCaseType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryConsumerCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:DeclareMonthlySalaryCaseContextType"/>
+            <xs:element name="State" type="sdc:DeclareMonthlySalaryStateType"/>
+            <xs:element minOccurs="0" name="Completion" type="ep:CompletionType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+            <xs:group ref="sd:SynchronizeDeclareMonthlySalaryConsumerStoriesGroup"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAvailableType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Informationen zur Verfügbarkeit</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur la disponibilité</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sulla disponibilità</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="DeclarationID" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="DeclareMonthlySalaryAddresseeContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Kontextangaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations contextuelles sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni contestuali sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseContextType">
+                <xs:sequence>
+                    <xs:element name="DeclarationID" type="ep:IDType"/>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Job" type="sdc:NotifyChangesJobType"/>
+                    <xs:element ref="sd:ChangeNotification"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesJobType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressees" type="sdc:NotifyChangesAddresseesType"/>
+            <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAddresseesType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Angaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="ep:AddresseeJobType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressees" type="sdc:NotifyChangesJobStateType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="Addressee" type="sdc:NotifyChangesAddresseeJobStateType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAddresseeJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeJobType">
+                <xs:choice>
+                    <xs:group ref="ep:WorkingStateGroup"/>
+                    <xs:element name="Success" type="sdc:NotifyChangesAddresseeSuccessJobStateType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAddresseeSuccessJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="AddresseeContext" type="sdc:NotifyChangesAddresseeContextType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAddresseeSuccessConsumerJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="sdc:NotifyChangesAddresseeSuccessJobStateType">
+                <xs:choice>
+                    <xs:element minOccurs="0" name="Completion" type="ep:AccessInformationType"/>
+                    <xs:element minOccurs="0" name="DialogMessage" type="ep:EmptyType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeNotifyChangesRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:SynchronizeRequestType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="sd:NotifyChangesAddresseeType"/>
+                    <xs:element name="Case" type="sdc:NotifyChangesCaseType"/>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="sd:SupportedMinorSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:NotifyChangesCaseContextType"/>
+            <xs:element minOccurs="0" name="ReceivedState" type="sdc:NotifyChangesStateType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesCaseContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Kontext des Falls</translation>
+        <technical>Dieses Element enthält Informationen und Identifikatoren zum Fall.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Contexte de la demande</translation>
+        <technical>Cet élément contient des informations et des identifiants relatifs au cas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Contesto della richiesta</translation>
+        <technical>Questo elemento contiene informazioni e identificatori relativi al caso.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:CaseContextBaseType">
+                <xs:sequence>
+                    <xs:element name="NotificationID" type="ep:IDType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Fachverfahrensspezifische Fallnummer des Distributors.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Numéro de dossier spécifique à la procédure du distributeur.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Numero di caso specifico della procedura tecnica del distributore.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:simpleType name="NotifyChangesStateType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="Accepted"/>
+            <xs:enumeration value="DialogMessagePending"/>
+            <xs:enumeration value="Processing"/>
+            <xs:enumeration value="Finished"/>
+            <xs:enumeration value="Rejected"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="SynchronizeNotifyChangesResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:choice>
+                    <xs:element name="Error" type="ep:ErrorResponseType"/>
+                    <xs:element name="SynchronizeNotifyChangesConsumer" type="sdc:SynchronizeNotifyChangesConsumerType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeNotifyChangesConsumerType">
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="ep:AddresseeType"/>
+                    <xs:element name="Case" type="sdc:NotifyChangesConsumerCaseType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesConsumerCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:NotifyChangesCaseContextType"/>
+            <xs:element name="State" type="sdc:NotifyChangesStateType"/>
+            <xs:element maxOccurs="unbounded" minOccurs="0" name="DialogMessage" type="ep:DialogMessageType"/>
+            <xs:group ref="sd:SynchronizeNotifyChangesConsumerStoriesGroup"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAvailableType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Informationen zur Verfügbarkeit</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur la disponibilité</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sulla disponibilità</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element maxOccurs="unbounded" name="NotificationID" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="NotifyChangesAddresseeContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Kontextangaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations contextuelles sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni contestuali sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseContextType">
+                <xs:sequence>
+                    <xs:element name="NotificationID" type="ep:IDType"/>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="CompanyRequestType">
+        <xs:complexContent>
+            <xs:extension base="sd:InstitutionType">
+                <xs:sequence>
+                    <xs:element name="CompanyDescription" type="c:CompanyDescriptionBaseType"/>
+                    <xs:element name="Contact" type="c:ContactType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Job" type="sdc:SubscribeOrganizationJobType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element name="Company" type="sdc:CompanyRequestType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Anmeldungsanfrage</translation>
+        <technical>Anmeldungssanfrage zur Kommunikation mit einem Empfänger.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Demande d'inscription</translation>
+        <technical>Demande d'enregistrement pour communiquer avec un destinataire.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Richiesta di registrazione</translation>
+        <technical>Richiesta di registrazione per comunicare con un destinatario.</technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="sd:SupportedMinorSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationJobType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressee" type="ep:AddresseeJobType"/>
+            <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressees" type="sdc:SubscribeOrganizationJobStateType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressee" type="sdc:SubscribeOrganizationAddresseeJobStateType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationAddresseeJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeJobType">
+                <xs:choice>
+                    <xs:group ref="ep:WorkingStateGroup"/>
+                    <xs:element name="Success" type="sdc:SubscribeOrganizationAddresseeSuccessJobStateType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationAddresseeSuccessJobStateType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>OpenCase Status</translation>
+        <short>Initialer Status des Falls.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <short>État initial du cas.</short>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <short>Stato iniziale del caso.</short>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="AddresseeContext" type="sdc:SubscribeOrganizationAddresseeContextType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeSubscribeOrganizationRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:SynchronizeRequestType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="sd:InstitutionAddresseeType"/>
+                    <xs:element name="Case" type="sdc:SubscribeOrganizationCaseType"/>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="sd:SupportedMinorSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:SubscribeOrganizationCaseContextType"/>
+            <xs:element minOccurs="0" name="ReceivedState" type="sdc:SubscribeOrganizationStateType"/>
+            <xs:group ref="sd:SynchronizeSubscribeOrganizationStoriesGroup"/>
+            <xs:element minOccurs="0" name="Unsubscribe" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Abmeldung durch das Sendersystem.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Déconnexion du système de transmission.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Disconnessione tramite il sistema di trasmissione.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationCaseContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Kontext des Falls</translation>
+        <technical>Dieses Element enthält Informationen und Identifikatoren zum Fall.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Contexte de la demande</translation>
+        <technical>Cet élément contient des informations et des identifiants relatifs au cas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Contesto della richiesta</translation>
+        <technical>Questo elemento contiene informazioni e identificatori relativi al caso.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:CaseContextBaseType">
+                <xs:sequence>
+                    <xs:element name="SubscriptionID" type="ep:IDType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Fachverfahrensspezifische Fallnummer des Distributors.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Numéro de dossier spécifique à la procédure du distributeur.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Numero di caso specifico della procedura tecnica del distributore.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:simpleType name="SubscribeOrganizationStateType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="subscribed"/>
+            <xs:enumeration value="closed"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="SynchronizeSubscribeOrganizationResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:choice>
+                    <xs:element name="Error" type="ep:ErrorResponseType"/>
+                    <xs:element name="SynchronizeSubscribeOrganizationConsumer" type="sdc:SynchronizeSubscribeOrganizationConsumerType"/>
+                </xs:choice>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeSubscribeOrganizationConsumerType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Dieses Element synchronisiert die Anmeldung der Organisation.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Cet élément synchronise l'inscription de l'organisation.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Questo elemento sincronizza la registrazione dell'organizzazione.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="ep:AddresseeType"/>
+                    <xs:element name="Case" type="sdc:SubscribeOrganizationConsumerCaseType"/>
+                    <xs:element minOccurs="0" name="Available" type="sdc:AvailableType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationConsumerCaseType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Fall</translation>
+        <technical>Informationen zum Fall</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur le cas</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sul caso</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="CaseContext" type="sdc:SubscribeOrganizationCaseContextType"/>
+            <xs:element name="State" type="sdc:SubscribeOrganizationStateType"/>
+            <xs:group ref="sd:SynchronizeSubscribeOrganizationConsumerStoriesGroup"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AvailableType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Informationen zur Verfügbarkeit</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations sur la disponibilité</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni sulla disponibilità</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element minOccurs="0" name="DeclareAnnualSalary" type="sdc:DeclareAnnualSalaryAvailableType"/>
+            <xs:element minOccurs="0" name="DeclareMonthlySalary" type="sdc:DeclareMonthlySalaryAvailableType"/>
+            <xs:element minOccurs="0" name="NotifyChanges" type="sdc:NotifyChangesAvailableType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="RegisterOrganizationAuthenticationRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Job" type="sdc:RegisterOrganizationAuthenticationJobType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                    <xs:element name="RegisterOrganization" type="sdc:CompanyRequestType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Registrierungsanfrage</translation>
+        <technical>Registrierungsanfrage zum lösen eines SUA-Zertifikats.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Demande d'enregistrement</translation>
+        <technical>Demande d'enregistrement pour obtenir un certificat SUA.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Richiesta di registrazione</translation>
+        <technical>Richiesta di registrazione per ottenere un certificato SUA.</technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="c:SupportedRegisterOrganizationAuthenticationSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="RegisterOrganizationAuthenticationJobType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Job Steuerung</translation>
+        <technical>Steuerungselement für die Verarbeitung der Meldung.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Commande de travail</translation>
+        <technical>Élément de commande pour le traitement du message.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Controllo del lavoro</translation>
+        <technical>Elemento di controllo per l'elaborazione del messaggio.</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:sequence>
+            <xs:element name="Addressee" type="ep:AddresseeJobType"/>
+            <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeRegisterOrganizationAuthenticationRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:SynchronizeRequestType">
+                <xs:sequence>
+                    <xs:element name="Addressee" type="sd:InstitutionAddresseeType"/>
+                    <xs:element name="Case" type="c:RegisterOrganizationAuthenticationSenderRequestCaseType"/>
+                </xs:sequence>
+                <xs:attribute name="schemaVersion" type="c:SupportedRegisterOrganizationAuthenticationSchemaVersionAttributeType" use="required">
+                    <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>Schema Minor-Version</translation>
+        <technical>Angabe der verwendeten Minor-Version des Schemas.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indication de la version mineure utilisée du schéma.</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Schema Minor-Version</translation>
+        <technical>Indicazione della versione minore dello schema utilizzata.</technical>
+    </xs:documentation>
+</xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SubscribeOrganizationAddresseeContextType">
+        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <technical>Kontextangaben zum Adressaten</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <technical>Informations contextuelles sur le destinataire</technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <technical>Informazioni contestuali sul destinatario</technical>
+    </xs:documentation>
+</xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeResponseContextType">
+                <xs:sequence>
+                    <xs:element name="SubscriptionID" type="ep:IDType"/>
+                    <xs:element minOccurs="0" name="TestCase" type="ep:EmptyType">
+                        <xs:annotation>
+    <xs:documentation xml:lang="de">
+        <translation>TestCase Flag</translation>
+        <technical>Testmeldung kennzeichnen. Mit diesem Flag darf die Meldung nicht produktiv verarbeitet werden.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="fr">
+        <translation>Indicateur TestCase</translation>
+        <technical>Marquer le message comme test. Avec cet indicateur, le message ne doit pas être traité de manière
+            productive.
+        </technical>
+    </xs:documentation>
+    <xs:documentation xml:lang="it">
+        <translation>Flag TestCase</translation>
+        <technical>Contrassegnare il messaggio di prova. Con questo flag il messaggio non può essere elaborato in modo
+            produttivo.
+        </technical>
+    </xs:documentation>
+</xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+</xs:schema>

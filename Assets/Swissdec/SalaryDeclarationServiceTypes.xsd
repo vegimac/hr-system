@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?><xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:c="urn:ch:swissdec:common:v3:20260306" xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components" xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration" xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" attributeFormDefault="unqualified" elementFormDefault="qualified" targetNamespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" version="0.0">
+    <xs:import namespace="urn:ch:swissdec:basis:v1:20260306:components" schemaLocation="SwissdecComponents.xsd"/>
+    <xs:import namespace="urn:ch:swissdec:common:v3:20260306" schemaLocation="Common.xsd"/>
+    <xs:import namespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container" schemaLocation="SalaryDeclarationContainer.xsd"/>
+    <xs:element name="DeclareAnnualSalary" type="sdc:DeclareAnnualSalaryRequestType">
+        <xs:unique name="DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sdc:Job/sdc:Addressees/sdc:Addressee"/>
+            <xs:field xpath="@addresseeID"/>
+        </xs:unique>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdAHV-AVS-Salaries_sdAHV-AVS-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:AHV-AVS-Salaries/sd:AHV-AVS-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdFAK-CAF-Salaries_sdFAK-CAF-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:FAK-CAF-Salaries/sd:FAK-CAF-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdUVG-LAA-Salaries_sdUVG-LAA-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:UVG-LAA-Salaries/sd:UVG-LAA-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdUVGZ-LAAC-Salaries_sdUVGZ-LAAC-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:UVGZ-LAAC-Salaries/sd:UVGZ-LAAC-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdKTG-AMC-Salaries_sdKTG-AMC-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:KTG-AMC-Salaries/sd:KTG-AMC-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdBVG-LPP-Salaries_sdBVG-LPP-Salary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:BVG-LPP-Salaries/sd:BVG-LPP-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdTaxSalaries_sdTaxSalary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:TaxSalaries/sd:TaxSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdTaxAnnuities_sdTaxAnnuity" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:TaxAnnuities/sd:TaxAnnuity"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdOwnershipRightDetails_sdOwnershipRightDetail" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:OwnershipRightDetails/sd:OwnershipRightDetail"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdTaxCrossborderSalaries_sdItalianCrossborderSalary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:TaxCrossborderSalaries/sd:ItalianCrossborderSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdTaxCrossborderSalaries_sdFrenchCrossborderSalary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:TaxCrossborderSalaries/sd:FrenchCrossborderSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdTaxCrossborderSalaries_sdSFNCrossborderSalary" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:TaxCrossborderSalaries/sd:SFNCrossborderSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdStaff_sdPerson_sdUnemploymentCertificates_sdUnemploymentCertificate" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Staff/sd:Person/sd:UnemploymentCertificates/sd:UnemploymentCertificate"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdFAK-CAF" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:FAK-CAF"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdUVG-LAA" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:UVG-LAA"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdUVGZ-LAAC" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:UVGZ-LAAC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdKTG-AMC" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:KTG-AMC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdTax" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:Tax"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdTaxAnnuity" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:TaxAnnuity"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdOwnershipRightDetail" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:OwnershipRightDetail"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdTaxCrossborder" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:TaxCrossborder"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdInstitutions_sdUnemploymentCertificate" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:Institutions/sd:UnemploymentCertificate"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdAHV-AVS-Totals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:AHV-AVS-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdFAK-CAF-Totals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:FAK-CAF-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdUVG-LAA-Totals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:UVG-LAA-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdUVGZ-LAAC-Totals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:UVGZ-LAAC-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdKTG-AMC-Totals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:KTG-AMC-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareAnnualSalary_sdAnnualSalaryDeclaration_sdSalaryTotals_sdTaxCrossborderTotals" refer="sdst:DeclareAnnualSalary-AddresseeID-Key">
+            <xs:selector xpath="sd:AnnualSalaryDeclaration/sd:SalaryTotals/sd:TaxCrossborderTotals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+    </xs:element>
+    <xs:element name="DeclareAnnualSalaryResponse" type="ep:InitialResponseType"/>
+    <xs:element name="GetStatusFromDeclareAnnualSalary" type="ep:GetStatusRequestType"/>
+    <xs:element name="GetStatusFromDeclareAnnualSalaryResponse" type="sdc:GetStatusFromDeclareAnnualSalaryResponseType"/>
+    <xs:element name="SynchronizeDeclareAnnualSalary" type="sdc:SynchronizeDeclareAnnualSalaryRequestType"/>
+    <xs:element name="SynchronizeDeclareAnnualSalaryResponse" type="sdc:SynchronizeDeclareAnnualSalaryResponseType"/>
+    <xs:element name="DeclareMonthlySalary" type="sdc:DeclareMonthlySalaryRequestType">
+        <xs:unique name="DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sdc:Job/sdc:Addressees/sdc:Addressee"/>
+            <xs:field xpath="@addresseeID"/>
+        </xs:unique>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdStaff_sdPerson_sdUVG-LAA-TemporaryWork-Salaries_sdUVG-LAA-TemporaryWork-Salary" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Staff/sd:Person/sd:UVG-LAA-TemporaryWork-Salaries/sd:UVG-LAA-TemporaryWork-Salary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdStaff_sdPerson_sdTaxAtSourceSalaries_sdTaxAtSourceSalary" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Staff/sd:Person/sd:TaxAtSourceSalaries/sd:TaxAtSourceSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdStaff_sdPerson_sdStatisticSalaries_sdStatisticSalary" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Staff/sd:Person/sd:StatisticSalaries/sd:StatisticSalary"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdInstitutions_sdUVG-LAA-TemporaryWork" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Institutions/sd:UVG-LAA-TemporaryWork"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdInstitutions_sdTaxAtSource" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Institutions/sd:TaxAtSource"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdInstitutions_sdStatistic" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:Institutions/sd:Statistic"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdSalaryTotals_sdUVG-LAA-TemporaryWork-Totals" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:SalaryTotals/sd:UVG-LAA-TemporaryWork-Totals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstDeclareMonthlySalary_sdMonthlySalaryDeclaration_sdSalaryTotals_sdTaxAtSourceTotals" refer="sdst:DeclareMonthlySalary-AddresseeID-Key">
+            <xs:selector xpath="sd:MonthlySalaryDeclaration/sd:SalaryTotals/sd:TaxAtSourceTotals"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+    </xs:element>
+    <xs:element name="DeclareMonthlySalaryResponse" type="ep:InitialResponseType"/>
+    <xs:element name="GetStatusFromDeclareMonthlySalary" type="ep:GetStatusRequestType"/>
+    <xs:element name="GetStatusFromDeclareMonthlySalaryResponse" type="sdc:GetStatusFromDeclareMonthlySalaryResponseType"/>
+    <xs:element name="SynchronizeDeclareMonthlySalary" type="sdc:SynchronizeDeclareMonthlySalaryRequestType"/>
+    <xs:element name="SynchronizeDeclareMonthlySalaryResponse" type="sdc:SynchronizeDeclareMonthlySalaryResponseType"/>
+    <xs:element name="NotifyChanges" type="sdc:NotifyChangesRequestType">
+        <xs:unique name="NotifyChanges-AddresseeID-Key">
+            <xs:selector xpath="sdc:Job/sdc:Addressees/sdc:Addressee"/>
+            <xs:field xpath="@addresseeID"/>
+        </xs:unique>
+        <xs:keyref name="sdstNotifyChanges_sdChangeNotification_sdStaff_sdPerson_sdAHV-AVS-ChangeNotifications_sdAHV-AVS-ChangeNotification" refer="sdst:NotifyChanges-AddresseeID-Key">
+            <xs:selector xpath="sd:ChangeNotification/sd:Staff/sd:Person/sd:AHV-AVS-ChangeNotifications/sd:AHV-AVS-ChangeNotification"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstNotifyChanges_sdChangeNotification_sdStaff_sdPerson_sdFAK-CAF-ChangeNotifications_sdFAK-CAF-ChangeNotification" refer="sdst:NotifyChanges-AddresseeID-Key">
+            <xs:selector xpath="sd:ChangeNotification/sd:Staff/sd:Person/sd:FAK-CAF-ChangeNotifications/sd:FAK-CAF-ChangeNotification"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstNotifyChanges_sdChangeNotification_sdStaff_sdPerson_sdBVG-LPP-ChangeNotifications_sdBVG-LPP-ChangeNotification" refer="sdst:NotifyChanges-AddresseeID-Key">
+            <xs:selector xpath="sd:ChangeNotification/sd:Staff/sd:Person/sd:BVG-LPP-ChangeNotifications/sd:BVG-LPP-ChangeNotification"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstNotifyChanges_sdChangeNotification_sdInstitutions_sdFAK-CAF" refer="sdst:NotifyChanges-AddresseeID-Key">
+            <xs:selector xpath="sd:ChangeNotification/sd:Institutions/sd:FAK-CAF"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+    </xs:element>
+    <xs:element name="NotifyChangesResponse" type="sdc:NotifyChangesResponseType"/>
+    <xs:element name="SynchronizeNotifyChanges" type="sdc:SynchronizeNotifyChangesRequestType"/>
+    <xs:element name="SynchronizeNotifyChangesResponse" type="sdc:SynchronizeNotifyChangesResponseType"/>
+    <xs:element name="SubscribeOrganization" type="sdc:SubscribeOrganizationRequestType">
+        <xs:unique name="SubscribeOrganization-AddresseeID-Key">
+            <xs:selector xpath="sdc:Job/sdc:Addressee"/>
+            <xs:field xpath="@addresseeID"/>
+        </xs:unique>
+        <xs:keyref name="sdstSubscribeOrganization_sdcCompany_sdInstitution_sdUVG-LAA" refer="sdst:SubscribeOrganization-AddresseeID-Key">
+            <xs:selector xpath="sdc:Company/sd:Institution/sd:UVG-LAA"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstSubscribeOrganization_sdcCompany_sdInstitution_sdUVGZ-LAAC" refer="sdst:SubscribeOrganization-AddresseeID-Key">
+            <xs:selector xpath="sdc:Company/sd:Institution/sd:UVGZ-LAAC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstSubscribeOrganization_sdcCompany_sdInstitution_sdKTG-AMC" refer="sdst:SubscribeOrganization-AddresseeID-Key">
+            <xs:selector xpath="sdc:Company/sd:Institution/sd:KTG-AMC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstSubscribeOrganization_sdcCompany_sdInstitution_sdBVG-LPP" refer="sdst:SubscribeOrganization-AddresseeID-Key">
+            <xs:selector xpath="sdc:Company/sd:Institution/sd:BVG-LPP"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+    </xs:element>
+    <xs:element name="SubscribeOrganizationResponse" type="sdc:SubscribeOrganizationResponseType"/>
+    <xs:element name="SynchronizeSubscribeOrganization" type="sdc:SynchronizeSubscribeOrganizationRequestType"/>
+    <xs:element name="SynchronizeSubscribeOrganizationResponse" type="sdc:SynchronizeSubscribeOrganizationResponseType"/>
+    <xs:element name="RegisterOrganizationAuthentication" type="sdc:RegisterOrganizationAuthenticationRequestType">
+        <xs:unique name="RegisterOrganizationAuthentication-AddresseeID-Key">
+            <xs:selector xpath="sdc:Job/sdc:Addressee"/>
+            <xs:field xpath="@addresseeID"/>
+        </xs:unique>
+        <xs:keyref name="sdstRegisterOrganizationAuthentication_sdcRegisterOrganization_sdInstitution_sdUVG-LAA" refer="sdst:RegisterOrganizationAuthentication-AddresseeID-Key">
+            <xs:selector xpath="sdc:RegisterOrganization/sd:Institution/sd:UVG-LAA"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstRegisterOrganizationAuthentication_sdcRegisterOrganization_sdInstitution_sdUVGZ-LAAC" refer="sdst:RegisterOrganizationAuthentication-AddresseeID-Key">
+            <xs:selector xpath="sdc:RegisterOrganization/sd:Institution/sd:UVGZ-LAAC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstRegisterOrganizationAuthentication_sdcRegisterOrganization_sdInstitution_sdKTG-AMC" refer="sdst:RegisterOrganizationAuthentication-AddresseeID-Key">
+            <xs:selector xpath="sdc:RegisterOrganization/sd:Institution/sd:KTG-AMC"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+        <xs:keyref name="sdstRegisterOrganizationAuthentication_sdcRegisterOrganization_sdInstitution_sdBVG-LPP" refer="sdst:RegisterOrganizationAuthentication-AddresseeID-Key">
+            <xs:selector xpath="sdc:RegisterOrganization/sd:Institution/sd:BVG-LPP"/>
+            <xs:field xpath="@addresseeIDRef"/>
+        </xs:keyref>
+    </xs:element>
+    <xs:element name="RegisterOrganizationAuthenticationResponse" type="c:RegisterOrganizationAuthenticationResponseType"/>
+    <xs:element name="SynchronizeRegisterOrganizationAuthentication" type="sdc:SynchronizeRegisterOrganizationAuthenticationRequestType"/>
+    <xs:element name="SynchronizeRegisterOrganizationAuthenticationResponse" type="c:SynchronizeRegisterOrganizationAuthenticationResponseType"/>
+    <xs:element name="CheckInteroperability" type="ep:CheckInteroperabilityRequestType"/>
+    <xs:element name="CheckInteroperabilityResponse" type="ep:CheckInteroperabilityResponseType"/>
+    <xs:element name="Ping" type="ep:PingRequestType"/>
+    <xs:element name="PingResponse" type="ep:PingResponseType"/>
+    <xs:element name="SalaryDeclarationFault" type="ep:FaultType"/>
+</xs:schema>
