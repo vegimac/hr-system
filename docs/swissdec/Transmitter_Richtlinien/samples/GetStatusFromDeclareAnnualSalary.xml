@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:GetStatusFromDeclareAnnualSalary xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                                       xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>ICHAG</ep:CompanyName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:RequestID>RequestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+
+    <ep:JobKey>JobKey1234</ep:JobKey>
+
+</sdst:GetStatusFromDeclareAnnualSalary>

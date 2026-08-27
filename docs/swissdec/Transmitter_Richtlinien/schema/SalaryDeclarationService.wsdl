@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?><!--
+    Version: 6.0-20260306
+    Schema Revision: 20260306
+    Buildnumber: ffdfc5424c
+--><wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:sds="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service" xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" name="SalaryDeclarationService" targetNamespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service">
+    <wsdl:types>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:import namespace="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types" schemaLocation="SalaryDeclarationServiceTypes.xsd"/>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:message name="DeclareAnnualSalaryRequest">
+        <wsdl:part element="sdst:DeclareAnnualSalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="DeclareAnnualSalaryResponse">
+        <wsdl:part element="sdst:DeclareAnnualSalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="GetStatusFromDeclareAnnualSalaryRequest">
+        <wsdl:part element="sdst:GetStatusFromDeclareAnnualSalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="GetStatusFromDeclareAnnualSalaryResponse">
+        <wsdl:part element="sdst:GetStatusFromDeclareAnnualSalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeDeclareAnnualSalaryRequest">
+        <wsdl:part element="sdst:SynchronizeDeclareAnnualSalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeDeclareAnnualSalaryResponse">
+        <wsdl:part element="sdst:SynchronizeDeclareAnnualSalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="DeclareMonthlySalaryRequest">
+        <wsdl:part element="sdst:DeclareMonthlySalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="DeclareMonthlySalaryResponse">
+        <wsdl:part element="sdst:DeclareMonthlySalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="GetStatusFromDeclareMonthlySalaryRequest">
+        <wsdl:part element="sdst:GetStatusFromDeclareMonthlySalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="GetStatusFromDeclareMonthlySalaryResponse">
+        <wsdl:part element="sdst:GetStatusFromDeclareMonthlySalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeDeclareMonthlySalaryRequest">
+        <wsdl:part element="sdst:SynchronizeDeclareMonthlySalary" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeDeclareMonthlySalaryResponse">
+        <wsdl:part element="sdst:SynchronizeDeclareMonthlySalaryResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="NotifyChangesRequest">
+        <wsdl:part element="sdst:NotifyChanges" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="NotifyChangesResponse">
+        <wsdl:part element="sdst:NotifyChangesResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeNotifyChangesRequest">
+        <wsdl:part element="sdst:SynchronizeNotifyChanges" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeNotifyChangesResponse">
+        <wsdl:part element="sdst:SynchronizeNotifyChangesResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SubscribeOrganizationRequest">
+        <wsdl:part element="sdst:SubscribeOrganization" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SubscribeOrganizationResponse">
+        <wsdl:part element="sdst:SubscribeOrganizationResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeSubscribeOrganizationRequest">
+        <wsdl:part element="sdst:SynchronizeSubscribeOrganization" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeSubscribeOrganizationResponse">
+        <wsdl:part element="sdst:SynchronizeSubscribeOrganizationResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="RegisterOrganizationAuthenticationRequest">
+        <wsdl:part element="sdst:RegisterOrganizationAuthentication" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="RegisterOrganizationAuthenticationResponse">
+        <wsdl:part element="sdst:RegisterOrganizationAuthenticationResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeRegisterOrganizationAuthenticationRequest">
+        <wsdl:part element="sdst:SynchronizeRegisterOrganizationAuthentication" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SynchronizeRegisterOrganizationAuthenticationResponse">
+        <wsdl:part element="sdst:SynchronizeRegisterOrganizationAuthenticationResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="CheckInteroperabilityRequest">
+        <wsdl:part element="sdst:CheckInteroperability" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="CheckInteroperabilityResponse">
+        <wsdl:part element="sdst:CheckInteroperabilityResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="PingRequest">
+        <wsdl:part element="sdst:Ping" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="PingResponse">
+        <wsdl:part element="sdst:PingResponse" name="parameters"/>
+    </wsdl:message>
+    <wsdl:message name="SalaryDeclarationFault">
+        <wsdl:part element="sdst:SalaryDeclarationFault" name="parameters"/>
+    </wsdl:message>
+    <wsdl:portType name="SalaryDeclarationPort">
+        <wsdl:operation name="DeclareAnnualSalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:DeclareAnnualSalaryRequest"/>
+            <wsdl:output message="sds:DeclareAnnualSalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="GetStatusFromDeclareAnnualSalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:GetStatusFromDeclareAnnualSalaryRequest"/>
+            <wsdl:output message="sds:GetStatusFromDeclareAnnualSalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeDeclareAnnualSalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SynchronizeDeclareAnnualSalaryRequest"/>
+            <wsdl:output message="sds:SynchronizeDeclareAnnualSalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="DeclareMonthlySalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:DeclareMonthlySalaryRequest"/>
+            <wsdl:output message="sds:DeclareMonthlySalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="GetStatusFromDeclareMonthlySalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:GetStatusFromDeclareMonthlySalaryRequest"/>
+            <wsdl:output message="sds:GetStatusFromDeclareMonthlySalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeDeclareMonthlySalary">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SynchronizeDeclareMonthlySalaryRequest"/>
+            <wsdl:output message="sds:SynchronizeDeclareMonthlySalaryResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="NotifyChanges">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate, SUA Certificate</wsdl:documentation>
+            <wsdl:input message="sds:NotifyChangesRequest"/>
+            <wsdl:output message="sds:NotifyChangesResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeNotifyChanges">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate, SUA Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SynchronizeNotifyChangesRequest"/>
+            <wsdl:output message="sds:SynchronizeNotifyChangesResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SubscribeOrganization">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate, SUA Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SubscribeOrganizationRequest"/>
+            <wsdl:output message="sds:SubscribeOrganizationResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeSubscribeOrganization">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate, SUA Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SynchronizeSubscribeOrganizationRequest"/>
+            <wsdl:output message="sds:SynchronizeSubscribeOrganizationResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="RegisterOrganizationAuthentication">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:RegisterOrganizationAuthenticationRequest"/>
+            <wsdl:output message="sds:RegisterOrganizationAuthenticationResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeRegisterOrganizationAuthentication">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:SynchronizeRegisterOrganizationAuthenticationRequest"/>
+            <wsdl:output message="sds:SynchronizeRegisterOrganizationAuthenticationResponse"/>
+            <wsdl:fault message="sds:SalaryDeclarationFault" name="SalaryDeclarationFault"/>
+        </wsdl:operation>
+        <wsdl:operation name="CheckInteroperability">
+            <wsdl:documentation>This operation must be signed by: ERP Certificate</wsdl:documentation>
+            <wsdl:input message="sds:CheckInteroperabilityRequest"/>
+            <wsdl:output message="sds:CheckInteroperabilityResponse"/>
+        </wsdl:operation>
+        <wsdl:operation name="Ping">
+            <wsdl:documentation>This operation must be signed by: None</wsdl:documentation>
+            <wsdl:input message="sds:PingRequest"/>
+            <wsdl:output message="sds:PingResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="SalaryDeclarationSOAPBinding" type="sds:SalaryDeclarationPort">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="DeclareAnnualSalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="GetStatusFromDeclareAnnualSalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeDeclareAnnualSalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="DeclareMonthlySalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="GetStatusFromDeclareMonthlySalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeDeclareMonthlySalary">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="NotifyChanges">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeNotifyChanges">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SubscribeOrganization">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeSubscribeOrganization">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="RegisterOrganizationAuthentication">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="SynchronizeRegisterOrganizationAuthentication">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+            <wsdl:fault name="SalaryDeclarationFault">
+                <soap:fault name="SalaryDeclarationFault" use="literal"/>
+            </wsdl:fault>
+        </wsdl:operation>
+        <wsdl:operation name="CheckInteroperability">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="Ping">
+            <soap:operation soapAction="" style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+    <wsdl:service name="SalaryDeclarationService">
+        <wsdl:port binding="sds:SalaryDeclarationSOAPBinding" name="SalaryDeclarationService">
+            <soap:address location="https://distributor.swisscom.com/services/elm/SalaryDeclaration/V6"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

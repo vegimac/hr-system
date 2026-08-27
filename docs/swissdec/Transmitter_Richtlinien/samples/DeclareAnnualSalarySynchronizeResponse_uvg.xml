@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:SynchronizeDeclareAnnualSalaryResponse xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                                     xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                                     xmlns:c="urn:ch:swissdec:common:v3:20260306" >
+
+    <ep:ResponseContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:InstitutionName>Distributor</ep:InstitutionName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:ResponseID>ResponseID</ep:ResponseID>
+        <ep:RequestID>RequestID</ep:RequestID>
+    </ep:ResponseContext>
+
+    <sdc:SynchronizeDeclareAnnualSalaryConsumer>
+        <ep:AddresseeContext>
+            <ep:UserAgent>
+                <ep:Producer>Swissdec</ep:Producer>
+                <ep:Name>Receiver</ep:Name>
+                <ep:Version>20250403</ep:Version>
+                <ep:StandardVersion>6.0</ep:StandardVersion>
+                <ep:Certificate>n/a</ep:Certificate>
+            </ep:UserAgent>
+            <ep:InstitutionName>InstitutionName</ep:InstitutionName>
+            <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+            <ep:ResponseID>ResponseID</ep:ResponseID>
+            <ep:RequestID>RequestID</ep:RequestID>
+            <ep:ProducerResponseNotifications/>
+        </ep:AddresseeContext>
+        <sdc:Addressee>
+            <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+        </sdc:Addressee>
+        <sdc:Case>
+            <sdc:CaseContext>
+
+                <ep:Credentials>
+                    <ep:Key>Key</ep:Key>
+                    <ep:Password>Password</ep:Password>
+                </ep:Credentials>
+                <sdc:DeclarationID>DeclarationID</sdc:DeclarationID>
+            </sdc:CaseContext>
+            <sdc:State>Accepted</sdc:State>
+            <sdc:Completion>
+                <ep:Creation>2025-03-13T12:00:00.000+01:00</ep:Creation>
+                <ep:StoryID>StoryID</ep:StoryID>
+                <ep:Completion>
+                    <ep:Url>httpo</ep:Url>
+                    <ep:ExpiryDate>2025-03-13T12:00:00.000+01:00</ep:ExpiryDate>
+                </ep:Completion>
+            </sdc:Completion>
+        </sdc:Case>
+    </sdc:SynchronizeDeclareAnnualSalaryConsumer>
+    
+
+</sdst:SynchronizeDeclareAnnualSalaryResponse>

@@ -1,0 +1,2918 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    State of Standardization: PROPOSAL
+    Version: 1.0-20260306
+    Schema Revision: 20260306
+    Buildnumber: 66c067f3b3
+-->
+<xs:schema targetNamespace="urn:ch:swissdec:basis:v1:20260306:components"
+           xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified" attributeFormDefault="unqualified" version="0.0">
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SERVICE TYPES @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="PingRequestType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="SystemDateTime" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Aktuelle Systemzeit</translation>
+                        <short>Aktuelle Systemzeit</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Temps du système actuelle</translation>
+                        <short>Temps du système actuelle</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Tempo di sistema attuale</translation>
+                        <short>Tempo di sistema attuale</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!-- MonitoringID: acts as identifier for writing and accessing
+                monitoring information in/from a reference application
+                (related to testing and certification) -->
+            <xs:element name="MonitoringID" type="ep:MonitoringIDType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PingResponseType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="SystemDateTime" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Aktuelle Systemzeit</translation>
+                        <short>Aktuelle Systemzeit</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Temps du système actuelle</translation>
+                        <short>Temps du système actuelle</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Tempo di sistema attuale</translation>
+                        <short>Tempo di sistema attuale</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CheckInteroperabilityRequestType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <!-- use following UmlautString: ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ -->
+            <xs:element name="UmlautString" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Anordnung von Umlauten</translation>
+
+                        <short>Anordnung von Umlauten zum Testen des Encodings bei Sonderzeichen.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Chaîne de caracères spéciaux</translation>
+
+                        <short>Arrangement des trémas pour tester l'encodage des caractères spéciaux.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>stringa con dieresi</translation>
+
+                        <short>Disposizione delle lettere con dieresi per testare la codifica dei caratteri speciali.
+                        </short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!-- use following value for the FirstOperand: 999000000000.00 (999 milliards)-->
+            <!-- verwende folgenden Wert als FirstOperand: 999000000000.00 (999 Milliarden)-->
+            <xs:element name="FirstOperand" type="ep:SalaryAmountType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>1. vorgegebene Testgrösse</translation>
+
+                        <short>
+                            1. Operand wird mit 2. Operand zusammengerechnet zum Testen, dass keine Datentyp-Fehler
+                            passieren.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>1. taille d'essai spécifiée</translation>
+
+                        <short>
+                            1. L'opérande est ajoutée avec 2. L'opérande pour vérifier qu'aucune erreur de type de
+                            données ne se produit.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>1. dimensione di prova specificata</translation>
+
+                        <short>
+                            1. L'operando viene aggiunto con 2. L'operando per verificare che non ci siano errori di
+                            tipo
+                            i dati non si verificano.
+                        </short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SecondOperand" type="ep:SalaryAmountType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>2. vorgegebene Testgrösse</translation>
+
+                        <short>
+                            2. Operand wird mit 1. Operand zusammengerechnet zum Testen, dass keine Datentyp-Fehler
+                            passieren.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>2. taille d'essai spécifiée</translation>
+
+                        <short>
+                            La 2ᵉ opérande est ajoutée avec la 1ᵉre opérande pour vérifier qu'aucune erreur de
+                            type de données ne se produit.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>2. dimensione di prova specificata</translation>
+
+                        <short>
+                            Il 2° operando viene aggiunto con il 1° operando per verificare che non ci siano errori
+                            di
+                            il tipo di dati non si verifica.
+                        </short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SystemDateTime" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Aktuelle Systemzeit</translation>
+                        <short>Aktuelle Systemzeit</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Temps du système actuelle</translation>
+                        <short>Temps du système actuelle</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Tempo di sistema attuale</translation>
+                        <short>Tempo di sistema attuale</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!-- MonitoringID: acts as identifier for writing and accessing
+                monitoring information in/from a reference application
+                (related to testing and certification) -->
+            <xs:element name="MonitoringID" type="ep:MonitoringIDType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CheckInteroperabilityResponseType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <!-- we expect following string as value of UmlautString: äëöüáéóúàèòùâêôû -->
+            <xs:element name="UmlautStringIsCorrect" type="ep:SimpleBooleanType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Prüfung des UmlautStrings</translation>
+                        <short>Ergebnis der Prüfung des UmlautStrings</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Vérification de la chaîne avec umlaut</translation>
+                        <short>Résultat de la vérification de la chaîne Umlaut</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Controllo della stringa con dieresi</translation>
+                        <short>Risultato della verifica della stringa con dieresi</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!-- expected are 999000000000.00 (999 billions) -->
+            <!-- erwartet werden 999000000000.00 (999 Milliarden) -->
+            <xs:element name="FirstOperandIsCorrect" type="ep:SimpleBooleanType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Prüfung des ersten Operands</translation>
+                        <short>Ergebnis des Vergleichs der Operanden</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Vérification de la première opérande</translation>
+                        <short>Résultat de la comparaison des opérandes</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Controllo del primo operando</translation>
+                        <short>Risultato della comparazione degli operandi</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="UmlautString" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Anordnung von Umlauten</translation>
+
+                        <short>Anordnung von Umlauten zum Testen des Encodings bei Sonderzeichen.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Chaîne de caracères spéciaux</translation>
+
+                        <short>Arrangement des trémas pour tester l'encodage des caractères spéciaux.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>stringa con dieresi</translation>
+
+                        <short>Disposizione delle lettere con dieresi per testare la codifica dei caratteri speciali.
+                        </short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="AdditionResult" type="ep:SalaryAmountType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Ergebnis der Addition</translation>
+                        <short>Summe der beiden Operanden des Interoperabilitätstests</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>résultat de l'addition</translation>
+                        <short>Somme des deux opérandes du test d'interopérabilité</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>risultato dell'addizione</translation>
+                        <short>Somma dei due operandi del test di interoperabilità</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SubtractionResult" type="ep:SalaryAmountType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Ergebnis der Substraktion</translation>
+                        <short>Ergebnis des Substraktionstests in der Interoperabilitätsprüfung</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>résultat de la soustraction</translation>
+                        <short>Résultat du test de soustraction dans le cadre du test d'interopérabilité</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Risultato della sottrazione</translation>
+                        <short>Risultato del test di sottrazione nell'esame di interoperabilità</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="SystemDateTime" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Aktuelle Systemzeit</translation>
+                        <short>Aktuelle Systemzeit</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Temps du système actuelle</translation>
+                        <short>Temps du système actuelle</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Tempo di sistema attuale</translation>
+                        <short>Tempo di sistema attuale</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="InitialResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:sequence>
+                    <xs:element name="JobKey" type="ep:JobKeyType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="GetStatusRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="JobKey" type="ep:JobKeyType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SERVICE BASE TYPES @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="RequestType">
+        <xs:sequence>
+            <xs:element name="RequestContext" type="ep:RequestContextType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ResponseType">
+        <xs:sequence>
+            <xs:element name="ResponseContext" type="ep:ResponseContextType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AddresseeResponseType">
+        <xs:sequence>
+            <xs:element name="AddresseeContext" type="ep:AddresseeResponseContextType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Kontextangaben zum Adressaten</translation>
+                        <short>Kontextangaben zum Adressaten</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations contextuelles sur le destinataire</translation>
+                        <short>Informations contextuelles sur le destinataire</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni contestuali sul destinatario</translation>
+                        <short>Informazioni contestuali sul destinatario</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="GetStatusResponseType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:sequence>
+                    <xs:element name="JobFinished" type="ep:SimpleBooleanType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="SynchronizeRequestType">
+        <xs:complexContent>
+            <xs:extension base="ep:RequestType">
+                <xs:sequence>
+                    <xs:element name="Sender" type="ep:CompanyUIDType">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Absender</translation>
+                                <short>Absender der übermittelten Informationen</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Expéditeur</translation>
+                                <short>Expéditeur des informations transmises</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Mittente</translation>
+                                <short>Mittente delle informazioni trasmesse</short>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="RequestContextType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Kontext der Anfrage</translation>
+                <short>Der RequestContext enthält Informationen zum Zeitpunkt der Übermittlung, dem Absender und der
+                    Sprache.
+                </short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Contexte de la demande</translation>
+                <short>Le RequestContext contient des informations sur le moment de la transmission, l'expéditeur et le
+                    language.
+                </short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Contesto della richiesta</translation>
+                <short>Il RequestContext contiene informazioni relative al momento della trasmissione, al mittente e
+                    alla lingua.
+                </short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="CompanyName" type="ep:NotEmptyStringType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Unternehmensdaten</translation>
+
+                        <short>Beschreibung der wesentlichen Unternehmensdaten</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Nom de l'entreprise</translation>
+
+                        <short>Description des données clés de l'entreprise</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Nome dell'azienda</translation>
+
+                        <short>Descrizione dei principali dati aziendali</short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="TransmissionDate" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Übertragungszeitpunkt</translation>
+                        <short>Übertragungszeitpunkt</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Date et Temps de transmission</translation>
+                        <short>Date et Temps de transmission</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Data e ora di trasmissione</translation>
+                        <short>Data e ora di trasmissione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="RequestID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>AuftragsID</translation>
+                        <short>AuftragsID</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identificateur de la demande</translation>
+                        <short>Identificateur de la demande</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Identificatore di applicazione</translation>
+                        <short>Identificatore di applicazione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="LanguageCode" type="ep:LanguageCodeType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Sprachcode</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Code de langage</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Codice lingua</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="MonitoringID" type="ep:MonitoringIDType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Monitoring Identifikation</translation>
+                        <technical>Monitoring Identifikation</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identification de surveillance</translation>
+                        <technical>Identification de surveillance</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Monitoraggio Identificazione</translation>
+                        <technical>Monitoraggio Identificazione</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ResponseContextType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Kontext der Antwort</translation>
+                <short>Der ResponseContext enthält Informationen zum Zeitpunkt der Übermittlung, dem Absender und der
+                    Sprache.
+                </short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Contexte de la réponse</translation>
+                <short>Le ResponseContext contient des informations sur le moment de la transmission, l'expéditeur et le
+                    language.
+                </short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Contesto della risposta</translation>
+                <short>Il ResponseContext contiene informazioni relative al momento della trasmissione, al mittente e
+                    alla lingua.
+                </short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="InstitutionName" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Institutionsname</translation>
+                        <short>Institutionsname</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Nom de l'institution</translation>
+                        <short>Nom de l'institution</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Nome dell'istituzione</translation>
+                        <short>Nome dell'istituzione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="TransmissionDate" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Übertragungszeitpunkt</translation>
+                        <short>Übertragungszeitpunkt</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Date et Temps de transmission</translation>
+                        <short>Date et Temps de transmission</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Data e ora di trasmissione</translation>
+                        <short>Data e ora di trasmissione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="ResponseID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>AntwortID</translation>
+                        <short>AntwortID</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identificateur de la réponse</translation>
+                        <short>Identificateur de la réponse</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Identificazione della risposta</translation>
+                        <short>Identificazione della risposta</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="RequestID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>AuftragsID</translation>
+                        <short>AuftragsID</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identificateur de la demande</translation>
+                        <short>Identificateur de la demande</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Identificatore di applicazione</translation>
+                        <short>Identificatore di applicazione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AddresseeResponseContextType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseContextType">
+                <xs:sequence>
+                    <xs:element name="ProducerResponseNotifications" type="ep:FeedbackNotificationsType">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Antwort vom Producer zurückgegeben</translation>
+                                <short>Antwort vom Producer zurückgegeben</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Réponse renvoyée par le producteur</translation>
+                                <short>Réponse renvoyée par le producteur</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Risposta fornita dal produttore</translation>
+                                <short>Risposta fornita dal produttore</short>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Warning" type="ep:NotificationsType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Warnung</translation>
+                                <short>Warnung wurde zurückgegeben</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Avertissement</translation>
+                                <short>Avertissement renvoyé</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Avviso</translation>
+                                <short>Avviso restituito</short>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Info" type="ep:NotificationsType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Information</translation>
+                                <short>Informationen wurden zurückgegeben</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Informations</translation>
+                                <short>Les informations ont été renvoyées.</short>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Informazioni</translation>
+                                <short>Le informazioni sono state restituite</short>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:group name="WorkingStateGroup">
+        <xs:choice>
+            <xs:element name="Ignored" type="ep:EmptyType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <short>Adresse ignoriert</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <short>Adresse ignorée</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <short>Indirizzo ignorato</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Processing" type="ep:EmptyType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Verarbeiten</translation>
+                        <short>System ist noch am Verarbeiten</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Traiter</translation>
+
+                        <short>Le système est en train de traiter</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Elaborazione</translation>
+
+                        <short>Il sistema è ancora in fase di elaborazione</short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Error" type="ep:ErrorResponseType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Fehler</translation>
+
+                        <short>Verarbeitung war nicht erfolgreich und es gab Fehler.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Erreur</translation>
+
+                        <short>Le traitement a échoué et il y avait des erreurs.</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Errore</translation>
+
+                        <short>L'elaborazione non ha avuto successo e ci sono stati degli errori.</short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:group>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ ADRESSEE TYPES @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="AddresseeType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <short>Informationen zum Adressaten</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <short>Informations sur le destinataire</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <short>Informazioni sul destinatario</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="AddresseeIdentification" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Identifikation des Adressaten</translation>
+                        <short>Identifikation des Adressaten</short>
+                        <domain>Identifikation des Adressaten</domain>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identification du destinataire</translation>
+                        <short>Identification du destinataire</short>
+                        <domain>Identification du destinataire</domain>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Identificazione del destinatario</translation>
+                        <short>Identificazione del destinatario</short>
+                        <domain>Identificazione del destinatario</domain>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AddresseeJobType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Adressierung der Endempfänger</translation>
+                <short>Adressierung der Endempfänger</short>
+                <technical>Auflistung der Endempfänger, die die übermittelten Daten erhalten sollen.</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Adressage des destinataires finaux</translation>
+                <short>Adressage des destinataires finaux</short>
+                <technical>Liste des destinataires finaux qui doivent recevoir les données transmises.</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Indirizzamento dei destinatari finali</translation>
+                <short>Indirizzamento dei destinatari finali</short>
+                <technical>Elenco dei destinatari finali che devono ricevere i dati trasmessi.</technical>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:AddresseeType">
+                <xs:sequence>
+                    <xs:element name="ProcessByDistributor" type="ep:SimpleBooleanType">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Verteilung durch Distributor</translation>
+                                <short>Verteilung durch Distributor</short>
+                                <technical>Dieses Flag entscheidet, ob an den Distributor übermittelte Daten von ihm
+                                    verarbeitet oder ignoriert werden sollen. Steht 'false', wird der Distributor
+                                    keine Verteilung vornehmen und die gesendeten Inhalte für diese Institution
+                                    ignorieren.
+                                </technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Distribution effectuée par le distributeur</translation>
+                                <short>Distribution effectuée par le distributeur</short>
+                                <technical>Cette balise détermine si les données transmises au distributeur doivent être
+                                    traitées
+                                    ou ignorées par celui-ci. S’il est défini sur « faux », le distributeur
+                                    n’effectuera aucune distribution et ignorera le contenu envoyé pour cette
+                                    institution.
+                                </technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Distribuzione da parte del distributore</translation>
+                                <short>Distribuzione da parte del distributore</short>
+                                <technical>Questo flag determina se i dati trasmessi al distributore devono essere
+                                    elaborati o ignorati.
+                                    Se impostato su “false”, il distributore
+                                    non effettuerà alcuna distribuzione e ignorerà i contenuti inviati a tale
+                                    istituzione.
+                                </technical>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+                <xs:attribute name="addresseeID" type="ep:InstanceRefIDType" use="required">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Referenz auf Adressat</translation>
+                            <short>Referenz auf Adressat</short>
+                            <domain>Referenz auf Adressat</domain>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Référence au destinataire</translation>
+                            <short>Référence au destinataire</short>
+                            <domain>Référence au destinataire</domain>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Riferimento al destinatario</translation>
+                            <short>Riferimento al destinatario</short>
+                            <domain>Riferimento al destinatario</domain>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:attribute>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ BUSINESS MESSAGE COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="UserNotificationType">
+        <xs:sequence>
+            <xs:element name="Name" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Name</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Nom</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Nome</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="EmailAddress" type="ep:EmailAddressType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Email Adresse</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Adresse mél</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>indirizzo e-mail</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="PhoneNumber" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Telefonnummer</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Numéro de téléphone</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Numero di telefono</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:simpleType name="JobKeyType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Eindeutiger Bezeichner für den Job</translation>
+                <short>Eindeutiger Bezeichner für den Job</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Identificateur unique pour la commande</translation>
+                <short>Identificateur unique pour la commande</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Identificatore unico per il lavoro</translation>
+                <short>Identificatore unico per il lavoro</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:minLength value="10"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SYNCHRONIZATOIN COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="CaseContextType">
+        <xs:complexContent>
+            <xs:extension base="ep:CaseContextBaseType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Fallkontext</translation>
+                        <short>Kontextinformationen zum SUA-Geschäftsfall</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>contexte du cas</translation>
+                        <short>Informations contextuelles relatives au cas SUA</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Contesto del caso</translation>
+                        <short>Informazioni contestuali relative al caso SUA</short>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:sequence>
+                    <xs:element name="Credentials" type="ep:CredentialsType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="CaseContextBaseType">
+        <xs:sequence>
+            <xs:element name="ReceivedStoryIDs" type="ep:ReceivedStoriesType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Empfangene StoryIDs</translation>
+                        <short>Die Empfangenen StoryIDs als Quittungsliste.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>StoryIDs reçus</translation>
+                        <short>Les StoryID reçus comme liste de reçus.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>StoryID ricevuti</translation>
+                        <short>Gli StoryID ricevuti come elenco di ricevute.</short>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:unique name="StoryID-Ctrl">
+                    <xs:selector xpath="ep:StoryID"/>
+                    <xs:field xpath="."/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="SuppressedSenderStoryIDs" type="ep:ReceivedStoriesType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <technical>Die StoryIDs des Senders, die vom Distributor unterdrückt wurden. Das kann bei
+                            Mapping-Problemen geschehen.
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <technical>Les StoryID de l'emmeteur qui ont été supprimés par le distributeur. Cela peut se
+                            produire en cas de problèmes de mappage.
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <technical>Gli StoryID dell'emittente che sono stati eliminati dal distributore. Ciò può
+                            verificarsi in caso di problemi di mappatura.
+                        </technical>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:unique name="SuppressedSenderStoryID-Ctrl">
+                    <xs:selector xpath="ep:StoryID"/>
+                    <xs:field xpath="."/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="SuppressedInstitutionStoryIDs" type="ep:ReceivedStoriesType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <technical>Die StoryIDs des Empfängers, die vom Distributor unterdrückt wurden. Das kann bei
+                            Mapping-Problemen geschehen.
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <technical>Les StoryID du destinataire supprimés par le distributeur. Cela peut se produire en
+                            cas de problèmes de mappage.
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <technical>Gli StoryID del destinatario soppressi dal distributore. Ciò può verificarsi in caso
+                            di problemi di mappatura.
+                        </technical>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:unique name="SuppressedInstitutionStoryID-Ctrl">
+                    <xs:selector xpath="ep:StoryID"/>
+                    <xs:field xpath="."/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="Warning" type="ep:StoryNotificationsType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Warnungen</translation>
+                        <short>Warnungen, die an den Producer / Transmitter zurückgeschickt werden.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Avertissement</translation>
+                        <short>Avertissement, qui sont renvoyés au producteur/transmetteur.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Avvertimenti</translation>
+                        <short>Avvertimenti, che vengono rispediti al produttore/trasmettitore.</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Info" type="ep:StoryNotificationsType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Informationen</translation>
+                        <short>Informationen, die an den Producer / Transmitter zurückgeschickt werden.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations</translation>
+                        <short>Informations, qui sont renvoyés au producteur/transmetteur.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni</translation>
+                        <short>Informazioni, che vengono rispediti al produttore/trasmettitore.</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ReceivedStoriesType">
+        <xs:sequence>
+            <xs:element name="StoryID" type="ep:IDType" minOccurs="1" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="StoryBaseType">
+        <xs:sequence>
+            <xs:element name="Creation" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Erstellung</translation>
+                        <short>Zeitpunkt der Erstellung der Story</short>
+                        <technical>Zeitpunkt der Erstellung der Story</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Création</translation>
+                        <short>Date de création de la story</short>
+                        <technical>Date de création de la story</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Creazione</translation>
+                        <short>Data di creazione della storia</short>
+                        <technical>Data di creazione della storia</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="StoryID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>StoryID</translation>
+                        <short>Eindeutige Identifikation der Story</short>
+                        <technical>Eindeutige Identifikation der Story</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>StoryID</translation>
+                        <short>Identification unique de la story</short>
+                        <technical>Identification unique de la story</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>StoryID</translation>
+                        <short>Identificazione univoca della storia</short>
+                        <technical>Identificazione univoca della storia</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="BooleanStoryType">
+        <xs:complexContent>
+            <xs:extension base="ep:StoryBaseType">
+                <xs:sequence>
+                    <xs:element name="Valid" type="xs:boolean">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <short>Wahrheitswert (true/false)</short>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="NotificationsStoryType">
+        <xs:complexContent>
+            <xs:extension base="ep:StoryBaseType">
+                <xs:sequence>
+                    <xs:element name="Notifications" type="ep:NotificationsType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="AwaitPartControlType">
+        <xs:sequence>
+            <xs:element name="ExpirationDate" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CompanyUIDType">
+        <xs:sequence>
+            <xs:element name="UID-BFS" type="ep:UID-BFS-UnknownType"/>
+            <xs:element name="DelegateUID-BFS" type="ep:UID-BFSType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="UID-BFS-UnknownType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Unternehmens UID-BFS</translation>
+                <short>Unternehmens-Identifikationsnummer / UID-BFS</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Numéro d’identification IDE-OFS</translation>
+                <short>Numéro d’identification d’entreprise / IDE-OFS</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Numero d'identificazione IDI-UST</translation>
+                <short>Numero d'identificazione delle imprese (IDI-UST)</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:choice>
+            <xs:element name="UID" type="ep:UID-BFSType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Unternehmens UID-BFS</translation>
+                        <short>Unternehmens-Identifikationsnummer / UID-BFS</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Numéro d’identification IDE-OFS</translation>
+                        <short>Numéro d’identification d’entreprise / IDE-OFS</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Numero d'identificazione IDI-UST</translation>
+                        <short>Numero d'identificazione delle imprese / IDI-UST</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Unknown" type="ep:EmptyType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>unbekannt</translation>
+                        <short>Unbekannt:
+
+                            Bei der Meldung mit "Unknown" handelt es sich um einen Spezialfall. Es ist wichtig, dass
+                            dies nur im Ausnahmefall verwendet wird.
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>inconnu</translation>
+                        <short>Inconnu :
+
+                            Dans le cas d'une déclaration avec "Unknown", il s'agit d'un cas particulier. Il est
+                            important que cela ne soit utilisé que pour des exceptions.
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>sconosciuto</translation>
+                        <short>Sconosciuto:
+
+                            Nel caso di una dichiarazione con "Unknown", si tratta di un caso speciale. È importante che
+                            ciò venga utilizzato solo in via eccezionale.
+                        </short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+    <xs:simpleType name="UID-BFSType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Unternehmens UID-BFS Typ</translation>
+                <short>Unternehmens UID-BFS Typ</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Type Numéro d’identification IDE-OFS</translation>
+                <short>Type Numéro d’identification IDE-OFS</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Numero d'identificazione IDI-UST</translation>
+                <short>Numero d'identificazione IDI-UST</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:pattern value="CHE-[0-9]{3}\.[0-9]{3}\.[0-9]{3}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="CompletionType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <short>Informationen zur Freigabe der Daten.</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <short>Informations à la libération des données.</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <short>Informazioni sul rilascio dei dati.</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:StoryBaseType">
+                <xs:sequence>
+                    <xs:element name="Completion" type="ep:AccessInformationType">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Komplettierungsinformation</translation>
+                                <short>Information zur Komplettierung und Freigabe der Meldung</short>
+                                <technical>Information zur Komplettierung und Freigabe der Meldung</technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Informations concèrnant le complètement</translation>
+                                <short>Informations concèrnant le complètement et la libération de l'avis</short>
+                                <technical>Informations concèrnant le complètement et la libération de l'avis</technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Informazioni sulla completa</translation>
+                                <short>Informazioni sulla compilazione e sul rilascio del bando</short>
+                                <technical>Informazioni sulla compilazione e sul rilascio del bando</technical>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Credentials" type="ep:ResultType" minOccurs="0"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="AccessInformationType">
+        <xs:sequence>
+            <xs:element name="Url" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>URL</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>URL</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>URL</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="ExpiryDate" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Ablaufdatum</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Échéance</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Data di scadenza</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ DIALOG MESSAGE COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="DialogMessageType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <technical>Semistrukturierte Daten für Dialog zwischen den Fall-Teilnehmern.</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <technical>Données semi-structurées pour le dialogue entre les participants du cas.</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <technical>Dati semi-strutturati per il dialogo tra i partecipanti al caso.</technical>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:complexContent>
+            <xs:extension base="ep:StoryBaseType">
+                <xs:sequence>
+                    <xs:element name="StandardDialogID" type="ep:StandardFormIDType">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Standard Dialog ID</translation>
+                                <technical>Standard Dialog ID</technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>ID de dialogue standard</translation>
+                                <technical>ID de dialogue standard</technical>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>ID dialogo standard</translation>
+                                <technical>ID dialogo standard</technical>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Previous" type="ep:PreviousType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Verbindung mit vorhergehender Story</translation>
+
+                                <short>Es besteht aber immer die Möglichkeit eine DialogMessage zusätzlich
+                                    mit einer vorhergehenden «Previous» Story zu verbinden.
+                                </short>
+
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Lien vers le story précédent</translation>
+
+                                <short>Cependant, il est toujours possible de lier un message DialogMessage à un
+                                    story "Previous" précédent.
+                                </short>
+
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Link alla storia precedente</translation>
+
+                                <short>Tuttavia, è ancora possibile collegare un DialogMessage a un
+                                    storia precedente "Previous".
+                                </short>
+
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Title" type="ep:IDType" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Titel</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Titre</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Titolo</translation>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Description" type="xs:token" minOccurs="0">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Beschreibung</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Description</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Descrizione</translation>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Paragraph" type="ep:ParagraphType" maxOccurs="unbounded">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Paragraph</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>paragraphe</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>paragrafo</translation>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                    <xs:element name="Section" type="ep:SectionType" minOccurs="0" maxOccurs="unbounded">
+                        <xs:annotation>
+                            <xs:documentation xml:lang="de">
+                                <translation>Abschnitt</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="fr">
+                                <translation>Section</translation>
+                            </xs:documentation>
+                            <xs:documentation xml:lang="it">
+                                <translation>Sezione</translation>
+                            </xs:documentation>
+                        </xs:annotation>
+                    </xs:element>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="PreviousType">
+        <xs:choice>
+            <xs:element name="RequestStoryID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Anforderung Story-Identifikation</translation>
+                        <short>Anforderung Story-Identifikation</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Demande d'identification des stories</translation>
+                        <short>Demande d'identification des stories</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Richiesta Identificazione dei storie</translation>
+                        <short>Richiesta Identificazione dei storie</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="ResponseStoryID" type="ep:IDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Antwort Story-Identifikation</translation>
+                        <short>Antwort Story-Identifikation</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Réponse d'identification du story</translation>
+                        <short>Réponse d'identification du story</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Risposta Identificazione del Story</translation>
+                        <short>Risposta Identificazione del Story</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+    </xs:complexType>
+    <xs:complexType name="ParagraphType">
+        <xs:sequence>
+            <!-- short to create an order -->
+            <xs:element name="ID" type="xs:short">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Identifikation</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Identification</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Identificazione</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Label" type="xs:token"/>
+            <xs:choice>
+                <xs:element name="Value" type="ep:ParagraphValueType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Absatz Inhalt</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Contenu du paragraphe</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Paragrafo Contenuto</translation>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="Answer" type="ep:ParagraphAnswerType" minOccurs="0">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Antwort</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Réponse</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Rispondi</translation>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="sectionIDRef" type="ep:InstanceRefIDType">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Referenz auf Abschnitt</translation>
+                    <short>Referenz auf Abschnitt</short>
+                    <domain>Referenz auf Abschnitt</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Référence à la section</translation>
+                    <short>Référence à la section</short>
+                    <domain>Référence à la section</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Riferimento alla sezione</translation>
+                    <short>Riferimento alla sezione</short>
+                    <domain>Riferimento alla sezione</domain>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:complexType name="ParagraphValueType">
+        <xs:choice>
+            <xs:element name="String" type="xs:string"/>
+            <xs:element name="Integer" type="xs:integer"/>
+            <xs:element name="Double" type="xs:double"/>
+            <xs:element name="Boolean" type="xs:boolean"/>
+            <xs:element name="Date" type="xs:date"/>
+            <xs:element name="DateTime" type="xs:dateTime"/>
+            <xs:element name="YesNoUnknown" type="ep:YesNoUnknownType"/>
+            <xs:element name="Amount" type="ep:SalaryAmountType"/>
+        </xs:choice>
+    </xs:complexType>
+    <xs:complexType name="ParagraphAnswerType">
+        <xs:sequence>
+            <xs:choice>
+                <xs:element name="String" type="ep:AnswerStringType"/>
+                <xs:element name="Integer" type="ep:AnswerIntegerType"/>
+                <xs:element name="Double" type="ep:AnswerDoubleType"/>
+                <xs:element name="Boolean" type="ep:AnswerBooleanType"/>
+                <xs:element name="Date" type="ep:AnswerDateType"/>
+                <xs:element name="DateTime" type="ep:AnswerDateTimeType"/>
+                <xs:element name="YesNoUnknown" type="ep:AnswerYesNoUnknownType"/>
+                <xs:element name="Amount" type="ep:AnswerAmountType"/>
+            </xs:choice>
+            <xs:element name="Problem" type="ep:NotEmptyStringType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Probleme</translation>
+
+                        <short>Probleme beim Beantworten mitteilen</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Problème</translation>
+
+                        <short>Signaler les problèmes lors de la réponse</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Problema</translation>
+
+                        <short>Segnalare i problemi quando si risponde</short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="optional" type="xs:boolean" use="optional" default="false">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>optionale Antwort</translation>
+
+                    <short>Kennzeichnung für eine optionale Antwort</short>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>réponse facultative</translation>
+
+                    <short>Marquage pour une réponse facultative</short>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>risposta opzionale</translation>
+
+                    <short>Marcatura per una risposta opzionale</short>
+
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:complexType name="AnswerStringType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:string" minOccurs="0"/>
+            <xs:element name="Value" type="xs:string" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerIntegerType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:integer" minOccurs="0"/>
+            <xs:element name="Value" type="xs:integer" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerDoubleType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:double" minOccurs="0"/>
+            <xs:element name="Value" type="xs:double" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerBooleanType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:boolean" minOccurs="0"/>
+            <xs:element name="Value" type="xs:boolean" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerDateType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:date" minOccurs="0"/>
+            <xs:element name="Value" type="xs:date" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerDateTimeType">
+        <xs:sequence>
+            <xs:element name="Default" type="xs:dateTime" minOccurs="0"/>
+            <xs:element name="Value" type="xs:dateTime" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerYesNoUnknownType">
+        <xs:sequence>
+            <xs:element name="Default" type="ep:YesNoUnknownType" minOccurs="0"/>
+            <xs:element name="Value" type="ep:YesNoUnknownType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="AnswerAmountType">
+        <xs:sequence>
+            <xs:element name="Default" type="ep:SalaryAmountType" minOccurs="0"/>
+            <xs:element name="Value" type="ep:SalaryAmountType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SectionType">
+        <xs:sequence>
+            <xs:element name="Heading" type="ep:IDType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Überschrift</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Rubrique</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Rubrica</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Description" type="xs:token" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Beschreibung</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Description</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Descrizione</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="sectionID" type="ep:InstanceRefIDType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Abschnitt Identifikation</translation>
+                    <short>Abschnitt Identifikation</short>
+                    <domain>Abschnitt Identifikation</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Identificateur Section</translation>
+                    <short>Identificateur Section</short>
+                    <domain>Identificateur Section</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Identificazione Sezione</translation>
+                    <short>Identificazione Sezione</short>
+                    <domain>Identificazione Sezione</domain>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:simpleType name="StandardFormIDType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Standard Formular ID</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Formulaire standard d'identification</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Formulario standard ID</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="ep:IDType">
+            <!-- notStandard oder ( ID: NNNN.NNNN.NNNN und Version: -NNN )" -->
+            <xs:pattern value="notStandard|[0-9]{4}\.[0-9]{4}\.[0-9]{4}-[0-9]{3}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="YesNoUnknownType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>ja, nein oder unbekannt</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>oui, non ou inconnu</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>sì, no o sconosciuto</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="yes"/>
+            <!-- 1 -->
+            <xs:enumeration value="no"/>
+            <!-- 2 -->
+            <xs:enumeration value="unknown"/>
+            <!-- 9 -->
+        </xs:restriction>
+    </xs:simpleType>
+
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ NOTIFICATIONS COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:group name="NotificationsGroup">
+        <xs:sequence>
+            <xs:element name="Notification" type="ep:NotificationType" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Hinweise</translation>
+                        <short>Hinweise</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Remarques</translation>
+                        <short>Remarques</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Note</translation>
+                        <short>Note</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:group>
+
+    <xs:complexType name="FeedbackNotificationsType">
+        <xs:sequence>
+            <xs:element name="Warning" type="ep:NotificationType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Warnungen</translation>
+                        <short>Warnungen, die an den Producer / Transmitter zurückgeschickt werden.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Avertissement</translation>
+                        <short>Avertissement, qui sont renvoyés au producteur/transmetteur.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Avvertimenti</translation>
+                        <translashorttion>Avvertimenti, che vengono rispediti al produttore/trasmettitore.
+                        </translashorttion>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Info" type="ep:NotificationType" minOccurs="0" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Informationen</translation>
+                        <short>Informationen, die an den Producer / Transmitter zurückgeschickt werden.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations</translation>
+                        <short>Informations, qui sont renvoyés au producteur/transmetteur.</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni</translation>
+                        <short>Informazioni, che vengono rispediti al produttore/trasmettitore.</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="NotificationsType">
+        <xs:sequence>
+            <xs:element name="Notification" type="ep:NotificationType" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Hinweis</translation>
+                        <short>Hinweis</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Remarque</translation>
+                        <short>Remarque</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Note</translation>
+                        <short>Note</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="NotificationType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Meldung</translation>
+                <short>Meldung</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Message</translation>
+                <short>Message</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Messagio</translation>
+                <short>Messagio</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="QualityLevel" type="ep:QualityLevelType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Qualitäts-Stufe</translation>
+                        <short>Qualitäts-Stufe</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Niveau de qualité</translation>
+                        <short>Niveau de qualité</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Livello di qualità</translation>
+                        <short>Livello di qualità</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="DescriptionCode" type="ep:DescriptionCodeType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Code der Beschreibung</translation>
+                        <short>Code der Beschreibung</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Code de la description</translation>
+                        <short>Code de la description</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Codice di descrizione</translation>
+                        <short>Codice di descrizione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Description" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Beschreibungstext</translation>
+                        <short>Beschreibungstext</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Description</translation>
+                        <short>Description</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Descrizione</translation>
+                        <short>Descrizione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="StoryNotificationsType">
+        <xs:sequence>
+            <xs:element name="Notification" type="ep:StoryNotificationType" maxOccurs="unbounded">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Hinweis</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Remarque</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Note</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="StoryNotificationType">
+        <xs:complexContent>
+            <xs:extension base="ep:NotificationType">
+                <xs:sequence>
+                    <xs:element name="StoryID" type="ep:IDType" minOccurs="0"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:simpleType name="QualityLevelType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Qualität-Stufen</translation>
+
+                <short>Qualität-Stufen der Übermittlung</short>
+                <technical>Folgende Stufen gelten
+                    Validity: erste Stufe;
+                    Plausibility: zweite Stufe;
+                    Acceptance: dritte Stufe;
+                    Comment: vierte Stufe;
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Niveaux de qualité</translation>
+
+                <short>Niveaux de qualité de la transmission</short>
+                <technical>Il existe les niveaux suivants:
+                    Validity: premier niveau;
+                    Plausibility: deuxième niveau;
+                    Acceptance: troisième niveau;
+                    Comment: quatrième niveau;
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Livelli di qualità</translation>
+
+                <short>Livelli di qualità della trasmissione</short>
+                <technical>Ci sono i seguenti livelli:
+                    Validity: primo livello;
+                    Plausibility: secondo livello;
+                    Acceptance: terzo livello;
+                    Comment: quarto piano;
+                </technical>
+
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="Validity"/>
+            <xs:enumeration value="Plausibility"/>
+            <xs:enumeration value="Acceptance"/>
+            <xs:enumeration value="Comment"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="DescriptionCodeType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Beschreibungscode</translation>
+
+                <technical>Severity: Information Code 9999 ist immer für Freitext reserviert.
+                    Die restlichen Codes sind dynamisch in AcknowledgementNotification
+                    spezifiziert.
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Code de la description</translation>
+
+                <technical>Severity: Information Le code 9999 est toujours réservé pour un
+                    texte libre. Le reste des codes sont spécifiés dynamique dans
+                    AcknowledgementNotification.
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Codice di descrizione</translation>
+
+                <technical>Severity: Informazioni Il codice 9999 è sempre riservato a un
+                    testo libero. Il resto dei codici sono specificati dinamicamente in
+                    RiconoscimentoNotifica.
+                </technical>
+
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:nonNegativeInteger">
+            <xs:totalDigits value="7"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SECURITY COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SHARED COMPLEX TYPES COMPONENTS @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="UserAgentType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Applikationsinformation</translation>
+                <short>
+                    Beschreibung der wesentlichen System-Identifikation-Daten
+                </short>
+                <technical>
+                    Zur Qualitätsicherung des Übermittlungsprozesses werden die wesentlichen Informationen
+                    der beteiligten gesichert
+                </technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Informations concernant l'application</translation>
+                <short>
+                    Description des données essentielles d'identification de système
+                </short>
+                <technical>
+                    Pour l'assurance de la qualité, les informations essentielles des participants
+                    sont sauvegardées.
+                </technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Informazioni sull'applicazione</translation>
+                <short>
+                    Descrizione dei dati essenziali per l'identificazione del sistema
+                </short>
+                <technical>
+                    Per garantire la qualità, le informazioni essenziali dei partecipanti
+                    sono salvati.
+                </technical>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Producer" type="ep:NotEmptyStringType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Applikations-Hersteller</translation>
+                        <short>Hersteller der Applikation</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Producteur de l'application</translation>
+                        <short>Producteur de l'application</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Produttore dell'applicazione</translation>
+                        <short>Produttore dell'applicazione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Name" type="ep:NotEmptyStringType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Produkt-Name</translation>
+                        <short>Name des Produktes + eventuelle Zusatzinformationen (Kauftransmitter, etc.)</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <short>Nom du produit + informations supplémentaires éventuelles (transmetteur externe,
+                            etc.)
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <short>Nome del prodotto + eventuali informazioni aggiuntive (trasmettitore esterno,
+                            ecc.)
+                        </short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Version" type="ep:NotEmptyStringType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Produkt-Version</translation>
+                        <short>Produkt-Version</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Version du produit</translation>
+                        <short>Version du produit</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Versione del prodotto</translation>
+                        <short>Versione del prodotto</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="StandardVersion" type="xs:decimal">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Swissdec Standard Version</translation>
+                        <short>Version des zertifizierten Standards.</short>
+                        <technical>Die Version des Standard-CH (z.b. ELM, KLE, SUA, usw.) nach der
+                            die Zertifizierung durchgeführt wurde.(z.B. 1.0)
+                            Achtung: Der Distributor kann zum Teil Versionen transformieren und wird dann
+                            automatisch eine tiefere Version setzen (z.B. 2.2).
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Swissdec Version standard</translation>
+                        <short>Version du standard certifié.</short>
+                        <technical>
+                            Version de la norme CH (par ex. ELM, KLE, SUA, etc.) selon laquelle la certification a été
+                            effectuée (par ex. 1.0).
+                            Attention : Le distributeur peut transformer partiellement des versions et regroupera
+                            automatiquement une version plus basse (par ex. 2.2).
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Swissdec Versione standard</translation>
+                        <short>Versione della norma certificata</short>
+                        <technical>
+                            Versione della norma CH (ad es. ELM, KLE, SUA, ecc.) Secondo la quale la certificazione è
+                            stata eseguito (ad es. 1.0).
+                            Attenzione: il distributore può convertire parzialmente le versioni e regolarle
+                            automaticamente una versione più bassa (p.es. 2.2).
+                        </technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Certificate" type="ep:NotEmptyStringType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Zertifikat</translation>
+                        <short>Zertifikatsnummer, xxxx.yy wie auf dem physischen Zertifikat abgebildet</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Certificat</translation>
+                        <short>Numéro de certificat, xxxx.yy, tel qu'indiqué sur le certificat physique</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Certificato</translation>
+                        <short>Numero del certificato, xxxx.yy come riportato sul certificato fisico</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ResultType">
+        <xs:sequence>
+            <xs:element name="Credentials" type="ep:CredentialsType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="CredentialsType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Berechtigungsnachweis</translation>
+                <short>Berechtigungsnachweis</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Preuve authorisation</translation>
+                <short>Preuve authorisation</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Prova di autorizzazione</translation>
+                <short>Prova di autorizzazione</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Key" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Schlüssel</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Clé</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Chiave</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Password" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Passwort</translation>
+                        <short>Passwort</short>
+                        <technical>Passwort</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Mot de passe</translation>
+                        <short>Mot de passe</short>
+                        <technical>Mot de passe</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Password</translation>
+                        <short>Password</short>
+                        <technical>Password</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="EmptyType"/>
+    <xs:complexType name="TimePeriodType">
+        <xs:sequence>
+            <xs:element name="from" type="xs:date">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>von</translation>
+                        <short>von Datum</short>
+                        <technical>von Datum</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>depuis</translation>
+                        <short>à partir de la date</short>
+                        <technical>à partir de la date</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>dalla</translation>
+                        <short>da data</short>
+                        <technical>da data</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="until" type="xs:date">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>bis</translation>
+                        <short>bis Datum</short>
+                        <technical>bis Datum</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>jusqu'à</translation>
+                        <short>à la date</short>
+                        <technical>à la date</technical>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>fino alla</translation>
+                        <short>fino alla data</short>
+                        <technical>fino alla data</technical>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ SHARED SIMPLE TYPES @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:simpleType name="IDType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="255"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="InstanceRefIDType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Instance Referenz ID</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Instance Reference ID</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Instance Reference ID</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="#.*"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="MonitoringIDType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>KontrollID</translation>
+
+                <short>Die MonitoringID erlaubt es, auf den Testsystemen Übermittlungen den Benutzern zuzuweisen.
+                    Sie ist in der Produktion überflüssig.
+                </short>
+                <technical>Die KontrollID wird vor allem in der Referenzapplikation zur Aufteilung der
+                    Daten verwendet
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Identificateur de controle</translation>
+
+                <short>Le MonitoringID permet d'attribuer des transmissions aux utilisateurs sur les systèmes de test.
+                    Il est superflu dans la production.
+                </short>
+                <technical>L'identificateur de controle est surtout utilisé dans l'application de
+                    référence pour le classement des données.
+                </technical>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Identificatore di controla</translation>
+
+                <short>Il MonitoringID consente di assegnare le trasmissioni agli utenti sui sistemi di test.
+                    Non è necessario in produzione.
+                </short>
+                <technical>L'identificatore di controla è utilizzato principalmente nell'applicazione di
+                    riferimento per la classificazione dei dati.
+                </technical>
+
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="32"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="NotEmptyStringType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="PercentType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Prozent</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Pourcent</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Percentuale</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:decimal">
+            <xs:pattern value="[0-9]+\.[0-9]{2}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="Max100PercentType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Prozent (maximal 100%)</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Pourcent (maximal 100%)</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Percentuale (maximal 100%)</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:decimal">
+            <xs:maxInclusive value="100.00"/>
+            <xs:pattern value="[0-9]+\.[0-9]{2}"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="SimpleBooleanType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>SimpleBoolean</translation>
+
+                <short>Boolean</short>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>SimpleBoolean</translation>
+
+                <short>Booléen</short>
+
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>SimpleBoolean</translation>
+
+                <short>Booleano</short>
+
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:boolean">
+            <xs:pattern value="true"/>
+            <xs:pattern value="false"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="LanguageCodeType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Sprachcode</translation>
+                <short>Sprachcode</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Code de langage</translation>
+                <short>Code de langage</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Codice lingua</translation>
+                <short>Codice lingua</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="de"/>
+            <xs:enumeration value="fr"/>
+            <xs:enumeration value="it"/>
+            <xs:enumeration value="en"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="EmailAddressType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Email Adresse</translation>
+                <short>Email Adresse</short>
+                <technical>Email Adresse</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Adresse mél</translation>
+                <short>Adresse mél</short>
+                <technical>Adresse mél</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>indirizzo e-mail</translation>
+                <short>indirizzo e-mail</short>
+                <technical>indirizzo e-mail</technical>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[^@]+@[^\.]+\..+"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="SalaryAmountType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>LohnbetragsTyp</translation>
+                <short>LohnbetragsTyp</short>
+                <technical>LohnbetragsTyp</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Type de montant de salaire</translation>
+                <short>Type de montant de salaire</short>
+                <technical>Type de montant de salaire</technical>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Tipo di salario</translation>
+                <short>Tipo di salario</short>
+                <technical>Tipo di salario</technical>
+            </xs:documentation>
+        </xs:annotation>
+        <!-- Todo: Regex can be simplified        -->
+        <xs:restriction base="xs:decimal">
+            <xs:pattern value="[\-]?[0-9]+\.[0-9]{2}"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ CONSUMER PING     @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+
+    <xs:complexType name="PingConsumerRequestType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="Timestamp" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Zeitstempel</translation>
+
+                        <short>
+                            Ein Zeitstempel (englisch timestamp) wird benutzt, um einem Ereignis einen eindeutigen
+                            Zeitpunkt zuzuordnen.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Horodatage</translation>
+
+                        <short>
+                            L'horodatage (en anglais timestamping) est un mécanisme qui consiste à associer une date
+                            et une heure à un événement, une information ou une donnée informatique. Il a
+                            généralement pour but d'enregistrer l'instant auquel une opération a été effectuée.
+                        </short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>data e ora</translation>
+
+                        <short>
+                            Il timestamping è un meccanismo che consiste nell'associare una data
+                            e l'ora di un evento, di un'informazione o di un dato informatico. Ha
+                            di solito per registrare l'ora in cui è stata eseguita un'operazione.
+                        </short>
+
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="NextCheck" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>nächste Überprüfung</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>prochain contrôle</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>prossima ispezione</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="RegisteredMaintenance" type="ep:RegisteredMaintenanceType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Registriertes Wartungsfenster</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Fenêtre de maintenance enregistrée</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Finestra di manutenzione registrata</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="RegisteredMaintenanceType">
+        <xs:sequence>
+            <xs:element name="Start" type="xs:dateTime"/>
+            <xs:element name="End" type="xs:dateTime"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PingConsumerResponseType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="Timestamp" type="xs:dateTime"/>
+            <xs:choice minOccurs="0">
+                <xs:element name="PlannedMaintenance" type="ep:PlannedMaintenanceType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Geplantes Wartungsfenster</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Fenêtre d'entretien planifié</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Finestra di manutenzione programmata</translation>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="NoPlannedMaintenance" type="ep:EmptyType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Kein Wartungsfenster geplant</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Aucune fenêtre d'entretien prévue</translation>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Nessuna finestra di manutenzione programmata</translation>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PlannedMaintenanceType">
+        <xs:sequence>
+            <xs:element name="Start" type="xs:dateTime"/>
+            <xs:element name="End" type="xs:dateTime"/>
+            <xs:element name="ProducerMessages" type="ep:ProducerMessagesType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Nachricht für den Transmitter</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Message pour le transmetteur</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Messaggio per il trasmettitore</translation>
+                    </xs:documentation>
+                </xs:annotation>
+                <xs:unique name="language">
+                    <xs:selector xpath="ep:Message"/>
+                    <xs:field xpath="@language"/>
+                </xs:unique>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="PlannedMaintenanceWindowType">
+        <xs:sequence>
+            <xs:element name="Start" type="xs:dateTime"/>
+            <xs:element name="End" type="xs:dateTime"/>
+            <xs:element name="Message" type="xs:string"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ProducerMessagesType">
+        <xs:sequence>
+            <xs:element name="Message" type="ep:MessageType" minOccurs="3" maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="MessageType">
+        <xs:simpleContent>
+            <xs:extension base="xs:string">
+                <xs:attribute name="language" type="ep:LanguageCodeType" use="required"/>
+            </xs:extension>
+        </xs:simpleContent>
+    </xs:complexType>
+
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <!-- @@@@ CONSUMER CONTEXT  @@@@ -->
+    <!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+    <xs:complexType name="DistributorRequestContextType">
+        <xs:sequence>
+            <xs:element name="UserAgent" type="ep:UserAgentType"/>
+            <xs:element name="TransmissionDate" type="xs:dateTime">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Übertragungszeitpunkt</translation>
+                        <short>Übertragungszeitpunkt</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Date et Temps de transmission</translation>
+                        <short>Date et Temps de transmission</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Data e ora di trasmissione</translation>
+                        <short>Data e ora di trasmissione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="DistributorRequestID" type="ep:IDType"/>
+            <xs:element name="VersionMappingFrom" type="ep:VersionMappingFromType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Versionsabbildung von</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Version Mapping de</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Versione Mappatura Da</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="ProducerSecurityTokens" type="ep:ProducerSecurityTokensType">
+                <xs:unique name="X509CertificateID">
+                    <xs:selector xpath="ep:X509Certificate"/>
+                    <xs:field xpath="@X509CertificateID"/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="SignatureCertificateUID-BFS" type="ep:SignatureCertificateUID-BFSType" minOccurs="0"/>
+            <xs:element name="ProducerResponseNotifications" type="ep:FeedbackNotificationsType"/>
+            <xs:element name="ConsumerNotifications" type="ep:FeedbackNotificationsType" minOccurs="0"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SignatureCertificateUID-BFSType">
+        <xs:sequence>
+            <xs:element name="CommonName" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Common Name</translation>
+
+                        <technical>
+                            NTRCH-{UID-BFS}@swissdec.ch
+                            mit Beispiel:
+                            NTRCH-CHE-123.456.789@swissdec.ch
+                        </technical>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Common Name</translation>
+
+                        <technical>
+                            NTRCH-{UID-BFS}@swissdec.ch
+                            à titre d'exemple
+                            NTRCH-CHE-123.456.789@swissdec.ch
+                        </technical>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Common Name</translation>
+
+                        <technical>
+                            NTRCH-{UID-BFS}@swissdec.ch
+                            a titolo di esempio:
+                            NTRCH-CHE-123.456.789@swissdec.ch
+                        </technical>
+
+                    </xs:documentation>
+                    <xs:documentation>
+                        <usage>all</usage>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="UID" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>UID</translation>
+
+                        <technical>
+                            UID Nr. nach BFS UID-Register
+                            OID Object Identifier (2.5.4.97)
+                            mit Beispiel
+                            NTRCH-CHE-123.456.789
+                        </technical>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>UID</translation>
+
+                        <technical>
+                            UID Nr. selon le registre UID du OFS
+                            OID Object Identifier (2.5.4.97)
+                            mit Beispiel
+                            NTRCH-CHE-123.456.789
+                        </technical>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>UID</translation>
+
+                        <technical>
+                            UID Nr. secondo il registro UID UST
+                            OID Object Identifier (2.5.4.97)
+                            mit Beispiel
+                            NTRCH-CHE-123.456.789
+                        </technical>
+                    </xs:documentation>
+                    <xs:documentation>
+                        <usage>all</usage>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="X509CertificateIDRef" type="ep:InstanceRefIDType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>X509Certificate Identifikation Referenz</translation>
+                    <short>X509Certificate Identifikation Referenz</short>
+                    <domain>X509Certificate Identifikation Referenz</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Référence X509Certificate Identificateur</translation>
+                    <short>Référence X509Certificate Identificateur</short>
+                    <domain>Référence X509Certificate Identificateur</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Riferimento X509Certificate Identificazione</translation>
+                    <short>Riferimento X509Certificate Identificazione</short>
+                    <domain>Riferimento X509Certificate Identificazione</domain>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:complexType name="DuplicateType">
+        <xs:sequence>
+            <xs:element name="LastDistributorRequestID" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="SubstitutionMappingType">
+        <xs:sequence>
+            <xs:element name="MappedPredecessorDistributorRequestID" type="ep:IDType"/>
+            <xs:element name="MappedPredecessorConsumerResponseID" type="ep:IDType"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="VersionMappingFromType">
+        <xs:sequence>
+            <xs:element name="WSDLNamespace" type="xs:anyURI"/>
+            <xs:element name="ServiceTypesNamespace" type="xs:anyURI"/>
+            <xs:element name="MinorVersion" type="xs:decimal"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="ProducerSecurityTokensType">
+        <xs:sequence>
+            <xs:element name="Timestamp" type="xs:dateTime" maxOccurs="unbounded"/>
+            <xs:element name="X509Certificate" type="ep:X509CertificateType"
+                        maxOccurs="unbounded"/>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:complexType name="X509CertificateType">
+        <xs:sequence>
+            <xs:element name="Usage" type="ep:UsageType"/>
+            <xs:element name="DistinguishedNameOwner" type="xs:string"/>
+            <xs:element name="DistinguishedNameIssuer" type="xs:string"/>
+            <xs:element name="SecuredElement" type="xs:string" maxOccurs="unbounded"/>
+            <xs:element name="PEM" type="xs:base64Binary"/>
+        </xs:sequence>
+        <xs:attribute name="X509CertificateID" type="ep:InstanceRefIDType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>X509Certificate Identifikation</translation>
+                    <short>X509Certificate Identifikation</short>
+                    <domain>X509Certificate Identifikation</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Identificateur X509Certificate</translation>
+                    <short>Identificateur X509Certificate</short>
+                    <domain>Identificateur X509Certificate</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Identificazione X509Certificate</translation>
+                    <short>Identificazione X509Certificate</short>
+                    <domain>Identificazione X509Certificate</domain>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <xs:simpleType name="UsageType">
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="Signature"/>
+            <xs:enumeration value="QualifiedSignature"/>
+            <xs:enumeration value="Encryption"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:complexType name="ErrorResponseType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Fehler</translation>
+                <short>Die Verarbeitung war nicht erfolgreich und es sind Fehler aufgetreten.</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Erreur</translation>
+                <short>Le traitement n'a pas abouti et des erreurs sont survenues.</short>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Errore</translation>
+                <short>L'elaborazione non è andata a buon fine e si sono verificati degli errori.</short>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="EndUserInformation" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Informationen zum Endnutzer</translation>
+                        <short>Informationen zum Endnutzer</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations sur l'utilisateur final</translation>
+                        <short>Informations sur l'utilisateur final</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni sull'utente finale</translation>
+                        <short>Informazioni sull'utente finale</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="DetailInformation" type="xs:string" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Informationen im Detail</translation>
+                        <short>Informationen im Detail</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations détaillées</translation>
+                        <short>Informations détaillées</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni dettagliate</translation>
+                        <short>Informazioni dettagliate</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:choice>
+                <xs:element name="FaultInformation" type="ep:ConsumerFaultType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Informationen zum Fehler</translation>
+                            <short>Informationen zum Fehler</short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Informations sur l'erreur</translation>
+                            <short>Informations sur l'erreur</short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Informazioni sull'errore</translation>
+                            <short>Informazioni sull'errore</short>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="PlannedMaintenance" type="ep:PlannedMaintenanceWindowType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>Geplante Wartung</translation>
+                            <short>Geplante Wartung</short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>Maintenance planifiée</translation>
+                            <short>Maintenance planifiée</short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>Manutenzione programmata</translation>
+                            <short>Manutenzione programmata</short>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="FaultType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <!-- Todo: Remove Sequence -->
+                <xs:sequence>
+                    <xs:choice>
+                        <xs:element name="Fault" type="ep:FaultStateType"/>
+                        <xs:element name="PlannedMaintenance" type="ep:PlannedMaintenanceWindowType"/>
+                    </xs:choice>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="ConsumerFaultType">
+        <xs:complexContent>
+            <xs:extension base="ep:ResponseType">
+                <xs:sequence>
+                    <xs:element name="FaultState" type="ep:FaultStateType"/>
+                </xs:sequence>
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+    <xs:complexType name="FaultStateType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Fehler Status</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Erreur État</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Stato di errore</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="Code" type="ep:FaultCodeType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Fehler-Status-Code</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Erreur: Code de l'état</translation>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Errore: Codice di stato</translation>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Error" type="ep:NotificationsType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Fehler</translation>
+                        <short>Fehler</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Erreur</translation>
+                        <short>Erreur</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Errore</translation>
+                        <short>Errore</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Warning" type="ep:NotificationsType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Warnungen</translation>
+                        <short>Warnungen</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Avertissement</translation>
+                        <short>Avertissement</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Attenzione</translation>
+                        <short>Attenzione</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="Info" type="ep:NotificationsType" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Informationen</translation>
+                        <short>Informationen</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Informations</translation>
+                        <short>Informations</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Informazioni</translation>
+                        <short>Informazioni</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+    </xs:complexType>
+    <xs:simpleType name="FaultCodeType">
+        <xs:annotation>
+            <xs:documentation xml:lang="de">
+                <translation>Fehler-Code</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="fr">
+                <translation>Code de l'erreur</translation>
+            </xs:documentation>
+            <xs:documentation xml:lang="it">
+                <translation>Codice di errore</translation>
+            </xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:NMTOKEN">
+            <xs:enumeration value="NOT_accepted"/>
+            <xs:enumeration value="NOT_plausible"/>
+            <xs:enumeration value="NOT_valid"/>
+        </xs:restriction>
+    </xs:simpleType>
+
+
+</xs:schema>

@@ -1,0 +1,731 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    State of Standardization: PROPOSAL
+    Version: 6.0-20260306
+    Schema Revision: 20260306
+    Buildnumber: ffdfc5424c
+-->
+<xs:schema xmlns:sdtab="urn:ch:swissdec:elm:v6:20260306:SalaryDeclarationTxAB"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           targetNamespace="urn:ch:swissdec:elm:v6:20260306:SalaryDeclarationTxAB"
+           elementFormDefault="qualified" attributeFormDefault="unqualified" version="0.0">
+
+    <!--
+         Include -->
+    <xs:include schemaLocation="ELMv6SalaryDeclaration_Tax_noNS.xsd"/>
+    <!--
+
+        elements -->
+    <xs:element name="T" type="sdtab:SalaryDeclarationTaxAccBcdType"/>
+    <!--
+
+        SalaryDeclaration Tax with 2dBarcode
+    -->
+    <xs:complexType name="SalaryDeclarationTaxAccBcdType">
+        <xs:sequence>
+            <!--
+                company data -->
+            <xs:element name="Company" type="sdtab:CompanyIDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Unternehmen</translation>
+
+                        <short>Unternehmensbeschreibung</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Entreprise</translation>
+
+                        <short>Description d'entreprise</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Azienda</translation>
+                        <short>Descrizione dell'azienda</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!--
+                person data -->
+            <xs:element name="PersonID" type="sdtab:PersonIDType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>PersonID</translation>
+
+                        <short>Identifikation der Person</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>PersonID</translation>
+
+                        <short>Identification de la Person</short>
+
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>PersonID</translation>
+                        <short>Identificazione della persona</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <!--
+                salary data -->
+            <xs:choice>
+                <!--
+                    text-recombine
+                    with namespace sd:http://www.swissdec.ch/schema/sd/20200220/SalaryDeclaration -->
+                <xs:element name="A" type="sdtab:TaxAnnuityType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>B: Rentenbescheinigung</translation>
+                            <short>Für Leistungen einer Vorsorgeeinrichtung aufgrund eines
+                                Rentenanspruchs
+                            </short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>B: Attestation de rente</translation>
+                            <short>pour les prestations d’une institution de prévoyance sur la base
+                                d’un droit à la rente
+                            </short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>B: attestazione delle rendite</translation>
+                            <short>per prestazioni di un'istituzione previdenziale in virtù di un
+                                diritto alla rendita
+                            </short>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="S" type="sdtab:TaxSalaryType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>A: Lohnausweis</translation>
+
+                            <short>Für Leistungen aufgrund eines Arbeitsverhältnisses</short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>A: Certificat de salaire</translation>
+                            <short>Pour les prestations sur la base d’un rapport de travail</short>
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>A: certificato di salario</translation>
+                            <short>Per le prestazioni in virtù di un rapporto di lavoro</short>
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="OA" type="sdtab:FormularAType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>MB: Detail Mitarbeiterbeteiligung</translation>
+
+                            <short>Als Beiblatt zum Lohnausweis bzw. zur QST-Abrechnung für Empfänger von
+                                geldwerten Leistungen aus Mitarbeiterbeteiligungen.
+                                Formular A: Für Mitarbeiteraktien und freie börsenkotierte
+                                Mitarbeiteroptionen.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>PC: Détail participation de collaborateur</translation>
+
+                            <short>comme feuille annexe au certificat de salaire, respectivement au décompte IS
+                                pour les bénéficiaires de prestations appréciables en argent issues de participations
+                                de collaborateur.
+                                Formulaire A : Pour les actions de collaborateurs et les options de
+                                collaborateur libres cotées en bourse.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>MB: dettaglio partecipazione di collaboratore</translation>
+
+                            <short>come allegato al certificato di salario ovvero al conteggio IF per
+                                beneficiari di
+                                prestazioni valutabili in denaro derivanti da partecipazioni di collaboratore.
+                                Modulo A: Opzioni di collaboratore quotate e liberamente
+                                negoziabili
+                            </short>
+
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="OB" type="sdtab:FormularBType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>MB: Detail Mitarbeiterbeteiligung</translation>
+
+                            <short>Als Beiblatt zum Lohnausweis bzw. zur QST-Abrechnung für Empfänger von
+                                geldwerten
+                                Leistungen aus Mitarbeiterbeteiligungen.
+                                Formular B: Bei vorzeitigem Wegfall der Sperrfrist oder bei Rückgabe von
+                                Mitarbeiteraktien.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>PC: Détail participation de collaborateur</translation>
+
+                            <short>comme feuille annexe au certificat de salaire, respectivement au décompte IS
+                                pour
+                                les bénéficiaires de prestations appréciables en argent issues de participations
+                                de collaborateur.
+                                Formulaire B : En cas de suppression anticipée du délai de blocage ou en cas
+                                de restitution d’actions de collaborateur.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>MB: dettaglio partecipazione di collaboratore</translation>
+
+                            <short>come allegato al certificato di salario ovvero al conteggio IF per
+                                beneficiari di
+                                prestazioni valutabili in denaro derivanti da partecipazioni di collaboratore.
+                                Modulo B: In caso di fine anticipata del termine di attesa o di
+                                restituzione di azioni di collaboratore.
+                            </short>
+
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+                <xs:element name="OC" type="sdtab:FormularCType">
+                    <xs:annotation>
+                        <xs:documentation xml:lang="de">
+                            <translation>MB: Detail Mitarbeiterbeteiligung</translation>
+
+                            <short>Als Beiblatt zum Lohnausweis bzw. zur QST-Abrechnung für Empfänger von
+                                geldwerten Leistungen aus Mitarbeiterbeteiligungen.
+                                Formular C: Für übrige Mitarbeiteroptionen, Anwartschaften auf
+                                Mitarbeiteraktien oder unechte Mitarbeiterbeteiligungen.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="fr">
+                            <translation>PC: Détail participation de collaborateur</translation>
+
+                            <short>comme feuille annexe au certificat de salaire, respectivement au décompte IS
+                                pour
+                                les bénéficiaires de prestations appréciables en argent issues de participations
+                                de collaborateur.
+                                Formulaire C : Pour d’autres options de collaborateur, prétentions sur les
+                                actions de collaborateurs ou participations impropres de collaborateurs.
+                            </short>
+
+                        </xs:documentation>
+                        <xs:documentation xml:lang="it">
+                            <translation>MB: dettaglio partecipazione di collaboratore</translation>
+
+                            <short>come allegato al certificato di salario ovvero al conteggio IF per
+                                beneficiari di
+                                prestazioni valutabili in denaro derivanti da partecipazioni di collaboratore.
+                                Modulo C: Per altre opzioni di collaboratore, aspettative su azioni al
+                                collaboratore o partecipazioni dei collaboratori improprie.
+                            </short>
+
+                        </xs:documentation>
+                    </xs:annotation>
+                </xs:element>
+            </xs:choice>
+        </xs:sequence>
+        <xs:attribute name="SID" type="sdtab:SIDType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>SystemID</translation>
+
+                    <short>SystemID, Kennzeichen des Herstellers</short>
+                    <technical>Die SystemID wird während der Zertifizierung definiert und durch swissdec
+                        verwaltet und publiziert.
+                    </technical>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>SystemID</translation>
+
+                    <short>SystemID, Identification du développeur</short>
+                    <technical>Le SystemID est défini pendant la certification. Il est
+                        administré et publié par swissdec.
+                    </technical>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>SystemID</translation>
+                    <short>SystemID, segno distintivo del produttore</short>
+                    <technical>L'identificativo di sistema viene definito durante la certificazione e gestito e pubblicato da Swissdec.
+                    </technical>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="SysV" type="sdtab:SysVType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>SystemVersion</translation>
+
+                    <short>SystemVersion</short>
+                    <technical>Die SystemVersion wird durch den Hersteller gepflegt. In Problemfällen wird
+                        damit die Suche nach der Ursache eingegrenzt.
+                    </technical>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>SystemVersion</translation>
+
+                    <short>SystemVersion</short>
+                    <technical>SystemVersion est administré par le développeur. Au cas de
+                        problèmes, la vérsion aide à analyser la cause de l'erreur.
+                    </technical>
+
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>SystemVersion</translation>
+                    <short>SystemVersion</short>
+                    <technical>La versione del sistema viene curata dal produttore. In caso di problemi,
+                        questo permette di restringere la ricerca della causa.
+                    </technical>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <!--
+        CompanyType -->
+    <xs:complexType name="CompanyIDType">
+        <xs:attribute name="UID-BFS" type="sdtab:UID-BFSType" use="optional">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Unternehmensidentifikation</translation>
+                    <short>Unternehmensidentifikation nach BFS</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Identification de l'entreprise</translation>
+                    <short>Identification de l'entreprise selon l’OFS</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Identificazione dell'azienda</translation>
+                    <short>Identificazione dell'azienda secondo l'UST</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="HR-RC-Name" type="sdtab:HR-RC-NameType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Name oder HR-Name</translation>
+                    <short>Name oder HR-Name des Unternehmens</short>
+                    <domain>Falls ein eingetragener Handelsregistername vorhanden ist, muss dieser Name
+                        verwendet werden.</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Nom ou nom RC</translation>
+                    <short>Nom ou nom RC de l'entreprise.</short>
+                    <domain>S'il existe un nom inscrit au registre de commerce, il faut
+                        utiliser celui-ci.</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Nome o nome del ufficio del personale</translation>
+                    <short>Se è presente un nome registrato nel registro delle imprese, è necessario utilizzare tale nome.</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="ZIP" type="sdtab:ReducedZIP-CodeType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>PLZ Unternehmen</translation>
+                    <short>Postleitzahl</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>CP Entreprise</translation>
+                    <short>Code postal</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>CAP Azienda</translation>
+                    <short>Codice di avviamento postale</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Person" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Name der Kontaktperson</translation>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Nom de la personne de contact</translation>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Nome della persona di contatto</translation>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="CL" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine der Adresse</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine de l'adresse</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine dell'indirizzo</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Street" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Strasse</translation>
+                    <short>Strasse und Hausnummer</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Rue</translation>
+                    <short>Rue et n° maison</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Via</translation>
+                    <short>Via e numero</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Postbox" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Postfach</translation>
+                    <short>Postfach</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Case postale</translation>
+                    <short>Case postale</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Casella postale</translation>
+                    <short>Casella postale</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Locality" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Lokalität</translation>
+                    <short>Lokalität wie Region, Provinz</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Localité</translation>
+                    <short>Localité (région, province, etc.)</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Località</translation>
+                    <short>Località come regione, provincia</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="City" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Stadt</translation>
+                    <short>Stadt</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Ville</translation>
+                    <short>Ville</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Città</translation>
+                    <short>Città</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Country" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Land</translation>
+                    <short>Land</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Pays</translation>
+                    <short>Pays</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Nazione</translation>
+                    <short>Nazione</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Phone" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Telefonnummer</translation>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Numéro de téléphone</translation>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Numero di telefono</translation>
+                </xs:documentation>
+                <xs:documentation>
+                    <usage>Tax</usage>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+    <!--
+        PersonIDType -->
+    <xs:complexType name="PersonIDType">
+        <xs:choice>
+            <xs:element name="SV-AS-Nr" type="sdtab:SV-AS-NumberType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Sozialversicherungsnummer (Prio 2)</translation>
+                        <short>Von der Zentrale-Ausgleichsstelle (ZAS) zugeteilte Sozialversicherungsnummer</short>
+                        <domain>Ab Einführung ist die 13-stellige Sozialversicherungsnummer zu erfassen.
+                            Diese wird von der Zentralen Ausgleichsstelle zugeteilt.
+                        </domain>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Numéro d'assurance sociale (2eme priorité)</translation>
+                        <short>Numéro d'assurance sociale attribué par la centrale de
+                            compensation (CdC)
+                        </short>
+                        <domain>A partir de son introduction, le numéro d'assurance sociale à 13
+                            chiffres doit être saisi. Le numéro est attribué par la centrale de
+                            compensation (CdC).
+                        </domain>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Il numero assicurazione sociale è di 13 cifre</translation>
+                        <short>Il numero assicurazione sociale è di 13 cifre ed è attribuito dall'Ufficio centrale
+                            di compensazione (UCC).
+                        </short>
+                        <domain>Il numero assicurazione sociale è di 13 cifre ed è attribuito dall'Ufficio centrale
+                            di compensazione (UCC).
+                        </domain>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="DateOfBirth" type="xs:date">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>Geburtsdatum (Prio 3)</translation>
+                        <short>Geburtsdatum der Person, sofern SV- oder AHV-Nr unbekannt sind</short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>Date de naissance (3eme priorité)</translation>
+                        <short>Date de naissance de la personne au cas où les numéros AS et AVS
+                            ne sont pas connus.
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>Data di nascita (Priorità 3)</translation>
+                        <short>Data di nascita della persona nel caso in cui i numeri AS e AVS non siano noti.</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="unknown" type="sdtab:EmptyType">
+                <xs:annotation>
+                    <xs:documentation xml:lang="de">
+                        <translation>unbekannt (Prio 4)</translation>
+                        <short>Die AHV-Nummer, die Sozialversicherungsnummer und das Geburtsdatum sind
+                            unbekannt.
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="fr">
+                        <translation>inconnu (4eme priorité)</translation>
+                        <short>Le numéro AVS, le numéro d'assurance sociale et la date de naissance sont inconnus.
+                        </short>
+                    </xs:documentation>
+                    <xs:documentation xml:lang="it">
+                        <translation>sconosciuto (priorità 4)</translation>
+                        <short>Il numero AVS, il numero di previdenza sociale e la data di nascita sono sconosciuti.</short>
+                    </xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:choice>
+        <xs:attribute name="Lastname" type="sdtab:LastnameType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Nachname</translation>
+                    <short>Vollständiger Familienname der Person</short>
+                    <domain>Name gemäss amtlichem Papier (z.B. Versicherungsnachweis)</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Nom</translation>
+                    <short>Nom complet de la personne</short>
+                    <domain>Nom selon papier officiel (p.e. attestation d'assurance)</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Cognome</translation>
+                    <short>Cognome completo della persona</short>
+                    <domain>Cognome secondo il documento ufficiale (ad es. certificato di assicurazione)</domain>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Firstname" type="sdtab:FirstnameType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Vorname</translation>
+                    <short>Vorname(n) der Person</short>
+                    <domain>Vorname gemäss amtlichem Papier (z.B. Versicherungsnachweis)</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Prénom</translation>
+                    <short>Prénom(s) de la personne</short>
+                    <domain>Prénom selon papier officiel (p.e. attestation d'assurance)</domain>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Nome</translation>
+                    <short>Nome secondo il documento ufficiale (ad es. certificato di assicurazione)</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="ZIP" type="sdtab:ReducedZIP-CodeType" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>PLZ Wohnort der Person</translation>
+                    <short>Postleitzahl</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>CP du lieu de la personne</translation>
+                    <short>Code postal</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>CAP Residenza della persona</translation>
+                    <short>Codice di avviamento postale</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="CL" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine der Adresse</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine de l'adresse</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>ComplementaryLines</translation>
+                    <short>ComplementaryLine dell'indirizzo</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Street" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Strasse</translation>
+                    <short>Strasse und Hausnummer</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Rue</translation>
+                    <short>Rue et n° maison</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Via</translation>
+                    <short>Via e numero</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Postbox" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Postfach</translation>
+                    <short>Postfach</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Case postale</translation>
+                    <short>Case postale</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Casella postale</translation>
+                    <short>Casella postale</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Locality" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Lokalität</translation>
+                    <short>Lokalität wie Region, Provinz</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Localité</translation>
+                    <short>Localité (région, province, etc.)</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Località</translation>
+                    <short>Località come regione, provincia</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="City" type="xs:string" use="required">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Stadt</translation>
+                    <short>Stadt</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Ville</translation>
+                    <short>Ville</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Città</translation>
+                    <short>Città</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="Country" type="xs:string">
+            <xs:annotation>
+                <xs:documentation xml:lang="de">
+                    <translation>Land</translation>
+                    <short>Land</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="fr">
+                    <translation>Pays</translation>
+                    <short>Pays</short>
+                </xs:documentation>
+                <xs:documentation xml:lang="it">
+                    <translation>Nazione</translation>
+                    <short>Nazione</short>
+                </xs:documentation>
+            </xs:annotation>
+        </xs:attribute>
+    </xs:complexType>
+
+    <!--
+
+        simpleTypes
+    -->
+    <xs:simpleType name="FirstnameType">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:maxLength value="15"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="HR-RC-NameType">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:maxLength value="30"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="LastnameType">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:maxLength value="30"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="ReducedZIP-CodeType">
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1"/>
+            <xs:maxLength value="6"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="SIDType">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:maxLength value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="SysVType">
+        <xs:restriction base="xs:string">
+            <xs:whiteSpace value="collapse"/>
+            <xs:maxLength value="3"/>
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>

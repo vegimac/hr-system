@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:DeclareAnnualSalary xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                          xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                          xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                          xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                          xmlns:c="urn:ch:swissdec:common:v3:20260306">
+
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>ICHAG</ep:CompanyName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:RequestID>RequestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#tax">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+
+    </sdc:Job>
+
+    <sd:AnnualSalaryDeclaration schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>ICHAG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:ZIP-Code>3000</c:ZIP-Code>
+                <c:City>Bern</c:City>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-123.123.123</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#workplaceID">
+                <c:AddressExtended>
+                    <c:ZIP-Code>3000</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#companyWorkingTimeID">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>111.2222.3333.55</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>EmployeeNumber</c:EmployeeNumber>
+                    <c:Lastname>Muster</c:Lastname>
+                    <c:Firstname>Peter</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1980-01-01</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2014-07-01</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:ZIP-Code>3000</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#companyWorkingTimeID" workID="#workID">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2020-01-01</c:EntryDate>
+                </c:Work>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#tax">
+                        <sd:DocID>DocID</sd:DocID>
+                        <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:Period>
+                        <sd:GrossIncome>1000.00</sd:GrossIncome>
+                        <sd:NetIncome>1000.00</sd:NetIncome>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:Tax addresseeIDRef="#tax"/>
+        </sd:Institutions>
+        <sd:SalaryCounters>
+            <sd:NumberOf-TaxSalary-Tags>1</sd:NumberOf-TaxSalary-Tags>
+        </sd:SalaryCounters>
+        <sd:GeneralSalaryDeclarationDescription>
+            <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+            <sd:AccountingPeriod>2025</sd:AccountingPeriod>
+        </sd:GeneralSalaryDeclarationDescription>
+    </sd:AnnualSalaryDeclaration>
+
+
+</sdst:DeclareAnnualSalary>

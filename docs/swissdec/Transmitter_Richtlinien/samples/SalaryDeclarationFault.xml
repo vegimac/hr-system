@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:SalaryDeclarationFault xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                             xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+    <ep:ResponseContext>
+        <ep:UserAgent>
+            <ep:Producer>swissdec</ep:Producer>
+            <ep:Name>swissdec refapps</ep:Name>
+            <ep:Version>2025.08-SNAPSHOT RefApps LOCAL</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>swissdec</ep:Certificate>
+        </ep:UserAgent>
+        <ep:InstitutionName>swissdec</ep:InstitutionName>
+        <ep:TransmissionDate>2025-07-03T21:19:05.573+02:00</ep:TransmissionDate>
+        <ep:ResponseID>184ed3f2f53562b2f</ep:ResponseID>
+        <ep:RequestID>RequestID</ep:RequestID>
+    </ep:ResponseContext>
+    <ep:Fault>
+        <ep:Code>NOT_plausible</ep:Code>
+        <ep:Error>
+            <ep:Notification>
+                <ep:QualityLevel>Validity</ep:QualityLevel>
+                <ep:DescriptionCode>1000</ep:DescriptionCode>
+                <ep:Description>Configured exception from RefApps</ep:Description>
+            </ep:Notification>
+        </ep:Error>
+    </ep:Fault>
+</sdst:SalaryDeclarationFault>

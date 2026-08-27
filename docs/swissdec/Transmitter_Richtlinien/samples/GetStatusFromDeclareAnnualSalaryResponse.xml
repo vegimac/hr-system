@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:GetStatusFromDeclareAnnualSalaryResponse
+        xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+        xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+        xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components">
+
+    <ep:ResponseContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Distributor</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>0.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:InstitutionName>BE</ep:InstitutionName>
+        <ep:TransmissionDate>2025-03-12T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:ResponseID>ResponseID</ep:ResponseID>
+        <ep:RequestID>RequestID</ep:RequestID>
+    </ep:ResponseContext>
+
+    <ep:JobFinished>true</ep:JobFinished>
+
+    <sdc:Addressees>
+        <sdc:Addressee addresseeID="#addressee">
+            <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+            <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            <sdc:Success>
+                <sdc:AddresseeContext>
+                    <ep:UserAgent>
+                        <ep:Producer>Swissdec</ep:Producer>
+                        <ep:Name>Receiver</ep:Name>
+                        <ep:Version>20250403</ep:Version>
+                        <ep:StandardVersion>0.0</ep:StandardVersion>
+                        <ep:Certificate>n/a</ep:Certificate>
+                    </ep:UserAgent>
+                    <ep:InstitutionName>BE</ep:InstitutionName>
+                    <ep:TransmissionDate>2025-03-12T12:00:00.000+01:00</ep:TransmissionDate>
+                    <ep:ResponseID>ResponseID</ep:ResponseID>
+                    <ep:RequestID>RequestID</ep:RequestID>
+                    <ep:ProducerResponseNotifications/>
+                    <sdc:DeclarationID>DeclarationID</sdc:DeclarationID>
+                </sdc:AddresseeContext>
+                <sdc:Credentials>
+                    <ep:Key>Key</ep:Key>
+                    <ep:Password>Password</ep:Password>
+                </sdc:Credentials>
+            </sdc:Success>
+        </sdc:Addressee>
+    </sdc:Addressees>
+
+
+</sdst:GetStatusFromDeclareAnnualSalaryResponse>

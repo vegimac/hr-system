@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:SynchronizeDeclareAnnualSalary xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                                     xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                                     xmlns:c="urn:ch:swissdec:common:v3:20260306" schemaVersion="0.0">
+
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>ICHAG</ep:CompanyName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:RequestID>RequestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+
+    <ep:Sender>
+        <ep:UID-BFS>
+            <ep:UID>CHE-132.465.798</ep:UID>
+        </ep:UID-BFS>
+    </ep:Sender>
+
+    <sdc:Addressee>
+        <ep:AddresseeIdentification>001.234</ep:AddresseeIdentification>
+        <sd:Domain>UVG-LAA</sd:Domain>
+    </sdc:Addressee>
+
+    <sdc:Case>
+        <sdc:CaseContext>
+            <ep:ReceivedStoryIDs>
+                <ep:StoryID>StoryID1</ep:StoryID>
+                <ep:StoryID>StoryID2</ep:StoryID>
+            </ep:ReceivedStoryIDs>
+            <ep:Credentials>
+                <ep:Key>Key</ep:Key>
+                <ep:Password>Password</ep:Password>
+            </ep:Credentials>
+            <sdc:DeclarationID>DeclarationID</sdc:DeclarationID>
+        </sdc:CaseContext>
+        <sdc:ReceivedState>Accepted</sdc:ReceivedState>
+    </sdc:Case>
+
+</sdst:SynchronizeDeclareAnnualSalary>

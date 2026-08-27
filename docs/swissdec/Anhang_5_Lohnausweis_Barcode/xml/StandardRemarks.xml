@@ -1,0 +1,372 @@
+<sr:StandardRemarks xmlns:sr="http://www.swissdec.ch/resources/sd/ELMv6/StandardRemarks">
+    <!-- TaxSalary/WithRegulation
+        Spesenreglement(z15/rz55,56,65) -->
+    <sr:stdr>
+        <sr:ziffer>txtRz65T1</sr:ziffer>
+        <sr:value lang="de">Spesenreglement durch Kanton</sr:value>
+        <sr:value lang="fr">Règlement des frais agréé par le canton</sr:value>
+        <sr:value lang="it">Regolamento delle spese approvato dal cantone</sr:value>
+        <sr:value lang="en">Expenses regulations approved by the canton</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtRz65T2</sr:ziffer>
+        <sr:value lang="de">am</sr:value>
+        <sr:value lang="fr">le</sr:value>
+        <sr:value lang="it">il</sr:value>
+        <sr:value lang="en">on</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtRz65T3</sr:ziffer>
+        <sr:value lang="de">genehmigt.</sr:value>
+        <sr:value lang="fr">.</sr:value>
+        <sr:value lang="it">.</sr:value>
+        <sr:value lang="en">.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary
+        Fusszeile(z15/rz66) -->
+    <sr:stdr>
+        <sr:ziffer>txtRz66ST1</sr:ziffer>
+        <sr:value lang="de">Lohnausweis</sr:value>
+        <sr:value lang="fr">Certificat de salaire</sr:value>
+        <sr:value lang="it">Certificato di salario</sr:value>
+        <sr:value lang="en">Salary certificate</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtRz66ST2</sr:ziffer>
+        <sr:value lang="de">von</sr:value>
+        <sr:value lang="fr">sur</sr:value>
+        <sr:value lang="it">di</sr:value>
+        <sr:value lang="en">of</sr:value>
+    </sr:stdr>
+    <!-- TaxAnnuity
+        Fusszeile(z15/rz66) -->
+    <sr:stdr>
+        <sr:ziffer>txtRz66AT1</sr:ziffer>
+        <sr:value lang="de">Rentenbescheinigung</sr:value>
+        <sr:value lang="fr">Attestation de rentes</sr:value>
+        <sr:value lang="it">Attestazione delle rendite</sr:value>
+        <sr:value lang="en">Pension certificate</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtRz66AT2</sr:ziffer>
+        <sr:value lang="de">von</sr:value>
+        <sr:value lang="fr">sur</sr:value>
+        <sr:value lang="it">di</sr:value>
+        <sr:value lang="en">of</sr:value>
+    </sr:stdr>
+    <!-- Staff/Person/ActivityRate
+        Teilzeitanstellung(z15/rz67) -->
+    <sr:stdr>
+        <sr:ziffer>txtRz67T1</sr:ziffer>
+        <sr:value lang="de"></sr:value>
+        <sr:value lang="fr">Poste à</sr:value>
+        <sr:value lang="it">Posto al</sr:value>
+        <sr:value lang="en"></sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtRz67T2</sr:ziffer>
+        <sr:value lang="de">%-Stelle.</sr:value>
+        <sr:value lang="fr">%.</sr:value>
+        <sr:value lang="it">%.</sr:value>
+        <sr:value lang="en">% figure.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/StaffShareThirdCompany
+        Mitarbeiterbeteiligung durch Drittgesellschaft (z15/rz70) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareThirdCompanyV1T1</sr:ziffer>
+        <sr:value lang="de">Mitarbeiterbeteiligung durch</sr:value>
+        <sr:value lang="fr">Participation de collaborateur octroyée par l’entreprise</sr:value>
+        <sr:value lang="it">Diritto di partecipazione dei collaboratori ceduti da</sr:value>
+        <sr:value lang="en">Staff share granted by the company</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareThirdCompanyV1T2</sr:ziffer>
+        <sr:value lang="de">eingeräumt.</sr:value>
+        <sr:value lang="fr">.</sr:value>
+        <sr:value lang="it">.</sr:value>
+        <sr:value lang="en">.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareThirdCompanyV2</sr:ziffer>
+        <sr:value lang="de">Mitarbeiterbeteiligung durch Drittfirma eingeräumt.</sr:value>
+        <sr:value lang="fr">Participation de collaborateur octroyée par une tierce entreprise.</sr:value>
+        <sr:value lang="it">Diritto di partecipazione dei collaboratori versato da un&#x00B4;impresa terza.</sr:value>
+        <sr:value lang="en">Staff share paid by an external company.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/ChildAllowancePerAHV-AVS
+        Kinderzulagen durch die Ausgleichkasse bezahlt (z15/rz15) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdChildAllowancePerAHV-AVS</sr:ziffer>
+        <sr:value lang="de">Kinderzulagen im Lohnausweis nicht enthalten. Auszahlung durch die Ausgleichskasse.</sr:value>
+        <sr:value lang="fr">Allocations pour enfants absentes du CS. Paiement par la caisse de compensation.</sr:value>
+        <sr:value lang="it">Gli assegni familiari non sono contenuti nel CS. Versamento da parte della cassa di compensazione.</sr:value>
+        <sr:value lang="en">Child allowances not included in the salary certificate. Paid direct by the compensation fund.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/RelocationCosts
+        Umzugskosten durch Arbeitgeber(z15/rz71) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdRelocationCostsT1</sr:ziffer>
+        <sr:value lang="de">Umzugskosten von CHF</sr:value>
+        <sr:value lang="fr">Frais de déménagement de CHF</sr:value>
+        <sr:value lang="it">Spese di trasloco di CHF</sr:value>
+        <sr:value lang="en">Removal costs in CHF</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdRelocationCostsT2</sr:ziffer>
+        <sr:value lang="de">bezahlt.</sr:value>
+        <sr:value lang="fr">payés.</sr:value>
+        <sr:value lang="it">pagate.</sr:value>
+        <sr:value lang="en">paid.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/StaffShareMarketValue
+        Mitarbeiterbeteilgung-Verkehrswert (rz68) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareMarketValueT1</sr:ziffer>
+        <sr:value lang="de">Mitarbeiterbeteiligung: Verkehrswert durch Kanton</sr:value>
+        <sr:value lang="fr">Participation de collaborateur: Valeur vénale approuvée par le canton</sr:value>
+        <sr:value lang="it">Diritto di partecipazione: Il valore venale è stato approvato dal cantone</sr:value>
+        <sr:value lang="en">Staff share: the market value was approved by the canton</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareMarketValueT2</sr:ziffer>
+        <sr:value lang="de">am</sr:value>
+        <sr:value lang="fr">le</sr:value>
+        <sr:value lang="it">il</sr:value>
+        <sr:value lang="en">on</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareMarketValueT3</sr:ziffer>
+        <sr:value lang="de">genehmigt.</sr:value>
+        <sr:value lang="fr">.</sr:value>
+        <sr:value lang="it">.</sr:value>
+        <sr:value lang="en">.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/StaffShareWithoutTaxableIncome
+        Mitarbeiterbeteilgung ohne steuerbares Einkommen (rz69) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareWithoutTaxableIncome</sr:ziffer>
+        <sr:value lang="de">Mitarbeiterbeteiligungen noch ohne steuerbares Einkommen. Grund:</sr:value>
+        <sr:value lang="fr">Participations de collaborateur ne générant pas encore de revenu imposable. Motif:</sr:value>
+        <sr:value lang="it">Diritti di partecipazione dei collaboratori ancora senza reddito imponibile. Motivo:</sr:value>
+        <sr:value lang="en">Staff share without taxable income. Reason:</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareWithoutTaxableIncomeBO</sr:ziffer>
+        <sr:value lang="de">Gesperrte Mitarbeiteroptionen.</sr:value>
+        <sr:value lang="fr">Options de collaborateur bloquées.</sr:value>
+        <sr:value lang="it">Opzioni di collaboratore bloccate.</sr:value>
+        <sr:value lang="en">Blocked employee options.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareWithoutTaxableIncomeUO</sr:ziffer>
+        <sr:value lang="de">Nicht börsenkotierte Mitarbeiteroptionen.</sr:value>
+        <sr:value lang="fr">Options de collaborateur non cotées en bourse.</sr:value>
+        <sr:value lang="it">Opzioni di collaboratore non quotate in borsa.</sr:value>
+        <sr:value lang="en">Unquoted options.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareWithoutTaxableIncomeDBSS</sr:ziffer>
+        <sr:value lang="de">Anwartschaften auf Mitarbeiteraktien.</sr:value>
+        <sr:value lang="fr">Expectatives sur actions de collaborateurs.</sr:value>
+        <sr:value lang="it">Aspettative su azioni al collaboratore.</sr:value>
+        <sr:value lang="en">Deferred benefits staff shares.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdStaffShareWithoutTaxableIncomeFSS</sr:ziffer>
+        <sr:value lang="de">Unechte Mitarbeiterbeteiligungen.</sr:value>
+        <sr:value lang="fr">Participations improprement dites.</sr:value>
+        <sr:value lang="it">Partecipazioni dei collaboratori improprie.</sr:value>
+        <sr:value lang="en">Fictitious staff shares.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/PrivatePartCompanyCar
+        Privatanteil Geschäftswagen (rz21) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdPrivatePartCompanyCarT1</sr:ziffer>
+        <sr:value lang="de">Privatanteil für Geschäftswagen durch Kanton</sr:value>
+        <sr:value lang="fr">Part privée pour voiture de service agrée par le canton</sr:value>
+        <sr:value lang="it">Quota privata per l&#x00B4;automobile di servizio approvata dal cantone</sr:value>
+        <sr:value lang="en">Private contribution for company car approved by the canton</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdPrivatePartCompanyCarT2</sr:ziffer>
+        <sr:value lang="de">am</sr:value>
+        <sr:value lang="fr">le</sr:value>
+        <sr:value lang="it">il</sr:value>
+        <sr:value lang="en">on</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdPrivatePartCompanyCarT3</sr:ziffer>
+        <sr:value lang="de">genehmigt.</sr:value>
+        <sr:value lang="fr">.</sr:value>
+        <sr:value lang="it">.</sr:value>
+        <sr:value lang="en">.</sr:value>
+    </sr:stdr>
+    <!-- TaxSalary/StandardRemark/CompanyCarClarify
+        Auto priv.anteil im Veranlagungsverfahren abklären (rz22) -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15StdCompanyCarClarify</sr:ziffer>
+        <sr:value lang="de">Privatanteil Geschäftswagen im Veranlagungsverfahren abzuklären.</sr:value>
+        <sr:value lang="fr">Examiner part privée de la voiture de service dans la procédure de taxation.</sr:value>
+        <sr:value lang="it">La quota privata dell&#x00B4;automobile di servizio è da chiarire nella procedura di tassazione. </sr:value>
+        <sr:value lang="en">Private contribution for company car to be clarified during the tax assessment procedure.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15MinimalEmployeeCarPartPercentage</sr:ziffer>
+        <sr:value lang="de">Privatanteil Geschäftsfahrzeug wird vom Mitarbeiter bezahlt.</sr:value>
+        <sr:value lang="fr">Part privée pour le véhicule de service est payée par le collaborateur.</sr:value>
+        <sr:value lang="it">Quota privata veicolo di servizio è pagata del collaboratore.</sr:value>
+        <sr:value lang="en">The private contribution of the company car is paid by the employee.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15TaxAtSourcePeriodForObjection_1</sr:ziffer>
+        <sr:value lang="de">Quellensteuerpflichtige Personen können schriftlich und begründet bis 31. März</sr:value>
+        <sr:value lang="fr">Les personnes imposées à la source peuvent exiger par demande écrite et motivée jusqu’au 31 mars</sr:value>
+        <sr:value lang="it">Le persone tassate alla fonte possono pretendere per iscritto e in modo motivato entro il 31 marzo</sr:value>
+        <sr:value lang="en">Persons liable to withholding tax may request, in writing and with the pertinent justification included, a ruling on the existence and extent of the withholding tax liability or a retrospective statutory assessment (recalculation of the withholding tax) by 31 March </sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15TaxAtSourcePeriodForObjection_2</sr:ziffer>
+        <sr:value lang="de">bei der zuständigen kantonalen Steuerbehörde eine Verfügung über Bestand und Umfang der Quellensteuerpflicht oder eine nachträgliche
+            ordentliche Veranlagung bzw. eine Neuberechnung der Quellensteuer verlangen. Ohne form- und fristgerechten Antrag wird der Quellensteuerabzug definitiv.</sr:value>
+        <sr:value lang="fr">auprès de l’administration cantonale des impôts compétente une décision sur l’existence et l’étendue
+            de l’assujettissement à l’impôt à la source ou une taxation ordinaire ultérieure, respectivement un nouveau calcul de l’impôt
+            à la source. Sans demande respectant la forme et le délai, le prélèvement de l’impôt à la source est définitif.</sr:value>
+        <sr:value lang="it">presso l'autorità fiscale cantonale competente una decisione circa la sussistenza e l'entità dell'imposta alla fonte oppure
+            una tassazione supplementare ordinaria ovvero un nuovo calcolo dell'imposta alla fonte. Senza una domanda, presentata correttamente e nei termini,
+            la deduzione dell'imposta alla fonte diviene definitiva.</sr:value>
+        <sr:value lang="en">from the responsible cantonal tax authority. Without such a request in due form and time, the withholding tax becomes definitive.</sr:value>
+    </sr:stdr>
+    <!--  PercentageExternalWork  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15PercentageExternalWork</sr:ziffer>
+        <sr:value lang="de">Anteil Aussendienst</sr:value>
+        <sr:value lang="fr">Part du service sur le terrain</sr:value>
+        <sr:value lang="it">Quota effettiva servizio esterno</sr:value>
+        <sr:value lang="en">Percentage external work</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15PercentageExternalWorkEffective</sr:ziffer>
+        <sr:value lang="de">% effektiv.</sr:value>
+        <sr:value lang="fr">% effectif.</sr:value>
+        <sr:value lang="it">%.</sr:value>
+        <sr:value lang="en">%.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15PercentageExternalWorkLump</sr:ziffer>
+        <sr:value lang="de">% pauschal nach Funktions/Berufsgruppenliste.</sr:value>
+        <sr:value lang="fr">% déterminée de manière forfaitaire selon la liste des fonctions et catégories de métiers.</sr:value>
+        <sr:value lang="it">% forfettaria secondo l'elenco funzione/gruppo professionale.</sr:value>
+        <sr:value lang="en">% external work lump-sum.</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15PercentageExternalWorkRuling</sr:ziffer>
+        <sr:value lang="de">% pauschal gemäss Vorabbescheid mit kantonaler Steuerverwaltung</sr:value>
+        <sr:value lang="fr">% déterminée de manière forfaitaire selon le préavis séparé avec l’administration cantonale des impôts</sr:value>
+        <sr:value lang="it">% forfettaria secondo l'accordo preliminare con l'amministrazione cantonale delle imposte</sr:value>
+        <sr:value lang="en">% external work ruling</sr:value>
+    </sr:stdr>
+    <!--  ContinuedProvisionOfSalary  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15ContinuedProvisionOfSalary</sr:ziffer>
+        <sr:value lang="de">Besoldungsnachgenuss an</sr:value>
+        <sr:value lang="fr">Droit au salaire après décès à</sr:value>
+        <sr:value lang="it">Stipendio dopo il decesso a</sr:value>
+        <sr:value lang="en">Continued provision of salary to</sr:value>
+    </sr:stdr>
+    <!--  ExpatriateRuling  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15ExpatriateRuling</sr:ziffer>
+        <sr:value lang="de">Expatriateruling durch Kanton </sr:value>
+        <sr:value lang="fr">Expatriate ruling approuvé par le canton</sr:value>
+        <sr:value lang="it">Il ruling per espatriati è stato approvato dal Cantone</sr:value>
+        <sr:value lang="en">Approved expatriate ruling by canton</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15ExpatriateRulingT1</sr:ziffer>
+        <sr:value lang="de">am</sr:value>
+        <sr:value lang="fr">le</sr:value>
+        <sr:value lang="it">il</sr:value>
+        <sr:value lang="en">on</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15ExpatriateRulingT2</sr:ziffer>
+        <sr:value lang="de">genehmigt.</sr:value>
+        <sr:value lang="fr">.</sr:value>   <!-- Siehe andere Textteile! -->
+        <sr:value lang="it">.</sr:value>   <!-- Siehe andere Textteile! -->
+        <sr:value lang="en">.</sr:value>   <!-- Siehe andere Textteile! -->
+    </sr:stdr>
+    <!--  ActivityRate  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15ActivityRate</sr:ziffer>
+        <sr:value lang="de">%-Stelle</sr:value>
+        <sr:value lang="fr">%</sr:value>
+        <sr:value lang="it">%</sr:value>
+        <sr:value lang="en">%</sr:value>
+    </sr:stdr>
+    <!--  NumberOfSalaryCertificate  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15NumberOfSalaryCertificate</sr:ziffer>
+        <sr:value lang="de">Einer von</sr:value>
+        <sr:value lang="fr">Un de</sr:value>
+        <sr:value lang="it">Uno di</sr:value>
+        <sr:value lang="en">One of</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15NumberOfSalaryCertificateT1</sr:ziffer>
+        <sr:value lang="de">Lohnausweisen.</sr:value>
+        <sr:value lang="fr">certificats de salaire.</sr:value>
+        <sr:value lang="it">certificati di salario.</sr:value>
+        <sr:value lang="en">salary certificates.</sr:value>
+    </sr:stdr>
+    <!--  Rectificate  -->
+    <sr:stdr>
+        <sr:ziffer>txtZ15Rectificate</sr:ziffer>
+        <sr:value lang="de">Rektifikat eines fehlerhaften Lohnausweises: Datum:</sr:value>
+        <sr:value lang="fr">Rectification d’un certificat de salaire incorrect: Date:</sr:value>
+        <sr:value lang="it">Rettificazione di un certificato di salario errato: Data:</sr:value>
+        <sr:value lang="en">Rectificate of an incorrect salary declaration: Date:</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtZ15RectificateT1</sr:ziffer>
+        <sr:value lang="de">DocID:</sr:value>
+        <sr:value lang="fr">DocID:</sr:value>
+        <sr:value lang="it">DocID:</sr:value>
+        <sr:value lang="en">DocID:</sr:value>
+    </sr:stdr>
+    <!-- Signatur -->
+    <sr:stdr>
+        <sr:ziffer>txtSigValid</sr:ziffer>
+        <sr:value lang="de">Die Signatur ist KORREKT!</sr:value>
+        <sr:value lang="fr">La signature est CORRECTE!</sr:value>
+        <sr:value lang="it">La firma è corretta</sr:value>
+        <sr:value lang="en">Signature is CORRECT!</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtNoSig</sr:ziffer>
+        <sr:value lang="de">Die Signatur FEHLT!</sr:value>
+        <sr:value lang="fr">La signature MANQUE!</sr:value>
+        <sr:value lang="it">La firma è MANCANTE!</sr:value>
+        <sr:value lang="en">Signature is MISSING</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtSigBroken</sr:ziffer>
+        <sr:value lang="de">Die Signatur ist NICHT VERTRAUENSWÜRDIG!</sr:value>
+        <sr:value lang="fr">La signature N'EST PAS FIABLE!</sr:value>
+        <sr:value lang="it">La firma NON È ATTENDIBILE!</sr:value>
+        <sr:value lang="en">Signature is NOT RELIABLE!</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtSigNoCheck</sr:ziffer>
+        <sr:value lang="de">Die Signatur ist NICHT GEPRÜFT!</sr:value>
+        <sr:value lang="fr">La signature N'EST PAS VÉRIFIÉE!</sr:value>
+        <sr:value lang="it">La firma NON È SELEZIONATA</sr:value>
+        <sr:value lang="en">Signature is NOT VERIFIED!</sr:value>
+    </sr:stdr>
+    <sr:stdr>
+        <sr:ziffer>txtSigError</sr:ziffer>
+        <sr:value lang="de">getSignatureCheckResult ERROR !!</sr:value>
+        <sr:value lang="fr">getSignatureCheckResult ERROR !!</sr:value>
+        <sr:value lang="it">getSignatureCheckResult ERROR !!</sr:value>
+        <sr:value lang="en">getSignatureCheckResult ERROR !!</sr:value>
+    </sr:stdr>
+</sr:StandardRemarks>

@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:DeclareMonthlySalary xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                           xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                           xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                           xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                           xmlns:c="urn:ch:swissdec:common:v3:20260306">
+
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>ICHAG</ep:CompanyName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:RequestID>RequestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#uvgt">
+                <ep:AddresseeIdentification>S999</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#tas">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#bfs">
+                <ep:AddresseeIdentification>BFS</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+    </sdc:Job>
+
+    <sd:MonthlySalaryDeclaration schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>ICHAG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:ZIP-Code>3000</c:ZIP-Code>
+                <c:City>Bern</c:City>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-123.123.123</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#workplaceID">
+                <c:AddressExtended>
+                    <c:ZIP-Code>3000</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#companyWorkingTime">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:TemporaryWorkAgencies>
+            <sd:TemporaryWorkAgency temporaryWorkAgencyID="#temporaryWorkAgencyID" workplaceIDRef="#workplaceID">
+                <sd:Consultant>
+                    <sd:Lastname>Muster</sd:Lastname>
+                    <sd:Firstname>Peter</sd:Firstname>
+                </sd:Consultant>
+            </sd:TemporaryWorkAgency>
+        </sd:TemporaryWorkAgencies>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>111.2222.3333.55</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>EmployeeNumber</c:EmployeeNumber>
+                    <c:Lastname>Muster</c:Lastname>
+                    <c:Firstname>Peter</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1980-01-01</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2014-07-01</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:ZIP-Code>3000</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work workID="#workID" companyWorkingTimeIDRef="#companyWorkingTime">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2020-01-01</c:EntryDate>
+                </c:Work>
+                <sd:UVG-LAA-TemporaryWork-Salaries>
+                    <sd:UVG-LAA-TemporaryWork-Salary addresseeIDRef="#uvgt">
+                        <sd:AccountingTime>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-01-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A0</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>1000.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>15000.00</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>1000.00</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-TemporaryWork-Salary>
+                    <sd:UVG-LAA-ISCO-Salary>
+                        <sd:ISCO-Code>12345</sd:ISCO-Code>
+                        <sd:UVG-LAA-ISCO-BaseSalary>1000.00</sd:UVG-LAA-ISCO-BaseSalary>
+                        <sd:UVG-LAA-ISCO-ContributorySalary>12000.00</sd:UVG-LAA-ISCO-ContributorySalary>
+                    </sd:UVG-LAA-ISCO-Salary>
+                    <sd:TemporaryWorkData>
+                        <sd:Mission temporaryWorkAgencyIDRef="#temporaryWorkAgencyID">
+                            <sd:MissionID>1</sd:MissionID>
+                            <sd:Period>
+                                <ep:from>2025-01-01</ep:from>
+                                <ep:until>2025-01-31</ep:until>
+                            </sd:Period>
+                            <sd:ContractData>
+                                <sd:ISCO-Code>12345</sd:ISCO-Code>
+                                <sd:IndividualJobTitle>IndividualJobTitle</sd:IndividualJobTitle>
+                                <sd:ContractualJobTitle>ContractualJobTitle</sd:ContractualJobTitle>
+                            </sd:ContractData>
+                            <sd:KindOfWagePayment>
+                                <sd:Daily>
+                                    <sd:DailyWage>250.00</sd:DailyWage>
+                                    <sd:TotalDays>20</sd:TotalDays>
+                                </sd:Daily>
+                            </sd:KindOfWagePayment>
+                        </sd:Mission>
+                    </sd:TemporaryWorkData>
+                </sd:UVG-LAA-TemporaryWork-Salaries>
+                <sd:TaxAtSourceSalaries>
+                    <sd:TaxAtSourceSalary addresseeIDRef="#tas">
+                        <sd:TaxAtSourceCanton>BE</sd:TaxAtSourceCanton>
+                        <sd:TaxAtSourceMunicipalityID>1234</sd:TaxAtSourceMunicipalityID>
+                        <sd:CurrentMonth>2025-03</sd:CurrentMonth>
+                    </sd:TaxAtSourceSalary>
+                </sd:TaxAtSourceSalaries>
+                <sd:StatisticSalaries>
+                    <sd:StatisticSalary workplaceIDRef="#workplaceID" addresseeIDRef="#bfs" workIDRef="#workID">
+                        <sd:CurrentMonth>2025-01</sd:CurrentMonth>
+                        <sd:AdditionalParticulars>
+                            <sd:Education>doctorate</sd:Education>
+                            <sd:Position>lowerCadre</sd:Position>
+                            <sd:JobTitle>JobTitle</sd:JobTitle>
+                            <sd:LeaveEntitlement>2</sd:LeaveEntitlement>
+                        </sd:AdditionalParticulars>
+                        <sd:KindOfWagePayment>
+                            <sd:Monthly>
+                                <sd:Contract>fixedSalaryMth</sd:Contract>
+                                <sd:ContractualMonthlyWage>2000.00</sd:ContractualMonthlyWage>
+                                <sd:Contractual13th>200.00</sd:Contractual13th>
+                            </sd:Monthly>
+                        </sd:KindOfWagePayment>
+                        <sd:MonthlyValues>
+                            <sd:GrossBaseSalaryAndRegularAllowance>1000.00</sd:GrossBaseSalaryAndRegularAllowance>
+                            <sd:Allowances>1000.00</sd:Allowances>
+                            <sd:FamilyIncomeSupplement>1000.00</sd:FamilyIncomeSupplement>
+                            <sd:PaymentsByThird>0.00</sd:PaymentsByThird>
+                            <sd:SocialContributions>200.00</sd:SocialContributions>
+                            <sd:BVG-LPP-RegularContribution>1000.00</sd:BVG-LPP-RegularContribution>
+                            <sd:ShortTimeWorkCompensation>0.00</sd:ShortTimeWorkCompensation>
+                        </sd:MonthlyValues>
+                        <sd:AnnualValues>
+                            <sd:Period>
+                                <ep:from>2025-01-01</ep:from>
+                                <ep:until>2025-01-31</ep:until>
+                            </sd:Period>
+                            <sd:Overtime>1.00</sd:Overtime>
+                            <sd:Earnings13th>2000.00</sd:Earnings13th>
+                            <sd:SporadicBenefits>100.00</sd:SporadicBenefits>
+                            <sd:FringeBenefits>50.00</sd:FringeBenefits>
+                            <sd:CapitalPayment>50.00</sd:CapitalPayment>
+                            <sd:OtherBenefits>0.00</sd:OtherBenefits>
+                        </sd:AnnualValues>
+                    </sd:StatisticSalary>
+                </sd:StatisticSalaries>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:UVG-LAA-TemporaryWork addresseeIDRef="#uvgt">
+                <sd:InsuranceCompanyName>Suva</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:ContractIdentity>ContractIdentity</sd:ContractIdentity>
+            </sd:UVG-LAA-TemporaryWork>
+            <sd:TaxAtSource addresseeIDRef="#tas">
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:TaxAtSourceType>salaries</sd:TaxAtSourceType>
+            </sd:TaxAtSource>
+            <sd:Statistic addresseeIDRef="#bfs">
+                <sd:PayAgreement>individualContract</sd:PayAgreement>
+            </sd:Statistic>
+        </sd:Institutions>
+        <sd:SalaryTotals>
+            <sd:UVG-LAA-TemporaryWork-Totals addresseeIDRef="#uvgt">
+                <sd:UVG-LAA-BranchTotals>
+                    <sd:UVG-LAA-BranchTotal>
+                        <sd:BranchIdentifier>A</sd:BranchIdentifier>
+                        <sd:Female-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>1000.00</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>1000.00</sd:BU-AP-Total>
+                        </sd:Female-Totals>
+                        <sd:Male-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>25000.00</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>1000.00</sd:BU-AP-Total>
+                        </sd:Male-Totals>
+                    </sd:UVG-LAA-BranchTotal>
+                </sd:UVG-LAA-BranchTotals>
+                <sd:UVG-LAA-MasterTotal>1000.00</sd:UVG-LAA-MasterTotal>
+            </sd:UVG-LAA-TemporaryWork-Totals>
+            <sd:TaxAtSourceTotals addresseeIDRef="#tas">
+                <sd:TotalMonth>
+                    <sd:TotalTaxableEarning>1000.00</sd:TotalTaxableEarning>
+                    <sd:TotalTaxAtSource>1000.00</sd:TotalTaxAtSource>
+                    <sd:TotalCommission>1000.00</sd:TotalCommission>
+                    <sd:CurrentMonth>2025-06</sd:CurrentMonth>
+                </sd:TotalMonth>
+            </sd:TaxAtSourceTotals>
+        </sd:SalaryTotals>
+        <sd:SalaryCounters>
+            <sd:NumberOf-UVG-LAA-TemporaryWork-Tags>1</sd:NumberOf-UVG-LAA-TemporaryWork-Tags>
+            <sd:NumberOf-TaxAtSourceSalary-Tags>1</sd:NumberOf-TaxAtSourceSalary-Tags>
+            <sd:NumberOf-StatisticSalary-Tags>1</sd:NumberOf-StatisticSalary-Tags>
+        </sd:SalaryCounters>
+    </sd:MonthlySalaryDeclaration>
+
+
+</sdst:DeclareMonthlySalary>

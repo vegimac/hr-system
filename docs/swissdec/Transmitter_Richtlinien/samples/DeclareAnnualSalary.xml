@@ -1,0 +1,369 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:DeclareAnnualSalary xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                          xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                          xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                          xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                          xmlns:c="urn:ch:swissdec:common:v3:20260306">
+
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Transmitter</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>ICHAG</ep:CompanyName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:RequestID>RequestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#ahv">
+                <ep:AddresseeIdentification>001.234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#fak">
+                <ep:AddresseeIdentification>001.234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#uvg">
+                <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#uvgz">
+                <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#ktg">
+                <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#bvg">
+                <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#tac">
+                <ep:AddresseeIdentification>VD</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#tax">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#annuity">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#ownership">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#tuc">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+
+    </sdc:Job>
+
+    <sd:AnnualSalaryDeclaration schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>ICHAG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:ZIP-Code>3000</c:ZIP-Code>
+                <c:City>Bern</c:City>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-123.123.123</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#workplaceID">
+                <c:AddressExtended>
+                    <c:ZIP-Code>3000</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#companyWorkingTimeID">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>111.2222.3333.55</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>EmployeeNumber</c:EmployeeNumber>
+                    <c:Lastname>Muster</c:Lastname>
+                    <c:Firstname>Peter</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1980-01-01</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2014-07-01</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:ZIP-Code>3000</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#companyWorkingTimeID" workID="#workID">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2020-01-01</c:EntryDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#ahv">
+                        <sd:AccountingTime>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>1000.00</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>1000.00</sd:AHV-AVS-Income>
+                        <sd:ALV-AC-Income>1000.00</sd:ALV-AC-Income>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:FAK-CAF-Salaries>
+                    <sd:FAK-CAF-Salary addresseeIDRef="#fak">
+                        <sd:FAK-CAF-Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:FAK-CAF-Period>
+                        <sd:FAK-CAF-ContributorySalary>1000.00</sd:FAK-CAF-ContributorySalary>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>1000.00
+                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>1000.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-Salary>
+                </sd:FAK-CAF-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#uvg">
+                        <sd:AccountingTime>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A0</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>1000.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>1000.00</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>1000.00</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#uvgz">
+                        <sd:AccountingTime>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>A0</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>1000.00</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>1000.00</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#ktg">
+                        <sd:AccountingTime>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>A0</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>1000.00</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>1000.00</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:BVG-LPP-Salaries>
+                    <sd:BVG-LPP-Salary addresseeIDRef="#bvg" workIDRef="#workID">
+                        <sd:BVG-LPP-Code>A</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>1000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-Salary>
+                </sd:BVG-LPP-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#tax">
+                        <sd:DocID>DocID</sd:DocID>
+                        <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:Period>
+                        <sd:GrossIncome>1000.00</sd:GrossIncome>
+                        <sd:NetIncome>1000.00</sd:NetIncome>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+                <sd:TaxAnnuities>
+                    <sd:TaxAnnuity addresseeIDRef="#annuity">
+                        <sd:DocID>DocID</sd:DocID>
+                        <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:Period>
+                        <sd:GrossIncome>1000.00</sd:GrossIncome>
+                        <sd:NetIncome>1000.00</sd:NetIncome>
+                    </sd:TaxAnnuity>
+                </sd:TaxAnnuities>
+                <sd:OwnershipRightDetails>
+                    <sd:OwnershipRightDetail addresseeIDRef="#ownership"/>
+                </sd:OwnershipRightDetails>
+                <sd:TaxCrossborderSalaries>
+                    <sd:FrenchCrossborderSalary addresseeIDRef="#tac">
+                        <sd:Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:Period>
+                        <sd:TaxAtSourceCanton>GE</sd:TaxAtSourceCanton>
+                        <sd:ResidenceAbroadCountry>FR</sd:ResidenceAbroadCountry>
+                        <sd:TaxableEarning>1000.00</sd:TaxableEarning>
+                        <sd:TeleWorkPercentage>100.00</sd:TeleWorkPercentage>
+                    </sd:FrenchCrossborderSalary>
+                </sd:TaxCrossborderSalaries>
+                <sd:UnemploymentCertificates>
+                    <sd:UnemploymentCertificate addresseeIDRef="#tuc">
+                        <sd:DocID>DocID</sd:DocID>
+                        <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2025-01-01</ep:from>
+                            <ep:until>2025-12-31</ep:until>
+                        </sd:Period>
+                        <sd:GrossIncome>1000.00</sd:GrossIncome>
+                        <sd:NetIncome>1000.00</sd:NetIncome>
+                    </sd:UnemploymentCertificate>
+                </sd:UnemploymentCertificates>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:AHV-AVS addresseeIDRef="#ahv">
+                <sd:AK-CC-CustomerNumber>001.234</sd:AK-CC-CustomerNumber>
+                <sd:UVG-LAA-Insurance>
+                    <sd:NoneWithReason>NoneWithReason</sd:NoneWithReason>
+                </sd:UVG-LAA-Insurance>
+                <sd:BVG-LPP-Insurance>
+                    <sd:NoneWithReason>NoneWithReason</sd:NoneWithReason>
+                </sd:BVG-LPP-Insurance>
+            </sd:AHV-AVS>
+            <sd:FAK-CAF addresseeIDRef="#fak">
+                <sd:FAK-CAF-CustomerNumber>001.234</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:UVG-LAA addresseeIDRef="#uvg">
+                <sd:InsuranceCompanyName>InsuranceCompanyName</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:ContractIdentity>ContractIdentity</sd:ContractIdentity>
+            </sd:UVG-LAA>
+            <sd:UVGZ-LAAC addresseeIDRef="#uvgz">
+                <sd:InsuranceCompanyName>InsuranceCompanyName</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:ContractIdentity>ContractIdentity</sd:ContractIdentity>
+            </sd:UVGZ-LAAC>
+            <sd:KTG-AMC addresseeIDRef="#ktg">
+                <sd:InsuranceCompanyName>InsuranceCompanyName</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:ContractIdentity>ContractIdentity</sd:ContractIdentity>
+            </sd:KTG-AMC>
+            <sd:BVG-LPP addresseeIDRef="#bvg">
+                <sd:InsuranceCompanyName>InsuranceCompanyName</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>CustomerIdentity</sd:CustomerIdentity>
+                <sd:ContractIdentity>ContractIdentity</sd:ContractIdentity>
+                <sd:GeneralValidAsOf>2025-01-01</sd:GeneralValidAsOf>
+            </sd:BVG-LPP>
+            <sd:Tax addresseeIDRef="#tax"/>
+            <sd:TaxAnnuity addresseeIDRef="#annuity"/>
+            <sd:OwnershipRightDetail addresseeIDRef="#ownership"/>
+            <sd:TaxCrossborder addresseeIDRef="#tac">
+                <sd:CustomerIdentity>VD</sd:CustomerIdentity>
+                <sd:TaxAtSourceType>salaries</sd:TaxAtSourceType>
+            </sd:TaxCrossborder>
+            <sd:UnemploymentCertificate addresseeIDRef="#tuc"/>
+        </sd:Institutions>
+        <sd:SalaryTotals>
+            <sd:AHV-AVS-Totals addresseeIDRef="#ahv">
+                <sd:Total-AHV-AVS-Incomes>1000.00</sd:Total-AHV-AVS-Incomes>
+                <sd:Total-AHV-AVS-Open>1000.00</sd:Total-AHV-AVS-Open>
+                <sd:Total-ALV-AC-Incomes>1000.00</sd:Total-ALV-AC-Incomes>
+                <sd:Total-ALVZ-ACS-Incomes>1000.00</sd:Total-ALVZ-ACS-Incomes>
+                <sd:Total-ALV-AC-Open>1000.00</sd:Total-ALV-AC-Open>
+            </sd:AHV-AVS-Totals>
+            <sd:FAK-CAF-Totals addresseeIDRef="#fak">
+                <sd:Total-FAK-CAF-PerCanton>
+                    <sd:Total-FAK-CAF-ContributorySalary>1000.00</sd:Total-FAK-CAF-ContributorySalary>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>100.00</sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>100.00</sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Canton>BE</sd:Canton>
+                </sd:Total-FAK-CAF-PerCanton>
+            </sd:FAK-CAF-Totals>
+            <sd:UVG-LAA-Totals addresseeIDRef="#uvg">
+                <sd:UVG-LAA-BranchTotals>
+                    <sd:UVG-LAA-BranchTotal>
+                        <sd:BranchIdentifier>A</sd:BranchIdentifier>
+                        <sd:Female-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>0.00</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>0.00</sd:BU-AP-Total>
+                        </sd:Female-Totals>
+                        <sd:Male-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>1000.00</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>1000.00</sd:BU-AP-Total>
+                        </sd:Male-Totals>
+                    </sd:UVG-LAA-BranchTotal>
+                </sd:UVG-LAA-BranchTotals>
+                <sd:UVG-LAA-MasterTotal>1000.00</sd:UVG-LAA-MasterTotal>
+            </sd:UVG-LAA-Totals>
+            <sd:UVGZ-LAAC-Totals addresseeIDRef="#uvgz">
+                <sd:UVGZ-LAAC-CategoryTotals>
+                    <sd:UVGZ-LAAC-CategoryTotal>
+                        <sd:CategoryCode>A0</sd:CategoryCode>
+                        <sd:Female-Total>0.00</sd:Female-Total>
+                        <sd:Male-Total>1000.00</sd:Male-Total>
+                    </sd:UVGZ-LAAC-CategoryTotal>
+                </sd:UVGZ-LAAC-CategoryTotals>
+                <sd:UVGZ-LAAC-MasterTotal>1000.00</sd:UVGZ-LAAC-MasterTotal>
+            </sd:UVGZ-LAAC-Totals>
+            <sd:KTG-AMC-Totals addresseeIDRef="#ktg">
+                <sd:KTG-AMC-CategoryTotals>
+                    <sd:KTG-AMC-CategoryTotal>
+                        <sd:CategoryCode>A0</sd:CategoryCode>
+                        <sd:Female-Total>0.00</sd:Female-Total>
+                        <sd:Male-Total>1000.00</sd:Male-Total>
+                    </sd:KTG-AMC-CategoryTotal>
+                </sd:KTG-AMC-CategoryTotals>
+                <sd:KTG-AMC-MasterTotal>1000.00</sd:KTG-AMC-MasterTotal>
+            </sd:KTG-AMC-Totals>
+            <sd:TaxCrossborderTotals addresseeIDRef="#tac">
+                <sd:Period>
+                    <ep:from>2025-01-01</ep:from>
+                    <ep:until>2025-12-01</ep:until>
+                </sd:Period>
+                <sd:TaxAtSourceCanton>BE</sd:TaxAtSourceCanton>
+                <sd:TaxableEarning>1000.00</sd:TaxableEarning>
+            </sd:TaxCrossborderTotals>
+        </sd:SalaryTotals>
+        <sd:SalaryCounters>
+            <sd:NumberOf-AHV-AVS-Salary-Tags>1</sd:NumberOf-AHV-AVS-Salary-Tags>
+            <sd:NumberOf-FAK-CAF-Salary-Tags>1</sd:NumberOf-FAK-CAF-Salary-Tags>
+            <sd:NumberOf-UVG-LAA-Salary-Tags>1</sd:NumberOf-UVG-LAA-Salary-Tags>
+            <sd:NumberOf-UVGZ-LAAC-Salary-Tags>1</sd:NumberOf-UVGZ-LAAC-Salary-Tags>
+            <sd:NumberOf-KTG-AMC-Salary-Tags>1</sd:NumberOf-KTG-AMC-Salary-Tags>
+            <sd:NumberOf-BVG-LPP-Salary-Tags>1</sd:NumberOf-BVG-LPP-Salary-Tags>
+            <sd:NumberOf-TaxSalary-Tags>1</sd:NumberOf-TaxSalary-Tags>
+            <sd:NumberOf-TaxAnnuity-Tags>1</sd:NumberOf-TaxAnnuity-Tags>
+            <sd:NumberOf-OwnershipRightDetail-Tags>1</sd:NumberOf-OwnershipRightDetail-Tags>
+            <sd:NumberOf-TaxCrossborderSalary-Tags>1</sd:NumberOf-TaxCrossborderSalary-Tags>
+            <sd:NumberOf-UnemploymentCertificate-Tags>1</sd:NumberOf-UnemploymentCertificate-Tags>
+        </sd:SalaryCounters>
+        <sd:GeneralSalaryDeclarationDescription>
+            <sd:CreationDate>2025-03-13T12:00:00.000+01:00</sd:CreationDate>
+            <sd:AccountingPeriod>2025</sd:AccountingPeriod>
+        </sd:GeneralSalaryDeclarationDescription>
+    </sd:AnnualSalaryDeclaration>
+
+
+</sdst:DeclareAnnualSalary>

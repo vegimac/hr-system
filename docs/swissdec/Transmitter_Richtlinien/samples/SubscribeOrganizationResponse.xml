@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdst:SubscribeOrganizationResponse xmlns:sdst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types"
+                                    xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                                    xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                                    xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                                    xmlns:c="urn:ch:swissdec:common:v3:20260306">
+    <ep:ResponseContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>Distributor</ep:Name>
+            <ep:Version>20250403</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/a</ep:Certificate>
+        </ep:UserAgent>
+        <ep:InstitutionName>Distributor</ep:InstitutionName>
+        <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+        <ep:ResponseID>ResponseID</ep:ResponseID>
+        <ep:RequestID>RequestID</ep:RequestID>
+    </ep:ResponseContext>
+
+    <sdc:Addressees>
+        <sdc:Addressee addresseeID="#addresseeID">
+            <ep:AddresseeIdentification>1234</ep:AddresseeIdentification>
+            <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            <sdc:Success>
+                <sdc:AddresseeContext>
+                    <ep:UserAgent>
+                        <ep:Producer>Swissdec</ep:Producer>
+                        <ep:Name>Receiver</ep:Name>
+                        <ep:Version>20250403</ep:Version>
+                        <ep:StandardVersion>0.0</ep:StandardVersion>
+                        <ep:Certificate>n/a</ep:Certificate>
+                    </ep:UserAgent>
+                    <ep:InstitutionName>InstitutionName</ep:InstitutionName>
+                    <ep:TransmissionDate>2025-03-13T12:00:00.000+01:00</ep:TransmissionDate>
+                    <ep:ResponseID>ResponseID</ep:ResponseID>
+                    <ep:RequestID>RequestID</ep:RequestID>
+                    <ep:ProducerResponseNotifications/>
+                    <sdc:SubscriptionID>DeclarationID</sdc:SubscriptionID>
+                </sdc:AddresseeContext>
+            </sdc:Success>
+        </sdc:Addressee>
+    </sdc:Addressees>
+
+</sdst:SubscribeOrganizationResponse>
