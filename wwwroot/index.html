@@ -4849,59 +4849,61 @@
                             Einmal pro Rechtseinheit (nicht pro Filiale) — diese Nummern ersetzen die Platzhalter im Meldungs-XML.
                             Quelle: Versicherungspolicen / GastroSocial-Abrechnungen. Auf der Testinstanz mit Kunstwerten üben.
                         </p>
-                        <div style="display:grid;grid-template-columns:150px 1fr 170px 170px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:900px">
+                        <div style="display:grid;grid-template-columns:150px 1.3fr 130px 150px 150px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:980px">
                             <div style="font-weight:700">UID</div>
-                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <div></div><div></div>
+                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX (Rechtseinheit/Hauptsitz)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
+                            <div style="grid-column:span 2"></div>
 
-                            <div style="font-weight:700;grid-column:1">&nbsp;</div>
-                            <div style="color:#8b8b8b;font-size:11px">Name</div>
-                            <div style="color:#8b8b8b;font-size:11px">Kassen-Nr. (Adresse)</div>
-                            <div style="color:#8b8b8b;font-size:11px">Abrechnungs-/Kunden-Nr.</div>
+                            <div style="grid-column:1">&nbsp;</div>
+                            <div style="color:#8b8b8b;font-size:11px">Name / Versicherer</div>
+                            <div style="color:#8b8b8b;font-size:11px">Kassen-/Versicherer-Nr.</div>
+                            <div style="color:#8b8b8b;font-size:11px">Mitglied-/Kunden-Nr.</div>
+                            <div style="color:#8b8b8b;font-size:11px">Sub-/Vertrags-Nr.</div>
 
                             <div style="font-weight:700">AHV-Ausgleichskasse</div>
-                            <input id="elmStAkName" placeholder="z.B. GastroSocial" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStAkKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStAkAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStAkName" placeholder="z.B. GastroSocial" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStAkKasse" placeholder="z.B. 046.000" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStAkAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <div style="color:#8b8b8b;font-size:11px"></div>
 
                             <div style="font-weight:700">FAK</div>
                             <div style="color:#8b8b8b;font-size:11.5px">meist gleiche Kasse</div>
-                            <input id="elmStFakKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStFakAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-
-                            <div style="font-weight:700;grid-column:1">&nbsp;</div>
-                            <div style="color:#8b8b8b;font-size:11px">Versicherer</div>
-                            <div style="color:#8b8b8b;font-size:11px">Kunden-Nr.</div>
-                            <div style="color:#8b8b8b;font-size:11px">Vertrags-Nr.</div>
+                            <input id="elmStFakKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStFakAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <div style="color:#8b8b8b;font-size:11px"></div>
 
                             <div style="font-weight:700">UVG</div>
-                            <input id="elmStUvgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStUvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStUvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgVers" placeholder="z.B. Swica Versicherungen UVG" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
 
                             <div style="color:#8b8b8b;font-size:11.5px;padding-left:12px">UVG · UID + seit</div>
-                            <input id="elmStUvgUid" placeholder="CHE-XXX.XXX.XXX (UID des Versicherers)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStUvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgUid" placeholder="CHE-XXX.XXX.XXX (UID des Versicherers)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
                             <div style="color:#8b8b8b;font-size:11px">für den AHV-Meldeblock</div>
 
                             <div style="font-weight:700">UVG-Zusatz</div>
-                            <input id="elmStUvgzVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStUvgzKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStUvgzVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStUvgzVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgzNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgzKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStUvgzVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
 
                             <div style="font-weight:700">KTG</div>
-                            <input id="elmStKtgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStKtgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStKtgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStKtgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStKtgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStKtgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStKtgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
 
                             <div style="font-weight:700">BVG</div>
-                            <input id="elmStBvgVers" placeholder="z.B. GastroSocial PK" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStBvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStBvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStBvgVers" placeholder="z.B. GastroSocial PK" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStBvgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStBvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStBvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
 
                             <div style="color:#8b8b8b;font-size:11.5px;padding-left:12px">BVG · UID + seit</div>
-                            <input id="elmStBvgUid" placeholder="CHE-XXX.XXX.XXX (UID der Pensionskasse)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
-                            <input id="elmStBvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px">
+                            <input id="elmStBvgUid" placeholder="CHE-XXX.XXX.XXX (UID der Pensionskasse)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <input id="elmStBvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
                             <div style="color:#8b8b8b;font-size:11px">für den AHV-Meldeblock</div>
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
@@ -8350,7 +8352,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260820a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260828a"></script>
+<script src="js/branches-detail.js?v=20260828b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260825c"></script>
@@ -8386,7 +8388,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260828d"></script>
+<script src="js/swissdec.js?v=20260828e"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>

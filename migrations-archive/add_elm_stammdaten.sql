@@ -27,3 +27,14 @@ CREATE TABLE IF NOT EXISTS elm_stammdaten (
     updated_at             timestamp without time zone NOT NULL DEFAULT now(),
     updated_by             varchar(150)
 );
+
+-- Nachtrag 28.08.2026: Versicherer-Nummern (Swissdec-Adressierung, z.B. Swica «S122»)
+-- + UID/versichert-seit der Versicherer (AHV-Meldeblock). Idempotent.
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_versicherer_nummer varchar(40);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvgz_versicherer_nummer varchar(40);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS ktg_versicherer_nummer varchar(40);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_versicherer_nummer varchar(40);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_uid varchar(20);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_versichert_seit date;
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_uid varchar(20);
+ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_versichert_seit date;

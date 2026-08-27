@@ -27,6 +27,8 @@ public class ElmStammdaten
 
     // ── UVG ───────────────────────────────────────────────────────────
     public string? UvgVersicherer { get; set; }
+    /// <summary>Versicherer-Nummer (Swissdec-Adressierung, z.B. Swica «S122»).</summary>
+    public string? UvgVersichererNummer { get; set; }
     public string? UvgKundenNummer { get; set; }
     public string? UvgVertragsNummer { get; set; }
     /// <summary>UID des UVG-Versicherers (fürs XML: UVG-LAA-Insurance).</summary>
@@ -35,16 +37,22 @@ public class ElmStammdaten
 
     // ── UVGZ ──────────────────────────────────────────────────────────
     public string? UvgzVersicherer { get; set; }
+    /// <summary>Versicherer-Nummer (Swissdec-Adressierung, z.B. Swica «S122»).</summary>
+    public string? UvgzVersichererNummer { get; set; }
     public string? UvgzKundenNummer { get; set; }
     public string? UvgzVertragsNummer { get; set; }
 
     // ── KTG ───────────────────────────────────────────────────────────
     public string? KtgVersicherer { get; set; }
+    /// <summary>Versicherer-Nummer (Swissdec-Adressierung, z.B. Swica «S122»).</summary>
+    public string? KtgVersichererNummer { get; set; }
     public string? KtgKundenNummer { get; set; }
     public string? KtgVertragsNummer { get; set; }
 
     // ── BVG ───────────────────────────────────────────────────────────
     public string? BvgVersicherer { get; set; }
+    /// <summary>Versicherer-Nummer (Swissdec-Adressierung, z.B. Swica «S122»).</summary>
+    public string? BvgVersichererNummer { get; set; }
     public string? BvgKundenNummer { get; set; }
     public string? BvgVertragsNummer { get; set; }
     /// <summary>UID der BVG-Vorsorgeeinrichtung (fürs XML: BVG-LPP-Insurance).</summary>

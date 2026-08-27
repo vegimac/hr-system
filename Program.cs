@@ -3757,6 +3757,7 @@ using (var scope = app.Services.CreateScope())
             fak_kassen_nummer      varchar(40),
             fak_abrechnungs_nummer varchar(40),
             uvg_versicherer        varchar(120),
+            uvg_versicherer_nummer varchar(40),
             uvg_kunden_nummer      varchar(40),
             uvg_vertrags_nummer    varchar(40),
             uvg_uid                varchar(20),
@@ -3765,9 +3766,11 @@ using (var scope = app.Services.CreateScope())
             uvgz_kunden_nummer     varchar(40),
             uvgz_vertrags_nummer   varchar(40),
             ktg_versicherer        varchar(120),
+            ktg_versicherer_nummer varchar(40),
             ktg_kunden_nummer      varchar(40),
             ktg_vertrags_nummer    varchar(40),
             bvg_versicherer        varchar(120),
+            bvg_versicherer_nummer varchar(40),
             bvg_kunden_nummer      varchar(40),
             bvg_vertrags_nummer    varchar(40),
             bvg_uid                varchar(20),
@@ -3775,6 +3778,10 @@ using (var scope = app.Services.CreateScope())
             updated_at             timestamp without time zone NOT NULL DEFAULT now(),
             updated_by             varchar(150)
         );
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_versicherer_nummer varchar(40);
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvgz_versicherer_nummer varchar(40);
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS ktg_versicherer_nummer varchar(40);
+        ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_versicherer_nummer varchar(40);
         ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_uid varchar(20);
         ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS uvg_versichert_seit date;
         ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_uid varchar(20);

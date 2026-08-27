@@ -18,11 +18,11 @@ const _elmStFields = {
     elmStUid: 'uid',
     elmStAkName: 'akName', elmStAkKasse: 'akKassenNummer', elmStAkAbr: 'akAbrechnungsNummer',
     elmStFakKasse: 'fakKassenNummer', elmStFakAbr: 'fakAbrechnungsNummer',
-    elmStUvgVers: 'uvgVersicherer', elmStUvgKd: 'uvgKundenNummer', elmStUvgVertr: 'uvgVertragsNummer',
+    elmStUvgVers: 'uvgVersicherer', elmStUvgNr: 'uvgVersichererNummer', elmStUvgKd: 'uvgKundenNummer', elmStUvgVertr: 'uvgVertragsNummer',
     elmStUvgUid: 'uvgUid', elmStUvgSeit: 'uvgVersichertSeit',
-    elmStUvgzVers: 'uvgzVersicherer', elmStUvgzKd: 'uvgzKundenNummer', elmStUvgzVertr: 'uvgzVertragsNummer',
-    elmStKtgVers: 'ktgVersicherer', elmStKtgKd: 'ktgKundenNummer', elmStKtgVertr: 'ktgVertragsNummer',
-    elmStBvgVers: 'bvgVersicherer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer',
+    elmStUvgzVers: 'uvgzVersicherer', elmStUvgzNr: 'uvgzVersichererNummer', elmStUvgzKd: 'uvgzKundenNummer', elmStUvgzVertr: 'uvgzVertragsNummer',
+    elmStKtgVers: 'ktgVersicherer', elmStKtgNr: 'ktgVersichererNummer', elmStKtgKd: 'ktgKundenNummer', elmStKtgVertr: 'ktgVertragsNummer',
+    elmStBvgVers: 'bvgVersicherer', elmStBvgNr: 'bvgVersichererNummer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer',
     elmStBvgUid: 'bvgUid', elmStBvgSeit: 'bvgVersichertSeit'
 };
 

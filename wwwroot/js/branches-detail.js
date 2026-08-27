@@ -2240,13 +2240,13 @@ function cpEmpfRowHtml(z) {
 // ── Modal (dynamisch, Liquid-Glass) ────────────────────────────────────
 function cpEmpfEnsureModal() {
     if (document.getElementById('cpEmpfModal')) return;
-    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(255,255,255,0.95);border-radius:10px;font-size:13px;background:#fff;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9);box-sizing:border-box;font-family:inherit;color:#3f3f3f';
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const div = document.createElement('div');
     div.id = 'cpEmpfModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div id="cpEmpfModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:14px">Empfänger hinzufügen</div>
 
         <div id="cpEmpfPickBlock" style="margin-bottom:14px">
@@ -2255,7 +2255,7 @@ function cpEmpfEnsureModal() {
             </label>
         </div>
 
-        <div id="cpEmpfKatalogBlock" style="border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:14px;background:rgba(255,255,255,0.45);margin-bottom:14px">
+        <div id="cpEmpfKatalogBlock" style="margin-bottom:16px">
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Empfänger-Stammdaten <span style="font-weight:400;color:#8b8b8b">(zentral — gelten für alle Filialen)</span></div>
             <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px 12px">
                 <label style="${lbl}">Art
@@ -2281,7 +2281,7 @@ function cpEmpfEnsureModal() {
             </div>
         </div>
 
-        <div style="border:1px solid rgba(60,55,48,0.12);border-radius:12px;padding:14px;background:rgba(255,255,255,0.45)">
+        <div>
             <div style="font-size:12px;font-weight:700;color:#646464;margin-bottom:8px">Angaben dieser Filiale</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
