@@ -55,6 +55,10 @@ Es gibt eine zweite, komplett isolierte Instanz auf demselben VPS (Hostname jetz
 - **Test-Login:** Erst-Admin = `walter.schaub@gmail.com` mit ADMIN_INIT_PASSWORD (es gibt KEINEN User «admin»). easy@work auf Test bewusst unkonfiguriert (= aus); SMTP-Tabelle leer lassen (Mail tot); Passkeys nicht einrichten. Testdaten: MA/Verträge via UI, Stempelzeiten per SQL-Skript (kein Test-easy nachbauen — Entscheid 23.08.2026).
 - **Neue Instanz aufsetzen:** IMMER dem Runbook folgen — insbesondere Schema-Bootstrap vor Erststart (App kann leere DB nicht selbst aufbauen) und GRANT vor REVOKE bei den DB-Rechten.
 
+### Swissdec ELM 6.0 (Konzept 27.08.2026)
+
+Elektronische Lohnmeldung: Konzept + Etappenplan E1–E9 in `docs/swissdec-elm6-konzept.md`; komplette ELM-6.0-Doku (Richtlinien 507 S., Transmitter-Richtlinien, WSDL/XSD/Beispiel-XMLs, QST-Excel-Beispiele) unter `docs/swissdec/`. **Zertifizierungsbasis = ELM 6.0** (nicht 5.x). Meldeeinheit = Rechtseinheit/UID (Schaub Restaurants GmbH, Filialen = Workplaces). Walter hat Zugang zur Swissdec-Testinfrastruktur (Benutzer «schaub»: Infopoint, Quality Tool, Refapps Receiver/Transmitter). Unser ELM-Lohnraster (17.08.) + Katalog-Flag-Basen sind die Vorarbeit. Ziel: erste scharfe Jahresmeldung fürs Lohnjahr 2027 (Übermittlung Anfang 2028); QST läuft bis zur Zertifizierung über die bisherigen kantonalen Kanäle. Nächster Schritt = E1 (Ping/CheckInteroperability gegen Refapps Receiver).
+
 ### Deploy-Befehl IMMER mitliefern (Walter-Vorgabe 01.08.2026, ABSOLUT)
 
 Walter deployt **nicht selbst** und muss den Befehl **nie** nachfragen müssen.
