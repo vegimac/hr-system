@@ -923,7 +923,11 @@ function applyAreaVisibility() {
     const aa = currentUser?.allowedAreas;
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
-    const ok = (area) => area === 'dashboard' || area === 'todos' || allowed.has(area);
+    // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section
+    // (vorher in der Mitarbeiter-Sektion mitgefahren) — der Bereich «moments»
+    // existiert aber in keiner allowedAreas-Auswahl → Eintrag verschwand.
+    // Moments ist Kommunikation für alle → wie dashboard/todos immer sichtbar.
+    const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments' || allowed.has(area);
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
