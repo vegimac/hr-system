@@ -2264,6 +2264,7 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}">Bezeichnung<input id="cpEmpfBez" style="${inp}"></label>
                 <label style="${lbl}">Zusatz<input id="cpEmpfZusatz" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblKassenNr">Nummer der Kasse</span><input id="cpEmpfKassenNr" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">UID-Nummer <span style="font-weight:400;color:#8b8b8b">(für Swissdec-Meldungen)</span><input id="cpEmpfUid" placeholder="CHE-XXX.XXX.XXX" style="${inp}"></label>
                 <label style="${lbl};grid-column:span 2">Strasse<input id="cpEmpfStrasse" style="${inp}"></label>
                 <label style="${lbl}">Postfach<input id="cpEmpfPostfach" style="${inp}"></label>
                 <label style="${lbl}">PLZ / Ort
@@ -2356,6 +2357,7 @@ function cpEmpfFillKatalog(k, isNew) {
     set('cpEmpfBez', k.bezeichnung);
     set('cpEmpfZusatz', k.zusatz);
     set('cpEmpfKassenNr', k.kassennummer);
+    set('cpEmpfUid', k.uidNummer);
     set('cpEmpfStrasse', k.strasse);
     set('cpEmpfPostfach', k.postfach);
     set('cpEmpfPlz', k.plz);
@@ -2375,7 +2377,7 @@ async function cpEmpfSave() {
     const btn = document.getElementById('cpEmpfSaveBtn');
     const katalogBody = {
         art: val('cpEmpfArt'), bezeichnung: val('cpEmpfBez'), zusatz: val('cpEmpfZusatz'),
-        kassennummer: val('cpEmpfKassenNr'), strasse: val('cpEmpfStrasse'),
+        kassennummer: val('cpEmpfKassenNr'), uidNummer: val('cpEmpfUid'), strasse: val('cpEmpfStrasse'),
         postfach: val('cpEmpfPostfach'), plz: val('cpEmpfPlz'), ort: val('cpEmpfOrt'),
         kantonCode: val('cpEmpfKanton'), supportEmail: val('cpEmpfMail'),
     };
