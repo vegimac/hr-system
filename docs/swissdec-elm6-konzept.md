@@ -164,11 +164,24 @@ in `docs/swissdec/`):**
 
 ## 7. Nächster konkreter Schritt
 
-E1 (Ping) ist erledigt — beide Umgebungen antworten. Parallel zwei Stränge:
+**E2 ERLEDIGT (28.08.2026):** Jahresmeldung AHV aus Kunstdaten
+(5 Kunst-MA, Übungsfiliale, Lohnlauf Juli 2026 auf test.onecrew.ch)
+erzeugt, XSD-valid, im Refapps-Transmitter hochgeladen (dort als valide
+elm-v6-DeclareAnnualSalary erkannt) und übermittelt:
+**DeclareAnnualSalary → SUCCESS** (JobKey vergeben) ·
+**GetStatus → Sending State ACCEPTED** (Swissdec Jackpot Institution,
+Domäne AHV-AVS, Adressat 001.234-Platzhalter) ·
+**Completion-Link → «Successfully released Completion!»** — der volle
+3-Schritt-Zyklus Declare→GetStatus→Synchronize inkl. Completion-Freigabe
+ist einmal komplett durchgespielt. Erkenntnis: Business State
+`COMPLETION_RELEASE_MISSING` = Empfänger verlangt Browser-Freigabe über
+den mitgelieferten Completion-Link (key+password in URL, Testsystem).
 
-1. **E2 bauen:** ElmDeclarationBuilder — AnnualSalaryDeclaration (Domäne AHV)
-   aus Testinstanz-Kunstdaten, XSD-valid. Getestet wird über den
-   **Refapps-Transmitter** (XML hochladen, Refapps signiert selbst).
-2. **Zertifikat anstossen:** Kontakt Swissdec (Erstberatung) für das
-   Entwicklungs-/Transmitter-Zertifikat → danach E1b (Signierung +
-   Verschlüsselung im ElmTransmitterClient, CheckInteroperability grün).
+Nächste Schritte:
+
+1. **E3:** Stammdaten Rechtseinheit (UID, AK-Nummer GastroSocial,
+   Versicherer-/Vertragsnummern) erfassen — ersetzt die Platzhalter.
+2. **Zertifikat anstossen:** Erstberatung Swissdec (Termin vereinbart,
+   Unterlagen: docs/Swissdec-Erstberatung-OneCrew.docx) → danach E1b
+   (WS-Security Signierung + Verschlüsselung, CheckInteroperability grün).
+3. **E4:** Declare/GetStatus/Synchronize direkt aus OneCrew (braucht E1b).
