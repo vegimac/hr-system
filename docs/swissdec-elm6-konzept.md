@@ -121,7 +121,25 @@ zertifiziert.
 6. Statistik-Domäne ersetzt den LSE-Export erst, wenn BFS-seitig alles über
    ELM läuft — bis dahin beide Wege pflegen.
 
-## 6. Nächster konkreter Schritt
+## 6. Endpoints (Stand 27.08.2026)
+
+| Umgebung | ELM-v6-Endpoint |
+|---|---|
+| **Refapps Receiver (Test)** — unser Übungsplatz | `https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6` |
+| Produktiver Distributor | `https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6` |
+
+E1-Erkenntnisse (27.08.2026, live getestet):
+- **Ping gegen Prod: ERFOLGREICH** — PingResponse mit Distributor-UserAgent
+  («swissdec distributor 2026.08 PROD») + Systemzeit. Verbindung, SOAP 1.1,
+  ELM-6.0-Namespaces und TLS vom VPS damit bewiesen.
+- **CheckInteroperability gegen Prod: Fault `Client.security`** — «rejected …
+  non-certified transmitter or has not been signed». Ab CheckInteroperability
+  verlangt der Prod-Distributor WS-Security-signierte Nachrichten von
+  zertifizierten Transmittern (Antworten kommen ebenfalls signiert, X509).
+  → Übungen laufen auf dem Refapps Receiver; die Signatur-Infrastruktur
+  (Transmitter-Zertifikat) ist ein Baustein der Zertifizierungs-Etappen.
+
+## 7. Nächster konkreter Schritt
 
 **E1 bauen:** SOAP-Client-Gerüst aus `SalaryDeclarationService.wsdl`,
 Ping + CheckInteroperability gegen den Refapps Receiver (URL aus der

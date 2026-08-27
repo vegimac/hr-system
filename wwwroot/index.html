@@ -4813,7 +4813,8 @@
                             <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px;flex:1;min-width:420px">Endpoint-URL
                                 <input type="text" id="elmUrl" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%" placeholder="https://…/services/elm/SalaryDeclaration/V6">
                             </label>
-                            <button type="button" onclick="elmSetUrl('https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer">Prod-Distributor einsetzen</button>
+                            <button type="button" onclick="elmSetUrl('https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6')" style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer" title="Refapps Receiver der Testinfrastruktur (ELMv6) — unser Übungsplatz">Refapps Receiver (Test)</button>
+                            <button type="button" onclick="elmSetUrl('https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer" title="Produktiver Distributor — nimmt ohne Zertifikat nur Ping an">Prod-Distributor</button>
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                             <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>
