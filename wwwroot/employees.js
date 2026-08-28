@@ -1574,7 +1574,7 @@ function loadUebersichtTab() {
     const kAddr = emp.isPayrollExcluded ? '' : _ovCard(
         `<span id="ovAddrCardTitle">${_t('ma.section.otherAddresses', 'Weitere Adressen')}</span>` +
         `<span id="ovAddrCardCount" class="ov-addr-count"></span>` +
-        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span>`,
+        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Wochenaufenthalt, Korrespondenz, Sozialamt — Hauptadresse oben)')}</span>`,
         null, '',
         `<div id="otherAddressesContent"></div>`,
         `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>`);
@@ -5901,7 +5901,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 
     ${!emp.isPayrollExcluded ? `
     <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:2px">
-        <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Korrespondenz, Ferienwohnung, Sozialamt — Hauptadresse oben)')}</span></span>
+        <span>${_t('ma.section.otherAddresses','Weitere Adressen')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('ma.section.otherAddrHint','(z.B. Wochenaufenthalt, Korrespondenz, Sozialamt — Hauptadresse oben)')}</span></span>
         <button type="button" class="btn-emp-add" onclick="openEmployeeAddressModal(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             ${_t('ma.btn.addAddress','Adresse hinzufügen')}
