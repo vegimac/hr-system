@@ -43,6 +43,9 @@ public class CompanyProfile
     /// <summary>BUR-Nummer der örtlichen Einheit (BFS-Betriebsregister,
     /// 8 Zeichen) — für die LSE-Spalte AR «burNr» (Walter 13.08.2026).</summary>
     public string? BurNr { get; set; }
+    /// <summary>Zuordnung zur Rechtseinheit (Hauptsitz-Verwaltung, Walter 29.08.2026).</summary>
+    public int? HauptsitzId { get; set; }
+
     /// <summary>UID fürs BFS (LSE-Spalte R «uidBFS», z.B. CHE-123.456.789).</summary>
     public string? UidBfs { get; set; }
     public string? Email { get; set; }

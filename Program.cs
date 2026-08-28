@@ -3788,6 +3788,27 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE elm_stammdaten ADD COLUMN IF NOT EXISTS bvg_versichert_seit date;
     ");
 
+    // ── Hauptsitz/Rechtseinheit (Walter 29.08.2026) ────────────────────
+    // Eigene Verwaltung neben den Filialen; mehrere möglich (Lizenznehmer
+    // mit 2 GmbHs). company_profile.hauptsitz_id = Zuordnung der Filiale.
+    // SQL-Kopie: migrations-archive/add_hauptsitz.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS hauptsitz (
+            id          serial PRIMARY KEY,
+            name        varchar(200) NOT NULL,
+            uid         varchar(20),
+            strasse     varchar(200),
+            plz         varchar(15),
+            ort         varchar(120),
+            kanton_code varchar(2),
+            bemerkung   text,
+            is_active   boolean NOT NULL DEFAULT true,
+            created_at  timestamp without time zone NOT NULL DEFAULT now(),
+            updated_at  timestamp without time zone NOT NULL DEFAULT now()
+        );
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS hauptsitz_id integer REFERENCES hauptsitz(id) ON DELETE SET NULL;
+    ");
+
     // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──
     // Grundlage: technische BFS-Spezifikation LSE 2024, V1.4/12.2024.
     // Codes/Bereiche/Pflichtfelder/Exportreihenfolge liegen als KONFIGURATION

@@ -65,10 +65,32 @@ public class ElmAnnualDeclarationBuilder
         var st = await _db.ElmStammdaten.AsNoTracking()
             .OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
 
-        var uid = (st?.Uid ?? main.UidBfs ?? main.UidNummer ?? "").Trim();
+        // UID + Firmenname der MELDEEINHEIT aus der Hauptsitz-Verwaltung
+        // (Walter 29.08.2026). Mehrere Hauptsitze → E5 meldet pro
+        // Rechtseinheit; bis dahin läuft alles unter dem ersten (+ Hinweis).
+        var hsIds = branches.Where(b2 => b2.HauptsitzId != null)
+            .Select(b2 => b2.HauptsitzId!.Value).Distinct().ToList();
+        Models.Hauptsitz? hs = null;
+        if (hsIds.Count > 0)
+        {
+            var hsList = await _db.Hauptsitze.AsNoTracking()
+                .Where(h => hsIds.Contains(h.Id)).OrderBy(h => h.Id).ToListAsync(ct);
+            hs = hsList.FirstOrDefault();
+            if (hsIds.Count > 1)
+                warn.Add($"Filialen sind {hsIds.Count} verschiedenen Hauptsitzen zugeordnet — Meldung pro Rechtseinheit kommt in E5; dieses XML läuft komplett unter «{hs?.Name}».");
+        }
+        else
+        {
+            hs = await _db.Hauptsitze.AsNoTracking()
+                .Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
+            if (hs != null)
+                warn.Add($"Keine Filiale ist einem Hauptsitz zugeordnet — es wird «{hs.Name}» verwendet (Zuordnung: Filiale → Stammdaten bearbeiten).");
+        }
+
+        var uid = (hs?.Uid ?? st?.Uid ?? main.UidBfs ?? main.UidNummer ?? "").Trim();
         if (!Regex.IsMatch(uid, @"^CHE-\d{3}\.\d{3}\.\d{3}$"))
         {
-            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (E3-Karte: Stammdaten Rechtseinheit erfassen).");
+            warn.Add($"UID fehlt/ungültig («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
             uid = "CHE-123.123.123";
         }
 
@@ -292,7 +314,7 @@ public class ElmAnnualDeclarationBuilder
         }
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
-        var companyName = (main.CompanyName ?? "Schaub Restaurants GmbH").Trim();
+        var companyName = (hs?.Name ?? main.CompanyName ?? "Schaub Restaurants GmbH").Trim();
         var companyDescription = new XElement(Sd + "CompanyDescription",
             new XElement(C + "Name", new XElement(C + "HR-RC-Name", companyName)),
             new XElement(C + "Address",

@@ -1451,6 +1451,11 @@
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('hauptsitze')">
+                        <img src="img/hauptsitz-karte.svg?v=20260829a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Hauptsitze</div>
+                        <div class="admin-card-desc">Rechtseinheiten (GmbH) — UID, Sitzadresse, Filial-Zuordnung</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('filialen')">
                         <img src="img/Filialen-karte.png?v=20260816b" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Filialen</div>
@@ -3737,6 +3742,22 @@
             <!-- fixhead (Walter 06.08.2026): Titel bleibt fix, die zwei Panels
                  (Liste + Detail) scrollen intern — vorher scrollte der ganze
                  Screen, weil .emp-layout mit 100vh-Höhe + page-head überlief. -->
+            <!-- Hauptsitze / Rechtseinheiten (Walter 29.08.2026) -->
+            <div class="page fixhead" id="page-hauptsitze">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Hauptsitze</h1>
+                    <p class="page-sub">Rechtseinheiten (GmbH) mit UID und Sitzadresse — jede Filiale wird ihrem Hauptsitz zugeordnet (Filial-Stammdaten). Die Swissdec-Meldung läuft pro Hauptsitz.</p>
+                </div></div>
+                <div class="page-body">
+                    <div class="sticky-section-head" style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
+                        <button type="button" class="btn btn-outline" onclick="showPage('admin-hub')" style="font-size:12px">← Zurück</button>
+                        <span style="flex:1"></span>
+                        <button type="button" class="btn-primary" onclick="hsOpenModal()">+ Hauptsitz erfassen</button>
+                    </div>
+                    <div id="hsListe"></div>
+                </div>
+            </div>
+
             <div class="page liquid-mask fixhead" id="page-filialen">
                 <div class="page-head"><div><h1 class="page-title">Filialen</h1><p class="page-sub">Alle McDonald's Standorte</p></div></div>
                 <div class="page-body" style="padding:0;overflow:hidden">
@@ -4792,7 +4813,7 @@
                                 <tr><td style="padding:3px 8px;width:44px;font-weight:700">E1</td><td style="padding:3px 8px">Verbindungstest — Ping <span style="color:#166534;font-weight:600">✓ erledigt (Prod + Refapps)</span> · CheckInteroperability wartet auf Transmitter-Zertifikat (E1b)</td><td style="padding:3px 8px;width:130px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">Ping ✓</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E1b</td><td style="padding:3px 8px">WS-Security (Signatur + Verschlüsselung) — braucht Entwicklungs-Zertifikat von Swissdec (Erstberatung; Swissdec = eigene CA, kein Test-Keystore öffentlich)</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">wartet</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E2</td><td style="padding:3px 8px">XML-Generator Jahresmeldung AHV — 28.08.2026 mit Kunstdaten via Refapps-Transmitter übermittelt: DeclareAnnualSalary SUCCESS · GetStatus ACCEPTED · Completion released (voller Zyklus)</td><td style="padding:3px 8px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">erledigt ✓</span></td></tr>
-                                <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit (UID, Kassen-/Versicherer-/Vertragsnummern) — Erfassungskarte unten; echte Nummern eintragen = Platzhalter weg</td><td style="padding:3px 8px"><span style="background:#fef3c7;color:#92400e;padding:1px 8px;border-radius:8px;font-weight:600">erfassen</span></td></tr>
+                                <tr><td style="padding:3px 8px;font-weight:700">E3</td><td style="padding:3px 8px">Stammdaten Rechtseinheit — Empfänger-Katalog als führende Quelle; 28.08.2026 Ende-zu-Ende verifiziert (Meldung mit Katalog-Nummern übermittelt, Business State FINISHED). Auf Prod: echte Mirus-Nummern in den Katalog übertragen</td><td style="padding:3px 8px"><span style="background:#dcfce7;color:#166534;padding:1px 8px;border-radius:8px;font-weight:600">erledigt ✓</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E4</td><td style="padding:3px 8px">Erste Übermittlung an Refapps Receiver (3-Schritt-Protokoll + Quittungen)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E5</td><td style="padding:3px 8px">Alle Jahres-Domänen (FAK, UVG, UVGZ, KTG, BVG, Lohnausweis)</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
                                 <tr><td style="padding:3px 8px;font-weight:700">E6</td><td style="padding:3px 8px">QST-Monatsmeldung inkl. EMA + Korrekturen</td><td style="padding:3px 8px"><span style="color:#8b8b8b">offen</span></td></tr>
@@ -4847,12 +4868,11 @@
                         <div style="font-weight:700;font-size:14px;margin-bottom:4px">E3 · Stammdaten Rechtseinheit</div>
                         <p style="font-size:12.5px;color:#64748b;margin:0 0 12px">
                             Kassen-, Versicherer-, Mitglied- und Subnummern kommen aus dem <b>Empfänger-Katalog</b> (Filiale → Lohndaten Empfänger) — dort pflegen, hier nur lesen.
-                            Erfasst wird hier nur, was der Katalog nicht kennt: die UID der Rechtseinheit und das «versichert seit» für den AHV-Meldeblock.
+                            Die UID kommt aus der <b>Hauptsitz-Verwaltung</b> (System → Filialen &amp; Benutzer → Hauptsitze). Erfasst wird hier nur noch das «versichert seit» für den AHV-Meldeblock.
                         </p>
                         <div style="display:grid;grid-template-columns:220px 260px 220px 260px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:980px;margin-bottom:12px">
-                            <div style="font-weight:700">UID Rechtseinheit (Hauptsitz)</div>
-                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <div></div><div></div>
+                            <div style="font-weight:700">UID Rechtseinheit</div>
+                            <div id="elmStUidInfo" style="grid-column:span 3;font-size:12.5px;color:#3f3f3f">⏳ …</div>
                             <div style="font-weight:700">UVG versichert seit</div>
                             <div style="display:flex;gap:6px"><input id="elmStUvgSeit" type="date" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;flex:1"></div>
                             <div style="font-weight:700">BVG versichert seit</div>
@@ -7447,6 +7467,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1.5fr 1.5fr;gap:10px">
                     <div><label class="f-label">Branchen-Code (NOGA)</label><input id="stmBranchenCode" class="f-input" placeholder="5610"></div>
+                    <div><label class="f-label">Hauptsitz (Rechtseinheit)</label><select id="stmHauptsitz" class="f-input"><option value="">— nicht zugeordnet —</option></select></div>
                     <!-- AHV-Kasse/BVG-Versicherer werden aus den Lohndaten-
                          empfängern abgeleitet (Walter 06.08.2026) — hier nicht
                          mehr editierbar (Pflege im Tab «Lohndaten Empfänger»). -->
@@ -8278,7 +8299,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260827a"></script>
+<script src="js/app-core.js?v=20260829a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8342,7 +8363,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260828g"></script>
+<script src="js/swissdec.js?v=20260829a"></script>
+<script src="js/hauptsitze.js?v=20260829a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>

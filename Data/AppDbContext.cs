@@ -77,6 +77,7 @@ public class AppDbContext : DbContext
     public DbSet<AuditLog>              AuditLogs              => Set<AuditLog>();
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
     public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
+    public DbSet<Hauptsitz>             Hauptsitze             => Set<Hauptsitz>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
     public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
     public DbSet<AkontoZahlung>         AkontoZahlungen        => Set<AkontoZahlung>();
@@ -539,6 +540,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.CompanyName).HasColumnName("company_name");
             entity.Property(e => e.RestaurantCode).HasColumnName("restaurant_code");
+            entity.Property(e => e.HauptsitzId).HasColumnName("hauptsitz_id");
             entity.Property(e => e.Street).HasColumnName("street");
             entity.Property(e => e.HouseNumber).HasColumnName("house_number");
             entity.Property(e => e.ZipCode).HasColumnName("zip_code");
@@ -756,6 +758,24 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgVersichertSeit).HasColumnName("bvg_versichert_seit").HasColumnType("date");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by").HasMaxLength(150);
+        });
+
+        // Hauptsitz/Rechtseinheit (Walter 29.08.2026)
+        modelBuilder.Entity<Hauptsitz>(entity =>
+        {
+            entity.ToTable("hauptsitz");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
+            entity.Property(e => e.Uid).HasColumnName("uid").HasMaxLength(20);
+            entity.Property(e => e.Strasse).HasColumnName("strasse").HasMaxLength(200);
+            entity.Property(e => e.Plz).HasColumnName("plz").HasMaxLength(15);
+            entity.Property(e => e.Ort).HasColumnName("ort").HasMaxLength(120);
+            entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
         });
 
         modelBuilder.Entity<Nationality>(entity =>

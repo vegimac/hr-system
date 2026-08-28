@@ -961,7 +961,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze'];
 
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
@@ -1043,7 +1043,13 @@ function showPage(name) {
     if (name === 'lohnschema' && typeof lsInit === 'function') lsInit();
     if (name === 'datenaufbewahrung' && typeof loadRetentionYears === 'function') loadRetentionYears();
     if (name === 'daten-fix' && typeof dfInit === 'function') dfInit();
-    if (name === 'filialen') loadFilialen();
+    if (name === 'filialen') {
+        loadFilialen();
+        // Hauptsitz-Namen für die Stammdaten-Anzeige vorladen (Walter 29.08.2026)
+        if (!window._hsCache) fetch('/api/hauptsitze', { headers: ah() })
+            .then(r => r.ok ? r.json() : null).then(l => { if (l) window._hsCache = l; }).catch(() => {});
+    }
+    if (name === 'hauptsitze') loadHauptsitze();
     if (name === 'vertraege') loadVtList();
     if (name === 'qst-tarife') loadQstTarifeStatus();
     if (name === 'fz-tarife') fzLoad();

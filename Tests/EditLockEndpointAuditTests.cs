@@ -170,6 +170,7 @@ public class EditLockEndpointAuditTests
         ["ContractsController"]                    = "Arbeitsvertrags-PDF + Vertragstexte — read-only/Generation",
         ["ContractShareController"]                = "Öffentlicher Vertrags-Link-Token (Create) + anonyme PDF-Auslieferung — read-only-Generation, kein Lohn-Datum",
         ["ElmController"]                          = "Swissdec ELM E1–E3 (Walter 27./28.08.2026): Ping/CheckInteroperability (externe Test-Calls) + elm_stammdaten (Katalog Rechtseinheit, kein MA-Lohn)"
+        ,["HauptsitzController"]                    = "Hauptsitz/Rechtseinheiten-Katalog (Walter 29.08.2026) — Stammdaten, kein MA-Lohn"
     };
 
     [Fact]

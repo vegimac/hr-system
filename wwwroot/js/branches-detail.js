@@ -1,3 +1,9 @@
+function _hsNameOf(id) {
+    if (!id || !window._hsCache) return null;
+    const h = window._hsCache.find(x => x.id === id);
+    return h ? h.name + (h.uid ? ' (' + h.uid + ')' : '') : null;
+}
+
 // ══════════════════════════════════════════════════════════════════════
 // branches-detail.js — extrahiert aus index.html (Phase A)
 // ══════════════════════════════════════════════════════════════════════
@@ -272,6 +278,7 @@ function renderFilialenDetail(b) {
                 ${fField('Arbeitsort (Vertrag)', b.workLocation || `<span style="color:#8b8b8b">– (Fallback: ${b.city || 'Ort'})</span>`)}
                 ${fField('BUR-Nummer',      b.burNummer)}
                 ${fField('UID-Nummer',      b.uidNummer)}
+                ${fField('Hauptsitz (Rechtseinheit)', (typeof _hsNameOf === 'function' && _hsNameOf(b.hauptsitzId)) || (b.hauptsitzId ? 'Nr. ' + b.hauptsitzId : '<span style="color:#8b8b8b">– nicht zugeordnet</span>'))}
                 ${fField('Branchen-Code',   b.branchenCode)}
                 <!-- AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern
                      abgeleitet (Walter 06.08.2026) — keine Freitextfelder mehr.
@@ -1080,6 +1087,21 @@ async function openStmModal(id) {
         document.getElementById('stmBurNummer').value      = b.burNummer      || '';
         document.getElementById('stmUidNummer').value      = b.uidNummer      || '';
         document.getElementById('stmBranchenCode').value   = b.branchenCode   || '';
+        // Hauptsitz-Dropdown (Rechtseinheiten, Walter 29.08.2026)
+        (async () => {
+            const sel = document.getElementById('stmHauptsitz');
+            if (!sel) return;
+            try {
+                const r = await fetch('/api/hauptsitze', { headers: ah() });
+                if (r.ok) {
+                    const list = await r.json();
+                    window._hsCache = list;
+                    sel.innerHTML = '<option value="">— nicht zugeordnet —</option>' +
+                        list.map(h => `<option value="${h.id}">${(h.name || '').replace(/</g, '&lt;')}${h.uid ? ' (' + h.uid + ')' : ''}</option>`).join('');
+                }
+            } catch { /* Dropdown bleibt leer */ }
+            sel.value = b.hauptsitzId != null ? String(b.hauptsitzId) : '';
+        })();
         // stmAhvKasse/stmBvgVersicherer entfernt (aus Lohndatenempfängern abgeleitet).
         document.getElementById('stmIstGav').checked       = !!b.istGav;
         document.getElementById('stmGavName').value        = b.gavName        || '';
@@ -1164,6 +1186,7 @@ async function saveStm() {
         workLocation:   trimOrNull('stmWorkLocation'),
         burNummer:      trimOrNull('stmBurNummer'),
         uidNummer:      trimOrNull('stmUidNummer'),
+        hauptsitzId:    (() => { const v = document.getElementById('stmHauptsitz')?.value; return v ? parseInt(v, 10) : null; })(),
         branchenCode:   trimOrNull('stmBranchenCode'),
         // ahvKasse/bvgVersicherer nicht mehr im Payload — DB-Felder bleiben
         // unangetastet (Ableitung aus Lohndatenempfängern, Walter 06.08.2026).

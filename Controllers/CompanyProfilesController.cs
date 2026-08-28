@@ -254,6 +254,7 @@ public class CompanyProfilesController : ControllerBase
         // ALV / Sozialversicherungen / GAV
         profile.BurNummer      = string.IsNullOrWhiteSpace(dto.BurNummer)      ? null : dto.BurNummer.Trim();
         profile.UidNummer      = string.IsNullOrWhiteSpace(dto.UidNummer)      ? null : dto.UidNummer.Trim();
+        profile.HauptsitzId    = dto.HauptsitzId; // Zuordnung Rechtseinheit (Walter 29.08.2026)
         profile.BranchenCode   = string.IsNullOrWhiteSpace(dto.BranchenCode)   ? null : dto.BranchenCode.Trim();
         // AhvKasse/BvgVersicherer: seit 06.08.2026 aus den Lohndatenempfängern
         // abgeleitet (Walter) — hier NICHT mehr mutieren, sonst nullt jeder
@@ -294,6 +295,7 @@ public class CompanyProfilesController : ControllerBase
         string?  Email,
         string?  BurNummer,
         string?  UidNummer,
+        int?     HauptsitzId,
         string?  BranchenCode,
         string?  AhvKasse,
         string?  BvgVersicherer,

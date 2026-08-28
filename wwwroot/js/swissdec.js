@@ -16,7 +16,7 @@ function swissdecInit() {
 // ── E3: Stammdaten Rechtseinheit ────────────────────────────────────────────
 // Nummern kommen aus dem Empfänger-Katalog (nur Anzeige); erfasst werden hier
 // nur UID der Rechtseinheit + «versichert seit» (Walter 28.08.2026).
-const _elmStFields = { elmStUid: 'uid', elmStUvgSeit: 'uvgVersichertSeit', elmStBvgSeit: 'bvgVersichertSeit' };
+const _elmStFields = { elmStUvgSeit: 'uvgVersichertSeit', elmStBvgSeit: 'bvgVersichertSeit' };
 
 async function elmStammLoad() {
     try {
@@ -32,6 +32,24 @@ async function elmStammLoad() {
         }
     } catch { /* still */ }
     elmStKatalogLoad();
+    elmStHauptsitzLoad();
+}
+
+async function elmStHauptsitzLoad() {
+    const box = document.getElementById('elmStUidInfo');
+    if (!box) return;
+    try {
+        const r = await fetch('/api/hauptsitze', { headers: ah() });
+        const list = r.ok ? await r.json() : [];
+        const aktive = list.filter(h => h.isActive);
+        if (!aktive.length) {
+            box.innerHTML = '<span style="color:#b45309">Kein Hauptsitz erfasst — System → Filialen &amp; Benutzer → Hauptsitze.</span>';
+        } else {
+            box.innerHTML = aktive.map(h =>
+                `<b>${esc(h.name)}</b> ${h.uid ? '· <span style="font-family:ui-monospace,Menlo,monospace">' + esc(h.uid) + '</span>' : '· <span style="color:#b45309">⚠ UID fehlt</span>'} · ${(h.filialen || []).length} Filiale(n)`
+            ).join('<br>');
+        }
+    } catch { box.textContent = '—'; }
 }
 
 async function elmStKatalogLoad() {
