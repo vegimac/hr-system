@@ -297,7 +297,9 @@ public class QstAnmeldungController : ControllerBase
                         "Bitte im Familie-Tab beim Ehepartner die Erwerbstätig-Frage beantworten (entscheidet Tarif B oder C).");
                 else if (ehepartner.Erwerbstaetig == true && string.IsNullOrWhiteSpace(ehepartner.ArbeitgeberName))
                     Add("Ehepartner: Arbeitgeber", "familie",
-                        "Der Ehepartner ist erwerbstätig — bitte Arbeitgeber-Name (und Arbeitsort) erfassen.");
+                        "Der Ehepartner ist erwerbstätig — bitte Arbeitgeber-Name (und Arbeitsort) erfassen. " +
+                        "Bei Erwerbs-/Ersatzeinkommen im Ausland (z.B. Militärsold, Rente) den Sachverhalt " +
+                        "ins Arbeitgeber-Feld schreiben, z.B. «Militärdienst Ukraine (Ersatzeinkommen)».");
             }
         }
 

@@ -253,7 +253,13 @@ public class QstPflichtCheckService
                     partnerMaengel.Add("Bewilligung des Ehepartners fehlt (Ausländer/in)");
                 if (spouse.Erwerbstaetig == null)
                     partnerMaengel.Add("Erwerbstätig-Frage zum Ehepartner nicht beantwortet");
-                else if (spouse.Erwerbstaetig == true && string.IsNullOrWhiteSpace(spouse.ArbeitgeberName))
+                else if (spouse.Erwerbstaetig == true && partnerInSchweiz
+                         && string.IsNullOrWhiteSpace(spouse.ArbeitgeberName))
+                    // Arbeitgeber-Pflicht NUR bei Partner in der Schweiz: bei
+                    // Erwerbs-/Ersatzeinkommen im AUSLAND (z.B. Status S, Mann
+                    // mit Militärsold in der Ukraine — Kevin/TaxInfo BE,
+                    // 29.08.2026) gibt es keinen CH-Arbeitgeber; für den Tarif
+                    // zählt das Einkommen trotzdem (→ C Doppelverdiener).
                     partnerMaengel.Add("Arbeitgeber des erwerbstätigen Ehepartners fehlt");
             }
             if (partnerMaengel.Count == 0) partnerMaengel = null;

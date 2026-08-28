@@ -8597,12 +8597,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      + Stellenantritt. -->
                 <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 10px;margin-bottom:6px">
                     <div class="fmf-field">
-                        <label class="fmf-label">Erwerbstätig?</label>
+                        <label class="fmf-label" title="Zählt auch: Ersatzeinkommen wie Rente, Arbeitslosen- oder Militärentschädigung — und Einkommen im AUSLAND (Tarifbestimmung schweizweit, TaxInfo BE). Beispiel Status S: Ehemann in der Ukraine mit Militärsold = Ja → Tarif C.">Erwerbstätig / Ersatzeinkommen? ⓘ</label>
                         <div style="display:flex;gap:6px;align-items:center;min-height:28px">
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="" checked onchange="fmErwerbChanged()"> –</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
                         </div>
+                        <div style="font-size:10.5px;color:#8b8b8b;line-height:1.3;margin-top:2px">inkl. Rente/Militärsold,<br>auch im Ausland → Tarif C</div>
                     </div>
                     <div class="fmf-field">
                         <label class="fmf-label">Arbeitgeber</label>

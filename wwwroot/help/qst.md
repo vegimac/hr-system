@@ -100,6 +100,7 @@ Bei verheirateten MA hat der **Ehepartner direkten Einfluss auf den Tarif**:
 
 - **Alleinverdiener** (Partner ohne eigenes Einkommen) → **Tarif B**
 - **Doppelverdiener** (beide arbeiten) → **Tarif C** — Achtung: auch Erwerbseinkommen des Partners im **Ausland** zählt!
+- **Ersatzeinkommen des Partners zählt wie Erwerbseinkommen** (bestätigt Steuerverwaltung, 08/2026): Rente, Arbeitslosenentschädigung, **Militärsold** — auch im Ausland. Beispiel Status S: Ehemann leistet in der Ukraine Kriegsdienst mit Sold → Frage «Erwerbstätig/Ersatzeinkommen?» = **Ja** → **Tarif C**, nicht B. Die Tarifbestimmung ist schweizweit gleich (TaxInfo Kanton Bern).
 
 Erfass den Ehepartner im **Familie-Tab** mit allen Angaben (Nationalität, Bewilligung, Erwerbstätig-Frage + Arbeitgeber). Der **Tarifvorschlag wertet die Erwerbstätig-Frage automatisch aus** (nicht erwerbstätig → B, erwerbstätig → C, offen → C als sicherer Default). Wenn der Partner Schweizer oder C-Ausweis-Inhaber ist, ist der MA übrigens **gar nicht QST-pflichtig** — siehe oben Bedingung 4 oder 5.
 
