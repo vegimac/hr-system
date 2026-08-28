@@ -40,6 +40,31 @@ async function elmStammLoad() {
     } catch { /* still */ }
 }
 
+async function elmStammVorschlag() {
+    const s = document.getElementById('elmStammStatus');
+    try {
+        const r = await fetch('/api/elm/stammdaten/vorschlag', { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { if (s) { s.textContent = j.message || 'Vorschlag fehlgeschlagen.'; s.style.color = '#b91c1c'; } return; }
+        let uebernommen = 0;
+        for (const [id, key] of Object.entries(_elmStFields)) {
+            const el = document.getElementById(id);
+            if (!el || el.value) continue;               // nie Bestehendes überschreiben
+            const v = (j.werte || {})[key];
+            if (v) { el.value = v; uebernommen++; }
+        }
+        if (s) {
+            const hin = (j.hinweise || []).length ? ' · ' + j.hinweise.join(' ') : '';
+            s.textContent = uebernommen > 0
+                ? `↪ ${uebernommen} Felder aus dem Empfänger-Katalog übernommen — prüfen und speichern.${hin}`
+                : `Keine leeren Felder befüllbar.${hin}`;
+            s.style.color = uebernommen > 0 ? '#166534' : '#92400e';
+        }
+    } catch (e) {
+        if (s) { s.textContent = 'Verbindungsfehler: ' + e.message; s.style.color = '#b91c1c'; }
+    }
+}
+
 async function elmStammSave() {
     const dto = {};
     for (const [id, key] of Object.entries(_elmStFields))

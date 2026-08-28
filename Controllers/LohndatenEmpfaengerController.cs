@@ -131,6 +131,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
                 ort          = z.Empfaenger!.Ort,
                 kantonCode   = z.Empfaenger!.KantonCode,
                 kassennummer = z.Empfaenger!.Kassennummer,
+                uidNummer    = z.Empfaenger!.UidNummer,
                 supportEmail = z.Empfaenger!.SupportEmail,
             })
             .ToListAsync();

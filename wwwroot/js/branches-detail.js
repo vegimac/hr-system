@@ -2329,7 +2329,7 @@ function cpEmpfOpenModal(zuordnungId) {
         document.getElementById('cpEmpfPickBlock').style.display = 'none';
         cpEmpfFillKatalog({
             art: z.art, bezeichnung: z.bezeichnung, zusatz: z.zusatz,
-            kassennummer: z.kassennummer, strasse: z.strasse, postfach: z.postfach,
+            kassennummer: z.kassennummer, uidNummer: z.uidNummer, strasse: z.strasse, postfach: z.postfach,
             plz: z.plz, ort: z.ort, kantonCode: z.kantonCode, supportEmail: z.supportEmail,
         }, false);
         set('cpEmpfMitglied', z.mitgliednummer);

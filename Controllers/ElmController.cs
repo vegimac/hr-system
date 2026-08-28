@@ -100,6 +100,79 @@ public class ElmController : ControllerBase
         return Ok(s ?? new ElmStammdaten());
     }
 
+    /// <summary>
+    /// Vorschlag aus dem Empfänger-Katalog (Walter 28.08.2026): die zentral
+    /// gepflegten Lohndatenempfänger liefern Name, Kassen-/Versicherer-Nr.
+    /// und UID; Mitglied-/Subnummer nur, wenn sie über ALLE Filialen gleich
+    /// sind (sonst Hinweis — pro-Filiale-Zuordnung kommt in E5).
+    /// </summary>
+    [HttpGet("stammdaten/vorschlag")]
+    public async Task<IActionResult> StammdatenVorschlag(CancellationToken ct)
+    {
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Include(e => e.Zuordnungen)
+            .Where(e => e.IsActive)
+            .OrderBy(e => e.Id)
+            .ToListAsync(ct);
+
+        var hinweise = new List<string>();
+        var dto = new Dictionary<string, string?>();
+
+        // Mitglied-/Subnummer nur übernehmen, wenn filialübergreifend identisch.
+        (string? mitglied, string? sub) Gemeinsam(LohndatenEmpfaenger e)
+        {
+            var akt = e.Zuordnungen.Where(z => z.IsActive).ToList();
+            if (akt.Count == 0) return (null, null);
+            var m = akt.Select(z => (z.Mitgliednummer ?? "").Trim()).Distinct().ToList();
+            var su = akt.Select(z => (z.Subnummer ?? "").Trim()).Distinct().ToList();
+            var mg = m.Count == 1 && m[0].Length > 0 ? m[0] : null;
+            var sg = su.Count == 1 && su[0].Length > 0 ? su[0] : null;
+            if (m.Count > 1)
+                hinweise.Add($"«{e.Bezeichnung}»: Mitgliednummern sind pro Filiale unterschiedlich — bleiben leer (Zuordnung pro Filiale folgt in E5).");
+            return (mg, sg);
+        }
+
+        void Fill(string prefix, LohndatenEmpfaenger? e, bool mitUid)
+        {
+            if (e == null) return;
+            var (mg, sg) = Gemeinsam(e);
+            dto[prefix + "Versicherer"] = e.Bezeichnung;
+            dto[prefix + "VersichererNummer"] = e.Kassennummer;
+            dto[prefix + "KundenNummer"] = mg;
+            dto[prefix + "VertragsNummer"] = sg;
+            if (mitUid) dto[prefix + "Uid"] = e.UidNummer;
+        }
+
+        var ak = empf.FirstOrDefault(e => e.Art == "AUSGLEICHSKASSE");
+        if (ak != null)
+        {
+            var (mg, _) = Gemeinsam(ak);
+            dto["akName"] = ak.Bezeichnung;
+            dto["akKassenNummer"] = ak.Kassennummer;
+            dto["akAbrechnungsNummer"] = mg;
+        }
+        var fak = empf.FirstOrDefault(e => e.Art == "FAK");
+        if (fak != null)
+        {
+            var (mg, _) = Gemeinsam(fak);
+            dto["fakKassenNummer"] = fak.Kassennummer;
+            dto["fakAbrechnungsNummer"] = mg;
+        }
+
+        // UVG-Zusatz hat keinen eigenen Art-Code — Erkennung über den Namen.
+        bool IstZusatz(LohndatenEmpfaenger e) =>
+            (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
+        Fill("uvg",  empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e)), mitUid: true);
+        Fill("uvgz", empf.FirstOrDefault(e => e.Art == "UVG" && IstZusatz(e)),  mitUid: false);
+        Fill("ktg",  empf.FirstOrDefault(e => e.Art == "KTG"), mitUid: false);
+        Fill("bvg",  empf.FirstOrDefault(e => e.Art == "BVG"), mitUid: true);
+
+        if (dto.Count == 0)
+            hinweise.Add("Im Empfänger-Katalog (Filiale → Lohndaten Empfänger) sind noch keine aktiven Empfänger erfasst.");
+
+        return Ok(new { werte = dto, hinweise });
+    }
+
     [HttpPut("stammdaten")]
     public async Task<IActionResult> SaveStammdaten([FromBody] ElmStammdatenDto dto, CancellationToken ct)
     {
