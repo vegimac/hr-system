@@ -269,6 +269,48 @@ function qstStammChanged(which) {
     qstRenderResultat();
 }
 
+// ── Wohnsituation = reine Anzeige (Walter 29.08.2026) ───────────────────
+// Keine Eingaben: die Adresse kommt IMMER aus easy@work. Land ≠ CH ⇒
+// automatisch Grenzgänger/in (Person ohne steuerrechtlichen Wohnsitz CH);
+// Wochenaufenthalter ⇐ Zusatzadresse Typ «Wochenaufenthalt». Die
+// (unsichtbaren) Checkboxen werden hier konsistent gesetzt — der Server
+// erzwingt dieselben Werte beim Speichern (ApplyWohnadresseAsync /
+// ApplyWochenaufenthaltAsync).
+function qstRenderWohnsituation() {
+    const el = document.getElementById('qstWohnsituationInfo');
+    if (!el) return;
+    const d = qstEmployeeData || {};
+    const land = ((d.country || 'CH') + '').trim();
+    const istAusland = !!land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
+    const g = document.getElementById('qstIsGrenzgaenger');
+    if (g) g.checked = istAusland;
+    const wa = window._qstWaAdresse;
+    const waCb = document.getElementById('qstIsWochenaufenthalter');
+    if (waCb && wa) waCb.checked = true;
+
+    const city = (typeof stripCityCantonSuffix === 'function') ? stripCityCantonSuffix(d.city) : d.city;
+    const ort   = [d.zipCode, city].filter(Boolean).join(' ');
+    const waOrt = wa ? [wa.zipCode, wa.city].filter(Boolean).join(' ') : '';
+    const lines = [];
+    if (istAusland) {
+        lines.push(`🌍 <b>Hauptwohnsitz im Ausland (${land.toUpperCase()})</b> — automatisch Grenzgänger/in `
+            + `(Person ohne steuerrechtlichen Wohnsitz CH). QST-Kanton = Arbeitskanton der Filiale.`);
+    } else {
+        lines.push(`🏠 Hauptwohnsitz Schweiz${ort ? ': ' + ort : ''} <span style="color:#94a3b8">(aus easy@work)</span> — kein Grenzgänger.`);
+    }
+    if (wa) {
+        lines.push(`🛏 <b>Wochenaufenthalter/in</b> — Aufenthaltsadresse${waOrt ? ' ' + waOrt : ''} `
+            + `(Zusatzadresse beim MA). QST-Kanton bleibt der Hauptwohnsitz.`);
+    } else if (waCb?.checked) {
+        lines.push(`🛏 Wochenaufenthalter/in <span style="color:#b45309">(Alt-Erfassung — bitte die Wochenaufenthaltsadresse `
+            + `als Zusatzadresse beim MA nachtragen)</span>.`);
+    } else {
+        lines.push(`<span style="color:#94a3b8">Kein Wochenaufenthalt — wird automatisch gesetzt, sobald beim MA eine `
+            + `Zusatzadresse «Wochenaufenthalt» erfasst ist.</span>`);
+    }
+    el.innerHTML = lines.join('<br>');
+}
+
 // ── Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026) ─────────
 // Analog QST-Befreiung: das Häkchen ist NUR mit hinterlegter Verfügung der
 // Steuerbehörde erlaubt. Dropdown = beim MA ABGELEGTE Dokumente (bewusst
@@ -875,6 +917,9 @@ function populateQstForm(entry) {
     qstApplyKonkubinatLock();
     // Wochenaufenthalt aus der Wohnsituation befüllen + sperren (Walter 28.08.2026).
     qstApplyWochenaufenthaltLock();
+    // Wohnsituation als reine Anzeige rendern (Walter 29.08.2026) —
+    // Grenzgänger automatisch aus der easy-Adresse (Land ≠ CH).
+    qstRenderWohnsituation();
     // Resultat-Karte aus den geladenen Werten zeichnen (K4-Vorstufe 29.08.2026).
     qstRenderResultat();
 

@@ -615,6 +615,10 @@ public class EmployeeQuellensteuerController : ControllerBase
         var istAusland = land.Length > 0
             && !land.Equals("CH", StringComparison.OrdinalIgnoreCase)
             && !land.Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+        // Grenzgänger-Flag server-autoritativ aus der Adresse (Walter
+        // 29.08.2026): Land ≠ CH ⇒ automatisch Grenzgänger, CH ⇒ keiner —
+        // kein manueller Weg mehr (die Checkbox ist nur noch Datenträger).
+        entry.IsGrenzgaenger = istAusland;
         if (istAusland)
         {
             if (string.IsNullOrWhiteSpace(entry.Wohnsitzstaat)) entry.Wohnsitzstaat = land;

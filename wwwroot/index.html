@@ -8351,7 +8351,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260828d"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829e"></script>
+<script src="js/qst-modal.js?v=20260829f"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -9345,21 +9345,19 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
              gesperrt (qstApplyWochenaufenthaltLock); Wohnsitz-Ausland-Felder
              werden bei Land ≠ CH vom Server vorbefüllt (ApplyWohnadresseAsync). -->
         <div class="emp-section-title">2 · Wohnsituation</div>
-        <div style="display:grid;grid-template-columns:auto auto 220px 110px 1fr;gap:7px 14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
-            <label class="qst-cb" style="margin-bottom:2px"><input type="checkbox" id="qstIsGrenzgaenger"> Grenzgänger/in</label>
-            <label class="qst-cb" style="margin-bottom:2px"><input type="checkbox" id="qstIsWochenaufenthalter"> Wochenaufenthalter/in</label>
-            <div>
-                <label class="qst-lbl">Wohnsitz Ausland</label>
-                <input type="text" id="qstWohnsitzAusland" placeholder="Land" class="qst-inp">
-            </div>
-            <div>
-                <label class="qst-lbl">ISO-Code</label>
-                <input type="text" id="qstWohnsitzstaat" placeholder="DE, FR …" maxlength="5" class="qst-inp" style="font-family:monospace">
-            </div>
-            <div>
-                <label class="qst-lbl">Adresse Ausland</label>
-                <input type="text" id="qstAdresseAusland" placeholder="Strasse, PLZ, Ort" class="qst-inp">
-            </div>
+        <!-- REINE ANZEIGE (Walter 29.08.2026): keine Eingaben. Die Adresse
+             kommt IMMER aus easy@work — Land ≠ CH ⇒ automatisch Grenzgänger
+             (Person ohne steuerrechtlichen Wohnsitz CH); Wochenaufenthalter
+             ⇐ Zusatzadresse Typ «Wochenaufenthalt» beim MA. Gefüllt von
+             qstRenderWohnsituation(); die Checkboxen + Ausland-Felder sind
+             unsichtbare Datenträger (Server setzt sie ohnehin autoritativ). -->
+        <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
+        <div style="display:none">
+            <input type="checkbox" id="qstIsGrenzgaenger" tabindex="-1">
+            <input type="checkbox" id="qstIsWochenaufenthalter" tabindex="-1">
+            <input type="text" id="qstWohnsitzAusland" tabindex="-1">
+            <input type="text" id="qstWohnsitzstaat" maxlength="5" tabindex="-1">
+            <input type="text" id="qstAdresseAusland" tabindex="-1">
         </div>
 
         <div class="emp-section-title">3 · Partner</div>
