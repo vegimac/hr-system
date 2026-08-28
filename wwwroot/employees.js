@@ -2279,10 +2279,12 @@ async function loadQuellensteuerTab(employeeId) {
             const vr = await fetch(`/api/employees/${employeeId}/quellensteuer/vorschlag`, { headers: ah() });
             if (vr.ok) vorschlag = await vr.json();
         } catch (_) { /* Vorschlag ist Komfort */ }
-        renderQuellensteuerTab(el, entries, pflicht, vorschlag);
-        // K1 (Walter 29.08.2026): Korrektur-Posten (rückwirkende Änderungen
-        // über abgeschlossene Monate) unter der Versionen-Liste anzeigen.
-        qstRenderKorrekturen(employeeId, el);
+        let korrekturen = [];
+        try {
+            const kr = await fetch(`/api/employees/${employeeId}/quellensteuer/korrekturen`, { headers: ah() });
+            if (kr.ok) korrekturen = await kr.json();
+        } catch (_) { /* Anzeige ist Komfort */ }
+        renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
@@ -4027,7 +4029,7 @@ function renderQstTarifWarnBanner(pflicht) {
     </div>`;
 }
 
-function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
+function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
     // Walter-Vorgabe 26.05.2026: Pflicht-Banner OBEN (vor allem anderen).
     // Walter-Vorgabe 23.08.2026: die Tarif-Plausibilitäts-Warnungen wandern
     // vom Kopf-Banner DIREKT in die AKTUELL-Zeile der QST-Liste (roter Code
@@ -4077,7 +4079,13 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
         </div>
         ${permitsHtml}
     </div>
-    <div class="emp-section-title" style="margin-top:6px">Quellensteuer-Einträge</div>`;
+    <div class="emp-section-title" style="margin-top:6px;display:flex;align-items:center;gap:10px">Quellensteuer
+        <span style="flex:1"></span>
+        ${isOpsRole() ? `<button class="btn-emp-add" onclick="openQstFromTab(null)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Neue QST-Version
+        </button>` : ''}
+    </div>`;
     // „+ Neuer Eintrag" sitzt jetzt im Header (empTabActionBar,
     // Walter-Vorgabe 01.06.2026) — Toolbar hier versteckt.
     const toolbar = `
@@ -4162,7 +4170,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
                         <button class="fam-tile-doc fam-tile-doc-danger" onclick="qstTarifDokUnlink(${e.id})" title="Verknüpfung lösen">✕</button></span>`
                     : `<button class="fam-tile-doc" style="margin-left:auto;margin-right:8px;flex-shrink:0" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Tarifbestätigung der Steuerbehörde verknüpfen">📎 Tarifbestätigung</button>`}
                 ${e.inLohnVerwendet
-                    ? `<span title="Dieser QST-Eintrag gehört zu einer definitiv abgeschlossenen Lohnperiode (DTA erstellt) und ist nicht mehr editierbar. Für Änderungen: '+ Neuer Eintrag' oben." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;flex-shrink:0">🔒 In Lohn verwendet</span>`
+                    ? `<span title="Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet und ist eingefroren. Änderungen über «Neue QST-Version» — rückwirkend mit Korrektur-Grund (Differenzen werden als QST-Korrektur verrechnet)." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;flex-shrink:0">🔒 verwendet${e.verwendetBis ? ' bis ' + e.verwendetBis.slice(5, 7) + '/' + e.verwendetBis.slice(0, 4) : ''}</span>`
                     : `<div class="dok-menu-wrap" style="flex-shrink:0">
                         <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="qstMenu-${e.id}">
@@ -4171,10 +4179,38 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag) {
                         </div>
                        </div>`}
             </div>
+            ${qstKorrSubrows(korrekturen, e.id)}
         </div>`;
     });
 
     el.innerHTML = html;
+}
+
+// K1 (Walter 29.08.2026): Korrektur-Posten als Unterzeilen der auslösenden
+// Version — «beide Wahrheiten zeigen»: fachliche Gültigkeit + Abrechnung.
+function qstKorrSubrows(korrekturen, versionId) {
+    const eigene = (korrekturen || []).filter(k => k.neueVersionId === versionId);
+    if (!eigene.length) return '';
+    const monatsName = m => ['', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][m] || m;
+    const chip = st => ({
+        OFFEN:       '<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:0 7px;font-size:10.5px;font-weight:600">offen — nächster Lohnlauf</span>',
+        VERRECHNET:  '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:0 7px;font-size:10.5px;font-weight:600">verrechnet</span>',
+        IN_DARLEHEN: '<span style="background:#dbeafe;color:#1e40af;border-radius:8px;padding:0 7px;font-size:10.5px;font-weight:600">in Darlehen</span>',
+        GEMELDET:    '<span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:0 7px;font-size:10.5px;font-weight:600">gemeldet</span>',
+        VORJAHR:     '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:0 7px;font-size:10.5px;font-weight:600">Vorjahr — via Steuerverwaltung</span>',
+    }[st] || esc(st));
+    const fmt = v => (v ?? 0).toLocaleString('de-CH', { minimumFractionDigits: 2 });
+    return `<div style="border-top:1px dashed rgba(60,55,48,0.18);margin-top:6px;padding:6px 0 2px 22px">
+        ${eigene.sort((a, b) => (a.jahr * 100 + a.monat) - (b.jahr * 100 + b.monat)).map(k => `
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;padding:2px 0">
+            <span style="color:#8b8b8b">↳</span>
+            <b style="width:70px">${monatsName(k.monat)} ${k.jahr}</b>
+            <span>${esc(k.alterCode || '—')} → ${esc(k.neuerCode || '—')}</span>
+            <span style="color:#8b8b8b">${fmt(k.alterBetrag)} → ${fmt(k.neuerBetrag)}</span>
+            <b style="color:${k.differenz > 0 ? '#b91c1c' : '#166534'}">${k.differenz > 0 ? '+' : ''}${fmt(k.differenz)}</b>
+            ${chip(k.status)}
+        </div>`).join('')}
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════════

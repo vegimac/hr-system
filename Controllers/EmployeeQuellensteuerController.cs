@@ -51,10 +51,44 @@ public class EmployeeQuellensteuerController : ControllerBase
             ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
             : null;
 
-    private static bool IsInLohnVerwendet(EmployeeQuellensteuer q, DateOnly? firstAllowed)
-        => firstAllowed.HasValue && q.ValidFrom < firstAllowed.Value;
+    /// <summary>
+    /// VERWENDUNGSBASIERTE Sperre (Walter-Vorgabe 29.08.2026, ABSOLUT —
+    /// docs/qst-korrektur-konzept.md): eine Version ist eingefroren, wenn
+    /// sie in mindestens einem Lohn einer DEFINITIV abgeschlossenen Periode
+    /// tatsächlich verwendet wurde (Snapshot existiert und Gültigkeit
+    /// überlappt den Monat). Präziser als der frühere Datums-Cutoff: eine
+    /// Version, die in einem abgeschlossenen Monat OHNE Lohn galt, bleibt
+    /// frei; Admin-Wiedereröffnung (nur jüngste Periode) hebt die Sperre
+    /// selbstheilend auf, weil der Monat nicht mehr «abgeschlossen» ist.
+    /// </summary>
+    private async Task<List<DateOnly>> GetAbgeschlosseneLohnMonateAsync(int employeeId)
+        => (await (from s in _db.PayrollSnapshots
+                   join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                   where s.EmployeeId == employeeId
+                         && s.Status != "STORNIERT"
+                         && p.Status == "abgeschlossen"
+                   select new { p.Year, p.Month })
+                  .Distinct()
+                  .ToListAsync())
+            .Select(x => new DateOnly(x.Year, x.Month, 1))
+            .OrderBy(d => d)
+            .ToList();
 
-    private static object MapToDto(EmployeeQuellensteuer q, DateOnly? firstAllowed) => new
+    private static bool VersionUeberlapptMonat(EmployeeQuellensteuer q, DateOnly monatsStart)
+    {
+        var monatsEnde = monatsStart.AddMonths(1).AddDays(-1);
+        return q.ValidFrom <= monatsEnde && (q.ValidTo == null || q.ValidTo >= monatsStart);
+    }
+
+    private static bool IstVersionVerwendet(EmployeeQuellensteuer q, List<DateOnly> abgeschlosseneMonate)
+        => abgeschlosseneMonate.Any(m => VersionUeberlapptMonat(q, m));
+
+    private static DateOnly? VerwendetBis(EmployeeQuellensteuer q, List<DateOnly> abgeschlosseneMonate)
+        => abgeschlosseneMonate.Where(m => VersionUeberlapptMonat(q, m))
+            .Select(m => (DateOnly?)m).LastOrDefault();
+
+    private static object MapToDto(EmployeeQuellensteuer q, DateOnly? firstAllowed,
+        List<DateOnly>? abgeschlosseneMonate = null) => new
     {
         q.Id, q.EmployeeId,
         validFrom = q.ValidFrom.ToString("yyyy-MM-dd"),
@@ -78,9 +112,15 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
         q.DokumentId,
         q.CreatedAt, q.UpdatedAt,
-        // True wenn ValidFrom < FirstAllowedDate (Definitiv der Periode
-        // abgeschlossen / DTA erstellt — Soft-Lock wie Verträge).
-        inLohnVerwendet = firstAllowed.HasValue && q.ValidFrom < firstAllowed.Value
+        // Verwendungsbasiert (Walter 29.08.2026): true wenn die Version in
+        // einem DEFINITIV abgeschlossenen Lohn tatsächlich verwendet wurde.
+        // Fallback (ohne Monatsliste): alter Datums-Cutoff.
+        inLohnVerwendet = abgeschlosseneMonate != null
+            ? IstVersionVerwendet(q, abgeschlosseneMonate)
+            : (firstAllowed.HasValue && q.ValidFrom < firstAllowed.Value),
+        verwendetBis = abgeschlosseneMonate != null
+            ? VerwendetBis(q, abgeschlosseneMonate)?.ToString("yyyy-MM")
+            : null
     };
 
     /// <summary>
@@ -124,7 +164,8 @@ public class EmployeeQuellensteuerController : ControllerBase
             .OrderByDescending(q => q.ValidFrom)
             .ToListAsync();
 
-        return Ok(entries.Select(q => MapToDto(q, firstAllowed)).ToList());
+        var verwendet = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        return Ok(entries.Select(q => MapToDto(q, firstAllowed, verwendet)).ToList());
     }
 
     // GET /api/employees/{employeeId}/quellensteuer/current?date=2026-04-01
@@ -349,13 +390,15 @@ public class EmployeeQuellensteuerController : ControllerBase
         // (inkl. HR-Kontrolle) korrigierbar. Danach: neuen Eintrag anlegen.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
-        if (IsInLohnVerwendet(entry, firstAllowed))
+        var verwendetIn  = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        if (IstVersionVerwendet(entry, verwendetIn))
         {
+            var bis = VerwendetBis(entry, verwendetIn);
             return Conflict(new
             {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) gehört zu einer definitiv abgeschlossenen Lohnperiode. " +
-                                   $"Bitte über '+ Neuer Eintrag' einen neuen QST-Eintrag erfassen.",
+                message          = $"Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet (bis {bis:MM.yyyy}) und ist eingefroren. " +
+                                   "Änderungen laufen über eine NEUE Version — rückwirkend via Korrektur-Grund (die Differenzen werden automatisch als QST-Korrektur verrechnet).",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
         }
@@ -466,12 +509,14 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Soft-Lock: Löschen erst nach Definitiv-Abschluss gesperrt.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
-        if (IsInLohnVerwendet(entry, firstAllowed))
+        var verwendetIn  = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        if (IstVersionVerwendet(entry, verwendetIn))
         {
+            var bis = VerwendetBis(entry, verwendetIn);
             return Conflict(new
             {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"Dieser QST-Eintrag (gültig ab {entry.ValidFrom:dd.MM.yyyy}) gehört zu einer definitiv abgeschlossenen Lohnperiode und kann nicht gelöscht werden.",
+                message          = $"Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet (bis {bis:MM.yyyy}) und kann nicht gelöscht werden.",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
         }
@@ -597,7 +642,7 @@ public class EmployeeQuellensteuerController : ControllerBase
             .OrderByDescending(k => k.Jahr).ThenByDescending(k => k.Monat)
             .Select(k => new
             {
-                k.Id, k.Jahr, k.Monat,
+                k.Id, k.Jahr, k.Monat, k.NeueVersionId,
                 k.AlterCode, k.NeuerCode,
                 k.AlterBetrag, k.NeuerBetrag, k.Differenz,
                 k.Status, k.Grund, k.CreatedAt, k.CreatedBy

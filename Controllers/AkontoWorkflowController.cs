@@ -1292,6 +1292,26 @@ public class AkontoWorkflowController : HrControllerBase
         if (periode.AkontoStatus == "OFFEN")
             return Ok(new { message = "Periode war bereits OFFEN — nichts zu tun.", akontoStatus = periode.AkontoStatus });
 
+        // Walter-Vorgabe 29.08.2026 (ABSOLUT): nur die JÜNGSTE Periode mit
+        // begonnenem Akonto darf zurückgesetzt werden — analog Definitiv-
+        // Wiedereröffnung (keine mittleren Perioden aufreissen).
+        var juengereBegonnene = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == req.CompanyProfileId
+                        && p.AkontoStatus != "OFFEN"
+                        && (p.Year > req.Year || (p.Year == req.Year && p.Month > req.Month)))
+            .OrderBy(p => p.Year).ThenBy(p => p.Month)
+            .Select(p => new { p.Year, p.Month })
+            .FirstOrDefaultAsync();
+        if (juengereBegonnene != null)
+        {
+            return Conflict(new
+            {
+                error   = "NICHT_JUENGSTE_PERIODE",
+                message = $"Nur die jüngste Akonto-Periode kann zurückgesetzt werden — " +
+                          $"{juengereBegonnene.Month:00}/{juengereBegonnene.Year} ist bereits gestartet/abgeschlossen."
+            });
+        }
+
         // Walter-Vorgabe 19.05.2026: Reset NUR bis zum Bank-Ausführungsdatum
         // (AkontoAuszahlungsdatum) — sobald das überschritten ist, hat die
         // Bank den DTA verarbeitet und die Periode ist betoniert. Fallback

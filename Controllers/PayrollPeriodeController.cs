@@ -533,6 +533,29 @@ public class PayrollPeriodeController : ControllerBase
         if (periode.Status != "abgeschlossen")
             return Conflict(new { message = $"Periode ist im Status '{periode.Status}' — Wiedereröffnung nur aus 'abgeschlossen' möglich." });
 
+        // Walter-Vorgabe 29.08.2026 (ABSOLUT): NUR die JÜNGSTE abgeschlossene
+        // Periode der Filiale darf wieder geöffnet werden — sobald ein
+        // Folgemonat abgeschlossen ist, ist die Periode endgültig versiegelt
+        // (alle Folge-Saldi bauen darauf auf). Änderungen dann NUR noch über
+        // den Korrektur-Mechanismus (qst_korrektur etc.).
+        var juengereAbgeschlossen = await _db.PayrollPerioden
+            .Where(p => p.CompanyProfileId == periode.CompanyProfileId
+                        && p.Status == "abgeschlossen"
+                        && (p.Year > periode.Year || (p.Year == periode.Year && p.Month > periode.Month)))
+            .OrderBy(p => p.Year).ThenBy(p => p.Month)
+            .Select(p => new { p.Year, p.Month })
+            .FirstOrDefaultAsync();
+        if (juengereAbgeschlossen != null)
+        {
+            return Conflict(new
+            {
+                error   = "NICHT_JUENGSTE_PERIODE",
+                message = $"Nur die jüngste abgeschlossene Periode kann wieder geöffnet werden — " +
+                          $"{juengereAbgeschlossen.Month:00}/{juengereAbgeschlossen.Year} ist bereits abgeschlossen und baut auf dieser Periode auf. " +
+                          "Rückwirkende Änderungen laufen über den Korrektur-Mechanismus (z.B. QST-Korrektur)."
+            });
+        }
+
         // Walter-Vorgabe 19.05.2026: Reset NUR bis zum Zahldatum DTA. Sobald
         // das Auszahlungsdatum erreicht ist, hat die Bank den DTA verarbeitet
         // und die Periode ist betoniert. Notfall-Eingriff danach NUR via Code
