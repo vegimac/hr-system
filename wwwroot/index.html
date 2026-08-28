@@ -9222,7 +9222,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
              verwendete QST-Versionen sind unveränderbar — wie Verträge. -->
         <div id="qstLockBanner" style="display:none;background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12.5px;color:#854d0e"></div>
 
-        <div class="emp-section-title">Gültigkeit &amp; Berechnung</div>
+        <!-- Struktur «Punkt für Punkt» (Walter 29.08.2026, K4-Reihenfolge):
+             1 Gültigkeit & Zivilstand · 2 Wohnsituation · 3 Partner ·
+             4 Kinder · 5 Weitere Beschäftigungen · 6 Behördenbewilligung &
+             Sonderfälle · 7 Resultat. «Gültig bis» ist raus (wird beim
+             Wechsel automatisch gesetzt — unsichtbarer Datenträger). -->
+        <div class="emp-section-title">1 · Gültigkeit &amp; Zivilstand</div>
         <!-- Feldbreiten nach Inhalt (Walter 12.08.2026): Datum/Zahl schmal,
              nur Text-/Auswahlfelder flexibel. Reihenfolge PLZ → Gemeinde →
              Kanton: die PLZ füllt Gemeinde, BFS und Steuerkanton automatisch
@@ -9239,17 +9244,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  die tarifrelevanten Stammdaten INLINE — Zivilstand nur Anzeige
                  (easy@work-geführt), «seit» + Konfession editierbar und
                  schreiben DIREKT in den MA-Stamm (qstStammChanged). -->
-            <div style="display:grid;grid-template-columns:216px 216px minmax(150px,200px) 216px minmax(240px,1fr);gap:7px 10px">
+            <div style="display:grid;grid-template-columns:216px minmax(150px,200px) 216px minmax(240px,1fr);gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
-            </div>
-            <div>
-                <label class="qst-lbl">Gültig bis <span class="qst-ro-hint">automatisch</span></label>
-                <!-- Nur Anzeige (Walter 12.08.2026): ein QST-Enddatum entsteht
-                     NUR systemisch — durch Folge-Eintrag, Bewilligungswechsel,
-                     Befreiung oder Kantonswechsel/Umzug. Nie manuell. -->
-                <input type="date" id="qstValidTo" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off" style="max-width:170px">
             </div>
             <div>
                 <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">Änderung in easy@work</span></label>
@@ -9274,6 +9272,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
             <div id="qstStammSaveHint" style="grid-column:1 / -1;font-size:11px;line-height:1.4"></div>
             <div style="display:none">
+                <!-- «Gültig bis» = reiner Datenträger (Walter 29.08.2026):
+                     wird beim Wechsel automatisch gesetzt, nie manuell. -->
+                <input type="date" id="qstValidTo" readonly tabindex="-1" data-yp="off">
                 <input type="text" id="qstGemeinde" tabindex="-1">
                 <input type="number" id="qstGemeindeBfs" tabindex="-1">
                 <select id="qstSteuerkanton" onchange="onQstKantonChange()" class="no-liquid" tabindex="-1">
@@ -9328,30 +9329,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </select>
                 <input type="text" id="qstCode" maxlength="10" tabindex="-1">
             </div>
-            <div style="display:grid;grid-template-columns:160px 140px 160px 1fr;gap:7px 10px;align-items:start">
-            <div>
-                <label class="qst-lbl">Anzahl Kinder <span class="qst-ro-hint">aus Familie-Tab</span></label>
-                <!-- Nur Anzeige (Walter 12.08.2026): Quelle der Wahrheit ist der
-                     Familie-Tab — der Wert kommt vom Server-Vorschlag bzw. dem
-                     gespeicherten Eintrag; Pflege der Kinder im Familie-Tab. -->
-                <input type="number" id="qstKinder" min="0" max="20" value="0" class="qst-inp qst-ro" readonly tabindex="-1"
-                       onchange="buildQstCode();qstUpdateAutoKinderHint();qstSuggestTarif()"
-                       oninput="qstUpdateAutoKinderHint()">
-                <div id="qstKinderAutoHint" style="font-size:11px;margin-top:3px;line-height:1.4"></div>
-            </div>
-            <div>
-                <!-- Label EINZEILIG halten («(manuell)» als kleiner Hint) — ein
-                     zweizeiliges Label schob das Feld unter die Nachbar-Zeile. -->
-                <label class="qst-lbl" style="white-space:nowrap">Prozentsatz <span class="qst-ro-hint">manuell</span></label>
-                <input type="number" id="qstProzentsatz" step="0.01" min="0" placeholder="auto" class="qst-inp"
-                       oninput="if(parseFloat(this.value)<0)this.value='';qstRenderResultat()">
-            </div>
-            <div>
-                <label class="qst-lbl" style="white-space:nowrap">Satzbest. Medianlohn</label>
-                <input type="number" id="qstMedianlohn" step="0.05" min="0" placeholder="CHF" class="qst-inp"
-                       oninput="if(parseFloat(this.value)<0)this.value=''">
-            </div>
-            </div>
             <!-- Ausgeblendet (Walter 29.08.2026): Kirchensteuer ist im Resultat
                  sichtbar (…Y/N, aus Konfession abgeleitet), «Tarifvorschlag QST»
                  braucht niemand mehr. Beide bleiben unsichtbare Datenträger
@@ -9362,7 +9339,30 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
         </div>
 
-        <div class="emp-section-title">Partner</div>
+        <!-- 2 · Wohnsituation (Walter 29.08.2026, K4-Reihenfolge: VOR dem
+             Partner): Grenzgänger/Wochenaufenthalter + Wohnsitz Ausland.
+             Wochenaufenthalter-Häkchen ist bei erfasster Zusatzadresse
+             gesperrt (qstApplyWochenaufenthaltLock); Wohnsitz-Ausland-Felder
+             werden bei Land ≠ CH vom Server vorbefüllt (ApplyWohnadresseAsync). -->
+        <div class="emp-section-title">2 · Wohnsituation</div>
+        <div style="display:grid;grid-template-columns:auto auto 220px 110px 1fr;gap:7px 14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
+            <label class="qst-cb" style="margin-bottom:2px"><input type="checkbox" id="qstIsGrenzgaenger"> Grenzgänger/in</label>
+            <label class="qst-cb" style="margin-bottom:2px"><input type="checkbox" id="qstIsWochenaufenthalter"> Wochenaufenthalter/in</label>
+            <div>
+                <label class="qst-lbl">Wohnsitz Ausland</label>
+                <input type="text" id="qstWohnsitzAusland" placeholder="Land" class="qst-inp">
+            </div>
+            <div>
+                <label class="qst-lbl">ISO-Code</label>
+                <input type="text" id="qstWohnsitzstaat" placeholder="DE, FR …" maxlength="5" class="qst-inp" style="font-family:monospace">
+            </div>
+            <div>
+                <label class="qst-lbl">Adresse Ausland</label>
+                <input type="text" id="qstAdresseAusland" placeholder="Strasse, PLZ, Ort" class="qst-inp">
+            </div>
+        </div>
+
+        <div class="emp-section-title">3 · Partner</div>
         <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich.
              Verteilung (Walter 12.08.2026): Partner-Pille wächst moderat bis
              380px, grosszügige Spalten-Gaps, 1fr-Rest rechts — Felder sitzen
@@ -9395,10 +9395,31 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <input type="date" id="qstPartnerBis" class="qst-inp" style="flex:1">
                 </div>
             </div>
+            <!-- Partner-bezogene Sachverhalte (Walter 29.08.2026): aus der
+                 aufgelösten «Tarif-relevante Stammdaten»-Zeile hierher. -->
+            <div style="grid-column:1 / -1;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
+                <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
+            </div>
         </div>
 
-        <div class="emp-section-title">Zusätzliche Angaben</div>
-        <div style="display:grid;grid-template-columns:180px 220px 110px 1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+        <!-- 4 · Kinder (Walter 29.08.2026): Anzahl aus dem Familie-Tab +
+             kinderbezogene Sachverhalte (Halbfamilie, elterl. Sorge, Unterhalt). -->
+        <div class="emp-section-title" style="display:flex;align-items:baseline;gap:12px">
+            <span>4 · Kinder</span>
+            <span style="font-weight:400;font-size:10px;color:#64748b;letter-spacing:0;text-transform:none">leer = weder Ja noch Nein auf dem Anmeldeformular</span>
+        </div>
+        <div style="display:grid;grid-template-columns:220px 180px auto;gap:7px 14px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:start">
+            <div>
+                <label class="qst-lbl">Anzahl Kinder <span class="qst-ro-hint">aus Familie-Tab</span></label>
+                <!-- Nur Anzeige (Walter 12.08.2026): Quelle der Wahrheit ist der
+                     Familie-Tab — der Wert kommt vom Server-Vorschlag bzw. dem
+                     gespeicherten Eintrag; Pflege der Kinder im Familie-Tab. -->
+                <input type="number" id="qstKinder" min="0" max="20" value="0" class="qst-inp qst-ro" readonly tabindex="-1"
+                       onchange="buildQstCode();qstUpdateAutoKinderHint();qstSuggestTarif()"
+                       oninput="qstUpdateAutoKinderHint()">
+                <div id="qstKinderAutoHint" style="font-size:11px;margin-top:3px;line-height:1.4"></div>
+            </div>
             <div>
                 <label class="qst-lbl">Halbfamilie</label>
                 <!-- Segment-Pille statt Select (Walter 12.08.2026, wie LGAV/Zustellart).
@@ -9409,20 +9430,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="zst-pill"><input type="radio" name="qstHalbfamilie" value="Nein"> Nein</label>
                 </div>
             </div>
-            <div>
-                <label class="qst-lbl">Wohnsitz Ausland</label>
-                <input type="text" id="qstWohnsitzAusland" placeholder="Land" class="qst-inp">
-            </div>
-            <div>
-                <label class="qst-lbl">ISO-Code</label>
-                <input type="text" id="qstWohnsitzstaat" placeholder="DE, FR …" maxlength="5" class="qst-inp" style="font-family:monospace">
-            </div>
-            <div>
-                <label class="qst-lbl">Adresse Ausland</label>
-                <input type="text" id="qstAdresseAusland" placeholder="Strasse, PLZ, Ort" class="qst-inp">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:18px">
+                <label class="qst-cb"><input type="checkbox" id="qstHasJointParentalCare"> Gemeinsame elterl. Sorge</label>
+                <label class="qst-cb"><input type="checkbox" id="qstPaysAlimonyAdultChildren"> Unterhalt volljährige Kinder</label>
             </div>
         </div>
-        <!-- Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
+        <!-- 5 · Weitere Beschäftigungen — Toggle + Felder kompakt in 1 Zeile -->
+        <div class="emp-section-title">5 · Weitere Beschäftigungen</div>
         <!-- Layout kompakt (Walter 25.08.2026 v2): Zeile 1 = Checkbox + Name
              (breit) + Strasse (breit) · Zeile 2 = PLZ/Ort/Kanton/Land/Pensum. -->
         <div style="display:grid;grid-template-columns:auto 1.4fr 1.1fr;gap:7px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px;align-items:end">
@@ -9471,24 +9485,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             </div>
         </div>
 
-        <div class="emp-section-title" style="display:flex;align-items:baseline;gap:12px">
-            <span>Tarif-relevante Stammdaten</span>
-            <span style="font-weight:400;font-size:10px;color:#64748b;letter-spacing:0;text-transform:none">leer = weder Ja noch Nein auf dem Anmeldeformular</span>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px 10px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
-            <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
-            <label class="qst-cb"><input type="checkbox" id="qstHasJointParentalCare"> Gemeinsame elterl. Sorge</label>
-            <label class="qst-cb"><input type="checkbox" id="qstPaysAlimonyAdultChildren"> Unterhalt volljährige Kinder</label>
-            <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
-            <label class="qst-cb"><input type="checkbox" id="qstIsGrenzgaenger"> Grenzgänger/in</label>
-            <label class="qst-cb"><input type="checkbox" id="qstIsWochenaufenthalter"> Wochenaufenthalter/in</label>
-        </div>
-
-        <!-- Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026, analog
+        <!-- 6 · Behördenbewilligung & Sonderfälle (Walter 29.08.2026, analog
              QST-Befreiung): das frühere «Speziell bewilligt» — jetzt eindeutig
              bezeichnet und NUR mit hinterlegter Verfügung erlaubt (Client-
-             Guard in saveQstEntry, Server 400 BEWILLIGUNG_DOKUMENT_FEHLT). -->
-        <div class="emp-section-title">Behördenbewilligung</div>
+             Guard in saveQstEntry, Server 400 BEWILLIGUNG_DOKUMENT_FEHLT).
+             Dazu die manuellen Berechnungs-Vorgaben (Prozentsatz/Medianlohn). -->
+        <div class="emp-section-title">6 · Behördenbewilligung &amp; Sonderfälle</div>
         <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
             <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt" onchange="qstToggleBewilligung()">
                 Kinderabzug auf Tarif A behördlich bewilligt (A1–A9)</label>
@@ -9499,13 +9501,25 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     Das Schreiben zuerst im Dokumente-Tab beim MA ablegen — dann hier auswählen.
                 </div>
             </div>
+            <div style="display:grid;grid-template-columns:140px 160px 1fr;gap:7px 10px;margin-top:10px;align-items:start">
+                <div>
+                    <label class="qst-lbl" style="white-space:nowrap">Prozentsatz <span class="qst-ro-hint">manuell</span></label>
+                    <input type="number" id="qstProzentsatz" step="0.01" min="0" placeholder="auto" class="qst-inp"
+                           oninput="if(parseFloat(this.value)<0)this.value='';qstRenderResultat()">
+                </div>
+                <div>
+                    <label class="qst-lbl" style="white-space:nowrap">Satzbest. Medianlohn</label>
+                    <input type="number" id="qstMedianlohn" step="0.05" min="0" placeholder="CHF" class="qst-inp"
+                           oninput="if(parseFloat(this.value)<0)this.value=''">
+                </div>
+            </div>
         </div>
 
         <!-- RESULTAT (K4-Vorstufe, Walter 29.08.2026): der aus den Angaben
              hergeleitete Tarif — gross, ganz unten, NICHT editierbar. Gefüllt
              von qstRenderResultat(); qstTarifHint zeigt Begründung/Warnungen
              (Server-Vorschlag, qstRenderVorschlagBanner). -->
-        <div class="emp-section-title">Resultat — angewendeter Tarif</div>
+        <div class="emp-section-title">7 · Resultat — angewendeter Tarif</div>
         <div id="qstResultatCard" style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border:1px solid #d8d3c6;border-radius:14px;padding:13px 18px;margin-bottom:8px">
             <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
                 <div id="qstResultatCode" style="font-size:36px;font-weight:800;font-family:monospace;letter-spacing:2px;color:#1a1a1a">–</div>
