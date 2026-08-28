@@ -352,10 +352,26 @@ public static class QstTarifVorschlagLogic
         // auch bei «keine Kirchensteuer» soll sichtbar sein, WELCHE Konfession
         // der Ableitung zugrunde liegt (falsch gepflegte Stammdaten fallen
         // damit sofort auf, statt still A0N vorzuschlagen).
-        var kirchensteuer = IstKirchensteuerPflichtig(religion);
-        begruendung.Add(kirchensteuer
-            ? $"Konfession '{religion}' -> kirchensteuerpflichtig (Y)"
-            : $"Konfession '{(string.IsNullOrWhiteSpace(religion) ? "nicht erfasst" : religion)}' -> keine Kirchensteuer (N)");
+        // ERSATZTARIF-Regel (Art. 19 QSV / TaxInfo BE, Walter 29.08.2026):
+        // Weist sich die Person nicht zuverlässig aus, gilt der Tarif MIT
+        // Kirchensteuer (A0Y bzw. C0Y). Eine NICHT ERFASSTE Konfession ist
+        // «nicht zuverlässig ausgewiesen» -> Y + Warnung (Konfession pflegen;
+        // erfasst als «keine» -> sauber N).
+        bool religionErfasst = !string.IsNullOrWhiteSpace(religion);
+        bool kirchensteuer;
+        if (!religionErfasst)
+        {
+            kirchensteuer = true;
+            begruendung.Add("Konfession NICHT erfasst -> Ersatztarif MIT Kirchensteuer (Y) nach Art. 19 QSV");
+            warnings.Add("Konfession nicht erfasst — Ersatztarif mit Kirchensteuer (Y) angewendet. Konfession im MA-Stamm erfassen (keine Landeskirche = N).");
+        }
+        else
+        {
+            kirchensteuer = IstKirchensteuerPflichtig(religion);
+            begruendung.Add(kirchensteuer
+                ? $"Konfession '{religion}' -> kirchensteuerpflichtig (Y)"
+                : $"Konfession '{religion}' -> keine Kirchensteuer (N)");
+        }
 
         // 4) Kinderziffer je Tarif (Walter-Vorgabe 20.08.2026, KS 45):
         //    • H  → NUR Kinder im selben Haushalt (die anderen zählen nicht)
@@ -476,7 +492,7 @@ public static class QstTarifVorschlagLogic
             begruendung.Add($"Zivilstand '{zivilstand}' ohne Kind im Haushalt -> A");
             return "A";
         }
-        begruendung.Add($"Zivilstand '{zivilstand}' nicht erkannt -> A als Default");
+        begruendung.Add($"Zivilstand '{zivilstand}' unbestimmt -> A als ERSATZTARIF (Art. 19 QSV: ohne zuverlässigen Ausweis A0Y für Ledige/Unbestimmte, C0Y für Verheiratete)");
         return "A";
     }
 

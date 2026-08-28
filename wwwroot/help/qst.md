@@ -99,6 +99,7 @@ Beispiele:
 Bei verheirateten MA hat der **Ehepartner direkten Einfluss auf den Tarif**:
 
 - **Alleinverdiener** (Partner ohne eigenes Einkommen) → **Tarif B**
+- **Ersatztarif bei unklaren Verhältnissen (Art. 19 QSV — wichtig!):** Weist sich die Person über ihre persönlichen Verhältnisse **nicht zuverlässig aus** (Zivilstand unbestimmt, Konfession nicht belegt, Partnerdaten fehlen), gilt von Amtes wegen der Tarif **mit** Kirchensteuer: **A0Y** für Ledige/Unbestimmte, **C0Y** für Verheiratete. In OneCrew: roter Knopf «Ersatztarif erfassen (A0Y/C0Y)» im QST-Tab; auch der Tarifvorschlag wendet bei fehlender Konfession automatisch Y an (mit Warnung). Sobald die Unterlagen da sind, den richtigen Tarif als neue Version erfassen — die Person kann bei der Steuerverwaltung bis 31. März des Folgejahres eine Neuberechnung verlangen.
 - **Doppelverdiener** (beide arbeiten) → **Tarif C** — Achtung: auch Erwerbseinkommen des Partners im **Ausland** zählt!
 - **Ersatzeinkommen des Partners zählt wie Erwerbseinkommen** (bestätigt Steuerverwaltung, 08/2026): Rente, Arbeitslosenentschädigung, **Militärsold** — auch im Ausland. Beispiel Status S: Ehemann leistet in der Ukraine Kriegsdienst mit Sold → Frage «Erwerbstätig/Ersatzeinkommen?» = **Ja** → **Tarif C**, nicht B. Die Tarifbestimmung ist schweizweit gleich (TaxInfo Kanton Bern).
 

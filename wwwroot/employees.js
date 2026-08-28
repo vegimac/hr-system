@@ -2437,8 +2437,8 @@ function renderQstPflichtBanner(pflicht) {
                 </div>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
-                <button onclick="openQstHoechsterTarif()" style="background:#dc2626;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
-                    🔴 Höchsten Tarif erfassen
+                <button onclick="openQstHoechsterTarif()" title="Amtliche Ersatztarif-Regel (Art. 19 QSV): weist sich die Person nicht zuverlässig aus, gilt A0Y (Ledige/Unbestimmte) bzw. C0Y (Verheiratete) — mit Kirchensteuer. Sobald die Verhältnisse geklärt sind, den richtigen Tarif neu erfassen." style="background:#dc2626;color:#fff;border:none;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
+                    🔴 Ersatztarif erfassen (A0Y/C0Y)
                 </button>
                 <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #dc2626;color:#dc2626;padding:8px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer">
                     📄 Behörden-Befreiung erfassen
