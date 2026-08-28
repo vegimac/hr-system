@@ -3811,6 +3811,27 @@
                         </div>
                     </div>
 
+                    <!-- TARIF-PROBE (Walter 29.08.2026): Nachschlagen direkt in der
+                         geladenen offiziellen ESTV-Datei — zum Verifizieren gegen
+                         Kantons-Tabellen / Treuhand-Abrechnungen. -->
+                    <div class="card" style="max-width:900px">
+                        <div style="padding:22px 28px 18px">
+                            <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px">Tarif-Probe</div>
+                            <div style="font-size:13px;color:#64748b;margin-bottom:14px">Satz und Betrag direkt aus der geladenen ESTV-Tarifdatei nachschlagen — z.B. AG · 2026 · C · 0 Kinder · ohne Kirche · 2500.</div>
+                            <div style="display:grid;grid-template-columns:80px 90px 80px 80px 110px 130px auto;gap:8px 10px;align-items:end">
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600">Kanton<input id="qstPrKanton" maxlength="2" placeholder="AG" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"></label>
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600">Jahr<input id="qstPrJahr" type="number" placeholder="2026" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"></label>
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600">Tarif<input id="qstPrCode" maxlength="2" placeholder="C" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"></label>
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600">Kinder<input id="qstPrKinder" type="number" min="0" max="9" value="0" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"></label>
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600;display:flex;flex-direction:column">Kirchensteuer
+                                    <select id="qstPrKirche" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"><option value="false">Nein (N)</option><option value="true">Ja (Y)</option></select></label>
+                                <label style="font-size:11.5px;color:#64748b;font-weight:600">Bruttolohn/Mt.<input id="qstPrBrutto" type="number" step="0.01" placeholder="2500" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%;box-sizing:border-box"></label>
+                                <button type="button" class="btn-primary" onclick="qstProbe()" style="align-self:end">🔍 Nachschlagen</button>
+                            </div>
+                            <div id="qstProbeResult" style="font-size:13px;margin-top:12px"></div>
+                        </div>
+                    </div>
+
                     <!-- IMPORT CARD -->
                     <div class="card" style="max-width:680px">
                         <div style="padding:28px 32px">
@@ -8349,7 +8370,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260819a"></script>
+<script src="js/admin-settings.js?v=20260829a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260818a"></script>

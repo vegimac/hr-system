@@ -740,6 +740,41 @@ async function saveBank() {
 
 let _qstSelectedFiles = [];
 
+// ── QST Tarif-Probe (Walter 29.08.2026): Nachschlagen in der geladenen
+// offiziellen ESTV-Tarifdatei — verifiziert Werte gegen Kantons-Tabellen.
+async function qstProbe() {
+    const out = document.getElementById('qstProbeResult');
+    const kanton = document.getElementById('qstPrKanton')?.value?.trim();
+    const jahr = document.getElementById('qstPrJahr')?.value?.trim();
+    const code = document.getElementById('qstPrCode')?.value?.trim();
+    const kinder = document.getElementById('qstPrKinder')?.value || '0';
+    const kirche = document.getElementById('qstPrKirche')?.value || 'false';
+    const brutto = document.getElementById('qstPrBrutto')?.value?.trim();
+    if (!kanton || !code || !brutto) {
+        out.innerHTML = '<span style="color:#b91c1c">Kanton, Tarif und Bruttolohn angeben.</span>';
+        return;
+    }
+    out.innerHTML = '<span style="color:#8b8b8b">⏳ …</span>';
+    try {
+        const p = new URLSearchParams({ kanton, tarifCode: code, kinder, kirche, brutto });
+        if (jahr) p.set('jahr', jahr);
+        const r = await fetch('/api/admin/quellensteuer/probe?' + p.toString(), { headers: ah() });
+        const jd = await r.json();
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(jd.message || jd.error || 'Fehler')}</span>`; return; }
+        const tarifLabel = `${code.toUpperCase()}${parseInt(kinder, 10)}${kirche === 'true' ? 'Y' : 'N'}`;
+        out.innerHTML = `
+            <div style="background:rgba(255,255,255,0.6);border:1px solid rgba(60,55,48,0.14);border-radius:10px;padding:10px 14px;display:inline-block">
+                <b>${esc(kanton.toUpperCase())} ${esc(jahr || '')} · ${tarifLabel} · Brutto ${parseFloat(brutto).toLocaleString('de-CH', {minimumFractionDigits: 2})}</b><br>
+                QST-Betrag: <b style="font-size:15px">CHF ${(jd.betrag ?? 0).toLocaleString('de-CH', {minimumFractionDigits: 2})}</b>
+                &nbsp;·&nbsp; Satz ${(jd.satzPct ?? 0).toLocaleString('de-CH', {minimumFractionDigits: 2})} %
+                &nbsp;·&nbsp; Mindeststeuer CHF ${(jd.mindeststeuer ?? 0).toLocaleString('de-CH', {minimumFractionDigits: 2})}${jd.mindestAngewendet ? ' <span style="color:#92400e">(angewendet)</span>' : ''}
+                <div style="font-size:11px;color:#8b8b8b;margin-top:3px">Quelle: geladene ESTV-Tarifdatei (maschinelles Verfahren: Satz × effektiver Lohn, min. Mindeststeuer) — kann von der Hand-Tabelle im PDF um Rappen/Franken abweichen, das ist normgerecht.</div>
+            </div>`;
+    } catch (e) {
+        out.innerHTML = `<span style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</span>`;
+    }
+}
+
 async function loadQstTarifeStatus() {
     const grid = document.getElementById('qstStatusGrid');
     grid.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:8px 0">Lade…</div>';

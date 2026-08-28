@@ -19,6 +19,37 @@ public class QuellensteuerAdminController : ControllerBase
     public QuellensteuerAdminController(QuellensteuerTarifService tarifService)
         => _tarifService = tarifService;
 
+    // ── GET /api/admin/quellensteuer/probe ───────────────────────────────
+    /// <summary>
+    /// Tarif-Probe (Walter 29.08.2026): schlägt Satz + Betrag direkt in der
+    /// geladenen OFFIZIELLEN ESTV-Tarifdatei nach — zum Verifizieren gegen
+    /// Kantons-Tabellen/Treuhand-Abrechnungen (z.B. AG 2026, C0N, 2500).
+    /// </summary>
+    [HttpGet("probe")]
+    public IActionResult Probe(
+        [FromQuery] string kanton, [FromQuery] string tarifCode,
+        [FromQuery] int kinder, [FromQuery] bool kirche,
+        [FromQuery] decimal brutto, [FromQuery] int? jahr)
+    {
+        if (string.IsNullOrWhiteSpace(kanton) || string.IsNullOrWhiteSpace(tarifCode) || brutto <= 0)
+            return BadRequest(new { error = "PARAMS", message = "Kanton, Tarifcode und Bruttolohn angeben." });
+
+        var b = _tarifService.Berechne(kanton.Trim().ToUpperInvariant(),
+            tarifCode.Trim().ToUpperInvariant(), kinder, kirche, brutto, brutto, jahr);
+        if (b == null)
+            return NotFound(new { error = "TARIF_NICHT_GEFUNDEN",
+                message = $"Kein Tarif gefunden für {kanton.ToUpperInvariant()} {tarifCode.ToUpperInvariant()}{kinder}{(kirche ? "Y" : "N")}" +
+                          (jahr != null ? $" Jahr {jahr}" : "") + " — Tarifdatei geladen?" });
+
+        return Ok(new
+        {
+            betrag = b.SteuerbetragCHF,
+            satzPct = b.SteuersatzPct,
+            mindeststeuer = b.MindeststeuerCHF,
+            mindestAngewendet = b.MindeststeuerAngewendet
+        });
+    }
+
     // ── GET /api/admin/quellensteuer/status ──────────────────────────────
     /// <summary>
     /// Gibt den Status aller geladenen Quellensteuer-Tarifdateien zurück.
