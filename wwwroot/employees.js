@@ -12320,6 +12320,13 @@ async function deleteBankAccount(id) {
 
 const EMP_ADDRESS_TYPES = [
     'Korrespondenzadresse',
+    // Walter 28.08.2026 (Wohnsituation, docs/qst-korrektur-konzept.md K4):
+    // «Wochenaufenthalt» = die Aufenthaltsadresse unter der Woche (Studenten
+    // in Zürich/Bern etc.). QUELLE für das Wochenaufenthalter-Häkchen in der
+    // QST-Erfassung (Server-Guard ApplyWochenaufenthaltAsync). Der QST-Kanton
+    // bleibt IMMER am Hauptwohnsitz (= easy@work-Hauptadresse) — diese
+    // Zusatzadresse ändert daran nichts.
+    'Wochenaufenthalt',
     // Walter 21.08.2026: eigene Typen für getrennt lebende Familien —
     // wichtig bei QST-/Halbfamilien-Abklärungen (wo wohnt der Partner /
     // das Kind?). Die Typen sind Beschriftungen; die Verknüpfung läuft wie
@@ -12468,8 +12475,12 @@ function renderEmployeeAddressesList(el, list) {
         if (contactLine) lines.push(contactLine);
 
         // Kompakte EIN-Zeilen-Darstellung (Walter 17.07.2026 / 26.07.2026).
+        // Wochenaufenthalt hervorheben (Walter 28.08.2026): eigener blauer
+        // Typ-Chip + Hinweis, dass der QST-Kanton am Hauptwohnsitz bleibt.
+        const isWa = (a.addressType || a.AddressType) === 'Wochenaufenthalt';
+        if (isWa) lines.push('Wohnsituation: Wochenaufenthalter/in — QST-Kanton bleibt Hauptwohnsitz');
         return `<div class="emp-addr-row" data-addr-id="${id}">
-            <span class="emp-addr-type">${a.addressType || a.AddressType || 'Adresse'}</span>
+            <span class="emp-addr-type"${isWa ? ' style="background:#dbeafe;color:#1d4ed8;border:1px solid #93c5fd"' : ''}>${a.addressType || a.AddressType || 'Adresse'}</span>
             <span class="emp-addr-text">
                 ${lines.length ? lines.join(' · ') : '<span class="emp-addr-empty">Keine Detail-Angaben</span>'}
             </span>

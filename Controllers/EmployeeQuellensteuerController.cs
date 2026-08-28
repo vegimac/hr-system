@@ -339,6 +339,12 @@ public class EmployeeQuellensteuerController : ControllerBase
         // (Alt-Fälle ohne Familien-Eintrag).
         await ApplyKonkubinatAsync(dto, employeeId);
 
+        // Wochenaufenthalt aus der Wohnsituation (Walter 28.08.2026): ist beim
+        // MA eine Zusatzadresse vom Typ «Wochenaufenthalt» erfasst, ist das die
+        // QUELLE — der Client-Wert wird überschrieben. Ohne solche Adresse
+        // bleibt der Client-Wert (Alt-Fälle).
+        await ApplyWochenaufenthaltAsync(dto, employeeId);
+
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
 
@@ -454,6 +460,7 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026) — analog
         // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.
         await ApplyKonkubinatAsync(entry, employeeId);
+        await ApplyWochenaufenthaltAsync(entry, employeeId);
 
         entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
@@ -480,6 +487,22 @@ public class EmployeeQuellensteuerController : ControllerBase
         if (kp == null) return;
         entry.LivesInKonkubinat          = true;
         entry.HasHigherIncomeThanPartner = kp.MaHatHoeheresEinkommen == true;
+    }
+
+    /// <summary>
+    /// Wochenaufenthalt server-autoritativ aus der Wohnsituation (Walter
+    /// 28.08.2026): QUELLE ist die Zusatzadresse vom Typ «Wochenaufenthalt»
+    /// (employee_address). Existiert eine solche → IsWochenaufenthalter=true
+    /// (das QST-Modal zeigt die Checkbox nur noch gesperrt). Ohne Adresse
+    /// bleibt der Client-Wert (Alt-Fälle ohne erfasste Aufenthaltsadresse).
+    /// Der QST-KANTON bleibt davon unberührt — er hängt IMMER am
+    /// Hauptwohnsitz (ApplyWohnadresseAsync), nie am Wochenaufenthaltsort.
+    /// </summary>
+    private async Task ApplyWochenaufenthaltAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        var hatWaAdresse = await _db.EmployeeAddresses.AsNoTracking()
+            .AnyAsync(a => a.EmployeeId == employeeId && a.AddressType == "Wochenaufenthalt");
+        if (hatWaAdresse) entry.IsWochenaufenthalter = true;
     }
 
     // DELETE /api/employees/{employeeId}/quellensteuer/{id}[?force=true]

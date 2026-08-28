@@ -63,6 +63,9 @@ async function openQstModal(employeeId, employeeData) {
     // „Anzahl Kinder". Sequentiell, damit populateQstForm gleich darauf den Hint
     // zeichnen kann.
     await loadQstFamilyKinder(employeeId);
+    // Wohnsituation laden (Wochenaufenthalt-Zusatzadresse, Walter 28.08.2026) —
+    // VOR populateQstForm, damit qstApplyWochenaufenthaltLock die Daten hat.
+    await loadQstWochenaufenthalt(employeeId);
     // ValidFrom-Trigger einmalig binden, damit beim Datums-Wechsel sowohl der
     // Hint als auch der Server-Vorschlag neu gerechnet werden (anderer
     // Stichtag → ggf. anderer Tarif/anders viele berechtigte Kinder).
@@ -166,6 +169,40 @@ async function loadQstFamilyKinder(employeeId) {
         window._qstKPartner = (members || []).find(m =>
             m.memberType === 'Konkubinatspartner' && !m.dateOfDeath) || null;
     } catch { /* leerer Cache */ }
+}
+
+// Wochenaufenthalt aus der Wohnsituation (Walter 28.08.2026): QUELLE ist die
+// Zusatzadresse Typ «Wochenaufenthalt» beim MA. Existiert eine → Checkbox
+// gesetzt + gesperrt (der Server überschreibt beim Speichern ohnehin,
+// ApplyWochenaufenthaltAsync). Ohne Adresse bleibt sie editierbar (Alt-Fälle).
+// Der QST-Kanton hängt IMMER am Hauptwohnsitz — nie am Aufenthaltsort.
+async function loadQstWochenaufenthalt(employeeId) {
+    window._qstWaAdresse = null;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/addresses`, { headers: ah() });
+        if (!res.ok) return;
+        const list = await res.json();
+        window._qstWaAdresse = (Array.isArray(list) ? list : [])
+            .find(a => (a.addressType || a.AddressType) === 'Wochenaufenthalt') || null;
+    } catch { /* Komfort — ohne Daten bleibt die Checkbox editierbar */ }
+}
+
+function qstApplyWochenaufenthaltLock() {
+    const cb = document.getElementById('qstIsWochenaufenthalter');
+    if (!cb) return;
+    const wa = window._qstWaAdresse;
+    if (wa) {
+        const ort = [wa.zipCode, wa.city].filter(Boolean).join(' ');
+        cb.checked  = true;
+        cb.disabled = true;
+        cb.parentElement.title = 'Aus der Wohnsituation (Zusatzadresse «Wochenaufenthalt»'
+            + (ort ? `: ${ort}` : '') + ') — Pflege beim MA unter Weitere Adressen. QST-Kanton bleibt der Hauptwohnsitz.';
+        cb.parentElement.style.opacity = '0.65';
+    } else {
+        cb.disabled = false;
+        cb.parentElement.style.opacity = '';
+        cb.parentElement.title = '';
+    }
 }
 
 // Konkubinat-Checkboxen aus dem Familie-Tab befüllen + sperren (Walter
@@ -685,6 +722,8 @@ function populateQstForm(entry) {
     c('qstIsWochenaufenthalter',       entry?.isWochenaufenthalter);
     // Konkubinat aus dem Familie-Tab befüllen + sperren (Walter 25.08.2026).
     qstApplyKonkubinatLock();
+    // Wochenaufenthalt aus der Wohnsituation befüllen + sperren (Walter 28.08.2026).
+    qstApplyWochenaufenthaltLock();
 
     toggleQstWeitere();
     document.getElementById('qstSaveResult').textContent = '';

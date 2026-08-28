@@ -111,7 +111,74 @@ Darlehen** (Walter: «hoch ist relativ» — Entscheid im Einzelfall):
 - Erstattungsfälle (zu viel QST) sind IMMER eine Gutschriftszeile im
   nächsten Lohn — nie ein Darlehen.
 
-## 5. Etappenplan
+## 5. K4 im Detail: Reihenfolge, Grenzgänger, Wochenaufenthalter (Walter 28.08.2026)
+
+### 5.1 Masken-Reihenfolge (final, Walter 28.08.2026)
+
+Top-down, Resultat GANZ UNTEN gross und nicht editierbar:
+
+1. **Bewilligung** (Anzeige aus der Historie) — bei der Erfassung nur
+   **Gültig ab**, bewusst KEIN Gültig-bis («wir wissen nie, wie lange»).
+2. **Wohnsituation** (Grenzgänger / Wochenaufenthalter, siehe 5.2/5.3) —
+   noch VOR dem Zivilstand.
+3. **Zivilstand + Konfession** (nebeneinander, Inline-Edit → MA-Stamm).
+4. **Partner** (alle Varianten: Ehe/Konkubinat, Erwerbstätig-/
+   Ersatzeinkommens-Frage, Arbeitgeber).
+5. **Kinder** (Haushalt / Erstausbildung / gemeinsames Kind).
+6. **RESULTAT-Karte** (Ampel GRÜN/ORANGE/ROT, siehe Abschnitt 2).
+
+### 5.2 Grenzgänger = Halbautomatik aus dem Wohnsitz
+
+Wohnsitz im Ausland (Hauptwohnsitz-Land ≠ CH) ⇒ Status «Auslandswohnsitz»
+wird vom Programm gesetzt, kein manuelles Kreuz. Einzige manuelle Frage:
+**«Kehrt täglich/regelmässig an den ausländischen Wohnsitz zurück?»** —
+Ja = Grenzgänger, Nein = internationaler Wochenaufenthalter (CH-Aufent-
+haltsadresse Pflicht). DE-Grenzgänger-Tarife (L/M/N/P/Q) NUR mit jährlicher
+Ansässigkeitsbescheinigung Gre-1/2 — sonst ordentliche Tarife.
+
+### 5.3 Wochenaufenthalter (schweizintern) — «Hauptwohnsitz gewinnt»
+
+Regeln (ESTV-Praxis, verifiziert 28.08.2026):
+
+- **Der HAUPTWOHNSITZ bestimmt den QST-Kanton** — nie der Wochenaufent-
+  haltsort. Beispiel: wohnt Sursee LU, arbeitet Oftringen AG, Wochenzimmer
+  Zofingen AG → QST-Kanton **LU**. In OneCrew schon heute korrekt, weil
+  der Steuerkanton server-autoritativ aus der Hauptadresse kommt
+  (`ApplyWohnadresseAsync`).
+- **KEIN eigener Tarifcode** für Wochenaufenthalter — normaler Tarif des
+  Wohnkantons; das Flag ist reine Sachverhaltsinfo (Anmeldeformular, ELM).
+- **Adress-Konvention (fix, Walter 28.08.2026): die easy@work-Adresse IST
+  IMMER der Hauptwohnsitz.** Die Wochenaufenthaltsadresse wird in OneCrew
+  als **Zusatzadresse Typ «Wochenaufenthalt»** geführt (Pflicht, wenn
+  Wochenaufenthalter; PLZ-Lookup füllt Ort/Kanton/BFS). easy@work-Wunsch
+  «zweites Adressfeld» steht auf der Pendenzenliste
+  (`docs/easyatwork-pendenzen.md`).
+- **Quelle des Flags:** existiert die Wochenaufenthalt-Zusatzadresse, ist
+  das QST-Häkchen «Wochenaufenthalter/in» server-autoritativ gesetzt und im
+  Modal gesperrt (`ApplyWochenaufenthaltAsync`, umgesetzt 28.08.2026 —
+  gleiche Mechanik wie Konkubinat/Kirchensteuer/Wohnadresse). Ohne Adresse
+  bleibt das Häkchen editierbar (Alt-Fälle) + Warnung W8 «Adresse fehlt».
+- **Wächter W9:** ist die Hauptadresse identisch mit der Wochenaufenthalts-
+  adresse (Strasse+PLZ), warnt das System — vermutlich wurde das Wochen-
+  zimmer als Hauptwohnsitz in easy@work eingetragen; der QST-Kanton wäre
+  falsch. (Beide Warnungen in `QstPflichtCheckService.BuildTarifWarnungenAsync`.)
+- **Swissdec/ELM:** das Schema kennt «Mit/Ohne Wochenaufenthalt» und
+  verknüpft die Aufenthaltsadresse als eigenen AddressType — beim XML-Bau
+  (E5+) die Zusatzadresse dorthin mappen.
+- **Internationale Wochenaufenthalter** (Hauptwohnsitz Ausland) sind der
+  SPIEGELFALL von 5.2: dort ist die CH-Aufenthaltsadresse Pflicht und der
+  Sachverhalt läuft über die Auslands-Logik — dieselbe Datenstruktur
+  (Hauptwohnsitz + Aufenthaltsadresse), vertauschte Rollen.
+
+### 5.4 K4-Vorleistungen bereits gebaut (28.08.2026)
+
+Zusatzadresstyp «Wochenaufenthalt» (employees.js, hervorgehobener Chip),
+Server-Guard `ApplyWochenaufenthaltAsync`, Modal-Lock
+(`qstApplyWochenaufenthaltLock`), Warnungen W8/W9. Der Rest von K4
+(Treppen-Layout, Sammel-Speichern, Behördenentscheid-Block) folgt als
+eigene Etappe nach K2.
+
+## 6. Etappenplan
 
 | # | Etappe | Inhalt |
 |---|---|---|

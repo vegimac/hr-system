@@ -529,6 +529,38 @@ public class QstPflichtCheckService
                     + "neue Erfassung speichern.");
         }
 
+        // ── Wochenaufenthalt (Walter 28.08.2026): Hauptwohnsitz bestimmt den
+        //    QST-Kanton, NIE der Wochenaufenthaltsort. Quelle der Wohnsituation
+        //    = Zusatzadresse Typ «Wochenaufenthalt». Zwei Wächter: ──────────
+        var waAdresse = await _db.EmployeeAddresses.AsNoTracking()
+            .Where(a => a.EmployeeId == employeeId && a.AddressType == "Wochenaufenthalt")
+            .OrderByDescending(a => a.Id)
+            .Select(a => new { a.Street, a.ZipCode, a.City })
+            .FirstOrDefaultAsync();
+        // W8: Flag gesetzt, aber keine Aufenthaltsadresse erfasst.
+        if (erfassung.IsWochenaufenthalter && waAdresse == null)
+            w.Add("Als Wochenaufenthalter/in erfasst, aber es fehlt die Wochenaufenthaltsadresse — "
+                + "beim MA als Zusatzadresse (Typ «Wochenaufenthalt») anlegen.");
+        // W9: Hauptadresse (easy@work) sieht aus wie die Wochenaufenthaltsadresse
+        //     → vermutlich wurde das Wochenzimmer als Hauptwohnsitz eingetragen;
+        //     der QST-Kanton würde dann falsch abgeleitet.
+        if (waAdresse != null)
+        {
+            var haupt = await _db.Employees.AsNoTracking()
+                .Where(e => e.Id == employeeId)
+                .Select(e => new { e.Street, e.ZipCode })
+                .FirstOrDefaultAsync();
+            static string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant().Replace("strasse", "str.").Replace(" ", "");
+            if (haupt != null
+                && !string.IsNullOrWhiteSpace(waAdresse.ZipCode)
+                && Norm(haupt.ZipCode) == Norm(waAdresse.ZipCode)
+                && !string.IsNullOrWhiteSpace(waAdresse.Street)
+                && Norm(haupt.Street) == Norm(waAdresse.Street))
+                w.Add("Die Hauptadresse (easy@work) ist identisch mit der Wochenaufenthaltsadresse — "
+                    + "die easy-Adresse muss der HAUPTWOHNSITZ sein (daran hängt der QST-Kanton). "
+                    + "Bitte in easy@work korrigieren.");
+        }
+
         return w.Count > 0 ? w : null;
     }
 
