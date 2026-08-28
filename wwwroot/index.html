@@ -4846,71 +4846,24 @@
                     <div class="card" style="padding:16px 18px;max-width:980px;margin-top:16px">
                         <div style="font-weight:700;font-size:14px;margin-bottom:4px">E3 · Stammdaten Rechtseinheit</div>
                         <p style="font-size:12.5px;color:#64748b;margin:0 0 12px">
-                            Einmal pro Rechtseinheit (nicht pro Filiale) — diese Nummern ersetzen die Platzhalter im Meldungs-XML.
-                            Quelle: Versicherungspolicen / GastroSocial-Abrechnungen. Auf der Testinstanz mit Kunstwerten üben.
+                            Kassen-, Versicherer-, Mitglied- und Subnummern kommen aus dem <b>Empfänger-Katalog</b> (Filiale → Lohndaten Empfänger) — dort pflegen, hier nur lesen.
+                            Erfasst wird hier nur, was der Katalog nicht kennt: die UID der Rechtseinheit und das «versichert seit» für den AHV-Meldeblock.
                         </p>
-                        <div style="display:grid;grid-template-columns:150px 1.3fr 130px 150px 150px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:980px">
-                            <div style="font-weight:700">UID</div>
-                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX (Rechtseinheit/Hauptsitz)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
-                            <div style="grid-column:span 2"></div>
-
-                            <div style="grid-column:1">&nbsp;</div>
-                            <div style="color:#8b8b8b;font-size:11px">Name / Versicherer</div>
-                            <div style="color:#8b8b8b;font-size:11px">Kassen-/Versicherer-Nr.</div>
-                            <div style="color:#8b8b8b;font-size:11px">Mitglied-/Kunden-Nr.</div>
-                            <div style="color:#8b8b8b;font-size:11px">Sub-/Vertrags-Nr.</div>
-
-                            <div style="font-weight:700">AHV-Ausgleichskasse</div>
-                            <input id="elmStAkName" placeholder="z.B. GastroSocial" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStAkKasse" placeholder="z.B. 046.000" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStAkAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <div style="color:#8b8b8b;font-size:11px"></div>
-
-                            <div style="font-weight:700">FAK</div>
-                            <div style="color:#8b8b8b;font-size:11.5px">meist gleiche Kasse</div>
-                            <input id="elmStFakKasse" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStFakAbr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <div style="color:#8b8b8b;font-size:11px"></div>
-
-                            <div style="font-weight:700">UVG</div>
-                            <input id="elmStUvgVers" placeholder="z.B. Swica Versicherungen UVG" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-
-                            <div style="color:#8b8b8b;font-size:11.5px;padding-left:12px">UVG · UID + seit</div>
-                            <input id="elmStUvgUid" placeholder="CHE-XXX.XXX.XXX (UID des Versicherers)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
-                            <div style="color:#8b8b8b;font-size:11px">für den AHV-Meldeblock</div>
-
-                            <div style="font-weight:700">UVG-Zusatz</div>
-                            <input id="elmStUvgzVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgzNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgzKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStUvgzVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-
-                            <div style="font-weight:700">KTG</div>
-                            <input id="elmStKtgVers" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStKtgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStKtgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStKtgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-
-                            <div style="font-weight:700">BVG</div>
-                            <input id="elmStBvgVers" placeholder="z.B. GastroSocial PK" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStBvgNr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStBvgKd" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStBvgVertr" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-
-                            <div style="color:#8b8b8b;font-size:11.5px;padding-left:12px">BVG · UID + seit</div>
-                            <input id="elmStBvgUid" placeholder="CHE-XXX.XXX.XXX (UID der Pensionskasse)" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
-                            <input id="elmStBvgSeit" type="date" title="versichert seit" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;grid-column:span 2">
-                            <div style="color:#8b8b8b;font-size:11px">für den AHV-Meldeblock</div>
+                        <div style="display:grid;grid-template-columns:220px 260px 220px 260px;gap:8px 10px;align-items:center;font-size:12.5px;max-width:980px;margin-bottom:12px">
+                            <div style="font-weight:700">UID Rechtseinheit (Hauptsitz)</div>
+                            <input id="elmStUid" placeholder="CHE-XXX.XXX.XXX" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;width:100%;box-sizing:border-box">
+                            <div></div><div></div>
+                            <div style="font-weight:700">UVG versichert seit</div>
+                            <div style="display:flex;gap:6px"><input id="elmStUvgSeit" type="date" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;flex:1"></div>
+                            <div style="font-weight:700">BVG versichert seit</div>
+                            <div style="display:flex;gap:6px"><input id="elmStBvgSeit" type="date" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:5px 9px;font-size:13px;flex:1"></div>
                         </div>
-                        <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
-                            <button type="button" class="btn-secondary" onclick="elmStammVorschlag()" title="Füllt leere Felder aus den zentral gepflegten Lohndatenempfängern (Filiale → Lohndaten Empfänger)">↪ Aus Empfänger-Katalog übernehmen</button>
+                        <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px">
                             <button type="button" class="btn-primary" onclick="elmStammSave()">💾 Speichern</button>
                             <span id="elmStammStatus" style="font-size:12px;color:#8b8b8b"></span>
                         </div>
+                        <div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Aus dem Empfänger-Katalog <span style="font-weight:400;color:#8b8b8b">(automatisch fürs Meldungs-XML)</span></div>
+                        <div id="elmStKatalog" style="font-size:12.5px;color:#3f3f3f">⏳ wird geladen…</div>
                     </div>
                 </div>
             </div>
@@ -8389,7 +8342,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260828f"></script>
+<script src="js/swissdec.js?v=20260828g"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>

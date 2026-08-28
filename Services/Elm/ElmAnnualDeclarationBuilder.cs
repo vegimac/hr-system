@@ -72,9 +72,33 @@ public class ElmAnnualDeclarationBuilder
             uid = "CHE-123.123.123";
         }
 
+        // Führende Quelle für Nummern = EMPFÄNGER-KATALOG (Walter 28.08.2026):
+        // LohndatenEmpfaenger (zentral) + CompanyProfileEmpfaenger (Mitglied-/
+        // Subnummer pro Filiale). elm_stammdaten liefert nur noch UID der
+        // Rechtseinheit + «versichert seit».
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking()
+            .Include(e => e.Zuordnungen)
+            .Where(e => e.IsActive)
+            .OrderBy(e => e.Id)
+            .ToListAsync(ct);
+        var akE = empf.FirstOrDefault(e => e.Art == "AUSGLEICHSKASSE");
+        static bool IstZusatz(Models.LohndatenEmpfaenger e) =>
+            (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
+        var uvgE = empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e));
+        var bvgE = empf.FirstOrDefault(e => e.Art == "BVG");
+
+        static string? GemeinsameMitgliedNr(Models.LohndatenEmpfaenger? e)
+        {
+            if (e == null) return null;
+            var nrs = e.Zuordnungen.Where(z => z.IsActive)
+                .Select(z => (z.Mitgliednummer ?? "").Trim())
+                .Where(v => v.Length > 0).Distinct().ToList();
+            return nrs.Count == 1 ? nrs[0] : null;
+        }
+
         // Kassen-Nummer = Adressierung (Addressee), Abrechnungs-Nummer =
         // unsere Kundennummer bei der Kasse (AK-CC-CustomerNumber).
-        var akKasse = (st?.AkKassenNummer ?? "").Trim();
+        var akKasse = (akE?.Kassennummer ?? "").Trim();
         if (string.IsNullOrEmpty(akKasse))
         {
             var legacy = Regex.Match(main.AhvKasse ?? "", @"[\d.\-/]{3,}");
@@ -82,11 +106,16 @@ public class ElmAnnualDeclarationBuilder
         }
         if (string.IsNullOrEmpty(akKasse))
         {
-            warn.Add("AHV-Ausgleichskassen-Nummer fehlt — Platzhalter 001.234 eingesetzt (E3-Karte: Stammdaten Rechtseinheit erfassen).");
+            warn.Add("AHV-Kassen-Nummer fehlt — Platzhalter 001.234 eingesetzt (Empfänger-Katalog: Ausgleichskasse erfassen).");
             akKasse = "001.234";
         }
-        var akAbrechnung = (st?.AkAbrechnungsNummer ?? "").Trim();
-        if (string.IsNullOrEmpty(akAbrechnung)) akAbrechnung = akKasse;
+        var akAbrechnung = GemeinsameMitgliedNr(akE) ?? "";
+        if (string.IsNullOrEmpty(akAbrechnung))
+        {
+            if (akE != null && akE.Zuordnungen.Any(z => z.IsActive))
+                warn.Add("AK-Mitgliednummern sind pro Filiale unterschiedlich — im XML steht vorerst die Kassen-Nr. (Zuordnung pro Filiale kommt in E5).");
+            akAbrechnung = akKasse;
+        }
 
         // ── Lohndaten des Jahres (alle Filialen, STORNIERTE ausgenommen) ──
         var rows = await (from s in _db.PayrollSnapshots
@@ -321,9 +350,9 @@ public class ElmAnnualDeclarationBuilder
                         new XElement(Sd + "AHV-AVS",
                             new XAttribute("addresseeIDRef", "#ahv"),
                             new XElement(Sd + "AK-CC-CustomerNumber", akAbrechnung),
-                            InsuranceBlock("UVG-LAA-Insurance", st?.UvgVersicherer, st?.UvgUid, st?.UvgVersichertSeit,
+                            InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit,
                                 "UVG-Meldung folgt in Aufbau-Etappe E5"),
-                            InsuranceBlock("BVG-LPP-Insurance", st?.BvgVersicherer, st?.BvgUid, st?.BvgVersichertSeit,
+                            InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit,
                                 "BVG-Meldung folgt in Aufbau-Etappe E5"))),
                     new XElement(Sd + "SalaryTotals",
                         new XElement(Sd + "AHV-AVS-Totals",

@@ -200,6 +200,15 @@ die Filialen erscheinen als Workplaces, dort ist die BUR-Nummer die
 vorgesehene Kennung (CompanyProfile.BurNummer vorhanden, z.B. Oftringen
 A63837147 — Workplace um BUR-REE-Number ergänzen = kleiner E5-Punkt).
 Zweigniederlassungs-UIDs braucht die Lohnmeldung selbst nicht.
+Hauptsitz Schaub Restaurants GmbH = **Meggen** (Hauptsitz-UID → E3-Feld).
+
+**Design-Vorgabe MULTI-RECHTSEINHEIT (Walter 28.08.2026, fürs
+Lizenz-Produkt):** Es gibt Franchisenehmer mit ZWEI Hauptsitzen (= zwei
+GmbHs/Rechtseinheiten) mit je 3–4 Filialen. Zielbild ab E5:
+`Rechtseinheit` als eigenes Objekt (Name, Hauptsitz-UID, Sitzadresse),
+`company_profile.rechtseinheit_id` als Zuordnung, `elm_stammdaten` +
+Meldungserzeugung PRO Rechtseinheit (eine Installation = n Meldungen).
+Die heutige Eine-Zeile-Lösung ist der Spezialfall n=1 und bleibt bis E5.
 
 Nächste Schritte:
 

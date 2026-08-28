@@ -14,54 +14,56 @@ function swissdecInit() {
 }
 
 // ── E3: Stammdaten Rechtseinheit ────────────────────────────────────────────
-const _elmStFields = {
-    elmStUid: 'uid',
-    elmStAkName: 'akName', elmStAkKasse: 'akKassenNummer', elmStAkAbr: 'akAbrechnungsNummer',
-    elmStFakKasse: 'fakKassenNummer', elmStFakAbr: 'fakAbrechnungsNummer',
-    elmStUvgVers: 'uvgVersicherer', elmStUvgNr: 'uvgVersichererNummer', elmStUvgKd: 'uvgKundenNummer', elmStUvgVertr: 'uvgVertragsNummer',
-    elmStUvgUid: 'uvgUid', elmStUvgSeit: 'uvgVersichertSeit',
-    elmStUvgzVers: 'uvgzVersicherer', elmStUvgzNr: 'uvgzVersichererNummer', elmStUvgzKd: 'uvgzKundenNummer', elmStUvgzVertr: 'uvgzVertragsNummer',
-    elmStKtgVers: 'ktgVersicherer', elmStKtgNr: 'ktgVersichererNummer', elmStKtgKd: 'ktgKundenNummer', elmStKtgVertr: 'ktgVertragsNummer',
-    elmStBvgVers: 'bvgVersicherer', elmStBvgNr: 'bvgVersichererNummer', elmStBvgKd: 'bvgKundenNummer', elmStBvgVertr: 'bvgVertragsNummer',
-    elmStBvgUid: 'bvgUid', elmStBvgSeit: 'bvgVersichertSeit'
-};
+// Nummern kommen aus dem Empfänger-Katalog (nur Anzeige); erfasst werden hier
+// nur UID der Rechtseinheit + «versichert seit» (Walter 28.08.2026).
+const _elmStFields = { elmStUid: 'uid', elmStUvgSeit: 'uvgVersichertSeit', elmStBvgSeit: 'bvgVersichertSeit' };
 
 async function elmStammLoad() {
     try {
         const r = await fetch('/api/elm/stammdaten', { headers: ah() });
-        if (!r.ok) return;
-        const j = await r.json();
-        for (const [id, key] of Object.entries(_elmStFields)) {
-            const el = document.getElementById(id);
-            if (el) el.value = (j[key] || '').toString().slice(0, el.type === 'date' ? 10 : undefined) || '';
+        if (r.ok) {
+            const j = await r.json();
+            for (const [id, key] of Object.entries(_elmStFields)) {
+                const el = document.getElementById(id);
+                if (el) el.value = (j[key] || '').toString().slice(0, el.type === 'date' ? 10 : undefined) || '';
+            }
+            const s = document.getElementById('elmStammStatus');
+            if (s && j.updatedAt) s.textContent = `Zuletzt gespeichert: ${new Date(j.updatedAt).toLocaleDateString('de-CH')}`;
         }
-        const s = document.getElementById('elmStammStatus');
-        if (s && j.updatedAt) s.textContent = `Zuletzt gespeichert: ${new Date(j.updatedAt).toLocaleDateString('de-CH')}`;
     } catch { /* still */ }
+    elmStKatalogLoad();
 }
 
-async function elmStammVorschlag() {
-    const s = document.getElementById('elmStammStatus');
+async function elmStKatalogLoad() {
+    const box = document.getElementById('elmStKatalog');
+    if (!box) return;
     try {
         const r = await fetch('/api/elm/stammdaten/vorschlag', { headers: ah() });
         const j = await r.json();
-        if (!r.ok) { if (s) { s.textContent = j.message || 'Vorschlag fehlgeschlagen.'; s.style.color = '#b91c1c'; } return; }
-        let uebernommen = 0;
-        for (const [id, key] of Object.entries(_elmStFields)) {
-            const el = document.getElementById(id);
-            if (!el || el.value) continue;               // nie Bestehendes überschreiben
-            const v = (j.werte || {})[key];
-            if (v) { el.value = v; uebernommen++; }
-        }
-        if (s) {
-            const hin = (j.hinweise || []).length ? ' · ' + j.hinweise.join(' ') : '';
-            s.textContent = uebernommen > 0
-                ? `↪ ${uebernommen} Felder aus dem Empfänger-Katalog übernommen — prüfen und speichern.${hin}`
-                : `Keine leeren Felder befüllbar.${hin}`;
-            s.style.color = uebernommen > 0 ? '#166534' : '#92400e';
-        }
+        if (!r.ok) { box.innerHTML = '<span style="color:#b91c1c">Katalog konnte nicht geladen werden.</span>'; return; }
+        const w = j.werte || {};
+        const zeile = (label, name, nr, kd, vertr, uid) => {
+            const teile = [];
+            if (name) teile.push(`<b>${esc(name)}</b>`);
+            if (nr) teile.push(`Nr. ${esc(nr)}`);
+            if (kd) teile.push(`Mitglied/Kunde ${esc(kd)}`);
+            if (vertr) teile.push(`Sub/Vertrag ${esc(vertr)}`);
+            if (uid) teile.push(`UID ${esc(uid)}`);
+            return `<div style="padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+                <span style="display:inline-block;width:150px;font-weight:600;color:#646464">${label}</span>
+                ${teile.length ? teile.join(' · ') : '<span style="color:#b0aca4">— im Empfänger-Katalog erfassen</span>'}</div>`;
+        };
+        box.innerHTML =
+            zeile('AHV-Ausgleichskasse', w.akName, w.akKassenNummer, w.akAbrechnungsNummer, null, null) +
+            zeile('FAK', null, w.fakKassenNummer, w.fakAbrechnungsNummer, null, null) +
+            zeile('UVG', w.uvgVersicherer, w.uvgVersichererNummer, w.uvgKundenNummer, w.uvgVertragsNummer, w.uvgUid) +
+            zeile('UVG-Zusatz', w.uvgzVersicherer, w.uvgzVersichererNummer, w.uvgzKundenNummer, w.uvgzVertragsNummer, null) +
+            zeile('KTG', w.ktgVersicherer, w.ktgVersichererNummer, w.ktgKundenNummer, w.ktgVertragsNummer, null) +
+            zeile('BVG', w.bvgVersicherer, w.bvgVersichererNummer, w.bvgKundenNummer, w.bvgVertragsNummer, w.bvgUid) +
+            ((j.hinweise || []).length
+                ? `<div style="color:#92400e;margin-top:6px">${j.hinweise.map(esc).join('<br>')}</div>` : '');
     } catch (e) {
-        if (s) { s.textContent = 'Verbindungsfehler: ' + e.message; s.style.color = '#b91c1c'; }
+        box.innerHTML = `<span style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</span>`;
     }
 }
 
@@ -78,7 +80,7 @@ async function elmStammSave() {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) { if (s) { s.textContent = j.message || 'Speichern fehlgeschlagen.'; s.style.color = '#b91c1c'; } return; }
-        if (s) { s.textContent = '✓ Gespeichert — die Nummern fliessen ab jetzt ins Meldungs-XML.'; s.style.color = '#166534'; }
+        if (s) { s.textContent = '✓ Gespeichert.'; s.style.color = '#166534'; }
     } catch (e) {
         if (s) { s.textContent = 'Verbindungsfehler: ' + e.message; s.style.color = '#b91c1c'; }
     }
