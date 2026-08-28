@@ -2124,6 +2124,7 @@ const CP_EMPF_ARTEN = [
     ['FAK',             'Familienausgleichskasse (FAK)'],
     ['KTG',             'KTG-Versicherung'],
     ['UVG',             'UVG-Versicherung'],
+    ['UVGZ',            'UVG-Zusatzversicherung'],
     ['BVG',             'BVG / Pensionskasse'],
     ['QST',             'Quellensteuer'],
     ['LOHNAUSWEIS',     'Lohnausweis'],

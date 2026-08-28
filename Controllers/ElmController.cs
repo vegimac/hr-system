@@ -159,11 +159,13 @@ public class ElmController : ControllerBase
             dto["fakAbrechnungsNummer"] = mg;
         }
 
-        // UVG-Zusatz hat keinen eigenen Art-Code — Erkennung über den Namen.
+        // UVG-Zusatz: eigener Art-Code «UVGZ» (seit 28.08.2026); Alt-Einträge
+        // mit Art «UVG» + «Zusatz» im Namen werden weiterhin erkannt.
         bool IstZusatz(LohndatenEmpfaenger e) =>
             (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
         Fill("uvg",  empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e)), mitUid: true);
-        Fill("uvgz", empf.FirstOrDefault(e => e.Art == "UVG" && IstZusatz(e)),  mitUid: false);
+        Fill("uvgz", empf.FirstOrDefault(e => e.Art == "UVGZ")
+                     ?? empf.FirstOrDefault(e => e.Art == "UVG" && IstZusatz(e)), mitUid: false);
         Fill("ktg",  empf.FirstOrDefault(e => e.Art == "KTG"), mitUid: false);
         Fill("bvg",  empf.FirstOrDefault(e => e.Art == "BVG"), mitUid: true);
 
