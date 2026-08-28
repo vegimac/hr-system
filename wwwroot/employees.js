@@ -2488,13 +2488,12 @@ function renderQstPflichtBanner(pflicht) {
         // Blau — Pflicht, Erfassung vorhanden — alles ok. Walter-Vorgabe
         // 26.05.2026: trotzdem den Befreiungs-Button anbieten, falls der MA
         // später eine Bestätigung von der Steuerbehörde erhält.
+        // Walter-Vorgabe 29.08.2026: der Befreiungs-Button gehört zum
+        // QST-Block (Sektionskopf), nicht in den Info-Banner.
         return `
         <div style="background:#f6f3ee;border:1px solid #e5e0d6;border-left:4px solid #1a1a1a;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px">
             <span style="font-size:16px">ℹ️</span>
             <div style="color:#6b6152;font-size:12px;flex:1">QST-pflichtig — Erfassung vorhanden.</div>
-            <button onclick="openQstBefreiungModal()" style="background:#fff;border:1px solid #1a1a1a;color:#1a1a1a;padding:5px 10px;border-radius:5px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">
-                📄 Behörden-Befreiung erfassen
-            </button>
         </div>`;
     }
 
@@ -4081,7 +4080,10 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
     </div>
     <div class="emp-section-title" style="margin-top:6px;display:flex;align-items:center;gap:10px">Quellensteuer
         <span style="flex:1"></span>
-        ${isOpsRole() ? `<button class="btn-emp-add" onclick="openQstFromTab(null)">
+        ${isOpsRole() ? `<button class="btn-emp-add" style="background:#fff;border:1px solid rgba(60,55,48,0.3);color:#3f3f3f" onclick="openQstBefreiungModal()" title="Bestätigungsschreiben der Steuerbehörde hinterlegen — befreit den MA von der QST-Pflicht">
+            📄 Behörden-Befreiung
+        </button>
+        <button class="btn-emp-add" onclick="openQstFromTab(null)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Neue QST-Version
         </button>` : ''}
