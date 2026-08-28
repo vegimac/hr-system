@@ -8351,7 +8351,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260828d"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829g"></script>
+<script src="js/qst-modal.js?v=20260829h"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -9195,8 +9195,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         <button class="ma-modal-close" onclick="closeQstModal()">✕</button>
     </div>
 
-    <!-- Stammdaten (read-only) — 3 Spalten, sehr kompakt -->
-    <div style="padding:5px 20px;background:rgba(255,255,255,0.5);border-bottom:1px solid rgba(60,55,48,0.12)">
+    <!-- Stammdaten (read-only) — 3 Spalten, sehr kompakt. KEIN weisser
+         Hintergrund (Walter 29.08.2026: sah aus wie ein Eingabefeld). -->
+    <div style="padding:5px 20px;border-bottom:1px solid rgba(60,55,48,0.12)">
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 18px;font-size:12px;line-height:1.5">
             <div><span style="color:#64748b">Aufenthalt:</span> <span id="qstPermitDisplay" style="font-weight:500">–</span></div>
             <div><span style="color:#64748b">Wohnort:</span> <span id="qstWohnortDisplay" style="font-weight:500">–</span></div>
@@ -9240,28 +9241,36 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  Die unsichtbaren Felder bleiben als Datenträger für die
                  Tarif-Logik (onQstKantonChange etc.). -->
             <!-- 216px = 170px Datumsfeld + 46px Kalender-Knopf des Quickpick -->
-            <!-- K4-Vorstufe (Walter 29.08.2026): unter der Gültigkeit stehen
-                 die tarifrelevanten Stammdaten INLINE — Zivilstand nur Anzeige
-                 (easy@work-geführt), «seit» + Konfession editierbar und
-                 schreiben DIREKT in den MA-Stamm (qstStammChanged). -->
-            <div style="display:grid;grid-template-columns:216px minmax(150px,200px) 216px minmax(240px,1fr);gap:7px 10px">
+            <!-- EINZIGE Eingabe = «Gültig ab» (Walter 29.08.2026 v3): Zivilstand,
+                 «seit» und Konfession sind NUR ANZEIGE — alles kommt aus den
+                 MA-Informationen (Pflege in easy@work bzw. in der MA-Maske).
+                 qstReligion bleibt unsichtbarer Datenträger für die Herleitung. -->
+            <div style="display:grid;grid-template-columns:216px minmax(150px,200px) 170px minmax(180px,240px) 1fr;gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
             </div>
             <div>
-                <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">Änderung in easy@work</span></label>
+                <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">aus easy@work</span></label>
                 <input type="text" id="qstZivilstandAnzeige" class="qst-inp qst-ro" readonly tabindex="-1"
                        title="Der Zivilstand kommt aus easy@work — Änderungen dort erfassen.">
             </div>
             <div>
-                <label class="qst-lbl">Zivilstand seit</label>
-                <input type="date" id="qstZivilstandSeit" class="qst-inp" style="max-width:170px"
-                       onchange="qstStammChanged('seit')">
+                <label class="qst-lbl">Zivilstand seit <span class="qst-ro-hint">MA-Maske</span></label>
+                <input type="date" id="qstZivilstandSeit" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off"
+                       title="Pflege in der MA-Maske (Übersicht → Personalien).">
             </div>
             <div>
-                <label class="qst-lbl">Konfession</label>
-                <select id="qstReligion" class="qst-inp" onchange="qstStammChanged('religion')">
+                <label class="qst-lbl">Konfession <span class="qst-ro-hint">MA-Maske</span></label>
+                <input type="text" id="qstReligionAnzeige" class="qst-inp qst-ro" readonly tabindex="-1"
+                       title="Pflege in der MA-Maske (Übersicht → Personalien).">
+            </div>
+            <div id="qstStammSaveHint" style="grid-column:1 / -1;font-size:11px;line-height:1.4"></div>
+            <div style="display:none">
+                <!-- «Gültig bis» = reiner Datenträger (Walter 29.08.2026):
+                     wird beim Wechsel automatisch gesetzt, nie manuell.
+                     qstReligion = Datenträger (Kirchensteuer-Herleitung). -->
+                <select id="qstReligion" tabindex="-1" class="no-liquid">
                     <option value="">–</option>
                     <option value="evangelisch_reformiert">Evang.-reformiert</option>
                     <option value="roemisch_katholisch">Röm.-katholisch</option>
@@ -9269,11 +9278,6 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="andere">Andere</option>
                     <option value="keine">Keine</option>
                 </select>
-            </div>
-            <div id="qstStammSaveHint" style="grid-column:1 / -1;font-size:11px;line-height:1.4"></div>
-            <div style="display:none">
-                <!-- «Gültig bis» = reiner Datenträger (Walter 29.08.2026):
-                     wird beim Wechsel automatisch gesetzt, nie manuell. -->
                 <input type="date" id="qstValidTo" readonly tabindex="-1" data-yp="off">
                 <input type="text" id="qstGemeinde" tabindex="-1">
                 <input type="number" id="qstGemeindeBfs" tabindex="-1">

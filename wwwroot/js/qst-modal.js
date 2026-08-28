@@ -234,15 +234,24 @@ const QST_TARIF_BEZ = {
 // in den MA-Stamm geschrieben (K4-Prinzip «in einem Rutsch mit Quittung»).
 let _qstStammPending = {};
 
+const QST_RELIGION_LABELS = {
+    evangelisch_reformiert: 'Evang.-reformiert', roemisch_katholisch: 'Röm.-katholisch',
+    christ_katholisch: 'Christ-katholisch', andere: 'Andere', keine: 'Keine'
+};
+
 function qstFillStammzeile() {
+    // NUR ANZEIGE (Walter 29.08.2026 v3): Zivilstand/seit/Konfession kommen
+    // aus den MA-Informationen — Pflege in easy@work bzw. der MA-Maske.
     const d = qstEmployeeData || {};
     const ziv = (d.zivilstand ?? d.maritalStatus ?? '').toString();
     const zEl = document.getElementById('qstZivilstandAnzeige');
     if (zEl) zEl.value = QST_ZIVILSTAND_LABELS[ziv] || ziv || '–';
     const sEl = document.getElementById('qstZivilstandSeit');
     if (sEl) sEl.value = (d.maritalStatusSince || '').toString().slice(0, 10);
-    const rEl = document.getElementById('qstReligion');
+    const rEl = document.getElementById('qstReligion');            // Datenträger
     if (rEl) rEl.value = d.religion || '';
+    const raEl = document.getElementById('qstReligionAnzeige');    // Anzeige
+    if (raEl) raEl.value = QST_RELIGION_LABELS[d.religion] || (d.religion ? d.religion : '–');
     const hint = document.getElementById('qstStammSaveHint');
     if (hint) hint.innerHTML = '';
     _qstStammPending = {};
