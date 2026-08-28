@@ -52,6 +52,9 @@ async function openQstModal(employeeId, employeeData) {
     document.getElementById('qstNatDisplay').textContent     = nat;
     document.getElementById('qstKantonDisplay').textContent  = kantonDisplay;
     document.getElementById('qstZivilstandDisplay').textContent = zivil;
+    // K4-Vorstufe (Walter 29.08.2026): Inline-Stammzeile (Zivilstand-Anzeige,
+    // «seit», Konfession) aus den MA-Daten füllen.
+    qstFillStammzeile();
 
     // Verlauf laden
     await loadQstHistory(employeeId);
@@ -205,6 +208,96 @@ function qstApplyWochenaufenthaltLock() {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════════
+// K4-Vorstufe (Walter 29.08.2026): Tarif = RESULTAT, keine Auswahl mehr.
+// Die tarifrelevanten Stammdaten (Zivilstand-Anzeige, «seit», Konfession)
+// stehen inline unter der Gültigkeit und schreiben DIREKT in den MA-Stamm;
+// danach wird der Server-Vorschlag neu geholt und das Resultat unten
+// aktualisiert. Tarif-Select + QST-Code sind unsichtbare Datenträger.
+// ══════════════════════════════════════════════════════════════════════
+const QST_ZIVILSTAND_LABELS = {
+    unbekannt: 'Unbekannt', ledig: 'Ledig', verheiratet: 'Verheiratet',
+    geschieden: 'Geschieden', verwitwet: 'Verwitwet', getrennt: 'Getrennt',
+    eingetragene_partnerschaft: 'Eingetragene Partnerschaft'
+};
+const QST_TARIF_BEZ = {
+    A: 'Alleinstehend', B: 'Verheiratet, Alleinverdiener',
+    C: 'Verheiratet, Doppelverdiener', D: 'Nebenerwerb', H: 'Alleinerziehend',
+    L: 'Grenzgänger (DE) alleinstehend', M: 'Grenzgänger (DE) verheiratet, Alleinverdiener',
+    N: 'Grenzgänger (DE) verheiratet, Doppelverdiener', P: 'Grenzgänger (DE) alleinerziehend',
+    Q: 'Grenzgänger (DE)'
+};
+
+function qstFillStammzeile() {
+    const d = qstEmployeeData || {};
+    const ziv = (d.zivilstand ?? d.maritalStatus ?? '').toString();
+    const zEl = document.getElementById('qstZivilstandAnzeige');
+    if (zEl) zEl.value = QST_ZIVILSTAND_LABELS[ziv] || ziv || '–';
+    const sEl = document.getElementById('qstZivilstandSeit');
+    if (sEl) sEl.value = (d.maritalStatusSince || '').toString().slice(0, 10);
+    const rEl = document.getElementById('qstReligion');
+    if (rEl) rEl.value = d.religion || '';
+    const hint = document.getElementById('qstStammSaveHint');
+    if (hint) hint.innerHTML = '';
+}
+
+// Inline-Änderung «Zivilstand seit» / «Konfession» → sofort in den MA-Stamm
+// speichern (PUT /api/employees/{id}, null-tolerantes DTO — nur das eine
+// Feld wird geschrieben), dann Tarif-Vorschlag + Resultat neu rechnen.
+// Hinweis: die Konfessions-Änderung triggert serverseitig den bestehenden
+// QstKonfessionSync (Kirchensteuer-Folge) — gleiche Mechanik wie die
+// Konfessions-Pflege in der MA-Maske.
+async function qstStammChanged(which) {
+    if (!qstCurrentEmployeeId) return;
+    const hint = document.getElementById('qstStammSaveHint');
+    const body = which === 'religion'
+        ? { religion: document.getElementById('qstReligion')?.value ?? '' }
+        : { maritalStatusSinceSet: true,
+            maritalStatusSince: document.getElementById('qstZivilstandSeit')?.value || null };
+    try {
+        const res = await fetch(`/api/employees/${qstCurrentEmployeeId}`, {
+            method: 'PUT',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            if (hint) hint.innerHTML = '<span style="color:#dc2626">⚠ Speichern im MA-Stamm fehlgeschlagen.</span>';
+            return;
+        }
+        if (qstEmployeeData) {
+            if (which === 'religion') qstEmployeeData.religion = body.religion || null;
+            else qstEmployeeData.maritalStatusSince = body.maritalStatusSince;
+        }
+        if (hint) hint.innerHTML = '<span style="color:#16a34a">✓ Im MA-Stamm gespeichert — Tarif neu hergeleitet.</span>';
+        const vf = document.getElementById('qstValidFrom')?.value || '';
+        await qstFetchServerVorschlag(vf);
+        if (!qstCurrentEntryId) qstApplyServerVorschlagToForm();
+        else qstRenderVorschlagBanner();
+        qstUpdateAutoKinderHint();
+        qstRenderResultat();
+    } catch {
+        if (hint) hint.innerHTML = '<span style="color:#dc2626">⚠ Verbindungsfehler beim Speichern.</span>';
+    }
+}
+
+// Resultat-Karte unten: grosser Code + Bezeichnung. Quelle = die (jetzt
+// unsichtbaren) Datenträger-Felder; die Begründung liefert der Server-
+// Vorschlag-Banner (qstTarifHint sitzt in derselben Karte).
+function qstRenderResultat() {
+    const codeEl = document.getElementById('qstResultatCode');
+    const besEl  = document.getElementById('qstResultatBeschreibung');
+    if (!codeEl) return;
+    const code  = (document.getElementById('qstCode')?.value || '').toString().trim().toUpperCase();
+    const tarif = (document.getElementById('qstTarifCode')?.value || '').toString().trim().toUpperCase();
+    const pct   = (document.getElementById('qstProzentsatz')?.value || '').toString().trim();
+    codeEl.textContent = code || (pct ? `${pct} %` : '–');
+    const v = _qstServerVorschlag;
+    let bez = (v && v.tarifCode === tarif && v.tarifBezeichnung) ? v.tarifBezeichnung : (QST_TARIF_BEZ[tarif] || '');
+    if (pct) bez = (bez ? bez + ' · ' : '') + 'manueller Prozentsatz';
+    if (besEl) besEl.textContent = bez;
+}
+
 // Konkubinat-Checkboxen aus dem Familie-Tab befüllen + sperren (Walter
 // 25.08.2026): mit K-Partner sind «Konkubinat» und «Höh. Einkommen» nur
 // noch Anzeige — der Server überschreibt die Werte beim Speichern ohnehin
@@ -330,6 +423,8 @@ function qstRenderVorschlagBanner() {
     hint.innerHTML =
         `<div style="color:${headerColor};font-weight:600">${headerIcon} Server-Vorschlag: <b>${v.qstCode}</b> (Tarif ${v.tarifCode}${v.tarifBezeichnung ? ' — ' + v.tarifBezeichnung : ''})</div>` +
         begr + warns + choice + applyBtn;
+    // Resultat-Karte (Code gross) synchron halten (K4-Vorstufe 29.08.2026).
+    qstRenderResultat();
 }
 
 // Wie viele Kinder sind am gewählten Stichtag QST-abzugsberechtigt?
@@ -724,6 +819,8 @@ function populateQstForm(entry) {
     qstApplyKonkubinatLock();
     // Wochenaufenthalt aus der Wohnsituation befüllen + sperren (Walter 28.08.2026).
     qstApplyWochenaufenthaltLock();
+    // Resultat-Karte aus den geladenen Werten zeichnen (K4-Vorstufe 29.08.2026).
+    qstRenderResultat();
 
     toggleQstWeitere();
     document.getElementById('qstSaveResult').textContent = '';
@@ -756,12 +853,14 @@ function buildQstCode() {
     const tarif   = document.getElementById('qstTarifCode')?.value ?? '';
     const kinder  = parseInt(document.getElementById('qstKinder')?.value ?? '0');
     const kirche  = document.getElementById('qstKirchensteuer')?.checked;
-    if (!tarif) return;
+    if (!tarif) { qstRenderResultat(); return; }
     // QST-Code: Tarif + Anzahl Kinder + Y/N (Kirchensteuer)
     const code = `${tarif}${kinder}${kirche ? 'Y' : 'N'}`;
     const el = document.getElementById('qstCode');
     if (el && !el.value) el.value = code;
     else if (el) el.value = code;
+    // Resultat-Karte unten nachziehen (K4-Vorstufe, Walter 29.08.2026).
+    qstRenderResultat();
 }
 
 function toggleQstWeitere() {

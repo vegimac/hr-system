@@ -1256,9 +1256,10 @@ function renderEmployeeDetail(emp) {
                         <span>Doku${(window._linkedDocCodes && window._linkedDocCodes.has('bank_card')) ? ' ✓' : ''}</span>
                     </button>
                 </span>
-                <!-- „+ Neue Bankverbindung" sitzt im Header (empTabActionBar). -->
-                <button class="btn-emp-add" onclick="openBankAccountModal(null)" style="display:none">
-                    ${_t('ma.btn.newBank','Neue Bankverbindung')}
+                <!-- Walter 29.08.2026: Pille ganz rechts in der Sektions-Titelzeile
+                     (wie «+ Neue QST-Version») — nicht mehr im empTabActionBar. -->
+                <button class="btn-emp-add" onclick="openBankAccountModal(null)">
+                    + ${_t('ma.btn.newBank','Neue Bankverbindung')}
                 </button>
             </div>
             <div id="bankAccountsContent">
@@ -2109,9 +2110,11 @@ function switchEmpTab(tab) {
             // nicht oben rechts neben den Stammdaten (Walter 27.07.2026).
             tabBar.innerHTML = '';
         } else if (tab === 'quellensteuer') {
-            // Bank-Button zuerst (Sektion steht zuoberst, Walter 19.07.2026).
-            tabBar.innerHTML = (!isExcluded ? `<button class="btn-emp-add" onclick="openBankAccountModal(null)">${plusIcon} ${_t('ma.btn.newBank','Bankverbindung')}</button>` : '')
-                + `<button class="btn-emp-add" onclick="openQstFromTab(null)" style="margin-left:${isExcluded ? '0' : '8px'}">${plusIcon} QST-Eintrag</button>`;
+            // Walter 29.08.2026: keine schwebenden Pillen mehr — «+ Neue
+            // Bankverbindung» sitzt in der Bank-Sektions-Titelzeile, «+ Neue
+            // QST-Version» in der QST-Sektions-Titelzeile (QST-Eintrag-Pille
+            // war redundant und ist weg).
+            tabBar.innerHTML = '';
         } else if (tab === 'verwarnungen' && !isExcluded) {
             // Restaurant Admin: Aktionen als Icon-Kacheln IM Tab-Body (Walter
             // 15.07.2026) — oben rechts kollidierten die Buttons mit dem

@@ -8351,7 +8351,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260828d"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829b"></script>
+<script src="js/qst-modal.js?v=20260829c"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -8831,7 +8831,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260829h"></script>
+<script src="employees.js?v=20260829i"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9235,7 +9235,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  Die unsichtbaren Felder bleiben als Datenträger für die
                  Tarif-Logik (onQstKantonChange etc.). -->
             <!-- 216px = 170px Datumsfeld + 46px Kalender-Knopf des Quickpick -->
-            <div style="display:grid;grid-template-columns:216px 216px 1fr;gap:7px 10px">
+            <!-- K4-Vorstufe (Walter 29.08.2026): unter der Gültigkeit stehen
+                 die tarifrelevanten Stammdaten INLINE — Zivilstand nur Anzeige
+                 (easy@work-geführt), «seit» + Konfession editierbar und
+                 schreiben DIREKT in den MA-Stamm (qstStammChanged). -->
+            <div style="display:grid;grid-template-columns:216px 216px minmax(150px,200px) 216px minmax(160px,1fr);gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
@@ -9247,6 +9251,28 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      Befreiung oder Kantonswechsel/Umzug. Nie manuell. -->
                 <input type="date" id="qstValidTo" class="qst-inp qst-ro" readonly tabindex="-1" data-yp="off" style="max-width:170px">
             </div>
+            <div>
+                <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">Änderung in easy@work</span></label>
+                <input type="text" id="qstZivilstandAnzeige" class="qst-inp qst-ro" readonly tabindex="-1"
+                       title="Der Zivilstand kommt aus easy@work — Änderungen dort erfassen.">
+            </div>
+            <div>
+                <label class="qst-lbl">Zivilstand seit</label>
+                <input type="date" id="qstZivilstandSeit" class="qst-inp" style="max-width:170px"
+                       onchange="qstStammChanged('seit')">
+            </div>
+            <div>
+                <label class="qst-lbl">Konfession</label>
+                <select id="qstReligion" class="qst-inp" onchange="qstStammChanged('religion')">
+                    <option value="">–</option>
+                    <option value="evangelisch_reformiert">Evang.-reformiert</option>
+                    <option value="roemisch_katholisch">Röm.-katholisch</option>
+                    <option value="christ_katholisch">Christ-katholisch</option>
+                    <option value="andere">Andere</option>
+                    <option value="keine">Keine</option>
+                </select>
+            </div>
+            <div id="qstStammSaveHint" style="grid-column:1 / -1;font-size:11px;line-height:1.4"></div>
             <div style="display:none">
                 <input type="text" id="qstGemeinde" tabindex="-1">
                 <input type="number" id="qstGemeindeBfs" tabindex="-1">
@@ -9281,12 +9307,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </select>
             </div>
             </div>
-            <!-- Zeile 2: Tarif flexibel + Zahlenfelder schmal (Checkboxen in
-                 eigener Zeile darunter — ragten sonst aus dem Modal) -->
-            <div style="display:grid;grid-template-columns:minmax(260px,1fr) 120px 160px 140px 160px;gap:7px 10px;align-items:start">
-            <div>
-                <label class="qst-lbl">Tarif</label>
-                <select id="qstTarifCode" onchange="onQstTarifChange()" class="qst-inp">
+            <!-- Zeile 2 (K4-Vorstufe, Walter 29.08.2026): Tarif + QST-Code sind
+                 KEINE Eingaben mehr — der Tarif ist das RESULTAT der Angaben
+                 und steht gross zuunterst im Modal (Resultat-Karte). Die
+                 Felder bleiben unsichtbar als Datenträger für Code-Aufbau
+                 und Speichern (buildQstCode / saveQstEntry). -->
+            <div style="display:none">
+                <select id="qstTarifCode" onchange="onQstTarifChange()" tabindex="-1" class="no-liquid">
                     <option value="">– wählen –</option>
                     <option value="A">A – Alleinstehend ohne Kinder</option>
                     <option value="B">B – Verheiratet, Alleinverdiener</option>
@@ -9299,17 +9326,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="P">P – Pauschale</option>
                     <option value="Q">Q – Grenzgänger alleinerz.</option>
                 </select>
-                <!-- Walter-Vorgabe 14.06.2026: Auto-Vorschlag-Hint analog zur
-                     Anzahl-Kinder-Hint-Zeile. Wird von qstSuggestTarif() befüllt. -->
-                <div id="qstTarifHint" style="font-size:11.5px;margin-top:4px;line-height:1.35"></div>
+                <input type="text" id="qstCode" maxlength="10" tabindex="-1">
             </div>
-            <div>
-                <label class="qst-lbl">QST-Code</label>
-                <input type="text" id="qstCode" placeholder="A0Y" maxlength="10" class="qst-inp"
-                       style="font-family:monospace;text-transform:uppercase"
-                       autocapitalize="characters" spellcheck="false"
-                       oninput="this.value=this.value.toUpperCase()">
-            </div>
+            <div style="display:grid;grid-template-columns:160px 140px 160px 1fr;gap:7px 10px;align-items:start">
             <div>
                 <label class="qst-lbl">Anzahl Kinder <span class="qst-ro-hint">aus Familie-Tab</span></label>
                 <!-- Nur Anzeige (Walter 12.08.2026): Quelle der Wahrheit ist der
@@ -9325,7 +9344,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      zweizeiliges Label schob das Feld unter die Nachbar-Zeile. -->
                 <label class="qst-lbl" style="white-space:nowrap">Prozentsatz <span class="qst-ro-hint">manuell</span></label>
                 <input type="number" id="qstProzentsatz" step="0.01" min="0" placeholder="auto" class="qst-inp"
-                       oninput="if(parseFloat(this.value)<0)this.value=''">
+                       oninput="if(parseFloat(this.value)<0)this.value='';qstRenderResultat()">
             </div>
             <div>
                 <label class="qst-lbl" style="white-space:nowrap">Satzbest. Medianlohn</label>
@@ -9463,6 +9482,19 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
             <label class="qst-cb"><input type="checkbox" id="qstIsGrenzgaenger"> Grenzgänger/in</label>
             <label class="qst-cb"><input type="checkbox" id="qstIsWochenaufenthalter"> Wochenaufenthalter/in</label>
+        </div>
+
+        <!-- RESULTAT (K4-Vorstufe, Walter 29.08.2026): der aus den Angaben
+             hergeleitete Tarif — gross, ganz unten, NICHT editierbar. Gefüllt
+             von qstRenderResultat(); qstTarifHint zeigt Begründung/Warnungen
+             (Server-Vorschlag, qstRenderVorschlagBanner). -->
+        <div class="emp-section-title">Resultat — angewendeter Tarif</div>
+        <div id="qstResultatCard" style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border:1px solid #d8d3c6;border-radius:14px;padding:13px 18px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+                <div id="qstResultatCode" style="font-size:36px;font-weight:800;font-family:monospace;letter-spacing:2px;color:#1a1a1a">–</div>
+                <div id="qstResultatBeschreibung" style="font-size:13.5px;color:#475569;font-weight:600"></div>
+            </div>
+            <div id="qstTarifHint" style="font-size:11.5px;margin-top:6px;line-height:1.35"></div>
         </div>
 
         <!-- Aktionen -->
