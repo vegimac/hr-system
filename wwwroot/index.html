@@ -8831,7 +8831,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260829i"></script>
+<script src="employees.js?v=20260829j"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9239,7 +9239,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  die tarifrelevanten Stammdaten INLINE — Zivilstand nur Anzeige
                  (easy@work-geführt), «seit» + Konfession editierbar und
                  schreiben DIREKT in den MA-Stamm (qstStammChanged). -->
-            <div style="display:grid;grid-template-columns:216px 216px minmax(150px,200px) 216px minmax(160px,1fr);gap:7px 10px">
+            <div style="display:grid;grid-template-columns:216px 216px minmax(150px,200px) 216px minmax(240px,1fr);gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
@@ -9536,6 +9536,14 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea,button,label) { pointer-events:none !important; }
 #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea) { background:#efece6 !important; color:#646464 !important; box-shadow:none !important; }
 #qstModal .qst-ro-hint { font-weight:400; font-size:8.5px; color:#94a3b8; letter-spacing:0; text-transform:none; }
+/* Inline-Stammzeile (Walter 29.08.2026): alle Felder der Gültigkeits-Zeile
+   auf EINE Höhe — Datumsfelder, Read-only-Pillen und der Liquid-Select-
+   Trigger der Konfession sassen sonst unterschiedlich hoch. */
+#qstModal #qstValidFrom, #qstModal #qstValidTo,
+#qstModal #qstZivilstandAnzeige, #qstModal #qstZivilstandSeit {
+    height:36px !important; min-height:36px !important; box-sizing:border-box;
+}
+#qstModal .qst-grid .lqsel-btn { height:36px !important; min-height:36px !important; box-sizing:border-box; }
 </style>
 
 

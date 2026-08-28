@@ -4600,6 +4600,14 @@ async function openQstFromTab(entryId) {
     const _ktName = (typeof kantonNameFor === 'function') ? kantonNameFor(emp.cantonCode) : null;
     setTxt('qstKantonDisplay',    emp.cantonCode ? (_ktName ? `${emp.cantonCode} — ${_ktName}` : emp.cantonCode) : '–');
     setTxt('qstZivilstandDisplay', emp.maritalStatus ?? '–');
+    // Inline-Stammzeile (Zivilstand/seit/Konfession) füllen — dieser
+    // Tab-Öffnungspfad läuft NICHT über openQstModal (Walter-Bug 29.08.2026).
+    if (typeof qstFillStammzeile === 'function') qstFillStammzeile();
+    // Wohnsituation (Wochenaufenthalt-Zusatzadresse) laden + Lock anwenden —
+    // populateQstForm ruft qstApplyWochenaufenthaltLock, braucht die Daten.
+    if (typeof loadQstWochenaufenthalt === 'function') {
+        await loadQstWochenaufenthalt(selectedEmployeeId);
+    }
 
     // Verlauf laden
     try {
