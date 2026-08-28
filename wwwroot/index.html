@@ -8351,7 +8351,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260828d"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829f"></script>
+<script src="js/qst-modal.js?v=20260829g"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -9344,14 +9344,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
              Wochenaufenthalter-Häkchen ist bei erfasster Zusatzadresse
              gesperrt (qstApplyWochenaufenthaltLock); Wohnsitz-Ausland-Felder
              werden bei Land ≠ CH vom Server vorbefüllt (ApplyWohnadresseAsync). -->
-        <div class="emp-section-title">2 · Wohnsituation</div>
-        <!-- REINE ANZEIGE (Walter 29.08.2026): keine Eingaben. Die Adresse
-             kommt IMMER aus easy@work — Land ≠ CH ⇒ automatisch Grenzgänger
-             (Person ohne steuerrechtlichen Wohnsitz CH); Wochenaufenthalter
-             ⇐ Zusatzadresse Typ «Wochenaufenthalt» beim MA. Gefüllt von
-             qstRenderWohnsituation(); die Checkboxen + Ausland-Felder sind
-             unsichtbare Datenträger (Server setzt sie ohnehin autoritativ). -->
-        <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
+        <!-- 2 · Wohnsituation — REINE ANZEIGE, NUR im Sonderfall (Walter
+             29.08.2026 v2): die ganze Sektion erscheint AUSSCHLIESSLICH wenn
+             Grenzgänger (Land ≠ CH aus easy) und/oder Wochenaufenthalter
+             (Zusatzadresse). Normalfall CH ohne Wochenaufenthalt = unsichtbar.
+             Gefüllt/geschaltet von qstRenderWohnsituation(); Checkboxen +
+             Ausland-Felder sind unsichtbare Datenträger. -->
+        <div id="qstWohnsituationWrap" style="display:none">
+            <div class="emp-section-title">2 · Wohnsituation</div>
+            <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
+        </div>
         <div style="display:none">
             <input type="checkbox" id="qstIsGrenzgaenger" tabindex="-1">
             <input type="checkbox" id="qstIsWochenaufenthalter" tabindex="-1">
@@ -9361,18 +9363,22 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
 
         <div class="emp-section-title">3 · Partner</div>
-        <!-- Zeitraum-Spalte 470px: 2×(Datum 160 + Quickpick-Knopf 46) + Strich.
-             Verteilung (Walter 12.08.2026): Partner-Pille wächst moderat bis
-             380px, grosszügige Spalten-Gaps, 1fr-Rest rechts — Felder sitzen
-             gleichmässig verteilt statt zusammengedrängt. -->
-        <div style="display:grid;grid-template-columns:minmax(240px,380px) 170px 470px 1fr;gap:7px 26px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 16px 13px;margin-bottom:6px;align-items:end">
-            <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:flex;align-items:center;gap:6px;height:30px">
+        <!-- REINE ANZEIGE (Walter 29.08.2026 v2): die Partner-Infos werden im
+             Familie-Tab beim Partner erfasst — hier nur zeigen. EINZIGE
+             Eingabe: die Konkubinat-Frage, und die NUR bei Zivilstand
+             «ledig» (qstRenderPartnerKonkubinat). Arbeitsort/Einkommens-
+             Zeitraum sind unsichtbare Datenträger (Alt-Daten). -->
+        <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 16px 13px;margin-bottom:6px">
+            <div style="background:#f8fafc;border-radius:5px;padding:6px 9px;font-size:12px;display:inline-flex;align-items:center;gap:6px;min-height:30px">
                 <span style="color:#64748b;font-weight:600">Partner:</span>
                 <span id="qstPartnerName" style="color:#1e293b">–</span>
             </div>
-            <div>
-                <label class="qst-lbl">Arbeitsort Kt.</label>
-                <select id="qstArbeitsortKanton" class="qst-inp">
+            <div id="qstKonkubinatRow" style="display:none;margin-top:8px;gap:10px;flex-wrap:wrap;align-items:center">
+                <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
+                <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
+            </div>
+            <div style="display:none">
+                <select id="qstArbeitsortKanton" tabindex="-1" class="no-liquid">
                     <option value="">–</option>
                     <option value="AG">AG</option><option value="AI">AI</option><option value="AR">AR</option>
                     <option value="BE">BE</option><option value="BL">BL</option><option value="BS">BS</option>
@@ -9384,20 +9390,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="UR">UR</option><option value="VD">VD</option><option value="VS">VS</option>
                     <option value="ZG">ZG</option><option value="ZH">ZH</option>
                 </select>
-            </div>
-            <div>
-                <label class="qst-lbl">Partner-Einkommen Zeitraum</label>
-                <div style="display:flex;gap:4px;align-items:center">
-                    <input type="date" id="qstPartnerVon" class="qst-inp" style="flex:1">
-                    <span style="font-size:11px;color:#64748b">–</span>
-                    <input type="date" id="qstPartnerBis" class="qst-inp" style="flex:1">
-                </div>
-            </div>
-            <!-- Partner-bezogene Sachverhalte (Walter 29.08.2026): aus der
-                 aufgelösten «Tarif-relevante Stammdaten»-Zeile hierher. -->
-            <div style="grid-column:1 / -1;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                <label class="qst-cb"><input type="checkbox" id="qstLivesInKonkubinat"> Konkubinat</label>
-                <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
+                <input type="date" id="qstPartnerVon" tabindex="-1">
+                <input type="date" id="qstPartnerBis" tabindex="-1">
             </div>
         </div>
 

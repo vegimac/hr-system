@@ -277,8 +277,9 @@ function qstStammChanged(which) {
 // erzwingt dieselben Werte beim Speichern (ApplyWohnadresseAsync /
 // ApplyWochenaufenthaltAsync).
 function qstRenderWohnsituation() {
-    const el = document.getElementById('qstWohnsituationInfo');
-    if (!el) return;
+    const wrap = document.getElementById('qstWohnsituationWrap');
+    const el   = document.getElementById('qstWohnsituationInfo');
+    if (!el || !wrap) return;
     const d = qstEmployeeData || {};
     const land = ((d.country || 'CH') + '').trim();
     const istAusland = !!land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
@@ -288,27 +289,28 @@ function qstRenderWohnsituation() {
     const waCb = document.getElementById('qstIsWochenaufenthalter');
     if (waCb && wa) waCb.checked = true;
 
-    const city = (typeof stripCityCantonSuffix === 'function') ? stripCityCantonSuffix(d.city) : d.city;
-    const ort   = [d.zipCode, city].filter(Boolean).join(' ');
-    const waOrt = wa ? [wa.zipCode, wa.city].filter(Boolean).join(' ') : '';
+    // Kompakt + NUR im Sonderfall (Walter 29.08.2026 v2): Normalfall
+    // (CH-Wohnsitz, kein Wochenaufenthalt) → ganze Sektion unsichtbar.
     const lines = [];
-    if (istAusland) {
-        lines.push(`🌍 <b>Hauptwohnsitz im Ausland (${land.toUpperCase()})</b> — automatisch Grenzgänger/in `
-            + `(Person ohne steuerrechtlichen Wohnsitz CH). QST-Kanton = Arbeitskanton der Filiale.`);
-    } else {
-        lines.push(`🏠 Hauptwohnsitz Schweiz${ort ? ': ' + ort : ''} <span style="color:#94a3b8">(aus easy@work)</span> — kein Grenzgänger.`);
-    }
-    if (wa) {
-        lines.push(`🛏 <b>Wochenaufenthalter/in</b> — Aufenthaltsadresse${waOrt ? ' ' + waOrt : ''} `
-            + `(Zusatzadresse beim MA). QST-Kanton bleibt der Hauptwohnsitz.`);
-    } else if (waCb?.checked) {
-        lines.push(`🛏 Wochenaufenthalter/in <span style="color:#b45309">(Alt-Erfassung — bitte die Wochenaufenthaltsadresse `
-            + `als Zusatzadresse beim MA nachtragen)</span>.`);
-    } else {
-        lines.push(`<span style="color:#94a3b8">Kein Wochenaufenthalt — wird automatisch gesetzt, sobald beim MA eine `
-            + `Zusatzadresse «Wochenaufenthalt» erfasst ist.</span>`);
-    }
+    if (istAusland)
+        lines.push(`🌍 <b>Grenzgänger/in</b> — Wohnsitz ${land.toUpperCase()} (aus easy@work), QST-Kanton = Arbeitskanton der Filiale.`);
+    if (wa)
+        lines.push(`🛏 <b>Wochenaufenthalter/in</b> — QST-Kanton bleibt der Hauptwohnsitz.`);
+    else if (waCb?.checked)
+        lines.push(`🛏 Wochenaufenthalter/in <span style="color:#b45309">(Wochenaufenthaltsadresse beim MA nachtragen)</span>`);
+
+    wrap.style.display = lines.length ? '' : 'none';
     el.innerHTML = lines.join('<br>');
+}
+
+// Konkubinat-Frage NUR bei Zivilstand «ledig» zeigen (Walter 29.08.2026 v2) —
+// sonst ist die Zeile unsichtbar (Werte bleiben Datenträger; bei erfasstem
+// K-Partner sperrt qstApplyKonkubinatLock sie ohnehin).
+function qstRenderPartnerKonkubinat() {
+    const row = document.getElementById('qstKonkubinatRow');
+    if (!row) return;
+    const ziv = ((qstEmployeeData?.zivilstand ?? qstEmployeeData?.maritalStatus ?? '') + '').toLowerCase();
+    row.style.display = ziv === 'ledig' ? 'flex' : 'none';
 }
 
 // ── Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026) ─────────
@@ -710,7 +712,17 @@ async function loadQstPartnerInfo(employeeId) {
             const [y, m, d] = iso.split('-');
             if (y && m && d) dob = ` · *${d}.${m}.${y}`;
         }
-        el.textContent = fullname + dob || '–';
+        // Reine Anzeige der Familie-Tab-Infos (Walter 29.08.2026 v2):
+        // Erwerbstätigkeit + Arbeitgeber mit anzeigen — erfasst wird alles
+        // beim Partner im Familie-Tab, nicht hier.
+        const extras = [];
+        if (ehepartner.erwerbstaetig === true)
+            extras.push('erwerbstätig' + (ehepartner.arbeitgeberName ? ` (${ehepartner.arbeitgeberName})` : ''));
+        else if (ehepartner.erwerbstaetig === false)
+            extras.push('nicht erwerbstätig');
+        else
+            extras.push('Erwerbstätig-Frage offen → Familie-Tab');
+        el.textContent = (fullname + dob + ' · ' + extras.join(' · ')) || '–';
     } catch {}
 }
 
@@ -920,6 +932,8 @@ function populateQstForm(entry) {
     // Wohnsituation als reine Anzeige rendern (Walter 29.08.2026) —
     // Grenzgänger automatisch aus der easy-Adresse (Land ≠ CH).
     qstRenderWohnsituation();
+    // Konkubinat-Frage nur bei Zivilstand «ledig» (Walter 29.08.2026 v2).
+    qstRenderPartnerKonkubinat();
     // Resultat-Karte aus den geladenen Werten zeichnen (K4-Vorstufe 29.08.2026).
     qstRenderResultat();
 
