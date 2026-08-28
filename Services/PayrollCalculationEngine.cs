@@ -4118,6 +4118,7 @@ public class PayrollCalculationEngine
             ValidFrom        = periodFrom,
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
+            QstSatzBasis     = satzBrutto,  // transient — in die Slip-Zeile (K1 Korrektur)
         };
     }
 

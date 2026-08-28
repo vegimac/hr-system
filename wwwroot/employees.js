@@ -2280,9 +2280,44 @@ async function loadQuellensteuerTab(employeeId) {
             if (vr.ok) vorschlag = await vr.json();
         } catch (_) { /* Vorschlag ist Komfort */ }
         renderQuellensteuerTab(el, entries, pflicht, vorschlag);
+        // K1 (Walter 29.08.2026): Korrektur-Posten (rückwirkende Änderungen
+        // über abgeschlossene Monate) unter der Versionen-Liste anzeigen.
+        qstRenderKorrekturen(employeeId, el);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Verbindungsfehler</span></div>';
     }
+}
+
+// K1: Abschnitt «QST-Korrekturen» — best-effort ans Tab-Ende angehängt.
+async function qstRenderKorrekturen(employeeId, container) {
+    try {
+        const r = await fetch(`/api/employees/${employeeId}/quellensteuer/korrekturen`, { headers: ah() });
+        if (!r.ok) return;
+        const liste = await r.json();
+        if (!liste.length) return;
+        const monatsName = m => ['', 'Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][m] || m;
+        const chip = st => ({
+            OFFEN:       '<span style="background:#fef3c7;color:#92400e;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:600">offen — Verrechnung im nächsten Lohnlauf</span>',
+            VERRECHNET:  '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:600">verrechnet</span>',
+            IN_DARLEHEN: '<span style="background:#dbeafe;color:#1e40af;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:600">in Darlehen</span>',
+            GEMELDET:    '<span style="background:#e0e7ff;color:#3730a3;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:600">gemeldet</span>',
+            VORJAHR:     '<span style="background:#fee2e2;color:#991b1b;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:600">Vorjahr — via Steuerverwaltung</span>',
+        }[st] || esc(st));
+        const fmt = v => (v ?? 0).toLocaleString('de-CH', { minimumFractionDigits: 2 });
+        const rows = liste.map(k => `
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid rgba(60,55,48,0.08);font-size:12.5px">
+                <b style="width:80px">${monatsName(k.monat)} ${k.jahr}</b>
+                <span>${esc(k.alterCode || '—')} → <b>${esc(k.neuerCode || '—')}</b></span>
+                <span style="color:#8b8b8b">${fmt(k.alterBetrag)} → ${fmt(k.neuerBetrag)}</span>
+                <b style="color:${k.differenz > 0 ? '#b91c1c' : '#166534'}">${k.differenz > 0 ? '+' : ''}${fmt(k.differenz)}</b>
+                ${chip(k.status)}
+                <span style="color:#b0aca4;font-size:11px" title="${esc(k.grund || '')}">${esc((k.grund || '').slice(0, 40))}${(k.grund || '').length > 40 ? '…' : ''}</span>
+            </div>`).join('');
+        const div = document.createElement('div');
+        div.style.cssText = 'margin-top:14px;background:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.62);border-radius:12px;padding:12px 16px';
+        div.innerHTML = `<div style="font-weight:700;font-size:13px;margin-bottom:6px">🔁 QST-Korrekturen (rückwirkende Änderungen)</div>${rows}`;
+        container.appendChild(div);
+    } catch (_) { /* Anzeige ist Komfort */ }
 }
 
 // Walter-Vorgabe 26.05.2026: Banner-Renderer für den QST-Pflicht-Status.

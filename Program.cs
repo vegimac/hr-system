@@ -173,6 +173,7 @@ builder.Services.AddScoped<RisikobeurteilungPdfService>();
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
 builder.Services.AddScoped<LohnEditLockService>();
+builder.Services.AddScoped<HrSystem.Services.QstKorrekturService>();
 builder.Services.AddScoped<AbsenceHoursRecalcService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
 builder.Services.AddScoped<Iso20022PainService>();
@@ -3807,6 +3808,34 @@ using (var scope = app.Services.CreateScope())
             updated_at  timestamp without time zone NOT NULL DEFAULT now()
         );
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS hauptsitz_id integer REFERENCES hauptsitz(id) ON DELETE SET NULL;
+    ");
+
+    // ── K1 QST-Korrektur (Walter 29.08.2026, docs/qst-korrektur-konzept.md) ─
+    // SQL-Kopie: migrations-archive/add_qst_korrektur.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS qst_korrektur (
+            id                    serial PRIMARY KEY,
+            employee_id           integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            company_profile_id    integer NOT NULL,
+            jahr                  integer NOT NULL,
+            monat                 integer NOT NULL,
+            alte_version_id       integer,
+            neue_version_id       integer NOT NULL,
+            alter_code            varchar(10),
+            neuer_code            varchar(10),
+            alter_betrag          numeric(10,2) NOT NULL DEFAULT 0,
+            neuer_betrag          numeric(10,2) NOT NULL DEFAULT 0,
+            differenz             numeric(10,2) NOT NULL DEFAULT 0,
+            basis                 numeric(10,2) NOT NULL DEFAULT 0,
+            satz_basis            numeric(10,2) NOT NULL DEFAULT 0,
+            status                varchar(20) NOT NULL DEFAULT 'OFFEN',
+            grund                 text NOT NULL DEFAULT '',
+            verrechnet_periode_id integer,
+            verrechnet_at         timestamp without time zone,
+            created_at            timestamp without time zone NOT NULL DEFAULT now(),
+            created_by            varchar(150)
+        );
+        CREATE INDEX IF NOT EXISTS ix_qst_korrektur_emp ON qst_korrektur (employee_id, jahr, monat);
     ");
 
     // ── BFS LSE: Version 2024 seeden (Walter 13.08.2026, idempotent) ──

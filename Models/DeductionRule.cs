@@ -126,5 +126,14 @@ public class DeductionRule
     [NotMapped]
     public decimal? DisplayRatePercent { get; set; }
 
+    /// <summary>
+    /// Transient (K1 QST-Korrektur, Walter 29.08.2026): satzbestimmender
+    /// Lohn, mit dem die QST-Zeile gerechnet wurde — wandert als
+    /// «satzBasis» in die Slip-Zeile, damit rückwirkende Korrekturen auch
+    /// bei Hochrechnung (FLEX) exakt nachgerechnet werden können.
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? QstSatzBasis { get; set; }
+
     public CompanyProfile? CompanyProfile { get; set; }
 }

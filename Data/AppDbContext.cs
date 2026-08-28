@@ -78,6 +78,7 @@ public class AppDbContext : DbContext
     public DbSet<PayrollSnapshot>       PayrollSnapshots       => Set<PayrollSnapshot>();
     public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
     public DbSet<Hauptsitz>             Hauptsitze             => Set<Hauptsitz>();
+    public DbSet<QstKorrektur>          QstKorrekturen         => Set<QstKorrektur>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
     public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
     public DbSet<AkontoZahlung>         AkontoZahlungen        => Set<AkontoZahlung>();
@@ -776,6 +777,33 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+        });
+
+        // K1 QST-Korrektur (Walter 29.08.2026)
+        modelBuilder.Entity<QstKorrektur>(entity =>
+        {
+            entity.ToTable("qst_korrektur");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Jahr).HasColumnName("jahr");
+            entity.Property(e => e.Monat).HasColumnName("monat");
+            entity.Property(e => e.AlteVersionId).HasColumnName("alte_version_id");
+            entity.Property(e => e.NeueVersionId).HasColumnName("neue_version_id");
+            entity.Property(e => e.AlterCode).HasColumnName("alter_code").HasMaxLength(10);
+            entity.Property(e => e.NeuerCode).HasColumnName("neuer_code").HasMaxLength(10);
+            entity.Property(e => e.AlterBetrag).HasColumnName("alter_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.NeuerBetrag).HasColumnName("neuer_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Differenz).HasColumnName("differenz").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Basis).HasColumnName("basis").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.SatzBasis).HasColumnName("satz_basis").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.Grund).HasColumnName("grund");
+            entity.Property(e => e.VerrechnetPeriodeId).HasColumnName("verrechnet_periode_id");
+            entity.Property(e => e.VerrechnetAt).HasColumnName("verrechnet_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by").HasMaxLength(150);
         });
 
         modelBuilder.Entity<Nationality>(entity =>

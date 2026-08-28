@@ -25,12 +25,14 @@ public class EmployeeQuellensteuerController : ControllerBase
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
     private readonly ILogger<EmployeeQuellensteuerController> _log;
+    private readonly QstKorrekturService _korrektur;
     public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock,
-        ILogger<EmployeeQuellensteuerController> log)
+        ILogger<EmployeeQuellensteuerController> log, QstKorrekturService korrektur)
     {
         _db       = db;
         _editLock = editLock;
         _log      = log;
+        _korrektur = korrektur;
     }
 
     /// <summary>Filiale des MA (jüngster aktiver Vertrag) — null wenn keiner.</summary>
@@ -219,25 +221,32 @@ public class EmployeeQuellensteuerController : ControllerBase
     // POST /api/employees/{employeeId}/quellensteuer
     // Neuen QST-Eintrag anlegen; schliesst vorherigen Eintrag automatisch ab
     [HttpPost]
-    public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeQuellensteuer dto)
+    public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeQuellensteuer dto,
+        [FromQuery] string? korrekturGrund = null)
     {
         // Prozentsatz/Medianlohn nie negativ (Walter 12.08.2026).
         if (dto.Prozentsatz < 0 || dto.MindestlohnSatzbestimmung < 0)
             return BadRequest(new { error = "NEGATIVER_WERT", message = "Prozentsatz und Medianlohn dürfen nicht negativ sein." });
 
-        // Soft-Lock (Walter 01.08.2026): ValidFrom darf nicht rückwirkend in
-        // einer DEFINITIV abgeschlossenen Periode liegen. Während HR-Kontrolle
-        // (provisorisch) und Akonto bleibt Anlegen möglich.
+        // K1 KORREKTUR-WEG (Walter 29.08.2026, docs/qst-korrektur-konzept.md):
+        // Rückwirkende Versionen über DEFINITIV abgeschlossene Perioden sind
+        // erlaubt — aber NUR mit Pflicht-Grund. Die abgeschlossenen Löhne
+        // bleiben eingefroren; das System erzeugt qst_korrektur-Posten
+        // (Verrechnung im Folgemonat-Lohnlauf, K2). Ohne Grund → 409 mit
+        // eigenem Fehlercode, das Frontend fragt den Grund nach.
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
-        if (firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value)
+        bool istRueckwirkend = firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value;
+        if (istRueckwirkend && string.IsNullOrWhiteSpace(korrekturGrund))
         {
             return Conflict(new
             {
-                error            = "LOHN_EDIT_LOCKED",
+                error            = "KORREKTUR_GRUND_NOETIG",
                 message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer definitiv abgeschlossenen Lohnperiode. " +
-                                   $"Frühestes erlaubtes 'Gültig ab': {firstAllowed.Value:dd.MM.yyyy}.",
-                firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
+                                   "Rückwirkende Erfassung ist möglich — bitte den Korrektur-Grund angeben " +
+                                   "(z.B. «Heirat verspätet gemeldet»). Die abgeschlossenen Löhne bleiben unverändert; " +
+                                   "die Differenz wird als QST-Korrektur im nächsten Lohnlauf verrechnet.",
+                firstAllowedDate = firstAllowed!.Value.ToString("yyyy-MM-dd")
             });
         }
 
@@ -291,7 +300,25 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
-        return Ok(MapToDto(dto, firstAllowed));
+
+        // K1: bei rückwirkender Erfassung die Korrektur-Posten rechnen.
+        object? korrekturen = null;
+        if (istRueckwirkend)
+        {
+            var actor = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                        ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var erg = await _korrektur.ErzeugeKorrekturenAsync(dto, korrekturGrund!.Trim(), actor);
+            korrekturen = new
+            {
+                anzahl = erg.Anzahl,
+                totalDifferenz = erg.TotalDifferenz,
+                vorjahr = erg.Vorjahr,
+                posten = erg.Posten
+            };
+        }
+
+        var result = MapToDto(dto, firstAllowed);
+        return Ok(new { eintrag = result, korrekturen });
     }
 
     // PUT /api/employees/{employeeId}/quellensteuer/{id}
@@ -558,6 +585,27 @@ public class EmployeeQuellensteuerController : ControllerBase
     // Folgemonats als Eintritt.
     // ────────────────────────────────────────────────────────────────────────
     // POST /api/employee-quellensteuer/{employeeId}/umzug
+    /// <summary>
+    /// K1: Korrektur-Posten des MA (rückwirkende QST-Änderungen über
+    /// abgeschlossene Monate) — Anzeige im QST-Tab.
+    /// </summary>
+    [HttpGet("korrekturen")]
+    public async Task<IActionResult> GetKorrekturen(int employeeId)
+    {
+        var liste = await _db.QstKorrekturen
+            .Where(k => k.EmployeeId == employeeId)
+            .OrderByDescending(k => k.Jahr).ThenByDescending(k => k.Monat)
+            .Select(k => new
+            {
+                k.Id, k.Jahr, k.Monat,
+                k.AlterCode, k.NeuerCode,
+                k.AlterBetrag, k.NeuerBetrag, k.Differenz,
+                k.Status, k.Grund, k.CreatedAt, k.CreatedBy
+            })
+            .ToListAsync();
+        return Ok(liste);
+    }
+
     [HttpPost("/api/employee-quellensteuer/{employeeId:int}/umzug")]
     public async Task<IActionResult> Umzug(int employeeId, [FromBody] QstUmzugDto dto)
     {

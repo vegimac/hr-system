@@ -803,10 +803,15 @@ async function saveQstEntry() {
 
     if (!payload.validFrom) { resultEl.innerHTML = '<span style="color:#dc2626">Gültig ab ist Pflicht.</span>'; return; }
 
-    const url    = qstCurrentEntryId
+    let url    = qstCurrentEntryId
         ? `/api/employees/${qstCurrentEmployeeId}/quellensteuer/${qstCurrentEntryId}`
         : `/api/employees/${qstCurrentEmployeeId}/quellensteuer`;
     const method = qstCurrentEntryId ? 'PUT' : 'POST';
+    // K1 Korrektur-Weg: bei rückwirkender Erfassung verlangt das Backend einen
+    // Grund — Feld erscheint nach dem ersten 409 KORREKTUR_GRUND_NOETIG.
+    const korrGrund = document.getElementById('qstKorrGrund')?.value?.trim();
+    if (method === 'POST' && korrGrund)
+        url += `?korrekturGrund=${encodeURIComponent(korrGrund)}`;
 
     const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     // Lohnlauf-Sperre: 409 LOHN_EDIT_LOCKED → klare Meldung statt Backend-Text.
@@ -817,12 +822,32 @@ async function saveQstEntry() {
             if (window.lohnEditLock) window.lohnEditLock.invalidateCache();
             return;
         }
+        if (body && body.error === 'KORREKTUR_GRUND_NOETIG') {
+            qstShowKorrGrundRow();
+            resultEl.innerHTML = `<span style="color:#b45309">${body.message}</span>`;
+            return;
+        }
     }
     if (!res.ok) { resultEl.innerHTML = `<span style="color:#dc2626">Fehler: ${await res.text()}</span>`; return; }
 
     const saved = await res.json();
-    qstCurrentEntryId = saved.id;
-    resultEl.innerHTML = '<span style="color:#16a34a">✓ Gespeichert</span>';
+    const eintrag = saved.eintrag || saved;
+    qstCurrentEntryId = eintrag.id;
+    const korr = saved.korrekturen;
+    if (korr && korr.anzahl > 0) {
+        const richtung = korr.totalDifferenz > 0 ? 'Nachbelastung' : 'Erstattung';
+        const vorjahrNote = korr.vorjahr > 0
+            ? ` · ${korr.vorjahr} Monat(e) aus dem Vorjahr — Abwicklung über die Steuerverwaltung` : '';
+        resultEl.innerHTML = `<span style="color:#16a34a">✓ Gespeichert</span>
+            <div style="margin-top:6px;background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;color:#854d0e;font-size:12.5px">
+            🔁 <b>${korr.anzahl} QST-Korrektur-Posten</b> erzeugt — ${richtung}
+            <b>CHF ${Math.abs(korr.totalDifferenz).toLocaleString('de-CH', {minimumFractionDigits: 2})}</b>
+            (Verrechnung im nächsten Lohnlauf)${vorjahrNote}</div>`;
+    } else if (korr) {
+        resultEl.innerHTML = '<span style="color:#16a34a">✓ Gespeichert — keine Betragsänderung in den abgeschlossenen Monaten.</span>';
+    } else {
+        resultEl.innerHTML = '<span style="color:#16a34a">✓ Gespeichert</span>';
+    }
     await loadQstHistory(qstCurrentEmployeeId);
     // Tab im Hintergrund aktualisieren
     if (typeof loadQuellensteuerTab === 'function' && qstCurrentEmployeeId)
@@ -831,9 +856,36 @@ async function saveQstEntry() {
     if (typeof reloadLohnAfterQstChange === 'function' && qstCurrentEmployeeId) {
         reloadLohnAfterQstChange(qstCurrentEmployeeId);
     }
-    // Modal nach kurzer Erfolgsmeldung automatisch schließen
-    setTimeout(() => {
-        if (typeof closeQstModal === 'function') closeQstModal();
-    }, 600);
+    // Modal nach kurzer Erfolgsmeldung automatisch schließen — bei
+    // Korrektur-Posten offen lassen, damit HR die Zusammenfassung liest.
+    if (!(korr && korr.anzahl > 0)) {
+        setTimeout(() => {
+            if (typeof closeQstModal === 'function') closeQstModal();
+        }, 600);
+    }
+    const kg = document.getElementById('qstKorrGrundRow');
+    if (kg) kg.style.display = 'none';
+    const kgi = document.getElementById('qstKorrGrund');
+    if (kgi) kgi.value = '';
 }
 
+// K1 (Walter 29.08.2026): Grund-Zeile für rückwirkende Erfassung — erscheint
+// nach 409 KORREKTUR_GRUND_NOETIG direkt über der Ergebnis-Zeile.
+function qstShowKorrGrundRow() {
+    let row = document.getElementById('qstKorrGrundRow');
+    if (!row) {
+        const anchor = document.getElementById('qstSaveResult');
+        if (!anchor) return;
+        row = document.createElement('div');
+        row.id = 'qstKorrGrundRow';
+        row.style.cssText = 'margin:8px 0';
+        row.innerHTML = `
+            <label style="display:block;font-size:11.5px;font-weight:600;color:#8b8b8b;margin-bottom:3px">
+                Korrektur-Grund (Pflicht bei rückwirkender Erfassung)</label>
+            <input id="qstKorrGrund" type="text" placeholder="z.B. Heirat verspätet gemeldet"
+                   style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:7px 10px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">`;
+        anchor.parentNode.insertBefore(row, anchor);
+    }
+    row.style.display = '';
+    document.getElementById('qstKorrGrund')?.focus();
+}

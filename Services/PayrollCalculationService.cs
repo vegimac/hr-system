@@ -327,6 +327,7 @@ public static class PayrollCalculations
                 prozent     = d.DisplayRatePercent
                               ?? (d.Type == "percent" ? (decimal?)d.Rate : null),
                 basis       = (decimal?)Math.Round(basis, 2),
+                satzBasis   = d.QstSatzBasis,
                 betrag,
                 // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
                 // Staffel-Stufe. NULL = kein AG-Anteil.
