@@ -8351,7 +8351,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260828d"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829c"></script>
+<script src="js/qst-modal.js?v=20260829e"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -9352,12 +9352,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                        oninput="if(parseFloat(this.value)<0)this.value=''">
             </div>
             </div>
-            <!-- Zeile 3: die 3 Checkboxen in voller Breite -->
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                <!-- Nur Anzeige (Walter 12.08.2026): Kirchensteuer folgt der
-                     Konfession des MA — der Server ignoriert den Client-Wert. -->
+            <!-- Ausgeblendet (Walter 29.08.2026): Kirchensteuer ist im Resultat
+                 sichtbar (…Y/N, aus Konfession abgeleitet), «Tarifvorschlag QST»
+                 braucht niemand mehr. Beide bleiben unsichtbare Datenträger
+                 (buildQstCode / saveQstEntry / populateQstForm lesen sie). -->
+            <div style="display:none">
                 <label class="qst-cb qst-cb-ro"><input type="checkbox" id="qstKirchensteuer" tabindex="-1" onchange="buildQstCode()"> Kirchensteuer <span class="qst-ro-hint">aus Konfession</span></label>
-                <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt"> Speziell bewilligt</label>
                 <label class="qst-cb"><input type="checkbox" id="qstTarifvorschlag" checked> Tarifvorschlag QST</label>
             </div>
         </div>
@@ -9482,6 +9482,23 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <label class="qst-cb"><input type="checkbox" id="qstHasHigherIncomeThanPartner"> Höh. Einkommen als Partner</label>
             <label class="qst-cb"><input type="checkbox" id="qstIsGrenzgaenger"> Grenzgänger/in</label>
             <label class="qst-cb"><input type="checkbox" id="qstIsWochenaufenthalter"> Wochenaufenthalter/in</label>
+        </div>
+
+        <!-- Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026, analog
+             QST-Befreiung): das frühere «Speziell bewilligt» — jetzt eindeutig
+             bezeichnet und NUR mit hinterlegter Verfügung erlaubt (Client-
+             Guard in saveQstEntry, Server 400 BEWILLIGUNG_DOKUMENT_FEHLT). -->
+        <div class="emp-section-title">Behördenbewilligung</div>
+        <div style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px 13px;margin-bottom:6px">
+            <label class="qst-cb"><input type="checkbox" id="qstSpezielBewilligt" onchange="qstToggleBewilligung()">
+                Kinderabzug auf Tarif A behördlich bewilligt (A1–A9)</label>
+            <div id="qstBewilligungFields" style="display:none;margin-top:8px;max-width:520px">
+                <label class="qst-lbl">Verfügung der Steuerbehörde <span class="qst-ro-hint">Pflicht</span></label>
+                <select id="qstBewilligungDok" class="qst-inp"></select>
+                <div style="font-size:11px;color:#94a3b8;margin-top:3px">
+                    Das Schreiben zuerst im Dokumente-Tab beim MA ablegen — dann hier auswählen.
+                </div>
+            </div>
         </div>
 
         <!-- RESULTAT (K4-Vorstufe, Walter 29.08.2026): der aus den Angaben

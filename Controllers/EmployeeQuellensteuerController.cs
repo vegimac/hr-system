@@ -259,6 +259,33 @@ public class EmployeeQuellensteuerController : ControllerBase
 
     public class QstDokumentDto { public int? DokumentId { get; set; } }
 
+    /// <summary>
+    /// Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026, analog
+    /// QST-Befreiung): «Speziell bewilligt» ist NUR mit hinterlegter
+    /// Verfügung der Steuerbehörde erlaubt (DokumentId Pflicht, Dokument
+    /// muss dem MA gehören). Liefert null wenn alles ok, sonst das
+    /// BadRequest-Resultat.
+    /// </summary>
+    private async Task<IActionResult?> ValidateBewilligungAsync(EmployeeQuellensteuer dto, int employeeId)
+    {
+        if (dto.SpezielBewilligt && dto.DokumentId == null)
+            return BadRequest(new
+            {
+                error   = "BEWILLIGUNG_DOKUMENT_FEHLT",
+                message = "«Kinderabzug behördlich bewilligt (A1–A9)» braucht die Verfügung der Steuerbehörde als Beleg — " +
+                          "Dokument zuerst im Dokumente-Tab beim MA ablegen und hier auswählen."
+            });
+        if (dto.DokumentId.HasValue)
+        {
+            var dokOk = await _db.EmployeeDokumente
+                .AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == employeeId);
+            if (!dokOk)
+                return BadRequest(new { error = "DOKUMENT_INVALID",
+                    message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        }
+        return null;
+    }
+
     // POST /api/employees/{employeeId}/quellensteuer
     // Neuen QST-Eintrag anlegen; schliesst vorherigen Eintrag automatisch ab
     [HttpPost]
@@ -268,6 +295,11 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Prozentsatz/Medianlohn nie negativ (Walter 12.08.2026).
         if (dto.Prozentsatz < 0 || dto.MindestlohnSatzbestimmung < 0)
             return BadRequest(new { error = "NEGATIVER_WERT", message = "Prozentsatz und Medianlohn dürfen nicht negativ sein." });
+
+        // Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026, analog
+        // QST-Befreiung): «Speziell bewilligt» NUR mit verknüpfter Verfügung.
+        var bewCheck = await ValidateBewilligungAsync(dto, employeeId);
+        if (bewCheck != null) return bewCheck;
 
         // K1 KORREKTUR-WEG (Walter 29.08.2026, docs/qst-korrektur-konzept.md):
         // Rückwirkende Versionen über DEFINITIV abgeschlossene Perioden sind
@@ -409,6 +441,11 @@ public class EmployeeQuellensteuerController : ControllerBase
             });
         }
 
+        // Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026):
+        // «Speziell bewilligt» NUR mit verknüpfter Verfügung (analog Befreiung).
+        var bewCheckUpd = await ValidateBewilligungAsync(dto, employeeId);
+        if (bewCheckUpd != null) return bewCheckUpd;
+
         entry.ValidFrom                  = dto.ValidFrom;
         // entry.ValidTo bleibt UNANGETASTET (Walter 12.08.2026): das Enddatum
         // wird nur systemisch gesetzt (Folge-Eintrag/Umzug/Befreiung) — ein
@@ -425,6 +462,9 @@ public class EmployeeQuellensteuerController : ControllerBase
         // wird mitgezogen (siehe Create).
         await ApplyKirchensteuerAsync(entry, employeeId);
         entry.SpezielBewilligt           = dto.SpezielBewilligt;
+        // Beleg-Dokument (Verfügung/Tarifbestätigung) — das Modal sendet den
+        // bestehenden Wert mit, PATCH …/dokument bleibt der Alternativ-Weg.
+        entry.DokumentId                 = dto.DokumentId;
         entry.Kategorie                  = dto.Kategorie;
         entry.Prozentsatz                = dto.Prozentsatz;
         entry.MindestlohnSatzbestimmung  = dto.MindestlohnSatzbestimmung;

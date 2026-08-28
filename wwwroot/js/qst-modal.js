@@ -211,9 +211,9 @@ function qstApplyWochenaufenthaltLock() {
 // ══════════════════════════════════════════════════════════════════════
 // K4-Vorstufe (Walter 29.08.2026): Tarif = RESULTAT, keine Auswahl mehr.
 // Die tarifrelevanten Stammdaten (Zivilstand-Anzeige, «seit», Konfession)
-// stehen inline unter der Gültigkeit und schreiben DIREKT in den MA-Stamm;
-// danach wird der Server-Vorschlag neu geholt und das Resultat unten
-// aktualisiert. Tarif-Select + QST-Code sind unsichtbare Datenträger.
+// stehen inline unter der Gültigkeit; Änderungen werden VORGEMERKT und erst
+// mit dem Speichern-Knopf unten in den MA-Stamm geschrieben (Sammel-
+// Speichern). Tarif-Select + QST-Code sind unsichtbare Datenträger.
 // ══════════════════════════════════════════════════════════════════════
 const QST_ZIVILSTAND_LABELS = {
     unbekannt: 'Unbekannt', ledig: 'Ledig', verheiratet: 'Verheiratet',
@@ -228,6 +228,12 @@ const QST_TARIF_BEZ = {
     Q: 'Grenzgänger (DE)'
 };
 
+// Vorgemerkte Inline-Änderungen (Walter 29.08.2026, Sammel-Speichern):
+// Änderungen an «Zivilstand seit» / «Konfession» werden NICHT sofort
+// gespeichert, sondern vorgemerkt und erst mit dem Speichern-Knopf unten
+// in den MA-Stamm geschrieben (K4-Prinzip «in einem Rutsch mit Quittung»).
+let _qstStammPending = {};
+
 function qstFillStammzeile() {
     const d = qstEmployeeData || {};
     const ziv = (d.zivilstand ?? d.maritalStatus ?? '').toString();
@@ -239,46 +245,88 @@ function qstFillStammzeile() {
     if (rEl) rEl.value = d.religion || '';
     const hint = document.getElementById('qstStammSaveHint');
     if (hint) hint.innerHTML = '';
+    _qstStammPending = {};
 }
 
-// Inline-Änderung «Zivilstand seit» / «Konfession» → sofort in den MA-Stamm
-// speichern (PUT /api/employees/{id}, null-tolerantes DTO — nur das eine
-// Feld wird geschrieben), dann Tarif-Vorschlag + Resultat neu rechnen.
-// Hinweis: die Konfessions-Änderung triggert serverseitig den bestehenden
-// QstKonfessionSync (Kirchensteuer-Folge) — gleiche Mechanik wie die
-// Konfessions-Pflege in der MA-Maske.
-async function qstStammChanged(which) {
-    if (!qstCurrentEmployeeId) return;
+// Inline-Änderung → NUR vormerken + Herleitung live nachziehen. Die
+// Kirchensteuer wird für die Vorschau lokal aus der gewählten Konfession
+// abgeleitet (Landeskirchen = Y) — verbindlich rechnet sie der Server beim
+// Speichern (ApplyKirchensteuerAsync auf der dann gespeicherten Konfession).
+function qstStammChanged(which) {
     const hint = document.getElementById('qstStammSaveHint');
-    const body = which === 'religion'
-        ? { religion: document.getElementById('qstReligion')?.value ?? '' }
-        : { maritalStatusSinceSet: true,
-            maritalStatusSince: document.getElementById('qstZivilstandSeit')?.value || null };
+    if (which === 'religion') {
+        const rel = document.getElementById('qstReligion')?.value ?? '';
+        _qstStammPending.religion = rel;
+        const landeskirche = ['roemisch_katholisch', 'christ_katholisch', 'evangelisch_reformiert'].includes(rel);
+        const k = document.getElementById('qstKirchensteuer');
+        if (k) k.checked = landeskirche;
+        if (typeof buildQstCode === 'function') buildQstCode();
+    } else {
+        _qstStammPending.seit = document.getElementById('qstZivilstandSeit')?.value || null;
+    }
+    if (hint) hint.innerHTML =
+        '<span style="color:#b45309">● Änderung vorgemerkt — wird erst mit «Speichern» unten in den MA-Stamm übernommen.</span>';
+    qstRenderResultat();
+}
+
+// ── Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026) ─────────
+// Analog QST-Befreiung: das Häkchen ist NUR mit hinterlegter Verfügung der
+// Steuerbehörde erlaubt. Dropdown = beim MA ABGELEGTE Dokumente (bewusst
+// keine Postfach-Eingänge, gleiche Regel wie die Ehepartner-Dokus).
+let _qstBewDoks = null;
+async function qstLoadBewilligungDoks() {
+    if (!qstCurrentEmployeeId) return;
+    try {
+        const res = await fetch(`/api/documents/by-employee/${qstCurrentEmployeeId}`, { headers: ah() });
+        _qstBewDoks = res.ok ? await res.json() : [];
+    } catch { _qstBewDoks = []; }
+    const sel = document.getElementById('qstBewilligungDok');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">– Dokument wählen –</option>' +
+        (_qstBewDoks || []).map(d => {
+            const label = [d.dokumentTypName, d.bemerkung, d.filenameOriginal]
+                .filter(Boolean).join(' · ') || ('Dokument #' + d.id);
+            return `<option value="${d.id}">${label.replace(/</g, '&lt;')}</option>`;
+        }).join('');
+    if (cur) sel.value = cur;
+}
+
+function qstToggleBewilligung() {
+    const cb = document.getElementById('qstSpezielBewilligt');
+    const fields = document.getElementById('qstBewilligungFields');
+    if (fields) fields.style.display = cb?.checked ? 'block' : 'none';
+    if (cb?.checked && _qstBewDoks == null) qstLoadBewilligungDoks();
+}
+
+// Wird von saveQstEntry() VOR dem Speichern des QST-Eintrags aufgerufen:
+// schreibt die vorgemerkten Stammdaten in den MA-Stamm (der Server leitet
+// daraus Kirchensteuer/Tarif verbindlich ab). Die Konfessions-Änderung
+// triggert serverseitig den bestehenden QstKonfessionSync — gleiche
+// Mechanik wie die Pflege in der MA-Maske.
+async function qstStammPendingSave() {
+    if (!qstCurrentEmployeeId) return true;
+    const p = _qstStammPending || {};
+    if (!('religion' in p) && !('seit' in p)) return true;
+    const body = {};
+    if ('religion' in p) body.religion = p.religion ?? '';
+    if ('seit' in p) { body.maritalStatusSinceSet = true; body.maritalStatusSince = p.seit; }
     try {
         const res = await fetch(`/api/employees/${qstCurrentEmployeeId}`, {
             method: 'PUT',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
-        if (!res.ok) {
-            if (hint) hint.innerHTML = '<span style="color:#dc2626">⚠ Speichern im MA-Stamm fehlgeschlagen.</span>';
-            return;
-        }
+        if (!res.ok) return false;
         if (qstEmployeeData) {
-            if (which === 'religion') qstEmployeeData.religion = body.religion || null;
-            else qstEmployeeData.maritalStatusSince = body.maritalStatusSince;
+            if ('religion' in p) qstEmployeeData.religion = p.religion || null;
+            if ('seit' in p) qstEmployeeData.maritalStatusSince = p.seit;
         }
-        if (hint) hint.innerHTML = '<span style="color:#16a34a">✓ Im MA-Stamm gespeichert — Tarif neu hergeleitet.</span>';
-        const vf = document.getElementById('qstValidFrom')?.value || '';
-        await qstFetchServerVorschlag(vf);
-        if (!qstCurrentEntryId) qstApplyServerVorschlagToForm();
-        else qstRenderVorschlagBanner();
-        qstUpdateAutoKinderHint();
-        qstRenderResultat();
-    } catch {
-        if (hint) hint.innerHTML = '<span style="color:#dc2626">⚠ Verbindungsfehler beim Speichern.</span>';
-    }
+        _qstStammPending = {};
+        const hint = document.getElementById('qstStammSaveHint');
+        if (hint) hint.innerHTML = '<span style="color:#16a34a">✓ MA-Stamm aktualisiert (Konfession/Zivilstand seit).</span>';
+        return true;
+    } catch { return false; }
 }
 
 // Resultat-Karte unten: grosser Code + Bezeichnung. Quelle = die (jetzt
@@ -806,6 +854,14 @@ function populateQstForm(entry) {
     c('qstKirchensteuer',   entry?.kirchensteuer);
     c('qstSpezielBewilligt',entry?.spezielBewilligt);
     c('qstTarifvorschlag',  entry?.tarifvorschlagQst ?? true);
+    // Behördenbewilligung (Walter 29.08.2026): Beleg-Auswahl befüllen +
+    // Sichtbarkeit nach Häkchen (fire-and-forget, Doks lazy laden).
+    (async () => {
+        await qstLoadBewilligungDoks();
+        const bSel = document.getElementById('qstBewilligungDok');
+        if (bSel) bSel.value = entry?.dokumentId ?? '';
+        qstToggleBewilligung();
+    })();
     c('qstWeitere',         entry?.weitereBeschaftigungen);
 
     // Tarif-relevante Stammdaten (versioniert pro QST-Eintrag)
@@ -878,6 +934,17 @@ function toggleQstWeitere() {
 
 async function saveQstEntry() {
     const resultEl = document.getElementById('qstSaveResult');
+    // Sammel-Speichern (Walter 29.08.2026): vorgemerkte Stammdaten-Änderungen
+    // (Konfession / Zivilstand seit) ZUERST in den MA-Stamm schreiben — der
+    // Server leitet daraus beim QST-Speichern die Kirchensteuer ab.
+    if (typeof qstStammPendingSave === 'function') {
+        const stammOk = await qstStammPendingSave();
+        if (!stammOk) {
+            if (resultEl) resultEl.innerHTML =
+                '<span style="color:#dc2626">⚠ Stammdaten-Änderung (Konfession / Zivilstand seit) konnte nicht gespeichert werden — Vorgang abgebrochen.</span>';
+            return;
+        }
+    }
     const kantonSel = document.getElementById('qstSteuerkanton');
     const kantonNames = {
         AG:'Aargau',AI:'Appenzell Innerrhoden',AR:'Appenzell Ausserrhoden',BE:'Bern',
@@ -907,6 +974,8 @@ async function saveQstEntry() {
         kirchensteuer:        document.getElementById('qstKirchensteuer').checked,
         qstCode:              document.getElementById('qstCode').value             || null,
         spezielBewilligt:     document.getElementById('qstSpezielBewilligt').checked,
+        // Beleg-Dokument (Verfügung Behördenbewilligung / Tarifbestätigung).
+        dokumentId:           parseInt(document.getElementById('qstBewilligungDok')?.value) || null,
         prozentsatz:          parseFloat(document.getElementById('qstProzentsatz').value) || null,
         mindestlohnSatzbestimmung: parseFloat(document.getElementById('qstMedianlohn').value) || null,
         arbeitsortKanton:     document.getElementById('qstArbeitsortKanton').value || null,
@@ -940,6 +1009,11 @@ async function saveQstEntry() {
     };
 
     if (!payload.validFrom) { resultEl.innerHTML = '<span style="color:#dc2626">Gültig ab ist Pflicht.</span>'; return; }
+    // Behördenbewilligung NUR mit Beleg (Walter 29.08.2026, analog Befreiung).
+    if (payload.spezielBewilligt && !payload.dokumentId) {
+        resultEl.innerHTML = '<span style="color:#dc2626">«Kinderabzug behördlich bewilligt» braucht die Verfügung der Steuerbehörde als Beleg — Dokument im Dokumente-Tab ablegen und oben auswählen.</span>';
+        return;
+    }
 
     let url    = qstCurrentEntryId
         ? `/api/employees/${qstCurrentEmployeeId}/quellensteuer/${qstCurrentEntryId}`
