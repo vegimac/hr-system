@@ -170,13 +170,61 @@ Regeln (ESTV-Praxis, verifiziert 28.08.2026):
   Sachverhalt läuft über die Auslands-Logik — dieselbe Datenstruktur
   (Hauptwohnsitz + Aufenthaltsadresse), vertauschte Rollen.
 
-### 5.4 K4-Vorleistungen bereits gebaut (28.08.2026)
+### 5.4 QST-Grenzgänger-Spezifikation Schweiz (Recherche 28.08.2026, ESTV-bestätigt)
+
+**Begrifflichkeit (verbindlich):** NICHT «Wohnsitz Ausland = Grenzgänger»,
+sondern «Wohnsitz Ausland = **Person ohne steuerrechtlichen Wohnsitz CH**» —
+danach bestimmt OneCrew den Untertyp: Grenzgänger DE / FR / IT / FL,
+internationaler Wochenaufenthalter, sonstige ausländische Ansässigkeit.
+(Beispiel: ein Deutscher, der unter der Woche in der Schweiz wohnt, ist
+steuerlich KEIN Grenzgänger mehr.)
+
+**Grundmatrix 2026** (Land des Hauptwohnsitzes × Arbeitskanton):
+
+| Wohnsitz | Arbeitskanton | Behandlung |
+|---|---|---|
+| DE | alle | Tarife **L/M/N/P/Q** (A→L, B→M, C→N, H→P, G→Q), max. 4.5 % — NUR mit Gre-1-Ansässigkeitsbescheinigung; >60 Nichtrückkehrtage → zurück auf normale Tarife |
+| FR | BE, BS, BL, JU, NE, SO, VD, VS | Sondervereinbarung: Code **SFN** = keine CH-QST (bei erfüllter Grenzgängerregel) |
+| FR | übrige (AG, LU, ZH, GE …) | normale A/B/C/H/G |
+| IT | TI, GR, VS | «neue» Grenzgänger (ab 17.07.2023): **R/S/T/U/V** (= 80 % der ordentlichen QST); Wohnsitz muss in ESTV-Grenzgemeinden-Liste sein; bis 25 % Homeoffice unschädlich |
+| IT | übrige | normale A/B/C/H/G |
+| FL | alle | echter Grenzgänger: **CH-QST = 0** (Besteuerung nur in FL); >45 Nichtrückkehrtage → CH-Besteuerungsrecht — eigene Regel, KEIN Tarifcode |
+| AT | alle | normale A/B/C/H/G (Steuerweiterleitung an AT ist AG-irrelevant) |
+| übrige | alle | grundsätzlich normale QST für in CH ausgeübte Arbeit; DBA-Sonderfälle einzeln |
+
+**Eiserne Regel:** NIE selbst Prozente programmieren (kein «×4.5 %», kein
+«×80 %») — die offiziellen ESTV-Tarifdateien (Recordart 06) enthalten
+L/M/N/P/Q, SFN, R/S/T/U/V bereits; OneCrew rechnet IMMER über die
+Tarifdateien. Einzige Code-Regel: FL = 0 (dafür gibt es keinen Tarif).
+
+**Zusatzfragen je Land (K4-Maske, erscheinen nur wenn relevant):**
+DE: Gre-1 vorhanden? gültig bis? Nichtrückkehrtage, Dokument. ·
+IT: ital. Wohnsitzgemeinde (Check gegen ESTV-Gemeindeliste), Grenzgänger
+seit, tägliche Rückkehr, Homeoffice-Anteil. · FR: Arbeitskanton kommt aus
+der Filiale → 8er-Kanton? + ab 2026 Telearbeit-/Arbeitstage-Felder
+(Meldepflicht ab Anfang 2027 fürs Steuerjahr 2026 — auch wenn bei
+Restaurant-MA praktisch 0). · FL: regelmässige Rückkehr? Nichtrückkehrtage.
+
+### 5.5 K4-Vorleistungen bereits gebaut (28.08.2026)
 
 Zusatzadresstyp «Wochenaufenthalt» (employees.js, hervorgehobener Chip),
 Server-Guard `ApplyWochenaufenthaltAsync`, Modal-Lock
-(`qstApplyWochenaufenthaltLock`), Warnungen W8/W9. Der Rest von K4
-(Treppen-Layout, Sammel-Speichern, Behördenentscheid-Block) folgt als
-eigene Etappe nach K2.
+(`qstApplyWochenaufenthaltLock`), Warnungen W8/W9.
+
+**Auslands-Hauptadresse (28.08.2026):** die KOMPLETTE Adresse inkl. LAND
+kommt aus easy@work (`country_key` = ISO) — der frühere Sync-Hardcode
+«PLZ vorhanden ⇒ Land = CH» ist entfernt; bei Land ≠ CH übernimmt der Sync
+die Adresse 1:1 (kein CH-PLZ-Lookup, kein Kanton). Bei nicht-easy-MA bleibt
+das Land manuell editierbar. Bei Land ≠ CH: PLZ-Prüfung gelockert (2–10 Zeichen),
+Kanton ausgeblendet/genullt (`efLandChanged`, `EnrichAddressFromZipAsync`-
+Guard), Übersicht zeigt «Land» statt «Kt.». `ApplyWohnadresseAsync` setzt
+den **QST-Kanton = Arbeitskanton** (Filiale des ältesten laufenden
+Vertrags, Kanton/Gemeinde/BFS aus der Filial-PLZ) und befüllt
+Wohnsitzstaat/Adresse-Ausland der Erfassung vor. Die Tarif-Sonderwege aus
+5.4 (L/M/N/P/Q, SFN, R/S/T/U/V, FL-0) folgen im K4-Bau.
+
+Der Rest von K4 (Treppen-Layout, Sammel-Speichern, Behördenentscheid-Block,
+Länder-Zusatzfragen) folgt als eigene Etappe nach K2.
 
 ## 6. Etappenplan
 

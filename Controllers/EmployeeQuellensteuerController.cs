@@ -559,9 +559,62 @@ public class EmployeeQuellensteuerController : ControllerBase
     {
         var e = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == employeeId)
-            .Select(x => new { x.CantonCode, x.City, x.ZipCode })
+            .Select(x => new { x.CantonCode, x.City, x.ZipCode, x.Street, x.Country })
             .FirstOrDefaultAsync();
         if (e == null) return;
+
+        // ── Auslands-Hauptwohnsitz (Walter 28.08.2026): Land ≠ CH ⇒ Person
+        // ohne steuerrechtlichen Wohnsitz CH (Grenzgänger / internationaler
+        // Wochenaufenthalter). Der QST-KANTON ist dann der ARBEITSKANTON =
+        // Kanton der Filiale des ältesten laufenden Vertrags (Hauptfiliale),
+        // abgeleitet aus der Filial-PLZ. Zusätzlich werden die Auslands-
+        // Felder der Erfassung vorbefüllt (nur wenn leer — Client darf
+        // präzisieren). Tarif-Sonderwege (DE L/M/N/P/Q, FR SFN, IT R/S/T/U/V,
+        // FL 0) folgen in K4 — Basis siehe docs/qst-korrektur-konzept.md. ──
+        var land = (e.Country ?? "").Trim();
+        var istAusland = land.Length > 0
+            && !land.Equals("CH", StringComparison.OrdinalIgnoreCase)
+            && !land.Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+        if (istAusland)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Wohnsitzstaat)) entry.Wohnsitzstaat = land;
+            if (string.IsNullOrWhiteSpace(entry.WohnsitzAusland)) entry.WohnsitzAusland = land;
+            if (string.IsNullOrWhiteSpace(entry.AdresseAusland))
+                entry.AdresseAusland = string.Join(", ",
+                    new[] { e.Street, $"{e.ZipCode} {e.City}".Trim(), land }
+                        .Where(s => !string.IsNullOrWhiteSpace(s)));
+
+            var jetzt = DateTime.Now;
+            var filiale = await (from em in _db.Employments
+                                 join c in _db.CompanyProfiles on em.CompanyProfileId equals c.Id
+                                 where em.EmployeeId == employeeId
+                                       && em.IsActive
+                                       && em.ContractStartDate <= jetzt
+                                       && (em.ContractEndDate == null || em.ContractEndDate >= jetzt)
+                                 orderby em.ContractStartDate
+                                 select new { c.ZipCode, c.City })
+                .FirstOrDefaultAsync();
+
+            entry.Steuerkanton = null; entry.SteuerkantonName = null;
+            entry.QstGemeinde = null; entry.QstGemeindeBfsNr = null;
+            var fPlz = (filiale?.ZipCode ?? "").Trim();
+            if (fPlz.Length == 4)
+            {
+                var fLocs = await _db.SwissLocations.AsNoTracking()
+                    .Where(l => l.Plz4 == fPlz).ToListAsync();
+                var fMatch = fLocs.FirstOrDefault(l => l.Gemeindename == filiale!.City)
+                          ?? fLocs.FirstOrDefault(l => l.Ortschaftsname == filiale!.City)
+                          ?? fLocs.FirstOrDefault();
+                if (fMatch != null)
+                {
+                    entry.Steuerkanton     = (fMatch.Kantonskuerzel ?? "").ToUpperInvariant();
+                    entry.SteuerkantonName = KantonNamen.TryGetValue(entry.Steuerkanton, out var fkn) ? fkn : null;
+                    entry.QstGemeinde      = fMatch.Gemeindename;
+                    entry.QstGemeindeBfsNr = fMatch.BfsNr;
+                }
+            }
+            return;
+        }
 
         var kanton = (e.CantonCode ?? "").Trim().ToUpperInvariant();
         entry.Steuerkanton     = kanton.Length > 0 ? kanton : null;

@@ -1497,8 +1497,18 @@ function loadUebersichtTab() {
                         <div class="ov-pfv">${esc(stripCityCantonSuffix(emp.city)) || '<span class="ov-empty">–</span>'}</div>
                     </div>
                     <div class="ov-pf ov-pf-kt">
-                        <div class="ov-pfl">Kt.</div>
-                        <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>
+                        ${(() => {
+                            // Auslands-Hauptwohnsitz (Walter 28.08.2026): statt Kanton
+                            // das LAND zeigen — der QST-Kanton kommt dann von der
+                            // Filiale (Arbeitskanton), siehe ApplyWohnadresseAsync.
+                            const land = (emp.country || 'CH').trim();
+                            const auslandAdr = land && land.toUpperCase() !== 'CH' && land.toLowerCase() !== 'schweiz';
+                            return auslandAdr
+                                ? `<div class="ov-pfl">Land</div>
+                                   <div class="ov-pfv" title="Wohnsitz im Ausland — QST-Kanton = Kanton der Filiale (Arbeitskanton)"><span style="color:#1d4ed8;font-weight:700">${esc(land)}</span></div>`
+                                : `<div class="ov-pfl">Kt.</div>
+                                   <div class="ov-pfv">${esc(emp.cantonCode) || '<span class="ov-empty">–</span>'}</div>`;
+                        })()}
                     </div>
                 </div>
             </div>
@@ -5789,12 +5799,19 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
     </div>
 
     <!-- Walter 26.05.2026: Adresse + Kontakt in die Personalien-Card. -->
+    <!-- Auslands-Hauptwohnsitz (Walter 28.08.2026, präzisiert): die KOMPLETTE
+         Adresse inkl. LAND kommt aus easy@work (country_key) — Land ist bei
+         easy-geführten MA gesperrt wie die übrigen Adressfelder. Bei Land ≠
+         CH: PLZ-Prüfung gelockert (bis 10 Zeichen), Kanton ausgeblendet —
+         der QST-Kanton kommt dann von der Filiale (Arbeitskanton). -->
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-address-line">
         ${eField(_t('ma.field.street','Strasse'),       `<input id="ef-street"  class="ef-input" value="${esc(emp.street)}" ${ewInput}>`)}
-        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" inputmode="numeric" maxlength="4" ${ewInput}>`)}
+        ${eField(_t('ma.field.zipCode','PLZ'),          `<input id="ef-zip" class="ef-input" value="${esc(emp.zipCode)}" ${efIstCHAdresse(emp) ? 'inputmode="numeric" maxlength="4"' : 'maxlength="10"'} ${ewInput}>`)}
         ${eField(_t('ma.field.city','Ort'),             `<input id="ef-city" class="ef-input" value="${esc(stripCityCantonSuffix(emp.city))}" ${ewInput}>`)}
+        <span id="ef-canton-wrap" style="${efIstCHAdresse(emp) ? 'display:contents' : 'display:none'}">
         ${eField(_t('ma.field.canton','Kanton'),        renderKantonSelect('ef-canton', emp.cantonCode, ewSelect))}
-        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" ${ewInput}>`)}
+        </span>
+        ${eField(_t('ma.field.country','Land'),         `<input id="ef-country" class="ef-input" value="${esc(emp.country ?? 'CH')}" oninput="efLandChanged()" title="Land des Hauptwohnsitzes (aus easy@work) — bei Ausland gilt der Filial-Kanton als QST-Kanton (Grenzgänger/int. Wochenaufenthalter)" ${ewInput}>`)}
     </div>
     <div class="emp-field-grid easywork-info-grid emp-flow-line emp-personal-extra-line">
         ${eField(_t('ma.field.maritalStatus','Zivilstand'), `<select id="ef-zivilstand" class="ef-input" ${ewSelect}>
@@ -5921,6 +5938,28 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
 // im Personal-Edit-Formular integriert.)
 
 // Hilfshelfer: Edit-Feld
+// Auslands-Hauptwohnsitz (Walter 28.08.2026): Helfer für die Adress-Felder.
+// «CH-Adresse» = Land leer, CH oder Schweiz (Alt-Daten-tolerant).
+function efIstCHAdresse(empOrLand) {
+    const land = (typeof empOrLand === 'string' ? empOrLand : (empOrLand?.country ?? 'CH')) || 'CH';
+    const l = land.trim().toUpperCase();
+    return l === '' || l === 'CH' || l === 'SCHWEIZ';
+}
+
+// Live-Umschaltung beim Tippen im Land-Feld: CH → PLZ 4-stellig numerisch +
+// Kanton sichtbar; Ausland → PLZ bis 10 Zeichen frei + Kanton ausgeblendet
+// (QST-Kanton kommt dann von der Filiale, ApplyWohnadresseAsync).
+function efLandChanged() {
+    const istCH = efIstCHAdresse(document.getElementById('ef-country')?.value ?? 'CH');
+    const zip = document.getElementById('ef-zip');
+    if (zip) {
+        if (istCH) { zip.maxLength = 4;  zip.setAttribute('inputmode', 'numeric'); }
+        else       { zip.maxLength = 10; zip.removeAttribute('inputmode'); }
+    }
+    const kt = document.getElementById('ef-canton-wrap');
+    if (kt) kt.style.display = istCH ? 'contents' : 'none';
+}
+
 function eField(label, inputHtml, hint) {
     return `<div class="emp-field liquid-field">
         <div class="emp-field-label">${label}</div>
@@ -6162,9 +6201,21 @@ async function saveEmpEdit() {
         alert('E-Mail-Adresse ist ungültig.');
         return;
     }
+    // Land wie die ganze Adresse easy@work-geführt (Walter 28.08.2026):
+    // bei Lock kommt der Wert aus emp, sonst aus dem Feld. PLZ-Prüfung
+    // hängt am Land (Ausland = gelockert).
+    const _landEl  = document.getElementById('ef-country');
+    const _landVal = (easyWorkLocked
+        ? (emp.country || 'CH')
+        : ((_landEl ? _landEl.value : (emp.country || 'CH')) || 'CH')).trim();
+    const _istCHAdresse = efIstCHAdresse(_landVal);
     const _zipRaw = easyWorkLocked ? (emp.zipCode || '') : (document.getElementById('ef-zip')?.value || '').trim();
-    if (!easyWorkLocked && _zipRaw && !/^\d{4}$/.test(_zipRaw)) {
+    if (!easyWorkLocked && _zipRaw && _istCHAdresse && !/^\d{4}$/.test(_zipRaw)) {
         alert('PLZ muss 4-stellig numerisch sein.');
+        return;
+    }
+    if (!easyWorkLocked && _zipRaw && !_istCHAdresse && !/^[A-Za-z0-9 \-]{2,10}$/.test(_zipRaw)) {
+        alert('PLZ (Ausland) ungültig — 2 bis 10 Zeichen (Buchstaben/Ziffern).');
         return;
     }
     // Übersicht (ov-*) ist die aktive Edit-Quelle; ef-* nur noch Legacy
@@ -6211,8 +6262,11 @@ async function saveEmpEdit() {
         street:       easyWorkLocked ? (emp.street || null) : (document.getElementById('ef-street')?.value || null),
         zipCode:      _zipRaw || null,
         city:         easyWorkLocked ? (emp.city || null) : (stripCityCantonSuffix(document.getElementById('ef-city')?.value) || null),
-        country:      easyWorkLocked ? (emp.country || null) : (document.getElementById('ef-country')?.value || null),
-        cantonCode:   easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null),
+        // Land IMMER aus dem Feld (auch bei easy@work-Lock, Walter 28.08.2026);
+        // Kanton bei Auslands-Adresse bewusst leeren (Filial-Kanton greift).
+        country:      _landVal || null,
+        cantonCode:   !_istCHAdresse ? null
+                      : (easyWorkLocked ? (emp.cantonCode || null) : (document.getElementById('ef-canton')?.value || null)),
         permitTypeId: permitTypeEl ? (parseInt(permitTypeEl.value) || 0) : (emp.permitTypeId || 0),
         permitExpiryDate: permitExpiryEl ? (permitExpiryEl.value || null) : (toDateInput(emp.permitExpiryDate) || null),
         nationalityId: easyWorkLocked ? (emp.nationalityId || null) : (parseInt(document.getElementById('ef-nationalityId')?.value) || null),

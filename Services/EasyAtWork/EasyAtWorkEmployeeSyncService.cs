@@ -1403,16 +1403,38 @@ public class EasyAtWorkEmployeeSyncService
         if (!string.IsNullOrWhiteSpace(data.Nationality) && natByCode.TryGetValue(data.Nationality.ToUpperInvariant(), out var natId))
             data.NationalityId = natId;
 
-        var loc = await ResolveSwissLocationAsync(data.ZipCode, eaw.City, ct);
-        // easy liefert den Ort ohne Kantonskürzel («Roggwil»). Mit PLZ:
-        // Resolve speichert den easy-Ort (nie AMTOVZ «Roggwil BE»).
-        data.City = !string.IsNullOrWhiteSpace(data.ZipCode)
-            ? loc.City
-            : (eaw.City?.Trim());
-        data.CantonCode = loc.Canton;
-        data.Country = string.IsNullOrWhiteSpace(data.ZipCode)
-            ? (eaw.CountryKey ?? eaw.Country)?.ToUpperInvariant()
-            : "CH";
+        // Auslands-Hauptwohnsitz (Walter 28.08.2026): die KOMPLETTE Adresse
+        // inkl. LAND kommt aus easy@work (country_key = ISO-Code). Früher
+        // wurde bei vorhandener PLZ hart «CH» gesetzt — damit war eine
+        // französische/deutsche easy-Adresse unmöglich. Neu: Land ≠ CH →
+        // Adresse 1:1 übernehmen, KEIN Schweizer PLZ/Ort-Lookup (die PLZ
+        // stünde nicht im CH-Verzeichnis → falscher Fehler), KEIN Kanton —
+        // der QST-Kanton kommt dann von der Filiale (ApplyWohnadresseAsync).
+        var landKey = (eaw.CountryKey ?? eaw.Country)?.Trim().ToUpperInvariant();
+        var landIstCH = string.IsNullOrWhiteSpace(landKey)
+            || landKey is "CH" or "CHE" or "SCHWEIZ" or "SWITZERLAND" or "SUISSE" or "SVIZZERA";
+        (string? City, string? Canton, string? Error) loc = (null, null, null);
+        if (landIstCH)
+        {
+            loc = await ResolveSwissLocationAsync(data.ZipCode, eaw.City, ct);
+            // easy liefert den Ort ohne Kantonskürzel («Roggwil»). Mit PLZ:
+            // Resolve speichert den easy-Ort (nie AMTOVZ «Roggwil BE»).
+            data.City = !string.IsNullOrWhiteSpace(data.ZipCode)
+                ? loc.City
+                : (eaw.City?.Trim());
+            data.CantonCode = loc.Canton;
+            // «CH» nur wenn es auch einen Anhaltspunkt gibt (PLZ aus dem
+            // CH-Verzeichnis ODER easy-Land CH/CHE/…) — ohne beides bleibt
+            // das Land leer (sonst Phantom-Update «Land» bei MA ohne Adresse).
+            data.Country = (!string.IsNullOrWhiteSpace(data.ZipCode)
+                            || !string.IsNullOrWhiteSpace(landKey)) ? "CH" : null;
+        }
+        else
+        {
+            data.City = eaw.City?.Trim();
+            data.CantonCode = null;
+            data.Country = landKey;
+        }
 
         if (includeDetailCalls)
         {

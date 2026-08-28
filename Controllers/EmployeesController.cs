@@ -576,6 +576,19 @@ public class EmployeesController : ControllerBase
         var zip = emp.ZipCode?.Trim();
         if (string.IsNullOrWhiteSpace(zip)) return;
 
+        // Auslands-Hauptwohnsitz (Walter 28.08.2026): Land ≠ CH → KEIN
+        // CH-PLZ-Lookup (ausländische PLZ könnte zufällig eine Schweizer
+        // treffen, z.B. FL 4-stellig) und KEIN Wohnkanton — der QST-Kanton
+        // kommt bei Auslandswohnsitz von der Filiale (Arbeitskanton).
+        var landTrim = emp.Country?.Trim() ?? "";
+        if (landTrim.Length > 0
+            && !landTrim.Equals("CH", StringComparison.OrdinalIgnoreCase)
+            && !landTrim.Equals("Schweiz", StringComparison.OrdinalIgnoreCase))
+        {
+            emp.CantonCode = null;
+            return;
+        }
+
         // Land-Standard systemweit: ISO-Code „CH" (Walter-Vorgabe 13.05.2026).
         if (string.IsNullOrWhiteSpace(emp.Country))
             emp.Country = "CH";
@@ -658,9 +671,16 @@ public class EmployeesController : ControllerBase
         // Nur unterdrückt, wenn der Aufrufer explizit selbst einen Kanton mitschickt.
         var forceRefresh = (zipChanged || dto.ForceCantonFromZip) && !cantonExplicit;
 
+        // Auslands-Hauptwohnsitz (Walter 28.08.2026): kein CH-Ort/PLZ-Match
+        // erzwingen — EnrichAddressFromZipAsync nullt den Kanton selbst.
+        var landIstAusland = !string.IsNullOrWhiteSpace(employee.Country)
+            && !employee.Country.Trim().Equals("CH", StringComparison.OrdinalIgnoreCase)
+            && !employee.Country.Trim().Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+
         // easy-Import: Ort muss zur PLZ passen — sonst 400 mit Klartext
         // (Walter 29.07.2026). Manuelles Editieren bleibt tolerant.
-        if (dto.ForceCantonFromZip
+        if (!landIstAusland
+            && dto.ForceCantonFromZip
             && !string.IsNullOrWhiteSpace(employee.ZipCode)
             && !string.IsNullOrWhiteSpace(employee.City))
         {
