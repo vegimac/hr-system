@@ -1811,13 +1811,63 @@ public class PayrollController : HrControllerBase
         if (!dto.IsCorrection)
         {
             var offeneKorr = await _db.QstKorrekturen
-                .Where(k => k.EmployeeId == dto.EmployeeId && k.Status == "OFFEN")
+                .Where(k => k.EmployeeId == dto.EmployeeId
+                         && k.Status == "OFFEN"
+                         && !(k.Jahr == dto.Year && k.Monat == dto.Month))
                 .ToListAsync();
             foreach (var k in offeneKorr)
             {
                 k.Status             = "VERRECHNET";
                 k.VerrechnetPeriodeId = dto.PayrollPeriodeId;
                 k.VerrechnetAt        = nowTs;
+            }
+
+            // ── K3 (Walter 29.08.2026): Darlehens-Raten persistieren ─────────
+            // Gleiche Regel wie die Engine-Anzeige: existiert für diese Periode
+            // schon eine Rate → BELASSEN (Stabilität bei Re-Confirm nach
+            // zurueck-an-gf); sonst Rate = min(RateBetrag, Rest), bei Austritt
+            // (kein Vertrag über das Periodenende hinaus) = Restsaldo. Nach der
+            // Rate Rest 0 → Status GETILGT. Atomar im selben SaveChanges.
+            var darlehenAll = await _db.EmployeeDarlehen
+                .Where(d => d.EmployeeId == dto.EmployeeId
+                         && d.Status != "STORNIERT"
+                         && (d.StartJahr < dto.Year || (d.StartJahr == dto.Year && d.StartMonat <= dto.Month)))
+                .ToListAsync();
+            if (darlehenAll.Count > 0)
+            {
+                var ratenAll = await _db.EmployeeDarlehenRaten
+                    .Where(r => r.EmployeeId == dto.EmployeeId)
+                    .ToListAsync();
+                var periodEnde = new DateOnly(dto.Year, dto.Month,
+                    DateTime.DaysInMonth(dto.Year, dto.Month));
+                bool vertragLaeuftWeiter = await _db.Employments.AnyAsync(e2 =>
+                    e2.EmployeeId == dto.EmployeeId
+                    && (e2.ContractEndDate == null
+                        || e2.ContractEndDate > periodEnde.ToDateTime(TimeOnly.MinValue)));
+
+                foreach (var d in darlehenAll)
+                {
+                    var eigene = ratenAll.Where(r => r.DarlehenId == d.Id).ToList();
+                    if (eigene.Any(r => r.PeriodYear == dto.Year && r.PeriodMonth == dto.Month))
+                        continue;   // Rate dieser Periode existiert → eingefroren
+                    decimal restVorher = Math.Round(d.Betrag - eigene.Sum(r => r.Betrag), 2);
+                    if (restVorher <= 0) { if (d.Status == "OFFEN") d.Status = "GETILGT"; continue; }
+                    decimal rate = Math.Min(d.RateBetrag, restVorher);
+                    if (!vertragLaeuftWeiter) rate = restVorher;
+                    if (rate <= 0) continue;
+                    decimal restNachher = Math.Round(restVorher - rate, 2);
+                    _db.EmployeeDarlehenRaten.Add(new EmployeeDarlehenRate
+                    {
+                        DarlehenId   = d.Id,
+                        EmployeeId   = dto.EmployeeId,
+                        PeriodYear   = dto.Year,
+                        PeriodMonth  = dto.Month,
+                        Betrag       = Math.Round(rate, 2),
+                        SaldoNachher = restNachher,
+                        CreatedAt    = nowTs
+                    });
+                    if (restNachher <= 0) d.Status = "GETILGT";
+                }
             }
         }
 

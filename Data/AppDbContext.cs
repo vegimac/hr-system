@@ -79,6 +79,8 @@ public class AppDbContext : DbContext
     public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
     public DbSet<Hauptsitz>             Hauptsitze             => Set<Hauptsitz>();
     public DbSet<QstKorrektur>          QstKorrekturen         => Set<QstKorrektur>();
+    public DbSet<EmployeeDarlehen>      EmployeeDarlehen       => Set<EmployeeDarlehen>();
+    public DbSet<EmployeeDarlehenRate>  EmployeeDarlehenRaten  => Set<EmployeeDarlehenRate>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
     public DbSet<AkontoTermin>          AkontoTermine          => Set<AkontoTermin>();
     public DbSet<AkontoZahlung>         AkontoZahlungen        => Set<AkontoZahlung>();
@@ -804,6 +806,41 @@ public class AppDbContext : DbContext
             entity.Property(e => e.VerrechnetAt).HasColumnName("verrechnet_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by").HasMaxLength(150);
+        });
+
+        // ── K3: MA-Darlehen / Vorschüsse (Walter 29.08.2026) ──────────────
+        modelBuilder.Entity<EmployeeDarlehen>(entity =>
+        {
+            entity.ToTable("employee_darlehen");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Zweck).HasColumnName("zweck").HasMaxLength(200);
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AuszahlungDatum).HasColumnName("auszahlung_datum").HasColumnType("date");
+            entity.Property(e => e.RateBetrag).HasColumnName("rate_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.StartJahr).HasColumnName("start_jahr");
+            entity.Property(e => e.StartMonat).HasColumnName("start_monat");
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by").HasMaxLength(150);
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+        });
+        modelBuilder.Entity<EmployeeDarlehenRate>(entity =>
+        {
+            entity.ToTable("employee_darlehen_rate");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DarlehenId).HasColumnName("darlehen_id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.PeriodYear).HasColumnName("period_year");
+            entity.Property(e => e.PeriodMonth).HasColumnName("period_month");
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.SaldoNachher).HasColumnName("saldo_nachher").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasOne(e => e.Darlehen).WithMany().HasForeignKey(e => e.DarlehenId);
         });
 
         modelBuilder.Entity<Nationality>(entity =>

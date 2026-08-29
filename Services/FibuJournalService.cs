@@ -663,6 +663,28 @@ public class FibuJournalService
         // die feste Orientierung greift die Kontoplan-Konfiguration des
         // Paars 4000/1920 im AbaConnect-Export automatisch (Mirus bucht
         // negative Beträge genauso, statt Soll/Haben zu tauschen).
+        // ── K3 (Walter 29.08.2026): Darlehens-/Vorschuss-Raten der Periode ──
+        // Rate = Abzug NACH Netto → im gebuchten Netto (2050) enthalten, aber
+        // nicht ausbezahlt. Umbuchung «2050 an 1140» (Position 1090, im
+        // Kontoplan-UI anpassbar) tilgt Verbindlichkeit UND Forderung.
+        // Berührt 1920 NICHT.
+        {
+            decimal darlehenSum = await (
+                from r in _db.EmployeeDarlehenRaten
+                join d in _db.EmployeeDarlehen on r.DarlehenId equals d.Id
+                where d.CompanyProfileId == companyProfileId
+                      && r.PeriodYear == year && r.PeriodMonth == month
+                select (decimal?)r.Betrag).SumAsync() ?? 0m;
+            if (darlehenSum != 0)
+            {
+                var md = maps.FirstOrDefault(m => m.Position == 1090);
+                if (md != null)
+                    Add(md.Fibukonto, md.Gegenkonto, md.Bezeichnung, Math.Round(darlehenSum, 2));
+                else
+                    ohneCodes++;
+            }
+        }
+
         {
             decimal preK1920 = acc.Values.Where(l => l.Soll  == "1920").Sum(l => l.Betrag)
                              - acc.Values.Where(l => l.Gegen == "1920").Sum(l => l.Betrag);

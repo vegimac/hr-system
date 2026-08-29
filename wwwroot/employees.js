@@ -1367,6 +1367,23 @@ function renderEmployeeDetail(emp) {
 
             <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
 
+            <!-- K3 (Walter 29.08.2026): Darlehen & Vorschüsse — generisches
+                 zinsloses MA-Darlehen (QST-Nachzahlung oder z.B. «Vorschuss
+                 Hochzeit 2'000»). Rate = automatischer Abzug nach Netto im
+                 Definitivlauf; letzte Rate = Rest; Austritt → Rest fällig. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span>Darlehen &amp; Vorschüsse <span style="font-weight:400;color:#94a3b8;font-size:12px">— zinslos, Rate wird im Lohnlauf verrechnet</span></span>
+                <button class="btn-emp-add" onclick="openDarlehenModal(null)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Darlehen / Vorschuss erfassen
+                </button>
+            </div>
+            <div id="darlehenContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+
             <!-- Bereich 3: BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026):
                  Belohnungs-Programm — Personalentscheid pro MA, versioniert.
                  Walter-Vorgabe 26.05.2026 (nachträglich): ans Ende des Tabs
@@ -2162,6 +2179,7 @@ function switchEmpTab(tab) {
         }
         if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
+        if (typeof loadDarlehenTab === 'function') loadDarlehenTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);
     }
@@ -4225,7 +4243,33 @@ function qstKorrSubrows(korrekturen, versionId) {
             <b style="color:${k.differenz > 0 ? '#b91c1c' : '#166534'}">${k.differenz > 0 ? '+' : ''}${fmt(k.differenz)}</b>
             ${chip(k.status)}
         </div>`).join('')}
+        ${(() => {
+            // K3 (Walter 29.08.2026): hohe Nachbelastung → in zinsloses
+            // Darlehen wandeln (Posten → IN_DARLEHEN, Verrechnung über Raten
+            // statt in einem Lohnlauf). Nur bei OFFENEN Nachbelastungen.
+            const offen = eigene.filter(k => k.status === 'OFFEN' && k.differenz > 0);
+            if (!offen.length) return '';
+            const summe = Math.round(offen.reduce((s, k) => s + k.differenz, 0) * 100) / 100;
+            const ids = offen.map(k => k.id);
+            const monate = offen.map(k => `${monatsName(k.monat)} ${k.jahr}`).join(', ');
+            return `<div style="padding:4px 0 2px 22px">
+                <button class="btn-emp-add" style="font-size:11.5px"
+                        onclick='darlehenAusQst(${summe}, ${JSON.stringify(ids)}, ${JSON.stringify(monate)})'>
+                    💰 In Darlehen wandeln (CHF ${fmt(summe)} in Raten statt im nächsten Lohnlauf)
+                </button>
+            </div>`;
+        })()}
     </div>`;
+}
+
+// K3: QST-Nachbelastung → Darlehen (Konzept Kap. 4). Öffnet das Darlehen-
+// Modal vorbefüllt; beim Speichern werden die Posten auf IN_DARLEHEN gesetzt
+// (K2 verrechnet sie dann nicht mehr direkt im Lohnlauf).
+function darlehenAusQst(summe, ids, monate) {
+    openDarlehenModal({ zweck: `QST-Nachzahlung ${monate}`, betrag: summe });
+    window._dlQstIds = ids;   // NACH dem Öffnen setzen (openDarlehenModal resettet)
+    const hint = document.getElementById('dl-hint');
+    if (hint) hint.textContent = 'Aus QST-Korrektur: beim Speichern werden die Posten auf «in Darlehen» gesetzt und über die Raten statt im nächsten Lohnlauf verrechnet.';
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -10211,6 +10255,194 @@ async function deleteRecurringWage(id) {
 // ══════════════════════════════════════════════════════════════════
 
 let _laBehoerden = [];   // Cache aktive Behörden
+
+// ════════════════════════════════════════════════════════════════════
+// K3: DARLEHEN & VORSCHÜSSE (Walter 29.08.2026) — generisches zinsloses
+// MA-Darlehen. Rate = Abzug nach Netto im Definitivlauf; Restsaldo auf
+// dem Lohnzettel; Austritt → Rest fällig. Vertrag-PDF mit Art. 323b.
+// ════════════════════════════════════════════════════════════════════
+
+async function loadDarlehenTab(employeeId) {
+    const el = document.getElementById('darlehenContent');
+    if (!el) return;
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/darlehen`, { headers: ah() });
+        if (!res.ok) { el.innerHTML = ''; return; }
+        const list = await res.json();
+        if (!list.length) {
+            el.innerHTML = '<div style="padding:10px 4px;color:#94a3b8;font-style:italic;font-size:13px">Keine Darlehen/Vorschüsse erfasst.</div>';
+            return;
+        }
+        const chf = v => (v ?? 0).toLocaleString('de-CH', { minimumFractionDigits: 2 });
+        el.innerHTML = list.map(d => {
+            const statusChip = d.status === 'GETILGT'
+                ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">getilgt</span>'
+                : d.status === 'STORNIERT'
+                ? '<span style="background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">storniert</span>'
+                : '<span style="background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">offen — Rest CHF ' + chf(d.rest) + '</span>';
+            const raten = (d.raten || []).map(r =>
+                `<div style="display:flex;gap:14px;font-size:12px;color:#64748b;padding:1px 0">
+                    <span style="min-width:70px">↳ ${String(r.periodMonth).padStart(2,'0')}/${r.periodYear}</span>
+                    <span style="min-width:90px;text-align:right">CHF ${chf(r.betrag)}</span>
+                    <span>Rest ${chf(r.saldoNachher)}</span>
+                </div>`).join('');
+            const menuId = `darlehenMenu${d.id}`;
+            return `<div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 14px;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <b style="font-size:13.5px">${(d.zweck || '').replace(/</g,'&lt;')}</b>
+                    <span style="font-size:12.5px;color:#475569">CHF ${chf(d.betrag)} · Rate ${chf(d.rateBetrag)} ab ${String(d.startMonat).padStart(2,'0')}/${d.startJahr} (${d.anzahlRatenGeplant} Raten)</span>
+                    ${statusChip}
+                    <span style="margin-left:auto;display:flex;gap:6px;position:relative">
+                        <button class="dok-menu-btn" onclick="darlehenToggleMenu('${menuId}', event)">⋮</button>
+                        <div id="${menuId}" class="dok-menu" style="display:none;position:absolute;right:0;top:32px;z-index:50">
+                            <div class="dok-menu-item" onclick="darlehenVertragPdf(${d.id})">📄 Darlehensvertrag (PDF)</div>
+                            <div class="dok-menu-item" onclick="openDarlehenModal(${JSON.stringify(d).replace(/"/g,'&quot;')})">✎ Bearbeiten</div>
+                            ${d.status === 'OFFEN' ? `<div class="dok-menu-item" onclick="darlehenStorno(${d.id})">⛔ Stornieren (künftige Raten stoppen)</div>` : ''}
+                            ${(d.raten || []).length === 0 ? `<div class="dok-menu-item danger" onclick="darlehenDelete(${d.id})">🗑 Löschen</div>` : ''}
+                        </div>
+                    </span>
+                </div>
+                ${d.bemerkung ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${d.bemerkung.replace(/</g,'&lt;')}</div>` : ''}
+                ${raten ? `<div style="margin-top:6px;border-top:1px dashed rgba(60,55,48,0.15);padding-top:4px">${raten}</div>` : ''}
+            </div>`;
+        }).join('');
+    } catch { el.innerHTML = ''; }
+}
+
+function darlehenToggleMenu(id, ev) {
+    ev?.stopPropagation();
+    document.querySelectorAll('[id^="darlehenMenu"]').forEach(m => { if (m.id !== id) m.style.display = 'none'; });
+    const m = document.getElementById(id);
+    if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+}
+document.addEventListener('click', () =>
+    document.querySelectorAll('[id^="darlehenMenu"]').forEach(m => m.style.display = 'none'));
+
+function openDarlehenModal(existing) {
+    window._dlQstIds = null;   // Reset — nur darlehenAusQst setzt sie danach.
+    const isNew = !existing;
+    const d = existing || {};
+    const now = new Date();
+    // Default-Start: Folgemonat (Konzept: Verrechnung ab nächstem Lohnlauf).
+    const defJahr  = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+    const defMonat = now.getMonth() === 11 ? 1 : now.getMonth() + 2;
+    let modal = document.getElementById('darlehenModal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'darlehenModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3100;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px';
+    modal.innerHTML = `
+    <div class="modal" style="border-radius:14px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:18px 22px;margin:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:15px;font-weight:700;color:#1e293b">${isNew ? 'Darlehen / Vorschuss erfassen' : 'Darlehen bearbeiten'}</div>
+            <button onclick="document.getElementById('darlehenModal').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
+        </div>
+        <div class="emp-field-grid">
+            ${eField('Verwendungszweck *', `<input id="dl-zweck" class="ef-input" value="${(d.zweck||'').replace(/"/g,'&quot;')}" placeholder="z.B. Vorschuss Hochzeit">`)}
+            ${eField('Betrag (CHF) *', `<input id="dl-betrag" class="ef-input" type="number" step="0.05" min="0" value="${d.betrag ?? ''}" oninput="dlRecalc('betrag')">`)}
+            ${eField('Auszahlung am', `<input id="dl-auszahlung" class="ef-input" type="date" value="${d.auszahlungDatum ? String(d.auszahlungDatum).slice(0,10) : ''}">`)}
+            ${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}
+            ${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}
+            ${eField('Verrechnung ab', `<div style="display:flex;gap:6px">
+                <select id="dl-startMonat" class="ef-input">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${((d.startMonat ?? defMonat)===i+1)?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('')}</select>
+                <input id="dl-startJahr" class="ef-input" type="number" step="1" value="${d.startJahr ?? defJahr}" style="max-width:100px">
+            </div>`)}
+        </div>
+        <div class="emp-field-grid">
+            ${eField('Bemerkung', `<input id="dl-bemerkung" class="ef-input" value="${(d.bemerkung||'').replace(/"/g,'&quot;')}">`)}
+        </div>
+        <div id="dl-hint" style="font-size:12px;color:#64748b;margin:6px 0"></div>
+        <div id="dl-error" style="color:#dc2626;font-size:12px;margin:4px 0"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px;margin-top:6px">
+            <button class="btn btn-outline" onclick="document.getElementById('darlehenModal').remove()">Abbrechen</button>
+            <button class="btn btn-primary" onclick="saveDarlehen(${isNew ? 'null' : d.id})">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+    dlRecalc();
+}
+
+// Anzahl ↔ Rate Gegenrechnung (Konzept: das andere wird gerechnet,
+// letzte Rate = Rest). Rundung der Rate auf 0.05 aufwärts.
+function dlRecalc(changed) {
+    const betrag = parseFloat(document.getElementById('dl-betrag')?.value) || 0;
+    const anzEl  = document.getElementById('dl-anzahl');
+    const rateEl = document.getElementById('dl-rate');
+    const hint   = document.getElementById('dl-hint');
+    if (!anzEl || !rateEl) return;
+    let anzahl = parseInt(anzEl.value) || 0;
+    let rate   = parseFloat(rateEl.value) || 0;
+    if (betrag > 0) {
+        if (changed === 'anzahl' && anzahl > 0) {
+            rate = Math.ceil(betrag / anzahl * 20) / 20;
+            rateEl.value = rate.toFixed(2);
+        } else if ((changed === 'rate' || changed === 'betrag') && rate > 0) {
+            anzahl = Math.ceil(betrag / rate);
+            anzEl.value = anzahl;
+        }
+    }
+    if (hint && betrag > 0 && rate > 0 && anzahl > 0) {
+        const letzte = Math.round((betrag - rate * (anzahl - 1)) * 100) / 100;
+        hint.textContent = `${anzahl} Raten à CHF ${rate.toFixed(2)} — letzte Rate CHF ${letzte.toFixed(2)}. Zinslos; bei Austritt wird der Rest fällig.`;
+    }
+}
+
+async function saveDarlehen(id) {
+    const errEl = document.getElementById('dl-error');
+    errEl.textContent = '';
+    const payload = {
+        companyProfileId: parseInt(fixedCompanyProfileId) || selectedEmployee?.companyProfileId || 0,
+        zweck:      document.getElementById('dl-zweck').value.trim(),
+        betrag:     parseFloat(document.getElementById('dl-betrag').value) || 0,
+        auszahlungDatum: document.getElementById('dl-auszahlung').value || null,
+        rateBetrag: parseFloat(document.getElementById('dl-rate').value) || null,
+        anzahlRaten: parseInt(document.getElementById('dl-anzahl').value) || null,
+        startJahr:  parseInt(document.getElementById('dl-startJahr').value) || 0,
+        startMonat: parseInt(document.getElementById('dl-startMonat').value) || 0,
+        bemerkung:  document.getElementById('dl-bemerkung').value.trim() || null,
+        // K3: aus QST-Korrektur gewandelte Posten (nur beim Anlegen relevant).
+        qstKorrekturIds: (!id && Array.isArray(window._dlQstIds) && window._dlQstIds.length) ? window._dlQstIds : null
+    };
+    if (!payload.zweck)      { errEl.textContent = 'Verwendungszweck ist Pflicht.'; return; }
+    if (payload.betrag <= 0) { errEl.textContent = 'Betrag muss grösser 0 sein.'; return; }
+    if (!payload.rateBetrag && !payload.anzahlRaten) { errEl.textContent = 'Monatsrate oder Anzahl Raten angeben.'; return; }
+    try {
+        const url = id ? `/api/employees/${selectedEmployeeId}/darlehen/${id}` : `/api/employees/${selectedEmployeeId}/darlehen`;
+        const res = await fetch(url, { method: id ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
+        if (!res.ok) {
+            let msg = 'Fehler beim Speichern.';
+            try { const j = await res.json(); msg = j.message || msg; } catch {}
+            errEl.textContent = msg; return;
+        }
+        document.getElementById('darlehenModal').remove();
+        window._dlQstIds = null;
+        loadDarlehenTab(selectedEmployeeId);
+        // QST-Tab aktualisieren (Posten-Chips «in Darlehen»).
+        if (typeof loadQuellensteuerTab === 'function') loadQuellensteuerTab(selectedEmployeeId);
+    } catch (e) { errEl.textContent = 'Verbindungsfehler: ' + e.message; }
+}
+
+async function darlehenStorno(id) {
+    if (!(await liquidConfirm('Darlehen stornieren? Künftige Raten werden gestoppt; bereits verrechnete bleiben.'))) return;
+    const res = await fetch(`/api/employees/${selectedEmployeeId}/darlehen/${id}/stornieren`, { method: 'POST', headers: ah() });
+    if (res.ok) loadDarlehenTab(selectedEmployeeId); else alert('Stornieren fehlgeschlagen.');
+}
+
+async function darlehenDelete(id) {
+    if (!(await liquidConfirm('Darlehen wirklich löschen?'))) return;
+    const res = await fetch(`/api/employees/${selectedEmployeeId}/darlehen/${id}`, { method: 'DELETE', headers: ah() });
+    if (res.ok || res.status === 204) loadDarlehenTab(selectedEmployeeId);
+    else { let m = 'Löschen fehlgeschlagen.'; try { const j = await res.json(); m = j.message || m; } catch {} alert(m); }
+}
+
+async function darlehenVertragPdf(id) {
+    try {
+        await previewUrlFetch(`/api/employees/${selectedEmployeeId}/darlehen/${id}/vertrag-pdf`,
+            `Darlehensvertrag_${id}.pdf`, ah());
+    } catch (e) { alert('PDF-Fehler: ' + e.message); }
+}
 
 async function loadLohnAssignmentsTab(employeeId) {
     const el = document.getElementById('lohnAssignmentsContent');

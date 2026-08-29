@@ -264,6 +264,20 @@ public class PayrollPeriodeController : ControllerBase
             k.VerrechnetAt        = null;
         }
 
+        // K3 (Walter 29.08.2026): Darlehens-Raten dieser Periode löschen —
+        // der Restsaldo lebt wieder auf, GETILGTE Darlehen zurück auf OFFEN.
+        var ratenWeg = await (from r in _db.EmployeeDarlehenRaten
+                              join d in _db.EmployeeDarlehen on r.DarlehenId equals d.Id
+                              where d.CompanyProfileId == periode.CompanyProfileId
+                                    && r.PeriodYear == periode.Year
+                                    && r.PeriodMonth == periode.Month
+                              select new { Rate = r, Darlehen = d }).ToListAsync();
+        foreach (var x in ratenWeg)
+        {
+            _db.EmployeeDarlehenRaten.Remove(x.Rate);
+            if (x.Darlehen.Status == "GETILGT") x.Darlehen.Status = "OFFEN";
+        }
+
         var companyProfileId = periode.CompanyProfileId;
         _db.PayrollPerioden.Remove(periode);
         await _db.SaveChangesAsync();

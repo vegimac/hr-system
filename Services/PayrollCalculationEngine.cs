@@ -207,6 +207,62 @@ public class PayrollCalculationEngine
             }
         }
 
+        // ── K3: Darlehens-/Vorschuss-Raten (Walter 29.08.2026, Konzept Kap. 4) ──
+        // Offene Darlehen des MA → Rate als Abzug NACH Netto (kein Lohn, keine
+        // SV-Wirkung). Stabilität wie K2: existiert für diese Periode bereits
+        // eine verrechnete Rate (Confirm), wird GENAU deren Betrag gezeigt —
+        // sonst die reguläre Rate min(RateBetrag, Rest). Endet der Vertrag in
+        // dieser Periode (Austritt), wird der RESTSALDO fällig (Konzept:
+        // Fälligkeit bei Austritt). Restsaldo steht im Zeilentext.
+        var darlehenRaten = new List<(int DarlehenId, string Label, decimal Rate, decimal RestNachher)>();
+        {
+            var offeneDarlehen = await _db.EmployeeDarlehen
+                .Where(d => d.EmployeeId == employeeId
+                         && d.Status != "STORNIERT"
+                         && (d.StartJahr < year || (d.StartJahr == year && d.StartMonat <= month)))
+                .ToListAsync();
+            if (offeneDarlehen.Count > 0)
+            {
+                var alleRaten = await _db.EmployeeDarlehenRaten
+                    .Where(r => r.EmployeeId == employeeId)
+                    .Select(r => new { r.DarlehenId, r.PeriodYear, r.PeriodMonth, r.Betrag })
+                    .ToListAsync();
+                foreach (var d in offeneDarlehen)
+                {
+                    // Rest VOR dieser Periode = Betrag − alle Raten ausser der
+                    // (allenfalls schon verrechneten) Rate dieser Periode.
+                    var eigene = alleRaten.Where(r => r.DarlehenId == d.Id).ToList();
+                    var dieserMonat = eigene.FirstOrDefault(r => r.PeriodYear == year && r.PeriodMonth == month);
+                    decimal restVorher = Math.Round(
+                        d.Betrag - eigene.Where(r => !(r.PeriodYear == year && r.PeriodMonth == month))
+                                         .Sum(r => r.Betrag), 2);
+                    if (restVorher <= 0) continue;
+
+                    decimal rate;
+                    if (dieserMonat != null)
+                    {
+                        rate = dieserMonat.Betrag;   // eingefroren (Confirm) → stabil
+                    }
+                    else
+                    {
+                        rate = Math.Min(d.RateBetrag, restVorher);
+                        // Austritt in dieser Periode → Restsaldo fällig.
+                        // (emp = in dieser Periode gültiger Vertrag, weiter unten
+                        // geladen — hier über Employments direkt geprüft: kein
+                        // Vertrag des MA läuft über das Periodenende hinaus.)
+                        bool vertragLaeuftWeiter = employee.Employments.Any(e2 =>
+                            !e2.ContractEndDate.HasValue
+                            || DateOnly.FromDateTime(e2.ContractEndDate.Value) > CalcPeriod(year, month).Item2);
+                        if (!vertragLaeuftWeiter) rate = restVorher;
+                        if (rate <= 0) continue;
+                    }
+                    decimal restNachher = Math.Round(restVorher - rate, 2);
+                    string label = $"Rückzahlung {d.Zweck} (Rest CHF {restNachher.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("de-CH"))})";
+                    darlehenRaten.Add((d.Id, label, Math.Round(rate, 2), restNachher));
+                }
+            }
+        }
+
         // Bemerkungstext für die Lohnabrechnung (Periode-spezifisch falls
         // vorhanden, sonst Filial-Default)
         string? periodeFooterText = existingPeriod?.PdfFooterText;
@@ -1650,6 +1706,16 @@ public class PayrollCalculationEngine
         // Schleife befüllt. Reine Auszahlungs-Routing-Einträge.
         var abzuegeExtraLines = new List<object>();
         decimal abzuegeExtraTotal = 0;
+
+        // K3 (Walter 29.08.2026): Darlehens-/Vorschuss-Raten als Abzug nach
+        // Netto — kein Lohn, keine SV-Wirkung; Restsaldo steht im Zeilentext
+        // (= Restsaldo-Ausweis auf dem Lohnbeleg). darlehenId ist der
+        // maschinenlesbare Anker (Fibu bucht aus employee_darlehen_rate).
+        foreach (var dr in darlehenRaten)
+        {
+            abzuegeExtraLines.Add(new { bezeichnung = dr.Label, betrag = -dr.Rate, darlehenId = dr.DarlehenId });
+            abzuegeExtraTotal += dr.Rate;
+        }
 
         var lohnLines  = new List<object>();
         var abzugLines = new List<object>();
