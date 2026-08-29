@@ -410,7 +410,9 @@ Der frühere kombinierte Tab „Absenzen Zulagen Abzüge" ist jetzt in zwei sepa
 - **Absenzen**: Krankheits-/Unfall-/Ferien-Einträge + Karenz-Visualisierung
 - **Zulagen & Abzüge**: BVG-Zusatz-Mitgliedschaft, Wiederkehrende Zulagen/Abzüge, Lohnabtretungen
 
-`_empTabsOrder` und die Tab-Bar in `renderEmployeeDetail` sind synchron. Loader in `switchEmpTab`: `absenzen` → `loadAbsenzenTab`; `zulagen` → `loadBvgZusatzTab + loadRecurringWagesTab + loadLohnAssignmentsTab`.
+`_empTabsOrder` und die Tab-Bar in `renderEmployeeDetail` sind synchron. Loader in `switchEmpTab`: `absenzen` → `loadAbsenzenTab`; `zulagen` → `loadBvgZusatzTab + loadRecurringWagesTab + loadLohnAssignmentsTab + loadDarlehenTab`.
+
+**Zulagen-Tab kompakt (Walter-Vorgabe 29.08.2026):** Jede Sektion (Wiederkehrende / Lohnabtretungen / Darlehen / BVG-Zusatz) hat die «+»-Pille UND eine History-Pille («🕘 History (N)», Muster permHistPill) in der Sektions-Titelzeile; Hints als Tooltip statt Text, Divider 10px. Statische Slots im Tab-Template (`rwHistPillSlot`/`laHistPillSlot`+`laHeaderBadgeSlot`/`dlHistPillSlot`/`bvgHistPillSlot`), befüllt von den Loadern via `zulHistFillSlot`; Toggle `zulHistToggle`. History-Kriterien: Wiederkehrende = Gültig-bis < heute; Lohnabtretungen = erledigt ODER abgelaufen (nur MIT Beleg — Dokument-Pflicht bleibt immer sichtbar); Darlehen = Status ≠ OFFEN; BVG-Zusatz = beendet + nicht aktuell. Der frühere innere Sektions-Header in `renderLohnAssignmentsList` und die `.abs-toolbar` in `renderRecurringWagesList` sind entfernt.
 
 ### Quellensteuer (QST)
 

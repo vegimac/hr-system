@@ -1343,57 +1343,83 @@ function renderEmployeeDetail(emp) {
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
-            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
-            <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge -->
+            <!-- Bereich 1: Wiederkehrende Zulagen & Abzüge
+                 Walter 29.08.2026 (kompakt): +-Pille + History-Pille in der
+                 Titelzeile (Muster Bewilligungen/permHistPill), Hint = Tooltip. -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
-                <span style="font-size:11px;font-weight:400;color:#94a3b8">${_t('abs.section.recurringHint','Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet')}</span>
+                <span title="${_t('abs.section.recurringHint','Werden bei jedem Lohnlauf im Gültigkeitszeitraum automatisch verrechnet')}">${_t('abs.section.recurring','Wiederkehrende Zulagen &amp; Abzüge')}</span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="rwHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="openRecurringWageModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Zulage / Abzug erfassen
+                    </button>
+                </span>
             </div>
             <div id="recurringWagesContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
-            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
-            <!-- Bereich 2: Lohnabtretungen (Pfändung / Sozialamt) -->
+            <!-- Bereich 2: Lohnabtretungen (Pfändung / Sozialamt)
+                 Walter 29.08.2026 (kompakt): Doku-Badge + History-Pille +
+                 +-Pille in der Titelzeile; der frühere innere Sektions-Header
+                 in renderLohnAssignmentsList ist entfernt. -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>${_t('abs.section.lohnabtretung','Lohnabtretungen')}</span>
-                <span style="font-size:11px;font-weight:400;color:#94a3b8">${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Wage garnishment or assignment to social welfare — calculated on net pay' : 'Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet'}</span>
+                <span style="display:inline-flex;align-items:center;gap:8px" title="${(window.i18n && i18n.getLang && i18n.getLang() === 'en') ? 'Wage garnishment or assignment to social welfare — calculated on net pay' : 'Lohnpfändung oder Abtretung an Sozialamt — nach Netto berechnet'}">
+                    ${_t('abs.section.lohnabtretung','Lohnabtretungen')}
+                    <span id="laHeaderBadgeSlot"></span>
+                </span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="laHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="openLohnAssignmentModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Lohnabtretung erfassen
+                    </button>
+                </span>
             </div>
             <div id="lohnAssignmentsContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
-            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
             <!-- K3 (Walter 29.08.2026): Darlehen & Vorschüsse — generisches
                  zinsloses MA-Darlehen (QST-Nachzahlung oder z.B. «Vorschuss
                  Hochzeit 2'000»). Rate = automatischer Abzug nach Netto im
                  Definitivlauf; letzte Rate = Rest; Austritt → Rest fällig. -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>Darlehen &amp; Vorschüsse <span style="font-weight:400;color:#94a3b8;font-size:12px">— zinslos, Rate wird im Lohnlauf verrechnet</span></span>
-                <button class="btn-emp-add" onclick="openDarlehenModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Darlehen / Vorschuss erfassen
-                </button>
+                <span title="zinslos, Rate wird im Lohnlauf verrechnet">Darlehen &amp; Vorschüsse</span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="dlHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="openDarlehenModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Darlehen / Vorschuss erfassen
+                    </button>
+                </span>
             </div>
             <div id="darlehenContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
             </div>
 
-            <div style="height:1px;background:#e2e8f0;margin:24px 0"></div>
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
             <!-- Bereich 3: BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026):
                  Belohnungs-Programm — Personalentscheid pro MA, versioniert.
                  Walter-Vorgabe 26.05.2026 (nachträglich): ans Ende des Tabs
                  verschoben — selten editiert, gehört untenhin. -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
-                <span>${_t('abs.section.bvgZusatz','BVG-Zusatz')} <span style="font-weight:400;color:#94a3b8;font-size:12px">${_t('abs.section.bvgZusatzHint','— Belohnungs-Programm, Personalentscheid pro MA')}</span></span>
-                <button class="btn-emp-add" onclick="openBvgZusatzModal(null)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    ${_t('abs.btn.newBvgZusatz','Mitgliedschaft erfassen')}
-                </button>
+                <span title="${_t('abs.section.bvgZusatzHint','— Belohnungs-Programm, Personalentscheid pro MA')}">${_t('abs.section.bvgZusatz','BVG-Zusatz')}</span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="bvgHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="openBvgZusatzModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        ${_t('abs.btn.newBvgZusatz','Mitgliedschaft erfassen')}
+                    </button>
+                </span>
             </div>
             <div id="bvgZusatzContent">
                 <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
@@ -10091,6 +10117,31 @@ async function deleteAbsence(id) {
 
 let _rwLohnpositionen = [];   // Lohnposition-Cache (ZULAGE + ABZUG)
 
+// ── History-Pille für die Zulagen-Tab-Sektionen (Walter 29.08.2026) ──
+// Gleiche Optik/Mechanik wie permHistPill bei den Bewilligungen: Pille
+// «🕘 History (N)» in der Sektions-Titelzeile klappt die abgelaufenen/
+// erledigten Einträge auf/zu (Standard: zu). Slots im Tab-Template:
+// rwHistPillSlot / laHistPillSlot / dlHistPillSlot / bvgHistPillSlot.
+function zulHistPillHtml(count, wrapId, pillId) {
+    if (!count) return '';
+    return `<button id="${pillId}" onclick="zulHistToggle('${wrapId}','${pillId}')" title="Ältere Einträge ein-/ausblenden" style="font-size:11px;font-weight:600;color:#6b7280;background:#ece9e2;border:none;border-radius:999px;padding:2px 10px;cursor:pointer;text-transform:none;letter-spacing:0">🕘 History (${count})</button>`;
+}
+function zulHistToggle(wrapId, pillId) {
+    const w = document.getElementById(wrapId);
+    if (!w) return;
+    const offen = w.style.display !== 'none';
+    w.style.display = offen ? 'none' : '';
+    const p = document.getElementById(pillId);
+    if (p) {
+        p.style.background = offen ? '#ece9e2' : '#3f3f3f';
+        p.style.color      = offen ? '#6b7280' : '#ffffff';
+    }
+}
+function zulHistFillSlot(slotId, count, wrapId, pillId) {
+    const s = document.getElementById(slotId);
+    if (s) s.innerHTML = zulHistPillHtml(count, wrapId, pillId);
+}
+
 async function loadRecurringWagesTab(employeeId) {
     const el = document.getElementById('recurringWagesContent');
     if (!el) return;
@@ -10118,9 +10169,13 @@ function renderRecurringWagesList(el, list, employeeId) {
     const fmtAmount = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const today = new Date().toISOString().slice(0, 10);
 
+    // Walter 29.08.2026 (kompakt): abgelaufene Einträge (Gültig-bis < heute)
+    // wandern hinter die History-Pille in der Titelzeile; sichtbar bleiben
+    // nur laufende + künftige Einträge.
     let rows = '';
+    let histRows = '';
     if (!list.length) {
-        rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px">Keine wiederkehrenden Einträge</td></tr>`;
+        rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic">Keine wiederkehrenden Einträge</td></tr>`;
     } else {
         list.forEach(r => {
             const isAbzug = r.typ === 'ABZUG';
@@ -10131,7 +10186,7 @@ function renderRecurringWagesList(el, list, employeeId) {
             const activeIcon = activeNow
                 ? '<span title="Zurzeit aktiv" style="color:#16a34a">●</span>'
                 : '<span title="Ausserhalb Gültigkeitszeitraum" style="color:#cbd5e1">○</span>';
-            rows += `<tr>
+            const row = `<tr>
                 <td>${activeIcon} ${typeBadge} <span style="font-weight:500">${r.lohnpositionBezeichnung}</span>
                     <span style="color:#94a3b8;font-size:11px;margin-left:4px">[${r.lohnpositionCode}]</span></td>
                 <td style="font-family:monospace;text-align:right;color:${isAbzug ? '#dc2626' : '#059669'};font-weight:600">
@@ -10144,16 +10199,16 @@ function renderRecurringWagesList(el, list, employeeId) {
                     <button class="btn-stamp-del"  onclick="deleteRecurringWage(${r.id})">✕</button>
                 </td>
             </tr>`;
+            const abgelaufen = !!r.validTo && r.validTo < today;
+            if (abgelaufen) histRows += row; else rows += row;
         });
+        if (!rows) {
+            rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:8px;font-style:italic">Keine laufenden Einträge — siehe History</td></tr>`;
+        }
     }
 
+    const histCount = histRows ? (histRows.match(/<tr>/g) || []).length : 0;
     el.innerHTML = `
-    <div class="abs-toolbar">
-        <button class="btn-emp-add" onclick="openRecurringWageModal(null)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Zulage / Abzug erfassen
-        </button>
-    </div>
     <table class="abs-table">
         <thead><tr>
             <th>Lohnposition</th>
@@ -10164,7 +10219,9 @@ function renderRecurringWagesList(el, list, employeeId) {
             <th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
+        ${histRows ? `<tbody id="rwHistWrap" style="display:none">${histRows}</tbody>` : ''}
     </table>`;
+    zulHistFillSlot('rwHistPillSlot', histCount, 'rwHistWrap', 'rwHistPill');
 }
 
 function openRecurringWageModal(existing) {
@@ -10270,11 +10327,14 @@ async function loadDarlehenTab(employeeId) {
         if (!res.ok) { el.innerHTML = ''; return; }
         const list = await res.json();
         if (!list.length) {
-            el.innerHTML = '<div style="padding:10px 4px;color:#94a3b8;font-style:italic;font-size:13px">Keine Darlehen/Vorschüsse erfasst.</div>';
+            zulHistFillSlot('dlHistPillSlot', 0, 'dlHistWrap', 'dlHistPill');
+            el.innerHTML = '<div style="padding:6px 4px;color:#94a3b8;font-style:italic;font-size:12.5px">Keine Darlehen/Vorschüsse erfasst.</div>';
             return;
         }
         const chf = v => (v ?? 0).toLocaleString('de-CH', { minimumFractionDigits: 2 });
-        el.innerHTML = list.map(d => {
+        // Walter 29.08.2026 (kompakt): getilgte + stornierte Darlehen hinter
+        // die History-Pille in der Titelzeile; sichtbar nur OFFENE.
+        const cardHtml = d => {
             const statusChip = d.status === 'GETILGT'
                 ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700">getilgt</span>'
                 : d.status === 'STORNIERT'
@@ -10287,7 +10347,7 @@ async function loadDarlehenTab(employeeId) {
                     <span>Rest ${chf(r.saldoNachher)}</span>
                 </div>`).join('');
             const menuId = `darlehenMenu${d.id}`;
-            return `<div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:10px 14px;margin-bottom:8px">
+            return `<div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:8px 14px;margin-bottom:6px">
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                     <b style="font-size:13.5px">${(d.zweck || '').replace(/</g,'&lt;')}</b>
                     <span style="font-size:12.5px;color:#475569">CHF ${chf(d.betrag)} · Rate ${chf(d.rateBetrag)} ab ${String(d.startMonat).padStart(2,'0')}/${d.startJahr} (${d.anzahlRatenGeplant} Raten)</span>
@@ -10305,7 +10365,18 @@ async function loadDarlehenTab(employeeId) {
                 ${d.bemerkung ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${d.bemerkung.replace(/</g,'&lt;')}</div>` : ''}
                 ${raten ? `<div style="margin-top:6px;border-top:1px dashed rgba(60,55,48,0.15);padding-top:4px">${raten}</div>` : ''}
             </div>`;
-        }).join('');
+        };
+        const offen   = list.filter(d => d.status === 'OFFEN');
+        const history = list.filter(d => d.status !== 'OFFEN');
+        let html = offen.map(cardHtml).join('');
+        if (!html) {
+            html = '<div style="padding:6px 4px;color:#94a3b8;font-style:italic;font-size:12.5px">Kein offenes Darlehen — siehe History.</div>';
+        }
+        if (history.length) {
+            html += `<div id="dlHistWrap" style="display:none">${history.map(cardHtml).join('')}</div>`;
+        }
+        el.innerHTML = html;
+        zulHistFillSlot('dlHistPillSlot', history.length, 'dlHistWrap', 'dlHistPill');
     } catch { el.innerHTML = ''; }
 }
 
@@ -10344,8 +10415,11 @@ function openDarlehenModal(existing) {
             ${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}
             ${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}
             ${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
-                <span style="flex:0 0 92px;min-width:92px"><select id="dl-startMonat" class="ef-input">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${((d.startMonat ?? defMonat)===i+1)?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('')}</select></span>
-                <input id="dl-startJahr" class="ef-input" type="number" step="1" value="${d.startJahr ?? defJahr}" style="flex:1 1 96px;min-width:96px;max-width:130px">
+                <input id="dl-startMonat" class="ef-input" type="number" min="1" max="12" step="1"
+                       value="${d.startMonat ?? defMonat}" style="width:70px;flex:0 0 70px;text-align:center">
+                <span style="color:#8b8b8b">/</span>
+                <input id="dl-startJahr" class="ef-input" type="number" step="1"
+                       value="${d.startJahr ?? defJahr}" style="width:100px;flex:0 0 100px;text-align:center">
             </div>`)}
         </div>
         <div class="emp-field-grid">
@@ -10482,27 +10556,25 @@ function renderLohnAssignmentsList(el, list) {
             : `<span title="${missingDok} Eintrag/Einträge ohne Beleg — im Lohnlauf unwirksam"
                      style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5">● Dokument-Pflicht</span>`);
 
-    const toolbar = `
-    <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:0;margin-bottom:10px">
-        <span style="display:inline-flex;align-items:center;gap:8px">
-            Lohnabtretungen
-            ${headerBadge}
-        </span>
-        <button class="btn-emp-add" onclick="openLohnAssignmentModal(null)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Lohnabtretung erfassen
-        </button>
-    </div>`;
+    // Walter 29.08.2026 (kompakt): Titel/Badge/+-Pille leben jetzt in der
+    // Sektions-Titelzeile des Tab-Templates (laHeaderBadgeSlot/laHistPillSlot)
+    // — kein innerer Header mehr. Erledigte + abgelaufene Abtretungen wandern
+    // hinter die History-Pille.
+    const badgeSlot = document.getElementById('laHeaderBadgeSlot');
+    if (badgeSlot) badgeSlot.innerHTML = headerBadge;
 
     if (!list.length) {
-        el.innerHTML = toolbar + `
-        <div style="padding:14px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
+        zulHistFillSlot('laHistPillSlot', 0, 'laHistWrap', 'laHistPill');
+        el.innerHTML = `
+        <div style="padding:8px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
             Keine Lohnabtretungen erfasst.
         </div>`;
         return;
     }
 
     let cards = '';
+    let histCards = '';
+    let histCount = 0;
     list.forEach(a => {
         const activeNow = a.validFrom <= today && (!a.validTo || a.validTo >= today);
         const fertig    = a.zielbetrag > 0 && a.bereitsAbgezogen >= a.zielbetrag;
@@ -10552,8 +10624,8 @@ function renderLohnAssignmentsList(el, list) {
                    🔗 Doku verknüpfen
                </button>`;
 
-        cards += `
-        <div style="padding:10px 12px;border:${rowBorder};border-radius:8px;background:${rowBg};margin-bottom:6px;display:flex;align-items:flex-start;gap:12px">
+        const card = `
+        <div style="padding:8px 12px;border:${rowBorder};border-radius:8px;background:${rowBg};margin-bottom:6px;display:flex;align-items:flex-start;gap:12px">
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
                     <span style="font-weight:700;color:#0f172a;font-size:13.5px">${esc(a.bezeichnung || 'Lohnpfändung')}</span>
@@ -10589,9 +10661,21 @@ function renderLohnAssignmentsList(el, list) {
                     : ''}
             </div>
         </div>`;
+        // History = erledigt ODER abgelaufen (Gültig-bis < heute). Einträge
+        // ohne Beleg (Dokument-Pflicht) bleiben immer sichtbar.
+        const abgelaufen = !!a.validTo && a.validTo < today;
+        if ((fertig || abgelaufen) && hasDok) { histCards += card; histCount++; }
+        else cards += card;
     });
 
-    el.innerHTML = toolbar + cards;
+    if (!cards) {
+        cards = `
+        <div style="padding:8px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;color:#94a3b8;font-style:italic;font-size:12.5px;text-align:center">
+            Keine laufende Lohnabtretung — siehe History.
+        </div>`;
+    }
+    el.innerHTML = cards + (histCards ? `<div id="laHistWrap" style="display:none">${histCards}</div>` : '');
+    zulHistFillSlot('laHistPillSlot', histCount, 'laHistWrap', 'laHistPill');
 }
 
 function laToggleMenu(event, id) { rowMenuToggle(event, 'la', id); }
@@ -14595,21 +14679,26 @@ async function loadBvgZusatzTab(employeeId) {
 
 function renderBvgZusatzTab(el, entries) {
     if (!entries || entries.length === 0) {
-        el.innerHTML = `<div style="padding:14px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;color:#64748b;font-size:12.5px;text-align:center">
+        zulHistFillSlot('bvgHistPillSlot', 0, 'bvgHistWrap', 'bvgHistPill');
+        el.innerHTML = `<div style="padding:8px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:6px;color:#64748b;font-size:12.5px;text-align:center">
             Keine Mitgliedschaft erfasst — der MA bekommt aktuell keine BVG-Zusatz-Beiträge berechnet.
         </div>`;
         return;
     }
-    // Neueste zuerst
+    // Neueste zuerst. Walter 29.08.2026 (kompakt): beendete Mitgliedschaften
+    // (Gültig-bis < heute, nicht aktuell) hinter die History-Pille.
+    const heute = new Date().toISOString().slice(0, 10);
     const sorted = [...entries].sort((a, b) => (b.validFrom ?? '').localeCompare(a.validFrom ?? ''));
     let html = '';
+    let histHtml = '';
+    let histCount = 0;
     sorted.forEach(e => {
         const vonStr = e.validFrom ? formatDate(e.validFrom) : '–';
         const bisStr = e.validTo   ? formatDate(e.validTo)   : '<span style="color:#15803d;font-weight:600">offen</span>';
         const isCurrent = !!e.isCurrent;
         const bem = e.bemerkung ? `<div style="font-size:11.5px;color:#64748b;margin-top:3px">${esc(e.bemerkung)}</div>` : '';
-        html += `
-        <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#16a34a' : '#cbd5e1'};margin-bottom:8px">
+        const card = `
+        <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#16a34a' : '#cbd5e1'};margin-bottom:6px">
             <div class="emp-family-card-head">
                 <div>
                     <div class="emp-family-name" style="display:flex;align-items:center;gap:8px">
@@ -14627,8 +14716,15 @@ function renderBvgZusatzTab(el, entries) {
                 </div>
             </div>
         </div>`;
+        const beendet = !isCurrent && !!e.validTo && String(e.validTo).slice(0, 10) < heute;
+        if (beendet) { histHtml += card; histCount++; }
+        else html += card;
     });
-    el.innerHTML = html;
+    if (!html) {
+        html = '<div style="padding:6px 4px;color:#94a3b8;font-style:italic;font-size:12.5px">Keine laufende Mitgliedschaft — siehe History.</div>';
+    }
+    el.innerHTML = html + (histHtml ? `<div id="bvgHistWrap" style="display:none">${histHtml}</div>` : '');
+    zulHistFillSlot('bvgHistPillSlot', histCount, 'bvgHistWrap', 'bvgHistPill');
 }
 
 function openBvgZusatzModal(entryId) {
