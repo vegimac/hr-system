@@ -2516,6 +2516,11 @@
 
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:12px;flex-wrap:wrap">
                             <span id="qstaSelectedHint" style="font-size:12px;color:#64748b"></span>
+                            <span style="display:inline-flex;align-items:center;gap:8px;margin-left:auto">
+                                <!-- Walter 29.08.2026: AG-Unterschrift wählbar (ich / GF) -->
+                                <label for="qstaSignerSel" style="font-size:12px;color:#64748b;white-space:nowrap">Unterschrift:</label>
+                                <select id="qstaSignerSel" style="min-width:190px;padding:6px 8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white"></select>
+                            </span>
                             <button id="qstaGenerateBtn" class="btn btn-success" onclick="qstaGeneratePdf()" disabled data-i18n="qsta.btn.generate">
                                 PDF generieren
                             </button>
@@ -9778,7 +9783,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/onboarding-report.js?v=20260811a"></script>
 <script src="js/kandidaten.js?v=20260819a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
-<script src="js/hr-qst-anmeldung.js?v=20260718a"></script>
+<script src="js/hr-qst-anmeldung.js?v=20260829a"></script>
 <script src="js/hr-lohnausweis.js?v=20260816e"></script>
 <script src="js/kuendigung.js?v=20260812b"></script>
 <script src="js/aufforderung-arbeit.js?v=20260812b"></script>

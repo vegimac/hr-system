@@ -44,6 +44,28 @@ async function qstaInit() {
         infoEl.innerHTML = html;
     }
 
+    // Unterschrift WÄHLBAR (Walter-Vorgabe 29.08.2026): «Ich oder der
+    // Geschäftsführer» — Liste = aktive User mit hinterlegter Unterschrift
+    // und Zugriff auf die Filiale (Server-Endpoint /signers). Default bleibt
+    // der eingeloggte User (leerer Wert = bisheriges Verhalten).
+    try {
+        const selSig = document.getElementById('qstaSignerSel');
+        if (selSig) {
+            const cidQ = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+                ? `?companyProfileId=${fixedCompanyProfileId}` : '';
+            const r = await fetch('/api/qst-anmeldung/signers' + cidQ, { headers: ah() });
+            const signers = r.ok ? await r.json() : [];
+            const meId = currentUser?.id ?? null;
+            const escT = s => String(s ?? '').replace(/</g, '&lt;');
+            let opts = '<option value="">Ich (eingeloggte/r Benutzer/in)</option>';
+            signers.filter(s => s.id !== meId).forEach(s => {
+                opts += `<option value="${s.id}">${escT(s.name)}</option>`;
+            });
+            selSig.innerHTML = opts;
+            selSig.value = '';
+        }
+    } catch {}
+
     // Mitarbeiter laden — leichter Lookup-Cache (Walter 14.06.2026).
     try { _qstaAllEmployees = await loadEmployeeLookup(); }
     catch { _qstaAllEmployees = []; }
@@ -242,7 +264,9 @@ async function qstaActuallyGenerate(empId) {
     if (btn) btn.disabled = true;
 
     try {
-        const res = await fetch(`/api/qst-anmeldung/${empId}/pdf`, { headers: ah() });
+        // Gewählte Unterschrift mitgeben (leer = eingeloggter User).
+        const signer = document.getElementById('qstaSignerSel')?.value || '';
+        const res = await fetch(`/api/qst-anmeldung/${empId}/pdf${signer ? `?signerUserId=${signer}` : ''}`, { headers: ah() });
         if (!res.ok) {
             alert(_t('qsta.dyn.errGenerate', { status: res.status }));
             return;

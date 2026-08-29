@@ -53,7 +53,13 @@ public class QstAnmeldungController : ControllerBase
         [FromQuery] bool? hasHigherIncomeThanPartner = null,
         [FromQuery] bool? isGrenzgaenger = null,
         [FromQuery] bool? isWochenaufenthalter = null,
-        [FromQuery] bool? hasOtherEmployment = null)
+        [FromQuery] bool? hasOtherEmployment = null,
+        // Walter-Vorgabe 29.08.2026: Unterschrift WÄHLBAR — «Ich oder der
+        // Geschäftsführer». Ohne Parameter = eingeloggter User (bisheriges
+        // Verhalten). Mit Parameter: nur User mit hinterlegter Unterschrift
+        // UND Zugriff auf die Filiale (bzw. admin) — die Auswahl ist eine
+        // BEWUSSTE Entscheidung des Erstellers, kein stiller Default.
+        [FromQuery] int? signerUserId = null)
     {
         var emp = await _db.Employees
             .Include(e => e.PermitType)
@@ -169,24 +175,39 @@ public class QstAnmeldungController : ControllerBase
         };
         var data = MapToDto(emp, employment, company, ehepartner, kinder, hrUser, qst, sslNummer, overrides);
 
-        // Eingeloggter User: Unterschrift + Klarname für die AG-Unterschrift.
-        // Wer das PDF generiert, unterschreibt damit auch — das ist die einzig
-        // saubere Lösung (alles andere wäre Urkundenfälschung). Der getippte
-        // HR-Verantwortliche-Name oben im Formular bleibt unverändert.
+        // AG-Unterschrift: Standard = eingeloggter User (wer das PDF erzeugt,
+        // unterschreibt). Walter-Vorgabe 29.08.2026: bei der QST-Anmeldung
+        // WÄHLBAR («Ich oder der Geschäftsführer») — der gewählte User muss
+        // eine hinterlegte Unterschrift UND Zugriff auf die Filiale haben
+        // (oder admin sein); die bewusste Auswahl ersetzt hier den strikten
+        // Nur-eingeloggter-User-Grundsatz. Der getippte HR-Verantwortliche-
+        // Name oben im Formular bleibt unverändert.
         byte[]? signaturePng = null;
         string? signerName = null;
         var loggedInIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(loggedInIdStr, out var loggedInId))
+        int.TryParse(loggedInIdStr, out var loggedInId);
+        var effectiveSignerId = signerUserId ?? (loggedInId > 0 ? loggedInId : (int?)null);
+        if (effectiveSignerId.HasValue)
         {
-            var loggedInUser = await _db.AppUsers
-                .Where(u => u.Id == loggedInId)
-                .Select(u => new { u.SignaturePng, u.FirstName, u.LastName, u.Username })
+            var signerUser = await _db.AppUsers
+                .Where(u => u.Id == effectiveSignerId.Value && u.IsActive)
+                .Select(u => new { u.Id, u.SignaturePng, u.FirstName, u.LastName, u.Username, u.Role })
                 .FirstOrDefaultAsync();
-            if (loggedInUser != null)
+            if (signerUser != null)
             {
-                signaturePng = loggedInUser.SignaturePng;
-                var fullName = $"{loggedInUser.FirstName} {loggedInUser.LastName}".Trim();
-                signerName   = string.IsNullOrWhiteSpace(fullName) ? loggedInUser.Username : fullName;
+                // Fremd-Unterschrift nur mit Unterschrift + Filial-Bezug.
+                bool fremd = signerUser.Id != loggedInId;
+                bool zulaessig = !fremd
+                    || (signerUser.SignaturePng != null
+                        && (signerUser.Role == "admin"
+                            || await _db.UserBranchAccesses.AnyAsync(uba =>
+                                   uba.UserId == signerUser.Id && uba.CompanyProfileId == company.Id)));
+                if (fremd && !zulaessig)
+                    return BadRequest(new { error = "SIGNER_UNGUELTIG",
+                        message = "Gewählte Unterschrift nicht möglich: der User braucht eine hinterlegte Unterschrift und Zugriff auf diese Filiale." });
+                signaturePng = signerUser.SignaturePng;
+                var fullName = $"{signerUser.FirstName} {signerUser.LastName}".Trim();
+                signerName   = string.IsNullOrWhiteSpace(fullName) ? signerUser.Username : fullName;
             }
         }
 
@@ -204,6 +225,41 @@ public class QstAnmeldungController : ControllerBase
 
         var filename = $"QST-Anmeldung_{emp.LastName}_{emp.FirstName}.pdf";
         return File(bytes, "application/pdf", filename);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Walter-Vorgabe 29.08.2026: wählbare AG-Unterschrift («Ich oder der
+    // Geschäftsführer»). Liefert alle aktiven User MIT hinterlegter
+    // Unterschrift, die admin sind ODER Zugriff auf die Filiale haben —
+    // fürs Dropdown auf der QST-Anmeldungs-Seite (Default bleibt «ich»).
+    // ════════════════════════════════════════════════════════════════════════
+    [HttpGet("signers")]
+    public async Task<IActionResult> GetSigners([FromQuery] int? companyProfileId)
+    {
+        var users = await _db.AppUsers
+            .Where(u => u.IsActive && u.SignaturePng != null)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.Role })
+            .ToListAsync();
+
+        HashSet<int> branchUserIds = new();
+        if (companyProfileId.HasValue)
+        {
+            branchUserIds = (await _db.UserBranchAccesses
+                .Where(uba => uba.CompanyProfileId == companyProfileId.Value)
+                .Select(uba => uba.UserId)
+                .ToListAsync()).ToHashSet();
+        }
+
+        var result = users
+            .Where(u => !companyProfileId.HasValue || u.Role == "admin" || branchUserIds.Contains(u.Id))
+            .Select(u =>
+            {
+                var name = $"{u.FirstName} {u.LastName}".Trim();
+                return new { id = u.Id, name = string.IsNullOrWhiteSpace(name) ? u.Username : name };
+            })
+            .OrderBy(x => x.name)
+            .ToList();
+        return Ok(result);
     }
 
     // ════════════════════════════════════════════════════════════════════════
