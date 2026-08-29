@@ -5727,10 +5727,13 @@
         body.theme-dark #page-mitarbeiter.liquid-employee .dok-list-cols .dok-table thead th {
             background: #1c2634 !important;
         }
-        /* Inhaltsschmal (kein 100%-Stretch) — bei vielen Spalten horizontal scrollen. */
+        /* Walter-Vorgabe 29.08.2026: KEIN seitliches Scrollen mehr — Tabelle
+           passt sich dem Panel an (100 %); der Uploader-Name ist aus der
+           Zeile in den Hover-Tooltip gewandert, lange Beschreibungen
+           ellipsen über .dok-name-line. */
         #page-mitarbeiter.liquid-employee .dok-list .dok-table {
-            width: max-content;
-            max-width: none;
+            width: 100%;
+            max-width: 100%;
             table-layout: auto;
         }
         /* Nicht 52vw — das bezieht sich aufs ganze Fenster und drückt die
