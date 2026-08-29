@@ -10409,27 +10409,28 @@ function openDarlehenModal(existing) {
             <div style="font-size:15px;font-weight:700;color:#1e293b">${isNew ? 'Darlehen / Vorschuss erfassen' : 'Darlehen bearbeiten'}</div>
             <button onclick="document.getElementById('darlehenModal').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
         </div>
-        <div class="emp-field-grid">
-            ${eField('Verwendungszweck *', `<input id="dl-zweck" class="ef-input" value="${(d.zweck||'').replace(/"/g,'&quot;')}" placeholder="z.B. Vorschuss Hochzeit">`)}
-            ${eField('Betrag (CHF) *', `<input id="dl-betrag" class="ef-input" type="number" step="0.05" min="0" value="${d.betrag ?? ''}" oninput="dlRecalc('betrag')">`)}
-            ${eField('Auszahlung am', `<input id="dl-auszahlung" class="ef-input" type="date" value="${d.auszahlungDatum ? String(d.auszahlungDatum).slice(0,10) : ''}">`)}
-            ${eField('Auszahlungsart *', `<select id="dl-art" class="ef-input">
-                <option value="BAR"${(d.auszahlungArt ?? 'BAR') === 'BAR' ? ' selected' : ''}>Bar aus dem Tresor (Quittung im Vertrag)</option>
-                <option value="LOHN"${d.auszahlungArt === 'LOHN' ? ' selected' : ''}>Mit dem Lohn (erscheint auf der Lohnabrechnung)</option>
-                <option value="KEINE"${d.auszahlungArt === 'KEINE' ? ' selected' : ''}>Keine Auszahlung (z.B. QST-Nachbelastung)</option>
-            </select>`)}
-            ${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}
-            ${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}
-            ${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
+        <!-- Eigenes 3-Spalten-Raster mit minmax(0,…): das lange Auszahlungsart-
+             Select darf die Spalten NICHT auseinanderdrücken (Walter-Bug
+             29.08.2026: «Betrag» wurde zerquetscht, Felder ragten rechts raus). -->
+        <div class="emp-field-grid" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1.2fr)">
+            <div style="min-width:0">${eField('Verwendungszweck *', `<input id="dl-zweck" class="ef-input" value="${(d.zweck||'').replace(/"/g,'&quot;')}" placeholder="z.B. Vorschuss Hochzeit">`)}</div>
+            <div style="min-width:0">${eField('Betrag (CHF) *', `<input id="dl-betrag" class="ef-input" type="number" step="0.05" min="0" value="${d.betrag ?? ''}" oninput="dlRecalc('betrag')">`)}</div>
+            <div style="min-width:0">${eField('Auszahlung am', `<input id="dl-auszahlung" class="ef-input" type="date" value="${d.auszahlungDatum ? String(d.auszahlungDatum).slice(0,10) : ''}">`)}</div>
+            <div style="min-width:0">${eField('Auszahlungsart *', `<select id="dl-art" class="ef-input">
+                <option value="BAR"${(d.auszahlungArt ?? 'BAR') === 'BAR' ? ' selected' : ''}>Bar aus dem Tresor</option>
+                <option value="LOHN"${d.auszahlungArt === 'LOHN' ? ' selected' : ''}>Mit dem Lohn</option>
+                <option value="KEINE"${d.auszahlungArt === 'KEINE' ? ' selected' : ''}>Keine Auszahlung (QST)</option>
+            </select>`)}</div>
+            <div style="min-width:0">${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}</div>
+            <div style="min-width:0">${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}</div>
+            <div style="min-width:0">${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
                 <input id="dl-startMonat" class="ef-input" type="number" min="1" max="12" step="1"
                        value="${d.startMonat ?? defMonat}" style="width:70px;flex:0 0 70px;text-align:center">
                 <span style="color:#8b8b8b">/</span>
                 <input id="dl-startJahr" class="ef-input" type="number" step="1"
                        value="${d.startJahr ?? defJahr}" style="width:100px;flex:0 0 100px;text-align:center">
-            </div>`)}
-        </div>
-        <div class="emp-field-grid">
-            ${eField('Bemerkung', `<input id="dl-bemerkung" class="ef-input" value="${(d.bemerkung||'').replace(/"/g,'&quot;')}">`)}
+            </div>`)}</div>
+            <div style="min-width:0;grid-column:span 2">${eField('Bemerkung', `<input id="dl-bemerkung" class="ef-input" value="${(d.bemerkung||'').replace(/"/g,'&quot;')}">`)}</div>
         </div>
         <div id="dl-hint" style="font-size:12px;color:#64748b;margin:6px 0"></div>
         <div id="dl-error" style="color:#dc2626;font-size:12px;margin:4px 0"></div>
