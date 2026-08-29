@@ -8447,7 +8447,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-label" data-i18n="fam.field.lastName">Nachname</label>
                     <input class="fmf-input" id="fmLastName" type="text" data-i18n-placeholder="fam.field.lastName" placeholder="Nachname">
                 </div>
-                <div class="fmf-field">
+                <!-- Walter 29.08.2026: beim KIND unnötige Felder (Ledigname,
+                     AHV, Telefon, Bewilligung, Gültig bis, ZEMIS) — werden in
+                     fmQstBlocksVisibility() typ-abhängig ausgeblendet. -->
+                <div class="fmf-field" id="fmMaidenNameField">
                     <label class="fmf-label" data-i18n="fam.field.maidenName">Ledigname</label>
                     <input class="fmf-input" id="fmMaidenName" type="text" data-i18n-placeholder="fam.field.maidenName" placeholder="Ledigname">
                 </div>
@@ -8455,11 +8458,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-label"><span data-i18n="fam.field.dob">Geburtsdatum</span> <span id="fmAgeDisplay" style="font-weight:400;color:#94a3b8;margin-left:6px"></span></label>
                     <input class="fmf-input" id="fmDateOfBirth" type="date" data-yp="birth" oninput="updateFmAgeDisplay();fmAutoQstFromDob()">
                 </div>
-                <div class="fmf-field">
+                <div class="fmf-field" id="fmSsnField">
                     <label class="fmf-label" data-i18n="fam.field.ahv">AHV-Nummer</label>
                     <input class="fmf-input" id="fmSocialSecurity" type="text" placeholder="756.xxxx.xxxx.xx">
                 </div>
-                <div class="fmf-field">
+                <div class="fmf-field" id="fmPhoneField">
                     <label class="fmf-label" data-i18n="fam.field.phone">Telefon</label>
                     <input class="fmf-input" id="fmPhone" type="tel" placeholder="+41 79 333 44 55"
                            oninput="validatePhone(this)" onblur="validatePhoneBlur(this)">
@@ -8488,17 +8491,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </button>
             </div>
             <div class="emp-field-grid-3">
-                <div class="fmf-field" style="grid-column:span 2">
+                <div class="fmf-field" id="fmPermitField" style="grid-column:span 2">
                     <label class="fmf-label" data-i18n="fam.field.permit">Bewilligung</label>
                     <select class="fmf-select" id="fmPermitTypeId">
                         <option value="" data-i18n="fam.field.permitDefault">– keine / CH-Bürger –</option>
                     </select>
                 </div>
-                <div class="fmf-field">
+                <div class="fmf-field" id="fmPermitExpiryField">
                     <label class="fmf-label" data-i18n="fam.field.validTo">Gültig bis</label>
                     <input class="fmf-input" id="fmPermitExpiry" type="date">
                 </div>
-                <div class="fmf-field">
+                <div class="fmf-field" id="fmZemisField">
                     <label class="fmf-label" data-i18n="fam.field.zemis">ZEMIS-Nr.</label>
                     <input class="fmf-input" id="fmZemisNumber" type="text" data-i18n-placeholder="ma.placeholder.zemis" placeholder="z.B. 22952410">
                 </div>
@@ -8842,7 +8845,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260829q"></script>
+<script src="employees.js?v=20260829r"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

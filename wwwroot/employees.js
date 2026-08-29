@@ -5278,6 +5278,18 @@ function fmQstBlocksVisibility(type) {
     // Erstausbildung) gibt es nur bei Kindern — beim Ehepartner & Co. weg.
     const qstSec = document.getElementById('fmQstSection');
     if (qstSec) qstSec.style.display = (type === 'Kind') ? '' : 'none';
+    // Walter-Vorgabe 29.08.2026: beim KIND unnötige Felder ausblenden —
+    // Ledigname, AHV-Nummer, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
+    // (Nationalität + «In der Schweiz lebend» bleiben). Beim Ehepartner
+    // bleiben alle Felder — dessen Bewilligung ist QST-relevant (C-Ausweis
+    // = Befreiung). Verborgene Inputs behalten ihre Werte (kein Datenverlust
+    // beim Bearbeiten von Alt-Erfassungen).
+    const istKind = type === 'Kind';
+    ['fmMaidenNameField', 'fmSsnField', 'fmPhoneField',
+     'fmPermitField', 'fmPermitExpiryField', 'fmZemisField'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = istKind ? 'none' : '';
+    });
     // Auslands-Partner-Hinweis hängt am Typ (nur Ehepartner) — mitschalten.
     if (typeof fmUpdateAuslandHint === 'function') fmUpdateAuslandHint();
 }
@@ -6640,8 +6652,13 @@ function openFamilyModal(member) {
     // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
     //    (gleiche Listen wie beim MA-Edit-Modal). Vorausgewählt wird der
     //    bestehende Wert; bei NEU der Wert vom MA als Default.
+    //    AUSNAHME (Walter 29.08.2026): beim NEUEN Kind KEINE Bewilligungs-
+    //    Vorbelegung — das Feld ist beim Kind ausgeblendet und würde sonst
+    //    unsichtbar mitgespeichert.
+    const _startType = member?.memberType ?? 'Kind';
     const _defaultPermitTypeId = _isNewMember
-        ? (selectedEmployee?.permitTypeId ?? selectedEmployee?.permitType?.id ?? null)
+        ? (_startType === 'Kind' ? null
+            : (selectedEmployee?.permitTypeId ?? selectedEmployee?.permitType?.id ?? null))
         : (member?.permitTypeId ?? null);
     const _defaultNationalityId = _isNewMember
         ? (selectedEmployee?.nationalityId ?? null)
