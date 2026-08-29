@@ -55,7 +55,15 @@ public class PayrollCalculationEngine
 
     public async Task<IActionResult> CalculateAsync(
         int employeeId, int year, int month, int companyProfileId,
-        bool isCorrection = false)
+        bool isCorrection = false,
+        // K2-Nachbesserung (Walter 29.08.2026): bei ABGESCHLOSSENER Periode
+        // liefert CalculateAsync das EINGEFRORENE SlipJson des Snapshots
+        // statt live zu rechnen — sonst zeigte die Bildschirm-Anzeige nach
+        // einer rückwirkenden QST-Version andere Zahlen als DTA/Fibu/PDF
+        // (Walter-Bug 29.08.2026: Juli abgeschlossen zeigte plötzlich H1N +
+        // Korrektur-Zeile). ignoreFrozenSnapshot=true erzwingt die
+        // Live-Rechnung (Wartung: RefreshSnapshotCodes, SnapshotRecompute).
+        bool ignoreFrozenSnapshot = false)
     {
       if (isCorrection)
           return await CalculateCorrectionAsync(employeeId, year, month, companyProfileId);
@@ -133,6 +141,28 @@ public class PayrollCalculationEngine
                      && p.Year == year && p.Month == month)
             .FirstOrDefaultAsync();
 
+        // ── Eingefrorene Periode = eingefrorene Anzeige (Walter 29.08.2026) ──
+        // Ist die Periode ABGESCHLOSSEN und existiert ein Snapshot, ist das
+        // SlipJson die einzige Wahrheit (identisch mit DTA/Fibu/PDF). Live
+        // rechnen würde rückwirkende QST-Versionen/Korrektur-Posten fälschlich
+        // in die abgeschlossene Anzeige mischen.
+        if (!ignoreFrozenSnapshot
+            && existingPeriod != null
+            && existingPeriod.Status == "abgeschlossen")
+        {
+            var frozenSlip = await _db.PayrollSnapshots.AsNoTracking()
+                .Where(s => s.PayrollPeriodeId == existingPeriod.Id
+                         && s.EmployeeId == employeeId
+                         && s.Status != "STORNIERT")
+                .Select(s => s.SlipJson)
+                .FirstOrDefaultAsync();
+            if (!string.IsNullOrWhiteSpace(frozenSlip))
+            {
+                using var frozenDoc = System.Text.Json.JsonDocument.Parse(frozenSlip);
+                return new OkObjectResult(frozenDoc.RootElement.Clone());
+            }
+        }
+
         var (periodFrom, periodToFull) = CalcPeriod(year, month);
         int normalPeriodDays = periodToFull.DayNumber - periodFrom.DayNumber + 1;
 
@@ -150,6 +180,11 @@ public class PayrollCalculationEngine
         {
             var kPosten = await _db.QstKorrekturen
                 .Where(k => k.EmployeeId == employeeId
+                         // NIE im eigenen Ursprungs-Monat verrechnen (Walter-Bug
+                         // 29.08.2026: wird die Ursprungs-Periode wieder geöffnet
+                         // und neu gerechnet, enthält sie die neue QST bereits
+                         // direkt — der Posten dorthin wäre eine Doppelung).
+                         && !(k.Jahr == year && k.Monat == month)
                          && (k.Status == "OFFEN"
                              || (k.Status == "VERRECHNET"
                                  && existingPeriod != null

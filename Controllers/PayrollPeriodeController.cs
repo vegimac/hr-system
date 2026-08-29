@@ -603,6 +603,18 @@ public class PayrollPeriodeController : ControllerBase
             snap.UpdatedAt = DateTime.Now; // Lokalzeit (Walter 04.08.2026)
         }
 
+        // K2 (Walter 29.08.2026): OFFENE Korrektur-Posten, deren URSPRUNG in
+        // dieser Periode liegt, sind mit der Wiedereröffnung obsolet — die
+        // Neuberechnung der Periode enthält die rückwirkende QST-Version nun
+        // DIREKT. Blieben sie stehen, würde die Differenz später doppelt
+        // verrechnet. (Bereits andernorts VERRECHNETE Posten bleiben.)
+        var obsoletePosten = await _db.QstKorrekturen
+            .Where(k => k.Status == "OFFEN"
+                     && k.CompanyProfileId == periode.CompanyProfileId
+                     && k.Jahr == periode.Year && k.Monat == periode.Month)
+            .ToListAsync();
+        if (obsoletePosten.Count > 0) _db.QstKorrekturen.RemoveRange(obsoletePosten);
+
         await AddAuditAsync(periode.Id, GetUserId(), "WIEDER_GEOEFFNET", dto.Bemerkung);
         await _db.SaveChangesAsync();
 

@@ -279,7 +279,8 @@ public class PayrollController : HrControllerBase
         int updated = 0;
         foreach (var s in snaps)
         {
-            var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId);
+            var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId,
+                isCorrection: false, ignoreFrozenSnapshot: true);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
             JsonNode? fresh;

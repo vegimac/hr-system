@@ -83,7 +83,8 @@ public class SnapshotRecomputeService
             }
             catch { /* Alt-Snapshot ohne Feld / defektes JSON → keine Kürzung */ }
 
-            var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId);
+            var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId,
+                isCorrection: false, ignoreFrozenSnapshot: true);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
             var json = JsonSerializer.Serialize(ok.Value, Camel);

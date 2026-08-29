@@ -4,7 +4,15 @@ Quellensteuer ist die Steuer, die du dem MA **direkt vom Lohn** abziehen und an 
 
 ## Muss ich QST abziehen?
 
-Das System prüft das **automatisch** für dich. Konkret: **Ein MA ist QST-pflichtig, AUSSER** eine dieser fünf Bedingungen ist erfüllt:
+Das System prüft das **automatisch** für dich — in zwei Schritten.
+
+**Schritt 1 — Wohnsitz:** Massgebend ist die Hauptwohnsitzadresse (aus
+easy@work). Wohnt der MA im **Ausland**, ist auf den Schweizer Lohn
+grundsätzlich IMMER QST geschuldet — auch ein Schweizer Pass oder
+C-Ausweis befreit bei Auslandswohnsitz **nicht** automatisch (Grenzgänger
+siehe unten).
+
+**Schritt 2 — bei Wohnsitz Schweiz:** **Ein MA ist QST-pflichtig, AUSSER** eine dieser fünf Bedingungen ist erfüllt:
 
 1. 🇨🇭 **Schweizer Bürger** (Nationalität CH)
 2. **C-Ausweis** (Niederlassungsbewilligung) — gültig am Stichtag
@@ -19,6 +27,10 @@ C-Ausweis befreit den MA **nicht** — die Befreiung über den Partner gilt nur
 bei **Ehe oder eingetragener Partnerschaft**. Darum im Familie-Tab immer den
 richtigen Typ wählen: «Ehepartner» vs. «Konkubinatspartner/in».
 
+⚠️ **Der Ehepartner muss selbst in der Schweiz wohnen:** Wohnt er eindeutig
+im Ausland, gilt die Befreiung 4/5 **nicht** — der MA bleibt pflichtig.
+Ist die Wohnsituation des Partners unklar → mit der Steuerbehörde klären.
+
 ## Der empfohlene Ablauf (5 Schritte)
 
 1. **Bewerbungsbogen** (McAdmin) vollständig ausfüllen lassen — erste Quelle für alle QST-Angaben.
@@ -27,7 +39,7 @@ richtigen Typ wählen: «Ehepartner» vs. «Konkubinatspartner/in».
 4. **QST-Informationsformular** (McAdmin → «QST-Info Formular») drucken und ZUSAMMEN mit dem MA ausfüllen — deckt alle Fragen des kantonalen Anmeldeformulars ab. Antworten in OneCrew nachtragen.
 5. **QST-Erfassung** anlegen (Vorschlag prüfen/übernehmen) + **QST-Anmeldung** (PDF) an die kantonale Steuerbehörde.
 
-📄 Das ausführliche **QST-Benutzer-Manual** (Word, druckbar) liegt unter `docs/QST-Benutzer-Manual.docx`.
+📄 Das ausführliche **QST-Handbuch für Benutzer** (PDF, druckbar) liegt unter `docs/QST-Handbuch.pdf` — der komplette Fachstand inkl. aller Sonderfälle.
 
 ## Wo erfasse ich das?
 
@@ -59,33 +71,47 @@ Falls der MA ein **offizielles Schreiben der Steuerbehörde** hat („Ich bin vo
 3. Setze **„Gültig ab"** und optional **„Gültig bis"** (leer = unbefristet).
 4. Speichern. Status wechselt auf grün.
 
-## Normaler Tarif erfassen (nicht-Schnell)
+## Neue QST-Version erfassen — der Tarif ist das RESULTAT
 
-Klick auf **„+ Neue QST-Erfassung"** ODER bearbeite den vorgeschlagenen Tarif. Du füllst aus:
+Klick auf **«+ Neue QST-Version»**. Wichtig: **Den Tarif wählst du NICHT
+selbst** — OneCrew leitet ihn aus den Stammdaten her und zeigt ihn gross
+zuunterst als **Resultat** (z.B. `C2N`) mit Begründung. Die Maske ist von
+oben nach unten aufgebaut:
 
-- **Gültig ab** — typischerweise der Eintritts-Tag oder der Tag der Bewilligungs-Änderung.
-- **Steuerkanton** — wo der MA wohnt (Wohnsitz-Kanton, nicht Arbeits-Kanton).
-- **QST-Gemeinde + BFS-Nr.** — kommt aus der Hauptadresse.
-- **Tarif-Code** — siehe unten.
-- **Anzahl Kinder** — abzugsberechtigte Kinder.
-- **Kirchensteuer Ja/Nein** — hängt oft an der **Konfession** des MA: ändert sich die Konfession, passt das System das Kirchensteuer-Flag (Y/N) mit an.
+1. **Gültig ab** — deine einzige Pflichteingabe (typisch Eintritt oder
+   Änderungsdatum). Ein «Gültig bis» gibt es nicht — es wird beim nächsten
+   Versionswechsel automatisch gesetzt.
+2. **Zivilstand, seit, Konfession** — nur Anzeige; Pflege in easy@work
+   bzw. der MA-Maske.
+3. **Wohnsituation** — erscheint nur im Sonderfall (Grenzgänger /
+   Wochenaufenthalter, beides automatisch aus den Adressen).
+4. **Partner** — nur Anzeige aus dem Familie-Tab; einzig die
+   Konkubinat-Frage erscheint bei Ledigen.
+5. **Kinder** — Anzahl aus dem Familie-Tab + kinderbezogene Angaben.
+6. **Behördenbewilligung & Sonderfälle** — nur mit Verfügung (siehe unten).
+7. **Resultat** — der angewendete Tarif, gross und nicht editierbar.
 
-Das System bildet daraus automatisch den **QST-Code**, z.B. `B1N` = Verheiratet, 1 Kind, ohne Kirchensteuer.
+Steuerkanton, Gemeinde und BFS-Nr. setzt der Server automatisch aus der
+Wohnadresse — bei Auslandswohnsitz aus der Arbeits-Filiale.
 
 ## Die Tarif-Codes
 
 | Code | Wer |
 |---|---|
-| **A** | Alleinstehend, ohne Kinder |
+| **A** | Alleinstehend, ohne Kinderziffer (A1–A9 nur mit Behördenverfügung) |
 | **B** | Verheiratet, Alleinverdiener |
 | **C** | Verheiratet, Doppelverdiener |
-| **D** | Nebenerwerb |
-| **H** | Alleinerziehend |
-| **L** | Grenzgänger (alleinstehend) |
-| **M** | Grenzgänger verheiratet |
-| **N** | Grenzgänger Nebenerwerb |
-| **P** | Pauschale |
-| **Q** | Grenzgänger alleinerziehend |
+| **H** | Alleinerziehend (Kind im gleichen Haushalt) |
+| **L** | DE-Grenzgänger, Entsprechung von A |
+| **M** | DE-Grenzgänger, Entsprechung von B |
+| **N** | DE-Grenzgänger, Entsprechung von C (Doppelverdiener — NICHT «Nebenerwerb») |
+| **P** | DE-Grenzgänger, Entsprechung von H (Alleinerziehend) |
+| **Q** | DE-Grenzgänger, Entsprechung von G — kommt im normalen Lohnlauf nicht vor |
+
+Hinweis: Die Tarife **D** (heute: z.B. rückvergütete AHV-Beiträge) und
+**E** (vereinfachtes Abrechnungsverfahren) kommen im normalen
+OneCrew-Lohnlauf nicht vor — E spielt nur indirekt eine Rolle: ist das
+Partner-Einkommen nachweislich NUR über Tarif E abgerechnet, gilt B statt C.
 
 Format: `<Tarif><Anzahl Kinder><Y/N>` — `Y` mit Kirchensteuer, `N` ohne.
 
@@ -94,14 +120,42 @@ Beispiele:
 - `C2N` — Doppelverdiener mit 2 Kindern, ohne Kirchensteuer
 - `H1Y` — Alleinerziehend mit 1 Kind, mit Kirchensteuer
 
+## Kirchensteuer (Y/N)
+
+Y-fähige Konfessionen: **Röm.-katholisch, Christ-katholisch,
+Evang.-reformiert, Israelitische Kultusgemeinschaft**. «Keine» und
+«Andere» (muslimisch, orthodox, freikirchlich …) = immer N.
+Zusätzlich zählt der **Kanton**: In Kantonen ohne Kirchensteuer in der QST
+(z.B. GE, NE, VD, VS, TI) gibt es nie ein Y — massgebend ist immer die
+offizielle kantonale Tariftabelle. Die Konfession pflegst du in der
+MA-Maske; ändert sie sich, zieht das System das Y/N automatisch nach.
+
+## Welche Kinder zählen?
+
+**Minderjährige** — oder **Volljährige in Erstausbildung** (mit
+Ausbildungsnachweis, z.B. laufende Ausbildungszulage), sofern der MA für
+den Unterhalt **zur Hauptsache** aufkommt. Bei minderjährigen Kindern im
+eigenen Haushalt fragt OneCrew nicht extra nach; bei Volljährigen und
+Kindern ausser Haus schon. Unklare Unterhaltssituation bei einem Kind
+ausser Haus → das Kind zählt NICHT in die Ziffer (es wird nicht geraten).
+
+- **Tarif H** braucht BEIDES: Kind im gleichen Haushalt UND Unterhalt zur
+  Hauptsache. Die H-Ziffer zählt die Haushaltskinder.
+- **B/C** zählt dagegen alle berechtigten Kinder (auch ausser Haus).
+- **Kind wird 18:** Die Ziffer bleibt für den Geburtstagsmonat; ab dem
+  Folgemonat nur weiter mit Erstausbildung.
+- **Alimente:** Erhaltene Alimente ändern den Code nicht. Zahlt der MA
+  Alimente für Kinder beim Ex-Partner → A0; der Abzug läuft über die
+  Steuerbehörde (Tarifkorrektur/NOV), nicht über den Tarif.
+
 ## Ehepartner = wichtiger Faktor
 
 Bei verheirateten MA hat der **Ehepartner direkten Einfluss auf den Tarif**:
 
 - **Alleinverdiener** (Partner ohne eigenes Einkommen) → **Tarif B**
-- **Ersatztarif bei unklaren Verhältnissen (Art. 19 QSV — wichtig!):** Weist sich die Person über ihre persönlichen Verhältnisse **nicht zuverlässig aus** (Zivilstand unbestimmt, Konfession nicht belegt, Partnerdaten fehlen), gilt von Amtes wegen der Tarif **mit** Kirchensteuer: **A0Y** für Ledige/Unbestimmte, **C0Y** für Verheiratete. In OneCrew: roter Knopf «Ersatztarif erfassen (A0Y/C0Y)» im QST-Tab; auch der Tarifvorschlag wendet bei fehlender Konfession automatisch Y an (mit Warnung). Sobald die Unterlagen da sind, den richtigen Tarif als neue Version erfassen — die Person kann bei der Steuerverwaltung bis 31. März des Folgejahres eine Neuberechnung verlangen.
+- **Ersatztarif bei unklaren Verhältnissen (Art. 19 QSV — wichtig!):** Weist sich die Person über ihre persönlichen Verhältnisse **nicht zuverlässig aus** (Zivilstand unbestimmt, Konfession nicht belegt, Partnerdaten fehlen), gilt von Amtes wegen der Ersatztarif **A0** (Ledige/Unbestimmte) bzw. **C0** (Verheiratete) — **mit Kirchensteuer (Y), soweit der Kanton in der QST eine erhebt** (in Kantonen ohne Kirchensteuer, z.B. GE/NE/VD/VS/TI, also A0N/C0N). In OneCrew: roter Knopf «Ersatztarif erfassen» im QST-Tab; auch der Tarifvorschlag wendet bei fehlender Konfession das Prinzip automatisch an (mit Warnung). Sobald die Unterlagen da sind, den richtigen Tarif als neue Version erfassen — die Person kann bei der Steuerverwaltung bis 31. März des Folgejahres eine Neuberechnung verlangen.
 - **Doppelverdiener** (beide arbeiten) → **Tarif C** — Achtung: auch Erwerbseinkommen des Partners im **Ausland** zählt!
-- **Ersatzeinkommen des Partners zählt wie Erwerbseinkommen** (bestätigt Steuerverwaltung, 08/2026): Rente, Arbeitslosenentschädigung, **Militärsold** — auch im Ausland. Beispiel Status S: Ehemann leistet in der Ukraine Kriegsdienst mit Sold → Frage «Erwerbstätig/Ersatzeinkommen?» = **Ja** → **Tarif C**, nicht B. Die Tarifbestimmung ist schweizweit gleich (TaxInfo Kanton Bern).
+- **Ersatzeinkünfte des Partners zählen wie Erwerbseinkommen** (bestätigt Steuerverwaltung, 08/2026): z.B. Taggelder, Teilinvaliditätsrenten, Arbeitslosenentschädigung, Erwerbsersatz/EO bei Schweizer Dienst. **Erwerbseinkommen und Ersatzeinkünfte zählen auch, wenn sie im Ausland erzielt bzw. bezogen werden.** Beispiel Status S: Ehemann leistet in der Ukraine Dienst mit Sold → Frage «Erwerbstätig/Ersatzeinkommen?» = **Ja** → **Tarif C**, nicht B.
 
 Erfass den Ehepartner im **Familie-Tab** mit allen Angaben (Nationalität, Bewilligung, Erwerbstätig-Frage + Arbeitgeber). Der **Tarifvorschlag wertet die Erwerbstätig-Frage automatisch aus** (nicht erwerbstätig → B, erwerbstätig → C, offen → C als sicherer Default). Wenn der Partner Schweizer oder C-Ausweis-Inhaber ist, ist der MA übrigens **gar nicht QST-pflichtig** — siehe oben Bedingung 4 oder 5.
 
@@ -119,7 +173,7 @@ OneCrew leitet daraus den Tarif ab und **sperrt die Konkubinat-Häkchen im QST-M
 
 ## Weitere Beschäftigungen des MA
 
-Hat der MA **neben Schaub weitere Arbeitgeber**, in der QST-Erfassung «Weitere Beschäftigungen des MA» ankreuzen und die **volle Adresse** des anderen Arbeitgebers (Name, Strasse, PLZ/Ort/Kanton, Land) plus das **Pensum in %** erfassen — das Einkommen wird nicht mehr erfasst. Diese Angaben fliessen automatisch auf die kantonale **QST-Anmeldung**, und der satzbestimmende Lohn wird hochgerechnet.
+Hat der MA **neben Schaub weitere Arbeitgeber**, in der QST-Erfassung «Weitere Beschäftigungen des MA» ankreuzen und die **volle Adresse** des anderen Arbeitgebers (Name, Strasse, PLZ/Ort/Kanton, Land) plus das **Pensum in %** erfassen — das Einkommen wird nicht mehr erfasst. Diese Angaben fliessen automatisch auf die kantonale **QST-Anmeldung**. Der **Tarifbuchstabe bleibt unverändert** — weitere Beschäftigungen wirken nur auf den **satzbestimmenden Lohn** (gemäss KS 45 über Gesamteinkommen, Gesamtbeschäftigungsgrad bzw. Hochrechnung; wenn nichts davon möglich ist, greift die Medianlohn-Regel der ESTV).
 
 ## Was wird auf dem Lohnzettel angezeigt?
 
@@ -133,11 +187,39 @@ Hat der MA **neben Schaub weitere Arbeitgeber**, in der QST-Erfassung «Weitere 
 
 Wenn der MA z.B. heiratet oder ein Kind kriegt:
 
-1. **Neuer QST-Eintrag** mit „Gültig ab" = Datum der Änderung.
+1. **Neue QST-Version** mit „Gültig ab" = Datum der Änderung (Wirkung ab
+   **Folgemonat** — Verhältnisse am Monatsanfang zählen; einzige Ausnahme:
+   nimmt der Ehepartner eine Erwerbstätigkeit AUF, gilt C bei ihm sofort,
+   beim MA ab Folgemonat).
 2. Der alte Eintrag wird **automatisch beendet** auf den Vortag.
 3. Das System rechnet ab dem neuen Datum mit dem neuen Tarif.
 
 So bleibt die Historie sauber — frühere Lohnzettel werden mit dem damals gültigen Tarif berechnet, nicht mit dem neuen.
+
+## Verspätet gemeldete Änderungen (rückwirkende Korrektur)
+
+Realität: Eine Heirat oder Scheidung wird oft erst Monate später gemeldet.
+So läuft es in OneCrew:
+
+1. Neue Version **rückwirkend** erfassen — bei bereits abgeschlossenen
+   Monaten verlangt das System einen **Korrektur-Grund** (z.B. «Heirat
+   verspätet gemeldet»).
+2. Die **abgeschlossenen Löhne bleiben unverändert**. OneCrew rechnet die
+   Differenz pro Monat aus und erzeugt Korrektur-Posten (im QST-Tab als
+   ↳-Zeilen unter der Version sichtbar).
+3. Die Posten werden **automatisch im nächsten Definitivlauf verrechnet**
+   — als eigene Zeile «Quellensteuer-Korrektur (Nachbelastung/Erstattung
+   …)» auf dem Lohnzettel.
+4. Im Lohnlauf zeigt das ⋯-Menü (ab «provisorisch abgeschlossen») den
+   Ausweis **«🔁 QST-Korrekturen»** mit den Summen pro Kanton für die
+   kantonale Abrechnung.
+5. Betrifft die Korrektur ein **Vorjahr**, läuft sie NICHT über den
+   Lohnlauf, sondern direkt über die Steuerverwaltung (im Ausweis separat
+   gelistet).
+
+Eine in abgeschlossenen Löhnen verwendete QST-Version ist **eingefroren**
+(🔒-Badge) — Änderungen laufen immer über eine neue Version. Und es kann
+nur die **jüngste** abgeschlossene Periode wieder geöffnet werden.
 
 ## Anmeldung beim Kanton
 
@@ -160,16 +242,57 @@ So bleibt die Historie sauber — frühere Lohnzettel werden mit dem damals gül
 Neuer QST-Eintrag mit dem neuen Steuer-Kanton ab Umzugsdatum. Tarif bleibt eventuell gleich, aber der Prozentsatz ändert je nach Kanton.
 
 **Der MA hat keine Adresse in der Schweiz — was tun?**
-Im QST-Tab unter „Zusätzliche Angaben" → **„Wohnsitz Ausland"** ausfüllen + ISO-Land-Code. Das ist relevant für die Anmeldung beim Kanton.
+Nichts erfassen — die Auslandsadresse kommt inkl. Land aus **easy@work**.
+OneCrew erkennt «Wohnsitz Ausland» automatisch, setzt den QST-Kanton auf
+den Kanton der Arbeits-Filiale und füllt die Auslands-Felder der
+QST-Erfassung vor.
 
 **Was bedeutet „Grenzgänger"?**
-Wohnort im Ausland, Arbeitsort in CH, **tägliche Rückkehr** zum Wohnort. Das System hat eine eigene Checkbox dafür unter „Tarif-relevante Stammdaten".
+Wohnort im Ausland, Arbeitsort in CH, tägliche/regelmässige Rückkehr.
+OneCrew erkennt den Auslandswohnsitz **automatisch** aus der easy-Adresse
+(kein manuelles Kreuz). Die Grenzgänger-**Sondertarife** gibt es aber NUR
+mit Nachweis: DE = Gre-1-Bescheinigung (sonst normale Tarife, max. 60
+Nichtrückkehrtage), FR = jährliche Bescheinigung in den 8
+Vereinbarungs-Kantonen (sonst normale Tarife), IT = nur «neue» Grenzgänger
+ab 17.07.2023 in TI/GR/VS, FL = keine CH-QST bei echtem Grenzgänger. Ein
+MA, der unter der Woche in der CH wohnt, ist KEIN Grenzgänger → normale
+Tarife.
+
+**Wochenaufenthalter?**
+Die Wochenaufenthaltsadresse wird beim MA als **Zusatzadresse (Typ
+«Wochenaufenthalt»)** erfasst — das QST-Häkchen setzt sich dann von
+selbst. Beim Schweizer Hauptwohnsitz ändert der Wochenaufenthalt am
+QST-Kanton NICHTS (Sursee LU + Zimmer Zofingen AG → QST LU). Nur wer im
+Ausland wohnt und eine CH-Wochenadresse hat, wird über deren Kanton
+besteuert.
 
 **Trennung vom befreienden Ehepartner (CH/C)?**
 Schon die **tatsächliche Trennung** beendet die Befreiung — nicht erst die Scheidung! Im MA-Stamm «Getrennt seit» erfassen: ab dem **Folgemonat** wird der MA QST-pflichtig und der Tarifvorschlag wechselt auf A bzw. H (mit Kind im Haushalt). Beispiel: Trennung 15.08. → QST ab 01.09. Erhält der MA später selbst den C-Ausweis, endet die Pflicht wieder.
 
 **Halbfamilie?**
 Alleinerziehend mit Kind im gleichen Haushalt → Tarif H. Lebt der MA im Konkubinat, entscheidet das gemeinsame Kind + die Einkommensfrage (siehe Abschnitt «Konkubinat» oben).
+
+## Was OneCrew bewusst NICHT selbst entscheidet
+
+OneCrew automatisiert nur Tarife, die aus den Angaben eindeutig folgen.
+Alles andere wird **rot** angezeigt — mit dem genauen Grund und der
+Aufforderung, die Situation mit der **QST-Behörde** zu klären. Fehlen nur
+Angaben, läuft der Lohn mit dem sicheren Übergangswert weiter (z.B.
+Partner-Erwerb unbekannt → C; Gre-1 fehlt → normale Tarife statt
+Grenzgängertarif; Zivilstand unbelegt → Ersatztarif). Fachlich komplexe
+Fälle entscheidet die Behörde:
+
+- **Alternierende Obhut** (Kind je hälftig bei getrennten Eltern) — nur
+  EIN Elternteil bekommt H; übergangsweise A0.
+- **Gemischtes Konkubinat** (gemeinsame und nicht-gemeinsame Kinder) —
+  übergangsweise A0.
+- **Mehrere parallele Arbeitskantone bei Auslandswohnsitz** — kein Kanton
+  wird geraten, keine definitive QST-Abrechnung bis zur Klärung.
+- **Kinderziffer auf Tarif A (A1–A9)** und **manueller Prozentsatz** —
+  nur mit Verfügung der Steuerbehörde (Dokument Pflicht).
+
+Und generell: OneCrew erfindet **nie eigene Steuersätze** — gerechnet
+wird ausschliesslich mit den offiziellen ESTV-Tariftabellen.
 
 ## Häufige Stolpersteine
 
