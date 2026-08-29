@@ -5756,17 +5756,28 @@
         #page-mitarbeiter.liquid-employee .dok-table tbody td {
             padding: 5px 8px;
         }
-        /* Aktionszelle = Teil der Zeile (kein sticky-Streifen mit eigener Farbe). */
+        /* Aktionszelle STICKY rechts (Walter-Vorgabe 29.08.2026: «die 3 Punkte
+           rechts müssen immer sichtbar sein») — die Tabelle ist bewusst
+           max-content-breit und scrollt horizontal; die ⋮-Spalte klebt am
+           rechten Rand. Deckender Hintergrund nötig, sonst schieben sich die
+           Zeilen sichtbar darunter; weicher Schatten links als Kante. */
         #page-mitarbeiter.liquid-employee .dok-td-actions,
         #page-mitarbeiter.liquid-employee .dok-th-actions {
             padding: 4px 12px 4px 8px !important;
-            position: static;
-            background: transparent !important;
-            box-shadow: none !important;
+            position: sticky;
+            right: 0;
+            z-index: 2;
+            background: #f2efe8 !important;
+            box-shadow: -6px 0 8px -6px rgba(60, 55, 48, 0.20) !important;
             width: 3rem;
             min-width: 3rem;
             text-align: center;
             vertical-align: middle;
+        }
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-td-actions,
+        body.theme-dark #page-mitarbeiter.liquid-employee .dok-th-actions {
+            background: #1c2634 !important;
+            box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.45) !important;
         }
         #page-mitarbeiter.liquid-employee .dok-list-empty {
             color: #8b8b8b !important;
