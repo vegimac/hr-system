@@ -7408,6 +7408,17 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         <!-- Body (kompakt, dichter gepackt, max 2 Spalten) -->
         <div style="padding:14px 20px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 130px);overflow-y:auto">
 
+            <!-- Hauptsitz-Zuordnung GANZ OBEN (Walter 29.08.2026: war in den
+                 Betriebsangaben zu versteckt) — bestimmt die Rechtseinheit
+                 für die Swissdec-/ELM-Meldung dieser Filiale. -->
+            <section style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.16);border-radius:10px;padding:10px 12px">
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center">
+                    <label class="f-label" style="margin:0;white-space:nowrap">🏛 Hauptsitz (Rechtseinheit)</label>
+                    <select id="stmHauptsitz" class="f-input"><option value="">— nicht zugeordnet —</option></select>
+                </div>
+                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Rechtseinheit dieser Filiale — Quelle für UID/Firmenname der Swissdec-Jahresmeldung. Hauptsitze verwalten: System → Filialen &amp; Benutzer → «Hauptsitze».</div>
+            </section>
+
             <!-- Bezeichnung -->
             <section>
                 <div style="font-weight:600;font-size:11px;color:#64748b;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid #f1f5f9">Bezeichnung</div>
