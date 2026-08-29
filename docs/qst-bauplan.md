@@ -46,7 +46,8 @@ CH-Wochenadresse → Wochenaufenthaltskanton) = Soll K4.**
 Der «älteste laufende Vertrag» ist nur ein Tie-Breaker (Mehrkanton offen).
 
 **Weiteres:** Ersatztarif-Grundsatz verankert; Warnungen W1–W9;
-Tarif-Probe-Tool; Ersatzeinkünfte des Partners = erwerbstätig.
+Tarif-Probe-Tool; Ersatzeinkünfte des Partners wirken für B/C wie
+Erwerbstätigkeit.
 
 ## 2 · Etappe K2 — Verrechnung der Korrektur-Posten
 

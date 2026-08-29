@@ -480,7 +480,8 @@ Perimeter — nicht jedes Sonderkapitel als Automatik.
 
 - **Letzte Mini-Korrektur 29.08.2026 → FREEZE:** Militärsold aus den
   Ersatzeinkünfte-Beispielen (CH-Dienst = Erwerbsersatz/EO;
-  Auslandseinkommen bleibt Ersatzeinkommen); Kirchensteuer-Regel mit
+  Erwerbseinkommen und Ersatzeinkünfte des Partners zählen auch im
+  Ausland); Kirchensteuer-Regel mit
   Sperrliste GE/NE/VD/VS/TI + Datei-Prüfung, Ersatztarif dort A0N/C0N;
   Israelitische Kultusgemeinschaft Y-fähig, otherOrNone = N. Umsetzung
   in K4 — danach keine Papierrunde mehr.
