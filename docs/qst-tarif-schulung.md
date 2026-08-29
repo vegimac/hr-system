@@ -98,7 +98,7 @@ gegen easy@work.
 | Nationalität / Bewilligung | MA-Stamm / Bewilligungshistorie (easy@work) | Pflicht ja/nein |
 | Zivilstand (+ seit) | easy@work / MA-Maske | Buchstabe |
 | «Getrennt seit» (tatsächliche Trennung) | MA-Stamm | Pflicht ja/nein (beendet Partner-Befreiung) + Buchstabe, ab Folgemonat |
-| Partner erwerbstätig / **Ersatzeinkünfte** (offizieller Begriff QStV/KS 45 — z.B. Taggelder, Teilinvaliditätsrenten, ALV, Erwerbsersatz/EO bei CH-Dienst; Auslandseinkommen des Partners zählt ebenfalls als Ersatzeinkommen) | Familie-Tab (Ehepartner) | B vs. C. Sonderfall: Partner-Einkommen AUSSCHLIESSLICH im vereinfachten Abrechnungsverfahren (Tarif E) besteuert → **B**, nicht C; unbekannt → konservativ C |
+| Partner erwerbstätig / **Ersatzeinkünfte** (offizieller Begriff QStV/KS 45 — z.B. Taggelder, Teilinvaliditätsrenten, ALV, Erwerbsersatz/EO bei CH-Dienst. Erwerbseinkommen und Ersatzeinkünfte des Partners zählen auch, wenn sie im Ausland erzielt bzw. bezogen werden.) | Familie-Tab (Ehepartner) | B vs. C. Sonderfall: Partner-Einkommen AUSSCHLIESSLICH im vereinfachten Abrechnungsverfahren (Tarif E) besteuert → **B**, nicht C; unbekannt → konservativ C |
 | Kinder: Geburtsdatum, Erstausbildung (mit Ausbildungsnachweis), Ausbildungszulage, Unterhalt zur Hauptsache | Familie-Tab + FamZ-Modul | Ziffer — berechtigt = minderjährig ODER volljährig in beruflicher/schulischer Erstausbildung UND der MA kommt für den Unterhalt zur Hauptsache auf |
 | Kind lebt im Haushalt (explizites Flag) | Familie-Tab | H-Berechtigung + H-Ziffer |
 | Gemeinsames Kind mit Konkubinatspartner | Familie-Tab (Kind) | Konkubinats-Entscheid |
