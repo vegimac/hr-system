@@ -2363,6 +2363,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            // K4.1 (Walter 29.08.2026): eingefrorene Herleitungsbasis (JSON).
+            entity.Property(e => e.HerleitungJson).HasColumnName("herleitung_json").HasColumnType("jsonb");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             entity.Property(e => e.Steuerkanton).HasColumnName("steuerkanton").HasMaxLength(10);

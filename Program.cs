@@ -3839,6 +3839,12 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ix_qst_korrektur_emp ON qst_korrektur (employee_id, jahr, monat);
     ");
 
+    // ── K4.1 Herleitungs-Snapshot (Walter 29.08.2026, Bauplan Punkt 1) ─────
+    // SQL-Kopie: migrations-archive/add_qst_herleitung_json.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS herleitung_json jsonb;
+    ");
+
     // ── K3 MA-Darlehen / Vorschüsse (Walter 29.08.2026) ────────────────────
     // SQL-Kopie: migrations-archive/add_employee_darlehen.sql
     db.Database.ExecuteSqlRaw(@"

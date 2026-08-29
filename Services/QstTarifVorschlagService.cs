@@ -202,6 +202,13 @@ public record QstTarifVorschlagResult(
     // gemeinsame Kinder im Haushalt) — KEIN automatischer Vorschlag, das
     // Frontend zeigt stattdessen «Mit QST-Behörde abklären».
     bool     AbklaerungNoetig = false,
+    // K4.5 (Bauplan Punkt 5, Automatik-Perimeter Schulung Kap. 10): ZWEI
+    // Farben — GRUEN = eindeutige Daten + eindeutige Regel (definitiv),
+    // ROT = Handlung nötig; Luecken nennt die exakten Punkte samt dem für
+    // die Dimension definierten Fallback. Wird im Vorschlags-Endpoint
+    // gesetzt (result with { … }).
+    string   Status = "GRUEN",
+    IReadOnlyList<string>? Luecken = null,
     // Walter 25.08.2026 v2: positiver Erklär-Text für den Konkubinats-
     // Sonderfall («1 Kind · Konkubinat · Partner höheres Einkommen → A0
     // korrekt») — die QST-Zeile zeigt ihn grün an, damit klar ist, WARUM
@@ -373,6 +380,25 @@ public static class QstTarifVorschlagLogic
                 : $"Konfession '{religion}' -> keine Kirchensteuer (N)");
         }
 
+        // K4.4 (Bauplan Punkt 4): Kirchensteuer DATENGETRIEBEN — der Kanton
+        // hat das letzte Wort. Sperrliste GE/NE/VD/VS/TI = in der QST keine
+        // Kirchensteuer; sonst Y nur, wenn die geladene Tarifdatei Y-Tarife
+        // enthält. Gilt AUCH für den Ersatztarif (dann A0N/C0N statt A0Y/C0Y).
+        if (kirchensteuer)
+        {
+            var kantonU = (steuerkanton ?? "").Trim().ToUpperInvariant();
+            bool? dateiHatY = tarifTabelle.Count > 0
+                ? tarifTabelle.Any(t => t.Kirchensteuer)
+                : (bool?)null;
+            if (!KirchensteuerImKantonMoeglich(kantonU, dateiHatY))
+            {
+                kirchensteuer = false;
+                begruendung.Add(KirchensteuerSperrliste.Contains(kantonU)
+                    ? $"Kanton {kantonU} erhebt in der Quellensteuer KEINE Kirchensteuer -> N"
+                    : $"Tarifdatei {kantonU} kennt keine Y-Tarife -> N");
+            }
+        }
+
         // 4) Kinderziffer je Tarif (Walter-Vorgabe 20.08.2026, KS 45):
         //    • H  → NUR Kinder im selben Haushalt (die anderen zählen nicht)
         //    • A  → IMMER 0: A1–9 gibt es nur mit Bewilligung der Steuer-
@@ -505,6 +531,30 @@ public static class QstTarifVorschlagLogic
     /// «christ katholisch», Umlaute) — sonst landet ein korrekter Stammdaten-
     /// Eintrag fälschlich bei A0N.
     /// </summary>
+    /// <summary>
+    /// K4.4 (Bauplan Punkt 4, FREEZE 29.08.2026): Kantone OHNE Kirchensteuer
+    /// in der Quellensteuer — dort ist der Code IMMER …N, unabhängig von der
+    /// Konfession (Ersatztarif entsprechend A0N/C0N).
+    /// </summary>
+    public static readonly HashSet<string> KirchensteuerSperrliste =
+        new(StringComparer.OrdinalIgnoreCase) { "GE", "NE", "VD", "VS", "TI" };
+
+    /// <summary>
+    /// K4.4: Y ist im Kanton nur möglich, wenn er NICHT auf der Sperrliste
+    /// steht UND die geladene ESTV-Tarifdatei Y-Tarife enthält.
+    /// tarifdateiHatY = null (keine Datei geladen) blockt NICHT — die
+    /// Abwesenheit der Datei ist kein Beleg, dass der Kanton kein Y kennt
+    /// (Tarifwerte nie selbst erfinden; die Sperrliste deckt die bekannten
+    /// Nein-Kantone ab).
+    /// </summary>
+    public static bool KirchensteuerImKantonMoeglich(string? kanton, bool? tarifdateiHatY)
+    {
+        var k = (kanton ?? "").Trim().ToUpperInvariant();
+        if (k.Length > 0 && KirchensteuerSperrliste.Contains(k)) return false;
+        if (tarifdateiHatY == false) return false;
+        return true;
+    }
+
     public static bool IstKirchensteuerPflichtig(string? religion)
     {
         if (string.IsNullOrWhiteSpace(religion)) return false;
@@ -516,9 +566,17 @@ public static class QstTarifVorschlagLogic
 
         // Explizit keine Kirchensteuer
         if (compact is "keine" or "kein" or "none" or "konfessionslos"
-            or "andere" or "other" or "juedisch" or "judisch" or "muslimisch"
+            or "andere" or "other" or "otherornone" or "muslimisch"
             or "islamisch")
             return false;
+
+        // K4.4 (Bauplan Punkt 4, FREEZE): Israelitische Kultusgemeinschaft
+        // (ELM-6-Wert «jewishCommunity») ist Y-FÄHIG — ob am Ende Y gilt,
+        // entscheidet der Kanton (Sperrliste + Y-Tarife in der Datei).
+        if (compact is "juedisch" or "judisch" or "jewishcommunity"
+            or "israelitisch" or "israelitischekultusgemeinschaft"
+            or "israelitischekultusgemeinde")
+            return true;
 
         // Die drei kirchensteuerpflichtigen Konfessionen (Code + Freitext)
         if (compact is "evangelischreformiert" or "evangreformiert"

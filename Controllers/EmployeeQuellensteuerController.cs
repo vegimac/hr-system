@@ -26,13 +26,16 @@ public class EmployeeQuellensteuerController : ControllerBase
     private readonly LohnEditLockService _editLock;
     private readonly ILogger<EmployeeQuellensteuerController> _log;
     private readonly QstKorrekturService _korrektur;
+    private readonly QuellensteuerTarifService _tarife;
     public EmployeeQuellensteuerController(AppDbContext db, LohnEditLockService editLock,
-        ILogger<EmployeeQuellensteuerController> log, QstKorrekturService korrektur)
+        ILogger<EmployeeQuellensteuerController> log, QstKorrekturService korrektur,
+        QuellensteuerTarifService tarife)
     {
         _db       = db;
         _editLock = editLock;
         _log      = log;
         _korrektur = korrektur;
+        _tarife   = tarife;
     }
 
     /// <summary>Filiale des MA (jüngster aktiver Vertrag) — null wenn keiner.</summary>
@@ -88,8 +91,11 @@ public class EmployeeQuellensteuerController : ControllerBase
             .Select(m => (DateOnly?)m).LastOrDefault();
 
     private static object MapToDto(EmployeeQuellensteuer q, DateOnly? firstAllowed,
-        List<DateOnly>? abgeschlosseneMonate = null) => new
+        List<DateOnly>? abgeschlosseneMonate = null,
+        List<string>? herleitungDiff = null) => new
     {
+        // K4.1: Feld-Diff zur chronologischen Vorversion (History-Anzeige).
+        herleitungDiff = herleitungDiff ?? new List<string>(),
         q.Id, q.EmployeeId,
         validFrom = q.ValidFrom.ToString("yyyy-MM-dd"),
         validTo   = q.ValidTo?.ToString("yyyy-MM-dd"),
@@ -165,7 +171,17 @@ public class EmployeeQuellensteuerController : ControllerBase
             .ToListAsync();
 
         var verwendet = await GetAbgeschlosseneLohnMonateAsync(employeeId);
-        return Ok(entries.Select(q => MapToDto(q, firstAllowed, verwendet)).ToList());
+
+        // K4.1: Diff jeder Version zur chronologischen Vorversion.
+        var chron = entries.OrderBy(q => q.ValidFrom).ThenBy(q => q.Id).ToList();
+        var diffById = new Dictionary<int, List<string>>();
+        for (int i = 0; i < chron.Count; i++)
+            diffById[chron[i].Id] = i == 0
+                ? new List<string>()
+                : HerleitungDiff(chron[i - 1].HerleitungJson, chron[i].HerleitungJson);
+
+        return Ok(entries.Select(q =>
+            MapToDto(q, firstAllowed, verwendet, diffById.GetValueOrDefault(q.Id))).ToList());
     }
 
     // GET /api/employees/{employeeId}/quellensteuer/current?date=2026-04-01
@@ -206,6 +222,22 @@ public class EmployeeQuellensteuerController : ControllerBase
             var stichtag = date ?? DateOnly.FromDateTime(DateTime.Today);
             var result   = await service.BerechneAsync(employeeId, stichtag);
             if (result == null) return NotFound(new { error = "MA_NICHT_GEFUNDEN" });
+
+            // K4.5 Grün/Rot-Status (Automatik-Perimeter, Schulung Kap. 10):
+            // GRUEN = eindeutige Daten + eindeutige Regel. ROT = Handlung
+            // nötig — jede Lücke nennt den für ihre Dimension definierten
+            // Fallback (steckt bereits in den Warnings der Herleitung).
+            // Kein Orange, kein pauschales ROT→A0.
+            var luecken = new List<string>(result.Warnings);
+            if (result.AbklaerungNoetig)
+                luecken.Add("Gemischter Konkubinatsfall — Tarif mit der QST-Behörde abklären (kein automatischer Vorschlag).");
+            if (string.IsNullOrWhiteSpace(result.Steuerkanton))
+                luecken.Add("QST-Kanton unklar — Lohn kann vorbereitet werden, aber KEINE definitive QST-Abrechnung, bis der Kanton geklärt ist.");
+            result = result with
+            {
+                Status  = luecken.Count == 0 ? "GRUEN" : "ROT",
+                Luecken = luecken
+            };
             return Ok(result);
         }
         catch (Exception ex)
@@ -310,18 +342,10 @@ public class EmployeeQuellensteuerController : ControllerBase
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         bool istRueckwirkend = firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value;
-        if (istRueckwirkend && string.IsNullOrWhiteSpace(korrekturGrund))
-        {
-            return Conflict(new
-            {
-                error            = "KORREKTUR_GRUND_NOETIG",
-                message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer definitiv abgeschlossenen Lohnperiode. " +
-                                   "Rückwirkende Erfassung ist möglich — bitte den Korrektur-Grund angeben " +
-                                   "(z.B. «Heirat verspätet gemeldet»). Die abgeschlossenen Löhne bleiben unverändert; " +
-                                   "die Differenz wird als QST-Korrektur im nächsten Lohnlauf verrechnet.",
-                firstAllowedDate = firstAllowed!.Value.ToString("yyyy-MM-dd")
-            });
-        }
+        // K4.2 Auto-Anlass (Bauplan Punkt 2): der 409-Grund-Zwang wird erst
+        // NACH dem Herleitungs-Snapshot geprüft — erkennt der Server eine
+        // Differenz zur Vorversion, schreibt er den Grund selbst (weiter
+        // unten). Nur ohne erkennbare Änderung wird nachgefragt.
 
         // GLEICHES Gültig-ab wie bestehende(r) Eintrag/Einträge → ÜBERSCHREIBEN
         // statt Dublette (Walter-Vorgabe 19.08.2026, Fall Gazale: 2× «1.9. bis …»):
@@ -376,6 +400,38 @@ public class EmployeeQuellensteuerController : ControllerBase
         // QUELLE — der Client-Wert wird überschrieben. Ohne solche Adresse
         // bleibt der Client-Wert (Alt-Fälle).
         await ApplyWochenaufenthaltAsync(dto, employeeId);
+
+        // K4.1: komplette Herleitungsbasis server-seitig einfrieren.
+        dto.HerleitungJson = await BuildHerleitungSnapshotAsync(dto, employeeId);
+
+        // K4.2 Auto-Anlass: rückwirkend + kein Grund → Diff zur Vorversion.
+        // Erkennt der Server WAS sich geändert hat, schreibt er den Grund
+        // selbst; sonst bleibt der 409 (Frontend fragt nach).
+        if (istRueckwirkend && string.IsNullOrWhiteSpace(korrekturGrund))
+        {
+            var vorversion = await _db.EmployeeQuellensteuer.AsNoTracking()
+                .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= dto.ValidFrom)
+                .OrderByDescending(q => q.ValidFrom).ThenByDescending(q => q.Id)
+                .FirstOrDefaultAsync();
+            var autoDiff = HerleitungDiff(vorversion?.HerleitungJson, dto.HerleitungJson);
+            if (autoDiff.Count > 0)
+            {
+                korrekturGrund = "Automatisch erkannt: " + string.Join(" · ", autoDiff.Take(4))
+                    + (autoDiff.Count > 4 ? $" (+{autoDiff.Count - 4} weitere)" : "");
+            }
+            else
+            {
+                return Conflict(new
+                {
+                    error            = "KORREKTUR_GRUND_NOETIG",
+                    message          = $"'Gültig ab {dto.ValidFrom:dd.MM.yyyy}' liegt in einer definitiv abgeschlossenen Lohnperiode. " +
+                                       "Rückwirkende Erfassung ist möglich — bitte den Korrektur-Grund angeben " +
+                                       "(z.B. «Heirat verspätet gemeldet»). Die abgeschlossenen Löhne bleiben unverändert; " +
+                                       "die Differenz wird als QST-Korrektur im nächsten Lohnlauf verrechnet.",
+                    firstAllowedDate = firstAllowed!.Value.ToString("yyyy-MM-dd")
+                });
+            }
+        }
 
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
@@ -501,6 +557,10 @@ public class EmployeeQuellensteuerController : ControllerBase
         // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.
         await ApplyKonkubinatAsync(entry, employeeId);
         await ApplyWochenaufenthaltAsync(entry, employeeId);
+
+        // K4.1: Herleitungsbasis neu einfrieren (auch bei Korrektur der
+        // offenen Version bleibt der Snapshot aktuell).
+        entry.HerleitungJson = await BuildHerleitungSnapshotAsync(entry, employeeId);
 
         entry.UpdatedAt                  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
 
@@ -628,6 +688,34 @@ public class EmployeeQuellensteuerController : ControllerBase
                     new[] { e.Street, $"{e.ZipCode} {e.City}".Trim(), land }
                         .Where(s => !string.IsNullOrWhiteSpace(s)));
 
+            // ── Kanton-Fall C (K4.6, Schulung Kanton-Fälle): Auslands-
+            // Hauptwohnsitz + SCHWEIZER Wochenaufenthalts-Zusatzadresse →
+            // QST-Kanton = WOCHENAUFENTHALTSKANTON (Priorität VOR dem
+            // Filialkanton = Fall B). Quelle ist ausschliesslich die
+            // Zusatzadresse Typ «Wochenaufenthalt» (kein manuelles Kreuz).
+            var waAdr = await _db.EmployeeAddresses.AsNoTracking()
+                .Where(a => a.EmployeeId == employeeId && a.AddressType == "Wochenaufenthalt")
+                .Select(a => new { a.ZipCode, a.City })
+                .FirstOrDefaultAsync();
+            var waPlz = (waAdr?.ZipCode ?? "").Trim();
+            if (waPlz.Length == 4 && waPlz.All(char.IsDigit))
+            {
+                var waLocs = await _db.SwissLocations.AsNoTracking()
+                    .Where(l => l.Plz4 == waPlz).ToListAsync();
+                var waMatch = waLocs.FirstOrDefault(l => l.Gemeindename == waAdr!.City)
+                           ?? waLocs.FirstOrDefault(l => l.Ortschaftsname == waAdr!.City)
+                           ?? waLocs.FirstOrDefault();
+                if (waMatch != null)
+                {
+                    entry.Steuerkanton     = (waMatch.Kantonskuerzel ?? "").ToUpperInvariant();
+                    entry.SteuerkantonName = KantonNamen.TryGetValue(entry.Steuerkanton, out var wkn) ? wkn : null;
+                    entry.QstGemeinde      = waMatch.Gemeindename;
+                    entry.QstGemeindeBfsNr = waMatch.BfsNr;
+                    entry.IsWochenaufenthalter = true;
+                    return;
+                }
+            }
+
             var jetzt = DateTime.Now;
             var filiale = await (from em in _db.Employments
                                  join c in _db.CompanyProfiles on em.CompanyProfileId equals c.Id
@@ -704,6 +792,18 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         entry.Kirchensteuer = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion);
 
+        // K4.4 (Bauplan Punkt 4, Walter 29.08.2026): der KANTON hat das
+        // letzte Wort — Sperrliste GE/NE/VD/VS/TI und Kantone, deren
+        // ESTV-Tarifdatei keine Y-Tarife enthält, bekommen IMMER N
+        // (Ersatztarif entsprechend A0N/C0N). ApplyWohnadresseAsync läuft
+        // VOR dieser Methode, entry.Steuerkanton ist also gesetzt.
+        if (entry.Kirchensteuer
+            && !QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich(
+                    entry.Steuerkanton, _tarife.HatYTarife(entry.Steuerkanton ?? "")))
+        {
+            entry.Kirchensteuer = false;
+        }
+
         // Walter-Vorgabe 23.08.2026 (Fall Hristijan: tarif_code=A, aber
         // qst_code=C0N in der DB → Liste/Lohnzettel zeigten C0N, gerechnet
         // wurde mit A!): qst_code ist ein reiner ANZEIGE-Cache und wird
@@ -721,6 +821,126 @@ public class EmployeeQuellensteuerController : ControllerBase
             var code = entry.QstCode?.Trim().ToUpperInvariant();
             if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
                 entry.QstCode = code[..^1] + (entry.Kirchensteuer ? "Y" : "N");
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // K4.1 Herleitungs-Snapshot + History-DIFF (Bauplan 2.3 Punkt 1/2,
+    // Walter 29.08.2026): der Server friert pro Version die KOMPLETTE
+    // Herleitungsbasis als JSON ein (nie vom Client). Der DIFF zur
+    // Vorversion speist die History-Anzeige UND den Auto-Änderungsgrund.
+    // ────────────────────────────────────────────────────────────────────────
+    private async Task<string> BuildHerleitungSnapshotAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        var e = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == employeeId)
+            .Select(x => new { x.MaritalStatus, x.MaritalStatusSince, x.Religion,
+                               x.Country, x.CantonCode, x.NationalityId })
+            .FirstOrDefaultAsync();
+        var familie = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId)
+            .ToListAsync();
+        var natCodes = await _db.Nationalities.AsNoTracking()
+            .ToDictionaryAsync(n => n.Id, n => n.Code);
+        string? NatCode(int? id) => id.HasValue && natCodes.TryGetValue(id.Value, out var c) ? c : null;
+
+        var partner  = familie.FirstOrDefault(f => f.MemberType == "Ehepartner");
+        var kPartner = familie.FirstOrDefault(f => f.MemberType == "Konkubinatspartner");
+        var kinder   = familie.Where(f => f.MemberType == "Kind")
+            .OrderBy(f => f.DateOfBirth).ThenBy(f => f.Id).ToList();
+
+        var snap = new
+        {
+            zivilstand       = e?.MaritalStatus,
+            zivilstandSeit   = e?.MaritalStatusSince?.ToString("yyyy-MM-dd"),
+            konfession       = e?.Religion,
+            nationalitaet    = NatCode(e?.NationalityId),
+            wohnLand         = string.IsNullOrWhiteSpace(e?.Country) ? "CH" : e!.Country,
+            wohnKanton       = e?.CantonCode,
+            steuerkanton     = entry.Steuerkanton,
+            gemeindeBfs      = entry.QstGemeindeBfsNr,
+            wochenaufenthalt = entry.IsWochenaufenthalter,
+            grenzgaenger     = entry.IsGrenzgaenger,
+            partner = partner == null ? null : new
+            {
+                nationalitaet   = NatCode(partner.NationalityId),
+                erwerbstaetig   = partner.Erwerbstaetig,
+                arbeitgeber     = partner.ArbeitgeberName,
+                bewilligungBis  = partner.PermitExpiryDate?.ToString("yyyy-MM-dd"),
+                lebtImHaushalt  = partner.LebtImHaushalt
+            },
+            konkubinat = kPartner == null ? null : new
+            {
+                erwerbstaetig          = kPartner.Erwerbstaetig,
+                maHatHoeheresEinkommen = kPartner.MaHatHoeheresEinkommen
+            },
+            kinder = kinder.Select(k => new
+            {
+                geburtsdatum    = k.DateOfBirth?.ToString("yyyy-MM-dd"),
+                lebtImHaushalt  = k.LebtImHaushalt,
+                inErstausbildung = k.InErstausbildung,
+                gemeinsamesKind = k.GemeinsamesKindMitPartner,
+                qstBerechtigBis = k.QstDeductibleUntil?.ToString("yyyy-MM-dd")
+            }).ToList(),
+            resultat = new
+            {
+                tarifCode        = entry.TarifCode,
+                qstCode          = entry.QstCode,
+                kinderziffer     = entry.AnzahlKinder,
+                kirchensteuer    = entry.Kirchensteuer,
+                kategorie        = entry.Kategorie,
+                prozentsatz      = entry.Prozentsatz,
+                spezielBewilligt = entry.SpezielBewilligt
+            }
+        };
+        return System.Text.Json.JsonSerializer.Serialize(snap);
+    }
+
+    /// <summary>Feld-Diff zweier Herleitungs-Snapshots («pfad: alt → neu»).
+    /// Leere Liste, wenn einer fehlt (Alt-Versionen ohne Snapshot) oder
+    /// nichts abweicht.</summary>
+    private static List<string> HerleitungDiff(string? altJson, string? neuJson)
+    {
+        var diffs = new List<string>();
+        if (string.IsNullOrWhiteSpace(altJson) || string.IsNullOrWhiteSpace(neuJson)) return diffs;
+        try
+        {
+            var alt = new Dictionary<string, string?>();
+            var neu = new Dictionary<string, string?>();
+            using (var da = System.Text.Json.JsonDocument.Parse(altJson)) FlattenJson(da.RootElement, "", alt);
+            using (var dn = System.Text.Json.JsonDocument.Parse(neuJson)) FlattenJson(dn.RootElement, "", neu);
+            foreach (var key in alt.Keys.Union(neu.Keys).OrderBy(k => k, StringComparer.Ordinal))
+            {
+                alt.TryGetValue(key, out var a);
+                neu.TryGetValue(key, out var n);
+                if (a != n) diffs.Add($"{key}: {a ?? "—"} → {n ?? "—"}");
+            }
+        }
+        catch { /* defekter Alt-Snapshot → kein Diff */ }
+        return diffs;
+    }
+
+    private static void FlattenJson(System.Text.Json.JsonElement el, string prefix,
+        Dictionary<string, string?> into)
+    {
+        switch (el.ValueKind)
+        {
+            case System.Text.Json.JsonValueKind.Object:
+                foreach (var p in el.EnumerateObject())
+                    FlattenJson(p.Value, prefix.Length == 0 ? p.Name : $"{prefix}.{p.Name}", into);
+                break;
+            case System.Text.Json.JsonValueKind.Array:
+                int i = 0;
+                foreach (var item in el.EnumerateArray())
+                    FlattenJson(item, $"{prefix}[{i++}]", into);
+                break;
+            case System.Text.Json.JsonValueKind.Null:
+            case System.Text.Json.JsonValueKind.Undefined:
+                into[prefix] = null;
+                break;
+            default:
+                into[prefix] = el.ToString();
+                break;
         }
     }
 

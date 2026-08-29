@@ -184,11 +184,46 @@ public class QstTarifVorschlagLogicTests
     [Fact]
     public void Szenario4c_AndereReligionen_LiefernKeineKirchensteuer()
     {
-        foreach (var rel in new[] { "juedisch", "andere", "keine", "muslimisch", "", null })
+        foreach (var rel in new[] { "andere", "keine", "muslimisch", "", null })
         {
             Assert.False(QstTarifVorschlagLogic.IstKirchensteuerPflichtig(rel));
         }
         Assert.True(QstTarifVorschlagLogic.IstKirchensteuerPflichtig("christ_katholisch"));
+        // K4.4 (FREEZE): Israelitische Kultusgemeinschaft (jewishCommunity)
+        // ist Y-FÄHIG — Kantons-Sperrliste/Datei entscheiden das finale Y/N.
+        Assert.True(QstTarifVorschlagLogic.IstKirchensteuerPflichtig("juedisch"));
+        Assert.True(QstTarifVorschlagLogic.IstKirchensteuerPflichtig("jewishCommunity"));
+    }
+
+    // K4.4 (Bauplan Punkt 4): Sperrliste GE/NE/VD/VS/TI → immer N, auch bei
+    // kirchensteuerpflichtiger Konfession und auch im Ersatztarif-Fall.
+    [Theory]
+    [InlineData("GE")]
+    [InlineData("NE")]
+    [InlineData("VD")]
+    [InlineData("VS")]
+    [InlineData("TI")]
+    public void Szenario4e_SperrlisteKanton_ErgibtImmerN(string kanton)
+    {
+        Assert.False(QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich(kanton, true));
+        var res = QstTarifVorschlagLogic.Berechne(
+            zivilstand:   "ledig",
+            religion:     "roemisch_katholisch",
+            steuerkanton: kanton,
+            kinder:       Array.Empty<QstKindInput>(),
+            stichtag:     Stichtag,
+            tarifTabelle: StandardTabelle(kanton));
+        Assert.False(res.Kirchensteuer);
+        Assert.Equal("A0N", res.QstCode);
+    }
+
+    [Fact]
+    public void Szenario4f_KantonOhneYTarifeInDatei_ErgibtN()
+    {
+        Assert.False(QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich("AG", false));
+        Assert.True(QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich("AG", true));
+        // Keine Datei geladen = kein Urteil → Y bleibt möglich.
+        Assert.True(QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich("AG", null));
     }
 
     // Walter 01.08.2026: Christ-katholisch (auch als Anzeige-Text) → A0Y
@@ -284,8 +319,10 @@ public class QstTarifVorschlagLogicTests
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // Szenario 5d — Tarif-Fallback: Tabelle hat C2Y nicht, aber C2N → die
-    // Logik fällt auf C2N zurück und liefert eine Warnung.
+    // Szenario 5d — seit K4.4 (29.08.2026) ist «Tarifdatei ohne Y-Tarife»
+    // KEIN Fallback mit Warnung mehr, sondern die reguläre datengetriebene
+    // Regel: der Kanton kennt in der Datei kein Y → N mit Begründung
+    // (kein Handlungsbedarf, GRÜN-fähig).
     // ──────────────────────────────────────────────────────────────────
     [Fact]
     public void Szenario5d_KirchensteuerFehltInTabelle_FallbackAufVarianteOhne()
@@ -306,10 +343,12 @@ public class QstTarifVorschlagLogicTests
 
         Assert.Equal("C", res.TarifCode);
         Assert.Equal(2, res.AnzahlKinder);
-        Assert.False(res.Kirchensteuer);              // Fallback auf N
+        Assert.False(res.Kirchensteuer);              // Datei kennt kein Y → N
         Assert.Equal("C2N", res.QstCode);
         Assert.True(res.InTariftabelleGefunden);
-        Assert.Contains(res.Warnings, w => w.Contains("Kirchensteuer", StringComparison.OrdinalIgnoreCase));
+        // Reguläre Regel, keine Warnung — die Begründung nennt den Grund.
+        Assert.DoesNotContain(res.Warnings, w => w.Contains("Kirchensteuer", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Y-Tarife", res.Begruendung, StringComparison.OrdinalIgnoreCase);
     }
 
     // ──────────────────────────────────────────────────────────────────

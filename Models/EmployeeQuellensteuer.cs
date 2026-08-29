@@ -125,6 +125,18 @@ public class EmployeeQuellensteuer
     /// </summary>
     public int? DokumentId { get; set; }
 
+    // ── K4.1 Herleitungs-Snapshot (Bauplan Punkt 1, Walter 29.08.2026) ──────
+    /// <summary>
+    /// Server-seitig eingefrorene Herleitungsbasis dieser Version als JSON:
+    /// Zivilstand + seit, Konfession, Partner (Erwerb/Ersatzeinkünfte,
+    /// Nationalität/Bewilligung), Kinder-Detail (Haushalt/Erstausbildung),
+    /// Wohnsituation (Land/Kanton/Wochenaufenthalt/Grenzgänger), Konkubinat,
+    /// Resultat (Tarif/Code/Kirchensteuer). Quelle für den History-DIFF und
+    /// den Auto-Änderungsgrund (K4.2). Wird bei Create UND Update neu
+    /// eingefroren; NIE vom Client.
+    /// </summary>
+    public string? HerleitungJson { get; set; }
+
     // ── Audit ────────────────────────────────────────────────────────────────
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

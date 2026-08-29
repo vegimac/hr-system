@@ -8362,7 +8362,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260829a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260829h"></script>
+<script src="js/qst-modal.js?v=20260829i"></script>
 <script src="js/users.js?v=20260806a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260823a"></script>
@@ -8842,7 +8842,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260829p"></script>
+<script src="employees.js?v=20260829q"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9533,7 +9533,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap">
                 <div id="qstResultatCode" style="font-size:36px;font-weight:800;font-family:monospace;letter-spacing:2px;color:#1a1a1a">–</div>
                 <div id="qstResultatBeschreibung" style="font-size:13.5px;color:#475569;font-weight:600"></div>
+                <!-- K4.5 (Walter 29.08.2026): ZWEI Farben — Grün definitiv / Rot Handlung nötig -->
+                <span id="qstResultatStatus" style="margin-left:auto;display:none;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 12px;border-radius:999px"></span>
             </div>
+            <div id="qstResultatLuecken" style="display:none;font-size:11.5px;margin-top:6px;line-height:1.45;color:#b91c1c"></div>
             <div id="qstTarifHint" style="font-size:11.5px;margin-top:6px;line-height:1.35"></div>
         </div>
 

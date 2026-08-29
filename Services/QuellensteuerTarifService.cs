@@ -134,6 +134,18 @@ public class QuellensteuerTarifService
             .ToList();
     }
 
+    /// <summary>
+    /// K4.4 (Walter 29.08.2026): enthält die geladene ESTV-Tarifdatei des
+    /// Kantons Y-Tarife (Kirchensteuer)? null = keine Datei geladen (kein
+    /// Urteil möglich — Aufrufer darf daraus NICHT «kein Y» ableiten).
+    /// </summary>
+    public bool? HatYTarife(string kanton, int? jahr = null)
+    {
+        if (string.IsNullOrWhiteSpace(kanton)) return null;
+        var kombis = GetTarifKombinationen(kanton.Trim(), jahr);
+        return kombis.Count == 0 ? (bool?)null : kombis.Any(t => t.Kirchensteuer);
+    }
+
     /// <summary>Gibt Status aller geladenen Tarifdateien zurück.</summary>
     public IReadOnlyList<QstDateiStatus> GetDateienStatus()
     {

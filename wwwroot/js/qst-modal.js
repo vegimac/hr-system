@@ -397,6 +397,37 @@ function qstRenderResultat() {
     let bez = (v && v.tarifCode === tarif && v.tarifBezeichnung) ? v.tarifBezeichnung : (QST_TARIF_BEZ[tarif] || '');
     if (pct) bez = (bez ? bez + ' · ' : '') + 'manueller Prozentsatz';
     if (besEl) besEl.textContent = bez;
+
+    // K4.5 (Walter 29.08.2026, Automatik-Perimeter): ZWEI Farben —
+    // GRUEN = definitiv (eindeutige Daten + eindeutige Regel),
+    // ROT = Handlung nötig; die Lücken (mit Dimension-Fallback) stehen
+    // direkt in der Karte. Kein Orange.
+    const stEl = document.getElementById('qstResultatStatus');
+    const luEl = document.getElementById('qstResultatLuecken');
+    const card = document.getElementById('qstResultatCard');
+    if (stEl && luEl && card) {
+        if (v && v.status) {
+            const rot = v.status === 'ROT';
+            stEl.style.display = 'inline-flex';
+            stEl.textContent = rot ? '● Handlung nötig' : '✓ definitiv';
+            stEl.style.background = rot ? '#fee2e2' : '#dcfce7';
+            stEl.style.color      = rot ? '#b91c1c' : '#166534';
+            card.style.borderColor = rot ? '#fca5a5' : '#86efac';
+            const luecken = Array.isArray(v.luecken) ? v.luecken : [];
+            if (rot && luecken.length) {
+                luEl.style.display = '';
+                luEl.innerHTML = luecken.map(l =>
+                    `<div>● ${String(l).replace(/</g, '&lt;')}</div>`).join('');
+            } else {
+                luEl.style.display = 'none';
+                luEl.innerHTML = '';
+            }
+        } else {
+            stEl.style.display = 'none';
+            luEl.style.display = 'none';
+            card.style.borderColor = '#d8d3c6';
+        }
+    }
 }
 
 // Konkubinat-Checkboxen aus dem Familie-Tab befüllen + sperren (Walter

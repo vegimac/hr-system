@@ -4219,6 +4219,11 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
                         Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
                     </div>${warnZeilenHtml}
+                    ${(e.herleitungDiff && e.herleitungDiff.length) ? `
+                    <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px;line-height:1.5" title="Was sich gegenüber der Vorversion geändert hat (Herleitungs-Snapshot, K4)">
+                        ${e.herleitungDiff.slice(0, 6).map(d => `<div>Δ ${esc(qstDiffLabel(d))}</div>`).join('')}
+                        ${e.herleitungDiff.length > 6 ? `<div>… +${e.herleitungDiff.length - 6} weitere Änderungen</div>` : ''}
+                    </div>` : ''}
                 </div>
                 <!-- Tarifbestätigung als Beleg (Walter 21.08.2026) — auch bei
                      gesperrten Einträgen verknüpfbar (reiner Beleg, kein Lock). -->
@@ -4243,6 +4248,42 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
     });
 
     el.innerHTML = html;
+}
+
+// K4.1 (Walter 29.08.2026): Herleitungs-Diff lesbar machen — die Server-Pfade
+// («partner.erwerbstaetig: False → True») werden in deutsche Labels übersetzt.
+function qstDiffLabel(d) {
+    return String(d)
+        .replace(/^resultat\.qstCode/, 'Code')
+        .replace(/^resultat\.tarifCode/, 'Tarif')
+        .replace(/^resultat\.kinderziffer/, 'Kinderziffer')
+        .replace(/^resultat\.kirchensteuer/, 'Kirchensteuer')
+        .replace(/^resultat\.spezielBewilligt/, 'Behördenbewilligung')
+        .replace(/^resultat\.prozentsatz/, 'Prozentsatz')
+        .replace(/^resultat\.kategorie/, 'Kategorie')
+        .replace(/^zivilstandSeit/, 'Zivilstand seit')
+        .replace(/^zivilstand/, 'Zivilstand')
+        .replace(/^konfession/, 'Konfession')
+        .replace(/^nationalitaet/, 'Nationalität')
+        .replace(/^steuerkanton/, 'Steuerkanton')
+        .replace(/^wohnKanton/, 'Wohnkanton')
+        .replace(/^wohnLand/, 'Wohnland')
+        .replace(/^gemeindeBfs/, 'Gemeinde (BFS)')
+        .replace(/^wochenaufenthalt/, 'Wochenaufenthalt')
+        .replace(/^grenzgaenger/, 'Grenzgänger')
+        .replace(/^partner\./, 'Partner: ')
+        .replace(/^konkubinat\./, 'Konkubinat: ')
+        .replace(/^kinder\[(\d+)\]\./, (m, i) => `Kind ${Number(i) + 1}: `)
+        .replace(/erwerbstaetig/, 'erwerbstätig')
+        .replace(/lebtImHaushalt/, 'im Haushalt')
+        .replace(/inErstausbildung/, 'Erstausbildung')
+        .replace(/gemeinsamesKind/, 'gemeinsames Kind')
+        .replace(/maHatHoeheresEinkommen/, 'MA höheres Einkommen')
+        .replace(/bewilligungBis/, 'Bewilligung bis')
+        .replace(/qstBerechtigBis/, 'QST-berechtigt bis')
+        .replace(/arbeitgeber/, 'Arbeitgeber')
+        .replace(/geburtsdatum/, 'Geburtsdatum')
+        .replace(/\bTrue\b/g, 'Ja').replace(/\bFalse\b/g, 'Nein');
 }
 
 // K1 (Walter 29.08.2026): Korrektur-Posten als Unterzeilen der auslösenden
