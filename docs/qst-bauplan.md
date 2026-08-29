@@ -1,7 +1,8 @@
 # QST-Bauplan — Etappen bis zur automatischen Tarif-Herleitung
 
-Bauplan OneCrew, **Version 2.2 — EINGEFROREN** (Stand 29.08.2026, nach
-4. Fachkorrektur, Automatik-Perimeter und Mini-Korrektur). **Fachliche Vorgabe ist das Dokument
+Bauplan OneCrew, **Version 2.3 — EINGEFROREN** (Stand 29.08.2026, nach
+4. Fachkorrektur, Automatik-Perimeter und letzter Mini-Korrektur).
+**Nächster Schritt: K2 bauen.** **Fachliche Vorgabe ist das Dokument
 «QST-Tarif-Schulung»** (Abschnitte 0–10, inkl. Kapitel 10
 Automatik-Perimeter); dieses Papier beschreibt WAS in welcher REIHENFOLGE
 gebaut wird. Ergänzend: `docs/qst-korrektur-konzept.md` (Etappen K1–K5).
@@ -93,9 +94,12 @@ erhöht. Die B-Fälle brauchen ohnehin keine juristische Klärung.
    zeitliche Geltung (Folgemonatsregel, Partner-Erwerbsaufnahme-Ausnahme,
    Kind-18, Geburt/Einzug).
 4. **Kirchensteuer datengetrieben:** Y NUR, wenn die ESTV-Tarifdatei des
-   QST-Kantons Y-Tarife enthält, sonst N — KEINE Kantonsliste im Code;
-   ELM-6.0-Konfessionswerte (5) als Eingang. Ersatztarif entsprechend
-   A0Y/C0Y ODER A0N/C0N gemäss Datei.
+   QST-Kantons Y-Tarife enthält UND der Kanton nicht auf der Sperrliste
+   **GE/NE/VD/VS/TI** steht (keine Kirchensteuer in der QST), sonst N;
+   Y-fähige Konfessionen inkl. **Israelitische Kultusgemeinschaft**
+   (`jewishCommunity`), `otherOrNone` = N; ELM-6.0-Konfessionswerte (5)
+   als Eingang. Ersatztarif entsprechend A0Y/C0Y ODER A0N/C0N (Sperrliste
+   → immer N). Sperrliste + jüdische Konfession = Umsetzung in K4.
 5. **Status-Modell = Automatik-Perimeter (Schulung Kap. 10):** ZWEI
    Farben. Grün = eindeutige Daten + eindeutige Regel. Rot = Handlung
    nötig, mit exakter Lücken-Nennung und dem definierten Fallback der
@@ -167,6 +171,9 @@ Mit Swissdec-Etappe E6: Korrektur-/Ersatzmeldungen aus den
 
 ## Versionslog
 
+- **Version 2.3 — 29.08.2026 → FREEZE, danach K2-Bau:** Kirchensteuer mit
+  Sperrliste GE/NE/VD/VS/TI + Israelitische Kultusgemeinschaft Y-fähig
+  (Umsetzung in K4); Militärsold aus den Ersatzeinkünfte-Beispielen.
 - **Version 2.2 — 29.08.2026 (EINGEFROREN):** Mini-Korrektur —
   Terminologie «für die konkrete ungeklärte Dimension definierter
   Fallback»; dokumentiertes Tarif E → B = GRÜN (aus ROT-Liste

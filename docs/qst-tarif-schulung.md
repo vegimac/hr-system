@@ -64,7 +64,8 @@ Entscheidbaum in Abschnitt 3.
 (Zivilstand unbestimmt, Angaben fehlen) → Ledige/Unbestimmte = **A0**,
 Verheiratete = **C0** — mit Kirchensteuer (**…Y**) NUR, soweit der
 QST-Kanton sie in der QST erhebt UND die ESTV-Tarifdatei Y-Tarife kennt;
-sonst **A0N/C0N** bzw. gemäss Datei. Gilt bis die Angaben belegt sind.
+sonst **A0N/C0N** — in den Sperrlisten-Kantonen **GE/NE/VD/VS/TI** also
+immer A0N/C0N. Gilt bis die Angaben belegt sind.
 
 ---
 
@@ -97,7 +98,7 @@ gegen easy@work.
 | Nationalität / Bewilligung | MA-Stamm / Bewilligungshistorie (easy@work) | Pflicht ja/nein |
 | Zivilstand (+ seit) | easy@work / MA-Maske | Buchstabe |
 | «Getrennt seit» (tatsächliche Trennung) | MA-Stamm | Pflicht ja/nein (beendet Partner-Befreiung) + Buchstabe, ab Folgemonat |
-| Partner erwerbstätig / **Ersatzeinkünfte** (offizieller Begriff QStV/KS 45 — z.B. Taggelder, Teilinvaliditätsrenten, ALV, Militärsold; auch im Ausland) | Familie-Tab (Ehepartner) | B vs. C. Sonderfall: Partner-Einkommen AUSSCHLIESSLICH im vereinfachten Abrechnungsverfahren (Tarif E) besteuert → **B**, nicht C; unbekannt → konservativ C |
+| Partner erwerbstätig / **Ersatzeinkünfte** (offizieller Begriff QStV/KS 45 — z.B. Taggelder, Teilinvaliditätsrenten, ALV, Erwerbsersatz/EO bei CH-Dienst; Auslandseinkommen des Partners zählt ebenfalls als Ersatzeinkommen) | Familie-Tab (Ehepartner) | B vs. C. Sonderfall: Partner-Einkommen AUSSCHLIESSLICH im vereinfachten Abrechnungsverfahren (Tarif E) besteuert → **B**, nicht C; unbekannt → konservativ C |
 | Kinder: Geburtsdatum, Erstausbildung (mit Ausbildungsnachweis), Ausbildungszulage, Unterhalt zur Hauptsache | Familie-Tab + FamZ-Modul | Ziffer — berechtigt = minderjährig ODER volljährig in beruflicher/schulischer Erstausbildung UND der MA kommt für den Unterhalt zur Hauptsache auf |
 | Kind lebt im Haushalt (explizites Flag) | Familie-Tab | H-Berechtigung + H-Ziffer |
 | Gemeinsames Kind mit Konkubinatspartner | Familie-Tab (Kind) | Konkubinats-Entscheid |
@@ -200,21 +201,22 @@ QST-berechtigte(s) Kind(er) im Haushalt.
 
 ## 6 · Kirchensteuer (Y/N)
 
-Die Konfession ist der EINGANG — ob daraus Y oder N wird, entscheidet die
-**offizielle ESTV-Tarifdatei des QST-Kantons**: **Y NUR, wenn die Datei
-des Kantons Y-Tarife enthält; sonst N.** Keine Kantonsliste im Soll-Code —
-TI/VS sind nur BEISPIELE für Kantone ohne Kirchensteuer in der QST.
+**Regel: Y = Y-fähige Konfession UND Kanton nicht GE/NE/VD/VS/TI
+(Sperrliste — keine Kirchensteuer in der QST) UND die ESTV-Tarifdatei des
+Kantons kennt Y-Tarife. Sonst N.** Der Ersatztarif ist in den fünf
+Sperrlisten-Kantonen entsprechend **A0N/C0N**.
 
-| Konfession | Suffix (in Kantonen MIT Kirchensteuer in der QST) |
+| Konfession | Suffix (ausserhalb der Sperrliste, Datei kennt Y) |
 |---|---|
-| Röm.-katholisch / Christ-katholisch / Evang.-reformiert | **Y** |
+| Röm.-katholisch / Christ-katholisch / Evang.-reformiert / Israelitische Kultusgemeinschaft | **Y** |
 | Keine / Andere (z.B. muslimisch, orthodox, freikirchlich) | **N** |
-| NICHT erfasst | Ersatztarif-Prinzip gemäss Abschnitt 0: **Y NUR, wenn die Tarifdatei des QST-Kantons Y kennt, sonst N** + Warnung «Konfession erfassen» |
+| NICHT erfasst | Ersatztarif-Prinzip gemäss Abschnitt 0: **Y**, ausser Sperrlisten-Kanton bzw. Datei ohne Y → **N** + Warnung «Konfession erfassen» |
 
 **Swissdec ELM 6.0** kennt fünf Konfessionswerte: `romanCatholic`,
 `christianCatholic`, `reformedEvangelical`, `jewishCommunity`,
-`otherOrNone`. Auch hier gilt: Y/N kommt aus der Tarifdatei des Kantons —
-NICHT «jüdisch = immer Y».
+`otherOrNone`. `jewishCommunity` ist Y-fähig (Israelitische
+Kultusgemeinschaft, gleiche Kantons-/Datei-Prüfung); `otherOrNone`
+bleibt N. Umsetzung von Sperrliste + jüdischer Konfession erfolgt in K4.
 
 ---
 
@@ -476,6 +478,12 @@ Perimeter — nicht jedes Sonderkapitel als Automatik.
 
 ## Versionslog
 
+- **Letzte Mini-Korrektur 29.08.2026 → FREEZE:** Militärsold aus den
+  Ersatzeinkünfte-Beispielen (CH-Dienst = Erwerbsersatz/EO;
+  Auslandseinkommen bleibt Ersatzeinkommen); Kirchensteuer-Regel mit
+  Sperrliste GE/NE/VD/VS/TI + Datei-Prüfung, Ersatztarif dort A0N/C0N;
+  Israelitische Kultusgemeinschaft Y-fähig, otherOrNone = N. Umsetzung
+  in K4 — danach keine Papierrunde mehr.
 - **Mini-Korrektur 29.08.2026 (final — Dokument EINGEFROREN):**
   Terminologie «für die konkrete ungeklärte Dimension definierter
   Fallback» statt «höchster logischer Tarif»; dokumentiertes Tarif E → B
