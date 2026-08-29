@@ -1,112 +1,126 @@
 # QST-Bauplan — Etappen bis zur automatischen Tarif-Herleitung
 
-Bauplan OneCrew (Stand 29.08.2026). **Fachliche Vorgabe ist das Dokument
-«QST-Tarif-Schulung»** (Faktoren, Kombinationen, Folgen — inkl. 2. Korrektur);
-dieses Papier beschreibt WAS in welcher REIHENFOLGE gebaut wird.
-Ergänzend: `docs/qst-korrektur-konzept.md` (freigegebenes Korrektur-/
-Masken-Konzept, Etappen K1–K5).
+Bauplan OneCrew, **Version 2** (Stand 29.08.2026 — nach 4. Fachkorrektur
+und Automatik-Perimeter). **Fachliche Vorgabe ist das Dokument
+«QST-Tarif-Schulung»** (Abschnitte 0–10, inkl. Kapitel 10
+Automatik-Perimeter); dieses Papier beschreibt WAS in welcher REIHENFOLGE
+gebaut wird. Ergänzend: `docs/qst-korrektur-konzept.md` (Etappen K1–K5).
 
-**Es wird NICHTS gebaut, bevor die offenen Abklärungen (Abschnitt 6) des
-jeweiligen Bausteins grün sind.**
+**Leitprinzip (verbindlich, Schulung Kap. 10):** OneCrew automatisiert nur
+Tarife, die durch die Eingaben sehr klar bestimmt werden können. In allen
+anderen Fällen gilt der höchste logische Tarif der unklaren Dimension
+(Fallback-Tabelle) mit der Aufforderung «mit der Steuerbehörde abklären».
+Kein universeller Fallback («ROT → A0» ist verboten). Einzige Ausnahme:
+unklarer KANTON → vorläufig weiterrechnen, definitive QST-Abrechnung erst
+nach Klärung. UX: nur ZWEI Farben (Grün = definitiv, Rot = Handlung
+nötig), kein Orange. Kein neues Pflichtfeld für Exoten.
 
 ---
 
 ## 1 · Ist-Zustand (bereits gebaut und live)
 
-**K1 — Korrektur-Fundament (29.08.2026):**
-Tabelle `qst_korrektur` (ein Posten pro MA + abgeschlossenem Monat);
-rückwirkende QST-Version über definitiv abgeschlossene Perioden nur mit
-Pflicht-Grund (409 `KORREKTUR_GRUND_NOETIG`); alt = QST-Zeile aus dem
-eingefrorenen SlipJson, neu = Tarif-Nachrechnung auf derselben Basis;
-Jahresgrenze → Status VORJAHR; Anzeige als ↳-Unterzeilen im QST-Tab.
+**K1 — Korrektur-Fundament:** Tabelle `qst_korrektur` (ein Posten pro MA +
+abgeschlossenem Monat); rückwirkende Version nur mit Pflicht-Grund (409
+`KORREKTUR_GRUND_NOETIG`); alt = QST-Zeile aus dem eingefrorenen SlipJson,
+neu = Nachrechnung auf derselben Basis; Vorjahr → Status VORJAHR;
+↳-Anzeige im QST-Tab.
 
-**Versiegelung & Sperren:**
-Wiedereröffnung NUR der jüngsten Periode (409 `NICHT_JUENGSTE_PERIODE`);
-QST-Versionssperre VERWENDUNGSBASIERT (eingefroren ⇔ in ≥1 definitiv
-abgeschlossenen Lohn verwendet, selbstheilend bei Wiedereröffnung).
+**Versiegelung & Sperren:** Wiedereröffnung NUR der jüngsten Periode;
+QST-Versionssperre verwendungsbasiert (eingefroren ⇔ in ≥1 definitiv
+abgeschlossenen Lohn verwendet), selbstheilend.
 
-**Masken-Vorstufe (Modal, Struktur 1–7):**
-Tarif ist RESULTAT (gross zuunterst, keine Auswahl); Abschnitt 1 read-only
-ausser «Gültig ab»; Wohnsituation nur im Sonderfall (Anzeige); Partner reine
-Anzeige (Konkubinat-Frage nur bei «ledig»); Behördenbewilligung A1–A9 nur
-mit Verfügung (Dokument Pflicht, Server-Guard); Kirchensteuer aus Konfession.
+**Masken-Vorstufe (Modal 1–7):** Tarif = RESULTAT (gross zuunterst, keine
+Auswahl); Abschnitt 1 read-only ausser «Gültig ab»; Wohnsituation nur im
+Sonderfall (Anzeige); Partner reine Anzeige (Konkubinat-Frage nur bei
+«ledig»); Behördenbewilligung A1–A9 nur mit Verfügung (Dokument Pflicht);
+Kirchensteuer aus Konfession (Kantons-/Datei-Abhängigkeit: K4).
 
-**Wohnsituation & Ausland:**
-Wochenaufenthalt = Zusatzadresse (Quelle des Flags, Server-Guard, W8/W9);
-Auslands-Hauptadresse aus easy@work (`country_key`, kein CH-Hardcode mehr);
-Land ≠ CH ⇒ automatisch Grenzgänger-Flag; QST-Kanton bei Ausland aus der
-Filiale — **Achtung: der «älteste laufende Vertrag» ist nur ein
-OneCrew-Tie-Breaker, die Mehrkanton-Priorisierung ist offen (Abschnitt 6).**
+**Wohnsituation & Ausland:** Wochenaufenthalt = Zusatzadresse (Quelle des
+Flags, W8/W9); Auslands-Hauptadresse 1:1 aus easy@work (`country_key`);
+Land ≠ CH ⇒ Grenzgänger-Flag automatisch; **Kanton-Fälle: A und B live,
+Fall C (Ausland + CH-Wochenadresse → Wochenaufenthaltskanton) = Soll K4.**
+Der «älteste laufende Vertrag» ist nur ein Tie-Breaker (Mehrkanton offen).
 
-**Weiteres:** Ersatztarif A0Y/C0Y verankert; Tarif-Warnungen W1–W9;
-Tarif-Probe-Tool (Admin); Partner-Ersatzeinkommen = erwerbstätig.
-
----
+**Weiteres:** Ersatztarif-Grundsatz verankert; Warnungen W1–W9;
+Tarif-Probe-Tool; Ersatzeinkünfte des Partners = erwerbstätig.
 
 ## 2 · Etappe K2 — Verrechnung der Korrektur-Posten
 
-1. **Lohnlauf-Verrechnung:** OFFENE `qst_korrektur`-Posten des MA werden im
-   nächsten Definitivlauf als eigene Lohnzeile verrechnet (Nachbelastung =
-   Abzug, Erstattung = Gutschrift); Posten → Status VERRECHNET +
-   `verrechnet_periode_id`/`verrechnet_at`. Lohnpositions-Code nach
-   ELM-Raster (Korrektur-Zeile, Basen-Flags konsistent — Basen-Kontrolle
-   muss grün bleiben).
-2. **Kantonale QST-Abrechnung:** Ausweis der Korrekturen in der
-   Monats-/Quartalsabrechnung an die Behörde (AG zahlt sofort — Konzept
-   Kap. 3).
-3. **VORJAHR-Posten:** NICHT über den Lohnlauf — Liste/Export für die
-   Meldung an die Steuerverwaltung.
-4. Tests: Transition-Tests analog Workflow-Tests; Kunstdaten-Durchlauf auf
-   test.onecrew.ch (rückwirkende Heirat über 2 abgeschlossene Monate).
+1. OFFENE `qst_korrektur`-Posten im nächsten Definitivlauf als eigene
+   Lohnzeile verrechnen (Nachbelastung = Abzug, Erstattung = Gutschrift);
+   Status VERRECHNET + `verrechnet_periode_id`; ELM-Raster-Code,
+   Basen-Flags konsistent (Basen-Kontrolle grün).
+2. Ausweis der Korrekturen in der kantonalen QST-Abrechnung (AG zahlt
+   der Behörde sofort).
+3. VORJAHR-Posten: Liste/Export für die Steuerverwaltung — NICHT über den
+   Lohnlauf.
+4. Tests + Kunstdaten-Durchlauf auf test.onecrew.ch.
 
 ## 3 · Etappe K3 — MA-Darlehen (generisch, zinslos)
 
-Nach Konzept Kap. 4: eigene Tabellen (Darlehen + Raten), Verwendungszweck
-frei, aus QST-Korrektur vorbefüllt; Ratenplan (Anzahl ODER Betrag, letzte
-Rate = Rest); Darlehensvertrag-PDF mit Art.-323b-Einwilligung (AG links,
-MA rechts); automatische Abzugszeile pro Periode + Restsaldo auf dem
-Lohnbeleg; Fälligkeit bei Austritt; Fibu-Konto «Forderung gegenüber
-Personal». Erstattungen sind NIE ein Darlehen (immer Gutschrift).
+Nach Konzept Kap. 4: Tabellen (Darlehen + Raten), aus QST-Korrektur
+vorbefüllt; Ratenplan (Anzahl ODER Betrag); Vertrag-PDF mit
+Art.-323b-Einwilligung; Abzugszeile pro Periode + Restsaldo auf dem
+Lohnbeleg; Fälligkeit bei Austritt; Fibu «Forderung gegenüber Personal».
+Erstattungen sind NIE ein Darlehen.
 
 ## 4 · Etappe K4 — automatische Tarif-Herleitung + finale Maske
 
-**Gate:** Abschnitt 6 dieses Plans (offene Abklärungen) muss geklärt sein.
+**Gate (klein geworden):** Nur noch Abschnitt 9 A der Schulung —
+Mehrkanton bei Auslandswohnsitz und die H-Ziffer-Frage (Haushalts- vs.
+alle Unterhaltskinder). Die B-Fälle brauchen KEINE juristische Klärung:
+ihr Verhalten ist im Perimeter definiert.
 
 1. **Herleitungs-Snapshot pro Version:** JSON-Spalte an
-   `employee_quellensteuer` — beim Speichern friert der Server die komplette
+   `employee_quellensteuer` — Server friert die komplette
    Herleitungsbasis ein (Zivilstand + seit, Konfession, Partner inkl.
-   Erwerb/Ersatzeinkommen, Kinder-Detail mit Haushalt/Erstausbildung,
-   Wohnsituation, Begründung). History zeigt pro Version das DIFF zur
-   Vorversion («Zivilstand verheiratet → geschieden»).
-2. **Auto-Anlass:** erkennt der Server beim Speichern eine Differenz zur
-   Vorversion, schreibt er den Korrektur-/Änderungs-Grund selbst; manueller
-   Grund nur, wenn nichts Erkennbares geändert hat.
-3. **Herleitung server-only, 1:1 nach Schulungs-Dokument:** Entscheidbaum
-   Abschnitt 3, Halbfamilien-Matrix Abschnitt 4, Konkubinats-Tabelle
-   Abschnitt 5, Kirchensteuer Abschnitt 6, zeitliche Geltung Abschnitt 8
-   (Folgemonatsregel, Partner-Erwerbsaufnahme-Ausnahme, Kind-18 =
-   Folgemonat, Geburt/Einzug = Folgemonat).
-4. **Resultat-Ampel (Konzept Kap. 2):** GRÜN = vollständig hergeleitet;
-   ORANGE = unvollständig → Ersatztarif A0Y/C0Y + «das fehlt»-Liste;
-   ROT = nicht automatisierbar (gemischtes Konkubinat, alternierende Obhut,
-   Mehrkanton-Ausland) → «mit Behörde klären», KEIN stiller Tarif.
-5. **Behördenentscheid-Block:** Bewilligung A1–A9 (gebaut) + manueller
-   Prozentsatz NUR mit Verfügung; Medianlohn-Regel als ESTV-Fallback der
-   Satzbestimmung (kein Behördenentscheid) — Trennung gemäss Schulung
-   Abschnitt 8.
-6. **Grenzgänger-Detailfelder** (je Land, nur wenn relevant): Rückkehr-Frage
-   (Grenzgänger vs. internationaler Wochenaufenthalter); DE: Gre-1/2 mit
-   Dokument + Gültigkeit + Nichtrückkehrtage (>60 → ordentliche Tarife);
-   IT: Wohnsitzgemeinde gegen ESTV-Grenzgemeindeliste, Homeoffice ≤ 25 %;
-   FR: 8er-Kantone-Weiche (SFN), Telearbeit-/Arbeitstage-Felder
-   (Meldepflicht ab 2027); FL: Rückkehr/Nichtrückkehrtage → 0-Regel.
-   Tarife IMMER aus den ESTV-Tarifdateien (L/M/N/P/Q, SFN, R/S/T/U/V);
-   einzige Code-Regel FL = 0. **Q wird NICHT in die Lohnberechnung
-   eingebaut** (G-Zwilling, Versicherer-Ersatzeinkünfte).
-7. **Auto-Folgeversion (K4b, optional nach Grün-Lauf):** Änderung eines
-   tarifrelevanten Parameters an der Quelle (easy/MA-Maske/Familie) →
-   System schlägt die Folge-Version per Folgemonat vor (Verallgemeinerung
-   von Konfessions- und Wohnort-Sync); HR bestätigt nur.
+   Erwerb/Ersatzeinkünfte/Tarif-E-Status, Kinder-Detail mit
+   Haushalt/Erstausbildung/Unterhalt, Wohnsituation, Begründung).
+   History zeigt das DIFF zur Vorversion.
+2. **Auto-Anlass:** erkannte Differenz zur Vorversion → Server schreibt
+   den Änderungs-/Korrektur-Grund selbst; manuell nur ohne erkennbare
+   Änderung.
+3. **Herleitung server-only, 1:1 nach Schulung:** Vorprüfung 0a/0b
+   (Ansässigkeit aus OneCrew-Hauptadresse; Partner-Befreiung nur bei
+   CH-ansässigem Partner, eindeutig Ausland = pflichtig), Entscheidbaum
+   Abschnitt 3 (inkl. Tarif E → B), Halbfamilien-Matrix (KS-45-Vermutung
+   volljährig im Haushalt; UX-Vereinfachung minderjährig; H-Ziffer
+   automatisch nur Haushaltskinder bis Klärung 9 A), Konkubinats-Tabelle,
+   zeitliche Geltung (Folgemonatsregel, Partner-Erwerbsaufnahme-Ausnahme,
+   Kind-18, Geburt/Einzug).
+4. **Kirchensteuer datengetrieben:** Y NUR, wenn die ESTV-Tarifdatei des
+   QST-Kantons Y-Tarife enthält, sonst N — KEINE Kantonsliste im Code;
+   ELM-6.0-Konfessionswerte (5) als Eingang. Ersatztarif entsprechend
+   A0Y/C0Y ODER A0N/C0N gemäss Datei.
+5. **Status-Modell = Automatik-Perimeter (Schulung Kap. 10):** ZWEI
+   Farben. Grün = eindeutige Daten + eindeutige Regel. Rot = Handlung
+   nötig, mit exakter Lücken-Nennung und dem definierten Fallback der
+   Dimension (Partner unbekannt → C · nur Tarif E → B · Gre-1 fehlt →
+   ordentliche Tarife · FR-Nachweis/Regel fehlt → kein SFN, ordentliche
+   Tarife · Konfession fehlt → Y/N nach Abschnitt 0 · Zivilstand
+   unzuverlässig → Ersatztarif). Fachlich komplexe Fälle (Obhut,
+   gemischtes Konkubinat, unklare Ansässigkeit, unklarer Unterhalt):
+   vorläufiger Tarif wo im Papier vorgegeben (zweifelhaftes H → vorläufig
+   A0), sonst «Tarif/Kanton nicht freigegeben» — keine definitive
+   Abrechnung bei unklarem Kanton. VERBOTEN: pauschales ROT → A0.
+6. **Kanton-Fall C bauen:** Ausland + CH-Wochenadresse →
+   Wochenaufenthaltskanton (Priorität vor Filialkanton).
+7. **Grenzgänger-Detailfelder** (nur wenn relevant, keine neuen
+   Pflichtfelder): Rückkehr-Frage; DE Gre-1/2 mit Dokument + Gültigkeit +
+   Nichtrückkehrtage (60-Tage-Grenze, anteilig nach Gre-3); FR jährliche
+   Bescheinigung + Grenzgängereigenschaft (≤45 Tage, ≤40 % Telearbeit) +
+   Jahresmeldung ab Steuerjahr 2026 (erste Meldung Anfang 2027); IT
+   Status neu/ehemalig + ESTV-20-km-Gemeindeliste + ≤45 Tage + Homeoffice
+   ≤25 % (ehemalige → ordentliche Tarife); FL 45 Tage anteilig +
+   AG-Nachweis bis Ende Februar Folgejahr. Tarife IMMER aus den
+   ESTV-Dateien (L/M/N/P/Q, SFN, R/S/T/U); Q und V (G-Zwillinge) NICHT in
+   die Lohnberechnung; FL-0 als DBA-Regel.
+8. **Behördenentscheid-Block:** Bewilligung A1–A9 (gebaut) + manueller
+   Prozentsatz nur mit Verfügung; Medianlohn-Regel = ESTV-Fallback der
+   Satzbestimmung (kein Behördenentscheid).
+9. **K4b (optional, nach Grün-Lauf):** Auto-Folgeversion bei
+   Parameter-Änderung an der Quelle (Verallgemeinerung von Konfessions-
+   und Wohnort-Sync); HR bestätigt nur.
 
 ## 5 · Etappe K5 — elektronische Korrekturmeldung
 
@@ -115,34 +129,39 @@ Mit Swissdec-Etappe E6: Korrektur-/Ersatzmeldungen aus den
 
 ---
 
-## 6 · Offene Abklärungen = Gates vor K4
+## 6 · Gates & offene Punkte (Spiegel von Schulung Abschnitt 9)
 
-1. **Alternierende Obhut:** Beispielfall mit Steuerverwaltung — bis dahin
-   ROT, kein Automatismus.
-2. **Gemischtes Konkubinat:** bleibt dauerhaft «Behörde fragen».
-3. **Mehrkanton bei Auslandswohnsitz:** Priorisierung des
-   anspruchsberechtigten Kantons mit Swissdec/Steuerbehörde klären
-   («ältester Vertrag» ist nur Tie-Breaker).
-4. **Freigabe des Schulungs-Dokuments** durch Walter (+ Cursor-Review) =
-   Startsignal für K4.
+- **A (Blocker vor K4):** Mehrkanton Ausland · H-Ziffer Haushalts- vs.
+  alle Unterhaltskinder (Swissdec/Steuerverwaltung).
+- **B (kein Blocker):** Obhut, gemischtes Konkubinat, unklare
+  Ansässigkeit, unklarer Unterhalt — Verhalten im Perimeter definiert.
+- **C (spezifiziert, Bau in K4):** Fall C Kanton, Gre-Felder,
+  FR-Meldung/Telearbeit, Herleitungs-Snapshot.
+- **Freigabe der Schulung** (Walter + Cursor/ChatGPT-Review +
+  K4-Freigabecheck gegen KS 45 / ELM 6.0) = Startsignal.
 
-## 7 · Leitplanken (gelten für ALLE Etappen)
+## 7 · Leitplanken (alle Etappen)
 
 - Abgeschlossene Löhne bleiben abgeschlossen — Änderungen nur über
   Korrektur-Posten; Wiedereröffnung nur jüngste Periode.
-- Adresse (inkl. Land) kommt IMMER aus easy@work; Wochenaufenthalt über die
-  Zusatzadresse; kein manuelles Grenzgänger-Kreuz.
-- Nie Prozente selbst programmieren — ESTV-Tarifdateien; FL = 0.
-- H nur Haushaltskinder; A1–A9 nur mit Verfügung; Alimente ändern den Code
-  nicht; Konkubinatspartner befreit nie.
-- Formeln bleiben Code (keine Formeln in Daten); Basen bleiben flag-rein
-  (Basen-Kontrolle grün).
+- Adresse (inkl. Land) IMMER aus easy@work; Herleitung rechnet nur mit
+  OneCrew-Stammdaten (K4 schaut nicht in easy@work); Wochenaufenthalt über
+  die Zusatzadresse; kein manuelles Grenzgänger-Kreuz.
+- Tarifwerte nie selbst erfinden, keine Prozente ableiten — ESTV-Dateien
+  + DBA-Sonderregeln sind massgebend.
+- H nur mit Haushalt + Hauptunterhalt; A1–A9 nur mit Verfügung; Alimente
+  ändern den Code nicht automatisch; Konkubinatspartner befreit nie.
+- Formeln bleiben Code; Basen bleiben flag-rein (Basen-Kontrolle grün).
 - Übungs-/Testdaten nur auf test.onecrew.ch; jede Etappe mit
-  Kunstdaten-Durchlauf + Tests abschliessen, bevor die nächste beginnt.
+  Kunstdaten-Durchlauf + Tests abschliessen.
 
 ---
 
 ## Versionslog
 
-- Erstfassung Bauplan 29.08.2026 (nach 2. Korrektur des
-  Schulungs-Dokuments; für Cursor-Review).
+- **Version 2 — 29.08.2026:** an 4. Fachkorrektur + Automatik-Perimeter
+  angepasst (Leitprinzip höchster logischer Tarif, zwei Farben statt
+  Ampel, Gate auf Abschnitt 9 A reduziert, Fallback-Tabelle statt
+  Pauschal-ROT, Kirchensteuer datengetrieben, Tarif E, Gre-3/FL-Detail,
+  Fall C als K4-Punkt 6).
+- Erstfassung 29.08.2026.
