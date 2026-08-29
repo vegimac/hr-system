@@ -153,7 +153,7 @@ Stellen, die NICHT betroffen sind (bewusst):
 
 ### QST-Pflicht-Prüfung (Walter-Vorgabe 26.05.2026)
 
-Bevor eine Quellensteuer-Erfassung verlangt wird, prüft das System, ob der MA überhaupt QST-pflichtig ist. **Ein MA ist QST-pflichtig, AUSSER eine dieser fünf Bedingungen ist erfüllt** (zentrale Logik in `Services/QstPflichtCheckService.CheckAsync`):
+Bevor eine Quellensteuer-Erfassung verlangt wird, prüft das System, ob der MA überhaupt QST-pflichtig ist. **VORPRÜFUNG 0a ZUERST (Walter-Bug 29.08.2026, Fall Eva Fiktiv/Lörrach — Schulung Vorprüfung 0a):** Hauptwohnsitz im AUSLAND (`employee.country ≠ CH`) ⇒ «Person ohne steuerrechtlichen Wohnsitz CH» ⇒ **IMMER QST-pflichtig — auch als CH-Bürger/in oder C-Ausweis-Inhaber/in** (Art. 91 DBG, beschränkte Steuerpflicht; die Befreiungen 1/2/4/5 setzen CH-Ansässigkeit voraus). Einzige Ausnahme bei Auslands-Wohnsitz: die Behörden-Befreiung (Punkt 3). Gleiches gilt in `QstAnmeldungController` (`WohntImAusland`): die QST-Anmeldung ist für Auslands-CH-Bürger ERLAUBT/nötig. **Ein CH-ansässiger MA ist QST-pflichtig, AUSSER eine dieser fünf Bedingungen ist erfüllt** (zentrale Logik in `Services/QstPflichtCheckService.CheckAsync`):
 
 1. **MA ist Schweizer Staatsbürger** (`employee.NationalityRef.Code = "CH"`).
 2. **MA hat einen C-Ausweis** am Stichtag (`EmployeePermitHistory` mit `PermitType.Code = "C"`, `ValidFrom ≤ Stichtag ≤ ValidTo`).

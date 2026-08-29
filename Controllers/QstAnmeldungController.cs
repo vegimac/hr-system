@@ -69,7 +69,9 @@ public class QstAnmeldungController : ControllerBase
         if (emp == null) return NotFound(new { error = "Mitarbeiter nicht gefunden." });
 
         // Schweizer Bürger sind nicht QST-pflichtig — keine Anmeldung möglich.
-        if (IsSwiss(emp))
+        // AUSNAHME (Vorprüfung 0a, Walter 29.08.2026): Wohnsitz im Ausland ⇒
+        // QST-pflichtig auch als CH-Bürger/in ⇒ Anmeldung ERLAUBT.
+        if (IsSwiss(emp) && !WohntImAusland(emp))
             return BadRequest(new { error = "Mitarbeiter ist Schweizer Bürger/in — keine QST-Anmeldung erforderlich." });
 
         // Aktive Employment für die Filiale (oder erste aktive)
@@ -284,7 +286,9 @@ public class QstAnmeldungController : ControllerBase
         // Walter-Vorgabe: Quellensteuer ist immer Pflicht AUSSER für Schweizer
         // Bürger. Erkennung über Nationalität (NationalityRef.Code = "CH"
         // oder Nationality-Text enthält "Schweiz").
-        bool isSwiss = IsSwiss(emp);
+        // Vorprüfung 0a (Walter 29.08.2026): CH-Bürger/in nur befreit, wenn
+        // AUCH in der Schweiz ansässig — Auslands-Wohnsitz ⇒ pflichtig.
+        bool isSwiss = IsSwiss(emp) && !WohntImAusland(emp);
         if (isSwiss)
         {
             return Ok(new {
@@ -417,6 +421,19 @@ public class QstAnmeldungController : ControllerBase
             return true;
         var nat = emp.Nationality?.ToLowerInvariant() ?? "";
         return nat == "ch" || nat.Contains("schweiz") || nat == "swiss" || nat == "schweizer";
+    }
+
+    /// <summary>
+    /// Vorprüfung 0a (Schulung / Walter 29.08.2026): Hauptwohnsitz im Ausland
+    /// ⇒ «Person ohne steuerrechtlichen Wohnsitz CH» ⇒ QST-pflichtig auch als
+    /// CH-Bürger/in — der Schweizer-Block darf dann NICHT greifen.
+    /// </summary>
+    private static bool WohntImAusland(Employee emp)
+    {
+        var land = (emp.Country ?? "").Trim();
+        return land.Length > 0
+            && !land.Equals("CH", StringComparison.OrdinalIgnoreCase)
+            && !land.Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
     }
 
     // ── Mapping Datenbank → DTO ────────────────────────────────────────────

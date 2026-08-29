@@ -96,8 +96,20 @@ public class QstPflichtCheckService
             return new QstPflichtCheckResult(false, false, false, null,
                 "MA ohne Lohn — keine QST-Prüfung erforderlich.");
 
-        // ── 1. CH-Bürger? ──
-        if (string.Equals(emp.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+        // ── 0a. ANSÄSSIGKEIT ZUERST (Schulung Vorprüfung 0a, Walter-Bug
+        // 29.08.2026, Fall Eva Fiktiv/Lörrach): Hauptwohnsitz im AUSLAND ⇒
+        // «Person ohne steuerrechtlichen Wohnsitz CH» ⇒ IMMER QST-pflichtig —
+        // AUCH als CH-Bürger/in oder C-Ausweis-Inhaber/in (KS 45: die
+        // Befreiungen 1/2/4/5 setzen CH-Ansässigkeit voraus; bei beschränkter
+        // Steuerpflicht nach Art. 91 DBG zählt die Nationalität nicht).
+        // Einzige Ausnahme bleibt die Behörden-Befreiung (Verfügung, Punkt 3).
+        var wohnLand = (emp.Country ?? "").Trim();
+        bool istAusland = wohnLand.Length > 0
+            && !wohnLand.Equals("CH", StringComparison.OrdinalIgnoreCase)
+            && !wohnLand.Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+
+        // ── 1. CH-Bürger? (nur bei CH-Ansässigkeit befreiend) ──
+        if (!istAusland && string.Equals(emp.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
         {
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung MA → Beleg-Doku
             // (Pass ODER ID-Karte) statt unscharfem linked_field_code-Scan.
@@ -117,7 +129,8 @@ public class QstPflichtCheckService
         // Niederlassung, sie läuft administrativ nie ab (sie wird nur
         // erneuert oder durch Einbürgerung ersetzt). Das verknüpfte Doku
         // zum C-Eintrag (PermitHistory.DokumentId) zählt jetzt als Beleg.
-        var cEintrag = await _db.EmployeePermitHistories
+        // 0a: bei Auslands-Wohnsitz befreit auch der C-Ausweis NICHT.
+        var cEintrag = istAusland ? null : await _db.EmployeePermitHistories
             .AsNoTracking()
             .Include(h => h.PermitType)
             .Where(h => h.EmployeeId == employeeId
@@ -193,17 +206,18 @@ public class QstPflichtCheckService
                 bool spouseDokFehlt = !spouse.DokumentId.HasValue
                     || !await _db.EmployeeDokumente.AnyAsync(d => d.Id == spouse.DokumentId.Value);
 
-                // 4. Spouse Schweizer?
-                if (string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+                // 4. Spouse Schweizer? (0a: nur befreiend, wenn der MA selbst
+                // CH-ansässig ist — bei Auslands-Wohnsitz bleibt er pflichtig)
+                if (!istAusland && string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-CH",
                         "Verheiratet mit Schweizer/in — nicht QST-pflichtig.",
                         SpouseDokumentFehlt: spouseDokFehlt);
 
-                // 5. Spouse C-Ausweis (mit gültigem Ablauf)?
+                // 5. Spouse C-Ausweis (mit gültigem Ablauf)? (0a: dito)
                 bool spouseHatC = spouse.PermitType?.Code == "C"
                                && (spouse.PermitExpiryDate == null
                                    || spouse.PermitExpiryDate.Value >= stichtag.ToDateTime(TimeOnly.MinValue));
-                if (spouseHatC)
+                if (!istAusland && spouseHatC)
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-C",
                         "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig.",
                         SpouseDokumentFehlt: spouseDokFehlt);
@@ -296,7 +310,10 @@ public class QstPflichtCheckService
                 TarifWarnungen: tarifWarnungen);
 
         return new QstPflichtCheckResult(true, true, false, null,
-            "QST-Pflicht offen — kein Befreiungs-Grund, keine QST-Erfassung. "
+            (istAusland
+                ? "QST-Pflicht offen — Wohnsitz im Ausland (Person ohne steuerrechtlichen Wohnsitz CH): "
+                  + "QST-pflichtig unabhängig von Nationalität/Bewilligung. "
+                : "QST-Pflicht offen — kein Befreiungs-Grund, keine QST-Erfassung. ")
             + "Höchsten Tarif erfassen ODER Befreiungs-Schreiben der Steuerbehörde hinterlegen.",
             PartnerDatenFehlen: partnerFehlen,
             PartnerDatenMaengel: partnerMaengel);
