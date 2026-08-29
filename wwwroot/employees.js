@@ -10343,9 +10343,9 @@ function openDarlehenModal(existing) {
             ${eField('Auszahlung am', `<input id="dl-auszahlung" class="ef-input" type="date" value="${d.auszahlungDatum ? String(d.auszahlungDatum).slice(0,10) : ''}">`)}
             ${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}
             ${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}
-            ${eField('Verrechnung ab', `<div style="display:flex;gap:6px">
-                <select id="dl-startMonat" class="ef-input">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${((d.startMonat ?? defMonat)===i+1)?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('')}</select>
-                <input id="dl-startJahr" class="ef-input" type="number" step="1" value="${d.startJahr ?? defJahr}" style="max-width:100px">
+            ${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
+                <span style="flex:0 0 92px;min-width:92px"><select id="dl-startMonat" class="ef-input">${Array.from({length:12},(_,i)=>`<option value="${i+1}" ${((d.startMonat ?? defMonat)===i+1)?'selected':''}>${String(i+1).padStart(2,'0')}</option>`).join('')}</select></span>
+                <input id="dl-startJahr" class="ef-input" type="number" step="1" value="${d.startJahr ?? defJahr}" style="flex:1 1 96px;min-width:96px;max-width:130px">
             </div>`)}
         </div>
         <div class="emp-field-grid">
