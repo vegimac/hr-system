@@ -4292,7 +4292,8 @@ function qstKorrSubrows(korrekturen, versionId) {
 // Modal vorbefüllt; beim Speichern werden die Posten auf IN_DARLEHEN gesetzt
 // (K2 verrechnet sie dann nicht mehr direkt im Lohnlauf).
 function darlehenAusQst(summe, ids, monate) {
-    openDarlehenModal({ zweck: `QST-Nachzahlung ${monate}`, betrag: summe });
+    // KEINE Auszahlung an den MA — das Geld ging an die Steuerbehörde.
+    openDarlehenModal({ zweck: `QST-Nachzahlung ${monate}`, betrag: summe, auszahlungArt: 'KEINE' });
     window._dlQstIds = ids;   // NACH dem Öffnen setzen (openDarlehenModal resettet)
     const hint = document.getElementById('dl-hint');
     if (hint) hint.textContent = 'Aus QST-Korrektur: beim Speichern werden die Posten auf «in Darlehen» gesetzt und über die Raten statt im nächsten Lohnlauf verrechnet.';
@@ -10350,7 +10351,7 @@ async function loadDarlehenTab(employeeId) {
             return `<div style="background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.14);border-radius:12px;padding:8px 14px;margin-bottom:6px">
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
                     <b style="font-size:13.5px">${(d.zweck || '').replace(/</g,'&lt;')}</b>
-                    <span style="font-size:12.5px;color:#475569">CHF ${chf(d.betrag)} · Rate ${chf(d.rateBetrag)} ab ${String(d.startMonat).padStart(2,'0')}/${d.startJahr} (${d.anzahlRatenGeplant} Raten)</span>
+                    <span style="font-size:12.5px;color:#475569">CHF ${chf(d.betrag)} · Rate ${chf(d.rateBetrag)} ab ${String(d.startMonat).padStart(2,'0')}/${d.startJahr} (${d.anzahlRatenGeplant} Raten) · ${d.auszahlungArt === 'LOHN' ? 'Auszahlung mit Lohn' : d.auszahlungArt === 'KEINE' ? 'keine Auszahlung (QST)' : 'bar ausbezahlt'}</span>
                     ${statusChip}
                     <span style="margin-left:auto;display:flex;gap:6px;position:relative">
                         <button class="dok-menu-btn" onclick="darlehenToggleMenu('${menuId}', event)">⋮</button>
@@ -10412,6 +10413,11 @@ function openDarlehenModal(existing) {
             ${eField('Verwendungszweck *', `<input id="dl-zweck" class="ef-input" value="${(d.zweck||'').replace(/"/g,'&quot;')}" placeholder="z.B. Vorschuss Hochzeit">`)}
             ${eField('Betrag (CHF) *', `<input id="dl-betrag" class="ef-input" type="number" step="0.05" min="0" value="${d.betrag ?? ''}" oninput="dlRecalc('betrag')">`)}
             ${eField('Auszahlung am', `<input id="dl-auszahlung" class="ef-input" type="date" value="${d.auszahlungDatum ? String(d.auszahlungDatum).slice(0,10) : ''}">`)}
+            ${eField('Auszahlungsart *', `<select id="dl-art" class="ef-input">
+                <option value="BAR"${(d.auszahlungArt ?? 'BAR') === 'BAR' ? ' selected' : ''}>Bar aus dem Tresor (Quittung im Vertrag)</option>
+                <option value="LOHN"${d.auszahlungArt === 'LOHN' ? ' selected' : ''}>Mit dem Lohn (erscheint auf der Lohnabrechnung)</option>
+                <option value="KEINE"${d.auszahlungArt === 'KEINE' ? ' selected' : ''}>Keine Auszahlung (z.B. QST-Nachbelastung)</option>
+            </select>`)}
             ${eField('Anzahl Raten', `<input id="dl-anzahl" class="ef-input" type="number" step="1" min="1" value="${d.anzahlRatenGeplant ?? ''}" oninput="dlRecalc('anzahl')">`)}
             ${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}
             ${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
@@ -10469,6 +10475,7 @@ async function saveDarlehen(id) {
         zweck:      document.getElementById('dl-zweck').value.trim(),
         betrag:     parseFloat(document.getElementById('dl-betrag').value) || 0,
         auszahlungDatum: document.getElementById('dl-auszahlung').value || null,
+        auszahlungArt: document.getElementById('dl-art')?.value || 'BAR',
         rateBetrag: parseFloat(document.getElementById('dl-rate').value) || null,
         anzahlRaten: parseInt(document.getElementById('dl-anzahl').value) || null,
         startJahr:  parseInt(document.getElementById('dl-startJahr').value) || 0,
@@ -10480,6 +10487,9 @@ async function saveDarlehen(id) {
     if (!payload.zweck)      { errEl.textContent = 'Verwendungszweck ist Pflicht.'; return; }
     if (payload.betrag <= 0) { errEl.textContent = 'Betrag muss grösser 0 sein.'; return; }
     if (!payload.rateBetrag && !payload.anzahlRaten) { errEl.textContent = 'Monatsrate oder Anzahl Raten angeben.'; return; }
+    if (payload.auszahlungArt === 'LOHN' && !payload.auszahlungDatum) {
+        errEl.textContent = 'Bei Auszahlung mit dem Lohn bitte «Auszahlung am» angeben — das Datum bestimmt die Lohnperiode.'; return;
+    }
     try {
         const url = id ? `/api/employees/${selectedEmployeeId}/darlehen/${id}` : `/api/employees/${selectedEmployeeId}/darlehen`;
         const res = await fetch(url, { method: id ? 'PUT' : 'POST',

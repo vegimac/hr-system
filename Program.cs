@@ -3868,6 +3868,7 @@ using (var scope = app.Services.CreateScope())
             created_at   timestamp without time zone NOT NULL DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS ix_darlehen_rate_period ON employee_darlehen_rate (employee_id, period_year, period_month);
+        ALTER TABLE employee_darlehen ADD COLUMN IF NOT EXISTS auszahlung_art varchar(10) NOT NULL DEFAULT 'BAR';
     ");
 
     // Fibu-Mapping für die Darlehens-Rate (Position 1090): Soll 2050

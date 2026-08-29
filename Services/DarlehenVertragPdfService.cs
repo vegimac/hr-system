@@ -24,6 +24,7 @@ public class DarlehenVertragPdfService
         string? MaName, string? MaStrasse, string? MaPlzOrt, string? MaGeburtsdatum,
         string Zweck, decimal Betrag, decimal RateBetrag,
         int StartJahr, int StartMonat, DateOnly? AuszahlungDatum,
+        string? AuszahlungArt,
         string? AgVertreterName);
 
     public byte[] Generate(DarlehenVertragData d)
@@ -78,7 +79,7 @@ public class DarlehenVertragPdfService
                         });
                     });
 
-                    col.Item().PaddingTop(12).Text("1. Darlehen und Zweck").Bold();
+                    col.Item().PaddingTop(18).Text("1. Darlehen und Zweck").Bold();
                     col.Item().Text(t =>
                     {
                         t.Justify();
@@ -87,11 +88,20 @@ public class DarlehenVertragPdfService
                         t.Span($" Darlehen von ");
                         t.Span($"CHF {Chf(d.Betrag)}").Bold();
                         t.Span($" zum Zweck «{d.Zweck}».");
-                        if (d.AuszahlungDatum.HasValue)
-                            t.Span($" Auszahlung/Gewährung per {d.AuszahlungDatum:dd.MM.yyyy}.");
+                        // Auszahlungsart (Walter 29.08.2026): bar aus dem
+                        // Tresor ODER mit der Lohnzahlung; KEINE = das Geld
+                        // ging nicht an den MA (z.B. QST-Zahlung an die Behörde).
+                        var artU = (d.AuszahlungArt ?? "BAR").ToUpperInvariant();
+                        var perTxt = d.AuszahlungDatum.HasValue ? $" per {d.AuszahlungDatum:dd.MM.yyyy}" : "";
+                        if (artU == "LOHN")
+                            t.Span($" Die Auszahlung erfolgt mit der Lohnzahlung{perTxt} und wird auf der Lohnabrechnung ausgewiesen.");
+                        else if (artU == "KEINE")
+                            t.Span($" Es erfolgt keine Auszahlung an den/die Mitarbeitende{perTxt} — der Betrag wurde durch die Arbeitgeberin direkt beglichen (z.B. Quellensteuer-Nachzahlung an die Behörde).");
+                        else
+                            t.Span($" Die Auszahlung erfolgt bar{perTxt}; der Empfang wird mit der Unterschrift unten quittiert.");
                     });
 
-                    col.Item().PaddingTop(8).Text("2. Rückzahlung (Ratenplan)").Bold();
+                    col.Item().PaddingTop(14).Text("2. Rückzahlung (Ratenplan)").Bold();
                     col.Item().Text(t =>
                     {
                         t.Justify();
@@ -101,7 +111,7 @@ public class DarlehenVertragPdfService
                                $"{monatsnamen[endMonat]} {endJahr}. Es werden keine Zinsen geschuldet.");
                     });
 
-                    col.Item().PaddingTop(8).Text("3. Einwilligung zur Lohnverrechnung (Art. 323b OR)").Bold();
+                    col.Item().PaddingTop(14).Text("3. Einwilligung zur Lohnverrechnung (Art. 323b OR)").Bold();
                     col.Item().Text(t =>
                     {
                         t.Justify();
@@ -110,7 +120,7 @@ public class DarlehenVertragPdfService
                                "Der jeweilige Restsaldo wird auf der Lohnabrechnung ausgewiesen.");
                     });
 
-                    col.Item().PaddingTop(8).Text("4. Fälligkeit bei Austritt").Bold();
+                    col.Item().PaddingTop(14).Text("4. Fälligkeit bei Austritt").Bold();
                     col.Item().Text(t =>
                     {
                         t.Justify();
@@ -120,7 +130,7 @@ public class DarlehenVertragPdfService
                                "zu begleichen.");
                     });
 
-                    col.Item().PaddingTop(8).Text("5. Vorzeitige Rückzahlung").Bold();
+                    col.Item().PaddingTop(14).Text("5. Vorzeitige Rückzahlung").Bold();
                     col.Item().Text(t =>
                     {
                         t.Justify();
@@ -128,25 +138,32 @@ public class DarlehenVertragPdfService
                     });
 
                     // Unterschriften: AG LINKS, MA RECHTS (Walter-Konvention).
-                    col.Item().PaddingTop(28).Row(r =>
+                    // Walter 29.08.2026: Block ans SEITENENDE (Extend füllt den
+                    // Rest der Seite — nichts nach oben gedrängt), viel Platz
+                    // für Handschrift, NUR EINE Linie pro Partei (Ort/Datum
+                    // ohne Unterstrich-Linie, wird über der Linie geschrieben).
+                    col.Item().Extend();
+                    col.Item().Row(r =>
                     {
-                        r.RelativeItem().Column(c =>
+                        // Bei BAR-Auszahlung quittiert der MA mit seiner
+                        // Unterschrift zusätzlich den Bar-Empfang (Walter
+                        // 29.08.2026): «Betrag bar am … erhalten».
+                        bool bar = string.Equals(d.AuszahlungArt ?? "BAR", "BAR", StringComparison.OrdinalIgnoreCase);
+                        void SigBlock(QuestPDF.Fluent.ColumnDescriptor c, string rolle, string? name, string? zusatz)
                         {
-                            c.Item().Text("Ort / Datum: ______________________");
-                            c.Item().PaddingTop(24).LineHorizontal(0.8f);
-                            c.Item().Text("Die Arbeitgeberin").FontSize(9f);
-                            if (!string.IsNullOrWhiteSpace(d.AgVertreterName))
-                                c.Item().Text(d.AgVertreterName!).FontSize(9f);
-                        });
-                        r.ConstantItem(40);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text("Ort / Datum: ______________________");
-                            c.Item().PaddingTop(24).LineHorizontal(0.8f);
-                            c.Item().Text("Der/die Mitarbeitende").FontSize(9f);
-                            if (!string.IsNullOrWhiteSpace(d.MaName))
-                                c.Item().Text(d.MaName!).FontSize(9f);
-                        });
+                            c.Item().Text("Ort / Datum, Unterschrift:").FontSize(9f).FontColor("#646464");
+                            c.Item().Height(64);                     // Handschrift-Raum
+                            c.Item().LineHorizontal(0.8f);
+                            c.Item().PaddingTop(3).Text(rolle).FontSize(9f);
+                            if (!string.IsNullOrWhiteSpace(name))
+                                c.Item().Text(name!).FontSize(9f);
+                            if (!string.IsNullOrWhiteSpace(zusatz))
+                                c.Item().PaddingTop(6).Text(zusatz!).FontSize(9f);
+                        }
+                        r.RelativeItem().Column(c => SigBlock(c, "Die Arbeitgeberin", d.AgVertreterName, null));
+                        r.ConstantItem(50);
+                        r.RelativeItem().Column(c => SigBlock(c, "Der/die Mitarbeitende", d.MaName,
+                            bar ? $"Betrag von CHF {Chf(d.Betrag)} bar am _______________ erhalten." : null));
                     });
                 });
             });

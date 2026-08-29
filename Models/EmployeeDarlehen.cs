@@ -22,8 +22,17 @@ public class EmployeeDarlehen
     /// <summary>Darlehensbetrag (positiv).</summary>
     public decimal Betrag { get; set; }
 
-    /// <summary>Auszahlungs-/Gewährungsdatum (Info; Auszahlung läuft via e-Banking bzw. QST-Zahlung an die Behörde).</summary>
+    /// <summary>Auszahlungs-/Gewährungsdatum. Bei AuszahlungArt=LOHN bestimmt
+    /// es die Lohnperiode, in der der Betrag mit dem Lohn ausbezahlt wird.</summary>
     public DateOnly? AuszahlungDatum { get; set; }
+
+    /// <summary>Wie der Betrag zum MA kommt (Walter 29.08.2026):
+    /// BAR = bar aus dem Tresor (Vertrag trägt Bar-Quittungszeile) ·
+    /// LOHN = mit der Lohnzahlung der Auszahlungs-Periode (Zeile auf dem
+    /// Lohnbeleg, erhöht den Auszahlungsbetrag) ·
+    /// KEINE = keine Auszahlung an den MA (z.B. QST-Nachbelastung — das Geld
+    /// ging an die Behörde).</summary>
+    public string AuszahlungArt { get; set; } = "BAR";
 
     /// <summary>Monatliche Rate; die letzte Rate ist der Restbetrag.</summary>
     public decimal RateBetrag { get; set; }

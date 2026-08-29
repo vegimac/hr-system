@@ -182,7 +182,16 @@ public static class PayrollCalculations
         // fliesst in totalAbzuege/Netto, aber NICHT in qstBetragOut (Snapshot-
         // QstBetrag bleibt die reine Perioden-QST) und ist SV-Basen-neutral.
         decimal qstKorrekturBetrag = 0m,
-        string? qstKorrekturLabel = null)
+        string? qstKorrekturLabel = null,
+        // K3-Saldo-Ausweis (Walter 29.08.2026): «zeige unten bei den Saldi
+        // auch ein ev. Darlehen, und wieviel noch offen ist». Kennzahlen
+        // werden in der Engine aus darlehenRaten + LOHN-Auszahlungen der
+        // Periode gerechnet; hatDarlehenSaldo=false → keine Saldi-Zeile.
+        bool hatDarlehenSaldo = false,
+        decimal darlehenVormonat = 0m,
+        decimal darlehenAuszahlung = 0m,
+        decimal darlehenRateBezogen = 0m,
+        decimal darlehenSaldoNeu = 0m)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -578,6 +587,14 @@ public static class PayrollCalculations
             abzuegeExtraTotal   = Math.Round(abzuegeExtraTotal, 2),
             lohnAbtretungen     = lohnAbtretungResults,  // für Confirm: bereits_abgezogen aktualisieren
             auszahlungsbetrag,
+
+            // K3-Darlehens-Saldo (Walter 29.08.2026) — Zeile in der
+            // Saldi-Übersicht (Screen + PDF): offener Rest nach dieser Periode.
+            hatDarlehenSaldo,
+            darlehenVormonat    = Math.Round(darlehenVormonat, 2),
+            darlehenAuszahlung  = Math.Round(darlehenAuszahlung, 2),
+            darlehenRateBezogen = Math.Round(darlehenRateBezogen, 2),
+            darlehenSaldoNeu    = Math.Round(darlehenSaldoNeu, 2),
 
             // Auszahlungs-Empfänger (für PDF-Sektion am Ende):
             //   typ = BANK | BEHOERDE

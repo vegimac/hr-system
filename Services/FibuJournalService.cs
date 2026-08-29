@@ -683,6 +683,32 @@ public class FibuJournalService
                 else
                     ohneCodes++;
             }
+
+            // K3-AUSZAHLUNG «mit Lohn» (Walter 29.08.2026): Darlehen mit
+            // AuszahlungArt=LOHN und Auszahlungsdatum in der Periode erhöhen
+            // den Auszahlungsbetrag (Slip-Zeile nach Netto). Buchung =
+            // Position 1090 mit GETAUSCHTEN Konten («1140 an 2050»):
+            // Forderung Personal entsteht, Lohn-Verbindlichkeit wächst um
+            // den mit dem Lohn überwiesenen Betrag. Berührt 1920 NICHT.
+            var pf = new DateOnly(year, month, 1);
+            var pt = pf.AddMonths(1).AddDays(-1);
+            decimal auszahlungSum = await _db.EmployeeDarlehen
+                .Where(d => d.CompanyProfileId == companyProfileId
+                         && d.Status != "STORNIERT"
+                         && d.AuszahlungArt == "LOHN"
+                         && d.AuszahlungDatum != null
+                         && d.AuszahlungDatum >= pf && d.AuszahlungDatum <= pt)
+                .SumAsync(d => (decimal?)d.Betrag) ?? 0m;
+            if (auszahlungSum != 0)
+            {
+                var md2 = maps.FirstOrDefault(m => m.Position == 1090);
+                if (md2 != null)
+                    Add(md2.Gegenkonto, md2.Fibukonto,
+                        "Auszahlung MA-Darlehen/Vorschuss (mit Lohn)",
+                        Math.Round(auszahlungSum, 2));
+                else
+                    ohneCodes++;
+            }
         }
 
         {

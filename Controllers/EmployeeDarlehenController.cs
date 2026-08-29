@@ -42,6 +42,8 @@ public class EmployeeDarlehenController : ControllerBase
         public int? AnzahlRaten { get; set; }
         public int StartJahr { get; set; }
         public int StartMonat { get; set; }
+        /// <summary>BAR (Tresor) / LOHN (mit der Lohnzahlung) / KEINE (z.B. QST).</summary>
+        public string? AuszahlungArt { get; set; }
         public string? Bemerkung { get; set; }
         /// <summary>OFFENE qst_korrektur-Posten, die in dieses Darlehen gewandelt werden (Status → IN_DARLEHEN).</summary>
         public int[]? QstKorrekturIds { get; set; }
@@ -67,6 +69,7 @@ public class EmployeeDarlehenController : ControllerBase
             return new
             {
                 d.Id, d.CompanyProfileId, d.Zweck, d.Betrag, d.AuszahlungDatum,
+                d.AuszahlungArt,
                 d.RateBetrag, d.StartJahr, d.StartMonat, d.Status, d.Bemerkung,
                 d.CreatedAt, d.CreatedBy,
                 bezahlt,
@@ -87,6 +90,14 @@ public class EmployeeDarlehenController : ControllerBase
             return BadRequest(new { error = "BETRAG_UNGUELTIG", message = "Der Darlehensbetrag muss grösser als 0 sein." });
         if (dto.StartMonat is < 1 or > 12 || dto.StartJahr < 2020)
             return BadRequest(new { error = "START_UNGUELTIG", message = "Ungültige Start-Periode." });
+
+        // Auszahlungsart (Walter 29.08.2026): BAR / LOHN / KEINE.
+        var art = NormalizeAuszahlungArt(dto.AuszahlungArt);
+        if (art is null)
+            return BadRequest(new { error = "AUSZAHLUNG_ART_UNGUELTIG", message = "Auszahlungsart muss BAR, LOHN oder KEINE sein." });
+        if (art == "LOHN" && dto.AuszahlungDatum is null)
+            return BadRequest(new { error = "AUSZAHLUNG_DATUM_FEHLT",
+                message = "Bei Auszahlung mit dem Lohn bitte das Auszahlungsdatum angeben — es bestimmt die Lohnperiode der Auszahlung." });
 
         // Rate aus Anzahl ODER direkt (Konzept: das andere wird gerechnet,
         // letzte Rate = Rest). Rundung auf 0.05 aufwärts, damit die letzte
@@ -115,6 +126,7 @@ public class EmployeeDarlehenController : ControllerBase
             Zweck            = dto.Zweck.Trim(),
             Betrag           = Math.Round(dto.Betrag, 2),
             AuszahlungDatum  = dto.AuszahlungDatum,
+            AuszahlungArt    = art,
             RateBetrag       = rate,
             StartJahr        = dto.StartJahr,
             StartMonat       = dto.StartMonat,
@@ -158,6 +170,15 @@ public class EmployeeDarlehenController : ControllerBase
         d.Zweck     = string.IsNullOrWhiteSpace(dto.Zweck) ? d.Zweck : dto.Zweck.Trim();
         d.Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
         d.AuszahlungDatum = dto.AuszahlungDatum ?? d.AuszahlungDatum;
+        var artUpd = string.IsNullOrWhiteSpace(dto.AuszahlungArt)
+            ? null : NormalizeAuszahlungArt(dto.AuszahlungArt);
+        if (artUpd is not null)
+        {
+            if (artUpd == "LOHN" && d.AuszahlungDatum is null)
+                return BadRequest(new { error = "AUSZAHLUNG_DATUM_FEHLT",
+                    message = "Bei Auszahlung mit dem Lohn bitte das Auszahlungsdatum angeben — es bestimmt die Lohnperiode der Auszahlung." });
+            d.AuszahlungArt = artUpd;
+        }
 
         if (!hatRaten)
         {
@@ -237,9 +258,19 @@ public class EmployeeDarlehenController : ControllerBase
             StartJahr:          d.StartJahr,
             StartMonat:         d.StartMonat,
             AuszahlungDatum:    d.AuszahlungDatum,
+            AuszahlungArt:      d.AuszahlungArt,
             AgVertreterName:    null));
 
         return File(pdf, "application/pdf",
             $"Darlehensvertrag_{emp.LastName}_{d.Id}.pdf");
+    }
+
+    /// <summary>null-tolerante Normalisierung: leer → null (kein Update) bzw.
+    /// im Create-Pfad Default BAR; ungültig → null (Create validiert).</summary>
+    private static string? NormalizeAuszahlungArt(string? art)
+    {
+        if (string.IsNullOrWhiteSpace(art)) return "BAR";
+        var a = art.Trim().ToUpperInvariant();
+        return a is "BAR" or "LOHN" or "KEINE" ? a : null;
     }
 }

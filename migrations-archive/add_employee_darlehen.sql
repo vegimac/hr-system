@@ -36,3 +36,8 @@ CREATE INDEX IF NOT EXISTS ix_darlehen_rate_period ON employee_darlehen_rate (em
 INSERT INTO lohn_konto_mapping (position, sub_position, fibukonto, gegenkonto, bezeichnung, is_vormonat)
 SELECT 1090, NULL, '2050', '1140', 'Rückzahlung MA-Darlehen/Vorschuss', false
 WHERE NOT EXISTS (SELECT 1 FROM lohn_konto_mapping WHERE position = 1090);
+
+-- Nachtrag 29.08.2026 (Walter): Auszahlungsart — BAR (Tresor, Vertrag mit
+-- Bar-Quittungszeile) / LOHN (mit der Lohnzahlung der Auszahlungs-Periode)
+-- / KEINE (keine Auszahlung an den MA, z.B. QST-Nachbelastung).
+ALTER TABLE employee_darlehen ADD COLUMN IF NOT EXISTS auszahlung_art varchar(10) NOT NULL DEFAULT 'BAR';

@@ -819,6 +819,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Zweck).HasColumnName("zweck").HasMaxLength(200);
             entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.AuszahlungDatum).HasColumnName("auszahlung_datum").HasColumnType("date");
+            entity.Property(e => e.AuszahlungArt).HasColumnName("auszahlung_art").HasMaxLength(10);
             entity.Property(e => e.RateBetrag).HasColumnName("rate_betrag").HasColumnType("numeric(10,2)");
             entity.Property(e => e.StartJahr).HasColumnName("start_jahr");
             entity.Property(e => e.StartMonat).HasColumnName("start_monat");

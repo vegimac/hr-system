@@ -1918,6 +1918,19 @@ function renderLohnSlip(s, targetEl) {
                 }
             }
 
+            // ── K3-Darlehen (Walter 29.08.2026): offener Rest in den Saldi ──
+            // Vormonat = Schuld vor der Periode · Aktuell = neue Auszahlung
+            // «mit Lohn» · Bezogen = Rate · Saldo = noch offen.
+            if (s.hatDarlehenSaldo) {
+                rows.push(`<tr>
+                    <td class="ls-desc" style="color:#7c3aed">Darlehen/Vorschuss offen (CHF)</td>
+                    <td class="ls-num" style="color:#64748b;white-space:nowrap">${fmt(s.darlehenVormonat ?? 0)}</td>
+                    <td class="ls-num">${pos(s.darlehenAuszahlung ?? 0)}</td>
+                    <td class="ls-num">${neg(s.darlehenRateBezogen ?? 0)}</td>
+                    <td class="ls-amt" style="color:${(s.darlehenSaldoNeu ?? 0) > 0 ? '#dc2626' : '#334155'};font-weight:600;white-space:nowrap">${fmt(s.darlehenSaldoNeu ?? 0)}</td>
+                </tr>`);
+            }
+
             return `
             <table class="ls-table" style="margin-top:3px">
                 <thead>

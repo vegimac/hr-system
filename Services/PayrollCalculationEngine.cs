@@ -1455,6 +1455,47 @@ public class PayrollCalculationEngine
             zulagenExtraTotal += b;
         }
 
+        // ── K3-Auszahlung «mit Lohn» (Walter 29.08.2026) ─────────────────
+        // Darlehen mit AuszahlungArt=LOHN, deren Auszahlungsdatum in DIESE
+        // Periode fällt, werden als Zahlung nach Netto ausgewiesen und
+        // erhöhen den Auszahlungsbetrag. Deterministisch aus den Kopf-Daten
+        // (kein Persistenz-Bedarf → stabil über Confirm/Recompute). BAR und
+        // KEINE laufen bewusst NICHT über den Lohn; STORNIERTE nie. Die
+        // Fibu bucht die Auszahlung aus employee_darlehen (Position 1090,
+        // Konten getauscht), NICHT aus dieser Slip-Zeile (code=null).
+        var darlehenAuszahlungenLohn = await _db.EmployeeDarlehen
+            .Where(dd => dd.EmployeeId == employeeId
+                      && dd.Status != "STORNIERT"
+                      && dd.AuszahlungArt == "LOHN"
+                      && dd.AuszahlungDatum != null
+                      && dd.AuszahlungDatum >= periodFrom
+                      && dd.AuszahlungDatum <= periodToFull)
+            .ToListAsync();
+        foreach (var dd in darlehenAuszahlungenLohn)
+        {
+            decimal ab = Math.Round(dd.Betrag, 2);
+            zulagenExtraLines.Add(new {
+                bezeichnung = $"Auszahlung Darlehen/Vorschuss «{dd.Zweck}»",
+                code = (string?)null,
+                betrag = ab,
+                darlehenAuszahlungId = dd.Id
+            });
+            zulagenExtraTotal += ab;
+        }
+
+        // K3-Saldo-Ausweis (Walter 29.08.2026): Darlehens-Zeile in der
+        // Saldi-Übersicht — Vormonat (Schuld vor der Periode), Aktuell
+        // (neue LOHN-Auszahlung), Bezogen (Rate), Saldo (offener Rest).
+        // Konsistent per Konstruktion: Saldo = Vormonat + Auszahlung − Rate.
+        decimal dlPayoutTotal   = darlehenAuszahlungenLohn.Sum(dd2 => Math.Round(dd2.Betrag, 2));
+        decimal dlPayoutInListe = darlehenAuszahlungenLohn
+            .Where(dd2 => dd2.StartJahr < year || (dd2.StartJahr == year && dd2.StartMonat <= month))
+            .Sum(dd2 => Math.Round(dd2.Betrag, 2));
+        decimal dlVormonat  = Math.Max(0m, darlehenRaten.Sum(r => r.RestNachher + r.Rate) - dlPayoutInListe);
+        decimal dlBezogen   = darlehenRaten.Sum(r => r.Rate);
+        decimal dlSaldoNeu  = Math.Round(dlVormonat + dlPayoutTotal - dlBezogen, 2);
+        bool hatDarlehenSaldo = darlehenRaten.Count > 0 || dlPayoutTotal != 0;
+
         // ── EO-Entschädigung Mutterschaft / Vaterschaft (Walter-Entscheid 17.08.2026) ──
         // Entscheid 1a: EO-Taggeld als Lohnersatz-Zeile (ELM 120.1 / 120.2) —
         // 80 % des 100%-Tagessatzes (KtgTagessatzService, gleiche Basis wie
@@ -2863,7 +2904,10 @@ public class PayrollCalculationEngine
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturMtp + unfallBvgKorrekturMtp,
-                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
+                hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
+                darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
+                darlehenSaldoNeu: dlSaldoNeu);
             return new OkObjectResult(result);
         }
         else if (isUTP)
@@ -3476,7 +3520,10 @@ public class PayrollCalculationEngine
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturUtp + unfallBvgKorrekturUtp,
-                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
+                hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
+                darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
+                darlehenSaldoNeu: dlSaldoNeu);
             return new OkObjectResult(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -4085,7 +4132,10 @@ public class PayrollCalculationEngine
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturFix + unfallBvgKorrekturFix,
-                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
+                hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
+                darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
+                darlehenSaldoNeu: dlSaldoNeu);
             return new OkObjectResult(result);
         }
       } // end try

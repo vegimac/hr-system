@@ -243,6 +243,7 @@ public class PayrollPdfService
         var nettolohn         = GetDecimal(slip, "nettolohn");
         var auszahlungsbetrag = GetDecimal(slip, "auszahlungsbetrag");
         var abzuegeExtra      = TryGetArray(slip, "abzuegeExtraLines");
+        var zulagenExtra      = TryGetArray(slip, "zulagenExtraLines");
 
         c.Column(col =>
         {
@@ -251,6 +252,25 @@ public class PayrollPdfService
                 r.RelativeItem().Text("Nettolohn").Bold().FontSize(11f);
                 r.AutoItem().Text(CHF(nettolohn)).Bold().FontSize(11f);
             });
+
+            // Weitere Zahlungen nach Netto (Familienzulagen, Spesen,
+            // Darlehens-Auszahlung «mit Lohn» …) — fehlte im PDF bis
+            // 29.08.2026, obwohl der Bildschirm-Lohnzettel sie zeigt.
+            if (zulagenExtra.HasValue && zulagenExtra.Value.GetArrayLength() > 0)
+            {
+                col.Item().PaddingTop(6).Text("Weitere Zahlungen").Bold().FontSize(9.5f);
+                foreach (var line in zulagenExtra.Value.EnumerateArray())
+                {
+                    var bez  = GetString(line, "bezeichnung");
+                    var betr = GetDecimal(line, "betrag");
+                    col.Item().Row(r =>
+                    {
+                        r.RelativeItem().Text(bez).FontSize(9f);
+                        r.AutoItem().Text(betr.HasValue ? "+" + CHF(Math.Abs(betr.Value)) : "")
+                            .FontSize(9f).FontColor(Green);
+                    });
+                }
+            }
 
             // Weitere Abzüge (Lohnpfändung etc.)
             if (abzuegeExtra.HasValue && abzuegeExtra.Value.GetArrayLength() > 0)
@@ -342,9 +362,11 @@ public class PayrollPdfService
         bool show13Saldo = modelUpper == "MTP" || modelUpper == "FIX" || modelUpper == "FIX-M"
                         || flex13Saldo;
 
+        bool hatDarlehen = slip.TryGetProperty("hatDarlehenSaldo", out var hd0)
+                        && hd0.ValueKind == JsonValueKind.True;
         bool hasSaldi = (ferienTageSaldo ?? 0) != 0 || (ferienGeldSaldo ?? 0) != 0
                      || (feiertagSaldo ?? 0) != 0 || (nachtSaldo ?? 0) != 0
-                     || (thirteen ?? 0) != 0 || show13Saldo;
+                     || (thirteen ?? 0) != 0 || show13Saldo || hatDarlehen;
         if (!hasSaldi) return;
 
         c.Table(t =>
@@ -447,6 +469,21 @@ public class PayrollPdfService
                     Cell(t.Cell(), "—", right: true, color: Muted);
                     Cell(t.Cell(), CHF(accumulated), right: true, bold: true);
                 }
+            }
+
+            // K3-Darlehen (Walter 29.08.2026): offener Darlehens-/Vorschuss-
+            // Rest — Vormonat | + Auszahlung | − Rate | Saldo offen.
+            if (slip.TryGetProperty("hatDarlehenSaldo", out var hd) && hd.ValueKind == JsonValueKind.True)
+            {
+                var vor  = GetDecimal(slip, "darlehenVormonat")    ?? 0;
+                var ausz = GetDecimal(slip, "darlehenAuszahlung")  ?? 0;
+                var rate = GetDecimal(slip, "darlehenRateBezogen") ?? 0;
+                var rest = GetDecimal(slip, "darlehenSaldoNeu")    ?? 0;
+                Cell(t.Cell(), "Darlehen/Vorschuss offen (CHF)", left: true, color: Dark);
+                Cell(t.Cell(), CHF(vor), right: true, color: Muted);
+                Cell(t.Cell(), ausz > 0 ? "+" + CHF(ausz) : "—", right: true, color: ausz > 0 ? Green : Muted);
+                Cell(t.Cell(), rate > 0 ? "-" + CHF(rate) : "—", right: true, color: rate > 0 ? Red : Muted);
+                Cell(t.Cell(), CHF(rest), right: true, bold: true, color: rest > 0 ? Red : Dark);
             }
         });
     }
