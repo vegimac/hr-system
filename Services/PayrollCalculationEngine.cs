@@ -136,6 +136,42 @@ public class PayrollCalculationEngine
         var (periodFrom, periodToFull) = CalcPeriod(year, month);
         int normalPeriodDays = periodToFull.DayNumber - periodFrom.DayNumber + 1;
 
+        // ── K2: QST-Korrektur-Verrechnung (Walter 29.08.2026, Bauplan 2.3) ──
+        // OFFENE qst_korrektur-Posten des MA werden im nächsten Definitivlauf
+        // als eigene Abzugszeile (categoryCode QST_KORR) verrechnet. Damit die
+        // Rechnung nach dem Bestätigen STABIL bleibt (GetPdf/Recompute rufen
+        // Calculate erneut), zählen auch Posten mit, die bereits in DIESER
+        // Periode verrechnet wurden. VORJAHR-Posten laufen NIE über den
+        // Lohnlauf (Meldung an die Steuerverwaltung, Kap. 3 Konzept).
+        // Positenwahl bewusst über ALLE Filialen (ein Arbeitgeber); die
+        // Markierung VERRECHNET passiert erst in ConfirmPayroll (atomar).
+        decimal qstKorrBetrag = 0m;
+        string? qstKorrLabel  = null;
+        {
+            var kPosten = await _db.QstKorrekturen
+                .Where(k => k.EmployeeId == employeeId
+                         && (k.Status == "OFFEN"
+                             || (k.Status == "VERRECHNET"
+                                 && existingPeriod != null
+                                 && k.VerrechnetPeriodeId == existingPeriod.Id)))
+                .Select(k => new { k.Jahr, k.Monat, k.Differenz })
+                .ToListAsync();
+            if (kPosten.Count > 0)
+            {
+                qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
+                var monate = kPosten
+                    .Select(k => new { k.Jahr, k.Monat })
+                    .Distinct()
+                    .OrderBy(k => k.Jahr).ThenBy(k => k.Monat)
+                    .Select(k => $"{k.Monat:00}.{k.Jahr}")
+                    .ToList();
+                qstKorrLabel = "Quellensteuer-Korrektur "
+                    + (qstKorrBetrag >= 0 ? "(Nachbelastung " : "(Erstattung ")
+                    + string.Join(", ", monate) + ")";
+                if (Math.Abs(qstKorrBetrag) < 0.05m) { qstKorrBetrag = 0m; qstKorrLabel = null; }
+            }
+        }
+
         // Bemerkungstext für die Lohnabrechnung (Periode-spezifisch falls
         // vorhanden, sonst Filial-Default)
         string? periodeFooterText = existingPeriod?.PdfFooterText;
@@ -2725,7 +2761,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
-                schattenBvgKorrektur: krankBvgKorrekturMtp + unfallBvgKorrekturMtp);
+                schattenBvgKorrektur: krankBvgKorrekturMtp + unfallBvgKorrekturMtp,
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
             return new OkObjectResult(result);
         }
         else if (isUTP)
@@ -3337,7 +3374,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
-                schattenBvgKorrektur: krankBvgKorrekturUtp + unfallBvgKorrekturUtp);
+                schattenBvgKorrektur: krankBvgKorrekturUtp + unfallBvgKorrekturUtp,
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
             return new OkObjectResult(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -3945,7 +3983,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
                 lohnposByCode: lohnposByCode,
-                schattenBvgKorrektur: krankBvgKorrekturFix + unfallBvgKorrekturFix);
+                schattenBvgKorrektur: krankBvgKorrekturFix + unfallBvgKorrekturFix,
+                qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel);
             return new OkObjectResult(result);
         }
       } // end try

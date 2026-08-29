@@ -584,6 +584,7 @@ function _lohnWfRenderStatusBar() {
                     menuItem('📋 Alle Lohnbelege (PDF)', 'lohnDownloadVorabPdf()', { title: 'Alle Lohnbelege der Periode in einem PDF' }),
                     menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                     menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')",     { title: 'Saldi-Übersicht für den Geschäftsführer' }),
+                    menuItem('🔁 QST-Korrekturen (Ausweis)', 'lohnQstKorrekturen()', { title: 'In dieser Periode verrechnete QST-Korrektur-Posten + offene Vorjahres-Posten (kantonale Abrechnung)' }),
                     isAdmin ? menuDivider : '',
                     isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()',      { title: 'Fibu-Codes in bestehende Lohnzettel nachtragen (Wartung)' }) : '',
                     isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Lohnzettel der Periode neu berechnen — Reparatur bei inkonsistenten Snapshots' }) : '',
@@ -608,6 +609,7 @@ function _lohnWfRenderStatusBar() {
                 isHr  ? menuItem('📑 Lohnbelege ansehen', 'lohnOpenLohnbelegeModal()', { title: 'Alle Lohnbelege ansehen / drucken' }) : '',
                 menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                 menuItem('📋 GF-Übersicht (Saldi)', "lohnSaldoListe('gf')", { title: 'Saldi-Übersicht für den Geschäftsführer' }),
+                isHr ? menuItem('🔁 QST-Korrekturen (Ausweis)', 'lohnQstKorrekturen()', { title: 'In dieser Periode verrechnete QST-Korrektur-Posten + offene Vorjahres-Posten (kantonale Abrechnung)' }) : '',
                 isAdmin ? menuDivider : '',
                 isAdmin ? menuItem('🔄 Fibu-Codes nachtragen', 'lohnRefreshCodes()', { title: 'Wartung' }) : '',
                 isAdmin ? menuItem('♻️ Snapshots neu berechnen', 'lohnRecomputeSnapshots()', { title: 'Reparatur' }) : '',
@@ -2468,6 +2470,76 @@ async function lohnFibuJournal() {
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
     }
+}
+
+// ── K2 (Walter 29.08.2026): QST-Korrektur-Ausweis der Periode ───────────
+// Zeigt die in dieser Periode VERRECHNETEN qst_korrektur-Posten (mit
+// Kantonssummen für die kantonale QST-Abrechnung) und darunter die offenen
+// VORJAHR-Posten (Meldung an die Steuerverwaltung — nie über den Lohnlauf).
+async function lohnQstKorrekturen() {
+    const p = window._currentLohnPeriode || {};
+    const cid = p.companyProfileId || document.getElementById('lohnBranchSelect')?.value;
+    const y   = p.year  || parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
+    const m   = p.month || parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth() + 1));
+    if (!cid) { alert('Keine Filiale/Periode aktiv.'); return; }
+    let d;
+    try {
+        const r = await fetch(`/api/payroll/qst-korrekturen-ausweis?companyProfileId=${cid}&year=${y}&month=${m}`, { headers: ah() });
+        if (!r.ok) { alert(`QST-Korrektur-Ausweis nicht verfügbar (HTTP ${r.status}).`); return; }
+        d = await r.json();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
+
+    const chf = v => (v < 0 ? '−' : '') + Math.abs(v).toLocaleString('de-CH', { minimumFractionDigits: 2 });
+    const esc = s => String(s ?? '').replace(/</g, '&lt;');
+    const row = k => `<tr>
+        <td style="padding:3px 8px">${esc(k.employeeName)}</td>
+        <td style="padding:3px 8px;white-space:nowrap">${String(k.monat).padStart(2,'0')}.${k.jahr}</td>
+        <td style="padding:3px 8px">${esc(k.alterCode || '–')} → ${esc(k.neuerCode || '–')}</td>
+        <td style="padding:3px 8px;text-align:right;font-weight:600;color:${k.differenz >= 0 ? '#b91c1c' : '#15803d'}">${chf(k.differenz)}</td>
+        <td style="padding:3px 8px">${esc(k.steuerkanton || '?')}</td>
+        <td style="padding:3px 8px;color:#64748b">${esc(k.grund)}</td>
+    </tr>`;
+    const head = `<tr style="color:#8b8b8b;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px">
+        <th style="padding:3px 8px;text-align:left">Mitarbeiter</th><th style="padding:3px 8px;text-align:left">Monat</th>
+        <th style="padding:3px 8px;text-align:left">Tarif</th><th style="padding:3px 8px;text-align:right">Differenz</th>
+        <th style="padding:3px 8px;text-align:left">Kt.</th><th style="padding:3px 8px;text-align:left">Grund</th></tr>`;
+
+    const kantone = (d.proKanton || []).map(x =>
+        `<span style="background:#fff;border:1px solid rgba(60,55,48,0.2);border-radius:10px;padding:3px 10px;font-size:12px;font-weight:600">${esc(x.kanton)}: CHF ${chf(x.total)} (${x.anzahl})</span>`
+    ).join(' ');
+
+    const verrTab = (d.verrechnet && d.verrechnet.length)
+        ? `<table style="border-collapse:collapse;font-size:12.5px;width:100%">${head}${d.verrechnet.map(row).join('')}</table>
+           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+               <b style="font-size:12.5px">Total: CHF ${chf(d.totalVerrechnet)}</b> ${kantone}
+           </div>`
+        : '<div style="color:#94a3b8;font-size:12.5px">Keine QST-Korrekturen in dieser Periode verrechnet.</div>';
+
+    const vjTab = (d.vorjahr && d.vorjahr.length)
+        ? `<table style="border-collapse:collapse;font-size:12.5px;width:100%">${head}${d.vorjahr.map(row).join('')}</table>
+           <div style="margin-top:6px;color:#b45309;font-size:11.5px">⚠ Vorjahres-Posten laufen NICHT über den Lohnlauf — Abwicklung direkt mit der Steuerverwaltung.</div>`
+        : '<div style="color:#94a3b8;font-size:12.5px">Keine offenen Vorjahres-Posten.</div>';
+
+    let modal = document.getElementById('lohnQstKorrModal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'lohnQstKorrModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:3200;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:30px 16px';
+    modal.innerHTML = `
+    <div class="modal" style="background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);border-radius:14px;max-width:860px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,0.25);padding:18px 22px;margin:auto">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div style="font-size:15px;font-weight:700;color:#1e293b">🔁 QST-Korrekturen — ${String(m).padStart(2,'0')}/${y}</div>
+            <button onclick="document.getElementById('lohnQstKorrModal').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8">✕</button>
+        </div>
+        <div class="emp-section-title">In dieser Periode verrechnet (kantonale Abrechnung)</div>
+        ${verrTab}
+        <div class="emp-section-title" style="margin-top:14px">Offene Vorjahres-Posten</div>
+        ${vjTab}
+        <div style="display:flex;justify-content:flex-end;margin-top:14px">
+            <button onclick="document.getElementById('lohnQstKorrModal').remove()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer">Schliessen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
 }
 
 // Admin-Wartung (Walter 22.05.2026): trägt die Fibu-Codes (categoryCode/code)

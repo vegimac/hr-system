@@ -276,6 +276,11 @@ public class FibuJournalService
                                 .ThenByDescending(x => x.ValidFrom)
                                 .First().FibuPosition!.Value);
         fibuByCode["QST"] = 560;   // QST ist kein SV-Satz, fixer Mirus-Code
+        // K2 (Walter 29.08.2026): QST-Korrektur-Verrechnung aus Vormonaten —
+        // bucht auf DIESELBE Kontoplan-Position wie die reguläre QST
+        // (Soll 1920 / Gegen 2010). Eigener categoryCode, damit K1 (LeseQstZeile)
+        // und Snapshot.QstBetrag die Perioden-QST sauber getrennt behalten.
+        fibuByCode["QST_KORR"] = 560;
         // AG-Satz pro Code (Walter 22.05.2026): AG-Beitrag = rate_employer × Basis.
         // NULL = kein AG-Anteil → wird nicht gebucht.
         var agRateByCode = svFibu
@@ -482,6 +487,24 @@ public class FibuJournalService
                         {
                             // SV / QST → fibu_position → AN-Zeile (Soll 1920).
                             var catU = cat!.ToUpperInvariant();
+
+                            // K2 (Walter 29.08.2026): QST-Korrektur-Verrechnung.
+                            // Nachbelastung (betrag negativ) = normale AN-Buchung
+                            // Soll 1920 / Gegen 2010; ERSTATTUNG (betrag positiv)
+                            // = Konten getauscht (2010 → 1920). Kein AG-Anteil,
+                            // kein FAK — danach weiter mit der nächsten Zeile.
+                            if (catU == "QST_KORR")
+                            {
+                                var mk = FindAn1920(560, null);
+                                if (mk != null)
+                                {
+                                    if (betrag < 0) Add(mk.Fibukonto, mk.Gegenkonto, "QST-Korrektur Verrechnung Vormonate", abzug);
+                                    else            Add(mk.Gegenkonto, mk.Fibukonto, "QST-Korrektur Erstattung Vormonate", abzug);
+                                }
+                                else ohneCodes++;
+                                continue;
+                            }
+
                             if (fibuByCode.TryGetValue(catU, out var pos))
                             {
                                 var m = FindAn1920(pos, null);

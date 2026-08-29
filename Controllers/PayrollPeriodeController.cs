@@ -251,6 +251,19 @@ public class PayrollPeriodeController : ControllerBase
         if (saldiToDelete.Count > 0) _db.PayrollSaldos.RemoveRange(saldiToDelete);
         var saldiDeleted = saldiToDelete.Count;
 
+        // K2 (Walter 29.08.2026): in dieser Periode verrechnete QST-Korrektur-
+        // Posten zurück auf OFFEN — sonst zeigten sie auf eine gelöschte
+        // Periode und würden nie mehr verrechnet (kein FK, kein Cascade).
+        var korrZurueck = await _db.QstKorrekturen
+            .Where(k => k.VerrechnetPeriodeId == id && k.Status == "VERRECHNET")
+            .ToListAsync();
+        foreach (var k in korrZurueck)
+        {
+            k.Status              = "OFFEN";
+            k.VerrechnetPeriodeId = null;
+            k.VerrechnetAt        = null;
+        }
+
         var companyProfileId = periode.CompanyProfileId;
         _db.PayrollPerioden.Remove(periode);
         await _db.SaveChangesAsync();

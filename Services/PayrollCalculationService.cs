@@ -175,7 +175,14 @@ public static class PayrollCalculations
         // BVG-Wartefrist-Korrektur (Krank/Unfall): Engine-Aufschlag auf die
         // BVG-Basis OHNE Lohnzeile — wird der Schatten-Rechnung explizit
         // mitgegeben und dort separat ausgewiesen.
-        decimal schattenBvgKorrektur = 0m)
+        decimal schattenBvgKorrektur = 0m,
+        // K2 (Walter 29.08.2026): Verrechnung offener QST-Korrektur-Posten aus
+        // Vormonaten. Positiv = Nachbelastung (zusätzlicher Abzug), negativ =
+        // Erstattung (Gutschrift). Eigene Abzugszeile categoryCode QST_KORR —
+        // fliesst in totalAbzuege/Netto, aber NICHT in qstBetragOut (Snapshot-
+        // QstBetrag bleibt die reine Perioden-QST) und ist SV-Basen-neutral.
+        decimal qstKorrekturBetrag = 0m,
+        string? qstKorrekturLabel = null)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -344,6 +351,27 @@ public static class PayrollCalculations
             abzugResult.Add(lp);
         }
         totalAbzuege -= lohnposAbzugTotal;   // betrag ist negativ → Total wird kleiner
+
+        // ── K2: QST-Korrektur-Verrechnung (Walter 29.08.2026) ─────────────
+        // Nachbelastung → negative Abzugszeile (weniger Netto), Erstattung →
+        // positive Zeile (Gutschrift). categoryCode QST_KORR: Fibu bucht auf
+        // dieselbe Kontoplan-Position wie QST (560 → 1920/2010, bei
+        // Erstattung getauscht); K1 (LeseQstZeile) und qstBetragOut bleiben
+        // unberührt — die Perioden-QST ist sauber getrennt.
+        if (qstKorrekturBetrag != 0m)
+        {
+            abzugResult.Add(new
+            {
+                bezeichnung  = qstKorrekturLabel ?? "Quellensteuer-Korrektur aus Vormonaten",
+                categoryCode = "QST_KORR",
+                prozent      = (decimal?)null,
+                basis        = (decimal?)null,
+                satzBasis    = (decimal?)null,
+                betrag       = -Math.Round(qstKorrekturBetrag, 2),
+                agBetrag     = (decimal?)null
+            });
+            totalAbzuege -= Math.Round(qstKorrekturBetrag, 2);
+        }
 
         // Schlussresultat: nur Nettolohn und Auszahlungsbetrag werden auf 0.05
         // gerundet. Total Lohn und Total Abzüge bleiben auf 2 Dezimalen.

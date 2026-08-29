@@ -91,6 +91,90 @@ public class PayrollController : HrControllerBase
         message = "Diese Buchungsliste ist erst verfügbar, wenn der Definitiv-Lohnlauf der Periode (mindestens provisorisch) abgeschlossen ist. Der Lauf ist aktuell offen."
     });
 
+    // ── K2 (Walter 29.08.2026): QST-Korrektur-Ausweis pro Periode ─────────
+    // Liefert (a) die in DIESER Periode verrechneten qst_korrektur-Posten
+    // (für die kantonale QST-Abrechnung — AG zahlt der Behörde sofort) mit
+    // Summen pro Steuerkanton, und (b) die offenen VORJAHR-Posten (laufen
+    // NIE über den Lohnlauf — Meldung an die Steuerverwaltung).
+    // GET /api/payroll/qst-korrekturen-ausweis?companyProfileId&year&month
+    [HttpGet("qst-korrekturen-ausweis")]
+    [Authorize(Roles = "admin,superuser")]
+    public async Task<IActionResult> QstKorrekturenAusweis(
+        [FromQuery] int companyProfileId, [FromQuery] int year, [FromQuery] int month)
+    {
+        if (!await CanAccessBranchAsync(companyProfileId))
+            return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+
+        var periode = await _db.PayrollPerioden.AsNoTracking()
+            .Where(p => p.CompanyProfileId == companyProfileId
+                     && p.Year == year && p.Month == month)
+            .Select(p => new { p.Id })
+            .FirstOrDefaultAsync();
+
+        int periodeId = periode?.Id ?? -1;
+        var verrechnet = await (from k in _db.QstKorrekturen.AsNoTracking()
+                     join e in _db.Employees.AsNoTracking() on k.EmployeeId equals e.Id
+                     join q in _db.EmployeeQuellensteuer.AsNoTracking()
+                          on k.NeueVersionId equals q.Id into qj
+                     from q in qj.DefaultIfEmpty()
+                     where k.VerrechnetPeriodeId == periodeId
+                           && k.Status == "VERRECHNET"
+                     orderby e.FirstName, e.LastName, k.Jahr, k.Monat
+                     select new
+                     {
+                         k.Id,
+                         employeeId   = e.Id,
+                         employeeName = e.FirstName + " " + e.LastName,
+                         jahr         = k.Jahr,
+                         monat        = k.Monat,
+                         alterCode    = k.AlterCode,
+                         neuerCode    = k.NeuerCode,
+                         alterBetrag  = k.AlterBetrag,
+                         neuerBetrag  = k.NeuerBetrag,
+                         differenz    = k.Differenz,
+                         grund        = k.Grund,
+                         steuerkanton = q != null ? q.Steuerkanton : null
+                     }).ToListAsync();
+
+        // Summen pro Kanton (für die kantonale Abrechnung).
+        var proKanton = verrechnet
+            .GroupBy(v => v.steuerkanton ?? "?")
+            .Select(g => new { kanton = g.Key, total = Math.Round(g.Sum(v => v.differenz), 2), anzahl = g.Count() })
+            .OrderBy(x => x.kanton)
+            .ToList();
+
+        // Offene VORJAHR-Posten (alle des MA-Bestands dieser Filiale).
+        var vorjahr = await (from k in _db.QstKorrekturen.AsNoTracking()
+                             join e in _db.Employees.AsNoTracking() on k.EmployeeId equals e.Id
+                             join q in _db.EmployeeQuellensteuer.AsNoTracking()
+                                  on k.NeueVersionId equals q.Id into qj
+                             from q in qj.DefaultIfEmpty()
+                             where k.Status == "VORJAHR"
+                                   && k.CompanyProfileId == companyProfileId
+                             orderby k.Jahr, k.Monat, e.FirstName
+                             select new
+                             {
+                                 k.Id,
+                                 employeeId   = e.Id,
+                                 employeeName = e.FirstName + " " + e.LastName,
+                                 jahr         = k.Jahr,
+                                 monat        = k.Monat,
+                                 alterCode    = k.AlterCode,
+                                 neuerCode    = k.NeuerCode,
+                                 differenz    = k.Differenz,
+                                 grund        = k.Grund,
+                                 steuerkanton = q != null ? q.Steuerkanton : null
+                             }).ToListAsync();
+
+        return Ok(new
+        {
+            verrechnet,
+            proKanton,
+            totalVerrechnet = Math.Round(verrechnet.Sum(v => v.differenz), 2),
+            vorjahr
+        });
+    }
+
     // GET /api/payroll/fibu-journal?companyProfileId&year&month  → Fibu-Journal-PDF
     // (Buchungsjournal aus den bestätigten Snapshots, Walter 22.05.2026). HR-only.
     [HttpGet("fibu-journal")]
@@ -1713,6 +1797,26 @@ public class PayrollController : HrControllerBase
                     BereitsAbgezogenNachher  = la.BereitsAbgezogen,
                     CreatedAt                = nowTs
                 });
+            }
+        }
+
+        // ── K2 (Walter 29.08.2026): OFFENE QST-Korrektur-Posten des MA als
+        // VERRECHNET markieren — atomar im selben SaveChanges wie Snapshot/
+        // Saldo. Der Lohnzettel hat sie in derselben Calculate-Rechnung als
+        // QST_KORR-Zeile verrechnet (Calculate zählt OFFEN + in-dieser-
+        // Periode-VERRECHNET, darum bleibt die Rechnung nach dem Bestätigen
+        // stabil, z.B. für GetPdf/Recompute). VORJAHR-Posten bleiben
+        // unangetastet (Meldung an die Steuerverwaltung, nie Lohnlauf).
+        if (!dto.IsCorrection)
+        {
+            var offeneKorr = await _db.QstKorrekturen
+                .Where(k => k.EmployeeId == dto.EmployeeId && k.Status == "OFFEN")
+                .ToListAsync();
+            foreach (var k in offeneKorr)
+            {
+                k.Status             = "VERRECHNET";
+                k.VerrechnetPeriodeId = dto.PayrollPeriodeId;
+                k.VerrechnetAt        = nowTs;
             }
         }
 
