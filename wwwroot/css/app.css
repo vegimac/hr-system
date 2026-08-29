@@ -5767,17 +5767,16 @@
             position: sticky;
             right: 0;
             z-index: 2;
-            background: #f2efe8 !important;
-            box-shadow: -6px 0 8px -6px rgba(60, 55, 48, 0.20) !important;
+            /* Walter 29.08.2026 v2: OHNE hellen Hintergrund-Streifen — die
+               Zelle bleibt transparent, nur der ⋮-Button selbst ist deckend.
+               Beim horizontalen Scrollen kann darunter kurz Text durch-
+               scheinen; dafür verschmilzt die Spalte mit der Zeile. */
+            background: transparent !important;
+            box-shadow: none !important;
             width: 3rem;
             min-width: 3rem;
             text-align: center;
             vertical-align: middle;
-        }
-        body.theme-dark #page-mitarbeiter.liquid-employee .dok-td-actions,
-        body.theme-dark #page-mitarbeiter.liquid-employee .dok-th-actions {
-            background: #1c2634 !important;
-            box-shadow: -6px 0 8px -6px rgba(0, 0, 0, 0.45) !important;
         }
         #page-mitarbeiter.liquid-employee .dok-list-empty {
             color: #8b8b8b !important;
