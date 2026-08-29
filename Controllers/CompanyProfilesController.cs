@@ -280,6 +280,28 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    /// <summary>
+    /// Nur die Hauptsitz-Zuordnung setzen (Walter 29.08.2026) — eigener
+    /// Mini-Endpoint, weil PATCH /stammdaten ein Voll-Ersatz ist und bei
+    /// Einzelfeld-Aufrufen alle übrigen Felder nullen würde. Wird vom
+    /// Inline-Dropdown im Stammdaten-Tab genutzt (Sofort-Speichern).
+    /// </summary>
+    [HttpPatch("{id}/hauptsitz")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> SetHauptsitz(int id, [FromBody] HauptsitzZuordnungDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        if (dto.HauptsitzId.HasValue
+            && !await _context.Hauptsitze.AnyAsync(h => h.Id == dto.HauptsitzId.Value))
+            return BadRequest(new { message = "Hauptsitz nicht gefunden." });
+        profile.HauptsitzId = dto.HauptsitzId;
+        await _context.SaveChangesAsync();
+        return Ok(new { profile.Id, profile.HauptsitzId });
+    }
+
+    public record HauptsitzZuordnungDto(int? HauptsitzId);
+
     public record CompanyStammdatenDto(
         string?  CompanyName,
         string?  BranchName,

@@ -262,6 +262,17 @@ function renderFilialenDetail(b) {
     <div class="emp-detail-body">
         <!-- TAB: Stammdaten -->
         <div class="emp-tab-content active" id="fil-tab-f-stamm">
+            <!-- Hauptsitz-Zuordnung GANZ OBEN, VOR dem Titel (Walter
+                 29.08.2026: war zu versteckt) — direkt editierbares Dropdown
+                 mit Sofort-Speichern (PATCH stammdaten, nur hauptsitzId). -->
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:rgba(255,255,255,0.5);border:1px solid rgba(60,55,48,0.16);border-radius:12px;padding:10px 14px;margin-bottom:12px">
+                <span style="font-weight:700;font-size:13px;white-space:nowrap">🏛 Hauptsitz (Rechtseinheit)</span>
+                <select id="stmHauptsitzInline-${b.id}" class="f-input" style="min-width:320px;flex:1;max-width:520px"
+                        onchange="stmHauptsitzInlineSave(${b.id})">
+                    <option value="">— nicht zugeordnet —</option>
+                </select>
+                <span id="stmHauptsitzInlineHint-${b.id}" style="font-size:11.5px;color:#8b8b8b"></span>
+            </div>
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
                 Stammdaten
                 <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openAlvDatenModal(${b.id})">✎ Bearbeiten</button>
@@ -278,7 +289,6 @@ function renderFilialenDetail(b) {
                 ${fField('Arbeitsort (Vertrag)', b.workLocation || `<span style="color:#8b8b8b">– (Fallback: ${b.city || 'Ort'})</span>`)}
                 ${fField('BUR-Nummer',      b.burNummer)}
                 ${fField('UID-Nummer',      b.uidNummer)}
-                ${fField('Hauptsitz (Rechtseinheit)', (typeof _hsNameOf === 'function' && _hsNameOf(b.hauptsitzId)) || (b.hauptsitzId ? 'Nr. ' + b.hauptsitzId : '<span style="color:#8b8b8b">– nicht zugeordnet</span>'))}
                 ${fField('Branchen-Code',   b.branchenCode)}
                 <!-- AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern
                      abgeleitet (Walter 06.08.2026) — keine Freitextfelder mehr.
@@ -542,6 +552,7 @@ function renderFilialenDetail(b) {
     // «Lohndaten Empfänger»; loadSslListForBranch bleibt toter Code.
     // AHV-Kasse/BVG-Versicherer aus den Empfänger-Zuordnungen ableiten.
     stmFillDerivedKassen(b.id);
+    stmHauptsitzInlineInit(b.id, b.hauptsitzId);   // Hauptsitz-Dropdown oben (Walter 29.08.2026)
     // Filial-Bankverbindungen asynchron nachladen (separate Tabelle mit Historie)
     loadCompanyBankList(b.id);
     // 13.-ML-Monatsraster im Einstellungen-Tab initialisieren.
@@ -2530,4 +2541,44 @@ async function stmFillDerivedKassen(branchId) {
         set('stmDerivedAhvKasse-' + branchId, pick('AUSGLEICHSKASSE'));
         set('stmDerivedBvg-' + branchId, pick('BVG'));
     } catch (_) { /* Anzeige bleibt «–» */ }
+}
+
+// ── Hauptsitz-Inline-Dropdown im Stammdaten-Tab (Walter 29.08.2026) ─────
+// Befüllt das Dropdown ganz oben im Tab und speichert die Zuordnung SOFORT
+// beim Wechsel (PATCH stammdaten, nur hauptsitzId — Backend ist
+// null-tolerant für die übrigen Felder).
+async function stmHauptsitzInlineInit(branchId, currentHsId) {
+    const sel = document.getElementById('stmHauptsitzInline-' + branchId);
+    if (!sel) return;
+    try {
+        const r = await fetch('/api/hauptsitze', { headers: ah() });
+        if (r.ok) {
+            const list = await r.json();
+            window._hsCache = list;
+            sel.innerHTML = '<option value="">— nicht zugeordnet —</option>' +
+                list.map(h => `<option value="${h.id}">${(h.name || '').replace(/</g, '&lt;')}${h.uid ? ' (' + h.uid + ')' : ''}</option>`).join('');
+        }
+    } catch { /* Dropdown bleibt mit Default */ }
+    sel.value = currentHsId != null ? String(currentHsId) : '';
+    const hint = document.getElementById('stmHauptsitzInlineHint-' + branchId);
+    if (hint && !window._hsCache?.length)
+        hint.textContent = 'Noch keine Hauptsitze — anlegen unter System → Filialen & Benutzer → «Hauptsitze».';
+}
+
+async function stmHauptsitzInlineSave(branchId) {
+    const sel  = document.getElementById('stmHauptsitzInline-' + branchId);
+    const hint = document.getElementById('stmHauptsitzInlineHint-' + branchId);
+    if (!sel) return;
+    const hauptsitzId = sel.value ? parseInt(sel.value, 10) : null;
+    try {
+        const res = await fetch(`/api/companyprofiles/${branchId}/hauptsitz`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hauptsitzId })
+        });
+        if (!res.ok) { if (hint) { hint.style.color = '#dc2626'; hint.textContent = 'Speichern fehlgeschlagen.'; } return; }
+        if (hint) { hint.style.color = '#16a34a'; hint.textContent = '✓ gespeichert'; setTimeout(() => { hint.textContent = ''; }, 2500); }
+    } catch {
+        if (hint) { hint.style.color = '#dc2626'; hint.textContent = 'Verbindungsfehler.'; }
+    }
 }
