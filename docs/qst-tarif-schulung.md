@@ -1,6 +1,6 @@
 # QST-Tarifbestimmung — Faktoren, Kombinationen, Folgen
 
-Schulungs- und Spezifikations-Dokument OneCrew (Stand 29.08.2026, inkl. Cursor-Korrektur).
+Schulungs- und Spezifikations-Dokument OneCrew (Stand 29.08.2026, inkl. 2. Korrektur ChatGPT + Cursor).
 Grundlage: ESTV-Kreisschreiben 45, TaxInfo BE (schweizweit gleiche
 Tarifcode-Systematik), Auskünfte Steuerverwaltung (Kevin, 29.08.2026).
 **Dieses Dokument ist die verbindliche Vorgabe für die automatische
@@ -44,8 +44,10 @@ Verheiratete = **C0Y** — immer MIT Kirchensteuer, bis die Angaben belegt sind.
    └─────────── Tarifbuchstabe: aus Zivilstand + Partner + Kindersituation
 ```
 
-Dazu der **Kanton**: Hauptwohnsitz-Kanton (bei Auslandswohnsitz der
-Arbeitskanton der Filiale) bestimmt, WELCHE kantonale Tarifdatei gilt.
+Dazu der **Kanton**: der Hauptwohnsitz-Kanton bestimmt, WELCHE kantonale
+Tarifdatei gilt. Wohnsitz Ausland: QST-Kanton richtet sich nach den
+gesetzlichen Regeln zum anspruchsberechtigten Kanton bzw. Arbeitsort
+(Details Abschnitt 7).
 
 ---
 
@@ -65,8 +67,8 @@ Arbeitskanton der Filiale) bestimmt, WELCHE kantonale Tarifdatei gilt.
 | Hauptwohnsitz-Land | easy@work-Adresse (`country_key`) | Grenzgänger-Logik, Kanton |
 | Wochenaufenthalt | Zusatzadresse «Wochenaufenthalt» | nur Sachverhalt — Kanton bleibt Hauptwohnsitz |
 | Rückkehr-Frage bei Auslandswohnsitz (täglich/regelmässig?) | QST-Erfassung (K4) | Grenzgänger vs. internationaler Wochenaufenthalter |
-| Gre-1/2-Ansässigkeitsbescheinigung (DE) | QST-Erfassung (K4, Dokument) | ohne Gre-1/2: ordentliche A/B/C/H statt L/M/N/P |
-| Weitere Beschäftigungen des MA | QST-Erfassung | satzbestimmender Lohn (KS 45 Variante B), NICHT der Buchstabe |
+| Gre-1/2-Ansässigkeitsbescheinigung (DE) | QST-Erfassung (K4, Dokument) | ohne Gre-1/2: ordentliche A/B/C/H statt L/M/N/P/Q |
+| Weitere Beschäftigungen des MA | QST-Erfassung | satzbestimmender Lohn gemäss KS 45 (Gesamteinkommen / Gesamtbeschäftigungsgrad / Hochrechnung, sonst Medianlohn) — NICHT der Buchstabe |
 | Behördenbewilligung Kinderabzug A | QST-Erfassung + Verfügung (Dokument Pflicht) | A1–A9 statt A0 |
 | Behördenentscheid Prozentsatz | QST-Erfassung (Sonderfälle) | ersetzt Tarifrechnung |
 
@@ -153,13 +155,16 @@ Wohnkantons; das Flag ist reine Sachverhaltsinfo (kommt automatisch aus der
 Zusatzadresse «Wochenaufenthalt»).
 
 **Hauptwohnsitz im Ausland** = «Person ohne steuerrechtlichen Wohnsitz CH»
-(NICHT pauschal «Grenzgänger»!). QST-Kanton = **Arbeitskanton der Filiale
-des ältesten laufenden Vertrags** (Hauptfiliale) — nicht «irgendeine Filiale».
+(NICHT pauschal «Grenzgänger»!). Wohnsitz Ausland: QST-Kanton richtet sich
+nach den gesetzlichen Regeln zum anspruchsberechtigten Kanton bzw.
+Arbeitsort. Bei mehreren parallelen Arbeitsverhältnissen/Arbeitskantonen ist
+die genaue Priorisierung vor K4 mit Swissdec bzw. Steuerbehörde zu klären
+(Abschnitt 9 Punkt 5).
 Untertypen nach Land × Arbeitskanton (Details Konzept Kap. 5.4):
 
 | Wohnsitz | Arbeitskanton | Tarif |
 |---|---|---|
-| DE | alle | **L/M/N/P** (A→L, B→M, C→N, H→P), max. 4.5 % — NUR mit Gre-1; >60 Nichtrückkehrtage → normale Tarife |
+| DE | alle | **L/M/N/P/Q** (A→L, B→M, C→N, H→P, G→Q), max. 4.5 % — NUR mit Gre-1; >60 Nichtrückkehrtage → normale Tarife |
 | FR | BE BS BL JU NE SO VD VS | **SFN** = keine CH-QST (bei erfüllter Grenzgängerregel) |
 | FR | übrige (AG, LU, ZH, GE …) | normale A/B/C/H |
 | IT | TI GR VS | **R/S/T/U/V** (80 % der ordentlichen QST), ESTV-Grenzgemeindeliste |
@@ -167,11 +172,19 @@ Untertypen nach Land × Arbeitskanton (Details Konzept Kap. 5.4):
 | AT / übrige | alle | normale A/B/C/H |
 
 **DE-Mapping — Bedeutung nach 2021 (massgebend ist DIESES Dokument):**
-**N ist der C-Zwilling** (verheiratet, Doppelverdiener) — NICHT «Nebenerwerb»;
-**P ist der H-Zwilling** (Alleinerziehend). Alte Labels in Hilfe/
-`QstTarifVorschlagLogic` («N = Nebenerwerb», «P = Pauschale») sind veraltet.
-Tarif G (Ersatzeinkünfte, die der Versicherer direkt auszahlt) kommt im
-AG-Lohnlauf nicht vor — ein G→Q-Mapping entfällt.
+
+| DE-Tarif | Zwilling von | Bedeutung |
+|---|---|---|
+| **L** | A | alleinstehend |
+| **M** | B | verheiratet, Alleinverdiener |
+| **N** | C | verheiratet, Doppelverdiener — NICHT «Nebenerwerb» |
+| **P** | H | Alleinerziehend |
+| **Q** | G | Ersatzeinkünfte, die der Versicherer direkt auszahlt |
+
+**Q bleibt im Dokument** — für den normalen Arbeitgeber-Lohnlauf in OneCrew
+aber NICHT relevant (nicht in die Lohnberechnung einbauen). Alte Labels in
+Hilfe/`QstTarifVorschlagLogic` («N = Nebenerwerb», «P = Pauschale») sind
+veraltet.
 
 Internationaler Wochenaufenthalter (wohnt unter der Woche in der CH, kehrt
 nicht täglich zurück) = NICHT Grenzgänger → normale Tarife. Die
@@ -187,25 +200,28 @@ aus den Tarifdateien; einzige Code-Regel ist FL = 0.
 - **Ersatztarif A0Y/C0Y** bei unzuverlässigem Ausweis (Abschnitt 0).
 - **Behördenbewilligung A1–A9:** einziger Weg zu einer Kinderziffer auf A —
   Verfügung der Steuerbehörde als Dokument Pflicht.
-- **Manueller Prozentsatz / satzbestimmender Medianlohn:** nur auf
-  dokumentierten Behördenentscheid.
-- **Weitere Beschäftigungen (früher «Nebenerwerb»):** Der Tarifbuchstabe
-  BLEIBT (A/B/C/H bzw. Grenzgänger-Mapping) — Tarif D ist seit 2021
-  abgeschafft. Weitere CH-Arbeitgeber ändern den Buchstaben nicht; sie
-  fliessen in den **satzbestimmenden Lohn** (KS 45 / QStG 2021, Variante B:
-  CH-Einkommen zusammenzählen bzw. hochrechnen). Kurzmonat: satzbestimmend =
-  voller Monat (so bereits in der Engine). Das Pensum-% ist NICHT die
-  Steuerbasis. (Tarif G = Ersatzeinkünfte, die der Versicherer direkt
-  auszahlt — betrifft den AG-Lohnlauf nicht.)
+- **Manueller Prozentsatz:** nur mit Behördenverfügung.
+- **Medianlohn-Regel:** ESTV-Fallback, wenn Gesamteinkommen,
+  Gesamtbeschäftigungsgrad und Hochrechnung nicht möglich sind — KEIN
+  Behördenentscheid.
+- **Weitere Beschäftigungen:** Der Tarifbuchstabe bleibt unverändert.
+  Tarif D ist seit 2021 für diesen Fall abgeschafft. Weitere
+  Erwerbstätigkeiten wirken ausschliesslich auf den **satzbestimmenden
+  Lohn**. Dessen Ermittlung erfolgt gemäss KS 45 abhängig von den
+  verfügbaren Angaben über Gesamteinkommen, Gesamtbeschäftigungsgrad bzw.
+  Hochrechnung; ist keine dieser Methoden möglich, gilt die
+  **Medianlohn-Regel**. Nicht pauschal «CH-Einkommen zusammenzählen» und
+  nicht Pensum-% als Steuerbasis bezeichnen.
+  Kurzmonat: satzbestimmend = voller Monat (so bereits in der Engine).
 - **Zeitliche Geltung:** Verhältnisse am MONATSANFANG; Änderungen wirken ab
   FOLGEMONAT. Einzige Ausnahme: nimmt der Ehepartner eine Erwerbstätigkeit
   auf, gilt C beim MA ab Folgemonat, beim Partner sofort.
 - **Geburt / Kind zieht in den Haushalt:** neue Ziffer bzw. Wechsel auf H
   ab FOLGEMONAT — analog Heirat/Trennung.
-- **Kind wird 18:** Stichtag ist der 1. des Monats — das Kind zählt noch,
-  solange am Monatsanfang der 18. Geburtstag nicht überschritten ist (am
-  Geburtstag selbst noch ja); danach nur noch mit Erstausbildung (oder
-  laufender Ausbildungszulage als Beleg).
+- **Kind wird 18:** Wird das Kind während eines Monats 18 Jahre alt, bleibt
+  die bisherige Kinderziffer für diesen Monat bestehen. Ab dem 1. des
+  Folgemonats besteht der Kinderabzug nur weiter, wenn die Voraussetzungen
+  für ein volljähriges Kind in Erstausbildung erfüllt sind.
 - **Heirat / Scheidung / Trennung / Verwitwung:** neuer Buchstabe ab
   Folgemonat; verspätete Meldung → rückwirkende Version mit Korrektur-Grund
   (K1), Differenzen als QST-Korrektur im nächsten Lohnlauf.
@@ -224,11 +240,20 @@ aus den Tarifdateien; einzige Code-Regel ist FL = 0.
 4. **Herleitungs-Snapshot pro Version** (Parameter mit dem Tarif einfrieren,
    History zeigt «was hat geändert»): Design steht, Bau erst nach Freigabe
    dieses Dokuments.
+5. **Mehrkanton bei Auslandswohnsitz:** Bei mehreren parallelen
+   Arbeitsverhältnissen/Arbeitskantonen ist die genaue Priorisierung des
+   anspruchsberechtigten Kantons vor K4 mit Swissdec bzw. Steuerbehörde zu
+   klären («ältester laufender Vertrag» ist nur ein OneCrew-Tie-Breaker,
+   keine ESTV-/Swissdec-Regel).
 
 ---
 
 ## Versionslog
 
+- **Zweite Korrektur 28./29.08.2026 (ChatGPT + Cursor):** satzbestimmender
+  Lohn gemäss KS 45 (nicht pauschal zusammenzählen); Volljährigkeit =
+  Folgemonat; Q = G-Zwilling belassen, im AG-Lohnlauf nicht relevant;
+  Mehrkanton bei Auslandswohnsitz als offene Abklärung.
 - **Cursor-Korrektur 28.08.2026:** Konkubinat nicht-erwerbstätig,
   Trennung in Vorprüfung, Obhut kein Automatismus, satzbestimmender Lohn,
   Geburt, DE-N-Bedeutung.
