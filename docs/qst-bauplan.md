@@ -37,8 +37,10 @@ Kirchensteuer aus Konfession (Kantons-/Datei-Abhängigkeit: K4).
 
 **Wohnsituation & Ausland:** Wochenaufenthalt = Zusatzadresse (Quelle des
 Flags, W8/W9); Auslands-Hauptadresse 1:1 aus easy@work (`country_key`);
-Land ≠ CH ⇒ Grenzgänger-Flag automatisch; **Kanton-Fälle: A und B live,
-Fall C (Ausland + CH-Wochenadresse → Wochenaufenthaltskanton) = Soll K4.**
+Land ≠ CH ⇒ automatisch «Person ohne steuerrechtlichen Wohnsitz CH» —
+der ECHTE Grenzgänger-Status ergibt sich erst mit Rückkehr-Frage +
+Nachweisen (K4). **Kanton-Fälle: A und B live, Fall C (Ausland +
+CH-Wochenadresse → Wochenaufenthaltskanton) = Soll K4.**
 Der «älteste laufende Vertrag» ist nur ein Tie-Breaker (Mehrkanton offen).
 
 **Weiteres:** Ersatztarif-Grundsatz verankert; Warnungen W1–W9;
@@ -66,10 +68,11 @@ Erstattungen sind NIE ein Darlehen.
 
 ## 4 · Etappe K4 — automatische Tarif-Herleitung + finale Maske
 
-**Gate (klein geworden):** Nur noch Abschnitt 9 A der Schulung —
-Mehrkanton bei Auslandswohnsitz und die H-Ziffer-Frage (Haushalts- vs.
-alle Unterhaltskinder). Die B-Fälle brauchen KEINE juristische Klärung:
-ihr Verhalten ist im Perimeter definiert.
+**Kein Rechts-Gate mehr:** Auch Abschnitt 9 A der Schulung (Mehrkanton,
+H-Ziffer) blockt den K4-BAU nicht — die Automatik verhält sich bis zur
+Klärung gemäss Perimeter: bei Mehrkanton wird KEIN Kanton geraten (keine
+definitive Abrechnung), die H-Ziffer wird NICHT um Kinder ausser Haus
+erhöht. Die B-Fälle brauchen ohnehin keine juristische Klärung.
 
 1. **Herleitungs-Snapshot pro Version:** JSON-Spalte an
    `employee_quellensteuer` — Server friert die komplette
@@ -131,8 +134,9 @@ Mit Swissdec-Etappe E6: Korrektur-/Ersatzmeldungen aus den
 
 ## 6 · Gates & offene Punkte (Spiegel von Schulung Abschnitt 9)
 
-- **A (Blocker vor K4):** Mehrkanton Ausland · H-Ziffer Haushalts- vs.
-  alle Unterhaltskinder (Swissdec/Steuerverwaltung).
+- **A (fachlich zu klären — blockt den Bau NICHT):** Mehrkanton Ausland ·
+  H-Ziffer Haushalts- vs. alle Unterhaltskinder (Swissdec/
+  Steuerverwaltung). Automatik bis Klärung = Perimeter-Verhalten.
 - **B (kein Blocker):** Obhut, gemischtes Konkubinat, unklare
   Ansässigkeit, unklarer Unterhalt — Verhalten im Perimeter definiert.
 - **C (spezifiziert, Bau in K4):** Fall C Kanton, Gre-Felder,

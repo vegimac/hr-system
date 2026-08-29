@@ -194,7 +194,7 @@ QST-berechtigte(s) Kind(er) im Haushalt.
 | ja | K-Partner NICHT erwerbstätig (kein Erwerb, kein Ersatzeinkommen) | **H{n}** — auch wenn die Einkommensfrage offen ist: der MA ist zwangsläufig Hauptunterhalt (AG/ESTV-Praxis 25.08.2026, so im Live-Code `QstTarifVorschlagLogic`) |
 | ja | Frage offen — UND Partner erwerbstätig/Ersatzeinkommen ja oder Erwerbsfrage selbst offen | konservativ **A0** + Warnung |
 | nein (Kind aus früherer Beziehung, im Haushalt) | egal | **H{n}** (MA ist alleinerziehend) |
-| GEMISCHT (gemeinsame UND nicht-gemeinsame Kinder) | egal | **kein Automatismus — mit QST-Behörde abklären** |
+| GEMISCHT (gemeinsame UND nicht-gemeinsame Kinder) | egal | **vorläufig A0, Status ROT, mit QST-Behörde abklären** (wie alternierende Obhut — Verhalten gemäss Kapitel 10) |
 
 ---
 
@@ -234,8 +234,9 @@ Aufenthaltsort — **keine zweite Wahrheit.**
   betriebliche Eingliederung) — NICHT der Kanton des GmbH-Hauptsitzes
   (Meggen). So konkretisiert sich die ESTV-Formel
   «Sitz/Verwaltung/Betriebsstätte» für OneCrew.
-- **C) Ansässigkeit Ausland MIT Wochenaufenthalterstatus CH:** QST-Kanton =
-  **Wochenaufenthaltskanton**.
+- **C) Ansässigkeit Ausland MIT Wochenaufenthalterstatus CH:**
+  QST-Kanton = der Kanton der CH-Wochenaufenthaltsadresse
+  (der **Wochenaufenthaltskanton**).
 
 Mehrkantonsfälle (parallele Arbeitsverhältnisse in mehreren Kantonen):
 **ROT** — keine Automatik (Abschnitt 9 A).
@@ -266,7 +267,7 @@ Untertypen nach Land × Arbeitskanton (Details Konzept Kap. 5.4):
 | Wohnsitz | Arbeitskanton | Tarif |
 |---|---|---|
 | DE | alle | **L/M/N/P/Q** (A→L, B→M, C→N, H→P, G→Q), max. 4.5 % — NUR mit Gre-1; >60 Nichtrückkehrtage → normale Tarife |
-| FR | BE BS BL JU NE SO VD VS | **SFN** = keine CH-QST — NUR mit jährlicher Ansässigkeitsbescheinigung UND erfüllter Grenzgängereigenschaft (sonst kein SFN → ordentliche A/B/C/H, Status nicht grün) |
+| FR | BE BS BL JU NE SO VD VS | **SFN** = keine CH-QST — NUR mit jährlicher Ansässigkeitsbescheinigung UND erfüllter Grenzgängereigenschaft (Nachweis fehlt → ordentlich VORLÄUFIG, ROT; bewiesen nicht erfüllt → ordentlich GRÜN) |
 | FR | übrige (AG, LU, ZH, GE …) | normale A/B/C/H |
 | IT | TI GR VS | **NUR «neue» Grenzgänger (ab 17.07.2023): R/S/T/U** (Details unten) — ehemalige Grenzgänger NICHT |
 | FL | alle | **CH-QST = 0** (>45 Nichtrückkehrtage → CH-Recht lebt auf) |
@@ -304,10 +305,10 @@ veraltet.
 **FR-Detail:** SFN (BE, BS, BL, JU, NE, SO, VD, VS) verlangt BEIDES: die
 **jährliche Ansässigkeitsbescheinigung** UND die **erfüllte
 Grenzgängereigenschaft** (max. 45 Nichtrückkehrtage, max. 40 % Telearbeit,
-temporäre Einsätze gemäss Verständigungsvereinbarung). Fehlt der Nachweis
-oder ist die Regel nicht erfüllt → **kein SFN**; bei bekanntem Kanton
-gelten die ordentlichen A/B/C/H — der Status ist dabei NICHT grün. Keine
-selbst gerechneten Prozente. Dazu gehören die Swissdec-**Monats- und
+temporäre Einsätze gemäss Verständigungsvereinbarung). **FEHLT der
+Nachweis** → kein SFN; ordentliche A/B/C/H VORLÄUFIG, Status ROT. Sind die
+Voraussetzungen **BEWIESEN nicht erfüllt** → ordentliche A/B/C/H, Status
+GRÜN. (Analog DE mit Gre-1.) Keine selbst gerechneten Prozente. Dazu gehören die Swissdec-**Monats- und
 Jahresmeldungen**. Für ALLE in FR ansässigen Arbeitnehmer (auch ausserhalb
 der 8 Kantone) gilt ab Steuerjahr 2026 die neue schweizweite
 Arbeitgeber-/ELM-**Jahresmeldung** (erste Meldung Anfang 2027), inkl.
@@ -412,13 +413,13 @@ Verhalten der Automatik steht in **Abschnitt 10** (nicht pauschal
 
 **Leitprinzip (Walter, 29.08.2026):** OneCrew automatisiert nur Tarife,
 die durch die Eingaben SEHR KLAR bestimmt werden können. In allen anderen
-Fällen gilt der **höchste logische Tarif der unklaren Dimension** (Tabelle
-unten) mit der Aufforderung, die Situation mit der Steuerbehörde
-abzuklären. Steuerlich ist das die AG-sichere Richtung: zu viel abgezogene
-QST kann der MA zurückfordern — zu wenig abgezogene haftet der
-Arbeitgeber. EINZIGE Ausnahme: ist der KANTON unklar (Mehrkanton Ausland,
-unklare Ansässigkeit), hilft auch der höchste Tarif nicht — vorläufig
-weiterrechnen ja, definitive QST-Abrechnung erst nach Klärung.
+Fällen gilt **der für die konkrete ungeklärte Dimension definierte
+Fallback** (Tabelle unten) mit der Aufforderung, die Situation mit der
+Steuerbehörde abzuklären. Steuerlich ist das die AG-sichere Richtung: zu
+viel abgezogene QST kann der MA zurückfordern — zu wenig abgezogene haftet
+der Arbeitgeber. EINZIGE Ausnahme: ist der KANTON unklar (Mehrkanton
+Ausland, unklare Ansässigkeit) — Lohn vorbereiten ja, aber KEINEN Kanton
+setzen und KEINE definitive QST-Abrechnung, bis geklärt ist.
 
 **Grundregel:** OneCrew automatisiert nur DETERMINISTISCHE Fälle —
 dieselben Eingaben ergeben immer genau EIN Ergebnis, ohne Interpretation,
@@ -438,11 +439,13 @@ Lücke; Fallback ist NUR der für diese Lücke definierte:
 | Lücke | Fallback |
 |---|---|
 | Partner-Erwerb unbekannt | konservativ **C** (verheiratet) |
-| Partner nur Tarif E dokumentiert | **B**, nicht C |
-| Gre-1 fehlt (DE) | kein L/M/N/P/Q → ordentliche **A/B/C/H** |
-| FR-Bescheinigung / FR-Regel nicht erfüllt | kein SFN; bekannter Kanton → ordentliche **A/B/C/H** |
+| Gre-1-Nachweis FEHLT (DE) | kein L/M/N/P/Q → ordentliche **A/B/C/H** vorläufig, ROT. (Ist die Grenzgängereigenschaft BEWIESEN nicht erfüllt → ordentliche Tarife **GRÜN**.) |
+| FR-Bescheinigung/-Nachweis FEHLT | kein SFN → ordentliche **A/B/C/H** vorläufig, ROT. (BEWIESEN nicht erfüllte Voraussetzungen → ordentliche Tarife **GRÜN**.) |
 | Konfession fehlt | Buchstabe bleibt; **Y/N nach Abschnitt 0** |
 | Zivilstand unzuverlässig | **Ersatztarif** gemäss Abschnitt 0 |
+
+Hinweis: **dokumentiertes Tarif E → B ist GRÜN** (normale Regel, Abschnitt
+3) — nur «Partner-Erwerb unbekannt → C» ist rot.
 
 Status bleibt ROT, bis die Daten vollständig sind. Der Lohn KANN laufen,
 wo ein Fallback definiert ist.
