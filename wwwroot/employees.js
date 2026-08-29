@@ -10392,6 +10392,9 @@ document.addEventListener('click', () =>
 
 function openDarlehenModal(existing) {
     window._dlQstIds = null;   // Reset — nur darlehenAusQst setzt sie danach.
+    // Bereits verrechnete Raten (nur beim Bearbeiten vorhanden) — Basis für
+    // den Ratenplan unten im Modal (Walter 29.08.2026).
+    window._dlEditRaten = Array.isArray(existing?.raten) ? existing.raten : [];
     const isNew = !existing;
     const d = existing || {};
     const now = new Date();
@@ -10425,14 +10428,15 @@ function openDarlehenModal(existing) {
             <div style="min-width:0">${eField('Monatsrate (CHF)', `<input id="dl-rate" class="ef-input" type="number" step="0.05" min="0" value="${d.rateBetrag ?? ''}" oninput="dlRecalc('rate')">`)}</div>
             <div style="min-width:0">${eField('Verrechnung ab (Monat / Jahr)', `<div style="display:flex;gap:6px;align-items:center">
                 <input id="dl-startMonat" class="ef-input" type="number" min="1" max="12" step="1"
-                       value="${d.startMonat ?? defMonat}" style="width:70px;flex:0 0 70px;text-align:center">
+                       value="${d.startMonat ?? defMonat}" style="width:70px;flex:0 0 70px;text-align:center" oninput="dlRecalc()">
                 <span style="color:#8b8b8b">/</span>
                 <input id="dl-startJahr" class="ef-input" type="number" step="1"
-                       value="${d.startJahr ?? defJahr}" style="width:100px;flex:0 0 100px;text-align:center">
+                       value="${d.startJahr ?? defJahr}" style="width:100px;flex:0 0 100px;text-align:center" oninput="dlRecalc()">
             </div>`)}</div>
             <div style="min-width:0;grid-column:span 2">${eField('Bemerkung', `<input id="dl-bemerkung" class="ef-input" value="${(d.bemerkung||'').replace(/"/g,'&quot;')}">`)}</div>
         </div>
         <div id="dl-hint" style="font-size:12px;color:#64748b;margin:6px 0"></div>
+        <div id="dl-plan" style="margin:4px 0 6px"></div>
         <div id="dl-error" style="color:#dc2626;font-size:12px;margin:4px 0"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;border-top:1px solid rgba(60,55,48,0.12);padding-top:12px;margin-top:6px">
             <button class="btn btn-outline" onclick="document.getElementById('darlehenModal').remove()">Abbrechen</button>
@@ -10466,6 +10470,66 @@ function dlRecalc(changed) {
         const letzte = Math.round((betrag - rate * (anzahl - 1)) * 100) / 100;
         hint.textContent = `${anzahl} Raten à CHF ${rate.toFixed(2)} — letzte Rate CHF ${letzte.toFixed(2)}. Zinslos; bei Austritt wird der Rest fällig.`;
     }
+    dlRenderPlan();
+}
+
+// Ratenplan-Liste unten im Modal (Walter 29.08.2026): wann wieviel vom Lohn
+// abgezogen wird — bereits verrechnete Raten mit ✓ (aus employee_darlehen_rate),
+// künftige aus Betrag/Rate/Start gerechnet. Live bei jeder Eingabe.
+function dlRenderPlan() {
+    const el = document.getElementById('dl-plan');
+    if (!el) return;
+    const betrag = parseFloat(document.getElementById('dl-betrag')?.value) || 0;
+    const rate   = parseFloat(document.getElementById('dl-rate')?.value) || 0;
+    let m = parseInt(document.getElementById('dl-startMonat')?.value) || 0;
+    let y = parseInt(document.getElementById('dl-startJahr')?.value) || 0;
+    const raten = [...(window._dlEditRaten || [])]
+        .sort((a, b) => (a.periodYear - b.periodYear) || (a.periodMonth - b.periodMonth));
+    if (betrag <= 0 || (rate <= 0 && !raten.length) || m < 1 || m > 12 || y < 2020) { el.innerHTML = ''; return; }
+
+    const chf = v => Number(v).toLocaleString('de-CH', { minimumFractionDigits: 2 });
+    const pad = v => String(v).padStart(2, '0');
+    let rows = '';
+    let rest = betrag;
+
+    // 1) Bereits vom Lohn abgezogen (eingefroren).
+    raten.forEach(r => {
+        rest = Math.round((rest - r.betrag) * 100) / 100;
+        rows += `<tr>
+            <td style="padding:2px 10px 2px 0;white-space:nowrap">${pad(r.periodMonth)}/${r.periodYear}</td>
+            <td style="padding:2px 10px;text-align:right;font-family:monospace">−${chf(r.betrag)}</td>
+            <td style="padding:2px 10px;color:#15803d;white-space:nowrap">✓ abgezogen</td>
+            <td style="padding:2px 0;text-align:right;font-family:monospace;color:#64748b">Rest ${chf(r.saldoNachher ?? rest)}</td>
+        </tr>`;
+    });
+
+    // 2) Künftige Raten: nach der letzten verrechneten Rate weiter, sonst ab Start.
+    if (raten.length) {
+        const last = raten[raten.length - 1];
+        m = last.periodMonth + 1; y = last.periodYear;
+        if (m > 12) { m = 1; y++; }
+    }
+    let guard = 0;
+    while (rest > 0.004 && rate > 0 && guard++ < 120) {
+        const r = Math.min(rate, rest);
+        rest = Math.round((rest - r) * 100) / 100;
+        rows += `<tr>
+            <td style="padding:2px 10px 2px 0;white-space:nowrap">${pad(m)}/${y}</td>
+            <td style="padding:2px 10px;text-align:right;font-family:monospace">−${chf(r)}</td>
+            <td style="padding:2px 10px;color:#94a3b8;white-space:nowrap">offen</td>
+            <td style="padding:2px 0;text-align:right;font-family:monospace;color:#64748b">Rest ${chf(rest)}</td>
+        </tr>`;
+        m++; if (m > 12) { m = 1; y++; }
+    }
+    if (rest > 0.004 && rate <= 0) {
+        rows += `<tr><td colspan="4" style="padding:2px 0;color:#94a3b8;font-style:italic">Rest CHF ${chf(rest)} — Rate angeben für den Plan.</td></tr>`;
+    }
+
+    el.innerHTML = `
+    <div style="border:1px solid rgba(60,55,48,0.15);border-radius:10px;padding:8px 12px;background:rgba(255,255,255,0.35)">
+        <div style="font-size:11px;font-weight:700;letter-spacing:.03em;color:#8b8b8b;text-transform:uppercase;margin-bottom:4px">Abzug vom Lohn (Plan)</div>
+        <table style="border-collapse:collapse;font-size:12px;color:#3f3f3f;width:auto">${rows}</table>
+    </div>`;
 }
 
 async function saveDarlehen(id) {
