@@ -1,6 +1,6 @@
 # QST-Tarifbestimmung — Faktoren, Kombinationen, Folgen
 
-Schulungs- und Spezifikations-Dokument OneCrew (Stand 29.08.2026, inkl. 2. Korrektur ChatGPT + Cursor).
+Schulungs- und Spezifikations-Dokument OneCrew (Stand 29.08.2026, inkl. 3. Fachkorrektur ChatGPT + Cursor).
 Grundlage: ESTV-Kreisschreiben 45, TaxInfo BE (schweizweit gleiche
 Tarifcode-Systematik), Auskünfte Steuerverwaltung (Kevin, 29.08.2026).
 **Dieses Dokument ist die verbindliche Vorgabe für die automatische
@@ -10,7 +10,30 @@ Tarif-Herleitung (K4) — erst wenn hier alles geklärt ist, wird gebaut.**
 
 ## 0 · Vorprüfung: Ist überhaupt QST geschuldet?
 
-Ein MA ist QST-pflichtig, AUSSER einer dieser fünf Befreiungsgründe greift:
+**Schritt 0a — Steuerrechtliche Ansässigkeit in der Schweiz? JA/NEIN.**
+Operative Grundlage: die aus easy@work synchronisierte
+**Hauptwohnsitzadresse in OneCrew** (Single Source of Truth für
+Adresse/Zivilstand). Kein separates Ansässigkeitsfeld, keine doppelte
+Adresspflege — K4 schaut NICHT in easy@work, die Herleitung rechnet nur
+mit den OneCrew-Stammdaten.
+
+- **Hauptwohnsitz-Land = CH → Ansässigkeit Schweiz:** die fünf
+  Befreiungsgründe unten anwenden (CH, C, Behörde, Ehepartner CH/C).
+  Die Partner-Befreiung gilt nur bei rechtlich UND tatsächlich
+  ungetrennter Ehe/Partnerschaft und den KS-45-Voraussetzungen.
+- **Hauptwohnsitz-Land ≠ CH → Ansässigkeit Ausland:** QST auf die in der
+  CH ausgeübte unselbständige Erwerbstätigkeit grundsätzlich JA —
+  unabhängig von Nationalität und Bewilligung, vorbehaltlich
+  DBA/Grenzgängerregel (Abschnitt 7). **CH-Pass oder C-Ausweis befreien
+  bei Auslandsansässigkeit NICHT automatisch.**
+
+**Sonderfall:** Liegt dokumentiert vor, dass die steuerrechtliche
+Ansässigkeit von der hinterlegten Hauptadresse abweicht → KEIN
+Automatismus, **ROT / QST-Behörde**. Kein neues Eingabefeld, kein
+Normalprozess.
+
+**Schritt 0b — bei Ansässigkeit CH:** Ein MA ist QST-pflichtig, AUSSER
+einer dieser fünf Befreiungsgründe greift:
 
 | # | Befreiungsgrund | Nachweis in OneCrew |
 |---|---|---|
@@ -53,21 +76,28 @@ gesetzlichen Regeln zum anspruchsberechtigten Kanton bzw. Arbeitsort
 
 ## 2 · Faktorenkatalog — was fliesst ein, woher kommt es
 
+Quelle für Adresse und Zivilstand ist der **OneCrew-Stamm** (Sync aus
+easy@work) — die Herleitung rechnet ausschliesslich in OneCrew, nie direkt
+gegen easy@work.
+
 | Faktor | Quelle in OneCrew | Wirkt auf |
 |---|---|---|
 | Nationalität / Bewilligung | MA-Stamm / Bewilligungshistorie (easy@work) | Pflicht ja/nein |
 | Zivilstand (+ seit) | easy@work / MA-Maske | Buchstabe |
 | «Getrennt seit» (tatsächliche Trennung) | MA-Stamm | Pflicht ja/nein (beendet Partner-Befreiung) + Buchstabe, ab Folgemonat |
 | Partner erwerbstätig / Ersatzeinkommen (auch Rente, Militärsold, auch im Ausland) | Familie-Tab (Ehepartner) | B vs. C |
-| Kinder: Geburtsdatum, Erstausbildung, Ausbildungszulage | Familie-Tab + FamZ-Modul | Ziffer (berechtigt = unter 18 ODER in Erstausbildung) |
+| Kinder: Geburtsdatum, Erstausbildung (mit Ausbildungsnachweis), Ausbildungszulage, Unterhalt zur Hauptsache | Familie-Tab + FamZ-Modul | Ziffer — berechtigt = minderjährig ODER volljährig in beruflicher/schulischer Erstausbildung UND der MA kommt für den Unterhalt zur Hauptsache auf |
 | Kind lebt im Haushalt (explizites Flag) | Familie-Tab | H-Berechtigung + H-Ziffer |
 | Gemeinsames Kind mit Konkubinatspartner | Familie-Tab (Kind) | Konkubinats-Entscheid |
 | Konkubinat + «MA hat höheres Einkommen» | Familie-Tab (Konkubinatspartner) | H vs. A0 |
 | Konfession | MA-Maske (Landeskirche = pflichtig) | Y/N |
 | Hauptwohnsitz-Land | easy@work-Adresse (`country_key`) | Grenzgänger-Logik, Kanton |
-| Wochenaufenthalt | Zusatzadresse «Wochenaufenthalt» | nur Sachverhalt — Kanton bleibt Hauptwohnsitz |
+| Wochenaufenthalt | Zusatzadresse «Wochenaufenthalt» | kein eigener Tarifcode; bei Ansässigkeit CH ändert er den Kanton NICHT — bei Ansässigkeit Ausland ist der Wochenaufenthaltskanton der QST-Kanton (Abschnitt 7, Fall C) |
 | Rückkehr-Frage bei Auslandswohnsitz (täglich/regelmässig?) | QST-Erfassung (K4) | Grenzgänger vs. internationaler Wochenaufenthalter |
 | Gre-1/2-Ansässigkeitsbescheinigung (DE) | QST-Erfassung (K4, Dokument) | ohne Gre-1/2: ordentliche A/B/C/H statt L/M/N/P/Q |
+| FR-Ansässigkeitsbescheinigung (jährlich, SFN-Kantone) | QST-Erfassung (K4, Dokument) | ohne Bescheinigung: ROT — kein SFN |
+| FR-Jahresmeldung ab Steuerjahr 2026 (Telearbeit-/Arbeitstage, alle FR-Ansässigen) | QST-Erfassung (K4) | ELM-/AG-Jahresmeldung, erste Meldung Anfang 2027 |
+| IT-Grenzgängerstatus (neu ab 17.07.2023 / ehemalig), Wohnsitzgemeinde (ESTV-20-km-Liste), Nichtrückkehrtage ≤ 45, Homeoffice ≤ 25 % | QST-Erfassung (K4) | R/S/T/U nur für «neue» Grenzgänger |
 | Weitere Beschäftigungen des MA | QST-Erfassung | satzbestimmender Lohn gemäss KS 45 (Gesamteinkommen / Gesamtbeschäftigungsgrad / Hochrechnung, sonst Medianlohn) — NICHT der Buchstabe |
 | Behördenbewilligung Kinderabzug A | QST-Erfassung + Verfügung (Dokument Pflicht) | A1–A9 statt A0 |
 | Behördenentscheid Prozentsatz | QST-Erfassung (Sonderfälle) | ersetzt Tarifrechnung |
@@ -100,7 +130,12 @@ gesetzlichen Regeln zum anspruchsberechtigten Kanton bzw. Arbeitsort
 ## 4 · Halbfamilien-Matrix (der Kern — Walters Frage)
 
 Vorbedingung: MA ist NICHT verheiratet/eingetragene Partnerschaft und hat
-mindestens ein QST-berechtigtes Kind (unter 18 ODER in Erstausbildung).
+mindestens ein **QST-berechtigtes Kind** — massgebend: **minderjährig ODER
+volljährig in beruflicher/schulischer Erstausbildung, UND der MA kommt für
+den Unterhalt zur Hauptsache auf** (volljährig: Ausbildungsnachweis).
+Für Tarif H zusätzlich: Kind im gleichen Haushalt UND Unterhalt zur
+Hauptsache. **Unklare Unterhaltssituation bei einem Kind ausser Haus:
+NICHT automatisch in die Ziffer — ROT/orange, nicht raten.**
 
 | Situation | Kind im Haushalt? | Alimente | Tarif | Bemerkung |
 |---|---|---|---|---|
@@ -110,7 +145,7 @@ mindestens ein QST-berechtigtes Kind (unter 18 ODER in Erstausbildung).
 | Kind beim Ex-Partner, keine Alimente | nein | keine | **A0** | wie oben |
 | Volljähriges Kind in Erstausbildung, eigener Haushalt, MA zahlt Unterhalt | nein | Unterhalt | **A0** | Ziffer nur mit Behördenbewilligung; Flag «Unterhalt volljährige Kinder» dient dem Anmeldeformular |
 | Mehrere Kinder, GEMISCHT (eins im Haushalt, eins beim Ex) | teils | egal | **H{nur Haushaltskinder}** | H-Ziffer zählt NUR Haushaltskinder; die anderen zählen nicht (ausser Behördenbewilligung) |
-| **Alternierende Obhut** (getrennte Eltern, gemeinsame Sorge, Kind je hälftig) | je ~50 % | variabel | **KEIN Automatismus — «mit Behörde klären» (rot)** | Arbeitshypothese (KS 45): nur EIN Elternteil bekommt H — typisch der, der den Unterhalt zur Hauptsache bestreitet; bei gleichwertiger Betreuung ohne Alimente oft der mit dem höheren Einkommen. Solange die Steuerverwaltung den Beispielfall nicht bestätigt hat (Abschnitt 9 Punkt 1), setzt K4 hier KEINEN Tarif — zudem ist das Flag «lebt im Haushalt» Ja/Nein, 50/50 passt nicht hinein. Kein stilles H |
+| **Alternierende Obhut** (getrennte Eltern, gemeinsame Sorge, Kind je hälftig) | je ~50 % | variabel | **KEIN Automatismus — «mit Behörde klären» (rot)** | Arbeitshypothese (KS 45): nur EIN Elternteil bekommt H — typisch der, der den Unterhalt zur Hauptsache bestreitet; bei gleichwertiger Betreuung ohne Alimente oft der mit dem höheren Einkommen. Solange die Steuerverwaltung den Beispielfall nicht bestätigt hat (Abschnitt 9 B), setzt K4 hier KEINEN Tarif — zudem ist das Flag «lebt im Haushalt» Ja/Nein, 50/50 passt nicht hinein. Kein stilles H |
 
 Zum Vergleich **verheiratet mit Kindern**: Ziffer auf B/C zählt ALLE
 QST-berechtigten Kinder (auch ausserhalb des Haushalts) — die
@@ -136,7 +171,12 @@ QST-berechtigte(s) Kind(er) im Haushalt.
 
 ## 6 · Kirchensteuer (Y/N)
 
-| Konfession | Suffix |
+Die Konfession ist der EINGANG — ob daraus Y oder N wird, hängt zusätzlich
+vom **QST-Kanton und der offiziellen ESTV-Tarifdatei** ab: Kantone, die in
+der QST keine Kirchensteuer erheben (z.B. **TI, VS**), dürfen durch die
+Religionsregel NIE auf Y fallen.
+
+| Konfession | Suffix (in Kantonen MIT Kirchensteuer in der QST) |
 |---|---|
 | Röm.-katholisch / Christ-katholisch / Evang.-reformiert | **Y** |
 | Keine / Andere (z.B. muslimisch, orthodox, freikirchlich) | **N** |
@@ -146,28 +186,49 @@ QST-berechtigte(s) Kind(er) im Haushalt.
 
 ## 7 · Wohnsituation: Grenzgänger + Wochenaufenthalter (NEU)
 
-**Grundregel:** Die easy@work-Adresse IST der Hauptwohnsitz.
-Der **Hauptwohnsitz bestimmt den QST-Kanton** — nie der Aufenthaltsort.
+**Grundregel:** Die easy@work-/OneCrew-Hauptadresse IST der Hauptwohnsitz.
+Die Zusatzadresse Typ «Wochenaufenthalt» ist der zusätzliche
+Aufenthaltsort — **keine zweite Wahrheit.**
 
-**Wochenaufenthalter (schweizintern):** Hauptwohnsitz Sursee LU, Wochenzimmer
-Zofingen AG → QST-Kanton **LU**. KEIN eigener Tarifcode — normaler Tarif des
-Wohnkantons; das Flag ist reine Sachverhaltsinfo (kommt automatisch aus der
-Zusatzadresse «Wochenaufenthalt»).
+**Anspruchsberechtigter Kanton — drei Fälle:**
+
+- **A) Ansässigkeit CH:** QST-Kanton = **Wohnsitzkanton**. Schweizinterner
+  Wochenaufenthalt ändert ihn NICHT (Hauptwohnsitz Sursee LU, Wochenzimmer
+  Zofingen AG → **LU**).
+- **B) Ansässigkeit Ausland OHNE Wochenaufenthalterstatus CH:** QST-Kanton =
+  **Kanton der Filiale, in der gearbeitet wird** (Betriebsstätte /
+  betriebliche Eingliederung) — NICHT der Kanton des GmbH-Hauptsitzes
+  (Meggen). So konkretisiert sich die ESTV-Formel
+  «Sitz/Verwaltung/Betriebsstätte» für OneCrew.
+- **C) Ansässigkeit Ausland MIT Wochenaufenthalterstatus CH:** QST-Kanton =
+  **Wochenaufenthaltskanton**.
+
+Mehrkantonsfälle (parallele Arbeitsverhältnisse in mehreren Kantonen):
+**ROT** — keine Automatik (Abschnitt 9 A).
+
+**Beispiele:**
+
+- Hauptadresse Sursee LU + Wochenadresse Zofingen AG → schweizintern
+  (Fall A) → QST-Kanton **LU**.
+- Hauptadresse Deutschland + Wochenadresse Basel CH → Ansässigkeit Ausland
+  + internationaler Wochenaufenthalter (Fall C) → QST-Kanton =
+  **Wochenaufenthaltskanton BS**.
+
+**Wochenaufenthalter (schweizintern):** KEIN eigener Tarifcode — normaler
+Tarif des Wohnkantons; das Flag ist reine Sachverhaltsinfo (kommt
+automatisch aus der Zusatzadresse «Wochenaufenthalt»).
 
 **Hauptwohnsitz im Ausland** = «Person ohne steuerrechtlichen Wohnsitz CH»
-(NICHT pauschal «Grenzgänger»!). Wohnsitz Ausland: QST-Kanton richtet sich
-nach den gesetzlichen Regeln zum anspruchsberechtigten Kanton bzw.
-Arbeitsort. Bei mehreren parallelen Arbeitsverhältnissen/Arbeitskantonen ist
-die genaue Priorisierung vor K4 mit Swissdec bzw. Steuerbehörde zu klären
-(Abschnitt 9 Punkt 5).
+(NICHT pauschal «Grenzgänger»!). QST-Kanton nach den drei Fällen oben
+(B bzw. C); Mehrkanton = ROT (Abschnitt 9 A).
 Untertypen nach Land × Arbeitskanton (Details Konzept Kap. 5.4):
 
 | Wohnsitz | Arbeitskanton | Tarif |
 |---|---|---|
 | DE | alle | **L/M/N/P/Q** (A→L, B→M, C→N, H→P, G→Q), max. 4.5 % — NUR mit Gre-1; >60 Nichtrückkehrtage → normale Tarife |
-| FR | BE BS BL JU NE SO VD VS | **SFN** = keine CH-QST (bei erfüllter Grenzgängerregel) |
+| FR | BE BS BL JU NE SO VD VS | **SFN** = keine CH-QST — NUR mit jährlicher Ansässigkeitsbescheinigung (fehlt sie → ROT, kein SFN) |
 | FR | übrige (AG, LU, ZH, GE …) | normale A/B/C/H |
-| IT | TI GR VS | **R/S/T/U/V** (80 % der ordentlichen QST), ESTV-Grenzgemeindeliste |
+| IT | TI GR VS | **NUR «neue» Grenzgänger (ab 17.07.2023): R/S/T/U** (Details unten) — ehemalige Grenzgänger NICHT |
 | FL | alle | **CH-QST = 0** (>45 Nichtrückkehrtage → CH-Recht lebt auf) |
 | AT / übrige | alle | normale A/B/C/H |
 
@@ -185,6 +246,27 @@ Untertypen nach Land × Arbeitskanton (Details Konzept Kap. 5.4):
 aber NICHT relevant (nicht in die Lohnberechnung einbauen). Alte Labels in
 Hilfe/`QstTarifVorschlagLogic` («N = Nebenerwerb», «P = Pauschale») sind
 veraltet.
+
+**IT-Detail (kein Pauschal-Mapping!):**
+
+- **«Neue» Grenzgänger ab 17.07.2023:** **R/S/T/U** = Zwillinge von A/B/C/H,
+  80 % der ordentlichen QST — IMMER aus der ESTV-Tarifdatei, nie selbst
+  rechnen. **V = G-Zwilling** (Ersatzeinkünfte Versicherer): dokumentieren,
+  NICHT in den normalen AG-Lohnlauf.
+- **Ehemalige Grenzgänger** (steuerlicher Grenzgänger zwischen 31.12.2018
+  und 17.07.2023, Übergangsregel): NICHT R/S/T/U.
+- **Voraussetzungen:** Wohnsitzgemeinde auf der ESTV-20-km-Liste,
+  Arbeitskanton TI/GR/VS, grundsätzlich tägliche Rückkehr, max. 45
+  berufliche Nichtrückkehrtage/Jahr, Status neu/ehemalig mit Nachweis +
+  «Grenzgänger seit», Homeoffice bis 25 % ohne Statusverlust.
+
+**FR-Detail:** SFN (BE, BS, BL, JU, NE, SO, VD, VS) verlangt die
+**jährliche Ansässigkeitsbescheinigung** — fehlt sie → ROT, SFN wird nicht
+automatisch angewendet; dazu gehören die Swissdec-**Monats- und
+Jahresmeldungen**. Für ALLE in FR ansässigen Arbeitnehmer (auch ausserhalb
+der 8 Kantone) gilt ab Steuerjahr 2026 die neue schweizweite
+Arbeitgeber-/ELM-**Jahresmeldung** (erste Meldung Anfang 2027), inkl.
+Telearbeit-Anteil — das sind K4-Faktoren, nicht nur eine Randnotiz.
 
 Internationaler Wochenaufenthalter (wohnt unter der Woche in der CH, kehrt
 nicht täglich zurück) = NICHT Grenzgänger → normale Tarife. Die
@@ -228,28 +310,53 @@ aus den Tarifdateien; einzige Code-Regel ist FL = 0.
 
 ---
 
-## 9 · Offene Abklärungen (vor dem K4-Bau klären)
+## 9 · Offene Punkte
 
-1. **Alternierende Obhut:** genaue kantonale Praxis, wem H zusteht
-   (Hauptsache-Unterhalt vs. höheres Einkommen) — Beispielfall mit der
-   Steuerverwaltung durchspielen.
-2. **Gemischtes Konkubinat:** bleibt bewusst «Behörde fragen» — kein
-   Automatismus.
-3. **Grenzgänger-Detailfelder** (Gre-1-Verwaltung, Nichtrückkehrtage,
-   IT-Grenzgemeindeliste, FR-Telearbeit-Meldung ab 2027): Bau in K4.
-4. **Herleitungs-Snapshot pro Version** (Parameter mit dem Tarif einfrieren,
+### A) Fachlich noch offen (echte Blocker vor K4)
+
+1. **Mehrkanton bei Auslandswohnsitz:** Bei mehreren parallelen
+   Arbeitsverhältnissen/Arbeitskantonen ist die genaue Priorisierung des
+   anspruchsberechtigten Kantons mit Swissdec bzw. Steuerbehörde zu klären
+   («ältester laufender Vertrag» ist nur ein OneCrew-Tie-Breaker, keine
+   ESTV-/Swissdec-Regel).
+2. **Grenzgänger-Detailfelder** (Gre-1-Verwaltung, Nichtrückkehrtage,
+   IT-Grenzgemeindeliste + Status neu/ehemalig, FR-Ansässigkeitsbescheinigung
+   + Jahresmeldung/Telearbeit ab 2026): Spezifikation steht, Bau in K4.
+3. **Herleitungs-Snapshot pro Version** (Parameter mit dem Tarif einfrieren,
    History zeigt «was hat geändert»): Design steht, Bau erst nach Freigabe
    dieses Dokuments.
-5. **Mehrkanton bei Auslandswohnsitz:** Bei mehreren parallelen
-   Arbeitsverhältnissen/Arbeitskantonen ist die genaue Priorisierung des
-   anspruchsberechtigten Kantons vor K4 mit Swissdec bzw. Steuerbehörde zu
-   klären («ältester laufender Vertrag» ist nur ein OneCrew-Tie-Breaker,
-   keine ESTV-/Swissdec-Regel).
+
+### B) Bewusst manuell / ROT (für K4 spezifiziert)
+
+Diese Fälle müssen vor dem Bau NICHT juristisch «gelöst» sein — K4 setzt
+hier bewusst KEINEN automatischen Tarif: keine automatische Freigabe,
+Entscheid mit der Behörde.
+
+- **Alternierende Obhut** (Arbeitshypothese in Abschnitt 4 dokumentiert;
+  Beispielfall mit der Steuerverwaltung bei Gelegenheit durchspielen).
+- **Gemischtes Konkubinat** (gemeinsame UND nicht-gemeinsame Kinder).
+- **Unklare Unterhaltssituation** bei einem Kind ausserhalb des Haushalts.
+- **SFN ohne gültige jährliche Ansässigkeitsbescheinigung** (kein SFN).
 
 ---
 
 ## Versionslog
 
+- **Nachtrag zur 3. Fachkorrektur 29.08.2026:** Ansässigkeit operativ =
+  OneCrew-Hauptadresse (Sync aus easy@work, Single Source of Truth; K4
+  schaut nicht in easy@work); dokumentiert abweichende Ansässigkeit =
+  ROT/Behörde ohne neues Feld; Wochenaufenthalt-Beispiele (Sursee/Zofingen
+  → LU; Deutschland/Basel → Fall C, BS).
+- **Dritte Fachkorrektur 29.08.2026 (ChatGPT + Cursor):** Vorprüfung
+  Ansässigkeit CH/Ausland (CH-Pass/C-Ausweis befreien bei
+  Auslandsansässigkeit nicht automatisch); anspruchsberechtigter Kanton in
+  drei Fällen (Wohnsitz / Arbeits-Filiale statt GmbH-Hauptsitz /
+  Wochenaufenthaltskanton); IT nur «neue» Grenzgänger R/S/T/U mit
+  Voraussetzungen, V = G-Zwilling; QST-berechtigtes Kind mit
+  Unterhalt-zur-Hauptsache; FR SFN nur mit jährlicher Bescheinigung +
+  Jahresmeldung ab 2026 als K4-Faktoren; Kirchensteuer kantonsabhängig
+  (TI/VS nie Y); Abschnitt 9 gegliedert in A (Blocker) und B (bewusst
+  manuell/ROT).
 - **Zweite Korrektur 28./29.08.2026 (ChatGPT + Cursor):** satzbestimmender
   Lohn gemäss KS 45 (nicht pauschal zusammenzählen); Volljährigkeit =
   Folgemonat; Q = G-Zwilling belassen, im AG-Lohnlauf nicht relevant;
