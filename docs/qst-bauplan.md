@@ -1,19 +1,20 @@
 # QST-Bauplan — Etappen bis zur automatischen Tarif-Herleitung
 
-Bauplan OneCrew, **Version 2** (Stand 29.08.2026 — nach 4. Fachkorrektur
-und Automatik-Perimeter). **Fachliche Vorgabe ist das Dokument
+Bauplan OneCrew, **Version 2.2 — EINGEFROREN** (Stand 29.08.2026, nach
+4. Fachkorrektur, Automatik-Perimeter und Mini-Korrektur). **Fachliche Vorgabe ist das Dokument
 «QST-Tarif-Schulung»** (Abschnitte 0–10, inkl. Kapitel 10
 Automatik-Perimeter); dieses Papier beschreibt WAS in welcher REIHENFOLGE
 gebaut wird. Ergänzend: `docs/qst-korrektur-konzept.md` (Etappen K1–K5).
 
 **Leitprinzip (verbindlich, Schulung Kap. 10):** OneCrew automatisiert nur
 Tarife, die durch die Eingaben sehr klar bestimmt werden können. In allen
-anderen Fällen gilt der höchste logische Tarif der unklaren Dimension
-(Fallback-Tabelle) mit der Aufforderung «mit der Steuerbehörde abklären».
-Kein universeller Fallback («ROT → A0» ist verboten). Einzige Ausnahme:
-unklarer KANTON → vorläufig weiterrechnen, definitive QST-Abrechnung erst
-nach Klärung. UX: nur ZWEI Farben (Grün = definitiv, Rot = Handlung
-nötig), kein Orange. Kein neues Pflichtfeld für Exoten.
+anderen Fällen gilt **der für die konkrete ungeklärte Dimension definierte
+Fallback** (Fallback-Tabelle) mit der Aufforderung «mit der Steuerbehörde
+abklären». Kein universeller Fallback («ROT → A0» ist verboten). Einzige
+Ausnahme: unklarer KANTON → Lohn vorbereiten ja, aber KEINEN Kanton setzen
+und KEINE definitive QST-Abrechnung, bis geklärt ist. UX: nur ZWEI Farben
+(Grün = definitiv, Rot = Handlung nötig), kein Orange. Kein neues
+Pflichtfeld für Exoten.
 
 ---
 
@@ -98,10 +99,13 @@ erhöht. Die B-Fälle brauchen ohnehin keine juristische Klärung.
 5. **Status-Modell = Automatik-Perimeter (Schulung Kap. 10):** ZWEI
    Farben. Grün = eindeutige Daten + eindeutige Regel. Rot = Handlung
    nötig, mit exakter Lücken-Nennung und dem definierten Fallback der
-   Dimension (Partner unbekannt → C · nur Tarif E → B · Gre-1 fehlt →
-   ordentliche Tarife · FR-Nachweis/Regel fehlt → kein SFN, ordentliche
-   Tarife · Konfession fehlt → Y/N nach Abschnitt 0 · Zivilstand
-   unzuverlässig → Ersatztarif). Fachlich komplexe Fälle (Obhut,
+   Dimension (Partner unbekannt → C · Gre-1-Nachweis fehlt → ordentliche
+   Tarife vorläufig, ROT · FR-Nachweis fehlt → kein SFN, ordentliche
+   Tarife vorläufig, ROT · Konfession fehlt → Y/N nach Abschnitt 0 ·
+   Zivilstand unzuverlässig → Ersatztarif). BEWIESEN nicht erfüllte
+   DE-/FR-Voraussetzungen → ordentliche Tarife GRÜN; dokumentiertes
+   Tarif E → B ist ebenfalls GRÜN (normale Regel, kein Fallback).
+   Fachlich komplexe Fälle (Obhut,
    gemischtes Konkubinat, unklare Ansässigkeit, unklarer Unterhalt):
    vorläufiger Tarif wo im Papier vorgegeben (zweifelhaftes H → vorläufig
    A0), sonst «Tarif/Kanton nicht freigegeben» — keine definitive
@@ -163,9 +167,15 @@ Mit Swissdec-Etappe E6: Korrektur-/Ersatzmeldungen aus den
 
 ## Versionslog
 
+- **Version 2.2 — 29.08.2026 (EINGEFROREN):** Mini-Korrektur —
+  Terminologie «für die konkrete ungeklärte Dimension definierter
+  Fallback»; dokumentiertes Tarif E → B = GRÜN (aus ROT-Liste
+  gestrichen); DE/FR: Nachweis fehlt = ordentlich vorläufig/ROT,
+  bewiesen nicht erfüllt = ordentlich GRÜN; unklarer Kanton ohne
+  «vorläufig weiterrechnen» (Lohn vorbereiten, kein Kanton, keine
+  definitive Abrechnung); 9 A = kein Bau-Blocker.
 - **Version 2 — 29.08.2026:** an 4. Fachkorrektur + Automatik-Perimeter
-  angepasst (Leitprinzip höchster logischer Tarif, zwei Farben statt
-  Ampel, Gate auf Abschnitt 9 A reduziert, Fallback-Tabelle statt
-  Pauschal-ROT, Kirchensteuer datengetrieben, Tarif E, Gre-3/FL-Detail,
-  Fall C als K4-Punkt 6).
+  angepasst (Leitprinzip Fallback pro Dimension, zwei Farben statt
+  Ampel, Fallback-Tabelle statt Pauschal-ROT, Kirchensteuer
+  datengetrieben, Gre-3/FL-Detail, Fall C als K4-Punkt 6).
 - Erstfassung 29.08.2026.

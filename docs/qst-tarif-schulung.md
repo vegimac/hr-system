@@ -107,7 +107,7 @@ gegen easy@work.
 | Wochenaufenthalt | Zusatzadresse «Wochenaufenthalt» | kein eigener Tarifcode; bei Ansässigkeit CH ändert er den Kanton NICHT — bei Ansässigkeit Ausland ist der Wochenaufenthaltskanton der QST-Kanton (Abschnitt 7, Fall C) |
 | Rückkehr-Frage bei Auslandswohnsitz (täglich/regelmässig?) | QST-Erfassung (K4) | Grenzgänger vs. internationaler Wochenaufenthalter |
 | Gre-1/2-Ansässigkeitsbescheinigung (DE) | QST-Erfassung (K4, Dokument) | ohne Gre-1/2: ordentliche A/B/C/H statt L/M/N/P/Q |
-| FR-Ansässigkeitsbescheinigung (jährlich) + Grenzgängereigenschaft (≤45 Nichtrückkehrtage, ≤40 % Telearbeit) | QST-Erfassung (K4, Dokument) | ohne Nachweis/Regel: kein SFN → ordentliche A/B/C/H, Status nicht grün |
+| FR-Ansässigkeitsbescheinigung (jährlich) + Grenzgängereigenschaft (≤45 Nichtrückkehrtage, ≤40 % Telearbeit) | QST-Erfassung (K4, Dokument) | Nachweis fehlt: kein SFN → ordentlich vorläufig, ROT; bewiesen nicht erfüllt: ordentlich GRÜN |
 | DE-Nichtrückkehrtage (60-Tage-Grenze; unterjährig/Teilzeit anteilig nach Gre-3) | QST-Erfassung (K4) | >Grenze: normale Tarife statt L/M/N/P/Q |
 | FL-Nichtrückkehrtage (45 Tage, anteilig; Überschreitung: AG-Nachweis bis Ende Februar Folgejahr) | QST-Erfassung (K4) | Überschreitung: CH-Besteuerungsrecht lebt auf |
 | FR-Jahresmeldung ab Steuerjahr 2026 (Telearbeit-/Arbeitstage, alle FR-Ansässigen) | QST-Erfassung (K4) | ELM-/AG-Jahresmeldung, erste Meldung Anfang 2027 |
@@ -373,7 +373,7 @@ DBA-Sonderregeln (inkl. SF/SFN).
 
 ## 9 · Offene Punkte
 
-### A) Fachlich noch zu klären (echte Blocker)
+### A) Fachlich noch zu klären (KEIN Bau-Blocker — bis zur Klärung gilt das Perimeter-Verhalten)
 
 1. **Mehrkanton bei Auslandswohnsitz:** Bei mehreren parallelen
    Arbeitsverhältnissen/Arbeitskantonen ist die genaue Priorisierung des
@@ -476,6 +476,13 @@ Perimeter — nicht jedes Sonderkapitel als Automatik.
 
 ## Versionslog
 
+- **Mini-Korrektur 29.08.2026 (final — Dokument EINGEFROREN):**
+  Terminologie «für die konkrete ungeklärte Dimension definierter
+  Fallback» statt «höchster logischer Tarif»; dokumentiertes Tarif E → B
+  = GRÜN; DE/FR Nachweis fehlt = ordentlich vorläufig/ROT vs. bewiesen
+  nicht erfüllt = ordentlich GRÜN; unklarer Kanton: Lohn vorbereiten,
+  kein Kanton, keine definitive QST-Abrechnung; 9 A umbenannt (kein
+  Bau-Blocker).
 - **Vierte Fachkorrektur + Automatik-Perimeter 29.08.2026 (ChatGPT +
   Cursor):** Unterhalt (KS-45-Vermutung nur volljährig im Haushalt,
   UX-Vereinfachung getrennt gekennzeichnet, H-Ziffer-Frage offen);
