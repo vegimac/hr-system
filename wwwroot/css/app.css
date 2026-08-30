@@ -9492,15 +9492,26 @@
             box-shadow: 0 6px 16px rgba(60, 55, 48, 0.18);
         }
         #page-todos .todo-pdf:hover { background: #1a1a1a; }
-        /* «Was ist zu tun?» links neben dem PDF-Knopf (Walter 30.08.2026) */
+        /* «Was ist zu tun?» als Pille neben dem Titel (Walter 30.08.2026) */
         #page-todos .todo-guide {
-            position: absolute; top: 62px; right: 104px; z-index: 3;
-            background: #fff; color: #3f3f3f; border: 1px solid rgba(139,139,139,0.35);
-            cursor: pointer; font-size: 12.5px; font-weight: 700; letter-spacing: 0.3px;
-            padding: 7px 14px; border-radius: 12px;
-            box-shadow: 0 6px 16px rgba(60, 55, 48, 0.14);
+            display: inline-flex; align-items: center; gap: 7px;
+            background: #2f2f2f; color: #fff; border: none; cursor: pointer;
+            font-family: inherit; font-size: 12.5px; font-weight: 700;
+            letter-spacing: 0.2px; padding: 7px 15px 7px 12px; border-radius: 999px;
+            box-shadow: 0 4px 14px rgba(47, 47, 47, 0.26);
+            transition: transform .1s ease, box-shadow .14s ease, background .14s ease;
         }
-        #page-todos .todo-guide:hover { background: #f6f3ee; }
+        #page-todos .todo-guide .tg-ico {
+            width: 17px; height: 17px; flex-shrink: 0; color: #fbbf24;
+        }
+        #page-todos .todo-guide:hover {
+            background: #1a1a1a; transform: translateY(-1px);
+            box-shadow: 0 7px 20px rgba(26, 26, 26, 0.32);
+        }
+        #page-todos .todo-guide:active { transform: translateY(0); }
+        body.theme-dark #page-todos .todo-guide {
+            border: 1px solid rgba(165, 215, 255, 0.28);
+        }
         body.theme-dark #page-todos .todo-pdf {
             background: #3f3f3f;
             color: #ffffff;
@@ -9630,11 +9641,15 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
         #page-todos .todo-logo {
             text-align: left; margin: 0 0 18px; position: relative; z-index: 2;
             padding: 0 2px;
+            /* Titel und «Was ist zu tun?» in einer Zeile (Walter 30.08.2026).
+               Das ::after traegt den Titel, darum order:-1 — sonst stuende der
+               Knopf links davor. */
+            display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
         }
         #page-todos .todo-logo img { display: none !important; }
         #page-todos .todo-logo::after {
             content: 'To do';
-            display: block;
+            display: block; order: -1;
             font-size: 22px; font-weight: 750; letter-spacing: -0.02em;
             color: #2f2f2f; line-height: 1.2;
         }
