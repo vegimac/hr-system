@@ -833,118 +833,177 @@ using (var scope = app.Services.CreateScope())
         );
         INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
         ('qst_pflicht_offen',
-         'Quellensteuer nicht erfasst — der Lohnlauf ist gesperrt',
-         'Diese Mitarbeitenden sind quellensteuerpflichtig, es fehlt aber die QST-Erfassung. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und lege unter Quellensteuer mit «+ Neue QST-Version» den Tarif an — das System schlägt ihn aus Zivilstand, Kindern und Konfession vor. Liegt die Tarifbestätigung des Steueramts noch nicht vor, erfasse den vorgeschlagenen Tarif und hänge die Bestätigung später an. Hat das Steueramt eine Befreiung verfügt, gehört sie über «Behörden-Befreiung» samt Schreiben hinterlegt.',
+         'Quellensteuer erfassen',
+         'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», unter Quellensteuer auf «+ Neue QST-Version», vorgeschlagenen Tarif übernehmen und speichern. Damit ist der Lohnlauf wieder offen.',
          10),
         ('qst_partner_daten',
-         'Ehepartner-Angaben unvollständig — der Lohnlauf ist gesperrt',
-         'Bei verheirateten Quellensteuerpflichtigen entscheiden die Angaben zum Ehepartner über Tarif und Befreiung, darum sind sie Pflicht. Öffne den Mitarbeiter, Tab «Familie Schwanger», und ergänze beim Ehepartner, was in der Meldung genannt ist: Nationalität, bei Ausländern die Bewilligung, die Frage nach der Erwerbstätigkeit und bei einem erwerbstätigen Partner in der Schweiz den Arbeitgeber. Nach dem Speichern ist der Lohnlauf automatisch wieder offen. Kennst du die Angaben nicht, frag die Mitarbeiterin oder den Mitarbeiter — im Tab «MA Formulare» findest du das QST-Informationsformular zum Ausfüllen.',
+         'Fehlende Angabe zum Ehepartner ergänzen',
+         'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Ehepartner genau das eintragen, was in der Meldung steht, und speichern. Angabe unbekannt? Beim Mitarbeitenden nachfragen.',
          20),
         ('qst_tarif_warnung',
-         'QST-Tarif prüfen — die Angaben passen nicht zueinander',
-         'Der erfasste Tarif widerspricht den Stammdaten; die Meldung nennt jeweils den Grund. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und klick bei der QST-Karte auf «Warum dieser Tarif» — dort steht in Alltagssprache, wie der Code zustande kommt. Stimmt der Tarif, korrigiere die Stammdaten; stimmen die Stammdaten, lege mit «+ Neue QST-Version» den richtigen Tarif an. Der Lohnlauf ist deswegen nicht gesperrt, ein falscher Tarif kostet aber rückwirkend Geld.',
+         'QST-Tarif prüfen',
+         'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», bei der QST-Karte auf «Warum dieser Tarif» klicken. Dann entweder die Stammdaten korrigieren oder mit «+ Neue QST-Version» den richtigen Tarif erfassen.',
          30),
         ('qst_kanton_mismatch',
-         'QST-Kanton stimmt nicht mit dem Wohnsitz überein',
-         'Der Quellensteuer-Kanton richtet sich immer nach dem Hauptwohnsitz. Prüfe im Tab «Übersicht» die Adresse und im Tab «Bewilligung QST Bank» den Steuerkanton der aktuellen QST-Version. Ist die Person umgezogen, erfasse eine neue QST-Version ab dem Folgemonat statt die alte zu ändern. Bei Wochenaufenthalt gilt der Hauptwohnsitz, nicht das Wochenzimmer.',
+         'QST-Kanton an den Wohnsitz anpassen',
+         'Adresse im Tab «Übersicht» prüfen. Stimmt sie, im Tab «Bewilligung QST Bank» mit «+ Neue QST-Version» den richtigen Steuerkanton ab dem Folgemonat erfassen.',
          40),
         ('spouse_doku_fehlt',
-         'Ausweis des Ehepartners fehlt',
-         'Die Person ist wegen des Ehepartners von der Quellensteuer befreit — als Nachweis braucht es dessen Schweizer Pass, Identitätskarte oder C-Ausweis. Öffne den Mitarbeiter, Tab «Familie Schwanger», und verknüpfe beim Ehepartner über das Büroklammer-Symbol das Dokument. Ohne Beleg steht die Befreiung bei einer Kontrolle in der Luft.',
+         'Ausweis des Ehepartners hochladen',
+         'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Ehepartner über das Büroklammer-Symbol Pass, ID oder C-Ausweis verknüpfen.',
          50),
         ('employee_doku_fehlt',
-         'Ausweis des Mitarbeiters fehlt',
-         'Die Person ist selbst nicht quellensteuerpflichtig — als Schweizer Bürgerin oder mit C-Ausweis. Der Beleg dazu fehlt: bei Schweizern Pass oder Identitätskarte, beim C-Ausweis das Bewilligungsdokument. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und verknüpfe das Dokument beim entsprechenden Eintrag.',
+         'Ausweis des Mitarbeiters hochladen',
+         'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», beim entsprechenden Eintrag Pass, ID oder Bewilligung verknüpfen.',
          60),
         ('permit_missing',
-         'Aufenthaltsbewilligung fehlt',
-         'Für ausländische Mitarbeitende ohne Schweizer Pass muss eine gültige Bewilligung erfasst sein. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und lege sie mit «+ Neue Bewilligung» an: Typ, Gültigkeit und das Dokument. Ohne erfasste Bewilligung fehlt der Nachweis, dass die Person überhaupt arbeiten darf — das ist der Punkt, den eine Kontrolle als Erstes anschaut.',
+         'Aufenthaltsbewilligung erfassen',
+         'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», «+ Neue Bewilligung»: Typ, Gültigkeit und Dokument eintragen.',
          70),
         ('permit_expiring',
-         'Aufenthaltsbewilligung läuft ab',
-         'Stoss die Verlängerung rechtzeitig an und erfasse die neue Bewilligung danach im Tab «Bewilligung QST Bank» mit neuem Ablaufdatum und Dokument. Wichtig: die alte Bewilligung nicht überschreiben, sondern einen neuen Eintrag anlegen — so bleibt die Historie nachvollziehbar. Verzögert sich die Verlängerung beim Migrationsamt, halte den Zwischenbescheid fest und informiere die HR.',
+         'Bewilligung verlängern lassen',
+         'Verlängerung anstossen. Sobald die neue Bewilligung da ist: Tab «Bewilligung QST Bank», «+ Neue Bewilligung» mit neuem Ablaufdatum und Dokument — den alten Eintrag stehen lassen.',
          80),
         ('umzug_datum_offen',
-         'Umzugsdatum bestätigen',
-         'Aus easy@work ist eine neue Adresse gekommen, aber ohne Datum. Das Datum entscheidet, ab wann ein allfälliger neuer Quellensteuer-Kanton gilt. Öffne den Mitarbeiter, prüfe die neue Adresse und trag das Umzugsdatum ein. Wechselt dabei der Kanton, braucht es zusätzlich eine neue QST-Version ab dem Folgemonat.',
+         'Umzugsdatum eintragen',
+         'Mitarbeiter öffnen, neue Adresse prüfen und das Umzugsdatum erfassen. Wechselt dabei der Kanton, zusätzlich eine neue QST-Version ab dem Folgemonat anlegen.',
          90),
         ('contract_end',
-         'Befristeter Vertrag läuft aus',
-         'Entscheide vor dem Enddatum, ob verlängert wird. Soll es weitergehen, erfasse im Tab «Übersicht» einen Anschlussvertrag, der nahtlos am Folgetag beginnt — dann verschwindet diese Meldung von selbst. Läuft der Vertrag wirklich aus, ist nichts zu tun ausser: letzte Stempelzeiten erfassen, Ferien- und Überzeitsaldo bereinigen. Eine Kündigung braucht es bei einem befristeten Vertrag nicht.',
+         'Verlängern oder auslaufen lassen',
+         'Soll es weitergehen: im Tab «Übersicht» einen Anschlussvertrag ab dem Folgetag erfassen — dann verschwindet die Meldung. Sonst nur Stempelzeiten und Ferienguthaben abschliessen.',
          100),
         ('exit_pending_active',
-         'Austritt steht bevor',
-         'Vor dem letzten Arbeitstag: alle Stempelzeiten erfassen, Ferien- und Überzeitsaldo bereinigen, Schlüssel und Material zurückverlangen. Der Austritt selbst ist bereits erfasst — die Meldung verschwindet nach dem Austrittstag automatisch. Den Lohnlauf des Austrittsmonats bitte erst freigeben, wenn die Stempelzeiten vollständig sind.',
+         'Austritt vorbereiten',
+         'Vor dem letzten Arbeitstag: Stempelzeiten vollständig erfassen, Ferien- und Überzeitsaldo bereinigen, Schlüssel und Material einsammeln. Die Meldung verschwindet nach dem Austrittstag von selbst.',
          110),
         ('kuendigung_ablauf',
-         'Vertragsende wegen Kündigung',
-         'Die Kündigung ist erfasst, das Vertragsende naht. Prüfe, ob der Austritt im Mitarbeiter hinterlegt ist, und arbeite dieselbe Liste ab wie bei einem Austritt: Stempelzeiten, Saldi, Material. Das Arbeitszeugnis gehört ebenfalls vor den letzten Tag — dafür gibt es die Vorlagen unter «MA Formulare».',
+         'Vertragsende abschliessen',
+         'Prüfen, ob der Austritt beim Mitarbeiter erfasst ist. Dann Stempelzeiten, Saldi und Material erledigen und das Arbeitszeugnis erstellen — Vorlage im Tab «MA Formulare».',
          120),
         ('kuendigung_sperrfrist_ende',
-         'Sperrfrist endet — Kündigung wäre wieder möglich',
-         'Während Krankheit, Unfall, Schwangerschaft oder Militärdienst ist eine Kündigung nichtig; diese Sperrfrist läuft nun ab. Wolltest du kündigen, ist es ab dem genannten Datum möglich — die Kündigungsfrist beginnt dann neu zu laufen. Wenn nicht, kannst du die Meldung abhaken.',
+         'Entscheiden, ob gekündigt wird',
+         'Ab dem genannten Datum ist eine Kündigung wieder möglich. Willst du nicht kündigen, kannst du den Punkt abhaken.',
          130),
         ('probation_end',
-         'Probezeit endet',
-         'Entscheide vor dem Ende, ob die Person übernommen wird. Willst du im letzten Moment noch kündigen, gilt die kurze Probezeit-Frist — nach Ablauf gilt sie nicht mehr, und die ordentliche Frist greift. Passt alles, ist nichts zu tun; die Meldung verschwindet nach dem Datum.',
+         'Übernahme entscheiden',
+         'Vor dem Datum entscheiden, ob die Person übernommen wird. Willst du trennen, muss die Kündigung vor Ablauf der Probezeit draussen sein — danach gilt die lange Frist.',
          140),
         ('probezeit_gespraech_offen',
-         'Probezeitgespräch noch nicht dokumentiert',
-         'Das Gespräch gehört geführt und belegt, solange die Probezeit läuft. Öffne den Mitarbeiter — im Kopf steht die Probezeit-Pille mit «→ eintragen». Dort setzt du das Gesprächsdatum und verknüpfst das unterschriebene Protokoll. Ohne Beleg steht bei einer späteren Trennung Aussage gegen Aussage.',
+         'Probezeitgespräch eintragen',
+         'Mitarbeiter öffnen, im Kopf bei der Probezeit-Pille auf «→ eintragen»: Gesprächsdatum setzen und das unterschriebene Protokoll verknüpfen.',
          150),
         ('minimum_wage_violation',
-         'Mindestlohn unterschritten',
-         'Der erfasste Stundenlohn liegt unter dem L-GAV-Mindestlohn für diese Funktion und Qualifikation. Prüfe zuerst, ob Funktion und Ausbildung richtig hinterlegt sind — oft stimmt nicht der Lohn, sondern die Einstufung. Ist die Einstufung korrekt, muss der Lohn angehoben werden, rückwirkend auf den Zeitpunkt der Unterschreitung. Das ist kein Ermessensentscheid: der L-GAV gilt zwingend.',
+         'Lohn oder Einstufung korrigieren',
+         'Zuerst prüfen, ob Funktion und Ausbildung richtig erfasst sind — oft stimmt die Einstufung nicht. Ist sie richtig, muss der Lohn rückwirkend auf den L-GAV-Mindestlohn angehoben werden.',
          160),
         ('night_work_untersuch_fehlt',
-         'Nachtarbeit-Untersuchung fehlt',
-         'Wer regelmässig nachts arbeitet, hat Anspruch auf eine arbeitsmedizinische Untersuchung — ab 25 Nächten im Jahr ist sie obligatorisch. Vereinbare den Termin und erfasse anschliessend im Mitarbeiter Ausstellungsdatum, Gültigkeit und das Zeugnis. Bis dahin sollte die Person keine weiteren Nachtschichten übernehmen.',
+         'Nachtarbeit-Untersuchung anmelden',
+         'Termin vereinbaren und danach beim Mitarbeiter Datum, Gültigkeit und Zeugnis erfassen. Bis dahin keine weiteren Nachtschichten einplanen.',
          170),
         ('night_work_exam_fehlt',
-         'Arztzeugnis für Nachtarbeit fehlt',
-         'Die Untersuchung hat stattgefunden, das Zeugnis ist aber nicht hinterlegt. Öffne den Mitarbeiter und verknüpfe das Dokument beim Nachtarbeit-Eintrag. Ein Zeugnis in der Schublade nützt bei einer Kontrolle nichts — es muss im System liegen.',
+         'Arztzeugnis hochladen',
+         'Mitarbeiter öffnen und das Zeugnis beim Nachtarbeit-Eintrag verknüpfen.',
          180),
         ('night_work_exam_expiring',
-         'Nachtarbeit-Untersuchung läuft ab',
-         'Vereinbare den Folgetermin rechtzeitig und erfasse danach das neue Zeugnis mit neuer Gültigkeit. Läuft die Untersuchung ab, darf die Person bis zur Erneuerung keine Nachtarbeit mehr leisten — plane das im Dienstplan mit ein.',
+         'Folgetermin vereinbaren',
+         'Neuen Termin abmachen und danach das neue Zeugnis mit neuer Gültigkeit erfassen. Ohne gültige Untersuchung keine Nachtarbeit einplanen.',
          190),
         ('night_work_exam_mismatch',
-         'Nachtarbeit-Enddatum in easy@work stimmt nicht',
-         'Das Enddatum in easy@work weicht von der Regel ab. Korrigieren musst du es dort, nicht bei uns — OneCrew übernimmt den Wert beim nächsten Abgleich. Die Meldung verschwindet, sobald beide Seiten übereinstimmen.',
+         'Enddatum in easy@work korrigieren',
+         'Das Datum in easy@work anpassen — nicht bei uns. Beim nächsten Abgleich verschwindet die Meldung.',
          200),
         ('night_work_ausnahme_fehlt',
-         'Ausnahmeregelung für Nachtarbeit fehlt',
-         'Für Nachtarbeit über dem bewilligten Rahmen braucht der Betrieb eine Ausnahmebewilligung. Sie gehört als Dokument beim Mitarbeiter hinterlegt. Fehlt sie ganz, meldet euch bei der HR — das ist eine Betriebs-, keine Personalsache.',
+         'Ausnahmebewilligung hinterlegen',
+         'Das Bewilligungsschreiben beim Mitarbeiter als Dokument verknüpfen. Ist keines vorhanden, bei der HR melden.',
          210),
         ('schulung_peak',
-         'Schulung Peak-Verifizierung fehlt',
-         'Die vorgeschriebene Schulung ist für diese Person nicht dokumentiert. Melde sie an und erfasse danach das Schulungsdatum im Mitarbeiter. Bei neuen Mitarbeitenden gehört das in die erste Woche — sonst geht es unter.',
+         'Schulung anmelden',
+         'Person zur Schulung anmelden und danach das Schulungsdatum beim Mitarbeiter erfassen.',
          220),
         ('ahv_nummer_fehlt',
-         'AHV-Nummer fehlt',
-         'Ohne AHV-Nummer kann die Lohnmeldung an die Ausgleichskasse nicht korrekt erfolgen. Die Nummer steht auf dem Versicherungsausweis oder der Krankenkassenkarte. Trag sie im Tab «Übersicht» bei den Personalien ein.',
+         'AHV-Nummer nachtragen',
+         'Nummer vom Versicherungsausweis oder der Krankenkassenkarte im Tab «Übersicht» bei den Personalien eintragen.',
          230),
         ('kind_geschlecht_fehlt',
-         'Geschlecht eines Kindes fehlt',
-         'Die Angabe fehlt für die Familienzulagen-Meldung. Öffne den Mitarbeiter, Tab «Familie Schwanger», und ergänze sie beim Kind. Eine Minute Arbeit, die sonst die Zulagenabrechnung aufhält.',
+         'Geschlecht des Kindes ergänzen',
+         'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Kind das Geschlecht auswählen und speichern.',
          240),
         ('availability_missing',
-         'Verfügbarkeit fehlt',
-         'Ohne hinterlegte Verfügbarkeit lässt sich der Dienstplan nicht sauber rechnen. Frag die Person nach ihren möglichen Tagen und Zeiten und trag sie beim Mitarbeiter ein.',
+         'Verfügbarkeit erfassen',
+         'Mögliche Tage und Zeiten beim Mitarbeitenden abfragen und im System eintragen.',
          250),
         ('easy_verschollen',
-         'Mitarbeiter ist in easy@work verschwunden',
-         'Der Datensatz kommt beim Abgleich nicht mehr aus easy@work zurück — meist, weil die Person dort ausgetreten oder einer anderen Filiale zugeordnet wurde. Prüfe in easy@work, was mit ihr passiert ist. Ist sie tatsächlich ausgetreten, erfasse den Austritt auch bei uns; gehört sie neu zu einer anderen Filiale, muss die Zuordnung dort korrigiert werden.',
+         'Klären, was in easy@work passiert ist',
+         'In easy@work nachschauen. Ausgetreten? Dann den Austritt auch bei uns erfassen. Zu einer anderen Filiale gewechselt? Dann dort die Zuordnung korrigieren.',
          260),
         ('lohn_provisorisch',
-         'Lohnlauf wartet auf den definitiven Abschluss',
-         'Für diese Periode ist erst der Akonto-Lauf erfasst. Solange nicht definitiv abgeschlossen ist, sind die Zahlen provisorisch und es gibt keine Lohnabrechnung für die Mitarbeitenden. Geh in den Lohnlauf, prüfe die Löhne und gib sie an die HR weiter.',
+         'Lohnlauf definitiv abschliessen',
+         'In den Lohnlauf gehen, die Löhne prüfen und an die HR weitergeben. Erst danach bekommen die Mitarbeitenden ihre Abrechnung.',
          270),
         ('schwangerschaft',
-         'Schwangerschaft / Mutterschaft',
-         'Denk an den Kündigungsschutz: während der Schwangerschaft und 16 Wochen nach der Geburt ist eine Kündigung nichtig. Prüfe ausserdem die Einsatzplanung — ab der Schwangerschaft gelten Einschränkungen bei Nachtarbeit und langem Stehen. Nach der Geburt gehört das Geburtsdatum erfasst, damit die Mutterschaftsentschädigung korrekt läuft.',
+         'Einsatzplanung und Schutzfristen beachten',
+         'Nachtarbeit und langes Stehen aus der Planung nehmen, nicht kündigen (Sperrfrist). Nach der Geburt das Geburtsdatum erfassen.',
          280)
         ON CONFLICT (category) DO NOTHING;
+        -- Kuerzung 30.08.2026 (Walter): nur noch, was konkret zu tun ist.
+        -- Ueberschreibt NUR den urspruenglichen Seed-Text; von Hand
+        -- angepasste Anleitungen bleiben unberuehrt.
+        UPDATE todo_anleitung SET titel = 'Quellensteuer erfassen', anleitung = 'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», unter Quellensteuer auf «+ Neue QST-Version», vorgeschlagenen Tarif übernehmen und speichern. Damit ist der Lohnlauf wieder offen.'
+         WHERE category = 'qst_pflicht_offen' AND anleitung = 'Diese Mitarbeitenden sind quellensteuerpflichtig, es fehlt aber die QST-Erfassung. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und lege unter Quellensteuer mit «+ Neue QST-Version» den Tarif an — das System schlägt ihn aus Zivilstand, Kindern und Konfession vor. Liegt die Tarifbestätigung des Steueramts noch nicht vor, erfasse den vorgeschlagenen Tarif und hänge die Bestätigung später an. Hat das Steueramt eine Befreiung verfügt, gehört sie über «Behörden-Befreiung» samt Schreiben hinterlegt.';
+        UPDATE todo_anleitung SET titel = 'Fehlende Angabe zum Ehepartner ergänzen', anleitung = 'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Ehepartner genau das eintragen, was in der Meldung steht, und speichern. Angabe unbekannt? Beim Mitarbeitenden nachfragen.'
+         WHERE category = 'qst_partner_daten' AND anleitung = 'Bei verheirateten Quellensteuerpflichtigen entscheiden die Angaben zum Ehepartner über Tarif und Befreiung, darum sind sie Pflicht. Öffne den Mitarbeiter, Tab «Familie Schwanger», und ergänze beim Ehepartner, was in der Meldung genannt ist: Nationalität, bei Ausländern die Bewilligung, die Frage nach der Erwerbstätigkeit und bei einem erwerbstätigen Partner in der Schweiz den Arbeitgeber. Nach dem Speichern ist der Lohnlauf automatisch wieder offen. Kennst du die Angaben nicht, frag die Mitarbeiterin oder den Mitarbeiter — im Tab «MA Formulare» findest du das QST-Informationsformular zum Ausfüllen.';
+        UPDATE todo_anleitung SET titel = 'QST-Tarif prüfen', anleitung = 'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», bei der QST-Karte auf «Warum dieser Tarif» klicken. Dann entweder die Stammdaten korrigieren oder mit «+ Neue QST-Version» den richtigen Tarif erfassen.'
+         WHERE category = 'qst_tarif_warnung' AND anleitung = 'Der erfasste Tarif widerspricht den Stammdaten; die Meldung nennt jeweils den Grund. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und klick bei der QST-Karte auf «Warum dieser Tarif» — dort steht in Alltagssprache, wie der Code zustande kommt. Stimmt der Tarif, korrigiere die Stammdaten; stimmen die Stammdaten, lege mit «+ Neue QST-Version» den richtigen Tarif an. Der Lohnlauf ist deswegen nicht gesperrt, ein falscher Tarif kostet aber rückwirkend Geld.';
+        UPDATE todo_anleitung SET titel = 'QST-Kanton an den Wohnsitz anpassen', anleitung = 'Adresse im Tab «Übersicht» prüfen. Stimmt sie, im Tab «Bewilligung QST Bank» mit «+ Neue QST-Version» den richtigen Steuerkanton ab dem Folgemonat erfassen.'
+         WHERE category = 'qst_kanton_mismatch' AND anleitung = 'Der Quellensteuer-Kanton richtet sich immer nach dem Hauptwohnsitz. Prüfe im Tab «Übersicht» die Adresse und im Tab «Bewilligung QST Bank» den Steuerkanton der aktuellen QST-Version. Ist die Person umgezogen, erfasse eine neue QST-Version ab dem Folgemonat statt die alte zu ändern. Bei Wochenaufenthalt gilt der Hauptwohnsitz, nicht das Wochenzimmer.';
+        UPDATE todo_anleitung SET titel = 'Ausweis des Ehepartners hochladen', anleitung = 'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Ehepartner über das Büroklammer-Symbol Pass, ID oder C-Ausweis verknüpfen.'
+         WHERE category = 'spouse_doku_fehlt' AND anleitung = 'Die Person ist wegen des Ehepartners von der Quellensteuer befreit — als Nachweis braucht es dessen Schweizer Pass, Identitätskarte oder C-Ausweis. Öffne den Mitarbeiter, Tab «Familie Schwanger», und verknüpfe beim Ehepartner über das Büroklammer-Symbol das Dokument. Ohne Beleg steht die Befreiung bei einer Kontrolle in der Luft.';
+        UPDATE todo_anleitung SET titel = 'Ausweis des Mitarbeiters hochladen', anleitung = 'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», beim entsprechenden Eintrag Pass, ID oder Bewilligung verknüpfen.'
+         WHERE category = 'employee_doku_fehlt' AND anleitung = 'Die Person ist selbst nicht quellensteuerpflichtig — als Schweizer Bürgerin oder mit C-Ausweis. Der Beleg dazu fehlt: bei Schweizern Pass oder Identitätskarte, beim C-Ausweis das Bewilligungsdokument. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und verknüpfe das Dokument beim entsprechenden Eintrag.';
+        UPDATE todo_anleitung SET titel = 'Aufenthaltsbewilligung erfassen', anleitung = 'Mitarbeiter öffnen, Tab «Bewilligung QST Bank», «+ Neue Bewilligung»: Typ, Gültigkeit und Dokument eintragen.'
+         WHERE category = 'permit_missing' AND anleitung = 'Für ausländische Mitarbeitende ohne Schweizer Pass muss eine gültige Bewilligung erfasst sein. Öffne den Mitarbeiter, Tab «Bewilligung QST Bank», und lege sie mit «+ Neue Bewilligung» an: Typ, Gültigkeit und das Dokument. Ohne erfasste Bewilligung fehlt der Nachweis, dass die Person überhaupt arbeiten darf — das ist der Punkt, den eine Kontrolle als Erstes anschaut.';
+        UPDATE todo_anleitung SET titel = 'Bewilligung verlängern lassen', anleitung = 'Verlängerung anstossen. Sobald die neue Bewilligung da ist: Tab «Bewilligung QST Bank», «+ Neue Bewilligung» mit neuem Ablaufdatum und Dokument — den alten Eintrag stehen lassen.'
+         WHERE category = 'permit_expiring' AND anleitung = 'Stoss die Verlängerung rechtzeitig an und erfasse die neue Bewilligung danach im Tab «Bewilligung QST Bank» mit neuem Ablaufdatum und Dokument. Wichtig: die alte Bewilligung nicht überschreiben, sondern einen neuen Eintrag anlegen — so bleibt die Historie nachvollziehbar. Verzögert sich die Verlängerung beim Migrationsamt, halte den Zwischenbescheid fest und informiere die HR.';
+        UPDATE todo_anleitung SET titel = 'Umzugsdatum eintragen', anleitung = 'Mitarbeiter öffnen, neue Adresse prüfen und das Umzugsdatum erfassen. Wechselt dabei der Kanton, zusätzlich eine neue QST-Version ab dem Folgemonat anlegen.'
+         WHERE category = 'umzug_datum_offen' AND anleitung = 'Aus easy@work ist eine neue Adresse gekommen, aber ohne Datum. Das Datum entscheidet, ab wann ein allfälliger neuer Quellensteuer-Kanton gilt. Öffne den Mitarbeiter, prüfe die neue Adresse und trag das Umzugsdatum ein. Wechselt dabei der Kanton, braucht es zusätzlich eine neue QST-Version ab dem Folgemonat.';
+        UPDATE todo_anleitung SET titel = 'Verlängern oder auslaufen lassen', anleitung = 'Soll es weitergehen: im Tab «Übersicht» einen Anschlussvertrag ab dem Folgetag erfassen — dann verschwindet die Meldung. Sonst nur Stempelzeiten und Ferienguthaben abschliessen.'
+         WHERE category = 'contract_end' AND anleitung = 'Entscheide vor dem Enddatum, ob verlängert wird. Soll es weitergehen, erfasse im Tab «Übersicht» einen Anschlussvertrag, der nahtlos am Folgetag beginnt — dann verschwindet diese Meldung von selbst. Läuft der Vertrag wirklich aus, ist nichts zu tun ausser: letzte Stempelzeiten erfassen, Ferien- und Überzeitsaldo bereinigen. Eine Kündigung braucht es bei einem befristeten Vertrag nicht.';
+        UPDATE todo_anleitung SET titel = 'Austritt vorbereiten', anleitung = 'Vor dem letzten Arbeitstag: Stempelzeiten vollständig erfassen, Ferien- und Überzeitsaldo bereinigen, Schlüssel und Material einsammeln. Die Meldung verschwindet nach dem Austrittstag von selbst.'
+         WHERE category = 'exit_pending_active' AND anleitung = 'Vor dem letzten Arbeitstag: alle Stempelzeiten erfassen, Ferien- und Überzeitsaldo bereinigen, Schlüssel und Material zurückverlangen. Der Austritt selbst ist bereits erfasst — die Meldung verschwindet nach dem Austrittstag automatisch. Den Lohnlauf des Austrittsmonats bitte erst freigeben, wenn die Stempelzeiten vollständig sind.';
+        UPDATE todo_anleitung SET titel = 'Vertragsende abschliessen', anleitung = 'Prüfen, ob der Austritt beim Mitarbeiter erfasst ist. Dann Stempelzeiten, Saldi und Material erledigen und das Arbeitszeugnis erstellen — Vorlage im Tab «MA Formulare».'
+         WHERE category = 'kuendigung_ablauf' AND anleitung = 'Die Kündigung ist erfasst, das Vertragsende naht. Prüfe, ob der Austritt im Mitarbeiter hinterlegt ist, und arbeite dieselbe Liste ab wie bei einem Austritt: Stempelzeiten, Saldi, Material. Das Arbeitszeugnis gehört ebenfalls vor den letzten Tag — dafür gibt es die Vorlagen unter «MA Formulare».';
+        UPDATE todo_anleitung SET titel = 'Entscheiden, ob gekündigt wird', anleitung = 'Ab dem genannten Datum ist eine Kündigung wieder möglich. Willst du nicht kündigen, kannst du den Punkt abhaken.'
+         WHERE category = 'kuendigung_sperrfrist_ende' AND anleitung = 'Während Krankheit, Unfall, Schwangerschaft oder Militärdienst ist eine Kündigung nichtig; diese Sperrfrist läuft nun ab. Wolltest du kündigen, ist es ab dem genannten Datum möglich — die Kündigungsfrist beginnt dann neu zu laufen. Wenn nicht, kannst du die Meldung abhaken.';
+        UPDATE todo_anleitung SET titel = 'Übernahme entscheiden', anleitung = 'Vor dem Datum entscheiden, ob die Person übernommen wird. Willst du trennen, muss die Kündigung vor Ablauf der Probezeit draussen sein — danach gilt die lange Frist.'
+         WHERE category = 'probation_end' AND anleitung = 'Entscheide vor dem Ende, ob die Person übernommen wird. Willst du im letzten Moment noch kündigen, gilt die kurze Probezeit-Frist — nach Ablauf gilt sie nicht mehr, und die ordentliche Frist greift. Passt alles, ist nichts zu tun; die Meldung verschwindet nach dem Datum.';
+        UPDATE todo_anleitung SET titel = 'Probezeitgespräch eintragen', anleitung = 'Mitarbeiter öffnen, im Kopf bei der Probezeit-Pille auf «→ eintragen»: Gesprächsdatum setzen und das unterschriebene Protokoll verknüpfen.'
+         WHERE category = 'probezeit_gespraech_offen' AND anleitung = 'Das Gespräch gehört geführt und belegt, solange die Probezeit läuft. Öffne den Mitarbeiter — im Kopf steht die Probezeit-Pille mit «→ eintragen». Dort setzt du das Gesprächsdatum und verknüpfst das unterschriebene Protokoll. Ohne Beleg steht bei einer späteren Trennung Aussage gegen Aussage.';
+        UPDATE todo_anleitung SET titel = 'Lohn oder Einstufung korrigieren', anleitung = 'Zuerst prüfen, ob Funktion und Ausbildung richtig erfasst sind — oft stimmt die Einstufung nicht. Ist sie richtig, muss der Lohn rückwirkend auf den L-GAV-Mindestlohn angehoben werden.'
+         WHERE category = 'minimum_wage_violation' AND anleitung = 'Der erfasste Stundenlohn liegt unter dem L-GAV-Mindestlohn für diese Funktion und Qualifikation. Prüfe zuerst, ob Funktion und Ausbildung richtig hinterlegt sind — oft stimmt nicht der Lohn, sondern die Einstufung. Ist die Einstufung korrekt, muss der Lohn angehoben werden, rückwirkend auf den Zeitpunkt der Unterschreitung. Das ist kein Ermessensentscheid: der L-GAV gilt zwingend.';
+        UPDATE todo_anleitung SET titel = 'Nachtarbeit-Untersuchung anmelden', anleitung = 'Termin vereinbaren und danach beim Mitarbeiter Datum, Gültigkeit und Zeugnis erfassen. Bis dahin keine weiteren Nachtschichten einplanen.'
+         WHERE category = 'night_work_untersuch_fehlt' AND anleitung = 'Wer regelmässig nachts arbeitet, hat Anspruch auf eine arbeitsmedizinische Untersuchung — ab 25 Nächten im Jahr ist sie obligatorisch. Vereinbare den Termin und erfasse anschliessend im Mitarbeiter Ausstellungsdatum, Gültigkeit und das Zeugnis. Bis dahin sollte die Person keine weiteren Nachtschichten übernehmen.';
+        UPDATE todo_anleitung SET titel = 'Arztzeugnis hochladen', anleitung = 'Mitarbeiter öffnen und das Zeugnis beim Nachtarbeit-Eintrag verknüpfen.'
+         WHERE category = 'night_work_exam_fehlt' AND anleitung = 'Die Untersuchung hat stattgefunden, das Zeugnis ist aber nicht hinterlegt. Öffne den Mitarbeiter und verknüpfe das Dokument beim Nachtarbeit-Eintrag. Ein Zeugnis in der Schublade nützt bei einer Kontrolle nichts — es muss im System liegen.';
+        UPDATE todo_anleitung SET titel = 'Folgetermin vereinbaren', anleitung = 'Neuen Termin abmachen und danach das neue Zeugnis mit neuer Gültigkeit erfassen. Ohne gültige Untersuchung keine Nachtarbeit einplanen.'
+         WHERE category = 'night_work_exam_expiring' AND anleitung = 'Vereinbare den Folgetermin rechtzeitig und erfasse danach das neue Zeugnis mit neuer Gültigkeit. Läuft die Untersuchung ab, darf die Person bis zur Erneuerung keine Nachtarbeit mehr leisten — plane das im Dienstplan mit ein.';
+        UPDATE todo_anleitung SET titel = 'Enddatum in easy@work korrigieren', anleitung = 'Das Datum in easy@work anpassen — nicht bei uns. Beim nächsten Abgleich verschwindet die Meldung.'
+         WHERE category = 'night_work_exam_mismatch' AND anleitung = 'Das Enddatum in easy@work weicht von der Regel ab. Korrigieren musst du es dort, nicht bei uns — OneCrew übernimmt den Wert beim nächsten Abgleich. Die Meldung verschwindet, sobald beide Seiten übereinstimmen.';
+        UPDATE todo_anleitung SET titel = 'Ausnahmebewilligung hinterlegen', anleitung = 'Das Bewilligungsschreiben beim Mitarbeiter als Dokument verknüpfen. Ist keines vorhanden, bei der HR melden.'
+         WHERE category = 'night_work_ausnahme_fehlt' AND anleitung = 'Für Nachtarbeit über dem bewilligten Rahmen braucht der Betrieb eine Ausnahmebewilligung. Sie gehört als Dokument beim Mitarbeiter hinterlegt. Fehlt sie ganz, meldet euch bei der HR — das ist eine Betriebs-, keine Personalsache.';
+        UPDATE todo_anleitung SET titel = 'Schulung anmelden', anleitung = 'Person zur Schulung anmelden und danach das Schulungsdatum beim Mitarbeiter erfassen.'
+         WHERE category = 'schulung_peak' AND anleitung = 'Die vorgeschriebene Schulung ist für diese Person nicht dokumentiert. Melde sie an und erfasse danach das Schulungsdatum im Mitarbeiter. Bei neuen Mitarbeitenden gehört das in die erste Woche — sonst geht es unter.';
+        UPDATE todo_anleitung SET titel = 'AHV-Nummer nachtragen', anleitung = 'Nummer vom Versicherungsausweis oder der Krankenkassenkarte im Tab «Übersicht» bei den Personalien eintragen.'
+         WHERE category = 'ahv_nummer_fehlt' AND anleitung = 'Ohne AHV-Nummer kann die Lohnmeldung an die Ausgleichskasse nicht korrekt erfolgen. Die Nummer steht auf dem Versicherungsausweis oder der Krankenkassenkarte. Trag sie im Tab «Übersicht» bei den Personalien ein.';
+        UPDATE todo_anleitung SET titel = 'Geschlecht des Kindes ergänzen', anleitung = 'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Kind das Geschlecht auswählen und speichern.'
+         WHERE category = 'kind_geschlecht_fehlt' AND anleitung = 'Die Angabe fehlt für die Familienzulagen-Meldung. Öffne den Mitarbeiter, Tab «Familie Schwanger», und ergänze sie beim Kind. Eine Minute Arbeit, die sonst die Zulagenabrechnung aufhält.';
+        UPDATE todo_anleitung SET titel = 'Verfügbarkeit erfassen', anleitung = 'Mögliche Tage und Zeiten beim Mitarbeitenden abfragen und im System eintragen.'
+         WHERE category = 'availability_missing' AND anleitung = 'Ohne hinterlegte Verfügbarkeit lässt sich der Dienstplan nicht sauber rechnen. Frag die Person nach ihren möglichen Tagen und Zeiten und trag sie beim Mitarbeiter ein.';
+        UPDATE todo_anleitung SET titel = 'Klären, was in easy@work passiert ist', anleitung = 'In easy@work nachschauen. Ausgetreten? Dann den Austritt auch bei uns erfassen. Zu einer anderen Filiale gewechselt? Dann dort die Zuordnung korrigieren.'
+         WHERE category = 'easy_verschollen' AND anleitung = 'Der Datensatz kommt beim Abgleich nicht mehr aus easy@work zurück — meist, weil die Person dort ausgetreten oder einer anderen Filiale zugeordnet wurde. Prüfe in easy@work, was mit ihr passiert ist. Ist sie tatsächlich ausgetreten, erfasse den Austritt auch bei uns; gehört sie neu zu einer anderen Filiale, muss die Zuordnung dort korrigiert werden.';
+        UPDATE todo_anleitung SET titel = 'Lohnlauf definitiv abschliessen', anleitung = 'In den Lohnlauf gehen, die Löhne prüfen und an die HR weitergeben. Erst danach bekommen die Mitarbeitenden ihre Abrechnung.'
+         WHERE category = 'lohn_provisorisch' AND anleitung = 'Für diese Periode ist erst der Akonto-Lauf erfasst. Solange nicht definitiv abgeschlossen ist, sind die Zahlen provisorisch und es gibt keine Lohnabrechnung für die Mitarbeitenden. Geh in den Lohnlauf, prüfe die Löhne und gib sie an die HR weiter.';
+        UPDATE todo_anleitung SET titel = 'Einsatzplanung und Schutzfristen beachten', anleitung = 'Nachtarbeit und langes Stehen aus der Planung nehmen, nicht kündigen (Sperrfrist). Nach der Geburt das Geburtsdatum erfassen.'
+         WHERE category = 'schwangerschaft' AND anleitung = 'Denk an den Kündigungsschutz: während der Schwangerschaft und 16 Wochen nach der Geburt ist eine Kündigung nichtig. Prüfe ausserdem die Einsatzplanung — ab der Schwangerschaft gelten Einschränkungen bei Nachtarbeit und langem Stehen. Nach der Geburt gehört das Geburtsdatum erfasst, damit die Mutterschaftsentschädigung korrekt läuft.';
     ");
 
     // ── QST-Erklär-Bausteine (Walter-Vorgabe 30.08.2026) ──────────────────
