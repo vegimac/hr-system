@@ -203,9 +203,12 @@ public class QstPflichtCheckService
         // Pflicht, siehe Warnung in BuildTarifWarnungenAsync).
         bool getrenntLebend = isGetrennt || trennungWirksam;
         bool verheiratetUngetrennt = isVerheiratet && !getrenntLebend;
-        // Ein Partner-Eintrag ist Pflicht bei verheiratet / eingetragener
-        // Partnerschaft / getrennt — die Ehe besteht bis zur Scheidung weiter.
-        bool partnerPflicht = isVerheiratet || isGetrennt;
+        // Walter-Präzisierung 30.08.2026: Ein Partner-Eintrag ist NUR bei
+        // verheiratet / eingetragener Partnerschaft Pflicht (dort entscheidet
+        // er über Befreiung und Tarif B/C). Bei «getrennt» NICHT: der Partner
+        // spielt für Tarif (A/H) und Befreiung keine Rolle mehr, und oft liegen
+        // gar keine Angaben zum getrennten Ehegatten vor. Ein vorhandener
+        // Eintrag ist dort korrekt, ein fehlender ebenso — keine Meldung.
         EmployeeFamilyMember? spouse = null;
         // Hinweis-Text, wenn die Befreiung nur an der Wohnsituation des
         // Partners scheitert — wird an die Schluss-Message angehängt.
@@ -313,26 +316,6 @@ public class QstPflichtCheckService
                     partnerMaengel.Add("Arbeitgeber des erwerbstätigen Ehepartners fehlt");
             }
             if (partnerMaengel.Count == 0) partnerMaengel = null;
-        }
-        else if (partnerPflicht)
-        {
-            // Walter-Vorgabe 30.08.2026: Bei «getrennt» (bzw. verheiratet mit
-            // wirksamer Trennung) MUSS der Ehepartner erfasst sein — die Ehe
-            // besteht bis zur Scheidung weiter, und das Kind könnte auch beim
-            // getrennten Partner leben. Weitere Angaben (Nationalität,
-            // Bewilligung, Erwerbstätigkeit) sind hier NICHT nötig: sie
-            // entscheiden weder über die Befreiung noch über den Tarif, weil
-            // getrennt Lebende nach A/H besteuert werden.
-            bool hatPartnerEintrag = await _db.EmployeeFamilyMembers.AsNoTracking()
-                .AnyAsync(f => f.EmployeeId == employeeId
-                            && f.MemberType == "Ehepartner"
-                            && f.DateOfDeath == null);
-            if (!hatPartnerEintrag)
-                partnerMaengel = new List<string>
-                {
-                    "Ehepartner-Eintrag fehlt (Zivilstand «getrennt» — die Ehe besteht bis zur "
-                    + "Scheidung weiter; Partner im Familie-Tab erfassen)"
-                };
         }
         bool partnerFehlen = partnerMaengel != null;
 
