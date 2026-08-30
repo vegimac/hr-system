@@ -125,6 +125,7 @@ public class AuthController : ControllerBase
             {
                 user.Id,
                 user.Username,
+                firstName = user.FirstName,   // persoenliche Anrede (To-do-Anleitung)
                 user.Email,
                 user.Role,
                 user.Theme,
@@ -185,6 +186,7 @@ public class AuthController : ControllerBase
         {
             user.Id,
             user.Username,
+            firstName = user.FirstName,   // persoenliche Anrede (To-do-Anleitung)
             user.Email,
             user.Role,
             user.Theme,
@@ -380,6 +382,7 @@ public class AuthController : ControllerBase
             {
                 target.Id,
                 target.Username,
+                firstName = target.FirstName,
                 target.Email,
                 target.Role,
                 target.Theme,

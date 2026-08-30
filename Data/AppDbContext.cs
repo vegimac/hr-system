@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<MomentTone> MomentTones => Set<MomentTone>();
     public DbSet<MomentText> MomentTexts => Set<MomentText>();
     public DbSet<QstErklaerung> QstErklaerungen => Set<QstErklaerung>();
+    public DbSet<TodoAnleitung> TodoAnleitungen => Set<TodoAnleitung>();
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
     public DbSet<ContractShareToken> ContractShareTokens => Set<ContractShareToken>();
@@ -368,6 +369,17 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<TodoAnleitung>(entity =>
+        {
+            entity.ToTable("todo_anleitung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Category).HasColumnName("category");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.Anleitung).HasColumnName("anleitung");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
         });
 
         modelBuilder.Entity<QstErklaerung>(entity =>

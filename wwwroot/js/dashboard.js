@@ -825,3 +825,140 @@ document.addEventListener('mouseout', (e) => {
 // Beim Scrollen / Klicken sofort weg — sonst klebt die Box im Bild.
 document.addEventListener('scroll', todoTipHide, true);
 document.addEventListener('click', todoTipHide, true);
+
+
+// ── «Was ist zu tun?» — Anleitung für den GF (Walter-Vorgabe 30.08.2026) ────
+// Nimmt die bereits geladenen Alerts (_dashAlerts), gruppiert sie nach
+// Kategorie und setzt daraus einen zusammenhängenden Text: Anrede, die
+// kritischen und wichtigen Punkte ausformuliert mit «so behebst du es»,
+// Routine und Information als Sammelzeile. Die Texte kommen aus der Tabelle
+// todo_anleitung — kein KI-Aufruf, nichts verlässt das Haus.
+let _dashAnleitungCache = null;
+
+async function dashAnleitungTexte() {
+    if (_dashAnleitungCache) return _dashAnleitungCache;
+    const res = await fetch('/api/dashboard/anleitung', { headers: ah(), cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const rows = await res.json();
+    _dashAnleitungCache = {};
+    rows.forEach(r => { _dashAnleitungCache[r.category] = r; });
+    return _dashAnleitungCache;
+}
+
+function _daVorname() {
+    // Bevorzugt der echte Vorname aus dem Benutzerkonto; sonst der
+    // Benutzername, grob auf einen Vornamen zurechtgeschnitten.
+    const vn = (currentUser?.firstName || '').trim();
+    if (vn) return vn;
+    const u = (currentUser?.username || '').trim();
+    if (!u) return '';
+    const teil = u.split(/[.\s_@-]/)[0];
+    return teil ? teil[0].toUpperCase() + teil.slice(1) : '';
+}
+
+function _daNamensListe(items) {
+    const namen = items
+        .map(a => a.employeeName
+            ? `${a.employeeName}${a.employeeNumber ? ' (' + a.employeeNumber + ')' : ''}`
+            : (a.employeeNumber || ''))
+        .filter(Boolean);
+    return [...new Set(namen)];
+}
+
+async function dashAnleitungOeffnen() {
+    const old = document.getElementById('dashAnleitungModal');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'dashAnleitungModal';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:760px;width:94%;max-height:86vh;display:flex;flex-direction:column">
+            <div style="padding:20px 26px 12px;border-bottom:1px solid rgba(139,139,139,0.18);font-size:15px;font-weight:800;color:#3f3f3f">Was ist zu tun?</div>
+            <div id="daBody" style="padding:18px 26px 22px;overflow-y:auto;font-size:13.5px;color:#4b4b4b;line-height:1.62">wird zusammengestellt …</div>
+            <div style="display:flex;justify-content:space-between;gap:10px;padding:0 26px 20px">
+                <button id="daPrint" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Drucken</button>
+                <button id="daClose" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Schliessen</button>
+            </div>
+        </div>`;
+    document.body.appendChild(wrap);
+    const done = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = ev => { if (ev.key === 'Escape') done(); };
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', ev => { if (ev.target === wrap) done(); });
+    wrap.querySelector('#daClose').onclick = done;
+    wrap.querySelector('#daPrint').onclick = () => {
+        const w = window.open('', '_blank');
+        if (!w) return;
+        w.document.write(`<html><head><title>Was ist zu tun</title><style>
+            body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#1f2937;line-height:1.6;max-width:720px;margin:32px auto;padding:0 20px}
+            h3{margin:22px 0 6px;font-size:15px} .da-tun{color:#374151}</style></head><body>
+            ${document.getElementById('daBody').innerHTML}</body></html>`);
+        w.document.close();
+        w.print();
+    };
+
+    try {
+        const texte = await dashAnleitungTexte();
+        document.getElementById('daBody').innerHTML = dashAnleitungBauen(texte);
+    } catch (err) {
+        document.getElementById('daBody').innerHTML =
+            `<div style="color:#b91c1c">Konnte nicht geladen werden: ${_e(err?.message || String(err))}</div>`;
+    }
+}
+
+function dashAnleitungBauen(texte) {
+    const alerts = (_dashAlerts || []).filter(a => a.category !== 'audit_log_stumm');
+    const vorname = _daVorname();
+    const anrede = vorname ? `Hallo ${_e(vorname)}` : 'Hallo';
+
+    const bySev = { critical: [], warning: [], info: [] };
+    alerts.forEach(a => (bySev[a.severity] || bySev.info).push(a));
+
+    if (!alerts.length)
+        return `<p><b>${anrede}</b></p><p>In deiner Liste steht heute nichts Offenes. Nichts zu tun — schönen Tag.</p>`;
+
+    let html = `<p><b>${anrede}</b></p><p>In deiner Liste stehen heute <b>${bySev.critical.length} kritische</b> und <b>${bySev.warning.length} wichtige</b> Punkte. Der Reihe nach:</p>`;
+
+    // Kritisch + Wichtig ausformuliert, nach Kategorie gruppiert und in der
+    // Reihenfolge, die auch die Karten verwenden (todoPriority).
+    const handeln = [...dashTodoSort(bySev.critical), ...dashTodoSort(bySev.warning)];
+    const gruppen = [];
+    handeln.forEach(a => {
+        let g = gruppen.find(x => x.category === a.category);
+        if (!g) { g = { category: a.category, items: [] }; gruppen.push(g); }
+        g.items.push(a);
+    });
+
+    let nr = 0;
+    gruppen.forEach(g => {
+        const t = texte[g.category];
+        const meta = DASH_CATEGORY_META[g.category] || {};
+        const titel = t?.titel || meta.label || g.category;
+        const namen = _daNamensListe(g.items);
+        nr++;
+        html += `<h3 style="margin:20px 0 4px;font-size:14px;color:#1f2937">${nr}. ${_e(titel)}${g.items.length > 1 ? ` — ${g.items.length} Mitarbeitende` : ''}</h3>`;
+        if (namen.length)
+            html += `<div style="color:#6b7280;margin-bottom:6px">${_e(namen.join(' · '))}</div>`;
+        // Der konkrete Grund pro Fall — genau der Text, der auch auf der Karte steht.
+        const gruende = [...new Set(g.items.map(a => {
+            const { subtitle } = dashResolveAlertTexts(a);
+            return subtitle || '';
+        }).filter(Boolean))];
+        if (gruende.length)
+            html += `<div style="color:#6b7280;margin-bottom:6px">${gruende.map(x => '– ' + _e(x)).join('<br>')}</div>`;
+        html += t?.anleitung
+            ? `<div class="da-tun"><b>So behebst du es:</b> ${_e(t.anleitung)}</div>`
+            : `<div class="da-tun" style="color:#8b8b8b">Für diesen Punkt ist noch keine Anleitung hinterlegt.</div>`;
+    });
+
+    if (bySev.info.length) {
+        const infoTitel = [...new Set(bySev.info.map(a => dashResolveAlertTexts(a).title))];
+        html += `<h3 style="margin:22px 0 4px;font-size:14px;color:#1f2937">Zur Information</h3>
+                 <div style="color:#6b7280">${_e(infoTitel.join(' · '))} — hier ist nichts zu tun.</div>`;
+    }
+
+    html += `<p style="margin-top:22px;color:#8b8b8b">Jeder Punkt in deiner Liste führt per Klick direkt zum betroffenen Mitarbeiter.</p>`;
+    return html;
+}
+
+window.dashAnleitungOeffnen = dashAnleitungOeffnen;
