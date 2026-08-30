@@ -17,6 +17,8 @@ builder.Services.AddHttpContextAccessor();
 // (CREATE/UPDATE/DELETE). Singleton, weil zustandslos (zieht den User
 // per IHttpContextAccessor pro Aufruf).
 builder.Services.AddSingleton<HrSystem.Services.AuditSaveChangesInterceptor>();
+// Meldet nur SQL-Statements über der Schwelle (Diagnostics:SlowQueryMs).
+builder.Services.AddSingleton<HrSystem.Services.SlowQueryInterceptor>();
 // Audit-Log-Cleanup (Walter 27.05.2026): Eintraege aelter als 6 Monate
 // werden automatisch geloescht. Laeuft im Hintergrund, einmal pro 24 h.
 builder.Services.AddHostedService<HrSystem.Services.AuditLogCleanupService>();
@@ -51,7 +53,8 @@ if (rawConn.Contains("${DB_PASSWORD}"))
 builder.Services.AddDbContext<AppDbContext>((sp, options) =>
 {
     options.UseNpgsql(connectionString);
-    options.AddInterceptors(sp.GetRequiredService<HrSystem.Services.AuditSaveChangesInterceptor>());
+    options.AddInterceptors(sp.GetRequiredService<HrSystem.Services.AuditSaveChangesInterceptor>(),
+                            sp.GetRequiredService<HrSystem.Services.SlowQueryInterceptor>());
 });
 
 // JWT-Authentifizierung

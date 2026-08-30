@@ -69,6 +69,68 @@ public class AuditLogController : ControllerBase
     }
 
     /// <summary>
+    /// GET /api/audit-log/employee/{employeeId} — alle Aenderungen zu EINEM
+    /// Mitarbeiter (Walter-Vorgabe 30.08.2026: «Aenderungen pro Mitarbeiter»).
+    ///
+    /// Zwei Quellen, weil ein MA-Bezug auf zwei Arten im Log steht:
+    ///   1. Direkt: EntityType='Employee' und EntityId = der MA.
+    ///   2. Indirekt: die geaenderte Entitaet gehoert zum MA (Absenz, QST,
+    ///      Vertrag …) — dann steht «EmployeeId» im ChangesJson, entweder als
+    ///      nackte Zahl oder als {old/new}-Objekt.
+    /// Fuer 2. grenzt SQL grob per ILIKE vor, die exakte Zuordnung macht
+    /// danach dieselbe Regex wie die Anreicherung (_empIdRx) im Speicher.
+    /// </summary>
+    [HttpGet("employee/{employeeId:int}")]
+    public async Task<IActionResult> GetForEmployee(int employeeId, [FromQuery] int limit = 100)
+    {
+        var capped = Math.Clamp(limit, 1, 1000);
+        var idStr  = employeeId.ToString();
+
+        var direkt = await _db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType == "Employee" && a.EntityId == idStr)
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(capped)
+            .ToListAsync();
+
+        // Vorfilter: nur Zeilen, die ueberhaupt eine EmployeeId und die Ziffern
+        // des Gesuchten enthalten — die Feinarbeit macht die Regex unten.
+        var kandidaten = await _db.AuditLogs.AsNoTracking()
+            .Where(a => a.EntityType != "Employee"
+                     && a.ChangesJson != null
+                     && EF.Functions.ILike(a.ChangesJson, "%EmployeeId%")
+                     && EF.Functions.ILike(a.ChangesJson, "%" + idStr + "%"))
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(capped * 20)
+            .ToListAsync();
+
+        var indirekt = kandidaten.Where(a =>
+        {
+            var m = _empIdRx.Match(a.ChangesJson!);
+            return m.Success && m.Groups[1].Value == idStr;
+        });
+
+        var rows = direkt.Concat(indirekt)
+            .OrderByDescending(a => a.CreatedAt)
+            .Take(capped)
+            .Select(a => new {
+                id = a.Id,
+                createdAt = a.CreatedAt,
+                userId = a.UserId,
+                userName = a.UserName,
+                userRole = a.UserRole,
+                entityType = a.EntityType,
+                entityId = a.EntityId,
+                action = a.Action,
+                changesJson = a.ChangesJson,
+                route = a.Route,
+                ipAddress = a.IpAddress
+            })
+            .ToList();
+
+        return Ok(rows);
+    }
+
+    /// <summary>
     /// Liste der unterschiedlichen Entity-Typen — fuer das Filter-Dropdown.
     /// </summary>
     [HttpGet("entity-types")]

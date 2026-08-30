@@ -1082,6 +1082,13 @@ function renderEmployeeDetail(emp) {
     // Austritts-Badge lief sie rechts in die easy@work-Pille hinein. Sie
     // sitzt jetzt eine Zeile tiefer, neben der Vertrags-Pille.
     const _hcBadges2 = [];
+    // Walter-Vorgabe 30.08.2026: «Wer hat an DIESEM MA was geändert?» —
+    // direkt im MA-Kopf statt Umweg über die grosse Aktivitäts-Log-Liste.
+    // Nur admin, weil /api/audit-log admin-only ist (Datenschutz).
+    if (currentUser?.role === 'admin')
+        _hcBadges2.push(`<button type="button" class="emp-hbadge hb-aktiv"
+            onclick="event.stopPropagation();maAenderungenOeffnen(${emp.id})"
+            title="Zeigt die letzten Änderungen an diesem Mitarbeiter — wer, wann, was">🕓 Änderungen</button>`);
     if (emp.kuendigungPer) {
         const _kd = (emp.kuendigungDurch || '').toUpperCase();
         const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
@@ -16225,3 +16232,59 @@ async function qstErklaerungOeffnen(employeeId, entryId) {
     }
 }
 window.qstErklaerungOeffnen = qstErklaerungOeffnen;
+
+
+// ── «Änderungen» pro Mitarbeiter (Walter-Vorgabe 30.08.2026) ────────────────
+// Liest /api/audit-log/employee/{id} und zeigt: wann, wer, was erfasst,
+// geändert oder gelöscht hat. Formatierung wird aus audit-log.js
+// wiederverwendet (alActionBadge / alChangesSummary / _alEntityDe), damit die
+// Darstellung identisch zur grossen Log-Seite bleibt.
+async function maAenderungenOeffnen(employeeId) {
+    const old = document.getElementById('maAenderungenModal');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'maAenderungenModal';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:900px;width:94%;max-height:84vh;display:flex;flex-direction:column">
+            <div style="padding:20px 24px 12px;border-bottom:1px solid rgba(139,139,139,0.18);display:flex;align-items:baseline;gap:10px">
+                <div style="font-size:15px;font-weight:800;color:#3f3f3f">Änderungen an diesem Mitarbeiter</div>
+                <div id="maAendCount" style="font-size:12px;color:#8b8b8b">wird geladen …</div>
+            </div>
+            <div id="maAendBody" style="padding:8px 24px 20px;overflow-y:auto"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:0 24px 20px">
+                <button id="maAendAlle" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Ganzes Aktivitäts-Log</button>
+                <button id="maAendClose" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Schliessen</button>
+            </div>
+        </div>`;
+    document.body.appendChild(wrap);
+    const done = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = ev => { if (ev.key === 'Escape') done(); };
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', ev => { if (ev.target === wrap) done(); });
+    wrap.querySelector('#maAendClose').onclick = done;
+    wrap.querySelector('#maAendAlle').onclick = () => { done(); showPage('audit-log'); };
+
+    try {
+        const res = await fetch(`/api/audit-log/employee/${employeeId}?limit=100`,
+                                { headers: ah(), cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rows = await res.json();
+        document.getElementById('maAendCount').textContent =
+            rows.length ? `${rows.length} Einträge, neueste zuerst` : '';
+        document.getElementById('maAendBody').innerHTML = rows.length ? rows.map(r => `
+            <div style="display:grid;grid-template-columns:130px 150px 150px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid rgba(139,139,139,0.14);font-size:12.5px;align-items:start">
+                <div style="color:#8b8b8b;white-space:nowrap">${typeof alFmtTime === 'function' ? alFmtTime(r.createdAt) : esc(r.createdAt)}</div>
+                <div style="font-weight:700;color:#3f3f3f">${esc(r.userName || '–')}</div>
+                <div>${typeof alActionBadge === 'function' ? alActionBadge(r.action) : esc(r.action)}
+                     <div style="color:#8b8b8b;margin-top:2px">${esc((typeof _alEntityDe !== 'undefined' && _alEntityDe[r.entityType]) || r.entityType)}</div></div>
+                <div style="color:#4b4b4b;line-height:1.5">${typeof alChangesSummary === 'function' ? alChangesSummary(r.changesJson, r.action) : ''}</div>
+            </div>`).join('')
+            : '<div style="padding:16px 0;color:#8b8b8b;font-size:13px">Für diesen Mitarbeiter ist bisher keine Änderung protokolliert.</div>';
+    } catch (err) {
+        document.getElementById('maAendCount').textContent = '';
+        document.getElementById('maAendBody').innerHTML =
+            `<div style="padding:16px 0;color:#b91c1c;font-size:13px">Konnte nicht geladen werden: ${esc(err?.message || String(err))}</div>`;
+    }
+}
+window.maAenderungenOeffnen = maAenderungenOeffnen;

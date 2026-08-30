@@ -3615,6 +3615,12 @@
             background: rgba(190, 24, 93, 0.28); color: #f9a8d4;
         }
         .emp-hbadge.hb-kuend { background: #fee2e2; color: #b91c1c; }
+        /* «Änderungen» im MA-Kopf (Walter 30.08.2026, admin-only) */
+        .emp-hbadge.hb-aktiv {
+            background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe;
+            cursor: pointer; font-family: inherit;
+        }
+        .emp-hbadge.hb-aktiv:hover { background: #e0e7ff; }
         .emp-hbadge.hb-prob,
         .emp-hbadge.hb-exit  { background: #fdf1dc; color: #96690f; }
         /* Probezeit-Badge: Status + «eintragen» (Walter 02.08.2026) */
