@@ -647,6 +647,11 @@ public class QstAnmeldungController : ControllerBase
             "roemisch_katholisch" or "römisch-katholisch"
                 or "rk" or "roemisch"                                     => "1",
             "christ_katholisch" or "christkatholisch" or "christ-katholisch" => "2",
+            // «israelitisch» hat auf der amtlichen Vorlage KEINE eigene Rubrik
+            // (das Formular kennt nur diese vier Felder) und landet daher unten
+            // bei «andere/keine». Fuer den Tarif ist das ohne Folge — den
+            // bestimmt die Konfession im MA-Stamm, nicht dieses Kreuz.
+            // Walter 30.08.2026: bei der Behoerde klaeren, ob sie das so will.
             // Default = andere/keine: bewusst inkl. NULL und allem Unbekannten,
             // damit das Formular nie ohne Konfessions-Kreuz rausgeht.
             _ => "3",

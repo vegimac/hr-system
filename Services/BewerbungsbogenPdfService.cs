@@ -125,8 +125,12 @@ public class BewerbungsbogenPdfService
             });
             // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
             // (Walter 03.08.2026).
+            // Walter-Vorgabe 30.08.2026: Israelitische Kultusgemeinde ergänzt —
+            // sie ist bei der Quellensteuer Y-fähig wie die Landeskirchen, darf
+            // also nicht unter «Andere» verschwinden.
             col.Item().PaddingTop(9).Element(e => CheckOptionsInline(e, "Konfession",
-                "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch", "Andere", "Keine"));
+                "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch",
+                "Israelitisch", "Andere", "Keine"));
             // Kinder-Block entfernt (Walter 13.08.2026) — dafür die
             // Verfügbarkeit von Seite 2 unten auf Seite 1 (siehe unten).
             col.Item().PaddingTop(9).Element(e =>

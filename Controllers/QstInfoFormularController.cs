@@ -124,6 +124,7 @@ public class QstInfoFormularController : ControllerBase
             "evangelisch_reformiert" => "ref",
             "roemisch_katholisch"    => "rk",
             "christ_katholisch"      => "ck",
+            "israelitisch"           => "isr",
             "andere"                 => "andere",
             "keine"                  => "keine",
             _                        => null

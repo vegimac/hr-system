@@ -171,6 +171,8 @@ public class QstInfoFormularPdfService
                 r.ConstantItem(16);
                 r.AutoItem().Element(e => CheckLabel(e, "christ-katholisch", kf == "ck"));
                 r.ConstantItem(16);
+                r.AutoItem().Element(e => CheckLabel(e, "israelitisch", kf == "isr"));
+                r.ConstantItem(16);
                 r.AutoItem().Element(e => CheckLabel(e, "andere", kf == "andere"));
                 r.ConstantItem(16);
                 r.AutoItem().Element(e => CheckLabel(e, "keine", kf == "keine"));
