@@ -46,7 +46,15 @@ public class QstKonfessionSyncService
             .FirstOrDefaultAsync();
         if (open is null) return null;
 
-        var wantKirche = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(newReligion);
+        // Walter-Vorgabe 30.08.2026: Y-fähige Konfession ist nur die halbe
+        // Miete — der Kanton hat das letzte Wort. In GE/NE/VD/VS/TI wird die
+        // Kirchensteuer nicht über die Quellensteuer erhoben, dort bleibt es
+        // bei N, auch bei röm.-kath. oder israelitischer Konfession. (Die
+        // zusätzliche Prüfung auf Y-Tarife in der ESTV-Datei macht die
+        // Vorschlagslogik; hier fehlt die Tarifdatei, darum null = nicht
+        // blockend.)
+        var wantKirche = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(newReligion)
+                      && QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich(open.Steuerkanton, null);
         var newCode    = RebuildQstCode(open.TarifCode, open.AnzahlKinder, wantKirche, open.QstCode);
 
         if (open.Kirchensteuer == wantKirche

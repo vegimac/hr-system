@@ -337,6 +337,7 @@ window.i18n = (function () {
         'ma.value.religion.evangelisch_reformiert': { de: 'Evang.-reformiert',  en: 'Evangelical-reformed' },
         'ma.value.religion.roemisch_katholisch':    { de: 'Röm.-katholisch',    en: 'Roman Catholic' },
         'ma.value.religion.christ_katholisch':      { de: 'Christ-katholisch',  en: 'Christian Catholic' },
+        'ma.value.religion.israelitisch':           { de: 'Israelitische Kultusgemeinde', en: 'Jewish community' },
         'ma.value.religion.andere':                 { de: 'Andere',             en: 'Other' },
         'ma.value.religion.keine':                  { de: 'Keine',              en: 'None' },
 

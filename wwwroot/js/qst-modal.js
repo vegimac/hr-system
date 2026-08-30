@@ -236,7 +236,8 @@ let _qstStammPending = {};
 
 const QST_RELIGION_LABELS = {
     evangelisch_reformiert: 'Evang.-reformiert', roemisch_katholisch: 'Röm.-katholisch',
-    christ_katholisch: 'Christ-katholisch', andere: 'Andere', keine: 'Keine'
+    christ_katholisch: 'Christ-katholisch', israelitisch: 'Israelitische Kultusgemeinde',
+    andere: 'Andere', keine: 'Keine'
 };
 
 function qstFillStammzeile() {
@@ -266,7 +267,12 @@ function qstStammChanged(which) {
     if (which === 'religion') {
         const rel = document.getElementById('qstReligion')?.value ?? '';
         _qstStammPending.religion = rel;
-        const landeskirche = ['roemisch_katholisch', 'christ_katholisch', 'evangelisch_reformiert'].includes(rel);
+        // Y-FÄHIGE Konfessionen (Walter 30.08.2026): die drei Landeskirchen
+        // PLUS die Israelitische Kultusgemeinde (Swissdec «jewishCommunity»).
+        // Y-fähig heisst noch nicht Y — den Kanton (Sperrliste GE/NE/VD/VS/TI
+        // und Y-Tarife in der Tarifdatei) prüft verbindlich der Server.
+        const landeskirche = ['roemisch_katholisch', 'christ_katholisch',
+                              'evangelisch_reformiert', 'israelitisch'].includes(rel);
         const k = document.getElementById('qstKirchensteuer');
         if (k) k.checked = landeskirche;
         if (typeof buildQstCode === 'function') buildQstCode();

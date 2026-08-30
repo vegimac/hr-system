@@ -1010,6 +1010,13 @@ using (var scope = app.Services.CreateScope())
         ('hinweis.schluss', 'de', 'Im Zweifel',
          'Diese Erklärung beschreibt die Regeln, nach denen das System den Tarif ableitet. Verbindlich ist immer die Einstufung des kantonalen Steueramts - bei unklaren Fällen dort nachfragen und die Tarifbestätigung beim QST-Eintrag hinterlegen.', 90)
         ON CONFLICT (code, sprache) DO NOTHING;
+        -- Nachtrag 30.08.2026 (Israelitische Kultusgemeinde + Kantonsregel):
+        -- ueberschreibt NUR den urspruenglichen Seed-Text, damit von Hand
+        -- angepasste Texte unberuehrt bleiben.
+        UPDATE qst_erklaerung SET text = 'Das Y am Ende des Codes bedeutet: mit Kirchensteuer. Y-fähig sind die drei Landeskirchen (römisch-katholisch, christkatholisch, evangelisch-reformiert) und die Israelitische Kultusgemeinde (Swissdec «jewishCommunity»). Y-fähig heisst aber noch nicht Y: der Kanton muss die Kirchensteuer über die Quellensteuer erheben und seine ESTV-Tarifdatei muss Y-Tarife kennen. In GE, NE, VD, VS und TI gilt deshalb immer N.'
+         WHERE code = 'kirche.Y' AND sprache = 'de' AND text LIKE 'Das Y am Ende des Codes bedeutet: mit Kirchensteuer. Es folgt der Konfession%';
+        UPDATE qst_erklaerung SET text = 'Das N am Ende des Codes bedeutet: ohne Kirchensteuer. Das ist richtig bei «Keine» und «Andere» — und ebenso in den Kantonen GE, NE, VD, VS und TI, wo die Kirchensteuer nicht über die Quellensteuer läuft, selbst bei einer Y-fähigen Konfession. Gehört die Person einer Landeskirche oder der Israelitischen Kultusgemeinde an und liegt der Steuerkanton nicht in dieser Gruppe, wäre der Y-Tarif richtig.'
+         WHERE code = 'kirche.N' AND sprache = 'de' AND text LIKE 'Das N am Ende des Codes bedeutet: ohne Kirchensteuer. Das passt zu den Konfessionen%';
     ");
 
     // ── Warnungsverwaltung (Walter-Vorgabe 06.07.2026) ────────────────────

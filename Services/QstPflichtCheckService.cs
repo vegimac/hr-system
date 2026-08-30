@@ -400,20 +400,26 @@ public class QstPflichtCheckService
             "roemisch_katholisch"    => "Röm.-katholisch",
             "christ_katholisch"      => "Christ-katholisch",
             "evangelisch_reformiert" => "Evang.-reformiert",
+            "israelitisch"           => "Israelitische Kultusgemeinde",
             "andere"                 => "Andere",
             "keine"                  => "Keine",
             _                        => religionCode
         };
-        var istLandeskirche = religionCode is "roemisch_katholisch"
-                                          or "christ_katholisch"
-                                          or "evangelisch_reformiert";
+        // Walter-Vorgabe 30.08.2026: Y-fähig sind die drei Landeskirchen UND
+        // die Israelitische Kultusgemeinde (Swissdec «jewishCommunity»). Statt
+        // die Liste hier ein zweites Mal zu führen, fragen wir die Stelle, die
+        // sie ohnehin kennt — sonst laufen die beiden auseinander.
+        var istLandeskirche = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religionCode);
         if (erfassung.Kirchensteuer && religionCode.Length == 0)
             w.Add("Tarif MIT Kirchensteuer (…Y), aber beim MA ist KEINE Konfession erfasst — "
                 + "Konfession in der MA-Maske nachtragen oder Tarif auf …N korrigieren.");
         else if (erfassung.Kirchensteuer && !istLandeskirche)
             w.Add($"Tarif MIT Kirchensteuer (…Y), aber die Konfession «{religionLabel}» ist "
                 + "nicht kirchensteuerpflichtig — Tarif …N prüfen.");
-        else if (!erfassung.Kirchensteuer && istLandeskirche)
+        else if (!erfassung.Kirchensteuer && istLandeskirche
+                 && QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich(erfassung.Steuerkanton, null))
+            // In GE/NE/VD/VS/TI ist N auch bei Y-fähiger Konfession korrekt —
+            // dort wird die Kirchensteuer nicht über die QST erhoben.
             w.Add($"Konfession «{religionLabel}» ist kirchensteuerpflichtig, der Tarif ist aber "
                 + "OHNE Kirchensteuer (…N) — Tarif …Y prüfen.");
 

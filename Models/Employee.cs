@@ -315,7 +315,7 @@ public class Employee
     [Column("separated_since")]
     public DateOnly? SeparatedSince { get; set; }
 
-    /// <summary>Konfession: evangelisch_reformiert | roemisch_katholisch | christ_katholisch | andere | keine.
+    /// <summary>Konfession: evangelisch_reformiert | roemisch_katholisch | christ_katholisch | israelitisch | andere | keine.
     /// Allgemeines persönliches Datum (auch für Statistik / Kirchensteuer).</summary>
     [Column("religion")]
     public string? Religion { get; set; }
