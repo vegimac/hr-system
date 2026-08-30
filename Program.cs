@@ -812,6 +812,71 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS mirus_funktion_aliases TEXT;
     ");
 
+    // ── QST-Erklär-Bausteine (Walter-Vorgabe 30.08.2026) ──────────────────
+    // Bewusst KEINE KI zur Laufzeit: die Erklärung zu einem Tarif hängt nur an
+    // Merkmalen (Tarifbuchstabe, Kinderziffer, Kirchensteuer, Zivilstand,
+    // Befreiungsgrund), nicht an der Person. Die Texte stehen einmal hier,
+    // QstErklaerungController setzt sie pro Fall zusammen — damit verlässt kein
+    // Personendatum das Haus. Idempotent: UNIQUE + ON CONFLICT DO NOTHING,
+    // spätere Textkorrekturen laufen über die Tabelle (oder ein UPDATE hier).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS qst_erklaerung (
+            id         SERIAL PRIMARY KEY,
+            code       TEXT NOT NULL,
+            sprache    TEXT NOT NULL DEFAULT 'de',
+            titel      TEXT NOT NULL,
+            text       TEXT NOT NULL,
+            sort_order INT  NOT NULL DEFAULT 0,
+            UNIQUE (code, sprache)
+        );
+        INSERT INTO qst_erklaerung (code, sprache, titel, text, sort_order) VALUES
+        ('tarif.A', 'de', 'Tarif A — Alleinstehende ohne Kinder',
+         'Tarif A gilt für Personen, die weder verheiratet noch in eingetragener Partnerschaft leben und keinen Kinderabzug beanspruchen: ledig, geschieden, verwitwet oder getrennt. Ohne Kinderabzug lautet der Code A0. Eine Kinderziffer auf A (A1-A9) gibt es nur mit ausdrücklicher Bewilligung der Steuerbehörde - lebt das Kind im eigenen Haushalt, ist stattdessen Tarif H zu prüfen.', 10),
+        ('tarif.B', 'de', 'Tarif B — Verheiratet, Alleinverdiener',
+         'Tarif B gilt für Verheiratete und eingetragene Partnerschaften, bei denen nur eine Person ein Erwerbs- oder Ersatzeinkommen hat. Massgebend ist die Angabe zur Erwerbstätigkeit des Ehepartners im Familie-Tab. Verdient der Partner ebenfalls - auch im Ausland, auch Rente oder Militärsold - gilt stattdessen Tarif C.', 10),
+        ('tarif.C', 'de', 'Tarif C — Verheiratet, Doppelverdiener',
+         'Tarif C gilt für Verheiratete und eingetragene Partnerschaften, bei denen beide Partner ein Erwerbs- oder Ersatzeinkommen haben. Für den Tarif zählt auch Einkommen im Ausland. Ist der Partner nachweislich nicht erwerbstaetig, gehört der Fall in Tarif B.', 10),
+        ('tarif.D', 'de', 'Tarif D — Nebenerwerb',
+         'Tarif D ist der Tarif für Nebenerwerb bzw. Ersatzeinkünfte, die neben einem Haupteinkommen anfallen. Er kennt keine Kinderziffer und keine Kirchensteuer-Unterscheidung.', 10),
+        ('tarif.H', 'de', 'Tarif H — Alleinerziehende (Halbfamilie)',
+         'Tarif H ist der Halbfamilien-Tarif für Alleinstehende, die mit einem Kind im selben Haushalt leben und für dessen Unterhalt zur Hauptsache aufkommen. Er setzt beides voraus: keinen ungetrennt lebenden Ehepartner und mindestens ein quellensteuerberechtigtes Kind im eigenen Haushalt. Lebt das Kind beim anderen Elternteil, gilt A0 statt H.', 10),
+        ('tarif.L', 'de', 'Tarif L — Grenzgänger, alleinstehend',
+         'Tarif L ist das Gegenstück zu Tarif A für Grenzgängerinnen und Grenzgänger aus Deutschland mit Ansässigkeitsbescheinigung. Fehlt diese Bescheinigung, gilt der ordentliche Tarif.', 10),
+        ('tarif.M', 'de', 'Tarif M — Grenzgänger, verheiratet',
+         'Tarif M entspricht den Tarifen B/C für deutsche Grenzgängerinnen und Grenzgänger mit Ansässigkeitsbescheinigung.', 10),
+        ('tarif.N', 'de', 'Tarif N — Grenzgänger, Nebenerwerb',
+         'Tarif N entspricht Tarif D für deutsche Grenzgängerinnen und Grenzgänger mit Ansässigkeitsbescheinigung.', 10),
+        ('tarif.P', 'de', 'Tarif P — Pauschale',
+         'Tarif P ist der pauschale Tarif für deutsche Grenzgängerinnen und Grenzgänger und wird nur in den dafür vorgesehenen Fällen angewendet.', 10),
+        ('tarif.Q', 'de', 'Tarif Q — Grenzgänger, alleinerziehend',
+         'Tarif Q entspricht Tarif H für deutsche Grenzgängerinnen und Grenzgänger mit Ansässigkeitsbescheinigung.', 10),
+        ('kinder.0', 'de', 'Kinderziffer 0',
+         'Die Ziffer 0 im Code bedeutet: kein Kinderabzug. Entweder sind keine Kinder erfasst, oder sie sind am Stichtag nicht mehr quellensteuerberechtigt - etwa weil ein Kind 18 geworden ist und weder eine Erstausbildung noch eine laufende Ausbildungszulage erfasst ist.', 20),
+        ('kinder.n', 'de', 'Kinderziffer im Code',
+         'Die Ziffer im Code ist die Zahl der quellensteuerberechtigten Kinder am Stichtag. Berechtigt ist ein Kind bis 18, danach nur mit Erstausbildung bzw. laufender Ausbildungszulage. Bei Tarif H zählen ausschliesslich Kinder im eigenen Haushalt, bei B und C auch Kinder ausserhalb.', 20),
+        ('kirche.Y', 'de', 'Y — mit Kirchensteuer',
+         'Das Y am Ende des Codes bedeutet: mit Kirchensteuer. Es folgt der Konfession in den Personalien - kirchensteuerpflichtig sind römisch-katholisch, christkatholisch und evangelisch-reformiert. Bei «Keine» oder «Andere» gehört der Fall in einen N-Tarif.', 30),
+        ('kirche.N', 'de', 'N — ohne Kirchensteuer',
+         'Das N am Ende des Codes bedeutet: ohne Kirchensteuer. Das passt zu den Konfessionen «Keine» und «Andere». Gehört die Person einer Landeskirche an, wäre der Y-Tarif richtig.', 30),
+        ('lage.getrennt', 'de', 'Warum aendert die Trennung den Tarif?',
+         'Getrennt lebende Verheiratete werden quellensteuerlich wie Alleinstehende behandelt: A ohne Kind im Haushalt, H mit Kind im Haushalt - nicht mehr B oder C. Schon die Trennung beendet auch eine Befreiung ueber den Ehepartner, nicht erst die Scheidung. Wirksam wird das ab dem Folgemonat der Trennung, deshalb ist das Feld «Zivilstand seit» wichtig. Der Ehepartner darf im Familie-Tab erfasst bleiben - die Ehe besteht ja weiter -, spielt für den Tarif aber keine Rolle mehr.', 40),
+        ('lage.konkubinat', 'de', 'Konkubinat und Tarif H',
+         'Ein Konkubinatspartner befreit nie von der Quellensteuer, auch nicht mit Schweizer Pass oder C-Ausweis - nur Ehe und eingetragene Partnerschaft zählen. Beim gemeinsamen Kind im Konkubinat erhaelt nur ein Elternteil Tarif H, nämlich der mit dem höheren Bruttoeinkommen; der andere bleibt bei A0. Sind die Kinder im Haushalt nicht vom Partner, gilt die Person als alleinerziehend und H ist richtig.', 40),
+        ('lage.speziell_bewilligt', 'de', 'Kinderabzug auf Tarif A',
+         'Eine Kinderziffer auf Tarif A (A1-A9) gibt es nur mit ausdrücklicher Bewilligung der Steuerbehörde. Diese ist beim QST-Eintrag als «speziell bewilligt» zu markieren und mit dem Bewilligungsschreiben zu belegen. Ohne Bewilligung gilt A0; Alimente laufen ueber die nachtraegliche ordentliche Veranlagung.', 40),
+        ('lage.wochenaufenthalt', 'de', 'Wochenaufenthalt',
+         'Der Quellensteuer-Kanton richtet sich immer nach dem Hauptwohnsitz, nie nach dem Wochenaufenthaltsort. Der Wochenaufenthalt gehört als Zusatzadresse erfasst - die Hauptadresse muss der Hauptwohnsitz bleiben.', 40),
+        ('befreiung.ehepartner', 'de', 'Befreiung ueber den Ehepartner',
+         'Wer mit einer Person verheiratet ist, die das Schweizer Bürgerrecht oder einen C-Ausweis hat, ist nicht quellensteuerpflichtig. Drei Bedingungen muessen zusammenkommen: es ist eine Ehe oder eingetragene Partnerschaft (kein Konkubinat), die Partner leben ungetrennt, und der Partner wohnt selbst in der Schweiz. Faellt eine davon weg, lebt die Quellensteuerpflicht ab dem Folgemonat wieder auf.', 50),
+        ('befreiung.eigen', 'de', 'Keine Quellensteuer wegen eigenem Status',
+         'Wer das Schweizer Bürgerrecht oder einen C-Ausweis hat, unterliegt nicht der Quellensteuer, sondern der ordentlichen Veranlagung. Ausnahme: bei Hauptwohnsitz im Ausland bleibt die Person quellensteuerpflichtig, unabhängig von Nationalität und Bewilligung.', 50),
+        ('befreiung.behoerde', 'de', 'Befreiung durch die Steuerbehörde',
+         'Die Steuerbehörde hat für diese Person eine Befreiung verfügt. Massgebend ist das hinterlegte Bestätigungsschreiben samt Gültigkeitszeitraum - läuft dieser ab, lebt die Quellensteuerpflicht wieder auf.', 50),
+        ('hinweis.schluss', 'de', 'Im Zweifel',
+         'Diese Erklärung beschreibt die Regeln, nach denen das System den Tarif ableitet. Verbindlich ist immer die Einstufung des kantonalen Steueramts - bei unklaren Fällen dort nachfragen und die Tarifbestätigung beim QST-Eintrag hinterlegen.', 90)
+        ON CONFLICT (code, sprache) DO NOTHING;
+    ");
+
     // ── Warnungsverwaltung (Walter-Vorgabe 06.07.2026) ────────────────────
     // Globale Dashboard-Warnungs-Konfig. Idempotent: Tabelle + UNIQUE +
     // ON CONFLICT DO NOTHING. Seed = heutiges DashboardService-Verhalten.

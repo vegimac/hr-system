@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<MomentType> MomentTypes => Set<MomentType>();
     public DbSet<MomentTone> MomentTones => Set<MomentTone>();
     public DbSet<MomentText> MomentTexts => Set<MomentText>();
+    public DbSet<QstErklaerung> QstErklaerungen => Set<QstErklaerung>();
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
     public DbSet<ContractShareToken> ContractShareTokens => Set<ContractShareToken>();
@@ -367,6 +368,18 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<QstErklaerung>(entity =>
+        {
+            entity.ToTable("qst_erklaerung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code");
+            entity.Property(e => e.Sprache).HasColumnName("sprache");
+            entity.Property(e => e.Titel).HasColumnName("titel");
+            entity.Property(e => e.Text).HasColumnName("text");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
         });
 
         modelBuilder.Entity<MomentText>(entity =>

@@ -4223,6 +4223,12 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
                         Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
+                        <!-- Walter 30.08.2026: Klartext-Erklärung zum Tarif.
+                             Rein lokal aus der Tabelle qst_erklaerung — kein
+                             externer Dienst, keine Daten nach draussen. -->
+                        <button type="button" class="qst-warum-btn"
+                                onclick="event.stopPropagation();qstErklaerungOeffnen(${selectedEmployeeId}, ${e.id})"
+                                title="Erklärt in Alltagssprache, wie dieser Tarifcode zustande kommt">? Warum dieser Tarif</button>
                     </div>${warnZeilenHtml}
                     ${(e.herleitungDiff && e.herleitungDiff.length) ? `
                     <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px;line-height:1.5" title="Was sich gegenüber der Vorversion geändert hat (Herleitungs-Snapshot, K4)">
@@ -16170,3 +16176,50 @@ async function raNotfallListePdf() {
         alert('Notfallkontakte-Liste fehlgeschlagen: ' + (e?.message || e));
     }
 }
+
+
+// ── «Warum dieser Tarif?» (Walter-Vorgabe 30.08.2026) ────────────────────────
+// Holt die Erklär-Bausteine vom eigenen Server (Tabelle qst_erklaerung) und
+// zeigt sie in einem Liquid-Panel. Bewusst OHNE KI-Aufruf zur Laufzeit: die
+// Texte sind einmal geschrieben, der Server setzt pro Fall die passenden
+// zusammen. Es verlässt kein Personendatum das Haus.
+async function qstErklaerungOeffnen(employeeId, entryId) {
+    const old = document.getElementById('qstErklaerModal');
+    if (old) old.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'qstErklaerModal';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:640px;width:92%;max-height:82vh;display:flex;flex-direction:column">
+            <div style="padding:20px 24px 12px;border-bottom:1px solid rgba(139,139,139,0.18)">
+                <div id="qstErklaerKopf" style="font-size:15px;font-weight:800;color:#3f3f3f">Erklärung wird geladen …</div>
+            </div>
+            <div id="qstErklaerBody" style="padding:16px 24px 20px;overflow-y:auto;font-size:13.5px;color:#4b4b4b;line-height:1.6"></div>
+            <div style="display:flex;justify-content:flex-end;padding:0 24px 20px">
+                <button id="qeClose" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Schliessen</button>
+            </div>
+        </div>`;
+    document.body.appendChild(wrap);
+    const done = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    const onKey = ev => { if (ev.key === 'Escape') done(); };
+    document.addEventListener('keydown', onKey);
+    wrap.addEventListener('click', ev => { if (ev.target === wrap) done(); });
+    wrap.querySelector('#qeClose').onclick = done;
+
+    try {
+        const url = `/api/qst-erklaerung/${employeeId}` + (entryId ? `?entryId=${entryId}` : '');
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        document.getElementById('qstErklaerKopf').textContent = data.kopfzeile || 'Quellensteuer';
+        document.getElementById('qstErklaerBody').innerHTML = (data.bausteine || []).map(b => `
+            <div style="margin-bottom:16px">
+                <div style="font-weight:700;color:#3f3f3f;margin-bottom:4px">${esc(b.titel)}</div>
+                <div>${esc(b.text)}</div>
+            </div>`).join('') || '<div>Für diesen Fall ist noch kein Erklärtext hinterlegt.</div>';
+    } catch (err) {
+        document.getElementById('qstErklaerKopf').textContent = 'Erklärung nicht verfügbar';
+        document.getElementById('qstErklaerBody').textContent = 'Die Erklärung konnte nicht geladen werden: ' + (err?.message || err);
+    }
+}
+window.qstErklaerungOeffnen = qstErklaerungOeffnen;
