@@ -19,6 +19,14 @@ namespace HrSystem.Services;
 ///   5. MA ist verheiratet mit einem C-Ausweis-Ehepartner (PermitType.Code="C"
 ///      mit gültiger Bewilligung).
 ///
+/// Zu 4./5. (Walter 30.08.2026) — drei Stolperfallen:
+///   • Konkubinat befreit NIE: nur Ehe/eingetragene Partnerschaft zählt.
+///   • Der Ehepartner muss SELBST in der Schweiz wohnen; wohnt er im Ausland,
+///     bleibt der MA pflichtig (unklare Wohnsituation → mit der Behörde
+///     klären, bis dahin konservativ pflichtig).
+///   • Schon die TRENNUNG beendet die Befreiung, nicht erst die Scheidung —
+///     wirksam ab dem Folgemonat (Trennung 15.08. → QST-Pflicht ab 01.09.).
+///
 /// Wenn KEINE Bedingung erfüllt UND keine QST-Erfassung am Stichtag
 /// (EmployeeQuellensteuer mit ValidFrom &lt;= Stichtag, ValidTo &gt;= Stichtag
 /// oder NULL), dann ist der MA QST-pflichtig OHNE Erfassung — das blockt den
@@ -181,11 +189,27 @@ public class QstPflichtCheckService
         // FOLGEMONAT der Trennung (AG-Praxis: Trennung 15.08. → QST ab 01.09.),
         // darum greift sie erst, wenn der Monatserste NACH dem Trennungsmonat
         // ≤ Stichtag liegt.
-        bool trennungWirksam = emp.SeparatedSince.HasValue
-            && new DateOnly(emp.SeparatedSince.Value.Year, emp.SeparatedSince.Value.Month, 1)
+        // Walter-Vorgabe 30.08.2026: «Getrennt» ist ein EIGENER Zivilstand
+        // (marital_status = "getrennt"), nicht nur «verheiratet» + Datum. Das
+        // Feld «Getrennt seit» wurde aus dem UI entfernt — das Datum steht bei
+        // diesem Zivilstand in MaritalStatusSince.
+        bool isGetrennt = msNorm.Contains("getrennt");
+        DateOnly? trennungDatum = emp.SeparatedSince ?? (isGetrennt ? emp.MaritalStatusSince : null);
+        bool trennungWirksam = trennungDatum.HasValue
+            && new DateOnly(trennungDatum.Value.Year, trennungDatum.Value.Month, 1)
                    .AddMonths(1) <= stichtag;
-        bool verheiratetUngetrennt = isVerheiratet && !trennungWirksam;
+        // Zivilstand «getrennt» beendet die Partner-Befreiung in jedem Fall —
+        // auch ohne erfasstes Datum (das Datum bestimmt nur den BEGINN der
+        // Pflicht, siehe Warnung in BuildTarifWarnungenAsync).
+        bool getrenntLebend = isGetrennt || trennungWirksam;
+        bool verheiratetUngetrennt = isVerheiratet && !getrenntLebend;
+        // Ein Partner-Eintrag ist Pflicht bei verheiratet / eingetragener
+        // Partnerschaft / getrennt — die Ehe besteht bis zur Scheidung weiter.
+        bool partnerPflicht = isVerheiratet || isGetrennt;
         EmployeeFamilyMember? spouse = null;
+        // Hinweis-Text, wenn die Befreiung nur an der Wohnsituation des
+        // Partners scheitert — wird an die Schluss-Message angehängt.
+        string? wohnsitzHinweis = null;
         if (verheiratetUngetrennt)
         {
             spouse = await _db.EmployeeFamilyMembers
@@ -206,9 +230,18 @@ public class QstPflichtCheckService
                 bool spouseDokFehlt = !spouse.DokumentId.HasValue
                     || !await _db.EmployeeDokumente.AnyAsync(d => d.Id == spouse.DokumentId.Value);
 
+                // Walter-Vorgabe 30.08.2026: Die Ehegatten-Befreiung setzt
+                // voraus, dass der Ehepartner SELBST in der Schweiz wohnt.
+                // Eindeutig im Ausland → keine Befreiung, der MA bleibt
+                // pflichtig. Unklare Wohnsituation → konservativ ebenfalls
+                // keine Befreiung, dafür ein Hinweis «mit der Behörde klären».
+                // Umschalten über die Konstante UnklarerWohnsitzBefreit.
+                var partnerWohnsitz = await BestimmePartnerWohnsitzAsync(spouse);
+                bool wohnsitzBefreit = partnerWohnsitz == PartnerWohnsitz.Schweiz
+                    || (partnerWohnsitz == PartnerWohnsitz.Unklar && UnklarerWohnsitzBefreit);
                 // 4. Spouse Schweizer? (0a: nur befreiend, wenn der MA selbst
                 // CH-ansässig ist — bei Auslands-Wohnsitz bleibt er pflichtig)
-                if (!istAusland && string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+                if (!istAusland && wohnsitzBefreit && string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-CH",
                         "Verheiratet mit Schweizer/in — nicht QST-pflichtig.",
                         SpouseDokumentFehlt: spouseDokFehlt);
@@ -217,7 +250,17 @@ public class QstPflichtCheckService
                 bool spouseHatC = spouse.PermitType?.Code == "C"
                                && (spouse.PermitExpiryDate == null
                                    || spouse.PermitExpiryDate.Value >= stichtag.ToDateTime(TimeOnly.MinValue));
-                if (!istAusland && spouseHatC)
+
+                // Hinweis nur, wenn die Befreiung AUSSCHLIESSLICH an der
+                // Wohnsituation scheitert — der Partner also CH-Bürger ist
+                // oder einen gültigen C-Ausweis hat.
+                if (!wohnsitzBefreit
+                    && (string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase) || spouseHatC))
+                    wohnsitzHinweis = partnerWohnsitz == PartnerWohnsitz.Ausland
+                        ? "Der Ehepartner wohnt im Ausland — die Ehegatten-Befreiung (CH/C) gilt deshalb NICHT."
+                        : "Wohnsituation des Ehepartners unklar (weder Haushalt noch Häkchen «in der Schweiz lebend» "
+                          + "noch Adresse erfasst) — bis zur Klärung mit der Steuerbehörde bleibt der MA pflichtig.";
+                if (!istAusland && wohnsitzBefreit && spouseHatC)
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-C",
                         "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig.",
                         SpouseDokumentFehlt: spouseDokFehlt);
@@ -248,17 +291,10 @@ public class QstPflichtCheckService
                 // gilt vorsichtshalber als CH → Pflicht bleibt). Nationalität
                 // und die Erwerbstätig-Frage bleiben auch dann Pflicht — für
                 // Tarif B vs. C zählt auch Einkommen im AUSLAND (KS 45).
-                bool partnerInSchweiz = spouse.LebtImHaushalt || spouse.LivesInSwitzerland;
-                if (!partnerInSchweiz && spouse.AlternativeAddressId != null)
-                {
-                    var land = await _db.EmployeeAddresses.AsNoTracking()
-                        .Where(a => a.Id == spouse.AlternativeAddressId.Value)
-                        .Select(a => a.Country)
-                        .FirstOrDefaultAsync();
-                    var l = (land ?? "").Trim().ToLowerInvariant();
-                    if (l.Length == 0 || l == "ch" || l.StartsWith("schweiz") || l.StartsWith("suisse") || l.StartsWith("svizzera"))
-                        partnerInSchweiz = true;
-                }
+                // Für die Mängel-Prüfung zählt «unklar» weiterhin als Schweiz
+                // (dann bleibt die Bewilligung Pflicht) — für die BEFREIUNG
+                // dagegen nicht, siehe BestimmePartnerWohnsitzAsync.
+                bool partnerInSchweiz = await BestimmePartnerWohnsitzAsync(spouse) != PartnerWohnsitz.Ausland;
                 if (spouse.NationalityId == null)
                     partnerMaengel.Add("Nationalität des Ehepartners fehlt");
                 else if (partnerInSchweiz
@@ -278,6 +314,26 @@ public class QstPflichtCheckService
             }
             if (partnerMaengel.Count == 0) partnerMaengel = null;
         }
+        else if (partnerPflicht)
+        {
+            // Walter-Vorgabe 30.08.2026: Bei «getrennt» (bzw. verheiratet mit
+            // wirksamer Trennung) MUSS der Ehepartner erfasst sein — die Ehe
+            // besteht bis zur Scheidung weiter, und das Kind könnte auch beim
+            // getrennten Partner leben. Weitere Angaben (Nationalität,
+            // Bewilligung, Erwerbstätigkeit) sind hier NICHT nötig: sie
+            // entscheiden weder über die Befreiung noch über den Tarif, weil
+            // getrennt Lebende nach A/H besteuert werden.
+            bool hatPartnerEintrag = await _db.EmployeeFamilyMembers.AsNoTracking()
+                .AnyAsync(f => f.EmployeeId == employeeId
+                            && f.MemberType == "Ehepartner"
+                            && f.DateOfDeath == null);
+            if (!hatPartnerEintrag)
+                partnerMaengel = new List<string>
+                {
+                    "Ehepartner-Eintrag fehlt (Zivilstand «getrennt» — die Ehe besteht bis zur "
+                    + "Scheidung weiter; Partner im Familie-Tab erfassen)"
+                };
+        }
         bool partnerFehlen = partnerMaengel != null;
 
         // ── MA ist QST-pflichtig. Gibt es eine Erfassung am Stichtag? ──
@@ -293,18 +349,20 @@ public class QstPflichtCheckService
         // ── Tarif-Plausibilität (Walter-Vorgabe 20.08.2026, nur WARNUNGEN) ──
         var tarifWarnungen = hasErfassung
             // getrennt-lebende Verheiratete zählen tarifseitig NICHT mehr als
-            // verheiratet (A/H statt B/C, Walter 26.08.2026) — aber der
-            // Ehepartner-Eintrag im Familie-Tab ist korrekt (kein W4).
+            // verheiratet (A/H statt B/C, Walter 26.08.2026) — der
+            // Ehepartner-Eintrag im Familie-Tab ist dabei KORREKT und löst
+            // keine Meldung mehr aus (W4 gestrichen, Walter 30.08.2026).
             ? await BuildTarifWarnungenAsync(employeeId, erfassung!, verheiratetUngetrennt, spouse, stichtag,
-                  istGetrenntVerheiratet: isVerheiratet && trennungWirksam)
+                  trennungDatumFehlt: getrenntLebend && trennungDatum == null)
             : null;
 
         if (hasErfassung)
             return new QstPflichtCheckResult(false, true, true, null,
-                partnerFehlen
+                (partnerFehlen
                     ? "QST-pflichtig — Erfassung vorhanden, aber Ehepartner-Angaben unvollständig: "
                       + string.Join(" · ", partnerMaengel!)
-                    : "QST-pflichtig — Erfassung vorhanden.",
+                    : "QST-pflichtig — Erfassung vorhanden.")
+                + (wohnsitzHinweis != null ? " " + wohnsitzHinweis : ""),
                 PartnerDatenFehlen: partnerFehlen,
                 PartnerDatenMaengel: partnerMaengel,
                 TarifWarnungen: tarifWarnungen);
@@ -314,7 +372,8 @@ public class QstPflichtCheckService
                 ? "QST-Pflicht offen — Wohnsitz im Ausland (Person ohne steuerrechtlichen Wohnsitz CH): "
                   + "QST-pflichtig unabhängig von Nationalität/Bewilligung. "
                 : "QST-Pflicht offen — kein Befreiungs-Grund, keine QST-Erfassung. ")
-            + "Höchsten Tarif erfassen ODER Befreiungs-Schreiben der Steuerbehörde hinterlegen.",
+            + "Höchsten Tarif erfassen ODER Befreiungs-Schreiben der Steuerbehörde hinterlegen."
+            + (wohnsitzHinweis != null ? " " + wohnsitzHinweis : ""),
             PartnerDatenFehlen: partnerFehlen,
             PartnerDatenMaengel: partnerMaengel);
     }
@@ -331,10 +390,9 @@ public class QstPflichtCheckService
     private async Task<List<string>?> BuildTarifWarnungenAsync(
         int employeeId, EmployeeQuellensteuer erfassung, bool isVerheiratet,
         EmployeeFamilyMember? spouse, DateOnly stichtag,
-        // Walter 26.08.2026: rechtlich verheiratet, aber tatsächlich getrennt
-        // (Folgemonat-Regel) — tarifseitig wie alleinstehend, aber der
-        // Ehepartner-Eintrag im Familie-Tab ist KORREKT (W4 unterdrücken).
-        bool istGetrenntVerheiratet = false)
+        // Walter 30.08.2026: getrennt lebend, aber ohne Trennungsdatum — dann
+        // lässt sich der Beginn der QST-Pflicht (Folgemonat) nicht bestimmen.
+        bool trennungDatumFehlt = false)
     {
         var t = (erfassung.TarifCode ?? "").Trim().ToUpperInvariant();
         if (t.Length == 0) return null;
@@ -480,21 +538,19 @@ public class QstPflichtCheckService
             w.Add($"Tarif A{erfassung.AnzahlKinder} ist als «speziell bewilligt» markiert, aber es ist KEIN "
                 + "Beleg-Dokument verknüpft — das Bewilligungsschreiben der Steuerbehörde beim QST-Eintrag hinterlegen.");
 
-        // ── Konkubinats-Warnungen W2–W7 (Walter 25.08.2026,
-        //    docs/konkubinat-qst-konzept.md) — alle orange, keine Blocks. ──
-        // W4: «Ehepartner» erfasst, MA aber nicht verheiratet → vermutlich
-        // Konkubinat (findet Alt-Fälle wie Stingaciu zur Hand-Umstellung).
-        if (!isVerheiratet && !istGetrenntVerheiratet)
-        {
-            bool hatEhepartnerEintrag = await _db.EmployeeFamilyMembers.AsNoTracking()
-                .AnyAsync(f => f.EmployeeId == employeeId
-                            && f.MemberType == "Ehepartner"
-                            && f.DateOfDeath == null);
-            if (hatEhepartnerEintrag)
-                w.Add("Familien-Eintrag «Ehepartner» vorhanden, aber der Zivilstand ist nicht verheiratet/eingetragene "
-                    + "Partnerschaft — Konkubinatspartner gemeint? Typ im Familie-Tab umstellen "
-                    + "(ein Konkubinatspartner mit CH/C befreit NICHT von der QST).");
-        }
+        // ── Trennung ohne Datum (Walter-Vorgabe 30.08.2026) ──
+        // Die frühere W4-Warnung («Ehepartner erfasst, aber nicht verheiratet»)
+        // ist ERSATZLOS gestrichen: ob ein Partner erfasst ist, ist für sich
+        // genommen nie ein Fehler — Pflicht ist er bei verheiratet /
+        // eingetragener Partnerschaft / getrennt, und das prüft die
+        // Vollständigkeits-Kontrolle (PartnerDatenMaengel).
+        // Was wirklich fehlt, wenn jemand getrennt ist: das Datum. Ohne
+        // «Zivilstand seit» ist der Beginn der QST-Pflicht (Folgemonat der
+        // Trennung) nicht bestimmbar.
+        if (trennungDatumFehlt)
+            w.Add("Zivilstand «getrennt», aber ohne Datum — «Zivilstand seit» in der MA-Maske ist leer. "
+                + "Der Beginn der QST-Pflicht (Folgemonat der Trennung, z.B. Trennung 15.08. → Pflicht ab 01.09.) "
+                + "lässt sich damit nicht bestimmen. Datum nachtragen.");
         if (kPartner != null && !isVerheiratet)
         {
             int haushaltJa    = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt && k.GemeinsamesKindMitPartner == true);
@@ -537,13 +593,19 @@ public class QstPflichtCheckService
             }
             // W3: gespeicherte Erfassungs-Flags vs. Familie-Tab (die Erfassung
             // wird bei Familie-Änderungen bewusst NICHT still mutiert).
-            if (!erfassung.LivesInKonkubinat)
-                w.Add("Konkubinatspartner im Familie-Tab erfasst, aber die aktive QST-Erfassung trägt das "
-                    + "Konkubinat-Häkchen nicht — neue Erfassung speichern (Werte kommen automatisch aus dem Familie-Tab).");
-            else if (kPartner.MaHatHoeheresEinkommen != null
-                     && erfassung.HasHigherIncomeThanPartner != kPartner.MaHatHoeheresEinkommen.Value)
-                w.Add("«Höheres Einkommen»-Angabe der aktiven QST-Erfassung widerspricht dem Familie-Tab — "
-                    + "neue Erfassung speichern.");
+            // Walter-Vorgabe 30.08.2026: Ein Konkubinat ist QST-seitig NUR im
+            // Fall von Kindern relevant — ohne QST-berechtigtes Kind im
+            // Haushalt gibt es dazu gar nichts zu melden.
+            if (berechtigtHaushalt > 0)
+            {
+                if (!erfassung.LivesInKonkubinat)
+                    w.Add("Konkubinatspartner im Familie-Tab erfasst, aber die aktive QST-Erfassung trägt das "
+                        + "Konkubinat-Häkchen nicht — neue Erfassung speichern (Werte kommen automatisch aus dem Familie-Tab).");
+                else if (kPartner.MaHatHoeheresEinkommen != null
+                         && erfassung.HasHigherIncomeThanPartner != kPartner.MaHatHoeheresEinkommen.Value)
+                    w.Add("«Höheres Einkommen»-Angabe der aktiven QST-Erfassung widerspricht dem Familie-Tab — "
+                        + "neue Erfassung speichern.");
+            }
         }
 
         // ── Wochenaufenthalt (Walter 28.08.2026): Hauptwohnsitz bestimmt den
@@ -579,6 +641,37 @@ public class QstPflichtCheckService
         }
 
         return w.Count > 0 ? w : null;
+    }
+
+    /// <summary>Wohnsituation des Ehepartners — entscheidet über die Ehegatten-Befreiung.</summary>
+    private enum PartnerWohnsitz { Schweiz, Ausland, Unklar }
+
+    /// <summary>
+    /// Walter-Vorgabe 30.08.2026: Die Befreiung über den Ehepartner (CH-Pass
+    /// oder C-Ausweis) gilt nur, wenn der Partner SELBST in der Schweiz wohnt.
+    /// Auf true setzen, wenn eine UNKLARE Wohnsituation (kein Haushalt, kein
+    /// Häkchen «in der Schweiz lebend», keine Adresse) trotzdem befreien soll.
+    /// </summary>
+    private const bool UnklarerWohnsitzBefreit = false;
+
+    /// <summary>
+    /// Schweiz · Ausland · unklar. «Unklar» = weder Haushalt noch Häkchen noch
+    /// Zusatzadresse; eine Zusatzadresse ohne Land gilt als Schweiz.
+    /// </summary>
+    private async Task<PartnerWohnsitz> BestimmePartnerWohnsitzAsync(EmployeeFamilyMember spouse)
+    {
+        if (spouse.LebtImHaushalt || spouse.LivesInSwitzerland) return PartnerWohnsitz.Schweiz;
+        if (spouse.AlternativeAddressId == null) return PartnerWohnsitz.Unklar;
+
+        var land = await _db.EmployeeAddresses.AsNoTracking()
+            .Where(a => a.Id == spouse.AlternativeAddressId.Value)
+            .Select(a => a.Country)
+            .FirstOrDefaultAsync();
+        var l = (land ?? "").Trim().ToLowerInvariant();
+        return l.Length == 0 || l == "ch" || l.StartsWith("schweiz")
+                             || l.StartsWith("suisse") || l.StartsWith("svizzera")
+            ? PartnerWohnsitz.Schweiz
+            : PartnerWohnsitz.Ausland;
     }
 
     /// <summary>Mass-Variante für Dashboard/Lohnlauf-Check: gibt die MA-IDs zurück, bei denen <see cref="QstPflichtCheckResult.IsPflichtOffen"/> = true ist.</summary>
