@@ -1077,10 +1077,15 @@ function renderEmployeeDetail(emp) {
             : (_p.errechneterTermin ? `Mutterschaft — ET ${formatDate(_p.errechneterTermin)}` : 'Mutterschaft');
         _hcBadges.push(`<span class="emp-hbadge hb-mut" style="cursor:pointer" title="Zur Schwangerschaft im Familie-Tab" onclick="switchEmpTab('familie')">🤰 ${_mutTxt}</span>`);
     }
+    // Walter-Vorgabe 30.08.2026: Die Kündigungs-Pille NICHT mehr in die
+    // Namenszeile — dort ist white-space:nowrap, und zusammen mit dem
+    // Austritts-Badge lief sie rechts in die easy@work-Pille hinein. Sie
+    // sitzt jetzt eine Zeile tiefer, neben der Vertrags-Pille.
+    const _hcBadges2 = [];
     if (emp.kuendigungPer) {
         const _kd = (emp.kuendigungDurch || '').toUpperCase();
         const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
-        _hcBadges.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
+        _hcBadges2.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
     }
     // Probezeit-Badge oben: Datum + Status + «eintragen»
     // (Walter 02.08.2026) — nicht mehr in der Anstellung-Karte.
@@ -1161,7 +1166,7 @@ function renderEmployeeDetail(emp) {
                     <span id="empNumberAliases" data-emp="${emp.id}"></span>
                     ${_hcBadges.join('')}
                 </div>
-                <div class="emp-hvertrag">${_hcVertragLine}</div>
+                <div class="emp-hvertrag">${_hcVertragLine}${_hcBadges2.join('')}</div>
                 <!-- EINE Fakten-Zeile, fixe Spalten: Eintritt|Geburtstag|Telefon|E-Mail -->
                 <div class="emp-hfacts">
                     <!-- Eintritt + 🆘 Notfall DIREKT darunter in derselben Zelle
