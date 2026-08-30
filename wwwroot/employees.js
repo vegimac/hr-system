@@ -4228,7 +4228,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                              externer Dienst, keine Daten nach draussen. -->
                         <button type="button" class="qst-warum-btn"
                                 onclick="event.stopPropagation();qstErklaerungOeffnen(${selectedEmployeeId}, ${e.id})"
-                                title="Erklärt in Alltagssprache, wie dieser Tarifcode zustande kommt">? Warum dieser Tarif</button>
+                                title="Erklärt in Alltagssprache, wie dieser Tarifcode zustande kommt">💡 Warum dieser Tarif?</button>
                     </div>${warnZeilenHtml}
                     ${(e.herleitungDiff && e.herleitungDiff.length) ? `
                     <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px;line-height:1.5" title="Was sich gegenüber der Vorversion geändert hat (Herleitungs-Snapshot, K4)">

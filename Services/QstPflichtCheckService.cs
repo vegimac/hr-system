@@ -213,6 +213,10 @@ public class QstPflichtCheckService
         // Hinweis-Text, wenn die Befreiung nur an der Wohnsituation des
         // Partners scheitert — wird an die Schluss-Message angehängt.
         string? wohnsitzHinweis = null;
+        // Einmal bestimmt, zweimal gebraucht (Befreiung + Mängel-Prüfung).
+        // CheckAsync läuft im Dashboard pro MA — jeder zusätzliche Roundtrip
+        // multipliziert sich, darum gecacht.
+        PartnerWohnsitz? partnerWohnsitzCache = null;
         if (verheiratetUngetrennt)
         {
             spouse = await _db.EmployeeFamilyMembers
@@ -239,7 +243,7 @@ public class QstPflichtCheckService
                 // pflichtig. Unklare Wohnsituation → konservativ ebenfalls
                 // keine Befreiung, dafür ein Hinweis «mit der Behörde klären».
                 // Umschalten über die Konstante UnklarerWohnsitzBefreit.
-                var partnerWohnsitz = await BestimmePartnerWohnsitzAsync(spouse);
+                var partnerWohnsitz = partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse);
                 bool wohnsitzBefreit = partnerWohnsitz == PartnerWohnsitz.Schweiz
                     || (partnerWohnsitz == PartnerWohnsitz.Unklar && UnklarerWohnsitzBefreit);
                 // 4. Spouse Schweizer? (0a: nur befreiend, wenn der MA selbst
@@ -297,7 +301,7 @@ public class QstPflichtCheckService
                 // Für die Mängel-Prüfung zählt «unklar» weiterhin als Schweiz
                 // (dann bleibt die Bewilligung Pflicht) — für die BEFREIUNG
                 // dagegen nicht, siehe BestimmePartnerWohnsitzAsync.
-                bool partnerInSchweiz = await BestimmePartnerWohnsitzAsync(spouse) != PartnerWohnsitz.Ausland;
+                bool partnerInSchweiz = (partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse)) != PartnerWohnsitz.Ausland;
                 if (spouse.NationalityId == null)
                     partnerMaengel.Add("Nationalität des Ehepartners fehlt");
                 else if (partnerInSchweiz
