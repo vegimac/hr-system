@@ -401,13 +401,31 @@ public class DashboardService
         // Abgelaufene: pro MA nur der JÜNGSTE abgelaufene Vertrag, und nur wenn
         // KEIN anderer aktiver Vertrag den heutigen Tag abdeckt (Folgevertrag).
         var fixedEmpIds = fixedListAll.Select(em => em.EmployeeId).Distinct().ToList();
-        var heuteAbgedeckt = (await _db.Employments.AsNoTracking()
-            .Where(x => fixedEmpIds.Contains(x.EmployeeId) && x.IsActive
-                     && x.ContractStartDate <= now
+        // ALLE aktiven Verträge dieser MA — Basis für beide Folgevertrags-
+        // Prüfungen (heute abgedeckt / nahtloser Anschluss).
+        var alleVertraege = await _db.Employments.AsNoTracking()
+            .Where(x => fixedEmpIds.Contains(x.EmployeeId) && x.IsActive)
+            .Select(x => new { x.Id, x.EmployeeId, x.ContractStartDate, x.ContractEndDate })
+            .ToListAsync();
+        var heuteAbgedeckt = alleVertraege
+            .Where(x => x.ContractStartDate <= now
                      && (x.ContractEndDate == null || x.ContractEndDate >= now))
-            .Select(x => x.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+            .Select(x => x.EmployeeId).ToHashSet();
+        // Walter-Vorgabe 30.08.2026 (Fall Julija Zafirova, FLEX 13.3.–31.8.2026
+        // mit Anschluss ab 1.9.2026): Ein befristeter Vertrag, auf den NAHTLOS
+        // ein weiterer Vertrag folgt, ist keine Pendenz — die Anstellung läuft
+        // ununterbrochen weiter. «Nahtlos» = der Folgevertrag beginnt
+        // spätestens am Tag nach dem Vertragsende (AnschlussToleranzTage) und
+        // endet später bzw. ist unbefristet. Bleibt eine echte Lücke, meldet
+        // die Karte weiterhin — das ist dann auch eine echte Lücke.
+        const int AnschlussToleranzTage = 1;
+        bool HatAnschlussvertrag(Employment em) => alleVertraege.Any(x =>
+            x.Id != em.Id
+            && x.EmployeeId == em.EmployeeId
+            && x.ContractStartDate.Date <= em.ContractEndDate!.Value.Date.AddDays(AnschlussToleranzTage)
+            && (x.ContractEndDate == null || x.ContractEndDate.Value.Date > em.ContractEndDate!.Value.Date));
         var fixedList = fixedListAll
-            .Where(em => em.ContractEndDate!.Value.Date >= now)
+            .Where(em => em.ContractEndDate!.Value.Date >= now && !HatAnschlussvertrag(em))
             .Concat(fixedListAll
                 .Where(em => em.ContractEndDate!.Value.Date < now
                           && !heuteAbgedeckt.Contains(em.EmployeeId))
