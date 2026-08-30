@@ -16208,7 +16208,9 @@ async function qstErklaerungOeffnen(employeeId, entryId) {
 
     try {
         const url = `/api/qst-erklaerung/${employeeId}` + (entryId ? `?entryId=${entryId}` : '');
-        const res = await fetch(url, { cache: 'no-store' });
+        // Auth-Header nicht vergessen — sonst 401 und der globale
+        // Interceptor wirft den Benutzer aus der Sitzung.
+        const res = await fetch(url, { headers: ah(), cache: 'no-store' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         document.getElementById('qstErklaerKopf').textContent = data.kopfzeile || 'Quellensteuer';
