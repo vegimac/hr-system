@@ -380,8 +380,7 @@ async function gsDocDownload(docId, filename) {
         const r = await fetch(`/api/documents/download/${docId}`, { headers: ah() });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const cd = r.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^";]+)"?/);
-        const fn = m ? decodeURIComponent(m[1]) : (filename || 'download');
+        const fn = cdFilename(cd, filename || 'download');
         const blob = await r.blob();
         if (typeof saveBlobAsk === 'function') saveBlobAsk(blob, fn);
         else {

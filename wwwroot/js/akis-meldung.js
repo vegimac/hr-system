@@ -89,8 +89,7 @@ async function akisDownload(typ, btn) {
         if (!res.ok) { showToast('Export fehlgeschlagen (HTTP ' + res.status + ').', 'error'); return; }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
-        const name = m ? decodeURIComponent(m[1]) : `${typ}Mitarbeitende.xlsx`;
+        const name = cdFilename(cd, `${typ}Mitarbeitende.xlsx`);
         if (_akisBlobs[typ]?.url) URL.revokeObjectURL(_akisBlobs[typ].url);
         _akisBlobs[typ] = { blob, name, url: URL.createObjectURL(blob) };
         akisRenderFiles();

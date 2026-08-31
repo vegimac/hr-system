@@ -150,8 +150,7 @@ async function macPdf() {
         }
         const blob = await r.blob();
         const cd = r.headers.get('Content-Disposition') || '';
-        const m = /filename\*?=(?:UTF-8''|")?([^\";]+)/i.exec(cd);
-        const fn = m ? decodeURIComponent(m[1].replace(/"/g, '')) : 'Adress-Abweichungen.pdf';
+        const fn = cdFilename(cd, 'Adress-Abweichungen.pdf');
         if (typeof previewFileModal === 'function') await previewFileModal(blob, fn);
         else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fn);
     } catch (e) {

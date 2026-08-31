@@ -1243,8 +1243,7 @@ function dokDownload(id) {
         .then(r => {
             if (!r.ok) throw new Error('Download fehlgeschlagen');
             const cd = r.headers.get('Content-Disposition') || '';
-            const m = cd.match(/filename="?([^";]+)"?/);
-            const filename = m ? decodeURIComponent(m[1]) : 'download';
+            const filename = cdFilename(cd, 'download');
             return r.blob().then(blob => ({ blob, filename }));
         })
         // Echter Download (Walter 24.05.2026): immer „Speichern unter…". Das

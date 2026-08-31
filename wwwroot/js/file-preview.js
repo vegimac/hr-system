@@ -266,8 +266,7 @@ async function previewUrlFetch(url, filenameFallback, headers) {
         }
         const blob = await r.blob();
         const cd = r.headers.get('Content-Disposition') || '';
-        const m  = /filename\*?=(?:UTF-8'')?["']?([^;"']+)["']?/i.exec(cd);
-        const name = (m && decodeURIComponent(m[1])) || filenameFallback || 'datei';
+        const name = cdFilename(cd, filenameFallback || 'datei');
         await previewFileModal(blob, name);
         return true;
     } catch (e) {

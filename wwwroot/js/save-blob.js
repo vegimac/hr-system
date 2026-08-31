@@ -14,6 +14,30 @@
 // Speichert ein Blob über den nativen „Speichern unter…"-Dialog. Zielordner
 // wählt der User. Bricht er ab, passiert nichts. Fällt auf den klassischen
 // Anker-Download zurück, wenn showSaveFilePicker fehlt.
+// Dateiname aus dem Content-Disposition-Header (Walter-Bug 31.08.2026:
+// «Unbefristet 70%.pdf» → «Download fehlgeschlagen: URI malformed»).
+//
+// Der Server schickt nach RFC 5987 ZWEI Angaben: filename="…" als ASCII-
+// Fallback und filename*=UTF-8''… prozentkodiert. Nur die zweite darf
+// dekodiert werden. Wer decodeURIComponent auf die ERSTE anwendet, fliegt bei
+// jedem echten Prozentzeichen im Namen auf die Nase — «70%.pdf» sieht für den
+// Dekoder aus wie eine kaputte Escape-Sequenz.
+//
+// Reihenfolge: filename* (dekodiert, mit Netz) → filename (roh, NICHT
+// dekodiert) → Fallback.
+function cdFilename(cd, fallback) {
+    cd = cd || '';
+    const star = /filename\*=(?:UTF-8'')?([^;]+)/i.exec(cd);
+    if (star) {
+        const roh = star[1].trim().replace(/^["']|["']$/g, '');
+        try { return decodeURIComponent(roh); } catch (_) { return roh; }
+    }
+    const plain = /filename="?([^";]+)"?/i.exec(cd);
+    if (plain) return plain[1].trim();
+    return fallback;
+}
+window.cdFilename = cdFilename;
+
 async function saveBlobAsk(blob, filename) {
     if (window.showSaveFilePicker) {
         try {

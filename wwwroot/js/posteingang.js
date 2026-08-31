@@ -548,11 +548,9 @@ async function pbDoUpload(e) {
 // Content-Disposition → Dateiname (Walter 18.08.2026): filename*=UTF-8''…
 // bevorzugen und dekodieren — vorher stand der ganze Header im Titel.
 function pbCdFilename(cd, fallback) {
-    cd = cd || '';
-    const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
-    if (star) { try { return decodeURIComponent(star[1].trim()); } catch { /* weiter */ } }
-    const plain = /filename="?([^";]+)"?/i.exec(cd);
-    return plain ? plain[1].trim() : fallback;
+    // Zentral in save-blob.js (Walter 31.08.2026) — hier nur noch der Aufruf,
+    // damit es nicht zwei Fassungen mit unterschiedlichen Fehlern gibt.
+    return cdFilename(cd, fallback);
 }
 
 async function pbDownload(id) {

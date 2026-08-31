@@ -2409,8 +2409,7 @@ async function _lohnDownloadBlob(url, filenameHint, preview = false) {
         }
         const blob = await res.blob();
         const disp = res.headers.get('content-disposition') || '';
-        const m    = disp.match(/filename\*?=["']?(?:UTF-8''|)([^;"']+)/i);
-        const filename = (m && decodeURIComponent(m[1])) || filenameHint;
+        const filename = cdFilename(disp, filenameHint);
         if (preview) await previewFileModal(blob, filename);
         else         await saveBlobAsk(blob, filename);
     } catch (e) {
@@ -3121,8 +3120,7 @@ async function exportLohnPdf() {
         _lohnPdfBlobUrl = URL.createObjectURL(blob);
         _lohnPdfEmpId   = s.employeeId;
         const cd = res.headers.get('Content-Disposition') || '';
-        const m  = /filename="?([^";]+)"?/.exec(cd);
-        _lohnPdfFilename = m ? m[1] : `Lohnabrechnung_${s.year}-${String(s.month).padStart(2,'0')}.pdf`;
+        _lohnPdfFilename = cdFilename(cd, `Lohnabrechnung_${s.year}-${String(s.month).padStart(2,'0')}.pdf`);
 
         const monatNames = ['','Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
         const empName = s.employeeName || '';

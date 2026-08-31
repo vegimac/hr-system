@@ -305,9 +305,8 @@ async function _arExport(format) {
         const blob = await r.blob();
         // Dateiname aus Content-Disposition wenn vorhanden, sonst Fallback.
         const cd = r.headers.get('Content-Disposition') || '';
-        const m = /filename\*?=(?:UTF-8'')?["']?([^;"']+)["']?/i.exec(cd);
         const suffix = _arMode === 'cross' ? 'alle-filialen' : 'filiale';
-        const filename = m ? decodeURIComponent(m[1]) : `absenz-auswertung-${suffix}-${year}.${format}`;
+        const filename = cdFilename(cd, `absenz-auswertung-${suffix}-${year}.${format}`);
         // PDF → Vorschaufenster; Excel/CSV → direkt speichern (entscheidet previewFileModal).
         await previewFileModal(blob, filename);
     } catch (e) {

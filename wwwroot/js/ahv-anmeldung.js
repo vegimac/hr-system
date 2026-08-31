@@ -51,8 +51,7 @@ async function ahvQuickPdf(empId) {
         if (!res.ok) { showToast('PDF-Erzeugung fehlgeschlagen', 'error'); return; }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
-        await previewFileModal(blob, m ? decodeURIComponent(m[1]) : 'AHV-Anmeldung-318260.pdf', { employeeId: empId });
+        await previewFileModal(blob, cdFilename(cd, 'AHV-Anmeldung-318260.pdf'), { employeeId: empId });
     } catch (_) {
         showToast('PDF-Erzeugung fehlgeschlagen', 'error');
     }
@@ -204,8 +203,7 @@ async function ahvGeneratePdf() {
         }
         const blob = await res.blob();
         const cd = res.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
-        const fname = m ? decodeURIComponent(m[1]) : 'AHV-Anmeldung-318260.pdf';
+        const fname = cdFilename(cd, 'AHV-Anmeldung-318260.pdf');
         await previewFileModal(blob, fname, { employeeId: _ahvSelectedEmpId });
     } catch (e) {
         showToast('PDF-Erzeugung fehlgeschlagen', 'error');
