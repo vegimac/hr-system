@@ -184,8 +184,13 @@ public class AuthController : ControllerBase
 
         // Testmodus: wer hat den Wechsel ausgeloest? (Claim aus dem JWT, kein
         // DB-Feld). Nur fuer die Anzeige im Balken und die «Zurueck»-Aktion.
+        // Walter 31.08.2026: Den Claim ROBUST suchen. Schreibt JwtBearer den
+        // Typ um (Namespace-Praefix), findet FindFirst(«impersonated_by»)
+        // nichts — impersonating waere immer false und der Balken kaeme nie.
+        var impClaim = User.Claims.FirstOrDefault(c =>
+            c.Type == "impersonated_by" || c.Type.EndsWith("impersonated_by"));
         object? impersonatedByInfo = null;
-        var impBy = User.FindFirst("impersonated_by")?.Value;
+        var impBy = impClaim?.Value;
         if (int.TryParse(impBy, out var impById))
         {
             var caller = await _context.AppUsers.AsNoTracking()
@@ -206,7 +211,7 @@ public class AuthController : ControllerBase
             // arbeitete aber wieder mit dem Admin-Konto. Man testete Rechte und
             // sah die eigenen. Deshalb sagt jetzt der SERVER, ob das benutzte
             // Token ein Testmodus-Token ist (Claim impersonated_by).
-            impersonating = User.FindFirst("impersonated_by") != null,
+            impersonating = impClaim != null,
             impersonatedBy = impersonatedByInfo,
             user.Email,
             user.Role,

@@ -200,14 +200,34 @@ async function impersonateUser() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { if (err) { err.textContent = data.message || 'Wechsel fehlgeschlagen.'; err.style.display = 'block'; } return; }
         // Admin-Token sichern (nur beim ERSTEN Wechsel, nicht überschreiben).
+        // Walter 31.08.2026: Das frische Ziel-Token SOFORT gegen /api/auth/me
+        // pruefen — bevor irgendetwas gespeichert oder neu geladen wird. Sagt
+        // der Server nicht «impersonating: true», stimmt am Wechsel etwas
+        // nicht; dann bleibt das eigene Konto unangetastet und der Fehler
+        // steht sichtbar unter der Karte, statt still im Nichts zu enden.
+        const probe = await fetch('/api/auth/me', {
+            headers: { 'Authorization': 'Bearer ' + data.token }
+        }).catch(() => null);
+        const me = probe && probe.ok ? await probe.json().catch(() => null) : null;
+        if (!me || me.impersonating !== true) {
+            if (err) {
+                err.textContent = !me
+                    ? 'Wechsel fehlgeschlagen: Das neue Token wurde vom Server nicht akzeptiert.'
+                    : `Wechsel unvollstaendig: Der Server meldet fuer das neue Token keinen Testmodus (angemeldet als ${me.username || '?'}). Bitte melde den Fall — es wurde nichts umgeschaltet.`;
+                err.style.display = 'block';
+            }
+            return;   // eigenes Konto bleibt aktiv
+        }
+        const adminTokenVorher = authToken;
         if (!localStorage.getItem('hrTokenAdmin'))
-            localStorage.setItem('hrTokenAdmin', authToken);
-        localStorage.setItem('hrImpersonating', JSON.stringify({ username: data.user.username, role: data.user.role }));
+            localStorage.setItem('hrTokenAdmin', adminTokenVorher);
+        localStorage.setItem('hrImpersonating', JSON.stringify({ username: me.username, role: me.role }));
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         if (document.getElementById('impPassword')) document.getElementById('impPassword').value = '';
         // Mitarbeiter-Rolle → schlanke Postfach-Ansicht (wie echter MA-Login).
-        if (data.user?.role === 'employee') { window.location.href = 'postfach.html'; return; }
+        // Der Balken wird dort ebenfalls gezeichnet (pfRenderImpersonationBanner).
+        if (me.role === 'employee') { window.location.href = 'postfach.html'; return; }
         location.reload();
     } catch {
         if (err) { err.textContent = 'Verbindungsfehler.'; err.style.display = 'block'; }
@@ -766,7 +786,13 @@ async function saveRetentionYears() {
             // Login-Endpoint darf 401 melden (falsche Anmeldedaten) ohne Reload.
             const url = (typeof input === 'string') ? input
                        : (input && input.url) ? input.url : '';
-            if (url.includes('/api/auth/login')) return res;
+            // Walter 31.08.2026: /impersonate ebenfalls ausnehmen. Ein 401
+            // heisst dort «dein Passwort ist falsch» bzw. «kein Superadmin» —
+            // NICHT «Sitzung tot». Vorher: Klick auf «In Benutzer wechseln»,
+            // Tippfehler im Passwort → Alert «Sitzung abgelaufen», Token weg,
+            // zurueck auf den Anmeldebildschirm. Deshalb kam nie ein Balken.
+            if (url.includes('/api/auth/login')
+                || url.includes('/api/auth/impersonate')) return res;
             // Nur wenn der Browser überhaupt eingeloggt war.
             if (!authToken) return res;
             if (alerting) return res;

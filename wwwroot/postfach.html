@@ -989,11 +989,16 @@
         try {
             const res = await fetch('/api/auth/me', { headers: ah() });
             if (!res.ok) {
-                if (res.status === 401) { localStorage.removeItem('hrToken'); window.location.href = 'index.html'; return; }
+                if (res.status === 401) { localStorage.removeItem('hrToken'); localStorage.removeItem('hrImpersonating'); localStorage.removeItem('hrTokenAdmin'); window.location.href = 'index.html'; return; }
                 throw new Error('Status ' + res.status);
             }
             currentUser = await res.json();
             employeeId  = currentUser?.employeeId;
+            // Testmodus-Balken auch hier (Walter 31.08.2026): Wechselt der
+            // Superadmin in einen Mitarbeiter, landet er auf dieser Seite.
+            // Ohne Balken saehe er nicht, dass er im Testmodus ist — und
+            // kaeme ohne Abmelden nicht mehr in sein eigenes Konto zurueck.
+            pfRenderImpersonationBanner(currentUser);
             // Begrüssung
             const fname = currentUser?.firstName || currentUser?.username || 'da';
             document.getElementById('pfGreeting').textContent = 'Hallo ' + fname;
@@ -1360,6 +1365,37 @@
             if (win) win.close();
             alert('Verbindungsfehler: ' + e.message);
         }
+    }
+
+    // Balken + Rueckweg ins eigene Konto. Quelle ist AUSSCHLIESSLICH die
+    // Antwort von /api/auth/me — nie der localStorage.
+    function pfRenderImpersonationBanner(me) {
+        let bar = document.getElementById('impersonationBanner');
+        if (me?.impersonating !== true) { if (bar) bar.remove(); return; }
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'impersonationBanner';
+            bar.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);'
+                + 'z-index:4000;background:#f59e0b;color:#1f2937;font-size:13px;font-weight:600;'
+                + 'border-radius:999px;padding:6px 8px 6px 16px;display:inline-flex;'
+                + 'align-items:center;gap:12px;box-shadow:0 6px 20px rgba(0,0,0,.22)';
+            document.body.appendChild(bar);
+        }
+        const uname = (me.username || '?').replace(/</g, '&lt;');
+        bar.innerHTML = '\uD83E\uDDEA Testmodus \u2014 du siehst das Postfach als <b>' + uname + '</b>. '
+            + '<button id="pfStopImpBtn" style="background:#1f2937;color:#fff;border:0;'
+            + 'border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">'
+            + '\u21A9 Zur\u00FCck zu meinem Konto</button>';
+        document.getElementById('pfStopImpBtn').onclick = pfStopImpersonation;
+    }
+
+    function pfStopImpersonation() {
+        const adminTok = localStorage.getItem('hrTokenAdmin');
+        if (!adminTok) { pfLogout(); return; }
+        localStorage.setItem('hrToken', adminTok);
+        localStorage.removeItem('hrTokenAdmin');
+        localStorage.removeItem('hrImpersonating');
+        window.location.href = 'index.html';
     }
 
     function pfLogout() {
