@@ -953,10 +953,10 @@ function applyAreaVisibility() {
     // Rolle «admin» allein genügt ausdrücklich NICHT.
     const entwErlaubt = currentUser?.isSuperAdmin === true
         || (Array.isArray(aa) && aa.includes('entwicklung'));
-    document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
-        if (sec.querySelector('.nav-item[data-page="entwicklung"]'))
-            sec.style.display = entwErlaubt ? '' : 'none';
-    });
+    // Sichtbarkeit ueber eine Body-Klasse (siehe .entw-only-section in
+    // app.css) statt ueber style.display — damit bleibt der Bereich auch bei
+    // einer veralteten, gecachten Skriptversion zuverlaessig verborgen.
+    document.body.classList.toggle('entw-on', entwErlaubt);
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
     // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section

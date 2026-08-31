@@ -1554,6 +1554,15 @@
 
         .sidebar-nav { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 6px; }
         .nav-section { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+        /* Bereich «Entwicklung» (Walter 31.08.2026): standardmaessig AUS.
+           Sichtbar wird er ausschliesslich, wenn applyAreaVisibility() die
+           Klasse «entw-on» an den <body> haengt — also fuer den Super-Admin
+           oder bei gesetztem Haekchen. Bewusst per CSS und nicht per
+           style.display: so bleibt der Eintrag auch dann verborgen, wenn ein
+           Browser noch eine aeltere app-core.js aus dem Cache ausfuehrt, die
+           von diesem Bereich gar nichts weiss. Fehlerfall = unsichtbar. */
+        .entw-only-section { display: none !important; }
+        body.entw-on .entw-only-section { display: flex !important; }
         .nav-item {
             position: relative;
             width: 100%; min-height: 46px;
