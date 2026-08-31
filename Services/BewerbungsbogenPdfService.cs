@@ -386,13 +386,8 @@ public class BewerbungsbogenPdfService
                 t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
                     .FontSize(8.5f).FontColor(Ink);
             });
-            // Der Block für Minderjährige steht seit 31.08.2026 auf dem
-            // Bewerbungsformular — dort unterschreibt der Bewerber, hier nicht.
-            col.Item().PaddingTop(6).Background(Soft).Padding(8).Column(c =>
-            {
-                c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                c.Item().Height(26);
-            });
+            // Kein Unterschriftsfeld mehr (Walter 31.08.2026): unterschrieben
+            // wird das Bewerbungsformular, hier genügt das Visum ganz unten.
 
             // Interner Teil — bewusst ganz am Schluss und optisch abgesetzt,
             // damit er nie mit dem unterschriebenen Teil verwechselt wird.
