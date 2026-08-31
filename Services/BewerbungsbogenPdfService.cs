@@ -267,21 +267,21 @@ public class BewerbungsbogenPdfService
                     .Text("— nur auszufüllen, wenn quellensteuerpflichtig")
                     .Italic().FontSize(8.5f).FontColor(Body);
             });
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(6).Row(r =>
+            col.Item().PaddingTop(5).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(5).Row(r =>
             {
                 r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Adresse (nur falls abweichend)"));
+            col.Item().PaddingTop(5).Element(e => LabeledLine(e, "Adresse (nur falls abweichend)"));
             col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse (Strasse/Nr., PLZ, Ort)"));
+            col.Item().PaddingTop(5).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse (Strasse/Nr., PLZ, Ort)"));
             col.Item().PaddingTop(6).Row(r =>
             {
                 r.RelativeItem().Element(e => LabeledLine(e, "Stellenantritt Partner (Datum)"));
@@ -289,15 +289,15 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem();
             });
 
-            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Kinder", null));
+            col.Item().PaddingTop(6).Element(e => SectionHead(e, "Kinder", null));
             col.Item().PaddingTop(6).Element(KinderTabelle);
 
-            col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
-            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
-            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Ergänzende Angaben", null));
+            col.Item().PaddingTop(5).Element(e => LabeledLine(e, "Krankenkasse"));
+            col.Item().PaddingTop(5).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(5).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
 
-            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
+            col.Item().PaddingTop(6).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
             col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
             {
                 foreach (var line in new[]
@@ -321,18 +321,18 @@ public class BewerbungsbogenPdfService
                     "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
                 .FontSize(6.5f).FontColor(Muted).Italic();
 
-            col.Item().PaddingTop(6).Text(t =>
+            col.Item().PaddingTop(4).Text(t =>
             {
                 t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
                 t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
                     .FontSize(8.5f).FontColor(Ink);
             });
-            col.Item().PaddingTop(5).Row(r =>
+            col.Item().PaddingTop(4).Row(r =>
             {
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
                 {
                     c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                    c.Item().Height(46);
+                    c.Item().Height(30);
                 });
                 r.ConstantItem(14);
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
@@ -343,22 +343,23 @@ public class BewerbungsbogenPdfService
                         t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
                             .FontSize(8f).FontColor(Ink);
                     });
-                    c.Item().PaddingTop(8).Element(f => LabeledLine(f, "Vorname Name"));
-                    c.Item().PaddingTop(10).Element(f => LabeledLine(f, "Unterschrift"));
+                    c.Item().PaddingTop(7).Element(f => LabeledLine(f, "Vorname Name"));
+                    c.Item().PaddingTop(9).Element(f => LabeledLine(f, "Unterschrift"));
                 });
             });
 
             // Interner Teil — bewusst ganz am Schluss und optisch abgesetzt,
             // damit er nie mit dem unterschriebenen Teil verwechselt wird.
-            col.Item().PaddingTop(12).Element(e => SectionHead(e,
+            col.Item().PaddingTop(9).Element(e => SectionHead(e,
                 "Notizen zum Gespräch", "intern — nicht Teil der Bewerbung"));
-            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Datum des Gesprächs", "Teilnehmende"));
-            col.Item().PaddingTop(9).Element(e =>
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Datum des Gesprächs", "Teilnehmende"));
+            col.Item().PaddingTop(6).Element(e =>
                 TwoFields(e, "Eintritt vereinbart per", "Für eine Dauer von mindestens"));
-            col.Item().PaddingTop(10).Text("Eindruck / Notizen").SemiBold().FontSize(8.5f).FontColor(Ink);
-            for (var i = 0; i < 4; i++)
-                col.Item().PaddingTop(9).Element(WriteLine);
-            col.Item().PaddingTop(11).Row(r =>
+            col.Item().PaddingTop(8).Text("Eindruck / Notizen").SemiBold().FontSize(8.5f).FontColor(Ink);
+            // Walter 31.08.2026: 3 Zeilen — das Formular MUSS auf 2 Seiten bleiben.
+            for (var i = 0; i < 3; i++)
+                col.Item().PaddingTop(8).Element(WriteLine);
+            col.Item().PaddingTop(8).Row(r =>
             {
                 r.AutoItem().Element(e =>
                     CheckOptionsInline(e, "Entscheid", "Zusage", "Absage", "Rückstellung"));
