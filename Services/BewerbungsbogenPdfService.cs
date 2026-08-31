@@ -123,16 +123,30 @@ public class BewerbungsbogenPdfService
 
             col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "1  Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Wohnort", "Mobiltelefon"));
-            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "E-Mail"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
-            col.Item().PaddingTop(9).Element(e =>
-                CheckOptionsInline(e, "Bewilligung / Status", "CH", "C", "B", "L", "S", "G"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Andere / keine", "Gültig bis"));
+            // Reihenfolge nach Walter-Vorgabe 31.08.2026.
+            col.Item().PaddingTop(10).Row(r =>
+            {
+                r.RelativeItem(1.15f).AlignBottom().Element(f => LabeledLine(f, "Vorname"));
+                r.ConstantItem(14);
+                r.AutoItem().AlignBottom().Element(f => CheckOptionsRow(f, "Geschlecht", "W", "M", "D"));
+                r.ConstantItem(16);
+                r.RelativeItem(1.15f).AlignBottom().Element(f => LabeledLine(f, "E-Mail"));
+            });
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
+            col.Item().PaddingTop(9).Row(r =>
+            {
+                r.RelativeItem(1.0f).AlignBottom().Element(f => LabeledLine(f, "Nationalität"));
+                r.ConstantItem(14);
+                r.AutoItem().AlignBottom().Element(f =>
+                    CheckOptionsRow(f, "Bewilligung", "CH", "C", "B", "L", "S", "G", "Andere"));
+                r.ConstantItem(14);
+                r.RelativeItem(0.75f).AlignBottom().Element(f => LabeledLine(f, "gültig bis"));
+            });
 
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "2  Sprachkenntnisse", null));
-            col.Item().PaddingTop(8).Element(LangGrid);
+            col.Item().PaddingTop(8).Element(LangGridKurz);
 
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "3  Dein Einsatz bei uns", null));
             col.Item().PaddingTop(9).Element(e =>
@@ -657,6 +671,53 @@ public class BewerbungsbogenPdfService
                 });
             });
 
+        });
+    }
+
+    /// <summary>
+    /// Wie CheckOptionsInline, aber alles auf EINER Zeile — damit ein
+    /// Ankreuzfeld neben einer Schreibzeile stehen kann (Walter 31.08.2026).
+    /// </summary>
+    private static void CheckOptionsRow(IContainer e, string label, params string[] options)
+    {
+        e.Row(r =>
+        {
+            r.AutoItem().AlignMiddle().PaddingRight(10)
+                .Text(label).FontSize(8.5f).FontColor(Ink);
+            for (var i = 0; i < options.Length; i++)
+            {
+                if (i > 0) r.ConstantItem(10);
+                r.AutoItem().AlignMiddle().Element(ch => CheckLabel(ch, options[i]));
+            }
+        });
+    }
+
+    /// <summary>
+    /// Sprachkenntnisse kurz (Bewerbungsformular, Walter 31.08.2026):
+    /// nur Deutsch plus eine freie Zeile für eine andere Sprache.
+    /// </summary>
+    private static void LangGridKurz(IContainer e)
+    {
+        e.Table(t =>
+        {
+            t.ColumnsDefinition(c =>
+            {
+                c.RelativeColumn(1.9f);
+                c.RelativeColumn(1f);
+                c.RelativeColumn(0.85f);
+                c.RelativeColumn(1.2f);
+            });
+
+            t.Cell().PaddingBottom(4).Text("");
+            foreach (var h in new[] { "sehr gut", "gut", "Grundkenntnisse" })
+                t.Cell().PaddingBottom(4).AlignCenter().Text(h).FontSize(7.5f).FontColor(Ink);
+
+            t.Cell().PaddingVertical(4).AlignMiddle().Text("Deutsch").FontSize(8.5f).FontColor(Ink);
+            for (var i = 0; i < 3; i++) t.Cell().PaddingVertical(4).AlignCenter().Element(Check);
+
+            t.Cell().PaddingVertical(4).PaddingRight(10).AlignBottom()
+                .Element(f => LabeledLine(f, "Andere"));
+            for (var i = 0; i < 3; i++) t.Cell().PaddingVertical(4).AlignCenter().Element(Check);
         });
     }
 
