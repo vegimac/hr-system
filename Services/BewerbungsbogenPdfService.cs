@@ -369,10 +369,6 @@ public class BewerbungsbogenPdfService
                 }
             });
 
-            col.Item().PaddingTop(4).Text(
-                    "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
-                .FontSize(6.5f).FontColor(Muted).Italic();
-
             col.Item().PaddingTop(8).Text(t =>
             {
                 t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
@@ -381,10 +377,10 @@ public class BewerbungsbogenPdfService
             });
             // Der Block für Minderjährige steht seit 31.08.2026 auf dem
             // Bewerbungsformular — dort unterschreibt der Bewerber, hier nicht.
-            col.Item().PaddingTop(8).Background(Soft).Padding(10).Column(c =>
+            col.Item().PaddingTop(6).Background(Soft).Padding(8).Column(c =>
             {
                 c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                c.Item().Height(52);
+                c.Item().Height(26);
             });
 
             // Interner Teil — bewusst ganz am Schluss und optisch abgesetzt,
