@@ -72,6 +72,10 @@ function mwShortDate(iso) {
     return s.slice(8, 10) + '.' + s.slice(5, 7) + '.' + s.slice(2, 4);
 }
 function mwTodayIso() { return new Date().toISOString().slice(0, 10); }
+function mwViewDateIso() {
+    const el = document.getElementById('mwViewDate');
+    return el && el.value ? el.value : null;
+}
 
 // Betrag immer im Format 00.00 (zwei Nachkommastellen, Punkt) — akzeptiert beim
 // Tippen Komma ODER Punkt, gibt leeren String bei ungültiger Eingabe zurück.
@@ -198,10 +202,9 @@ function mwRender() {
     }
 
     if (mwShowAll) {
-        const rel = mwRelevantVersions(mwAllRules);
-        if (infoEl) infoEl.textContent = `${rel.length} Versionen (aktuell + neu)`;
-        cont.innerHTML = rel.length
-            ? mwRenderHistory(rel)
+        if (infoEl) infoEl.textContent = `${mwAllRules.length} Versionen (alle, inkl. abgelaufen)`;
+        cont.innerHTML = mwAllRules.length
+            ? mwRenderHistory(mwAllRules, true)
             : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
         return;
     }
@@ -211,6 +214,20 @@ function mwRender() {
         cont.innerHTML = '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
         return;
     }
+
+    const viewDate = mwViewDateIso();
+    if (viewDate) {
+        const at = mwAllRules.filter(r => mwValidAt(r, viewDate));
+        if (infoEl) infoEl.textContent = `Sätze gültig am ${mwFmtDate(viewDate)} · ${at.length}`;
+        const youthAt = at.filter(r => r.ageMax != null);
+        let html = `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint">Anzeige der Sätze, die am <b>${mwFmtDate(viewDate)}</b> galten (z. B. 2025). Die Tagesmatrix ohne Datum bleibt «aktuell».</div></div>`;
+        html += mwRenderMatrix('Stundenlöhne', 'CHF / Std.',        'hourly',  false, '', at);
+        html += mwRenderMatrix('Monatslöhne',  'CHF / Mt. · 100 %', 'monthly', false, '', at);
+        html += mwRenderYouth(youthAt, false, '');
+        cont.innerHTML = html;
+        return;
+    }
+
     if (infoEl) infoEl.textContent = (split ? 'aktuell + neu' : 'aktuelle Sätze') + (abDatum ? ` · ab ${mwFmtDate(abDatum)}` : '');
 
     const youthRules = mwAllRules.filter(r => r.ageMax != null);
@@ -267,8 +284,9 @@ function mwFutCell(edt, ref) {
     return `<td class="mw-amount mw-fut-col ${cls}" onclick="mwEdit(${edt.id})" title="Neuer Satz (${hint}) — bearbeiten"><span>${mwAmt(edt.amount)}</span></td>`;
 }
 
-function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
-    const all = mwAllRules.filter(r => r.salaryType === salaryType && r.ageMax == null);
+function mwRenderMatrix(title, unit, salaryType, split, abDatum, sourceRules) {
+    const pool = sourceRules || mwAllRules;
+    const all = pool.filter(r => r.salaryType === salaryType && r.ageMax == null);
     const agg = mwAggregate(all, r => r.jobGroupCode + '|' + r.employmentModelCode + '|' + r.educationLevelId);
 
     // Zeilen = vorhandene (Funktion, Modell)-Kombis.
@@ -372,7 +390,7 @@ function mwRenderYouth(rules, split, abDatum) {
     </div>`;
 }
 
-function mwRenderHistory(rules) {
+function mwRenderHistory(rules, showAll) {
     // Sortierung (Walter-Vorgabe 23.05.2026): Modell → Ausbildung → Funktion →
     // Alter → gültig ab. „Gültig ab" als innerster Schlüssel hält die zwei
     // Versionen (aktuell + geplant) desselben Satzes direkt untereinander.
@@ -397,7 +415,7 @@ function mwRenderHistory(rules) {
         </tr>`).join('');
 
     return `<div class="card mw-section">
-        <div class="mw-section-head">Versionen pro Satz<span class="mw-unit">aktuell + nächste geplante (max. 2)</span></div>
+        <div class="mw-section-head">Versionen pro Satz<span class="mw-unit">${showAll ? 'alle inkl. abgelaufen' : 'aktuell + nächste geplante (max. 2)'}</span></div>
         <table class="mw-table">
             <thead><tr>
                 <th class="mw-th-row">Funktion</th>
@@ -543,10 +561,10 @@ async function mwDoCopy() {
         if (!res.ok) { showToast(data.error || ('Kopieren fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
         mwCloseOverlay();
         showToast(`${data.copied} Sätze ab ${mwFmtDate(d)} erstellt`, 'success');
-        const st = document.getElementById('mwStichtag');
+        const st = document.getElementById('mwViewDate');
         const sa = document.getElementById('mwShowAll');
         if (sa) sa.checked = false;
-        if (st) { st.disabled = false; st.value = d; }
+        if (st) st.value = d;
         mwLoad();
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
