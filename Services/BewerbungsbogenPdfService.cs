@@ -207,32 +207,14 @@ public class BewerbungsbogenPdfService
             // (Walter 31.08.2026). Alles Weitere unten wird erst im Gespräch
             // erhoben und ist dort NICHT enthalten.
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
-            // Notfallkontakt direkt bei den Personalien (Walter 25.08.2026 v3).
-            col.Item().PaddingTop(9).Row(r =>
-            {
-                r.AutoItem().AlignBottom().PaddingBottom(2)
-                    .Text("Notfallkontakt").Bold().FontSize(8.5f).FontColor(Ink);
-                r.ConstantItem(10);
-                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Name"));
-                r.ConstantItem(12);
-                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Beziehung"));
-                r.ConstantItem(12);
-                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
-            });
             col.Item().PaddingTop(9).Row(r =>
             {
                 r.AutoItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
                 r.ConstantItem(14);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            col.Item().PaddingTop(9).Row(r =>
-            {
-                r.RelativeItem(1.0f).Element(e => CheckOptionsInline(e, "Geschlecht", "W", "M", "D"));
-                r.ConstantItem(16);
-                r.RelativeItem(1.1f).AlignBottom().Element(f => LabeledLine(f, "Zivilstand"));
-                r.ConstantItem(16);
-                r.RelativeItem(0.9f).AlignBottom().Element(f => LabeledLine(f, "seit dem:"));
-            });
+            // Geschlecht entfernt (Walter 31.08.2026) — steht auf der Bewerbung.
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Zivilstand", "seit dem:"));
             // Israelitische Kultusgemeinde ist bei der Quellensteuer Y-fähig wie
             // die Landeskirchen (Walter 30.08.2026) — darf nicht unter «Andere».
             col.Item().PaddingTop(9).Element(e => CheckOptionsInline(e, "Konfession",
@@ -277,15 +259,9 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
                 hinweis: "Falls ja, bitte eine Kopie beilegen"));
-            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
-                "Hast du schon in der Hotellerie/Restauration gearbeitet?",
-                hinweis: "Falls ja, Kopie der Arbeitszeugnisse beilegen"));
-            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
-                "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
-                hinweis: "Falls ja, bitte unten ausfüllen"));
-            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
-            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
+            // Entfernt (Walter 31.08.2026): Frage nach frueherer Arbeit in der
+            // Hotellerie, Frage nach anderen Taetigkeiten, die zwei
+            // Arbeitgeber-Zeilen und die Referenzen-Zeile.
         });
     }
 
