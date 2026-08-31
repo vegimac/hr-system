@@ -792,10 +792,17 @@ async function startApp() {
     try {
         const imp = JSON.parse(localStorage.getItem('hrImpersonating') || 'null');
         if (imp) {
-            const echt = currentUser?.impersonating === true
-                && (imp.username || '').trim().toLowerCase()
-                   === (currentUser?.username || '').trim().toLowerCase();
-            if (!echt) {
+            // Verworfen wird NUR bei einem Beweis, dass der Hinweis falsch ist:
+            //   • der Name im Hinweis passt nicht zum tatsächlich angemeldeten
+            //     Konto (das war der Fehlerfall: Balken «Simone», Rechte Walter)
+            //   • ODER der Server sagt ausdrücklich impersonating = false
+            // Fehlt das Kennzeichen ganz (älteres Backend), entscheidet allein
+            // der Namensvergleich — sonst wäre der Testmodus tot, sobald das
+            // Backend noch nicht nachgezogen ist (Walter-Regression 31.08.2026).
+            const nameGleich = (imp.username || '').trim().toLowerCase()
+                === (currentUser?.username || '').trim().toLowerCase();
+            const serverSagtNein = currentUser?.impersonating === false;
+            if (!nameGleich || serverSagtNein) {
                 localStorage.removeItem('hrImpersonating');
                 localStorage.removeItem('hrTokenAdmin');
             }
