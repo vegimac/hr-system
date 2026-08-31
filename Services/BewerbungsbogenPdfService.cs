@@ -177,21 +177,20 @@ public class BewerbungsbogenPdfService
 
             // Minderjährige (Walter 31.08.2026): gehört hierher, weil der
             // Bewerber dieses Formular unterschreibt — nicht aufs
-            // Gesprächsformular, wo es vorher stand.
-            col.Item().PaddingTop(10).Background(Soft).Padding(8).Column(c =>
+            // Gesprächsformular, wo es vorher stand. Ohne Kasten und ohne
+            // Einrückung, damit es wie normaler Text auf derselben Kante steht
+            // wie alles andere.
+            col.Item().PaddingTop(14).Text(t =>
             {
-                c.Item().Text(t =>
-                {
-                    t.Span("Für Minderjährige").SemiBold().FontSize(8f).FontColor(Ink);
-                    t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
-                        .FontSize(8f).FontColor(Ink);
-                });
-                c.Item().PaddingTop(9).Row(r =>
-                {
-                    r.RelativeItem().Element(f => LabeledLine(f, "Vorname Name"));
-                    r.ConstantItem(24);
-                    r.RelativeItem().Element(f => LabeledLine(f, "Unterschrift"));
-                });
+                t.Span("Für Minderjährige").Bold().FontSize(8.5f).FontColor(Ink);
+                t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
+                    .FontSize(8.5f).FontColor(Ink);
+            });
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.RelativeItem().Element(f => SignatureLine(f, "Vorname Name"));
+                r.ConstantItem(24);
+                r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
 
             col.Item().PaddingTop(12).Text(
