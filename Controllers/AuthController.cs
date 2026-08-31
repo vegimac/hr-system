@@ -204,7 +204,13 @@ public class AuthController : ControllerBase
         {
             user.Id,
             user.Username,
-            firstName = user.FirstName,   // persoenliche Anrede (To-do-Anleitung)
+            // ACHTUNG (Walter 31.08.2026): Hier NICHT zusaetzlich
+            // «firstName = user.FirstName» schreiben. Weiter unten steht
+            // bereits user.FirstName, und beide landen nach der camelCase-
+            // Regel auf demselben JSON-Namen «firstName». System.Text.Json
+            // wirft dann beim Serialisieren InvalidOperationException
+            // («collides with another property») → /api/auth/me antwortet mit
+            // HTTP 500. Genau daran ist der Testmodus gescheitert.
             // Walter-Bug 31.08.2026: Der Testmodus-Balken kam bisher allein aus
             // dem localStorage des Browsers. Lief das Testmodus-Token ab und
             // meldete sich der Admin neu an, blieb der Balken stehen — die App
