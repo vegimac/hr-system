@@ -943,6 +943,16 @@ async function startApp() {
 // sichtbar. NULL/kein Array = nicht eingreifen (alte Rollen-Sichtbarkeit gilt).
 function applyAreaVisibility() {
     const aa = currentUser?.allowedAreas;
+    // «Entwicklung» ist OPT-IN (Walter 31.08.2026): Der Bereich erscheint NUR,
+    // wenn er im Benutzer beim Punkt «Sichtbare Bereiche» ausdrücklich
+    // angehakt ist. Diese Prüfung steht bewusst VOR dem Abbruch unten — sonst
+    // würde sie bei Benutzern ohne gespeicherte Auswahl (allowedAreas = null,
+    // «alles sichtbar») übersprungen, und jeder Admin sähe den Bereich.
+    const entwErlaubt = Array.isArray(aa) && aa.includes('entwicklung');
+    document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
+        if (sec.querySelector('.nav-item[data-page="entwicklung"]'))
+            sec.style.display = entwErlaubt ? '' : 'none';
+    });
     if (!Array.isArray(aa)) return;
     const allowed = new Set(['dashboard', ...aa]);
     // Walter-Bug 26.08.2026: Moments hat seit 15.08. eine EIGENE nav-section
