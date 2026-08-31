@@ -62,7 +62,8 @@ public class BewerbungsbogenController : ControllerBase
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
                 Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
                 Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim(),
-                Oeffnungszeiten: OeffnungszeitenText(cp));
+                Oeffnungszeiten: OeffnungszeitenText(cp),
+                WillkommenstagTermine: istGespraech ? await WillkommenstagTermineAsync() : null);
             bytes = istAlt       ? _pdf.GenerateAlt(input)
                   : istGespraech ? _pdf.GenerateGespraech(input)
                                  : _pdf.GenerateBewerbung(input);
@@ -126,5 +127,43 @@ public class BewerbungsbogenController : ControllerBase
             i = j + 1;
         }
         return teile.Count == 0 ? null : string.Join("  ·  ", teile);
+    }
+
+    /// <summary>
+    /// Willkommenstag-Termine zum Ankreuzen: alle von HR gepflegten Termine
+    /// ab MORGEN bis zwei Monate voraus, die noch freie Plätze haben
+    /// (Walter 31.08.2026). Ausgebuchte Termine anzukreuzen hätte keinen Sinn.
+    ///
+    /// Reine Datums-Arithmetik in Ortszeit — DateOnly hat keine Zeitzone, und
+    /// die Termine sind Kalendertage, keine Zeitstempel.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> WillkommenstagTermineAsync()
+    {
+        var ab  = DateOnly.FromDateTime(DateTime.Now).AddDays(1);
+        var bis = ab.AddMonths(2);
+
+        var termine = await _db.HrInterviewTermine.AsNoTracking()
+            .Where(t => t.Datum >= ab && t.Datum <= bis)
+            .OrderBy(t => t.Datum).ThenBy(t => t.VonZeit)
+            .ToListAsync();
+        if (termine.Count == 0) return Array.Empty<string>();
+
+        var ids = termine.Select(t => t.Id).ToList();
+        var belegt = await _db.HrInterviewBuchungen.AsNoTracking()
+            .Where(b => ids.Contains(b.TerminId) && b.Status != "ABGESAGT")
+            .GroupBy(b => b.TerminId)
+            .Select(g => new { TerminId = g.Key, Anzahl = g.Count() })
+            .ToDictionaryAsync(x => x.TerminId, x => x.Anzahl);
+
+        var kultur = new System.Globalization.CultureInfo("de-CH");
+        var zeilen = new List<string>();
+        foreach (var t in termine)
+        {
+            belegt.TryGetValue(t.Id, out var anzahl);
+            if (anzahl >= t.Plaetze) continue;   // ausgebucht
+            var tag = t.Datum.ToDateTime(TimeOnly.MinValue).ToString("ddd dd.MM.yyyy", kultur);
+            zeilen.Add($"{tag}, {t.VonZeit:HH\\:mm}");
+        }
+        return zeilen;
     }
 }

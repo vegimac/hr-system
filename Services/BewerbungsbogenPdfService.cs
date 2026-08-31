@@ -18,7 +18,11 @@ public record BewerbungsbogenInput(
     string? Email = null,
     // Fertig formatierte Öffnungszeiten der Filiale, Ortszeit
     // (Walter 31.08.2026). Leer = nicht erfasst → der Kasten entfällt.
-    string? Oeffnungszeiten = null);
+    string? Oeffnungszeiten = null,
+    // Willkommenstag-Termine zum Ankreuzen (Walter 31.08.2026): fertig
+    // formatierte Zeilen wie «Di 09.09.2026, 09:00». Leer = keine Termine
+    // erfasst → der Block entfällt statt leer dazustehen.
+    IReadOnlyList<string>? WillkommenstagTermine = null);
 
 public class BewerbungsbogenPdfService
 {
@@ -327,6 +331,23 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Krankenkasse"));
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+
+            // Willkommenstag (Walter 31.08.2026) — die Termine kommen aus den
+            // von HR gepflegten Daten, nicht aus dem Code. Sind keine erfasst,
+            // fällt der ganze Block weg: lieber nichts als leere Kästchen.
+            if (d.WillkommenstagTermine is { Count: > 0 })
+            {
+                col.Item().PaddingTop(14).Element(e => SectionHead(e, "Willkommenstag", null));
+                col.Item().PaddingTop(5).Text(
+                        "Bist du bereit, am Willkommenstag in Zofingen teilzunehmen? Er dauert einen halben Tag. "
+                        + "Vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.")
+                    .FontSize(8.5f).FontColor(Ink);
+                col.Item().PaddingTop(6).Element(e => YesNoInline(e, "Teilnahme"));
+                col.Item().PaddingTop(8)
+                    .Text("Welche Termine passen dir? Bitte alle ankreuzen, an denen du kannst.")
+                    .Italic().FontSize(8f).FontColor(Body);
+                col.Item().PaddingTop(6).Element(e => TerminRaster(e, d.WillkommenstagTermine));
+            }
 
             col.Item().PaddingTop(14).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
             col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
@@ -707,6 +728,35 @@ public class BewerbungsbogenPdfService
             t.Cell().PaddingVertical(4).PaddingRight(10).AlignBottom()
                 .Element(f => LabeledLine(f, "Andere"));
             for (var i = 0; i < 3; i++) t.Cell().PaddingVertical(4).AlignCenter().Element(Check);
+        });
+    }
+
+    /// <summary>
+    /// Termine zum Ankreuzen, dreispaltig — sonst wird die Liste bei zwei
+    /// Monaten Vorlauf unlesbar lang (Walter 31.08.2026).
+    /// </summary>
+    private static void TerminRaster(IContainer e, IReadOnlyList<string> termine)
+    {
+        const int spalten = 3;
+        var zeilen = (termine.Count + spalten - 1) / spalten;
+        e.Table(t =>
+        {
+            t.ColumnsDefinition(c =>
+            {
+                for (var i = 0; i < spalten; i++) c.RelativeColumn();
+            });
+            // Spaltenweise fuellen, damit die Daten von oben nach unten
+            // chronologisch bleiben.
+            for (var z = 0; z < zeilen; z++)
+            {
+                for (var sp = 0; sp < spalten; sp++)
+                {
+                    var idx = sp * zeilen + z;
+                    if (idx >= termine.Count) { t.Cell().Text(""); continue; }
+                    t.Cell().PaddingVertical(3).PaddingRight(8)
+                        .Element(ch => CheckLabel(ch, termine[idx]));
+                }
+            }
         });
     }
 
