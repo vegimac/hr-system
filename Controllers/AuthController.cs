@@ -397,8 +397,10 @@ public class AuthController : ControllerBase
             impersonating  = true,
             impersonatedBy = new { caller.Id, caller.Username },
             sessionStartedAt   = sessionStart.ToString("o"),
-            idleTimeoutMinutes = EffectiveIdleTimeout(target),
-            maxSessionMinutes  = EffectiveMaxSession(target),
+            // Session-Policy des Superadmins (siehe GenerateToken), damit der
+            // Frontend-Waechter im Testmodus dieselbe Dauer benutzt wie das Token.
+            idleTimeoutMinutes = EffectiveIdleTimeout(caller),
+            maxSessionMinutes  = EffectiveMaxSession(caller),
             user = new
             {
                 target.Id,
@@ -447,8 +449,17 @@ public class AuthController : ControllerBase
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var idle = EffectiveIdleTimeout(user);
-        var max  = EffectiveMaxSession(user);
+        // Testmodus (Walter 31.08.2026): Im Testmodus gilt die Sitzungsdauer des
+        // ECHTEN Benutzers (des Superadmins), nicht die oft sehr kurze der
+        // Zielperson. Sonst stirbt das Testmodus-Token nach wenigen Minuten,
+        // der 401 wirft auf den Anmeldebildschirm — und der Hinweisbalken
+        // ueberlebt den Wechsel. Rechte bleiben die der Zielperson (Subject).
+        var policyUser = user;
+        if (impersonatedBy.HasValue)
+            policyUser = _context.AppUsers.Find(impersonatedBy.Value) ?? user;
+
+        var idle = EffectiveIdleTimeout(policyUser);
+        var max  = EffectiveMaxSession(policyUser);
 
         var claims = new List<Claim>
         {

@@ -134,8 +134,7 @@ async function doLogin() {
         const data = await res.json();
         // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
         // Reste einer abgelaufenen Testmodus-Sitzung VOR dem neuen Token weg.
-        localStorage.removeItem('hrImpersonating');
-        localStorage.removeItem('hrTokenAdmin');
+        clearImpersonationStorage();
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         // Email für nächsten Login merken (Convenience zusätzlich zum
@@ -169,8 +168,7 @@ async function faceIdLogin() {
     if (errEl) errEl.style.display = 'none';
     try {
         const data = await webauthnLoginRaw();   // { token, user, mustChangePassword }
-        localStorage.removeItem('hrImpersonating');
-        localStorage.removeItem('hrTokenAdmin');
+        clearImpersonationStorage();
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         currentUser = data.user || null;
@@ -227,6 +225,19 @@ function stopImpersonation() {
     location.reload();
 }
 
+// ── Testmodus-Reste zentral wegraeumen (Walter 31.08.2026) ────────────
+// Diese zwei Schluessel sind der GANZE lokale Testmodus-Zustand. Ueberall wo
+// eine Sitzung endet oder neu beginnt, muessen beide zusammen weg — sonst
+// ueberlebt der orange Balken den Anmeldebildschirm und behauptet, man sehe
+// die App als jemand anderes, waehrend man laengst mit dem eigenen Konto
+// arbeitet. Genau das war der Fehler.
+function clearImpersonationStorage() {
+    try {
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
+    } catch { /* localStorage gesperrt */ }
+}
+
 // Hinweis-Balken oben, solange impersoniert wird. Wird aus startApp() gerufen.
 function renderImpersonationBanner() {
     // Walter 31.08.2026: Der Balken zeichnet sich NUR noch aus currentUser —
@@ -278,8 +289,7 @@ async function checkAuth() {
             // anderes — während man längst mit den eigenen Rechten arbeitet.
             authToken = null;
             localStorage.removeItem('hrToken');
-            localStorage.removeItem('hrImpersonating');
-            localStorage.removeItem('hrTokenAdmin');
+            clearImpersonationStorage();
             return false;
         }
         currentUser = await res.json();
@@ -295,13 +305,18 @@ async function checkAuth() {
 function reconcileImpersonationFromMe(me) {
     try {
         if (me?.impersonating === true) {
+            // Haengengebliebener Name aus einer FRUEHEREN Testmodus-Sitzung:
+            // gespeicherter Name passt nicht zu dem, was /me sagt → alles weg,
+            // danach mit dem echten Namen neu setzen.
+            let alt = null;
+            try { alt = JSON.parse(localStorage.getItem('hrImpersonating') || 'null'); } catch { }
+            if (alt && (alt.username || '') !== (me.username || '')) clearImpersonationStorage();
             localStorage.setItem('hrImpersonating',
                 JSON.stringify({ username: me.username, role: me.role }));
             return;
         }
         // Kein Testmodus-Token → ein gespeicherter Hinweis ist Müll.
-        localStorage.removeItem('hrImpersonating');
-        localStorage.removeItem('hrTokenAdmin');
+        clearImpersonationStorage();
     } catch { /* localStorage gesperrt — dann bleibt der Balken eben aus */ }
 }
 
@@ -758,6 +773,10 @@ async function saveRetentionYears() {
             alerting = true;
             authToken = null;
             try { localStorage.removeItem('hrToken'); } catch {}
+            // Walter 31.08.2026: Auch den Testmodus-Zustand wegraeumen. Sonst
+            // zeigt der Balken nach dem Neu-Anmelden weiter die Testperson,
+            // waehrend die App mit dem eigenen Konto laeuft.
+            clearImpersonationStorage();
             alert('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
             location.reload();
         } catch { /* swallow */ }

@@ -1365,6 +1365,10 @@
     function pfLogout() {
         localStorage.removeItem('hrToken');
         localStorage.removeItem('hrLastEmail');
+        // Testmodus auf eine Mitarbeiter-Rolle landet hier — beim Abmelden
+        // muessen die Testmodus-Reste mit weg (Walter 31.08.2026).
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
         window.location.href = 'index.html';
     }
 
