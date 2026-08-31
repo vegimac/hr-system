@@ -34,9 +34,35 @@ public static class SchemaCheckService
         int GepruefteSpalten,
         string? Hinweis = null)
     {
+        /// <summary>Gemeldet, aber bewusst akzeptiert — blockiert nicht.</summary>
+        public List<string> Bekannt { get; init; } = new();
+
         public bool Ok => Geprueft && FehlendeTabellen.Count == 0 && FehlendeSpalten.Count == 0;
         public int FehlerAnzahl => FehlendeTabellen.Count + FehlendeSpalten.Count;
     }
+
+    /// <summary>
+    /// PostgreSQL-Systemspalten. Sie existieren an JEDER Tabelle, tauchen aber
+    /// nie in information_schema.columns auf. «xmin» wird hier als
+    /// Nebenlaeufigkeits-Marke benutzt (UseXminAsConcurrencyToken) — ohne diese
+    /// Ausnahme meldet die Pruefung es faelschlich als fehlend.
+    /// </summary>
+    private static readonly HashSet<string> Systemspalten =
+        new(StringComparer.OrdinalIgnoreCase) { "xmin", "xmax", "cmin", "cmax", "ctid", "oid", "tableoid" };
+
+    /// <summary>
+    /// Bekannte, bewusst akzeptierte Abweichungen (Walter 31.08.2026).
+    /// Sie werden gemeldet, blockieren den Deploy aber nicht — sonst koennte
+    /// wegen Altlasten gar nichts mehr ausgeliefert werden. Jede Zeile braucht
+    /// eine Begruendung; eine Abweichung OHNE Eintrag hier blockiert weiterhin.
+    /// </summary>
+    private static readonly Dictionary<string, string> Toleriert =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ["lohn_zulag_typ"] =
+                "Altlast: durch Lohnposition ersetzt (siehe Models/Lohnposition.cs), "
+                + "die Tabelle wird nirgends mehr abgefragt. DbSet bleibt vorerst stehen.",
+        };
 
     /// <summary>Ergebnis des letzten Laufs — fuer /api/instance-info.</summary>
     public static Ergebnis? LetztesErgebnis { get; private set; }
@@ -73,6 +99,7 @@ public static class SchemaCheckService
 
             var fehlendeTabellen = new List<string>();
             var fehlendeSpalten  = new List<string>();
+            var bekannt          = new List<string>();
             var anzTabellen = 0;
             var anzSpalten  = 0;
 
@@ -85,7 +112,15 @@ public static class SchemaCheckService
                 anzTabellen++;
                 if (!vorhanden.TryGetValue(tabelle, out var spalten))
                 {
-                    if (!fehlendeTabellen.Contains(tabelle)) fehlendeTabellen.Add(tabelle);
+                    if (Toleriert.TryGetValue(tabelle, out var grundT))
+                    {
+                        if (!bekannt.Any(b => b.StartsWith(tabelle + " ", StringComparison.Ordinal)))
+                            bekannt.Add($"{tabelle} (ganze Tabelle)  —  {grundT}");
+                    }
+                    else if (!fehlendeTabellen.Contains(tabelle))
+                    {
+                        fehlendeTabellen.Add(tabelle);
+                    }
                     continue;
                 }
 
@@ -94,14 +129,25 @@ public static class SchemaCheckService
                 {
                     var spalte = prop.GetColumnName(ziel);
                     if (string.IsNullOrWhiteSpace(spalte)) continue;
+                    // Systemspalten wie xmin gibt es immer, nur nicht im Katalog.
+                    if (Systemspalten.Contains(spalte)) continue;
                     anzSpalten++;
-                    if (!spalten.Contains(spalte))
-                        fehlendeSpalten.Add($"{tabelle}.{spalte}  ←  {et.ClrType.Name}.{prop.Name}");
+                    if (spalten.Contains(spalte)) continue;
+
+                    var eintrag = $"{tabelle}.{spalte}  ←  {et.ClrType.Name}.{prop.Name}";
+                    if (Toleriert.TryGetValue($"{tabelle}.{spalte}", out var grund))
+                        bekannt.Add($"{eintrag}  —  {grund}");
+                    else
+                        fehlendeSpalten.Add(eintrag);
                 }
             }
 
-            var erg = new Ergebnis(true, fehlendeTabellen, fehlendeSpalten, anzTabellen, anzSpalten);
+            var erg = new Ergebnis(true, fehlendeTabellen, fehlendeSpalten, anzTabellen, anzSpalten)
+            { Bekannt = bekannt };
             LetztesErgebnis = erg;
+
+            foreach (var b in bekannt)
+                logger.LogInformation("SCHEMA-PRUEFUNG   bekannt/toleriert: {Eintrag}", b);
 
             if (erg.Ok)
             {

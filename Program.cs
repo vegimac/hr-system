@@ -800,6 +800,15 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS opening_sun_to   VARCHAR(5);
     ");
 
+    // Moment: zwei gemappte Spalten fehlten in der Datenbank — von der
+    // Schema-Pruefung gefunden (Walter 31.08.2026). Ohne sie scheitert jede
+    // Abfrage auf «moment».
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE moment
+        ADD COLUMN IF NOT EXISTS zustellung          TEXT NOT NULL DEFAULT 'postfach',
+        ADD COLUMN IF NOT EXISTS mailbox_document_id INTEGER;
+    ");
+
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
     // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
     // als fehlend, die gerade erst angelegt wurden.
