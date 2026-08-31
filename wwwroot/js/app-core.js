@@ -205,15 +205,27 @@ async function impersonateUser() {
         // der Server nicht «impersonating: true», stimmt am Wechsel etwas
         // nicht; dann bleibt das eigene Konto unangetastet und der Fehler
         // steht sichtbar unter der Karte, statt still im Nichts zu enden.
-        const probe = await fetch('/api/auth/me', {
-            headers: { 'Authorization': 'Bearer ' + data.token }
-        }).catch(() => null);
-        const me = probe && probe.ok ? await probe.json().catch(() => null) : null;
+        // Bewusst der UNGEFILTERTE fetch: ein 401 hier darf nicht den globalen
+        // 401-Interceptor ausloesen (Alert «Sitzung abgelaufen» + Reload) —
+        // das ist eine Pruefung, kein Sitzungsende.
+        const rawFetch = window._origFetch || fetch;
+        let me = null, pStatus = 0, pText = '';
+        try {
+            const probe = await rawFetch('/api/auth/me', {
+                headers: { 'Authorization': 'Bearer ' + data.token }
+            });
+            pStatus = probe.status;
+            pText   = await probe.text();
+            if (probe.ok) { try { me = JSON.parse(pText); } catch { me = null; } }
+        } catch (e) {
+            pText = 'Netzwerkfehler: ' + (e?.message || e);
+        }
         if (!me || me.impersonating !== true) {
+            console.error('[Testmodus] /api/auth/me nach Wechsel:', pStatus, pText);
             if (err) {
-                err.textContent = !me
-                    ? 'Wechsel fehlgeschlagen: Das neue Token wurde vom Server nicht akzeptiert.'
-                    : `Wechsel unvollstaendig: Der Server meldet fuer das neue Token keinen Testmodus (angemeldet als ${me.username || '?'}). Bitte melde den Fall — es wurde nichts umgeschaltet.`;
+                err.textContent = (me && me.impersonating !== true)
+                    ? `Wechsel unvollstaendig: Der Server meldet fuer das neue Token keinen Testmodus (angemeldet als ${me.username || '?'}, Rolle ${me.role || '?'}). Es wurde nichts umgeschaltet.`
+                    : `Wechsel fehlgeschlagen — /api/auth/me antwortete mit HTTP ${pStatus || '(kein Status)'}: ${(pText || '(leere Antwort)').slice(0, 200)}`;
                 err.style.display = 'block';
             }
             return;   // eigenes Konto bleibt aktiv
@@ -777,6 +789,10 @@ async function saveRetentionYears() {
     if (window._auth401Installed) return;
     window._auth401Installed = true;
     const origFetch = window.fetch.bind(window);
+    // Walter 31.08.2026: Der ungefilterte fetch wird gebraucht, um ein frisches
+    // Testmodus-Token zu pruefen, OHNE dass ein 401 sofort «Sitzung abgelaufen»
+    // ausloest und die Seite neu laedt.
+    window._origFetch = origFetch;
     let alerting = false;   // Re-Entrance-Schutz für parallele 401-Responses
 
     window.fetch = async function(input, init) {
