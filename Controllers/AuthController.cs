@@ -187,6 +187,13 @@ public class AuthController : ControllerBase
             user.Id,
             user.Username,
             firstName = user.FirstName,   // persoenliche Anrede (To-do-Anleitung)
+            // Walter-Bug 31.08.2026: Der Testmodus-Balken kam bisher allein aus
+            // dem localStorage des Browsers. Lief das Testmodus-Token ab und
+            // meldete sich der Admin neu an, blieb der Balken stehen — die App
+            // arbeitete aber wieder mit dem Admin-Konto. Man testete Rechte und
+            // sah die eigenen. Deshalb sagt jetzt der SERVER, ob das benutzte
+            // Token ein Testmodus-Token ist (Claim impersonated_by).
+            impersonating = User.FindFirst("impersonated_by") != null,
             user.Email,
             user.Role,
             user.Theme,

@@ -139,6 +139,11 @@ async function doLogin() {
         // gespeichert — das übernimmt der Browser-Passwort-Manager
         // verschlüsselt im Keychain/Credential-Store.
         localStorage.setItem('hrLastEmail', email);
+        // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
+        // Reste aus einer abgelaufenen Testmodus-Sitzung hier wegräumen, sonst
+        // zeigt der Balken weiter einen fremden Namen an.
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
         currentUser = data.user;
         // Session-Policy (Walter 21.06.2026) — der Login liefert sie top-level,
         // der Wächter liest sie aus currentUser.
@@ -780,6 +785,22 @@ async function init() {
 }
 
 async function startApp() {
+    // Testmodus-Abgleich (Walter 31.08.2026): Der Balken darf nur stehen, wenn
+    // das benutzte Token WIRKLICH ein Testmodus-Token ist und zur angezeigten
+    // Person gehört. Sonst wird der Hinweis verworfen — lieber kein Balken als
+    // ein falscher, denn an ihm hängt die Aussage «so sieht es dieser Benutzer».
+    try {
+        const imp = JSON.parse(localStorage.getItem('hrImpersonating') || 'null');
+        if (imp) {
+            const echt = currentUser?.impersonating === true
+                && (imp.username || '').trim().toLowerCase()
+                   === (currentUser?.username || '').trim().toLowerCase();
+            if (!echt) {
+                localStorage.removeItem('hrImpersonating');
+                localStorage.removeItem('hrTokenAdmin');
+            }
+        }
+    } catch { localStorage.removeItem('hrImpersonating'); }
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     updateDashboardShellState('dashboard');
