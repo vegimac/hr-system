@@ -927,10 +927,11 @@ function applyAreaVisibility() {
     // (vorher in der Mitarbeiter-Sektion mitgefahren) — der Bereich «moments»
     // existiert aber in keiner allowedAreas-Auswahl → Eintrag verschwand.
     // Moments ist Kommunikation für alle → wie dashboard/todos immer sichtbar.
-    // «swissdec» ist admin-only (eigene nav-section) und kein wählbarer
-    // 8-Bereiche-Eintrag — nicht durch die Bereichs-Auswahl filtern.
+    // «entwicklung» (Walter 31.08.2026) ist dagegen ein normaler wählbarer
+    // Bereich: admin-only als Grundvoraussetzung, zusätzlich pro Benutzer
+    // an-/abwählbar. Deshalb NICHT von der Filterung ausnehmen.
     const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments'
-        || area === 'swissdec' || allowed.has(area);
+        || allowed.has(area);
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
@@ -963,6 +964,11 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze'];
 
+// Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
+// Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button
+// wie die System-Unterseiten — nur eben zurueck nach «entwicklung».
+const _devSubPages = ['swissdec'];
+
 // Walter-Vorgabe 28.05.2026: Zurueck-Button rechts oben im langSwitcher-
 // Widget. Wird auf allen Admin-Sub-Pages eingeblendet, sonst versteckt.
 // Auch alte Breadcrumb-Inserts (falls noch von einer aelteren Session
@@ -978,6 +984,9 @@ function applyAdminBreadcrumb(name) {
     // (z.B. vom Dokumente-Tab des MA aus) erreichen — der Zurück-Button
     // würde sie sonst in den Admin-Bereich ziehen, in den sie nicht gehören.
     const showAdminBack = _adminSubPages.includes(name) && currentUser?.role === 'admin';
+    // Gleiches Muster fuer die Entwicklungs-Unterseiten, Ziel ist dort aber
+    // «entwicklung» statt «admin-hub».
+    const showDevBack = _devSubPages.includes(name) && currentUser?.role === 'admin';
     // Walter 16.08.2026: der «← System»-Button oben rechts ist WEG —
     // es gibt nur noch den Standard-«Zurück»-Button in der Seite.
     btn.style.display = 'none';
@@ -986,6 +995,20 @@ function applyAdminBreadcrumb(name) {
     // langSwitcher-Button oben rechts bleibt, aber die Sub-Pages bekommen
     // einen sichtbaren Standard-Button als erstes Element der Page.
     document.querySelectorAll('.sys-back-row').forEach(el => el.remove());
+    if (showDevBack) {
+        const page = document.getElementById('page-' + name);
+        const html = '<button type="button" class="sys-back-btn" onclick="showPage(\'entwicklung\')">' +
+            '<svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>' +
+            ' Zur\u00fcck</button>';
+        const title = page?.querySelector('.page-title');
+        if (title) {
+            const wrap = document.createElement('span');
+            wrap.className = 'sys-back-row sys-back-next-to-title';
+            wrap.innerHTML = html;
+            title.appendChild(wrap);
+        }
+        return;
+    }
     if (showAdminBack) {
         const page = document.getElementById('page-' + name);
         // Walter 16.08.2026 final: der Zurueck-Button sitzt IMMER direkt
@@ -1026,8 +1049,11 @@ function showPage(name) {
     // Systembereich in warmem Off-White (Walter 16.08.2026): Hub + alle
     // Admin-Sub-Pages bekommen den feinen Braun-Hintergrund der Startseite.
     document.body.classList.toggle('sys-bg',
-        name === 'admin-hub' || _adminSubPages.includes(name));
-    const navPage = _adminSubPages.includes(name) ? 'admin-hub' : name;
+        name === 'admin-hub' || _adminSubPages.includes(name)
+        || name === 'entwicklung' || _devSubPages.includes(name));
+    const navPage = _adminSubPages.includes(name) ? 'admin-hub'
+                  : _devSubPages.includes(name)   ? 'entwicklung'
+                  : name;
     document.querySelector(`[data-page="${navPage}"]`)?.classList.add('active');
     // Walter 28.05.2026: Breadcrumb „← Systemeinstellungen / <Page>" einfuegen
     applyAdminBreadcrumb(name);

@@ -242,13 +242,15 @@
                         <span>Moments</span>
                     </div>
                 </div>
-                <!-- Swissdec ELM 6.0 (Walter 27.08.2026): eigener Bereich NUR
-                     für Admin — alles rund um die elektronische Lohnmeldung
-                     und die Zertifizierung (docs/swissdec-elm6-konzept.md). -->
+                <!-- Entwicklung (Walter 31.08.2026): Sammelbereich für alles,
+                     was noch im Aufbau ist — heute Swissdec ELM 6.0 samt
+                     Zertifizierung (docs/swissdec-elm6-konzept.md). Admin-only
+                     UND zusätzlich über die Bereichs-Auswahl pro Benutzer
+                     ein-/ausschaltbar («entwicklung»). -->
                 <div class="nav-section admin-only-section" style="display:none">
-                    <div class="nav-item" data-page="swissdec" onclick="showPage('swissdec')">
+                    <div class="nav-item" data-page="entwicklung" onclick="showPage('entwicklung')">
                         <img class="nav-icon-img" src="img/lohnkat-lohnraster-elm.png?v=20260827a" alt="">
-                        <span>Swissdec</span>
+                        <span>Entwicklung</span>
                     </div>
                 </div>
                 <div class="nav-section admin-only-section" style="display:none">
@@ -4839,6 +4841,25 @@
             <!-- ═══ SWISSDEC ELM 6.0 (Walter 27.08.2026, admin-only) ═══
                  Alles rund um die elektronische Lohnmeldung + Zertifizierung.
                  Konzept: docs/swissdec-elm6-konzept.md — Etappen E1–E9. -->
+            <!-- ENTWICKLUNG (Walter 31.08.2026): Einstiegsseite im System-Look.
+                 Hier sammeln sich Bereiche, die noch nicht im Alltagsbetrieb
+                 sind. Aktuell genau eine Karte: Swissdec. -->
+            <div class="page" id="page-entwicklung">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">Entwicklung</h1>
+                        <p class="page-sub">Bereiche im Aufbau — noch nicht Teil des Tagesgeschäfts</p>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                    <div class="admin-card" onclick="showPage('swissdec')">
+                        <img src="img/lohnkat-lohnraster-elm.png?v=20260827a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Swissdec</div>
+                        <div class="admin-card-desc">ELM 6.0 — Lohnmeldung, Testinfrastruktur und Zertifizierung</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="page fixhead" id="page-swissdec">
                 <div class="page-head"><div>
                     <h1 class="page-title">Swissdec — Elektronische Lohnmeldung (ELM 6.0)</h1>
@@ -8296,7 +8317,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="branch-grid" id="umBranches"><!-- populated --></div>
             </div>
 
-            <!-- ── SICHTBARE BEREICHE (8 Menüpunkte) — Walter 28.06.2026 ───── -->
+            <!-- ── SICHTBARE BEREICHE — Walter 28.06.2026, «Entwicklung» ergänzt 31.08.2026 ───── -->
             <div class="emp-section-title">Sichtbare Bereiche</div>
             <div class="f-group">
                 <div class="f-hint" style="margin-bottom:10px">Häkchen = der Benutzer sieht diesen Menüpunkt / diese Dashboard-Kachel. „Dashboard" ist immer sichtbar. (Steuert die Menü-/Anzeige-Sichtbarkeit; harte Server-Sperre folgt später.)</div>
@@ -8310,6 +8331,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="um-area-cb"><input type="checkbox" data-area="hr-hub"><span>HR-Hub</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="fibu"><span>FIBU</span></label>
                     <label class="um-area-cb"><input type="checkbox" data-area="admin-hub"><span>System</span></label>
+                    <label class="um-area-cb"><input type="checkbox" data-area="entwicklung"><span>Entwicklung</span></label>
                 </div>
                 <div style="margin-top:8px;display:flex;gap:8px">
                     <button type="button" class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="umAreasSetAll(true)">Alle</button>
@@ -8349,7 +8371,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260829a"></script>
+<script src="js/app-core.js?v=20260831b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
