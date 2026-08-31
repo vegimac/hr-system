@@ -247,7 +247,10 @@
                      Zertifizierung (docs/swissdec-elm6-konzept.md). Admin-only
                      UND zusätzlich über die Bereichs-Auswahl pro Benutzer
                      ein-/ausschaltbar («entwicklung»). -->
-                <div class="nav-section admin-only-section" style="display:none">
+                <!-- Bewusst KEINE admin-only-section (Walter 31.08.2026): die
+                     würde für jeden Admin wieder auf «block» gesetzt. Sichtbar
+                     macht diese Sektion ausschliesslich applyAreaVisibility(). -->
+                <div class="nav-section entw-only-section" style="display:none">
                     <div class="nav-item" data-page="entwicklung" onclick="showPage('entwicklung')">
                         <img class="nav-icon-img" src="img/entwkat-swissdec.png?v=20260831a" alt="">
                         <span>Entwicklung</span>
@@ -8383,7 +8386,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260831d"></script>
+<script src="js/app-core.js?v=20260831e"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>

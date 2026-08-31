@@ -948,7 +948,11 @@ function applyAreaVisibility() {
     // angehakt ist. Diese Prüfung steht bewusst VOR dem Abbruch unten — sonst
     // würde sie bei Benutzern ohne gespeicherte Auswahl (allowedAreas = null,
     // «alles sichtbar») übersprungen, und jeder Admin sähe den Bereich.
-    const entwErlaubt = Array.isArray(aa) && aa.includes('entwicklung');
+    // Grundregel: der Super-Admin sieht den Bereich immer. Alle anderen nur,
+    // wenn das Häkchen «Entwicklung» bei ihrem Benutzer gesetzt ist — die
+    // Rolle «admin» allein genügt ausdrücklich NICHT.
+    const entwErlaubt = currentUser?.isSuperAdmin === true
+        || (Array.isArray(aa) && aa.includes('entwicklung'));
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         if (sec.querySelector('.nav-item[data-page="entwicklung"]'))
             sec.style.display = entwErlaubt ? '' : 'none';
@@ -968,6 +972,9 @@ function applyAreaVisibility() {
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
         if (!item) return;
+        // «entwicklung» ist oben schon entschieden (Super-Admin ODER Häkchen)
+        // — hier nicht nochmals überschreiben.
+        if (item.getAttribute('data-page') === 'entwicklung') return;
         sec.style.display = ok(item.getAttribute('data-page')) ? '' : 'none';
     });
     // Dashboard-Kacheln + Mitarbeiter-Nav-Buttons (onclick="showPage('X')").
