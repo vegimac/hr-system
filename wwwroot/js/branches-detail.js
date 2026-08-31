@@ -2672,7 +2672,10 @@ async function openOeffnungszeitenModal(id) {
                 ${rows}
                 <div id="ozError" style="display:none;font-size:12px;color:#dc2626"></div>
             </div>
-            <div style="padding:0 24px 20px;display:flex;justify-content:flex-end;gap:8px">
+            <div style="padding:0 24px 20px;display:flex;align-items:center;gap:8px">
+                <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="oeffnungszeitenAufAlle()"
+                        title="Überträgt den gespeicherten Stand dieser Filiale auf alle anderen Filialen">→ Auf alle Filialen übertragen</button>
+                <span style="flex:1"></span>
                 <button class="btn btn-outline" style="font-size:13px;padding:6px 16px" onclick="closeOeffnungszeitenModal()">Abbrechen</button>
                 <button class="btn btn-primary" style="font-size:13px;padding:6px 16px" onclick="saveOeffnungszeiten()">💾 Speichern</button>
             </div>
@@ -2707,6 +2710,57 @@ async function saveOeffnungszeiten() {
         const view = document.getElementById(`oeffnungszeitenView-${_ozBranchId}`);
         if (view) view.innerHTML = renderOeffnungszeiten(b);
         closeOeffnungszeitenModal();
+    } catch (e) {
+        if (err) { err.textContent = 'Verbindungsfehler: ' + (e?.message || e); err.style.display = 'block'; }
+    }
+}
+
+// Öffnungszeiten dieser Filiale auf alle anderen übertragen. Überträgt den
+// GESPEICHERTEN Stand — deshalb wird vorher gespeichert, sonst überträgt man
+// den alten Stand und wundert sich (Walter 31.08.2026).
+async function oeffnungszeitenAufAlle() {
+    if (!_ozBranchId) return;
+    const err = document.getElementById('ozError');
+    if (!confirm(
+        'Die Öffnungszeiten dieser Filiale auf ALLE anderen Filialen übertragen?\n\n'
+        + 'Die dort bisher erfassten Zeiten werden überschrieben.\n\n'
+        + 'Die aktuellen Eingaben werden vorher gespeichert.'
+    )) return;
+
+    // 1) aktuellen Stand speichern, damit wirklich das übertragen wird,
+    //    was im Dialog steht.
+    const body = {};
+    OZ_TAGE.forEach(t => {
+        body[`${t.key.toLowerCase()}From`] = document.getElementById(`oz${t.key}From`)?.value || null;
+        body[`${t.key.toLowerCase()}To`]   = document.getElementById(`oz${t.key}To`)?.value   || null;
+    });
+    try {
+        const rs = await fetch(`/api/companyprofiles/${_ozBranchId}/oeffnungszeiten`, {
+            method: 'PATCH', headers: ah(), body: JSON.stringify(body)
+        });
+        if (!rs.ok) {
+            const d = await rs.json().catch(() => ({}));
+            if (err) { err.textContent = d.message || `Speichern fehlgeschlagen (HTTP ${rs.status}).`; err.style.display = 'block'; }
+            return;
+        }
+        const gespeichert = await rs.json();
+
+        // 2) auf alle anderen übertragen
+        const r = await fetch(`/api/companyprofiles/${_ozBranchId}/oeffnungszeiten/auf-alle`, {
+            method: 'POST', headers: ah()
+        });
+        if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            if (err) { err.textContent = d.message || `Übertragen fehlgeschlagen (HTTP ${r.status}).`; err.style.display = 'block'; }
+            return;
+        }
+        const res = await r.json();
+        const view = document.getElementById(`oeffnungszeitenView-${_ozBranchId}`);
+        if (view) view.innerHTML = renderOeffnungszeiten(gespeichert);
+        closeOeffnungszeitenModal();
+        const txt = `Öffnungszeiten auf ${res.uebertragen} weitere Filiale${res.uebertragen === 1 ? '' : 'n'} übertragen.`;
+        if (typeof showToast === 'function') showToast(txt);
+        else alert(txt);
     } catch (e) {
         if (err) { err.textContent = 'Verbindungsfehler: ' + (e?.message || e); err.style.display = 'block'; }
     }

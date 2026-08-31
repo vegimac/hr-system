@@ -350,6 +350,34 @@ public class CompanyProfilesController : ControllerBase
     }
 
     /// <summary>
+    /// Öffnungszeiten dieser Filiale auf ALLE anderen Filialen übertragen
+    /// (Walter 31.08.2026) — gleiches Muster wie copy-einstellungen-to-all.
+    /// Überschreibt dort die bisherigen Zeiten. Übertragen wird der
+    /// GESPEICHERTE Stand dieser Filiale.
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPost("{id:int}/oeffnungszeiten/auf-alle")]
+    public async Task<IActionResult> OeffnungszeitenAufAlle(int id)
+    {
+        var quelle = await _context.CompanyProfiles.FindAsync(id);
+        if (quelle is null) return NotFound();
+
+        var ziele = await _context.CompanyProfiles.Where(c => c.Id != id).ToListAsync();
+        foreach (var z in ziele)
+        {
+            z.OpeningMonFrom = quelle.OpeningMonFrom; z.OpeningMonTo = quelle.OpeningMonTo;
+            z.OpeningTueFrom = quelle.OpeningTueFrom; z.OpeningTueTo = quelle.OpeningTueTo;
+            z.OpeningWedFrom = quelle.OpeningWedFrom; z.OpeningWedTo = quelle.OpeningWedTo;
+            z.OpeningThuFrom = quelle.OpeningThuFrom; z.OpeningThuTo = quelle.OpeningThuTo;
+            z.OpeningFriFrom = quelle.OpeningFriFrom; z.OpeningFriTo = quelle.OpeningFriTo;
+            z.OpeningSatFrom = quelle.OpeningSatFrom; z.OpeningSatTo = quelle.OpeningSatTo;
+            z.OpeningSunFrom = quelle.OpeningSunFrom; z.OpeningSunTo = quelle.OpeningSunTo;
+        }
+        await _context.SaveChangesAsync();
+        return Ok(new { uebertragen = ziele.Count });
+    }
+
+    /// <summary>
     /// Nur die Hauptsitz-Zuordnung setzen (Walter 29.08.2026) — eigener
     /// Mini-Endpoint, weil PATCH /stammdaten ein Voll-Ersatz ist und bei
     /// Einzelfeld-Aufrufen alle übrigen Felder nullen würde. Wird vom
