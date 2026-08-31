@@ -88,8 +88,26 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "test" ]; then
         done
 
         if [ "$TEST_OK" = "1" ]; then
+            # Schema-Pruefung (Walter 31.08.2026): stimmt das EF-Modell nicht
+            # mit der Datenbank ueberein, scheitert spaeter JEDE Abfrage auf
+            # die betroffene Tabelle — bis hin zur Anmeldung. Hier abbrechen,
+            # bevor Produktiv angefasst wird.
+            if echo "$BODY" | grep -q '"schemaOk":false'; then
+                TEST_RESULT="FEHLER-SCHEMA"
+                log_deploy
+                echo ""
+                echo "✗ FEHLER: Modell und Datenbank passen nicht zusammen."
+                echo "  Produktiv wird NICHT angefasst (Kanarienvogel)."
+                echo "  Welche Spalten fehlen:"
+                sudo journalctl -u hr-system-test -n 200 --no-pager \
+                    | grep "SCHEMA-PRUEFUNG" | tail -n 30
+                echo ""
+                echo "  Zu tun: ALTER TABLE ... ADD COLUMN IF NOT EXISTS in Program.cs"
+                echo "          UND HasColumnName im AppDbContext ergänzen."
+                exit 1
+            fi
             TEST_RESULT="ok"
-            echo "    ✓ Testinstanz gesund (HTTP 200 + Label)"
+            echo "    ✓ Testinstanz gesund (HTTP 200 + Label + Schema)"
         else
             TEST_RESULT="FEHLER"
             log_deploy
@@ -143,6 +161,18 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "prod" ]; then
         if [ "$PROD_OK" = "1" ]; then
             PROD_RESULT="ok"
             echo "    ✓ Produktiv gesund (HTTP 200)"
+            # Schema auch auf Produktiv pruefen. Hier nur WARNEN statt
+            # abbrechen: die Instanz laeuft bereits, ein Abbruch wuerde nichts
+            # zurueckrollen — aber uebersehen darf man es nicht.
+            PROD_INFO=$(curl -s -m 3 "http://127.0.0.1:$PROD_PORT/api/instance-info" 2>/dev/null || true)
+            if echo "$PROD_INFO" | grep -q '"schemaOk":false'; then
+                PROD_RESULT="ok-SCHEMA-WARNUNG"
+                echo ""
+                echo "⚠ ACHTUNG: Auf Produktiv passen Modell und Datenbank nicht zusammen!"
+                sudo journalctl -u hr-system -n 200 --no-pager \
+                    | grep "SCHEMA-PRUEFUNG" | tail -n 30
+                echo ""
+            fi
         else
             PROD_RESULT="FEHLER"
             log_deploy

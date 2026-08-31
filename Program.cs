@@ -800,6 +800,13 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS opening_sun_to   VARCHAR(5);
     ");
 
+    // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
+    // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
+    // als fehlend, die gerade erst angelegt wurden.
+    HrSystem.Services.SchemaCheckService.Pruefe(
+        db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+                 .CreateLogger("SchemaCheck"));
+
     // Neue Job-Gruppen: 2. Assistent, 1. Assistent, Restaurant Manager
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO job_group (code, sort_order, is_active)
@@ -4421,7 +4428,13 @@ app.MapControllers();
 // Deploy-Gesundheits-Check in deploy.sh (Kanarienvogel).
 app.MapGet("/api/instance-info", () => Results.Ok(new
 {
-    label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? ""
+    label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? "",
+    // Schema-Pruefung (Walter 31.08.2026): bewusst NUR Ja/Nein und die
+    // Anzahl — die Details stehen im Log, hier waeren sie oeffentlich.
+    // deploy.sh liest das und bricht ab, bevor Produktiv drankommt.
+    schemaOk      = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Ok ?? true,
+    schemaGeprueft= HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Geprueft ?? false,
+    schemaFehler  = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.FehlerAnzahl ?? 0
 })).AllowAnonymous();
 
 // Bank-Master: Initial-Seed aus CSV falls DB-Tabelle leer, Cache laden
