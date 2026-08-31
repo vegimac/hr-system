@@ -4375,7 +4375,10 @@
                 <div class="page-body">
                     <div class="sticky-section-head" style="display:flex;gap:14px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
                         <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
-                            <input type="checkbox" id="mwShowAll" onchange="mwRender()" style="cursor:pointer"> Versionen mit Gültigkeit (aktuell + nächste)
+                            <input type="checkbox" id="mwShowAll" onchange="mwRender()" style="cursor:pointer"> Alle Versionen (inkl. abgelaufen)
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569" title="Matrix der Sätze, die an diesem Datum galten. Leer = heutige / aktuelle Sätze.">Anzeigen am
+                            <input type="date" id="mwViewDate" onchange="mwRender()" style="padding:6px 10px;border:1px solid #c7d2fe;border-radius:8px;font-size:13px;background:#f1efe9">
                         </label>
                         <span id="mwInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
                         <label style="font-size:13px;color:#475569;display:flex;align-items:center;gap:6px" title="Datum, ab dem die neue Folge-Version (Kopie der aktuellen Sätze) gelten soll.">Neue Sätze ab
@@ -8439,7 +8442,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/admin-settings.js?v=20260829a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
-<script src="js/minimum-wages.js?v=20260818a"></script>
+<script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
 <script src="js/easyatwork.js?v=20260826d"></script>
