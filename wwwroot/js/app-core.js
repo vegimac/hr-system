@@ -820,6 +820,19 @@ async function init() {
 }
 
 async function startApp() {
+    // Anmeldemaske weg, App zeigen (Walter 31.08.2026: dieser Block war beim
+    // Umbau des Testmodus versehentlich mit entfernt worden — ohne ihn blieb
+    // nach der Anmeldung der Login-Bildschirm stehen).
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    updateDashboardShellState('dashboard');
+
+    document.getElementById('userName').textContent = currentUser.username;
+    document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
+    document.getElementById('userAvatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
+    syncLiquidDashboardChrome();
+
+    // Testmodus-Hinweisbalken zeigen, falls gerade impersoniert wird.
     if (typeof renderImpersonationBanner === 'function') renderImpersonationBanner();
 
     // Session-/Logout-Wächter starten (Walter-Vorgabe 21.06.2026).
