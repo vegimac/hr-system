@@ -156,7 +156,7 @@ public class BewerbungsbogenPdfService
             // auf einen Blick sehen, in welchem Rahmen er eintragen kann.
             if (!string.IsNullOrWhiteSpace(d.Oeffnungszeiten))
             {
-                col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Text(t =>
+                col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingRight(9).Text(t =>
                 {
                     t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(9.5f).FontColor(Ink);
                     t.Span(d.Oeffnungszeiten).Bold().FontSize(9.5f).FontColor(Ink);
