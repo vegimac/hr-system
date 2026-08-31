@@ -582,9 +582,12 @@ function postfachDocPreview(docId) {
         .then(r => r.ok ? r.blob() : Promise.reject('Status ' + r.status))
         .then(blob => {
             const u = URL.createObjectURL(blob);
-            if (win) win.location.href = u;
-            else window.location.href = u;
-            setTimeout(() => URL.revokeObjectURL(u), 60_000);
+            if (win) {
+                win.location.href = u;
+                dokRevokeWhenClosed(win, u);
+            } else {
+                window.location.href = u;
+            }
         })
         .catch(err => {
             if (win) win.close();
@@ -664,6 +667,22 @@ function dokPreview(id) {
 
 // Side-Panel-Preview für ein Server-Dokument — gleiche UX wie Massen-Import
 let _dokPreviewUrl = null;
+let _dokPreviewBlob = null;   // Rohdaten behalten — für «in neuem Tab öffnen»
+
+// Walter-Bug 30.08.2026 (Treuhänder: «Konnte nicht heruntergeladen werden –
+// Netzwerkproblem»): Eine Blob-URL lebt nur, solange sie nicht widerrufen ist.
+// Wurde sie nach 60 s oder beim Schliessen der Vorschau freigegeben, während
+// das PDF in einem zweiten Tab offen war, schlug dort das Speichern fehl — der
+// Browser lädt beim Speichern nämlich noch einmal von genau dieser URL.
+// Darum: erst freigeben, wenn der Tab wirklich geschlossen ist.
+function dokRevokeWhenClosed(win, url) {
+    if (!win) { setTimeout(() => URL.revokeObjectURL(url), 10 * 60_000); return; }
+    const iv = setInterval(() => {
+        let zu = true;
+        try { zu = win.closed; } catch (_) { zu = false; }
+        if (zu) { clearInterval(iv); URL.revokeObjectURL(url); }
+    }, 5_000);
+}
 
 // opts.sticky = true → kein Auto-Schliessen bei Klick ausserhalb (Walter 20.07.2026:
 // neben dem Arztbrief-Modal muss die Meldung offen bleiben, während man Felder tippt).
@@ -848,7 +867,8 @@ async function dokOpenPreviewPanel(id, opts) {
             throw new Error(msg);
         }
         const blob = await r.blob();
-        _dokPreviewUrl = URL.createObjectURL(blob);
+        _dokPreviewBlob = blob;
+        _dokPreviewUrl  = URL.createObjectURL(blob);
 
         const showAsPdf = isPdf || isOffice;   // Office kommt als PDF zurück
         // #toolbar=0 blendet Chromes eigene PDF-Werkzeugleiste aus → keine
@@ -968,16 +988,22 @@ function dokPreviewApplyZoom() {
 }
 
 function dokPreviewOpenInTab() {
-    if (!_dokPreviewUrl) return;
-    // Blob-URL in neuem Tab — dort funktioniert ⌘+/− nativ.
-    window.open(_dokPreviewUrl, '_blank');
+    if (!_dokPreviewBlob && !_dokPreviewUrl) return;
+    // Eigene Blob-URL für den neuen Tab (Walter-Bug 30.08.2026): die URL des
+    // Panels wird beim Schliessen widerrufen — der Tab lebt aber weiter und
+    // braucht beim Speichern noch eine gültige Quelle.
+    const u = _dokPreviewBlob ? URL.createObjectURL(_dokPreviewBlob) : _dokPreviewUrl;
+    const win = window.open(u, '_blank');
+    if (_dokPreviewBlob) dokRevokeWhenClosed(win, u);
 }
 
 function dokClosePreviewPanel() {
     if (_dokPreviewUrl) {
+        // Nur die URL des Panels — für offene Tabs gibt es eigene URLs.
         URL.revokeObjectURL(_dokPreviewUrl);
         _dokPreviewUrl = null;
     }
+    _dokPreviewBlob = null;
     // Outside-Click-Handler wieder entfernen (Walter 27.05.2026) und Panel weg
     const _p = document.getElementById('dokPreviewPanel');
     if (_p) {
