@@ -60,6 +60,20 @@ public class BewerbungsbogenPdfService
         }).GeneratePdf();
     }
 
+    /// <summary>
+    /// Der frühere, ungeteilte Bogen — nur zur Kontrolle (Walter 31.08.2026).
+    /// Wird nicht mehr weiterentwickelt.
+    /// </summary>
+    public byte[] GenerateAlt(BewerbungsbogenInput d)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        return Document.Create(container =>
+        {
+            container.Page(page => ComposeAltSeite1(page, d));
+            container.Page(page => ComposeAltSeite2(page));
+        }).GeneratePdf();
+    }
+
     private static void ApplyPageChrome(PageDescriptor page, bool withBanner,
         string bannerTitel = "Bewerbungsbogen")
     {
@@ -366,6 +380,283 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Visum"));
             });
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // ALT — der eine, ungeteilte Bewerbungsbogen (Stand 711eec6).
+    // Walter 31.08.2026: NUR zur Kontrolle wieder erzeugbar (teil=alt).
+    // Unveraendert aus der Historie uebernommen — bitte hier nichts
+    // weiterentwickeln, gepflegt werden die beiden neuen Formulare.
+    // ═══════════════════════════════════════════════════════════════════
+    private static void ComposeAltSeite1(PageDescriptor page, BewerbungsbogenInput d)
+    {
+        ApplyPageChrome(page, withBanner: true);
+
+        page.Content().PaddingTop(6).Column(col =>
+        {
+            // Adresse unter dem Balken — ruhig, eine Zeile Meta.
+            var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
+                ? d.CompanyName
+                : $"{d.CompanyName} · {d.RestaurantName}";
+            col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
+            var meta = string.Join("  ·  ", new[] { d.Strasse, d.PlzOrt, d.Telefon, d.Email }
+                .Where(s => !string.IsNullOrWhiteSpace(s)));
+            if (!string.IsNullOrWhiteSpace(meta))
+                col.Item().PaddingTop(2).Text(meta).FontSize(8f).FontColor(Muted);
+
+            col.Item().PaddingTop(12).Element(e =>
+                SectionHead(e, "Personalien", "Bitte in Blockschrift ausfüllen"));
+
+            // Grosszuegige Schreibzeilen (Handschrift).
+            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "E-Mail"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            // Notfallkontakt (Walter 25.08.2026 v3): bei den Personalien des
+            // Kandidaten — direkt nach Geb.-Datum/Nationalität, fett, eine Zeile.
+            col.Item().PaddingTop(9).Row(r =>
+            {
+                r.AutoItem().AlignBottom().PaddingBottom(2)
+                    .Text("Notfallkontakt").Bold().FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.RelativeItem(4).Element(f => BoldLabeledLine(f, "Name"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Beziehung"));
+                r.ConstantItem(12);
+                r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
+            });
+            // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
+            // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
+            // bei Handausfüllung).
+            // QST + AHV-Boxen auf EINER Zeile (Walter 13.08.2026) — der Bogen
+            // MUSS auf 2 Seiten bleiben.
+            col.Item().PaddingTop(9).Row(r =>
+            {
+                r.AutoItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
+                r.ConstantItem(14);
+                r.RelativeItem().AlignBottom().Element(AhvBoxes);
+            });
+            // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
+            // «seit dem:» dahinter (Walter 13.08.2026).
+            col.Item().PaddingTop(9).Row(r =>
+            {
+                r.RelativeItem(1.0f).Element(e => CheckOptionsInline(e, "Geschlecht", "W", "M", "D"));
+                r.ConstantItem(16);
+                r.RelativeItem(1.1f).AlignBottom().Element(f => LabeledLine(f, "Zivilstand"));
+                r.ConstantItem(16);
+                r.RelativeItem(0.9f).AlignBottom().Element(f => LabeledLine(f, "seit dem:"));
+            });
+            // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
+            // (Walter 03.08.2026).
+            // Walter-Vorgabe 30.08.2026: Israelitische Kultusgemeinde ergänzt —
+            // sie ist bei der Quellensteuer Y-fähig wie die Landeskirchen, darf
+            // also nicht unter «Andere» verschwinden.
+            col.Item().PaddingTop(9).Element(e => CheckOptionsInline(e, "Konfession",
+                "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch",
+                "Israelitisch", "Andere", "Keine"));
+            // Kinder-Block entfernt (Walter 13.08.2026) — dafür die
+            // Verfügbarkeit von Seite 2 unten auf Seite 1 (siehe unten).
+            col.Item().PaddingTop(9).Element(e =>
+                LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
+
+
+            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Sprachkenntnisse", null));
+            col.Item().PaddingTop(8).Element(LangGrid);
+
+            // Fragenkatalog von Seite 2 hierher (Walter 13.08.2026, Tausch mit Verfuegbarkeit).
+            // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
+            // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
+            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
+            // Spalten-Layout (Walter 13.08.2026): Frage links in fester Spalte,
+            // ☐ Ja / ☐ Nein fluchtend untereinander, Hinweis/Zusatzfeld rechts.
+            // Grosszügigere Zeilenabstände (PaddingTop 8 statt 5).
+            // Gesundheitsfrage: Frage über die VOLLE Breite (Walter 13.08.2026 —
+            // «genug Platz für Text», kein 2-zeiliger Umbruch in der Spalte);
+            // Ja/Nein darunter in denselben fluchtenden Spalten wie die übrigen.
+            col.Item().PaddingTop(8)
+                .Text("Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?")
+                .FontSize(8.5f).FontColor(Ink);
+            col.Item().PaddingTop(4).Row(r =>
+            {
+                r.ConstantItem(258);
+                r.ConstantItem(42).AlignMiddle().Element(ch => CheckLabel(ch, "Ja"));
+                r.ConstantItem(8);
+                r.ConstantItem(52).AlignMiddle().Element(ch => CheckLabel(ch, "Nein"));
+                r.ConstantItem(10);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "welche:"));
+            });
+            // Sozialleistungen: zwei Zeilen — Kästchen beginnen in derselben
+            // Spalte wie die Ja/Nein-Kästchen, IV-Rente direkt vor dem
+            // Invaliditätsgrad (Walter 13.08.2026).
+            col.Item().PaddingTop(8).Row(r =>
+            {
+                r.ConstantItem(250).AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
+                r.ConstantItem(8);
+                r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
+                r.ConstantItem(14);
+                r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
+            });
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.ConstantItem(258);
+                r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
+                r.ConstantItem(12);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
+            });
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e, "Bist du vorbestraft?"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Musst du nächstens Militärservice leisten?",
+                rechts: f => LabeledLine(f, "Dauer vom – bis")));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Hast du eine Ausbildung in der Hotellerie oder Restauration?",
+                hinweis: "Falls ja, bitte eine Kopie beilegen"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Hast du schon in der Hotellerie/Restauration gearbeitet?",
+                hinweis: "Falls ja, Kopie der Arbeitszeugnisse beilegen"));
+            col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
+                "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
+                hinweis: "Falls ja, bitte unten ausfüllen"));
+            // Walter 25.08.2026: 2 statt 3 Zeilen — «so viele Arbeitgeber hat niemand».
+            col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
+            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
+
+        });
+    }
+
+    private static void ComposeAltSeite2(PageDescriptor page)
+    {
+        ApplyPageChrome(page, withBanner: false);
+
+        page.Content().PaddingTop(2).Column(col =>
+        {
+
+            // (verschoben von Seite 1 — Seite 1 traegt jetzt die Verfuegbarkeit, 13.08.2026)
+            // Verfuegbarkeit von Seite 1 hierher (Walter 13.08.2026, Tausch mit Fragenkatalog).
+            col.Item().Element(e =>
+                SectionHead(e, "Verfügbarkeit & Eintritt",
+                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
+            col.Item().PaddingTop(6).Element(AvailabilityTable);
+            col.Item().PaddingTop(10).Element(e =>
+                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
+
+            // Partner-Block im bewährten OneCrew-Layout (Walter 13.08.2026):
+            // wie früher «Angaben über Partner», mit zwei Änderungen —
+            // AHV-Nummer als Ziffern-Boxen ANSTELLE des Geburtsorts und
+            // Geschlecht als W/M/D-Ankreuz (wie beim MA auf Seite 1).
+            // Hinweis lesbar, aber dezent (Walter 13.08.2026): kein Badge —
+            // normal grosser kursiver Text direkt neben dem Titel.
+            col.Item().PaddingTop(12).Row(r =>
+            {
+                r.AutoItem().AlignMiddle().Text("Angaben über Partner")
+                    .Bold().FontSize(11f).FontColor(Ink);
+                r.ConstantItem(10);
+                r.AutoItem().AlignMiddle()
+                    .Text("— nur auszufüllen, wenn quellensteuerpflichtig")
+                    .Italic().FontSize(8.5f).FontColor(Body);
+            });
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
+            // Geschlecht Partner nur noch W/M (Walter 20.08.2026, kein D mehr).
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(AhvBoxes);
+            });
+            // Statt «Aufenthaltsort» (Walter 13.08.2026): Adresse nur, wenn
+            // sie von der des Bewerbers abweicht.
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Adresse (nur falls abweichend)"));
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.RelativeItem().Element(e => YesNoInline(e, "Arbeitet Partner?"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
+            });
+            // Arbeitgeber Partner mit GENUG Platz für die volle Adresse +
+            // Stellenantritt (Walter 20.08.2026 — Angaben landen 1:1 in den
+            // neuen Ehepartner-Feldern des Familien-Tabs).
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse (Strasse/Nr., PLZ, Ort)"));
+            col.Item().PaddingTop(6).Row(r =>
+            {
+                r.RelativeItem().Element(e => LabeledLine(e, "Stellenantritt Partner (Datum)"));
+                r.ConstantItem(16);
+                r.RelativeItem();
+            });
+
+            // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
+            // frühere Kinder-Block von Seite 1 lebt jetzt hier).
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Kinder", null));
+            col.Item().PaddingTop(6).Element(KinderTabelle);
+
+            // Rest von Seite 3 hierher — Bogen wieder 2-seitig (Walter 13.08.2026).
+            col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
+            col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
+            col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
+
+            // Notfallkontakt: seit 25.08.2026 v3 auf SEITE 1 bei den
+            // Personalien (nach Geb.-Datum/Nationalität) — hier entfernt.
+
+            // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
+            // vorbestraft / bevormundet / Militaer) entfernt (Walter 13.08.2026).
+
+            col.Item().PaddingTop(8).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
+            col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
+            {
+                foreach (var line in new[]
+                {
+                    "Aussehen: Haare kragenlang bzw. zusammengebunden, sauber rasiert, diskretes Make-up, kein Nagellack.",
+                    "Es müssen schwarze, geschlossene Schuhe getragen werden.",
+                    "Die vereinbarten Arbeitszeiten können frühestens nach 4 Monaten geändert werden.",
+                    "Für Teilzeit-Angestellte richtet sich die wöchentliche Arbeitszeit nach den Bedürfnissen des Arbeitgebers und ist — innerhalb der vereinbarten Arbeitszeiten — variabel.",
+                    "Jugendliche bis zum vollendeten 18. Altersjahr dürfen bis spätestens 22.00 Uhr arbeiten.",
+                })
+                {
+                    c.Item().PaddingBottom(1).Row(r =>
+                    {
+                        r.ConstantItem(10).AlignTop().Text("–").FontSize(8.5f).FontColor(Muted);
+                        r.RelativeItem().Text(line).FontSize(6.5f).FontColor(Body);
+                    });
+                }
+            });
+
+            col.Item().PaddingTop(4).Text(
+                    "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
+                .FontSize(6.5f).FontColor(Muted).Italic();
+
+            // Unterschriften-Bereich gemäss altem Bogen (Walter 13.08.2026):
+            // «Wichtig»-Satz, links Datum + Unterschrift (freier Schreibraum),
+            // rechts der Block für Minderjährige (gesetzlicher Vertreter).
+            col.Item().PaddingTop(6).Text(t =>
+            {
+                t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
+                t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
+                    .FontSize(8.5f).FontColor(Ink);
+            });
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
+                {
+                    c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
+                    c.Item().Height(54); // freier Schreibraum (v2: 2-Seiten-Zwang)
+                });
+                r.ConstantItem(14);
+                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
+                {
+                    c.Item().Text(t =>
+                    {
+                        t.Span("Für Minderjährige").SemiBold().FontSize(8f).FontColor(Ink);
+                        t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
+                            .FontSize(8f).FontColor(Ink);
+                    });
+                    // Nur Vorname Name + Unterschrift, grosszügige Abstände
+                    // (Walter 13.08.2026).
+                    c.Item().PaddingTop(10).Element(f => LabeledLine(f, "Vorname Name"));
+                    c.Item().PaddingTop(12).Element(f => LabeledLine(f, "Unterschrift"));
+                });
+            });
+
         });
     }
 

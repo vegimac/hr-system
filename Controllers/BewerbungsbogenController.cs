@@ -49,6 +49,8 @@ public class BewerbungsbogenController : ControllerBase
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
         var istGespraech = string.Equals(teil, "gespraech", StringComparison.OrdinalIgnoreCase);
+        // «alt» = der frühere, ungeteilte Bogen — nur zur Kontrolle (Walter 31.08.2026).
+        var istAlt = string.Equals(teil, "alt", StringComparison.OrdinalIgnoreCase);
 
         byte[] bytes;
         try
@@ -60,7 +62,9 @@ public class BewerbungsbogenController : ControllerBase
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
                 Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
                 Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim());
-            bytes = istGespraech ? _pdf.GenerateGespraech(input) : _pdf.GenerateBewerbung(input);
+            bytes = istAlt       ? _pdf.GenerateAlt(input)
+                  : istGespraech ? _pdf.GenerateGespraech(input)
+                                 : _pdf.GenerateBewerbung(input);
         }
         catch (Exception ex)
         {
@@ -74,7 +78,9 @@ public class BewerbungsbogenController : ControllerBase
 
         var safeCity = (cp.City ?? cp.BranchName ?? "Filiale")
             .Replace(" ", "_", StringComparison.Ordinal);
-        var name = istGespraech ? "Bewerbungsgespraech" : "Bewerbung";
+        var name = istAlt ? "Bewerbungsbogen_alt"
+                 : istGespraech ? "Bewerbungsgespraech"
+                                : "Bewerbung";
         return File(bytes, "application/pdf", $"{name}_{safeCity}.pdf");
     }
 }

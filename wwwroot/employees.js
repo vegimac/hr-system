@@ -15295,8 +15295,10 @@ async function raQstInfoPdfGo(cpId) {
 //   teil='gespraech' → wird im Bewerbungsgespräch ausgefüllt (Personalien
 //                      komplett, Partner, Kinder, Bank, Bedingungen, Notizen)
 async function raBewerbungsbogenPdf(teil) {
-    const t = (teil === 'gespraech') ? 'gespraech' : 'bewerbung';
-    const dateiname = (t === 'gespraech') ? 'Bewerbungsgespräch.pdf' : 'Bewerbung.pdf';
+    const t = (teil === 'gespraech' || teil === 'alt') ? teil : 'bewerbung';
+    const dateiname = t === 'gespraech' ? 'Bewerbungsgespräch.pdf'
+                    : t === 'alt'       ? 'Bewerbungsbogen_alt.pdf'
+                                        : 'Bewerbung.pdf';
     const cpId = fixedCompanyProfileId
         || selectedEmployee?.employments?.find(e => e.isActive)?.companyProfileId
         || selectedEmployee?.employments?.[0]?.companyProfileId;
