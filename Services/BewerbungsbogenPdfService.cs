@@ -122,49 +122,54 @@ public class BewerbungsbogenPdfService
             Briefkopf(col, d);
 
             col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "1  Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
+                SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
             // Reihenfolge nach Walter-Vorgabe 31.08.2026.
             // Zwei gleich breite Spalten durchgehend — jedes Feld hat die volle
             // halbe Zeile (Walter 31.08.2026: «für Vorname ist zuwenig Platz»).
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Vorname", "E-Mail"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
-            col.Item().PaddingTop(9).Row(r =>
+            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "E-Mail"));
+            col.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
+            col.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
+            col.Item().PaddingTop(13).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
+            col.Item().PaddingTop(13).Row(r =>
             {
                 r.RelativeItem().AlignBottom().Element(f => CheckOptionsRow(f, "Geschlecht", "W", "M"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Nationalität"));
             });
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Bewilligung", "gültig bis"));
+            col.Item().PaddingTop(13).Element(e => TwoFields(e, "Bewilligung", "gültig bis"));
 
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "2  Sprachkenntnisse", null));
-            col.Item().PaddingTop(8).Element(LangGridKurz);
+            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Sprachkenntnisse", null));
+            col.Item().PaddingTop(10).Element(LangGridKurz);
 
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "3  Dein Einsatz bei uns", null));
-            col.Item().PaddingTop(9).Element(e =>
+            col.Item().PaddingTop(16).Element(e => SectionHead(e, "Dein Einsatz bei uns", null));
+            col.Item().PaddingTop(12).Element(e =>
                 TwoFields(e, "Gewünschtes Pensum (%)", "Frühester Eintritt"));
-            col.Item().PaddingTop(9).Element(e =>
+            col.Item().PaddingTop(16).Element(e =>
                 LabeledLine(e, "Erfahrung in Gastronomie — wo / was?"));
 
-            col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "4  Wann kannst du arbeiten?",
-                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
-            col.Item().PaddingTop(3)
+            col.Item().PaddingTop(18).Element(e =>
+                SectionHead(e, "Wann kannst du arbeiten?", null));
+            // Öffnungszeiten markant (Walter 31.08.2026) — der Bewerber muss
+            // auf einen Blick sehen, in welchem Rahmen er eintragen kann.
+            col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Text(t =>
+            {
+                t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(9.5f).FontColor(Ink);
+                t.Span("So–Do 08.00–01.00 Uhr  ·  Fr/Sa 08.00–03.00 Uhr")
+                    .Bold().FontSize(9.5f).FontColor(Ink);
+            });
+            col.Item().PaddingTop(5)
                 .Text("Bitte die normalen verfügbaren Arbeitszeiten eintragen.")
                 .Italic().FontSize(8f).FontColor(Body);
-            col.Item().PaddingTop(6).Element(AvailabilityTable);
+            col.Item().PaddingTop(7).Element(AvailabilityTable);
 
-            col.Item().PaddingTop(12).Element(e => SectionHead(e, "5  Abschluss", null));
-            col.Item().PaddingTop(8).Element(e => YesNoInline(e, "Lebenslauf beigelegt / mitgesendet?"));
-            col.Item().PaddingTop(10).Row(r =>
+            col.Item().PaddingTop(18).Row(r =>
             {
                 r.RelativeItem().Element(f => SignatureLine(f, "Datum"));
                 r.ConstantItem(24);
                 r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
 
-            col.Item().PaddingTop(10).Text(
+            col.Item().PaddingTop(12).Text(
                     "Die Angaben dienen der Prüfung deiner Bewerbung. Dieses Formular ist noch kein Anstellungsversprechen.")
                 .Italic().FontSize(7.5f).FontColor(Muted);
         });
