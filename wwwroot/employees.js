@@ -1082,13 +1082,10 @@ function renderEmployeeDetail(emp) {
     // Austritts-Badge lief sie rechts in die easy@work-Pille hinein. Sie
     // sitzt jetzt eine Zeile tiefer, neben der Vertrags-Pille.
     const _hcBadges2 = [];
-    // Walter-Vorgabe 30.08.2026: «Wer hat an DIESEM MA was geändert?» —
-    // direkt im MA-Kopf statt Umweg über die grosse Aktivitäts-Log-Liste.
-    // Nur admin, weil /api/audit-log admin-only ist (Datenschutz).
-    if (currentUser?.role === 'admin')
-        _hcBadges2.push(`<button type="button" class="emp-hbadge hb-aktiv"
-            onclick="event.stopPropagation();maAenderungenOeffnen(${emp.id})"
-            title="Zeigt die letzten Änderungen an diesem Mitarbeiter — wer, wann, was">🕓 Änderungen</button>`);
+    // Walter 31.08.2026: Die Pille «Änderungen» ist wieder raus — der MA-Kopf
+    // soll ruhig bleiben. Panel und Endpoint bleiben bestehen:
+    // maAenderungenOeffnen(employeeId) lässt sich jederzeit von einer anderen
+    // Stelle aus aufrufen.
     if (emp.kuendigungPer) {
         const _kd = (emp.kuendigungDurch || '').toUpperCase();
         const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
