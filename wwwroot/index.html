@@ -3220,9 +3220,13 @@
                          Absenzkalender. Funktionen leben in employees.js / kandidaten.js
                          (global geladen) und brauchen KEINEN selectedEmployee. -->
                     <div class="ra-tile-row" style="margin-top:14px">
-                        <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf()">
+                        <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('bewerbung')" title="Kurzes Bewerbungsformular — gibt der Bewerber ausgefüllt ab (eine Seite)">
                             <img src="img/bewerbungsbogen.png?v=20260815d" alt="" loading="lazy">
-                            <span>Bewerbungsbogen</span>
+                            <span>Bewerbungs-<br>formular</span>
+                        </button>
+                        <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('gespraech')" title="Wird im Bewerbungsgespräch ausgefüllt — Personalien komplett, Partner, Kinder, Bank, Bedingungen, Notizen">
+                            <img src="img/bewerbungsbogen.png?v=20260815d" alt="" loading="lazy">
+                            <span>Gesprächs-<br>formular</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="openKandidatModal()">
                             <img src="img/Kandidat-an-HR.png?v=20260815e" alt="" loading="lazy">
@@ -8903,7 +8907,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260831b"></script>
+<script src="employees.js?v=20260831c"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

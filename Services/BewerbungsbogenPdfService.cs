@@ -32,18 +32,36 @@ public class BewerbungsbogenPdfService
     private static byte[] BannerBytes => _bannerBytes ??=
         File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "Assets", "letterhead_banner.png"));
 
-    public byte[] Generate(BewerbungsbogenInput d)
+    /// <summary>
+    /// Teil 1 — kurzes Bewerbungsformular fuer den Bewerber. Eine Seite,
+    /// nur was fuer die Vorselektion noetig ist (Walter 31.08.2026).
+    /// </summary>
+    public byte[] GenerateBewerbung(BewerbungsbogenInput d)
     {
         QuestPDF.Settings.License = LicenseType.Community;
-
         return Document.Create(container =>
         {
-            container.Page(page => ComposePage1(page, d));
-            container.Page(page => ComposePage2(page));
+            container.Page(page => ComposeBewerbung(page, d));
         }).GeneratePdf();
     }
 
-    private static void ApplyPageChrome(PageDescriptor page, bool withBanner)
+    /// <summary>
+    /// Teil 2 — wird im Bewerbungsgespraech ausgefuellt: alle Angaben, die
+    /// erst bei einer konkreten Anstellung gebraucht werden, plus interne
+    /// Gespraechsnotizen (Walter 31.08.2026).
+    /// </summary>
+    public byte[] GenerateGespraech(BewerbungsbogenInput d)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        return Document.Create(container =>
+        {
+            container.Page(page => ComposeGespraechSeite1(page, d));
+            container.Page(page => ComposeGespraechSeite2(page));
+        }).GeneratePdf();
+    }
+
+    private static void ApplyPageChrome(PageDescriptor page, bool withBanner,
+        string bannerTitel = "Bewerbungsbogen")
     {
         page.Size(PageSizes.A4);
         page.PageColor(Colors.White);
@@ -61,36 +79,98 @@ public class BewerbungsbogenPdfService
             layers.PrimaryLayer()
                 .PaddingHorizontal(12)
                 .PaddingTop(9)
-                .Text("Bewerbungsbogen").Bold().FontSize(11f).FontColor(Ink);
+                .Text(bannerTitel).Bold().FontSize(11f).FontColor(Ink);
         });
     }
 
-    private static void ComposePage1(PageDescriptor page, BewerbungsbogenInput d)
+    /// <summary>Filiale + Kontaktzeile unter dem Balken — auf beiden Formularen gleich.</summary>
+    private static void Briefkopf(ColumnDescriptor col, BewerbungsbogenInput d)
     {
-        ApplyPageChrome(page, withBanner: true);
+        var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
+            ? d.CompanyName
+            : $"{d.CompanyName} · {d.RestaurantName}";
+        col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
+        var meta = string.Join("  ·  ", new[] { d.Strasse, d.PlzOrt, d.Telefon, d.Email }
+            .Where(s => !string.IsNullOrWhiteSpace(s)));
+        if (!string.IsNullOrWhiteSpace(meta))
+            col.Item().PaddingTop(2).Text(meta).FontSize(8f).FontColor(Muted);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TEIL 1 — Bewerbung (eine Seite, gibt der Bewerber ab)
+    // ═══════════════════════════════════════════════════════════════════
+    private static void ComposeBewerbung(PageDescriptor page, BewerbungsbogenInput d)
+    {
+        ApplyPageChrome(page, withBanner: true, bannerTitel: "Bewerbung");
 
         page.Content().PaddingTop(6).Column(col =>
         {
-            // Adresse unter dem Balken — ruhig, eine Zeile Meta.
-            var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
-                ? d.CompanyName
-                : $"{d.CompanyName} · {d.RestaurantName}";
-            col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
-            var meta = string.Join("  ·  ", new[] { d.Strasse, d.PlzOrt, d.Telefon, d.Email }
-                .Where(s => !string.IsNullOrWhiteSpace(s)));
-            if (!string.IsNullOrWhiteSpace(meta))
-                col.Item().PaddingTop(2).Text(meta).FontSize(8f).FontColor(Muted);
+            Briefkopf(col, d);
 
             col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "Personalien", "Bitte in Blockschrift ausfüllen"));
+                SectionHead(e, "1  Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
+            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Wohnort", "Mobiltelefon"));
+            col.Item().PaddingTop(9).Element(e => LabeledLine(e, "E-Mail"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
+            col.Item().PaddingTop(9).Element(e =>
+                CheckOptionsInline(e, "Bewilligung / Status", "CH", "C", "B", "L", "S", "G"));
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Andere / keine", "Gültig bis"));
 
-            // Grosszuegige Schreibzeilen (Handschrift).
+            col.Item().PaddingTop(12).Element(e => SectionHead(e, "2  Sprachkenntnisse", null));
+            col.Item().PaddingTop(8).Element(LangGrid);
+
+            col.Item().PaddingTop(12).Element(e => SectionHead(e, "3  Dein Einsatz bei uns", null));
+            col.Item().PaddingTop(9).Element(e =>
+                TwoFields(e, "Gewünschtes Pensum (%)", "Frühester Eintritt"));
+            col.Item().PaddingTop(9).Element(e => KatalogZeile(e,
+                "Hast du schon in der Gastronomie/Restauration gearbeitet?",
+                rechts: f => LabeledLine(f, "Falls ja: wo / was?")));
+
+            col.Item().PaddingTop(12).Element(e =>
+                SectionHead(e, "4  Wann kannst du arbeiten?",
+                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
+            col.Item().PaddingTop(3)
+                .Text("Bitte die normalen verfügbaren Arbeitszeiten eintragen.")
+                .Italic().FontSize(8f).FontColor(Body);
+            col.Item().PaddingTop(6).Element(AvailabilityTable);
+
+            col.Item().PaddingTop(12).Element(e => SectionHead(e, "5  Abschluss", null));
+            col.Item().PaddingTop(8).Element(e => YesNoInline(e, "Lebenslauf beigelegt / mitgesendet?"));
+            col.Item().PaddingTop(10).Row(r =>
+            {
+                r.RelativeItem().Element(f => SignatureLine(f, "Datum"));
+                r.ConstantItem(24);
+                r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
+            });
+
+            col.Item().PaddingTop(10).Text(
+                    "Die Angaben dienen der Prüfung deiner Bewerbung. Dieses Formular ist noch kein Anstellungsversprechen.")
+                .Italic().FontSize(7.5f).FontColor(Muted);
+        });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TEIL 2 — Bewerbungsgespräch (zwei Seiten, wird intern ausgefüllt)
+    // ═══════════════════════════════════════════════════════════════════
+    private static void ComposeGespraechSeite1(PageDescriptor page, BewerbungsbogenInput d)
+    {
+        ApplyPageChrome(page, withBanner: true, bannerTitel: "Bewerbungsgespräch");
+
+        page.Content().PaddingTop(6).Column(col =>
+        {
+            Briefkopf(col, d);
+            col.Item().PaddingTop(3)
+                .Text("Wird im Bewerbungsgespräch ausgefüllt — gehört zum Bewerbungsformular des Bewerbers.")
+                .Italic().FontSize(8f).FontColor(Body);
+
+            col.Item().PaddingTop(11).Element(e =>
+                SectionHead(e, "Personalien", "Bitte in Blockschrift ausfüllen"));
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "E-Mail"));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
-            // Notfallkontakt (Walter 25.08.2026 v3): bei den Personalien des
-            // Kandidaten — direkt nach Geb.-Datum/Nationalität, fett, eine Zeile.
+            // Notfallkontakt direkt bei den Personalien (Walter 25.08.2026 v3).
             col.Item().PaddingTop(9).Row(r =>
             {
                 r.AutoItem().AlignBottom().PaddingBottom(2)
@@ -102,19 +182,12 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(12);
                 r.RelativeItem(3).Element(f => BoldLabeledLine(f, "Telefon"));
             });
-            // Geburtsort/Heimatort entfernt (Walter 13.08.2026) — dafür die
-            // AHV-Nummer als Ziffern-Boxen 756·XXXX·XXXX·XX (besser lesbar
-            // bei Handausfüllung).
-            // QST + AHV-Boxen auf EINER Zeile (Walter 13.08.2026) — der Bogen
-            // MUSS auf 2 Seiten bleiben.
             col.Item().PaddingTop(9).Row(r =>
             {
                 r.AutoItem().Element(e => YesNoInline(e, "Quellensteuerpflichtig?"));
                 r.ConstantItem(14);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            // Geschlecht zum Ankreuzen W/M/D, Zivilstand in der Mitte,
-            // «seit dem:» dahinter (Walter 13.08.2026).
             col.Item().PaddingTop(9).Row(r =>
             {
                 r.RelativeItem(1.0f).Element(e => CheckOptionsInline(e, "Geschlecht", "W", "M", "D"));
@@ -123,33 +196,16 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem(0.9f).AlignBottom().Element(f => LabeledLine(f, "seit dem:"));
             });
-            // Konfession zum Ankreuzen — gleiche Werte wie MA-Stammdaten
-            // (Walter 03.08.2026).
-            // Walter-Vorgabe 30.08.2026: Israelitische Kultusgemeinde ergänzt —
-            // sie ist bei der Quellensteuer Y-fähig wie die Landeskirchen, darf
-            // also nicht unter «Andere» verschwinden.
+            // Israelitische Kultusgemeinde ist bei der Quellensteuer Y-fähig wie
+            // die Landeskirchen (Walter 30.08.2026) — darf nicht unter «Andere».
             col.Item().PaddingTop(9).Element(e => CheckOptionsInline(e, "Konfession",
                 "Evang.-reformiert", "Röm.-katholisch", "Christ-katholisch",
                 "Israelitisch", "Andere", "Keine"));
-            // Kinder-Block entfernt (Walter 13.08.2026) — dafür die
-            // Verfügbarkeit von Seite 2 unten auf Seite 1 (siehe unten).
             col.Item().PaddingTop(9).Element(e =>
                 LabeledLine(e, "Bewilligung / Ausweis (nur für Ausländer)"));
 
-
-            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Sprachkenntnisse", null));
-            col.Item().PaddingTop(8).Element(LangGrid);
-
-            // Fragenkatalog von Seite 2 hierher (Walter 13.08.2026, Tausch mit Verfuegbarkeit).
-            // Block gemäss altem Bewerbungsformular (Walter 13.08.2026) —
-            // ersetzt die früheren Schule-/Arbeitgeber-Tabellen.
-            col.Item().PaddingTop(11).Element(e => SectionHead(e, "Berufserfahrung & weitere Angaben", null));
-            // Spalten-Layout (Walter 13.08.2026): Frage links in fester Spalte,
-            // ☐ Ja / ☐ Nein fluchtend untereinander, Hinweis/Zusatzfeld rechts.
-            // Grosszügigere Zeilenabstände (PaddingTop 8 statt 5).
-            // Gesundheitsfrage: Frage über die VOLLE Breite (Walter 13.08.2026 —
-            // «genug Platz für Text», kein 2-zeiliger Umbruch in der Spalte);
-            // Ja/Nein darunter in denselben fluchtenden Spalten wie die übrigen.
+            col.Item().PaddingTop(11).Element(e =>
+                SectionHead(e, "Berufserfahrung & weitere Angaben", null));
             col.Item().PaddingTop(8)
                 .Text("Leidest du an einer chronischen Krankheit oder an Allergien (v.a. Hautallergien)?")
                 .FontSize(8.5f).FontColor(Ink);
@@ -162,9 +218,6 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "welche:"));
             });
-            // Sozialleistungen: zwei Zeilen — Kästchen beginnen in derselben
-            // Spalte wie die Ja/Nein-Kästchen, IV-Rente direkt vor dem
-            // Invaliditätsgrad (Walter 13.08.2026).
             col.Item().PaddingTop(8).Row(r =>
             {
                 r.ConstantItem(250).AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
@@ -193,37 +246,19 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
                 "Hast du andere berufliche Aktivitäten oder freiwillige Einsätze?",
                 hinweis: "Falls ja, bitte unten ausfüllen"));
-            // Walter 25.08.2026: 2 statt 3 Zeilen — «so viele Arbeitgeber hat niemand».
             col.Item().PaddingTop(10).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(8).Element(ArbeitgeberZeile);
             col.Item().PaddingTop(9).Element(e => LabeledLine(e, "Wo dürfen Referenzen eingeholt werden?"));
-
         });
     }
 
-    private static void ComposePage2(PageDescriptor page)
+    private static void ComposeGespraechSeite2(PageDescriptor page)
     {
         ApplyPageChrome(page, withBanner: false);
 
         page.Content().PaddingTop(2).Column(col =>
         {
-
-            // (verschoben von Seite 1 — Seite 1 traegt jetzt die Verfuegbarkeit, 13.08.2026)
-            // Verfuegbarkeit von Seite 1 hierher (Walter 13.08.2026, Tausch mit Fragenkatalog).
-            col.Item().Element(e =>
-                SectionHead(e, "Verfügbarkeit & Eintritt",
-                    "08.00–01.00 · Fr/Sa bis 03.00 Uhr"));
-            col.Item().PaddingTop(6).Element(AvailabilityTable);
-            col.Item().PaddingTop(10).Element(e =>
-                TwoFields(e, "Frühestes Eintrittsdatum", "Für eine Dauer von mindestens"));
-
-            // Partner-Block im bewährten OneCrew-Layout (Walter 13.08.2026):
-            // wie früher «Angaben über Partner», mit zwei Änderungen —
-            // AHV-Nummer als Ziffern-Boxen ANSTELLE des Geburtsorts und
-            // Geschlecht als W/M/D-Ankreuz (wie beim MA auf Seite 1).
-            // Hinweis lesbar, aber dezent (Walter 13.08.2026): kein Badge —
-            // normal grosser kursiver Text direkt neben dem Titel.
-            col.Item().PaddingTop(12).Row(r =>
+            col.Item().Row(r =>
             {
                 r.AutoItem().AlignMiddle().Text("Angaben über Partner")
                     .Bold().FontSize(11f).FontColor(Ink);
@@ -233,15 +268,12 @@ public class BewerbungsbogenPdfService
                     .Italic().FontSize(8.5f).FontColor(Body);
             });
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Name", "Vorname"));
-            // Geschlecht Partner nur noch W/M (Walter 20.08.2026, kein D mehr).
             col.Item().PaddingTop(6).Row(r =>
             {
                 r.AutoItem().Element(e => CheckOptionsInline(e, "Geschlecht Partner", "W", "M"));
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(AhvBoxes);
             });
-            // Statt «Aufenthaltsort» (Walter 13.08.2026): Adresse nur, wenn
-            // sie von der des Bewerbers abweicht.
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Adresse (nur falls abweichend)"));
             col.Item().PaddingTop(6).Row(r =>
             {
@@ -249,9 +281,6 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(16);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Ausweis"));
             });
-            // Arbeitgeber Partner mit GENUG Platz für die volle Adresse +
-            // Stellenantritt (Walter 20.08.2026 — Angaben landen 1:1 in den
-            // neuen Ehepartner-Feldern des Familien-Tabs).
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Arbeitgeber Partner, Adresse (Strasse/Nr., PLZ, Ort)"));
             col.Item().PaddingTop(6).Row(r =>
             {
@@ -260,22 +289,13 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem();
             });
 
-            // Kinder-Tabelle gemäss altem Formular (Walter 13.08.2026; der
-            // frühere Kinder-Block von Seite 1 lebt jetzt hier).
             col.Item().PaddingTop(8).Element(e => SectionHead(e, "Kinder", null));
             col.Item().PaddingTop(6).Element(KinderTabelle);
 
-            // Rest von Seite 3 hierher — Bogen wieder 2-seitig (Walter 13.08.2026).
             col.Item().PaddingTop(10).Element(e => SectionHead(e, "Ergänzende Angaben", null));
             col.Item().PaddingTop(6).Element(e => LabeledLine(e, "Krankenkasse"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bank", "Kontonummer / IBAN"));
             col.Item().PaddingTop(6).Element(e => TwoFields(e, "Bankadresse", "Clearing-Nr."));
-
-            // Notfallkontakt: seit 25.08.2026 v3 auf SEITE 1 bei den
-            // Personalien (nach Geb.-Datum/Nationalität) — hier entfernt.
-
-            // Alt-Fragen-Block (McDonald's / Angestellte / Krankheit / Schwangerschaft /
-            // vorbestraft / bevormundet / Militaer) entfernt (Walter 13.08.2026).
 
             col.Item().PaddingTop(8).Element(e => SectionHead(e, "Allgemeine Bedingungen", null));
             col.Item().PaddingTop(3).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Column(c =>
@@ -301,9 +321,6 @@ public class BewerbungsbogenPdfService
                     "Der Bewerber / die Bewerberin nimmt zur Kenntnis, dass es sich beim vorliegenden Formular um kein Anstellungsversprechen handelt. Er / sie verpflichtet sich, den Bewerbungsbogen wahrheitsgetreu und nach bestem Wissen auszufüllen. Unwahre oder irreführende Angaben können die Ungültigkeit der Anstellung zur Folge haben.")
                 .FontSize(6.5f).FontColor(Muted).Italic();
 
-            // Unterschriften-Bereich gemäss altem Bogen (Walter 13.08.2026):
-            // «Wichtig»-Satz, links Datum + Unterschrift (freier Schreibraum),
-            // rechts der Block für Minderjährige (gesetzlicher Vertreter).
             col.Item().PaddingTop(6).Text(t =>
             {
                 t.Span("Wichtig: ").Bold().FontSize(8.5f).FontColor(Ink);
@@ -315,7 +332,7 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
                 {
                     c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                    c.Item().Height(54); // freier Schreibraum (v2: 2-Seiten-Zwang)
+                    c.Item().Height(46);
                 });
                 r.ConstantItem(14);
                 r.RelativeItem().Background(Soft).Padding(8).Column(c =>
@@ -326,13 +343,28 @@ public class BewerbungsbogenPdfService
                         t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
                             .FontSize(8f).FontColor(Ink);
                     });
-                    // Nur Vorname Name + Unterschrift, grosszügige Abstände
-                    // (Walter 13.08.2026).
-                    c.Item().PaddingTop(10).Element(f => LabeledLine(f, "Vorname Name"));
-                    c.Item().PaddingTop(12).Element(f => LabeledLine(f, "Unterschrift"));
+                    c.Item().PaddingTop(8).Element(f => LabeledLine(f, "Vorname Name"));
+                    c.Item().PaddingTop(10).Element(f => LabeledLine(f, "Unterschrift"));
                 });
             });
 
+            // Interner Teil — bewusst ganz am Schluss und optisch abgesetzt,
+            // damit er nie mit dem unterschriebenen Teil verwechselt wird.
+            col.Item().PaddingTop(12).Element(e => SectionHead(e,
+                "Notizen zum Gespräch", "intern — nicht Teil der Bewerbung"));
+            col.Item().PaddingTop(8).Element(e => TwoFields(e, "Datum des Gesprächs", "Teilnehmende"));
+            col.Item().PaddingTop(9).Element(e =>
+                TwoFields(e, "Eintritt vereinbart per", "Für eine Dauer von mindestens"));
+            col.Item().PaddingTop(10).Text("Eindruck / Notizen").SemiBold().FontSize(8.5f).FontColor(Ink);
+            for (var i = 0; i < 4; i++)
+                col.Item().PaddingTop(9).Element(WriteLine);
+            col.Item().PaddingTop(11).Row(r =>
+            {
+                r.AutoItem().Element(e =>
+                    CheckOptionsInline(e, "Entscheid", "Zusage", "Absage", "Rückstellung"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Visum"));
+            });
         });
     }
 

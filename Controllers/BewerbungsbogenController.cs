@@ -24,9 +24,16 @@ public class BewerbungsbogenController : ControllerBase
         _pdf = pdf;
     }
 
-    /// <summary>GET /api/bewerbungsbogen/pdf?companyProfileId=…</summary>
+    /// <summary>
+    /// GET /api/bewerbungsbogen/pdf?companyProfileId=…&amp;teil=bewerbung|gespraech
+    /// Walter 31.08.2026: Der Bogen ist in zwei Formulare geteilt —
+    /// «bewerbung» (kurz, gibt der Bewerber ab) und «gespraech» (wird im
+    /// Bewerbungsgespraech ausgefuellt). Ohne teil-Parameter kommt das
+    /// Bewerbungsformular, damit alte Links weiter funktionieren.
+    /// </summary>
     [HttpGet("pdf")]
-    public async Task<IActionResult> GetPdf([FromQuery] int companyProfileId)
+    public async Task<IActionResult> GetPdf([FromQuery] int companyProfileId,
+        [FromQuery] string? teil = null)
     {
         if (companyProfileId <= 0)
             return BadRequest(new { error = "FILIALE_FEHLT", message = "Bitte eine Filiale wählen." });
@@ -41,16 +48,19 @@ public class BewerbungsbogenController : ControllerBase
         var plzOrt = string.Join(" ", new[] { cp.ZipCode, cp.City }
             .Where(s => !string.IsNullOrWhiteSpace(s))).Trim();
 
+        var istGespraech = string.Equals(teil, "gespraech", StringComparison.OrdinalIgnoreCase);
+
         byte[] bytes;
         try
         {
-            bytes = _pdf.Generate(new BewerbungsbogenInput(
+            var input = new BewerbungsbogenInput(
                 CompanyName: string.IsNullOrWhiteSpace(cp.CompanyName) ? "Schaub Restaurants GmbH" : cp.CompanyName,
                 RestaurantName: cp.BranchName,
                 Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
                 Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
-                Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim()));
+                Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim());
+            bytes = istGespraech ? _pdf.GenerateGespraech(input) : _pdf.GenerateBewerbung(input);
         }
         catch (Exception ex)
         {
@@ -64,6 +74,7 @@ public class BewerbungsbogenController : ControllerBase
 
         var safeCity = (cp.City ?? cp.BranchName ?? "Filiale")
             .Replace(" ", "_", StringComparison.Ordinal);
-        return File(bytes, "application/pdf", $"Bewerbungsbogen_{safeCity}.pdf");
+        var name = istGespraech ? "Bewerbungsgespraech" : "Bewerbung";
+        return File(bytes, "application/pdf", $"{name}_{safeCity}.pdf");
     }
 }
