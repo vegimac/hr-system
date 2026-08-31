@@ -152,20 +152,21 @@ public class BewerbungsbogenPdfService
 
             col.Item().PaddingTop(18).Element(e =>
                 SectionHead(e, "Wann kannst du arbeiten?", null));
-            // Öffnungszeiten markant (Walter 31.08.2026) — der Bewerber muss
-            // auf einen Blick sehen, in welchem Rahmen er eintragen kann.
-            if (!string.IsNullOrWhiteSpace(d.Oeffnungszeiten))
-            {
-                col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingRight(9).Text(t =>
-                {
-                    t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(9.5f).FontColor(Ink);
-                    t.Span(d.Oeffnungszeiten).Bold().FontSize(9.5f).FontColor(Ink);
-                });
-            }
             col.Item().PaddingTop(5)
                 .Text("Bitte die normalen verfügbaren Arbeitszeiten eintragen.")
                 .Italic().FontSize(8f).FontColor(Body);
-            col.Item().PaddingTop(7).Element(AvailabilityTable);
+            col.Item().PaddingTop(7).Element(AvailabilityTableGross);
+            // Öffnungszeiten UNTER der Tabelle (Walter 31.08.2026) — sie sind
+            // der Rahmen, in dem der Bewerber eintragen darf, nicht die
+            // Hauptsache. Deshalb kleiner und unter dem Raster.
+            if (!string.IsNullOrWhiteSpace(d.Oeffnungszeiten))
+            {
+                col.Item().PaddingTop(5).Text(t =>
+                {
+                    t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(8f).FontColor(Ink);
+                    t.Span(d.Oeffnungszeiten).FontSize(8f).FontColor(Ink);
+                });
+            }
 
             col.Item().PaddingTop(18).Row(r =>
             {
@@ -1079,6 +1080,52 @@ public class BewerbungsbogenPdfService
             LangRow("Englisch");
             LangRow("Französisch");
             LangRow("", free: true);
+        });
+    }
+
+    /// <summary>
+    /// Verfügbarkeits-Raster fürs Bewerbungsformular (Walter 31.08.2026):
+    /// gleiche Struktur wie AvailabilityTable, aber deutlich mehr Schreibraum
+    /// pro Feld — das Formular wird von Hand ausgefüllt. Der alte Bogen
+    /// benutzt weiterhin AvailabilityTable und bleibt unverändert.
+    /// </summary>
+    private static void AvailabilityTableGross(IContainer e)
+    {
+        var days = new[] { "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag", "Sonntag" };
+        e.Table(t =>
+        {
+            t.ColumnsDefinition(c =>
+            {
+                foreach (var _ in days) c.RelativeColumn();
+            });
+
+            foreach (var day in days)
+            {
+                t.Cell().Border(0.6f).BorderColor(Rule).Background(Soft)
+                    .PaddingVertical(6).PaddingHorizontal(2)
+                    .AlignCenter().Text(day).SemiBold().FontSize(8f).FontColor(Ink);
+            }
+
+            foreach (var _ in days)
+            {
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(4).PaddingHorizontal(2).Row(r =>
+                {
+                    r.RelativeItem().AlignCenter().Text("von").FontSize(7.5f).FontColor(Ink);
+                    r.RelativeItem().AlignCenter().Text("bis").FontSize(7.5f).FontColor(Ink);
+                });
+            }
+
+            // Schreibfeld: hoeher und mit weniger Rand, damit die Linien
+            // spuerbar breiter werden.
+            foreach (var _ in days)
+            {
+                t.Cell().Border(0.6f).BorderColor(Rule).PaddingVertical(14).PaddingHorizontal(2).Row(r =>
+                {
+                    r.RelativeItem().Element(f => WriteLineAt(f, 30f));
+                    r.ConstantItem(3);
+                    r.RelativeItem().Element(f => WriteLineAt(f, 30f));
+                });
+            }
         });
     }
 
