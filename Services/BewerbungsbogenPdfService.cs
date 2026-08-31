@@ -175,6 +175,25 @@ public class BewerbungsbogenPdfService
                 r.RelativeItem().Element(f => SignatureLine(f, "Unterschrift"));
             });
 
+            // Minderjährige (Walter 31.08.2026): gehört hierher, weil der
+            // Bewerber dieses Formular unterschreibt — nicht aufs
+            // Gesprächsformular, wo es vorher stand.
+            col.Item().PaddingTop(10).Background(Soft).Padding(8).Column(c =>
+            {
+                c.Item().Text(t =>
+                {
+                    t.Span("Für Minderjährige").SemiBold().FontSize(8f).FontColor(Ink);
+                    t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
+                        .FontSize(8f).FontColor(Ink);
+                });
+                c.Item().PaddingTop(9).Row(r =>
+                {
+                    r.RelativeItem().Element(f => LabeledLine(f, "Vorname Name"));
+                    r.ConstantItem(24);
+                    r.RelativeItem().Element(f => LabeledLine(f, "Unterschrift"));
+                });
+            });
+
             col.Item().PaddingTop(12).Text(
                     "Die Angaben dienen der Prüfung deiner Bewerbung. Dieses Formular ist noch kein Anstellungsversprechen.")
                 .Italic().FontSize(7.5f).FontColor(Muted);
@@ -340,25 +359,12 @@ public class BewerbungsbogenPdfService
                 t.Span("Im Falle von Änderungen jeder Art, im Laufe des Arbeitsverhältnisses, besteht die Verpflichtung den Arbeitgeber zu informieren.")
                     .FontSize(8.5f).FontColor(Ink);
             });
-            col.Item().PaddingTop(4).Row(r =>
+            // Der Block für Minderjährige steht seit 31.08.2026 auf dem
+            // Bewerbungsformular — dort unterschreibt der Bewerber, hier nicht.
+            col.Item().PaddingTop(4).Background(Soft).Padding(8).Column(c =>
             {
-                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
-                {
-                    c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
-                    c.Item().Height(30);
-                });
-                r.ConstantItem(14);
-                r.RelativeItem().Background(Soft).Padding(8).Column(c =>
-                {
-                    c.Item().Text(t =>
-                    {
-                        t.Span("Für Minderjährige").SemiBold().FontSize(8f).FontColor(Ink);
-                        t.Span(", Angaben und Einverständnis des gesetzlichen Vertreters:")
-                            .FontSize(8f).FontColor(Ink);
-                    });
-                    c.Item().PaddingTop(7).Element(f => LabeledLine(f, "Vorname Name"));
-                    c.Item().PaddingTop(9).Element(f => LabeledLine(f, "Unterschrift"));
-                });
+                c.Item().Text("Datum und Unterschrift").FontSize(8.5f).FontColor(Ink);
+                c.Item().Height(30);
             });
 
             // Interner Teil — bewusst ganz am Schluss und optisch abgesetzt,
