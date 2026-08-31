@@ -124,31 +124,19 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "1  Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
             // Reihenfolge nach Walter-Vorgabe 31.08.2026.
-            col.Item().PaddingTop(10).Row(r =>
-            {
-                // Linke Haelfte: Vorname + Geschlecht. Die rechte Haelfte ist
-                // gleich breit wie bei den Zeilen darunter, damit E-Mail genau
-                // ueber «Mobile / Tel.» steht (Walter 31.08.2026).
-                r.RelativeItem().Row(x =>
-                {
-                    x.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Vorname"));
-                    x.ConstantItem(12);
-                    x.AutoItem().AlignBottom().Element(f => CheckOptionsRow(f, "Geschlecht", "W", "M"));
-                });
-                r.ConstantItem(16);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "E-Mail"));
-            });
+            // Zwei gleich breite Spalten durchgehend — jedes Feld hat die volle
+            // halbe Zeile (Walter 31.08.2026: «für Vorname ist zuwenig Platz»).
+            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Vorname", "E-Mail"));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
             col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
             col.Item().PaddingTop(9).Row(r =>
             {
-                r.RelativeItem(1.5f).AlignBottom().Element(f => LabeledLine(f, "Nationalität"));
-                r.ConstantItem(14);
-                r.RelativeItem(1.0f).AlignBottom().Element(f => LabeledLine(f, "Bewilligung"));
-                r.ConstantItem(14);
-                r.RelativeItem(1.0f).AlignBottom().Element(f => LabeledLine(f, "gültig bis"));
+                r.RelativeItem().AlignBottom().Element(f => CheckOptionsRow(f, "Geschlecht", "W", "M"));
+                r.ConstantItem(16);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Nationalität"));
             });
+            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Bewilligung", "gültig bis"));
 
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "2  Sprachkenntnisse", null));
             col.Item().PaddingTop(8).Element(LangGridKurz);
@@ -156,16 +144,8 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(12).Element(e => SectionHead(e, "3  Dein Einsatz bei uns", null));
             col.Item().PaddingTop(9).Element(e =>
                 TwoFields(e, "Gewünschtes Pensum (%)", "Frühester Eintritt"));
-            col.Item().PaddingTop(9).Row(r =>
-            {
-                r.AutoItem().AlignMiddle().PaddingRight(10)
-                    .Text("Erfahrung in Gastronomie").FontSize(8.5f).FontColor(Ink);
-                r.AutoItem().AlignMiddle().Element(ch => CheckLabel(ch, "Ja"));
-                r.ConstantItem(8);
-                r.AutoItem().AlignMiddle().Element(ch => CheckLabel(ch, "Nein"));
-                r.ConstantItem(16);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Wenn ja: wo / was?"));
-            });
+            col.Item().PaddingTop(9).Element(e =>
+                LabeledLine(e, "Erfahrung in Gastronomie — wo / was?"));
 
             col.Item().PaddingTop(12).Element(e =>
                 SectionHead(e, "4  Wann kannst du arbeiten?",
