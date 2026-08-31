@@ -1378,7 +1378,9 @@
                 <!-- Hauptkategorie-Kacheln (Walter 15.08.2026 v2): oben 6 Kategorie-Kacheln
                      im admin-card-Look, Klick blendet darunter das Karten-Grid der Kategorie
                      ein (adminHubShowCat in app-core.js, Wahl in localStorage.hrAdminHubCat).
-                     KEINE Karte entfernt — alle 28 leben in den Kategorie-Gruppen. -->
+                     KEINE Karte entfernt — alle leben in den Kategorie-Gruppen.
+                     Walter 31.08.2026: «Import & Schnittstellen» ist in den Bereich
+                     Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster, Lohnschema, Absenz-Typen">
                         <img src="img/lohn-stammdaten.png?v=20260816b" alt="" loading="lazy">
@@ -1391,10 +1393,6 @@
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente">
                         <img src="img/Verzeichnisse-Vorgaben.png?v=20260816a" alt="" loading="lazy">
                         <span>Verzeichnisse &amp; Vorgaben</span>
-                    </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="import" onclick="adminHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
-                        <img src="img/Import-schnittstellen.png?v=20260816b" alt="" loading="lazy">
-                        <span>Import &amp; Schnittstellen</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="komm" onclick="adminHubShowCat('komm')" title="E-Mail, SMS, Moments-Texte, Postfach-Backfill">
                         <img src="img/Kommunikation.png?v=20260816a" alt="" loading="lazy">
@@ -1509,30 +1507,6 @@
                         <img src="img/vvkat-dokumentstruktur.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Dokument-Struktur</div>
                         <div class="admin-card-desc">Kategorien & Typen für Personaldossier</div>
-                    </div>
-                    </div>
-                </div>
-                <div class="admin-hub-group" id="adminHubGrp-import" style="display:none">
-                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
-                        <div class="admin-card" onclick="showPage('easyatwork')">
-                        <img src="img/impkat-easyatwork.png?v=20260816e" alt="" loading="lazy" style="width:110px;height:72px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">easy@work API</div>
-                        <div class="admin-card-desc">Schnittstelle zu easy@work — Verbindungstest, Filial-Mapping (Customer-ID)</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('filial-onboarding')">
-                        <img src="img/impkat-filial-onboarding.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Neue Filiale importieren</div>
-                        <div class="admin-card-desc">Erst-Import: ehemalige MA, Bewilligungen, Bankverbindungen, d.velop-Dokumente</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('archiv-import')">
-                        <img src="img/impkat-archiv.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Mitarbeiter-Archiv («…alt»)</div>
-                        <div class="admin-card-desc">Pre-Mirus-Archiv-MA: Import + Aufräumen (alle «…alt»-Nummern löschen)</div>
-                    </div>
-                        <div class="admin-card" onclick="showPage('daten-fix')">
-                        <img src="img/impkat-daten-fix.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Daten-Fix</div>
-                        <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
                     </div>
                     </div>
                 </div>
@@ -4858,6 +4832,10 @@
                         <img src="img/entwkat-swissdec.png?v=20260831a" alt="" loading="lazy">
                         <span>Swissdec</span>
                     </button>
+                    <button type="button" class="ra-tile entw-hub-cat" data-cat="import" onclick="entwHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
+                        <img src="img/Import-schnittstellen.png?v=20260816b" alt="" loading="lazy">
+                        <span>Import &amp; Schnittstellen</span>
+                    </button>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-swissdec" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
@@ -4865,6 +4843,30 @@
                         <img src="img/entwkat-swissdec.png?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Swissdec ELM 6.0</div>
                         <div class="admin-card-desc">Lohnmeldung, Testinfrastruktur und Zertifizierung</div>
+                    </div>
+                    </div>
+                </div>
+                <div class="entw-hub-group" id="entwHubGrp-import" style="display:none">
+                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('easyatwork')">
+                        <img src="img/impkat-easyatwork.png?v=20260816e" alt="" loading="lazy" style="width:110px;height:72px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">easy@work API</div>
+                        <div class="admin-card-desc">Schnittstelle zu easy@work — Verbindungstest, Filial-Mapping (Customer-ID)</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('filial-onboarding')">
+                        <img src="img/impkat-filial-onboarding.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Neue Filiale importieren</div>
+                        <div class="admin-card-desc">Erst-Import: ehemalige MA, Bewilligungen, Bankverbindungen, d.velop-Dokumente</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('archiv-import')">
+                        <img src="img/impkat-archiv.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Mitarbeiter-Archiv («…alt»)</div>
+                        <div class="admin-card-desc">Pre-Mirus-Archiv-MA: Import + Aufräumen (alle «…alt»-Nummern löschen)</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('daten-fix')">
+                        <img src="img/impkat-daten-fix.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Daten-Fix</div>
+                        <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
                     </div>
                     </div>
                 </div>
