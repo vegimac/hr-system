@@ -182,6 +182,19 @@ public class AuthController : ControllerBase
         var maxClaim     = int.TryParse(User.FindFirst("max_session_minutes")?.Value, out var mc) ? mc : EffectiveMaxSession(user);
         var sessionStart = User.FindFirst("session_started_at")?.Value;
 
+        // Testmodus: wer hat den Wechsel ausgeloest? (Claim aus dem JWT, kein
+        // DB-Feld). Nur fuer die Anzeige im Balken und die «Zurueck»-Aktion.
+        object? impersonatedByInfo = null;
+        var impBy = User.FindFirst("impersonated_by")?.Value;
+        if (int.TryParse(impBy, out var impById))
+        {
+            var caller = await _context.AppUsers.AsNoTracking()
+                .Where(u => u.Id == impById)
+                .Select(u => new { u.Id, u.Username })
+                .FirstOrDefaultAsync();
+            impersonatedByInfo = caller ?? (object)new { Id = impById, Username = (string?)null };
+        }
+
         return Ok(new
         {
             user.Id,
@@ -194,6 +207,7 @@ public class AuthController : ControllerBase
             // sah die eigenen. Deshalb sagt jetzt der SERVER, ob das benutzte
             // Token ein Testmodus-Token ist (Claim impersonated_by).
             impersonating = User.FindFirst("impersonated_by") != null,
+            impersonatedBy = impersonatedByInfo,
             user.Email,
             user.Role,
             user.Theme,

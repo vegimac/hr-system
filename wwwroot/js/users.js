@@ -8,7 +8,10 @@
 async function loadUsers() {
     // View-as/Testmodus-Karte nur für den Superadmin zeigen (Backend erzwingt es zusätzlich).
     const impCard = document.getElementById('impersonateCard');
-    if (impCard) impCard.style.display = (currentUser?.isSuperAdmin && !localStorage.getItem('hrImpersonating')) ? '' : 'none';
+    // Walter 31.08.2026: Entscheidung am ECHTEN Zustand (aus /api/auth/me),
+    // nicht am localStorage — der konnte veraltet sein und die Karte
+    // fälschlich zeigen oder verstecken.
+    if (impCard) impCard.style.display = (currentUser?.isSuperAdmin && !currentUser?.impersonating) ? '' : 'none';
     // Mirus-Mail-Vorschau nur für admin (Endpoint ist admin-only).
     const mirusBtn = document.getElementById('mirusDigestPreviewBtn');
     if (mirusBtn) mirusBtn.style.display = (currentUser?.role === 'admin') ? '' : 'none';

@@ -132,6 +132,10 @@ async function doLogin() {
             errEl.style.display = 'block'; return;
         }
         const data = await res.json();
+        // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
+        // Reste einer abgelaufenen Testmodus-Sitzung VOR dem neuen Token weg.
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         // Email für nächsten Login merken (Convenience zusätzlich zum
@@ -139,11 +143,6 @@ async function doLogin() {
         // gespeichert — das übernimmt der Browser-Passwort-Manager
         // verschlüsselt im Keychain/Credential-Store.
         localStorage.setItem('hrLastEmail', email);
-        // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
-        // Reste aus einer abgelaufenen Testmodus-Sitzung hier wegräumen, sonst
-        // zeigt der Balken weiter einen fremden Namen an.
-        localStorage.removeItem('hrImpersonating');
-        localStorage.removeItem('hrTokenAdmin');
         currentUser = data.user;
         // Session-Policy (Walter 21.06.2026) — der Login liefert sie top-level,
         // der Wächter liest sie aus currentUser.
@@ -170,6 +169,8 @@ async function faceIdLogin() {
     if (errEl) errEl.style.display = 'none';
     try {
         const data = await webauthnLoginRaw();   // { token, user, mustChangePassword }
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         currentUser = data.user || null;
@@ -228,8 +229,13 @@ function stopImpersonation() {
 
 // Hinweis-Balken oben, solange impersoniert wird. Wird aus startApp() gerufen.
 function renderImpersonationBanner() {
-    let info = null;
-    try { info = JSON.parse(localStorage.getItem('hrImpersonating') || 'null'); } catch {}
+    // Walter 31.08.2026: Der Balken zeichnet sich NUR noch aus currentUser —
+    // also aus dem, was /api/auth/me zum tatsächlich benutzten Token sagt.
+    // Vorher kam er aus dem localStorage und konnte einen fremden Namen
+    // anzeigen, während die App mit dem eigenen Konto arbeitete.
+    const info = currentUser?.impersonating === true
+        ? { username: currentUser.username, role: currentUser.role }
+        : null;
     let bar = document.getElementById('impersonationBanner');
     if (!info) { if (bar) bar.remove(); return; }
     if (!bar) { bar = document.createElement('div'); bar.id = 'impersonationBanner'; document.body.appendChild(bar); }
@@ -265,9 +271,38 @@ async function checkAuth() {
     if (!authToken) return false;
     try {
         const res = await fetch('/api/auth/me', { headers: ah() });
-        if (!res.ok) { authToken = null; localStorage.removeItem('hrToken'); return false; }
-        currentUser = await res.json(); return true;
+        if (!res.ok) {
+            // Token tot: AUCH den Testmodus-Zustand wegräumen (Walter 31.08.2026).
+            // Sonst überlebt der orange Balken den Login-Screen und behauptet in
+            // der nächsten, eigenen Sitzung weiter, man sehe die App als jemand
+            // anderes — während man längst mit den eigenen Rechten arbeitet.
+            authToken = null;
+            localStorage.removeItem('hrToken');
+            localStorage.removeItem('hrImpersonating');
+            localStorage.removeItem('hrTokenAdmin');
+            return false;
+        }
+        currentUser = await res.json();
+        reconcileImpersonationFromMe(currentUser);
+        return true;
     } catch { return false; }
+}
+
+// ── Testmodus mit der Wahrheit abgleichen (Walter-Bug 31.08.2026) ──────
+// Einzige Quelle ist die Antwort von /api/auth/me: sie beschreibt das Token,
+// das die App tatsächlich benutzt. Der localStorage ist nur noch Hilfsspeicher
+// für den «Zurück»-Knopf, nie mehr die Anzeige-Quelle.
+function reconcileImpersonationFromMe(me) {
+    try {
+        if (me?.impersonating === true) {
+            localStorage.setItem('hrImpersonating',
+                JSON.stringify({ username: me.username, role: me.role }));
+            return;
+        }
+        // Kein Testmodus-Token → ein gespeicherter Hinweis ist Müll.
+        localStorage.removeItem('hrImpersonating');
+        localStorage.removeItem('hrTokenAdmin');
+    } catch { /* localStorage gesperrt — dann bleibt der Balken eben aus */ }
 }
 
 // ── Theme (light/dark) ──────────────────────────────────────────────
@@ -785,39 +820,6 @@ async function init() {
 }
 
 async function startApp() {
-    // Testmodus-Abgleich (Walter 31.08.2026): Der Balken darf nur stehen, wenn
-    // das benutzte Token WIRKLICH ein Testmodus-Token ist und zur angezeigten
-    // Person gehört. Sonst wird der Hinweis verworfen — lieber kein Balken als
-    // ein falscher, denn an ihm hängt die Aussage «so sieht es dieser Benutzer».
-    try {
-        const imp = JSON.parse(localStorage.getItem('hrImpersonating') || 'null');
-        if (imp) {
-            // Verworfen wird NUR bei einem Beweis, dass der Hinweis falsch ist:
-            //   • der Name im Hinweis passt nicht zum tatsächlich angemeldeten
-            //     Konto (das war der Fehlerfall: Balken «Simone», Rechte Walter)
-            //   • ODER der Server sagt ausdrücklich impersonating = false
-            // Fehlt das Kennzeichen ganz (älteres Backend), entscheidet allein
-            // der Namensvergleich — sonst wäre der Testmodus tot, sobald das
-            // Backend noch nicht nachgezogen ist (Walter-Regression 31.08.2026).
-            const nameGleich = (imp.username || '').trim().toLowerCase()
-                === (currentUser?.username || '').trim().toLowerCase();
-            const serverSagtNein = currentUser?.impersonating === false;
-            if (!nameGleich || serverSagtNein) {
-                localStorage.removeItem('hrImpersonating');
-                localStorage.removeItem('hrTokenAdmin');
-            }
-        }
-    } catch { localStorage.removeItem('hrImpersonating'); }
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    updateDashboardShellState('dashboard');
-
-    document.getElementById('userName').textContent = currentUser.username;
-    document.getElementById('userRoleBadge').textContent = currentUser.isSuperAdmin ? 'Super-Admin' : roleName(currentUser.role);
-    document.getElementById('userAvatar').textContent = (currentUser.username || 'U')[0].toUpperCase();
-    syncLiquidDashboardChrome();
-
-    // Testmodus-Hinweisbalken zeigen, falls gerade impersoniert wird.
     if (typeof renderImpersonationBanner === 'function') renderImpersonationBanner();
 
     // Session-/Logout-Wächter starten (Walter-Vorgabe 21.06.2026).
