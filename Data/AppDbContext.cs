@@ -646,6 +646,25 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(15);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
+            // Oeffnungszeiten der Filiale (Walter 31.08.2026) — «HH:mm» als Text,
+            // Ortszeit. ACHTUNG: In diesem Kontext hat JEDE Property ein
+            // explizites HasColumnName. Fehlt es, sucht EF eine Spalte in
+            // PascalCase, die es in Postgres nicht gibt — und dann scheitert
+            // JEDE Abfrage auf company_profile, inklusive Login.
+            entity.Property(e => e.OpeningMonFrom).HasColumnName("opening_mon_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningMonTo  ).HasColumnName("opening_mon_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningTueFrom).HasColumnName("opening_tue_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningTueTo  ).HasColumnName("opening_tue_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningWedFrom).HasColumnName("opening_wed_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningWedTo  ).HasColumnName("opening_wed_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningThuFrom).HasColumnName("opening_thu_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningThuTo  ).HasColumnName("opening_thu_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningFriFrom).HasColumnName("opening_fri_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningFriTo  ).HasColumnName("opening_fri_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningSatFrom).HasColumnName("opening_sat_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningSatTo  ).HasColumnName("opening_sat_to"  ).HasMaxLength(5);
+            entity.Property(e => e.OpeningSunFrom).HasColumnName("opening_sun_from").HasMaxLength(5);
+            entity.Property(e => e.OpeningSunTo  ).HasColumnName("opening_sun_to"  ).HasMaxLength(5);
         });
 
         // ── CompanyProfileBankAccount ───────────────────────────────────────
