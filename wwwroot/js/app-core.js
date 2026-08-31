@@ -610,6 +610,28 @@ function adminHubShowCat(cat) {
     else init();
 })();
 
+// Entwicklung: gleiche Mechanik wie der System-Hub (Walter 31.08.2026).
+// Eigene Klassen (.entw-hub-group / .entw-hub-cat), damit adminHubShowCat und
+// diese Funktion sich nicht gegenseitig die Gruppen ausblenden.
+function entwHubShowCat(cat) {
+    document.querySelectorAll('.entw-hub-group').forEach(g => { g.style.display = 'none'; });
+    const grp = document.getElementById('entwHubGrp-' + cat);
+    if (grp) grp.style.display = '';
+    document.querySelectorAll('#entwHubCats .entw-hub-cat').forEach(c =>
+        c.classList.toggle('active', c.dataset.cat === cat));
+    try { localStorage.hrEntwHubCat = cat; } catch (e) { /* egal */ }
+}
+(function () {
+    const init = () => {
+        let cat = 'swissdec';
+        try { cat = localStorage.hrEntwHubCat || 'swissdec'; } catch (e) { /* egal */ }
+        if (!document.getElementById('entwHubGrp-' + cat)) cat = 'swissdec';
+        entwHubShowCat(cat);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+})();
+
 // HR-Hub: gleiche Mechanik fuer die 4 HR-Kategorien (Walter 15.08.2026).
 function hrHubShowCat(cat) {
     document.querySelectorAll('.hr-hub-group').forEach(g => { g.style.display = 'none'; });

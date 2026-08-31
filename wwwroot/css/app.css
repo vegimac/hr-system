@@ -11239,7 +11239,8 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
    Aktive Kategorie = weisse Kachel mit Kohle-Rand (Kohle-Fuellung wuerde
    die dunklen Sketch-Motive verschlucken). */
 /* 30% groesser als normale ra-tiles (Walter 15.08.2026) */
-.ra-tile.admin-hub-cat {
+.ra-tile.admin-hub-cat,
+.ra-tile.entw-hub-cat {
     width: 146px;
     height: 177px;
     min-height: 177px;
@@ -11247,14 +11248,19 @@ body.dark-mode .fpl-fix  { background: #166534 !important; }
     font-size: 13px;
 }
 .ra-tile.admin-hub-cat img,
-.ra-tile.admin-hub-cat svg { width: 125px !important; height: 125px !important; flex: 0 0 125px !important; }
-.ra-tile.admin-hub-cat.active {
+.ra-tile.admin-hub-cat svg,
+.ra-tile.entw-hub-cat img,
+.ra-tile.entw-hub-cat svg { width: 125px !important; height: 125px !important; flex: 0 0 125px !important; }
+.ra-tile.admin-hub-cat.active,
+.ra-tile.entw-hub-cat.active {
     background: rgba(255,255,255,0.9);
     border: 2px solid #3f3f3f;
     box-shadow: 0 14px 36px rgba(60,55,48,0.28);
 }
-.ra-tile.admin-hub-cat.active > span { font-weight: 800; }
-body.theme-dark .ra-tile.admin-hub-cat.active {
+.ra-tile.admin-hub-cat.active > span,
+.ra-tile.entw-hub-cat.active > span { font-weight: 800; }
+body.theme-dark .ra-tile.admin-hub-cat.active,
+body.theme-dark .ra-tile.entw-hub-cat.active {
     background: rgba(255,255,255,0.16);
     border-color: #e5e2db;
 }
