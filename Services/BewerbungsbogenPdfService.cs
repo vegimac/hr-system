@@ -190,17 +190,23 @@ public class BewerbungsbogenPdfService
 
         page.Content().PaddingTop(6).Column(col =>
         {
-            Briefkopf(col, d);
+            // Nur Firma und Filiale — die Filial-Adresse steht schon auf dem
+            // Bewerbungsformular und wird hier nicht gebraucht (Walter 31.08.2026).
+            var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
+                ? d.CompanyName
+                : $"{d.CompanyName} · {d.RestaurantName}";
+            col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
             col.Item().PaddingTop(3)
                 .Text("Wird im Bewerbungsgespräch ausgefüllt — gehört zum Bewerbungsformular des Bewerbers.")
                 .Italic().FontSize(8f).FontColor(Body);
 
             col.Item().PaddingTop(11).Element(e =>
-                SectionHead(e, "Personalien", "Bitte in Blockschrift ausfüllen"));
+                SectionHead(e, "Personalien", null));
+            // Nur Name und Vorname — Adresse, E-Mail, Telefon, Geburtsdatum
+            // und Nationalität stehen bereits auf dem Bewerbungsformular
+            // (Walter 31.08.2026). Alles Weitere unten wird erst im Gespräch
+            // erhoben und ist dort NICHT enthalten.
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Adresse", "E-Mail"));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "PLZ, Ort", "Tel."));
-            col.Item().PaddingTop(9).Element(e => TwoFields(e, "Geburtsdatum", "Nationalität"));
             // Notfallkontakt direkt bei den Personalien (Walter 25.08.2026 v3).
             col.Item().PaddingTop(9).Row(r =>
             {
