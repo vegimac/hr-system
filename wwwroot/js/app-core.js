@@ -905,6 +905,16 @@ async function startApp() {
         || (Array.isArray(currentUser?.allowedAreas)
             && currentUser.allowedAreas.includes('entwicklung'));
     document.body.classList.toggle('entw-on', _entwErlaubt);
+    // Zusaetzlich hart am Element setzen (Walter 31.08.2026): Browser koennen
+    // eine ALTE index.html im Cache haben und dazu die NEUE app-core.js laden
+    // — die ?v=-Nummer im Script-Tag entscheidet ja nicht, welche Datei der
+    // Server liefert. In dieser alten HTML traegt die Sektion noch die Klasse
+    // «admin-only-section» und wird oben fuer jeden Admin sichtbar geschaltet.
+    // Diese Zeile blendet sie unabhaengig von der Klasse wieder aus.
+    document.querySelectorAll('.nav-item[data-page="entwicklung"]').forEach(it => {
+        const sec = it.closest('.nav-section') || it;
+        sec.style.display = _entwErlaubt ? '' : 'none';
+    });
     // Einzelne admin-only Karten in Systemeinstellungen (Walter 27.05.2026)
     document.querySelectorAll('.admin-only-card').forEach(el => {
         el.style.display = isAdmin ? '' : 'none';
