@@ -63,7 +63,7 @@ public class BewerbungsbogenPdfService
         return Document.Create(container =>
         {
             container.Page(page => ComposeGespraechSeite1(page, d));
-            container.Page(page => ComposeGespraechSeite2(page));
+            container.Page(page => ComposeGespraechSeite2(page, d));
         }).GeneratePdf();
     }
 
@@ -318,7 +318,7 @@ public class BewerbungsbogenPdfService
         });
     }
 
-    private static void ComposeGespraechSeite2(PageDescriptor page)
+    private static void ComposeGespraechSeite2(PageDescriptor page, BewerbungsbogenInput d)
     {
         ApplyPageChrome(page, withBanner: false);
 
