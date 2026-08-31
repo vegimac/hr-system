@@ -217,10 +217,21 @@ public class BewerbungsbogenPdfService
             var titel = string.IsNullOrWhiteSpace(d.RestaurantName)
                 ? d.CompanyName
                 : $"{d.CompanyName} · {d.RestaurantName}";
-            col.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
-            col.Item().PaddingTop(3)
-                .Text("Wird im Bewerbungsgespräch ausgefüllt — gehört zum Bewerbungsformular des Bewerbers.")
-                .Italic().FontSize(8f).FontColor(Body);
+            // Datum des Gesprächs ganz oben rechts (Walter 31.08.2026) — es
+            // wird als Erstes ausgefüllt, nicht erst unten bei den Notizen.
+            col.Item().Row(r =>
+            {
+                r.RelativeItem().Column(c =>
+                {
+                    c.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
+                    c.Item().PaddingTop(3)
+                        .Text("Wird im Bewerbungsgespräch ausgefüllt — gehört zum Bewerbungsformular des Bewerbers.")
+                        .Italic().FontSize(8f).FontColor(Body);
+                });
+                r.ConstantItem(16);
+                r.RelativeItem(0.7f).AlignBottom()
+                    .Element(f => LabeledLine(f, "Datum des Gesprächs"));
+            });
 
             col.Item().PaddingTop(11).Element(e =>
                 SectionHead(e, "Personalien", null));
@@ -387,7 +398,8 @@ public class BewerbungsbogenPdfService
             // damit er nie mit dem unterschriebenen Teil verwechselt wird.
             col.Item().PaddingTop(16).Element(e => SectionHead(e,
                 "Notizen zum Gespräch", "intern — nicht Teil der Bewerbung"));
-            col.Item().PaddingTop(10).Element(e => TwoFields(e, "Datum des Gesprächs", "Teilnehmende"));
+            // Datum steht oben auf Seite 1 (Walter 31.08.2026).
+            col.Item().PaddingTop(10).Element(e => LabeledLine(e, "Teilnehmende"));
             col.Item().PaddingTop(12).Element(e =>
                 TwoFields(e, "Eintritt vereinbart per", "Für eine Dauer von mindestens"));
             col.Item().PaddingTop(12).Text("Eindruck / Notizen").SemiBold().FontSize(8.5f).FontColor(Ink);
