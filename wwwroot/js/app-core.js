@@ -895,6 +895,16 @@ async function startApp() {
     document.querySelectorAll('.admin-only-section').forEach(el => {
         el.style.display = isAdmin ? 'block' : 'none';
     });
+    // Bereich «Entwicklung» (Walter 31.08.2026): Entscheidung bewusst HIER,
+    // ganz früh und ohne await davor. applyAreaVisibility() unten steht hinter
+    // loadAllBranches()/loadDashboard()/buildContractPage() — wirft eine davon,
+    // wird sie nie erreicht, und der Bereich bliebe sichtbar. Die Klasse am
+    // <body> schaltet die CSS-Regel .entw-only-section frei; ohne Klasse
+    // bleibt der Eintrag verborgen (Fehlerfall = unsichtbar).
+    const _entwErlaubt = currentUser?.isSuperAdmin === true
+        || (Array.isArray(currentUser?.allowedAreas)
+            && currentUser.allowedAreas.includes('entwicklung'));
+    document.body.classList.toggle('entw-on', _entwErlaubt);
     // Einzelne admin-only Karten in Systemeinstellungen (Walter 27.05.2026)
     document.querySelectorAll('.admin-only-card').forEach(el => {
         el.style.display = isAdmin ? '' : 'none';

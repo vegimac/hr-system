@@ -15,6 +15,10 @@
 
 let mwAllRules = [];
 let mwShowAll  = false;
+// Stichtag der Toolbar «Anzeigen am» (#mwViewDate). '' = heutiges Verhalten
+// (max. 2 Generationen: aktuell + nächste). Gesetzt = reine Nur-Lese-Ansicht
+// der an diesem Datum gültigen Sätze (auch abgelaufene Jahrgänge).
+let mwViewDate = '';
 // Frühestes erlaubtes Gültig-ab für eine neue Folge-Version (global über alle
 // Filialen): 1. Tag des Monats nach der letzten abgeschlossenen Periode. null = frei.
 let mwFirstAllowed = null;
@@ -88,6 +92,13 @@ function mwValidAt(r, dateIso) {
     const vt = mwIso(r.validTo);
     return vf <= dateIso && (vt == null || vt >= dateIso);
 }
+// Regelmenge, aus der die Matrix gerendert wird: ohne Stichtag alle Regeln
+// (mwAggregate wählt daraus used/unused/newest), mit Stichtag nur die an
+// diesem Tag gültigen Sätze.
+function mwRuleSet() {
+    return mwViewDate ? mwAllRules.filter(r => mwValidAt(r, mwViewDate)) : mwAllRules;
+}
+
 // Geplante Folge-Version derselben Zelle, deren Gültig-ab GENAU auf abDatum fällt.
 function mwFindFuture(cur, abDatum) {
     if (!abDatum) return null;
@@ -170,6 +181,10 @@ function mwRender() {
     if (!cont) return;
 
     mwShowAll = document.getElementById('mwShowAll')?.checked ?? false;
+    // «Alle Versionen» hat Vorrang vor dem Stichtag — Datum dann deaktiviert.
+    const vdEl = document.getElementById('mwViewDate');
+    mwViewDate = mwShowAll ? '' : (vdEl?.value || '');
+    if (vdEl) { vdEl.disabled = mwShowAll; vdEl.style.opacity = mwShowAll ? '0.45' : ''; }
 
     // Zweispaltig (in Verwendung + neu), wenn es eine bereits verwendete Generation
     // gibt UND eine neuere noch-nicht-verwendete (= geplant/editierbar) darüber.
@@ -177,8 +192,10 @@ function mwRender() {
     const unusedDates = mwAllRules.filter(r => !r.inLohnVerwendet).map(mwVf).sort();
     const usedMax   = usedDates.length   ? usedDates[usedDates.length - 1]     : null;
     const unusedMax = unusedDates.length ? unusedDates[unusedDates.length - 1] : null;
-    const split   = !!(usedMax && unusedMax && unusedMax > usedMax);
-    const abDatum = split ? unusedMax : '';
+    let split   = !!(usedMax && unusedMax && unusedMax > usedMax);
+    let abDatum = split ? unusedMax : '';
+    // Stichtag-Ansicht: immer einspaltig (genau die am Datum gültigen Sätze).
+    if (mwViewDate) { split = false; abDatum = ''; }
 
     // Date-Picker-Floor (frühestes Datum nach der letzten abgeschlossenen Periode).
     const cdEl = document.getElementById('mwCreateDate');
@@ -197,33 +214,40 @@ function mwRender() {
             : 'Legt für das gewählte Datum eine vollständige Folge-Version an (Kopie der aktuellen Sätze, danach pro Zelle anpassbar).';
     }
 
+    // «Alle Versionen (inkl. abgelaufen)»: die komplette Historie, ungefiltert.
     if (mwShowAll) {
-        const rel = mwRelevantVersions(mwAllRules);
-        if (infoEl) infoEl.textContent = `${rel.length} Versionen (aktuell + neu)`;
-        cont.innerHTML = rel.length
-            ? mwRenderHistory(rel)
+        if (infoEl) infoEl.textContent = `${mwAllRules.length} Versionen (alle, inkl. abgelaufen)`;
+        cont.innerHTML = mwAllRules.length
+            ? mwRenderHistory(mwAllRules, 'komplette Historie inkl. abgelaufener Versionen')
             : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
         return;
     }
 
-    if (!mwAllRules.length) {
-        if (infoEl) infoEl.textContent = '0 Sätze';
-        cont.innerHTML = '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
+    const shown = mwRuleSet();
+    if (!shown.length) {
+        if (infoEl) infoEl.textContent = mwViewDate ? `keine Sätze am ${mwFmtDate(mwViewDate)}` : '0 Sätze';
+        cont.innerHTML = mwViewDate
+            ? `<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Am ${mwFmtDate(mwViewDate)} sind keine Sätze gültig.</div>`
+            : '<div class="mw-muted" style="padding:30px;text-align:center;font-style:italic">Keine Sätze erfasst.</div>';
         return;
     }
-    if (infoEl) infoEl.textContent = (split ? 'aktuell + neu' : 'aktuelle Sätze') + (abDatum ? ` · ab ${mwFmtDate(abDatum)}` : '');
+    if (infoEl) infoEl.textContent = mwViewDate
+        ? `Sätze gültig am ${mwFmtDate(mwViewDate)}`
+        : (split ? 'aktuell + neu' : 'aktuelle Sätze') + (abDatum ? ` · ab ${mwFmtDate(abDatum)}` : '');
 
-    const youthRules = mwAllRules.filter(r => r.ageMax != null);
+    const youthRules = shown.filter(r => r.ageMax != null);
 
     let html = '';
-    if (split) html += mwRenderPlanHint(abDatum);
+    if (mwViewDate)   html += mwRenderViewHint();
+    else if (split)   html += mwRenderPlanHint(abDatum);
     html += mwRenderMatrix('Stundenlöhne', 'CHF / Std.',        'hourly',  split, abDatum);
     html += mwRenderMatrix('Monatslöhne',  'CHF / Mt. · 100 %', 'monthly', split, abDatum);
     html += mwRenderYouth(youthRules, split, abDatum);
     cont.innerHTML = html;
 }
 
-// Pro Satz die relevanten max-2 Versionen — basierend auf NUTZUNG (nicht Datum):
+// (Aktuell ungenutzt — «Alle Versionen» zeigt seit 31.08.2026 die komplette
+// Historie.) Pro Satz die relevanten max-2 Versionen — basierend auf NUTZUNG (nicht Datum):
 // die neueste verwendete (in Verwendung) + die neuere noch nicht verwendete (neu).
 function mwRelevantVersions(rules) {
     const agg = mwAggregate(rules, r => [r.salaryType, r.jobGroupCode, r.employmentModelCode, r.educationLevelId, r.ageMax ?? ''].join('|'));
@@ -233,6 +257,12 @@ function mwRelevantVersions(rules) {
         if (c.unused && (!c.used || mwVf(c.unused) > mwVf(c.used))) out.push(c.unused);
     });
     return out;
+}
+
+// Erklär-Banner der Stichtag-Ansicht («Anzeigen am»): reine Nur-Lese-Ansicht.
+function mwRenderViewHint() {
+    const body = `Sätze gültig am <b>${mwFmtDate(mwViewDate)}</b> — historische Ansicht, Beträge sind hier nicht editierbar. Datumsfeld leeren für die normale Ansicht (aktuell + nächste geplante Version).`;
+    return `<div class="card mw-section" style="overflow:visible"><div class="mw-planhint">${body}</div></div>`;
 }
 
 // Erklär-Banner über der Matrix, wenn eine neue (noch nicht verwendete) Version
@@ -247,6 +277,9 @@ function mwRenderPlanHint(abDatum) {
 // sind nicht direkt editierbar (Klick erklärt warum). Nicht-gesperrte (z.B. neue,
 // noch ungenutzte) Sätze bleiben editierbar.
 function mwCurCell(cur) {
+    // Stichtag-Ansicht = reine Historien-Ansicht → nie editierbar.
+    if (mwViewDate)
+        return `<td class="mw-amount mw-cur-ro" style="cursor:default" title="Stichtag-Ansicht (gültig am ${mwFmtDate(mwViewDate)}) — zum Bearbeiten das Datumsfeld leeren"><span>${mwAmt(cur.amount)}</span></td>`;
     if (cur.inLohnVerwendet)
         return `<td class="mw-amount mw-cur-ro" onclick="mwLockedInfo()" title="In einem Lohnlauf verwendet — nur über „Folge-Version anlegen" änderbar"><span>${mwAmt(cur.amount)}</span></td>`;
     return `<td class="mw-amount" onclick="mwEdit(${cur.id})" title="Betrag bearbeiten"><span>${mwAmt(cur.amount)}</span></td>`;
@@ -268,7 +301,7 @@ function mwFutCell(edt, ref) {
 }
 
 function mwRenderMatrix(title, unit, salaryType, split, abDatum) {
-    const all = mwAllRules.filter(r => r.salaryType === salaryType && r.ageMax == null);
+    const all = mwRuleSet().filter(r => r.salaryType === salaryType && r.ageMax == null);
     const agg = mwAggregate(all, r => r.jobGroupCode + '|' + r.employmentModelCode + '|' + r.educationLevelId);
 
     // Zeilen = vorhandene (Funktion, Modell)-Kombis.
@@ -372,7 +405,7 @@ function mwRenderYouth(rules, split, abDatum) {
     </div>`;
 }
 
-function mwRenderHistory(rules) {
+function mwRenderHistory(rules, subtitle) {
     // Sortierung (Walter-Vorgabe 23.05.2026): Modell → Ausbildung → Funktion →
     // Alter → gültig ab. „Gültig ab" als innerster Schlüssel hält die zwei
     // Versionen (aktuell + geplant) desselben Satzes direkt untereinander.
@@ -397,7 +430,7 @@ function mwRenderHistory(rules) {
         </tr>`).join('');
 
     return `<div class="card mw-section">
-        <div class="mw-section-head">Versionen pro Satz<span class="mw-unit">aktuell + nächste geplante (max. 2)</span></div>
+        <div class="mw-section-head">Versionen pro Satz<span class="mw-unit">${subtitle || 'aktuell + nächste geplante (max. 2)'}</span></div>
         <table class="mw-table">
             <thead><tr>
                 <th class="mw-th-row">Funktion</th>
@@ -543,10 +576,10 @@ async function mwDoCopy() {
         if (!res.ok) { showToast(data.error || ('Kopieren fehlgeschlagen (HTTP ' + res.status + ')'), 'error'); return; }
         mwCloseOverlay();
         showToast(`${data.copied} Sätze ab ${mwFmtDate(d)} erstellt`, 'success');
-        const st = document.getElementById('mwStichtag');
         const sa = document.getElementById('mwShowAll');
+        const vd = document.getElementById('mwViewDate');
         if (sa) sa.checked = false;
-        if (st) { st.disabled = false; st.value = d; }
+        if (vd) { vd.disabled = false; vd.style.opacity = ''; vd.value = ''; }
         mwLoad();
     } catch (e) { showToast('Fehler: ' + e.message, 'error'); }
 }
