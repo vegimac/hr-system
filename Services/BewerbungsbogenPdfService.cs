@@ -15,7 +15,10 @@ public record BewerbungsbogenInput(
     string? Strasse,
     string? PlzOrt,
     string? Telefon,
-    string? Email = null);
+    string? Email = null,
+    // Fertig formatierte Öffnungszeiten der Filiale, Ortszeit
+    // (Walter 31.08.2026). Leer = nicht erfasst → der Kasten entfällt.
+    string? Oeffnungszeiten = null);
 
 public class BewerbungsbogenPdfService
 {
@@ -151,12 +154,14 @@ public class BewerbungsbogenPdfService
                 SectionHead(e, "Wann kannst du arbeiten?", null));
             // Öffnungszeiten markant (Walter 31.08.2026) — der Bewerber muss
             // auf einen Blick sehen, in welchem Rahmen er eintragen kann.
-            col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Text(t =>
+            if (!string.IsNullOrWhiteSpace(d.Oeffnungszeiten))
             {
-                t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(9.5f).FontColor(Ink);
-                t.Span("So–Do 08.00–01.00 Uhr  ·  Fr/Sa 08.00–03.00 Uhr")
-                    .Bold().FontSize(9.5f).FontColor(Ink);
-            });
+                col.Item().PaddingTop(5).Background(Soft).PaddingVertical(5).PaddingHorizontal(9).Text(t =>
+                {
+                    t.Span("Öffnungszeiten Filiale:  ").Bold().FontSize(9.5f).FontColor(Ink);
+                    t.Span(d.Oeffnungszeiten).Bold().FontSize(9.5f).FontColor(Ink);
+                });
+            }
             col.Item().PaddingTop(5)
                 .Text("Bitte die normalen verfügbaren Arbeitszeiten eintragen.")
                 .Italic().FontSize(8f).FontColor(Body);

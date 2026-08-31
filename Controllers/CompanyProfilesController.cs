@@ -280,6 +280,75 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    public record OeffnungszeitenDto(
+        string? MonFrom, string? MonTo,
+        string? TueFrom, string? TueTo,
+        string? WedFrom, string? WedTo,
+        string? ThuFrom, string? ThuTo,
+        string? FriFrom, string? FriTo,
+        string? SatFrom, string? SatTo,
+        string? SunFrom, string? SunTo);
+
+    /// <summary>
+    /// Oeffnungszeiten der Filiale setzen (Walter 31.08.2026).
+    /// Eigener Endpunkt — PATCH /stammdaten ist ein Voll-Ersatz und wuerde
+    /// die uebrigen Felder nullen.
+    ///
+    /// Format «HH:mm», LOKALZEIT (Europe/Zurich). Ist «bis» kleiner als
+    /// «von», gilt die Zeit bis zum FOLGETAG: «Fr 08:00–02:00» heisst
+    /// Freitag 08:00 bis Samstag 02:00. Es wird bewusst NICHT nach UTC
+    /// umgerechnet und kein Datum angehaengt.
+    /// Leer = nicht erfasst (nicht «geschlossen»).
+    /// </summary>
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/oeffnungszeiten")]
+    public async Task<IActionResult> UpdateOeffnungszeiten(int id, [FromBody] OeffnungszeitenDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        if (dto is null) return BadRequest(new { message = "Keine Daten erhalten." });
+
+        // «HH:mm» pruefen; leer bleibt leer. 24:00 ist erlaubt (Mitternacht
+        // als Schliesszeit, im Gastgewerbe die uebliche Schreibweise).
+        static string? Norm(string? v, string feld, List<string> fehler)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return null;
+            var t = v.Trim();
+            if (t.Length == 4 && t[1] == ':') t = "0" + t;          // 8:00 → 08:00
+            if (t.Length != 5 || t[2] != ':'
+                || !int.TryParse(t[..2], out var h) || !int.TryParse(t[3..], out var m)
+                || h < 0 || h > 24 || m < 0 || m > 59 || (h == 24 && m != 0))
+            {
+                fehler.Add(feld);
+                return null;
+            }
+            return t;
+        }
+
+        var fehler = new List<string>();
+        var monFrom = Norm(dto.MonFrom, "Mo von", fehler); var monTo = Norm(dto.MonTo, "Mo bis", fehler);
+        var tueFrom = Norm(dto.TueFrom, "Di von", fehler); var tueTo = Norm(dto.TueTo, "Di bis", fehler);
+        var wedFrom = Norm(dto.WedFrom, "Mi von", fehler); var wedTo = Norm(dto.WedTo, "Mi bis", fehler);
+        var thuFrom = Norm(dto.ThuFrom, "Do von", fehler); var thuTo = Norm(dto.ThuTo, "Do bis", fehler);
+        var friFrom = Norm(dto.FriFrom, "Fr von", fehler); var friTo = Norm(dto.FriTo, "Fr bis", fehler);
+        var satFrom = Norm(dto.SatFrom, "Sa von", fehler); var satTo = Norm(dto.SatTo, "Sa bis", fehler);
+        var sunFrom = Norm(dto.SunFrom, "So von", fehler); var sunTo = Norm(dto.SunTo, "So bis", fehler);
+
+        if (fehler.Count > 0)
+            return BadRequest(new { message = "Ungültige Uhrzeit bei: " + string.Join(", ", fehler) + ". Erwartet «HH:mm», z.B. 08:00." });
+
+        profile.OpeningMonFrom = monFrom; profile.OpeningMonTo = monTo;
+        profile.OpeningTueFrom = tueFrom; profile.OpeningTueTo = tueTo;
+        profile.OpeningWedFrom = wedFrom; profile.OpeningWedTo = wedTo;
+        profile.OpeningThuFrom = thuFrom; profile.OpeningThuTo = thuTo;
+        profile.OpeningFriFrom = friFrom; profile.OpeningFriTo = friTo;
+        profile.OpeningSatFrom = satFrom; profile.OpeningSatTo = satTo;
+        profile.OpeningSunFrom = sunFrom; profile.OpeningSunTo = sunTo;
+
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
     /// <summary>
     /// Nur die Hauptsitz-Zuordnung setzen (Walter 29.08.2026) — eigener
     /// Mini-Endpoint, weil PATCH /stammdaten ein Voll-Ersatz ist und bei

@@ -311,6 +311,18 @@ function renderFilialenDetail(b) {
                 ${fField('Probezeit', probationLabel(b.probationMonths))}
             </div>
 
+            <!-- ── Öffnungszeiten der Filiale (Walter 31.08.2026) ──
+                 Lokalzeit. «Bis» kleiner als «Von» = bis zum Folgetag
+                 (Fr 08:00–02:00 heisst bis Samstag 02:00 früh). -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+                <div>
+                    Öffnungszeiten
+                    <span style="font-size:11px;color:#94a3b8;font-weight:400;margin-left:6px">(Ortszeit — reicht die Zeit über Mitternacht, einfach die Zeit am Folgetag eintragen, z.B. Fr 08:00 – 02:00)</span>
+                </div>
+                <button class="btn btn-primary" style="font-size:12px;padding:4px 14px" onclick="openOeffnungszeitenModal(${b.id})">✎ Bearbeiten</button>
+            </div>
+            <div id="oeffnungszeitenView-${b.id}">${renderOeffnungszeiten(b)}</div>
+
             <!-- ── Bankverbindungen der Filiale (Auftraggeber-Konto fürs DTA) ── -->
             <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
                 <div>
@@ -2580,5 +2592,122 @@ async function stmHauptsitzInlineSave(branchId) {
         if (hint) { hint.style.color = '#16a34a'; hint.textContent = '✓ gespeichert'; setTimeout(() => { hint.textContent = ''; }, 2500); }
     } catch {
         if (hint) { hint.style.color = '#dc2626'; hint.textContent = 'Verbindungsfehler.'; }
+    }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// ÖFFNUNGSZEITEN DER FILIALE (Walter 31.08.2026)
+// ══════════════════════════════════════════════════════════════════════
+// Uhrzeiten sind reine Ortszeit-Angaben («HH:mm»), ohne Datum und ohne
+// Zeitzonen-Umrechnung. Ist «bis» kleiner als «von», gilt der Folgetag:
+// «Fr 08:00 – 02:00» heisst Freitag 08:00 bis Samstag 02:00 früh. Deshalb
+// NIE einfach bis − von rechnen, sondern ozIstFolgetag() benutzen.
+const OZ_TAGE = [
+    { key: 'Mon', label: 'Montag',     kurz: 'Mo' },
+    { key: 'Tue', label: 'Dienstag',   kurz: 'Di' },
+    { key: 'Wed', label: 'Mittwoch',   kurz: 'Mi' },
+    { key: 'Thu', label: 'Donnerstag', kurz: 'Do' },
+    { key: 'Fri', label: 'Freitag',    kurz: 'Fr' },
+    { key: 'Sat', label: 'Samstag',    kurz: 'Sa' },
+    { key: 'Sun', label: 'Sonntag',    kurz: 'So' },
+];
+
+function ozIstFolgetag(von, bis) {
+    if (!von || !bis) return false;
+    return String(bis).trim() < String(von).trim();
+}
+
+function renderOeffnungszeiten(b) {
+    const zeilen = OZ_TAGE.map(t => {
+        const von = b[`opening${t.key}From`] || '';
+        const bis = b[`opening${t.key}To`]   || '';
+        let wert;
+        if (!von && !bis) {
+            wert = '<span style="color:#94a3b8">– nicht erfasst –</span>';
+        } else {
+            wert = `${von || '?'} – ${bis || '?'}`;
+            if (ozIstFolgetag(von, bis))
+                wert += ' <span style="font-size:11px;color:#8b8b8b">(Folgetag)</span>';
+        }
+        return `<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+                    <span style="width:92px;font-weight:600;font-size:13px">${t.label}</span>
+                    <span style="font-size:13px;font-variant-numeric:tabular-nums">${wert}</span>
+                </div>`;
+    }).join('');
+    return `<div style="background:rgba(255,255,255,0.5);border:1px solid rgba(60,55,48,0.16);border-radius:12px;padding:8px 14px">${zeilen}</div>`;
+}
+
+let _ozBranchId = null;
+
+async function openOeffnungszeitenModal(id) {
+    _ozBranchId = id;
+    let b = {};
+    try {
+        const r = await fetch(`/api/companyprofiles/${id}`, { headers: ah() });
+        if (r.ok) b = await r.json();
+    } catch { }
+
+    document.getElementById('oeffnungszeitenModal')?.remove();
+    const rows = OZ_TAGE.map(t => `
+        <div style="display:grid;grid-template-columns:100px 1fr 14px 1fr;gap:8px;align-items:center">
+            <span style="font-size:13px;font-weight:600;color:#374151">${t.label}</span>
+            <input id="oz${t.key}From" class="form-control" type="time" step="300" value="${b[`opening${t.key}From`] || ''}">
+            <span style="text-align:center;color:#94a3b8">–</span>
+            <input id="oz${t.key}To" class="form-control" type="time" step="300" value="${b[`opening${t.key}To`] || ''}">
+        </div>`).join('');
+
+    const html = `
+    <div id="oeffnungszeitenModal" style="display:flex;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:14px;width:520px;max-height:92vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.18)">
+            <div style="padding:20px 24px 0;display:flex;align-items:center;justify-content:space-between">
+                <span style="font-weight:700;font-size:16px;color:#1e293b">Öffnungszeiten der Filiale</span>
+                <button onclick="closeOeffnungszeitenModal()" style="background:none;border:none;cursor:pointer;font-size:18px;color:#94a3b8;padding:4px 8px;border-radius:6px">✕</button>
+            </div>
+            <div style="padding:16px 24px 20px;display:flex;flex-direction:column;gap:10px">
+                <div style="font-size:12px;color:#64748b;line-height:1.5;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;padding:10px 12px">
+                    Alle Zeiten sind <b>Ortszeit</b>. Geht die Nacht durch, trägst du die Zeit vom Folgetag ein:
+                    <b>Fr 08:00 – 02:00</b> heisst Freitag früh bis Samstag 02:00. Leer lassen = nicht erfasst.
+                </div>
+                ${rows}
+                <div id="ozError" style="display:none;font-size:12px;color:#dc2626"></div>
+            </div>
+            <div style="padding:0 24px 20px;display:flex;justify-content:flex-end;gap:8px">
+                <button class="btn btn-outline" style="font-size:13px;padding:6px 16px" onclick="closeOeffnungszeitenModal()">Abbrechen</button>
+                <button class="btn btn-primary" style="font-size:13px;padding:6px 16px" onclick="saveOeffnungszeiten()">💾 Speichern</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeOeffnungszeitenModal() {
+    document.getElementById('oeffnungszeitenModal')?.remove();
+    _ozBranchId = null;
+}
+
+async function saveOeffnungszeiten() {
+    if (!_ozBranchId) return;
+    const body = {};
+    OZ_TAGE.forEach(t => {
+        body[`${t.key.toLowerCase()}From`] = document.getElementById(`oz${t.key}From`)?.value || null;
+        body[`${t.key.toLowerCase()}To`]   = document.getElementById(`oz${t.key}To`)?.value   || null;
+    });
+    const err = document.getElementById('ozError');
+    try {
+        const r = await fetch(`/api/companyprofiles/${_ozBranchId}/oeffnungszeiten`, {
+            method: 'PATCH', headers: ah(), body: JSON.stringify(body)
+        });
+        if (!r.ok) {
+            const d = await r.json().catch(() => ({}));
+            if (err) { err.textContent = d.message || `Speichern fehlgeschlagen (HTTP ${r.status}).`; err.style.display = 'block'; }
+            return;
+        }
+        const b = await r.json();
+        const view = document.getElementById(`oeffnungszeitenView-${_ozBranchId}`);
+        if (view) view.innerHTML = renderOeffnungszeiten(b);
+        closeOeffnungszeitenModal();
+    } catch (e) {
+        if (err) { err.textContent = 'Verbindungsfehler: ' + (e?.message || e); err.style.display = 'block'; }
     }
 }

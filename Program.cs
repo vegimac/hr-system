@@ -778,6 +778,28 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS night_end_time   VARCHAR(5) DEFAULT '07:00';
     ");
 
+    // Oeffnungszeiten pro Filiale (Walter 31.08.2026) — «HH:mm» als Text,
+    // immer Lokalzeit. Ist «to» kleiner als «from», gilt der Folgetag
+    // (Fr 08:00–02:00 = bis Samstag 02:00). Kein Default: leer heisst
+    // «nicht erfasst», nicht «geschlossen».
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE company_profile
+        ADD COLUMN IF NOT EXISTS opening_mon_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_mon_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_tue_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_tue_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_wed_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_wed_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_thu_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_thu_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_fri_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_fri_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_sat_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_sat_to   VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_sun_from VARCHAR(5),
+        ADD COLUMN IF NOT EXISTS opening_sun_to   VARCHAR(5);
+    ");
+
     // Neue Job-Gruppen: 2. Assistent, 1. Assistent, Restaurant Manager
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO job_group (code, sort_order, is_active)

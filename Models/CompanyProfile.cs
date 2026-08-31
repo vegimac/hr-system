@@ -294,6 +294,45 @@ public class CompanyProfile
     /// </summary>
     public decimal AkontoProzentHourly { get; set; } = 100m;
 
+    // ══════════════════════════════════════════════════════════════════
+    // Oeffnungszeiten der Filiale (Walter 31.08.2026)
+    // ══════════════════════════════════════════════════════════════════
+    // Format «HH:mm», immer LOKALZEIT (Europe/Zurich) — bewusst als Text,
+    // nicht als DateTime: es sind Uhrzeiten ohne Datum, jede Umrechnung
+    // nach UTC waere hier falsch (Sommer-/Winterzeit).
+    //
+    // WICHTIG: Ist «Bis» kleiner als «Von», gilt die Zeit bis zum FOLGETAG.
+    // «Fr 08:00–02:00» heisst also: Freitag 08:00 bis Samstag 02:00 frueh.
+    // Zum Rechnen dafuer OeffnungBisIstFolgetag() benutzen, nie einfach
+    // Bis − Von.
+    //
+    // Genutzt vom Bewerbungsformular (Rahmen fuer die Verfuegbarkeit) und
+    // fuer weitere Auswertungen vorgesehen.
+    public string? OpeningMonFrom { get; set; }
+    public string? OpeningMonTo   { get; set; }
+    public string? OpeningTueFrom { get; set; }
+    public string? OpeningTueTo   { get; set; }
+    public string? OpeningWedFrom { get; set; }
+    public string? OpeningWedTo   { get; set; }
+    public string? OpeningThuFrom { get; set; }
+    public string? OpeningThuTo   { get; set; }
+    public string? OpeningFriFrom { get; set; }
+    public string? OpeningFriTo   { get; set; }
+    public string? OpeningSatFrom { get; set; }
+    public string? OpeningSatTo   { get; set; }
+    public string? OpeningSunFrom { get; set; }
+    public string? OpeningSunTo   { get; set; }
+
+    /// <summary>
+    /// True, wenn die Schliesszeit am Folgetag liegt (z.B. 08:00–02:00).
+    /// Reine Textpruefung auf «HH:mm» — keine Zeitzone, kein Datum.
+    /// </summary>
+    public static bool OeffnungBisIstFolgetag(string? von, string? bis)
+    {
+        if (string.IsNullOrWhiteSpace(von) || string.IsNullOrWhiteSpace(bis)) return false;
+        return string.CompareOrdinal(bis.Trim(), von.Trim()) < 0;
+    }
+
     [JsonIgnore]
     [NotMapped]
     public string FullDisplayName =>

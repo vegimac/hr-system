@@ -61,7 +61,8 @@ public class BewerbungsbogenController : ControllerBase
                 Strasse: string.IsNullOrWhiteSpace(street) ? null : street,
                 PlzOrt: string.IsNullOrWhiteSpace(plzOrt) ? null : plzOrt,
                 Telefon: string.IsNullOrWhiteSpace(cp.Phone) ? null : cp.Phone.Trim(),
-                Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim());
+                Email: string.IsNullOrWhiteSpace(cp.Email) ? null : cp.Email.Trim(),
+                Oeffnungszeiten: OeffnungszeitenText(cp));
             bytes = istAlt       ? _pdf.GenerateAlt(input)
                   : istGespraech ? _pdf.GenerateGespraech(input)
                                  : _pdf.GenerateBewerbung(input);
@@ -82,5 +83,48 @@ public class BewerbungsbogenController : ControllerBase
                  : istGespraech ? "Bewerbungsgespraech"
                                 : "Bewerbung";
         return File(bytes, "application/pdf", $"{name}_{safeCity}.pdf");
+    }
+
+    /// <summary>
+    /// Öffnungszeiten der Filiale als eine Zeile, z.B.
+    /// «Mo–Do 08:00–01:00  ·  Fr/Sa 08:00–03:00  ·  So 08:00–24:00».
+    /// Reine Ortszeit-Texte aus dem Filialprofil; aufeinanderfolgende Tage
+    /// mit gleichen Zeiten werden zusammengefasst. Nichts erfasst → null,
+    /// dann lässt das PDF den Kasten weg (lieber keine Angabe als eine
+    /// falsche). Walter 31.08.2026.
+    /// </summary>
+    private static string? OeffnungszeitenText(HrSystem.Models.CompanyProfile cp)
+    {
+        var tage = new (string Kurz, string? Von, string? Bis)[]
+        {
+            ("Mo", cp.OpeningMonFrom, cp.OpeningMonTo),
+            ("Di", cp.OpeningTueFrom, cp.OpeningTueTo),
+            ("Mi", cp.OpeningWedFrom, cp.OpeningWedTo),
+            ("Do", cp.OpeningThuFrom, cp.OpeningThuTo),
+            ("Fr", cp.OpeningFriFrom, cp.OpeningFriTo),
+            ("Sa", cp.OpeningSatFrom, cp.OpeningSatTo),
+            ("So", cp.OpeningSunFrom, cp.OpeningSunTo),
+        };
+        if (tage.All(t => string.IsNullOrWhiteSpace(t.Von) && string.IsNullOrWhiteSpace(t.Bis)))
+            return null;
+
+        var teile = new List<string>();
+        var i = 0;
+        while (i < tage.Length)
+        {
+            var t = tage[i];
+            if (string.IsNullOrWhiteSpace(t.Von) && string.IsNullOrWhiteSpace(t.Bis)) { i++; continue; }
+
+            var j = i;
+            while (j + 1 < tage.Length
+                   && tage[j + 1].Von == t.Von && tage[j + 1].Bis == t.Bis) j++;
+
+            var label = i == j ? tage[i].Kurz
+                      : j == i + 1 ? $"{tage[i].Kurz}/{tage[j].Kurz}"
+                      : $"{tage[i].Kurz}–{tage[j].Kurz}";
+            teile.Add($"{label} {t.Von ?? "?"}–{t.Bis ?? "?"}");
+            i = j + 1;
+        }
+        return teile.Count == 0 ? null : string.Join("  ·  ", teile);
     }
 }
