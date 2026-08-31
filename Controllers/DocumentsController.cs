@@ -599,6 +599,80 @@ public class DocumentsController : ControllerBase
     [HttpGet("preview/{id:int}")]
     public async Task<IActionResult> Preview(int id) => await ServeFile(id, asAttachment: false);
 
+    // ──────────────────────────────────────────────────────────────────
+    // Vorschau in einem NEUEN TAB über eine echte Server-URL
+    // (Walter-Vorgabe 30.08.2026, Fall Treuhänder).
+    //
+    // Bisher holte das Frontend die Datei per fetch und zeigte sie als
+    // Blob-URL. Das hat zwei Nachteile: der Tab zeigt als Dateiname die
+    // interne UUID, und beim Speichern lädt der Browser die Blob-URL ein
+    // zweites Mal — ist sie inzwischen freigegeben, scheitert der Download
+    // mit «Netzwerkproblem». Über diesen kurzlebigen Link kommt die Datei
+    // direkt vom Server: richtiger Name aus Content-Disposition, beliebig
+    // oft speicherbar, unabhängig davon, was die App-Seite tut.
+    // ──────────────────────────────────────────────────────────────────
+
+    /// <summary>Gültigkeit eines Vorschau-Links. Kurz genug, dass ein
+    /// versehentlich weitergegebener Link wertlos wird, lang genug zum
+    /// Lesen und Speichern eines Dokuments.</summary>
+    private const int ViewTokenMinuten = 60;
+
+    /// <summary>
+    /// POST /api/documents/{id}/view-token?asPdf=true
+    /// Erzeugt den Link für «in neuem Tab öffnen». Angemeldet und geprüft
+    /// wird HIER — der Link selbst trägt danach die Berechtigung.
+    /// </summary>
+    [HttpPost("{id:int}/view-token")]
+    public async Task<IActionResult> CreateViewToken(int id, [FromQuery] bool asPdf = false)
+    {
+        var doc = await _db.EmployeeDokumente.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id);
+        if (doc is null) return NotFound();
+
+        var (token, hash) = ShareTokenUtil.NewToken();
+        int? uid = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var u) ? u : null;
+
+        _db.DocumentViewTokens.Add(new DocumentViewToken
+        {
+            DokumentId = id,
+            TokenHash  = hash,
+            AsPdf      = asPdf,
+            ExpiresAt  = DateTime.SpecifyKind(DateTime.Now.AddMinutes(ViewTokenMinuten), DateTimeKind.Unspecified),
+            CreatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified),
+            CreatedBy  = uid
+        });
+        await _db.SaveChangesAsync();
+
+        return Ok(new { url = $"/dokument/{token}", gueltigBisMinuten = ViewTokenMinuten });
+    }
+
+    /// <summary>
+    /// GET /dokument/{token} — liefert die Datei inline aus. Ohne Anmeldung,
+    /// weil ein normaler Browser-Tab keinen Bearer-Header mitschickt; die
+    /// Berechtigung steckt im kurzlebigen, zufälligen Token.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpGet("/dokument/{token}")]
+    public async Task<IActionResult> ViewByToken(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return NotFound();
+
+        var hash = ShareTokenUtil.HashToken(token);
+        var eintrag = await _db.DocumentViewTokens.FirstOrDefaultAsync(t => t.TokenHash == hash);
+        if (eintrag is null) return NotFound();
+        if (eintrag.ExpiresAt < DateTime.Now)
+            return StatusCode(410, "Dieser Vorschau-Link ist abgelaufen. Bitte das Dokument in OneCrew neu öffnen.");
+
+        if (eintrag.OpenedAt is null)
+        {
+            eintrag.OpenedAt = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+            try { await _db.SaveChangesAsync(); } catch { /* nur Protokoll */ }
+        }
+
+        return eintrag.AsPdf
+            ? await PreviewPdf(eintrag.DokumentId)
+            : await ServeFile(eintrag.DokumentId, asAttachment: false);
+    }
+
     /// <summary>
     /// Vorschau als PDF (Walter-Vorgabe 24.05.2026): PDFs werden direkt inline
     /// ausgeliefert, Word/Office-Dokumente (.doc/.docx/.xls/.xlsx/.ppt/.pptx/

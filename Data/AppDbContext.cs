@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<MomentText> MomentTexts => Set<MomentText>();
     public DbSet<QstErklaerung> QstErklaerungen => Set<QstErklaerung>();
     public DbSet<TodoAnleitung> TodoAnleitungen => Set<TodoAnleitung>();
+    public DbSet<DocumentViewToken> DocumentViewTokens => Set<DocumentViewToken>();
     public DbSet<WebAuthnCredential> WebAuthnCredentials => Set<WebAuthnCredential>();
     public DbSet<PostfachSetupToken> PostfachSetupTokens => Set<PostfachSetupToken>();
     public DbSet<ContractShareToken> ContractShareTokens => Set<ContractShareToken>();
@@ -369,6 +370,20 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<DocumentViewToken>(entity =>
+        {
+            entity.ToTable("document_view_token");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.TokenHash).HasColumnName("token_hash");
+            entity.Property(e => e.AsPdf).HasColumnName("as_pdf");
+            entity.Property(e => e.ExpiresAt).HasColumnName("expires_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.OpenedAt).HasColumnName("opened_at").HasColumnType("timestamp without time zone");
         });
 
         modelBuilder.Entity<TodoAnleitung>(entity =>

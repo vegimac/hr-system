@@ -667,7 +667,9 @@ function dokPreview(id) {
 
 // Side-Panel-Preview für ein Server-Dokument — gleiche UX wie Massen-Import
 let _dokPreviewUrl = null;
-let _dokPreviewBlob = null;   // Rohdaten behalten — für «in neuem Tab öffnen»
+let _dokPreviewBlob = null;   // Rohdaten behalten — Fallback für den neuen Tab
+let _dokPreviewDocId = null;  // Dokument-Id für den Server-Link
+let _dokPreviewAsPdf = false; // Office-Dokument? dann serverseitig nach PDF
 
 // Walter-Bug 30.08.2026 (Treuhänder: «Konnte nicht heruntergeladen werden –
 // Netzwerkproblem»): Eine Blob-URL lebt nur, solange sie nicht widerrufen ist.
@@ -867,8 +869,10 @@ async function dokOpenPreviewPanel(id, opts) {
             throw new Error(msg);
         }
         const blob = await r.blob();
-        _dokPreviewBlob = blob;
-        _dokPreviewUrl  = URL.createObjectURL(blob);
+        _dokPreviewBlob  = blob;
+        _dokPreviewDocId = id;
+        _dokPreviewAsPdf = isOffice;
+        _dokPreviewUrl   = URL.createObjectURL(blob);
 
         const showAsPdf = isPdf || isOffice;   // Office kommt als PDF zurück
         // #toolbar=0 blendet Chromes eigene PDF-Werkzeugleiste aus → keine
@@ -987,14 +991,30 @@ function dokPreviewApplyZoom() {
     wrap.style.height = (baseH * z) + 'px';
 }
 
-function dokPreviewOpenInTab() {
-    if (!_dokPreviewBlob && !_dokPreviewUrl) return;
-    // Eigene Blob-URL für den neuen Tab (Walter-Bug 30.08.2026): die URL des
-    // Panels wird beim Schliessen widerrufen — der Tab lebt aber weiter und
-    // braucht beim Speichern noch eine gültige Quelle.
-    const u = _dokPreviewBlob ? URL.createObjectURL(_dokPreviewBlob) : _dokPreviewUrl;
-    const win = window.open(u, '_blank');
-    if (_dokPreviewBlob) dokRevokeWhenClosed(win, u);
+async function dokPreviewOpenInTab() {
+    // Walter-Vorgabe 30.08.2026: Der neue Tab bekommt eine ECHTE Server-URL
+    // statt einer Blob-URL. Damit steht im Tab der richtige Dateiname, und
+    // Speichern funktioniert auch nach einer Stunde noch — eine Blob-URL
+    // dagegen ist weg, sobald die App-Seite sie freigibt oder neu lädt.
+    // Der Tab wird SYNCHRON im Klick geöffnet (sonst blockt der Popup-Blocker)
+    // und erst danach mit der Ziel-URL befüllt.
+    if (!_dokPreviewDocId && !_dokPreviewBlob) return;
+    const win = window.open('about:blank', '_blank');
+    try {
+        if (!_dokPreviewDocId) throw new Error('kein Dokument');
+        const r = await fetch(`/api/documents/${_dokPreviewDocId}/view-token?asPdf=${_dokPreviewAsPdf ? 'true' : 'false'}`,
+                              { method: 'POST', headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const j = await r.json();
+        if (win) win.location.href = j.url; else window.location.href = j.url;
+    } catch (e) {
+        // Fallback auf die alte Blob-Variante, damit die Vorschau auch dann
+        // aufgeht, wenn der Link-Endpoint mal nicht antwortet.
+        if (!_dokPreviewBlob) { if (win) win.close(); return; }
+        const u = URL.createObjectURL(_dokPreviewBlob);
+        if (win) { win.location.href = u; dokRevokeWhenClosed(win, u); }
+        else { window.location.href = u; }
+    }
 }
 
 function dokClosePreviewPanel() {
@@ -1003,7 +1023,9 @@ function dokClosePreviewPanel() {
         URL.revokeObjectURL(_dokPreviewUrl);
         _dokPreviewUrl = null;
     }
-    _dokPreviewBlob = null;
+    _dokPreviewBlob  = null;
+    _dokPreviewDocId = null;
+    _dokPreviewAsPdf = false;
     // Outside-Click-Handler wieder entfernen (Walter 27.05.2026) und Panel weg
     const _p = document.getElementById('dokPreviewPanel');
     if (_p) {

@@ -815,6 +815,27 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS mirus_funktion_aliases TEXT;
     ");
 
+    // ── Kurzlebige Dokument-Links (Walter-Vorgabe 30.08.2026) ─────────────
+    // Fuer «in neuem Tab oeffnen»: der Tab holt die Datei ueber eine echte
+    // Server-URL statt ueber eine Blob-URL. Damit stimmt der Dateiname, und
+    // Speichern funktioniert auch nach Minuten noch (Fall Treuhaender).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS document_view_token (
+            id          serial PRIMARY KEY,
+            dokument_id integer NOT NULL REFERENCES employee_dokument(id) ON DELETE CASCADE,
+            token_hash  text NOT NULL,
+            as_pdf      boolean NOT NULL DEFAULT false,
+            expires_at  timestamp without time zone NOT NULL,
+            created_at  timestamp without time zone NOT NULL DEFAULT now(),
+            created_by  integer,
+            opened_at   timestamp without time zone
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ix_document_view_token_hash
+            ON document_view_token (token_hash);
+        -- Abgelaufene Links aufraeumen: sie haben keinen Wert mehr.
+        DELETE FROM document_view_token WHERE expires_at < now() - interval '1 day';
+    ");
+
     // ── To-do-Anleitungen für den GF (Walter-Vorgabe 30.08.2026) ──────────
     // Pro Warnungs-Kategorie ein «so behebst du es»-Text. Der Generator im
     // Frontend gruppiert die aktuellen Alerts nach Kategorie und setzt diese
