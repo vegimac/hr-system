@@ -172,7 +172,10 @@ ol.five li::before {
 
 <div class="screen-bar">
     <p>OneCrew · Quellensteuer kurz für Geschäftsführer · eine A4-Seite</p>
-    <button type="button" class="btn-print" onclick="window.print()">Drucken / PDF</button>
+    <div style="display:flex;gap:8px">
+        <a class="btn-print" href="/QST-Kurz-GF.pdf" download="QST-Kurz-GF.pdf" style="text-decoration:none;display:inline-block">PDF herunterladen</a>
+        <button type="button" class="btn-print" onclick="window.print()">Drucken</button>
+    </div>
 </div>
 
 <main class="sheet">
