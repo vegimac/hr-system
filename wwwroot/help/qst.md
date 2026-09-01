@@ -39,7 +39,7 @@ Ist die Wohnsituation des Partners unklar → mit der Steuerbehörde klären.
 4. **QST-Informationsformular** (McAdmin → «QST-Info Formular») drucken und ZUSAMMEN mit dem MA ausfüllen — deckt alle Fragen des kantonalen Anmeldeformulars ab. Antworten in OneCrew nachtragen.
 5. **QST-Erfassung** anlegen (Vorschlag prüfen/übernehmen) + **QST-Anmeldung** (PDF) an die kantonale Steuerbehörde.
 
-📄 Das ausführliche **QST-Handbuch für Benutzer** (PDF, druckbar) liegt unter `docs/QST-Handbuch.pdf` — der komplette Fachstand inkl. aller Sonderfälle.
+📄 **Kurz für Geschäftsführer (1 Seite A4, nur AG/SO/BE/LU):** nach dem Deploy unter `/qst-gf-kurz.html` drucken, PDF auch `docs/QST-Kurz-GF.pdf`. Das ausführliche **QST-Handbuch** (inkl. Grenzgänger und Wohnsitz Ausland) liegt unter `docs/QST-Handbuch.pdf`.
 
 ## Wo erfasse ich das?
 

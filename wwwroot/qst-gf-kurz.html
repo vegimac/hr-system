@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneCrew · Quellensteuer kurz — Geschäftsführer</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --ink: #1a1a1a;
+    --soft: #3d3a35;
+    --muted: #7a746c;
+    --line: #d8d2c8;
+    --tan: #f0ebe3;
+    --card: #fffcf7;
+    --serif: 'Playfair Display', Georgia, serif;
+    --sans: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 11.6px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+    font-family: var(--sans);
+    color: var(--ink);
+    background: #f7f4ee;
+    line-height: 1.32;
+    -webkit-font-smoothing: antialiased;
+}
+.screen-bar {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 20px;
+    background: rgba(247,244,238,0.94);
+    border-bottom: 1px solid #e8e2d8;
+}
+.screen-bar p { margin: 0; font-size: 13px; color: var(--muted); }
+.btn-print {
+    appearance: none; border: 0; cursor: pointer;
+    background: #1a1a1a; color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+    padding: 8px 14px; border-radius: 12px;
+}
+.sheet {
+    width: min(210mm, 100%);
+    margin: 0 auto;
+    padding: 14px 20px 28px;
+}
+h1 {
+    margin: 0 0 2px;
+    font-family: var(--serif);
+    font-size: 1.38rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+}
+.eyebrow {
+    margin: 0 0 4px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+}
+.lede {
+    margin: 8px 0 0;
+    font-size: 13px;
+    color: var(--soft);
+}
+.meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+.meta strong { color: var(--soft); font-weight: 650; }
+.warn {
+    margin: 8px 0 6px;
+    padding: 6px 9px;
+    background: var(--tan);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-size: 12.5px;
+    color: var(--soft);
+}
+.warn strong { color: var(--ink); }
+table.cols {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px 6px;
+}
+table.cols > tbody > tr > td.box {
+    width: 50%;
+    vertical-align: top;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px 8px;
+}
+table.cols > tbody > tr > td.box-wide {
+    vertical-align: top;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px 8px;
+}
+table.split { width: 100%; border-collapse: collapse; }
+table.split > tbody > tr > td { width: 50%; vertical-align: top; padding: 0 8px 0 0; border: 0; }
+table.split > tbody > tr > td:last-child { padding: 0 0 0 8px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 11.4px; }
+table.data th, table.data td {
+    text-align: left;
+    padding: 2px 6px 2px 0;
+    vertical-align: top;
+    border-bottom: 1px solid #eee8de;
+    color: var(--soft);
+}
+table.data th { color: var(--muted); font-weight: 650; font-size: 11px; }
+h2 {
+    margin: 0 0 4px;
+    font-family: var(--serif);
+    font-size: 1.02rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+h3 {
+    margin: 2px 0 4px;
+    font-size: 12px;
+    font-weight: 750;
+}
+p, li { font-size: 11.5px; color: var(--soft); }
+p { margin: 0 0 4px; }
+p:last-child { margin-bottom: 0; }
+ol.five {
+    margin: 0; padding: 0; list-style: none; counter-reset: n;
+}
+ol.five li {
+    position: relative;
+    padding: 2px 0 3px 22px;
+}
+ol.five li::before {
+    counter-increment: n;
+    content: counter(n);
+    position: absolute; left: 0; top: 2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #1a1a1a; color: #fff;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.codebox {
+    display: flex; align-items: center; gap: 14px;
+    margin: 4px 0 8px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.codebox .big {
+    font-size: 1.55rem; font-weight: 700; letter-spacing: 0.12em;
+    color: var(--ink);
+}
+.codebox .parts { font-size: 11.5px; line-height: 1.35; color: var(--soft); }
+.foot {
+    margin-top: 6px;
+    display: flex; justify-content: space-between; gap: 12px;
+    font-size: 10.5px; color: var(--muted);
+}
+.note { font-size: 10.8px; color: var(--muted); margin-top: 4px; }
+@media print {
+    @page { size: A4; margin: 7mm 8mm 7mm; }
+    .screen-bar { display: none !important; }
+    body { background: #fff; }
+    .sheet { width: auto; max-width: none; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="screen-bar">
+    <p>OneCrew · Quellensteuer kurz für Geschäftsführer · eine A4-Seite</p>
+    <button type="button" class="btn-print" onclick="window.print()">Drucken / PDF</button>
+</div>
+
+<main class="sheet">
+    <p class="eyebrow">Geschäftsführer · AG · SO · BE · LU</p>
+    <h1>Quellensteuer — kurz</h1>
+    <p class="lede">
+        Wer ist pflichtig, und wie entsteht der Tarifcode? Für Mitarbeitende
+        mit Wohnsitz in AG, SO, BE oder LU. Den Code wählt ihr nicht selbst —
+        OneCrew leitet ihn aus den Stammdaten her.
+    </p>
+    <p class="meta">
+        <strong>Stand</strong> September 2026
+        · OneCrew leitet den Code aus den Stammdaten her — ihr wählt ihn nicht selbst.
+    </p>
+
+    <div class="warn">
+        <strong>Haftung:</strong> Zu viel abgezogene QST kann der MA zurückfordern.
+        Zu wenig abgezogene haftet der Betrieb. Im Zweifel die sichere, höhere Variante —
+        Unklares mit HR oder der Steuerbehörde klären, nicht raten.
+        Ohne erfassten Tarif lässt sich der Lohnlauf nicht bestätigen.
+    </div>
+
+    <table class="cols">
+        <tr>
+            <td class="box">
+            <h2>1 · Wer ist pflichtig?</h2>
+            <p>QST-pflichtig, <strong>ausser</strong> einer dieser fünf Punkte trifft zu:</p>
+            <ol class="five">
+                <li>Schweizer Bürger/in (Nationalität CH)</li>
+                <li>Gültiger C-Ausweis (Niederlassung)</li>
+                <li>Schriftliche Befreiung der Steuerbehörde</li>
+                <li>Verheiratet / eingetr. Partnerschaft mit CH-Bürger/in</li>
+                <li>Verheiratet / eingetr. Partnerschaft mit C-Ausweis-Inhaber/in</li>
+            </ol>
+            <p class="note">
+                Bei 4 und 5 muss der Partner selbst in der Schweiz wohnen.
+                <strong>Konkubinat befreit nie</strong> — auch nicht mit CH-Pass oder C des Partners.
+                Schon die <strong>Trennung</strong> beendet die Partner-Befreiung, nicht erst die Scheidung
+                (Wirkung ab Folgemonat).
+            </p>
+            </td>
+            <td class="box">
+            <h2>2 · So ist der Code aufgebaut</h2>
+            <div class="codebox">
+                <div class="big">C2N</div>
+                <div class="parts">
+                    <div><strong>C</strong> Tarifbuchstabe</div>
+                    <div><strong>2</strong> Kinderziffer (0–9)</div>
+                    <div><strong>N</strong> Kirchensteuer nein · <strong>Y</strong> ja</div>
+                </div>
+            </div>
+            <p>
+                Der <strong>Wohnkanton</strong> (easy@work-Adresse) bestimmt die Tariftabelle.
+                Ein Wochenzimmer in einem anderen Kanton ändert den QST-Kanton nicht
+                (Beispiel: wohnt Sursee LU, Zimmer in Zofingen AG → QST LU).
+            </p>
+            <p class="note">Massgebend sind die Verhältnisse am <strong>Monatsanfang</strong>; Änderungen wirken ab Folgemonat. Ausnahme: der Ehepartner nimmt eine Erwerbstätigkeit auf → C gilt bei ihm sofort.</p>
+            </td>
+        </tr>
+        <tr>
+            <td class="box-wide" colspan="2">
+            <h2>3 · Wie der Buchstabe entsteht</h2>
+            <table class="split">
+                <tr>
+                <td>
+                    <h3>Verheiratet / eingetr. Partnerschaft, zusammenlebend</h3>
+                    <table class="data">
+                        <tr><th>Situation</th><th>Buchstabe</th></tr>
+                        <tr><td>Partner erwerbstätig oder Ersatzeinkommen (ALV, Rente, Militärsold)</td><td><strong>C</strong></td></tr>
+                        <tr><td>Partner weder Erwerb noch Ersatzeinkommen</td><td><strong>B</strong></td></tr>
+                        <tr><td>Frage noch offen</td><td><strong>C</strong> (sicher) — Familie-Tab ergänzen</td></tr>
+                    </table>
+                    <p class="note">Getrennt lebend → ab Folgemonat wie alleinstehend.</p>
+                </td>
+                <td>
+                    <h3>Alleinstehend (ledig, geschieden, verwitwet, getrennt)</h3>
+                    <table class="data">
+                        <tr><th>Situation</th><th>Buchstabe</th></tr>
+                        <tr><td>Kein berechtigtes Kind im eigenen Haushalt</td><td><strong>A0</strong></td></tr>
+                        <tr><td>Berechtigte Kinder im eigenen Haushalt</td><td><strong>H</strong></td></tr>
+                        <tr><td>Kinder nur ausserhalb des Haushalts</td><td><strong>A0</strong></td></tr>
+                    </table>
+                    <p class="note">Kinderziffer auf Tarif A (A1–A9) nur mit Verfügung der Steuerbehörde.</p>
+                </td>
+                </tr>
+            </table>
+            <p style="margin-top:6px">
+                <strong>Welche Kinder zählen?</strong> Minderjährige — oder Volljährige in der Erstausbildung,
+                wenn der MA für den Unterhalt zur Hauptsache aufkommt. Bei <strong>B/C</strong> zählen alle
+                berechtigten Kinder; bei <strong>H</strong> nur die im eigenen Haushalt.
+                Kind wird 18: Ziffer bleibt im Geburtstagsmonat, danach nur mit Erstausbildung.
+            </p>
+            <p>
+                <strong>Konkubinat mit gemeinsamem Kind im Haushalt:</strong> nur ein Elternteil bekommt H —
+                wer mehr verdient. Verdient der Partner mehr → MA = A0. Frage offen → A0 und HR fragen.
+                Kind aus früherer Beziehung im Haushalt des MA → H (alleinerziehend). Gemischte Fälle nicht raten.
+            </p>
+            </td>
+        </tr>
+        <tr>
+            <td class="box">
+            <h2>4 · Kirchensteuer Y / N</h2>
+            <p>
+                In AG, SO, BE und LU gibt es die Kirchensteuer in der QST.
+                <strong>Y</strong> bei römisch-katholisch, christkatholisch, evangelisch-reformiert, israelitisch.
+                <strong>N</strong> bei «keine» oder «andere».
+                Konfession nicht erfasst → sicherheitshalber <strong>Y</strong>, plus nachtragen.
+            </p>
+            </td>
+            <td class="box">
+            <h2>5 · Was ihr pflegt</h2>
+            <table class="data">
+                <tr><th>Angabe</th><th>Wo</th></tr>
+                <tr><td>Nationalität, Bewilligung, Adresse, Zivilstand</td><td>easy@work</td></tr>
+                <tr><td>Konfession, Zivilstand seit</td><td>MA-Maske · Personalien</td></tr>
+                <tr><td>Partner erwerbstätig? Kinder Haushalt / Ausbildung</td><td>Familie-Tab</td></tr>
+            </table>
+            <p class="note">In der QST-Erfassung erscheint der Code als Resultat. Nur «Gültig ab» setzen und prüfen. Rot = Angabe nachtragen oder HR, nicht den Code erfinden.</p>
+            </td>
+        </tr>
+    </table>
+
+    <div class="foot">
+        <span>OneCrew · Schaub Restaurants GmbH</span>
+        <span>Ausführliches Handbuch: Hilfe «?» · QST · bei Grenzgängern / Wohnsitz Ausland: HR</span>
+    </div>
+</main>
+</body>
+</html>
