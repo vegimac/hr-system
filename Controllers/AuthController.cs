@@ -144,12 +144,9 @@ public class AuthController : ControllerBase
                 allowedAreas = user.AllowedAreas == null
                     ? null
                     : user.AllowedAreas.Split(',', StringSplitOptions.RemoveEmptyEntries),
-                // Admin + lowuser → "all" (Walter 14.06.2026: lowuser im
-                // Filial-Selektor wie superuser, Einschränkungen sind ÜBER
-                // den Menü-Umfang, nicht über Filialen). Andere → eigene
-                // UserBranchAccess. MA-Postfach: keine Branches im klassischen
-                // Sinn — sieht nur eigenes Postfach (im Frontend gefiltert).
-                branches = user.Role == "admin" || user.Role == "lowuser"
+                // Filial-Selektor wie GET /me (SeesAllBranches). Superuser
+                // fehlte hier früher → «Alle Filialen» erst nach Reload.
+                branches = SeesAllBranches(user.Role)
                     ? (object)"all"
                     : user.BranchAccess.Select(ba => new
                     {
@@ -243,11 +240,9 @@ public class AuthController : ControllerBase
             sessionStartedAt   = sessionStart,
             idleTimeoutMinutes = idleClaim,
             maxSessionMinutes  = maxClaim,
-            // Walter-Vorgabe 14.06.2026: lowuser im Filial-Selektor 1:1 wie
-            // superuser — sieht „Alle Filialen" plus jede einzelne. Die
-            // Einschränkungen wirken NUR auf den Menü-Umfang (Dashboard +
-            // Mitarbeiter + Verträge), nicht auf den Filial-Selektor.
-            branches = user.Role == "admin" || user.Role == "superuser" || user.Role == "lowuser"
+            // Filial-Selektor: admin / superuser / lowuser → «all».
+            // Dieselbe Regel wie Login und Impersonate (SeesAllBranches).
+            branches = SeesAllBranches(user.Role)
                 ? (object)"all"
                 : user.BranchAccess.Select(ba => new
                 {
@@ -350,8 +345,11 @@ public class AuthController : ControllerBase
         var user = await _context.AppUsers.FindAsync(userId);
         if (user == null) return NotFound();
 
+        // 400, nicht 401: der globale Frontend-Interceptor wertet 401 als
+        // «Sitzung tot» und loggt aus. Falsches aktuelles Passwort ist ein
+        // Formularfehler, kein Token-Ablauf (Walter 01.09.2026).
         if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))
-            return Unauthorized(new { message = "Aktuelles Passwort ist falsch." });
+            return BadRequest(new { message = "Aktuelles Passwort ist falsch." });
 
         user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         user.MustChangePassword = false;
@@ -426,7 +424,8 @@ public class AuthController : ControllerBase
                 isHrTeam          = target.IsHrTeam,
                 canCompanyDokumente = target.CanCompanyDokumente,
                 isSuperAdmin      = target.IsSuperAdmin,
-                branches = target.Role == "admin" || target.Role == "lowuser"
+                // Dieselbe Filial-Regel wie Login und GET /me.
+                branches = SeesAllBranches(target.Role)
                     ? (object)"all"
                     : target.BranchAccess.Select(ba => new
                     {
@@ -449,6 +448,14 @@ public class AuthController : ControllerBase
     public static int EffectiveMaxSession(AppUser u) =>
         Clamp(u.MaxSessionMinutes ?? (u.Role == "employee" ? 30 : 480));
     private static int Clamp(int v) => Math.Max(POLICY_MIN, Math.Min(POLICY_MAX, v));
+
+    /// <summary>
+    /// Filial-Selektor «Alle Filialen»: admin, superuser und lowuser.
+    /// Login, Impersonate und GET /me müssen identisch sein — sonst fehlt
+    /// Superuser nach Passwort-Login «Alle Filialen» bis zum Reload.
+    /// </summary>
+    public static bool SeesAllBranches(string? role) =>
+        role == "admin" || role == "superuser" || role == "lowuser";
 
     private string GenerateToken(AppUser user, DateTime sessionStart, int? impersonatedBy = null)
     {

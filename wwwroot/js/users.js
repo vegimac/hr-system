@@ -230,7 +230,7 @@ function openUserModal(userId = null) {
         document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
-        umSetAreas(null);   // neuer User: standardmässig alle Bereiche sichtbar
+        umSetAreas(null);   // neuer User: Standard-Bereiche, Entwicklung opt-in
         umUpdateBranchVisibility();
     }
     document.getElementById('userModalBg').classList.add('open');
@@ -238,13 +238,16 @@ function openUserModal(userId = null) {
 
 function closeUserModal() { document.getElementById('userModalBg').classList.remove('open'); editingUserId = null; }
 
-// ── Sichtbare Bereiche (8 Menüpunkte) — Walter 28.06.2026 ─────────────
-// arr = Array von Bereichs-Schlüsseln, oder null => alle anhaken (Default für
-// neue/legacy User, die noch keine eigene Auswahl haben).
+// ── Sichtbare Bereiche — Walter 28.06.2026, Entwicklung opt-in 31.08.2026
+// arr = Array von Bereichs-Schlüsseln, oder null => Standard-Bereiche
+// anhaken (neue/legacy User ohne eigene Auswahl). «Entwicklung» bleibt
+// bei null UNGEHAKT — sonst persistiert das erste Speichern das Häkchen
+// und der Bereich erscheint im Menü. Explizit «Alle» darf ihn setzen.
 function umSetAreas(arr) {
     document.querySelectorAll('#umAreas input[type=checkbox]').forEach(cb => {
         const a = cb.getAttribute('data-area');
-        cb.checked = (arr == null) ? true : arr.includes(a);
+        if (arr == null) cb.checked = a !== 'entwicklung';
+        else cb.checked = arr.includes(a);
     });
 }
 function umAreasSetAll(v) {

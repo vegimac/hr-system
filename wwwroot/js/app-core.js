@@ -142,17 +142,20 @@ async function doLogin() {
         // gespeichert — das übernimmt der Browser-Passwort-Manager
         // verschlüsselt im Keychain/Credential-Store.
         localStorage.setItem('hrLastEmail', email);
-        currentUser = data.user;
-        // Session-Policy (Walter 21.06.2026) — der Login liefert sie top-level,
-        // der Wächter liest sie aus currentUser.
-        currentUser.idleTimeoutMinutes = data.idleTimeoutMinutes;
-        currentUser.maxSessionMinutes  = data.maxSessionMinutes;
-        currentUser.sessionStartedAt   = data.sessionStartedAt;
         // ── Mitarbeiter-Login → eigene Mobile-View (Postfach) ──
         // Backoffice-User bleiben in der vollen App, MA werden auf eine
         // schlanke Mobile-Seite umgeleitet wo sie nur ihre Lohnzettel sehen.
         if (data.user?.role === 'employee') {
             window.location.href = 'postfach.html';
+            return;
+        }
+        // currentUser IMMER aus GET /me (Walter 01.09.2026), analog Face-ID.
+        // Login und /me hatten zeitweise unterschiedliche Filial-Listen
+        // (superuser fehlte in Login.branches → «Alle Filialen» erst nach Reload).
+        const ok = await checkAuth();
+        if (!ok) {
+            errEl.textContent = 'Anmeldung unvollständig — bitte erneut versuchen.';
+            errEl.style.display = 'block';
             return;
         }
         startApp();
@@ -807,8 +810,12 @@ async function saveRetentionYears() {
             // NICHT «Sitzung tot». Vorher: Klick auf «In Benutzer wechseln»,
             // Tippfehler im Passwort → Alert «Sitzung abgelaufen», Token weg,
             // zurueck auf den Anmeldebildschirm. Deshalb kam nie ein Balken.
+            // Walter 01.09.2026: /change-password ditto (Tippfehler im aktuellen
+            // Passwort). Backend liefert dort inzwischen 400; Skip bleibt als
+            // Schutz, falls irgendwo wieder 401 zurückkommt.
             if (url.includes('/api/auth/login')
-                || url.includes('/api/auth/impersonate')) return res;
+                || url.includes('/api/auth/impersonate')
+                || url.includes('/api/auth/change-password')) return res;
             // Nur wenn der Browser überhaupt eingeloggt war.
             if (!authToken) return res;
             if (alerting) return res;
