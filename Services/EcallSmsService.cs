@@ -29,27 +29,44 @@ public class EcallSmsService
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<EcallSmsService> _log;
 
+    private readonly VersandFreigabeService _freigabe;
+
     public EcallSmsService(AppDbContext db, SimpleAesService aes,
-                           IHttpClientFactory httpFactory, ILogger<EcallSmsService> log)
+                           IHttpClientFactory httpFactory, ILogger<EcallSmsService> log,
+                           VersandFreigabeService freigabe)
     {
         _db = db;
         _aes = aes;
         _httpFactory = httpFactory;
         _log = log;
+        _freigabe = freigabe;
     }
 
-    public record EcallSendResult(bool Ok, string? MessageId, string? Error);
+    /// <summary>
+    /// <paramref name="RedirectedTo"/> ist die Nummer, an die tatsächlich
+    /// umgeleitet wurde — NULL, wenn die SMS scharf rausging. Wichtig seit
+    /// der Freigabe-Matrix (Walter 01.09.2026): die Test-Nummer steht jetzt
+    /// dauerhaft in den Einstellungen, aus ihrem blossen Vorhandensein darf
+    /// man NICHT mehr schliessen, dass umgeleitet wurde.
+    /// </summary>
+    public record EcallSendResult(bool Ok, string? MessageId, string? Error, string? RedirectedTo = null);
 
     /// <summary>
-    /// SMS senden. <paramref name="purpose"/> + <paramref name="employeeId"/>
-    /// sind reine Protokoll-Metadaten (sms_log): VERTRAG / MOMENT / POSTFACH /
-    /// BEWILLIGUNG / TEST. JEDER Versandversuch wird geloggt (best-effort) —
-    /// auch Fehlschläge; die Test-Umleitung landet in redirected_to.
+    /// SMS senden. <paramref name="kategorie"/> ist mehr als ein Protokoll-
+    /// Vermerk: sie entscheidet über die Freigabe-Matrix (Walter 01.09.2026),
+    /// ob die SMS scharf an die echte Nummer geht oder an die Test-Nummer.
+    /// Dieselben Kategorien wie beim Mail — eine Kandidaten-Absage soll sich
+    /// nicht je nach Kanal anders verhalten.
+    /// <paramref name="kategorie"/> = null nur für die Admin-Test-SMS, die
+    /// bewusst ausserhalb der Matrix an die eingetippte Nummer geht.
+    /// JEDER Versandversuch wird geloggt (best-effort) — auch Fehlschläge;
+    /// die Test-Umleitung landet in redirected_to.
     /// </summary>
     public async Task<EcallSendResult> SendSmsAsync(string toPhone, string text,
-        string? purpose = null, int? employeeId = null, CancellationToken ct = default)
+        VersandKategorie? kategorie = null, int? employeeId = null, CancellationToken ct = default)
     {
         var originalTo = (toPhone ?? "").Trim();
+        var purpose = kategorie.HasValue ? VersandKategorien.Code(kategorie.Value) : "TEST";
 
         async Task<EcallSendResult> Fail(string error, string? redirectedTo = null)
         {
@@ -78,14 +95,25 @@ public class EcallSmsService
         var to = NormalizePhone(toPhone);
         string? redirect = null;
 
-        // Test-Umleitung (analog EmailService): solange test_redirect_to gesetzt
-        // ist, gehen ALLE SMS an diese Nummer; Original-Empfänger im Text-Präfix.
-        if (!string.IsNullOrWhiteSpace(row.TestRedirectTo))
+        // Freigabe-Matrix (analog EmailService, Walter 01.09.2026): der Haken
+        // je Kategorie entscheidet, nicht mehr das blosse Vorhandensein einer
+        // Test-Nummer. Ohne Kategorie (Admin-Test-SMS) keine Prüfung.
+        if (kategorie.HasValue)
         {
-            text = $"[TEST → {to}] {text}";
-            to = NormalizePhone(row.TestRedirectTo);
-            redirect = to;
-            _log.LogInformation("[EcallSms] Test-Umleitung aktiv — SMS geht an {Redirect}", to);
+            var scharf = await _freigabe.IstScharfAsync(kategorie.Value, VersandFreigabeService.Kanal.Sms, ct);
+            if (!scharf)
+            {
+                if (string.IsNullOrWhiteSpace(row.TestRedirectTo))
+                {
+                    // Nicht scharf, aber kein Umleitungsziel → NICHT senden.
+                    return await Fail($"Kategorie {purpose} ist nicht scharf, aber es ist "
+                                    + "keine Test-Nummer hinterlegt — Versand blockiert.");
+                }
+                text = $"[TEST → {to}] {text}";
+                to = NormalizePhone(row.TestRedirectTo);
+                redirect = to;
+                _log.LogInformation("[EcallSms] Kategorie {Kat} nicht scharf — SMS geht an {Redirect}", purpose, to);
+            }
         }
 
         // Body manuell serialisieren, damit die case-sensitiven Enum-Strings
@@ -124,7 +152,7 @@ public class EcallSmsService
 
                 _log.LogInformation("[EcallSms] SMS an {To} gesendet (messageId={MessageId})", to, messageId);
                 await TryWriteLogAsync(purpose, employeeId, originalTo, redirect, true, messageId, null, ct);
-                return new EcallSendResult(true, messageId, null);
+                return new EcallSendResult(true, messageId, null, redirect);
             }
 
             // Fehler-Body auswerten (errorCode/errorMessage), sonst HTTP-Status + Auszug.

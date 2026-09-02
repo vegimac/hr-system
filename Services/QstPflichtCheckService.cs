@@ -432,7 +432,8 @@ public class QstPflichtCheckService
                      && f.DateOfDeath == null)
             .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
                                f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung,
-                               f.LebtImHaushalt, f.GemeinsamesKindMitPartner })
+                               f.LebtImHaushalt, f.GemeinsamesKindMitPartner,
+                               f.KeineUnterhaltspflicht })
             .ToListAsync();
         var kindIds = kinderRaw.Select(f => f.Id).ToList();
         var azKindIds = kindIds.Count == 0
@@ -455,7 +456,9 @@ public class QstPflichtCheckService
                 f.DateOfBirth.HasValue        ? DateOnly.FromDateTime(f.DateOfBirth.Value)        : null,
                 f.AlternativeAddressId,
                 f.InErstausbildung || azKindIds.Contains(f.Id),
-                f.LebtImHaushalt), stichtag)
+                f.LebtImHaushalt,
+                f.GemeinsamesKindMitPartner,
+                f.KeineUnterhaltspflicht), stichtag)
         }).ToList();
         int berechtigtTotal   = kinderChecked.Count(k => k.Berechtigt);
         int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt);

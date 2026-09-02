@@ -177,6 +177,13 @@ public class EasyAtWorkEmployeeSyncService
         public List<string> NumberConflicts { get; set; } = new();
         /// <summary>true, wenn der Commit wegen Nummern-Kollisionen blockiert wurde (kein Schreibvorgang).</summary>
         public bool Blocked { get; set; }
+        /// <summary>
+        /// Übersprungene «MA ohne Lohn» (Supervisor, Walter 01.09.2026). Eigene
+        /// Zahl statt nur einer Notiz, damit das Frontend sie gezielt anzeigen
+        /// kann — ein stilles Weglassen wäre schlimmer als die Doppelanzeige,
+        /// die es ersetzt.
+        /// </summary>
+        public int CountPhantomSkipped { get; set; }
     }
 
     // ────────────────────────── Public API ──────────────────────────
@@ -931,7 +938,8 @@ public class EasyAtWorkEmployeeSyncService
             }
 
             var activeAt = DateOnly.FromDateTime(DateTime.Today);
-            var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader);
+            var regeln   = await RegelnFuerFilialeAsync(cpId, ct);
+            var timeline = BuildEmploymentTimeline(contracts, rates, activeAt, isKader, regeln);
             // Verträge: Sperre erst bei Definitiv abgeschlossen (Walter 01.08.2026).
             var firstAllowed = await _editLock.GetFirstAllowedDateForContractsAsync(cpId);
 
@@ -1542,6 +1550,10 @@ public class EasyAtWorkEmployeeSyncService
         }
 
         var activeAt = req.ActiveAt ?? DateOnly.FromDateTime(DateTime.UtcNow.Date);
+        // Vertragsregeln der Rechtseinheit dieser Filiale — einmal pro Lauf
+        // geladen und an alle Prüfungen durchgereicht (Walter 01.09.2026).
+        var filialRegeln = await RegelnFuerFilialeAsync(req.CompanyProfileId, ct);
+        var phantomUebersprungen = 0;   // «MA ohne Lohn» (Supervisor) — s. unten
         // Pre-Mirus-Stichtag (Standard 1.1.2025) — beim Tief-Import überschreibbar.
         var maCutoff      = req.EmployeeCutoffOverride ?? EasyAtWorkTimepunchSyncService.EmployeeCutoff;
         var mirusCutoff   = EasyAtWorkTimepunchSyncService.EmployeeCutoff;   // 1.1.2025 — Grenze für den alt-Suffix
@@ -1792,6 +1804,22 @@ public class EasyAtWorkEmployeeSyncService
             else if (byEawId.TryGetValue(eaw.Id, out co)) matchedByEawId = true;
             // user_id wird NICHT mehr gematcht (Walter 29.06.2026) — nur eaw.Id.
             row.CoworkEmployeeId = co?.Id;
+
+            // ── Phantom-MA komplett überspringen (Walter-Vorgabe 01.09.2026) ──
+            // «MA ohne Lohn» (IsPayrollExcluded) sind Supervisor, die in JEDER
+            // Filiale in easy@work stehen, aber nirgends Vertrag, Lohn oder
+            // Stempelzeiten haben. Bisher waren Stammdaten-Updates für sie
+            // erlaubt (08.07.2026) — dadurch erschienen sie bei JEDEM Sync
+            // erneut als UPDATE, obwohl sie nie übernommen werden sollen.
+            // Jetzt ganz raus: sie tauchen weder als NEU noch als UPDATE auf.
+            // Nicht still — die Anzahl steht als Notiz im Ergebnis, damit
+            // niemand rätselt, wo der Supervisor geblieben ist.
+            if (co != null && co.IsPayrollExcluded)
+            {
+                phantomUebersprungen++;
+                continue;
+            }
+
             // Über eine ALTE Nummer gematcht? (matchender Key ≠ aktuelle Personalnr.)
             if (co != null && matchedKey != null
                 && !string.Equals(co.EmployeeNumber?.Trim(), matchedKey, StringComparison.OrdinalIgnoreCase))
@@ -1858,7 +1886,7 @@ public class EasyAtWorkEmployeeSyncService
                 {
                     bool vKader = detailCache.Functions.TryGetValue(eaw.Id, out var vf)
                                   && vf.Any(f => kaderCodes.Contains(f.Trim()));
-                    var tlPrev = BuildEmploymentTimeline(vContracts, vRates, activeAt, vKader);
+                    var tlPrev = BuildEmploymentTimeline(vContracts, vRates, activeAt, vKader, filialRegeln);
                     vertragsFehler = tlPrev
                         .Where(s => !s.End.HasValue || s.End.Value >= activeAt)   // nur aktive/zukünftige Segmente
                         .Select(s => s.Info.DataError)
@@ -1923,7 +1951,7 @@ public class EasyAtWorkEmployeeSyncService
                                        && vf2.Any(f => kaderCodes.Contains(f.Trim()));
                         var ordered2  = vc2.OrderBy(x => x.From ?? DateOnly.MinValue).ToList();
                         var currentC2 = ordered2.LastOrDefault(x => (x.From ?? DateOnly.MinValue) <= activeAt) ?? ordered2.FirstOrDefault();
-                        var curInfo   = ComputeContractInfo(currentC2, vr2, activeAt, vKader2);
+                        var curInfo   = ComputeContractInfo(currentC2, vr2, activeAt, vKader2, filialRegeln);
                         var zielLohn = curInfo.HourlyRate.HasValue
                             ? $"Stundenlohn CHF {curInfo.HourlyRate:0.00}"
                             : curInfo.MonthlySalary.HasValue
@@ -1994,6 +2022,10 @@ public class EasyAtWorkEmployeeSyncService
             res.Rows.Add(row);
         }
         res.CountTotal = res.Rows.Count;
+        res.CountPhantomSkipped = phantomUebersprungen;
+        if (phantomUebersprungen > 0)
+            res.Notes.Add($"{phantomUebersprungen} «MA ohne Lohn» (Supervisor) übersprungen — "
+                        + "diese werden nie importiert.");
         if (hansMusterSkipped > 0)
             res.Notes.Add($"{hansMusterSkipped} Test-Datensatz/-Datensätze „hans muster“ übersprungen (werden nie importiert).");
 
@@ -2686,7 +2718,7 @@ public class EasyAtWorkEmployeeSyncService
                         res.SkippedContracts.Add($"{temp.FirstName} {temp.LastName} ({temp.EmployeeNumber}): {overlapErr}");
                         continue;
                     }
-                    var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader);
+                    var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader, filialRegeln);
                     _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
                         temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
                     await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo,
@@ -2841,6 +2873,16 @@ public class EasyAtWorkEmployeeSyncService
         /// </summary>
         public string?   DataError;
 
+        /// <summary>
+        /// amount_type EXAKT so, wie easy@work es geliefert hat (null/leer =
+        /// nicht geliefert). Wichtig für die Plausibilitätsprüfung: bei leerem
+        /// Feld füllt der Import selbst «month» bzw. «week» auf — auf diesen
+        /// selbst gesetzten Wert darf NIE ein Erfassungsfehler gemeldet werden.
+        /// </summary>
+        public string?   AmountTypeRaw;
+        /// <summary>amount aus dem easy@work-Vertrag (Prozent bzw. Stunden).</summary>
+        public decimal?  AmountRaw;
+
         public decimal?  MonthlySalary;
         public decimal?  MonthlySalaryFte;       // FIX/FIX-M: 100%-Lohn
     }
@@ -2908,10 +2950,37 @@ public class EasyAtWorkEmployeeSyncService
     ///   • <paramref name="isKader"/> (Position IsKader) → Modell FIX-M, Monatslohnfelder
     ///     bleiben erhalten (spiegelt ApplyJg im Commit-Loop).
     /// </summary>
+    /// <summary>
+    /// Vertragsregeln der Rechtseinheit, zu der diese Filiale gehört
+    /// (Walter-Vorgabe 01.09.2026). Ohne Hauptsitz-Zuordnung oder ohne
+    /// erfasste Werte gelten die Standardregeln — nie «ungeprüft».
+    /// </summary>
+    private async Task<VertragsRegeln> RegelnFuerFilialeAsync(int companyProfileId, CancellationToken ct)
+    {
+        try
+        {
+            var hsId = await _db.CompanyProfiles.AsNoTracking()
+                .Where(c => c.Id == companyProfileId)
+                .Select(c => c.HauptsitzId)
+                .FirstOrDefaultAsync(ct);
+            if (hsId == null) return VertragsRegeln.Standard;
+            var hs = await _db.Hauptsitze.AsNoTracking().FirstOrDefaultAsync(h => h.Id == hsId.Value, ct);
+            return VertragsRegeln.Von(hs);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "Vertragsregeln für Filiale {Cp} nicht lesbar — Standardregeln.", companyProfileId);
+            return VertragsRegeln.Standard;
+        }
+    }
+
     public static HistContractInfo ComputeContractInfo(
-        EawContract? c, List<EawPayRate> rates, DateOnly rateDate, bool isKader = false)
+        EawContract? c, List<EawPayRate> rates, DateOnly rateDate, bool isKader = false,
+        VertragsRegeln? regeln = null)
     {
         rates ??= new();
+        // Kein Hauptsitz / nichts erfasst → Standardregeln. Nie «ungeprüft».
+        regeln ??= VertragsRegeln.Standard;
         var earliestRateFrom = rates.Where(r => r.From.HasValue).OrderBy(r => r.From)
             .Select(r => r.From!.Value.ToDateTime(TimeOnly.MinValue)).Cast<DateTime?>().FirstOrDefault();
         // Typ-Präfix-Match: easy@work liefert "hour"/"month" (NICHT "hourly"/"monthly").
@@ -2931,6 +3000,8 @@ public class EasyAtWorkEmployeeSyncService
             info.JobTitle     = string.IsNullOrWhiteSpace(c.Title) ? null : c.Title!.Trim();
             var amt = (c.AmountType ?? "").Trim().ToLowerInvariant();
             var typ = (c.Type ?? "").Trim().ToUpperInvariant();
+            info.AmountTypeRaw = string.IsNullOrWhiteSpace(c.AmountType) ? null : c.AmountType!.Trim().ToLowerInvariant();
+            info.AmountRaw     = c.Amount ?? c.WeekHours;
             // Vertragsmodell aus dem easy@work-Vertrag (Walter-Vorgabe 23.06.2026):
             //   amount_type "month"/"percent" → FIX (Monatslohn; "percent" = Pensum-
             //                                   Monatslohnvertrag, KEIN Stundenlohn)
@@ -3019,6 +3090,66 @@ public class EasyAtWorkEmployeeSyncService
             info.SalaryType      = "monthly";
         }
 
+        // ── Plausibilitätsprüfung Vertragsart/Pensum (Walter-Vorgabe 01.09.2026)
+        // Anlass: Fall Velijaj 230350 — «60» wurde als 60 STUNDEN pro Monat statt
+        // als 60 PROZENT erfasst; easy@work rechnete daraus 32.967 %, OneCrew
+        // importierte das stillschweigend und schrieb daraus einen FTE-Lohn von
+        // 7'816 statt 4'295. Solche Verträge werden ab jetzt NICHT importiert,
+        // sondern landen mit Klartext-Grund auf der Fehlerliste.
+        //
+        // Die Regeln (Walter):
+        //   FIX / FIX-M : NIE Stunden, immer Prozent — und nur die am Hauptsitz
+        //                 erlaubten Pensen (Standard 50/60/70/80/90/100).
+        //                 FIX-M gilt gleich wie FIX, auch beim GF; die EINZIGE
+        //                 FIX-M-Ausnahme ist der LOHN (darf fehlen/0 sein).
+        //   FLEX        : höchstens FlexStundenMax Stunden pro Woche
+        //   MTP         : MtpStundenMin bis MtpStundenMax Stunden pro Woche
+        //
+        // Die Grenzen kommen aus der Rechtseinheit (hauptsitz), damit jeder
+        // Lizenznehmer eigene setzen kann — siehe VertragsRegeln.
+        //
+        // WICHTIG: geprüft wird AmountTypeRaw, also der GELIEFERTE Wert. Fehlt er,
+        // setzt der Import oben selbst «month»/«week» ein — darauf einen Fehler zu
+        // melden hiesse, die eigene Annahme dem Anwender vorzuwerfen.
+        if (info.DataError == null && c != null && info.AmountTypeRaw != null)
+        {
+            var artRoh   = info.AmountTypeRaw!;
+            // FIX-M ausdrücklich MIT drin: auch der GF-Vertrag muss in easy@work
+            // als Prozent mit 50–100 erfasst sein. Nur beim Lohn ist FIX-M frei.
+            var istFix   = info.EmploymentModel == "FIX" || info.EmploymentModel == "FIX-M";
+            var istFlex  = info.EmploymentModel == "FLEX";
+            var istMtp   = info.EmploymentModel == "MTP";
+            var artText  = $"«{c.AmountType}»";
+
+            if (istFix && !artRoh.StartsWith("percent"))
+            {
+                info.DataError = $"Erfassungsfehler in easy@work: Monatslohn-Vertrag ({info.EmploymentModel}) mit Vertragsart {artText}"
+                               + $"{(info.AmountRaw.HasValue ? $" ({info.AmountRaw:0.##})" : "")} erfasst — "
+                               + "ein FIX/FIX-M-Vertrag hat NIE Stunden, sondern immer ein Pensum in Prozent. "
+                               + "Vertrag wird NICHT importiert; bitte in easy@work auf «Prozent» korrigieren.";
+            }
+            else if (istFix && info.EmploymentPercentage.HasValue
+                     && !regeln.FixPensumErlaubt(info.EmploymentPercentage.Value))
+            {
+                info.DataError = $"Erfassungsfehler in easy@work: Pensum {info.EmploymentPercentage:0.##} % — "
+                               + $"bei {info.EmploymentModel} sind nur {regeln.FixPensenText} % erlaubt. "
+                               + "Vertrag wird NICHT importiert; bitte in easy@work korrigieren.";
+            }
+            else if (istFlex && info.AmountRaw.HasValue && info.AmountRaw.Value > regeln.FlexStundenMax)
+            {
+                info.DataError = $"Erfassungsfehler in easy@work: FLEX mit {info.AmountRaw:0.##} Stunden pro Woche — "
+                               + $"FLEX hat höchstens {regeln.FlexStundenMax:0.##} Stunden pro Woche. "
+                               + "Vertrag wird NICHT importiert; bitte in easy@work korrigieren.";
+            }
+            else if (istMtp && info.AmountRaw.HasValue
+                     && (info.AmountRaw.Value < regeln.MtpStundenMin || info.AmountRaw.Value > regeln.MtpStundenMax))
+            {
+                info.DataError = $"Erfassungsfehler in easy@work: MTP mit {info.AmountRaw:0.##} Stunden pro Woche — "
+                               + $"bei MTP sind {regeln.MtpStundenMin:0.##}–{regeln.MtpStundenMax:0.##} Stunden pro Woche erlaubt. "
+                               + "Vertrag wird NICHT importiert; bitte in easy@work korrigieren.";
+            }
+        }
+
         // STRICT: Lohn ist PFLICHT (Walter-Vorgabe 08.07.2026) — der Import rät
         // nie und akzeptiert nie einen Vertrag ohne Lohn. EINZIGE Ausnahme:
         // FIX-M (Kader/GF) — dort darf der Lohn aus Vertraulichkeit fehlen und
@@ -3100,7 +3231,8 @@ public class EasyAtWorkEmployeeSyncService
     /// API-frei + statisch → unit-testbar. (asOf nur zur Signatur-Kompatibilität.)
     /// </summary>
     public static List<EmploymentSegment> BuildEmploymentTimeline(
-        List<EawContract>? contracts, List<EawPayRate>? rates, DateOnly asOf, bool isKader = false)
+        List<EawContract>? contracts, List<EawPayRate>? rates, DateOnly asOf, bool isKader = false,
+        VertragsRegeln? regeln = null)
     {
         contracts ??= new();
         rates     ??= new();
@@ -3154,7 +3286,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 Start = start,
                 End   = end,
-                Info  = ComputeContractInfo(cAt, rates, start, isKader),
+                Info  = ComputeContractInfo(cAt, rates, start, isKader, regeln),
                 EasyAtWorkContractId = (cAt != null && cAt.Id != 0) ? cAt.Id : (int?)null,
                 EasyAtWorkPayRateId  = (rAt != null && rAt.Id != 0) ? rAt.Id : (int?)null,
                 EasyAtWorkUpdatedAt  = MaxUpdated(cAt?.UpdatedAt, rAt?.UpdatedAt),

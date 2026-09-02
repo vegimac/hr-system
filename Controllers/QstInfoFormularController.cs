@@ -173,9 +173,15 @@ public class QstInfoFormularController : ControllerBase
                     Geburtsdatum:  Dt(f.DateOfBirth),
                     // Walter 25.08.2026: expliziter Haushalt-Status statt Adress-Ableitung.
                     Haushalt:      f.LebtImHaushalt,
+                    // In OneCrew negativ gespeichert, auf dem Formular positiv
+                    // gefragt (Walter 01.09.2026).
+                    Unterhalt:     !f.KeineUnterhaltspflicht,
                     // Erstausbildung nur ab 18 relevant — darunter bleibt das
-                    // Kästchen leer (der MA muss dort nichts ankreuzen).
-                    Erstausbildung: alter >= 18 ? f.InErstausbildung : (bool?)null);
+                    // Kästchen leer (der MA muss dort nichts ankreuzen). Ohne
+                    // Unterhaltspflicht ebenfalls leer: die Frage hat dann
+                    // keine Wirkung mehr (Walter 01.09.2026).
+                    Erstausbildung: (alter >= 18 && !f.KeineUnterhaltspflicht)
+                                        ? f.InErstausbildung : (bool?)null);
             })
             .ToList();
 

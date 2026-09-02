@@ -191,7 +191,7 @@ public class ContractShareController : ControllerBase
                         && t.ExpiresAt > now && t.Id != b.TokenId)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now));
 
-        var res = await _sms.SendSmsAsync(phone, b.SmsText, purpose: "VERTRAG", employeeId: b.Emp.Id);
+        var res = await _sms.SendSmsAsync(phone, b.SmsText, VersandKategorie.Vertrag, employeeId: b.Emp.Id);
         if (!res.Ok)
             return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
 
@@ -226,14 +226,13 @@ public class ContractShareController : ControllerBase
             await _db.SaveChangesAsync();
         }
 
-        var redirect = await _db.EcallSettings.AsNoTracking()
-            .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
-
+        // Umleitung kommt aus dem Versand-Ergebnis, NICHT mehr aus den
+        // Einstellungen: die Test-Nummer steht dauerhaft drin (Walter 01.09.2026).
         return Ok(new
         {
             ok = true,
             to = phone,
-            redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
+            redirectedTo = res.RedirectedTo,
             url = b.Url,
             expiresAt = b.ExpiresAt,
             messageId = res.MessageId,

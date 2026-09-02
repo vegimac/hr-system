@@ -39,6 +39,33 @@ async function smtpLoad() {
         document.getElementById('smtpTestRedirectTo').value = d.testRedirectTo || '';
         document.getElementById('smtpSiteUrl').value        = d.siteUrl || 'https://test.hr-srgmbh.ch/';
 
+        // ── Rückläufer-Postfach (Walter 01.09.2026) ──────────────────────
+        // Über _sf() statt direkt: Die Skript-Dateien haben einen
+        // Cache-Buster, index.html NICHT. Nach einem Deploy kann also das
+        // neue Skript auf die alte, noch zwischengespeicherte Seite treffen —
+        // dann gibt es diese Felder noch gar nicht. Ohne die Absicherung
+        // stirbt smtpLoad() an dieser Stelle mit einem Fehler, und die
+        // GANZE Maske bleibt leer und unbedienbar (Walter-Bug 01.09.2026:
+        // «erfassen kann ich bei den mail einstellungen nichts»).
+        _sfVal('bounceAddress',  d.bounceAddress);
+        _sfVal('bounceImapHost', d.bounceImapHost);
+        _sfVal('bounceImapPort', d.bounceImapPort || 993);
+        _sfVal('bounceImapUser', d.bounceImapUser);
+        const bPw = document.getElementById('bounceImapPassword');
+        if (bPw) {
+            bPw.value = '';
+            bPw.placeholder = d.bounceHasPassword
+                ? 'hinterlegt — leer lassen = unverändert'
+                : 'noch kein Passwort hinterlegt';
+        }
+        const bAktiv = document.getElementById('bounceAbrufAktiv');
+        if (bAktiv) bAktiv.checked = !!d.bounceAbrufAktiv;
+        const bLetzt = document.getElementById('bounceLetzterAbruf');
+        if (bLetzt) bLetzt.textContent = d.bounceLetzterAbruf
+            ? 'Letzter Abruf: ' + new Date(d.bounceLetzterAbruf).toLocaleString('de-CH')
+            : 'Noch nie abgerufen.';
+        if (document.getElementById('bounceListeBox')) bounceListe();
+
         // Passwort: nicht laden (Sentinel) — wenn User das Feld leer lässt,
         // bleibt das gespeicherte Passwort unangerührt.
         document.getElementById('smtpPassword').value = '';
@@ -53,15 +80,9 @@ async function smtpLoad() {
         const testToInput = document.getElementById('smtpTestTo');
         if (!testToInput.value) testToInput.value = d.testRedirectTo || '';
 
-        // Test-Banner
-        const banner = document.getElementById('smtpTestBanner');
-        const bannerAddr = document.getElementById('smtpTestBannerAddr');
-        if (d.testRedirectTo) {
-            banner.style.display = 'block';
-            bannerAddr.textContent = d.testRedirectTo;
-        } else {
-            banner.style.display = 'none';
-        }
+        // Der frühere Test-Banner ist weg: ob etwas scharf rausgeht, sagt
+        // seit 01.09.2026 die Freigabe-Matrix, nicht dieses Feld.
+        if (typeof vkLoad === 'function') vkLoad();
 
         document.getElementById('smtpSavedState').textContent =
             d.isFromDb ? '✓ Aus Datenbank geladen' : 'ℹ Noch nicht gespeichert (Werte aus appsettings.json)';
@@ -112,8 +133,133 @@ function _smtpReadForm() {
         fromName:       document.getElementById('smtpFromName').value.trim() || 'Schaub HR',
         fromAddress:    document.getElementById('smtpFromAddress').value.trim(),
         testRedirectTo: document.getElementById('smtpTestRedirectTo').value.trim() || null,
-        siteUrl:        document.getElementById('smtpSiteUrl').value.trim() || 'https://test.hr-srgmbh.ch/'
+        siteUrl:        document.getElementById('smtpSiteUrl').value.trim() || 'https://test.hr-srgmbh.ch/',
+
+        // Rückläufer-Postfach. Beim Passwort dieselbe Logik wie oben: ein
+        // leeres Feld heisst «nicht angefasst», nicht «löschen» — sonst
+        // würde jedes Speichern der SMTP-Maske den IMAP-Zugang wegwerfen.
+        bounceAddress:      _sfGet('bounceAddress')  || null,
+        bounceImapHost:     _sfGet('bounceImapHost') || null,
+        bounceImapPort:     parseInt(_sfGet('bounceImapPort')) || 993,
+        bounceImapUser:     _sfGet('bounceImapUser') || null,
+        // Leeres Feld = unverändert. Wichtig: fehlt das Feld (alte Seite im
+        // Zwischenspeicher), muss ebenfalls der Sentinel raus — sonst würde
+        // ein Speichern der SMTP-Maske den IMAP-Zugang löschen.
+        bounceImapPassword: _sfGet('bounceImapPassword') || '***UNCHANGED***',
+        bounceAbrufAktiv:   document.getElementById('bounceAbrufAktiv')?.checked || false
     };
+}
+
+// ── Kleine Helfer gegen die Cache-Falle ──────────────────────────────────
+// Setzen bzw. lesen nur, wenn das Feld auch existiert.
+function _sfVal(id, wert) {
+    const el = document.getElementById(id);
+    if (el) el.value = (wert ?? '');
+}
+function _sfGet(id) {
+    const el = document.getElementById(id);
+    return el ? String(el.value ?? '').trim() : '';
+}
+
+// ══ Rückläufer (Walter-Vorgabe 01.09.2026) ═══════════════════════════════
+
+async function bounceAbrufen(auchGelesene) {
+    const btn = document.getElementById(auchGelesene ? 'bounceAbrufAlleBtn' : 'bounceAbrufBtn');
+    const out = document.getElementById('bounceAbrufResult');
+    const beschriftung = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Rufe ab …'; }
+    out.innerHTML = '';
+    try {
+        const r = await fetch('/api/admin/smtp/bounce/abrufen?auchGelesene=' + (auchGelesene ? 'true' : 'false'), {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) {
+            out.innerHTML = '<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;'
+                          + 'border-radius:8px;color:#991b1b;font-size:12.5px">'
+                          + 'Abruf fehlgeschlagen: ' + _bEsc(j.fehler || r.status) + '</div>';
+            return;
+        }
+        let txt = j.geprueft + ' Nachricht(en) geprüft, ' + j.erfasst + ' neu erfasst';
+        if (j.uebersprungen) txt += ', ' + j.uebersprungen + ' schon bekannt';
+        if (j.unklar) txt += ', ' + j.unklar + ' nicht erkannt (bleiben ungelesen im Postfach)';
+        out.innerHTML = '<div style="padding:10px 12px;background:#f0fdf4;border:1px solid #6ee7b7;'
+                      + 'border-radius:8px;color:#064e3b;font-size:12.5px">' + _bEsc(txt) + '</div>';
+        bounceListe();
+        // «Letzter Abruf» daneben mitziehen — der Zeitstempel wird serverseitig
+        // gesetzt, stand in der Maske aber bis zum nächsten Seitenaufbau auf
+        // «Noch nie abgerufen» (Walter 01.09.2026).
+        const stand = document.getElementById('bounceLetzterAbruf');
+        if (stand) stand.textContent = 'Letzter Abruf: ' + new Date().toLocaleString('de-CH');
+    } catch (e) {
+        out.innerHTML = '<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;'
+                      + 'border-radius:8px;color:#991b1b;font-size:12.5px">Verbindungsfehler.</div>';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = beschriftung; }
+    }
+}
+
+async function bounceListe() {
+    const box = document.getElementById('bounceListeBox');
+    if (!box) return;
+    const nurOffen = document.getElementById('bounceNurOffen')?.checked ? 'true' : 'false';
+    try {
+        const r = await fetch('/api/admin/smtp/bounce?limit=50&nurOffen=' + nurOffen, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        if (!r.ok) { box.textContent = 'Konnte nicht geladen werden.'; return; }
+        const rows = await r.json();
+        if (!rows.length) { box.textContent = 'Keine Rückläufer erfasst.'; return; }
+
+        let h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">'
+              + '<thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.05em">'
+              + '<th style="padding:6px 8px 6px 0">Wann</th><th style="padding:6px 8px">Adresse</th>'
+              + '<th style="padding:6px 8px">Mitarbeiter</th><th style="padding:6px 8px">Grund</th>'
+              + '<th style="padding:6px 0"></th></tr></thead><tbody>';
+        rows.forEach(b => {
+            const dat = new Date(b.empfangenAm).toLocaleDateString('de-CH');
+            // Hart = Adresse existiert nicht. Das ist der Fall, der eine
+            // Korrektur braucht — darum rot und mit Erledigt-Knopf.
+            const farbe = b.erledigt ? '#94a3b8' : (b.hart ? '#b91c1c' : '#92400e');
+            const ma = b.maName
+                ? _bEsc(b.maName) + (b.maNummer ? ' <span style="color:#94a3b8">· ' + _bEsc(b.maNummer) + '</span>' : '')
+                : '<span style="color:#94a3b8">keinem MA zugeordnet</span>';
+            h += '<tr style="border-top:1px solid #e2e8f0">'
+               + '<td style="padding:7px 8px 7px 0;color:#64748b;white-space:nowrap">' + dat + '</td>'
+               + '<td style="padding:7px 8px">' + _bEsc(b.adresse) + '</td>'
+               + '<td style="padding:7px 8px">' + ma + '</td>'
+               + '<td style="padding:7px 8px;color:' + farbe + '">' + _bEsc(b.grund)
+               + (b.code ? ' <span style="color:#94a3b8">(' + _bEsc(b.code) + ')</span>' : '') + '</td>'
+               + '<td style="padding:7px 0;text-align:right;white-space:nowrap">'
+               + (b.erledigt
+                    ? '<span style="color:#94a3b8;font-size:11.5px">erledigt</span>'
+                    : '<button type="button" onclick="bounceErledigt(' + b.id + ')" '
+                      + 'style="padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;'
+                      + 'cursor:pointer;font-size:11.5px;color:#475569">erledigt</button>')
+               + '</td></tr>';
+        });
+        box.innerHTML = h + '</tbody></table>';
+    } catch (e) {
+        box.textContent = 'Verbindungsfehler.';
+    }
+}
+
+// Erledigt = der Fall ist bearbeitet. Hebt zugleich die Versandsperre auf,
+// die Adresse wird also wieder angeschrieben.
+async function bounceErledigt(id) {
+    try {
+        const r = await fetch('/api/admin/smtp/bounce/' + id + '/erledigt', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        if (r.ok) bounceListe();
+    } catch (e) { /* Liste bleibt stehen, nichts kaputt */ }
+}
+
+function _bEsc(v) {
+    return String(v ?? '').replace(/[&<>"']/g, c =>
+        ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 
 async function smtpSave() {
@@ -122,9 +268,15 @@ async function smtpSave() {
     if (!dto.host) { showPageAlert('smtpAlert','Host darf nicht leer sein.','error'); return; }
     if (!dto.fromAddress) { showPageAlert('smtpAlert','Absender-Adresse darf nicht leer sein.','error'); return; }
 
-    const btn = document.getElementById('smtpSaveBtn');
-    btn.disabled = true; btn.textContent = 'Speichere...';
+    // Zwei Knöpfe lösen dasselbe Speichern aus: der in der SMTP-Karte und
+    // der in der Rückläufer-Karte weiter unten. Beide sperren, damit man
+    // nicht doppelt abschickt (Walter 01.09.2026).
+    const btns = ['smtpSaveBtn', 'bounceSaveBtn']
+        .map(id => document.getElementById(id)).filter(Boolean);
+    btns.forEach(b => { b.disabled = true; b.textContent = 'Speichere...'; });
     document.getElementById('smtpSavedState').textContent = '';
+    const bOut = document.getElementById('bounceAbrufResult');
+    if (bOut) bOut.innerHTML = '';
     try {
         const r = await fetch('/api/admin/smtp', {
             method: 'PUT',
@@ -140,12 +292,18 @@ async function smtpSave() {
             return;
         }
         showPageAlert('smtpAlert','✓ SMTP-Konfiguration gespeichert.','success');
+        // Bestätigung auch UNTEN zeigen: wer in der Rückläufer-Karte auf
+        // Speichern drückt, sieht die Meldung oben sonst gar nicht.
+        if (bOut) bOut.innerHTML =
+            '<div style="padding:10px 12px;background:#f0fdf4;border:1px solid #6ee7b7;'
+          + 'border-radius:8px;color:#064e3b;font-size:12.5px">✓ Gespeichert. '
+          + 'Jetzt auf «Jetzt abrufen» klicken, um die Verbindung zu prüfen.</div>';
         // neu laden, damit hasPassword-Status & Test-Banner aktuell sind
         await smtpLoad();
     } catch (e) {
         showPageAlert('smtpAlert','Netzwerkfehler: ' + e.message, 'error');
     } finally {
-        btn.disabled = false; btn.textContent = 'Speichern';
+        btns.forEach(b => { b.disabled = false; b.textContent = 'Speichern'; });
     }
 }
 

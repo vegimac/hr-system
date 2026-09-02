@@ -73,6 +73,12 @@ public class EcallController : ControllerBase
     [HttpPut("settings")]
     public async Task<IActionResult> PutSettings([FromBody] EcallSettingsDto dto)
     {
+        // Test-Nummer ist PFLICHT (Walter-Vorgabe 01.09.2026) — analog zur
+        // Test-Adresse beim Mail: Umleitungsziel für jeden Verteiler ohne Haken.
+        if (string.IsNullOrWhiteSpace(dto.TestRedirectTo))
+            return BadRequest(new { ok = false, error = "TESTNUMMER_FEHLT",
+                message = "Die Test-Nummer ist Pflicht — sie ist das Umleitungsziel für alle Verteiler ohne Haken." });
+
         var row = await _db.EcallSettings.FirstOrDefaultAsync(r => r.Id == 1);
         if (row == null)
         {
@@ -83,7 +89,7 @@ public class EcallController : ControllerBase
         row.Enabled        = dto.Enabled;
         row.Username       = string.IsNullOrWhiteSpace(dto.Username) ? null : dto.Username.Trim();
         row.Sender         = string.IsNullOrWhiteSpace(dto.Sender) ? null : dto.Sender.Trim();
-        row.TestRedirectTo = string.IsNullOrWhiteSpace(dto.TestRedirectTo) ? null : dto.TestRedirectTo.Trim();
+        row.TestRedirectTo = dto.TestRedirectTo!.Trim();
 
         // Passwort nur ändern, wenn ein nicht-leerer Wert kommt.
         if (!string.IsNullOrEmpty(dto.Password))
@@ -107,7 +113,9 @@ public class EcallController : ControllerBase
             ? "OneCrew Test-SMS - die eCall-Anbindung funktioniert."
             : dto.Text!.Trim();
 
-        var result = await _sms.SendSmsAsync(dto.To.Trim(), text, purpose: "TEST");
+        // Test-SMS steht bewusst ausserhalb der Freigabe-Matrix: sie geht an
+        // die von Hand eingetippte Nummer (Walter 01.09.2026).
+        var result = await _sms.SendSmsAsync(dto.To.Trim(), text);
         return Ok(new { ok = result.Ok, messageId = result.MessageId, error = result.Error });
     }
 }

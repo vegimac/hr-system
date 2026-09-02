@@ -176,6 +176,29 @@ public class FamilyMemberAllowancesController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Kein Zulagen-Anspruch ohne Unterhaltspflicht (Walter-Vorgabe 01.09.2026).
+    /// Der Anspruch nach FamZG haengt — wie die QST-Kinderziffer — daran, dass
+    /// der/die MA fuer den Unterhalt des Kindes aufkommt. Ist am Kind «keine
+    /// Unterhaltspflicht» gesetzt, darf gar keine Zulage erfasst werden.
+    /// Die Pruefung sitzt bewusst auch hier im Backend und nicht nur in der
+    /// Maske: ein ausgeblendeter Knopf ist keine Sperre.
+    /// </summary>
+    private async Task<IActionResult?> UnterhaltspflichtGeprueftAsync(int familyMemberId)
+    {
+        var ohneUnterhalt = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(m => m.Id == familyMemberId)
+            .Select(m => m.KeineUnterhaltspflicht)
+            .FirstOrDefaultAsync();
+        if (!ohneUnterhalt) return null;
+        return Conflict(new {
+            error   = "KEINE_UNTERHALTSPFLICHT",
+            message = "Für dieses Kind ist «keine Unterhaltspflicht» erfasst — "
+                    + "damit besteht kein Anspruch auf Familienzulagen. "
+                    + "Wenn das nicht stimmt, zuerst den Haken beim Kind entfernen."
+        });
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create(int familyMemberId, [FromBody] AllowanceDto dto)
     {
@@ -184,6 +207,9 @@ public class FamilyMemberAllowancesController : ControllerBase
 
         var memberExists = await _db.EmployeeFamilyMembers.AnyAsync(m => m.Id == familyMemberId);
         if (!memberExists) return NotFound(new { error = "Familienmitglied nicht gefunden." });
+
+        if (await UnterhaltspflichtGeprueftAsync(familyMemberId) is IActionResult sperre)
+            return sperre;
 
         // Walter 17.05.2026 / präzisiert 01.08.2026: ValidFrom nicht rückwirkend
         // in definitiv abgeschlossene Periode (Akonto sperrt nicht — s. GET).
@@ -230,6 +256,12 @@ public class FamilyMemberAllowancesController : ControllerBase
         var entry = await _db.FamilyMemberAllowances
             .FirstOrDefaultAsync(a => a.Id == id && a.FamilyMemberId == familyMemberId);
         if (entry is null) return NotFound();
+
+        // Bestehende Zulage: aendern gesperrt, solange «keine Unterhaltspflicht»
+        // steht. Loeschen bleibt erlaubt — sonst waere ein Altbestand, der jetzt
+        // als unberechtigt erkannt ist, nicht mehr aufraeumbar.
+        if (await UnterhaltspflichtGeprueftAsync(familyMemberId) is IActionResult sperreU)
+            return sperreU;
 
         var branchIdU     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowedU = branchIdU.HasValue

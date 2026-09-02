@@ -721,7 +721,8 @@ public class LohnlaufService
                 try
                 {
                     await _emailSvc.SendLohnzettelNotificationAsync(
-                        email!, snap.Employee?.FirstName ?? "", periode.Year, periode.Month);
+                        email!, snap.Employee?.FirstName ?? "", periode.Year, periode.Month,
+                        employeeId: snap.Employee?.Id);
                     mailsSent++;
                     // Kurze Pause zwischen Mails (~0.5s) um SMTP-Throttling zu vermeiden
                     await Task.Delay(500);

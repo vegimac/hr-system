@@ -60,6 +60,16 @@ public class AdminSmtpController : ControllerBase
         public string? TestRedirectTo { get; set; }
         public string SiteUrl { get; set; } = "https://onecrew.ch/";
         public bool   IsFromDb { get; set; }         // GET — false = noch kein DB-Row, Werte aus appsettings.json
+
+        // ── Rückläufer-Postfach (Walter-Vorgabe 01.09.2026) ───────────────
+        public string? BounceAddress { get; set; }
+        public string? BounceImapHost { get; set; }
+        public int     BounceImapPort { get; set; } = 993;
+        public string? BounceImapUser { get; set; }
+        public string  BounceImapPassword { get; set; } = "";  // wie oben: Sentinel = unverändert
+        public bool    BounceHasPassword { get; set; }         // nur GET
+        public bool    BounceAbrufAktiv { get; set; }
+        public DateTime? BounceLetzterAbruf { get; set; }      // nur GET
     }
 
     public class TestRequestDto
@@ -88,7 +98,9 @@ public class AdminSmtpController : ControllerBase
                 FromAddress = cfg.FromAddress,
                 TestRedirectTo = cfg.TestRedirectTo,
                 SiteUrl = cfg.SiteUrl,
-                IsFromDb = false
+                IsFromDb = false,
+                BounceImapPassword = PasswordUnchangedSentinel,
+                BounceImapPort = 993
             });
         }
 
@@ -103,7 +115,15 @@ public class AdminSmtpController : ControllerBase
             FromAddress = row.FromAddress,
             TestRedirectTo = row.TestRedirectTo,
             SiteUrl = row.SiteUrl,
-            IsFromDb = true
+            IsFromDb = true,
+            BounceAddress      = row.BounceAddress,
+            BounceImapHost     = row.BounceImapHost,
+            BounceImapPort     = row.BounceImapPort > 0 ? row.BounceImapPort : 993,
+            BounceImapUser     = row.BounceImapUser,
+            BounceImapPassword = PasswordUnchangedSentinel,
+            BounceHasPassword  = !string.IsNullOrEmpty(row.BounceImapPasswordEncrypted),
+            BounceAbrufAktiv   = row.BounceAbrufAktiv,
+            BounceLetzterAbruf = row.BounceLetzterAbruf
         });
     }
 
@@ -116,6 +136,14 @@ public class AdminSmtpController : ControllerBase
             return BadRequest(new { error = "Absender-Adresse darf nicht leer sein." });
         if (dto.Port <= 0 || dto.Port > 65535)
             return BadRequest(new { error = "Port ungültig." });
+
+        // Test-Adresse ist PFLICHT (Walter-Vorgabe 01.09.2026): sie ist das
+        // Umleitungsziel für jede Kategorie ohne Haken. Ohne sie könnte eine
+        // nicht freigegebene Mail nirgends hin — und darf erst recht nicht
+        // scharf rausgehen.
+        if (string.IsNullOrWhiteSpace(dto.TestRedirectTo))
+            return BadRequest(new { error = "TESTADRESSE_FEHLT",
+                message = "Die Test-Adresse ist Pflicht — sie ist das Umleitungsziel für alle Verteiler ohne Haken." });
 
         var row = await _db.SmtpSettings.FirstOrDefaultAsync(r => r.Id == 1);
         var isNew = row == null;
@@ -130,8 +158,28 @@ public class AdminSmtpController : ControllerBase
         row.Username       = (dto.Username ?? "").Trim();
         row.FromName       = string.IsNullOrWhiteSpace(dto.FromName) ? "Schaub HR" : dto.FromName.Trim();
         row.FromAddress    = dto.FromAddress.Trim();
-        row.TestRedirectTo = string.IsNullOrWhiteSpace(dto.TestRedirectTo) ? null : dto.TestRedirectTo.Trim();
+        row.TestRedirectTo = dto.TestRedirectTo!.Trim();
         row.SiteUrl        = string.IsNullOrWhiteSpace(dto.SiteUrl) ? "https://onecrew.ch/" : dto.SiteUrl.Trim();
+
+        // ── Rückläufer-Postfach ───────────────────────────────────────────
+        // Leere Felder sind erlaubt: das ist der Zustand «noch nicht
+        // eingerichtet», und dann bleibt schlicht alles wie vorher.
+        row.BounceAddress   = Leer(dto.BounceAddress);
+        row.BounceImapHost  = Leer(dto.BounceImapHost);
+        row.BounceImapPort  = dto.BounceImapPort > 0 && dto.BounceImapPort <= 65535 ? dto.BounceImapPort : 993;
+        row.BounceImapUser  = Leer(dto.BounceImapUser);
+        if (dto.BounceImapPassword != PasswordUnchangedSentinel)
+            row.BounceImapPasswordEncrypted =
+                string.IsNullOrEmpty(dto.BounceImapPassword) ? "" : _aes.Encrypt(dto.BounceImapPassword);
+
+        // Der Haken lässt sich nur setzen, wenn auch wirklich ein Postfach
+        // dahintersteht — sonst stünde in der Maske «aktiv», während der
+        // Dienst in Wahrheit jede Stunde nichts tut.
+        var bereit = !string.IsNullOrWhiteSpace(row.BounceImapHost)
+                  && !string.IsNullOrWhiteSpace(row.BounceImapUser)
+                  && !string.IsNullOrEmpty(row.BounceImapPasswordEncrypted);
+        row.BounceAbrufAktiv = dto.BounceAbrufAktiv && bereit;
+
         row.UpdatedAt      = DateTime.UtcNow;
         row.UpdatedByUserId = GetCurrentUserId();
 
@@ -210,7 +258,12 @@ public class AdminSmtpController : ControllerBase
             string.IsNullOrWhiteSpace(d.FromName) ? "Schaub HR" : d.FromName.Trim(),
             d.FromAddress.Trim(),
             string.IsNullOrWhiteSpace(d.TestRedirectTo) ? null : d.TestRedirectTo.Trim(),
-            string.IsNullOrWhiteSpace(d.SiteUrl) ? "https://onecrew.ch/" : d.SiteUrl.Trim());
+            string.IsNullOrWhiteSpace(d.SiteUrl) ? "https://onecrew.ch/" : d.SiteUrl.Trim(),
+            // Rücksendeadresse mitnehmen (Walter 01.09.2026): Sonst prüft die
+            // Test-Mail genau das NICHT, was am ehesten schiefgeht — nämlich
+            // ob der Mailserver einen abweichenden Envelope-Absender
+            // überhaupt annimmt.
+            string.IsNullOrWhiteSpace(d.BounceAddress) ? null : d.BounceAddress.Trim());
 
         try
         {
@@ -242,18 +295,105 @@ public class AdminSmtpController : ControllerBase
         await _emailSvc.SendTestMailAsync(cfg, to, subject, html, text);
     }
 
+    /// <summary>
+    /// Ergebnis des Test-Mail-Knopfs. Seit dem Umbau auf die Freigabe-Matrix
+    /// (Walter 01.09.2026) geht die Test-Mail IMMER an die von Hand
+    /// eingetippte Adresse — sie steht bewusst ausserhalb der Kategorien.
+    /// Vorher wurde sie in die Test-Umleitung gezogen; das war sinnvoll,
+    /// solange «Feld gefüllt» der Hauptschalter war. Jetzt bleibt das Feld
+    /// dauerhaft gefüllt, und ein Testknopf, der nie dorthin sendet, wohin
+    /// man ihn schickt, wäre nutzlos.
+    /// </summary>
     private static object BuildOkResult(EmailService.EffectiveSmtpConfig cfg, string requestedTo)
     {
-        var redirected = !string.IsNullOrWhiteSpace(cfg.TestRedirectTo);
         return new
         {
             ok = true,
             requestedTo,
-            actualTo = redirected ? cfg.TestRedirectTo : requestedTo,
-            redirected,
+            actualTo = requestedTo,
+            redirected = false,
             host = cfg.Host,
             port = cfg.Port
         };
+    }
+
+    /// <summary>Leerstring und Nur-Leerzeichen werden zu NULL.</summary>
+    private static string? Leer(string? v)
+        => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+
+    // ══ Rückläufer (Walter-Vorgabe 01.09.2026) ═══════════════════════════
+
+    /// <summary>
+    /// Postfach jetzt abrufen. Läuft auch, wenn der Haken «Abruf aktiv»
+    /// noch aus ist — genau so testet man die Verbindung, bevor man den
+    /// stündlichen Dienst scharf schaltet.
+    /// </summary>
+    [HttpPost("bounce/abrufen")]
+    public async Task<IActionResult> BounceAbrufen([FromServices] BounceAbrufService dienst,
+                                                   [FromQuery] bool auchGelesene,
+                                                   CancellationToken ct)
+    {
+        var res = await dienst.AbrufenAsync(ct, auchGelesene);
+        if (res.Fehler != null)
+            return Ok(new { ok = false, fehler = res.Fehler, res.Geprueft, res.Erfasst });
+
+        // Eine neu gesperrte Adresse soll sofort wirken, nicht erst nach
+        // Ablauf des Minuten-Caches.
+        EmailService.SperrlisteVerwerfen();
+
+        return Ok(new { ok = true, res.Geprueft, res.Erfasst, res.Uebersprungen, res.Unklar });
+    }
+
+    /// <summary>Die letzten Rückläufer, neueste zuerst.</summary>
+    [HttpGet("bounce")]
+    public async Task<IActionResult> BounceListe([FromQuery] int limit = 50,
+                                                 [FromQuery] bool nurOffen = false)
+    {
+        var q = _db.MailBounces.AsNoTracking().AsQueryable();
+        if (nurOffen) q = q.Where(b => !b.Erledigt);
+
+        var rows = await q
+            .OrderByDescending(b => b.EmpfangenAm)
+            .Take(Math.Clamp(limit, 1, 200))
+            .Select(b => new
+            {
+                b.Id,
+                b.EmpfangenAm,
+                b.Adresse,
+                b.Hart,
+                b.Code,
+                b.Grund,
+                b.OriginalBetreff,
+                b.Erledigt,
+                b.ErledigtAm,
+                b.EmployeeId,
+                MaNummer = b.Employee != null ? b.Employee.EmployeeNumber : null,
+                MaName   = b.Employee != null
+                    ? ((b.Employee.FirstName ?? "") + " " + (b.Employee.LastName ?? "")).Trim()
+                    : null,
+            })
+            .ToListAsync();
+
+        return Ok(rows);
+    }
+
+    /// <summary>
+    /// Rückläufer als erledigt markieren. Hebt zugleich die Versandsperre
+    /// auf — die Adresse wird also wieder angeschrieben.
+    /// </summary>
+    [HttpPost("bounce/{id:int}/erledigt")]
+    public async Task<IActionResult> BounceErledigt(int id)
+    {
+        var row = await _db.MailBounces.FirstOrDefaultAsync(b => b.Id == id);
+        if (row == null) return NotFound();
+
+        row.Erledigt          = true;
+        row.ErledigtAm        = DateTime.Now;
+        row.ErledigtVonUserId = GetCurrentUserId();
+        await _db.SaveChangesAsync();
+
+        EmailService.SperrlisteVerwerfen();
+        return Ok(new { ok = true });
     }
 
     private int? GetCurrentUserId()

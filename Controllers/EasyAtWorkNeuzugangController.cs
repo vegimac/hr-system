@@ -92,6 +92,7 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             countNew    = res.CountNew,
             countUpdate = res.CountUpdate,
             conflicts,
+            phantomSkipped = res.CountPhantomSkipped,
             notes = res.Notes,
             numberSequence = seq,
         });

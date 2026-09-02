@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260831f">
+    <link rel="stylesheet" href="css/app.css?v=20260902a">
 </head>
 <body>
 
@@ -611,7 +611,7 @@
                                 <div style="height:8px"></div>
                                 Texte und Emotionsgrade pflegst du unter <strong>Systemeinstellungen → Moments-Texte</strong>. Administrative/sensible Mitteilungen laufen über den <strong>Postfach</strong>-Bereich (Posteingang).
                                 <div style="margin-top:12px;padding:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;font-size:12px">
-                                    📲 Die SMS geht beim Senden direkt über eCall an die Mobilnummer des MA. Solange in den Systemeinstellungen → SMS (eCall) eine <strong>Test-Umleitung</strong> hinterlegt ist, gehen alle SMS an die Test-Nummer.
+                                    📲 Die SMS geht beim Senden direkt über eCall an die Mobilnummer des MA. Ob sie scharf rausgeht oder an die Test-Nummer, entscheidet der Haken des Verteilers in den Systemeinstellungen → E-Mail-Versand.
                                 </div>
                             </div>
                         </div>
@@ -2558,6 +2558,7 @@
                             </div>
                             <button onclick="qstaPdfClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
                         </div>
+                        <div id="qstaPdfWarn" style="display:none;padding:11px 20px;background:#fef3c7;border-bottom:1px solid #fcd34d;color:#92400e;font-size:12.5px;line-height:1.45"></div>
                         <div style="flex:1;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden">
                             <iframe id="qstaPdfFrame" style="width:100%;height:100%;border:none;background:white" title="QST-Anmeldung Vorschau"></iframe>
                         </div>
@@ -3160,7 +3161,7 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Gruppen-E-Mail an Mitarbeitende</h1>
-                        <p class="page-sub">Empfänger nach Filiale und Vertragsmodell wählen, Empfängerliste prüfen (einzelne abwählbar), dann senden. Jede Person erhält eine eigene E-Mail — Adressen bleiben privat. Der Versand von Lohnbelegen bleibt geschlossen.</p>
+                        <p class="page-sub">Empfänger nach Filiale, Vertragsmodell und Funktion wählen — auf Wunsch auch alle Benutzer, die OneCrew bedienen (nicht die MA-Postfach-Logins). Doppelte E-Mail-Adressen werden automatisch nur einmal angeschrieben. Jede Person erhält eine eigene E-Mail, Adressen bleiben privat. Der Versand von Lohnbelegen bleibt geschlossen.</p>
                     </div>
                 </div>
                 <div class="page-body">
@@ -3185,6 +3186,14 @@
                                     <button type="button" onclick="meAlleFunk(false)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">keine</button></span>
                                 <div id="meFunkRow" style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#3f3f3f;max-width:640px"></div>
                             </div>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <span style="font-size:11px;color:#8b8b8b">Zusätzlich</span>
+                                <!-- OneCrew-Benutzer (Walter 01.09.2026): GF sind MA UND Benutzer.
+                                     Doppelte E-Mail-Adressen werden beim Laden entfernt. -->
+                                <label style="font-size:13px;color:#3f3f3f" title="Auch alle aktiven Benutzer anschreiben, die OneCrew bedienen (Geschäftsführung, HR, Buchhaltung, Administration). Die MA-Postfach-Logins der Mitarbeitenden sind NICHT gemeint. Wer als Mitarbeitender dieselbe Adresse hat (z.B. Geschäftsführer), bekommt die Mail trotzdem nur einmal.">
+                                    <input type="checkbox" id="meBenutzer"> OneCrew-Benutzer
+                                </label>
+                            </div>
                             <button onclick="meLadeEmpfaenger()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Empfänger laden</button>
                         </div>
                     </div>
@@ -3195,13 +3204,29 @@
                             <input type="text" id="meBetreff" class="ma-input" placeholder="z.B. Manager-Dienstplan — neuer Handy-Link">
                         </div>
                         <div class="ma-field">
-                            <div class="ma-field-label">Nachricht</div>
+                            <div class="ma-field-label">Nachricht <span style="font-weight:400;color:#8b8b8b">— kann leer bleiben, wenn ein Dokument angehängt ist</span></div>
                             <textarea id="meText" class="ma-textarea" rows="8" placeholder="Nachrichtentext… (Links einfach einfügen, z.B. der Dienstplan-Handy-Link aus dem QR-Fenster)"></textarea>
+                        </div>
+                        <!-- Anhang (Walter-Vorgabe 01.09.2026): EIN Dokument geht an
+                             alle gewählten Empfänger. -->
+                        <div class="ma-field" style="margin-top:10px">
+                            <div class="ma-field-label">Dokument anhängen <span style="font-weight:400;color:#8b8b8b">— optional, geht an alle Empfänger</span></div>
+                            <input type="file" id="meAnhang" style="font-size:13px">
                         </div>
                         <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
                             <button onclick="meSenden()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13.5px;font-weight:700;cursor:pointer">📧 E-Mail senden</button>
                             <span id="meSendInfo" style="font-size:12.5px"></span>
                         </div>
+                    </div>
+
+                    <!-- Versandprotokoll (Walter-Vorgabe 01.09.2026): ein Eintrag
+                         pro Versand mit der Selektion im Klartext. -->
+                    <div class="card" style="padding:14px 16px;margin-top:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                            <div style="font-size:14px;font-weight:700;color:#3f3f3f">Versendete Gruppen-E-Mails</div>
+                            <button type="button" onclick="meLadeLog()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:12px;text-decoration:underline">neu laden</button>
+                        </div>
+                        <div id="meLog"></div>
                     </div>
                 </div>
             </div>
@@ -4511,6 +4536,23 @@
                         <button class="btn-secondary" onclick="eawVerschollenCheck(this)" title="Prüft sofort alle MA gegen die easy@work-Aktivlisten — setzt Verschollen-Warnungen und hebt sie auf (sonst läuft das nur im Nacht-Sync)">🕵️ Verschollen-Check jetzt</button>
                     </div>
                     <div id="eawTestResultBox" style="display:none;background:#ecfeff;border:1px solid #67e8f9;border-radius:8px;padding:12px;margin-bottom:18px;font-size:13px"></div>
+
+                    <!-- Fehlerliste MA-Sync (Walter 01.09.2026): Verträge, die wegen
+                         Erfassungsfehlern in easy@work NICHT importiert wurden. -->
+                    <div class="card" style="padding:18px;margin-bottom:18px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap">
+                            <div style="font-size:14.5px;font-weight:700;color:#0f172a">Nicht importierte Verträge</div>
+                            <button type="button" onclick="msfLoad(false)"
+                                    style="padding:5px 11px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;cursor:pointer;font-size:12px;color:#475569">↻ neu laden</button>
+                            <button type="button" onclick="msfLoad(true)"
+                                    style="padding:5px 11px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;cursor:pointer;font-size:12px;color:#475569">auch erledigte zeigen</button>
+                        </div>
+                        <div style="font-size:12.5px;color:#64748b;margin-bottom:12px;line-height:1.6">
+                            FIX hat nie Stunden, sondern Prozent (50/60/70/80/90/100) · FLEX 17 Std/Woche · MTP 18–40 Std/Woche.
+                            Verträge, die dem widersprechen, werden nicht importiert und stehen hier — Korrektur erfolgt in easy@work.
+                        </div>
+                        <div id="msfBox"></div>
+                    </div>
                     <h3 style="margin:18px 0 8px;font-size:15px">Filial-Mappings</h3>
                     <p style="color:#64748b;font-size:13px;margin-bottom:10px">Jede unserer Filialen wird auf eine easy@work-Customer-ID gemappt. Customer-IDs siehst du oben nach „Verbindung testen".</p>
                     <div style="margin-bottom:10px">
@@ -5735,11 +5777,26 @@
 
                 <div id="smtpAlert" style="margin-bottom:14px"></div>
 
-                <div id="smtpTestBanner" style="display:none;margin-bottom:14px;background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:12px 16px;color:#92400e">
-                    <strong>⚠️ Test-Modus aktiv:</strong>
-                    Alle Mails gehen an <strong id="smtpTestBannerAddr">–</strong> statt an die eigentlichen Empfänger.
-                    Im Subject erscheint <code>[TEST → original@adresse]</code>.
-                    Zum Echtbetrieb: Feld „Test-Umleitung" leeren und speichern.
+                <!-- Freigabe-Matrix (Walter 01.09.2026): nicht mehr «Feld gefüllt =
+                     alles Test», sondern ein Haken je Verteiler und Kanal. -->
+                <div class="card" style="padding:20px;max-width:760px;margin-bottom:16px">
+                    <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:6px">Was geht scharf raus?</div>
+                    <div style="font-size:12.5px;color:#64748b;margin-bottom:14px;line-height:1.6">
+                        Haken setzen = diese Nachrichten gehen an die <strong>echten</strong> Empfänger.
+                        Ohne Haken gehen sie an die Test-Adresse bzw. Test-Nummer weiter unten —
+                        die bleibt dauerhaft hinterlegt und ist nur das Umleitungsziel, kein Schalter.
+                    </div>
+                    <div id="vkWarnung"></div>
+                    <div id="vkBlockHinweis"></div>
+                    <div id="vkBody"></div>
+                    <div style="margin-top:16px;padding-top:14px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <button class="btn btn-primary" onclick="vkSave()" id="vkSaveBtn">Freigabe speichern</button>
+                        <button type="button" onclick="vkLoad()"
+                                style="padding:9px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#475569">
+                            Verwerfen / Neu laden
+                        </button>
+                        <span id="vkSavedState" style="font-size:12px;color:#64748b;margin-left:auto"></span>
+                    </div>
                 </div>
 
                 <div class="card" style="padding:20px;max-width:760px">
@@ -5794,12 +5851,14 @@
                         </div>
                         <div style="grid-column:1 / -1">
                             <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
-                                Test-Umleitung (optional) <span style="color:#94a3b8;font-weight:500">— alle Mails an diese Adresse</span>
+                                Test-Adresse <span style="color:#dc2626;font-weight:600">*Pflicht</span>
+                                <span style="color:#94a3b8;font-weight:500">— Umleitungsziel für alles ohne Haken</span>
                             </label>
-                            <input id="smtpTestRedirectTo" type="email" placeholder="z.B. walter.schaub@gmail.com — leer für Echtbetrieb"
+                            <input id="smtpTestRedirectTo" type="email" placeholder="z.B. walter.schaub@gmail.com"
                                    style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
                             <div style="font-size:11.5px;color:#94a3b8;margin-top:3px">
-                                Solange dieses Feld gefüllt ist, gehen alle Mails an die Test-Adresse statt an MA.
+                                Bleibt dauerhaft stehen. Was scharf rausgeht, steuerst du oben über die Haken —
+                                nicht über dieses Feld.
                             </div>
                         </div>
                         <div style="grid-column:1 / -1">
@@ -5824,7 +5883,8 @@
                     <div style="font-size:12.5px;color:#64748b;margin-bottom:14px">
                         Sendet eine kleine Bestätigungs-Mail mit den <strong>aktuell im Formular eingetragenen</strong>
                         Werten. Damit kannst du die Konfig verifizieren bevor du sie speicherst.
-                        Wenn ein Test-Umleitungs-Adresse gesetzt ist, wird die Empfänger-Adresse automatisch dorthin umgelenkt.
+                        Diese Test-Mail geht immer an die hier eingetippte Adresse — sie steht bewusst
+                        ausserhalb der Freigabe-Matrix.
                     </div>
                     <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
                         <div style="flex:1;min-width:240px">
@@ -5836,6 +5896,106 @@
                     </div>
                     <div id="smtpTestResult" style="margin-top:14px"></div>
                 </div>
+
+                <!-- ═══ Rückläufer-Postfach (Walter-Vorgabe 01.09.2026) ═══
+                     Zustellmeldungen («Adresse existiert nicht», «Postfach
+                     voll») landen sonst im HR-Postfach und müssen von Hand
+                     gedeutet werden. OneCrew holt sie hier ab und macht
+                     daraus eine Pendenz auf der To-do-Liste. -->
+                <div class="card" style="padding:20px;max-width:760px;margin-top:16px">
+                    <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:8px">Rückläufer-Postfach</div>
+                    <div style="font-size:12.5px;color:#64748b;margin-bottom:16px;line-height:1.55">
+                        Kommt eine Mail nicht an, schickt der Empfänger-Server eine Meldung zurück.
+                        OneCrew liest dieses Postfach stündlich, ordnet die Meldung dem Mitarbeitenden zu
+                        und setzt sie auf die To-do-Liste. Adressen, die nachweislich nicht existieren,
+                        werden bis zur Korrektur nicht mehr angeschrieben.
+                        <strong>Am besten ein eigenes Postfach</strong> (z.B. bounce@…) — dann sieht OneCrew
+                        nie eure normale Korrespondenz.
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+                        <div style="grid-column:1 / -1">
+                            <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">
+                                Rücksendeadresse
+                                <span style="color:#94a3b8;font-weight:500">— steht als Return-Path auf jeder Mail</span>
+                            </label>
+                            <input id="bounceAddress" type="email" placeholder="z.B. bounce@srgmbh.ch"
+                                   style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:3px">
+                                Nicht der sichtbare Absender — der bleibt die Absender-Adresse oben.
+                                Wer auf eine Mail antwortet, landet weiterhin dort. Leer = Rückläufer gehen
+                                wie bisher an die Absender-Adresse.
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">IMAP-Server</label>
+                            <input id="bounceImapHost" type="text" placeholder="z.B. mail.hostfactory.ch"
+                                   style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Port</label>
+                            <input id="bounceImapPort" type="number" value="993"
+                                   style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:3px">993 = SSL (Normalfall), 143 = STARTTLS</div>
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Benutzername</label>
+                            <input id="bounceImapUser" type="text" placeholder="meist gleich wie die Adresse"
+                                   style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                        </div>
+                        <div>
+                            <label style="font-size:12.5px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Passwort</label>
+                            <input id="bounceImapPassword" type="password" placeholder="unverändert"
+                                   style="width:100%;padding:9px 11px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px">
+                            <div style="font-size:11.5px;color:#94a3b8;margin-top:3px">
+                                AES-verschlüsselt gespeichert. Leer lassen = unverändert.
+                            </div>
+                        </div>
+                        <div style="grid-column:1 / -1;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                            <label style="font-size:13px;color:#3f3f3f;display:flex;align-items:center;gap:7px;cursor:pointer">
+                                <input type="checkbox" id="bounceAbrufAktiv">
+                                Stündlich automatisch abrufen
+                            </label>
+                            <span id="bounceLetzterAbruf" style="font-size:11.5px;color:#94a3b8"></span>
+                        </div>
+                    </div>
+
+                    <!-- Eigener Speichern-Knopf (Walter-Bug 01.09.2026): Diese
+                         Felder gehören technisch zur SMTP-Konfiguration und
+                         wurden nur über den Knopf in der Karte WEIT OBEN
+                         gespeichert. Wer die Karte ausfüllt, sucht den Knopf
+                         aber hier — und bekam sonst «Kein Rückläufer-Postfach
+                         hinterlegt», obwohl alles ausgefüllt war. -->
+                    <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <button class="btn btn-primary" onclick="smtpSave()" id="bounceSaveBtn">Speichern</button>
+                        <button type="button" onclick="bounceAbrufen(false)" id="bounceAbrufBtn"
+                                style="padding:9px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#475569">
+                            Jetzt abrufen
+                        </button>
+                        <!-- Nachfassen, wenn ein früherer Lauf eine Mail als
+                             gelesen markiert, aber nicht gespeichert hat. -->
+                        <button type="button" onclick="bounceAbrufen(true)" id="bounceAbrufAlleBtn"
+                                title="Prüft auch bereits gelesene Nachrichten der letzten 14 Tage. Dubletten sind ausgeschlossen."
+                                style="padding:9px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#475569">
+                            Auch gelesene prüfen
+                        </button>
+                        <span style="font-size:11.5px;color:#94a3b8">
+                            Erst speichern, dann abrufen. Der Abruf läuft auch ohne Haken — so testest du die Verbindung.
+                        </span>
+                    </div>
+                    <div id="bounceAbrufResult" style="margin-top:12px"></div>
+
+                    <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                            <div style="font-size:13.5px;font-weight:700;color:#0f172a">Letzte Rückläufer</div>
+                            <label style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto">
+                                <input type="checkbox" id="bounceNurOffen" onchange="bounceListe()"> nur offene
+                            </label>
+                        </div>
+                        <div id="bounceListeBox" style="font-size:12.5px;color:#94a3b8">wird geladen …</div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- ═══════════════ SMS (eCall) — F24 Schweiz REST ═══════════════ -->
@@ -5885,12 +6045,13 @@
                         </div>
                         <div>
                             <label style="font-size:12.5px;font-weight:600;color:#646464;display:block;margin-bottom:4px">
-                                Test-Umleitung (optional) <span style="font-weight:500;color:#8b8b8b">— alle SMS an diese Nummer</span>
+                                Test-Nummer <span style="color:#dc2626;font-weight:600">*Pflicht</span>
+                                <span style="font-weight:500;color:#8b8b8b">— Umleitungsziel für SMS ohne Haken</span>
                             </label>
                             <input id="ecallTestRedirect" type="text" placeholder="z.B. +41 79 123 45 67 — leer = Echtbetrieb" autocomplete="off"
                                    style="width:100%;padding:9px 11px;border:1px solid rgba(139,139,139,0.4);border-radius:8px;font-size:13.5px;background:rgba(255,255,255,0.7)">
                             <div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">
-                                Solange dieses Feld gefüllt ist, gehen alle SMS an die Test-Nummer statt an MA.
+                                Bleibt dauerhaft stehen. Was scharf rausgeht, steuerst du über die Haken unter E-Mail-Versand — nicht über dieses Feld.
                             </div>
                         </div>
                     </div>
@@ -8405,10 +8566,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/liquid-select.js?v=20260725a"></script>
 <script src="js/date-year-quickpick.js?v=20260727a"></script>
 <script src="js/save-blob.js?v=20260831a"></script>
+<!-- «PDF wird generiert …» — umhüllt window.fetch einmal global, damit die
+     Meldung bei JEDEM PDF erscheint, auch bei künftigen (Walter 01.09.2026). -->
+<script src="js/pdf-progress.js?v=20260901a"></script>
 <script src="js/file-preview.js?v=20260831a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260830a"></script>
+<script src="js/dashboard.js?v=20260901b"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -8427,7 +8591,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260820a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260831c"></script>
+<script src="js/branches-detail.js?v=20260901a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260830a"></script>
@@ -8455,7 +8619,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260826d"></script>
+<script src="js/easyatwork.js?v=20260901a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>
@@ -8464,13 +8628,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
 <script src="js/swissdec.js?v=20260829a"></script>
-<script src="js/hauptsitze.js?v=20260829a"></script>
+<script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
 <script src="js/elm-lohnraster.js?v=20260817d"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
-<script src="js/global-search.js?v=20260831a"></script>
+<script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20260816a"></script>
 <script src="js/i18n.js?v=20260830a"></script>
 <!-- FAMILIEN MODAL -->
@@ -8588,6 +8752,18 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-checkbox-card">
                         <input type="checkbox" id="fmLivesInSwitzerland" onchange="fmUpdateAuslandHint()">
                         <span class="fmf-checkbox-text" data-i18n="fam.field.livesInCh.short">Ja</span>
+                    </label>
+                </div>
+                <!-- Keine Unterhaltspflicht (Walter-Vorgabe 01.09.2026, Fall
+                     Ossenih): Stiefkind aus früherer Beziehung des Partners
+                     oder Kind ohne Sorgerecht. Die QST-Kinderziffer knüpft an
+                     die Unterhaltspflicht — so ein Kind zählt nie. Nur beim
+                     Typ «Kind» sichtbar (fmQstBlocksVisibility). -->
+                <div class="fmf-field" id="fmKeineUnterhaltField">
+                    <label class="fmf-label">Unterhaltspflicht</label>
+                    <label class="fmf-checkbox-card" title="Kind, für das der/die MA keine Unterhaltspflicht hat — z.B. Stiefkind aus einer früheren Beziehung des Partners oder Kind ohne Sorgerecht. Zählt dann NICHT für die QST-Kinderziffer.">
+                        <input type="checkbox" id="fmKeineUnterhaltspflicht" onchange="fmQstBlocksVisibility()">
+                        <span class="fmf-checkbox-text">keine Unterhaltspflicht</span>
                     </label>
                 </div>
             </div>
@@ -8913,7 +9089,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260831d"></script>
+<script src="employees.js?v=20260901a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9831,7 +10007,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260831a"></script>
+<script src="js/posteingang.js?v=20260901a"></script>
 <script src="js/hr-rav.js?v=20260806a"></script>
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>
@@ -9840,15 +10016,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260821f"></script>
-<script src="js/ma-email.js?v=20260815c"></script>
+<script src="js/ma-email.js?v=20260901f"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
 <script src="js/kandidaten.js?v=20260819a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
-<script src="js/hr-qst-anmeldung.js?v=20260829a"></script>
+<script src="js/hr-qst-anmeldung.js?v=20260902a"></script>
 <script src="js/hr-lohnausweis.js?v=20260816e"></script>
-<script src="js/kuendigung.js?v=20260812b"></script>
+<script src="js/kuendigung.js?v=20260901a"></script>
 <script src="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script src="js/aerzte.js?v=20260720b"></script>
 <!-- SheetJS für clientseitiges XLSX-Parsing (d.velop-Auto-Detect, etc.) -->
@@ -9861,8 +10037,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 3 (Phase A) ═══════════════ -->
 <script src="js/keyboard-nav.js?v=20260704p"></script>
-<script src="js/smtp-settings.js?v=20260704p"></script>
-<script src="js/ecall-settings.js?v=20260707b"></script>
+<script src="js/smtp-settings.js?v=20260901f"></script>
+<script src="js/versand-kategorien.js?v=20260901a"></script>
+<script src="js/ma-sync-fehler.js?v=20260901a"></script>
+<script src="js/ecall-settings.js?v=20260901a"></script>
 <script src="js/bfs-lse.js?v=20260704p"></script>
 <script>init();</script>
 </body>

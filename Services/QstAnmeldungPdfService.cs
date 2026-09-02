@@ -40,6 +40,14 @@ public class QstAnmeldungPdfService
     }
 
     /// <summary>
+    /// Bequeme Ueberladung ohne Ersatz-Meldung — fuer Aufrufer, die sie nicht
+    /// auswerten. Der Fallback greift genauso, er wird nur nicht gemeldet.
+    /// </summary>
+    public byte[] Generate(QstAnmeldungData d, string kanton = "SO",
+                           byte[]? signaturePng = null, string? signerName = null)
+        => Generate(d, kanton, signaturePng, signerName, out _);
+
+    /// <summary>
     /// Generiert das ausgefüllte QST-Anmeldeformular.
     /// </summary>
     /// <param name="d">DTO mit allen Feld-Werten.</param>
@@ -50,12 +58,20 @@ public class QstAnmeldungPdfService
     /// Null = Stelle bleibt leer (User hat keine Unterschrift hinterlegt).</param>
     /// <param name="signerName">Klarname des Unterzeichners (Vor- + Nachname),
     /// wird unter dem Bild ausgedruckt. Pflicht wenn signaturePng gesetzt ist.</param>
+    /// <param name="ersatzTemplate">
+    /// Gibt zurueck, welches Template WIRKLICH benutzt wurde, wenn es fuer den
+    /// gewuenschten Kanton keines gibt (Walter-Bug 02.09.2026: eine in Luzern
+    /// wohnhafte MA bekam still das Solothurner Formular). Null = passendes
+    /// Template vorhanden.
+    /// </param>
     public byte[] Generate(
         QstAnmeldungData d,
-        string kanton = "SO",
-        byte[]? signaturePng = null,
-        string? signerName = null)
+        string kanton,
+        byte[]? signaturePng,
+        string? signerName,
+        out string? ersatzTemplate)
     {
+        ersatzTemplate = null;
         var k = (kanton ?? "SO").Trim().ToUpperInvariant();
         var formsDir = System.IO.Path.Combine(_env.ContentRootPath, "Assets", "Forms");
 
@@ -85,6 +101,7 @@ public class QstAnmeldungPdfService
             templatePath = fallbackPath;
             mapper = MapSo;
             usedFallbackTemplate = true;
+            ersatzTemplate = "SO";
         }
 
         using var ms     = new MemoryStream();

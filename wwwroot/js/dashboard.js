@@ -86,6 +86,13 @@ const DASH_CATEGORY_META = {
     kuendigung_ablauf:      { i18nKey: 'dash.cat.terminationEnding', label: 'Vertragsende Kündigung', icon: '🚪', color: '#b91c1c' },
     kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt steht bevor',   icon: '🚪', color: '#b91c1c' },
+    // Austritts-Abgleich easy@work ↔ OneCrew (Walter 01.09.2026). Ohne Eintrag
+    // hier rendert die Sektion zwar (Fallback greift), zeigt aber den rohen
+    // Kategorie-Code als Titel und bekommt keinen Filter-Knopf.
+    austritt_unvollstaendig: { label: 'Austritt ohne Kündigungsangaben', icon: '📝', color: '#92400e' },
+    email_unzustellbar: { label: 'E-Mail nicht zustellbar', icon: '📮', color: '#b91c1c' },
+    austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
+    contract_end_weitergearbeitet: { label: 'Nach Vertragsende weitergearbeitet', icon: '⏰', color: '#991b1b' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },
     qst_kanton_mismatch:    { label: 'QST-Kanton ≠ Wohnkanton', icon: '🧾', color: '#991b1b' },
     ahv_nummer_fehlt:       { label: 'AHV-Nummer fehlt',        icon: '🆔', color: '#b91c1c' },

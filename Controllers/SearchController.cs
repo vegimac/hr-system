@@ -23,7 +23,7 @@ public class SearchController : ControllerBase
     public async Task<IActionResult> Search([FromQuery] string q)
     {
         if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
-            return Ok(new { employees = Array.Empty<object>(), contracts = Array.Empty<object>(), documents = Array.Empty<object>(), mailbox = Array.Empty<object>() });
+            return Ok(new { employees = Array.Empty<object>(), employeesTotal = 0, contracts = Array.Empty<object>(), documents = Array.Empty<object>(), mailbox = Array.Empty<object>() });
 
         // Walter-Vorgabe 27.05.2026: Multi-Token-Suche. „Senada & Ausweis"
         // wird zu zwei Tokens; JEDER muss irgendwo matchen (AND), aber
@@ -37,7 +37,7 @@ public class SearchController : ControllerBase
                               .Take(5)  // mehr als 5 Tokens machen die Query langsam und sind unrealistisch
                               .ToList();
         if (tokens.Count == 0)
-            return Ok(new { employees = Array.Empty<object>(), contracts = Array.Empty<object>(), documents = Array.Empty<object>(), mailbox = Array.Empty<object>() });
+            return Ok(new { employees = Array.Empty<object>(), employeesTotal = 0, contracts = Array.Empty<object>(), documents = Array.Empty<object>(), mailbox = Array.Empty<object>() });
 
         var s = q.Trim();
 
@@ -45,6 +45,14 @@ public class SearchController : ControllerBase
         // Match jedes Tokens auf: Vor-/Nachname, MA-Nr, AHV-Nr, Permit-Code
         // (z.B. „B"/„C"/„L") oder Permit-Beschreibung („Aufenthaltsbewilligung").
         // AHV-Ziffern-Match nur fuer ZIFFERN-Tokens (>= 4 Stellen).
+        //
+        // Walter-Vorgabe 01.09.2026: ZUSAETZLICH Kontaktdaten und Wohnort —
+        // E-Mail, Handy, Zweitnummer, Strasse, PLZ, Ort. Anlass war die
+        // Frage «welche MA haben eine @icloud.com-Adresse». Damit findet man
+        // eine Person auch, wenn man nur ihre Nummer oder Adresse kennt, und
+        // kann ganze Gruppen aufspueren (Domain, PLZ, Strasse).
+        // Der Token-Filter oben verlangt >= 2 Zeichen; "@icloud.com" ist ein
+        // einziges Token, das passt.
         IQueryable<HrSystem.Models.Employee> eq = _db.Employees;
         foreach (var t in tokens)
         {
@@ -58,6 +66,15 @@ public class SearchController : ControllerBase
              || EF.Functions.ILike(e.LastName ?? "", likeLoc)
              || EF.Functions.ILike(((e.FirstName ?? "") + " " + (e.LastName ?? "")), likeLoc)
              || EF.Functions.ILike(e.EmployeeNumber ?? "", likeLoc)
+             || EF.Functions.ILike(e.Email ?? "", likeLoc)
+             || EF.Functions.ILike(e.PhoneMobile ?? "", likeLoc)
+             || EF.Functions.ILike(e.Phone2 ?? "", likeLoc)
+             || EF.Functions.ILike(e.Street ?? "", likeLoc)
+             || EF.Functions.ILike(e.ZipCode ?? "", likeLoc)
+             || EF.Functions.ILike(e.City ?? "", likeLoc)
+             // Telefon ohne Trennzeichen: «762140963» findet «+41 76 214 09 63»
+             || (digitsLoc.Length >= 4 && e.PhoneMobile != null
+                  && EF.Functions.ILike(e.PhoneMobile.Replace(" ", "").Replace("-", "").Replace("/", "").Replace("+", ""), "%" + digitsLoc + "%"))
              || (e.SocialSecurityNumber != null && EF.Functions.ILike(e.SocialSecurityNumber, likeLoc))
              || (digitsLoc.Length >= 4 && e.SocialSecurityNumber != null
                   && EF.Functions.ILike(e.SocialSecurityNumber.Replace(".", "").Replace(" ", ""), "%" + digitsLoc + "%"))
@@ -66,9 +83,14 @@ public class SearchController : ControllerBase
                  || EF.Functions.ILike(e.PermitType.Description ?? "", likeLoc)))
             );
         }
+
+        // Gesamtzahl VOR dem Abschneiden — bei einer Domain-Suche will Walter
+        // wissen, ob es mehr als die angezeigten Treffer gibt.
+        var employeesTotal = await eq.CountAsync();
+
         var employees = await eq
             .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
-            .Take(10)
+            .Take(25)
             .Select(e => new {
                 id              = e.Id,
                 firstName       = e.FirstName,
@@ -76,6 +98,8 @@ public class SearchController : ControllerBase
                 employeeNumber  = e.EmployeeNumber,
                 isActive        = e.IsActive,
                 ssn             = e.SocialSecurityNumber,
+                email           = e.Email,
+                phone           = e.PhoneMobile,
                 permitCode      = e.PermitType != null ? e.PermitType.Code : null,
                 permitDesc      = e.PermitType != null ? e.PermitType.Description : null,
                 // Filiale des jüngsten Vertrags (Walter-Vorgabe 10.07.2026) —
@@ -183,6 +207,6 @@ public class SearchController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new { employees, contracts, documents, mailbox });
+        return Ok(new { employees, employeesTotal, contracts, documents, mailbox });
     }
 }

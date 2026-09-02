@@ -37,6 +37,15 @@ public static class SchemaCheckService
         /// <summary>Gemeldet, aber bewusst akzeptiert — blockiert nicht.</summary>
         public List<string> Bekannt { get; init; } = new();
 
+        /// <summary>
+        /// DateTime-Felder, bei denen EF-Mapping und Datenbankspalte in der
+        /// Zeitzonen-Frage auseinanderlaufen (Walter-Vorgabe 01.09.2026).
+        /// Blockiert bewusst NICHT — es gibt Altbestand, und ob es knallt,
+        /// haengt davon ab, ob jemand einen Lokalzeit-Wert hineinschreibt.
+        /// Aber es steht ab jetzt bei JEDEM Start im Protokoll.
+        /// </summary>
+        public List<string> Zeitzonen { get; init; } = new();
+
         public bool Ok => Geprueft && FehlendeTabellen.Count == 0 && FehlendeSpalten.Count == 0;
         public int FehlerAnzahl => FehlendeTabellen.Count + FehlendeSpalten.Count;
     }
@@ -74,6 +83,7 @@ public static class SchemaCheckService
             // Ein einziger Rundgang durch information_schema — deutlich
             // billiger als eine Abfrage pro Tabelle.
             var vorhanden = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+            var dbTypen   = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var conn = db.Database.GetDbConnection();
             var warGeschlossen = conn.State != ConnectionState.Open;
             if (warGeschlossen) conn.Open();
@@ -81,15 +91,18 @@ public static class SchemaCheckService
             {
                 using var cmd = conn.CreateCommand();
                 cmd.CommandText =
-                    "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'";
+                    "SELECT table_name, column_name, data_type FROM information_schema.columns "
+                  + "WHERE table_schema = 'public'";
                 using var rd = cmd.ExecuteReader();
                 while (rd.Read())
                 {
                     var tabelle = rd.GetString(0);
                     var spalte  = rd.GetString(1);
+                    var typ     = rd.GetString(2);
                     if (!vorhanden.TryGetValue(tabelle, out var set))
                         vorhanden[tabelle] = set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     set.Add(spalte);
+                    dbTypen[tabelle + "." + spalte] = typ;
                 }
             }
             finally
@@ -100,6 +113,7 @@ public static class SchemaCheckService
             var fehlendeTabellen = new List<string>();
             var fehlendeSpalten  = new List<string>();
             var bekannt          = new List<string>();
+            var zeitzonen        = new List<string>();
             var anzTabellen = 0;
             var anzSpalten  = 0;
 
@@ -132,7 +146,38 @@ public static class SchemaCheckService
                     // Systemspalten wie xmin gibt es immer, nur nicht im Katalog.
                     if (Systemspalten.Contains(spalte)) continue;
                     anzSpalten++;
-                    if (spalten.Contains(spalte)) continue;
+                    if (spalten.Contains(spalte))
+                    {
+                        // ── Zeitzonen-Falle (Walter-Vorgabe 01.09.2026) ───────
+                        // Der haeufigste Laufzeitfehler dieses Projekts, und der
+                        // hinterhaeltigste: Die Spalte EXISTIERT, nur der Typ
+                        // passt nicht. Ohne .HasColumnType("timestamp without
+                        // time zone") mappt Npgsql einen DateTime auf
+                        // «timestamp with time zone» und verlangt UTC — die App
+                        // schreibt aber durchgehend Lokalzeit. Ergebnis:
+                        // «Cannot write DateTime with Kind=Local», und zwar erst
+                        // beim ersten echten Schreibvorgang im Betrieb.
+                        // Die reine Spaltenpruefung sieht davon nichts.
+                        var clr = Nullable.GetUnderlyingType(prop.ClrType) ?? prop.ClrType;
+                        if (clr == typeof(DateTime)
+                            && dbTypen.TryGetValue($"{tabelle}.{spalte}", out var dbTyp))
+                        {
+                            var efTyp = prop.GetColumnType() ?? "";
+                            var dbMitZone = dbTyp.Contains("with time zone", StringComparison.OrdinalIgnoreCase);
+                            var efMitZone = string.IsNullOrWhiteSpace(efTyp)
+                                ? true   // ohne Angabe ist Npgsqls Vorgabe «with time zone»
+                                : efTyp.Contains("with time zone", StringComparison.OrdinalIgnoreCase)
+                                  && !efTyp.Contains("without time zone", StringComparison.OrdinalIgnoreCase);
+
+                            if (dbMitZone != efMitZone)
+                            {
+                                zeitzonen.Add(
+                                    $"{tabelle}.{spalte}  ←  {et.ClrType.Name}.{prop.Name}  "
+                                  + $"(Datenbank: {dbTyp} / EF: {(string.IsNullOrWhiteSpace(efTyp) ? "ohne Angabe = with time zone" : efTyp)})");
+                            }
+                        }
+                        continue;
+                    }
 
                     var eintrag = $"{tabelle}.{spalte}  ←  {et.ClrType.Name}.{prop.Name}";
                     if (Toleriert.TryGetValue($"{tabelle}.{spalte}", out var grund))
@@ -143,11 +188,22 @@ public static class SchemaCheckService
             }
 
             var erg = new Ergebnis(true, fehlendeTabellen, fehlendeSpalten, anzTabellen, anzSpalten)
-            { Bekannt = bekannt };
+            { Bekannt = bekannt, Zeitzonen = zeitzonen };
             LetztesErgebnis = erg;
 
             foreach (var b in bekannt)
                 logger.LogInformation("SCHEMA-PRUEFUNG   bekannt/toleriert: {Eintrag}", b);
+
+            if (zeitzonen.Count > 0)
+            {
+                logger.LogWarning(
+                    "SCHEMA-PRUEFUNG ZEITZONEN — {Anzahl} DateTime-Feld(er) mit unpassendem Spaltentyp. "
+                    + "Diese scheitern zur LAUFZEIT beim Schreiben mit «Cannot write DateTime with Kind=Local». "
+                    + "Fix: .HasColumnType(\"timestamp without time zone\") im AppDbContext ergaenzen.",
+                    zeitzonen.Count);
+                foreach (var z in zeitzonen)
+                    logger.LogWarning("SCHEMA-PRUEFUNG   Zeitzone:  {Eintrag}", z);
+            }
 
             if (erg.Ok)
             {

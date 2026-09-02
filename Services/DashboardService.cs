@@ -432,10 +432,79 @@ public class DashboardService
                 .GroupBy(em => em.EmployeeId)
                 .Select(g => g.OrderByDescending(x => x.ContractEndDate).First()))
             .ToList();
+        // ── Weitergearbeitet nach Vertragsende (Walter-Vorgabe 01.09.2026) ──
+        // OR 334: Arbeitet jemand über das Ende eines befristeten Vertrags
+        // hinaus, gilt das Arbeitsverhältnis als unbefristet fortgesetzt. Das
+        // trennt zwei Fälle, die gleich aussehen, aber völlig Verschiedenes
+        // verlangen:
+        //   ohne Arbeit danach → der GF hat nur den Austritt vergessen
+        //                        (contract_end, reine Datenpflege)
+        //   mit  Arbeit danach → der Vertrag IST bereits unbefristet
+        //                        (contract_end_weitergearbeitet, Rechtsrisiko)
+        // Eine erfasste Absenz zählt gleich wie eine Stempelzeit: wer in dieser
+        // Zeit krank oder in den Ferien ist, steht ebenso in einem laufenden
+        // Arbeitsverhältnis, stempelt aber nichts.
+        var abgelaufeneVertraege = fixedList
+            .Where(em => em.ContractEndDate!.Value.Date < now)
+            .ToList();
+        var weiterGearbeitet = new Dictionary<int, DateOnly>();   // EmployeeId → erster Tag danach
+        if (abgelaufeneVertraege.Count > 0)
+        {
+            var ids = abgelaufeneVertraege.Select(em => em.EmployeeId).Distinct().ToList();
+            var frühestesEnde = DateOnly.FromDateTime(abgelaufeneVertraege.Min(em => em.ContractEndDate!.Value.Date));
+
+            var stempel = await _db.EmployeeTimeEntries.AsNoTracking()
+                .Where(t => ids.Contains(t.EmployeeId) && t.EntryDate > frühestesEnde)
+                .Select(t => new { t.EmployeeId, Tag = t.EntryDate })
+                .ToListAsync();
+            var absenzen = await _db.Absences.AsNoTracking()
+                .Where(a => ids.Contains(a.EmployeeId) && a.DateTo > frühestesEnde)
+                .Select(a => new { a.EmployeeId, Tag = a.DateTo })
+                .ToListAsync();
+
+            foreach (var em in abgelaufeneVertraege)
+            {
+                var ende = DateOnly.FromDateTime(em.ContractEndDate!.Value.Date);
+                var kandidaten = stempel.Where(x => x.EmployeeId == em.EmployeeId && x.Tag > ende)
+                    .Concat(absenzen.Where(x => x.EmployeeId == em.EmployeeId && x.Tag > ende))
+                    .Select(x => x.Tag)
+                    .ToList();
+                if (kandidaten.Count == 0) continue;
+                var ersterTag = kandidaten.Min();
+                if (!weiterGearbeitet.TryGetValue(em.EmployeeId, out var bisher) || ersterTag < bisher)
+                    weiterGearbeitet[em.EmployeeId] = ersterTag;
+            }
+        }
+
         foreach (var em in fixedList)
         {
             var dueDate = em.ContractEndDate!.Value;
             var days = (dueDate.Date - now).Days;
+
+            // Weitergearbeitet → eigene, kritische Karte statt der harmlosen
+            // «Vertrag abgelaufen»-Meldung. Nie beide, sonst steht derselbe MA
+            // zweimal in der ToDo.
+            if (days < 0 && weiterGearbeitet.TryGetValue(em.EmployeeId, out var seit)
+                && Enabled("contract_end_weitergearbeitet"))
+            {
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "contract_end_weitergearbeitet",
+                    Severity = SeverityState("contract_end_weitergearbeitet", "critical"),
+                    Title    = $"Befristeter Vertrag am {dueDate:dd.MM.yyyy} abgelaufen — es wurde weitergearbeitet",
+                    Subtitle = $"{em.Employee!.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}"
+                             + $" · Arbeitszeit am {seit:dd.MM.yyyy}"
+                             + " — das Arbeitsverhältnis gilt als unbefristet: neuen unbefristeten Vertrag erfassen"
+                             + " oder beim bestehenden Vertrag die Befristung entfernen",
+                    DueDate        = dueDate,
+                    DaysUntil      = days,
+                    EmployeeId     = em.EmployeeId,
+                    EmployeeNumber = em.Employee.EmployeeNumber,
+                    EmployeeName   = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim()
+                });
+                continue;
+            }
+
             alerts.Add(new DashboardAlert
             {
                 Category = "contract_end",
@@ -466,8 +535,16 @@ public class DashboardService
         // Nachlauf mehr). Vorlauf wie contract_end (Default 30 Tage).
         // ── Kündigungs-Ablauf (Walter-Vorgabe 16.07.2026): am MA ist eine
         // ausgesprochene Kündigung erfasst (kuendigung_per), aber noch KEIN
-        // Austrittsdatum. 2 Wochen VOR Ablauf → ToDo «Vertragsende wegen
-        // Kündigung». Sobald ExitDate gesetzt ist, übernimmt exit_pending_active.
+        // Austrittsdatum. Sobald ExitDate gesetzt ist, übernimmt exit_pending_active.
+        //
+        // Vorlauf SOFORT statt 2 Wochen (Walter-Vorgabe 01.09.2026): Das
+        // Austrittsdatum kommt aus easy@work, und dort ist es der Schalter für
+        // Dienstplan und App-Zugriff. Solange es fehlt, steht ein gekündigter MA
+        // weiter im Dienstplan. Erst 14 Tage vor Ablauf zu warnen hiesse, den
+        // Schaden erst zu melden, wenn er längst eingetreten ist. Die Karte darf
+        // ruhig drei Monate stehen — sie verschwindet in dem Moment, in dem der
+        // GF den Austritt in easy@work erfasst. Vorlauf bleibt über die
+        // Warnungs-Konfiguration einstellbar.
         if (Enabled("kuendigung_ablauf"))
         {
             var kuendQ = _db.Employees
@@ -480,7 +557,7 @@ public class DashboardService
                     e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value) || (!e.Employments.Any(em => em.IsActive) && e.Employments.OrderByDescending(em => em.ContractStartDate).Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
             }
             var kuendList = await kuendQ.ToListAsync();
-            int kuendVorlauf = WarnDays("kuendigung_ablauf", 14);
+            int kuendVorlauf = WarnDays("kuendigung_ablauf", 3650);   // faktisch: sofort
             foreach (var e in kuendList)
             {
                 // Austritt bereits erfasst → exit_pending_active bis zum Austrittstag.
@@ -507,13 +584,178 @@ public class DashboardService
                              + (!string.IsNullOrWhiteSpace(e.Austrittsgrund)
                                  ? $" · {AustrittsgrundCodes.LabelOf(e.Austrittsgrund)}" : "")
                              + (abgelaufen
-                                 ? $" — seit {-daysUntil} Tag(en) überfällig: Austrittsdatum erfassen oder Kündigung aufheben"
-                                 : " — Austrittsdatum erfassen und Vertrag beenden"),
+                                 ? $" — seit {-daysUntil} Tag(en) überfällig: Austritt in easy@work erfassen oder Kündigung aufheben"
+                                 : " — Austritt in easy@work erfassen, sonst bleibt der MA im Dienstplan"),
                     DueDate  = e.KuendigungPer,
                     DaysUntil = daysUntil,
                     EmployeeId     = e.Id,
                     EmployeeNumber = e.EmployeeNumber,
                     EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                });
+            }
+        }
+
+        // ══ Austritts-Abgleich easy@work ↔ OneCrew (Walter-Vorgabe 01.09.2026) ══
+        // Ein Austritt entsteht auf zwei Wegen: über die Kündigungsfelder in
+        // OneCrew oder direkt in easy@work. Beide müssen im jeweils anderen
+        // System nachgeführt werden — schreiben können wir (noch) nicht, also
+        // macht die ToDo sichtbar, wo das Nachführen fehlt.
+        //
+        // P2 (Kündigung erfasst, kein Austritt in easy@work) läuft bereits über
+        // kuendigung_ablauf weiter oben. Hier folgen die beiden Gegenstücke.
+        //
+        // Stichtag: nur Austritte ab dem 1.8.2026. Massgebend ist «gekündigt
+        // per»; fehlt das Feld (der Austritt kam aus easy@work), tritt das
+        // easy@work-Austrittsdatum an seine Stelle.
+        var austrittStichtag = new DateTime(2026, 8, 1);
+
+        if (Enabled("austritt_unvollstaendig") || Enabled("austritt_datum_mismatch"))
+        {
+            var austrittQ = _db.Employees.AsNoTracking()
+                .Where(e => e.ExitDate.HasValue
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            if (companyProfileId.HasValue)
+            {
+                austrittQ = austrittQ.Where(e =>
+                    e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value)
+                    || (!e.Employments.Any(em => em.IsActive)
+                        && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                             .Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
+            }
+            var austrittList = await austrittQ.ToListAsync();
+
+            foreach (var e in austrittList)
+            {
+                var massgebend = (e.KuendigungPer ?? e.ExitDate!.Value).Date;
+                if (massgebend < austrittStichtag) continue;
+
+                // ── P1: Austritt da, Kündigungsangaben unvollständig ────────
+                if (Enabled("austritt_unvollstaendig"))
+                {
+                    var fehlend = new List<string>();
+                    if (!e.KuendigungAusgesprochenAm.HasValue)      fehlend.Add("gekündigt am");
+                    if (!e.KuendigungPer.HasValue)                  fehlend.Add("gekündigt per");
+                    if (string.IsNullOrWhiteSpace(e.KuendigungDurch)) fehlend.Add("gekündigt durch");
+                    if (string.IsNullOrWhiteSpace(e.Austrittsgrund))  fehlend.Add("Austrittsgrund");
+
+                    if (fehlend.Count > 0)
+                    {
+                        alerts.Add(new DashboardAlert
+                        {
+                            Category = "austritt_unvollstaendig",
+                            Severity = SeverityState("austritt_unvollstaendig", "warning"),
+                            Title    = $"Austritt per {e.ExitDate!.Value:dd.MM.yyyy} — Kündigungsangaben fehlen",
+                            Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
+                                     + $" — es fehlt: {string.Join(", ", fehlend)}",
+                            DueDate        = e.ExitDate,
+                            DaysUntil      = (e.ExitDate!.Value.Date - now).Days,
+                            EmployeeId     = e.Id,
+                            EmployeeNumber = e.EmployeeNumber,
+                            EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                        });
+                    }
+                }
+
+                // ── P3: beide Daten da, aber verschieden ────────────────────
+                // Bewusst KEINE automatische Korrektur: «gekündigt per» steht in
+                // einem unterschriebenen Schreiben, das easy@work-Feld ist eine
+                // Eingabe, in der man sich vertippt. Welches stimmt, entscheidet
+                // ein Mensch.
+                if (Enabled("austritt_datum_mismatch")
+                    && e.KuendigungPer.HasValue
+                    && e.KuendigungPer.Value.Date != e.ExitDate!.Value.Date)
+                {
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "austritt_datum_mismatch",
+                        Severity = SeverityState("austritt_datum_mismatch", "warning"),
+                        Title    = $"Austritt easy@work {e.ExitDate!.Value:dd.MM.yyyy} ist nicht gleich «gekündigt per» {e.KuendigungPer!.Value:dd.MM.yyyy}",
+                        Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
+                                 + " — bitte prüfen, welches Datum stimmt, und beide Systeme angleichen",
+                        DueDate        = e.KuendigungPer,
+                        DaysUntil      = (e.KuendigungPer!.Value.Date - now).Days,
+                        EmployeeId     = e.Id,
+                        EmployeeNumber = e.EmployeeNumber,
+                        EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()
+                    });
+                }
+            }
+        }
+
+        // ── E-Mail nicht zustellbar (Walter-Vorgabe 01.09.2026) ──────────
+        // Speist sich aus mail_bounce, das der BounceAbrufService füllt.
+        //
+        // Zwei Schwellen, weil zwei sehr verschiedene Fälle dahinterstecken:
+        //   • HART  = die Adresse existiert nicht. Wird nie von selbst besser
+        //             und muss korrigiert werden → sofort melden.
+        //   • WEICH = volles Postfach oder Serverstörung. Morgen klappt es
+        //             vielleicht wieder → erst ab dem dritten Fehlversuch in
+        //             Folge melden, sonst steht bei jedem Versand halb Oftringen
+        //             auf der Liste.
+        // Die Pendenz verschwindet, sobald der Rückläufer erledigt gesetzt
+        // oder die Adresse geändert wird (dann passt die Zuordnung nicht mehr).
+        if (Enabled("email_unzustellbar"))
+        {
+            const int weichSchwelle = 3;
+
+            var offeneQ = _db.MailBounces.AsNoTracking()
+                .Where(b => !b.Erledigt && b.EmployeeId != null);
+
+            if (companyProfileId.HasValue)
+            {
+                var cpId = companyProfileId.Value;
+                offeneQ = offeneQ.Where(b => _db.Employments.Any(em =>
+                    em.EmployeeId == b.EmployeeId && em.IsActive && em.CompanyProfileId == cpId));
+            }
+
+            var offene = await offeneQ
+                .Select(b => new
+                {
+                    b.Id, b.EmployeeId, b.Adresse, b.Hart, b.Grund, b.EmpfangenAm,
+                    Vorname  = b.Employee!.FirstName,
+                    Nachname = b.Employee!.LastName,
+                    MaNr     = b.Employee!.EmployeeNumber,
+                    MaAktiv  = b.Employee!.IsActive,
+                    MaMail   = b.Employee!.Email,
+                })
+                .ToListAsync();
+
+            // Pro MA nur EINE Meldung, auch wenn dieselbe Adresse mehrfach
+            // zurückkam — sonst steht derselbe Fall dreimal auf der Liste.
+            var proMa = offene
+                .Where(x => x.MaAktiv)
+                // Adresse inzwischen geändert? Dann ist der alte Rückläufer
+                // gegenstandslos — nicht mehr melden.
+                .Where(x => !string.IsNullOrWhiteSpace(x.MaMail)
+                         && string.Equals(x.MaMail!.Trim(), x.Adresse, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(x => x.EmployeeId!.Value);
+
+            foreach (var g in proMa)
+            {
+                var neueste = g.OrderByDescending(x => x.EmpfangenAm).First();
+                var hart    = g.Any(x => x.Hart);
+                var anzahl  = g.Count();
+
+                if (!hart && anzahl < weichSchwelle) continue;
+
+                var name = $"{neueste.Vorname} {neueste.Nachname}".Trim();
+                var zusatz = hart
+                    ? "bitte die Adresse in easy@work korrigieren — OneCrew sendet bis dahin nichts mehr an sie"
+                    : $"{anzahl}× in Folge nicht zugestellt";
+
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "email_unzustellbar",
+                    Severity = SeverityState("email_unzustellbar", hart ? "critical" : "warning"),
+                    Title    = hart
+                        ? $"E-Mail nicht zustellbar: {neueste.Grund}"
+                        : $"E-Mail wiederholt nicht zustellbar: {neueste.Grund}",
+                    Subtitle = $"{name} · Personalnr. {neueste.MaNr} · {neueste.Adresse} — {zusatz}",
+                    DueDate        = neueste.EmpfangenAm.Date,
+                    DaysUntil      = (neueste.EmpfangenAm.Date - now).Days,
+                    EmployeeId     = neueste.EmployeeId,
+                    EmployeeNumber = neueste.MaNr,
+                    EmployeeName   = name
                 });
             }
         }

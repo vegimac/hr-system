@@ -246,7 +246,8 @@ public class MutterschaftVereinbarungController : ControllerBase
                 anhaenge.Add((eignung, $"Eignungsbeurteilung_{common.MaName}_{common.MaVorname}.pdf".Replace(" ", "_")));
             }
             catch { /* Brief geht trotzdem raus */ }
-            var ok = await _email.SendWithAttachmentsAsync(arzt.Email!, arztName, subject, html, text, anhaenge);
+            var ok = await _email.SendWithAttachmentsAsync(arzt.Email!, arztName, subject, html, text, anhaenge,
+                VersandKategorie.Dritte);
             if (!ok)
                 return StatusCode(500, new { error = "MAIL_FEHLER", message = "E-Mail-Versand fehlgeschlagen — SMTP-Konfiguration prüfen (Systemeinstellungen → E-Mail)." });
             return Ok(new { ok = true, to = arzt.Email });

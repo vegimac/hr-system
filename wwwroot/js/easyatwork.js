@@ -16,6 +16,7 @@ async function eawInit() {
     eawSyncInit();
     _eawEmpSyncInit();
     eawLogLoad();
+    if (typeof msfLoad === 'function') msfLoad(false);   // Fehlerliste MA-Sync
     // Selects werden global von liquid-select.js umgebaut — kein lightSelect
     // mehr hier (sonst doppelte Filial-Dropdowns, Walter-Bug 18.07.2026).
 }

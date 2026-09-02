@@ -54,7 +54,7 @@ function gsOpen() {
       <div style="background:#fff;width:min(640px, 92vw);max-height:calc(100vh - 120px);border-radius:8px;box-shadow:0 24px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;overflow:hidden">
         <div style="padding:12px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:10px">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input id="gsInput" type="text" placeholder="Suchen — Name, MA-Nr, AHV-Nr, Dokument, Menüpunkt …"
+            <input id="gsInput" type="text" placeholder="Suchen — Name, MA-Nr, AHV-Nr, E-Mail, Handy, Ort, Dokument, Menüpunkt …"
                    style="flex:1;border:none;outline:none;font-size:15px;color:#0f172a;background:transparent" autocomplete="off">
             <span style="font-size:11px;color:#94a3b8;background:#f1f5f9;padding:2px 7px;border-radius:4px;font-family:ui-monospace,Menlo,Consolas,monospace">ESC</span>
         </div>
@@ -158,12 +158,24 @@ function gsRender(data, q, errorMsg) {
         </div>`;
     };
 
-    html += grp('Mitarbeiter', data.employees || [], e => {
-        const sub = `Nr ${gsEsc(e.employeeNumber || '–')}${e.branch ? ' · ' + gsEsc(e.branch) : ''}${e.ssn ? ' · AHV ' + gsEsc(e.ssn) : ''}${e.isActive === false ? ' · <span style="color:#dc2626">inaktiv</span>' : ''}`;
+    // MA-Gruppe: Kontaktzeile mitzeigen (Walter 01.09.2026). Wer nach einer
+    // Domain oder einer Handynummer sucht, will den Treffer auch SEHEN —
+    // sonst steht da nur ein Name und man muss jeden MA einzeln aufmachen.
+    // Der gesuchte Text wird in der Zeile hervorgehoben.
+    const maAnz    = (data.employees || []).length;
+    const maTotal  = (typeof data.employeesTotal === 'number') ? data.employeesTotal : maAnz;
+    const maTitel  = maTotal > maAnz
+        ? `Mitarbeiter <span style="font-weight:600;color:#94a3b8;text-transform:none;letter-spacing:0">— ${maAnz} von ${maTotal} gezeigt</span>`
+        : (maTotal > 1 ? `Mitarbeiter <span style="font-weight:600;color:#94a3b8;text-transform:none;letter-spacing:0">— ${maTotal}</span>` : 'Mitarbeiter');
+
+    html += grp(maTitel, data.employees || [], e => {
+        const sub = `Nr ${gsEsc(e.employeeNumber || '–')}${e.branch ? ' · ' + gsEsc(e.branch) : ''}${e.isActive === false ? ' · <span style="color:#dc2626">inaktiv</span>' : ''}`;
+        const kontakt = [e.email, e.phone].filter(Boolean).map(v => gsMark(v, q)).join(' · ');
         return row('emp',
             `<span style="font-size:14px">👤</span>
              <div style="flex:1;line-height:1.3"><div style="font-weight:600">${gsEsc((e.firstName || '') + ' ' + (e.lastName || ''))}</div>
-             <div style="font-size:11.5px;color:#64748b">${sub}</div></div>`,
+             <div style="font-size:11.5px;color:#64748b">${sub}</div>
+             ${kontakt ? `<div style="font-size:11.5px;color:#64748b">${kontakt}</div>` : ''}</div>`,
             { kind: 'emp', empId: e.id });
     });
     html += grp('Verträge', data.contracts || [], c => {
@@ -451,3 +463,26 @@ function gsEsc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 }
 function gsAttr(s) { return gsEsc(s); }
+
+// Hebt die Suchbegriffe im Text hervor (Walter 01.09.2026). Bei einer Suche
+// nach «@icloud.com» soll man auf einen Blick sehen, WARUM dieser MA getroffen
+// hat. Zuerst escapen, dann markieren — nie umgekehrt, sonst kaeme fremdes
+// HTML aus einem Datenfeld durch.
+function gsMark(wert, query) {
+    const roh = String(wert ?? '');
+    if (!roh) return '';
+    let out = gsEsc(roh);
+    const tokens = String(query ?? '')
+        .split(/[\s\t&+,]+/)
+        .filter(t => t.length >= 2)
+        .slice(0, 5);
+    tokens.forEach(tok => {
+        // Sonderzeichen im Token entschaerfen — «@icloud.com» enthaelt einen
+        // Punkt, der als Regex sonst jedes Zeichen treffen wuerde.
+        const sicher = gsEsc(tok).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        if (!sicher) return;
+        out = out.replace(new RegExp('(' + sicher + ')', 'gi'),
+                          '<mark style="background:#fde68a;color:#1a1a1a;border-radius:3px;padding:0 1px">$1</mark>');
+    });
+    return out;
+}

@@ -25,6 +25,28 @@ public class Hauptsitz
     public string? Bemerkung { get; set; }
     public bool IsActive { get; set; } = true;
 
+    // ── Vertragsregeln der Rechtseinheit (Walter-Vorgabe 01.09.2026) ──────
+    // Anstellungsbedingungen gehören zum Arbeitgeber, nicht zur Filiale: alle
+    // Filialen einer GmbH hängen am selben Wert, und ein zweiter Lizenznehmer
+    // mit eigener GmbH darf eigene Grenzen setzen. Der easy@work-Sync prüft
+    // Verträge dagegen und importiert Abweichungen NICHT.
+    //
+    // Alle Felder sind optional — ist eines leer oder hat die Filiale (noch)
+    // keinen Hauptsitz, gelten die Standardwerte aus VertragsRegeln.Standard.
+    // Damit läuft nie eine Filiale stillschweigend ungeprüft durch.
+
+    /// <summary>Erlaubte FIX/FIX-M-Pensen als Liste, z.B. «50,60,70,80,90,100».</summary>
+    public string? FixPensenErlaubt { get; set; }
+
+    /// <summary>FLEX: höchstens so viele Stunden pro Woche.</summary>
+    public decimal? FlexStundenMax { get; set; }
+
+    /// <summary>MTP: mindestens so viele Stunden pro Woche.</summary>
+    public decimal? MtpStundenMin { get; set; }
+
+    /// <summary>MTP: höchstens so viele Stunden pro Woche.</summary>
+    public decimal? MtpStundenMax { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }

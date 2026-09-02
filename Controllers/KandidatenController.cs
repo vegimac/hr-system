@@ -399,7 +399,7 @@ public class KandidatenController : ControllerBase
                 return BadRequest(new { error = "TELEFON_FEHLT", message = "Keine Telefonnummer erfasst." });
             var text = $"Guten Tag {k.Vorname}, vielen Dank für dein Interesse und das Gespräch bei {firma}. "
                      + "Leider können wir dir zurzeit keine Stelle anbieten. Wir wünschen dir für deine Zukunft alles Gute.";
-            var res = await _sms.SendSmsAsync(tel, text, purpose: "KANDIDAT_ABSAGE");
+            var res = await _sms.SendSmsAsync(tel, text, Services.VersandKategorie.Kandidat);
             if (!res.Ok)
                 return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
         }
@@ -415,7 +415,8 @@ public class KandidatenController : ControllerBase
                 + "Wir wünschen dir für deine berufliche Zukunft alles Gute.\n\n"
                 + $"Freundliche Grüsse\n{firma}";
             var htmlBody = System.Net.WebUtility.HtmlEncode(textBody).Replace("\n", "<br>");
-            var ok = await _email.SendAsync(mail, $"{k.Vorname} {k.Name}", subject, htmlBody, textBody);
+            var ok = await _email.SendAsync(mail, $"{k.Vorname} {k.Name}", subject, htmlBody, textBody,
+                Services.VersandKategorie.Kandidat);
             if (!ok)
                 return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen (SMTP-Konfiguration prüfen)." });
         }
@@ -747,7 +748,7 @@ public class KandidatenController : ControllerBase
         else
             smsText = $"Hallo {k.Vorname}, herzlich willkommen bei {firma}! Dein Willkommenstag: {wt}, {termin.Datum:dd.MM.yyyy} um {zeit}. Bitte bestätige hier: {url}";
 
-        var res = await _sms.SendSmsAsync(tel, smsText, purpose: "KANDIDAT_WILLKOMMEN");
+        var res = await _sms.SendSmsAsync(tel, smsText, Services.VersandKategorie.Kandidat);
         if (!res.Ok)
             return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
 
@@ -785,13 +786,13 @@ public class KandidatenController : ControllerBase
         k.WillkommenGesendetAm = DateTime.Now;
         await _db.SaveChangesAsync();
 
-        var redirect = await _db.EcallSettings.AsNoTracking()
-            .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
+        // Umleitung kommt aus dem Versand-Ergebnis, NICHT mehr aus den
+        // Einstellungen: die Test-Nummer steht dauerhaft drin (Walter 01.09.2026).
         return Ok(new
         {
             ok = true,
             to = tel,
-            redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
+            redirectedTo = res.RedirectedTo,
         });
     }
 

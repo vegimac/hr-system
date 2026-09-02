@@ -1697,6 +1697,50 @@
         #langSwitcher .lang-control {
             display: none !important;
         }
+
+        /* ── Klickflaeche der Kopf-Pillen (Walter-Bug 01.09.2026) ──
+           «diese pillen sind oft schwer anzuklicken». Ursache: Lupe und
+           Fragezeichen hatten padding:3px 8px inline — rund 22 px hoch, also
+           deutlich unter den ~34 px, die man zum sicheren Treffen braucht;
+           beim Theme-Toggle war die Pille zwar groesser, aber die Abstaende
+           dazwischen so knapp, dass ein Fehlklick beim Nachbarn landete.
+           !important ist hier noetig, weil die Masse als style="" direkt am
+           Element stehen und sonst gewinnen wuerden.
+           Wichtig: display NICHT setzen — #lsEmpSyncBtn wird von JS zwischen
+           none und flex umgeschaltet. */
+        /* ── Das Widget darf Fenster nicht verdecken (Walter-Bug 02.09.2026) ──
+           Es lag auf z-index 1500 und damit ÜBER praktisch jedem Dialog der
+           App (.modal-bg = 500, die eingebetteten Vollbild-Fenster 299–320).
+           In der rechten oberen Ecke sitzt aber bei fast jedem Fenster das
+           Schliessen-Kreuz — das war schlicht darunter begraben. Aufgefallen
+           an der QST-Anmeldung: «kein Kreuz zum Beenden sichtbar».
+           Zwei Vollbild-PDFs (Lohnbelege, Akonto) waren früher einzeln auf
+           1600 hochgesetzt worden — Symptombehandlung derselben Ursache.
+           Richtig ist: Das Widget schwebt über dem SEITENinhalt, aber unter
+           jedem Fenster. 250 liegt über Menüs (200) und unter allem ab 299.
+           Auf der Anmeldeseite spielt es keine Rolle: #langSwitcher steckt in
+           #app, und das ist beim Login ausgeblendet. */
+        #langSwitcher { z-index: 250 !important; gap: 8px !important; padding: 6px 10px !important; }
+        #langSwitcher > button {
+            min-height: 34px;
+            padding: 6px 12px !important;
+            border-radius: 10px !important;
+            transition: background .12s, border-color .12s, transform .12s;
+        }
+        /* Lupe und Fragezeichen sind randlos — ein sichtbarer Hover zeigt,
+           wie gross die Flaeche wirklich ist. */
+        #langSwitcher > button:hover {
+            background: rgba(60,55,48,.08) !important;
+            border-color: rgba(60,55,48,.28) !important;
+        }
+        #langSwitcher > #themeToggleBtn:hover { background: #1a1a1a !important; }
+        #langSwitcher > button:active { transform: scale(.97); }
+        body.theme-dark #langSwitcher > button:hover {
+            background: rgba(255,255,255,.12) !important;
+            border-color: rgba(255,255,255,.30) !important;
+        }
+        body.theme-dark #langSwitcher > #themeToggleBtn:hover { background: #ffffff !important; }
+
         body.theme-dark #langSwitcher {
             background: rgba(40, 54, 72, 0.82) !important;
             border-color: var(--dlg-glass-border) !important;
@@ -8951,6 +8995,33 @@
         .ma-grid .ma-input:focus,
         .ma-grid .ma-select:focus,
         .ma-grid .ma-textarea:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48,0.15); }
+        /* Gruppen-E-Mail (Walter-Bug 01.09.2026): Betreff und Nachricht liegen
+           dort in einer .card, NICHT in .ma-grid oder .ma-modal-box — die
+           Regeln oben griffen also gar nicht. Die Felder waren komplett
+           ungestylt: Browser-Standard mit Monospace-Schrift und ohne
+           definierte Zeilenhöhe, weshalb der Cursor nach einem Zeilenumbruch
+           nicht dort stand, wo man ihn erwartet. Hier bekommen sie dasselbe
+           Aussehen wie überall sonst, mit ausdrücklicher line-height und
+           sichtbarem Cursor. */
+        .card > .ma-field .ma-input,
+        .card > .ma-field .ma-textarea {
+            background: #fff; border: 1px solid #e2ddd3; border-radius: 9px;
+            padding: 6px 9px; font-size: 13.5px; color: #0f172a; font-weight: 500;
+            font-family: inherit; line-height: 1.5; caret-color: #0f172a;
+            outline: none; box-shadow: 0 1px 2px rgba(15,23,42,0.08);
+            transition: border-color .12s, box-shadow .12s;
+            width: 100%; box-sizing: border-box;
+        }
+        .card > .ma-field .ma-textarea { min-height: 120px; resize: vertical; }
+        .card > .ma-field .ma-input:hover,
+        .card > .ma-field .ma-textarea:hover { border-color: #1a1a1a; box-shadow: 0 2px 4px rgba(60,55,48,0.15); }
+        .card > .ma-field .ma-input:focus,
+        .card > .ma-field .ma-textarea:focus { border-color: #1a1a1a; box-shadow: 0 0 0 3px rgba(60,55,48,0.15); }
+        body.theme-dark .card > .ma-field .ma-input,
+        body.theme-dark .card > .ma-field .ma-textarea {
+            background: #1b2431; border-color: #2a3543; color: #e6ebf2; caret-color: #e6ebf2;
+        }
+
         .ma-field { display: flex; flex-direction: column; gap: 2px; }
         .ma-field-label {
             font-size: 9.5px; font-weight: 700; color: #475569;

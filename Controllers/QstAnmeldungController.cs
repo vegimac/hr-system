@@ -214,15 +214,33 @@ public class QstAnmeldungController : ControllerBase
         }
 
         byte[] bytes;
+        string? ersatz;
         try
         {
-            // Template-Kanton durchreichen — der PdfService lädt Assets/Forms/QstAnmeldung_{kanton}.pdf
-            // (mit Fallback auf SO, solange wir nur dieses Template haben).
-            bytes = _pdf.Generate(data, templateKanton, signaturePng, signerName);
+            // Template-Kanton durchreichen — der PdfService lädt
+            // Assets/Forms/QstAnmeldung_{kanton}.pdf. Vorhanden sind derzeit
+            // AG, BE, SO und ZH; für alle übrigen Kantone greift der
+            // SO-Fallback, und genau DAS meldet «ersatz».
+            bytes = _pdf.Generate(data, templateKanton, signaturePng, signerName, out ersatz);
         }
         catch (Exception ex)
         {
             return Problem("PDF konnte nicht erstellt werden: " + ex.Message);
+        }
+
+        // Walter-Bug 02.09.2026: Eine in Luzern wohnhafte MA bekam still das
+        // Solothurner Formular. Der Fallback ist gewollt — er darf nur nicht
+        // unsichtbar sein, sonst geht ein falsches Formular ans Steueramt.
+        // Der Kopf wird vom Browser mitgeliefert, das Frontend zeigt daraus
+        // eine Warnung über der Vorschau.
+        if (!string.IsNullOrEmpty(ersatz))
+        {
+            Response.Headers["X-Qst-Template-Ersatz"]  = ersatz;
+            Response.Headers["X-Qst-Template-Gewollt"] = templateKanton;
+            // Ohne diese Zeile bleiben eigene Kopfzeilen bei einem
+            // fetch() aus dem Browser unsichtbar.
+            Response.Headers["Access-Control-Expose-Headers"] =
+                "X-Qst-Template-Ersatz, X-Qst-Template-Gewollt";
         }
 
         var filename = $"QST-Anmeldung_{emp.LastName}_{emp.FirstName}.pdf";

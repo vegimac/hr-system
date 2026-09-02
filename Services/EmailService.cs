@@ -20,6 +20,13 @@ namespace HrSystem.Services;
 /// Empfänger steht im Subject-Prefix [TEST → original@adresse]. Damit
 /// kann Walter den Lohnlauf-Auto-Versand auf Echt-Daten testen, ohne
 /// dass Mails versehentlich an MA rausgehen.
+/// Ob umgeleitet wird, entscheidet ab 01.09.2026 NICHT mehr allein das
+/// Feld, sondern die Haken-Matrix je <see cref="VersandKategorie"/> in
+/// der Systemsteuerung (Tabelle versand_kategorie): Haken = scharf,
+/// kein Haken = Umleitung. Die Test-Adresse bleibt dauerhaft stehen und
+/// ist nur noch das Ziel der Umleitung.
+/// Steht sie leer und die Kategorie ist nicht scharf, wird der Versand
+/// BLOCKIERT statt scharf durchgelassen.
 ///
 /// Caching: 30 Sekunden, damit nicht jede Mail einen DB-Roundtrip
 /// auslöst. Wenn Walter im Admin etwas ändert, sieht er den Effekt
@@ -38,18 +45,157 @@ public class EmailService
     private static readonly object _cacheLock = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
 
-    public EmailService(IConfiguration config, ILogger<EmailService> log,
-                        AppDbContext db, SimpleAesService aes)
+    private readonly VersandFreigabeService _freigabe;
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IWebHostEnvironment _env;
+
+    /// <summary>
+    /// Content-ID des eingebetteten Logos. Mail-Clients (Gmail, Outlook)
+    /// blockieren nachgeladene Bilder von fremden Servern — darum reist das
+    /// Logo als Teil der Mail mit und wird ueber cid: referenziert.
+    /// </summary>
+    public const string LogoCid = "onecrew-logo";
+
+    private static byte[]? _logoBytes;
+    private static bool _logoGesucht;
+    private static readonly object _logoLock = new();
+
+    // ── Sperrliste harter Rückläufer (Walter-Vorgabe 01.09.2026) ──────────
+    // Adressen, die nachweislich nicht existieren, werden nicht mehr
+    // angeschrieben. Als Menge im Speicher gehalten und minütlich erneuert:
+    // bei einem Versand an 300 MA wäre sonst pro Mail eine Abfrage fällig.
+    private static HashSet<string>? _gesperrt;
+    private static DateTime _gesperrtBis = DateTime.MinValue;
+    private static readonly object _gesperrtLock = new();
+    private static readonly TimeSpan GesperrtTtl = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Cache der Sperrliste verwerfen — aufrufen, wenn ein Rückläufer als
+    /// erledigt markiert oder eine Adresse korrigiert wurde, damit die
+    /// nächste Mail sofort wieder durchgeht.
+    /// </summary>
+    public static void SperrlisteVerwerfen()
     {
-        _config = config;
-        _log    = log;
-        _db     = db;
-        _aes    = aes;
+        lock (_gesperrtLock) { _gesperrt = null; _gesperrtBis = DateTime.MinValue; }
     }
 
+    /// <summary>
+    /// Ist diese Adresse wegen eines offenen HARTEN Rückläufers gesperrt?
+    ///
+    /// Bewusst NICHT fail-safe in Richtung «blockieren»: Wenn die Abfrage
+    /// scheitert, wird gesendet. Anders als bei der Freigabe-Matrix ist
+    /// hier der teurere Fehler, versehentlich NICHTS zu verschicken — ein
+    /// Lohnzettel-Hinweis, der wegen einer Datenbank-Störung ausbleibt,
+    /// fällt niemandem auf.
+    /// </summary>
+    private async Task<bool> IstGesperrtAsync(string adresse)
+    {
+        if (string.IsNullOrWhiteSpace(adresse)) return false;
+        var adr = adresse.Trim().ToLowerInvariant();
+
+        lock (_gesperrtLock)
+        {
+            if (_gesperrt != null && DateTime.UtcNow < _gesperrtBis)
+                return _gesperrt.Contains(adr);
+        }
+
+        try
+        {
+            // Eigener Scope: SendCoreAsync läuft mitten im Lohnlauf, und der
+            // injizierte Kontext hat dann offene Änderungen. Eine Lese-
+            // abfrage darauf ist harmlos, aber wir bleiben beim Muster von
+            // TryWriteLogAsync und fassen den Aufrufer-Kontext nicht an.
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var liste = await db.MailBounces.AsNoTracking()
+                .Where(b => b.Hart && !b.Erledigt)
+                .Select(b => b.Adresse)
+                .Distinct()
+                .ToListAsync();
+
+            var menge = new HashSet<string>(
+                liste.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim().ToLowerInvariant()),
+                StringComparer.OrdinalIgnoreCase);
+
+            lock (_gesperrtLock) { _gesperrt = menge; _gesperrtBis = DateTime.UtcNow.Add(GesperrtTtl); }
+            return menge.Contains(adr);
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "[EmailService] Sperrliste konnte nicht gelesen werden — es wird gesendet.");
+            return false;
+        }
+    }
+
+    public EmailService(IConfiguration config, ILogger<EmailService> log,
+                        AppDbContext db, SimpleAesService aes,
+                        VersandFreigabeService freigabe,
+                        IServiceScopeFactory scopeFactory,
+                        IWebHostEnvironment env)
+    {
+        _config       = config;
+        _log          = log;
+        _db           = db;
+        _aes          = aes;
+        _freigabe     = freigabe;
+        _scopeFactory = scopeFactory;
+        _env          = env;
+    }
+
+    /// <summary>
+    /// Das offizielle OneCrew-Logo (schwarz, transparenter Grund) fuer den
+    /// Mail-Kopf. Bewusst dieselbe Datei wie in der Sidebar der App — so
+    /// bleibt die Mail automatisch aktuell, wenn das Logo je ersetzt wird.
+    /// Einmal von Platte gelesen und danach im Speicher gehalten: bei einem
+    /// Massenversand an alle MA waere sonst pro Mail ein Datei-Zugriff faellig.
+    /// Fehlt die Datei, liefert die Methode null; der Kopf zeigt dann nur den
+    /// alt-Text, die Mail bleibt lesbar (siehe HtmlRahmen).
+    /// </summary>
+    private byte[]? LogoLaden()
+    {
+        lock (_logoLock)
+        {
+            if (_logoGesucht) return _logoBytes;
+            _logoGesucht = true;
+            try
+            {
+                const string datei = "onecrew-logo.png";
+                var kandidaten = new[]
+                {
+                    Path.Combine(_env.WebRootPath ?? "", "img", datei),
+                    Path.Combine(_env.ContentRootPath ?? "", "wwwroot", "img", datei),
+                    Path.Combine(AppContext.BaseDirectory, "wwwroot", "img", datei),
+                };
+                foreach (var pfad in kandidaten)
+                {
+                    if (!string.IsNullOrWhiteSpace(pfad) && File.Exists(pfad))
+                    {
+                        _logoBytes = File.ReadAllBytes(pfad);
+                        _log.LogInformation("[EmailService] Mail-Logo geladen: {Pfad} ({Bytes} Bytes)",
+                                            pfad, _logoBytes.Length);
+                        return _logoBytes;
+                    }
+                }
+                _log.LogWarning("[EmailService] Mail-Logo onecrew-logo.png nicht gefunden — "
+                              + "der Mail-Kopf zeigt stattdessen nur den alt-Text.");
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "[EmailService] Mail-Logo konnte nicht gelesen werden.");
+            }
+            return _logoBytes;
+        }
+    }
+
+    /// <param name="BounceAddress">
+    /// Rücksendeadresse (Return-Path) für Zustellmeldungen. NICHT der
+    /// sichtbare Absender — der bleibt FromAddress. null = wie bisher,
+    /// Rückläufer gehen an FromAddress.
+    /// </param>
     public record EffectiveSmtpConfig(
         string Host, int Port, string Username, string Password,
-        string FromName, string FromAddress, string? TestRedirectTo, string SiteUrl);
+        string FromName, string FromAddress, string? TestRedirectTo, string SiteUrl,
+        string? BounceAddress = null);
 
     /// <summary>
     /// Liefert die effektive Konfig: erst aus DB (smtp_setting), wenn
@@ -78,7 +224,8 @@ public class EmailService
                 string.IsNullOrWhiteSpace(row.FromName) ? "Schaub HR" : row.FromName,
                 row.FromAddress ?? row.Username ?? "",
                 string.IsNullOrWhiteSpace(row.TestRedirectTo) ? null : row.TestRedirectTo,
-                string.IsNullOrWhiteSpace(row.SiteUrl) ? "https://onecrew.ch/" : row.SiteUrl);
+                string.IsNullOrWhiteSpace(row.SiteUrl) ? "https://onecrew.ch/" : row.SiteUrl,
+                string.IsNullOrWhiteSpace(row.BounceAddress) ? null : row.BounceAddress.Trim());
         }
         else
         {
@@ -121,10 +268,10 @@ public class EmailService
     /// einen Lohnabschluss nicht blockieren. Fehler werden geloggt.
     /// </summary>
     public async Task<bool> SendAsync(string to, string? toName, string subject, string htmlBody, string textBody,
-        bool bypassTestRedirect = false)
+        VersandKategorie kategorie, int? employeeId = null, int? gruppenMailLogId = null)
     {
         var cfg = await GetEffectiveConfigAsync();
-        try { await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody, throwOnError: false, bypassTestRedirect: bypassTestRedirect); return true; }
+        try { await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody, throwOnError: false, kategorie: kategorie, employeeId: employeeId, gruppenMailLogId: gruppenMailLogId); return true; }
         catch (Exception ex)
         {
             _log.LogError(ex, "[EmailService] Mail-Versand fehlgeschlagen an {To} — {Subject}", to, subject);
@@ -147,20 +294,23 @@ public class EmailService
     /// Liefert true bei Erfolg, wirft bei Fehler NICHT (loggt nur).
     /// </summary>
     public async Task<bool> SendWithAttachmentAsync(string to, string? toName, string subject,
-        string htmlBody, string textBody, byte[] attachment, string attachmentName)
+        string htmlBody, string textBody, byte[] attachment, string attachmentName,
+        VersandKategorie kategorie, int? employeeId = null)
         => await SendWithAttachmentsAsync(to, toName, subject, htmlBody, textBody,
-               new List<(byte[], string)> { (attachment, attachmentName) });
+               new List<(byte[], string)> { (attachment, attachmentName) }, kategorie, employeeId);
 
     /// <summary>Versand mit MEHREREN PDF-Anhaengen (Walter 16.07.2026,
     /// z.B. Arztbrief + Risikobeurteilung).</summary>
     public async Task<bool> SendWithAttachmentsAsync(string to, string? toName, string subject,
-        string htmlBody, string textBody, List<(byte[] Data, string Name)> attachments)
+        string htmlBody, string textBody, List<(byte[] Data, string Name)> attachments,
+        VersandKategorie kategorie, int? employeeId = null, int? gruppenMailLogId = null)
     {
         var cfg = await GetEffectiveConfigAsync();
         try
         {
             await SendCoreAsync(cfg, to, toName, subject, htmlBody, textBody,
-                throwOnError: true, attachments: attachments);
+                throwOnError: true, attachments: attachments, kategorie: kategorie, employeeId: employeeId,
+                gruppenMailLogId: gruppenMailLogId);
             return true;
         }
         catch (Exception ex)
@@ -170,12 +320,16 @@ public class EmailService
         }
     }
 
-    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, List<(byte[] Data, string Name)>? attachments = null, bool bypassTestRedirect = false)
+    private async Task SendCoreAsync(EffectiveSmtpConfig cfg, string to, string? toName, string subject, string htmlBody, string textBody, bool throwOnError, List<(byte[] Data, string Name)>? attachments = null, VersandKategorie? kategorie = null, int? employeeId = null, int? gruppenMailLogId = null)
     {
+        var kategorieCode = kategorie.HasValue ? VersandKategorien.Code(kategorie.Value) : null;
+        var anhaenge = attachments?.Count(a => a.Data is { Length: > 0 }) ?? 0;
+
         if (string.IsNullOrWhiteSpace(cfg.Host) || string.IsNullOrWhiteSpace(cfg.FromAddress))
         {
             var msg = "[EmailService] SMTP nicht konfiguriert (Host/FromAddress fehlt)";
             _log.LogWarning("{Msg} — Mail an {To} wird übersprungen.", msg, to);
+            await TryWriteLogAsync(kategorieCode, employeeId, to, null, subject, anhaenge, false, "SMTP nicht konfiguriert", gruppenMailLogId);
             if (throwOnError) throw new InvalidOperationException(msg);
             return;
         }
@@ -183,15 +337,48 @@ public class EmailService
         var effectiveTo = to;
         var effectiveToName = toName;
         var effectiveSubject = subject;
-        // bypassTestRedirect (Walter 04.08.2026): interne Benutzer-Mitteilungen
-        // (z.B. Dokument-Benachrichtigung an OneCrew-Benutzer) gehen auch im
-        // Testmodus SCHARF an den echten Empfänger — es sind eigene Leute,
-        // keine MA-/Behörden-Mails.
-        if (!bypassTestRedirect && !string.IsNullOrWhiteSpace(cfg.TestRedirectTo))
+        string? redirectedTo = null;
+
+        // Freigabe-Matrix (Walter 01.09.2026): pro Kategorie ein Haken in der
+        // Systemsteuerung. Haken = scharf, kein Haken = an die Test-Adresse.
+        // kategorie == null heisst: bewusst ausserhalb der Matrix (Admin-
+        // Test-Mail an eine von Hand eingetippte Adresse).
+        if (kategorie.HasValue)
         {
-            effectiveTo = cfg.TestRedirectTo!;
-            effectiveToName = "Test-Empfänger";
-            effectiveSubject = $"[TEST → {to}] {subject}";
+            var scharf = await _freigabe.IstScharfAsync(kategorie.Value, VersandFreigabeService.Kanal.Mail);
+            if (!scharf)
+            {
+                if (string.IsNullOrWhiteSpace(cfg.TestRedirectTo))
+                {
+                    // Nicht scharf, aber kein Umleitungsziel: NICHT senden.
+                    // Der sichere Ausgang gewinnt — sonst würde ausgerechnet
+                    // eine unvollständige Konfiguration alles scharf schalten.
+                    var msg = $"Kategorie {kategorieCode} ist nicht scharf, "
+                            + "aber es ist keine Test-Adresse hinterlegt — Versand blockiert.";
+                    _log.LogWarning("[EmailService] {Msg} (an {To})", msg, to);
+                    await TryWriteLogAsync(kategorieCode, employeeId, to, null, subject, anhaenge, false, msg, gruppenMailLogId);
+                    if (throwOnError) throw new InvalidOperationException(msg);
+                    return;
+                }
+                effectiveTo = cfg.TestRedirectTo!;
+                effectiveToName = "Test-Empfänger";
+                effectiveSubject = $"[TEST → {to}] {subject}";
+                redirectedTo = cfg.TestRedirectTo;
+            }
+        }
+
+        // Harte Rückläufer: nicht erneut ins Leere senden (Walter 01.09.2026).
+        // Geprüft wird die EFFEKTIVE Adresse — bei einer Umleitung auf die
+        // Test-Adresse greift die Sperre also bewusst nicht, sonst könnte
+        // man einen gesperrten Fall gar nicht mehr nachstellen.
+        if (await IstGesperrtAsync(effectiveTo))
+        {
+            var msg = $"Adresse {effectiveTo} ist wegen eines offenen Rückläufers gesperrt "
+                    + "(Adresse existiert nicht) — Versand übersprungen.";
+            _log.LogWarning("[EmailService] {Msg}", msg);
+            await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, false, msg, gruppenMailLogId);
+            if (throwOnError) throw new InvalidOperationException(msg);
+            return;
         }
 
         var mime = new MimeMessage();
@@ -199,11 +386,33 @@ public class EmailService
         mime.To.Add(new MailboxAddress(effectiveToName ?? "", effectiveTo));
         mime.Subject = effectiveSubject;
 
+        // Rücksendeadresse: siehe unten beim Senden. Bewusst KEINE
+        // Sender-Kopfzeile in der Nachricht — die würde Outlook als
+        // «hr@srgmbh.ch im Auftrag von bounce@srgmbh.ch» anzeigen.
+
         var builder = new BodyBuilder { HtmlBody = htmlBody, TextBody = textBody };
+
+        // Logo nur einbetten, wenn die Vorlage es auch referenziert — sonst
+        // haengt an jeder Mail ein unsichtbares Bild, das manche Clients als
+        // "Anhang"-Klammer anzeigen.
+        if (htmlBody != null && htmlBody.Contains("cid:" + LogoCid, StringComparison.OrdinalIgnoreCase))
+        {
+            var logo = LogoLaden();
+            if (logo != null && logo.Length > 0)
+            {
+                var res = builder.LinkedResources.Add(
+                    "onecrew-logo.png", logo, new MimeKit.ContentType("image", "png"));
+                res.ContentId = LogoCid;
+                // inline, damit der Client es nicht als Datei-Anhang listet
+                res.ContentDisposition = new MimeKit.ContentDisposition(
+                    MimeKit.ContentDisposition.Inline);
+            }
+        }
+
         if (attachments != null)
             foreach (var (data, name) in attachments)
                 if (data is { Length: > 0 })
-                    builder.Attachments.Add(name, data, new MimeKit.ContentType("application", "pdf"));
+                    builder.Attachments.Add(name, data, MimeTypVon(name));
         mime.Body = builder.ToMessageBody();
 
         using var client = new SmtpClient();
@@ -212,18 +421,200 @@ public class EmailService
         await client.ConnectAsync(cfg.Host, cfg.Port, secure);
         if (!string.IsNullOrWhiteSpace(cfg.Username))
             await client.AuthenticateAsync(cfg.Username, cfg.Password);
-        await client.SendAsync(mime);
-        await client.DisconnectAsync(true);
+        try
+        {
+            // Rücksendeadresse (Walter-Vorgabe 01.09.2026): Auf einem Umschlag
+            // stehen zwei Absender — der Briefkopf, den der Empfänger liest
+            // (From, bleibt hr@…), und die Rücksendeadresse, an die die Post
+            // Unzustellbares zurückbringt (Envelope-Absender, Return-Path).
+            //
+            // Diese Überladung setzt NUR den Umschlag (SMTP «MAIL FROM») und
+            // fasst die Nachricht selbst nicht an. Der naheliegende Weg über
+            // MimeMessage.Sender wäre falsch: der schreibt zusätzlich eine
+            // Sender-Kopfzeile, und Outlook macht daraus beim Empfänger
+            // «hr@srgmbh.ch im Auftrag von bounce@srgmbh.ch». Genau das will
+            // niemand auf einer Mail an alle Mitarbeitenden lesen.
+            if (!string.IsNullOrWhiteSpace(cfg.BounceAddress))
+            {
+                var umschlag = MailboxAddress.Parse(cfg.BounceAddress);
+                await client.SendAsync(mime, umschlag, mime.To.Mailboxes);
+            }
+            else
+            {
+                await client.SendAsync(mime);
+            }
+            await client.DisconnectAsync(true);
+        }
+        catch (Exception ex)
+        {
+            await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, false, ex.Message, gruppenMailLogId);
+            throw;
+        }
 
+        await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, true, null, gruppenMailLogId);
         _log.LogInformation("[EmailService] Mail gesendet an {To} (effektiv: {Eff}) — {Subject}",
                             to, effectiveTo, subject);
+    }
+
+    /// <summary>
+    /// MIME-Typ aus der Dateiendung (Walter 01.09.2026). Vorher war der Typ
+    /// hart auf application/pdf verdrahtet — solange nur Arztbriefe verschickt
+    /// wurden, fiel das nicht auf. Seit der Gruppen-E-Mail beliebige Dokumente
+    /// anhängen kann, käme ein Word-Dokument als kaputtes PDF beim Empfänger
+    /// an. Unbekanntes bleibt bewusst octet-stream: dann lädt der Empfänger
+    /// die Datei herunter, statt dass sein Programm sie falsch öffnet.
+    /// </summary>
+    private static MimeKit.ContentType MimeTypVon(string dateiname)
+    {
+        var ext = System.IO.Path.GetExtension(dateiname ?? "").ToLowerInvariant();
+        return ext switch
+        {
+            ".pdf"  => new MimeKit.ContentType("application", "pdf"),
+            ".png"  => new MimeKit.ContentType("image", "png"),
+            ".jpg" or ".jpeg" => new MimeKit.ContentType("image", "jpeg"),
+            ".gif"  => new MimeKit.ContentType("image", "gif"),
+            ".webp" => new MimeKit.ContentType("image", "webp"),
+            ".txt"  => new MimeKit.ContentType("text", "plain"),
+            ".csv"  => new MimeKit.ContentType("text", "csv"),
+            ".doc"  => new MimeKit.ContentType("application", "msword"),
+            ".docx" => new MimeKit.ContentType("application", "vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            ".xls"  => new MimeKit.ContentType("application", "vnd.ms-excel"),
+            ".xlsx" => new MimeKit.ContentType("application", "vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            ".ppt"  => new MimeKit.ContentType("application", "vnd.ms-powerpoint"),
+            ".pptx" => new MimeKit.ContentType("application", "vnd.openxmlformats-officedocument.presentationml.presentation"),
+            ".zip"  => new MimeKit.ContentType("application", "zip"),
+            _       => new MimeKit.ContentType("application", "octet-stream"),
+        };
+    }
+
+    /// <summary>
+    /// mail_log schreiben — best effort. Bewusst in einem EIGENEN DbContext
+    /// (frischer Scope) statt im injizierten _db: Mails gehen mitten aus
+    /// laufenden Abläufen raus (Lohnlauf!), und ein SaveChanges auf dem
+    /// geteilten Context würde dort anhängige, noch nicht fertige Änderungen
+    /// mit committen. Ein Protokolleintrag darf nie fremde Daten schreiben.
+    /// </summary>
+    private async Task TryWriteLogAsync(string? kategorie, int? employeeId, string? toEmail,
+        string? redirectedTo, string? subject, int attachmentCount, bool ok, string? error,
+        int? gruppenMailLogId = null)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.MailLogs.Add(new Models.MailLog
+            {
+                CreatedAt       = DateTime.Now,
+                Kategorie       = kategorie,
+                EmployeeId      = employeeId,
+                ToEmail         = Kurz(toEmail, 300),
+                RedirectedTo    = Kurz(redirectedTo, 300),
+                Subject         = Kurz(subject, 500),
+                AttachmentCount = attachmentCount,
+                Ok              = ok,
+                Error           = error,
+                GruppenMailLogId = gruppenMailLogId,
+            });
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "[EmailService] mail_log-Eintrag konnte nicht geschrieben werden");
+        }
+
+        static string? Kurz(string? v, int max)
+            => string.IsNullOrWhiteSpace(v) ? null : (v.Length <= max ? v : v[..max]);
+    }
+
+    /// <summary>
+    /// Zentrale HTML-Vorlage fuer OneCrew-Mails (Walter-Vorgabe 01.09.2026).
+    /// Liefert den kompletten Rahmen: dunkler Kopf mit Organisation + Titel,
+    /// weisse Karte, grauer Fuss. <paramref name="inhaltHtml"/> ist bereits
+    /// fertiges HTML und wird NICHT mehr escaped — der Aufrufer muss selber
+    /// HtmlEncode anwenden.
+    /// Damit sehen Gruppen-Mails gleich aus wie die internen Hinweis-Mails.
+    /// </summary>
+    /// <param name="titel">Zeile unter dem Organisations-Namen im Kopf.</param>
+    /// <param name="inhaltHtml">Body-HTML der Karte.</param>
+    /// <param name="fusszeile">
+    /// Text im grauen Fuss. null = Standardtext ("bitte nicht antworten").
+    /// LEERSTRING = gar kein Fuss (Walter 01.09.2026: bei Gruppen-Mails soll
+    /// die Karte nach dem Text aufhoeren, ohne Kleingedrucktes).
+    /// </param>
+    /// <param name="organisation">
+    /// Kopfzeile. Vorerst fest "Schaub Restaurants GmbH"; sobald es weitere
+    /// Lizenznehmer gibt, kommt der Wert aus dem Hauptsitz bzw. SMTP-FromName.
+    /// </param>
+    public static string HtmlRahmen(
+        string titel,
+        string inhaltHtml,
+        string? fusszeile = null,
+        string? organisation = null)
+    {
+        var org  = string.IsNullOrWhiteSpace(organisation) ? "Schaub Restaurants GmbH" : organisation.Trim();
+        // Bewusst auf null pruefen, NICHT auf leer: der Leerstring ist die
+        // ausdrueckliche Ansage "kein Fuss" und darf nicht zum Default werden.
+        var fuss = fusszeile ?? "Diese Nachricht wurde automatisch von OneCrew versendet — bitte nicht antworten.";
+        var titelZeile = string.IsNullOrWhiteSpace(titel)
+            ? ""
+            : $@"<div style=""color:#1a1a1a;font-size:20px;font-weight:700;line-height:1.3;margin-top:14px"">{System.Net.WebUtility.HtmlEncode(titel)}</div>";
+
+        var fussZeile = string.IsNullOrWhiteSpace(fuss)
+            ? ""
+            : $@"        <tr><td bgcolor=""#f8fafc""
+                style=""background-color:#f8fafc;padding:14px 28px;color:#94a3b8;font-size:11.5px;text-align:center;border-top:1px solid #e2e8f0"">
+          {System.Net.WebUtility.HtmlEncode(fuss)}
+        </td></tr>";
+
+        // ── Warum Tabelle statt <div> und bgcolor statt CSS-Verlauf ─────────
+        // Walter-Bug 01.09.2026: Der Kopf kam bei ihm ohne Hintergrundfarbe
+        // an. Ursache: "background:linear-gradient(...)" ohne feste Farbe
+        // darunter. Etliche Clients (Gmail-App, Outlook, Apple Mail im
+        // Dunkelmodus) entfernen den Verlauf ersatzlos — dann hat der Kasten
+        // gar keinen Hintergrund mehr, und weil der Grund plötzlich hell ist,
+        // färben dieselben Clients den weissen Text automatisch dunkel ein.
+        // Das Logo als Bild bleibt weiss: weisse Schrift auf hellgrau.
+        // Robust ist nur das alte E-Mail-Handwerk:
+        //   • Tabelle mit bgcolor-ATTRIBUT — ein HTML-Attribut kann kein
+        //     CSS-Filter wegwerfen; der Verlauf liegt nur noch als Zugabe
+        //     obendrauf und darf gefahrlos ignoriert werden.
+        //   • Jede Textfarbe direkt am Element, nie geerbt.
+        //   • color-scheme "light", damit Clients nicht selber umfärben.
+        return $@"<!DOCTYPE html>
+<html><head><meta charset=""UTF-8"">
+<meta name=""color-scheme"" content=""light"">
+<meta name=""supported-color-schemes"" content=""light"">
+</head>
+<body style=""font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#f1f5f9;margin:0;padding:20px"">
+  <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" border=""0"" style=""border-collapse:collapse"">
+    <tr><td align=""center"">
+      <table role=""presentation"" width=""540"" cellpadding=""0"" cellspacing=""0"" border=""0""
+             style=""width:540px;max-width:100%;border-collapse:collapse;background-color:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)"">
+
+        <tr><td bgcolor=""#e7e4db""
+                style=""background-color:#e7e4db;background-image:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);padding:26px 28px 24px;border-bottom:1px solid #d0c8b8"">
+          <img src=""cid:{LogoCid}"" alt=""OneCrew"" width=""168"" height=""44""
+               style=""display:block;width:168px;height:44px;border:0;outline:none;text-decoration:none"">
+          <div style=""color:#6b6152;font-size:12.5px;font-weight:700;letter-spacing:0.02em;margin-top:12px"">{System.Net.WebUtility.HtmlEncode(org)}</div>{titelZeile}
+        </td></tr>
+
+        <tr><td bgcolor=""#ffffff"" style=""background-color:#ffffff;padding:24px 28px;color:#0f172a"">
+{inhaltHtml}
+        </td></tr>
+
+{fussZeile}
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>";
     }
 
     /// <summary>
     /// Spezial-Helper: "Dein Lohnzettel ist bereit"-Mail an einen MA.
     /// Site-URL wird aus der DB-Konfig genommen (oder Override-Param).
     /// </summary>
-    public async Task SendLohnzettelNotificationAsync(string toEmail, string firstName, int year, int month, string? siteUrlOverride = null)
+    public async Task SendLohnzettelNotificationAsync(string toEmail, string firstName, int year, int month, string? siteUrlOverride = null, int? employeeId = null)
     {
         if (string.IsNullOrWhiteSpace(toEmail)) return;
 
@@ -240,34 +631,23 @@ public class EmailService
         var greeting = string.IsNullOrWhiteSpace(firstName) ? "Hallo" : $"Hallo {firstName}";
         var loginUrl = string.IsNullOrWhiteSpace(siteUrl) ? "https://onecrew.ch/" : siteUrl.TrimEnd('/') + "/";
 
-        var html = $@"<!DOCTYPE html>
-<html><head><meta charset=""UTF-8""></head>
-<body style=""font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;margin:0;padding:20px"">
-  <div style=""max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)"">
-    <div style=""background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);color:#fff;padding:24px 28px"">
-      <div style=""font-weight:700;font-size:14px;opacity:0.9"">Schaub HR</div>
-      <div style=""font-size:22px;font-weight:700;margin-top:6px"">📬 {monatLabel}</div>
-    </div>
-    <div style=""padding:24px 28px;color:#0f172a"">
-      <p style=""font-size:16px;margin:0 0 14px"">{greeting},</p>
+        // Einheitlicher OneCrew-Rahmen (Walter-Vorgabe 01.09.2026) — vorher
+        // eigener blauer "Schaub HR"-Kopf.
+        var inhalt = $@"      <p style=""font-size:16px;margin:0 0 14px"">{greeting},</p>
       <p style=""font-size:14px;line-height:1.55;margin:0 0 18px"">
         dein Lohnzettel für <strong>{monatLabel}</strong> ist in deinem persönlichen Postfach bereit.
         Du kannst ihn jederzeit dort einsehen, herunterladen oder ausdrucken.
       </p>
       <p style=""text-align:center;margin:24px 0"">
-        <a href=""{loginUrl}"" style=""display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:14px"">
+        <a href=""{loginUrl}"" style=""display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:14px"">
           Zum Postfach →
         </a>
       </p>
       <p style=""font-size:12.5px;color:#64748b;line-height:1.5;margin:18px 0 0"">
         Login: deine Personalnummer + dein gewähltes Passwort. Falls du dein Passwort vergessen hast, melde dich bei deinem Geschäftsführer oder der HR-Verantwortlichen.
-      </p>
-    </div>
-    <div style=""padding:14px 28px;background:#f8fafc;color:#94a3b8;font-size:11.5px;text-align:center;border-top:1px solid #e2e8f0"">
-      Diese Nachricht wurde automatisch von Schaub HR versendet — bitte nicht antworten.
-    </div>
-  </div>
-</body></html>";
+      </p>";
+
+        var html = HtmlRahmen($"Lohnzettel {monatLabel}", inhalt);
 
         var text = $@"{greeting},
 
@@ -279,9 +659,9 @@ Login: deine Personalnummer + dein gewähltes Passwort.
 Falls du dein Passwort vergessen hast, melde dich bei deinem Geschäftsführer oder der HR-Verantwortlichen.
 
 —
-Schaub HR (automatisch versendet — bitte nicht antworten)";
+OneCrew (automatisch versendet — bitte nicht antworten)";
 
-        await SendAsync(toEmail, firstName, subject, html, text);
+        await SendAsync(toEmail, firstName, subject, html, text, VersandKategorie.Lohn, employeeId);
     }
 
     /// <summary>
@@ -296,7 +676,8 @@ Schaub HR (automatisch versendet — bitte nicht antworten)";
         int year,
         string downloadUrl,
         DateTime expiresAt,
-        string? sachbearbeiterName = null)
+        string? sachbearbeiterName = null,
+        int? employeeId = null)
     {
         if (string.IsNullOrWhiteSpace(toEmail)) return;
 
@@ -362,7 +743,8 @@ Der Link ist bis {gueltig} gültig. Aus Datenschutzgründen ist kein PDF angehä
 —
 Schaub HR (automatisch versendet — bitte nicht antworten)";
 
-        await SendAsync(toEmail, behoerdeName, subject, html, text);
+        // Behörde = externer Dritter.
+        await SendAsync(toEmail, behoerdeName, subject, html, text, VersandKategorie.Dritte, employeeId);
     }
 
     /// <summary>
@@ -425,16 +807,7 @@ Schaub HR (automatisch versendet — bitte nicht antworten)";
         var vorname = string.IsNullOrWhiteSpace(toName) ? "" : toName.Trim().Split(' ')[0];
         var anrede = string.IsNullOrWhiteSpace(vorname) ? "Hallo" : $"Hallo {vorname}";
 
-        var html = $@"<!DOCTYPE html>
-<html><head><meta charset=""UTF-8""></head>
-<body style=""font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;margin:0;padding:20px"">
-  <div style=""max-width:540px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)"">
-    <div style=""background:linear-gradient(135deg,#3f3f3f 0%,#1a1a1a 100%);color:#fff;padding:24px 28px"">
-      <div style=""font-weight:700;font-size:14px;opacity:0.9"">OneCrew — Schaub Restaurants GmbH</div>
-      <div style=""font-size:20px;font-weight:700;margin-top:6px"">Neues Dokument</div>
-    </div>
-    <div style=""padding:24px 28px;color:#0f172a"">
-      <p style=""font-size:15px;margin:0 0 14px"">{Enc(anrede)},</p>
+        var inhalt = $@"      <p style=""font-size:15px;margin:0 0 14px"">{Enc(anrede)},</p>
       <p style=""font-size:14px;line-height:1.55;margin:0 0 14px"">
         <strong>{Enc(actorName)}</strong> hat dir ein Dokument bei
         <strong>{Enc(maLabel)}</strong> abgelegt.
@@ -443,13 +816,9 @@ Schaub HR (automatisch versendet — bitte nicht antworten)";
       <p style=""font-size:12.5px;color:#64748b;line-height:1.5;margin:18px 0 0"">
         Du findest das Dokument in OneCrew im Dokumente-Tab des Mitarbeiters.
         Aus Datenschutzgründen ist kein Anhang beigefügt.
-      </p>
-    </div>
-    <div style=""padding:14px 28px;background:#f8fafc;color:#94a3b8;font-size:11.5px;text-align:center;border-top:1px solid #e2e8f0"">
-      Diese Nachricht wurde automatisch von OneCrew versendet — bitte nicht antworten.
-    </div>
-  </div>
-</body></html>";
+      </p>";
+
+        var html = HtmlRahmen("Neues Dokument", inhalt);
 
         var textNachricht = string.IsNullOrWhiteSpace(persoenlicheNachricht)
             ? ""
@@ -466,8 +835,7 @@ Aus Datenschutzgründen ist kein Anhang beigefügt.
 —
 OneCrew (automatisch versendet — bitte nicht antworten)";
 
-        // Interne Mitteilung an OneCrew-Benutzer: auch im Testmodus scharf
-        // (Walter 04.08.2026) — der Test-Redirect gilt für MA-/Behörden-Mails.
-        return await SendAsync(toEmail, toName, subject, html, text, bypassTestRedirect: true);
+        // Interne Mitteilung an einen OneCrew-Benutzer.
+        return await SendAsync(toEmail, toName, subject, html, text, VersandKategorie.Intern);
     }
 }

@@ -194,7 +194,9 @@ public class MirusChangeDigestService
             var (html, text) = RenderMail(forUser, branchMeta, localFrom, localTo, name);
 
             var subject = $"OneCrew → Mirus: Änderungen {subjectDate} ({forUser.Count})";
-            var ok = await _email.SendAsync(r.Email!, name, subject, html, text);
+            // OneCrew-Benutzer (eigenes Team) — Kategorie INTERN.
+            var ok = await _email.SendAsync(r.Email!, name, subject, html, text,
+                VersandKategorie.Intern);
             if (ok) sent++;
         }
 
@@ -314,7 +316,9 @@ public class MirusChangeDigestService
 
         var preview = await PreviewAsync(ct, companyProfileId, restaurantCode, recipientName);
         var subject = "[Vorschau] " + preview.Subject;
-        var ok = await _email.SendAsync(toEmail.Trim(), recipientName, subject, preview.Html, preview.Text);
+        // Vorschau an den eingeloggten Admin — interner Benutzer.
+        var ok = await _email.SendAsync(toEmail.Trim(), recipientName, subject, preview.Html, preview.Text,
+            VersandKategorie.Intern);
         return ok
             ? (true, $"Vorschau an {toEmail.Trim()} gesendet ({preview.ChangeCount} Änderungszeilen).", subject)
             : (false, $"Versand an {toEmail.Trim()} fehlgeschlagen (SMTP prüfen).", subject);

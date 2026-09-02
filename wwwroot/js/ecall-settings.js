@@ -109,9 +109,10 @@ function _ecallRenderTestBanner(redirect) {
     el.innerHTML =
         '<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:8px;' +
         'padding:12px 14px;font-size:13px;line-height:1.55">' +
-        '⚠ <strong>Test-Modus aktiv:</strong> Alle SMS gehen an <strong>' + escapeHtml(redirect) +
-        '</strong> statt an die eigentlichen Empfänger. Im Text erscheint ' +
-        '<code>[TEST → originalnummer]</code>. Zum Echtbetrieb: Feld „Test-Umleitung" leeren und speichern.' +
+        'ℹ <strong>Test-Nummer hinterlegt:</strong> <strong>' + escapeHtml(redirect) +
+        '</strong>. Dorthin gehen alle SMS, deren Verteiler in den E-Mail-Einstellungen ' +
+        'KEINEN Haken hat; im Text erscheint <code>[TEST → originalnummer]</code>. ' +
+        'Was scharf rausgeht, steuerst du über die Freigabe-Matrix, nicht über dieses Feld.' +
         '</div>';
 }
 

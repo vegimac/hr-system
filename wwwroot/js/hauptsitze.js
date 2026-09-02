@@ -85,6 +85,31 @@ function _hsEnsureModal() {
             <label style="${lbl}">Kanton<input id="hsKanton" placeholder="LU" maxlength="2" style="${inp};width:80px"></label>
             <label style="${lbl};grid-column:span 2">Bemerkung<input id="hsBem" placeholder="optional" style="${inp}"></label>
         </div>
+
+        <!-- Vertragsregeln der Rechtseinheit (Walter 01.09.2026). Der
+             easy@work-Sync prüft jeden Vertrag dagegen; was abweicht, wird
+             nicht importiert. Leer = Standardwerte, nie «ungeprüft». -->
+        <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(60,55,48,0.15)">
+            <div style="font-size:13px;font-weight:700;color:#3f3f3f">Vertragsregeln</div>
+            <div style="font-size:11.5px;color:#8b8b8b;margin:4px 0 12px;line-height:1.55">
+                Gilt für alle Filialen dieser Rechtseinheit. Verträge aus easy@work, die
+                davon abweichen, werden nicht importiert und erscheinen auf der Fehlerliste.
+                Felder leer lassen = Standard (FIX 50–100 in Zehnerschritten, FLEX max. 17 h, MTP 17–38 h).
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 12px">
+                <label style="${lbl};grid-column:span 2">Erlaubte FIX-Pensen in %
+                    <input id="hsFixPensen" placeholder="50, 60, 70, 80, 90, 100" style="${inp}"></label>
+                <label style="${lbl}">FLEX max. Std/Woche
+                    <input id="hsFlexMax" type="number" step="0.25" min="0" placeholder="17" style="${inp}"></label>
+                <label style="${lbl}">MTP Std/Woche von – bis
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input id="hsMtpMin" type="number" step="0.25" min="0" placeholder="17" style="${inp}">
+                        <span style="color:#8b8b8b">–</span>
+                        <input id="hsMtpMax" type="number" step="0.25" min="0" placeholder="38" style="${inp}">
+                    </div>
+                </label>
+            </div>
+        </div>
         <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
             <button onclick="hsCloseModal()" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;color:#3f3f3f;cursor:pointer">Abbrechen</button>
             <button id="hsSaveBtn" onclick="hsSave()" style="background:#3f3f3f;border:none;border-radius:12px;padding:8px 18px;font-size:13px;font-weight:600;color:#fff;cursor:pointer">Speichern</button>
@@ -102,6 +127,8 @@ function hsOpenModal(id) {
     const set = (fid, v) => { const el = document.getElementById(fid); if (el) el.value = v ?? ''; };
     set('hsName', h?.name); set('hsUid', h?.uid); set('hsStrasse', h?.strasse);
     set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode); set('hsBem', h?.bemerkung);
+    set('hsFixPensen', h?.fixPensenErlaubt); set('hsFlexMax', h?.flexStundenMax);
+    set('hsMtpMin', h?.mtpStundenMin);       set('hsMtpMax', h?.mtpStundenMax);
     document.getElementById('hsModal').style.display = 'block';
 }
 
@@ -112,11 +139,22 @@ function hsCloseModal() {
 
 async function hsSave() {
     const val = (fid) => document.getElementById(fid)?.value?.trim() || null;
+    const num = (fid) => { const v = val(fid); return v == null ? null : Number(v); };
     const dto = {
         name: val('hsName'), uid: val('hsUid'), strasse: val('hsStrasse'),
         plz: val('hsPlz'), ort: val('hsOrt'), kantonCode: val('hsKanton'),
         bemerkung: val('hsBem'), isActive: true,
+        fixPensenErlaubt: val('hsFixPensen'),
+        flexStundenMax: num('hsFlexMax'),
+        mtpStundenMin:  num('hsMtpMin'),
+        mtpStundenMax:  num('hsMtpMax'),
     };
+    // Untergrenze über Obergrenze waere eine Regel, die nie jemand erfuellen kann.
+    if (dto.mtpStundenMin != null && dto.mtpStundenMax != null
+        && dto.mtpStundenMin > dto.mtpStundenMax) {
+        showToast('MTP: die Untergrenze darf nicht groesser als die Obergrenze sein.', 'error');
+        return;
+    }
     if (!dto.name) { showToast('Bitte den Firmennamen angeben.', 'error'); return; }
     const url = _hsEditId ? `/api/hauptsitze/${_hsEditId}` : '/api/hauptsitze';
     const r = await fetch(url, {

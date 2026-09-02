@@ -5057,7 +5057,10 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
 
             // Walter-Vorgabe 20.08.2026: Kind in Erstausbildung — Kinderziffer
             // läuft über den 18. Geburtstag hinaus (KS 45; Beleg hinterlegen).
-            if (type === 'Kind' && m.inErstausbildung) {
+            if (type === 'Kind' && m.keineUnterhaltspflicht) {
+                spousePermitBadge += `<span class="fam-tile-badge" style="background:#fee2e2;color:#991b1b" title="Keine Unterhaltspflicht (z.B. Stiefkind aus früherer Beziehung des Partners) — zählt NICHT für die QST-Kinderziffer">⊘ keine Unterhaltspflicht</span>`;
+            }
+            if (type === 'Kind' && m.inErstausbildung && !m.keineUnterhaltspflicht) {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#dbeafe;color:#1d4ed8" title="In Erstausbildung — QST-Kinderziffer läuft über 18 hinaus (Lehrvertrag/Immatrikulation als Beleg)">🎓 Erstausbildung</span>`;
             }
             // Konkubinat (Walter 25.08.2026): gemeinsames Kind mit dem
@@ -5088,7 +5091,18 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             // Kinder: Zulagen kompakt — KEINE leere gestrichelte Box mehr.
             // Ohne Zulagen nur „+ Zulage"; mit Zulagen eine Chip-Zeile + Detail.
             let kindAllowancesBlock = '';
-            if (type === 'Kind') {
+            // Ohne Unterhaltspflicht besteht auch kein Zulagen-Anspruch
+            // (Walter 01.09.2026) — der Anspruch nach FamZG haengt am
+            // Unterhalt, genau wie die QST-Kinderziffer. Statt eines
+            // Knopfes, der zu einem Fehler fuehrt, steht hier der Grund.
+            if (type === 'Kind' && m.keineUnterhaltspflicht) {
+                kindAllowancesBlock = `
+                    <div class="fam-tile-foot" onclick="event.stopPropagation()">
+                        <span style="font-size:11px;color:#991b1b" title="Keine Unterhaltspflicht — kein Anspruch auf Familienzulagen fuer dieses Kind">
+                            ⊘ keine Zulagen
+                        </span>
+                    </div>`;
+            } else if (type === 'Kind') {
                 const allowances = allowanceMap[m.id] || [];
                 if (allowances.length === 0) {
                     kindAllowancesBlock = `
@@ -5176,8 +5190,13 @@ function showFamilyDetailPopup(memberId) {
                     ${row(_t('fam.field.ahv','AHV-Nummer'),     m.socialSecurityNumber || '–')}
                     ${row(_t('fam.field.phone','Telefon'),      m.phone || '–')}
                     ${row(_t('fam.field.livesInCh','In der Schweiz lebend'), m.livesInSwitzerland ? (i18n.getLang && i18n.getLang() === 'en' ? 'Yes' : 'Ja') : (i18n.getLang && i18n.getLang() === 'en' ? 'No' : 'Nein'))}
-                    ${row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
-                    ${row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
+                    ${m.keineUnterhaltspflicht
+                        ? row('Unterhaltspflicht', 'keine — zählt nicht für die QST-Kinderziffer')
+                        : ''}
+                    ${m.keineUnterhaltspflicht ? '' :
+                      row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
+                    ${m.keineUnterhaltspflicht ? '' :
+                      row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
                     <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#1a1a1a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
@@ -5276,6 +5295,10 @@ function fmTypeChanged() {
 // Walter-Vorgabe 20.08.2026: typ-abhängige QST-Blöcke im Familien-Modal —
 // Erwerbstätigkeit nur beim Ehepartner, Erstausbildung nur beim Kind.
 function fmQstBlocksVisibility(type) {
+    // Ohne Argument aufgerufen (Checkbox «keine Unterhaltspflicht») → Typ aus
+    // dem Formular lesen, sonst wuerde die Funktion alles als Nicht-Kind
+    // behandeln und die Felder faelschlich ausblenden.
+    if (type == null) type = document.getElementById('fmMemberType')?.value || 'Kind';
     // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
     // Erwerbstätigkeits-Block auch hier sichtbar (freiwillig, angemahnt erst
     // bei gemeinsamem Kind), plus die Einkommensfrage H1/A0.
@@ -5300,8 +5323,17 @@ function fmQstBlocksVisibility(type) {
     }
     // Walter-Vorgabe 20.08.2026: die GANZE QST-Sektion (Abzug ab/bis +
     // Erstausbildung) gibt es nur bei Kindern — beim Ehepartner & Co. weg.
+    const istKindTyp = type === 'Kind';
+    // «Keine Unterhaltspflicht» ist eine reine Kind-Frage (Walter 01.09.2026).
+    const unterhaltFeld = document.getElementById('fmKeineUnterhaltField');
+    if (unterhaltFeld) unterhaltFeld.style.display = istKindTyp ? '' : 'none';
+
+    // Ohne Unterhaltspflicht zählt das Kind nie für die Kinderziffer — dann
+    // haben Abzugszeitraum und Erstausbildung keine Wirkung mehr und werden
+    // ausgeblendet, statt eine Wahl vorzutäuschen, die nichts bewirkt.
+    const ohneUnterhalt = document.getElementById('fmKeineUnterhaltspflicht')?.checked === true;
     const qstSec = document.getElementById('fmQstSection');
-    if (qstSec) qstSec.style.display = (type === 'Kind') ? '' : 'none';
+    if (qstSec) qstSec.style.display = (istKindTyp && !ohneUnterhalt) ? '' : 'none';
     // Walter-Vorgabe 29.08.2026: beim KIND unnötige Felder ausblenden —
     // Ledigname, AHV-Nummer, Telefon, Bewilligung, Gültig bis, ZEMIS-Nr.
     // (Nationalität + «In der Schweiz lebend» bleiben). Beim Ehepartner
@@ -6672,6 +6704,8 @@ function openFamilyModal(member) {
     if (agHint) agHint.innerHTML = '';
     const erstCb = document.getElementById('fmInErstausbildung');
     if (erstCb) erstCb.checked = member?.inErstausbildung ?? false;
+    const unterhaltCb = document.getElementById('fmKeineUnterhaltspflicht');
+    if (unterhaltCb) unterhaltCb.checked = member?.keineUnterhaltspflicht ?? false;
     fmQstBlocksVisibility(member?.memberType ?? 'Kind');
 
     // ── Aufenthalt + Nationalität: Permit-Types + Nationalitäten füllen
@@ -7071,6 +7105,24 @@ function closeFamilyModal() {
 async function saveFamilyMember() {
     if (!selectedEmployeeId) return;
 
+    // Haken «keine Unterhaltspflicht» neu gesetzt, obwohl schon Zulagen
+    // erfasst sind (Walter 01.09.2026): nicht stillschweigend hinnehmen —
+    // die bestehenden Zulagen waeren damit unberechtigt und muessen von Hand
+    // aufgeraeumt werden. Nur fragen, nicht automatisch loeschen: an Zulagen
+    // haengen Lohnperioden.
+    const ohneUnterhaltNeu = document.getElementById('fmKeineUnterhaltspflicht')?.checked === true;
+    if (ohneUnterhaltNeu && editingFamilyMemberId) {
+        try {
+            const rz = await fetch(`/api/family-members/${editingFamilyMemberId}/allowances`, { headers: ah() });
+            const zl = rz.ok ? await rz.json() : [];
+            if (Array.isArray(zl) && zl.length > 0 && !confirm(
+                `Für dieses Kind sind ${zl.length} Zulage(n) erfasst.\n\n`
+                + 'Ohne Unterhaltspflicht besteht kein Anspruch darauf. Die bestehenden '
+                + 'Einträge werden NICHT automatisch gelöscht — bitte im Zulagen-Tab prüfen '
+                + 'und bereinigen.\n\nTrotzdem speichern?')) return;
+        } catch (_) { /* Zulagen nicht lesbar → Speichern nicht blockieren */ }
+    }
+
     // Adress-Modus: "alt" = abweichende Adresse aus den Zusatzadressen des MA;
     // "spouse" (Walter 21.08.2026) = Zusatzadresse des Ehepartners übernehmen;
     // "extern" (Walter 25.08.2026) = nicht (mehr) im Haushalt, keine Adresse.
@@ -7131,6 +7183,7 @@ async function saveFamilyMember() {
         arbeitgeberKanton:      (document.getElementById('fmArbeitgeberKanton')?.value  || '').trim().toUpperCase() || null,
         stellenantritt:         document.getElementById('fmStellenantritt')?.value      || null,
         inErstausbildung:       document.getElementById('fmInErstausbildung')?.checked ?? false,
+        keineUnterhaltspflicht: document.getElementById('fmKeineUnterhaltspflicht')?.checked ?? false,
         // Zulagen werden separat über /api/family-members/{id}/allowances verwaltet.
     };
 
@@ -7247,6 +7300,13 @@ async function loadFamilyAllowances(familyMemberId) {
 // Walter 18.05.2026: direktes Öffnen der Zulagen-Erfassung aus der Familie-
 // Liste — ohne über das Familienmember-Edit-Modal gehen zu müssen.
 function openAllowanceFromCard(familyMemberId, existing) {
+    const kind = (window._familyMembersCache || []).find(m => m.id === familyMemberId);
+    if (kind?.keineUnterhaltspflicht) {
+        alert('Fuer dieses Kind ist «keine Unterhaltspflicht» erfasst.\n\n'
+            + 'Damit besteht kein Anspruch auf Familienzulagen. Wenn das nicht '
+            + 'stimmt, zuerst den Haken beim Kind entfernen.');
+        return;
+    }
     editingFamilyMemberId = familyMemberId;
     openAllowanceModal(existing);
 }
@@ -13753,6 +13813,11 @@ function _empEasyValidateNewSequence(newNumbers) {
 
 function _empEasyNotes(j) {
     let html = '';
+    // «MA ohne Lohn» (Supervisor) werden nie importiert — das aber SAGEN,
+    // nicht stillschweigend weglassen (Walter 01.09.2026).
+    if (j.phantomSkipped > 0)
+        html += `<div style="background:#f1f5f9;border:1px solid #cbd5e1;color:#475569;border-radius:10px;padding:8px 12px;font-size:12px;margin-top:8px">`
+              + `${j.phantomSkipped} «MA ohne Lohn» (Supervisor) nicht aufgeführt — diese werden nie importiert.</div>`;
     if (j.conflicts && j.conflicts.length)
         html += `<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:8px;white-space:pre-wrap">⚠ Konflikte (werden NICHT importiert — bitte Admin prüfen lassen):\n${j.conflicts.map(escapeHtml).join('\n')}</div>`;
     return html;

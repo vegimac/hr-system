@@ -12,7 +12,20 @@ namespace HrSystem.Services;
 /// den beim MA bekannten Daten — der MA prüft/ergänzt dann nur noch.
 /// Grosszügige Schreibzeilen für Handausfüllung. 2 Seiten A4, OneCrew-Stil.
 /// </summary>
-public record QstInfoKind(string? Name, string? Geburtsdatum, bool? Haushalt, bool? Erstausbildung);
+/// <summary>
+/// Ein Kind auf dem Formular. <paramref name="Unterhalt"/> (Walter-Vorgabe
+/// 01.09.2026) ist POSITIV gefragt — «Kommen Sie für den Unterhalt auf?» —,
+/// weil ein Mitarbeitender eine bejahende Frage zuverlässiger beantwortet als
+/// eine verneinende. In OneCrew steht das Feld umgekehrt als
+/// «keine Unterhaltspflicht»; die Umkehrung passiert beim Vorbefüllen.
+///
+/// Unterhalt und Haushalt sind zwei VERSCHIEDENE Fragen: ein Kind kann beim
+/// anderen Elternteil wohnen und der MA trotzdem unterhaltspflichtig sein
+/// (Alimente) — dann zählt es für die Kinderziffer, aber nicht für den
+/// Alleinerziehenden-Tarif H.
+/// </summary>
+public record QstInfoKind(string? Name, string? Geburtsdatum, bool? Haushalt, bool? Erstausbildung,
+    bool? Unterhalt = null);
 
 public record QstInfoPrefill(
     string? Personalnummer = null, string? NameVorname = null, string? Geburtsdatum = null,
@@ -160,6 +173,11 @@ public class QstInfoFormularPdfService
                 r.RelativeItem(3).Element(e => LabeledLine(e, "getrennt seit", p.GetrenntSeit));
                 r.RelativeItem(3);
             });
+            // Konkubinat gehört zum Zivilstand (Walter-Vorgabe 01.09.2026):
+            // Es ist eine Frage zur Lebensform und wurde vorher erst auf Seite 2
+            // gestellt — dort ist sie leicht zu übersehen, obwohl sie für den
+            // Tarif entscheidend sein kann.
+            col.Item().PaddingTop(6).Element(e => JaNeinFrage(e, "Leben Sie im Konkubinat?", null));
 
             var kf = (p.Konfession ?? "").ToLowerInvariant();
             col.Item().PaddingTop(11).Text("Konfession").SemiBold().FontSize(9f);
@@ -308,9 +326,11 @@ public class QstInfoFormularPdfService
             // 6 · Abklärung Elterntarif (H)
             col.Item().PaddingTop(14).Element(e => SectionHead(e, "6 · Abklärung Elterntarif",
                 "nur ausfüllen bei Zivilstand ledig / geschieden / verwitwet / getrennt UND Kindern"));
-            col.Item().PaddingTop(5).Element(e => JaNeinFrage(e, "Leben Sie mit Kindern im gleichen Haushalt?  (wenn Ja: Anzahl ______ )", null));
-            col.Item().PaddingTop(6).Element(e => JaNeinFrage(e, "Leben Sie im Konkubinat?", null));
-            col.Item().PaddingTop(6).Element(e => JaNeinFrage(e, "Üben Sie die elterliche Sorge gemeinsam aus?", null));
+            // «Leben Sie mit Kindern im gleichen Haushalt?» ist hier weg
+            // (Walter 01.09.2026): die Frage steht schon pro Kind in der
+            // Kindertabelle und war doppelt. «Leben Sie im Konkubinat?» ist
+            // hoch zum Zivilstand gewandert.
+            col.Item().PaddingTop(5).Element(e => JaNeinFrage(e, "Üben Sie die elterliche Sorge gemeinsam aus?", null));
             col.Item().PaddingTop(6).Element(e => JaNeinFrage(e, "Zahlen Sie Unterhalt für volljährige Kinder?", null));
             col.Item().PaddingTop(6).Element(e => JaNeinFrage(e, "Erzielen Sie das höhere Bruttoeinkommen als der/die Konkubinatspartner/in?", null));
 
@@ -418,38 +438,65 @@ public class QstInfoFormularPdfService
     /// <summary>Kinder-Tabelle: 5 Zeilen, bekannte Kinder vorgedruckt.</summary>
     private static void KinderTabelle(IContainer e, List<QstInfoKind> kinder)
     {
+        // Kompakte Fassung (Walter-Vorgabe 01.09.2026): «Ja / Nein» steht nur
+        // EINMAL im Spaltenkopf über den Kästchen, die Zeilen enthalten dann
+        // bloss noch die beiden Kästchen. Das spart pro Zeile die doppelte
+        // Beschriftung und macht die Tabelle auf einen Blick lesbar.
+        //
+        // Spaltenreihenfolge nach Wirkung: ohne Unterhaltspflicht zählt das
+        // Kind gar nicht — deshalb steht sie zuerst; Haushalt entscheidet nur
+        // noch über den Alleinerziehenden-Tarif, Erstausbildung nur ab 18.
         e.Table(t =>
         {
             t.ColumnsDefinition(c =>
             {
-                c.RelativeColumn(4);
-                c.RelativeColumn(2);
-                c.RelativeColumn(2.4f);
-                c.RelativeColumn(2.6f);
+                c.RelativeColumn(4.2f);   // Name, Vorname
+                c.RelativeColumn(2.2f);   // Geburtsdatum
+                c.RelativeColumn(2.1f);   // Unterhaltspflicht
+                c.RelativeColumn(2.1f);   // im gleichen Haushalt lebend
+                c.RelativeColumn(2.1f);   // ab 18 Jahren in 1. Ausbildung
             });
+
+            // Textkopf für die beiden Schreibspalten.
             void Head(string txt) => t.Cell().Background(Soft).BorderBottom(0.7f).BorderColor(Rule)
-                .Padding(4).Text(txt).SemiBold().FontSize(8f).FontColor(Ink);
+                .Padding(4).AlignBottom().Text(txt).SemiBold().FontSize(8f).FontColor(Ink);
+
+            // Kopf einer Ja/Nein-Spalte: Frage (zweizeilig) + darunter «Ja Nein»
+            // exakt über den Kästchen der Datenzeilen.
+            void HeadJaNein(string zeile1, string zeile2) =>
+                t.Cell().Background(Soft).BorderBottom(0.7f).BorderColor(Rule).Padding(4).Column(col =>
+                {
+                    col.Item().AlignCenter().Text(zeile1).SemiBold().FontSize(8f).FontColor(Ink);
+                    col.Item().AlignCenter().Text(zeile2).SemiBold().FontSize(8f).FontColor(Ink);
+                    col.Item().PaddingTop(2).Row(r =>
+                    {
+                        r.RelativeItem().AlignCenter().Text("Ja").FontSize(8f).FontColor(Ink);
+                        r.RelativeItem().AlignCenter().Text("Nein").FontSize(8f).FontColor(Ink);
+                    });
+                });
+
+            // Datenzelle: nur die zwei Kästchen, in denselben Hälften wie oben.
+            void ZelleJaNein(bool? wert) =>
+                t.Cell().Padding(3).AlignMiddle().Row(r =>
+                {
+                    r.RelativeItem().AlignCenter().Element(f => Check(f, wert == true));
+                    r.RelativeItem().AlignCenter().Element(f => Check(f, wert == false));
+                });
+
             Head("Name, Vorname");
             Head("Geburtsdatum");
-            Head("im gleichen Haushalt?");
-            Head("ab 18: in Erstausbildung?");
+            HeadJaNein("Unterhalts-", "pflicht");
+            HeadJaNein("im gleichen", "Haushalt lebend");
+            HeadJaNein("ab 18 Jahren", "in 1. Ausbildung");
+
             for (var i = 0; i < 5; i++)
             {
                 var k = i < kinder.Count ? kinder[i] : null;
                 t.Cell().Padding(3).Element(f => WriteLine(f, k?.Name));
                 t.Cell().Padding(3).Element(f => WriteLine(f, k?.Geburtsdatum));
-                t.Cell().Padding(3).AlignMiddle().Row(r =>
-                {
-                    r.AutoItem().Element(f => CheckLabel(f, "Ja", k?.Haushalt == true));
-                    r.ConstantItem(10);
-                    r.AutoItem().Element(f => CheckLabel(f, "Nein", k?.Haushalt == false));
-                });
-                t.Cell().Padding(3).AlignMiddle().Row(r =>
-                {
-                    r.AutoItem().Element(f => CheckLabel(f, "Ja", k?.Erstausbildung == true));
-                    r.ConstantItem(10);
-                    r.AutoItem().Element(f => CheckLabel(f, "Nein", k?.Erstausbildung == false));
-                });
+                ZelleJaNein(k?.Unterhalt);
+                ZelleJaNein(k?.Haushalt);
+                ZelleJaNein(k?.Erstausbildung);
             }
         });
     }

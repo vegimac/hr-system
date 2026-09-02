@@ -1029,7 +1029,16 @@ async function kuEintragen() {
         }
         if (typeof selectEmployee === 'function' && window.activeEmpId === id)
             await selectEmployee(id);
-        alert('Kündigung beim Mitarbeiter eingetragen.');
+        // Walter-Vorgabe 01.09.2026: Wir können (noch) nicht in die easy@work-API
+        // schreiben. Der Austritt dort ist aber der Schalter für Dienstplan und
+        // App-Zugriff — fehlt er, arbeitet ein gekündigter MA einfach weiter.
+        // Darum hier, wo der GF das Datum vor Augen hat, die Aufforderung im
+        // Klartext. Die ToDo «Vertragsende wegen Kündigung» bleibt zusätzlich
+        // stehen, bis der Sync den Austritt aus easy@work meldet — der Klick
+        // hier ist kein Beweis, dass es wirklich erfasst wurde.
+        alert('Kündigung beim Mitarbeiter eingetragen.\n\n'
+            + 'Jetzt noch in easy@work: Austritt per ' + per + ' erfassen.\n'
+            + 'Ohne diesen Eintrag bleibt der Mitarbeiter im Dienstplan und behält den App-Zugriff.');
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 

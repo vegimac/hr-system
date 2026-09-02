@@ -212,7 +212,13 @@ builder.Services.AddScoped<LseDatenService>();   // BFS Lohnstrukturerhebung (Wa
 // Dashboard-Cockpit (Alarme: Bewilligungen, Probezeit, Verträge, Jubiläen ...)
 builder.Services.AddScoped<DashboardService>();
 // SMTP-Versand für MA-Postfach-Benachrichtigungen (Lohnzettel-Bereit etc.)
+builder.Services.AddScoped<VersandFreigabeService>();
 builder.Services.AddScoped<EmailService>();
+// Rückläufer aus dem bounce@-Postfach abholen (Walter-Vorgabe 01.09.2026).
+// Der Hintergrunddienst prüft bei jedem Durchgang selber, ob ein Postfach
+// hinterlegt und der Haken gesetzt ist — er darf also immer registriert sein.
+builder.Services.AddScoped<BounceAbrufService>();
+builder.Services.AddHostedService<BounceAbrufBackgroundService>();
 // Täglicher Mirus-Änderungsdigest 06:00 (Walter 23.07.2026)
 builder.Services.AddScoped<MirusChangeDigestService>();
 builder.Services.AddHostedService<MirusChangeDigestBackgroundService>();
@@ -330,6 +336,156 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+    // ── Versand-Freigabe, Mail-Protokoll, MA-Sync-Fehlerliste ────────────
+    // (Walter-Vorgabe 01.09.2026). Bewusst HIER und nicht nur als SQL-Skript:
+    // der Schema-Waechter vergleicht EF-Modell gegen Datenbank und blockiert
+    // den Deploy, wenn eine Tabelle fehlt — also muss der Start sie selbst
+    // anlegen koennen. Alles idempotent; gesetzte Haken bleiben unberuehrt.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS versand_kategorie (
+            code                VARCHAR(40)  PRIMARY KEY,
+            mail_scharf         BOOLEAN      NOT NULL DEFAULT FALSE,
+            sms_scharf          BOOLEAN      NOT NULL DEFAULT FALSE,
+            updated_at          TIMESTAMP    NOT NULL DEFAULT NOW(),
+            updated_by_user_id  INTEGER      NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS mail_log (
+            id                SERIAL       PRIMARY KEY,
+            created_at        TIMESTAMP    NOT NULL DEFAULT NOW(),
+            kategorie         VARCHAR(40)  NULL,
+            employee_id       INTEGER      NULL,
+            to_email          VARCHAR(300) NULL,
+            redirected_to     VARCHAR(300) NULL,
+            subject           VARCHAR(500) NULL,
+            attachment_count  INTEGER      NOT NULL DEFAULT 0,
+            ok                BOOLEAN      NOT NULL DEFAULT FALSE,
+            error             TEXT         NULL
+        );
+        CREATE INDEX IF NOT EXISTS ix_mail_log_employee_kategorie ON mail_log (employee_id, kategorie);
+        CREATE INDEX IF NOT EXISTS ix_mail_log_created_at         ON mail_log (created_at);
+        -- Verweis auf den Gruppen-Versand (Walter 01.09.2026): macht aus
+        -- «5 fehlgeschlagen» eine aufklappbare Liste mit Adresse und Grund.
+        ALTER TABLE mail_log ADD COLUMN IF NOT EXISTS gruppen_mail_log_id INTEGER NULL;
+        CREATE INDEX IF NOT EXISTS ix_mail_log_gruppen ON mail_log (gruppen_mail_log_id);
+
+        CREATE TABLE IF NOT EXISTS gruppen_mail_log (
+            id                     SERIAL       PRIMARY KEY,
+            gesendet_am            TIMESTAMP    NOT NULL DEFAULT NOW(),
+            gesendet_von_user_id   INTEGER      NULL,
+            betreff                VARCHAR(500) NOT NULL DEFAULT '',
+            filiale                VARCHAR(200) NULL,
+            modelle                VARCHAR(200) NULL,
+            funktionen             VARCHAR(500) NULL,
+            mit_benutzern          BOOLEAN      NOT NULL DEFAULT FALSE,
+            anzahl_gesendet        INTEGER      NOT NULL DEFAULT 0,
+            anzahl_fehlgeschlagen  INTEGER      NOT NULL DEFAULT 0,
+            anzahl_doppelt         INTEGER      NOT NULL DEFAULT 0,
+            anzahl_ohne_email      INTEGER      NOT NULL DEFAULT 0,
+            anhang_name            VARCHAR(300) NULL,
+            mit_text               BOOLEAN      NOT NULL DEFAULT FALSE,
+            scharf                 BOOLEAN      NOT NULL DEFAULT FALSE
+        );
+        CREATE INDEX IF NOT EXISTS ix_gruppen_mail_log_am ON gruppen_mail_log (gesendet_am);
+
+        -- Rueckläufer-Protokoll (Walter-Vorgabe 01.09.2026): welche Mail
+        -- konnte NICHT zugestellt werden und warum. Speist die Sperre beim
+        -- Versand und die Pendenz auf der To-do-Liste.
+        CREATE TABLE IF NOT EXISTS mail_bounce (
+            id                    SERIAL       PRIMARY KEY,
+            empfangen_am          TIMESTAMP    NOT NULL DEFAULT NOW(),
+            adresse               VARCHAR(300) NOT NULL,
+            -- Bewusst OHNE Fremdschlüssel auf employee, wie beim
+            -- Nachbarn easyatwork_ma_sync_log: dieser Startblock legt die
+            -- Tabelle an, employee selbst entsteht aber aus den Migrations-
+            -- Skripten. Ein Verweis auf eine noch nicht existierende Tabelle
+            -- würde den Start abbrechen. Die Zuordnung erledigt EF.
+            employee_id           INTEGER      NULL,
+            hart                  BOOLEAN      NOT NULL DEFAULT FALSE,
+            code                  VARCHAR(20)  NULL,
+            grund                 VARCHAR(300) NOT NULL DEFAULT '',
+            meldung               TEXT         NULL,
+            original_betreff      VARCHAR(500) NULL,
+            original_message_id   VARCHAR(300) NULL,
+            quell_uid             VARCHAR(60)  NULL,
+            erledigt              BOOLEAN      NOT NULL DEFAULT FALSE,
+            erledigt_am           TIMESTAMP    NULL,
+            erledigt_von_user_id  INTEGER      NULL
+        );
+        CREATE INDEX IF NOT EXISTS ix_mail_bounce_adresse  ON mail_bounce (LOWER(adresse), erledigt);
+        CREATE INDEX IF NOT EXISTS ix_mail_bounce_employee ON mail_bounce (employee_id, erledigt);
+        CREATE INDEX IF NOT EXISTS ix_mail_bounce_am       ON mail_bounce (empfangen_am);
+        -- Derselbe Rueckläufer darf nicht zweimal erfasst werden, wenn der
+        -- Abruf doppelt läuft. Partiell, weil nicht jeder Server eine
+        -- Message-ID mitliefert — NULL-Werte kollidieren sonst nie.
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_mail_bounce_msgid
+            ON mail_bounce (original_message_id, adresse)
+            WHERE original_message_id IS NOT NULL;
+
+        -- Zugang zum Rueckläufer-Postfach + Rücksendeadresse
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_address                  VARCHAR(200) NULL;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_imap_host                VARCHAR(200) NULL;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_imap_port                INTEGER      NOT NULL DEFAULT 993;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_imap_user                VARCHAR(200) NULL;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_imap_password_encrypted  TEXT         NULL;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_abruf_aktiv              BOOLEAN      NOT NULL DEFAULT FALSE;
+        ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_letzter_abruf            TIMESTAMP    NULL;
+
+        CREATE TABLE IF NOT EXISTS easyatwork_ma_sync_log (
+            id                    SERIAL      PRIMARY KEY,
+            run_at                TIMESTAMP   NOT NULL DEFAULT NOW(),
+            company_profile_id    INTEGER     NOT NULL,
+            employee_number       VARCHAR(50) NULL,
+            employee_id           INTEGER     NULL,
+            kind                  VARCHAR(20) NOT NULL DEFAULT 'VERTRAG',
+            reason                TEXT        NOT NULL,
+            erledigt              BOOLEAN     NOT NULL DEFAULT FALSE,
+            erledigt_am           TIMESTAMP   NULL,
+            erledigt_von_user_id  INTEGER     NULL
+        );
+        CREATE INDEX IF NOT EXISTS ix_ma_sync_log_cp_runat ON easyatwork_ma_sync_log (company_profile_id, run_at);
+        CREATE INDEX IF NOT EXISTS ix_ma_sync_log_erledigt ON easyatwork_ma_sync_log (erledigt);
+
+        INSERT INTO versand_kategorie (code, mail_scharf, sms_scharf) VALUES
+            ('INTERN',       TRUE,  FALSE),
+            ('POSTFACH',     FALSE, FALSE),
+            ('LOHN',         FALSE, FALSE),
+            ('VERTRAG',      FALSE, FALSE),
+            ('MOMENT',       FALSE, FALSE),
+            ('BEWILLIGUNG',  FALSE, FALSE),
+            ('GRUPPEN_MAIL', FALSE, FALSE),
+            ('KANDIDAT',     FALSE, FALSE),
+            ('DRITTE',       FALSE, FALSE)
+        ON CONFLICT (code) DO NOTHING;
+    ");
+
+    // Posteingang: Wer hat das Dokument in dieses Postfach gegeben?
+    // (Walter-Vorgabe 01.09.2026 — uploaded_by ist der ERSTE Hochlader und
+    // beantwortet die Frage nicht.)
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE mailbox_document
+            ADD COLUMN IF NOT EXISTS weitergeleitet_von INTEGER   NULL,
+            ADD COLUMN IF NOT EXISTS weitergeleitet_am  TIMESTAMP NULL;
+    ");
+
+    // Kind ohne Unterhaltspflicht (Walter-Vorgabe 01.09.2026): zählt nie für
+    // die QST-Kinderziffer — Stiefkind / kein Sorgerecht.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member
+            ADD COLUMN IF NOT EXISTS keine_unterhaltspflicht BOOLEAN NOT NULL DEFAULT FALSE;
+    ");
+
+    // Vertragsregeln am Hauptsitz (Walter-Vorgabe 01.09.2026): erlaubte FIX-Pensen
+    // und Stundengrenzen FLEX/MTP pro Rechtseinheit. NULL = Standardwerte aus
+    // VertragsRegeln.Standard.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE hauptsitz
+            ADD COLUMN IF NOT EXISTS fix_pensen_erlaubt VARCHAR(200)  NULL,
+            ADD COLUMN IF NOT EXISTS flex_stunden_max   NUMERIC(5,2)  NULL,
+            ADD COLUMN IF NOT EXISTS mtp_stunden_min    NUMERIC(5,2)  NULL,
+            ADD COLUMN IF NOT EXISTS mtp_stunden_max    NUMERIC(5,2)  NULL;
+    ");
 
     // Benutzerverwaltung: neue Tabellen
     db.Database.ExecuteSqlRaw(@"
@@ -1270,6 +1426,34 @@ using (var scope = app.Services.CreateScope())
         VALUES
             ('qst_kanton_mismatch', 'QST-Kanton ≠ Wohnkanton', TRUE, NULL, NULL, 'critical', NULL, FALSE, 24, 16, 'red')
         ON CONFLICT (category) DO NOTHING;
+        -- Walter 01.09.2026: Austritts-Abgleich easy@work ↔ OneCrew.
+        --   austritt_unvollstaendig       Austritt aus easy@work, Kündigungsangaben fehlen
+        --   austritt_datum_mismatch       easy@work-Austritt ≠ «gekündigt per»
+        --   contract_end_weitergearbeitet befristeter Vertrag abgelaufen, aber weitergearbeitet
+        --                                 (OR 334: gilt als unbefristet) → kritisch
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('austritt_unvollstaendig',       'Austritt ohne Kündigungsangaben',        TRUE, NULL, NULL, 'warning',  NULL, FALSE, 25, 57, 'none'),
+            ('austritt_datum_mismatch',       'Austrittsdatum stimmt nicht überein',    TRUE, NULL, NULL, 'warning',  NULL, FALSE, 26, 58, 'none'),
+            ('contract_end_weitergearbeitet', 'Nach Vertragsende weitergearbeitet',     TRUE, NULL, NULL, 'critical', NULL, FALSE, 27, 22, 'red')
+        ON CONFLICT (category) DO NOTHING;
+        -- Walter 01.09.2026: Rueckläufer aus dem bounce@-Postfach. Harte Fälle
+        -- (Adresse existiert nicht) sind kritisch — der MA bekommt gar nichts
+        -- mehr, auch keinen Lohnzettel-Hinweis. Weiche Fälle (volles Postfach)
+        -- erscheinen erst ab dem dritten Fehlversuch und nur als Warnung.
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('email_unzustellbar', 'E-Mail nicht zustellbar', TRUE, NULL, NULL, 'critical', NULL, FALSE, 28, 23, 'red')
+        ON CONFLICT (category) DO NOTHING;
+        -- Walter 01.09.2026: «Vertragsende wegen Kündigung» erscheint neu SOFORT
+        -- statt erst 14 Tage vorher — das Austrittsdatum in easy@work steuert
+        -- Dienstplan und App-Zugriff, ein Vorlauf von 14 Tagen meldet den Schaden
+        -- erst, wenn er da ist. Guard auf dem alten Seed-Wert 14, damit eine
+        -- eigene Einstellung von Walter NICHT überschrieben wird.
+        UPDATE dashboard_warning_config SET warn_days = 3650
+            WHERE category = 'kuendigung_ablauf' AND warn_days = 14;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
@@ -4443,7 +4627,12 @@ app.MapGet("/api/instance-info", () => Results.Ok(new
     // deploy.sh liest das und bricht ab, bevor Produktiv drankommt.
     schemaOk      = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Ok ?? true,
     schemaGeprueft= HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Geprueft ?? false,
-    schemaFehler  = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.FehlerAnzahl ?? 0
+    schemaFehler  = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.FehlerAnzahl ?? 0,
+    // Zeitzonen-Abweichungen zaehlen bewusst NICHT als schemaFehler und
+    // blockieren den Deploy nicht (Walter 01.09.2026) — es gibt Altbestand,
+    // und ob eine Abweichung wirklich knallt, haengt davon ab, ob jemand
+    // einen Lokalzeit-Wert hineinschreibt. Sichtbar sind sie trotzdem.
+    schemaZeitzonen = HrSystem.Services.SchemaCheckService.LetztesErgebnis?.Zeitzonen.Count ?? 0
 })).AllowAnonymous();
 
 // Bank-Master: Initial-Seed aus CSV falls DB-Tabelle leer, Cache laden

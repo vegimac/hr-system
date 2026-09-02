@@ -25,6 +25,42 @@ public class SmtpSetting
     public string FromAddress { get; set; } = "";
     public string? TestRedirectTo { get; set; }              // null/leer = Echtbetrieb
     public string SiteUrl { get; set; } = "https://onecrew.ch/";
+
+    // ── Rückläufer-Postfach (Walter-Vorgabe 01.09.2026) ───────────────────
+    // Bewusst ein EIGENES Postfach (bounce@…) und nicht das HR-Postfach:
+    // OneCrew braucht zum Lesen volle Anmeldedaten und hätte damit Zugriff
+    // auf die gesamte HR-Korrespondenz. Im Bounce-Postfach liegen dagegen
+    // ausschliesslich automatische Zustellmeldungen.
+
+    /// <summary>
+    /// Adresse, die als Rücksendeadresse (Return-Path) auf jeder Mail steht.
+    /// NICHT der sichtbare Absender — der bleibt FromAddress. Leer = alles
+    /// wie bisher, Rückläufer gehen an FromAddress.
+    /// </summary>
+    public string? BounceAddress { get; set; }
+
+    /// <summary>IMAP-Server des Rückläufer-Postfachs, z.B. mail.hostfactory.ch.</summary>
+    public string? BounceImapHost { get; set; }
+
+    /// <summary>993 = SSL (Normalfall), 143 = STARTTLS.</summary>
+    public int BounceImapPort { get; set; } = 993;
+
+    /// <summary>Anmeldename, meist gleich wie BounceAddress.</summary>
+    public string? BounceImapUser { get; set; }
+
+    /// <summary>AES-verschlüsselt, Base64 — wie das SMTP-Passwort.</summary>
+    public string? BounceImapPasswordEncrypted { get; set; }
+
+    /// <summary>
+    /// Schalter für den automatischen Abruf. Aus = OneCrew fasst das
+    /// Postfach nicht an; der Knopf «Jetzt abrufen» bleibt trotzdem nutzbar,
+    /// damit man vor dem Scharfschalten testen kann.
+    /// </summary>
+    public bool BounceAbrufAktiv { get; set; } = false;
+
+    /// <summary>Letzter erfolgreicher Abruf — steht in der Maske als Kontrolle.</summary>
+    public DateTime? BounceLetzterAbruf { get; set; }
+
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public int?    UpdatedByUserId { get; set; }
 }

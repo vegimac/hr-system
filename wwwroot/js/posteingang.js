@@ -276,6 +276,15 @@ async function pbLoadList() {
                     ? `<span style="color:#6b7280;font-weight:600">${d.employee.name} (${d.employee.employeeNumber})</span>`
                     : '<span style="color:#94a3b8">– ohne MA-Bezug –</span>');
             const uploaderInfo = d.uploader ? `${d.uploader.name?.trim() || d.uploader.username}` : 'Unbekannt';
+            // Wer hat es in DIESES Postfach gegeben (Walter 01.09.2026)? Der
+            // fette Name ist der ursprüngliche Absender — kam das Dokument über
+            // eine Weiterleitung, ist das eine andere Person, und genau die
+            // sucht man, wenn man wissen will, warum es hier liegt.
+            const weiter = d.weitergeleitetVon
+                ? (d.weitergeleitetVon.name?.trim() || d.weitergeleitetVon.username) : null;
+            const weiterInfo = weiter
+                ? `<span style="color:#64748b"> · weitergeleitet von <b style="font-weight:600;color:#475569">${weiter}</b></span>`
+                : '';
             const notifyInfo = d.notifyUser ? `<span style="color:#a16207;font-size:11px">📧 → ${d.notifyUser.name?.trim() || d.notifyUser.username}</span>` : '';
             const title = d.messageBody
                 ? (d.originalFilename || 'Mitteilung')
@@ -299,7 +308,7 @@ async function pbLoadList() {
                     ${d.bemerkung ? `<div style="font-size:13px;color:#475569;margin-top:4px">${d.bemerkung}</div>` : ''}
                     <div style="font-size:12px;color:#64748b;margin-top:6px">
                         <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
-                        <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>
+                        <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo}
                         ${empInfo ? ` · ${empInfo}` : ''} · ${dateStr}
                     </div>
                 </div>

@@ -120,7 +120,12 @@ public class AppDbContext : DbContext
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
+    public DbSet<MailBounce>                MailBounces                 => Set<MailBounce>();
     public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
+    public DbSet<VersandKategorieSetting>   VersandKategorien           => Set<VersandKategorieSetting>();
+    public DbSet<MailLog>                   MailLogs                    => Set<MailLog>();
+    public DbSet<GruppenMailLog>            GruppenMailLogs             => Set<GruppenMailLog>();
+    public DbSet<EasyAtWorkMaSyncLog>       EasyAtWorkMaSyncLogs        => Set<EasyAtWorkMaSyncLog>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
     public DbSet<EmployeeVerwarnung>        EmployeeVerwarnungen        => Set<EmployeeVerwarnung>();
@@ -836,6 +841,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
+            entity.Property(e => e.FixPensenErlaubt).HasColumnName("fix_pensen_erlaubt").HasMaxLength(200);
+            entity.Property(e => e.FlexStundenMax).HasColumnName("flex_stunden_max").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.MtpStundenMin).HasColumnName("mtp_stunden_min").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.MtpStundenMax).HasColumnName("mtp_stunden_max").HasColumnType("numeric(5,2)");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
         });
@@ -1082,6 +1091,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ArbeitgeberKanton).HasColumnName("arbeitgeber_kanton").HasMaxLength(10);
             entity.Property(e => e.Stellenantritt).HasColumnName("stellenantritt").HasColumnType("date");
             entity.Property(e => e.InErstausbildung).HasColumnName("in_erstausbildung");
+            entity.Property(e => e.KeineUnterhaltspflicht).HasColumnName("keine_unterhaltspflicht");
             // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md)
             entity.Property(e => e.MaHatHoeheresEinkommen).HasColumnName("ma_hat_hoeheres_einkommen");
             entity.Property(e => e.GemeinsamesKindMitPartner).HasColumnName("gemeinsames_kind_mit_partner");
@@ -1887,7 +1897,12 @@ public class AppDbContext : DbContext
             entity.Property(e => e.NotifyUserId).HasColumnName("notify_user_id");
             entity.Property(e => e.TargetType).HasColumnName("target_type");
             entity.Property(e => e.TargetUserId).HasColumnName("target_user_id");
+            entity.Property(e => e.WeitergeleitetVon).HasColumnName("weitergeleitet_von");
+            entity.Property(e => e.WeitergeleitetAm).HasColumnName("weitergeleitet_am")
+                  .HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasOne(e => e.WeitergeleitetVonUser).WithMany().HasForeignKey(e => e.WeitergeleitetVon)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(e => e.Uploader).WithMany().HasForeignKey(e => e.UploadedBy);
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasOne(e => e.NotifyUser).WithMany().HasForeignKey(e => e.NotifyUserId);
@@ -2791,8 +2806,49 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FromAddress).HasColumnName("from_address").HasMaxLength(200);
             entity.Property(e => e.TestRedirectTo).HasColumnName("test_redirect_to").HasMaxLength(200);
             entity.Property(e => e.SiteUrl).HasColumnName("site_url").HasMaxLength(300);
+            entity.Property(e => e.BounceAddress).HasColumnName("bounce_address").HasMaxLength(200);
+            entity.Property(e => e.BounceImapHost).HasColumnName("bounce_imap_host").HasMaxLength(200);
+            entity.Property(e => e.BounceImapPort).HasColumnName("bounce_imap_port");
+            entity.Property(e => e.BounceImapUser).HasColumnName("bounce_imap_user").HasMaxLength(200);
+            entity.Property(e => e.BounceImapPasswordEncrypted).HasColumnName("bounce_imap_password_encrypted");
+            entity.Property(e => e.BounceAbrufAktiv).HasColumnName("bounce_abruf_aktiv");
+            entity.Property(e => e.BounceLetzterAbruf).HasColumnName("bounce_letzter_abruf")
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at");
             entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+        });
+
+        // ── MailBounce — Rückläufer aus dem bounce@-Postfach (Walter 01.09.2026) ──
+        modelBuilder.Entity<MailBounce>(entity =>
+        {
+            entity.ToTable("mail_bounce");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            // HasColumnType ist bei DateTime PFLICHT in diesem Projekt: ohne
+            // Angabe mappt Npgsql auf «timestamp with time zone» und verlangt
+            // dann UTC — die Datenbankspalte ist aber «ohne Zeitzone», und die
+            // App arbeitet durchgehend mit Lokalzeit. Fehlt die Zeile, scheitert
+            // JEDES Schreiben mit «Cannot write DateTime with Kind=Local»
+            // (Walter-Bug 01.09.2026).
+            entity.Property(e => e.EmpfangenAm).HasColumnName("empfangen_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Adresse).HasColumnName("adresse").HasMaxLength(300);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Hart).HasColumnName("hart");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(20);
+            entity.Property(e => e.Grund).HasColumnName("grund").HasMaxLength(300);
+            entity.Property(e => e.Meldung).HasColumnName("meldung");
+            entity.Property(e => e.OriginalBetreff).HasColumnName("original_betreff").HasMaxLength(500);
+            entity.Property(e => e.OriginalMessageId).HasColumnName("original_message_id").HasMaxLength(300);
+            entity.Property(e => e.QuellUid).HasColumnName("quell_uid").HasMaxLength(60);
+            entity.Property(e => e.Erledigt).HasColumnName("erledigt");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErledigtVonUserId).HasColumnName("erledigt_von_user_id");
+            // Navigation ohne Datenbank-Fremdschlüssel (siehe Program.cs):
+            // EF braucht die Beziehung für die Abfragen, die Datenbank nicht.
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId)
+                  .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         // ── DvelopSetting (Singleton, Id=1) — d.velop-API-Konfig (Walter 10.07.2026) ──
@@ -2819,6 +2875,87 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TestRedirectTo).HasColumnName("test_redirect_to");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
+        });
+
+        // ── VersandKategorieSetting — Freigabe-Matrix Mail/SMS ────────────
+        modelBuilder.Entity<VersandKategorieSetting>(entity =>
+        {
+            entity.ToTable("versand_kategorie");
+            entity.HasKey(e => e.Code);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(40);
+            entity.Property(e => e.MailScharf).HasColumnName("mail_scharf");
+            entity.Property(e => e.SmsScharf).HasColumnName("sms_scharf");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");
+        });
+
+        // ── EasyAtWorkMaSyncLog — Fehlerprotokoll MA-Stammdaten-Sync ──────
+        modelBuilder.Entity<EasyAtWorkMaSyncLog>(entity =>
+        {
+            entity.ToTable("easyatwork_ma_sync_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.RunAt).HasColumnName("run_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.EmployeeNumber).HasColumnName("employee_number").HasMaxLength(50);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Kind).HasColumnName("kind").HasMaxLength(20);
+            entity.Property(e => e.Reason).HasColumnName("reason");
+            entity.Property(e => e.Erledigt).HasColumnName("erledigt");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErledigtVonUserId).HasColumnName("erledigt_von_user_id");
+            entity.HasIndex(e => new { e.CompanyProfileId, e.RunAt });
+            entity.HasIndex(e => e.Erledigt);
+        });
+
+        // ── GruppenMailLog — ein Eintrag pro Gruppen-Versand ──────────────
+        modelBuilder.Entity<GruppenMailLog>(entity =>
+        {
+            entity.ToTable("gruppen_mail_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.GesendetAm).HasColumnName("gesendet_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GesendetVonUserId).HasColumnName("gesendet_von_user_id");
+            entity.Property(e => e.Betreff).HasColumnName("betreff").HasMaxLength(500);
+            entity.Property(e => e.Filiale).HasColumnName("filiale").HasMaxLength(200);
+            entity.Property(e => e.Modelle).HasColumnName("modelle").HasMaxLength(200);
+            entity.Property(e => e.Funktionen).HasColumnName("funktionen").HasMaxLength(500);
+            entity.Property(e => e.MitBenutzern).HasColumnName("mit_benutzern");
+            entity.Property(e => e.AnzahlGesendet).HasColumnName("anzahl_gesendet");
+            entity.Property(e => e.AnzahlFehlgeschlagen).HasColumnName("anzahl_fehlgeschlagen");
+            entity.Property(e => e.AnzahlDoppelt).HasColumnName("anzahl_doppelt");
+            entity.Property(e => e.AnzahlOhneEmail).HasColumnName("anzahl_ohne_email");
+            entity.Property(e => e.AnhangName).HasColumnName("anhang_name").HasMaxLength(300);
+            entity.Property(e => e.MitText).HasColumnName("mit_text");
+            entity.Property(e => e.Scharf).HasColumnName("scharf");
+            entity.HasOne(e => e.GesendetVonUser).WithMany().HasForeignKey(e => e.GesendetVonUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasIndex(e => e.GesendetAm);
+        });
+
+        // ── MailLog — Protokoll aller Mail-Versandversuche ────────────────
+        modelBuilder.Entity<MailLog>(entity =>
+        {
+            entity.ToTable("mail_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(40);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.ToEmail).HasColumnName("to_email").HasMaxLength(300);
+            entity.Property(e => e.RedirectedTo).HasColumnName("redirected_to").HasMaxLength(300);
+            entity.Property(e => e.Subject).HasColumnName("subject").HasMaxLength(500);
+            entity.Property(e => e.AttachmentCount).HasColumnName("attachment_count");
+            entity.Property(e => e.Ok).HasColumnName("ok");
+            entity.Property(e => e.Error).HasColumnName("error");
+            entity.HasIndex(e => new { e.EmployeeId, e.Kategorie });
+            entity.HasIndex(e => e.CreatedAt);
+            entity.Property(e => e.GruppenMailLogId).HasColumnName("gruppen_mail_log_id");
         });
     }
 }

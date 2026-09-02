@@ -543,18 +543,17 @@ public class EmployeePermitHistoryController : ControllerBase
             ? built.SmsText.Replace("{Link}", url)
             : $"{built.SmsText}\n{url}";
 
-        var res = await _sms.SendSmsAsync(built.Phone!, smsBody, purpose: "BEWILLIGUNG", employeeId: employeeId);
+        var res = await _sms.SendSmsAsync(built.Phone!, smsBody, Services.VersandKategorie.Bewilligung, employeeId: employeeId);
         if (!res.Ok)
             return StatusCode(502, new { error = $"SMS-Versand fehlgeschlagen: {res.Error}" });
 
-        var redirect = await _db.EcallSettings.AsNoTracking()
-            .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
-
+        // Umleitung kommt aus dem Versand-Ergebnis, NICHT mehr aus den
+        // Einstellungen: die Test-Nummer steht dauerhaft drin (Walter 01.09.2026).
         return Ok(new
         {
             ok = true,
             to = built.Phone,
-            redirectedTo = string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(),
+            redirectedTo = res.RedirectedTo,
             messageId = res.MessageId,
             url,
             expiresAt,

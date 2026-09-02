@@ -103,6 +103,20 @@ public class EmployeeFamilyMember
     /// </summary>
     public bool InErstausbildung { get; set; } = false;
 
+    /// <summary>
+    /// Kind, für das der/die MA KEINE Unterhaltspflicht hat (Walter-Vorgabe
+    /// 01.09.2026, Fall Ossenih): typischerweise ein Stiefkind aus einer
+    /// früheren Beziehung des Ehepartners, oder ein Kind ohne Sorgerecht.
+    ///
+    /// Die QST-Kinderziffer knüpft an die Unterhaltspflicht an — «unterhalts-
+    /// pflichtige Kinder» ist auch der Begriff, den die kantonalen
+    /// Wegleitungen und die Lohnsoftware verwenden. Ist dieses Flag gesetzt,
+    /// zählt das Kind NIE für den Tarif, unabhängig von Alter, Abzugszeitraum
+    /// oder Erstausbildung. Deshalb blendet die Maske diese Felder dann aus:
+    /// sie hätten keine Wirkung mehr.
+    /// </summary>
+    public bool KeineUnterhaltspflicht { get; set; } = false;
+
     // ── Konkubinats-Logik (Walter-Vorgabe 25.08.2026,
     //    docs/konkubinat-qst-konzept.md) ────────────────────────────────────
     /// <summary>

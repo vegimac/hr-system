@@ -46,6 +46,8 @@ public class EditLockEndpointAuditTests
         ["UsersController"]                = "Benutzer-Stammdaten (Anlage, Rolle) — keine Lohndaten",
         ["UserBranchController"]           = "User↔Filial-Zuordnung — keine Lohndaten",
         ["AdminSmtpController"]            = "SMTP-Konfiguration — keine Lohndaten",
+        ["AdminVersandKategorieController"] = "Freigabe-Matrix Mail/SMS (scharf vs. Test-Umleitung) — Versandsteuerung, keine Lohndaten (Walter 01.09.2026)",
+        ["MaSyncFehlerController"]         = "Fehlerliste MA-Sync — nur Erledigt-Haken auf einem Protokoll, keine Lohndaten (Walter 01.09.2026)",
         ["ManagerSchulungenController"]    = "Manager-Schulungen (Nothelfer/Peak/Seco) + eID/SSO — Katalog/Stammdaten, kein Lohn",
         ["MaEmailController"]              = "Gruppen-E-Mail an MA — reiner Mail-Versand, keine Lohndaten",
         ["EcallController"]                = "eCall-SMS-Konfig + Test-Versand — keine Lohndaten",

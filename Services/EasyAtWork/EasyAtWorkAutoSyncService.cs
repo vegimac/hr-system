@@ -211,12 +211,19 @@ public class EasyAtWorkAutoSyncRunner
             {
                 CompanyProfileId = mapping.CompanyProfileId,
                 OnlyActive       = false,   // alle relevanten MA (inkl. ausgetretene, ohne Pre-Mirus) — wie der Stempel-Filter
+                                            // MUSS false bleiben: das Austrittsdatum aus easy@work (employee.to)
+                                            // erreicht uns nur, solange der MA im Abzug enthalten ist.
                 SelectedNumbers  = null     // alle NEW+UPDATE automatisch übernehmen
             };
             var res = await empSync.CommitAsync(req, null, ct);
             _log.LogInformation(
                 "easy@work Auto-Sync Filiale {Cp}: MA-Vorstufe +{Ins} neu / ~{Upd} geändert / {Conf} Konflikt(e) / {Exist} Wiedereintritt(e).",
                 mapping.CompanyProfileId, res.CountInserted, res.CountUpdated, res.CountConflict, res.CountExisting);
+
+            // Fehlerprotokoll schreiben (Walter-Vorgabe 01.09.2026). Ohne das
+            // verschwinden blockierte Verträge lautlos — die Zahl oben im Log
+            // sagt niemandem, WELCHER Vertrag warum fehlt.
+            await SchreibeMaSyncFehlerAsync(mapping.CompanyProfileId, res, ct);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -225,6 +232,68 @@ public class EasyAtWorkAutoSyncRunner
                 "easy@work Auto-Sync Filiale {Cp}: MA-Vorstufe fehlgeschlagen — Stempel-Sync läuft trotzdem.",
                 mapping.CompanyProfileId);
         }
+    }
+
+    /// <summary>
+    /// Konflikte und nicht importierte Verträge des MA-Syncs in
+    /// easyatwork_ma_sync_log ablegen. Best effort — ein Protokollfehler darf
+    /// den Nachtlauf nie stoppen.
+    /// </summary>
+    private async Task SchreibeMaSyncFehlerAsync(
+        int companyProfileId, EasyAtWorkEmployeeSyncService.SyncResult res, CancellationToken ct)
+    {
+        try
+        {
+            var runAt = DateTime.Now;
+            var eintraege = new List<EasyAtWorkMaSyncLog>();
+
+            foreach (var r in res.Rows.Where(x => x.Status == "CONFLICT"))
+                eintraege.Add(new EasyAtWorkMaSyncLog
+                {
+                    RunAt            = runAt,
+                    CompanyProfileId = companyProfileId,
+                    EmployeeNumber   = r.Number,
+                    EmployeeId       = r.CoworkEmployeeId,
+                    Kind             = "CONFLICT",
+                    Reason           = r.Reason ?? "Konflikt ohne Begründung.",
+                });
+
+            foreach (var t in res.SkippedContracts)
+                eintraege.Add(new EasyAtWorkMaSyncLog
+                {
+                    RunAt            = runAt,
+                    CompanyProfileId = companyProfileId,
+                    EmployeeNumber   = NummerAusText(t),
+                    Kind             = "VERTRAG",
+                    Reason           = t,
+                });
+
+            if (eintraege.Count == 0) return;
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.EasyAtWorkMaSyncLogs.AddRange(eintraege);
+            await db.SaveChangesAsync(ct);
+            _log.LogInformation("easy@work MA-Sync Filiale {Cp}: {N} Fehlerzeile(n) protokolliert.",
+                                companyProfileId, eintraege.Count);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            _log.LogWarning(ex, "easy@work MA-Sync Filiale {Cp}: Fehlerprotokoll konnte nicht geschrieben werden.",
+                            companyProfileId);
+        }
+    }
+
+    /// <summary>
+    /// Personalnummer aus einer SkippedContracts-Zeile ziehen — die Texte haben
+    /// die Form «Vorname Nachname (123456), Segment ab …: Grund». Findet sich
+    /// nichts, bleibt die Nummer leer; der Klartext steht ohnehin in Reason.
+    /// </summary>
+    private static string? NummerAusText(string text)
+    {
+        var m = System.Text.RegularExpressions.Regex.Match(text ?? "", @"\((\d{4,})\)");
+        return m.Success ? m.Groups[1].Value : null;
     }
 
     /// <summary>Fehler in last_error schreiben — eigener Scope (frischer DbContext).</summary>

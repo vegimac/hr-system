@@ -286,6 +286,25 @@ async function qstaActuallyGenerate(empId) {
         const sel = document.getElementById('qstaEmpSelect');
         const opt = sel?.options[sel.selectedIndex];
         document.getElementById('qstaPdfTitle').textContent = opt?.textContent || '';
+
+        // Warnung, wenn ein FREMDES Kantonsformular verwendet wurde
+        // (Walter-Bug 02.09.2026). Vorlagen gibt es bisher nur für AG, BE, SO
+        // und ZH; für alle übrigen Kantone fällt der Server auf SO zurück.
+        // Das ist gewollt — aber ein Solothurner Formular ans Steueramt
+        // Luzern zu schicken darf nicht unbemerkt passieren.
+        const ersatz  = res.headers.get('X-Qst-Template-Ersatz');
+        const gewollt = res.headers.get('X-Qst-Template-Gewollt');
+        const warnBox = document.getElementById('qstaPdfWarn');
+        if (warnBox) {
+            if (ersatz) {
+                warnBox.textContent =
+                    `Achtung: Für den Kanton ${gewollt || '?'} gibt es noch kein eigenes Formular — `
+                  + `verwendet wird das Formular ${ersatz}. Vor dem Versand an das Steueramt prüfen.`;
+                warnBox.style.display = 'block';
+            } else {
+                warnBox.style.display = 'none';
+            }
+        }
         document.getElementById('qstaPdfFrame').src = _qstaPdfBlobUrl;
         document.getElementById('qstaSaveForm').style.display = 'none';
         document.getElementById('qstaSaveStatus').textContent = '';

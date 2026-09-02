@@ -135,6 +135,8 @@ public class MailboxController : ControllerBase
                     name = m.CompanyProfile.BranchName ?? m.CompanyProfile.CompanyName
                 },
                 Uploader   = m.Uploader == null ? null : new { m.Uploader.Id, name = ((m.Uploader.FirstName ?? "") + " " + (m.Uploader.LastName ?? "")).Trim(), m.Uploader.Username },
+                m.WeitergeleitetAm,
+                WeitergeleitetVon = m.WeitergeleitetVonUser == null ? null : new { m.WeitergeleitetVonUser.Id, name = ((m.WeitergeleitetVonUser.FirstName ?? "") + " " + (m.WeitergeleitetVonUser.LastName ?? "")).Trim(), m.WeitergeleitetVonUser.Username },
                 Employee   = m.Employee == null ? null : new { m.Employee.Id, name = ((m.Employee.FirstName ?? "") + " " + (m.Employee.LastName ?? "")).Trim(), m.Employee.EmployeeNumber },
                 TargetUser = m.TargetUser == null ? null : new { m.TargetUser.Id, name = ((m.TargetUser.FirstName ?? "") + " " + (m.TargetUser.LastName ?? "")).Trim(), m.TargetUser.Username },
                 NotifyUser = m.NotifyUser == null ? null : new { m.NotifyUser.Id, name = ((m.NotifyUser.FirstName ?? "") + " " + (m.NotifyUser.LastName ?? "")).Trim(), m.NotifyUser.Username },
@@ -875,6 +877,10 @@ public class MailboxController : ControllerBase
             doc.CompanyProfileId = resolved.CompanyProfileId;
             doc.TargetUserId = resolved.TargetUserId;
             doc.EmployeeId = resolved.EmployeeId;
+            // Wer hat es hierhin gegeben (Walter 01.09.2026) — der ursprüngliche
+            // Hochlader bleibt unangetastet, er beantwortet eine andere Frage.
+            doc.WeitergeleitetVon = GetCurrentUserId();
+            doc.WeitergeleitetAm  = DateTime.Now;
             if (!string.IsNullOrEmpty(newStorageName))
                 doc.StorageFilename = newStorageName;
             await _db.SaveChangesAsync();
@@ -895,8 +901,14 @@ public class MailboxController : ControllerBase
         var copy = new MailboxDocument
         {
             CompanyProfileId = resolved.CompanyProfileId,
-            UploadedBy       = GetCurrentUserId(),
-            UploadedAt       = DateTime.Now,
+            // Ursprünglichen Absender ÜBERNEHMEN (Walter-Bug 01.09.2026): vorher
+            // stand hier GetCurrentUserId() — damit verlor jede Weiterleitung
+            // die Herkunft, und im Zielpostfach sah es aus, als käme das
+            // Dokument von demjenigen, der es nur durchgereicht hat.
+            UploadedBy        = doc.UploadedBy,
+            UploadedAt        = doc.UploadedAt,
+            WeitergeleitetVon = GetCurrentUserId(),
+            WeitergeleitetAm  = DateTime.Now,
             OriginalFilename = doc.OriginalFilename,
             StorageFilename  = newStorage ?? "",
             MimeType         = doc.MimeType,

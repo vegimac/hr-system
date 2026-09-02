@@ -21,7 +21,10 @@ public class HauptsitzController : ControllerBase
     public HauptsitzController(AppDbContext db) => _db = db;
 
     public record HauptsitzDto(string? Name, string? Uid, string? Strasse,
-        string? Plz, string? Ort, string? KantonCode, string? Bemerkung, bool? IsActive);
+        string? Plz, string? Ort, string? KantonCode, string? Bemerkung, bool? IsActive,
+        // Vertragsregeln der Rechtseinheit (Walter 01.09.2026). Leer = Standard.
+        string? FixPensenErlaubt = null, decimal? FlexStundenMax = null,
+        decimal? MtpStundenMin = null, decimal? MtpStundenMax = null);
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
@@ -46,6 +49,10 @@ public class HauptsitzController : ControllerBase
         {
             h.Id, h.Name, h.Uid, h.Strasse, h.Plz, h.Ort, h.KantonCode,
             h.Bemerkung, h.IsActive,
+            h.FixPensenErlaubt, h.FlexStundenMax, h.MtpStundenMin, h.MtpStundenMax,
+            // Was tatsächlich gilt (inkl. Standard-Rückfall) — damit die Maske
+            // zeigen kann, wogegen der Sync wirklich prüft.
+            regelnEffektiv = Effektiv(h),
             filialen = filialen.Where(f => f.HauptsitzId == h.Id)
                 .OrderBy(f => f.RestaurantCode)
                 .Select(f => new { f.Id, f.Name, f.RestaurantCode })
@@ -69,7 +76,11 @@ public class HauptsitzController : ControllerBase
             Strasse = Norm(dto.Strasse), Plz = Norm(dto.Plz), Ort = Norm(dto.Ort),
             KantonCode = Norm(dto.KantonCode)?.ToUpperInvariant(),
             Bemerkung = Norm(dto.Bemerkung),
-            IsActive = dto.IsActive ?? true
+            IsActive = dto.IsActive ?? true,
+            FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt),
+            FlexStundenMax   = dto.FlexStundenMax,
+            MtpStundenMin    = dto.MtpStundenMin,
+            MtpStundenMax    = dto.MtpStundenMax
         };
         _db.Hauptsitze.Add(h);
         await _db.SaveChangesAsync();
@@ -93,6 +104,10 @@ public class HauptsitzController : ControllerBase
         h.Strasse = Norm(dto.Strasse); h.Plz = Norm(dto.Plz); h.Ort = Norm(dto.Ort);
         h.KantonCode = Norm(dto.KantonCode)?.ToUpperInvariant();
         h.Bemerkung = Norm(dto.Bemerkung);
+        h.FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt);
+        h.FlexStundenMax   = dto.FlexStundenMax;
+        h.MtpStundenMin    = dto.MtpStundenMin;
+        h.MtpStundenMax    = dto.MtpStundenMax;
         if (dto.IsActive.HasValue) h.IsActive = dto.IsActive.Value;
         h.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
@@ -119,4 +134,29 @@ public class HauptsitzController : ControllerBase
         await _db.SaveChangesAsync();
         return Ok(new { deleted = true });
     }
+
+    /// <summary>
+    /// Pensen-Liste normalisieren: unlesbare Eingaben werden NICHT gespeichert
+    /// (null = Standardregeln), damit ein Tippfehler nicht stillschweigend
+    /// jede Prüfung aushebelt.
+    /// </summary>
+    private static string? NormPensen(string? text)
+    {
+        var werte = Services.EasyAtWork.VertragsRegeln.ParsePensen(text);
+        return werte == null ? null : string.Join(", ", werte.Select(v => v.ToString("0.##")));
+    }
+
+    /// <summary>Effektiv geltende Regeln inkl. Rückfall auf den Standard.</summary>
+    private static object Effektiv(Hauptsitz h)
+    {
+        var r = Services.EasyAtWork.VertragsRegeln.Von(h);
+        return new
+        {
+            fixPensen      = r.FixPensenText,
+            flexStundenMax = r.FlexStundenMax,
+            mtpStundenMin  = r.MtpStundenMin,
+            mtpStundenMax  = r.MtpStundenMax
+        };
+    }
+
 }

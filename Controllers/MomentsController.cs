@@ -47,23 +47,22 @@ public class MomentsController : ControllerBase
     /// SMS-Direktversand nach dem Erstellen (Walter 07.07.2026, Etappe 2) —
     /// best-effort NACH dem Commit (Moment/Postfach-Notiz existiert auch, wenn
     /// die SMS scheitert; dann Link manuell übergeben). Versand über
-    /// EcallSmsService — dessen Test-Umleitung greift zentral (solange eine
-    /// Test-Nummer hinterlegt ist, geht JEDE SMS dorthin, nie an den MA).
+    /// EcallSmsService — ob scharf oder an die Test-Nummer, entscheidet der
+    /// Haken der Kategorie in der Systemsteuerung (Walter 01.09.2026).
     /// Rückgabe-Objekt für die UI: smsSent/smsTo/redirectedTo/smsError.
     /// </summary>
     private async Task<(bool sent, string? to, string? redirectedTo, string? error)>
-        TrySendMomentSmsAsync(Employee emp, string smsBody, string purpose)
+        TrySendMomentSmsAsync(Employee emp, string smsBody, VersandKategorie kategorie)
     {
         var phone = (emp.PhoneMobile ?? "").Trim();
         if (phone.Length == 0)
             return (false, null, null, "Keine Mobilnummer hinterlegt.");
         try
         {
-            var res = await _sms.SendSmsAsync(phone, smsBody, purpose: purpose, employeeId: emp.Id);
+            var res = await _sms.SendSmsAsync(phone, smsBody, kategorie, employeeId: emp.Id);
             if (!res.Ok) return (false, phone, null, res.Error);
-            var redirect = await _db.EcallSettings.AsNoTracking()
-                .Where(r => r.Id == 1).Select(r => r.TestRedirectTo).FirstOrDefaultAsync();
-            return (true, phone, string.IsNullOrWhiteSpace(redirect) ? null : redirect!.Trim(), null);
+            // Umleitung aus dem Ergebnis, nicht aus den Einstellungen.
+            return (true, phone, res.RedirectedTo, null);
         }
         catch (Exception ex)
         {
@@ -237,7 +236,7 @@ public class MomentsController : ControllerBase
 
                 var pfUrl = $"{baseUrl}/postfach.html";
                 var (sent, smsTo, redirectedTo, smsError) =
-                    await TrySendMomentSmsAsync(emp, $"{pushSms}\n{pfUrl}", "POSTFACH");
+                    await TrySendMomentSmsAsync(emp, $"{pushSms}\n{pfUrl}", VersandKategorie.Postfach);
 
                 return Ok(new
                 {
@@ -320,7 +319,7 @@ public class MomentsController : ControllerBase
             ? "OneCrew: Du hast eine persönliche Nachricht. Tippe auf den Link:"
             : m.SmsText!;
         var (mSent, mTo, mRedirect, mError) =
-            await TrySendMomentSmsAsync(emp, $"{momentSms}\n{momentUrl}", "MOMENT");
+            await TrySendMomentSmsAsync(emp, $"{momentSms}\n{momentUrl}", VersandKategorie.Moment);
 
         return Ok(new
         {

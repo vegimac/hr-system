@@ -51,7 +51,7 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner })
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner, f.KeineUnterhaltspflicht })
             .ToListAsync();
 
         // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
@@ -98,7 +98,8 @@ public class QstTarifVorschlagService
                 f.AlternativeAddressId,
                 f.InErstausbildung || azKindIds.Contains(f.Id),
                 f.LebtImHaushalt,
-                f.GemeinsamesKindMitPartner
+                f.GemeinsamesKindMitPartner,
+                f.KeineUnterhaltspflicht
             ))
             .ToList();
 
@@ -167,7 +168,11 @@ public record QstKindInput(
     bool?     LebtImHaushalt = null,
     // Konkubinats-Logik (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
     // Gemeinsames Kind mit dem Konkubinatspartner? NULL = Frage offen.
-    bool?     GemeinsamesKind = null
+    bool?     GemeinsamesKind = null,
+    // Walter-Vorgabe 01.09.2026: keine Unterhaltspflicht (Stiefkind aus
+    // früherer Beziehung des Partners / kein Sorgerecht). Die QST-Kinderziffer
+    // knüpft an die Unterhaltspflicht an — ein solches Kind zählt NIE.
+    bool      KeineUnterhaltspflicht = false
 );
 
 /// <summary>
@@ -449,6 +454,7 @@ public static class QstTarifVorschlagLogic
 
     /// <summary>
     /// Ist das Kind am Stichtag QST-abzugsberechtigt?
+    /// 0) Keine Unterhaltspflicht → nie (schlägt alles andere).
     /// 1) Wenn QstDeductibleFrom oder QstDeductibleUntil gesetzt → der
     ///    explizite Zeitraum gilt.
     /// 2) Sonst Fallback: Geburtsdatum bis 18. Geburtstag.
@@ -456,6 +462,11 @@ public static class QstTarifVorschlagLogic
     /// </summary>
     public static bool IstQstBerechtigt(QstKindInput k, DateOnly stichtag)
     {
+        // 0) Keine Unterhaltspflicht → zählt NIE (Walter 01.09.2026). Steht
+        //    bewusst VOR allen anderen Prüfungen: Abzugszeitraum, Alter und
+        //    Erstausbildung sind dann ohne Bedeutung.
+        if (k.KeineUnterhaltspflicht) return false;
+
         // 1) Explizit gepflegt
         if (k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue)
         {

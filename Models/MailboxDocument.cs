@@ -16,6 +16,22 @@ public class MailboxDocument
     public int? UploadedBy { get; set; }
     public AppUser? Uploader { get; set; }
 
+    // ── Weitergabe an ein anderes Postfach (Walter-Vorgabe 01.09.2026) ────
+    // Wer ein Dokument in seinem Postfach vorfindet, will wissen, WER es ihm
+    // gegeben hat. <see cref="UploadedBy"/> beantwortet das nicht: es nennt
+    // den ursprünglichen Hochlader, und der kann Wochen vorher jemand anders
+    // gewesen sein. Beim Weiterleiten wurde er bisher sogar überschrieben —
+    // damit war die Herkunft ganz weg.
+    //
+    // Diese beiden Felder halten die LETZTE Weitergabe fest, bei «verschieben»
+    // wie bei «weiterleiten». Sind sie leer, kam das Dokument direkt vom
+    // Hochlader.
+    /// <summary>Wer das Dokument zuletzt in dieses Postfach gegeben hat.</summary>
+    public int? WeitergeleitetVon { get; set; }
+    public AppUser? WeitergeleitetVonUser { get; set; }
+    /// <summary>Zeitpunkt der letzten Weitergabe.</summary>
+    public DateTime? WeitergeleitetAm { get; set; }
+
     /// <summary>Lokalzeit (timestamp without time zone) — nie UTC (Walter 30.06.2026).</summary>
     public DateTime UploadedAt { get; set; } = DateTime.Now;
 

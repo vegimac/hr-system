@@ -197,7 +197,8 @@ public class PostfachSetupController : ControllerBase
         var wunschText = string.IsNullOrWhiteSpace(wunsch) ? "" : $"\n\nBITTE SENDE UNS: {wunsch}";
         var text = $"Hallo {emp.FirstName}{wunschText}\n\nDein persönliches OneCrew-Postfach: {url}\n(gültig bis {bisTxt})\n\n1. Link öffnen und Passwort festlegen\n2. Face ID aktivieren (empfohlen)\n3. iPhone: Teilen -> Zum Home-Bildschirm / Android: App installieren\n4. Dokumente: Foto machen und senden - den Rest erledigt das Büro\n\nAnleitung: {anleitungUrl}\n\nSchaub Restaurants GmbH";
 
-        var ok = await _email.SendAsync(to, $"{emp.FirstName} {emp.LastName}", subject, html, text);
+        var ok = await _email.SendAsync(to, $"{emp.FirstName} {emp.LastName}", subject, html, text,
+            VersandKategorie.Postfach, emp.Id);
         if (!ok) return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen (SMTP prüfen)." });
 
         return Ok(new { sentTo = to, redirected, empEmail = emp.Email, expiresAt });

@@ -2689,6 +2689,34 @@ function closeOeffnungszeitenModal() {
     _ozBranchId = null;
 }
 
+// Walter-Bug 01.09.2026: Gespeichert wurde korrekt, aber nur die eine
+// Ansicht neu gezeichnet. Die Seite arbeitet daneben mit `allBranches` und
+// `selectedBranch` im Speicher weiter — beim naechsten Rendern (Filiale
+// wechseln, anderer Dialog, zurueck zur Liste) kamen die ALTEN Werte zurueck
+// und es sah aus, als haette er nicht gespeichert. Darum die Serverantwort in
+// alle lokalen Kopien uebernehmen, wie es die Nachtstunden schon machen.
+function _ozUebernehmen(gespeichert) {
+    if (!gespeichert) return;
+    const felder = {};
+    OZ_TAGE.forEach(t => {
+        felder[`opening${t.key}From`] = gespeichert[`opening${t.key}From`] ?? null;
+        felder[`opening${t.key}To`]   = gespeichert[`opening${t.key}To`]   ?? null;
+    });
+    const id = gespeichert.id ?? _ozBranchId;
+
+    const inListe = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === id);
+    if (inListe) Object.assign(inListe, felder);
+    if (typeof selectedCompanyProfile !== 'undefined' && selectedCompanyProfile?.id === id)
+        Object.assign(selectedCompanyProfile, felder);
+    if (selectedBranch?.id === id) {
+        Object.assign(selectedBranch, felder);
+        renderFilialenDetail(selectedBranch);
+        return;
+    }
+    const view = document.getElementById(`oeffnungszeitenView-${id}`);
+    if (view) view.innerHTML = renderOeffnungszeiten(felder);
+}
+
 async function saveOeffnungszeiten() {
     if (!_ozBranchId) return;
     const body = {};
@@ -2707,8 +2735,7 @@ async function saveOeffnungszeiten() {
             return;
         }
         const b = await r.json();
-        const view = document.getElementById(`oeffnungszeitenView-${_ozBranchId}`);
-        if (view) view.innerHTML = renderOeffnungszeiten(b);
+        _ozUebernehmen(b);
         closeOeffnungszeitenModal();
     } catch (e) {
         if (err) { err.textContent = 'Verbindungsfehler: ' + (e?.message || e); err.style.display = 'block'; }
@@ -2755,8 +2782,17 @@ async function oeffnungszeitenAufAlle() {
             return;
         }
         const res = await r.json();
-        const view = document.getElementById(`oeffnungszeitenView-${_ozBranchId}`);
-        if (view) view.innerHTML = renderOeffnungszeiten(gespeichert);
+        _ozUebernehmen(gespeichert);
+        // Alle ANDEREN Filialen haben jetzt ebenfalls neue Zeiten — der lokale
+        // Cache weiss davon nichts. Frisch holen, sonst zeigen deren Detail-
+        // ansichten weiter die alten Werte (gleicher Bug wie 22.06.2026).
+        if (typeof loadAllBranches === 'function') await loadAllBranches();
+        if (typeof loadFilialen === 'function') loadFilialen();
+        if (selectedBranch) {
+            const fresh = (typeof allBranches !== 'undefined' ? allBranches : [])
+                .find(b => b.id === selectedBranch.id);
+            if (fresh) { selectedBranch = fresh; renderFilialenDetail(fresh); }
+        }
         closeOeffnungszeitenModal();
         const txt = `Öffnungszeiten auf ${res.uebertragen} weitere Filiale${res.uebertragen === 1 ? '' : 'n'} übertragen.`;
         if (typeof showToast === 'function') showToast(txt);
