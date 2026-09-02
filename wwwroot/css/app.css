@@ -7733,6 +7733,13 @@
            (z.B. Absenzen, Familie). */
         .dok-action-btn.danger { color:#dc2626; border-color:#fecaca; background:#fef2f2; }
         .dok-action-btn.danger:hover { background:#fee2e2; border-color:#fca5a5; }
+        /* Walter-Vorgabe 02.09.2026: gruene «Ansehen»-Variante. Anlass sind die
+           Filial-Dokumente — dort fuehrte der einzige sichtbare Weg zur Vorschau
+           ueber das ⋮-Menue, also zwei Klicks fuer die haeufigste Handlung.
+           Gruen bewusst neben Rot (Loeschen): dieselbe Logik wie im Rest des
+           Programms, die Farbe sagt was passiert, nicht nur dass etwas passiert. */
+        .dok-action-btn.view { color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
+        .dok-action-btn.view:hover { background:#dcfce7; border-color:#86efac; }
         /* Walter 09.06.2026 (Schärfung): die ⋮-Buttons waren in der Tabelle zu
            dezent — heller Hintergrund + dünner Rand + helle Punkte. Jetzt
            dunkler Rand (#94a3b8), grauer Hintergrund (#f1f5f9), kräftigere
@@ -7751,6 +7758,10 @@
             background:#7f1d1d !important; color:#fecaca !important; border-color:#dc2626 !important;
         }
         body.theme-dark .dok-action-btn.danger:hover { background:#991b1b !important; }
+        body.theme-dark .dok-action-btn.view {
+            background:#14532d !important; color:#bbf7d0 !important; border-color:#15803d !important;
+        }
+        body.theme-dark .dok-action-btn.view:hover { background:#166534 !important; }
         body.theme-dark .dok-menu-btn { background: var(--dlg-glass-strong) !important; color:#cbd5e1 !important; border-color: var(--dlg-glass-border) !important; }
         body.theme-dark .dok-menu-btn:hover { background: rgba(255,255,255,.10) !important; color:#f1f5f9 !important; }
         .dok-menu {

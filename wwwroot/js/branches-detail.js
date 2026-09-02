@@ -2001,13 +2001,28 @@ function filDoksRowHtml(d, isAdmin) {
             <div style="font-size:12px;color:#646464">${dt}</div>
             ${d.uploadedByName ? `<div style="font-size:11px;color:#8b8b8b">${cdokEsc(d.uploadedByName)}</div>` : ''}
         </div>
-        <div style="position:relative;display:inline-block;flex-shrink:0">
+        <div style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0">
+            <!-- Dokument ansehen mit EINEM Klick (Walter-Vorgabe 02.09.2026).
+                 Der Dateiname ist zwar auch klickbar, sieht aber nicht danach
+                 aus — das gruene Blatt macht die haeufigste Handlung sichtbar,
+                 statt sie im ⋮-Menue zu verstecken. -->
+            <button class="dok-action-btn view" onclick="filDoksPreview(${d.id})" title="Ansehen">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <path d="M14 2v6h6"/>
+                    <path d="M9 13h6"/>
+                    <path d="M9 17h4"/>
+                </svg>
+            </button>
+            <div style="position:relative;display:inline-block">
             <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'cdok-${d.id}')" title="Aktionen">⋮</button>
             <div class="dok-menu" id="dokMenu-cdok-${d.id}">
                 <button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksPreview(${d.id})">Ansehen</button>
                 <button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksDownload(${d.id})">Herunterladen</button>
                 ${isPdf ? `<button class="dok-menu-item" onclick="dokCloseAllMenus();filDoksRotate(${d.id})">PDF drehen ↻</button>` : ''}
                 ${isAdmin ? `<button class="dok-menu-item danger" onclick="dokCloseAllMenus();filDoksDelete(${d.id})">Löschen</button>` : ''}
+            </div>
             </div>
         </div>
     </div>`;
