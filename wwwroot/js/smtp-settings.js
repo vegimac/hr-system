@@ -65,6 +65,7 @@ async function smtpLoad() {
             ? 'Letzter Abruf: ' + new Date(d.bounceLetzterAbruf).toLocaleString('de-CH')
             : 'Noch nie abgerufen.';
         if (document.getElementById('bounceListeBox')) bounceListe();
+        if (document.getElementById('wvListeBox')) wvListe();
 
         // Passwort: nicht laden (Sentinel) — wenn User das Feld leer lässt,
         // bleibt das gespeicherte Passwort unangerührt.
@@ -254,6 +255,177 @@ async function bounceErledigt(id) {
             headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
         });
         if (r.ok) bounceListe();
+    } catch (e) { /* Liste bleibt stehen, nichts kaputt */ }
+}
+
+// ══ Wiedervorlage (Walter-Vorgabe 01.09.2026) ════════════════════════════
+// Mails, die an einem VORÜBERGEHENDEN Fehler gescheitert sind — allen voran
+// am Stundenlimit von Hostfactory. Sie werden gestaffelt erneut versucht;
+// diese Ansicht zeigt, was noch aussteht und was aufgegeben wurde.
+
+async function wvListe() {
+    const box = document.getElementById('wvListeBox');
+    if (!box) return;
+    const alle = document.getElementById('wvAlle')?.checked ? 'true' : 'false';
+    try {
+        const r = await fetch('/api/admin/smtp/wiedervorlage?limit=100&alle=' + alle, {
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        if (!r.ok) { box.textContent = 'Konnte nicht geladen werden.'; return; }
+        const j = await r.json();
+
+        // Kopfzeile neben dem Titel: die eine Zahl, die zählt.
+        const z = document.getElementById('wvZaehler');
+        if (z) {
+            const teile = [];
+            if (j.offen)      teile.push(j.offen + ' warten');
+            if (j.aufgegeben) teile.push(j.aufgegeben + ' aufgegeben');
+            z.textContent = teile.length ? '· ' + teile.join(' · ') : '· nichts offen';
+            z.style.color = j.aufgegeben ? '#b91c1c' : '#94a3b8';
+        }
+        const st = document.getElementById('wvStaffelung');
+        if (st && Array.isArray(j.staffelung) && j.staffelung.length)
+            st.textContent = j.staffelung.join(' / ');
+
+        const rows = j.zeilen || [];
+        if (!rows.length) {
+            box.textContent = alle === 'true'
+                ? 'Keine Einträge.'
+                : 'Nichts offen — alle Mails sind zugestellt.';
+            return;
+        }
+
+        let h = '<table style="width:100%;border-collapse:collapse;font-size:12.5px">'
+              + '<thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.05em">'
+              + '<th style="padding:6px 8px 6px 0">Empfänger</th><th style="padding:6px 8px">Betreff</th>'
+              + '<th style="padding:6px 8px">Stand</th><th style="padding:6px 8px">Grund</th>'
+              + '<th style="padding:6px 0"></th></tr></thead><tbody>';
+
+        rows.forEach(w => {
+            const wer = w.maName
+                ? _bEsc(w.maName) + (w.maNummer ? ' <span style="color:#94a3b8">· ' + _bEsc(w.maNummer) + '</span>' : '')
+                : '<span style="color:#94a3b8">kein MA</span>';
+            const adresse = _bEsc(w.toEmail || w.effektiveAdresse || '–')
+                + (w.redirectedTo ? ' <span style="color:#9a3412">→ Test</span>' : '');
+
+            let stand, farbe;
+            if (w.status === 'OFFEN') {
+                farbe = '#92400e';
+                stand = w.versuche + '× versucht · nächster '
+                      + new Date(w.naechsterVersuch).toLocaleTimeString('de-CH',
+                            { hour: '2-digit', minute: '2-digit' });
+            } else if (w.status === 'GESENDET') {
+                farbe = '#166534';
+                stand = 'zugestellt';
+            } else if (w.status === 'AUFGEGEBEN') {
+                farbe = '#b91c1c';
+                stand = 'aufgegeben nach ' + w.versuche + ' Versuchen';
+            } else {
+                farbe = '#94a3b8';
+                stand = 'abgebrochen';
+            }
+
+            h += '<tr style="border-top:1px solid #e2e8f0">'
+               + '<td style="padding:7px 8px 7px 0">' + wer
+               + '<div style="color:#64748b">' + adresse + '</div></td>'
+               + '<td style="padding:7px 8px;color:#475569">' + _bEsc(w.betreff || '–')
+               + (w.anhangAnzahl ? ' <span style="color:#94a3b8">📎' + w.anhangAnzahl + '</span>' : '')
+               + '</td>'
+               + '<td style="padding:7px 8px;color:' + farbe + ';white-space:nowrap">' + _bEsc(stand) + '</td>'
+               + '<td style="padding:7px 8px;color:#94a3b8">'
+               + (w.letzterCode ? _bEsc(w.letzterCode) + ' ' : '')
+               + _bEsc(_wvKurz(w.letzterFehler)) + '</td>'
+               + '<td style="padding:7px 0;text-align:right;white-space:nowrap">';
+
+            if (w.status === 'OFFEN' || w.status === 'AUFGEGEBEN') {
+                h += '<button type="button" onclick="wvJetzt(' + w.id + ')" '
+                   + 'style="padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;'
+                   + 'cursor:pointer;font-size:11.5px;color:#475569;margin-right:6px">jetzt versuchen</button>'
+                   + '<button type="button" onclick="wvErledigt(' + w.id + ')" '
+                   + 'title="' + (w.status === 'OFFEN'
+                        ? 'Nicht weiter versuchen und vom Tisch nehmen'
+                        : 'Pendenz abhaken — die Mail bleibt unzugestellt') + '" '
+                   + 'style="padding:4px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#f8fafc;'
+                   + 'cursor:pointer;font-size:11.5px;color:#475569">'
+                   + (w.status === 'OFFEN' ? 'abbrechen' : 'erledigt') + '</button>';
+            } else {
+                h += '<span style="color:#94a3b8;font-size:11.5px">–</span>';
+            }
+            h += '</td></tr>';
+        });
+        box.innerHTML = h + '</tbody></table>';
+    } catch (e) {
+        box.textContent = 'Verbindungsfehler.';
+    }
+}
+
+/// Lange SMTP-Antworten kürzen — die Spalte soll die Tabelle nicht sprengen.
+function _wvKurz(text) {
+    const t = String(text ?? '').replace(/\s+/g, ' ').trim();
+    if (!t) return '–';
+    return t.length > 90 ? t.slice(0, 90) + ' …' : t;
+}
+
+async function wvVerarbeiten() {
+    const btn = document.getElementById('wvVerarbeitenBtn');
+    const out = document.getElementById('wvResult');
+    const beschriftung = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Läuft …'; }
+    if (out) out.innerHTML = '';
+    try {
+        const r = await fetch('/api/admin/smtp/wiedervorlage/verarbeiten', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) {
+            out.innerHTML = '<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;'
+                          + 'border-radius:8px;color:#991b1b;font-size:12.5px">'
+                          + _bEsc(j.fehler || ('Fehlgeschlagen (' + r.status + ')')) + '</div>';
+            return;
+        }
+        const txt = j.geprueft
+            ? j.geprueft + ' fällig · ' + j.gesendet + ' zugestellt · ' + j.erneut
+              + ' erneut eingeplant · ' + j.aufgegeben + ' aufgegeben'
+            : 'Nichts fällig — alle wartenden Mails sind noch nicht wieder dran.';
+        out.innerHTML = '<div style="padding:10px 12px;background:#f0fdf4;border:1px solid #6ee7b7;'
+                      + 'border-radius:8px;color:#064e3b;font-size:12.5px">' + _bEsc(txt) + '</div>';
+        wvListe();
+    } catch (e) {
+        out.innerHTML = '<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;'
+                      + 'border-radius:8px;color:#991b1b;font-size:12.5px">Verbindungsfehler.</div>';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = beschriftung; }
+    }
+}
+
+async function wvJetzt(id) {
+    const out = document.getElementById('wvResult');
+    try {
+        const r = await fetch('/api/admin/smtp/wiedervorlage/' + id + '/jetzt', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        const j = await r.json().catch(() => ({}));
+        if (out) {
+            const gut = r.ok && j.ok;
+            out.innerHTML = '<div style="padding:10px 12px;border-radius:8px;font-size:12.5px;'
+                          + (gut ? 'background:#f0fdf4;border:1px solid #6ee7b7;color:#064e3b'
+                                 : 'background:#fef2f2;border:1px solid #fca5a5;color:#991b1b') + '">'
+                          + (gut ? 'Zugestellt.' : _bEsc(j.fehler || 'Wieder nicht durchgekommen.'))
+                          + '</div>';
+        }
+        wvListe();
+    } catch (e) { /* Liste bleibt stehen */ }
+}
+
+async function wvErledigt(id) {
+    try {
+        const r = await fetch('/api/admin/smtp/wiedervorlage/' + id + '/erledigt', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + localStorage.hrToken }
+        });
+        if (r.ok) wvListe();
     } catch (e) { /* Liste bleibt stehen, nichts kaputt */ }
 }
 

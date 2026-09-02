@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260902a">
+    <link rel="stylesheet" href="css/app.css?v=20260901b">
 </head>
 <body>
 
@@ -2558,7 +2558,6 @@
                             </div>
                             <button onclick="qstaPdfClose()" style="background:transparent;border:none;cursor:pointer;font-size:22px;color:#64748b;padding:4px 10px">×</button>
                         </div>
-                        <div id="qstaPdfWarn" style="display:none;padding:11px 20px;background:#fef3c7;border-bottom:1px solid #fcd34d;color:#92400e;font-size:12.5px;line-height:1.45"></div>
                         <div style="flex:1;background:#1e293b;display:flex;align-items:center;justify-content:center;overflow:hidden">
                             <iframe id="qstaPdfFrame" style="width:100%;height:100%;border:none;background:white" title="QST-Anmeldung Vorschau"></iframe>
                         </div>
@@ -5996,6 +5995,46 @@
                     </div>
                 </div>
 
+                <!-- ═══ Wiedervorlage (Walter-Vorgabe 01.09.2026) ═══
+                     Gegenstueck zum Rueckläufer-Postfach eine Stufe frueher:
+                     hier scheitert schon die Übergabe an den eigenen Server
+                     (Hostfactory-Stundenlimit). Diese Mails waren bisher
+                     still verloren; jetzt stehen sie hier und werden
+                     gestaffelt erneut versucht. -->
+                <div class="card" style="padding:20px;max-width:760px;margin-top:16px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                        <div style="font-size:14.5px;font-weight:700;color:#0f172a">Wiedervorlage</div>
+                        <span id="wvZaehler" style="font-size:11.5px;color:#94a3b8"></span>
+                    </div>
+                    <div style="font-size:12.5px;color:#64748b;margin-bottom:16px;line-height:1.55">
+                        Scheitert eine Mail an einem <strong>vorübergehenden</strong> Fehler — allen voran
+                        am Stundenlimit des Mailservers («5.7.0 limit exceeded») — wird sie hier gemerkt
+                        und nach <span id="wvStaffelung">15 / 60 / 240</span> Minuten erneut versucht.
+                        Klappt es dann immer noch nicht, erscheint der Fall als Pendenz auf der To-do-Liste.
+                        Endgültige Fehler (die Adresse existiert nicht) landen <strong>nicht</strong> hier —
+                        dafür ist das Rückläufer-Postfach oben zuständig.
+                    </div>
+
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                        <button type="button" onclick="wvVerarbeiten()" id="wvVerarbeitenBtn"
+                                style="padding:9px 16px;border:1px solid #cbd5e1;border-radius:8px;background:#f8fafc;cursor:pointer;font-size:13px;color:#475569">
+                            Fällige jetzt abarbeiten
+                        </button>
+                        <label style="font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;cursor:pointer">
+                            <input type="checkbox" id="wvAlle" onchange="wvListe()"> auch abgeschlossene zeigen
+                        </label>
+                        <span style="font-size:11.5px;color:#94a3b8">
+                            Läuft ohnehin alle 5 Minuten von selbst. Noch nicht fällige Fälle bleiben liegen —
+                            sonst läuft man geradewegs wieder ins Limit.
+                        </span>
+                    </div>
+                    <div id="wvResult" style="margin-top:12px"></div>
+
+                    <div style="margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0">
+                        <div style="font-size:13.5px;font-weight:700;color:#0f172a;margin-bottom:10px">Warteschlange</div>
+                        <div id="wvListeBox" style="font-size:12.5px;color:#94a3b8">wird geladen …</div>
+                    </div>
+                </div>
             </div>
 
             <!-- ═══════════════ SMS (eCall) — F24 Schweiz REST ═══════════════ -->
@@ -8572,7 +8611,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260831a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260901b"></script>
+<script src="js/dashboard.js?v=20260901c"></script>
 <script src="js/session-timeout.js?v=20260704p"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
@@ -10016,13 +10055,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/manager-dienstplan.js?v=20260814a"></script>
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260821f"></script>
-<script src="js/ma-email.js?v=20260901f"></script>
+<script src="js/ma-email.js?v=20260901g"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
 <script src="js/kandidaten.js?v=20260819a"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
-<script src="js/hr-qst-anmeldung.js?v=20260902a"></script>
+<script src="js/hr-qst-anmeldung.js?v=20260829a"></script>
 <script src="js/hr-lohnausweis.js?v=20260816e"></script>
 <script src="js/kuendigung.js?v=20260901a"></script>
 <script src="js/aufforderung-arbeit.js?v=20260812b"></script>
@@ -10037,7 +10076,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 3 (Phase A) ═══════════════ -->
 <script src="js/keyboard-nav.js?v=20260704p"></script>
-<script src="js/smtp-settings.js?v=20260901f"></script>
+<script src="js/smtp-settings.js?v=20260901g"></script>
 <script src="js/versand-kategorien.js?v=20260901a"></script>
 <script src="js/ma-sync-fehler.js?v=20260901a"></script>
 <script src="js/ecall-settings.js?v=20260901a"></script>

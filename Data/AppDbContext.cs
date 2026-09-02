@@ -125,6 +125,7 @@ public class AppDbContext : DbContext
     public DbSet<VersandKategorieSetting>   VersandKategorien           => Set<VersandKategorieSetting>();
     public DbSet<MailLog>                   MailLogs                    => Set<MailLog>();
     public DbSet<GruppenMailLog>            GruppenMailLogs             => Set<GruppenMailLog>();
+    public DbSet<MailWiedervorlage>         MailWiedervorlagen          => Set<MailWiedervorlage>();
     public DbSet<EasyAtWorkMaSyncLog>       EasyAtWorkMaSyncLogs        => Set<EasyAtWorkMaSyncLog>();
     public DbSet<DvelopSetting>             DvelopSettings              => Set<DvelopSetting>();
     public DbSet<EmployeePermitHistory>     EmployeePermitHistories     => Set<EmployeePermitHistory>();
@@ -2928,6 +2929,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AnzahlGesendet).HasColumnName("anzahl_gesendet");
             entity.Property(e => e.AnzahlFehlgeschlagen).HasColumnName("anzahl_fehlgeschlagen");
             entity.Property(e => e.AnzahlDoppelt).HasColumnName("anzahl_doppelt");
+            entity.Property(e => e.AnzahlSpaeterZugestellt).HasColumnName("anzahl_spaeter_zugestellt");
             entity.Property(e => e.AnzahlOhneEmail).HasColumnName("anzahl_ohne_email");
             entity.Property(e => e.AnhangName).HasColumnName("anhang_name").HasMaxLength(300);
             entity.Property(e => e.MitText).HasColumnName("mit_text");
@@ -2956,6 +2958,45 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => new { e.EmployeeId, e.Kategorie });
             entity.HasIndex(e => e.CreatedAt);
             entity.Property(e => e.GruppenMailLogId).HasColumnName("gruppen_mail_log_id");
+            entity.Property(e => e.Wiedervorlage).HasColumnName("wiedervorlage");
+        });
+
+        // ── MailWiedervorlage — Mails, die an einem vorübergehenden Fehler
+        //    gescheitert sind und später erneut versucht werden (Walter 01.09.2026)
+        modelBuilder.Entity<MailWiedervorlage>(entity =>
+        {
+            entity.ToTable("mail_wiedervorlage");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            // HasColumnType bei JEDEM DateTime — siehe Hinweis bei MailBounce.
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Kategorie).HasColumnName("kategorie").HasMaxLength(40);
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.GruppenMailLogId).HasColumnName("gruppen_mail_log_id");
+            entity.Property(e => e.ToEmail).HasColumnName("to_email").HasMaxLength(300);
+            entity.Property(e => e.EffektiveAdresse).HasColumnName("effektive_adresse").HasMaxLength(300);
+            entity.Property(e => e.RedirectedTo).HasColumnName("redirected_to").HasMaxLength(300);
+            entity.Property(e => e.Betreff).HasColumnName("betreff").HasMaxLength(500);
+            entity.Property(e => e.AnhangAnzahl).HasColumnName("anhang_anzahl");
+            entity.Property(e => e.Mime).HasColumnName("mime");
+            entity.Property(e => e.Versuche).HasColumnName("versuche");
+            entity.Property(e => e.NaechsterVersuch).HasColumnName("naechster_versuch")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.LetzterFehler).HasColumnName("letzter_fehler");
+            entity.Property(e => e.LetzterCode).HasColumnName("letzter_code").HasMaxLength(20);
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.AbgeschlossenAm).HasColumnName("abgeschlossen_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.Erledigt).HasColumnName("erledigt");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErledigtVonUserId).HasColumnName("erledigt_von_user_id");
+            // Navigation ohne Datenbank-Fremdschlüssel, wie bei MailBounce.
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId)
+                  .OnDelete(DeleteBehavior.ClientSetNull);
+            entity.HasIndex(e => new { e.Status, e.NaechsterVersuch });
+            entity.HasIndex(e => e.GruppenMailLogId);
         });
     }
 }

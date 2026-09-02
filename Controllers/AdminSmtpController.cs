@@ -396,6 +396,122 @@ public class AdminSmtpController : ControllerBase
         return Ok(new { ok = true });
     }
 
+    // ══ Wiedervorlage (Walter-Vorgabe 01.09.2026) ════════════════════════
+
+    /// <summary>
+    /// Die Warteschlange: Mails, die an einem vorübergehenden Fehler
+    /// gescheitert sind. Standardmässig nur die noch offenen und die
+    /// aufgegebenen — zugestellte Fälle sind erledigt und interessieren
+    /// nur, wenn man ausdrücklich nachschaut.
+    /// </summary>
+    [HttpGet("wiedervorlage")]
+    public async Task<IActionResult> WiedervorlageListe([FromQuery] int limit = 50,
+                                                        [FromQuery] bool alle = false)
+    {
+        var q = _db.MailWiedervorlagen.AsNoTracking().AsQueryable();
+        if (!alle)
+            q = q.Where(w => w.Status == MailWiedervorlage.StatusOffen
+                          || (w.Status == MailWiedervorlage.StatusAufgegeben && !w.Erledigt));
+
+        var rows = await q
+            // Offene zuerst und darin die, die als nächstes dran sind — das
+            // ist die Reihenfolge, in der man die Liste liest.
+            .OrderBy(w => w.Status == MailWiedervorlage.StatusOffen ? 0 : 1)
+            .ThenBy(w => w.NaechsterVersuch)
+            .Take(Math.Clamp(limit, 1, 200))
+            .Select(w => new
+            {
+                w.Id,
+                w.ErstelltAm,
+                w.Kategorie,
+                w.ToEmail,
+                w.EffektiveAdresse,
+                w.RedirectedTo,
+                w.Betreff,
+                w.AnhangAnzahl,
+                w.Versuche,
+                w.NaechsterVersuch,
+                w.LetzterFehler,
+                w.LetzterCode,
+                w.Status,
+                w.AbgeschlossenAm,
+                w.Erledigt,
+                w.EmployeeId,
+                MaNummer = w.Employee != null ? w.Employee.EmployeeNumber : null,
+                MaName   = w.Employee != null
+                    ? ((w.Employee.FirstName ?? "") + " " + (w.Employee.LastName ?? "")).Trim()
+                    : null,
+            })
+            .ToListAsync();
+
+        var offen      = await _db.MailWiedervorlagen.CountAsync(w => w.Status == MailWiedervorlage.StatusOffen);
+        var aufgegeben = await _db.MailWiedervorlagen.CountAsync(w => w.Status == MailWiedervorlage.StatusAufgegeben && !w.Erledigt);
+
+        return Ok(new
+        {
+            zeilen = rows,
+            offen,
+            aufgegeben,
+            staffelung = MailWiedervorlageService.StaffelungMinuten,
+        });
+    }
+
+    /// <summary>
+    /// Alle fälligen Fälle sofort abarbeiten, ohne auf den Fünf-Minuten-Takt
+    /// zu warten. Fälle, deren Zeitpunkt noch nicht erreicht ist, bleiben
+    /// bewusst liegen — sonst liefe man geradewegs wieder in die
+    /// Mengengrenze, wegen der sie überhaupt hier stehen.
+    /// </summary>
+    [HttpPost("wiedervorlage/verarbeiten")]
+    public async Task<IActionResult> WiedervorlageVerarbeiten(
+        [FromServices] MailWiedervorlageService dienst, CancellationToken ct)
+    {
+        var res = await dienst.FaelligeVerarbeitenAsync(ct);
+        return Ok(new
+        {
+            ok = res.Fehler == null,
+            fehler = res.Fehler,
+            res.Geprueft, res.Gesendet, res.Erneut, res.Aufgegeben,
+        });
+    }
+
+    /// <summary>
+    /// Einen bestimmten Fall sofort versuchen — auch einen aufgegebenen.
+    /// </summary>
+    [HttpPost("wiedervorlage/{id:int}/jetzt")]
+    public async Task<IActionResult> WiedervorlageJetzt(int id,
+        [FromServices] MailWiedervorlageService dienst)
+    {
+        var (gefunden, status, fehler) = await dienst.JetztVersuchenAsync(id);
+        if (!gefunden) return NotFound();
+        return Ok(new { ok = status == MailWiedervorlage.StatusGesendet, status, fehler });
+    }
+
+    /// <summary>
+    /// Fall abhaken. Bei einem noch offenen Fall heisst das zugleich «nicht
+    /// weiter versuchen» — wer hier klickt, hat sich anders geholfen.
+    /// </summary>
+    [HttpPost("wiedervorlage/{id:int}/erledigt")]
+    public async Task<IActionResult> WiedervorlageErledigt(int id)
+    {
+        var row = await _db.MailWiedervorlagen.FirstOrDefaultAsync(w => w.Id == id);
+        if (row == null) return NotFound();
+
+        if (row.Status == MailWiedervorlage.StatusOffen)
+        {
+            row.Status          = MailWiedervorlage.StatusAbgebrochen;
+            row.AbgeschlossenAm = DateTime.Now;
+        }
+        row.Erledigt          = true;
+        row.ErledigtAm        = DateTime.Now;
+        row.ErledigtVonUserId = GetCurrentUserId();
+        // Die gespeicherte Nachricht wird nicht mehr gebraucht.
+        row.Mime              = Array.Empty<byte>();
+
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true, status = row.Status });
+    }
+
     private int? GetCurrentUserId()
     {
         var sub = User.FindFirstValue("sub")

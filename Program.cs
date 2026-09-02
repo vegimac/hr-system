@@ -219,6 +219,8 @@ builder.Services.AddScoped<EmailService>();
 // hinterlegt und der Haken gesetzt ist — er darf also immer registriert sein.
 builder.Services.AddScoped<BounceAbrufService>();
 builder.Services.AddHostedService<BounceAbrufBackgroundService>();
+builder.Services.AddScoped<MailWiedervorlageService>();
+builder.Services.AddHostedService<MailWiedervorlageBackgroundService>();
 // Täglicher Mirus-Änderungsdigest 06:00 (Walter 23.07.2026)
 builder.Services.AddScoped<MirusChangeDigestService>();
 builder.Services.AddHostedService<MirusChangeDigestBackgroundService>();
@@ -422,6 +424,53 @@ using (var scope = app.Services.CreateScope())
         CREATE UNIQUE INDEX IF NOT EXISTS ux_mail_bounce_msgid
             ON mail_bounce (original_message_id, adresse)
             WHERE original_message_id IS NOT NULL;
+
+        -- Wiedervorlage (Walter-Vorgabe 01.09.2026): Mails, die an einem
+        -- VORÜBERGEHENDEN Fehler gescheitert sind — allen voran das
+        -- Stundenlimit von Hostfactory («5.7.0 limit exceeded»). Sie
+        -- werden hier zwischengelagert und gestaffelt erneut versucht,
+        -- statt still verloren zu gehen. Endgültige Fehler (Adresse
+        -- existiert nicht) landen NICHT hier, sondern in mail_bounce.
+        CREATE TABLE IF NOT EXISTS mail_wiedervorlage (
+            id                    SERIAL       PRIMARY KEY,
+            erstellt_am           TIMESTAMP    NOT NULL DEFAULT NOW(),
+            kategorie             VARCHAR(40)  NULL,
+            -- Ohne Fremdschlüssel auf employee, aus demselben Grund wie
+            -- bei mail_bounce: diese Tabelle entsteht beim Start, employee
+            -- erst aus den Migrations-Skripten.
+            employee_id           INTEGER      NULL,
+            gruppen_mail_log_id   INTEGER      NULL,
+            to_email              VARCHAR(300) NULL,
+            effektive_adresse     VARCHAR(300) NOT NULL DEFAULT '',
+            redirected_to         VARCHAR(300) NULL,
+            betreff               VARCHAR(500) NULL,
+            anhang_anzahl         INTEGER      NOT NULL DEFAULT 0,
+            -- Die fertige Nachricht. Wird geleert, sobald der Fall
+            -- abgeschlossen ist — sonst läge ein Massenversand mit Anhang
+            -- dauerhaft als Kopie je Empfänger in der Datenbank.
+            mime                  BYTEA        NOT NULL DEFAULT ''::bytea,
+            versuche              INTEGER      NOT NULL DEFAULT 0,
+            naechster_versuch     TIMESTAMP    NOT NULL DEFAULT NOW(),
+            letzter_fehler        TEXT         NULL,
+            letzter_code          VARCHAR(20)  NULL,
+            status                VARCHAR(20)  NOT NULL DEFAULT 'OFFEN',
+            abgeschlossen_am      TIMESTAMP    NULL,
+            erledigt              BOOLEAN      NOT NULL DEFAULT FALSE,
+            erledigt_am           TIMESTAMP    NULL,
+            erledigt_von_user_id  INTEGER      NULL
+        );
+        CREATE INDEX IF NOT EXISTS ix_mail_wv_faellig  ON mail_wiedervorlage (status, naechster_versuch);
+        CREATE INDEX IF NOT EXISTS ix_mail_wv_gruppen  ON mail_wiedervorlage (gruppen_mail_log_id);
+
+        -- Welche mail_log-Zeile stammt aus einer Wiederholung? Sonst steht
+        -- derselbe Empfänger zweimal im Protokoll, einmal rot und einmal
+        -- grün, ohne erkennbare Reihenfolge.
+        ALTER TABLE mail_log ADD COLUMN IF NOT EXISTS wiedervorlage BOOLEAN NOT NULL DEFAULT FALSE;
+
+        -- «5 fehlgeschlagen» im Gruppen-Protokoll bleibt stehen, auch wenn
+        -- vier davon eine Stunde später doch ankamen. Der Zähler daneben
+        -- beantwortet die eigentliche Frage: hat am Ende jeder die Mail?
+        ALTER TABLE gruppen_mail_log ADD COLUMN IF NOT EXISTS anzahl_spaeter_zugestellt INTEGER NOT NULL DEFAULT 0;
 
         -- Zugang zum Rueckläufer-Postfach + Rücksendeadresse
         ALTER TABLE smtp_setting ADD COLUMN IF NOT EXISTS bounce_address                  VARCHAR(200) NULL;
@@ -1446,6 +1495,16 @@ using (var scope = app.Services.CreateScope())
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
             ('email_unzustellbar', 'E-Mail nicht zustellbar', TRUE, NULL, NULL, 'critical', NULL, FALSE, 28, 23, 'red')
+        ON CONFLICT (category) DO NOTHING;
+        -- Walter 01.09.2026: Mail an einem vorübergehenden Fehler gescheitert
+        -- (Hostfactory-Stundenlimit) und auch nach den gestaffelten
+        -- Wiederholungen nicht durchgekommen. Kritisch, weil hier — anders
+        -- als beim Rückläufer — GAR keine Rückmeldung kommt: ohne diese
+        -- Pendenz merkt niemand, dass ein Empfänger nichts erhalten hat.
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('email_wiedervorlage_aufgegeben', 'E-Mail nach Wiederholungen aufgegeben', TRUE, NULL, NULL, 'critical', NULL, FALSE, 29, 24, 'red')
         ON CONFLICT (category) DO NOTHING;
         -- Walter 01.09.2026: «Vertragsende wegen Kündigung» erscheint neu SOFORT
         -- statt erst 14 Tage vorher — das Austrittsdatum in easy@work steuert

@@ -39,6 +39,14 @@ public class GruppenMailLog
     public int AnzahlFehlgeschlagen { get; set; }
     /// <summary>Doppelte Adressen, die nur einmal angeschrieben wurden.</summary>
     public int AnzahlDoppelt { get; set; }
+    /// <summary>
+    /// Wie viele der Fehlgeschlagenen später über die Wiedervorlage doch
+    /// noch ankamen (Walter-Vorgabe 01.09.2026). <see cref="AnzahlFehlgeschlagen"/>
+    /// bleibt bewusst stehen — das Protokoll hält fest, was in diesem Lauf
+    /// passiert ist. Die Frage «hat am Ende jeder die Mail?» beantwortet
+    /// erst dieser Zähler daneben.
+    /// </summary>
+    public int AnzahlSpaeterZugestellt { get; set; }
     public int AnzahlOhneEmail { get; set; }
 
     public string? AnhangName { get; set; }

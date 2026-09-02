@@ -91,6 +91,7 @@ const DASH_CATEGORY_META = {
     // Kategorie-Code als Titel und bekommt keinen Filter-Knopf.
     austritt_unvollstaendig: { label: 'Austritt ohne Kündigungsangaben', icon: '📝', color: '#92400e' },
     email_unzustellbar: { label: 'E-Mail nicht zustellbar', icon: '📮', color: '#b91c1c' },
+    email_wiedervorlage_aufgegeben: { label: 'E-Mail nach Wiederholungen aufgegeben', icon: '📮', color: '#b91c1c' },
     austritt_datum_mismatch: { label: 'Austrittsdatum stimmt nicht überein', icon: '📆', color: '#b45309' },
     contract_end_weitergearbeitet: { label: 'Nach Vertragsende weitergearbeitet', icon: '⏰', color: '#991b1b' },
     qst_pflicht_offen:      { i18nKey: 'dash.cat.qstPflichtOffen',  label: 'QST-Pflicht offen',      icon: '📋', color: '#b91c1c' },

@@ -48,4 +48,15 @@ public class MailLog
     /// 21:34 und 21:39) wären nicht auseinanderzuhalten.
     /// </summary>
     public int? GruppenMailLogId { get; set; }
+
+    /// <summary>
+    /// true = diese Zeile stammt aus einer WIEDERVORLAGE, also aus einem
+    /// späteren Versuch, nachdem der erste an einem vorübergehenden Fehler
+    /// gescheitert war (Walter-Vorgabe 01.09.2026).
+    ///
+    /// Ohne die Unterscheidung stünde derselbe Empfänger im Protokoll
+    /// zweimal da — einmal rot, einmal grün — ohne dass erkennbar wäre,
+    /// welche Zeile die spätere ist.
+    /// </summary>
+    public bool Wiedervorlage { get; set; }
 }

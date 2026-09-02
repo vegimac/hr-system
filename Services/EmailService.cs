@@ -415,12 +415,87 @@ public class EmailService
                     builder.Attachments.Add(name, data, MimeTypVon(name));
         mime.Body = builder.ToMessageBody();
 
+        var versuch = await UebermittelnAsync(cfg, mime);
+
+        if (!versuch.Ok)
+        {
+            await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, false, versuch.Fehler, gruppenMailLogId);
+
+            // Wiedervorlage (Walter-Vorgabe 01.09.2026): Ist der Fehler
+            // vorübergehend, merken wir die fertige Mail und versuchen es
+            // später gestaffelt nochmals. Vorher endete der Weg genau hier
+            // — der Empfänger war still verloren.
+            //
+            // Nur mit Kategorie: die Admin-Test-Mail wird von Hand ausgelöst
+            // und soll ihren Fehler sofort im Fenster zeigen, statt in einer
+            // Viertelstunde unbemerkt nochmals rauszugehen.
+            if (versuch.Voruebergehend && kategorie.HasValue)
+                await TryWiedervorlageAsync(mime, kategorieCode, employeeId, gruppenMailLogId,
+                                            to, effectiveTo, redirectedTo, subject,
+                                            anhaenge, versuch.Fehler, versuch.Code);
+
+            // Weiterhin werfen, egal ob throwOnError: die Aufrufer führen
+            // ihre Fehlerlisten über diesen Weg. Ob die Mail nachträglich
+            // doch noch ankommt, sagt die Wiedervorlage — in dieser Sekunde
+            // ist sie nicht zugestellt, und genau das gibt der Aufrufer zurück.
+            throw versuch.Ausnahme
+                  ?? new InvalidOperationException(versuch.Fehler ?? "Mail-Versand fehlgeschlagen");
+        }
+
+        await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, true, null, gruppenMailLogId);
+        _log.LogInformation("[EmailService] Mail gesendet an {To} (effektiv: {Eff}) — {Subject}",
+                            to, effectiveTo, subject);
+    }
+
+    // ── Übermittlung + Fehler-Einstufung (Walter-Vorgabe 01.09.2026) ──────
+
+    /// <summary>Ergebnis eines einzelnen SMTP-Übermittlungsversuchs.</summary>
+    /// <param name="Voruebergehend">
+    /// true = es lohnt sich, dieselbe Mail später nochmals zu schicken.
+    /// </param>
+    /// <param name="Code">Erweiterter Status-Code aus der Antwort, z.B. «5.7.0».</param>
+    public record SmtpVersuch(bool Ok, bool Voruebergehend, string? Fehler, string? Code, Exception? Ausnahme);
+
+    /// <summary>
+    /// Verbindet, meldet an und übergibt die Nachricht. Wirft nicht, sondern
+    /// liefert das Ergebnis samt Einstufung — der Aufrufer entscheidet, ob
+    /// er den Fall in die Wiedervorlage legt oder aufgibt.
+    /// </summary>
+    private async Task<SmtpVersuch> UebermittelnAsync(EffectiveSmtpConfig cfg, MimeMessage mime)
+    {
         using var client = new SmtpClient();
         var secure = cfg.Port == 465 ? SecureSocketOptions.SslOnConnect
                                      : SecureSocketOptions.StartTls;
-        await client.ConnectAsync(cfg.Host, cfg.Port, secure);
-        if (!string.IsNullOrWhiteSpace(cfg.Username))
-            await client.AuthenticateAsync(cfg.Username, cfg.Password);
+        try
+        {
+            await client.ConnectAsync(cfg.Host, cfg.Port, secure);
+            if (!string.IsNullOrWhiteSpace(cfg.Username))
+                await client.AuthenticateAsync(cfg.Username, cfg.Password);
+        }
+        catch (System.Security.Authentication.AuthenticationException ex)
+        {
+            // Falsche Zugangsdaten werden durch Wiederholen nicht richtig —
+            // im Gegenteil: viele Anbieter sperren das Konto nach mehreren
+            // Fehlversuchen. Also bewusst als endgültig behandeln.
+            return new SmtpVersuch(false, false, ex.Message, null, ex);
+        }
+        catch (SmtpCommandException ex)
+        {
+            // Der Server hat geantwortet, nur ablehnend — etwa 421 «too many
+            // connections». Das ist dieselbe Frage wie beim Senden, also
+            // dieselbe Einstufung.
+            var (v, c) = FehlerEinstufen(ex);
+            return new SmtpVersuch(false, v, ex.Message, c, ex);
+        }
+        catch (Exception ex)
+        {
+            // Verbindung gar nicht zustande gekommen (Netz, DNS, TLS). Die
+            // Nachricht war nirgends — ein zweiter Versuch kann sie also
+            // nicht doppeln, und beim nächsten Mal steht der Server wieder.
+            return new SmtpVersuch(false, true, ex.Message, null, ex);
+        }
+
+        var uebergeben = false;
         try
         {
             // Rücksendeadresse (Walter-Vorgabe 01.09.2026): Auf einem Umschlag
@@ -443,17 +518,207 @@ public class EmailService
             {
                 await client.SendAsync(mime);
             }
+            uebergeben = true;
             await client.DisconnectAsync(true);
+            return new SmtpVersuch(true, false, null, null, null);
         }
         catch (Exception ex)
         {
-            await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, false, ex.Message, gruppenMailLogId);
-            throw;
+            // Stolperstelle: Scheitert erst das Trennen der Verbindung, ist
+            // die Mail längst übergeben. Würde dieser Fall als Fehlschlag
+            // gelten, käme die Mail über die Wiedervorlage ein zweites Mal
+            // beim Empfänger an — schlimmer als der ursprüngliche Fehler.
+            if (uebergeben)
+            {
+                _log.LogWarning(ex, "[EmailService] Mail wurde übergeben, nur das Trennen "
+                                  + "der Verbindung schlug fehl — gilt als gesendet.");
+                return new SmtpVersuch(true, false, null, null, null);
+            }
+
+            var (voruebergehend, code) = FehlerEinstufen(ex);
+            return new SmtpVersuch(false, voruebergehend, ex.Message, code, ex);
+        }
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex ErweiterterCode =
+        new(@"\b([245])\.(\d{1,3})\.(\d{1,3})\b",
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Lohnt sich ein späterer Versuch? (Walter-Vorgabe 01.09.2026)
+    ///
+    /// Die Frage ist NICHT «war es ein 4er oder ein 5er», sondern «wird es
+    /// von selbst wieder gehen» — und die beiden Antworten fallen bei
+    /// Hostfactory auseinander.
+    /// </summary>
+    internal static (bool Voruebergehend, string? Code) FehlerEinstufen(Exception ex)
+    {
+        var text = ex.Message ?? "";
+        var treffer = ErweiterterCode.Match(text);
+        string? code = treffer.Success ? treffer.Value : null;
+
+        int? antwort = ex is SmtpCommandException sce ? (int)sce.StatusCode : null;
+
+        // 1) Alles 4.x ist per Definition vorübergehend — sowohl die
+        //    dreistellige Antwort (4xx) als auch der erweiterte Code (4.x.x).
+        if (antwort is >= 400 and < 500) return (true, code);
+        if (code != null && code.StartsWith("4.")) return (true, code);
+
+        // 2) Der Sonderfall, der am 01.09.2026 fünf Empfänger gekostet hat:
+        //    Hostfactory beantwortet sein Stundenlimit von rund 275 Mails mit
+        //    «5.7.0 The limit on the number of allowed outgoing messages was
+        //    exceeded. Try again later.» — formal endgültig, fachlich das
+        //    Gegenteil davon; «Try again later» steht sogar dabei.
+        //    Geprüft wird der Text und nicht bloss der Code 5.7.0: derselbe
+        //    Sachverhalt heisst anderswo 4.7.1, 452 oder «too many messages»,
+        //    und 5.7.0 allein bedeutet sonst schlicht «nicht erlaubt».
+        if (IstMengenGrenze(text)) return (true, code);
+
+        // 3) Alles Übrige gilt als endgültig — vor allem 5.1.x «Adresse
+        //    existiert nicht». Wiederholen erzeugt dort nur denselben Fehler
+        //    ein zweites Mal; dafür gibt es die Rückläufer-Logik.
+        return (false, code);
+    }
+
+    /// <summary>
+    /// Formulierungen, die eine Grenze beschreiben, die sich von selbst
+    /// wieder öffnet. Bewusst ganze Wendungen statt einzelner Wörter:
+    /// «too many messages» ist eine Sendegrenze pro Stunde und geht später
+    /// wieder, «too many recipients» ist die Empfängerzahl EINER Mail und
+    /// geht nie wieder. Ein blosses «too many» würde beides gleich behandeln
+    /// und den zweiten Fall dreimal vergeblich wiederholen.
+    /// </summary>
+    private static readonly string[] MengenGrenzePhrasen =
+    {
+        // Sendegrenze pro Zeitfenster — der Fall vom 01.09.2026.
+        "limit on the number of allowed outgoing messages",
+        "rate limit", "sending limit", "send limit", "message limit",
+        "hourly limit", "daily limit", "submission rate",
+        "too many messages", "too many mails", "too many emails",
+        "too many connections", "throttl",
+        // Postfach des Empfängers voll: formal 5.2.2 und damit endgültig,
+        // fachlich vorübergehend. Genau dieselbe Einstufung nimmt die
+        // Rückläufer-Logik vor (dort «WEICH»).
+        "over quota", "quota exceeded", "mailbox full", "mailbox is full",
+        "postfach voll", "insufficient system storage", "out of storage",
+    };
+
+    /// <summary>Redet der Server von einer Grenze, die sich wieder öffnet?</summary>
+    private static bool IstMengenGrenze(string text)
+    {
+        var t = (text ?? "").ToLowerInvariant();
+
+        foreach (var wendung in MengenGrenzePhrasen)
+            if (t.Contains(wendung)) return true;
+
+        // Auffangnetz für Formulierungen, die hier noch nicht stehen: von
+        // einer Grenze ist die Rede, UND der Server sagt selbst, dass man es
+        // später nochmals versuchen soll.
+        var grenze = t.Contains("limit") || t.Contains("quota");
+        var spaeter = t.Contains("try again") || t.Contains("try later")
+                   || t.Contains("überschritten") || t.Contains("ueberschritten");
+        return grenze && spaeter;
+    }
+
+    /// <summary>
+    /// Die gescheiterte Mail für einen späteren Versuch merken — best effort:
+    /// misslingt das Merken, bleibt es beim bisherigen Verhalten (Fehler im
+    /// Protokoll), es geht also nichts verloren, was heute schon da wäre.
+    /// </summary>
+    private async Task TryWiedervorlageAsync(MimeMessage mime, string? kategorieCode, int? employeeId,
+        int? gruppenMailLogId, string? to, string effektiveAdresse, string? redirectedTo,
+        string? betreff, int anhaenge, string? fehler, string? code)
+    {
+        try
+        {
+            using var ms = new MemoryStream();
+            await mime.WriteToAsync(ms);
+
+            using var scope = _scopeFactory.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.MailWiedervorlagen.Add(new Models.MailWiedervorlage
+            {
+                ErstelltAm       = DateTime.Now,
+                Kategorie        = kategorieCode,
+                EmployeeId       = employeeId,
+                GruppenMailLogId = gruppenMailLogId,
+                ToEmail          = Kurz(to, 300),
+                EffektiveAdresse = Kurz(effektiveAdresse, 300) ?? "",
+                RedirectedTo     = Kurz(redirectedTo, 300),
+                Betreff          = Kurz(betreff, 500),
+                AnhangAnzahl     = anhaenge,
+                Mime             = ms.ToArray(),
+                Versuche         = 0,
+                NaechsterVersuch = DateTime.Now.AddMinutes(MailWiedervorlageService.StaffelungMinuten[0]),
+                LetzterFehler    = fehler,
+                LetzterCode      = code,
+                Status           = Models.MailWiedervorlage.StatusOffen,
+            });
+            await db.SaveChangesAsync();
+
+            _log.LogWarning("[EmailService] Vorübergehender Fehler an {To} ({Code}) — Mail zur "
+                          + "Wiedervorlage gemerkt, nächster Versuch in {Min} Minuten: {Fehler}",
+                            effektiveAdresse, code, MailWiedervorlageService.StaffelungMinuten[0], fehler);
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "[EmailService] Wiedervorlage konnte nicht angelegt werden — "
+                            + "die Mail an {To} ist damit endgültig verloren.", effektiveAdresse);
+        }
+    }
+
+    /// <summary>
+    /// Einen gemerkten Fall erneut übermitteln (aufgerufen aus
+    /// <see cref="MailWiedervorlageService"/>). Geschickt wird die
+    /// GESPEICHERTE Nachricht, nicht eine neu zusammengebaute — dieselbe
+    /// Mail, dieselben Anhänge, dieselbe Message-ID.
+    /// </summary>
+    public async Task<SmtpVersuch> WiedervorlageUebermittelnAsync(Models.MailWiedervorlage eintrag)
+    {
+        var cfg = await GetEffectiveConfigAsync();
+        if (string.IsNullOrWhiteSpace(cfg.Host) || string.IsNullOrWhiteSpace(cfg.FromAddress))
+            return new SmtpVersuch(false, true, "SMTP nicht konfiguriert", null, null);
+
+        // Ist die Adresse inzwischen hart zurückgekommen, ist der Fall
+        // entschieden: nicht nochmals ins Leere senden.
+        if (await IstGesperrtAsync(eintrag.EffektiveAdresse))
+            return await WiedervorlageGescheitertAsync(eintrag, false,
+                $"Adresse {eintrag.EffektiveAdresse} ist wegen eines offenen Rückläufers gesperrt.");
+
+        MimeMessage mime;
+        try
+        {
+            using var ms = new MemoryStream(eintrag.Mime ?? Array.Empty<byte>());
+            mime = await MimeMessage.LoadAsync(ms);
+        }
+        catch (Exception ex)
+        {
+            return await WiedervorlageGescheitertAsync(eintrag, false,
+                "Gespeicherte Nachricht ist unlesbar: " + ex.Message, ex);
         }
 
-        await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, true, null, gruppenMailLogId);
-        _log.LogInformation("[EmailService] Mail gesendet an {To} (effektiv: {Eff}) — {Subject}",
-                            to, effectiveTo, subject);
+        var versuch = await UebermittelnAsync(cfg, mime);
+
+        await TryWriteLogAsync(eintrag.Kategorie, eintrag.EmployeeId, eintrag.ToEmail,
+            eintrag.RedirectedTo, eintrag.Betreff, eintrag.AnhangAnzahl,
+            versuch.Ok, versuch.Fehler, eintrag.GruppenMailLogId, wiedervorlage: true);
+
+        return versuch;
+    }
+
+    /// <summary>
+    /// Ein Wiederholungsversuch, der schon vor dem SMTP-Gespräch scheitert —
+    /// mit Protokolleintrag. Ohne den stünde der Fall später auf
+    /// «aufgegeben», ohne dass im Versandprotokoll ein Grund nachzulesen wäre.
+    /// </summary>
+    private async Task<SmtpVersuch> WiedervorlageGescheitertAsync(
+        Models.MailWiedervorlage eintrag, bool voruebergehend, string fehler, Exception? ex = null)
+    {
+        await TryWriteLogAsync(eintrag.Kategorie, eintrag.EmployeeId, eintrag.ToEmail,
+            eintrag.RedirectedTo, eintrag.Betreff, eintrag.AnhangAnzahl,
+            false, fehler, eintrag.GruppenMailLogId, wiedervorlage: true);
+
+        return new SmtpVersuch(false, voruebergehend, fehler, null, ex);
     }
 
     /// <summary>
@@ -496,7 +761,7 @@ public class EmailService
     /// </summary>
     private async Task TryWriteLogAsync(string? kategorie, int? employeeId, string? toEmail,
         string? redirectedTo, string? subject, int attachmentCount, bool ok, string? error,
-        int? gruppenMailLogId = null)
+        int? gruppenMailLogId = null, bool wiedervorlage = false)
     {
         try
         {
@@ -514,6 +779,7 @@ public class EmailService
                 Ok              = ok,
                 Error           = error,
                 GruppenMailLogId = gruppenMailLogId,
+                Wiedervorlage   = wiedervorlage,
             });
             await db.SaveChangesAsync();
         }
@@ -521,10 +787,11 @@ public class EmailService
         {
             _log.LogWarning(ex, "[EmailService] mail_log-Eintrag konnte nicht geschrieben werden");
         }
-
-        static string? Kurz(string? v, int max)
-            => string.IsNullOrWhiteSpace(v) ? null : (v.Length <= max ? v : v[..max]);
     }
+
+    /// <summary>Auf die Spaltenbreite kürzen; leer wird zu NULL.</summary>
+    private static string? Kurz(string? v, int max)
+        => string.IsNullOrWhiteSpace(v) ? null : (v.Length <= max ? v : v[..max]);
 
     /// <summary>
     /// Zentrale HTML-Vorlage fuer OneCrew-Mails (Walter-Vorgabe 01.09.2026).

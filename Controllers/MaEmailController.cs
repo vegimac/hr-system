@@ -431,6 +431,7 @@ public class MaEmailController : ControllerBase
                 l.AnzahlFehlgeschlagen,
                 l.AnzahlDoppelt,
                 l.AnzahlOhneEmail,
+                l.AnzahlSpaeterZugestellt,
                 l.AnhangName,
                 l.MitText,
                 l.Scharf,
@@ -456,6 +457,7 @@ public class MaEmailController : ControllerBase
                 l.AnzahlFehlgeschlagen,
                 l.AnzahlDoppelt,
                 l.AnzahlOhneEmail,
+                l.AnzahlSpaeterZugestellt,
                 l.AnhangName,
                 l.MitText,
                 l.Scharf,
@@ -515,9 +517,42 @@ public class MaEmailController : ControllerBase
             hergeleitet = true;
         }
 
+        // Wer über die Wiedervorlage später doch noch beliefert wurde
+        // (Walter-Vorgabe 01.09.2026). Ohne diese Zeile stünde derselbe
+        // Empfänger für immer als «fehlgeschlagen» in der Liste, obwohl die
+        // Mail eine Stunde später angekommen ist — und man würde ihn
+        // vergeblich von Hand nochmals anschreiben.
+        // Bewusst VOR dem Filter unten abgefragt: die Erfolgs-Zeile der
+        // Wiederholung fällt sonst durch das «nur fehlgeschlagene» Raster.
+        var spaeterOk = await q
+            .Where(l => l.Ok && l.Wiedervorlage && l.ToEmail != null)
+            .Select(l => l.ToEmail!)
+            .Distinct()
+            .ToListAsync();
+        var spaeterSet = new HashSet<string>(spaeterOk, StringComparer.OrdinalIgnoreCase);
+
+        // Läuft für einen Empfänger noch eine Wiederholung? Das MUSS in der
+        // Liste stehen: Wer «5 fehlgeschlagen» aufklappt und die fünf sofort
+        // von Hand nachfasst, während OneCrew es in 15 Minuten ohnehin
+        // nochmals versucht, verschickt die Mail doppelt.
+        var offeneWv = await _db.MailWiedervorlagen.AsNoTracking()
+            .Where(w => w.GruppenMailLogId == id && w.Status == MailWiedervorlage.StatusOffen)
+            .Select(w => new { w.ToEmail, w.EffektiveAdresse, w.NaechsterVersuch })
+            .ToListAsync();
+
+        var offenBis = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        foreach (var w in offeneWv)
+        {
+            var adr = w.ToEmail ?? w.EffektiveAdresse;
+            if (string.IsNullOrWhiteSpace(adr)) continue;
+            // Bei mehreren Einträgen zur selben Adresse zählt der nächste.
+            if (!offenBis.TryGetValue(adr, out var bisher) || w.NaechsterVersuch < bisher)
+                offenBis[adr] = w.NaechsterVersuch;
+        }
+
         if (!alle) q = q.Where(l => !l.Ok);
 
-        var rows = await q
+        var roh2 = await q
             .OrderBy(l => l.Ok).ThenBy(l => l.CreatedAt)
             .Take(500)
             .Select(l => new
@@ -529,6 +564,7 @@ public class MaEmailController : ControllerBase
                 l.Ok,
                 l.Error,
                 l.EmployeeId,
+                l.Wiedervorlage,
                 MaNummer = l.EmployeeId == null ? null
                     : _db.Employees.Where(e => e.Id == l.EmployeeId).Select(e => e.EmployeeNumber).FirstOrDefault(),
                 MaName = l.EmployeeId == null ? null
@@ -537,7 +573,25 @@ public class MaEmailController : ControllerBase
             })
             .ToListAsync();
 
-        return Ok(new { zeilen = rows, hergeleitet, verweisVorhanden = rows.Count > 0 });
+        DateTime? WiederholungAm(string? adresse)
+            => adresse != null && offenBis.TryGetValue(adresse, out var t) ? t : null;
+
+        var rows = roh2.Select(l => new
+        {
+            l.Id, l.CreatedAt, l.ToEmail, l.RedirectedTo, l.Ok, l.Error, l.EmployeeId,
+            l.Wiedervorlage, l.MaNummer, l.MaName,
+            spaeterZugestellt = !l.Ok && l.ToEmail != null && spaeterSet.Contains(l.ToEmail),
+            wiederholungAm   = l.Ok ? null : WiederholungAm(l.ToEmail),
+        }).ToList();
+
+        return Ok(new
+        {
+            zeilen = rows,
+            hergeleitet,
+            verweisVorhanden = rows.Count > 0,
+            spaeterZugestellt = spaeterSet.Count,
+            wiederholungOffen = offenBis.Count,
+        });
     }
 
     private int? GetCurrentUserId()

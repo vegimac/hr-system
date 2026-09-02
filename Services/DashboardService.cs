@@ -760,6 +760,68 @@ public class DashboardService
             }
         }
 
+        // ── E-Mail nach Wiederholungen aufgegeben (Walter 01.09.2026) ────
+        // Der Nachbar oben (email_unzustellbar) meldet, was der Empfänger-
+        // Server ZURÜCKGESCHICKT hat. Hier geht es um den Fall davor: die
+        // Mail hat unseren eigenen Server nie verlassen — am 01.09.2026 fünf
+        // Stück, weil Hostfactorys Stundenlimit erreicht war. Es kommt also
+        // gar keine Rückmeldung, aus der man etwas ablesen könnte; ohne
+        // diese Pendenz merkt es niemand.
+        // Gemeldet wird erst, wenn auch die gestaffelten Wiederholungen
+        // gescheitert sind — vorher ist der Fall noch in Arbeit.
+        if (Enabled("email_wiedervorlage_aufgegeben"))
+        {
+            var wvQ = _db.MailWiedervorlagen.AsNoTracking()
+                .Where(w => w.Status == MailWiedervorlage.StatusAufgegeben && !w.Erledigt);
+
+            if (companyProfileId.HasValue)
+            {
+                // Filial-Sicht: nur Fälle, die einem MA dieser Filiale
+                // zuzuordnen sind. Mails an OneCrew-Benutzer haben keine
+                // Filiale und erscheinen deshalb nur in der Gesamtsicht.
+                var cpId = companyProfileId.Value;
+                wvQ = wvQ.Where(w => w.EmployeeId != null && _db.Employments.Any(em =>
+                    em.EmployeeId == w.EmployeeId && em.IsActive && em.CompanyProfileId == cpId));
+            }
+
+            var wvFaelle = await wvQ
+                .Select(w => new
+                {
+                    w.Id, w.EmployeeId, w.EffektiveAdresse, w.ToEmail, w.Betreff,
+                    w.ErstelltAm, w.AbgeschlossenAm, w.Versuche, w.LetzterCode,
+                    Vorname  = w.Employee != null ? w.Employee.FirstName : null,
+                    Nachname = w.Employee != null ? w.Employee.LastName : null,
+                    MaNr     = w.Employee != null ? w.Employee.EmployeeNumber : null,
+                })
+                .ToListAsync();
+
+            // Pro Adresse eine Meldung: wer bei einem Versand nichts bekommen
+            // hat, ist EIN Fall — auch wenn es zwei Mails betraf.
+            foreach (var g in wvFaelle.GroupBy(x => (x.ToEmail ?? x.EffektiveAdresse ?? "").ToLowerInvariant()))
+            {
+                var neueste = g.OrderByDescending(x => x.AbgeschlossenAm ?? x.ErstelltAm).First();
+                var adresse = neueste.ToEmail ?? neueste.EffektiveAdresse;
+                var maName  = $"{neueste.Vorname} {neueste.Nachname}".Trim();
+                var wer     = string.IsNullOrWhiteSpace(maName) ? adresse : maName;
+                var stand   = (neueste.AbgeschlossenAm ?? neueste.ErstelltAm).Date;
+                var weitere = g.Count() > 1 ? $" · {g.Count()} Mails betroffen" : "";
+
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "email_wiedervorlage_aufgegeben",
+                    Severity = SeverityState("email_wiedervorlage_aufgegeben", "critical"),
+                    Title    = "E-Mail auch nach Wiederholungen nicht zugestellt",
+                    Subtitle = $"{wer} · {adresse} · «{neueste.Betreff}» — {neueste.Versuche}× vergeblich "
+                             + $"versucht{weitere}. Bitte von Hand nachfassen.",
+                    DueDate        = stand,
+                    DaysUntil      = (stand - now).Days,
+                    EmployeeId     = neueste.EmployeeId,
+                    EmployeeNumber = neueste.MaNr,
+                    EmployeeName   = string.IsNullOrWhiteSpace(maName) ? null : maName,
+                });
+            }
+        }
+
         // ── Kündigung nach Sperrfrist möglich (Walter 25.07.2026) ─────────
         // Sobald Art. 336c-Sperrfrist bei durchgehender Krankheit/Unfall
         // ausgeschöpft ist → ToDo «Wichtig». Verschwindet bei erfasster

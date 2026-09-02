@@ -275,6 +275,12 @@ async function meLadeLog() {
                             style="color:#9a3412;text-decoration:underline;cursor:pointer"
                             title="Zeigt, welche Adressen nicht erreicht wurden und warum"
                          >${l.anzahlFehlgeschlagen} fehlgeschlagen</a>`);
+                    // Später über die Wiedervorlage doch noch angekommen
+                    // (Walter 01.09.2026). «5 fehlgeschlagen» bleibt stehen —
+                    // so war es in diesem Lauf. Ob am Ende jeder die Mail hat,
+                    // beantwortet erst die Zeile daneben.
+                    if (l.anzahlSpaeterZugestellt) probleme.push(
+                        `<span style="color:#166534">${l.anzahlSpaeterZugestellt} später zugestellt</span>`);
                     if (l.anzahlDoppelt) probleme.push(`${l.anzahlDoppelt} doppelt`);
                     if (l.anzahlOhneEmail) probleme.push(`${l.anzahlOhneEmail} ohne E-Mail`);
                     return `<tr style="border-top:1px solid rgba(60,55,48,0.08)">
@@ -347,7 +353,17 @@ async function meLogDetails(ev, logId) {
                     ${d.maNummer ? `<span style="color:#8b8b8b"> · ${esc(d.maNummer)}</span>` : ''}
                   </td>
                   <td style="padding:5px 8px;color:#646464">${esc(d.toEmail || '–')}</td>
-                  <td style="padding:5px 0;color:#9a3412">${esc(d.error || 'Grund nicht protokolliert')}</td>
+                  <td style="padding:5px 0;color:${d.spaeterZugestellt ? '#166534' : (d.wiederholungAm ? '#92400e' : '#9a3412')}">
+                    ${d.spaeterZugestellt
+                        ? 'später über die Wiedervorlage zugestellt'
+                        : esc(d.error || 'Grund nicht protokolliert')}
+                    ${(!d.spaeterZugestellt && d.wiederholungAm)
+                        ? `<div style="color:#92400e;font-size:11.5px">⏳ Wiederholung läuft — nächster Versuch um ${
+                              new Date(d.wiederholungAm).toLocaleTimeString('de-CH',
+                                  { hour:'2-digit', minute:'2-digit' })
+                           }. Bitte nicht von Hand nachfassen, sonst kommt die Mail doppelt an.</div>`
+                        : ''}
+                  </td>
                 </tr>`).join('')}
             </table>
           </div>`;
