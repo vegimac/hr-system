@@ -7733,19 +7733,29 @@
            (z.B. Absenzen, Familie). */
         .dok-action-btn.danger { color:#dc2626; border-color:#fecaca; background:#fef2f2; }
         .dok-action-btn.danger:hover { background:#fee2e2; border-color:#fca5a5; }
-        /* Walter-Vorgabe 02.09.2026: gruene «Ansehen»-Variante. Anlass sind die
-           Filial-Dokumente — dort fuehrte der einzige sichtbare Weg zur Vorschau
-           ueber das ⋮-Menue, also zwei Klicks fuer die haeufigste Handlung.
-           Gruen bewusst neben Rot (Loeschen): dieselbe Logik wie im Rest des
-           Programms, die Farbe sagt was passiert, nicht nur dass etwas passiert.
+        /* Walter-Vorgabe 02.09.2026 (final): fuer «Dokument ansehen» gibt es im
+           Programm bereits eine Form — die gruene «Doku ✓»-Pille, wie sie bei
+           den Bewilligungen und den Lohn-Abtretungen steht. Ein quadratischer
+           Icon-Knopf daneben waere eine zweite Form fuer dieselbe Sache; darum
+           erbt die Filial-Dokumenten-Zeile hier die Pille statt eine eigene
+           Variante von .dok-action-btn zu bekommen.
 
-           Nachtrag 02.09.2026 (Walter): exakt dieselben Gruentoene wie die
-           «Doku ✓»-Pille bei den Bewilligungen — #dcfce7 / #86efac / #15803d.
-           Vorher war es ein blasseres Gruen (#f0fdf4/#bbf7d0), was neben dem
-           Standard wie ein zweites, halbfertiges Gruen aussah. Ein Doku-Gruen
-           im ganzen Programm, nicht zwei. */
-        .dok-action-btn.view { color:#15803d; border-color:#86efac; background:#dcfce7; }
-        .dok-action-btn.view:hover { background:#bbf7d0; border-color:#4ade80; }
+           Werte 1:1 aus employees.js/permitDocBtn uebernommen, damit die beiden
+           nicht auseinanderlaufen: #dcfce7 / #86efac / #15803d, Radius 6,
+           Polsterung 2/7, Schrift 11px/600. */
+        .doku-pille {
+            display:inline-flex; align-items:center; gap:3px;
+            background:#dcfce7; border:1px solid #86efac; border-radius:6px;
+            padding:2px 7px; cursor:pointer; color:#15803d;
+            font-size:11px; font-weight:600; line-height:1;
+            text-transform:none; letter-spacing:0; white-space:nowrap;
+            transition: all .12s;
+        }
+        .doku-pille:hover { background:#bbf7d0; border-color:#4ade80; }
+        body.theme-dark .doku-pille {
+            background:#14532d !important; color:#bbf7d0 !important; border-color:#15803d !important;
+        }
+        body.theme-dark .doku-pille:hover { background:#166534 !important; }
         /* Walter 09.06.2026 (Schärfung): die ⋮-Buttons waren in der Tabelle zu
            dezent — heller Hintergrund + dünner Rand + helle Punkte. Jetzt
            dunkler Rand (#94a3b8), grauer Hintergrund (#f1f5f9), kräftigere
@@ -7764,10 +7774,6 @@
             background:#7f1d1d !important; color:#fecaca !important; border-color:#dc2626 !important;
         }
         body.theme-dark .dok-action-btn.danger:hover { background:#991b1b !important; }
-        body.theme-dark .dok-action-btn.view {
-            background:#14532d !important; color:#bbf7d0 !important; border-color:#15803d !important;
-        }
-        body.theme-dark .dok-action-btn.view:hover { background:#166534 !important; }
         body.theme-dark .dok-menu-btn { background: var(--dlg-glass-strong) !important; color:#cbd5e1 !important; border-color: var(--dlg-glass-border) !important; }
         body.theme-dark .dok-menu-btn:hover { background: rgba(255,255,255,.10) !important; color:#f1f5f9 !important; }
         .dok-menu {
