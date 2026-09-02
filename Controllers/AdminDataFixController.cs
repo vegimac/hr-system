@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,7 @@ public class AdminDataFixController : ControllerBase
             return NotFound(new { error = "NOT_FOUND", message = "Mitarbeiter nicht gefunden." });
 
         var branch = await GetPrimaryBranchAsync(emp.Id);
-        var prefix = NormalizeRestaurantPrefix(branch?.RestaurantCode);
+        var prefix = Nummernkreis.NurZiffern(branch?.RestaurantCode);
         var cur = NormalizeEmployeeNumber(emp.EmployeeNumber);
         var neu = NormalizeEmployeeNumber(newNumber);
 
@@ -83,7 +84,7 @@ public class AdminDataFixController : ControllerBase
             return BadRequest(new { error = "SAME_NUMBER", message = "Neue Nummer ist identisch mit der aktuellen." });
 
         var branch = await GetPrimaryBranchAsync(emp.Id);
-        var prefix = NormalizeRestaurantPrefix(branch?.RestaurantCode);
+        var prefix = Nummernkreis.NurZiffern(branch?.RestaurantCode);
         var checks = await BuildChecksAsync(emp.Id, cur, neu, prefix, branch);
 
         if (checks.Taken)
@@ -96,13 +97,19 @@ public class AdminDataFixController : ControllerBase
             });
         }
 
-        if (!string.IsNullOrEmpty(prefix) && !neu.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            && !dto.AllowPrefixMismatch)
+        // Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026): prüft Präfix
+        // UND — sofern gepflegt — die Anzahl Stellen. Der bisherige Ausweg
+        // allowPrefixMismatch bleibt, weil Umnummerieren gerade dann nötig
+        // ist, wenn etwas nicht ins Schema passt. Fehlercode unverändert,
+        // damit die bestehende Maske ihn weiter erkennt.
+        var kreisFix = Nummernkreis.Fuer(branch);
+        var beanstandung = kreisFix.Praefix.Length == 0 ? null : kreisFix.Beanstandung(neu, branch?.BranchName ?? branch?.CompanyName);
+        if (beanstandung != null && !dto.AllowPrefixMismatch)
         {
             return Conflict(new
             {
                 error = "PREFIX_MISMATCH",
-                message = $"Nummer «{neu}» passt nicht zum Filial-Präfix «{prefix}» ({branch?.RestaurantCode}). Zum Fortfahren allowPrefixMismatch=true setzen.",
+                message = $"{beanstandung} Zum Fortfahren allowPrefixMismatch=true setzen.",
                 checks
             });
         }
@@ -224,12 +231,6 @@ public class AdminDataFixController : ControllerBase
         };
     }
 
-    private static string NormalizeRestaurantPrefix(string? restaurantCode)
-    {
-        var digits = Regex.Replace(restaurantCode ?? "", @"\D", "");
-        digits = digits.TrimStart('0');
-        return string.IsNullOrWhiteSpace(digits) ? "" : digits;
-    }
 
     private static string NormalizeEmployeeNumber(string? employeeNumber)
         => Regex.Replace(employeeNumber ?? "", @"\s", "");

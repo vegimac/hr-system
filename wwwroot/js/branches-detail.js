@@ -1135,10 +1135,76 @@ async function openStmModal(id) {
             (b.lohnausweisPos21VerpflegungMonat == null) ? '' : b.lohnausweisPos21VerpflegungMonat;
         const stmProb = document.getElementById('stmProbationMonths');
         if (stmProb) stmProb.value = (b.probationMonths == null) ? '' : String(b.probationMonths);
+        // Nummernkreis (Walter 02.09.2026). Ist noch keiner gepflegt, schlagen
+        // wir den Restaurant-Code + 4 Stellen vor — das ist die Regel, nach der
+        // die Nummern seit je vergeben werden. Vorschlag heisst Vorschlag: er
+        // steht nur im Feld und ist erst gespeichert, wenn Walter speichert.
+        const pnP = document.getElementById('stmPnPraefix');
+        const pnS = document.getElementById('stmPnStellen');
+        if (pnP && pnS) {
+            const gepflegt = !!(b.personalnummerPraefix || '').trim();
+            pnP.value = gepflegt ? b.personalnummerPraefix
+                                 : (b.restaurantCode || '').replace(/\D/g, '').replace(/^0+/, '');
+            pnS.value = (b.personalnummerStellen != null) ? String(b.personalnummerStellen)
+                      : (pnP.value ? '4' : '');
+            stmPnVorschau();
+        }
         document.getElementById('stmPlzHint').innerHTML    = '';
         stmToggleGavName();
     } catch { /* leere Felder anzeigen */ }
     document.getElementById('stmDatenModal').style.display = 'flex';
+}
+
+// ── Nummernkreis: Muster und Bereich live anzeigen (Walter 02.09.2026) ──
+// Zeigt beim Tippen, was die Regel konkret bedeutet: «122xxxx → 1220001 bis
+// 1229999». Eine Regel, deren Wirkung man erst nach dem Speichern sieht, wird
+// falsch gesetzt.
+function stmPnVorschau() {
+    const el = document.getElementById('stmPnVorschau');
+    if (!el) return;
+    const p = (document.getElementById('stmPnPraefix')?.value || '').replace(/\D/g, '').replace(/^0+/, '');
+    const sRaw = (document.getElementById('stmPnStellen')?.value || '').trim();
+    const st = parseInt(sRaw, 10);
+    if (!p) {
+        el.innerHTML = '<span style="color:#b3ada1">Kein Nummernkreis — Personalnummern werden nicht auf die Länge geprüft.</span>';
+        return;
+    }
+    if (!Number.isFinite(st) || st < 1 || st > 10) {
+        el.innerHTML = '<span style="color:#b45309">Anzahl Stellen fehlt (1–10) — ohne sie wird nur das Präfix geprüft.</span>';
+        return;
+    }
+    const erste = p + '1'.padStart(st, '0');
+    const letzte = p + '9'.repeat(st);
+    el.innerHTML = `<span style="font-weight:600;color:#3f3f3f">${p}${'x'.repeat(st)}</span>`
+                 + ` &nbsp;→&nbsp; ${erste} bis ${letzte}`;
+}
+
+// Nummernkreis einer Filiale als Objekt — dieselbe Regel wie im Backend
+// (Services/PersonalnummerKreis.cs). Gepflegtes Präfix schlägt den
+// Restaurant-Code; ohne Stellen wird nur das Präfix geprüft.
+function pnKreisFuer(branch) {
+    const ziffern = v => String(v || '').replace(/\D/g, '').replace(/^0+/, '');
+    const praefix = ziffern(branch?.personalnummerPraefix) || ziffern(branch?.restaurantCode);
+    const stellenRoh = branch?.personalnummerPraefix ? branch?.personalnummerStellen : null;
+    const stellen = (Number.isFinite(Number(stellenRoh)) && Number(stellenRoh) > 0) ? Number(stellenRoh) : 0;
+    const hatLaenge = !!praefix && stellen > 0;
+    return {
+        praefix, stellen, hatLaenge,
+        muster: hatLaenge ? praefix + 'x'.repeat(stellen) : praefix,
+        passt(nr) {
+            const n = String(nr || '').trim();
+            if (!/^\d+$/.test(n)) return false;
+            if (n.startsWith('99')) return false;            // alte Archivnummern
+            if (praefix && !n.startsWith(praefix)) return false;
+            if (hatLaenge && n.length !== praefix.length + stellen) return false;
+            return true;
+        },
+        naechste(hoechste) {
+            if (!hatLaenge || hoechste == null) return null;
+            const kand = String(hoechste + 1);
+            return this.passt(kand) ? kand : null;
+        },
+    };
 }
 
 function closeStmModal() {
@@ -1227,6 +1293,16 @@ async function saveStm() {
         probationMonths: (() => {
             const v = (document.getElementById('stmProbationMonths')?.value || '').trim();
             return v ? parseInt(v, 10) : null;
+        })(),
+        // Nummernkreis (Walter 02.09.2026)
+        personalnummerPraefix: (() => {
+            const v = (document.getElementById('stmPnPraefix')?.value || '').replace(/\D/g, '').replace(/^0+/, '');
+            return v || null;
+        })(),
+        personalnummerStellen: (() => {
+            const v = (document.getElementById('stmPnStellen')?.value || '').trim();
+            const n = parseInt(v, 10);
+            return Number.isFinite(n) && n > 0 ? n : null;
         })(),
     };
 

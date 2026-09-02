@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,7 @@ public class FluktuationReportController : ControllerBase
         // Personalnummer-Präfix → Filiale (058→58, 075→75, 104, 230 …).
         // Längster Treffer zuerst (230 vor 23, 104 vor 10).
         var prefixBranches = branchesRaw
-            .Select(b => new { Prefix = NormalizeRestaurantPrefix(b.RestaurantCode), b.Id })
+            .Select(b => new { Prefix = Nummernkreis.NurZiffern(b.RestaurantCode), b.Id })
             .Where(x => x.Prefix.Length > 0)
             .GroupBy(x => x.Prefix, StringComparer.Ordinal)
             .Select(g => g.First())
@@ -245,15 +246,6 @@ public class FluktuationReportController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(s)) return null;
         return DateOnly.TryParse(s.Trim(), out var d) ? d : null;
-    }
-
-    /// <summary>RestaurantCode «075» / «058» / «104» → Präfix «75» / «58» / «104».</summary>
-    private static string NormalizeRestaurantPrefix(string? restaurantCode)
-    {
-        if (string.IsNullOrWhiteSpace(restaurantCode)) return "";
-        var digits = new string(restaurantCode.Where(char.IsDigit).ToArray());
-        digits = digits.TrimStart('0');
-        return digits;
     }
 
     /// <summary>Personalnummer für Präfix-Match: Leerzeichen weg, «alt»-Suffix weg, nur Ziffern.</summary>

@@ -163,18 +163,25 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
 
     private async Task<NumberSequenceInfo> BuildNumberSequenceInfoAsync(int companyProfileId, CancellationToken ct)
     {
-        var restaurantCode = await _db.CompanyProfiles.AsNoTracking()
-            .Where(c => c.Id == companyProfileId)
-            .Select(c => c.RestaurantCode)
-            .FirstOrDefaultAsync(ct);
-        var prefix = EmployeeNumberSequenceGuard.NormalizeRestaurantPrefix(restaurantCode);
+        var filiale = await _db.CompanyProfiles.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == companyProfileId, ct);
+        // Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026): ist er
+        // gepflegt, zaehlen nur Nummern mit der richtigen LAENGE als
+        // «letzte Nummer». Sonst wuerde ein Vertipper wie «122023» die ganze
+        // Folge verschieben, weil er zwar mit 122 beginnt, aber viel kleiner
+        // ist als jede echte 122xxxx-Nummer.
+        var kreis = Nummernkreis.Fuer(filiale);
         var nums = await _db.Employees.AsNoTracking()
             .Where(e => !e.IsHidden && e.EmployeeNumber != null && e.EmployeeNumber != "")
             .Select(e => e.EmployeeNumber!)
             .ToListAsync(ct);
-        var max = EmployeeNumberSequenceGuard.FindMaxExisting(nums, prefix);
-        return new NumberSequenceInfo(prefix, max, restaurantCode);
+        var max = kreis.Hoechste(nums);
+        return new NumberSequenceInfo(kreis.Praefix, max, filiale?.RestaurantCode,
+                                      kreis.HatLaenge ? kreis.Stellen : (int?)null,
+                                      kreis.HatLaenge ? kreis.Muster : null,
+                                      kreis.Naechste(nums));
     }
 
-    private sealed record NumberSequenceInfo(string Prefix, long? MaxExisting, string? RestaurantCode);
+    private sealed record NumberSequenceInfo(string Prefix, long? MaxExisting, string? RestaurantCode,
+                                             int? Stellen, string? Muster, string? Naechste);
 }

@@ -260,7 +260,7 @@ public class EmployeesController : ControllerBase
         if (company == null)
             return NotFound("Company not found.");
 
-        var restaurantPrefix = NormalizeRestaurantPrefix(company.RestaurantCode);
+        var restaurantPrefix = Nummernkreis.NurZiffern(company.RestaurantCode);
 
         var isAdmin = IsAdminUser();
         var employees = await _context.Employees
@@ -1899,12 +1899,6 @@ public class EmployeesController : ControllerBase
         });
     }
 
-    private static string NormalizeRestaurantPrefix(string? restaurantCode)
-    {
-        var digits = Regex.Replace(restaurantCode ?? "", @"\D", "");
-        digits = digits.TrimStart('0');
-        return string.IsNullOrWhiteSpace(digits) ? "" : digits;
-    }
 
     private static string NormalizeEmployeeNumber(string? employeeNumber)
     {

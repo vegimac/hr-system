@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.VisualBasic.FileIO;
@@ -34,7 +35,26 @@ public class EmployeeImportController : ControllerBase
         if (string.IsNullOrWhiteSpace(company.RestaurantCode))
             return BadRequest("RestaurantCode fehlt im CompanyProfile.");
 
-        var restaurantPrefix = NormalizeRestaurantPrefix(company.RestaurantCode);
+        // Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026). Ist er
+        // gepflegt, prüft der Import zusätzlich die LÄNGE — genau daran
+        // scheitert ein Vertipper wie «122023» (3 statt 4 Stellen), der bisher
+        // stillschweigend als gültige Nummer der Filiale 122 durchging.
+        var kreis = Nummernkreis.Fuer(company);
+        // ACHTUNG, zwei verschiedene Dinge, die meistens gleich aussehen:
+        //   storePrefix  = Restaurant-Code von McDonald's. Damit wird die
+        //                  CSV-Spalte «Store number» verglichen.
+        //   kreis.Praefix = Beginn UNSERER Personalnummern. Nur damit wird
+        //                  die Personalnummer geprüft.
+        // Solange beide gleich sind, fällt der Unterschied nicht auf — sobald
+        // eine Filiale einen abweichenden Nummernkreis bekommt, würde ein
+        // gemeinsamer Wert die ganze Datei aussortieren.
+        var storePrefix = Nummernkreis.NurZiffern(company.RestaurantCode);
+        var restaurantPrefix = kreis.Praefix;
+        // Zeilen, die zwar mit unserem Präfix beginnen, aber nicht in den
+        // Kreis passen. Sie werden NICHT importiert und am Schluss namentlich
+        // gemeldet — stilles Überspringen wäre hier das Schlimmste: die Nummer
+        // wäre falsch und niemand wüsste es.
+        var kreisAbgelehnt = new List<string>();
         var rows = new List<ImportEmployeeRow>();
 
         using (var stream = file.OpenReadStream())
@@ -77,7 +97,7 @@ public class EmployeeImportController : ControllerBase
                 var storeNumber = NormalizeStoreNumber(GetValue(fields, headerMap, "Store number"));
 
                 if (!string.IsNullOrWhiteSpace(storeNumber) &&
-                    !string.Equals(storeNumber, restaurantPrefix, StringComparison.OrdinalIgnoreCase))
+                    !string.Equals(storeNumber, storePrefix, StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -85,6 +105,17 @@ public class EmployeeImportController : ControllerBase
                 if (string.IsNullOrWhiteSpace(storeNumber) &&
                     !employeeNumber.StartsWith(restaurantPrefix, StringComparison.OrdinalIgnoreCase))
                 {
+                    continue;
+                }
+
+                // Ab hier gehört die Zeile zu DIESER Filiale. Passt die Nummer
+                // trotzdem nicht in den Nummernkreis, ist sie falsch — nicht
+                // «von woanders». Darum ablehnen und melden, statt zu
+                // überspringen. Ohne gepflegten Kreis (HatLaenge == false)
+                // ändert sich nichts am bisherigen Verhalten.
+                if (kreis.HatLaenge && !kreis.Passt(employeeNumber))
+                {
+                    if (!kreisAbgelehnt.Contains(employeeNumber)) kreisAbgelehnt.Add(employeeNumber);
                     continue;
                 }
 
@@ -280,7 +311,9 @@ public class EmployeeImportController : ControllerBase
                 reactivated = 0,
                 deactivated = 0,
                 personnelOnly = 0,
-                message = "Keine passenden Mitarbeitenden für diesen Betrieb im CSV gefunden."
+                nummernkreis = kreis.Erwartung,
+                abgelehnteNummern = kreisAbgelehnt,
+                message = KreisMeldung(kreis, kreisAbgelehnt, "Keine passenden Mitarbeitenden für diesen Betrieb im CSV gefunden.")
             });
         }
 
@@ -477,8 +510,28 @@ public class EmployeeImportController : ControllerBase
             reactivated,
             deactivated,
             personnelOnly,   // davon: als reines Personaldossier (Bis < heute)
-            skippedTooOld    // Austritt vor 1.1.2025 — komplett übersprungen
+            skippedTooOld,   // Austritt vor 1.1.2025 — komplett übersprungen
+            nummernkreis = kreis.Erwartung,
+            abgelehnteNummern = kreisAbgelehnt,
+            message = KreisMeldung(kreis, kreisAbgelehnt, null)
         });
+    }
+
+    /// <summary>
+    /// Meldetext für Nummern, die zwar zur Filiale gehören, aber nicht in
+    /// deren Nummernkreis passen (Walter-Vorgabe 02.09.2026). Die Meldung
+    /// nennt Nummern UND erwartetes Muster — «abgelehnt» allein hilft
+    /// niemandem, der die Nummer korrigieren soll.
+    /// </summary>
+    private static string? KreisMeldung(Nummernkreis kreis, List<string> abgelehnt, string? basis)
+    {
+        if (abgelehnt.Count == 0) return basis;
+        var liste = string.Join(", ", abgelehnt.Take(20));
+        if (abgelehnt.Count > 20) liste += $" … (+{abgelehnt.Count - 20} weitere)";
+        var txt = abgelehnt.Count == 1
+            ? $"1 Personalnummer passt nicht in den Nummernkreis der Filiale ({kreis.Erwartung}) und wurde NICHT importiert: {liste}."
+            : $"{abgelehnt.Count} Personalnummern passen nicht in den Nummernkreis der Filiale ({kreis.Erwartung}) und wurden NICHT importiert: {liste}.";
+        return string.IsNullOrWhiteSpace(basis) ? txt : basis + " " + txt;
     }
 
     private async Task SaveSnapshotAsync(Employee employee, ImportEmployeeRow row)
@@ -1003,13 +1056,6 @@ public class EmployeeImportController : ControllerBase
                 return p;
         }
         return null;
-    }
-
-    private static string NormalizeRestaurantPrefix(string? restaurantCode)
-    {
-        var digits = Regex.Replace(restaurantCode ?? "", @"\D", "");
-        digits = digits.TrimStart('0');
-        return string.IsNullOrWhiteSpace(digits) ? "" : digits;
     }
 
     private static string NormalizeStoreNumber(string? storeNumber)

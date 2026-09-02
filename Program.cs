@@ -4379,6 +4379,16 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS hauptsitz_id integer REFERENCES hauptsitz(id) ON DELETE SET NULL;
     ");
 
+    // ── Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026) ───────────────
+    // Praefix + Anzahl Stellen, z.B. «122» + 4 → 1220001…1229999. Beides
+    // NULL-bar: nicht gepflegt = Verhalten wie bisher (Fallback auf den
+    // RestaurantCode). Reines Infofeld mit Eingabekontrolle — es wird nie
+    // automatisch umnummeriert.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_praefix varchar(6);
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_stellen integer;
+    ");
+
     // ── K1 QST-Korrektur (Walter 29.08.2026, docs/qst-korrektur-konzept.md) ─
     // SQL-Kopie: migrations-archive/add_qst_korrektur.sql
     db.Database.ExecuteSqlRaw(@"

@@ -597,6 +597,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Country).HasColumnName("country");
             entity.Property(e => e.KantonCode).HasColumnName("kanton_code").HasMaxLength(2);
             entity.Property(e => e.LoginPasswordPrefix).HasColumnName("login_password_prefix").HasMaxLength(5);
+            entity.Property(e => e.PersonalnummerPraefix).HasColumnName("personalnummer_praefix").HasMaxLength(6);
+            entity.Property(e => e.PersonalnummerStellen).HasColumnName("personalnummer_stellen");
             entity.Property(e => e.Phone).HasColumnName("phone");
             entity.Property(e => e.BurNr).HasColumnName("bur_nr").HasMaxLength(8);
             entity.Property(e => e.UidBfs).HasColumnName("uid_bfs").HasMaxLength(20);

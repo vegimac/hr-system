@@ -85,28 +85,25 @@ public static class EmployeeNumberSequenceGuard
 
     /// <summary>
     /// Höchste rein numerische Personalnummer mit Filial-Präfix
-    /// (wie «letzte Nr.» in der MA-Liste: keine «alt»-Suffixe, keine 9999er).
+    /// (wie «letzte Nr.» in der MA-Liste: keine «alt»-Suffixe, keine
+    /// Archivnummern). Ohne Nummernkreis wird nur das Präfix geprüft.
     /// </summary>
     public static long? FindMaxExisting(IEnumerable<string?> employeeNumbers, string? prefix)
-    {
-        long? max = null;
-        var pfx = prefix ?? "";
-        foreach (var raw in employeeNumbers)
-        {
-            var n = (raw ?? "").Trim();
-            if (!Regex.IsMatch(n, @"^\d+$")) continue;
-            if (n.StartsWith("9999", StringComparison.Ordinal)) continue;
-            if (pfx.Length > 0 && !n.StartsWith(pfx, StringComparison.Ordinal)) continue;
-            if (!long.TryParse(n, NumberStyles.None, CultureInfo.InvariantCulture, out var v)) continue;
-            if (max == null || v > max) max = v;
-        }
-        return max;
-    }
+        => new Nummernkreis(prefix, null).Hoechste(employeeNumbers);
 
+    /// <summary>
+    /// Variante MIT Nummernkreis (Walter-Vorgabe 02.09.2026): zählt nur
+    /// Nummern, die auch die richtige Länge haben. Ein Vertipper wie «122023»
+    /// gilt damit nicht mehr als «letzte Nummer» der Filiale 122.
+    /// </summary>
+    public static long? FindMaxExisting(IEnumerable<string?> employeeNumbers, Nummernkreis kreis)
+        => kreis.Hoechste(employeeNumbers);
+
+    /// <summary>
+    /// Ziffern eines Restaurant-Codes ohne führende Nullen («075» → «75»).
+    /// Die Logik lebt in <see cref="Nummernkreis"/>; hier bleibt nur der
+    /// bisherige Name für bestehende Aufrufer.
+    /// </summary>
     public static string NormalizeRestaurantPrefix(string? restaurantCode)
-    {
-        var digits = Regex.Replace(restaurantCode ?? "", @"\D", "");
-        digits = digits.TrimStart('0');
-        return string.IsNullOrWhiteSpace(digits) ? "" : digits;
-    }
+        => Nummernkreis.NurZiffern(restaurantCode);
 }

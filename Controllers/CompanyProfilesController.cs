@@ -3,6 +3,7 @@ using HrSystem.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HrSystem.Services;
 
 namespace HrSystem.Controllers;
 
@@ -225,6 +226,22 @@ public class CompanyProfilesController : ControllerBase
         profile.CompanyName    = string.IsNullOrWhiteSpace(dto.CompanyName)    ? profile.CompanyName : dto.CompanyName.Trim();
         profile.BranchName     = string.IsNullOrWhiteSpace(dto.BranchName)     ? null : dto.BranchName.Trim();
         profile.RestaurantCode = string.IsNullOrWhiteSpace(dto.RestaurantCode) ? null : dto.RestaurantCode.Trim();
+
+        // ── Nummernkreis (Walter-Vorgabe 02.09.2026) ────────────────────────
+        // Nur Ziffern, führende Nullen weg — «0122» und «122» sind derselbe
+        // Kreis, und ein Präfix mit Buchstaben gäbe eine Regel, die keine
+        // Personalnummer je erfüllen könnte.
+        var pnPraefix = Nummernkreis.NurZiffern(dto.PersonalnummerPraefix);
+        if (!string.IsNullOrWhiteSpace(dto.PersonalnummerPraefix) && pnPraefix.Length == 0)
+            return BadRequest(new { message = "Nummernkreis-Präfix darf nur Ziffern enthalten (z.B. 122)." });
+        if (pnPraefix.Length > 6)
+            return BadRequest(new { message = "Nummernkreis-Präfix ist zu lang (max. 6 Ziffern)." });
+        if (dto.PersonalnummerStellen is int st && (st < 1 || st > 10))
+            return BadRequest(new { message = "Anzahl Stellen muss zwischen 1 und 10 liegen." });
+        // Präfix leer → auch die Stellen zurücksetzen, sonst bleibt eine
+        // Längenregel ohne Kreis stehen und niemand sieht, woher sie kommt.
+        profile.PersonalnummerPraefix = pnPraefix.Length == 0 ? null : pnPraefix;
+        profile.PersonalnummerStellen = pnPraefix.Length == 0 ? null : dto.PersonalnummerStellen;
         profile.Street         = string.IsNullOrWhiteSpace(dto.Street)         ? null : dto.Street.Trim();
         profile.HouseNumber    = string.IsNullOrWhiteSpace(dto.HouseNumber)    ? null : dto.HouseNumber.Trim();
         profile.ZipCode        = string.IsNullOrWhiteSpace(dto.ZipCode)        ? null : dto.ZipCode.Trim();
@@ -424,7 +441,11 @@ public class CompanyProfilesController : ControllerBase
         bool?    LohnausweisBoxFFreierTransport,
         bool?    LohnausweisBoxGKantineGratis,
         decimal? LohnausweisPos21VerpflegungMonat,
-        int?     ProbationMonths
+        int?     ProbationMonths,
+        // Nummernkreis der Filiale (Walter 02.09.2026) — Infofeld mit
+        // Eingabekontrolle, siehe Services/PersonalnummerKreis.cs.
+        string?  PersonalnummerPraefix,
+        int?     PersonalnummerStellen
     );
 
     // PATCH /api/companyprofiles/{id}/bank

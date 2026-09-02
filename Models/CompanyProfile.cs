@@ -31,6 +31,34 @@ public class CompanyProfile
     public string? KantonCode { get; set; }
 
     /// <summary>
+    /// Nummernkreis der Filiale — Präfix, mit dem JEDE Personalnummer dieser
+    /// Filiale beginnt (z.B. «122»). Walter-Vorgabe 02.09.2026.
+    ///
+    /// Warum überhaupt ein eigenes Feld und nicht einfach der RestaurantCode:
+    /// die beiden sind meistens gleich, aber eben nicht immer — und der
+    /// RestaurantCode ist ein Stammdatum von McDonald's, das wir nicht für
+    /// unsere Nummernvergabe umdeuten wollen. NULL = kein Kreis definiert,
+    /// dann fällt OneCrew auf den RestaurantCode zurück (Verhalten wie bisher).
+    ///
+    /// Die Personalnummer ist bei uns KEIN Schlüssel, sondern ein Infofeld.
+    /// Der Nummernkreis dient darum der Eingabekontrolle und dem Vorschlag der
+    /// nächsten freien Nummer — er nummeriert nie etwas selbständig um.
+    /// </summary>
+    [Column("personalnummer_praefix")]
+    public string? PersonalnummerPraefix { get; set; }
+
+    /// <summary>
+    /// Anzahl Stellen NACH dem Präfix (z.B. 4 → «122» + 4 Stellen = 1220001).
+    /// NULL = nicht definiert; Standardvorschlag ist 4.
+    ///
+    /// Zusammen ergeben Präfix und Stellen die exakte Länge — genau das ist
+    /// der Unterschied, an dem «122023» als Tippfehler auffliegt: 122 + 3
+    /// Stellen statt 122 + 4.
+    /// </summary>
+    [Column("personalnummer_stellen")]
+    public int? PersonalnummerStellen { get; set; }
+
+    /// <summary>
     /// Präfix für das Initial-Passwort der Mitarbeiter-Postfach-Accounts
     /// dieser Filiale. Typisch 2 Zeichen (z.B. "Su" für Sursee).
     /// Initial-Passwort = LoginPasswordPrefix + EmployeeNumber.

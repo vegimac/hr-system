@@ -2598,7 +2598,10 @@
             content: "Mitarbeiter";
             display: block;
             padding: 14px 14px 8px;
-            padding-right: 150px; /* Platz für «letzte Nr.» rechts daneben */
+            /* Platz für «N aktiv · letzte Nr. … · nächste …» rechts daneben.
+               Seit 02.09.2026 steht dort zusätzlich die nächste freie Nummer
+               (Walter), darum 190px statt 150px. */
+            padding-right: 190px;
             font-size: 17px;
             font-weight: 760;
             letter-spacing: -.02em;
@@ -2613,7 +2616,7 @@
             position: absolute;
             top: 16px;
             right: 12px;
-            max-width: 58%;
+            max-width: 68%;
             font-size: 10px;
             font-weight: 600;
             line-height: 1.2;

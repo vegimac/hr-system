@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260902d">
+    <link rel="stylesheet" href="css/app.css?v=20260902e">
 </head>
 <body>
 
@@ -7694,6 +7694,25 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <div><label class="f-label">Filiale (Anzeigename)</label><input id="stmBranchName" class="f-input" placeholder="z.B. Sursee"></div>
                     <div><label class="f-label">Code</label><input id="stmRestaurantCode" class="f-input" style="text-align:center;font-variant-numeric:tabular-nums"></div>
                 </div>
+                <!-- Nummernkreis (Walter-Vorgabe 02.09.2026): Praefix + Anzahl
+                     Stellen bestimmen, wie eine Personalnummer dieser Filiale
+                     aussehen MUSS. Reines Infofeld mit Eingabekontrolle —
+                     OneCrew nummeriert nie selbstaendig um. -->
+                <div style="display:grid;grid-template-columns:1fr 1fr 3fr;gap:10px;margin-top:10px;align-items:end">
+                    <div>
+                        <label class="f-label">Nummernkreis — Präfix</label>
+                        <input id="stmPnPraefix" class="f-input" placeholder="z.B. 122" maxlength="6"
+                               inputmode="numeric" style="text-align:center;font-variant-numeric:tabular-nums"
+                               oninput="stmPnVorschau()">
+                    </div>
+                    <div>
+                        <label class="f-label">Anzahl Stellen</label>
+                        <input id="stmPnStellen" class="f-input" placeholder="z.B. 4" maxlength="2"
+                               inputmode="numeric" style="text-align:center;font-variant-numeric:tabular-nums"
+                               oninput="stmPnVorschau()">
+                    </div>
+                    <div id="stmPnVorschau" style="font-size:11.5px;color:#8b8b8b;padding-bottom:9px"></div>
+                </div>
             </section>
 
             <!-- Adresse + Kontakt nebeneinander (2 Spalten) -->
@@ -8630,7 +8649,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260820a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260902d"></script>
+<script src="js/branches-detail.js?v=20260902e"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260830a"></script>
@@ -9128,7 +9147,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260901a"></script>
+<script src="employees.js?v=20260902e"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

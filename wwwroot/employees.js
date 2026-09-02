@@ -539,24 +539,41 @@ function applyEmpFilter() {
     try {
         const lnPanel = document.querySelector('#page-mitarbeiter .emp-list-panel');
         if (lnPanel) {
-            let lnPrefix = '';
+            // Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026). Vorher
+            // zählte JEDE Nummer mit Filial-Präfix — auch «122023», also eine
+            // mit einer Stelle zu wenig. Die stand dann als «letzte Nr.» da,
+            // obwohl sie gar keine gültige Nummer der Filiale ist. Mit dem
+            // Kreis zählen nur Nummern mit der richtigen Länge.
+            let lnB = null;
             if (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
-                const lnB = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === Number(fixedCompanyProfileId));
-                lnPrefix = (lnB?.restaurantCode || '').replace(/^0+/, '');
+                lnB = (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === Number(fixedCompanyProfileId)) || null;
             }
-            const lnTop = [...new Set(_empAllRaw
+            const lnKreis = (typeof pnKreisFuer === 'function')
+                ? pnKreisFuer(lnB)
+                : { praefix: (lnB?.restaurantCode || '').replace(/^0+/, ''), hatLaenge: false,
+                    passt(n) { return /^\d+$/.test(n) && !n.startsWith('99')
+                                   && (!this.praefix || n.startsWith(this.praefix)); },
+                    naechste() { return null; } };
+            // Basis: ALLE MA der Filiale, auch Ausgetretene — vergeben ist
+            // vergeben (Walter 02.09.2026), eine Nummer wird nie wiederverwendet.
+            const lnGueltig = [...new Set(_empAllRaw
                 .map(e => (e.employeeNumber || '').trim())
-                .filter(n => /^\d+$/.test(n) && !n.startsWith('9999'))
-                .filter(n => !lnPrefix || n.startsWith(lnPrefix))
+                .filter(n => lnKreis.passt(n))
                 .map(Number))]
-                .sort((a, b) => b - a)
-                .slice(0, 2);
+                .sort((a, b) => b - a);
+            const lnTop = lnGueltig.slice(0, 2);
             // Eine Zeile — sonst überlappen lange Nummern das Suchfeld
             // (Walter 18.07.2026).
             // Anzahl aktive MA davor (Walter 25.08.2026) — gleiche Zeile,
             // gleicher Stil wie «letzte Nr.».
             const lnParts = [`${_anzAktiv} aktiv`];
             if (lnTop.length) lnParts.push('letzte Nr. ' + lnTop.join(' · '));
+            // Nächste freie Nummer nur zeigen, wenn der Kreis wirklich
+            // definiert ist — ohne feste Länge wäre «+1» geraten.
+            const lnNext = lnKreis.hatLaenge
+                ? (lnGueltig.length ? lnKreis.naechste(lnGueltig[0]) : (lnKreis.praefix + '1'.padStart(lnKreis.stellen, '0')))
+                : null;
+            if (lnNext) lnParts.push('nächste ' + lnNext);
             lnPanel.setAttribute('data-lastnums', lnParts.join(' · '));
         }
     } catch (_) { /* reine Anzeige-Hilfe */ }
