@@ -1014,6 +1014,21 @@ using (var scope = app.Services.CreateScope())
         ADD COLUMN IF NOT EXISTS mailbox_document_id INTEGER;
     ");
 
+    // ── Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026) ───────────────
+    // Praefix + Anzahl Stellen, z.B. «122» + 4 → 1220001…1229999. Beides
+    // NULL-bar: nicht gepflegt = Verhalten wie bisher (Fallback auf den
+    // RestaurantCode). Reines Infofeld mit Eingabekontrolle — es wird nie
+    // automatisch umnummeriert.
+    //
+    // ACHTUNG, Platzierung: dieser Block MUSS vor SchemaCheckService.Pruefe
+    // stehen. Die Pruefung meldet sonst beim ersten Start nach dem Deploy
+    // zwei fehlende Spalten, und deploy.sh bricht wegen «schemaOk:false»
+    // ab, BEVOR Produktiv drankommt.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_praefix varchar(6);
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_stellen integer;
+    ");
+
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
     // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
     // als fehlend, die gerade erst angelegt wurden.
@@ -4377,16 +4392,6 @@ using (var scope = app.Services.CreateScope())
             updated_at  timestamp without time zone NOT NULL DEFAULT now()
         );
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS hauptsitz_id integer REFERENCES hauptsitz(id) ON DELETE SET NULL;
-    ");
-
-    // ── Nummernkreis der Filiale (Walter-Vorgabe 02.09.2026) ───────────────
-    // Praefix + Anzahl Stellen, z.B. «122» + 4 → 1220001…1229999. Beides
-    // NULL-bar: nicht gepflegt = Verhalten wie bisher (Fallback auf den
-    // RestaurantCode). Reines Infofeld mit Eingabekontrolle — es wird nie
-    // automatisch umnummeriert.
-    db.Database.ExecuteSqlRaw(@"
-        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_praefix varchar(6);
-        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_stellen integer;
     ");
 
     // ── K1 QST-Korrektur (Walter 29.08.2026, docs/qst-korrektur-konzept.md) ─
