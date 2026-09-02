@@ -122,18 +122,22 @@ public sealed class Nummernkreis
         var n = (nummer ?? "").Trim();
         if (Passt(n)) return null;
 
-        var wo = string.IsNullOrWhiteSpace(filialName) ? "der Filiale" : $"der Filiale {filialName}";
+        // Zwei Faelle, zwei Formen — «Erwartet fuer der Filiale» liest sich
+        // wie eine Maschine, und wer die Meldung nicht ernst nimmt, korrigiert
+        // die Nummer auch nicht.
+        var fuer = string.IsNullOrWhiteSpace(filialName) ? "diese Filiale" : $"die Filiale {filialName}";
+        var von  = string.IsNullOrWhiteSpace(filialName) ? "dieser Filiale" : $"der Filiale {filialName}";
         if (n.Length == 0)
-            return $"Personalnummer fehlt. Erwartet für {wo}: {Erwartung}.";
+            return $"Personalnummer fehlt. Erwartet für {fuer}: {Erwartung}.";
         if (!Regex.IsMatch(n, @"^\d+$"))
-            return $"Personalnummer «{n}» ist nicht rein numerisch. Erwartet für {wo}: {Erwartung}.";
+            return $"Personalnummer «{n}» ist nicht rein numerisch. Erwartet für {fuer}: {Erwartung}.";
         if (n.StartsWith(ArchivPraefix, StringComparison.Ordinal))
             return $"Personalnummer «{n}» ist eine alte Archivnummer (beginnt mit {ArchivPraefix}) und darf nicht neu vergeben werden.";
         if (Praefix.Length > 0 && !n.StartsWith(Praefix, StringComparison.Ordinal))
-            return $"Personalnummer «{n}» gehört nicht zum Nummernkreis {wo}. Erwartet: {Erwartung}.";
+            return $"Personalnummer «{n}» gehört nicht zum Nummernkreis {von}. Erwartet: {Erwartung}.";
         if (HatLaenge && n.Length != Gesamtlaenge)
-            return $"Personalnummer «{n}» hat {n.Length} statt {Gesamtlaenge} Stellen. Erwartet für {wo}: {Erwartung}.";
-        return $"Personalnummer «{n}» passt nicht zum Nummernkreis {wo}. Erwartet: {Erwartung}.";
+            return $"Personalnummer «{n}» hat {n.Length} statt {Gesamtlaenge} Stellen. Erwartet für {fuer}: {Erwartung}.";
+        return $"Personalnummer «{n}» passt nicht zum Nummernkreis {von}. Erwartet: {Erwartung}.";
     }
 
     /// <summary>
