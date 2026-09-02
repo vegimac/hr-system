@@ -7737,9 +7737,15 @@
            Filial-Dokumente — dort fuehrte der einzige sichtbare Weg zur Vorschau
            ueber das ⋮-Menue, also zwei Klicks fuer die haeufigste Handlung.
            Gruen bewusst neben Rot (Loeschen): dieselbe Logik wie im Rest des
-           Programms, die Farbe sagt was passiert, nicht nur dass etwas passiert. */
-        .dok-action-btn.view { color:#15803d; border-color:#bbf7d0; background:#f0fdf4; }
-        .dok-action-btn.view:hover { background:#dcfce7; border-color:#86efac; }
+           Programms, die Farbe sagt was passiert, nicht nur dass etwas passiert.
+
+           Nachtrag 02.09.2026 (Walter): exakt dieselben Gruentoene wie die
+           «Doku ✓»-Pille bei den Bewilligungen — #dcfce7 / #86efac / #15803d.
+           Vorher war es ein blasseres Gruen (#f0fdf4/#bbf7d0), was neben dem
+           Standard wie ein zweites, halbfertiges Gruen aussah. Ein Doku-Gruen
+           im ganzen Programm, nicht zwei. */
+        .dok-action-btn.view { color:#15803d; border-color:#86efac; background:#dcfce7; }
+        .dok-action-btn.view:hover { background:#bbf7d0; border-color:#4ade80; }
         /* Walter 09.06.2026 (Schärfung): die ⋮-Buttons waren in der Tabelle zu
            dezent — heller Hintergrund + dünner Rand + helle Punkte. Jetzt
            dunkler Rand (#94a3b8), grauer Hintergrund (#f1f5f9), kräftigere
