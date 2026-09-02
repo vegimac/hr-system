@@ -1979,7 +1979,10 @@ function filDoksRender() {
     for (const cat of [...known, ...extra]) {
         const items = docs.filter(d => d.kategorie === cat);
         if (!items.length) continue;
-        html += `<div style="font-size:12px;font-weight:700;color:#646464;text-transform:uppercase;letter-spacing:.4px;margin:14px 0 4px">${cdokEsc(cdokLabel(cat))}</div>`;
+        // Kategorie-Titel als dunkler Balken (Walter-Vorgabe 02.09.2026):
+        // grauer Kleintext ging zwischen den Dateinamen unter. Stil in
+        // app.css/.cdok-kat-titel, damit er nicht pro Zeile dupliziert wird.
+        html += `<div class="cdok-kat-titel">${cdokEsc(cdokLabel(cat))}</div>`;
         html += items.map(d => filDoksRowHtml(d, isAdmin)).join('');
     }
     el.innerHTML = html;

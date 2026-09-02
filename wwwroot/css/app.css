@@ -7743,6 +7743,24 @@
            Werte 1:1 aus employees.js/permitDocBtn uebernommen, damit die beiden
            nicht auseinanderlaufen: #dcfce7 / #86efac / #15803d, Radius 6,
            Polsterung 2/7, Schrift 11px/600. */
+        /* Walter-Vorgabe 02.09.2026: die Kategorie-Titel in den Filial-Dokumenten
+           («ONBOARDING (VERTRAGS-LINK)», «VERSICHERUNGEN» …) waren nur grauer
+           Kleintext und gingen zwischen den Dateinamen unter — man sah nicht,
+           wo ein Block anfaengt. Jetzt weisse Schrift auf Kohle (#3f3f3f, das
+           bestehende Dunkel der aktiven Filter-Pille und des Hochladen-Knopfs),
+           damit die Blockgrenze auf einen Blick sichtbar ist. */
+        .cdok-kat-titel {
+            display:block; margin:18px 0 8px; padding:6px 12px;
+            background:#3f3f3f; color:#fff; border-radius:8px;
+            font-size:11.5px; font-weight:700;
+            text-transform:uppercase; letter-spacing:.6px;
+            box-shadow:0 1px 3px rgba(60,55,48,0.18);
+        }
+        .cdok-kat-titel:first-child { margin-top:2px; }
+        body.theme-dark .cdok-kat-titel {
+            background: rgba(255,255,255,.14); color:#f1f5f9; box-shadow:none;
+        }
+
         .doku-pille {
             display:inline-flex; align-items:center; gap:3px;
             background:#dcfce7; border:1px solid #86efac; border-radius:6px;
