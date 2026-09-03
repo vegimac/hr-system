@@ -2057,11 +2057,13 @@
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('kontrolle')">1&nbsp;·&nbsp;Lücken in Personalakten</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('dok-protokoll')">2&nbsp;·&nbsp;Dokument-Upload-Protokoll</button>
                             <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="msOpenAlle()">3&nbsp;·&nbsp;Manager Schulung</button>
+                            <button type="button" class="kz-menu-item" style="color:#991b1b" onclick="showPage('mirus-fehlende-ma')">4&nbsp;·&nbsp;Mirus-Abgleich: fehlende MA</button>
                         </div>
                         <ul style="margin-top:10px">
                             <li><b>Ausweis Ehegatte fehlt</b> — MA mit QST-Bezug ohne Beleg-Dokument</li>
                             <li><b>Dokument-Upload-Protokoll</b> — wer hat wann welches Dokument hochgeladen (+ CSV)</li>
                             <li><b>Manager Schulung</b> — Nothelfer / Peak-Verifizierung / Seco mit Gültigkeit (analog Excel)</li>
+                            <li><b>Mirus-Abgleich</b> — welche aktiven OneCrew-MA der Filiale fehlen in Mirus (Personalexport XLS) + PDF-Erfassungsliste</li>
                         </ul>
                     </div>
 
@@ -6861,6 +6863,45 @@
                 </div>
             </div>
 
+            <!-- ═══════════════ MIRUS-ABGLEICH: FEHLENDE MA (HR-Hub → Kontrolle) ═══════════════
+                 Walter 03.09.2026: Welche aktiven OneCrew-MA der Sidebar-Filiale fehlen in
+                 Mirus? Mirus-Personalexport (XLS) hochladen → Liste + PDF-Erfassungsliste.
+                 Read-only, kein Import. JS: js/mirus-fehlende-ma.js (Prefix mfm). -->
+            <div class="page" id="page-mirus-fehlende-ma">
+                <div class="sticky-page-head">
+                <div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                    <div>
+                        <h1 class="page-title">Mirus-Abgleich: fehlende Mitarbeitende</h1>
+                        <p class="page-sub">Mirus-Personalexport hochladen — OneCrew zeigt, welche <b>aktiven</b> Mitarbeitenden der gewählten Filiale in Mirus noch fehlen, mit allen Angaben zum Erfassen. Es werden keine Daten geschrieben.</p>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto;margin-top:58px;justify-content:flex-end">
+                        <button type="button" class="btn btn-outline" onclick="showPage('hr-hub')" style="font-size:12px">← Zurück</button>
+                    </div>
+                </div>
+                <div id="mfmAlert" style="margin-bottom:12px"></div>
+
+                <div class="card" style="padding:24px">
+                    <div id="mfmBranchBanner" style="background:#f6f3ee;border:1px solid #e5e0d6;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#6b6152"></div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:flex-end">
+                        <div>
+                            <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px">Mirus-Personalexport (XLS / XLSX)</label>
+                            <input type="file" id="mfmFileInput" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                   style="width:100%;padding:8px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;background:white">
+                        </div>
+                        <button class="btn btn-primary" id="mfmAnalyzeBtn" onclick="mfmAnalyze()">Vergleichen</button>
+                    </div>
+                    <div style="margin-top:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:12.5px;color:#475569;line-height:1.55">
+                        <b>Erwartete Datei:</b> Mirus-Export mit Spalten <code>Personal-Nr. · Name · Vorname · Geb.-Datum · AHV-Nummer · Eintritt · Austritt · Kostenstelle</code> (Reihenfolge egal; die Mirus «Adressliste» geht auch).<br>
+                        <b>Match:</b> Personalnummer (inkl. alte Nummern) → AHV-Nummer → Name + Geburtsdatum. Verglichen werden nur <b>aktive</b> OneCrew-MA mit Lohn der Sidebar-Filiale.<br>
+                        <b>Ergebnis:</b> pro fehlendem MA Personalien, Adresse, Bewilligung, Vertrag, Bank, Quellensteuer und Familie — als Liste und als PDF (ein MA pro Seite).
+                    </div>
+                </div>
+                </div><!-- /.sticky-page-head -->
+
+                <div id="mfmSummary" style="margin-top:16px"></div>
+                <div id="mfmResult" style="margin-top:8px"></div>
+            </div>
+
             <!-- ═══════════════ MIRUS ADRESS-/KONTAKT-VERGLEICH (Auswertung) ═══════════════
                  Walter 29.07.2026: Doppelspur OneCrew ↔ Mirus. Read-only. -->
             <div class="page" id="page-mirus-address-compare">
@@ -8618,7 +8659,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260901a"></script>
+<script src="js/app-core.js?v=20260903a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8644,6 +8685,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/saldo-vortrag-import.js?v=20260803i"></script>
 <script src="js/saldo-vortrag-import-stunden.js?v=20260803i"></script>
 <script src="js/mirus-address-compare.js?v=20260831a"></script>
+<script src="js/mirus-fehlende-ma.js?v=20260903a"></script>
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>

@@ -1278,6 +1278,7 @@ function showPage(name) {
     if (name === 'saldo-vortrag-import') svImpInit();
     if (name === 'saldo-vortrag-import-stunden') svhImpInit();
     if (name === 'mirus-address-compare') macInit();
+    if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
     if (name === 'roster-absence-import') rosterImportInit();
     if (name === 'absence-report') arInit();
     if (name === 'akonto-lauf')    akInit();
@@ -1497,6 +1498,9 @@ function onBranchChange() {
         if (typeof svhImpInit === 'function') svhImpInit();
     } else if (currentPageName === 'mirus-address-compare') {
         if (typeof macInit === 'function') macInit();
+    } else if (currentPageName === 'mirus-fehlende-ma') {
+        // Mirus-Abgleich folgt der Sidebar-Filiale — Auswertung neu starten.
+        if (typeof mfmInit === 'function') mfmInit();
     } else if (currentPageName === 'roster-absence-import') {
         // Banner aktualisieren — File-Auswahl bleibt erhalten.
         if (typeof rosterImportRefreshBanner === 'function') rosterImportRefreshBanner();
