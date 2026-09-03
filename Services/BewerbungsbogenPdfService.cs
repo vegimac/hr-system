@@ -126,16 +126,25 @@ public class BewerbungsbogenPdfService
 
         page.Content().PaddingTop(6).Column(col =>
         {
-            Briefkopf(col, d);
-
-            col.Item().PaddingTop(12).Element(e =>
-                SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
-            // Reihenfolge nach Walter-Vorgabe 31.08.2026.
-            // Zwei gleich breite Spalten durchgehend — jedes Feld hat die volle
-            // halbe Zeile (Walter 31.08.2026: «für Vorname ist zuwenig Platz»).
-            col.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "E-Mail"));
-            col.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
-            col.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
+            // Passfoto-Feld rechts oben (Walter 03.09.2026): echtes Passfoto-
+            // Mass 35 × 45 mm, spannt über Briefkopf + «Über dich» + die ersten
+            // drei Feldzeilen — die Seite wird dadurch KEINE Zeile länger.
+            // Reihenfolge der Felder nach Walter-Vorgabe 31.08.2026, zwei
+            // gleich breite Spalten.
+            col.Item().Row(r =>
+            {
+                r.RelativeItem().Column(c =>
+                {
+                    Briefkopf(c, d);
+                    c.Item().PaddingTop(12).Element(e =>
+                        SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
+                    c.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "E-Mail"));
+                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
+                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
+                });
+                r.ConstantItem(18);
+                r.ConstantItem(35, Unit.Millimetre).AlignTop().Element(PassfotoBox);
+            });
             col.Item().PaddingTop(13).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
             col.Item().PaddingTop(13).Row(r =>
             {
@@ -980,6 +989,20 @@ public class BewerbungsbogenPdfService
                 }
             }
         });
+    }
+
+    /// <summary>Passfoto-Rahmen im Originalmass 35 × 45 mm (Schweizer Passfoto).</summary>
+    private static void PassfotoBox(IContainer e)
+    {
+        e.Height(45, Unit.Millimetre)
+         .Border(0.8f).BorderColor(Muted)
+         .Background("#fafafa")
+         .AlignCenter().AlignMiddle()
+         .Column(c =>
+         {
+             c.Item().AlignCenter().Text("Passfoto").FontSize(8f).FontColor(Muted);
+             c.Item().AlignCenter().PaddingTop(2).Text("35 × 45 mm").FontSize(7f).FontColor(Muted);
+         });
     }
 
     private static void TwoFields(IContainer e, string left, string right)
