@@ -143,8 +143,8 @@ public class BewerbungsbogenPdfService
                     c.Item().PaddingTop(12).Element(e =>
                         SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
                     c.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "Zivilstand"));
-                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
-                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
+                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Geburtsdatum"));
+                    c.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Mobile / Tel."));
                 });
                 r.ConstantItem(18);
                 r.ConstantItem(35, Unit.Millimetre).AlignTop().Element(PassfotoBox);
