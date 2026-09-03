@@ -89,8 +89,11 @@ const GS_STEPS = [
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
           { k: 'erfahrung', l: 'Erfahrung in der Gastronomie — wo / was?', t: 'textarea' },
       ] },
-    { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', hint: 'Die normalen verfügbaren Arbeitszeiten pro Wochentag. Leer lassen = an diesem Tag nicht verfügbar.',
-      fields: [{ k: 'verf', l: '', t: 'availability' }] },
+    { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
+      fields: [
+          { k: 'verf', l: '', t: 'availability' },
+          { k: 'verf_bemerkung', l: 'Spezielle Wünsche / Einschränkungen', t: 'textarea', ph: 'z.B. Mo und Di Kinderbetreuung, nur bis 22:00' },
+      ] },
     { key: 'fragen', teil: 'A', title: 'Noch ein paar Fragen',
       fields: [
           { k: 'krankheit', l: 'Chronische Krankheit oder Allergien (v.a. Hautallergien)?', t: 'yesno' },
@@ -620,12 +623,16 @@ function bgsRenderField(f) {
         case 'iban':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-mono" id="bgsf_${f.k}" data-key="${f.k}" data-iban="1" type="text" placeholder="CH00 0000 0000 0000 0000 0" value="${esc(v)}" autocomplete="off"><div class="bgs-fhint" id="bgsIbanHint">${bgsIbanHint(v)}</div></div>`;
         case 'availability':
-            return `<div class="bgs-field"><table class="bgs-verf"><thead><tr><th></th><th>von</th><th>bis</th></tr></thead><tbody>
+            return `<div class="bgs-field"><table class="bgs-verf"><thead><tr><th></th><th>von</th><th>bis</th><th></th></tr></thead><tbody>
                 ${GS_TAGE.map(([k, l]) => `<tr><td>${l}</td>
                     <td><input class="bgs-input bgs-input-time" data-key="verf_${k}_von" type="time" value="${esc(bgsVal('verf_' + k + '_von'))}"></td>
-                    <td><input class="bgs-input bgs-input-time" data-key="verf_${k}_bis" type="time" value="${esc(bgsVal('verf_' + k + '_bis'))}"></td></tr>`).join('')}
+                    <td><input class="bgs-input bgs-input-time" data-key="verf_${k}_bis" type="time" value="${esc(bgsVal('verf_' + k + '_bis'))}"></td>
+                    <td><button type="button" class="bgs-btn bgs-btn-ghost" style="padding:6px 12px" onclick="bgsVerfClear('${k}')" title="An diesem Tag nicht verfügbar">✕</button></td></tr>`).join('')}
                 </tbody></table>
-                <div class="bgs-fhint">Tipp: Zeiten wie 11:00–14:00 und 17:00–22:00 als «11:00 – 22:00» eintragen und die Pause bei den Notizen vermerken.</div></div>`;
+                <div class="bgs-sig-actions">
+                    <span class="bgs-fhint">${bgsVerfOeffnungText()}</span>
+                    <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsVerfAusOeffnung(true)">↻ Öffnungszeiten −1 h / +1 h übernehmen</button>
+                </div></div>`;
         case 'kinder':
             return `<div class="bgs-field" id="bgsKinderWrap">${bgsRenderKinder()}</div>`;
         case 'termine':
@@ -659,6 +666,7 @@ function bgsRenderSummary() {
     add('Pensum / Eintritt', [a.pensum ? a.pensum + ' %' : '', a.eintritt ? bgsFmtD(a.eintritt) : ''].filter(Boolean).join(' · '));
     add('Erfahrung', a.erfahrung);
     add('Verfügbarkeit', GS_TAGE.map(([k, l]) => (a[`verf_${k}_von`] || a[`verf_${k}_bis`]) ? `${l.slice(0, 2)} ${a[`verf_${k}_von`] || '?'}–${a[`verf_${k}_bis`] || '?'}` : '').filter(Boolean).join(' · '));
+    add('Wünsche / Einschränkungen', a.verf_bemerkung);
     add('Krankheit / Allergien', yn(a.krankheit) + (a.krankheit_welche ? ' — ' + a.krankheit_welche : ''));
     add('Sozialleistungen', (a.sozialleistungen || []).join(', ') + (a.iv_grad ? ' (IV-Grad ' + a.iv_grad + ')' : ''));
     add('Vorbestraft', yn(a.vorbestraft));
@@ -752,8 +760,65 @@ function bgsIbanHint(v) {
     return bgsIbanOk(v) ? '<span style="color:#166534">✓ IBAN gültig</span>' : (c.length >= 15 ? '<span style="color:#991b1b">✗ IBAN ungültig</span>' : 'IBAN unvollständig');
 }
 
+// ── Verfügbarkeit aus den Öffnungszeiten der Filiale (Walter 03.09.2026):
+//    Öffnung −1 h bis Schliessung +1 h, pro Wochentag. Wird beim ersten
+//    Aufruf des Schritts automatisch eingetragen, per Knopf jederzeit neu.
+const BGS_OPEN_KEYS = { mo: 'Mon', di: 'Tue', mi: 'Wed', do: 'Thu', fr: 'Fri', sa: 'Sat', so: 'Sun' };
+function bgsShiftTime(hhmm, deltaMin) {
+    const m = /^(\d{1,2})[:.](\d{2})$/.exec((hhmm || '').trim());
+    if (!m) return '';
+    let t = (parseInt(m[1], 10) * 60 + parseInt(m[2], 10) + deltaMin + 1440) % 1440;
+    return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0');
+}
+function bgsBranch() { return (typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === _bgsCpId()) || null; }
+function bgsVerfVorschlag() {
+    const b = bgsBranch();
+    if (!b) return null;
+    const out = {};
+    let any = false;
+    for (const [k, suffix] of Object.entries(BGS_OPEN_KEYS)) {
+        const von = b['opening' + suffix + 'From'], bis = b['opening' + suffix + 'To'];
+        if (von && bis) { out[`verf_${k}_von`] = bgsShiftTime(von, -60); out[`verf_${k}_bis`] = bgsShiftTime(bis, 60); any = true; }
+    }
+    return any ? out : null;
+}
+function bgsVerfOeffnungText() {
+    const b = bgsBranch();
+    if (!b) return '';
+    const teile = [];
+    for (const [k, suffix] of Object.entries(BGS_OPEN_KEYS)) {
+        const von = b['opening' + suffix + 'From'], bis = b['opening' + suffix + 'To'];
+        if (von && bis) teile.push(`${k.charAt(0).toUpperCase() + k.slice(1)} ${von}–${bis}`);
+    }
+    return teile.length ? 'Öffnungszeiten Filiale: ' + teile.join(' · ') : 'Für diese Filiale sind keine Öffnungszeiten hinterlegt (Filial-Stammdaten).';
+}
+function bgsVerfAusOeffnung(ueberschreiben) {
+    const v = bgsVerfVorschlag();
+    if (!v) { if (ueberschreiben) alert('Für diese Filiale sind keine Öffnungszeiten hinterlegt.'); return false; }
+    let changed = false;
+    for (const [key, val] of Object.entries(v)) {
+        if (!ueberschreiben && _bgsAnswers[key]) continue;
+        if (_bgsAnswers[key] !== val) { bgsSet(key, val); changed = true; }
+    }
+    if (changed || ueberschreiben) {
+        const w = document.getElementById('bgsFields');
+        if (w) { GS_TAGE.forEach(([k]) => { const a = w.querySelector(`[data-key="verf_${k}_von"]`), b = w.querySelector(`[data-key="verf_${k}_bis"]`); if (a) a.value = _bgsAnswers[`verf_${k}_von`] || ''; if (b) b.value = _bgsAnswers[`verf_${k}_bis`] || ''; }); }
+    }
+    return changed;
+}
+function bgsVerfClear(k) {
+    bgsSet(`verf_${k}_von`, null); bgsSet(`verf_${k}_bis`, null, { immediate: true });
+    const w = document.getElementById('bgsFields');
+    if (w) { const a = w.querySelector(`[data-key="verf_${k}_von"]`), b = w.querySelector(`[data-key="verf_${k}_bis"]`); if (a) a.value = ''; if (b) b.value = ''; }
+}
+
 // Nach dem Rendern: Datenlisten, Termine, Unterschrift, Dubletten
 async function bgsAfterRender(step) {
+    // Verfügbarkeit: beim ersten Betreten mit den Öffnungszeiten vorbelegen
+    if (step.key === 'verfuegbar' && !(_bgsMeta && _bgsMeta.status === 'abgeschlossen')
+        && !GS_TAGE.some(([k]) => _bgsAnswers[`verf_${k}_von`] || _bgsAnswers[`verf_${k}_bis`])) {
+        bgsVerfAusOeffnung(false);
+    }
     const dl = document.getElementById('bgsNationList');
     if (dl) {
         if (!_bgsNationen) {

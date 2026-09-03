@@ -370,6 +370,7 @@ public class BewerbungsgespraechController : HrControllerBase
         ("Dein Einsatz bei uns", "pensum", "Gewünschtes Pensum (%)"),
         ("Dein Einsatz bei uns", "eintritt", "Frühester Eintritt"),
         ("Dein Einsatz bei uns", "erfahrung", "Erfahrung in Gastronomie"),
+        ("Dein Einsatz bei uns", "verf_bemerkung", "Verfügbarkeit — Wünsche / Einschränkungen"),
         ("Berufserfahrung & weitere Angaben", "krankheit", "Chronische Krankheit / Allergien"),
         ("Berufserfahrung & weitere Angaben", "krankheit_welche", "welche"),
         ("Berufserfahrung & weitere Angaben", "sozialleistungen", "Sozialleistungen"),
