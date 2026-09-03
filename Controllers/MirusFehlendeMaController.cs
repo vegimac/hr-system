@@ -789,21 +789,21 @@ public class MirusFehlendeMaController : ControllerBase
             doc.Page(page =>
             {
                 page.Size(PageSizes.A4);
-                page.MarginTop(26);
-                page.MarginBottom(26);
-                page.MarginHorizontal(32);
+                page.MarginTop(18);
+                page.MarginBottom(18);
+                page.MarginHorizontal(24);
                 page.DefaultTextStyle(t => t.FontSize(9).FontColor("#222"));
 
                 page.Header().Column(col =>
                 {
                     col.Item().Row(row =>
                     {
-                        row.RelativeItem().Text("Mirus-Abgleich — in Mirus fehlende Mitarbeitende")
-                            .SemiBold().FontSize(13).FontColor("#1a1a1a");
-                        row.ConstantItem(200).AlignRight().Text($"{res.Filiale}  ·  {created}")
-                            .FontSize(8.5f).FontColor("#555");
+                        row.RelativeItem().Text("Mirus-Abgleich · in Mirus fehlende Mitarbeitende")
+                            .FontSize(7.5f).FontColor("#777");
+                        row.ConstantItem(220).AlignRight().Text($"{res.Filiale}  ·  {created}")
+                            .FontSize(7.5f).FontColor("#777");
                     });
-                    col.Item().PaddingTop(5).LineHorizontal(0.8f).LineColor("#ccc");
+                    col.Item().PaddingTop(2).LineHorizontal(0.5f).LineColor("#ddd");
                 });
 
                 page.Footer().AlignCenter().DefaultTextStyle(x => x.FontSize(7.5f).FontColor("#777")).Text(t =>
@@ -814,7 +814,7 @@ public class MirusFehlendeMaController : ControllerBase
                     t.TotalPages();
                 });
 
-                page.Content().PaddingTop(8).Column(col =>
+                page.Content().PaddingTop(4).Column(col =>
                 {
                     col.Item().Text(
                         $"Aktive OneCrew-MA (mit Lohn): {res.OneCrewAktiv}   ·   in Mirus gefunden: {res.Gematcht}   ·   " +
@@ -922,70 +922,168 @@ public class MirusFehlendeMaController : ControllerBase
         col.Item().Row(row =>
         {
             row.RelativeItem().Text($"{S(m.Anrede)} {m.Nachname} {m.Vorname}".Replace("— ", "").Trim())
-                .SemiBold().FontSize(14).FontColor("#1a1a1a");
-            row.ConstantItem(180).AlignRight().Text($"Personal Nr.: {S(m.Personalnummer)}").SemiBold().FontSize(11);
+                .SemiBold().FontSize(11).FontColor("#1a1a1a");
+            row.ConstantItem(170).AlignRight().Text($"Personal Nr.: {S(m.Personalnummer)}").SemiBold().FontSize(9.5f);
         });
         // Kopfzeile wie im Mirus-Mitarbeiterstamm
-        col.Item().PaddingTop(2).Text(
-                $"Eintritt: {D(m.Eintritt)}     Austritt: —     Kostenstelle: {S(m.KostenstelleVorschlag)}     " +
-                $"Angestellt zu: {(m.AngestelltZu == null ? "—" : $"{m.AngestelltZu:0}%")}     Lohnbasis: {S(m.Lohnbasis)}")
-            .FontSize(8.5f).FontColor("#555");
+        col.Item().Text(
+                $"Eintritt: {D(m.Eintritt)}    Austritt: —    Kostenstelle: {S(m.KostenstelleVorschlag)}    " +
+                $"Angestellt zu: {(m.AngestelltZu == null ? "—" : $"{m.AngestelltZu:0}%")}    Lohnbasis: {S(m.Lohnbasis)}")
+            .FontSize(7.5f).FontColor("#555");
         if (m.Luecken.Count > 0)
-            col.Item().PaddingTop(4).Background("#fef2f2").Padding(5)
+            col.Item().PaddingTop(2).Background("#fef2f2").Padding(3)
                 .Text("In OneCrew noch unvollständig: " + string.Join(", ", m.Luecken))
-                .FontSize(8.5f).FontColor("#991b1b");
+                .FontSize(7.5f).FontColor("#991b1b");
 
         var natCode = S(m.NationalitaetCode);
         var natName = S(m.Nationalitaet);
-        MirusMaske(col, "MITARBEITERDATEN › PERSÖNLICHE ANGABEN", new List<(string, string)>
+        var persoenlich = new List<(string, string)>
         {
             ("Personal-Nr.", S(m.Personalnummer)),
             ("Name", S(m.Nachname)),
             ("Vorname", S(m.Vorname)),
             ("Kurzname", S(m.Kurzname)),
             ("Ledigname", S(m.Ledigname)),
-            ("Geburtsdatum", D(m.Geburtsdatum) + (m.Geburtsdatum != null ? $"   ({Alter(m.Geburtsdatum.Value)} Jahre)" : "")),
+            ("Geburtsdatum", D(m.Geburtsdatum) + (m.Geburtsdatum != null ? $"  ({Alter(m.Geburtsdatum.Value)} J.)" : "")),
             ("Geschlecht", S(m.Geschlecht)),
             ("Sozialversnr.", S(m.Ahv)),
-            ("Zivilstand", S(m.Zivilstand) + (m.ZivilstandSeit != null ? $"   (seit {D(m.ZivilstandSeit)})" : "")),
+            ("Zivilstand", S(m.Zivilstand) + (m.ZivilstandSeit != null ? $"  (seit {D(m.ZivilstandSeit)})" : "")),
             ("Sprachcode", S(m.Sprache)),
             ("Anrede", S(m.Anrede)),
             ("Briefanrede", S(m.Briefanrede)),
             ("Konfession", S(m.Konfession)),
-            ("Nationalität", $"{natCode}   {natName}"),
-            ("Geburtsland", "—   (in OneCrew nicht geführt)"),
+            ("Nationalität", $"{natCode}  {natName}"),
+            ("Geburtsland", "—  (nicht in OneCrew)"),
             ("Heimatort / Geburtsort", S(m.Heimatort)),
             ("Aufenthaltskategorie", S(m.Aufenthaltskategorie)),
             ("Gültig bis", D(m.BewilligungBis)),
             ("ZEMIS-Nr.", S(m.Zemis)),
-            ("Krankenkasse", "—   (in OneCrew nicht geführt)"),
+            ("Krankenkasse", "—  (nicht in OneCrew)"),
             ("Beruf", S(m.Beruf)),
             ("Kaderstufe", m.Kader ? "Kader" : "—"),
             ("Kostenstelle", S(m.KostenstelleVorschlag)),
-        });
-
-        MirusMaske(col, "MITARBEITERDATEN › ADRESSEN", new List<(string, string)>
+        };
+        var adressen = new List<(string, string)>
         {
             ("Zweck", "Hauptadresse"),
             ("Gültig ab", D(m.Eintritt)),
             ("Bezeichnung", "—"),
             ("Strasse", S(m.Strasse)),
-            ("Strasse 2", "—"),
-            ("Postfach", "—"),
-            ("PLZ / Ort / BFS", $"{S(m.Plz)}   {S(m.Ort)}   {S(m.Bfs)}"),
+            ("Strasse 2 / Postfach", "—"),
+            ("PLZ / Ort / BFS", $"{S(m.Plz)}  {S(m.Ort)}  {S(m.Bfs)}"),
             ("Kanton", $"{S(m.Kanton)} {m.KantonName ?? ""}".Trim()),
-            ("Land", $"{S(m.Land)}   {(string.Equals(m.Land?.Trim(), "CH", StringComparison.OrdinalIgnoreCase) ? "Schweiz" : "")}".Trim()),
+            ("Land", $"{S(m.Land)}  {(string.Equals(m.Land?.Trim(), "CH", StringComparison.OrdinalIgnoreCase) ? "Schweiz" : "")}".Trim()),
             ("Telefon", S(m.Telefon)),
             ("Telefon 2", S(m.Telefon2)),
             ("Email", S(m.Email)),
-        });
-
-        col.Item().PaddingTop(8).Text("MITARBEITERDATEN › FAMILIE").SemiBold().FontSize(9).FontColor("#0e7490");
-        if (m.Familie.Count == 0)
-            col.Item().PaddingTop(2).Text("Keine Familienmitglieder in OneCrew erfasst.").FontSize(8.5f).FontColor("#666");
+        };
+        var av = new List<(string, string)>
+        {
+            ("Eintritt", D(m.Eintritt)),
+            ("Austritt", "—"),
+            ("Angestellt zu", m.AngestelltZu == null ? "—" : $"{m.AngestelltZu:0} %"),
+            ("Lohnbasis", m.Lohnbasis == null ? "—" : (m.Lohnbasis == "ML" ? "ML (Monatslohn)" : "SL (Stundenlohn)")),
+            ("Vertragskategorie", m.Vertraege.FirstOrDefault(v => v.Aktiv)?.Modell ?? m.Vertraege.FirstOrDefault()?.Modell ?? "—"),
+            ("L-GAV / NBU", (m.LgavPflichtig ? "L-GAV ja" : "L-GAV nein") + " / " + (m.TeilzeitUnter8h ? "NBU nein (< 8 h)" : "NBU ja")),
+        };
+        var qstZeilen = new List<(string, string)>();
+        if (m.Qst == null || !m.Qst.Pflichtig)
+            qstZeilen.Add(("Quellensteuer", S(m.Qst?.Hinweis)));
         else
         {
-            col.Item().PaddingTop(3).Table(t =>
+            var q = m.Qst;
+            qstZeilen.Add(("Tarifcode", S(q.Tarif) + (q.TarifText != null ? $"  {q.TarifText}" : "")));
+            qstZeilen.Add(("Kanton", $"{S(q.Kanton)} {KantonName(q.Kanton) ?? ""}".Trim()));
+            qstZeilen.Add(("Gemeinde / BFS", S(q.Gemeinde) + (q.GemeindeBfs != null ? $"  {q.GemeindeBfs}" : "")));
+            qstZeilen.Add(("Kirchenst. / Kinder", (q.Kirchensteuer ? "ja" : "nein") + " / " + (q.Kinder?.ToString() ?? "—")));
+            qstZeilen.Add(("Gültig ab / Satz", D(q.GueltigAb) + (q.Prozent == null ? "" : $" / {q.Prozent:0.##} %")));
+        }
+        var bankZeilen = new List<(string, string)>();
+        if (m.Banken.Count == 0) bankZeilen.Add(("IBAN", "— keine Bankverbindung in OneCrew"));
+        foreach (var b in m.Banken)
+        {
+            bankZeilen.Add(("IBAN", S(b.Iban) + (b.Hauptbank ? "" : "  (Nebenkonto)")));
+            bankZeilen.Add(("Bank / Inhaber", $"{S(b.Bank)} / {S(b.Kontoinhaber)}" + (b.Aufteilung != null ? $"  ({b.Aufteilung})" : "")));
+        }
+
+        // Zwei Spalten: links Persönliche Angaben, rechts Adressen + Arbeitsverhältnis + QST + Bank
+        col.Item().PaddingTop(4).Row(row =>
+        {
+            row.RelativeItem().Column(l =>
+            {
+                MirusMaske(l, "MITARBEITERDATEN › PERSÖNLICHE ANGABEN", persoenlich);
+            });
+            row.ConstantItem(12);
+            row.RelativeItem().Column(r =>
+            {
+                MirusMaske(r, "MITARBEITERDATEN › ADRESSEN", adressen);
+                MirusMaske(r, "ARBEITSZEITDATEN › ARBEITSVERHÄLTNIS", av);
+                MirusMaske(r, "LOHNDATEN › QUELLENSTEUER", qstZeilen);
+                MirusMaske(r, "LOHNDATEN › BANKVERBINDUNG", bankZeilen);
+            });
+        });
+
+        // Verträge (Lohnbestandteile) — kompakt als Tabelle, laufende zuerst
+        col.Item().PaddingTop(5).Text("LOHNDATEN › LOHNBESTANDTEILE (Vertrag)").SemiBold().FontSize(7.5f).FontColor("#0e7490");
+        if (m.Vertraege.Count == 0)
+            col.Item().Text("Kein Vertrag in dieser Filiale erfasst.").FontSize(7.5f).FontColor("#991b1b");
+        else
+        {
+            col.Item().PaddingTop(1).Table(t =>
+            {
+                t.ColumnsDefinition(c =>
+                {
+                    c.ConstantColumn(42);
+                    c.RelativeColumn(2);
+                    c.ConstantColumn(56);
+                    c.ConstantColumn(56);
+                    c.ConstantColumn(52);
+                    c.ConstantColumn(64);
+                    c.ConstantColumn(52);
+                    c.RelativeColumn(1);
+                    c.RelativeColumn(1);
+                });
+                t.Header(hd =>
+                {
+                    foreach (var h in new[] { "Modell", "Funktion", "Beginn", "Ende", "Pensum / Std.", "Lohn", "Garant. Std.", "Ferienzahlung", "Probezeit" })
+                        hd.Cell().Background("#f3f3f3").Padding(2).Text(h).SemiBold().FontSize(7);
+                });
+                foreach (var v in m.Vertraege)
+                {
+                    var modell = (v.Modell ?? "").ToUpperInvariant();
+                    var fix = modell is "FIX" or "FIX-M";
+                    var pensum = fix
+                        ? (v.PensumProzent == null ? "—" : $"{v.PensumProzent:0.##} %")
+                        : (v.Wochenstunden == null ? "—" : $"{v.Wochenstunden:0.##} h/Wo");
+                    var lohn = fix
+                        ? N(v.Monatslohn, " CHF/Mt") + (v.MonatslohnFte != null ? $" ({N(v.MonatslohnFte)} @100%)" : "")
+                        : N(v.Stundenlohn, " CHF/h");
+                    var probe = v.ProbezeitMonate == null ? "—" : $"{v.ProbezeitMonate} Mt." + (v.ProbezeitBis != null ? $" bis {D(v.ProbezeitBis)}" : "");
+                    var farbe = v.Aktiv ? "#222" : "#999";
+                    foreach (var txt in new[]
+                    {
+                        S(v.Modell) + (v.Aktiv ? "" : " (alt)"),
+                        S(v.Funktion) + (v.FunktionText != null ? $" ({v.FunktionText})" : ""),
+                        D(v.Von),
+                        v.Bis == null ? "unbefristet" : D(v.Bis),
+                        pensum,
+                        lohn,
+                        v.GarantierteStunden == null ? "—" : $"{v.GarantierteStunden:0.##} h",
+                        S(v.Ferienzahlung),
+                        probe,
+                    })
+                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(txt).FontSize(7.5f).FontColor(farbe);
+                }
+            });
+        }
+
+        // Familie — kompakte Tabelle
+        col.Item().PaddingTop(5).Text("MITARBEITERDATEN › FAMILIE").SemiBold().FontSize(7.5f).FontColor("#0e7490");
+        if (m.Familie.Count == 0)
+            col.Item().Text("Keine Familienmitglieder in OneCrew erfasst.").FontSize(7.5f).FontColor("#666");
+        else
+        {
+            col.Item().PaddingTop(1).Table(t =>
             {
                 t.ColumnsDefinition(c =>
                 {
@@ -999,93 +1097,17 @@ public class MirusFehlendeMaController : ControllerBase
                 t.Header(h =>
                 {
                     foreach (var s in new[] { "Typ", "Name Vorname", "Geburtsdatum", "Sozialversnr.", "Im Haushalt", "In der CH" })
-                        h.Cell().Background("#f3f3f3").Padding(3).Text(s).SemiBold().FontSize(8);
+                        h.Cell().Background("#f3f3f3").Padding(2).Text(s).SemiBold().FontSize(7);
                 });
                 foreach (var f in m.Familie)
                 {
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text(S(f.Typ)).FontSize(8.5f);
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text($"{f.Nachname} {f.Vorname}".Trim()).FontSize(8.5f);
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text(D(f.Geburtsdatum)).FontSize(8.5f);
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text(S(f.Ahv)).FontSize(8.5f);
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text(f.ImHaushalt ? "ja" : "nein").FontSize(8.5f);
-                    t.Cell().BorderBottom(0.3f).BorderColor("#eee").Padding(3).Text(f.InSchweiz ? "ja" : "nein").FontSize(8.5f);
+                    foreach (var txt in new[]
+                    {
+                        S(f.Typ), $"{f.Nachname} {f.Vorname}".Trim(), D(f.Geburtsdatum), S(f.Ahv),
+                        f.ImHaushalt ? "ja" : "nein", f.InSchweiz ? "ja" : "nein",
+                    })
+                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(txt).FontSize(7.5f);
                 }
-            });
-        }
-
-        var av = new List<(string, string)>
-        {
-            ("Eintritt", D(m.Eintritt)),
-            ("Austritt", "—"),
-            ("Angestellt zu", m.AngestelltZu == null ? "—" : $"{m.AngestelltZu:0} %"),
-            ("Lohnbasis", m.Lohnbasis == null ? "—" : (m.Lohnbasis == "ML" ? "ML (Monatslohn)" : "SL (Stundenlohn)")),
-            ("Vertragskategorie", m.Vertraege.FirstOrDefault(v => v.Aktiv)?.Modell ?? m.Vertraege.FirstOrDefault()?.Modell ?? "—"),
-            ("L-GAV-pflichtig", m.LgavPflichtig ? "ja" : "nein"),
-            ("NBU", m.TeilzeitUnter8h ? "nein (< 8 h/Woche)" : "ja"),
-        };
-        MirusMaske(col, "ARBEITSZEITDATEN › ARBEITSVERHÄLTNIS", av);
-
-        col.Item().PaddingTop(8).Text("LOHNDATEN › LOHNBESTANDTEILE (Vertrag)").SemiBold().FontSize(9).FontColor("#0e7490");
-        if (m.Vertraege.Count == 0)
-            col.Item().PaddingTop(2).Text("Kein Vertrag in dieser Filiale erfasst.").FontSize(8.5f).FontColor("#991b1b");
-        foreach (var v in m.Vertraege)
-        {
-            var titel = $"{S(v.Modell)} · {S(v.Lohnart)} · {S(v.Funktion)}" + (v.FunktionText != null ? $" ({v.FunktionText})" : "") + (v.Aktiv ? "" : "   [abgelaufen]");
-            col.Item().PaddingTop(3).Text(titel).SemiBold().FontSize(8.5f).FontColor(v.Aktiv ? "#1a1a1a" : "#888");
-            var zeilen = new List<(string, string)>
-            {
-                ("Vertragsbeginn", D(v.Von)),
-                ("Vertragsende", v.Bis == null ? "unbefristet" : D(v.Bis)),
-            };
-            var modell = (v.Modell ?? "").ToUpperInvariant();
-            if (modell is "FIX" or "FIX-M")
-            {
-                zeilen.Add(("Pensum", v.PensumProzent == null ? "—" : $"{v.PensumProzent:0.##} %"));
-                zeilen.Add(("Monatslohn", N(v.Monatslohn, " CHF")));
-                if (v.MonatslohnFte != null) zeilen.Add(("Monatslohn 100 %", N(v.MonatslohnFte, " CHF")));
-            }
-            else
-            {
-                zeilen.Add(("Stundenlohn", N(v.Stundenlohn, " CHF")));
-                zeilen.Add(("Wochenstunden", v.Wochenstunden == null ? "—" : $"{v.Wochenstunden:0.##} h"));
-                if (v.GarantierteStunden != null) zeilen.Add(("Garantierte Std./Woche", $"{v.GarantierteStunden:0.##} h"));
-            }
-            zeilen.Add(("Ferienzahlung", S(v.Ferienzahlung)));
-            zeilen.Add(("Probezeit", v.ProbezeitMonate == null ? "—" : $"{v.ProbezeitMonate} Mt." + (v.ProbezeitBis != null ? $" (bis {D(v.ProbezeitBis)})" : "")));
-            if (!string.IsNullOrWhiteSpace(v.Vertragstyp)) zeilen.Add(("Vertragstyp", v.Vertragstyp!));
-            MirusZeilen(col, zeilen);
-        }
-
-        col.Item().PaddingTop(8).Text("LOHNDATEN › QUELLENSTEUER").SemiBold().FontSize(9).FontColor("#0e7490");
-        if (m.Qst == null || !m.Qst.Pflichtig)
-            col.Item().PaddingTop(2).Text(S(m.Qst?.Hinweis)).FontSize(8.5f)
-                .FontColor((m.Qst?.Hinweis ?? "").Contains("prüfen") ? "#991b1b" : "#444");
-        else
-        {
-            var q = m.Qst;
-            MirusZeilen(col, new List<(string, string)>
-            {
-                ("Tarifcode", S(q.Tarif) + (q.TarifText != null ? $"   {q.TarifText}" : "")),
-                ("Kanton", $"{S(q.Kanton)} {KantonName(q.Kanton) ?? ""}".Trim()),
-                ("Gemeinde / BFS", S(q.Gemeinde) + (q.GemeindeBfs != null ? $"   {q.GemeindeBfs}" : "")),
-                ("Kirchensteuer", q.Kirchensteuer ? "ja" : "nein"),
-                ("Anzahl Kinder", q.Kinder?.ToString() ?? "—"),
-                ("Gültig ab", D(q.GueltigAb)),
-                ("Satz", q.Prozent == null ? "—" : $"{q.Prozent:0.##} %"),
-            });
-        }
-
-        col.Item().PaddingTop(8).Text("LOHNDATEN › BANKVERBINDUNG").SemiBold().FontSize(9).FontColor("#0e7490");
-        if (m.Banken.Count == 0)
-            col.Item().PaddingTop(2).Text("Keine Bankverbindung in OneCrew erfasst.").FontSize(8.5f).FontColor("#991b1b");
-        foreach (var b in m.Banken)
-        {
-            MirusZeilen(col, new List<(string, string)>
-            {
-                ("IBAN", S(b.Iban) + (b.Hauptbank ? "" : "   (Nebenkonto)")),
-                ("Bank", S(b.Bank)),
-                ("Kontoinhaber", S(b.Kontoinhaber)),
-                ("Aufteilung", b.Aufteilung ?? "voll"),
             });
         }
     }
@@ -1101,24 +1123,24 @@ public class MirusFehlendeMaController : ControllerBase
     /// <summary>Mirus-Masken-Block: Titel in Mirus-Türkis, darunter einspaltig Label → Wert (wie die Eingabemaske).</summary>
     private static void MirusMaske(ColumnDescriptor col, string titel, List<(string Label, string Wert)> zeilen)
     {
-        col.Item().PaddingTop(8).Text(titel).SemiBold().FontSize(9).FontColor("#0e7490");
+        col.Item().PaddingTop(5).Text(titel).SemiBold().FontSize(7.5f).FontColor("#0e7490");
         MirusZeilen(col, zeilen);
     }
 
     /// <summary>Einspaltige Label/Wert-Zeilen in Mirus-Reihenfolge (Label 150 pt, Wert Rest).</summary>
     private static void MirusZeilen(ColumnDescriptor col, List<(string Label, string Wert)> zeilen)
     {
-        col.Item().PaddingTop(2).Table(t =>
+        col.Item().PaddingTop(1).Table(t =>
         {
             t.ColumnsDefinition(c =>
             {
-                c.ConstantColumn(150);
+                c.ConstantColumn(92);
                 c.RelativeColumn();
             });
             foreach (var (label, wert) in zeilen)
             {
-                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(label).FontSize(8).FontColor("#555");
-                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(wert).FontSize(8.5f);
+                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(1.2f).PaddingHorizontal(2).Text(label).FontSize(7).FontColor("#555");
+                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(1.2f).PaddingHorizontal(2).Text(wert).FontSize(7.5f);
             }
         });
     }
