@@ -317,17 +317,24 @@ public class BewerbungsbogenPdfService
                 r.ConstantItem(10);
                 r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "welche:"));
             });
+            // Breiten nachgerechnet (CLAUDE.md, QuestPDF-Falle): 250er-Spalte +
+            // drei Ankreuz-Items + Schreibzeile passten nicht in 510 pt →
+            // DocumentLayoutException. Deshalb zwei Zeilen wie zuvor.
             col.Item().PaddingTop(8).Row(r =>
             {
                 r.ConstantItem(250).AlignMiddle().Text("Beziehst du Sozialleistungen?").FontSize(8.5f).FontColor(Ink);
                 r.ConstantItem(8);
                 r.AutoItem().Element(ch => CheckLabel(ch, "Arbeitslosengeld"));
-                r.ConstantItem(12);
+                r.ConstantItem(14);
                 r.AutoItem().Element(ch => CheckLabel(ch, "AHV-Rente"));
-                r.ConstantItem(12);
+                r.RelativeItem();
+            });
+            col.Item().PaddingTop(5).Row(r =>
+            {
+                r.ConstantItem(258);
                 r.AutoItem().Element(ch => CheckLabel(ch, "IV-Rente"));
-                r.ConstantItem(10);
-                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "IV-Grad"));
+                r.ConstantItem(12);
+                r.RelativeItem().AlignBottom().Element(f => LabeledLine(f, "Invaliditätsgrad"));
             });
             col.Item().PaddingTop(8).Element(e => KatalogZeile(e, "Bist du vorbestraft?"));
             col.Item().PaddingTop(8).Element(e => KatalogZeile(e,
