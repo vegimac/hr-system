@@ -1279,9 +1279,9 @@ function showPage(name) {
     if (name === 'saldo-vortrag-import-stunden') svhImpInit();
     if (name === 'mirus-address-compare') macInit();
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
-    if (name === 'gespraech' && typeof gsInit === 'function') gsInit();
+    if (name === 'gespraech' && typeof bgsInit === 'function') bgsInit();
     // Vollbild des Gesprächsmodus abräumen, wenn woanders hin navigiert wird (⌘K-Suche etc.)
-    if (name !== 'gespraech') document.body.classList.remove('gs-fullscreen');
+    if (name !== 'gespraech') document.body.classList.remove('bgs-fullscreen');
     if (name === 'roster-absence-import') rosterImportInit();
     if (name === 'absence-report') arInit();
     if (name === 'akonto-lauf')    akInit();
@@ -1507,7 +1507,7 @@ function onBranchChange() {
     } else if (currentPageName === 'gespraech') {
         // Gesprächsmodus: Übersicht der neuen Filiale — ein offenes Gespräch
         // bleibt gespeichert und ist in seiner Filiale wieder auffindbar.
-        if (typeof gsInit === 'function') gsInit();
+        if (typeof bgsInit === 'function') bgsInit();
     } else if (currentPageName === 'roster-absence-import') {
         // Banner aktualisieren — File-Auswahl bleibt erhalten.
         if (typeof rosterImportRefreshBanner === 'function') rosterImportRefreshBanner();
