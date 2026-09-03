@@ -56,12 +56,18 @@ public class BewerbungsbogenPdfService
     /// Teil 2 — wird im Bewerbungsgespraech ausgefuellt: alle Angaben, die
     /// erst bei einer konkreten Anstellung gebraucht werden, plus interne
     /// Gespraechsnotizen (Walter 31.08.2026).
+    /// Seite 1 ist seit 03.09.2026 das komplette Bewerbungsformular («Über
+    /// dich», Sprachen, Einsatz, Verfügbarkeit) — Walter: «auf dem Gesprächs-
+    /// formular brauche ich alle Infos vom Bewerbungsformular, da sich
+    /// Bewerber auch per Mail / online bewerben können.» Wer schon ein
+    /// ausgefülltes Bewerbungsformular abgegeben hat, lässt Seite 1 leer.
     /// </summary>
     public byte[] GenerateGespraech(BewerbungsbogenInput d)
     {
         QuestPDF.Settings.License = LicenseType.Community;
         return Document.Create(container =>
         {
+            container.Page(page => ComposeBewerbung(page, d, bannerTitel: "Bewerbungsgespräch", imGespraech: true));
             container.Page(page => ComposeGespraechSeite1(page, d));
             container.Page(page => ComposeGespraechSeite2(page, d));
         }).GeneratePdf();
@@ -120,9 +126,10 @@ public class BewerbungsbogenPdfService
     // ═══════════════════════════════════════════════════════════════════
     // TEIL 1 — Bewerbung (eine Seite, gibt der Bewerber ab)
     // ═══════════════════════════════════════════════════════════════════
-    private static void ComposeBewerbung(PageDescriptor page, BewerbungsbogenInput d)
+    private static void ComposeBewerbung(PageDescriptor page, BewerbungsbogenInput d,
+        string bannerTitel = "Bewerbung", bool imGespraech = false)
     {
-        ApplyPageChrome(page, withBanner: true, bannerTitel: "Bewerbung");
+        ApplyPageChrome(page, withBanner: true, bannerTitel: bannerTitel);
 
         page.Content().PaddingTop(6).Column(col =>
         {
@@ -137,7 +144,9 @@ public class BewerbungsbogenPdfService
                 {
                     Briefkopf(c, d);
                     c.Item().PaddingTop(12).Element(e =>
-                        SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
+                        SectionHead(e, "Über dich", imGespraech
+                            ? "Angaben des Bewerbers — bei Online-/Mail-Bewerbung im Gespräch ausfüllen"
+                            : "Bitte gut lesbar in Blockschrift ausfüllen"));
                     c.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "Zivilstand"));
                     c.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
                     c.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
@@ -235,7 +244,7 @@ public class BewerbungsbogenPdfService
                 {
                     c.Item().Text(titel).SemiBold().FontSize(9.5f).FontColor(Ink);
                     c.Item().PaddingTop(3)
-                        .Text("Wird im Bewerbungsgespräch ausgefüllt — gehört zum Bewerbungsformular des Bewerbers.")
+                        .Text("Wird im Bewerbungsgespräch ausgefüllt — Angaben des Bewerbers siehe Seite 1.")
                         .Italic().FontSize(8f).FontColor(Body);
                 });
                 r.ConstantItem(16);
@@ -246,9 +255,9 @@ public class BewerbungsbogenPdfService
             col.Item().PaddingTop(11).Element(e =>
                 SectionHead(e, "Personalien", null));
             // Nur Name und Vorname — Adresse, E-Mail, Telefon, Geburtsdatum
-            // und Nationalität stehen bereits auf dem Bewerbungsformular
-            // (Walter 31.08.2026). Alles Weitere unten wird erst im Gespräch
-            // erhoben und ist dort NICHT enthalten.
+            // und Nationalität stehen auf Seite 1 (dem Bewerbungsformular, das
+            // seit 03.09.2026 als Seite 1 mitgedruckt wird). Alles Weitere
+            // unten wird erst im Gespräch erhoben.
             col.Item().PaddingTop(10).Element(e => TwoFields(e, "Name", "Vorname"));
             col.Item().PaddingTop(12).Row(r =>
             {
