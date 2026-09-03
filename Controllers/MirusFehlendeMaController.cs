@@ -922,18 +922,18 @@ public class MirusFehlendeMaController : ControllerBase
         col.Item().Row(row =>
         {
             row.RelativeItem().Text($"{S(m.Anrede)} {m.Nachname} {m.Vorname}".Replace("— ", "").Trim())
-                .SemiBold().FontSize(11).FontColor("#1a1a1a");
-            row.ConstantItem(170).AlignRight().Text($"Personal Nr.: {S(m.Personalnummer)}").SemiBold().FontSize(9.5f);
+                .SemiBold().FontSize(14).FontColor("#1a1a1a");
+            row.ConstantItem(170).AlignRight().Text($"Personal Nr.: {S(m.Personalnummer)}").SemiBold().FontSize(11);
         });
         // Kopfzeile wie im Mirus-Mitarbeiterstamm
         col.Item().Text(
                 $"Eintritt: {D(m.Eintritt)}    Austritt: —    Kostenstelle: {S(m.KostenstelleVorschlag)}    " +
                 $"Angestellt zu: {(m.AngestelltZu == null ? "—" : $"{m.AngestelltZu:0}%")}    Lohnbasis: {S(m.Lohnbasis)}")
-            .FontSize(7.5f).FontColor("#555");
+            .FontSize(9).FontColor("#555");
         if (m.Luecken.Count > 0)
-            col.Item().PaddingTop(2).Background("#fef2f2").Padding(3)
+            col.Item().PaddingTop(3).Background("#fef2f2").Padding(4)
                 .Text("In OneCrew noch unvollständig: " + string.Join(", ", m.Luecken))
-                .FontSize(7.5f).FontColor("#991b1b");
+                .FontSize(8.5f).FontColor("#991b1b");
 
         var natCode = S(m.NationalitaetCode);
         var natName = S(m.Nationalitaet);
@@ -1007,13 +1007,13 @@ public class MirusFehlendeMaController : ControllerBase
         }
 
         // Zwei Spalten: links Persönliche Angaben, rechts Adressen + Arbeitsverhältnis + QST + Bank
-        col.Item().PaddingTop(4).Row(row =>
+        col.Item().PaddingTop(6).Row(row =>
         {
             row.RelativeItem().Column(l =>
             {
                 MirusMaske(l, "MITARBEITERDATEN › PERSÖNLICHE ANGABEN", persoenlich);
             });
-            row.ConstantItem(12);
+            row.ConstantItem(16);
             row.RelativeItem().Column(r =>
             {
                 MirusMaske(r, "MITARBEITERDATEN › ADRESSEN", adressen);
@@ -1024,9 +1024,9 @@ public class MirusFehlendeMaController : ControllerBase
         });
 
         // Verträge (Lohnbestandteile) — kompakt als Tabelle, laufende zuerst
-        col.Item().PaddingTop(5).Text("LOHNDATEN › LOHNBESTANDTEILE (Vertrag)").SemiBold().FontSize(7.5f).FontColor("#0e7490");
+        col.Item().PaddingTop(10).Text("LOHNDATEN › LOHNBESTANDTEILE (Vertrag)").SemiBold().FontSize(9).FontColor("#0e7490");
         if (m.Vertraege.Count == 0)
-            col.Item().Text("Kein Vertrag in dieser Filiale erfasst.").FontSize(7.5f).FontColor("#991b1b");
+            col.Item().Text("Kein Vertrag in dieser Filiale erfasst.").FontSize(9).FontColor("#991b1b");
         else
         {
             col.Item().PaddingTop(1).Table(t =>
@@ -1046,7 +1046,7 @@ public class MirusFehlendeMaController : ControllerBase
                 t.Header(hd =>
                 {
                     foreach (var h in new[] { "Modell", "Funktion", "Beginn", "Ende", "Pensum / Std.", "Lohn", "Garant. Std.", "Ferienzahlung", "Probezeit" })
-                        hd.Cell().Background("#f3f3f3").Padding(2).Text(h).SemiBold().FontSize(7);
+                        hd.Cell().Background("#f3f3f3").Padding(3).Text(h).SemiBold().FontSize(8);
                 });
                 foreach (var v in m.Vertraege)
                 {
@@ -1072,15 +1072,15 @@ public class MirusFehlendeMaController : ControllerBase
                         S(v.Ferienzahlung),
                         probe,
                     })
-                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(txt).FontSize(7.5f).FontColor(farbe);
+                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(3).Text(txt).FontSize(8.5f).FontColor(farbe);
                 }
             });
         }
 
         // Familie — kompakte Tabelle
-        col.Item().PaddingTop(5).Text("MITARBEITERDATEN › FAMILIE").SemiBold().FontSize(7.5f).FontColor("#0e7490");
+        col.Item().PaddingTop(10).Text("MITARBEITERDATEN › FAMILIE").SemiBold().FontSize(9).FontColor("#0e7490");
         if (m.Familie.Count == 0)
-            col.Item().Text("Keine Familienmitglieder in OneCrew erfasst.").FontSize(7.5f).FontColor("#666");
+            col.Item().Text("Keine Familienmitglieder in OneCrew erfasst.").FontSize(9).FontColor("#666");
         else
         {
             col.Item().PaddingTop(1).Table(t =>
@@ -1097,7 +1097,7 @@ public class MirusFehlendeMaController : ControllerBase
                 t.Header(h =>
                 {
                     foreach (var s in new[] { "Typ", "Name Vorname", "Geburtsdatum", "Sozialversnr.", "Im Haushalt", "In der CH" })
-                        h.Cell().Background("#f3f3f3").Padding(2).Text(s).SemiBold().FontSize(7);
+                        h.Cell().Background("#f3f3f3").Padding(3).Text(s).SemiBold().FontSize(8);
                 });
                 foreach (var f in m.Familie)
                 {
@@ -1106,7 +1106,7 @@ public class MirusFehlendeMaController : ControllerBase
                         S(f.Typ), $"{f.Nachname} {f.Vorname}".Trim(), D(f.Geburtsdatum), S(f.Ahv),
                         f.ImHaushalt ? "ja" : "nein", f.InSchweiz ? "ja" : "nein",
                     })
-                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(2).Text(txt).FontSize(7.5f);
+                        t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").Padding(3).Text(txt).FontSize(8.5f);
                 }
             });
         }
@@ -1123,7 +1123,7 @@ public class MirusFehlendeMaController : ControllerBase
     /// <summary>Mirus-Masken-Block: Titel in Mirus-Türkis, darunter einspaltig Label → Wert (wie die Eingabemaske).</summary>
     private static void MirusMaske(ColumnDescriptor col, string titel, List<(string Label, string Wert)> zeilen)
     {
-        col.Item().PaddingTop(5).Text(titel).SemiBold().FontSize(7.5f).FontColor("#0e7490");
+        col.Item().PaddingTop(8).Text(titel).SemiBold().FontSize(9).FontColor("#0e7490");
         MirusZeilen(col, zeilen);
     }
 
@@ -1134,13 +1134,13 @@ public class MirusFehlendeMaController : ControllerBase
         {
             t.ColumnsDefinition(c =>
             {
-                c.ConstantColumn(92);
+                c.ConstantColumn(100);
                 c.RelativeColumn();
             });
             foreach (var (label, wert) in zeilen)
             {
-                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(1.2f).PaddingHorizontal(2).Text(label).FontSize(7).FontColor("#555");
-                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(1.2f).PaddingHorizontal(2).Text(wert).FontSize(7.5f);
+                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(2.4f).PaddingHorizontal(3).Text(label).FontSize(8.5f).FontColor("#555");
+                t.Cell().BorderBottom(0.3f).BorderColor("#e5e7eb").PaddingVertical(2.4f).PaddingHorizontal(3).Text(wert).FontSize(9);
             }
         });
     }
