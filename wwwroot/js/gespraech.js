@@ -479,6 +479,7 @@ function bgsRenderFlow() {
                 <div class="bgs-fields" id="bgsFields">${bgsRenderStepBody(step)}</div>
                 <div class="bgs-nav">
                     <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPrev()" ${idx === 0 ? 'disabled' : ''}>← Zurück</button>
+                    ${locked ? '' : `<button type="button" class="bgs-btn bgs-btn-ghost" style="color:#991b1b" onclick="bgsAbbrechen()" title="Gespräch abbrechen — alle bisherigen Antworten werden gelöscht">✕ Abbrechen</button>`}
                     <div style="flex:1"></div>
                     ${bgsRenderNavRight(step, idx, vis.length, locked)}
                 </div>
@@ -1068,6 +1069,27 @@ async function bgsAbschliessen() {
         if (typeof showToast === 'function') showToast('Gespräch abgeschlossen — PDF liegt bereit.', 'success');
     } catch (err) { alert('Netzwerkfehler: ' + err.message); }
 }
+// Abbrechen = Gespräch samt allen Antworten löschen (Walter 03.09.2026);
+// «Unterbrechen» oben links ist das Gegenteil: alles bleibt gespeichert.
+async function bgsAbbrechen() {
+    if (!_bgsId) return;
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm('Gespräch abbrechen? Alle bisherigen Antworten werden gelöscht. (Zum Weitermachen später: «Unterbrechen» oben links.)', { title: 'Gespräch abbrechen', yesLabel: 'Ja, abbrechen & löschen', noLabel: 'Weiter im Gespräch' })
+        : confirm('Gespräch abbrechen und alle Antworten löschen?');
+    if (!ok) return;
+    clearTimeout(_bgsFlushTimer); clearTimeout(_bgsRetryTimer);
+    const id = _bgsId;
+    try {
+        const r = await fetch(`/api/bewerbungsgespraech/${id}`, { method: 'DELETE', headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || j.error || ('Fehler ' + r.status)); return; }
+    } catch (e) { alert('Netzwerkfehler: ' + e.message); return; }
+    try { localStorage.removeItem('bgs_pending_' + id); } catch (_) { }
+    _bgsPending = {};
+    _bgsId = null;
+    document.body.classList.remove('bgs-fullscreen');
+    bgsRenderStart();
+}
+
 // Aus der HR-Kandidatenkarte (Walter 03.09.2026): HR sieht und bearbeitet
 // die Gesprächsdaten weiter; beim Verknüpfen mit dem MA werden sie übernommen.
 function bgsOpenFromHr(id) {
