@@ -488,7 +488,8 @@ function bgsRenderFlow() {
     document.body.classList.add('bgs-fullscreen');
     bgsUpdateRail();
     bgsSetState(Object.keys(_bgsPending).length ? 'dirty' : (locked ? 'locked' : 'saved'), _bgsMeta?.geaendertAm);
-    bgsAfterRender(step);
+    bgsFitCard();
+    bgsAfterRender(step).then(bgsFitCard);
     if (locked) root.querySelectorAll('#bgsFields input, #bgsFields textarea, #bgsFields button.bgs-opt, #bgsFields button.bgs-yn').forEach(el => el.disabled = true);
     // Schritt merken (fürs Wiedereinsteigen) — ohne Antwort-Änderung
     if (!locked) bgsRememberStep();
@@ -496,6 +497,22 @@ function bgsRenderFlow() {
     const first = root.querySelector('#bgsFields input:not([disabled]), #bgsFields textarea:not([disabled])');
     if (first && !('ontouchstart' in window)) setTimeout(() => first.focus(), 30);
 }
+// Frage-Bildschirme dürfen nie scrollen (Walter 03.09.2026): passt die
+// Karte nicht in den sichtbaren Bereich, wird sie als Ganzes verkleinert
+// (CSS zoom) — Schrift, Felder und Abstände proportional, nichts wird
+// abgeschnitten, nichts scrollt.
+let _bgsFitTimer = null;
+function bgsFitCard() {
+    const main = document.querySelector('.bgs-full .bgs-main');
+    const card = document.getElementById('bgsCard');
+    if (!main || !card) return;
+    card.style.zoom = '1';
+    const cs = getComputedStyle(main);
+    const avail = main.clientHeight - parseFloat(cs.paddingTop || '0') - parseFloat(cs.paddingBottom || '0');
+    const need = card.scrollHeight;
+    if (need > avail && avail > 100) card.style.zoom = String(Math.max(0.5, Math.floor((avail / need) * 100) / 100));
+}
+window.addEventListener('resize', () => { clearTimeout(_bgsFitTimer); _bgsFitTimer = setTimeout(bgsFitCard, 80); });
 let _bgsStepTimer = null;
 function bgsRememberStep() {
     clearTimeout(_bgsStepTimer);
@@ -704,12 +721,14 @@ function bgsKindAdd() {
     list.push({ nachname: _bgsAnswers.nachname || '', vorname: '', geschlecht: '', geburtsdatum: '', haushalt: 'ja', ch: 'ja' });
     bgsSet('kinder', list, { force: true });
     const w = document.getElementById('bgsKinderWrap'); if (w) w.innerHTML = bgsRenderKinder();
+    bgsFitCard();
 }
 function bgsKindRemove(i) {
     const list = Array.isArray(_bgsAnswers.kinder) ? [..._bgsAnswers.kinder] : [];
     list.splice(i, 1);
     bgsSet('kinder', list, { force: true });
     const w = document.getElementById('bgsKinderWrap'); if (w) w.innerHTML = bgsRenderKinder();
+    bgsFitCard();
 }
 function bgsKinderCollect() {
     const rows = document.querySelectorAll('#bgsKinderWrap tbody tr');
@@ -856,6 +875,7 @@ function bgsRenderDubletten() {
     const el = document.getElementById('bgsDubletten');
     if (!el) return;
     const t = _bgsDubletten || [];
+    setTimeout(bgsFitCard, 0);
     if (!t.length) { el.innerHTML = ''; return; }
     el.innerHTML = `<div class="bgs-dub"><div class="bgs-dub-title">Kennen wir schon?</div>${t.map(x => {
         if (x.art === 'mitarbeiter') return `<div class="bgs-dub-row">👤 <b>${esc(x.name)}</b> — ${x.aktiv ? 'aktiver Mitarbeiter' : 'ehemaliger Mitarbeiter'}${x.filialen ? ' (' + esc(x.filialen) + ')' : ''}${x.eintritt ? ', Eintritt ' + esc(x.eintritt) : ''}${x.austritt ? ', Austritt ' + esc(x.austritt) : ''}${x.austrittsgrund ? ' · Grund: ' + esc(x.austrittsgrund) : ''}${x.geburtsdatum ? ' · geb. ' + esc(x.geburtsdatum) : ''}${x.gebPasst === false ? ' <span style="color:#92400e">(anderes Geburtsdatum)</span>' : ''}</div>`;

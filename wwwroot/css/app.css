@@ -12266,24 +12266,28 @@ body.bgs-fullscreen { overflow: hidden; }
 .bgs-full .bgs-rail-meta { font-size: 15px; font-weight: 700; color: #3f3f3f; margin-top: 2px; }
 .bgs-full .bgs-rail-step { font-size: 15px; padding: 9px 8px; }
 .bgs-full .bgs-dot { width: 24px; height: 24px; flex-basis: 24px; font-size: 12px; }
-.bgs-full .bgs-main { flex: 1; min-width: 0; overflow-y: auto; padding: 28px 28px 60px; }
-.bgs-full .bgs-card { max-width: 1200px; padding: 40px 52px 32px; border-radius: 28px; }
-.bgs-full .bgs-title { font-size: 42px; margin: 0 0 8px; }
-.bgs-full .bgs-hint { font-size: 19px; line-height: 1.45; }
-.bgs-full .bgs-fields { margin-top: 26px; gap: 26px; }
-.bgs-full .bgs-field { gap: 10px; }
-.bgs-full .bgs-label { font-size: 22px; font-weight: 700; }
-.bgs-full .bgs-fhint { font-size: 16px; }
-.bgs-full .bgs-input { font-size: 26px; padding: 16px 20px; border-radius: 16px; }
+/* Kein Scrollen auf Frage-Bildschirmen: main ist der Rahmen, die Karte wird
+   per JS (bgsFitCard, CSS zoom) eingepasst, wenn sie nicht hineinpasst. */
+.bgs-full .bgs-main { flex: 1; min-width: 0; overflow: hidden; padding: 18px 26px 18px; display: flex; align-items: flex-start; justify-content: center; }
+.bgs-full .bgs-card { width: 100%; max-width: 1240px; padding: 30px 46px 24px; border-radius: 26px; box-sizing: border-box; }
+.bgs-full .bgs-title { font-size: 38px; margin: 0 0 6px; }
+.bgs-full .bgs-hint { font-size: 18px; line-height: 1.4; }
+.bgs-full .bgs-fields { margin-top: 18px; gap: 18px; }
+.bgs-full .bgs-field { gap: 8px; }
+.bgs-full .bgs-label { font-size: 21px; font-weight: 700; }
+.bgs-full .bgs-fhint { font-size: 15px; }
+.bgs-full .bgs-input { font-size: 24px; padding: 13px 18px; border-radius: 16px; }
 .bgs-full .bgs-input-short { max-width: 340px; }
 .bgs-full .bgs-input-mono { max-width: 520px; }
-.bgs-full .bgs-input-time { font-size: 22px; padding: 10px 12px; max-width: 170px; }
-.bgs-full .bgs-textarea { min-height: 130px; }
-.bgs-full .bgs-opts { gap: 12px; }
-.bgs-full .bgs-opt { font-size: 22px; padding: 14px 28px; }
+.bgs-full .bgs-input-time { font-size: 20px; padding: 7px 10px; max-width: 160px; }
+.bgs-full .bgs-textarea { min-height: 96px; }
+.bgs-full .bgs-opts { gap: 10px; }
+.bgs-full .bgs-opt { font-size: 21px; padding: 12px 26px; }
 .bgs-full .bgs-yn { min-width: 130px; }
-.bgs-full .bgs-nav { margin-top: 34px; padding-top: 22px; }
-.bgs-full .bgs-nav .bgs-btn { font-size: 20px; padding: 14px 26px; border-radius: 16px; }
+.bgs-full .bgs-nav { margin-top: 22px; padding-top: 16px; }
+.bgs-full .bgs-nav .bgs-btn { font-size: 19px; padding: 12px 24px; border-radius: 16px; }
+.bgs-full .bgs-verf td { padding: 2px 8px; }
+.bgs-full .bgs-verf .bgs-btn { padding: 4px 10px; font-size: 14px; }
 .bgs-full .bgs-gate-row, .bgs-full .bgs-sum-row { font-size: 18px; }
 .bgs-full .bgs-sum-row { grid-template-columns: 220px 1fr; padding: 6px 0; }
 .bgs-full .bgs-bedingungen { font-size: 19px; line-height: 1.5; }
