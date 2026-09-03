@@ -768,7 +768,14 @@ public class EmployeePermitHistoryController : ControllerBase
             .OrderByDescending(l => l.CreatedAt)
             .Select(l => (DateTime?)l.CreatedAt)
             .FirstOrDefaultAsync();
-        var kopien = await KopieEmpfaengerAsync(built.CompanyProfileId);
+        var vorschlag = await KopieEmpfaengerAsync(built.CompanyProfileId);
+        // Alle aktiven OneCrew-Benutzer mit E-Mail zur Auswahl (Walter 03.09.2026:
+        // «selber auswählen, an welche Programmbenutzer eine Kopie geht»).
+        var benutzer = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive && u.Email != "" && u.Role != "employee")
+            .OrderBy(u => u.FirstName).ThenBy(u => u.LastName)
+            .Select(u => new { u.Id, u.Email, u.FirstName, u.LastName, u.Role })
+            .ToListAsync();
         return Ok(new
         {
             ok = true,
@@ -778,13 +785,27 @@ public class EmployeePermitHistoryController : ControllerBase
             permitCode = built.PermitCode,
             validTo = built.ValidTo?.ToString("yyyy-MM-dd"),
             lastMailSentAt = last,
-            kopien = kopien.Select(k => new { email = k.Email, name = k.Name, rolle = k.Rolle }),
+            kopien = vorschlag.Select(k => new { email = k.Email, name = k.Name, rolle = k.Rolle }),
+            benutzer = benutzer.Select(u => new
+            {
+                u.Id,
+                email = u.Email.Trim(),
+                name = $"{u.FirstName} {u.LastName}".Trim(),
+                rolle = u.Role,
+                vorgeschlagen = vorschlag.Any(k => string.Equals(k.Email, u.Email.Trim(), StringComparison.OrdinalIgnoreCase)),
+            }),
         });
+    }
+
+    public sealed class SendEmailDto
+    {
+        /// <summary>Gewählte Kopie-Empfänger (Benutzer-IDs). null = Vorschlag (Ittig + GF).</summary>
+        public List<int>? KopieUserIds { get; set; }
     }
 
     [HttpPost("{id:int}/send-email")]
     [Authorize(Roles = "admin,superuser,user,buchhaltung")]
-    public async Task<IActionResult> SendEmail(int employeeId, int id)
+    public async Task<IActionResult> SendEmail(int employeeId, int id, [FromBody] SendEmailDto? dto = null)
     {
         var guard = await GuardBranchAsync(employeeId);
         if (guard != null) return guard;
@@ -797,7 +818,18 @@ public class EmployeePermitHistoryController : ControllerBase
 
         // Kopie an s.ittig + GF der Filiale (Walter 03.09.2026): gleiche Mail,
         // mit Hinweiszeile «Kopie der E-Mail an …» — EmailService kennt kein CC.
-        var kopien = await KopieEmpfaengerAsync(built.CompanyProfileId);
+        List<(string Email, string Name, string Rolle)> kopien;
+        if (dto?.KopieUserIds != null)
+        {
+            var ids = dto.KopieUserIds.Distinct().ToList();
+            kopien = (await _db.AppUsers.AsNoTracking()
+                    .Where(u => ids.Contains(u.Id) && u.IsActive && u.Email != "")
+                    .Select(u => new { u.Email, u.FirstName, u.LastName, u.Role })
+                    .ToListAsync())
+                .Select(u => (u.Email.Trim(), $"{u.FirstName} {u.LastName}".Trim(), u.Role == "user" ? "GF" : "HR"))
+                .ToList();
+        }
+        else kopien = await KopieEmpfaengerAsync(built.CompanyProfileId);
         var kopieOk = new List<string>();
         var kopieFehler = new List<string>();
         var kopieHinweis = $@"      <div style=""font-size:12px;color:#8b8b8b;margin-bottom:12px"">Kopie der E-Mail an {System.Net.WebUtility.HtmlEncode(built.Name ?? "")} &lt;{System.Net.WebUtility.HtmlEncode(built.To ?? "")}&gt;{(string.IsNullOrWhiteSpace(built.BranchName) ? "" : " · Filiale " + System.Net.WebUtility.HtmlEncode(built.BranchName))}</div>";

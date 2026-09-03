@@ -14544,20 +14544,17 @@ async function permitExpiredSendEmail(employeeId, historyId) {
         if (!pr.ok) { alert(preview.message || preview.error || ('Vorschau fehlgeschlagen (HTTP ' + pr.status + ')')); return; }
     } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
 
-    let hint = '';
-    if (preview.lastMailSentAt) {
-        const d = new Date(preview.lastMailSentAt);
-        hint = `\n\nBereits gesendet am ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.`;
-    }
-    const kopien = (preview.kopien || []).map(k => `${k.name} (${k.rolle})`).join(', ');
-    const confirmMsg = `E-Mail an ${preview.to} senden?${hint}`
-        + (kopien ? `\n\nKopie an: ${kopien}` : '\n\nKopie an: — (kein HR-/GF-Empfänger gefunden)')
-        + `\n\nBetreff: ${preview.betreff}\n\n${preview.text}`;
-    if (!(await liquidConfirm(confirmMsg, { title: 'Bewilligung — E-Mail', yesLabel: 'Senden', noLabel: 'Abbruch' }))) return;
+    // Rückfrage mit wählbaren Kopie-Empfängern (Walter 03.09.2026) — eigenes
+    // Modal statt liquidConfirm, weil Checkboxen drin sind. Vorgeschlagen sind
+    // s.ittig + GF der Filiale; jeder aktive OneCrew-Benutzer ist wählbar.
+    const gewaehlt = await permitEmailDialog(preview);
+    if (!gewaehlt) return;
 
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">✉ E-Mail wird gesendet …</div>';
     try {
-        const res = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/send-email`, { method: 'POST', headers: ah() });
+        const res = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/send-email`, {
+            method: 'POST', headers: ah(), body: JSON.stringify({ kopieUserIds: gewaehlt }),
+        });
         const j = await res.json().catch(() => ({}));
         if (!res.ok || !j.ok) {
             if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
@@ -14566,7 +14563,7 @@ async function permitExpiredSendEmail(employeeId, historyId) {
         if (box) box.innerHTML = `
             <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
                 ✓ Bewilligungs-E-Mail gesendet an ${esc(j.to || preview.to)}.
-                ${(j.kopien || []).length ? `<div style="margin-top:4px">Kopie an ${esc(j.kopien.join(', '))}</div>` : ''}
+                ${(j.kopien || []).length ? `<div style="margin-top:4px">Kopie an ${esc(j.kopien.join(', '))}</div>` : '<div style="margin-top:4px">Ohne Kopie.</div>'}
                 ${(j.kopienFehler || []).length ? `<div style="margin-top:4px;color:#991b1b">Kopie fehlgeschlagen: ${esc(j.kopienFehler.join(', '))}</div>` : ''}
                 <div style="margin-top:4px">${j.abgelegt ? '📎 In den Dokumenten abgelegt (Persönliche Angaben › Aufenthaltsbewilligung).' : '<span style="color:#92400e">⚠ Ablage in den Dokumenten nicht möglich — Dokumenttyp «Aufenthaltsbewilligung» fehlt?</span>'}</div>
             </div>`;
@@ -14575,6 +14572,51 @@ async function permitExpiredSendEmail(employeeId, historyId) {
     } catch (e) {
         if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
+}
+
+// Modal: Vorschau + Kopie-Empfänger wählen. Liefert die gewählten Benutzer-IDs
+// (Array) oder null bei Abbruch.
+function permitEmailDialog(preview) {
+    return new Promise(resolve => {
+        const old = document.getElementById('permitMailBg'); if (old) old.remove();
+        const hint = preview.lastMailSentAt
+            ? `<div style="font-size:12px;color:#92400e;margin-bottom:8px">Bereits gesendet am ${new Date(preview.lastMailSentAt).toLocaleDateString('de-CH')} ${new Date(preview.lastMailSentAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.</div>`
+            : '';
+        const users = (preview.benutzer || []).map(u => `
+            <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;cursor:pointer;font-size:13px">
+                <input type="checkbox" class="permitMailCc" value="${u.id}" ${u.vorgeschlagen ? 'checked' : ''}>
+                <span style="flex:1">${esc(u.name)} <span style="color:#8b8b8b;font-size:11.5px">· ${esc(u.rolle === 'user' ? 'GF' : (u.rolle === 'admin' ? 'Admin' : 'HR'))} · ${esc(u.email)}</span></span>
+                ${u.vorgeschlagen ? '<span style="font-size:10.5px;color:#166534;background:#dcfce7;border-radius:999px;padding:1px 7px">Vorschlag</span>' : ''}
+            </label>`).join('');
+        const bg = document.createElement('div');
+        bg.className = 'modal-bg open';
+        bg.id = 'permitMailBg';
+        bg.innerHTML = `
+            <div class="modal" style="max-width:640px;width:92%">
+                <div class="modal-hd">
+                    <span class="modal-hd-title">Bewilligung — E-Mail senden</span>
+                    <button class="modal-x" type="button" onclick="document.getElementById('permitMailBg')?.remove()">×</button>
+                </div>
+                <div class="modal-body" style="max-height:70vh;overflow:auto">
+                    ${hint}
+                    <div style="font-size:12.5px;color:#646464">An <b>${esc(preview.to)}</b> · Betreff: <b>${esc(preview.betreff)}</b></div>
+                    <div style="margin-top:8px;padding:10px 12px;background:#fff;border-radius:10px;font-size:13px;white-space:pre-line;line-height:1.5;box-shadow:0 2px 6px rgba(60,55,48,0.13)">${esc(preview.text)}</div>
+                    <div class="emp-section-title" style="margin-top:14px">Kopie an OneCrew-Benutzer</div>
+                    <div style="display:flex;flex-direction:column">${users || '<div style="font-size:12.5px;color:#8b8b8b">Keine Benutzer mit E-Mail-Adresse.</div>'}</div>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+                        <button type="button" class="btn btn-outline" id="permitMailAbbruch">Abbruch</button>
+                        <button type="button" class="btn btn-primary" id="permitMailSenden">Senden</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.appendChild(bg);
+        const done = v => { bg.remove(); resolve(v); };
+        bg.querySelector('#permitMailAbbruch').onclick = () => done(null);
+        bg.querySelector('.modal-x').onclick = () => done(null);
+        bg.addEventListener('click', e => { if (e.target === bg) done(null); });
+        bg.querySelector('#permitMailSenden').onclick = () =>
+            done(Array.from(bg.querySelectorAll('.permitMailCc:checked')).map(c => parseInt(c.value, 10)));
+    });
 }
 
 function renderPermitHistory(entries) {
