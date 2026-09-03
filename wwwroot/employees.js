@@ -2464,9 +2464,13 @@ function renderQstPflichtBanner(pflicht) {
                 <div style="font-weight:700;color:#991b1b;font-size:13px">Ausweis des Ehepartners fehlt</div>
                 <div style="color:#b91c1c;font-size:12px;margin-top:2px">Die Befreiung von der Quellensteuer stützt sich auf den Ehepartner — bitte den Ausweis des Ehepartners in den Dokumenten hochladen (Typ „Ausweis Ehegatte").</div>
             </div>
-            <button onclick="qstOpenFamilieFromBanner(${empId})" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
-                → Zur Familie
-            </button>
+            <div style="display:flex;gap:8px;margin-left:auto;flex-wrap:wrap">
+                ${qstMailButtonHtml(empId, 'partner-ausweis')}
+                <button onclick="qstOpenFamilieFromBanner(${empId})" style="background:#dc2626;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+                    → Zur Familie
+                </button>
+            </div>
+            <div id="qstMailResult_partner-ausweis" style="flex-basis:100%"></div>
         </div>` : '';
 
         // Walter-Vorgabe 13.06.2026: roter Warnbanner für MA selbst, wenn
@@ -4090,10 +4094,14 @@ function renderQstPartnerBanner(pflicht) {
             ⚠ Ehepartner-Angaben unvollständig — Lohnlauf gesperrt
         </div>
         <ul style="margin:6px 0 8px 18px;padding:0;font-size:12.5px;color:#7f1d1d">${maengel}</ul>
-        <button onclick="switchEmpTab('familie')"
-                style="background:#3f3f3f;color:#fff;border:1px solid #1a1a1a;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer">
-            → Ehepartner im Familie-Tab vervollständigen
-        </button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button onclick="switchEmpTab('familie')"
+                    style="background:#3f3f3f;color:#fff;border:1px solid #1a1a1a;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;cursor:pointer">
+                → Ehepartner im Familie-Tab vervollständigen
+            </button>
+            ${qstMailButtonHtml(selectedEmployeeId, 'partner-angaben')}
+        </div>
+        <div id="qstMailResult_partner-angaben"></div>
     </div>`;
 }
 
@@ -14576,7 +14584,7 @@ async function permitExpiredSendEmail(employeeId, historyId) {
 
 // Modal: Vorschau + Kopie-Empfänger wählen. Liefert die gewählten Benutzer-IDs
 // (Array) oder null bei Abbruch.
-function permitEmailDialog(preview) {
+function permitEmailDialog(preview, titel) {
     return new Promise(resolve => {
         const old = document.getElementById('permitMailBg'); if (old) old.remove();
         const hint = preview.lastMailSentAt
@@ -14594,7 +14602,7 @@ function permitEmailDialog(preview) {
         bg.innerHTML = `
             <div class="modal" style="max-width:640px;width:92%">
                 <div class="modal-hd">
-                    <span class="modal-hd-title">Bewilligung — E-Mail senden</span>
+                    <span class="modal-hd-title">${esc(titel || 'Bewilligung — E-Mail senden')}</span>
                     <button class="modal-x" type="button" onclick="document.getElementById('permitMailBg')?.remove()">×</button>
                 </div>
                 <div class="modal-body" style="max-height:70vh;overflow:auto">
@@ -14617,6 +14625,55 @@ function permitEmailDialog(preview) {
         bg.querySelector('#permitMailSenden').onclick = () =>
             done(Array.from(bg.querySelectorAll('.permitMailCc:checked')).map(c => parseInt(c.value, 10)));
     });
+}
+
+// QST-E-Mails an den MA (Walter 03.09.2026, «die gleiche Mail wie bei der
+// Bewilligung»): Partner-Ausweis fehlt (Befreiung über Ehepartner) bzw.
+// Ehepartner-Angaben fehlen (Mail zählt auf, WAS fehlt). Gleicher Dialog
+// mit wählbaren Kopie-Empfängern, Ablage als PDF in den Dokumenten.
+function qstMailButtonHtml(empId, art) {
+    const mail = (selectedEmployee?.email || '').trim();
+    const title = art === 'partner-ausweis'
+        ? 'E-Mail an den MA: Ausweis des Ehepartners nachreichen'
+        : 'E-Mail an den MA: fehlende Angaben zum Ehepartner nachfragen';
+    return mail
+        ? `<button type="button" class="emp-contract-btn" title="${esc(title)} (${esc(mail)})" onclick="qstMailSenden(${empId}, '${art}')">✉ E-Mail</button>`
+        : `<button type="button" class="emp-contract-btn" style="opacity:.45;cursor:not-allowed" title="Keine E-Mail-Adresse hinterlegt — bitte im Personal-Tab erfassen" disabled>✉ E-Mail</button>`;
+}
+
+async function qstMailSenden(employeeId, art) {
+    if (!employeeId || !art) return;
+    const box = document.getElementById('qstMailResult_' + art);
+    const titel = art === 'partner-ausweis' ? 'Ausweis Ehepartner — E-Mail senden' : 'Ehepartner-Angaben — E-Mail senden';
+    let preview = null;
+    try {
+        const pr = await fetch(`/api/employees/${employeeId}/qst-mail/${art}/preview`, { headers: ah() });
+        preview = await pr.json().catch(() => ({}));
+        if (!pr.ok) { alert(preview.message || preview.error || ('Vorschau fehlgeschlagen (HTTP ' + pr.status + ')')); return; }
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
+    const gewaehlt = await permitEmailDialog(preview, titel);
+    if (!gewaehlt) return;
+    if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0 0">✉ E-Mail wird gesendet …</div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/qst-mail/${art}/send`, {
+            method: 'POST', headers: ah(), body: JSON.stringify({ kopieUserIds: gewaehlt }),
+        });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+            if (box) box.innerHTML = `<div style="background:#fff;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:8px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        if (box) box.innerHTML = `
+            <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.55;margin-top:8px">
+                ✓ E-Mail gesendet an ${esc(j.to || preview.to)}.
+                ${(j.kopien || []).length ? `<div style="margin-top:4px">Kopie an ${esc(j.kopien.join(', '))}</div>` : '<div style="margin-top:4px">Ohne Kopie.</div>'}
+                ${(j.kopienFehler || []).length ? `<div style="margin-top:4px;color:#991b1b">Kopie fehlgeschlagen: ${esc(j.kopienFehler.join(', '))}</div>` : ''}
+                <div style="margin-top:4px">${j.abgelegt ? '📎 In den Dokumenten abgelegt (Ausweis Ehegatte).' : '<span style="color:#92400e">⚠ Ablage in den Dokumenten nicht möglich — Dokumenttyp «Ausweis Ehegatte» fehlt?</span>'}</div>
+            </div>`;
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fff;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:8px">Verbindungsfehler: ${esc(e.message)}</div>`;
+    }
 }
 
 function renderPermitHistory(entries) {
