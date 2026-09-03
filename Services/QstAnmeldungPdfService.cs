@@ -26,7 +26,9 @@ namespace HrSystem.Services;
 ///   • BE  — Bern        (generisch nummerierte Felder Text##/Group##; Radio-Werte "Auswahl1".."Auswahl5",
 ///                        plus Position-basiertes Mapping)
 ///
-/// Fallback bei unbekanntem Kanton: SO-Template.
+/// Vorhandene Vorlagen: AG, BE, LU, SO, ZH. Fuer jeden anderen Kanton wird
+/// das SO-Template verwendet — der Aufrufer erfaehrt das ueber den
+/// out-Parameter ersatzTemplate und zeigt eine Warnung.
 /// Walter hat erwähnt LU sieht aus wie AG — sobald LU-PDF da ist, prüfen
 /// ob Feldnamen identisch sind (dann nur Dispatch hinzufügen) oder eigener Mapper nötig.
 /// </summary>
@@ -80,6 +82,7 @@ public class QstAnmeldungPdfService
         {
             "AG" => MapAg,
             "BE" => MapBe,
+            "LU" => MapLu,
             "SO" => MapSo,
             "ZH" => MapZh,
             _    => MapSo,    // Default = SO bis weitere Templates dazukommen
@@ -110,7 +113,60 @@ public class QstAnmeldungPdfService
         using var pdf    = new PdfDocument(reader, writer);
 
         var form = PdfAcroForm.GetAcroForm(pdf, false);
-        form.SetNeedAppearances(true);
+
+        // WARUM NICHT SetNeedAppearances(true) — Walter-Bug 02.09.2026:
+        // Dieses Kennzeichen sagt dem Anzeigeprogramm «ich habe das Aussehen
+        // der ausgefuellten Felder NICHT erzeugt, mach du das». Chrome und
+        // Vorschau tun das dann auch — mit IHRER eigenen Schrift und einem
+        // blaugrauen Ton. Deshalb blieb die Schriftumstellung auf fett ohne
+        // jede Wirkung: unsere Angabe im Formular wurde schlicht ignoriert.
+        //
+        // Richtig ist der umgekehrte Weg: iText malt das Aussehen selbst,
+        // dann steht in der Datei genau das, was wir vorgeben — gleiche
+        // Darstellung in jedem Programm und beim Drucken.
+        form.SetGenerateAppearance(true);
+        form.SetNeedAppearances(false);
+
+        // Schrift der EINGETRAGENEN Werte hier im Code festlegen, nicht ueber
+        // die Vorlage (Walter-Vorgabe 02.09.2026: «etwas schwaerzer oder
+        // fetter»). Der Weg ueber die Schriftangabe in der PDF-Vorlage blieb
+        // wirkungslos — iText faellt beim Erzeugen des Aussehens auf seine
+        // Standardschrift zurueck, wenn es die dort genannte nicht selbst
+        // aufloesen kann. Direkt gesetzt gilt sie garantiert, in allen fuenf
+        // Kantons-Vorlagen gleich.
+        //
+        // NUR Textfelder: Ankreuzfelder zeichnen ihren Haken mit ZapfDingbats,
+        // eine Helvetica darauf ergaebe ein leeres Kaestchen.
+        // Q = 0 stellt die Werte linksbuendig (Walter, gleiche Vorgabe).
+        try
+        {
+            var wertSchrift = PdfFontFactory.CreateFont(StandardFonts.HELVETICA_BOLD);
+            foreach (var eintrag in form.GetAllFormFields())
+            {
+                var feld = eintrag.Value;
+                if (feld == null || !PdfName.Tx.Equals(feld.GetFormType())) continue;
+                feld.SetFont(wertSchrift);
+                feld.Put(PdfName.Q, new PdfNumber(0));
+
+                // Textfarbe auf REINES Schwarz zwingen. SetFont schreibt die
+                // Schriftangabe neu und laesst die Farbe dabei offen — ohne
+                // Farbe rendern manche Programme grau statt schwarz, was
+                // zusammen mit der Weichzeichnung «verwaschen» aussieht.
+                var da = feld.GetPdfObject().GetAsString(PdfName.DA)?.ToUnicodeString() ?? "";
+                da = System.Text.RegularExpressions.Regex.Replace(
+                        da, @"[\d.]+\s+[\d.]+\s+[\d.]+\s+rg", "0 0 0 rg");
+                da = System.Text.RegularExpressions.Regex.Replace(
+                        da, @"(?<![\d.])[\d.]+\s+g(?![A-Za-z])", "0 g");
+                if (!da.Contains(" g") && !da.Contains(" rg")) da += " 0 g";
+                feld.GetPdfObject().Put(PdfName.DA, new PdfString(da));
+            }
+        }
+        catch
+        {
+            // Schriftumstellung ist reine Kosmetik — sie darf das Erzeugen des
+            // Formulars nie verhindern. Scheitert sie, gilt eben die Schrift
+            // aus der Vorlage, und das Formular kommt trotzdem.
+        }
 
         mapper(form, d);
 
@@ -126,6 +182,25 @@ public class QstAnmeldungPdfService
             var anchorKanton = usedFallbackTemplate ? "SO" : k;
             EmbedSignature(pdf, form, anchorKanton, signaturePng, signerName ?? "");
         }
+
+        // ── Werte fest in die Seite brennen (Walter-Vorgabe 02.09.2026) ────
+        // Solange die Werte in AUSFUELLBAREN Feldern stecken, zeichnet sie
+        // jedes Programm nach eigenem Gutduenken: Chrome hinterlegt sie
+        // hellblau und rendert sie weich und graustichig — die Beschriftungen
+        // daneben, die normaler Seiteninhalt sind, kommen dagegen gestochen
+        // scharf. Genau dieser Unterschied war zu sehen.
+        //
+        // Flatten macht aus den Feldern normalen Seiteninhalt. Danach gibt es
+        // nichts mehr zu interpretieren: gleiche Darstellung in Chrome, in der
+        // Vorschau, in Adobe und im Ausdruck — und dieselbe Schaerfe wie bei
+        // den Beschriftungen.
+        //
+        // Preis: Das fertige PDF laesst sich nicht mehr am Bildschirm
+        // beschriften. Fuer dieses Formular ist das richtig — es wird
+        // vollstaendig aus OneCrew gefuellt, ausgedruckt und von Hand
+        // unterschrieben. Soll spaeter doch getippt werden koennen, faellt
+        // diese eine Zeile wieder weg.
+        form.FlattenFields();
 
         pdf.Close();
         return ms.ToArray();
@@ -260,7 +335,11 @@ public class QstAnmeldungPdfService
         Set(form, "QA-Geb",           d.QaGeburtsdatum);
         Set(form, "QA-Nation",        d.QaNationalitaet);
         Set(form, "QA-Bewilligung",   d.QaBewilligung);
-        Set(form, "QA-SVNr",          d.QaSvNummer);
+        // SV-Nummer OHNE die fuehrende «756.» — die steht im SO-Formular
+        // bereits gedruckt vor dem Feld (Walter-Fund 02.09.2026: dort stand
+        // «SV-Nummer 756. 756.9907.3812.07»). Andere Kantone drucken die
+        // Laendervorwahl nicht vor, dort bleibt die Nummer vollstaendig.
+        Set(form, "QA-SVNr",          OhneSvVorwahl(d.QaSvNummer));
 
         // ── Zivilstand + Trennung + Datum ───────────────────────────────
         SetRadio(form, "Zivilstand",   d.Zivilstand);
@@ -298,7 +377,7 @@ public class QstAnmeldungPdfService
         Set(form, "EP-Geb",             d.EpGeburtsdatum);
         Set(form, "EP-Nation",          d.EpNationalitaet);
         Set(form, "EP-Bewilligung",     d.EpBewilligung);
-        Set(form, "EP-SVNr",            d.EpSvNummer);
+        Set(form, "EP-SVNr",            OhneSvVorwahl(d.EpSvNummer));   // siehe QA-SVNr
 
         SetRadio(form, "EP-Erwerbstätigkeit",        d.EpHatErwerbJaNein);
         Set(form, "EP-Erwerbstätigkeit-Arbeitgeber", d.EpArbeitgeberName);
@@ -356,7 +435,7 @@ public class QstAnmeldungPdfService
         if (d.QaGeschlecht == "0") Check(form, "AN_mann");
         else if (d.QaGeschlecht == "1") Check(form, "AN_frau");
 
-        Set(form, "AN_SV_Nr",       d.QaSvNummer);
+        Set(form, "AN_SV_Nr",       OhneSvVorwahl(d.QaSvNummer));   // «756.» steht gedruckt davor
         Set(form, "AN_name",        d.QaName);
         Set(form, "AN_vorname",     d.QaVorname);
         Set(form, "AN_strasse",     d.QaStrasse);
@@ -420,7 +499,7 @@ public class QstAnmeldungPdfService
         if (d.EpGeschlecht == "0") Check(form, "AN_mann_2");
         else if (d.EpGeschlecht == "1") Check(form, "AN_frau_2");
 
-        Set(form, "Part_SV_Nr",       d.EpSvNummer);
+        Set(form, "Part_SV_Nr",       OhneSvVorwahl(d.EpSvNummer));   // wie AN_SV_Nr
         Set(form, "Part_Name",        d.EpName);
         Set(form, "Part_vorname",     d.EpVorname);
         Set(form, "Part_strasse",     d.EpStrasse);
@@ -462,6 +541,55 @@ public class QstAnmeldungPdfService
     }
 
     // ════════════════════════════════════════════════════════════════════════
+    // LU — Kanton Luzern
+    // ════════════════════════════════════════════════════════════════════════
+    // Die Dienststelle Steuern Luzern gibt das Anmeldeformular NUR als Word
+    // heraus, eine ausfuellbare PDF-Fassung existiert nicht (geprueft
+    // 02.09.2026). Assets/Forms/QstAnmeldung_LU.pdf ist daher das offizielle
+    // Dokument, umgewandelt und mit Formularfeldern versehen — genau so, wie
+    // das AG-Formular entstanden ist.
+    //
+    // Die Feldnamen sind bewusst DIESELBEN wie im AG-Formular, weil beide
+    // Kantone denselben Fragebogen verwenden. Darum baut MapLu auf MapAg auf
+    // und ergaenzt nur, was Luzern anders macht:
+    //   • Kinder stehen in ZWEI Spalten (Name | Geburtsdatum) statt in einer
+    //   • Gesamtpensum heisst «AN_pensum_gesamt» (AG: «AN_pensum_1»)
+    //   • zusaetzliche Konfession «Israelitische Gemeinde»
+    //   • kein Arbeitsort-Feld, keine Stundenangabe, kein Stellenantritt
+    //     des Partners — die Felder gibt es im LU-Formular schlicht nicht.
+    // Set() und Check() ueberspringen unbekannte Felder, die AG-Aufrufe fuer
+    // diese Felder laufen also folgenlos ins Leere.
+    private static void MapLu(PdfAcroForm form, QstAnmeldungData d)
+    {
+        MapAg(form, d);
+
+        // Gesamtpensum aller Erwerbstätigkeiten
+        Set(form, "AN_pensum_gesamt", d.GesamtPensumProzent);
+
+        // SV-Nummer wieder VOLLSTAENDIG. MapAg schneidet die «756.» weg, weil
+        // das Aargauer Formular sie aufgedruckt hat — das Luzerner nicht
+        // (geprueft im Formulartext, 02.09.2026). Ohne diese Korrektur fehlte
+        // hier die Laendervorwahl.
+        Set(form, "AN_SV_Nr",   d.QaSvNummer);
+        Set(form, "Part_SV_Nr", d.EpSvNummer);
+
+        // Kinder: «Nachname Vorname / dd.MM.yyyy» auf die zwei Spalten
+        // verteilen. Fehlt der Datumsteil, steht alles in der Namensspalte —
+        // besser unvollstaendig als an der falschen Stelle.
+        if (d.Kinder != null)
+        {
+            for (int i = 0; i < d.Kinder.Count && i < 4; i++)
+            {
+                var roh = d.Kinder[i] ?? "";
+                var teil = roh.Split(" / ", 2, StringSplitOptions.None);
+                Set(form, $"kind_{i + 1}",       teil[0].Trim());
+                if (teil.Length > 1)
+                    Set(form, $"kind_{i + 1}_datum", teil[1].Trim());
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
     // ZH — Kanton Zürich
     // ════════════════════════════════════════════════════════════════════════
     // Field-Mapping basiert auf dem strukturierten ZH-Template:
@@ -495,7 +623,7 @@ public class QstAnmeldungPdfService
 
         // ── Quellensteuerpflichtige Person (an.p1) ──────────────────────
         SetRadio(form, "an.p1.geschlecht", MapGeschlechtZh(d.QaGeschlecht));
-        Set(form, "an.p1.ahv",        d.QaSvNummer);
+        Set(form, "an.p1.ahv",        OhneSvVorwahl(d.QaSvNummer));   // «756.» steht gedruckt davor
         Set(form, "an.p1.name",       d.QaName);
         Set(form, "an.p1.vorname",    d.QaVorname);
         Set(form, "an.p1.adresse",    d.QaStrasse);
@@ -538,7 +666,7 @@ public class QstAnmeldungPdfService
         Set(form, "an.p1.kinder", d.AnzahlKinder);
 
         // ── Partner (an.p2) ─────────────────────────────────────────────
-        Set(form, "an.p2.ahv",        d.EpSvNummer);
+        Set(form, "an.p2.ahv",        OhneSvVorwahl(d.EpSvNummer));   // wie an.p1.ahv
         Set(form, "an.p2.name",       d.EpName);
         Set(form, "an.p2.vorname",    d.EpVorname);
         Set(form, "an.p2.adresse",    d.EpStrasse);
@@ -784,6 +912,16 @@ public class QstAnmeldungPdfService
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+    /// <summary>
+    /// Schneidet die Schweizer Laendervorwahl «756.» vorne weg. Nur fuer
+    /// Formulare gedacht, die sie bereits aufgedruckt haben.
+    /// </summary>
+    private static string? OhneSvVorwahl(string? svNummer)
+    {
+        var s = (svNummer ?? "").Trim();
+        return s.StartsWith("756.", StringComparison.Ordinal) ? s.Substring(4) : svNummer;
+    }
+
     private static void Set(PdfAcroForm form, string fieldName, string? value)
     {
         if (string.IsNullOrWhiteSpace(value)) return;
@@ -812,7 +950,25 @@ public class QstAnmeldungPdfService
     {
         var field = form.GetField(fieldName);
         if (field is null) return;
-        field.SetValue("Yes");
+
+        // Den TATSAECHLICHEN An-Zustand des Feldes nehmen statt blind "Yes".
+        // Ankreuzfelder tragen den Namen ihres Haken-Aussehens im PDF, und der
+        // ist nicht genormt: Word 2016 schreibt "Ja" (so im AG-Formular),
+        // andere Werkzeuge "Yes", "On" oder "1". Passt der Wert nicht zu einem
+        // vorhandenen Aussehen, bleibt das Kaestchen leer — und niemand merkt
+        // es, weil das PDF ja erzeugt wird (Walter-Fund 02.09.2026 beim Bau
+        // des LU-Formulars).
+        string? an = null;
+        try
+        {
+            var zustaende = field.GetAppearanceStates();
+            if (zustaende != null)
+                an = zustaende.FirstOrDefault(
+                        z => !string.Equals(z, "Off", StringComparison.OrdinalIgnoreCase));
+        }
+        catch { /* Aussehen nicht lesbar — dann eben der Standardwert unten. */ }
+
+        field.SetValue(an ?? "Yes");
     }
 
     /// <summary>

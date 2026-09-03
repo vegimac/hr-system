@@ -175,20 +175,32 @@ public class QstAnmeldungController : ControllerBase
             IsWochenaufenthalter       = isWochenaufenthalter,
             HasOtherEmployment         = hasOtherEmployment,
         };
-        var data = MapToDto(emp, employment, company, ehepartner, kinder, hrUser, qst, sslNummer, overrides);
+        // Kontaktperson auf dem Formular = wer es ERZEUGT (Walter-Vorgabe
+        // 02.09.2026). Vorher stand dort der HR-Verantwortliche der Filiale.
+        // Das Steueramt ruft bei Rückfragen die Nummer auf dem Formular an —
+        // und antworten soll die Person, die den Fall gerade bearbeitet, nicht
+        // irgendwer aus der Filiale. Kann der eingeloggte User nicht geladen
+        // werden, bleibt es beim bisherigen HR-Verantwortlichen.
+        var aktuellerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        int.TryParse(aktuellerIdStr, out var aktuellerId);
+        var kontaktUser = aktuellerId > 0
+            ? await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == aktuellerId)
+            : null;
+
+        var data = MapToDto(emp, employment, company, ehepartner, kinder,
+                            kontaktUser ?? hrUser, qst, sslNummer, overrides);
 
         // AG-Unterschrift: Standard = eingeloggter User (wer das PDF erzeugt,
         // unterschreibt). Walter-Vorgabe 29.08.2026: bei der QST-Anmeldung
         // WÄHLBAR («Ich oder der Geschäftsführer») — der gewählte User muss
         // eine hinterlegte Unterschrift UND Zugriff auf die Filiale haben
         // (oder admin sein); die bewusste Auswahl ersetzt hier den strikten
-        // Nur-eingeloggter-User-Grundsatz. Der getippte HR-Verantwortliche-
-        // Name oben im Formular bleibt unverändert.
+        // Nur-eingeloggter-User-Grundsatz. Die Kontaktperson oben im Formular
+        // bleibt davon unberührt — das ist immer der erzeugende Benutzer.
         byte[]? signaturePng = null;
         string? signerName = null;
-        var loggedInIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        int.TryParse(loggedInIdStr, out var loggedInId);
-        var effectiveSignerId = signerUserId ?? (loggedInId > 0 ? loggedInId : (int?)null);
+        // aktuellerId wurde oben schon für die Kontaktperson ermittelt.
+        var effectiveSignerId = signerUserId ?? (aktuellerId > 0 ? aktuellerId : (int?)null);
         if (effectiveSignerId.HasValue)
         {
             var signerUser = await _db.AppUsers
@@ -198,7 +210,7 @@ public class QstAnmeldungController : ControllerBase
             if (signerUser != null)
             {
                 // Fremd-Unterschrift nur mit Unterschrift + Filial-Bezug.
-                bool fremd = signerUser.Id != loggedInId;
+                bool fremd = signerUser.Id != aktuellerId;
                 bool zulaessig = !fremd
                     || (signerUser.SignaturePng != null
                         && (signerUser.Role == "admin"
@@ -502,16 +514,22 @@ public class QstAnmeldungController : ControllerBase
             overrideVal.HasValue ? (overrideVal.Value ? Elt_Ja : Elt_Nein)
             : entryVal.HasValue  ? (entryVal.Value    ? Elt_Ja : Elt_Nein)
             : null;
+        // Lebt der/die MA im Konkubinat? Wird an ZWEI Stellen gebraucht: als
+        // eigene Frage und als Voraussetzung für die Einkommens-Frage darunter.
+        var konkubinat = Resolve(overrides?.LivesInKonkubinat, qst?.LivesInKonkubinat);
+
         // Kontaktperson = HR-Verantwortliche/r für diese Filiale.
         // Reihenfolge: "Vorname Nachname" (so wie's gesprochen wird).
         var hrName  = hrUser != null
             ? JoinNonEmpty(" ", hrUser.FirstName, hrUser.LastName).Trim()
             : null;
         if (string.IsNullOrWhiteSpace(hrName)) hrName = hrUser?.Username;
-        // Telefon: Filiale bevorzugt (zentrale Nummer ist sinnvoller für Behörden);
-        // E-Mail: persönliche der HR-Person bevorzugt (für direkten Kontakt).
-        var hrPhone = !string.IsNullOrWhiteSpace(company.Phone)  ? company.Phone : hrUser?.Phone;
-        var hrEmail = !string.IsNullOrWhiteSpace(hrUser?.Email)  ? hrUser?.Email : company.Email;
+        // Telefon und E-Mail der Kontaktperson SELBST (Walter-Vorgabe
+        // 02.09.2026) — die Filialangaben nur noch als Rückfallebene, falls
+        // beim Benutzer nichts hinterlegt ist. Vorher stand hier die zentrale
+        // Filialnummer, was Rückfragen des Steueramts ins Restaurant lenkte.
+        var hrPhone = !string.IsNullOrWhiteSpace(hrUser?.Phone) ? hrUser?.Phone : company.Phone;
+        var hrEmail = !string.IsNullOrWhiteSpace(hrUser?.Email) ? hrUser?.Email : company.Email;
 
         return new QstAnmeldungData
         {
@@ -520,7 +538,11 @@ public class QstAnmeldungController : ControllerBase
             UidNummer       = company.UidNummer,
             Firma           = company.CompanyName + (string.IsNullOrWhiteSpace(company.BranchName) ? "" : ", " + company.BranchName),
             Adresse         = JoinNonEmpty(" ", company.Street, company.HouseNumber),
-            PlzOrtKanton    = JoinNonEmpty(" ", company.ZipCode, company.City),
+            // Kanton der FILIALE anhängen (Walter-Vorgabe 02.09.2026). Das Feld
+            // heisst «PLZ / Ort / Kanton» — ohne den Kanton war es unvollständig,
+            // und für ein auswärtiges Steueramt ist der Standortkanton des
+            // Arbeitgebers eine wesentliche Angabe.
+            PlzOrtKanton    = JoinNonEmpty(" ", company.ZipCode, company.City, company.KantonCode),
             Kontaktperson   = hrName,
             Telefon         = hrPhone,
             Email           = hrEmail,
@@ -612,10 +634,29 @@ public class QstAnmeldungController : ControllerBase
 
             // Die folgenden 4 Felder: Override hat Vorrang, sonst QST-Eintrag,
             // sonst null (= weder Ja noch Nein angekreuzt — Walter-Anforderung).
-            LebtImKonkubinatJaNein          = Resolve(overrides?.LivesInKonkubinat,          qst?.LivesInKonkubinat),
-            UebtElterlicheSorgeJaNein       = Resolve(overrides?.HasJointParentalCare,       qst?.HasJointParentalCare),
+            LebtImKonkubinatJaNein          = konkubinat,
+            // Elterliche Sorge / Unterhaltspflicht (Walter-Vorgabe 02.09.2026):
+            // Ist bei mindestens EINEM Kind die Unterhaltspflicht gegeben —
+            // also der Haken «keine Unterhaltspflicht» NICHT gesetzt —, dann
+            // lautet die Antwort Ja. Das steht bei den Familienmitgliedern und
+            // ist damit Stammdatum; der QST-Fragebogen kann veraltet sein.
+            // Gleiche Logik wie eine Zeile höher bei «Kinder im Haushalt».
+            // Ein ausdrücklicher Override sticht weiterhin alles.
+            UebtElterlicheSorgeJaNein       = overrides?.HasJointParentalCare is bool sorgeOv
+                                                ? (sorgeOv ? Elt_Ja : Elt_Nein)
+                                                : kinder.Count > 0
+                                                    ? (kinder.Any(k => !k.KeineUnterhaltspflicht) ? Elt_Ja : Elt_Nein)
+                                                    : Resolve(null, qst?.HasJointParentalCare),
             ZahltUnterhaltVolljaehrigJaNein = Resolve(overrides?.PaysAlimonyAdultChildren,   qst?.PaysAlimonyAdultChildren),
-            HoeheresBruttoEinkommenJaNein   = Resolve(overrides?.HasHigherIncomeThanPartner, qst?.HasHigherIncomeThanPartner),
+            // «Erzielen Sie das höhere Bruttoerwerbseinkommen?» NUR beantworten,
+            // wenn ein Konkubinat besteht (Walter-Vorgabe 02.09.2026). Die Frage
+            // vergleicht das Einkommen mit dem/der Konkubinatspartner/in — ohne
+            // Konkubinat gibt es niemanden zu vergleichen, und ein Kreuz bei
+            // «Nein, der/die Konkubinatspartner/in» behauptet einen Partner,
+            // den es gar nicht gibt. Dann bleiben beide Kästchen leer.
+            HoeheresBruttoEinkommenJaNein   = konkubinat == Elt_Ja
+                                                ? Resolve(overrides?.HasHigherIncomeThanPartner, qst?.HasHigherIncomeThanPartner)
+                                                : null,
 
             // Ort/Datum vorausgefüllt
             OrtDatum = $"{company.City ?? "Meggen"}, {DateTime.Today:dd.MM.yyyy}",

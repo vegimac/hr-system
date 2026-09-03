@@ -613,12 +613,11 @@ public class EmployeePermitHistoryController : ControllerBase
 
         var vorname = (emp.FirstName ?? "").Trim();
         // Bewilligungs-Code der ABGELAUFENEN Bewilligung (Walter 03.09.2026:
-        // «es ist nicht immer B») — z.B. «B», «L», «F»; mit Beschreibung.
+        // «es ist nicht immer B») — z.B. «B», «L», «F». Nur der Code, ohne
+        // Beschreibung («Bewilligung B» reicht — Walter 03.09.2026).
         var code = (entry.PermitType?.Code ?? "").Trim();
-        var codeText = string.IsNullOrWhiteSpace(entry.PermitType?.Description)
-            ? code
-            : $"{code} ({entry.PermitType!.Description.Trim()})";
-        if (code.Length == 0) { code = "Bewilligung"; codeText = "Bewilligung"; }
+        if (code.Length == 0) code = "Bewilligung";
+        var codeText = code;
         var gueltigBis = entry.ValidTo!.Value.ToString("dd.MM.yyyy");
         // Anrede = IMMER die Briefanrede des MA (Walter 03.09.2026).
         var briefanrede = !string.IsNullOrWhiteSpace(emp.LetterSalutation)
@@ -642,7 +641,7 @@ public class EmployeePermitHistoryController : ControllerBase
             .Replace("{SenderName}", senderName)
             .Replace("{Absender}", senderName);
 
-        var betreff = Resolve(DefaultPermitExpiredMailBetreff).Replace($"{codeText}", code).Trim();
+        var betreff = Resolve(DefaultPermitExpiredMailBetreff).Trim();
         var text = Resolve(DefaultPermitExpiredMailText).Trim();
         var textHtml = $@"      <div style=""font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-line"">{System.Net.WebUtility.HtmlEncode(text)}</div>";
         // Leerstring = ausdrücklich kein Fusstext (wie bei der Gruppen-E-Mail).
