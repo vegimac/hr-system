@@ -36,6 +36,13 @@ public class EmployeePermitHistoryController : ControllerBase
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
     private readonly EcallSmsService     _sms;
+    private readonly EmailService        _email;
+
+    // E-Mail bei abgelaufener Bewilligung (Walter 03.09.2026) — im gleichen
+    // OneCrew-Rahmen wie die Gruppen-E-Mail. Wortlaut von Walter.
+    private const string DefaultPermitExpiredMailBetreff = "Neue Bewilligung {PermitCode} — bitte nachreichen";
+    private const string DefaultPermitExpiredMailText =
+        "{Briefanrede}\n\nKannst du uns bitte so rasch wie möglich deine neue Bewilligung {PermitCode} mitbringen oder uns ein gutes Foto vom neuen Ausweis (Vorder- und Rückseite) zukommen lassen?\n\nHerzlichen Dank\n{SenderName}";
 
     // Kurz-SMS (≤ 160 Zeichen) — lange Mitteilung liegt auf der Link-Seite
     // (Walter 19.07.2026, analog Moments/Gratulation).
@@ -46,9 +53,9 @@ public class EmployeePermitHistoryController : ControllerBase
     private const int SmsMaxChars = 160;
     private const int LinkExpiryDays = 14;
 
-    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms)
+    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms, EmailService email)
     {
-        _db = db; _editLock = editLock; _sms = sms;
+        _db = db; _editLock = editLock; _sms = sms; _email = email;
     }
 
     private Task<int?> GetEmployeeBranchAsync(int employeeId)
@@ -558,6 +565,118 @@ public class EmployeePermitHistoryController : ControllerBase
             url,
             expiresAt,
         });
+    }
+
+    // ── E-Mail bei abgelaufener Bewilligung (Walter 03.09.2026) ──────────────
+    //    Gleicher Rahmen wie die Gruppen-E-Mail (EmailService.HtmlRahmen).
+
+    private sealed class PermitMailBuild
+    {
+        public IActionResult? Error { get; set; }
+        public string? To { get; set; }
+        public string? Name { get; set; }
+        public string? Betreff { get; set; }
+        public string? Text { get; set; }
+        public string? Html { get; set; }
+        public string? PermitCode { get; set; }
+        public DateOnly? ValidTo { get; set; }
+    }
+
+    private async Task<PermitMailBuild> BuildPermitExpiredMailAsync(int employeeId, int id)
+    {
+        var emp = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == employeeId);
+        if (emp == null)
+            return new PermitMailBuild { Error = NotFound(new { error = "Mitarbeiter nicht gefunden." }) };
+        var entry = await _db.EmployeePermitHistories.AsNoTracking()
+            .Include(h => h.PermitType)
+            .FirstOrDefaultAsync(h => h.Id == id && h.EmployeeId == employeeId);
+        if (entry == null)
+            return new PermitMailBuild { Error = NotFound(new { error = "Bewilligungs-Eintrag nicht gefunden." }) };
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        if (entry.ValidTo == null || entry.ValidTo >= today)
+            return new PermitMailBuild { Error = Conflict(new { error = "BEWILLIGUNG_NICHT_ABGELAUFEN", message = "E-Mail nur bei abgelaufener Bewilligung möglich." }) };
+        var to = (emp.Email ?? "").Trim();
+        if (to.Length == 0)
+            return new PermitMailBuild { Error = BadRequest(new { error = "Für diesen Mitarbeitenden ist keine E-Mail-Adresse hinterlegt." }) };
+
+        var vorname = (emp.FirstName ?? "").Trim();
+        var code = (entry.PermitType?.Code ?? "").Trim();
+        if (code.Length == 0) code = "Bewilligung";
+        var gueltigBis = entry.ValidTo!.Value.ToString("dd.MM.yyyy");
+        var briefanrede = !string.IsNullOrWhiteSpace(emp.LetterSalutation)
+            ? emp.LetterSalutation!.Trim()
+            : (vorname.Length > 0 ? $"Hallo {vorname}" : "Hallo");
+        var senderName = "";
+        var uid = GetCurrentUserId();
+        if (uid.HasValue)
+        {
+            var u = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid.Value);
+            senderName = (u?.FirstName ?? "").Trim();
+        }
+        string Resolve(string t) => t
+            .Replace("{Vorname}", vorname)
+            .Replace("{PermitCode}", code)
+            .Replace("{GueltigBis}", gueltigBis)
+            .Replace("{Briefanrede}", briefanrede)
+            .Replace("{SenderName}", senderName)
+            .Replace("{Absender}", senderName);
+
+        var betreff = Resolve(DefaultPermitExpiredMailBetreff).Trim();
+        var text = Resolve(DefaultPermitExpiredMailText).Trim();
+        var textHtml = $@"      <div style=""font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-line"">{System.Net.WebUtility.HtmlEncode(text)}</div>";
+        // Leerstring = ausdrücklich kein Fusstext (wie bei der Gruppen-E-Mail).
+        var html = EmailService.HtmlRahmen(betreff, textHtml, "");
+        return new PermitMailBuild
+        {
+            To = to,
+            Name = $"{emp.FirstName} {emp.LastName}".Trim(),
+            Betreff = betreff,
+            Text = text,
+            Html = html,
+            PermitCode = code,
+            ValidTo = entry.ValidTo,
+        };
+    }
+
+    [HttpGet("{id:int}/email-preview")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> EmailPreview(int employeeId, int id)
+    {
+        var guard = await GuardBranchAsync(employeeId);
+        if (guard != null) return guard;
+        var built = await BuildPermitExpiredMailAsync(employeeId, id);
+        if (built.Error != null) return built.Error;
+        var kat = VersandKategorien.Code(Services.VersandKategorie.Bewilligung);
+        var last = await _db.MailLogs.AsNoTracking()
+            .Where(l => l.EmployeeId == employeeId && l.Kategorie == kat && l.Ok)
+            .OrderByDescending(l => l.CreatedAt)
+            .Select(l => (DateTime?)l.CreatedAt)
+            .FirstOrDefaultAsync();
+        return Ok(new
+        {
+            ok = true,
+            to = built.To,
+            betreff = built.Betreff,
+            text = built.Text,
+            permitCode = built.PermitCode,
+            validTo = built.ValidTo?.ToString("yyyy-MM-dd"),
+            lastMailSentAt = last,
+        });
+    }
+
+    [HttpPost("{id:int}/send-email")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung")]
+    public async Task<IActionResult> SendEmail(int employeeId, int id)
+    {
+        var guard = await GuardBranchAsync(employeeId);
+        if (guard != null) return guard;
+        var built = await BuildPermitExpiredMailAsync(employeeId, id);
+        if (built.Error != null) return built.Error;
+        var ok = await _email.SendAsync(built.To!, built.Name, built.Betreff!, built.Html!, built.Text!,
+            Services.VersandKategorie.Bewilligung, employeeId: employeeId);
+        if (!ok)
+            return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen — siehe Versandprotokoll." });
+        return Ok(new { ok = true, to = built.To, betreff = built.Betreff });
     }
 
     // Öffentliche Landing-Page (kurze SMS → lange Mitteilung).

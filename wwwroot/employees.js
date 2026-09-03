@@ -14393,6 +14393,8 @@ function renderPermitListHtml(entries) {
         // Walter 19.07.2026: bei abgelaufener Bewilligung SMS-Erinnerung an den MA
         // (eCall, analog Vertrags-SMS). Ohne Handynummer grau/disabled.
         const phone = (selectedEmployee?.phoneMobile || '').trim();
+        // Walter 03.09.2026: zusätzlich E-Mail im OneCrew-Rahmen (wie Gruppen-E-Mail).
+        const mail = (selectedEmployee?.email || '').trim();
         const smsBtn = isExpired
             ? (phone
                 ? `<button type="button" class="emp-contract-btn" style="flex-shrink:0"
@@ -14400,6 +14402,12 @@ function renderPermitListHtml(entries) {
                        onclick="permitExpiredSendSms(selectedEmployeeId, ${h.id})">SMS</button>`
                 : `<button type="button" class="emp-contract-btn" style="flex-shrink:0;opacity:.45;cursor:not-allowed"
                        title="Keine Handynummer hinterlegt — bitte im Personal-Tab erfassen" disabled>SMS</button>`)
+              + (mail
+                ? `<button type="button" class="emp-contract-btn" style="flex-shrink:0"
+                       title="E-Mail an ${esc(mail)}: neue Bewilligung mitbringen oder Foto schicken"
+                       onclick="permitExpiredSendEmail(selectedEmployeeId, ${h.id})">✉ E-Mail</button>`
+                : `<button type="button" class="emp-contract-btn" style="flex-shrink:0;opacity:.45;cursor:not-allowed"
+                       title="Keine E-Mail-Adresse hinterlegt — bitte im Personal-Tab erfassen" disabled>✉ E-Mail</button>`)
             : '';
         return `
         <div style="${rowStyle}">
@@ -14517,6 +14525,44 @@ async function permitExpiredSendSms(employeeId, historyId) {
             <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
                 ✓ Bewilligungs-SMS gesendet an ${esc(j.to || nr)}.
                 ${redirectNote}
+            </div>`;
+        box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+        if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
+    }
+}
+
+// E-Mail bei abgelaufener Bewilligung (Walter 03.09.2026) — Vorschau, Rückfrage, Versand.
+async function permitExpiredSendEmail(employeeId, historyId) {
+    if (!employeeId || !historyId) return;
+    const box = document.querySelector('.emp-tab-content.active .permitSmsBox')
+        || document.querySelector('.permitSmsBox');
+    let preview = null;
+    try {
+        const pr = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/email-preview`, { headers: ah() });
+        preview = await pr.json().catch(() => ({}));
+        if (!pr.ok) { alert(preview.message || preview.error || ('Vorschau fehlgeschlagen (HTTP ' + pr.status + ')')); return; }
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); return; }
+
+    let hint = '';
+    if (preview.lastMailSentAt) {
+        const d = new Date(preview.lastMailSentAt);
+        hint = `\n\nBereits gesendet am ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.`;
+    }
+    const confirmMsg = `E-Mail an ${preview.to} senden?${hint}\n\nBetreff: ${preview.betreff}\n\n${preview.text}`;
+    if (!(await liquidConfirm(confirmMsg, { title: 'Bewilligung — E-Mail', yesLabel: 'Senden', noLabel: 'Abbruch' }))) return;
+
+    if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">✉ E-Mail wird gesendet …</div>';
+    try {
+        const res = await fetch(`/api/employees/${employeeId}/permit-history/${historyId}/send-email`, { method: 'POST', headers: ah() });
+        const j = await res.json().catch(() => ({}));
+        if (!res.ok || !j.ok) {
+            if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">✗ ${esc(j.error || j.message || ('Fehler HTTP ' + res.status))}</div>`;
+            return;
+        }
+        if (box) box.innerHTML = `
+            <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
+                ✓ Bewilligungs-E-Mail gesendet an ${esc(j.to || preview.to)}.
             </div>`;
         box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
