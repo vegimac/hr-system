@@ -7,6 +7,9 @@ using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace HrSystem.Controllers;
 
@@ -37,6 +40,7 @@ public class EmployeePermitHistoryController : ControllerBase
     private readonly LohnEditLockService _editLock;
     private readonly EcallSmsService     _sms;
     private readonly EmailService        _email;
+    private readonly string              _docStorage;   // Wurzel der MA-Dokumente (wie DocumentsController)
 
     // E-Mail bei abgelaufener Bewilligung (Walter 03.09.2026) — im gleichen
     // OneCrew-Rahmen wie die Gruppen-E-Mail. Wortlaut von Walter.
@@ -53,9 +57,14 @@ public class EmployeePermitHistoryController : ControllerBase
     private const int SmsMaxChars = 160;
     private const int LinkExpiryDays = 14;
 
-    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms, EmailService email)
+    public EmployeePermitHistoryController(AppDbContext db, LohnEditLockService editLock, EcallSmsService sms, EmailService email,
+                                           IConfiguration config, IWebHostEnvironment env)
     {
         _db = db; _editLock = editLock; _sms = sms; _email = email;
+        var configured = config["Documents:StoragePath"];
+        if (string.IsNullOrWhiteSpace(configured))
+            configured = Path.Combine(env.ContentRootPath, "data", "documents");
+        _docStorage = configured;
     }
 
     private Task<int?> GetEmployeeBranchAsync(int employeeId)
@@ -580,6 +589,9 @@ public class EmployeePermitHistoryController : ControllerBase
         public string? Html { get; set; }
         public string? PermitCode { get; set; }
         public DateOnly? ValidTo { get; set; }
+        public int? CompanyProfileId { get; set; }
+        public string? BranchCode { get; set; }
+        public string? BranchName { get; set; }
     }
 
     private async Task<PermitMailBuild> BuildPermitExpiredMailAsync(int employeeId, int id)
@@ -600,9 +612,15 @@ public class EmployeePermitHistoryController : ControllerBase
             return new PermitMailBuild { Error = BadRequest(new { error = "Für diesen Mitarbeitenden ist keine E-Mail-Adresse hinterlegt." }) };
 
         var vorname = (emp.FirstName ?? "").Trim();
+        // Bewilligungs-Code der ABGELAUFENEN Bewilligung (Walter 03.09.2026:
+        // «es ist nicht immer B») — z.B. «B», «L», «F»; mit Beschreibung.
         var code = (entry.PermitType?.Code ?? "").Trim();
-        if (code.Length == 0) code = "Bewilligung";
+        var codeText = string.IsNullOrWhiteSpace(entry.PermitType?.Description)
+            ? code
+            : $"{code} ({entry.PermitType!.Description.Trim()})";
+        if (code.Length == 0) { code = "Bewilligung"; codeText = "Bewilligung"; }
         var gueltigBis = entry.ValidTo!.Value.ToString("dd.MM.yyyy");
+        // Anrede = IMMER die Briefanrede des MA (Walter 03.09.2026).
         var briefanrede = !string.IsNullOrWhiteSpace(emp.LetterSalutation)
             ? emp.LetterSalutation!.Trim()
             : (vorname.Length > 0 ? $"Hallo {vorname}" : "Hallo");
@@ -613,15 +631,18 @@ public class EmployeePermitHistoryController : ControllerBase
             var u = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid.Value);
             senderName = (u?.FirstName ?? "").Trim();
         }
+        var cpId = await GetEmployeeBranchAsync(employeeId);
+        var branch = cpId == null ? null : await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == cpId.Value).Select(c => new { c.RestaurantCode, c.City, c.BranchName }).FirstOrDefaultAsync();
         string Resolve(string t) => t
             .Replace("{Vorname}", vorname)
-            .Replace("{PermitCode}", code)
+            .Replace("{PermitCode}", codeText)
             .Replace("{GueltigBis}", gueltigBis)
             .Replace("{Briefanrede}", briefanrede)
             .Replace("{SenderName}", senderName)
             .Replace("{Absender}", senderName);
 
-        var betreff = Resolve(DefaultPermitExpiredMailBetreff).Trim();
+        var betreff = Resolve(DefaultPermitExpiredMailBetreff).Replace($"{codeText}", code).Trim();
         var text = Resolve(DefaultPermitExpiredMailText).Trim();
         var textHtml = $@"      <div style=""font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-line"">{System.Net.WebUtility.HtmlEncode(text)}</div>";
         // Leerstring = ausdrücklich kein Fusstext (wie bei der Gruppen-E-Mail).
@@ -635,7 +656,102 @@ public class EmployeePermitHistoryController : ControllerBase
             Html = html,
             PermitCode = code,
             ValidTo = entry.ValidTo,
+            CompanyProfileId = cpId,
+            BranchCode = branch?.RestaurantCode,
+            BranchName = branch == null ? null : (branch.City ?? branch.BranchName),
         };
+    }
+
+    /// <summary>Kopie-Empfänger (Walter 03.09.2026): s.ittig (User mit Nachname Ittig)
+    /// und die GF der Filiale des MA (Rolle user mit Filial-Zugriff).</summary>
+    private async Task<List<(string Email, string Name, string Rolle)>> KopieEmpfaengerAsync(int? companyProfileId)
+    {
+        var list = new List<(string, string, string)>();
+        var ittig = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive && u.LastName != null && u.LastName.ToLower() == "ittig" && u.Email != "")
+            .Select(u => new { u.Email, u.FirstName, u.LastName })
+            .FirstOrDefaultAsync();
+        if (ittig != null) list.Add((ittig.Email.Trim(), $"{ittig.FirstName} {ittig.LastName}".Trim(), "HR"));
+        if (companyProfileId != null)
+        {
+            var gfs = await _db.UserBranchAccesses.AsNoTracking()
+                .Where(a => a.CompanyProfileId == companyProfileId.Value)
+                .Join(_db.AppUsers.AsNoTracking().Where(u => u.IsActive && u.Role == "user" && u.Email != ""),
+                      a => a.UserId, u => u.Id, (a, u) => new { u.Email, u.FirstName, u.LastName })
+                .ToListAsync();
+            foreach (var g in gfs)
+                if (!list.Any(x => string.Equals(x.Item1, g.Email.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    list.Add((g.Email.Trim(), $"{g.FirstName} {g.LastName}".Trim(), "GF"));
+        }
+        return list;
+    }
+
+    /// <summary>Die gesendete E-Mail als PDF in die MA-Dokumente legen
+    /// (Persönliche Angaben › Aufenthaltsbewilligung, Walter 03.09.2026).</summary>
+    private async Task<bool> MailAlsDokumentAblegenAsync(int employeeId, PermitMailBuild built, IEnumerable<string> kopien)
+    {
+        var typ = await _db.DokumentTypen.AsNoTracking()
+            .Where(t => t.Aktiv && t.LinkedFieldCode == "permit").FirstOrDefaultAsync()
+            ?? await _db.DokumentTypen.AsNoTracking()
+            .Where(t => t.Aktiv && t.Name.Contains("Aufenthaltsbewilligung")).FirstOrDefaultAsync()
+            ?? await _db.DokumentTypen.AsNoTracking()
+            .Where(t => t.Aktiv && t.Name.Contains("Bewilligung")).FirstOrDefaultAsync();
+        if (typ == null) return false;
+
+        var kopieText = string.Join(", ", kopien);
+        var wann = DateTime.Now;
+        QuestPDF.Settings.License = LicenseType.Community;
+        var pdf = Document.Create(doc =>
+        {
+            doc.Page(page =>
+            {
+                page.Size(PageSizes.A4);
+                page.MarginTop(28); page.MarginBottom(28); page.MarginHorizontal(36);
+                page.DefaultTextStyle(t => t.FontSize(10).FontColor("#222"));
+                page.Content().Column(col =>
+                {
+                    col.Item().Text("E-Mail — Bewilligung abgelaufen").SemiBold().FontSize(14).FontColor("#1a1a1a");
+                    col.Item().PaddingTop(6).Table(t =>
+                    {
+                        t.ColumnsDefinition(c => { c.ConstantColumn(80); c.RelativeColumn(); });
+                        void Z(string l, string v)
+                        {
+                            t.Cell().Padding(2).Text(l).FontSize(9).FontColor("#666");
+                            t.Cell().Padding(2).Text(v).FontSize(9.5f);
+                        }
+                        Z("Datum", wann.ToString("dd.MM.yyyy HH:mm"));
+                        Z("An", $"{built.Name} <{built.To}>");
+                        if (kopieText.Length > 0) Z("Kopie an", kopieText);
+                        Z("Betreff", built.Betreff ?? "");
+                    });
+                    col.Item().PaddingTop(10).LineHorizontal(0.6f).LineColor("#ccc");
+                    col.Item().PaddingTop(12).Text(built.Text ?? "").FontSize(11).LineHeight(1.5f);
+                });
+            });
+        }).GeneratePdf();
+
+        var safeBranch = new string((built.BranchCode ?? "0").Where(ch => char.IsLetterOrDigit(ch) || ch == '_' || ch == '-').ToArray());
+        if (safeBranch.Length == 0) safeBranch = "0";
+        var empDir = Path.Combine(_docStorage, safeBranch, employeeId.ToString());
+        Directory.CreateDirectory(empDir);
+        var storageName = Guid.NewGuid().ToString("N") + ".pdf";
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(empDir, storageName), pdf);
+        _db.EmployeeDokumente.Add(new EmployeeDokument
+        {
+            EmployeeId = employeeId,
+            DokumentTypId = typ.Id,
+            BranchCode = safeBranch,
+            FilenameOriginal = $"E-Mail_Bewilligung_{built.PermitCode}_{wann:yyyyMMdd_HHmm}.pdf",
+            FilenameStorage = storageName,
+            MimeType = "application/pdf",
+            GroesseBytes = pdf.LongLength,
+            Bemerkung = $"E-Mail Bewilligung {built.PermitCode} abgelaufen — gesendet {wann:dd.MM.yyyy HH:mm}",
+            HochgeladenVon = GetCurrentUserId(),
+            HochgeladenAm = wann,
+            ErstelltAm = wann,
+        });
+        await _db.SaveChangesAsync();
+        return true;
     }
 
     [HttpGet("{id:int}/email-preview")]
@@ -652,6 +768,7 @@ public class EmployeePermitHistoryController : ControllerBase
             .OrderByDescending(l => l.CreatedAt)
             .Select(l => (DateTime?)l.CreatedAt)
             .FirstOrDefaultAsync();
+        var kopien = await KopieEmpfaengerAsync(built.CompanyProfileId);
         return Ok(new
         {
             ok = true,
@@ -661,6 +778,7 @@ public class EmployeePermitHistoryController : ControllerBase
             permitCode = built.PermitCode,
             validTo = built.ValidTo?.ToString("yyyy-MM-dd"),
             lastMailSentAt = last,
+            kopien = kopien.Select(k => new { email = k.Email, name = k.Name, rolle = k.Rolle }),
         });
     }
 
@@ -676,7 +794,31 @@ public class EmployeePermitHistoryController : ControllerBase
             Services.VersandKategorie.Bewilligung, employeeId: employeeId);
         if (!ok)
             return StatusCode(502, new { error = "E-Mail-Versand fehlgeschlagen — siehe Versandprotokoll." });
-        return Ok(new { ok = true, to = built.To, betreff = built.Betreff });
+
+        // Kopie an s.ittig + GF der Filiale (Walter 03.09.2026): gleiche Mail,
+        // mit Hinweiszeile «Kopie der E-Mail an …» — EmailService kennt kein CC.
+        var kopien = await KopieEmpfaengerAsync(built.CompanyProfileId);
+        var kopieOk = new List<string>();
+        var kopieFehler = new List<string>();
+        var kopieHinweis = $@"      <div style=""font-size:12px;color:#8b8b8b;margin-bottom:12px"">Kopie der E-Mail an {System.Net.WebUtility.HtmlEncode(built.Name ?? "")} &lt;{System.Net.WebUtility.HtmlEncode(built.To ?? "")}&gt;{(string.IsNullOrWhiteSpace(built.BranchName) ? "" : " · Filiale " + System.Net.WebUtility.HtmlEncode(built.BranchName))}</div>";
+        var kopieHtml = built.Html!.Replace(@"<div style=""font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-line"">", kopieHinweis + @"<div style=""font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-line"">");
+        foreach (var k in kopien)
+        {
+            if (string.Equals(k.Email, built.To, StringComparison.OrdinalIgnoreCase)) continue;
+            var kok = await _email.SendAsync(k.Email, k.Name, $"Kopie: {built.Betreff}", kopieHtml,
+                $"Kopie der E-Mail an {built.Name} <{built.To}>
+
+{built.Text}",
+                Services.VersandKategorie.Bewilligung, employeeId: employeeId);
+            if (kok) kopieOk.Add($"{k.Name} ({k.Rolle})"); else kopieFehler.Add($"{k.Name} ({k.Rolle})");
+        }
+
+        // Ablage in der MA-Akte (best-effort)
+        bool abgelegt = false;
+        try { abgelegt = await MailAlsDokumentAblegenAsync(employeeId, built, kopien.Select(k => $"{k.Name} <{k.Email}>")); }
+        catch { abgelegt = false; }
+
+        return Ok(new { ok = true, to = built.To, betreff = built.Betreff, kopien = kopieOk, kopienFehler = kopieFehler, abgelegt });
     }
 
     // Öffentliche Landing-Page (kurze SMS → lange Mitteilung).

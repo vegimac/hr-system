@@ -14549,7 +14549,10 @@ async function permitExpiredSendEmail(employeeId, historyId) {
         const d = new Date(preview.lastMailSentAt);
         hint = `\n\nBereits gesendet am ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}.`;
     }
-    const confirmMsg = `E-Mail an ${preview.to} senden?${hint}\n\nBetreff: ${preview.betreff}\n\n${preview.text}`;
+    const kopien = (preview.kopien || []).map(k => `${k.name} (${k.rolle})`).join(', ');
+    const confirmMsg = `E-Mail an ${preview.to} senden?${hint}`
+        + (kopien ? `\n\nKopie an: ${kopien}` : '\n\nKopie an: — (kein HR-/GF-Empfänger gefunden)')
+        + `\n\nBetreff: ${preview.betreff}\n\n${preview.text}`;
     if (!(await liquidConfirm(confirmMsg, { title: 'Bewilligung — E-Mail', yesLabel: 'Senden', noLabel: 'Abbruch' }))) return;
 
     if (box) box.innerHTML = '<div style="color:#8b8b8b;font-size:13px;padding:8px 0">✉ E-Mail wird gesendet …</div>';
@@ -14563,7 +14566,11 @@ async function permitExpiredSendEmail(employeeId, historyId) {
         if (box) box.innerHTML = `
             <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.55">
                 ✓ Bewilligungs-E-Mail gesendet an ${esc(j.to || preview.to)}.
+                ${(j.kopien || []).length ? `<div style="margin-top:4px">Kopie an ${esc(j.kopien.join(', '))}</div>` : ''}
+                ${(j.kopienFehler || []).length ? `<div style="margin-top:4px;color:#991b1b">Kopie fehlgeschlagen: ${esc(j.kopienFehler.join(', '))}</div>` : ''}
+                <div style="margin-top:4px">${j.abgelegt ? '📎 In den Dokumenten abgelegt (Persönliche Angaben › Aufenthaltsbewilligung).' : '<span style="color:#92400e">⚠ Ablage in den Dokumenten nicht möglich — Dokumenttyp «Aufenthaltsbewilligung» fehlt?</span>'}</div>
             </div>`;
+        if (j.abgelegt && typeof loadDokumenteTab === 'function' && document.querySelector('.emp-tab-content.active #dokListe')) loadDokumenteTab();
         box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
         if (box) box.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:12px;font-size:13px">Verbindungsfehler: ${esc(e.message)}</div>`;
