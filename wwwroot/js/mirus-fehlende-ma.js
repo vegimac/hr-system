@@ -222,7 +222,7 @@ function mfmChf(v) {
 }
 
 function mfmKv(pairs) {
-    return `<div style="display:grid;grid-template-columns:130px 1fr 130px 1fr;gap:3px 10px;font-size:12.5px">
+    return `<div style="display:grid;grid-template-columns:150px 1fr 150px 1fr;gap:3px 10px;font-size:12.5px">
         ${pairs.map(([k, v]) => k
             ? `<div style="color:#64748b">${esc(k)}</div><div style="color:#0f172a">${v ?? '—'}</div>`
             : `<div></div><div></div>`).join('')}
@@ -231,41 +231,68 @@ function mfmKv(pairs) {
 
 function mfmSection(title, inner) {
     return `<div style="margin-top:10px">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6b6152;margin-bottom:4px">${esc(title)}</div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#0e7490;margin-bottom:4px">${esc(title)}</div>
         ${inner}
     </div>`;
 }
 
 function mfmMaCard(m) {
-    const name = `${esc(m.vorname || '')} ${esc(m.nachname || '')}`.trim() || '—';
+    // Reihenfolge + Beschriftung wie die Mirus-Masken (Walter 03.09.2026):
+    // Persönliche Angaben → Adressen → Familie → Arbeitsverhältnis → Lohndaten.
+    const name = `${esc(m.nachname || '')} ${esc(m.vorname || '')}`.trim() || '—';
     const e = s => esc(s == null || s === '' ? '—' : String(s));
+    const aktiv = (m.vertraege || []).find(v => v.aktiv) || (m.vertraege || [])[0];
 
     const luecken = (m.luecken || []).length
         ? `<div style="margin-top:6px;padding:6px 10px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#991b1b">In OneCrew noch unvollständig: ${esc(m.luecken.join(', '))}</div>`
         : '';
 
-    const personalien = mfmKv([
-        ['Anrede', e(m.anrede)], ['Geschlecht', e(m.geschlecht)],
-        ['Nachname', e(m.nachname)], ['Vorname', e(m.vorname)],
+    const persoenlich = mfmKv([
+        ['Personal-Nr.', e(m.personalnummer)], ['Name', e(m.nachname)],
+        ['Vorname', e(m.vorname)], ['Kurzname', e(m.kurzname)],
         ['Ledigname', e(m.ledigname)], ['Geburtsdatum', mfmDate(m.geburtsdatum)],
-        ['AHV-Nummer', e(m.ahv)], ['Zivilstand', e(m.zivilstand) + (m.zivilstandSeit ? ` (seit ${mfmDate(m.zivilstandSeit)})` : '')],
-        ['Nationalität', e(m.nationalitaet) + (m.nationalitaetCode ? ` (${esc(m.nationalitaetCode)})` : '')],
-        ['Bewilligung', e(m.bewilligung) + (m.bewilligungText ? ` — ${esc(m.bewilligungText)}` : '') + (m.bewilligungBis ? `, gültig bis ${mfmDate(m.bewilligungBis)}` : '')],
-        ['ZEMIS-Nr.', e(m.zemis)], ['Konfession', e(m.konfession)],
-        ['Sprache', e(m.sprache)], ['Heimatort', e(m.heimatort)],
-        ['Alte Pers. Nr.', (m.alteNummern || []).length ? esc(m.alteNummern.join(', ')) : '—'], ['', ''],
+        ['Geschlecht', e(m.geschlecht)], ['Sozialversnr.', e(m.ahv)],
+        ['Zivilstand', e(m.zivilstand) + (m.zivilstandSeit ? ` (seit ${mfmDate(m.zivilstandSeit)})` : '')], ['Sprachcode', e(m.sprache)],
+        ['Anrede', e(m.anrede)], ['Briefanrede', e(m.briefanrede)],
+        ['Konfession', e(m.konfession)], ['Nationalität', `${e(m.nationalitaetCode)} &nbsp; ${e(m.nationalitaet)}`],
+        ['Geburtsland', '<span style="color:#94a3b8">— (nicht in OneCrew)</span>'], ['Heimatort / Geburtsort', e(m.heimatort)],
+        ['Aufenthaltskategorie', e(m.aufenthaltskategorie)], ['Gültig bis', mfmDate(m.bewilligungBis)],
+        ['ZEMIS-Nr.', e(m.zemis)], ['Krankenkasse', '<span style="color:#94a3b8">— (nicht in OneCrew)</span>'],
+        ['Beruf', e(m.beruf)], ['Kaderstufe', m.kader ? 'Kader' : '—'],
+        ['Kostenstelle', e(m.kostenstelleVorschlag)], ['', ''],
     ]);
 
-    const kontakt = mfmKv([
-        ['Strasse', e(m.strasse)], ['PLZ / Ort', `${e(m.plz)} ${e(m.ort)}`],
-        ['Kanton', e(m.kanton)], ['Land', e(m.land)],
-        ['Telefon', e(m.telefon)], ['Telefon 2', e(m.telefon2)],
-        ['E-Mail', e(m.email)], ['', ''],
+    const adressen = mfmKv([
+        ['Zweck', 'Hauptadresse'], ['Gültig ab', mfmDate(m.eintritt)],
+        ['Strasse', e(m.strasse)], ['Strasse 2 / Postfach', '—'],
+        ['PLZ / Ort / BFS', `${e(m.plz)} &nbsp; ${e(m.ort)} &nbsp; <span style="color:#64748b">${e(m.bfs)}</span>`], ['Kanton', `${e(m.kanton)} ${esc(m.kantonName || '')}`],
+        ['Land', `${e(m.land)} ${(m.land || '').toUpperCase() === 'CH' ? 'Schweiz' : ''}`], ['Telefon', e(m.telefon)],
+        ['Telefon 2', e(m.telefon2)], ['Email', e(m.email)],
     ]);
 
-    const anstellung = mfmKv([
-        ['Eintritt', mfmDate(m.eintritt)], ['Kostenstelle (Vorschlag)', e(m.kostenstelleVorschlag)],
-        ['L-GAV-pflichtig', m.lgavPflichtig ? 'ja' : 'nein'], ['NBU', m.teilzeitUnter8h ? 'nein (< 8 h/Woche)' : 'ja'],
+    const familie = (m.familie || []).length
+        ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+            <thead><tr style="color:#64748b;font-size:11px;text-transform:uppercase">
+                <th style="padding:4px 8px;text-align:left">Typ</th><th style="padding:4px 8px;text-align:left">Name Vorname</th>
+                <th style="padding:4px 8px;text-align:left">Geburtsdatum</th><th style="padding:4px 8px;text-align:left">Sozialversnr.</th>
+                <th style="padding:4px 8px;text-align:left">Im Haushalt</th><th style="padding:4px 8px;text-align:left">In der CH</th>
+            </tr></thead>
+            <tbody>${m.familie.map(f => `<tr style="border-top:1px solid #eee">
+                <td style="padding:4px 8px">${e(f.typ)}</td>
+                <td style="padding:4px 8px">${esc(((f.nachname || '') + ' ' + (f.vorname || '')).trim() || '—')}</td>
+                <td style="padding:4px 8px">${mfmDate(f.geburtsdatum)}</td>
+                <td style="padding:4px 8px">${e(f.ahv)}</td>
+                <td style="padding:4px 8px">${f.imHaushalt ? 'ja' : 'nein'}</td>
+                <td style="padding:4px 8px">${f.inSchweiz ? 'ja' : 'nein'}</td>
+            </tr>`).join('')}</tbody>
+          </table>`
+        : `<div style="font-size:12.5px;color:#64748b">Keine Familienmitglieder in OneCrew erfasst.</div>`;
+
+    const arbeitsverhaeltnis = mfmKv([
+        ['Eintritt', mfmDate(m.eintritt)], ['Austritt', '—'],
+        ['Angestellt zu', m.angestelltZu != null ? `${Math.round(m.angestelltZu)} %` : '—'], ['Lohnbasis', m.lohnbasis === 'ML' ? 'ML (Monatslohn)' : m.lohnbasis === 'SL' ? 'SL (Stundenlohn)' : '—'],
+        ['Vertragskategorie', e(aktiv?.modell)], ['L-GAV-pflichtig', m.lgavPflichtig ? 'ja' : 'nein'],
+        ['NBU', m.teilzeitUnter8h ? 'nein (< 8 h/Woche)' : 'ja'], ['', ''],
     ]);
 
     const vertraege = (m.vertraege || []).length
@@ -293,6 +320,16 @@ function mfmMaCard(m) {
         }).join('')
         : `<div style="font-size:12.5px;color:#991b1b">Kein Vertrag in dieser Filiale erfasst.</div>`;
 
+    const q = m.qst;
+    const qst = q && q.pflichtig
+        ? mfmKv([
+            ['Tarifcode', e(q.tarif) + (q.tarifText ? ` &nbsp; ${esc(q.tarifText)}` : '')], ['Kanton', e(q.kanton)],
+            ['Gemeinde / BFS', e(q.gemeinde) + (q.gemeindeBfs ? ` &nbsp; ${q.gemeindeBfs}` : '')], ['Kirchensteuer', q.kirchensteuer ? 'ja' : 'nein'],
+            ['Anzahl Kinder', q.kinder ?? '—'], ['Gültig ab', mfmDate(q.gueltigAb)],
+            ['Satz', q.prozent != null ? `${q.prozent} %` : '—'], ['', ''],
+        ])
+        : `<div style="font-size:12.5px;color:${(q?.hinweis || '').includes('prüfen') ? '#991b1b' : '#475569'}">${e(q?.hinweis)}</div>`;
+
     const banken = (m.banken || []).length
         ? m.banken.map(b => mfmKv([
             ['IBAN', `<span style="font-family:monospace">${e(b.iban)}</span>${b.hauptbank ? '' : ' <span style="color:#94a3b8">(Nebenkonto)</span>'}`], ['Bank', e(b.bank)],
@@ -300,52 +337,28 @@ function mfmMaCard(m) {
         ])).join('<div style="height:4px"></div>')
         : `<div style="font-size:12.5px;color:#991b1b">Keine Bankverbindung in OneCrew erfasst.</div>`;
 
-    const q = m.qst;
-    const qst = q && q.pflichtig
-        ? mfmKv([
-            ['Tarif', e(q.tarif) + (q.tarifText ? ` — ${esc(q.tarifText)}` : '')], ['Kanton', e(q.kanton)],
-            ['Gemeinde', e(q.gemeinde) + (q.gemeindeBfs ? ` (BFS ${q.gemeindeBfs})` : '')], ['Kirchensteuer', q.kirchensteuer ? 'ja' : 'nein'],
-            ['Kinder (QST)', q.kinder ?? '—'], ['Gültig ab', mfmDate(q.gueltigAb)],
-            ['Satz', q.prozent != null ? `${q.prozent} %` : '—'], ['', ''],
-        ])
-        : `<div style="font-size:12.5px;color:${(q?.hinweis || '').includes('prüfen') ? '#991b1b' : '#475569'}">${e(q?.hinweis)}</div>`;
-
-    const familie = (m.familie || []).length
-        ? `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
-            <thead><tr style="color:#64748b;font-size:11px;text-transform:uppercase">
-                <th style="padding:4px 8px;text-align:left">Typ</th><th style="padding:4px 8px;text-align:left">Name</th>
-                <th style="padding:4px 8px;text-align:left">Geb.-Datum</th><th style="padding:4px 8px;text-align:left">AHV-Nummer</th>
-                <th style="padding:4px 8px;text-align:left">Im Haushalt</th><th style="padding:4px 8px;text-align:left">In der CH</th>
-            </tr></thead>
-            <tbody>${m.familie.map(f => `<tr style="border-top:1px solid #eee">
-                <td style="padding:4px 8px">${e(f.typ)}</td>
-                <td style="padding:4px 8px">${esc(((f.vorname || '') + ' ' + (f.nachname || '')).trim() || '—')}</td>
-                <td style="padding:4px 8px">${mfmDate(f.geburtsdatum)}</td>
-                <td style="padding:4px 8px">${e(f.ahv)}</td>
-                <td style="padding:4px 8px">${f.imHaushalt ? 'ja' : 'nein'}</td>
-                <td style="padding:4px 8px">${f.inSchweiz ? 'ja' : 'nein'}</td>
-            </tr>`).join('')}</tbody>
-          </table>`
-        : `<div style="font-size:12.5px;color:#64748b">Keine Familienmitglieder erfasst.</div>`;
-
     return `
     <div style="background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.7);border-radius:12px;padding:14px 16px;margin-bottom:12px;box-shadow:0 2px 10px rgba(60,55,48,.08)">
         <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-                <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fee2e2;color:#991b1b">Fehlt in Mirus</span>
-                <span style="font-weight:700;color:#3f3f3f;font-size:15px">${name}</span>
-                <span style="font-family:monospace;font-size:12px;color:#64748b">${e(m.personalnummer)}</span>
+            <div>
+                <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                    <span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:700;background:#fee2e2;color:#991b1b">Fehlt in Mirus</span>
+                    <span style="font-weight:700;color:#3f3f3f;font-size:15px">${m.anrede ? esc(m.anrede) + ' ' : ''}${name}</span>
+                </div>
+                <div style="margin-top:4px;font-size:12px;color:#64748b">
+                    Eintritt: ${mfmDate(m.eintritt)} &nbsp;·&nbsp; Personal Nr.: <span style="font-family:monospace">${e(m.personalnummer)}</span> &nbsp;·&nbsp; Kostenstelle: ${e(m.kostenstelleVorschlag)} &nbsp;·&nbsp; Angestellt zu: ${m.angestelltZu != null ? Math.round(m.angestelltZu) + '%' : '—'} &nbsp;·&nbsp; Lohnbasis: ${e(m.lohnbasis)}
+                </div>
             </div>
             <button class="dok-menu-btn" style="min-width:auto;padding:4px 10px;font-size:12px" onclick="mfmOpenEmployee(${m.employeeId})">→ MA öffnen</button>
         </div>
         ${luecken}
-        ${mfmSection('Personalien', personalien)}
-        ${mfmSection('Adresse & Kontakt', kontakt)}
-        ${mfmSection('Anstellung', anstellung)}
-        ${mfmSection('Vertrag / Verträge', vertraege)}
-        ${mfmSection('Bankverbindung', banken)}
-        ${mfmSection('Quellensteuer', qst)}
-        ${mfmSection('Familie (Ehepartner / Kinder)', familie)}
+        ${mfmSection('Mitarbeiterdaten › Persönliche Angaben', persoenlich)}
+        ${mfmSection('Mitarbeiterdaten › Adressen', adressen)}
+        ${mfmSection('Mitarbeiterdaten › Familie', familie)}
+        ${mfmSection('Arbeitszeitdaten › Arbeitsverhältnis', arbeitsverhaeltnis)}
+        ${mfmSection('Lohndaten › Lohnbestandteile (Vertrag)', vertraege)}
+        ${mfmSection('Lohndaten › Quellensteuer', qst)}
+        ${mfmSection('Lohndaten › Bankverbindung', banken)}
     </div>`;
 }
 
