@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <defs>
+    <filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.2"/><feOffset dx="0" dy="1.5" result="o"/><feComponentTransfer><feFuncA type="linear" slope=".25"/></feComponentTransfer><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <g filter="url(#s)" fill="none" stroke="#3f3f3f" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- grosse Sprechblase (GF) -->
+    <path d="M14 22 q0-8 8-8 h34 q8 0 8 8 v20 q0 8-8 8 h-20 l-11 9 v-9 h-3 q-8 0-8-8 z" fill="#fff"/>
+    <!-- Fragezeilen -->
+    <path d="M24 26 h28" stroke="#8b8b8b"/>
+    <path d="M24 34 h20" stroke="#8b8b8b"/>
+    <path d="M24 42 h24" stroke="#8b8b8b"/>
+    <!-- kleine Sprechblase (Bewerber) mit Haken -->
+    <path d="M52 48 q0-7 7-7 h20 q7 0 7 7 v14 q0 7-7 7 h-3 v8 l-9-8 h-8 q-7 0-7-7 z" fill="#f6f3ee"/>
+    <path d="M60 56 l5 5 l10-11" stroke="#1a1a1a" stroke-width="3"/>
+  </g>
+  <!-- Stift-Skizze -->
+  <path d="M16 80 l6-16 l9 9 l-16 6 z" fill="#fff" stroke="#3f3f3f" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M22 64 l30-30" stroke="#3f3f3f" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

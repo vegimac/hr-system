@@ -152,6 +152,7 @@ public class EditLockEndpointAuditTests
         ["AhvAnmeldungController"]         = "AHV-Anmeldung 318.260 — reines Ausgabe-Formular (POST erzeugt nur PDF, persistiert nichts)",
         ["ManagerDienstplanController"]    = "Manager-Dienstplan (Schicht-Kürzel pro Tag) — reine Planung, keine Lohndaten",
         ["HrInterviewController"]          = "HR-Büro-Kalender Vorstellungsgespräche — reine Planung, keine Lohndaten",
+        ["BewerbungsgespraechController"]  = "Gesprächsmodus Bewerbungsgespräch (Autosave-Erfassung, Entscheid, PDF) — Rekrutierung, keine Lohndaten",
         ["KandidatenController"]           = "Kandidaten-Pipeline GF→HR (Rekrutierung, Anhänge) — keine Lohndaten",
         ["LseController"]                  = "BFS Lohnstrukturerhebung — Statistik-Mappings/Ergänzungsfelder, keine lohnwirksamen Daten",
         ["OnboardingDokumenteController"]  = "Onboarding-PDF-Ordner pro Filiale (Vertrags-Link-Anhänge) — reine Dateiablage, keine Lohndaten",

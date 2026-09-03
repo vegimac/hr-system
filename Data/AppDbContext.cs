@@ -112,6 +112,7 @@ public class AppDbContext : DbContext
     public DbSet<InterviewFenster>          InterviewFenster            => Set<InterviewFenster>();
     public DbSet<InterviewTermin>           InterviewTermine            => Set<InterviewTermin>();
     public DbSet<HrInterviewTermin>         HrInterviewTermine          => Set<HrInterviewTermin>();
+    public DbSet<Bewerbungsgespraech>       Bewerbungsgespraeche        => Set<Bewerbungsgespraech>();
     public DbSet<HrInterviewBuchung>        HrInterviewBuchungen        => Set<HrInterviewBuchung>();
     public DbSet<ContractShareDokAbruf>     ContractShareDokAbrufe      => Set<ContractShareDokAbruf>();
     public DbSet<Kandidat>                  Kandidaten                  => Set<Kandidat>();
@@ -1810,6 +1811,30 @@ public class AppDbContext : DbContext
             entity.Property(e => e.AbgerufenAm).HasColumnName("abgerufen_am")
                   .HasColumnType("timestamp without time zone");
             entity.HasIndex(e => new { e.TokenId, e.DokId }).IsUnique();
+        });
+        // Gesprächsmodus Bewerbungsgespräch (Walter 03.09.2026) — ein JSON-
+        // Dokument pro Gespräch + Revision; Tabelle wird in Program.cs angelegt.
+        modelBuilder.Entity<Bewerbungsgespraech>(entity =>
+        {
+            entity.ToTable("bewerbungsgespraech");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.Entscheid).HasColumnName("entscheid");
+            entity.Property(e => e.Vorname).HasColumnName("vorname");
+            entity.Property(e => e.Nachname).HasColumnName("nachname");
+            entity.Property(e => e.Geburtsdatum).HasColumnName("geburtsdatum");
+            entity.Property(e => e.Schritt).HasColumnName("schritt");
+            entity.Property(e => e.Revision).HasColumnName("revision");
+            entity.Property(e => e.AntwortenJson).HasColumnName("antworten_json").HasColumnType("jsonb");
+            entity.Property(e => e.GestartetAm).HasColumnName("gestartet_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GestartetVon).HasColumnName("gestartet_von");
+            entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.AbgeschlossenAm).HasColumnName("abgeschlossen_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.AbgeschlossenVon).HasColumnName("abgeschlossen_von");
+            entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
+            entity.HasIndex(e => new { e.CompanyProfileId, e.Status });
         });
         modelBuilder.Entity<HrInterviewTermin>(entity =>
         {
