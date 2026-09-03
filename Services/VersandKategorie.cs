@@ -69,8 +69,10 @@ public static class VersandKategorien
             "Vertrag als Link an den MA", "einzelne MA", false, true,  false),
         new(VersandKategorie.Moment,      "MOMENT",       "Moments",
             "Geburtstag, Jubiläum und weitere Anlässe", "einzelne MA", false, true,  false),
+        // Walter 03.09.2026: neben der SMS auch die E-Mail «neue Bewilligung
+        // nachreichen» (inkl. Kopie an HR/GF) — Mail-Kanal freigeschaltet.
         new(VersandKategorie.Bewilligung, "BEWILLIGUNG",  "Bewilligung",
-            "Hinweis auf ablaufende Aufenthaltsbewilligung", "einzelne MA", false, true,  false),
+            "Hinweis auf abgelaufene Aufenthaltsbewilligung (SMS + E-Mail, Kopie an HR/GF)", "einzelne MA", true, true,  false),
         new(VersandKategorie.GruppenMail, "GRUPPEN_MAIL", "Gruppen-E-Mail",
             "Massenversand aus der Mitarbeiter-Korrespondenz", "alle MA einer Selektion", true,  false, false),
         new(VersandKategorie.Kandidat,    "KANDIDAT",     "Bewerber",
