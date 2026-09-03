@@ -236,6 +236,7 @@ async function bgsRenderStart() {
             </div>
             <div class="bgs-list-actions">
                 <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPdf(${g.id})">📄 PDF</button>
+                <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsDelete(${g.id})" style="color:#991b1b">Gespräch löschen</button>
                 <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsReopen(${g.id})">Wieder öffnen & an HR senden</button>
             </div>
         </div>`;
@@ -303,8 +304,8 @@ function bgsLoadInto(g) {
 }
 async function bgsDelete(id) {
     const ok = typeof liquidConfirm === 'function'
-        ? await liquidConfirm('Dieses Gespräch endgültig löschen?', { title: 'Gespräch löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' })
-        : confirm('Dieses Gespräch endgültig löschen?');
+        ? await liquidConfirm('Wirklich löschen? Alle Antworten, die Unterschrift und der Entscheid sind danach unwiderruflich weg.', { title: 'Gespräch löschen', yesLabel: 'Ja, alles löschen', noLabel: 'Abbrechen' })
+        : confirm('Wirklich löschen? Alle Daten dieses Gesprächs sind danach weg.');
     if (!ok) return;
     const r = await fetch(`/api/bewerbungsgespraech/${id}`, { method: 'DELETE', headers: ah() });
     if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || j.error || ('Fehler ' + r.status)); return; }

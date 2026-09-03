@@ -374,15 +374,16 @@ public class BewerbungsgespraechController : HrControllerBase
         return Ok(ToDto(g, true));
     }
 
-    /// <summary>Nur Gespräche in Arbeit — leere Fehlstarts wegräumen.</summary>
+    /// <summary>Gespräch endgültig löschen (Walter 03.09.2026: «wenn ja, alles weg») —
+    /// solange es nicht an HR gesendet ist; danach gehört es dem Kandidaten.</summary>
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Loeschen(int id)
     {
         var g = await _db.Bewerbungsgespraeche.FirstOrDefaultAsync(x => x.Id == id);
         if (g == null) return NotFound();
         if (!await CanAccessBranchAsync(g.CompanyProfileId)) return Forbid();
-        if (g.Status != "in_arbeit")
-            return Conflict(new { error = "ABGESCHLOSSEN", message = "Abgeschlossene Gespräche können nicht gelöscht werden." });
+        if (g.KandidatId != null && await _db.Kandidaten.AnyAsync(k => k.Id == g.KandidatId.Value))
+            return Conflict(new { error = "AN_HR_GESENDET", message = "Das Gespräch ist an HR gesendet — bitte den Kandidaten in HR löschen." });
         _db.Bewerbungsgespraeche.Remove(g);
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
