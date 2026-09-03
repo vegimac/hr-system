@@ -138,14 +138,15 @@ public class BewerbungsbogenPdfService
                     Briefkopf(c, d);
                     c.Item().PaddingTop(12).Element(e =>
                         SectionHead(e, "Über dich", "Bitte gut lesbar in Blockschrift ausfüllen"));
-                    c.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "E-Mail"));
+                    c.Item().PaddingTop(12).Element(e => TwoFields(e, "Vorname", "Zivilstand"));
                     c.Item().PaddingTop(13).Element(e => TwoFields(e, "Name", "Mobile / Tel."));
                     c.Item().PaddingTop(13).Element(e => TwoFields(e, "Adresse", "Geburtsdatum"));
                 });
                 r.ConstantItem(18);
                 r.ConstantItem(35, Unit.Millimetre).AlignTop().Element(PassfotoBox);
             });
-            col.Item().PaddingTop(13).Element(e => TwoFields(e, "PLZ, Ort", "Zivilstand"));
+            // E-Mail in der breiten Zeile (Walter 03.09.2026: «E-Mail braucht mehr Platz»).
+            col.Item().PaddingTop(13).Element(e => TwoFields(e, "PLZ, Ort", "E-Mail"));
             col.Item().PaddingTop(13).Row(r =>
             {
                 r.RelativeItem().AlignBottom().Element(f => CheckOptionsRow(f, "Geschlecht", "W", "M"));
