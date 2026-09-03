@@ -293,6 +293,8 @@ public class BewerbungsgespraechController : HrControllerBase
                 LgavAusbildung = a.TryGetValue("ausbildung_gastro", out var ag) && ag.ValueKind == JsonValueKind.True ? "ja"
                                : (ag.ValueKind == JsonValueKind.False ? "nein" : null),
                 Bemerkung = string.Join(" · ", bem),
+                // Im Gespräch gewählter Onboarding-Tag → Wunschtermin des Kandidaten
+                WunschTerminId = int.TryParse(Str(a, "willkommenstag_termin_id"), out var wt) && wt > 0 ? wt : null,
                 Status = "NEU",
                 CreatedAt = DateTime.Now,
                 CreatedBy = actor,
@@ -496,7 +498,7 @@ public class BewerbungsgespraechController : HrControllerBase
         ("Ergänzende Angaben", "bank", "Bank"),
         ("Ergänzende Angaben", "bankadresse", "Bankadresse"),
         ("Willkommenstag", "willkommenstag_teilnahme", "Teilnahme"),
-        ("Willkommenstag", "willkommenstag_termine", "Mögliche Termine"),
+        ("Willkommenstag", "willkommenstag_termin", "Gewünschter Onboarding-Tag"),
         ("Bedingungen", "bedingungen_akzeptiert", "Allgemeine Bedingungen akzeptiert"),
         ("Minderjährige", "vertreter_name", "Gesetzlicher Vertreter"),
         ("Minderjährige", "vertreter_telefon", "Telefon Vertreter"),

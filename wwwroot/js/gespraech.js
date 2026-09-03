@@ -142,7 +142,7 @@ const GS_STEPS = [
     { key: 'willkommen', teil: 'B', title: 'Willkommenstag',
       fields: [
           { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Willkommenstag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
-          { k: 'willkommenstag_termine', l: 'Welche Termine passen? (alle ankreuzen, die gehen)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
+          { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
       ] },
     { key: 'bedingungen', teil: 'B', title: 'Allgemeine Bedingungen', type: 'bedingungen',
       fields: [{ k: 'bedingungen_akzeptiert', l: 'Bedingungen besprochen und akzeptiert?', t: 'yesno' }] },
@@ -696,7 +696,7 @@ function bgsRenderSummary() {
     add('Kinder', a.hat_kinder === false ? 'keine' : (a.kinder || []).map(k => `${k.vorname || ''} ${k.nachname || ''} (${bgsFmtD(k.geburtsdatum)})`.trim()).join(', '));
     add('Krankenkasse', a.krankenkasse);
     add('Bank', [a.iban, a.bank, a.bankadresse].filter(Boolean).join(' · '));
-    add('Willkommenstag', yn(a.willkommenstag_teilnahme) + ((a.willkommenstag_termine || []).length ? ' — ' + a.willkommenstag_termine.join(', ') : ''));
+    add('Willkommenstag', yn(a.willkommenstag_teilnahme) + (a.willkommenstag_termin ? ' — ' + a.willkommenstag_termin : ''));
     add('Bedingungen akzeptiert', yn(a.bedingungen_akzeptiert));
     add('Gesetzl. Vertreter', [a.vertreter_name, a.vertreter_telefon].filter(Boolean).join(' · '));
     return `<div class="bgs-summary">${rows.map(([l, v]) => `<div class="bgs-sum-row"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}
@@ -847,13 +847,16 @@ async function bgsAfterRender(step) {
     }
     const tm = document.getElementById('bgsTermine');
     if (tm) {
+        // Gleiche Quelle wie das Wunschtermin-Dropdown bei «Kandidat an HR»:
+        // nur künftige Onboarding-Tage, und nur solche mit mind. 1 freiem Platz.
         if (!_bgsTermine) {
-            try { const r = await fetch('/api/hr-interview/termine', { headers: ah() }); _bgsTermine = r.ok ? await r.json() : []; } catch (_) { _bgsTermine = []; }
+            try { const r = await fetch('/api/kandidaten/termine', { headers: ah() }); _bgsTermine = r.ok ? await r.json() : []; } catch (_) { _bgsTermine = []; }
         }
-        const cur = Array.isArray(_bgsAnswers.willkommenstag_termine) ? _bgsAnswers.willkommenstag_termine : [];
-        tm.innerHTML = (_bgsTermine || []).length
-            ? _bgsTermine.map(t => { const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}${t.ort ? ' · ' + t.ort : ''}`; return `<button type="button" class="bgs-opt ${cur.includes(lbl) ? 'on' : ''}" data-key="willkommenstag_termine" data-multi="1" data-val="${esc(lbl)}">${esc(lbl)}</button>`; }).join('')
-            : '<span class="bgs-fhint">Keine Willkommenstag-Termine erfasst (HR-Kalender).</span>';
+        const frei = (_bgsTermine || []).filter(t => (t.frei ?? 1) > 0);
+        const cur = _bgsAnswers.willkommenstag_termin_id ? String(_bgsAnswers.willkommenstag_termin_id) : '';
+        tm.innerHTML = frei.length
+            ? frei.map(t => { const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}`; return `<button type="button" class="bgs-opt ${cur === String(t.id) ? 'on' : ''}" data-key="willkommenstag_termin_id" data-val="${t.id}" data-label="${esc(lbl)}">${esc(lbl)} <span style="opacity:.6;font-size:.8em">· ${t.frei} frei</span></button>`; }).join('')
+            : '<span class="bgs-fhint">Zurzeit kein Onboarding-Tag mit freiem Platz (HR-Kalender).</span>';
     }
     if (document.getElementById('bgsSig')) bgsSigInit();
     // Dubletten-Check, sobald Name + Geburtsdatum da sind
@@ -935,7 +938,9 @@ document.addEventListener('click', e => {
         return;
     }
     const val = b.dataset.val;
-    bgsSet(key, _bgsAnswers[key] === val ? null : val, { immediate: true, rerender: true });
+    const neu = _bgsAnswers[key] === val ? null : val;
+    if (key === 'willkommenstag_termin_id') bgsSet('willkommenstag_termin', neu === null ? null : (b.dataset.label || ''));
+    bgsSet(key, neu, { immediate: true, rerender: true });
 });
 document.addEventListener('keydown', e => {
     if (e.key !== 'Enter' || !_bgsId) return;
