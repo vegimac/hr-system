@@ -80,8 +80,6 @@ const GS_STEPS = [
     { key: 'sprachen', teil: 'A', title: 'Sprachkenntnisse',
       fields: [
           { k: 'sprache_deutsch', l: 'Deutsch', t: 'choice', opts: GS_LEVELS },
-          { k: 'sprache_englisch', l: 'Englisch', t: 'choice', opts: GS_LEVELS },
-          { k: 'sprache_franzoesisch', l: 'Französisch', t: 'choice', opts: GS_LEVELS },
           { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Portugiesisch' },
           { k: 'sprache_andere_niveau', l: 'Niveau', t: 'choice', opts: GS_LEVELS.slice(0, 3), when: a => !!a.sprache_andere },
       ] },
@@ -175,6 +173,7 @@ function gsStepDone(s) {
 
 // ── Einstieg / Übersicht ───────────────────────────────────────────────
 function gsInit() {
+    document.body.classList.remove('gs-fullscreen');
     _gsId = null; _gsMeta = null; _gsAnswers = {}; _gsPending = {}; _gsStepKey = null; _gsVisited = new Set();
     _gsDubletten = null; _gsDublettenKey = '';
     gsRenderStart();
@@ -440,23 +439,36 @@ function gsRenderFlow() {
     const locked = _gsMeta && _gsMeta.status === 'abgeschlossen';
     const name = ((_gsAnswers.vorname || '') + ' ' + (_gsAnswers.nachname || '')).trim();
 
+    // Vollbild (Walter 03.09.2026): das Gespräch nimmt den ganzen Bildschirm
+    // ein — oben eine Leiste mit Unterbrechen / Zurück / Weiter, die Schritte
+    // sind hinter «Schritte» einklappbar. Grosse Schrift fürs Gespräch am Tisch.
     root.innerHTML = `
-    <div class="gs-wrap ${locked ? 'gs-locked' : ''}">
-        <aside class="gs-rail">
+    <div class="gs-full ${locked ? 'gs-locked' : ''}">
+        <div class="gs-topbar">
+            <div class="gs-top-left">
+                <button type="button" class="gs-btn gs-btn-ghost" onclick="gsBackToList()" title="Gespräch unterbrechen — alles bleibt gespeichert, weiter unter «in Arbeit»">⏸ Unterbrechen</button>
+                <button type="button" class="gs-btn gs-btn-ghost" onclick="gsToggleRail()" title="Alle Schritte anzeigen">☰ Schritte</button>
+            </div>
+            <div class="gs-top-mid">
+                <div class="gs-top-name">${esc(name || 'Neues Gespräch')} <span class="gs-top-branch">· ${esc(_gsBranchLabel())}</span></div>
+                <div class="gs-top-sub">Teil ${step.teil} · ${esc(GS_TEILE[step.teil])} · Schritt ${idx + 1} von ${vis.length} &nbsp; <span id="gsSaveState" class="gs-state"></span></div>
+            </div>
+            <div class="gs-top-right">
+                ${locked ? `<button type="button" class="gs-btn gs-btn-ghost" onclick="gsPdf()">📄 PDF</button>` : ''}
+                <button type="button" class="gs-btn gs-btn-ghost" onclick="gsPrev()" ${idx === 0 ? 'disabled' : ''}>← Zurück</button>
+                ${gsRenderNavRight(step, idx, vis.length, locked)}
+            </div>
+        </div>
+        <div class="gs-progress"><div class="gs-progress-bar" style="width:${Math.round(((idx + 1) / vis.length) * 100)}%"></div></div>
+        <aside class="gs-rail" id="gsRail" hidden>
             <div class="gs-rail-head">
-                <div class="gs-rail-name">${esc(name || 'Neues Gespräch')}</div>
-                <div class="gs-rail-meta">${esc(_gsBranchLabel())}</div>
-                <div id="gsSaveState" class="gs-state"></div>
+                <div class="gs-rail-name">Schritte</div>
+                <button type="button" class="gs-btn gs-btn-ghost" onclick="gsToggleRail()" style="padding:4px 10px">✕</button>
             </div>
             <div id="gsRailSteps"></div>
-            <div class="gs-rail-foot">
-                <button type="button" class="gs-btn gs-btn-ghost" onclick="gsBackToList()">← Übersicht</button>
-                ${locked ? `<button type="button" class="gs-btn gs-btn-ghost" onclick="gsPdf()">📄 PDF</button>` : ''}
-            </div>
         </aside>
         <main class="gs-main">
             <div class="gs-card" id="gsCard">
-                <div class="gs-kicker">Teil ${step.teil} · ${esc(GS_TEILE[step.teil])} · Schritt ${idx + 1} von ${vis.length}</div>
                 <h2 class="gs-title">${esc(step.title)}</h2>
                 ${step.hint ? `<p class="gs-hint">${esc(step.hint)}</p>` : ''}
                 <div id="gsDubletten"></div>
@@ -469,6 +481,7 @@ function gsRenderFlow() {
             </div>
         </main>
     </div>`;
+    document.body.classList.add('gs-fullscreen');
     gsUpdateRail();
     gsSetState(Object.keys(_gsPending).length ? 'dirty' : (locked ? 'locked' : 'saved'), _gsMeta?.geaendertAm);
     gsAfterRender(step);
@@ -516,13 +529,18 @@ function gsUpdateRail() {
             <span class="gs-dot">${done ? '✓' : (i + 1)}</span><span>${esc(s.title)}</span></button>`;
     });
     el.innerHTML = html;
-    const nm = document.querySelector('.gs-rail-name');
-    if (nm) nm.textContent = ((_gsAnswers.vorname || '') + ' ' + (_gsAnswers.nachname || '')).trim() || 'Neues Gespräch';
+    const nm = document.querySelector('.gs-top-name');
+    if (nm) nm.firstChild.textContent = (((_gsAnswers.vorname || '') + ' ' + (_gsAnswers.nachname || '')).trim() || 'Neues Gespräch') + ' ';
+}
+function gsToggleRail() {
+    const r = document.getElementById('gsRail');
+    if (r) r.hidden = !r.hidden;
 }
 function gsJump(key) {
     gsFlush();
     _gsStepKey = key;
     gsRenderFlow();
+    const m = document.querySelector('.gs-main'); if (m) m.scrollTop = 0;
 }
 function gsNext() {
     const vis = gsVisibleSteps();
@@ -543,6 +561,7 @@ async function gsBackToList() {
         if (!ok) return;
     }
     _gsId = null;
+    document.body.classList.remove('gs-fullscreen');
     gsRenderStart();
 }
 
@@ -635,7 +654,7 @@ function gsRenderSummary() {
     add('Nationalität', a.nationalitaet);
     add('Zivilstand', a.zivilstand + (a.zivilstand_seit ? ' seit ' + gsFmtD(a.zivilstand_seit) : ''));
     add('Bewilligung', a.bewilligung ? a.bewilligung + (a.bewilligung_bis ? ' bis ' + gsFmtD(a.bewilligung_bis) : '') : '');
-    add('Sprachen', ['Deutsch: ' + (a.sprache_deutsch || '—'), 'Englisch: ' + (a.sprache_englisch || '—'), 'Französisch: ' + (a.sprache_franzoesisch || '—'), a.sprache_andere ? a.sprache_andere + ': ' + (a.sprache_andere_niveau || '—') : ''].filter(Boolean).join(' · '));
+    add('Sprachen', ['Deutsch: ' + (a.sprache_deutsch || '—'), a.sprache_andere ? a.sprache_andere + ': ' + (a.sprache_andere_niveau || '—') : ''].filter(Boolean).join(' · '));
     add('Pensum / Eintritt', [a.pensum ? a.pensum + ' %' : '', a.eintritt ? gsFmtD(a.eintritt) : ''].filter(Boolean).join(' · '));
     add('Erfahrung', a.erfahrung);
     add('Verfügbarkeit', GS_TAGE.map(([k, l]) => (a[`verf_${k}_von`] || a[`verf_${k}_bis`]) ? `${l.slice(0, 2)} ${a[`verf_${k}_von`] || '?'}–${a[`verf_${k}_bis`] || '?'}` : '').filter(Boolean).join(' · '));

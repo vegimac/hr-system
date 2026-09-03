@@ -12242,3 +12242,66 @@ body.theme-dark .gs-opt { color: #e5e5e5; border-color: rgba(255,255,255,0.25); 
 body.theme-dark .gs-rail, body.theme-dark .gs-list-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
 body.theme-dark .gs-rail-step.cur { background: rgba(255,255,255,0.14); color: #fff; }
 body.theme-dark .gs-rail-name, body.theme-dark .gs-list-name { color: #f1f1f1; }
+
+/* ── Vollbild-Modus (Walter 03.09.2026): Gespräch am Tisch, grosse Schrift ── */
+body.gs-fullscreen { overflow: hidden; }
+.gs-full { position: fixed; inset: 0; z-index: 9000; display: flex; flex-direction: column;
+    background: linear-gradient(165deg, #f4f2ec 0%, #ebe8df 60%, #e3e0d5 100%); }
+.gs-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 22px;
+    background: rgba(255,255,255,0.55); border-bottom: 1px solid rgba(60,55,48,0.12); backdrop-filter: blur(18px); }
+.gs-top-left, .gs-top-right { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+.gs-top-mid { flex: 1; min-width: 0; text-align: center; }
+.gs-top-name { font-size: 18px; font-weight: 800; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gs-top-branch { font-weight: 500; color: #8b8b8b; }
+.gs-top-sub { font-size: 13px; color: #6b6152; margin-top: 1px; }
+.gs-top-sub .gs-state { display: inline; margin: 0; }
+.gs-topbar .gs-btn { font-size: 15px; padding: 10px 16px; }
+.gs-progress { height: 5px; background: rgba(60,55,48,0.10); }
+.gs-progress-bar { height: 100%; background: #3f3f3f; transition: width .3s ease; }
+.gs-full .gs-rail { position: absolute; left: 18px; top: 86px; width: 340px; z-index: 2; max-height: calc(100vh - 110px);
+    background: rgba(255,255,255,0.92); }
+.gs-full .gs-rail-head { display: flex; align-items: center; justify-content: space-between; }
+.gs-full .gs-rail-step { font-size: 14px; padding: 8px 8px; }
+.gs-full .gs-main { flex: 1; overflow-y: auto; padding: 28px 22px 60px; }
+.gs-full .gs-card { max-width: 1120px; padding: 40px 52px 32px; border-radius: 28px; }
+.gs-full .gs-title { font-size: 42px; margin: 0 0 8px; }
+.gs-full .gs-hint { font-size: 19px; line-height: 1.45; }
+.gs-full .gs-fields { margin-top: 26px; gap: 26px; }
+.gs-full .gs-field { gap: 10px; }
+.gs-full .gs-label { font-size: 22px; font-weight: 700; }
+.gs-full .gs-fhint { font-size: 16px; }
+.gs-full .gs-input { font-size: 26px; padding: 16px 20px; border-radius: 16px; }
+.gs-full .gs-input-short { max-width: 340px; }
+.gs-full .gs-input-mono { max-width: 520px; }
+.gs-full .gs-input-time { font-size: 22px; padding: 10px 12px; max-width: 170px; }
+.gs-full .gs-textarea { min-height: 130px; }
+.gs-full .gs-opts { gap: 12px; }
+.gs-full .gs-opt { font-size: 22px; padding: 14px 28px; }
+.gs-full .gs-yn { min-width: 130px; }
+.gs-full .gs-nav { margin-top: 34px; padding-top: 22px; }
+.gs-full .gs-nav .gs-btn { font-size: 20px; padding: 14px 26px; border-radius: 16px; }
+.gs-full .gs-gate-row, .gs-full .gs-sum-row { font-size: 18px; }
+.gs-full .gs-sum-row { grid-template-columns: 220px 1fr; padding: 6px 0; }
+.gs-full .gs-bedingungen { font-size: 19px; line-height: 1.5; }
+.gs-full .gs-verf { font-size: 20px; }
+.gs-full .gs-verf td:first-child { min-width: 150px; }
+.gs-full .gs-verf th { font-size: 13px; }
+.gs-full .gs-kinder { font-size: 17px; }
+.gs-full .gs-kinder .gs-input { font-size: 18px; padding: 9px 11px; }
+.gs-full .gs-sig { height: 260px; }
+.gs-full .gs-dub { font-size: 17px; padding: 14px 18px; }
+.gs-full .gs-dub-title { font-size: 19px; }
+@media (max-width: 900px) {
+    .gs-topbar { flex-wrap: wrap; padding: 10px 12px; }
+    .gs-top-mid { order: 3; flex-basis: 100%; }
+    .gs-full .gs-card { padding: 22px 18px; border-radius: 18px; }
+    .gs-full .gs-title { font-size: 30px; }
+    .gs-full .gs-label { font-size: 18px; }
+    .gs-full .gs-input { font-size: 20px; padding: 12px 14px; }
+    .gs-full .gs-opt { font-size: 18px; padding: 11px 18px; }
+    .gs-full .gs-rail { left: 8px; width: calc(100vw - 16px); }
+}
+body.theme-dark .gs-full { background: linear-gradient(165deg, #232323, #1b1b1b); }
+body.theme-dark .gs-topbar { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
+body.theme-dark .gs-top-name { color: #f1f1f1; }
+body.theme-dark .gs-full .gs-rail { background: #262626; }

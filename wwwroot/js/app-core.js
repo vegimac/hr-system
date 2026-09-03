@@ -1280,6 +1280,8 @@ function showPage(name) {
     if (name === 'mirus-address-compare') macInit();
     if (name === 'mirus-fehlende-ma' && typeof mfmInit === 'function') mfmInit();
     if (name === 'gespraech' && typeof gsInit === 'function') gsInit();
+    // Vollbild des Gesprächsmodus abräumen, wenn woanders hin navigiert wird (⌘K-Suche etc.)
+    if (name !== 'gespraech') document.body.classList.remove('gs-fullscreen');
     if (name === 'roster-absence-import') rosterImportInit();
     if (name === 'absence-report') arInit();
     if (name === 'akonto-lauf')    akInit();
