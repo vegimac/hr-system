@@ -255,6 +255,11 @@ public class KandidatenController : ControllerBase
         var list = await q.OrderByDescending(k => k.CreatedAt).Take(200).ToListAsync();
 
         var kIds = list.Select(k => k.Id).ToList();
+        // Verknüpftes Bewerbungsgespräch (Gesprächsmodus) — HR kann es weiter bearbeiten
+        var gespraeche = await _db.Bewerbungsgespraeche.AsNoTracking()
+            .Where(g => g.KandidatId != null && kIds.Contains(g.KandidatId.Value))
+            .Select(g => new { g.Id, KandidatId = g.KandidatId!.Value })
+            .ToListAsync();
         var doks = await _db.KandidatDokumente.AsNoTracking()
             .Where(d => kIds.Contains(d.KandidatId))
             .Select(d => new { d.Id, d.KandidatId, d.OriginalFilename })
@@ -304,6 +309,7 @@ public class KandidatenController : ControllerBase
                 willkommenAntwort = wkBuchungen.FirstOrDefault(b => b.KandidatId == k.Id)?.MaAntwort,
                 dokumente = doks.Where(d => d.KandidatId == k.Id)
                     .Select(d => new { d.Id, name = d.OriginalFilename }),
+                gespraechId = gespraeche.FirstOrDefault(g => g.KandidatId == k.Id)?.Id,
             };
         }));
     }
@@ -580,7 +586,24 @@ public class KandidatenController : ControllerBase
         k.VerknuepftEmployeeId = emp.Id;
         await _db.SaveChangesAsync();
 
-        return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id });
+        // Gesprächsdaten in den MA übernehmen (Walter 03.09.2026): Personalien,
+        // AHV, Zivilstand, Konfession, Bewilligung, Bank, Partner/Kinder — nur in
+        // leere Felder (easy@work-Import und Handpflege bleiben unangetastet).
+        object? gespraech = null;
+        var gId = await _db.Bewerbungsgespraeche.AsNoTracking()
+            .Where(g => g.KandidatId == k.Id).Select(g => (int?)g.Id).FirstOrDefaultAsync();
+        if (gId != null)
+        {
+            try
+            {
+                var svc = HttpContext.RequestServices.GetRequiredService<Services.GespraechUebernahmeService>();
+                var erg = await svc.UebernehmenAsync(emp.Id, gId.Value, await ActorNameAsync());
+                if (erg != null) gespraech = new { erg.Felder, erg.Bank, erg.Familie, erg.Uebernommen };
+            }
+            catch (Exception ex) { gespraech = new { fehler = ex.Message }; }
+        }
+
+        return Ok(new { ok = true, dokumente = uebernommen, employeeId = emp.Id, gespraech });
     }
 
     /// <summary>

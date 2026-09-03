@@ -177,6 +177,8 @@ builder.Services.AddScoped<RisikobeurteilungPdfService>();
 builder.Services.AddScoped<FibuJournalService>();
 // Edit-Sperre während HR Lohnlauf prüft (Walter-Vorgabe 17.05.2026, Variante 2).
 builder.Services.AddScoped<LohnEditLockService>();
+// Gesprächsdaten → Mitarbeiter beim Verknüpfen des Kandidaten (Walter 03.09.2026)
+builder.Services.AddScoped<GespraechUebernahmeService>();
 builder.Services.AddScoped<HrSystem.Services.QstKorrekturService>();
 builder.Services.AddScoped<AbsenceHoursRecalcService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport

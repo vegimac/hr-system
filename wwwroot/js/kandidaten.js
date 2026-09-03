@@ -395,7 +395,8 @@ function _kdDetails(k) {
         </div>
         ${terminBadge}
         ${k.bemerkung ? `<div style="margin-top:4px;font-size:12.5px;color:#646464">💬 ${_kdEsc(k.bemerkung)}</div>` : ''}
-        ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}`;
+        ${doks ? `<div style="margin-top:6px;font-size:12.5px">${doks}</div>` : ''}
+        ${k.gespraechId ? `<div style="margin-top:6px"><button type="button" onclick="bgsOpenFromHr(${k.gespraechId})" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:5px 12px;font-size:12.5px;cursor:pointer;color:#3f3f3f" title="Alle Angaben aus dem Bewerbungsgespräch ansehen und bearbeiten — beim Verknüpfen mit dem MA werden sie in die Personalakte übernommen">💬 Gesprächsdaten ansehen / bearbeiten</button></div>` : ''}`;
 }
 
 async function hrKandTermin(id, val) {

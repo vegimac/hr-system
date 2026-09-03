@@ -1067,6 +1067,12 @@ async function bgsAbschliessen() {
         if (typeof showToast === 'function') showToast('Gespräch abgeschlossen — PDF liegt bereit.', 'success');
     } catch (err) { alert('Netzwerkfehler: ' + err.message); }
 }
+// Aus der HR-Kandidatenkarte (Walter 03.09.2026): HR sieht und bearbeitet
+// die Gesprächsdaten weiter; beim Verknüpfen mit dem MA werden sie übernommen.
+function bgsOpenFromHr(id) {
+    showPage('gespraech');
+    setTimeout(() => bgsOpen(id), 50);
+}
 async function bgsReopenCurrent() {
     if (!_bgsId) return;
     await bgsReopen(_bgsId);
