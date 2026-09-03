@@ -447,7 +447,6 @@ function bgsRenderFlow() {
         <div class="bgs-topbar">
             <div class="bgs-top-left">
                 <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsBackToList()" title="Gespräch unterbrechen — alles bleibt gespeichert, weiter unter «in Arbeit»">⏸ Unterbrechen</button>
-                <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsToggleRail()" title="Alle Schritte anzeigen">☰ Schritte</button>
             </div>
             <div class="bgs-top-mid">
                 <div class="bgs-top-name">${esc(name || 'Neues Gespräch')} <span class="bgs-top-branch">· ${esc(_bgsBranchLabel())}</span></div>
@@ -460,10 +459,11 @@ function bgsRenderFlow() {
             </div>
         </div>
         <div class="bgs-progress"><div class="bgs-progress-bar" style="width:${Math.round(((idx + 1) / vis.length) * 100)}%"></div></div>
-        <aside class="bgs-rail" id="bgsRail" hidden>
+        <div class="bgs-body">
+        <aside class="bgs-rail" id="bgsRail">
             <div class="bgs-rail-head">
-                <div class="bgs-rail-name">Schritte</div>
-                <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsToggleRail()" style="padding:4px 10px">✕</button>
+                <div class="bgs-rail-name">Fortschritt</div>
+                <div class="bgs-rail-meta">${Math.round(((idx + 1) / vis.length) * 100)} % · ${idx + 1} / ${vis.length}</div>
             </div>
             <div id="bgsRailSteps"></div>
         </aside>
@@ -480,6 +480,7 @@ function bgsRenderFlow() {
                 </div>
             </div>
         </main>
+        </div>
     </div>`;
     document.body.classList.add('bgs-fullscreen');
     bgsUpdateRail();
