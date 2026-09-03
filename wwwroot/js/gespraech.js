@@ -236,7 +236,7 @@ async function bgsRenderStart() {
             </div>
             <div class="bgs-list-actions">
                 <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPdf(${g.id})">📄 PDF</button>
-                <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsReopen(${g.id})">Wieder öffnen</button>
+                <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsReopen(${g.id})">Wieder öffnen & an HR senden</button>
             </div>
         </div>`;
     root.innerHTML = `
@@ -250,8 +250,8 @@ async function bgsRenderStart() {
             </div>
             <div class="bgs-section-title">In Arbeit (${offen.length})</div>
             ${offen.length ? offen.map(card).join('') : '<div class="bgs-empty">Keine offenen Gespräche.</div>'}
-            <div class="bgs-section-title" style="margin-top:22px">Abgeschlossen (${(data.abgeschlossen || []).length})</div>
-            ${(data.abgeschlossen || []).length ? data.abgeschlossen.map(fertigCard).join('') : '<div class="bgs-empty">Noch keine abgeschlossenen Gespräche.</div>'}
+            <div class="bgs-section-title" style="margin-top:22px">Abgeschlossen, noch nicht an HR gesendet (${(data.abgeschlossen || []).length})</div>
+            ${(data.abgeschlossen || []).length ? data.abgeschlossen.map(fertigCard).join('') : '<div class="bgs-empty">Keine — an HR gesendete Gespräche verschwinden hier; ihre Daten liegen beim Kandidaten in HR.</div>'}
         </div>`;
 }
 function bgsStepTitle(key) { const s = GS_STEPS.find(x => x.key === key); return s ? s.title : key; }

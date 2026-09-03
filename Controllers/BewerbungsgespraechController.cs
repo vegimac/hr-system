@@ -117,8 +117,10 @@ public class BewerbungsgespraechController : HrControllerBase
             .Where(g => g.CompanyProfileId == companyProfileId && g.Status == "in_arbeit")
             .OrderByDescending(g => g.GeaendertAm)
             .ToListAsync();
+        // An HR gesendete Gespräche verschwinden aus der GF-Übersicht (Walter
+        // 03.09.2026) — der Datensatz bleibt für die spätere MA-Vorbefüllung.
         var fertig = await _db.Bewerbungsgespraeche.AsNoTracking()
-            .Where(g => g.CompanyProfileId == companyProfileId && g.Status == "abgeschlossen")
+            .Where(g => g.CompanyProfileId == companyProfileId && g.Status == "abgeschlossen" && g.KandidatId == null)
             .OrderByDescending(g => g.AbgeschlossenAm)
             .Take(30)
             .ToListAsync();
