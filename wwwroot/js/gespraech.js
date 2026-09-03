@@ -530,9 +530,9 @@ function bgsRenderNavRight(step, idx, n, locked) {
                 <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsNext()">Ja, weiter mit Anstellungsdaten →</button>`;
     }
     if (step.type === 'entscheid') {
-        if (locked) return `<button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsReopenCurrent()">Wieder öffnen</button>
-                            <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsPdf()">📄 PDF</button>`;
-        return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsAbschliessen()">Gespräch abschliessen ✓</button>`;
+        if (locked) return `<span class="bgs-fhint" style="align-self:center">${_bgsMeta && _bgsMeta.kandidatId ? '✓ An HR gesendet (Kandidat #' + _bgsMeta.kandidatId + ')' : '✓ abgeschlossen'}</span>
+                            <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsReopenCurrent()">Wieder öffnen</button>`;
+        return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsAnHrSenden()">An HR senden &amp; beenden ✓</button>`;
     }
     return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsNext()">Weiter →</button>`;
 }
@@ -1016,7 +1016,33 @@ function bgsSigClear() {
     bgsSet('unterschrift_am', null);
 }
 
-// ── Abschluss ──────────────────────────────────────────────────────────
+// ── Abschluss: an HR senden & beenden (Walter 03.09.2026) ─────────────
+// Schliesst das Gespräch mit dem Entscheid ab UND stellt es als Kandidat
+// (mit Gesprächs-PDF als Anhang) in die HR-Pipeline — wie «Kandidat an HR».
+async function bgsAnHrSenden() {
+    const e = _bgsAnswers.entscheid;
+    if (!e) { alert('Bitte zuerst den Entscheid wählen (Zusage / Absage / Rückstellung).'); return; }
+    if (!_bgsAnswers.vorname || !_bgsAnswers.nachname) { alert('Vorname und Name fehlen — bitte im Schritt «Wie heisst du?» erfassen.'); return; }
+    await bgsFlush();
+    if (Object.keys(_bgsPending).length) { alert('Es sind noch Antworten nicht gespeichert (keine Verbindung). Bitte kurz warten und nochmals versuchen.'); return; }
+    const lbl = e === 'Rueckstellung' ? 'Rückstellung' : e;
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm(`Gespräch mit Entscheid «${lbl}» an HR senden und beenden? HR erhält den Kandidaten mit dem Gesprächs-PDF in der Kandidaten-Pipeline.`, { title: 'An HR senden', yesLabel: 'Senden & beenden', noLabel: 'Noch nicht' })
+        : confirm('An HR senden und beenden?');
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/bewerbungsgespraech/${_bgsId}/an-hr-senden`, { method: 'POST', headers: ah(), body: JSON.stringify({ entscheid: e, revision: _bgsRevision }) });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || j.error || ('Fehler ' + r.status)); return; }
+        const g = await r.json();
+        try { localStorage.removeItem('bgs_pending_' + _bgsId); } catch (_) { }
+        if (typeof showToast === 'function') showToast('An HR gesendet — das Gespräch ist beendet.', 'success');
+        bgsLoadInto(g);
+        bgsRenderFlow();
+        // Wie die Importer: nach Erfolg automatisch zurück zur Übersicht.
+        setTimeout(() => { if (_bgsId === g.id) { _bgsId = null; document.body.classList.remove('bgs-fullscreen'); bgsRenderStart(); } }, 1800);
+    } catch (err) { alert('Netzwerkfehler: ' + err.message); }
+}
+
 async function bgsAbschliessen() {
     const e = _bgsAnswers.entscheid;
     if (!e) { alert('Bitte zuerst den Entscheid wählen (Zusage / Absage / Rückstellung).'); return; }

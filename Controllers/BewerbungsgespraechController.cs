@@ -26,7 +26,15 @@ namespace HrSystem.Controllers;
 [ApiController]
 public class BewerbungsgespraechController : HrControllerBase
 {
-    public BewerbungsgespraechController(AppDbContext db) : base(db) { }
+    private readonly string _kandidatenRoot;   // …/documents/kandidaten (wie KandidatenController)
+
+    public BewerbungsgespraechController(AppDbContext db, IConfiguration config, IWebHostEnvironment env) : base(db)
+    {
+        var configured = config["Documents:StoragePath"];
+        if (string.IsNullOrWhiteSpace(configured))
+            configured = Path.Combine(env.ContentRootPath, "data", "documents");
+        _kandidatenRoot = Path.Combine(configured, "kandidaten");
+    }
 
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web);
 
@@ -91,6 +99,7 @@ public class BewerbungsgespraechController : HrControllerBase
             g.GeaendertAm,
             g.AbgeschlossenAm,
             g.AbgeschlossenVon,
+            g.KandidatId,
             antworten = mitAntworten ? JsonSerializer.Deserialize<JsonElement>(g.AntwortenJson, JsonOpts) : (JsonElement?)null,
         };
     }
@@ -218,6 +227,101 @@ public class BewerbungsgespraechController : HrControllerBase
         g.AbgeschlossenVon = await ActorNameAsync();
         g.GeaendertAm = DateTime.Now;
         g.Revision++;
+        await _db.SaveChangesAsync();
+        return Ok(ToDto(g, true));
+    }
+
+    /// <summary>
+    /// «An HR senden &amp; beenden» (Walter 03.09.2026): Gespräch mit Entscheid
+    /// abschliessen UND als Kandidat in die HR-Pipeline stellen (wie «Kandidat
+    /// an HR»), mit dem Gesprächs-PDF als Anhang. HR sieht den GF-Entscheid
+    /// in der Bemerkung und entscheidet dort weiter. Idempotent: ist schon
+    /// ein Kandidat verknüpft, wird keiner doppelt angelegt.
+    /// </summary>
+    [HttpPost("{id:int}/an-hr-senden")]
+    public async Task<IActionResult> AnHrSenden(int id, [FromBody] AbschlussDto dto)
+    {
+        var g = await _db.Bewerbungsgespraeche.Include(x => x.CompanyProfile).FirstOrDefaultAsync(x => x.Id == id);
+        if (g == null) return NotFound();
+        if (!await CanAccessBranchAsync(g.CompanyProfileId)) return Forbid();
+        var e = (dto.Entscheid ?? "").Trim();
+        if (e is not ("Zusage" or "Absage" or "Rueckstellung"))
+            return BadRequest(new { error = "Entscheid muss Zusage, Absage oder Rueckstellung sein." });
+        if (dto.Revision != g.Revision)
+            return Conflict(new { error = "REVISION", message = "Das Gespräch wurde inzwischen geändert.", gespraech = ToDto(g, true) });
+
+        var a = Parse(g.AntwortenJson);
+        var vorname = (Str(a, "vorname") ?? g.Vorname ?? "").Trim();
+        var nachname = (Str(a, "nachname") ?? g.Nachname ?? "").Trim();
+        if (vorname.Length == 0 || nachname.Length == 0)
+            return BadRequest(new { error = "NAME_FEHLT", message = "Vorname und Name müssen erfasst sein, bevor das Gespräch an HR geht." });
+
+        var actor = await ActorNameAsync();
+        g.Vorname = vorname;
+        g.Nachname = nachname;
+        g.Entscheid = e;
+        g.Status = "abgeschlossen";
+        g.AbgeschlossenAm = DateTime.Now;
+        g.AbgeschlossenVon = actor;
+        g.GeaendertAm = DateTime.Now;
+        g.Revision++;
+
+        if (g.KandidatId == null)
+        {
+            var eintrittIso = Str(a, "eintritt_vereinbart") ?? Str(a, "eintritt");
+            var bem = new List<string>
+            {
+                $"Bewerbungsgespräch vom {g.GestartetAm:dd.MM.yyyy} ({actor ?? g.GestartetVon ?? "GF"}) — Entscheid GF: {EntscheidText(e)}",
+            };
+            var pensum = Str(a, "pensum");
+            if (!string.IsNullOrWhiteSpace(pensum)) bem.Add($"Pensum {pensum} %");
+            var dauer = Str(a, "dauer_mind");
+            if (!string.IsNullOrWhiteSpace(dauer)) bem.Add($"Dauer mind. {dauer}");
+            var wuensche = Str(a, "verf_bemerkung");
+            if (!string.IsNullOrWhiteSpace(wuensche)) bem.Add($"Verfügbarkeit: {wuensche}");
+            var notizen = Str(a, "notizen");
+            if (!string.IsNullOrWhiteSpace(notizen)) bem.Add($"Notizen: {notizen}");
+
+            var k = new Kandidat
+            {
+                CompanyProfileId = g.CompanyProfileId,
+                Vorname = vorname,
+                Name = nachname,
+                Telefon = Str(a, "mobile"),
+                Email = Str(a, "email"),
+                FruehesterEintritt = Datum(eintrittIso),
+                LgavAusbildung = a.TryGetValue("ausbildung_gastro", out var ag) && ag.ValueKind == JsonValueKind.True ? "ja"
+                               : (ag.ValueKind == JsonValueKind.False ? "nein" : null),
+                Bemerkung = string.Join(" · ", bem),
+                Status = "NEU",
+                CreatedAt = DateTime.Now,
+                CreatedBy = actor,
+            };
+            _db.Kandidaten.Add(k);
+            await _db.SaveChangesAsync();
+            g.KandidatId = k.Id;
+
+            // Gesprächs-PDF als Anhang in die Kandidaten-Akte (best-effort)
+            try
+            {
+                QuestPDF.Settings.License = LicenseType.Community;
+                var pdf = BuildPdf(g, a);
+                var dir = Path.Combine(_kandidatenRoot, k.Id.ToString());
+                Directory.CreateDirectory(dir);
+                var storage = $"{Guid.NewGuid():N}.pdf";
+                await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storage), pdf);
+                _db.KandidatDokumente.Add(new KandidatDokument
+                {
+                    KandidatId = k.Id,
+                    OriginalFilename = $"Bewerbungsgespraech_{nachname}_{vorname}_{g.GestartetAm:yyyyMMdd}.pdf".Replace(' ', '_'),
+                    StorageFilename = storage,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = actor,
+                });
+            }
+            catch { /* PDF-Anhang ist Komfort — der Kandidat ist wichtiger */ }
+        }
+
         await _db.SaveChangesAsync();
         return Ok(ToDto(g, true));
     }
@@ -370,7 +474,6 @@ public class BewerbungsgespraechController : HrControllerBase
         ("Dein Einsatz bei uns", "pensum", "Gewünschtes Pensum (%)"),
         ("Dein Einsatz bei uns", "eintritt", "Frühester Eintritt"),
         ("Dein Einsatz bei uns", "erfahrung", "Erfahrung in Gastronomie"),
-        ("Dein Einsatz bei uns", "verf_bemerkung", "Verfügbarkeit — Wünsche / Einschränkungen"),
         ("Berufserfahrung & weitere Angaben", "krankheit", "Chronische Krankheit / Allergien"),
         ("Berufserfahrung & weitere Angaben", "krankheit_welche", "welche"),
         ("Berufserfahrung & weitere Angaben", "sozialleistungen", "Sozialleistungen"),
@@ -433,6 +536,14 @@ public class BewerbungsgespraechController : HrControllerBase
         if (!await CanAccessBranchAsync(g.CompanyProfileId)) return Forbid();
 
         var a = Parse(g.AntwortenJson);
+        QuestPDF.Settings.License = LicenseType.Community;
+        var bytes = BuildPdf(g, a);
+        var fn = $"Bewerbungsgespraech_{g.Nachname}_{g.Vorname}_{g.GestartetAm:yyyyMMdd}.pdf".Replace(' ', '_');
+        return File(bytes, "application/pdf", fn);
+    }
+
+    private static byte[] BuildPdf(Bewerbungsgespraech g, Dictionary<string, JsonElement> a)
+    {
         var filiale = g.CompanyProfile == null ? "" : $"{g.CompanyProfile.RestaurantCode} {g.CompanyProfile.City}".Trim();
         var name = $"{g.Vorname} {g.Nachname}".Trim();
         byte[]? unterschrift = null;
@@ -446,8 +557,7 @@ public class BewerbungsgespraechController : HrControllerBase
             }
         }
 
-        QuestPDF.Settings.License = LicenseType.Community;
-        var bytes = Document.Create(doc =>
+        return Document.Create(doc =>
         {
             doc.Page(page =>
             {
@@ -558,9 +668,6 @@ public class BewerbungsgespraechController : HrControllerBase
                 });
             });
         }).GeneratePdf();
-
-        var fn = $"Bewerbungsgespraech_{g.Nachname}_{g.Vorname}_{g.GestartetAm:yyyyMMdd}.pdf".Replace(' ', '_');
-        return File(bytes, "application/pdf", fn);
     }
 
     private static string EntscheidText(string? e) => e switch

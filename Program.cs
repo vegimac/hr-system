@@ -1054,6 +1054,8 @@ using (var scope = app.Services.CreateScope())
             abgeschlossen_von  text
         );
         CREATE INDEX IF NOT EXISTS ix_bewerbungsgespraech_filiale_status ON bewerbungsgespraech (company_profile_id, status);
+        -- «An HR senden» (Walter 03.09.2026): Verknüpfung zum angelegten Kandidaten
+        ALTER TABLE bewerbungsgespraech ADD COLUMN IF NOT EXISTS kandidat_id integer;
     ");
 
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).

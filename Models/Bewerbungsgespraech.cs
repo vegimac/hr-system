@@ -45,5 +45,8 @@ public class Bewerbungsgespraech
     public DateTime? AbgeschlossenAm { get; set; }
     public string? AbgeschlossenVon { get; set; }
 
+    /// <summary>Beim «An HR senden» angelegter Kandidat (HR-Pipeline) — null = noch nicht gesendet.</summary>
+    public int? KandidatId { get; set; }
+
     public CompanyProfile? CompanyProfile { get; set; }
 }

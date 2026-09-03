@@ -1833,6 +1833,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.GeaendertAm).HasColumnName("geaendert_am").HasColumnType("timestamp without time zone");
             entity.Property(e => e.AbgeschlossenAm).HasColumnName("abgeschlossen_am").HasColumnType("timestamp without time zone");
             entity.Property(e => e.AbgeschlossenVon).HasColumnName("abgeschlossen_von");
+            entity.Property(e => e.KandidatId).HasColumnName("kandidat_id");
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
             entity.HasIndex(e => new { e.CompanyProfileId, e.Status });
         });
