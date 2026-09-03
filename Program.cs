@@ -1029,6 +1029,33 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_stellen integer;
     ");
 
+    // ── Gesprächsmodus Bewerbungsgespräch (Walter 03.09.2026) ─────────────
+    // Ein JSON-Dokument pro Gespräch (antworten_json) + Revision gegen zwei
+    // gleichzeitig offene Fenster. KEIN JSON-Default im SQL (geschweifte
+    // Klammern = String.Format-Falle) — das EF-Model setzt «leer» selbst.
+    // Platzierung wie beim Nummernkreis: VOR SchemaCheckService.Pruefe, sonst
+    // meldet die Pruefung die Tabelle als fehlend und deploy.sh bricht ab.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS bewerbungsgespraech (
+            id                 serial PRIMARY KEY,
+            company_profile_id integer NOT NULL REFERENCES company_profile(id),
+            status             text NOT NULL DEFAULT 'in_arbeit',
+            entscheid          text,
+            vorname            text,
+            nachname           text,
+            geburtsdatum       date,
+            schritt            text,
+            revision           integer NOT NULL DEFAULT 0,
+            antworten_json     jsonb NOT NULL,
+            gestartet_am       timestamp without time zone NOT NULL DEFAULT now(),
+            gestartet_von      text,
+            geaendert_am       timestamp without time zone NOT NULL DEFAULT now(),
+            abgeschlossen_am   timestamp without time zone,
+            abgeschlossen_von  text
+        );
+        CREATE INDEX IF NOT EXISTS ix_bewerbungsgespraech_filiale_status ON bewerbungsgespraech (company_profile_id, status);
+    ");
+
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
     // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
     // als fehlend, die gerade erst angelegt wurden.
@@ -4202,28 +4229,6 @@ using (var scope = app.Services.CreateScope())
         -- editierbar, NULL = Default «Schulungsraum, Luzernerstr. 2, Zofingen».
         ALTER TABLE hr_interview_termin ADD COLUMN IF NOT EXISTS ort text;
 
-        -- ── Gesprächsmodus Bewerbungsgespräch (Walter 03.09.2026) ──────────
-        -- Ein JSON-Dokument pro Gespräch (antworten_json), Revision gegen
-        -- gleichzeitige Fenster. KEIN JSON-Default im SQL (geschweifte Klammern
-        -- = String.Format-Falle) — das EF-Model setzt den Leer-JSON selbst.
-        CREATE TABLE IF NOT EXISTS bewerbungsgespraech (
-            id                 serial PRIMARY KEY,
-            company_profile_id integer NOT NULL REFERENCES company_profile(id),
-            status             text NOT NULL DEFAULT 'in_arbeit',
-            entscheid          text,
-            vorname            text,
-            nachname           text,
-            geburtsdatum       date,
-            schritt            text,
-            revision           integer NOT NULL DEFAULT 0,
-            antworten_json     jsonb NOT NULL,
-            gestartet_am       timestamp without time zone NOT NULL DEFAULT now(),
-            gestartet_von      text,
-            geaendert_am       timestamp without time zone NOT NULL DEFAULT now(),
-            abgeschlossen_am   timestamp without time zone,
-            abgeschlossen_von  text
-        );
-        CREATE INDEX IF NOT EXISTS ix_bewerbungsgespraech_filiale_status ON bewerbungsgespraech (company_profile_id, status);
 
         -- ── BFS Lohnstrukturerhebung (Walter 13.08.2026) ────────────────────
         -- Doku: migrations-archive/add_lse_module.sql
