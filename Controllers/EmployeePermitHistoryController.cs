@@ -806,9 +806,7 @@ public class EmployeePermitHistoryController : ControllerBase
         {
             if (string.Equals(k.Email, built.To, StringComparison.OrdinalIgnoreCase)) continue;
             var kok = await _email.SendAsync(k.Email, k.Name, $"Kopie: {built.Betreff}", kopieHtml,
-                $"Kopie der E-Mail an {built.Name} <{built.To}>
-
-{built.Text}",
+                $"Kopie der E-Mail an {built.Name} <{built.To}>\n\n{built.Text}",
                 Services.VersandKategorie.Bewilligung, employeeId: employeeId);
             if (kok) kopieOk.Add($"{k.Name} ({k.Rolle})"); else kopieFehler.Add($"{k.Name} ({k.Rolle})");
         }
