@@ -266,22 +266,34 @@ public class BewerbungsgespraechController : HrControllerBase
         g.GeaendertAm = DateTime.Now;
         g.Revision++;
 
+        // Bemerkung / Wunschtermin aus den Antworten — für neuen UND bestehenden Kandidaten
+        int? wunschTerminId = int.TryParse(Str(a, "willkommenstag_termin_id"), out var wt) && wt > 0 ? wt : null;
+        var eintrittIso = Str(a, "eintritt_vereinbart") ?? Str(a, "eintritt");
+
+        // Schon einmal gesendet (Wieder öffnen → nochmals senden): solange HR noch
+        // nicht entschieden hat (Status NEU), den bestehenden Kandidaten nachführen
+        // statt einen zweiten anzulegen.
+        if (g.KandidatId != null)
+        {
+            var kAlt = await _db.Kandidaten.FirstOrDefaultAsync(k => k.Id == g.KandidatId.Value);
+            if (kAlt != null && kAlt.Status == "NEU")
+            {
+                kAlt.Vorname = vorname;
+                kAlt.Name = nachname;
+                kAlt.Telefon = Str(a, "mobile");
+                kAlt.Email = Str(a, "email");
+                kAlt.FruehesterEintritt = Datum(eintrittIso);
+                if (wunschTerminId != null) kAlt.WunschTerminId = wunschTerminId;
+                kAlt.Bemerkung = BemerkungText(g, a, e, actor);
+            }
+            else if (kAlt == null)
+            {
+                g.KandidatId = null; // Kandidat wurde gelöscht → neu anlegen
+            }
+        }
+
         if (g.KandidatId == null)
         {
-            var eintrittIso = Str(a, "eintritt_vereinbart") ?? Str(a, "eintritt");
-            var bem = new List<string>
-            {
-                $"Bewerbungsgespräch vom {g.GestartetAm:dd.MM.yyyy} ({actor ?? g.GestartetVon ?? "GF"}) — Entscheid GF: {EntscheidText(e)}",
-            };
-            var pensum = Str(a, "pensum");
-            if (!string.IsNullOrWhiteSpace(pensum)) bem.Add($"Pensum {pensum} %");
-            var dauer = Str(a, "dauer_mind");
-            if (!string.IsNullOrWhiteSpace(dauer)) bem.Add($"Dauer mind. {dauer}");
-            var wuensche = Str(a, "verf_bemerkung");
-            if (!string.IsNullOrWhiteSpace(wuensche)) bem.Add($"Verfügbarkeit: {wuensche}");
-            var notizen = Str(a, "notizen");
-            if (!string.IsNullOrWhiteSpace(notizen)) bem.Add($"Notizen: {notizen}");
-
             var k = new Kandidat
             {
                 CompanyProfileId = g.CompanyProfileId,
@@ -292,9 +304,9 @@ public class BewerbungsgespraechController : HrControllerBase
                 FruehesterEintritt = Datum(eintrittIso),
                 LgavAusbildung = a.TryGetValue("ausbildung_gastro", out var ag) && ag.ValueKind == JsonValueKind.True ? "ja"
                                : (ag.ValueKind == JsonValueKind.False ? "nein" : null),
-                Bemerkung = string.Join(" · ", bem),
+                Bemerkung = BemerkungText(g, a, e, actor),
                 // Im Gespräch gewählter Onboarding-Tag → Wunschtermin des Kandidaten
-                WunschTerminId = int.TryParse(Str(a, "willkommenstag_termin_id"), out var wt) && wt > 0 ? wt : null,
+                WunschTerminId = wunschTerminId,
                 Status = "NEU",
                 CreatedAt = DateTime.Now,
                 CreatedBy = actor,
@@ -326,6 +338,23 @@ public class BewerbungsgespraechController : HrControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(ToDto(g, true));
+    }
+
+    private static string BemerkungText(Bewerbungsgespraech g, Dictionary<string, JsonElement> a, string entscheid, string? actor)
+    {
+        var bem = new List<string>
+        {
+            $"Bewerbungsgespräch vom {g.GestartetAm:dd.MM.yyyy} ({actor ?? g.GestartetVon ?? "GF"}) — Entscheid GF: {EntscheidText(entscheid)}",
+        };
+        var pensum = Str(a, "pensum");
+        if (!string.IsNullOrWhiteSpace(pensum)) bem.Add($"Pensum {pensum} %");
+        var dauer = Str(a, "dauer_mind");
+        if (!string.IsNullOrWhiteSpace(dauer)) bem.Add($"Dauer mind. {dauer}");
+        var wuensche = Str(a, "verf_bemerkung");
+        if (!string.IsNullOrWhiteSpace(wuensche)) bem.Add($"Verfügbarkeit: {wuensche}");
+        var notizen = Str(a, "notizen");
+        if (!string.IsNullOrWhiteSpace(notizen)) bem.Add($"Notizen: {notizen}");
+        return string.Join(" · ", bem);
     }
 
     [HttpPost("{id:int}/wieder-oeffnen")]
