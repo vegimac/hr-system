@@ -53,6 +53,8 @@ public class ZivilstandHistorieService
             .ToListAsync();
         EmployeeZivilstandHistory? treffer = null;
         foreach (var h in hist) if (h.GueltigAb == null || h.GueltigAb <= stichtag) treffer = h;
+        // Stichtag vor dem ältesten datierten Eintrag → ältester bekannter Stand
+        if (treffer == null && hist.Count > 0) treffer = hist[0];
         if (treffer != null) return (treffer.Zivilstand, treffer.GueltigAb, true);
         var e = await _db.Employees.AsNoTracking().Where(x => x.Id == employeeId)
             .Select(x => new { x.MaritalStatus, x.MaritalStatusSince }).FirstOrDefaultAsync();

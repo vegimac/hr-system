@@ -723,7 +723,10 @@ public class EmployeeQuellensteuerController : ControllerBase
             .ToListAsync();
         if (hist.Count > 0)
         {
-            // Passender Eintrag = letzter mit GueltigAb ≤ Stichtag (oder «seit jeher»)
+            // Passender Eintrag = letzter mit GueltigAb ≤ Stichtag (oder «seit jeher»).
+            // Liegt der Stichtag VOR dem ältesten datierten Eintrag, gilt der
+            // älteste bekannte Wohnort (Walter 04.09.2026: 1.1.2025 → Sursee,
+            // obwohl die Historie Sursee erst «ab 1.2.2025» kennt).
             EmployeeWohnortHistory? treffer = null; DateOnly? bis = null;
             for (int i = 0; i < hist.Count; i++)
             {
@@ -733,6 +736,11 @@ public class EmployeeQuellensteuerController : ControllerBase
                     treffer = h;
                     bis = (i + 1 < hist.Count && hist[i + 1].GueltigAb.HasValue) ? hist[i + 1].GueltigAb!.Value.AddDays(-1) : null;
                 }
+            }
+            if (treffer == null && hist.Count > 1)
+            {
+                treffer = hist[0];
+                bis = hist[1].GueltigAb.HasValue ? hist[1].GueltigAb!.Value.AddDays(-1) : null;
             }
             // Nur wenn der Historie-Stand NICHT die heutige Adresse ist
             // (sonst gilt die MA-Maske inkl. Land/Strasse als Quelle).

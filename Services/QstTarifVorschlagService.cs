@@ -55,6 +55,8 @@ public class QstTarifVorschlagService
             EmployeeWohnortHistory? treffer = null; bool hatNachfolger = false;
             for (int i = 0; i < hist.Count; i++)
                 if (hist[i].GueltigAb == null || hist[i].GueltigAb <= stichtag) { treffer = hist[i]; hatNachfolger = i + 1 < hist.Count; }
+            // Stichtag vor dem ältesten Eintrag → ältester bekannter Wohnort
+            if (treffer == null && hist.Count > 1) { treffer = hist[0]; hatNachfolger = true; }
             if (treffer != null && hatNachfolger
                 && (!string.Equals(treffer.Plz ?? "", emp.ZipCode ?? "", StringComparison.OrdinalIgnoreCase)
                     || !string.Equals(treffer.Ort ?? "", emp.City ?? "", StringComparison.OrdinalIgnoreCase))
