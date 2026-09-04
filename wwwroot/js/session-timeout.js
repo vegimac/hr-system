@@ -35,8 +35,16 @@
     const now = () => Date.now();
     const onActivity = () => { lastActivity = now(); };
 
+    // Benutzer-Objekt: `currentUser` ist ein let in app-core.js (KEINE
+    // window-Eigenschaft) — Walter-Bug 04.09.2026: window.currentUser war
+    // immer undefined, der Wächter startete nie.
+    function cuGet() {
+        try { if (typeof currentUser !== 'undefined' && currentUser) return currentUser; } catch (_) {}
+        return window.currentUser || null;
+    }
+
     function start() {
-        const cu = window.currentUser;
+        const cu = cuGet();
         if (!cu) return;
         const idleMin = parseInt(cu.idleTimeoutMinutes, 10);
         const maxMin  = parseInt(cu.maxSessionMinutes, 10);
@@ -116,13 +124,14 @@
             const idleMin = parseInt(j.idleTimeoutMinutes, 10);
             if (!isNaN(idleMin)) {
                 idleMs = idleMin > 0 ? idleMin * 60000 : Number.POSITIVE_INFINITY;
-                if (window.currentUser) window.currentUser.idleTimeoutMinutes = idleMin;
+                const cuI = cuGet(); if (cuI) cuI.idleTimeoutMinutes = idleMin;
             }
             const hard = j.hardEndAt ? new Date(j.hardEndAt).getTime() : NaN;
             if (!isNaN(hard)) hardEndMs = hard;
-            if (window.currentUser) {
-                window.currentUser.sessionStartedAt = j.sessionStartedAt;
-                window.currentUser.hardEndAt = j.hardEndAt;
+            const cuR = cuGet();
+            if (cuR) {
+                cuR.sessionStartedAt = j.sessionStartedAt;
+                cuR.hardEndAt = j.hardEndAt;
             }
         } catch (_) { /* nächster Versuch beim nächsten Check */ }
         finally { refreshing = false; }

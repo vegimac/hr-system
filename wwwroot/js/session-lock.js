@@ -12,6 +12,11 @@
 (function () {
     let el = null;
     let locked = false;
+    // `currentUser` ist ein let in app-core.js, keine window-Eigenschaft.
+    function cuGet() {
+        try { if (typeof currentUser !== 'undefined' && currentUser) return currentUser; } catch (_) {}
+        return window.currentUser || null;
+    }
 
     function esc(t) { return String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
@@ -53,7 +58,7 @@
     // Sperren: Token weg (Server unerreichbar), Wächter aus, Overlay drüber.
     function lock() {
         if (locked) return;
-        const cu = window.currentUser;
+        const cu = cuGet();
         // Testmodus → wie bisher komplett abmelden (Token gehört dem Admin).
         if (!cu || cu.impersonating === true || localStorage.getItem('hrTokenAdmin')) {
             if (typeof doLogout === 'function') doLogout(); else location.reload();
@@ -74,7 +79,7 @@
     }
 
     async function unlockWithPassword() {
-        const cu = window.currentUser;
+        const cu = cuGet();
         const pw = el.querySelector('#sessionLockPw').value;
         if (!pw) return;
         try {
@@ -100,7 +105,7 @@
 
     // Neues Token übernehmen — nur wenn es dieselbe Person ist.
     function applyUnlock(data) {
-        const cu = window.currentUser;
+        const cu = cuGet();
         if (!data || !data.token) { showErr('Keine Antwort vom Server.'); return; }
         if (!data.user || data.user.id !== cu.id) {
             // Andere Person: nichts vom Vorgänger zeigen → Neustart mit dem neuen Token.
