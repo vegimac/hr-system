@@ -399,15 +399,16 @@ async function saveUser() {
     const username  = `${firstName} ${lastName}`.trim() || email;
 
     // Session-Policy: leer = Rollen-Default (null), sonst 5–1440 (Walter 21.06.2026).
-    const parsePolicy = (raw, label) => {
+    // Inaktivitäts-Sperre 0–30 (Walter 04.09.2026), Token-Laufzeit 5–1440.
+    const parsePolicy = (raw, label, min, max) => {
         const s = (raw || '').trim();
         if (s === '') return { ok: true, value: null };
         const n = parseInt(s, 10);
-        if (isNaN(n) || n < 5 || n > 1440) return { ok: false, label };
+        if (isNaN(n) || n < min || n > max) return { ok: false, label, min, max };
         return { ok: true, value: n };
     };
-    const idleP = parsePolicy(document.getElementById('umIdleTimeout').value, 'Inaktivitäts-Logout');
-    const maxP  = parsePolicy(document.getElementById('umMaxSession').value, 'Max. Session-Dauer');
+    const idleP = parsePolicy(document.getElementById('umIdleTimeout').value, 'Inaktivitäts-Sperre', 0, 30);
+    const maxP  = parsePolicy(document.getElementById('umMaxSession').value, 'Token-Laufzeit', 5, 1440);
 
     // Validierung
     if (!email) { showErr('Bitte E-Mail eintragen.'); return; }
@@ -421,7 +422,7 @@ async function saveUser() {
         if (password.length < 8) { showErr('Passwort muss mindestens 8 Zeichen lang sein.'); return; }
         if (password !== passwordConfirm) { showErr('Die beiden Passwort-Eingaben stimmen nicht überein.'); return; }
     }
-    if (!idleP.ok) { showErr(`${idleP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
+    if (!idleP.ok) { showErr(`${idleP.label} muss zwischen 0 und 30 Minuten liegen (0 = keine Sperre, leer = 15).`); return; }
     if (!maxP.ok)  { showErr(`${maxP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
 
     const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam,
