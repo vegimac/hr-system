@@ -12339,3 +12339,8 @@ body.theme-dark .dokstruktur-docs { background: rgba(255,255,255,0.03); border-c
 body.theme-dark .dokstruktur-docs td { border-color: var(--dlg-glass-border); color: #e2e8f0; }
 body.theme-dark .dokstruktur-docs tbody tr:hover td { background: var(--dlg-glass-field); }
 body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
+
+/* MA-Filter-Menü (Walter 04.09.2026): alle Einträge sichtbar, aktiver mit Häkchen */
+.emp-filter-menu { min-width: 260px; }
+.emp-filter-menu .dok-menu-item { font-size: 12.5px; padding: 7px 12px; white-space: nowrap; }
+.emp-filter-menu .dok-menu-item.is-active { font-weight: 700; }

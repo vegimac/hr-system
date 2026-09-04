@@ -707,18 +707,69 @@ function setEmpExitDateAfter(val) {
 
 /// Spezial-Filter setzen (Dropdown). Lädt bei Bedarf den passenden Cache
 /// (z.B. Bankverbindungs-IDs) bevor neu gefiltert wird.
+// Einträge des Filter-Menüs (Walter 04.09.2026: eigenes Aufklappmenü, damit
+// alle Filter ohne Scrollen Platz haben). Reihenfolge = Anzeige.
+const EMP_SPECIAL_FILTER_OPTIONS = [
+    { value: '',               label: 'Alle Mitarbeiter' },
+    { value: 'model-flex',     label: 'Vertrag: FLEX' },
+    { value: 'model-mtp',      label: 'Vertrag: MTP' },
+    { value: 'model-fix',      label: 'Vertrag: FIX' },
+    { value: 'model-fixm',     label: 'Vertrag: FIX-M' },
+    { value: 'in-probezeit',   label: 'In Probezeit' },
+    { value: 'has-verwarnung', label: 'Mit Verwarnung' },
+    { value: 'in-absence',     label: 'Krank / Unfall / Mutterschaft (aktuell)' },
+    { value: 'no-bank',        label: 'Ohne Bankverbindung' },
+    { value: 'no-permit',      label: 'Keine Bewilligung' },
+    { value: 'permit-expired', label: 'Bewilligung abgelaufen' },
+    { value: 'qst-pflichtig',  label: 'Quellensteuerpflichtig' },
+    { value: 'has-kinderzulage', label: 'Mit Kinderzulagen' },
+    { value: 'no-contract',    label: 'Ohne Vertrag' },
+];
+
+function empSpecialFilterToggle(event) {
+    event?.stopPropagation();
+    const menu = document.getElementById('empSpecialFilterMenu');
+    const btn  = document.getElementById('empSpecialFilter');
+    if (!menu || !btn) return;
+    const wasOpen = menu.classList.contains('show');
+    if (typeof dokCloseAllMenus === 'function') dokCloseAllMenus();
+    if (wasOpen) return;
+    menu.innerHTML = EMP_SPECIAL_FILTER_OPTIONS.map(o => `
+        <button type="button" class="dok-menu-item${o.value === _empSpecialFilter ? ' is-active' : ''}"
+                onclick="event.stopPropagation();dokCloseAllMenus();setEmpSpecialFilter('${o.value}')">
+            <span style="display:inline-block;width:14px">${o.value === _empSpecialFilter ? '✓' : ''}</span>${esc(o.label)}
+        </button>`).join('');
+    // Unter dem Knopf, fix positioniert (entkommt dem overflow der Liste);
+    // so hoch wie nötig — Scrollen nur, wenn der Bildschirm wirklich zu klein ist.
+    const r = btn.getBoundingClientRect();
+    menu._dokOrigParent = btn.parentElement;   // dokCloseAllMenus hängt es zurück
+    document.body.appendChild(menu);
+    menu.style.position = 'fixed';
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = r.left + 'px';
+    menu.style.right = 'auto';
+    menu.style.minWidth = r.width + 'px';
+    menu.style.maxHeight = Math.max(200, window.innerHeight - r.bottom - 12) + 'px';
+    menu.style.overflowY = 'auto';
+    menu.classList.add('show');
+    setTimeout(() => document.addEventListener('click', dokCloseAllMenus, { once: true }), 0);
+}
+
 async function setEmpSpecialFilter(value) {
     _empSpecialFilter = value || '';
     const cfg = EMP_SPECIAL_FILTERS[_empSpecialFilter];
     if (cfg && typeof cfg.prepare === 'function') {
         await cfg.prepare();
     }
-    // Visuelles Feedback: aktiv = blauer Rahmen + heller Hintergrund.
+    // Visuelles Feedback: aktiv = dunkler Rahmen + heller Hintergrund + Label.
     const sel = document.getElementById('empSpecialFilter');
+    const lbl = document.getElementById('empSpecialFilterLabel');
+    const opt = EMP_SPECIAL_FILTER_OPTIONS.find(o => o.value === _empSpecialFilter);
+    if (lbl) lbl.textContent = opt ? opt.label : 'Alle Mitarbeiter';
     if (sel) {
         sel.style.borderColor = _empSpecialFilter ? '#3f3f3f' : '#e2e8f0';
         sel.style.background  = _empSpecialFilter ? '#f6f3ee' : '#f8fafc';
-        sel.style.color       = _empSpecialFilter ? '#6b7280' : '#475569';
+        sel.style.color       = _empSpecialFilter ? '#1a1a1a' : '#475569';
         sel.style.fontWeight  = _empSpecialFilter ? '600' : '400';
     }
     applyEmpFilter();

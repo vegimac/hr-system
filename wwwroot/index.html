@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260904d">
+    <link rel="stylesheet" href="css/app.css?v=20260904e">
 </head>
 <body>
 
@@ -506,24 +506,14 @@
                                  Ausweis abgelaufen) lassen sich in EMP_SPECIAL_FILTERS
                                  in employees.js ergänzen. -->
                             <div style="padding:0 12px 8px;border-bottom:1px solid #e2e8f0">
-                                <select id="empSpecialFilter"
-                                        onchange="setEmpSpecialFilter(this.value)"
-                                        style="width:100%;padding:5px 8px;font-size:11.5px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer">
-                                    <option value="">Alle Mitarbeiter</option>
-                                    <option value="model-flex">Vertrag: FLEX</option>
-                                    <option value="model-mtp">Vertrag: MTP</option>
-                                    <option value="model-fix">Vertrag: FIX</option>
-                                    <option value="model-fixm">Vertrag: FIX-M</option>
-                                    <option value="in-probezeit">In Probezeit</option>
-                                    <option value="has-verwarnung">Mit Verwarnung</option>
-                                    <option value="in-absence">Krank / Unfall / Mutterschaft (aktuell)</option>
-                                    <option value="no-bank">Ohne Bankverbindung</option>
-                                    <option value="no-permit">Keine Bewilligung</option>
-                                    <option value="permit-expired">Bewilligung abgelaufen</option>
-                                    <option value="qst-pflichtig">Quellensteuerpflichtig</option>
-                                    <option value="has-kinderzulage">Mit Kinderzulagen</option>
-                                    <option value="no-contract">Ohne Vertrag</option>
-                                </select>
+                                <!-- Walter 04.09.2026: eigenes Aufklappmenü statt <select> — das
+                                     native Popup zeigte nur ~10 Einträge und scrollte. Einträge
+                                     stehen in EMP_SPECIAL_FILTER_OPTIONS (employees.js). -->
+                                <button type="button" id="empSpecialFilter" onclick="empSpecialFilterToggle(event)"
+                                        style="width:100%;padding:5px 8px;font-size:11.5px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;text-align:left">
+                                    <span id="empSpecialFilterLabel">Alle Mitarbeiter</span><span style="color:#94a3b8;font-size:10px">▾</span>
+                                </button>
+                                <div class="dok-menu emp-filter-menu" id="empSpecialFilterMenu"></div>
                             </div>
                             <div class="emp-list-scroll" id="empList">
                                 <div class="emp-no-selection" style="height:200px">
@@ -9264,7 +9254,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260904d"></script>
+<script src="employees.js?v=20260904e"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
