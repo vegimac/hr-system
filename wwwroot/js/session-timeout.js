@@ -202,16 +202,19 @@
         const { left, reason } = remaining();
         if (left <= 0) { doExpire(reason); return; }
         const secs = Math.max(1, Math.ceil(left / 1000));
+        // Zähler als feste Zweistellen-Anzeige in einem Feld mit fester Breite
+        // (Walter 04.09.2026: unter 10 sprang der Text bei jeder Sekunde).
+        const zahl = `<span style="display:inline-block;min-width:2.2ch;text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:#0f172a">${String(secs).padStart(2, '0')}</span>`;
         const msgEl   = modalEl.querySelector('#sessionTimeoutMsg');
         const stayBtn = modalEl.querySelector('#sessionTimeoutStay');
         if (reason === 'max') {
             // Max-Session: „Angemeldet bleiben" hilft nicht → ausblenden.
-            msgEl.textContent =
-                `Die maximale Sitzungsdauer (14 Stunden seit der Anmeldung) ist erreicht. Du wirst aus Sicherheitsgründen in ${secs} Sekunden abgemeldet. Bitte danach neu anmelden.`;
+            msgEl.innerHTML =
+                `Die maximale Sitzungsdauer (14 Stunden seit der Anmeldung) ist erreicht. Du wirst aus Sicherheitsgründen in ${zahl} Sekunden abgemeldet. Bitte danach neu anmelden.`;
             stayBtn.style.display = 'none';
         } else {
-            msgEl.textContent =
-                `OneCrew wird in ${secs} Sekunden gesperrt (Inaktivität). Deine Eingaben bleiben erhalten — zum Entsperren Passwort oder Face ID.`;
+            msgEl.innerHTML =
+                `OneCrew wird in ${zahl} Sekunden gesperrt (Inaktivität). Deine Eingaben bleiben erhalten — zum Entsperren Passwort oder Face ID.`;
             stayBtn.style.display = '';
         }
     }
