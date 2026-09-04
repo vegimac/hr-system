@@ -8814,7 +8814,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </div>
                 <div class="fmf-field" id="fmSsnField">
                     <label class="fmf-label" data-i18n="fam.field.ahv">AHV-Nummer</label>
-                    <input class="fmf-input" id="fmSocialSecurity" type="text" placeholder="756.xxxx.xxxx.xx">
+                    <input class="fmf-input" id="fmSocialSecurity" type="text" placeholder="756.xxxx.xxxx.xx" inputmode="numeric" maxlength="16"
+                           oninput="ahvMaskInput(this)" onblur="validateAhvField(this, true)">
+                    <div id="fmSocialSecurity-status" style="font-size:11px;margin-top:3px;min-height:14px"></div>
                 </div>
                 <div class="fmf-field" id="fmPhoneField">
                     <label class="fmf-label" data-i18n="fam.field.phone">Telefon</label>
@@ -9211,7 +9213,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260903d"></script>
+<script src="employees.js?v=20260904a"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

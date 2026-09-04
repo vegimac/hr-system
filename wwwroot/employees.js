@@ -5478,6 +5478,21 @@ function validateAhvNummer(input) {
     };
 }
 
+// Live-Maske beim Tippen (Walter 04.09.2026, «wie in easy@work»): nur
+// Ziffern, Punkte automatisch nach 3/7/11 Stellen → 756.1234.5678.97.
+// Der Prüfziffer-Check läuft erst beim Verlassen des Felds (validateAhvField).
+function ahvMaskInput(inputEl) {
+    const digits = (inputEl.value || '').replace(/\D/g, '').slice(0, 13);
+    let out = digits.slice(0, 3);
+    if (digits.length > 3) out += '.' + digits.slice(3, 7);
+    if (digits.length > 7) out += '.' + digits.slice(7, 11);
+    if (digits.length > 11) out += '.' + digits.slice(11, 13);
+    if (inputEl.value !== out) inputEl.value = out;
+    const statusEl = document.getElementById(inputEl.id + '-status');
+    if (statusEl && digits.length < 13) { statusEl.textContent = ''; inputEl.style.borderColor = ''; }
+    else if (statusEl) validateAhvField(inputEl, false);
+}
+
 // Hängt Validierungs-Status an ein Input-Feld + sein Status-Element.
 // onBlur=true: bei gültiger AHV-Nr automatisch ins Standard-Format normalisieren
 // (756.XXXX.XXXX.XX), damit die Anzeige konsistent ist.
@@ -6698,6 +6713,7 @@ function openFamilyModal(member) {
     document.getElementById('fmDateOfBirth').value     = toDateInput(member?.dateOfBirth);
     updateFmAgeDisplay();
     document.getElementById('fmSocialSecurity').value  = member?.socialSecurityNumber ?? '';
+    ahvMaskInput(document.getElementById('fmSocialSecurity'));
     document.getElementById('fmPhone').value           = member?.phone ?? '';
 
     // Walter-Vorgabe 14.06.2026: NEUE Familienmitglieder (vor allem Kinder)
