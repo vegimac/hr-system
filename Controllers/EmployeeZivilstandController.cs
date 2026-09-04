@@ -41,7 +41,7 @@ public class EmployeeZivilstandController : ControllerBase
     [HttpGet("am")]
     public async Task<IActionResult> Am(int employeeId, [FromQuery] string? datum)
     {
-        var d = DateOnly.TryParse(datum, out var x) ? x : DateOnly.FromDateTime(DateTime.Today);
+        var d = EmployeeQuellensteuerController.ParseDatum(datum) ?? DateOnly.FromDateTime(DateTime.Today);
         var (z, seit, ausHist) = await _svc.AmAsync(employeeId, d);
         return Ok(new { zivilstand = z, seit = seit?.ToString("yyyy-MM-dd"), ausHistorie = ausHist, stichtag = d.ToString("yyyy-MM-dd") });
     }
@@ -57,7 +57,8 @@ public class EmployeeZivilstandController : ControllerBase
         DateOnly? ab = null;
         if (!string.IsNullOrWhiteSpace(dto.GueltigAb))
         {
-            if (!DateOnly.TryParse(dto.GueltigAb, out var d)) return BadRequest(new { error = "DATUM_UNGUELTIG" });
+            var d = EmployeeQuellensteuerController.ParseDatum(dto.GueltigAb);
+            if (d == null) return BadRequest(new { error = "DATUM_UNGUELTIG" });
             ab = d;
         }
         var gleich = await _db.EmployeeZivilstandHistories.FirstOrDefaultAsync(h => h.EmployeeId == employeeId && h.GueltigAb == ab);
@@ -77,7 +78,7 @@ public class EmployeeZivilstandController : ControllerBase
         if (dto.GueltigAb != null)
         {
             if (dto.GueltigAb == "") h.GueltigAb = null;
-            else if (DateOnly.TryParse(dto.GueltigAb, out var d)) h.GueltigAb = d;
+            else if (EmployeeQuellensteuerController.ParseDatum(dto.GueltigAb) is DateOnly d) h.GueltigAb = d;
             else return BadRequest(new { error = "DATUM_UNGUELTIG" });
         }
         if (dto.Bemerkung != null) h.Bemerkung = dto.Bemerkung.Trim();

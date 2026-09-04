@@ -70,8 +70,10 @@ public class EmployeeWohnortController : ControllerBase
     {
         var emp = await _db.Employees.FirstOrDefaultAsync(e => e.Id == employeeId && !e.IsHidden);
         if (emp == null) return NotFound(new { error = "EMP_NOT_FOUND" });
-        if (!DateOnly.TryParse(dto.Umzugsdatum, out var umzug))
+        var umzugParsed = EmployeeQuellensteuerController.ParseDatum(dto.Umzugsdatum);
+        if (umzugParsed == null)
             return BadRequest(new { error = "UMZUGSDATUM_UNGUELTIG" });
+        var umzug = umzugParsed.Value;
 
         // Adresse kommt AUSSCHLIESSLICH aus easy@work (Walter 08.08.2026):
         // hier wird nur noch das UMZUGSDATUM zum offenen Adresswechsel

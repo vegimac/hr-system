@@ -1216,9 +1216,10 @@ async function qstUpdateWohnortKopf(datum) {
         const f = iso => iso ? new Date(iso).toLocaleDateString('de-CH') : '';
         const w = document.getElementById('qstWohnortDisplay');
         const k = document.getElementById('qstKantonDisplay');
-        if (w) w.innerHTML = a.ausHistorie
-            ? `${wohnort} <span style="color:#b45309;font-size:11px;font-weight:600" title="Adresse gemäss Wohnort-Historie am ${f(a.stichtag)}">· damals (${f(a.gueltigAb) || 'seit jeher'} – ${f(a.gueltigBis)})</span>`
-            : wohnort;
+        const histBtn = `<button type="button" class="qst-warum-btn" style="margin-left:8px;padding:1px 9px;font-size:10.5px" onclick="openUmzugModal(qstCurrentEmployeeId)" title="Wohnort-Historie — Adresse am Gültig-ab ergänzen/korrigieren">🕘 Historie</button>`;
+        if (w) w.innerHTML = (a.ausHistorie
+            ? `${wohnort} <span style="color:#b45309;font-size:11px;font-weight:600" title="Adresse gemäss Wohnort-Historie">· damals (${f(a.gueltigAb) || 'seit jeher'} – ${f(a.gueltigBis)})</span>`
+            : `${wohnort} <span style="color:#8b8b8b;font-size:11px" title="Adresse gemäss MA-Maske / Wohnort-Historie">· am ${f(a.stichtag)}</span>`) + histBtn;
         if (k) k.textContent = a.cantonCode ? (a.kantonName ? `${a.cantonCode} — ${a.kantonName}` : a.cantonCode) : '–';
         // Zivilstand am Stichtag (Zivilstand-Historie, Walter 04.09.2026)
         const zivLabel = QST_ZIVILSTAND_LABELS[a.zivilstand] || a.zivilstand || '–';

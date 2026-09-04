@@ -16176,7 +16176,7 @@ function _umzugEnsureModal() {
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const div = document.createElement('div');
     div.id = 'umzugModal';
-    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:9700;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div id="umzugModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug bestätigen</div>
@@ -16194,14 +16194,25 @@ function _umzugEnsureModal() {
         </div>
         <div id="umzugHistorie" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-            <button onclick="document.getElementById('umzugModal').style.display='none'"
+            <button onclick="umzugClose()"
                     style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Schliessen</button>
             <button id="umzugSaveBtn" onclick="umzugSave()"
                     style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(60,55,48,0.2)">Datum bestätigen</button>
         </div>
     </div>`;
-    div.addEventListener('click', (e) => { if (e.target === div) div.style.display = 'none'; });
+    div.addEventListener('click', (e) => { if (e.target === div) umzugClose(); });
     document.body.appendChild(div);
+}
+
+function umzugClose() {
+    const m = document.getElementById('umzugModal');
+    if (m) m.style.display = 'none';
+    // QST-Modal offen? → Kopf (Adresse am Stichtag) neu laden (Walter 04.09.2026).
+    try {
+        const vf = document.getElementById('qstValidFrom');
+        if (vf && vf.value && typeof qstUpdateWohnortKopf === 'function' && typeof qstCurrentEmployeeId !== 'undefined' && qstCurrentEmployeeId)
+            qstUpdateWohnortKopf(vf.value);
+    } catch (_) {}
 }
 
 async function openUmzugModal(empId) {

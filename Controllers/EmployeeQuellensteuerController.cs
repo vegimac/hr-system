@@ -710,6 +710,16 @@ public class EmployeeQuellensteuerController : ControllerBase
     /// </summary>
     public sealed record WohnadresseAm(string? Street, string? ZipCode, string? City, string? CantonCode, string? Country, bool AusHistorie, DateOnly? GueltigAb, DateOnly? GueltigBis);
 
+    internal static DateOnly? ParseDatum(string? v)
+    {
+        if (string.IsNullOrWhiteSpace(v)) return null;
+        v = v.Trim();
+        if (v.Length > 10) v = v[..10];
+        if (DateOnly.TryParseExact(v, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var a)) return a;
+        if (DateOnly.TryParseExact(v, "dd.MM.yyyy", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var b)) return b;
+        return DateOnly.TryParse(v, System.Globalization.CultureInfo.InvariantCulture, out var c) ? c : null;
+    }
+
     private async Task<WohnadresseAm?> WohnadresseAmAsync(int employeeId, DateOnly stichtag)
     {
         var e = await _db.Employees.AsNoTracking()
@@ -764,7 +774,10 @@ public class EmployeeQuellensteuerController : ControllerBase
     [HttpGet("wohnadresse-am")]
     public async Task<IActionResult> WohnadresseAmStichtag(int employeeId, [FromQuery] string? datum)
     {
-        var d = DateOnly.TryParse(datum, out var x) ? x : DateOnly.FromDateTime(DateTime.Today);
+        // Kultur-unabhängig parsen (ISO yyyy-MM-dd vom <input type=date>;
+        // zur Sicherheit auch dd.MM.yyyy) — DateOnly.TryParse hängt an der
+        // Server-Kultur und lieferte sonst «heute» (Walter 04.09.2026).
+        var d = ParseDatum(datum) ?? DateOnly.FromDateTime(DateTime.Today);
         var a = await WohnadresseAmAsync(employeeId, d);
         if (a == null) return NotFound();
         var kanton = (a.CantonCode ?? "").Trim().ToUpperInvariant();
