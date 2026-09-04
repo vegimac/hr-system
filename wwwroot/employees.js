@@ -5153,11 +5153,20 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         const zukunft = von && von > heute;
                         const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
                         const zeitraum = `${kurz(a.validFrom)} – ${a.validTo ? kurz(a.validTo) : 'offen'}`;
+                        // Walter 04.09.2026: nur den Satz zeigen, nicht den Betrag —
+                        // der Lohn holt den Betrag aus dem jeweils gültigen FZ-Tarif
+                        // (Tarifwechsel greifen automatisch). Alt-Einträge ohne Satz
+                        // rechnen mit dem fixen Betrag → den zeigen wir weiterhin.
+                        const hatSatz = a.tarifSatzNr != null && a.tarifSatzNr !== '';
+                        const pillText = hatSatz ? `${esc(artShort)} Satz ${a.tarifSatzNr}` : `${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}`;
+                        const betragHint = hatSatz
+                            ? 'Betrag gemäss FZ-Tarif des Kantons (erfasst mit CHF ' + Number(a.monthlyAmount).toFixed(2) + ')'
+                            : 'fixer Betrag CHF ' + Number(a.monthlyAmount).toFixed(2) + ' — kein Tarif-Satz hinterlegt';
                         return `<div class="fam-tile-zulage-row${abgelaufen ? ' is-past' : ''}${zukunft ? ' is-future' : ''}">
-                            <button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}"
-                                title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
+                            <button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}${hatSatz ? '' : ' is-fixed'}"
+                                title="${esc(artShort)} · ${betragHint} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
                                 onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
-                                ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
+                                ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${pillText}
                             </button>
                             <span class="fam-tile-zulage-zeit" title="${abgelaufen ? 'abgelaufen' : zukunft ? 'künftig' : 'gültig'}">${zeitraum}</span>
                         </div>`;

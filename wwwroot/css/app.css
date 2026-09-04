@@ -8901,6 +8901,7 @@
         .fam-tile-zulage-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
         .fam-tile-zulage-zeit { font-size: 11px; color: #6b6152; white-space: nowrap; font-variant-numeric: tabular-nums; }
         .fam-tile-zulage-row.is-past .fam-tile-chip { opacity: .55; }
+        .fam-tile-chip.is-fixed { border-style: dashed; color: #92400e; }
         .fam-tile-zulage-row.is-past .fam-tile-zulage-zeit { color: #a39c90; text-decoration: line-through; }
         .fam-tile-zulage-row.is-future .fam-tile-zulage-zeit { color: #1d4ed8; }
         body.theme-dark .fam-tile-zulage-zeit { color: var(--dlg-text-soft); }
