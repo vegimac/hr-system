@@ -69,6 +69,24 @@ public class FamilyMemberAllowancesController : ControllerBase
     /// (z.B. „KZ Satz 2 ab 12 J."), das System zeigt den Betrag aus dem
     /// FAK-Tarif der Filiale am Stichtag.
     /// </summary>
+    /// <summary>
+    /// MA-Filter «Mit Kinderzulagen» (Walter 04.09.2026): Ids aller MA, die
+    /// per heute mindestens eine laufende Zulage (KZ/AZ/…) an einem Kind haben.
+    /// Absolute Route, weil der Controller sonst am Familienmitglied hängt.
+    /// </summary>
+    [HttpGet("/api/family-allowances/employee-ids-current")]
+    public async Task<IActionResult> GetEmployeeIdsWithCurrentAllowance()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var ids = await _db.FamilyMemberAllowances.AsNoTracking()
+            .Where(a => a.ValidFrom <= today && (a.ValidTo == null || a.ValidTo >= today))
+            .Join(_db.EmployeeFamilyMembers.AsNoTracking().Where(f => f.DateOfDeath == null),
+                  a => a.FamilyMemberId, f => f.Id, (a, f) => f.EmployeeId)
+            .Distinct()
+            .ToListAsync();
+        return Ok(ids);
+    }
+
     [HttpGet("resolve-preview")]
     public async Task<IActionResult> ResolvePreview(int familyMemberId,
         [FromQuery] string allowanceType,

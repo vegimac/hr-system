@@ -157,7 +157,8 @@ let _empSpecialFilter = '';
 // Caches für Spezialfilter — lazy geladen beim ersten Aktivieren.
 let _empIdsWithActiveBank   = null;   // MA-IDs mit aktiver Bankverbindung
 let _empIdsWithVerwarnung   = null;   // MA-IDs mit nicht-stornierter Verwarnung (Filter 23.08.2026)
-let _empIdsWithActiveQst    = null;   // MA-IDs mit aktivem QST-Tarif
+let _empIdsWithActiveQst    = null;
+let _empIdsWithKinderzulage = null;   // MA-IDs mit aktivem QST-Tarif
 let _empIdsWithPermitHistory = null;  // MA-IDs mit MINDESTENS einem Permit-History-Eintrag
 let _empIdsWithExpiredPermit = null;  // MA-IDs mit abgelaufener massgebender Bewilligung
 let _empIdsCurrentlyAbsent  = null;   // MA-IDs mit aktueller KRANK/UNFALL/MUTT_VATER-Absenz
@@ -320,6 +321,20 @@ const EMP_SPECIAL_FILTERS = {
             } catch { _empIdsWithActiveQst = new Set(); }
         },
         predicate: (e) => _empIdsWithActiveQst && _empIdsWithActiveQst.has(Number(e.id))
+    },
+    // Mit Kinderzulagen — per heute mindestens eine laufende Zulage an einem
+    // Kind (Walter 04.09.2026). Cache bei jedem Öffnen neu laden.
+    'has-kinderzulage': {
+        prepare: async () => {
+            try {
+                const r = await fetch('/api/family-allowances/employee-ids-current',
+                                       { headers: ah(), cache: 'no-store' });
+                _empIdsWithKinderzulage = r.ok
+                    ? new Set((await r.json()).map(Number))
+                    : new Set();
+            } catch { _empIdsWithKinderzulage = new Set(); }
+        },
+        predicate: (e) => _empIdsWithKinderzulage && _empIdsWithKinderzulage.has(Number(e.id))
     },
     // Ohne gültigen Vertrag heute (Walter 18.05.2026).
     // MA als Personalakte (Phantom-MA) oder zwischen zwei Verträgen.
