@@ -8895,6 +8895,15 @@
             border-top: 1px solid rgba(120,110,95,.12);
         }
         .fam-tile-chips { display: flex; flex-wrap: wrap; gap: 5px; flex: 1; min-width: 0; }
+        /* Zulagen als Liste (Walter 04.09.2026): Pille + Gültigkeit, neueste zuoberst */
+        .fam-tile-foot-list { align-items: flex-start; flex-wrap: nowrap; }
+        .fam-tile-zulage-list { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+        .fam-tile-zulage-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .fam-tile-zulage-zeit { font-size: 11px; color: #6b6152; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .fam-tile-zulage-row.is-past .fam-tile-chip { opacity: .55; }
+        .fam-tile-zulage-row.is-past .fam-tile-zulage-zeit { color: #a39c90; text-decoration: line-through; }
+        .fam-tile-zulage-row.is-future .fam-tile-zulage-zeit { color: #1d4ed8; }
+        body.theme-dark .fam-tile-zulage-zeit { color: var(--dlg-text-soft); }
         .fam-tile-chip {
             background: rgba(255,255,255,.72); border: 1px solid #d8d2c6; border-radius: 999px;
             padding: 3px 9px; font-size: 11px; font-weight: 650; color: #3f3f3f;

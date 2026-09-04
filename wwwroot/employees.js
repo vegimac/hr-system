@@ -5135,22 +5135,37 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                         <button type="button" class="fam-tile-zulage-btn" onclick="openAllowanceFromCard(${m.id}, null)">+ Zulage</button>
                     </div>`;
                 } else {
-                    const chips = allowances.map(a => {
+                    // Walter 04.09.2026: Zulagen ändern sich — darum als Liste
+                    // untereinander, neueste zuoberst, neben der Pille die
+                    // Gültigkeit «1.4.26 – 31.3.34» (Kurzjahr).
+                    const kurz = d => { if (!d) return ''; const x = new Date(d); return isNaN(x) ? d : `${x.getDate()}.${x.getMonth() + 1}.${String(x.getFullYear()).slice(-2)}`; };
+                    const heute = new Date().toISOString().slice(0, 10);
+                    const sortedAllow = [...allowances].sort((a, b) =>
+                        String(b.validFrom || '').localeCompare(String(a.validFrom || '')) || ((b.id || 0) - (a.id || 0)));
+                    const rows = sortedAllow.map(a => {
                         const artShort = a.allowanceType || 'Zulage';
                         const bisShort = a.validTo ? formatDate(a.validTo) : 'offen';
                         const locked = a.inLohnVerwendet === true;
                         const hasDok = !!a.dokumentId;
+                        const von = String(a.validFrom || '').slice(0, 10);
+                        const bis = String(a.validTo || '').slice(0, 10);
+                        const abgelaufen = bis && bis < heute;
+                        const zukunft = von && von > heute;
                         const aJson = JSON.stringify(a).replace(/"/g, '&quot;');
-                        return `<button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}"
-                            title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
-                            onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
-                            ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
-                        </button>`;
+                        const zeitraum = `${kurz(a.validFrom)} – ${a.validTo ? kurz(a.validTo) : 'offen'}`;
+                        return `<div class="fam-tile-zulage-row${abgelaufen ? ' is-past' : ''}${zukunft ? ' is-future' : ''}">
+                            <button type="button" class="fam-tile-chip${locked ? ' is-locked' : ''}"
+                                title="${esc(artShort)} · CHF ${Number(a.monthlyAmount).toFixed(2)} · bis ${bisShort}${hasDok ? ' · mit Entscheid-Doku' : ''}${locked ? ' · in Lohn verwendet' : ''}"
+                                onclick="event.stopPropagation();openAllowanceFromCard(${m.id}, ${aJson})">
+                                ${locked ? '🔒 ' : ''}${hasDok ? '📄 ' : ''}${esc(artShort)} · ${Number(a.monthlyAmount).toFixed(0)}
+                            </button>
+                            <span class="fam-tile-zulage-zeit" title="${abgelaufen ? 'abgelaufen' : zukunft ? 'künftig' : 'gültig'}">${zeitraum}</span>
+                        </div>`;
                     }).join('');
                     kindAllowancesBlock = `
-                    <div class="fam-tile-foot" onclick="event.stopPropagation()">
-                        <div class="fam-tile-chips">${chips}</div>
-                        <button type="button" class="fam-tile-zulage-btn" onclick="openAllowanceFromCard(${m.id}, null)">+</button>
+                    <div class="fam-tile-foot fam-tile-foot-list" onclick="event.stopPropagation()">
+                        <div class="fam-tile-zulage-list">${rows}</div>
+                        <button type="button" class="fam-tile-zulage-btn" onclick="openAllowanceFromCard(${m.id}, null)" title="Neue Zulage">+</button>
                     </div>`;
                 }
             }
