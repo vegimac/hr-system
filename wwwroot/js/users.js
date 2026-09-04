@@ -217,6 +217,7 @@ function openUserModal(userId = null) {
             // Sichtbare Bereiche: null (noch nicht definiert) => alle anhaken.
             umSetAreas(u.allowedAreas ?? null);
             umUpdateBranchVisibility();
+            umApplyPolicyPermission();
         });
     } else {
         document.getElementById('umFirstName').value = '';
@@ -232,6 +233,7 @@ function openUserModal(userId = null) {
         document.getElementById('umMaxSession').value  = '';
         umSetAreas(null);   // neuer User: Standard-Bereiche, Entwicklung opt-in
         umUpdateBranchVisibility();
+        umApplyPolicyPermission();
     }
     document.getElementById('userModalBg').classList.add('open');
 }
@@ -243,6 +245,13 @@ function closeUserModal() { document.getElementById('userModalBg').classList.rem
 // anhaken (neue/legacy User ohne eigene Auswahl). «Entwicklung» bleibt
 // bei null UNGEHAKT — sonst persistiert das erste Speichern das Häkchen
 // und der Bereich erscheint im Menü. Explizit «Alle» darf ihn setzen.
+// Sitzungs-Policy (Inaktivitäts-Sperre, Token-Laufzeit) nur durch Admin
+// änderbar (Walter 04.09.2026) — der Server ignoriert Werte von Superusern.
+function umApplyPolicyPermission() {
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    document.querySelectorAll('.um-policy-field').forEach(el => { el.disabled = !isAdmin; el.style.opacity = isAdmin ? '' : '.55'; });
+}
+
 function umSetAreas(arr) {
     document.querySelectorAll('#umAreas input[type=checkbox]').forEach(cb => {
         const a = cb.getAttribute('data-area');

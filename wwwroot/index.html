@@ -8630,13 +8630,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div class="emp-section-title">Sicherheit / Session</div>
             <div class="f-grid">
                 <div class="f-group">
-                    <label class="f-label">Inaktivitäts-Logout (Min.)</label>
-                    <input type="number" class="f-input" id="umIdleTimeout" min="5" max="1440" step="1" placeholder="Rollen-Standard">
-                    <div class="f-hint">Leer = Rollen-Standard (MA 15 · übrige 30). Bereich 5–1440.</div>
+                    <label class="f-label">Inaktivitäts-Sperre (Min.) <span class="um-policy-admin-only" style="font-weight:400;color:#8b8b8b">· nur Admin</span></label>
+                    <input type="number" class="f-input um-policy-field" id="umIdleTimeout" min="0" max="30" step="1" placeholder="Standard 15">
+                    <div class="f-hint">Nach so vielen Minuten ohne Aktivität legt sich der Sperrbildschirm über OneCrew — nach Passwort/Passkey geht es genau dort weiter. 0 = keine Sperre, leer = 15. Bereich 0–30.</div>
                 </div>
                 <div class="f-group">
-                    <label class="f-label">Token-Laufzeit (Min.)</label>
-                    <input type="number" class="f-input" id="umMaxSession" min="5" max="1440" step="1" placeholder="Rollen-Standard">
+                    <label class="f-label">Token-Laufzeit (Min.) <span class="um-policy-admin-only" style="font-weight:400;color:#8b8b8b">· nur Admin</span></label>
+                    <input type="number" class="f-input um-policy-field" id="umMaxSession" min="5" max="1440" step="1" placeholder="Rollen-Standard">
                     <div class="f-hint">Leer = Rollen-Standard (MA 30 · übrige 480). Verlängert sich bei Aktivität automatisch — harte Obergrenze 14 Std. ab Anmeldung, dann Neu-Login.</div>
                 </div>
             </div>
@@ -8739,7 +8739,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
 <script src="js/dashboard.js?v=20260904a"></script>
-<script src="js/session-timeout.js?v=20260904b"></script>
+<script src="js/session-timeout.js?v=20260904c"></script>
+<script src="js/session-lock.js?v=20260904a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>

@@ -102,9 +102,11 @@ public class UsersController : ControllerBase
     // Default, sonst 5–1440 Minuten.
     private static string? ValidateSessionPolicy(int? idle, int? max)
     {
-        foreach (var v in new[] { idle, max })
-            if (v.HasValue && (v.Value < 5 || v.Value > 1440))
-                return "Inaktivitäts-Logout und Max. Session-Dauer müssen zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).";
+        // Sperrbildschirm (Walter 04.09.2026): Inaktivität 0–30 Minuten (0 = aus).
+        if (idle.HasValue && (idle.Value < AuthController.IDLE_MIN || idle.Value > AuthController.IDLE_MAX))
+            return "Inaktivitäts-Sperre muss zwischen 0 und 30 Minuten liegen (0 = keine Sperre, leer = Standard 15).";
+        if (max.HasValue && (max.Value < 5 || max.Value > 1440))
+            return "Token-Laufzeit muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).";
         return null;
     }
 
@@ -204,8 +206,13 @@ public class UsersController : ControllerBase
         user.IsHrTeam  = req.IsHrTeam ?? false;
         user.CanCompanyDokumente = req.CanCompanyDokumente ?? false;
         user.ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false;
-        user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
-        user.MaxSessionMinutes  = req.MaxSessionMinutes;
+        // Sitzungs-Policy nur durch Admin änderbar (Walter 04.09.2026) —
+        // Superuser sendet den Wert mit, er wird aber nicht übernommen.
+        if (callerRole == "admin")
+        {
+            user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
+            user.MaxSessionMinutes  = req.MaxSessionMinutes;
+        }
         user.AllowedAreas       = JoinAreas(req.AllowedAreas);
 
         if (!string.IsNullOrWhiteSpace(req.Password))

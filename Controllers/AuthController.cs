@@ -489,8 +489,12 @@ public class AuthController : ControllerBase
     public const int POLICY_MIN = 5;
     public const int POLICY_MAX = 1440;
 
+    // Sperrbildschirm (Walter 04.09.2026): Inaktivität 0–30 Minuten, 0 = kein
+    // Sperren durch Inaktivität (nur harte Obergrenze). Standard 15 für alle.
+    public const int IDLE_MIN = 0;
+    public const int IDLE_MAX = 30;
     public static int EffectiveIdleTimeout(AppUser u) =>
-        Clamp(u.IdleTimeoutMinutes ?? (u.Role == "employee" ? 15 : 30));
+        Math.Max(IDLE_MIN, Math.Min(IDLE_MAX, u.IdleTimeoutMinutes ?? 15));
     public static int EffectiveMaxSession(AppUser u) =>
         Clamp(u.MaxSessionMinutes ?? (u.Role == "employee" ? 30 : 480));
     private static int Clamp(int v) => Math.Max(POLICY_MIN, Math.Min(POLICY_MAX, v));

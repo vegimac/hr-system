@@ -40,9 +40,10 @@
         if (!cu) return;
         const idleMin = parseInt(cu.idleTimeoutMinutes, 10);
         const maxMin  = parseInt(cu.maxSessionMinutes, 10);
-        if (!idleMin || !maxMin) return;  // ohne Policy kein Wächter
+        if (isNaN(idleMin) || !maxMin) return;  // ohne Policy kein Wächter
 
-        idleMs = idleMin * 60000;
+        // 0 = keine Inaktivitäts-Sperre (Walter 04.09.2026) — nur harte Obergrenze.
+        idleMs = idleMin > 0 ? idleMin * 60000 : Number.POSITIVE_INFINITY;
         const startedAt = cu.sessionStartedAt ? new Date(cu.sessionStartedAt).getTime() : now();
         tokenIssuedMs = isNaN(startedAt) ? now() : startedAt;
         maxEndMs = tokenIssuedMs + maxMin * 60000;
@@ -57,6 +58,13 @@
         }
         if (checkTimer) clearInterval(checkTimer);
         checkTimer = setInterval(check, CHECK_MS);
+        if (!window._sessionGuardVisBound) {
+            window._sessionGuardVisBound = true;
+            // Nach Ruhezustand / Tab-Wechsel sofort prüfen — nicht erst beim
+            // nächsten Minuten-Takt (der letzte Bildschirm wäre sonst kurz sichtbar).
+            document.addEventListener('visibilitychange', () => { if (!document.hidden && checkTimer) check(); });
+            window.addEventListener('focus', () => { if (checkTimer) check(); });
+        }
         check();
     }
 
@@ -116,14 +124,17 @@
 
     function check() {
         maybeRefresh();
-        const { left } = remaining();
-        if (left <= 0) { doExpire(); return; }
+        const { left, reason } = remaining();
+        if (left <= 0) { doExpire(reason); return; }
         if (left <= WARN_MS) showWarning();
         else hideModal();
     }
 
-    function doExpire() {
+    // Ablauf: Inaktivität → Sperrbildschirm (Eingaben bleiben erhalten,
+    // Walter 04.09.2026); harte Obergrenze → Abmelden + Neustart.
+    function doExpire(reason) {
         stop();
+        if (reason !== 'max' && window.SessionLock) { window.SessionLock.lock(); return; }
         if (typeof doLogout === 'function') doLogout();
     }
 
@@ -159,7 +170,7 @@
             </div>`;
         document.body.appendChild(modalEl);
         modalEl.querySelector('#sessionTimeoutStay').addEventListener('click', stay);
-        modalEl.querySelector('#sessionTimeoutLogout').addEventListener('click', doExpire);
+        modalEl.querySelector('#sessionTimeoutLogout').addEventListener('click', () => doExpire('max'));
         return modalEl;
     }
 
@@ -174,7 +185,7 @@
 
     function renderCountdown() {
         const { left, reason } = remaining();
-        if (left <= 0) { doExpire(); return; }
+        if (left <= 0) { doExpire(reason); return; }
         const secs = Math.max(1, Math.ceil(left / 1000));
         const msgEl   = modalEl.querySelector('#sessionTimeoutMsg');
         const stayBtn = modalEl.querySelector('#sessionTimeoutStay');
@@ -185,7 +196,7 @@
             stayBtn.style.display = 'none';
         } else {
             msgEl.textContent =
-                `Du wirst aus Sicherheitsgründen in ${secs} Sekunden abgemeldet.`;
+                `OneCrew wird in ${secs} Sekunden gesperrt (Inaktivität). Deine Eingaben bleiben erhalten — zum Entsperren Passwort oder Face ID.`;
             stayBtn.style.display = '';
         }
     }
