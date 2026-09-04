@@ -62,9 +62,12 @@
     // Tageszeitabhängige, persönliche du-Begrüssung auf der Anmeldeseite
     // (Walter-Vorgabe 17.08.2026: abwechslungsreiche Begrüssungen mit
     // Augenzwinkern — pro Tageszeit ein kleiner Pool, zufällig gewählt).
+    // Walter 04.09.2026: Texte kommen aus Entwicklung › Programmbegrüssung
+    // (/api/login-greeting); der fixe Pool bleibt als Fallback, falls der
+    // Server (noch) nicht antwortet.
     (function () {
         var h = new Date().getHours();
-        var pool =
+        var fallback =
               (h < 5)  ? ['Hallo Nachteule', 'Noch wach?', 'Die Nachtschicht grüsst']
             : (h < 8)  ? ['Hallo Frühaufsteher', 'Guten Morgen — Kaffee schon bereit?', 'Der frühe Vogel …']
             : (h < 11) ? ['Guten Morgen', 'Schönen guten Morgen', 'Auf in den Tag']
@@ -72,9 +75,22 @@
             : (h < 18) ? ['Guten Nachmittag', 'Schön, bist du da', 'Willkommen zurück']
             : (h < 22) ? ['Guten Abend', 'Schönen Abend', 'Der Abend gehört dir']
             :            ['Hallo Nachteule', 'Noch ein Spätdienst?', 'Gleich geschafft'];
-        var g = pool[Math.floor(Math.random() * pool.length)];
         var el = document.getElementById('loginGreeting');
-        if (el) el.textContent = g;
+        function zeige(pool) {
+            if (!el || !pool || !pool.length) return;
+            el.textContent = pool[Math.floor(Math.random() * pool.length)];
+        }
+        zeige(fallback);
+        try {
+            fetch('/api/login-greeting', { cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (slots) {
+                    if (!Array.isArray(slots)) return;
+                    var slot = slots.find(function (x) { return h >= x.von && h < x.bis; });
+                    if (slot && slot.texte && slot.texte.length) zeige(slot.texte);
+                })
+                .catch(function () { /* Fallback bleibt */ });
+        } catch (e) { /* Fallback bleibt */ }
     })();
 </script>
 
@@ -4916,6 +4932,19 @@
                         <img src="img/Import-schnittstellen.png?v=20260816b" alt="" loading="lazy">
                         <span>Import &amp; Schnittstellen</span>
                     </button>
+                    <button type="button" class="ra-tile entw-hub-cat" data-cat="begruessung" onclick="entwHubShowCat('begruessung')" title="Begrüssungen auf der Anmeldeseite pro Tageszeit">
+                        <img src="img/entwkat-begruessung.svg?v=20260904a" alt="" loading="lazy">
+                        <span>Programm-<br>begrüssung</span>
+                    </button>
+                </div>
+                <div class="entw-hub-group" id="entwHubGrp-begruessung" style="display:none">
+                    <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
+                        <div class="admin-card" onclick="showPage('programmbegruessung')">
+                        <img src="img/entwkat-begruessung.svg?v=20260904a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Programmbegrüssung</div>
+                        <div class="admin-card-desc">Begrüssungen auf der Anmeldeseite — pro Tageszeit ein Pool, zufällig gewählt</div>
+                    </div>
+                    </div>
                 </div>
                 <div class="entw-hub-group" id="entwHubGrp-swissdec" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
@@ -4948,6 +4977,26 @@
                         <div class="admin-card-title">Daten-Fix</div>
                         <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
                     </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="page" id="page-programmbegruessung">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Programmbegrüssung</h1>
+                    <p class="page-sub">Was OneCrew beim Anmelden sagt — pro Tageszeit ein Pool, bei jedem Aufruf wird ein Text zufällig gezogen. Eine Zeile = ein Text.</p>
+                </div></div>
+                <div class="page-body">
+                    <div id="pbgAlert" style="display:none;margin-bottom:12px"></div>
+                    <div class="card" style="padding:16px 18px;max-width:1100px">
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                            <div style="font-size:12.5px;color:#64748b;flex:1">Jetzt gerade (<span id="pbgNowSlot">…</span>) würde OneCrew z.B. sagen: <b id="pbgBeispiel" style="color:#0f172a">…</b>
+                                <button type="button" class="btn btn-outline" style="padding:2px 9px;font-size:11.5px;margin-left:6px" onclick="pbgBeispiel()">Nochmals würfeln</button></div>
+                            <button type="button" class="btn btn-outline" onclick="pbgReset()">Auf Standard zurücksetzen</button>
+                            <button type="button" class="btn btn-primary" onclick="pbgSave()">Speichern</button>
+                        </div>
+                        <div id="pbgSlots" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:14px"></div>
+                        <div id="pbgStatus" style="font-size:12px;color:#64748b;margin-top:10px"></div>
                     </div>
                 </div>
             </div>
@@ -8680,7 +8729,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260904a"></script>
+<script src="js/app-core.js?v=20260904b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -8724,6 +8773,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
 <script src="js/dok-struktur.js?v=20260904a"></script>
+<script src="js/programmbegruessung.js?v=20260904a"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>

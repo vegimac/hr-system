@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <g fill="none" stroke="#3a3a3a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 30 h62 a10 10 0 0 1 10 10 v28 a10 10 0 0 1 -10 10 h-30 l-16 14 v-14 h-16 a10 10 0 0 1 -10 -10 v-28 a10 10 0 0 1 10 -10 z" fill="#fff"/>
+    <path d="M36 46 h6 M34 58 h10" stroke="#9a9a9a"/>
+  </g>
+  <text x="58" y="58" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="15" font-weight="700" fill="#3a3a3a">Ä Guete!</text>
+  <g fill="none" stroke="#c9c2b5" stroke-width="1.6" stroke-linecap="round">
+    <path d="M96 22 l3 6 M104 18 l0 7 M110 26 l-5 4"/>
+  </g>
+</svg>

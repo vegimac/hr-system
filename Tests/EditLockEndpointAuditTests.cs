@@ -50,6 +50,7 @@ public class EditLockEndpointAuditTests
         ["MaSyncFehlerController"]         = "Fehlerliste MA-Sync — nur Erledigt-Haken auf einem Protokoll, keine Lohndaten (Walter 01.09.2026)",
         ["ManagerSchulungenController"]    = "Manager-Schulungen (Nothelfer/Peak/Seco) + eID/SSO — Katalog/Stammdaten, kein Lohn",
         ["MaEmailController"]              = "Gruppen-E-Mail an MA — reiner Mail-Versand, keine Lohndaten",
+        ["LoginGreetingController"]        = "Programmbegrüssung auf der Anmeldeseite (Texte pro Tageszeit) — reine Einstellung, keine Lohndaten (Walter 04.09.2026)",
         ["QstMitarbeiterMailController"]   = "QST-E-Mail an MA (Partner-Ausweis / Ehepartner-Angaben fehlen) — reiner Mail-Versand + PDF-Ablage, keine Lohndaten (Walter 03.09.2026)",
         ["EcallController"]                = "eCall-SMS-Konfig + Test-Versand — keine Lohndaten",
         ["DvelopApiController"]            = "d.velop-API-Konfig + Read-only-Probe — keine Lohndaten",
