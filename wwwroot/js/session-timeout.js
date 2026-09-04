@@ -16,8 +16,9 @@
 //   • Warnmodal 60 s vorher mit „Angemeldet bleiben" (Idle-Fall).
 // ══════════════════════════════════════════════════════════════════════
 (function () {
-    const CHECK_MS = 30000;   // Prüf-Intervall (Walter-Vorgabe: alle 30 s)
-    const WARN_MS  = 60000;   // Warnmodal 1 Minute vorher
+    const CHECK_MS = 60000;   // Prüf-Intervall (Walter 04.09.2026: jede Minute reicht)
+    const WARN_MS  = 120000;  // Warnmodal 2 Minuten vorher — damit bei 60-s-Takt
+                              // sicher eine Prüfung ins Warnfenster fällt
     const REFRESH_AFTER_MS = 30 * 60000;   // Token-Alter, ab dem bei Aktivität verlängert wird
     const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
 
