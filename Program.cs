@@ -694,6 +694,17 @@ using (var scope = app.Services.CreateScope())
         ON CONFLICT (category) DO NOTHING;
     ");
 
+    // Zivilstand fehlt (Walter 04.09.2026, Fall Leonora Cana: Ehemann CH,
+    // trotzdem QST-Pflicht — weil der Zivilstand leer war). Ohne Zivilstand
+    // greift weder die Ehegatten-Befreiung noch der richtige Tarif (B/C).
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('zivilstand_fehlt', 'Zivilstand fehlt', TRUE, NULL, NULL, 'warning', NULL, FALSE, 29, 18, 'red')
+        ON CONFLICT (category) DO NOTHING;
+    ");
+
     // Anonymer Austritts-Fragebogen (Walter 26.07.2026) — ersetzt Google Forms.
     db.Database.ExecuteSqlRaw(@"
         CREATE TABLE IF NOT EXISTS exit_survey_response (
@@ -1239,6 +1250,10 @@ using (var scope = app.Services.CreateScope())
          'Geschlecht des Kindes ergänzen',
          'Mitarbeiter öffnen, Tab «Familie Schwanger», beim Kind das Geschlecht auswählen und speichern.',
          240),
+        ('zivilstand_fehlt',
+         'Zivilstand nachtragen',
+         'Mitarbeiter öffnen, Tab «Übersicht», bei den Personalien den Zivilstand wählen und speichern. Ohne Zivilstand greift weder die Ehegatten-Befreiung noch der richtige QST-Tarif.',
+         245),
         ('availability_missing',
          'Verfügbarkeit erfassen',
          'Mögliche Tage und Zeiten beim Mitarbeitenden abfragen und im System eintragen.',

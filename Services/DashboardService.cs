@@ -1309,6 +1309,44 @@ public class DashboardService
             }
         }
 
+        // ── Zivilstand fehlt (Walter 04.09.2026) ──────────────────────────
+        // Fall Leonora Cana: Ehemann Schweizer, trotzdem «QST-Pflicht offen» —
+        // weil der Zivilstand leer war. Ohne Zivilstand greift weder die
+        // Ehegatten-Befreiung noch der richtige Tarif (B/C statt A/H).
+        // Aktive MA mit laufendem Vertrag, Phantom-MA warnen nicht.
+        if (Enabled("zivilstand_fehlt"))
+        {
+            var zsQ = _db.Employees.AsNoTracking()
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && (e.MaritalStatus == null || e.MaritalStatus.Trim() == "")
+                         && e.Employments.Any(em => em.IsActive
+                             && em.ContractStartDate <= DateTime.Today
+                             && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            if (companyProfileId.HasValue)
+                zsQ = zsQ.Where(e => e.Employments.Any(em =>
+                    em.CompanyProfileId == companyProfileId.Value
+                    && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+            var ohneZs = await zsQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
+                                   HatEhepartner = _db.EmployeeFamilyMembers.Any(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null) })
+                .ToListAsync();
+            foreach (var e in ohneZs)
+            {
+                var zsName = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "zivilstand_fehlt",
+                    Severity = e.HatEhepartner ? "critical" : SeverityState("zivilstand_fehlt", "warning"),
+                    Title    = "Zivilstand fehlt",
+                    Subtitle = $"{zsName} · Personalnr. {e.EmployeeNumber} · kein Zivilstand erfasst"
+                             + (e.HatEhepartner ? " — Ehepartner ist erfasst, ohne Zivilstand «verheiratet» greift die QST-Befreiung nicht" : ""),
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = zsName
+                });
+            }
+        }
+
         // ── 3c.v) Umzugsdatum bestätigen (Walter 08.08.2026) ───────────────
         // easy@work hat eine neue Adresse mit PLZ/Ort-Wechsel geliefert —
         // Walter muss das echte Umzugsdatum bestätigen (erst dann läuft die
