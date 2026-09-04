@@ -4396,7 +4396,8 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
 // K4.1 (Walter 29.08.2026): Herleitungs-Diff lesbar machen — die Server-Pfade
 // («partner.erwerbstaetig: False → True») werden in deutsche Labels übersetzt.
 function qstDiffLabel(d) {
-    return String(d)
+    // Daten NIE im ISO-/US-Format anzeigen (Walter 04.09.2026): yyyy-mm-dd → dd.mm.yyyy
+    return String(d).replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, '$3.$2.$1')
         .replace(/^resultat\.qstCode/, 'Code')
         .replace(/^resultat\.tarifCode/, 'Tarif')
         .replace(/^resultat\.kinderziffer/, 'Kinderziffer')

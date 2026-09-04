@@ -1033,12 +1033,16 @@ public class EmployeeQuellensteuerController : ControllerBase
             {
                 alt.TryGetValue(key, out var a);
                 neu.TryGetValue(key, out var n);
-                if (a != n) diffs.Add($"{key}: {a ?? "—"} → {n ?? "—"}");
+                if (a != n) diffs.Add($"{key}: {ChDatum(a) ?? "—"} → {ChDatum(n) ?? "—"}");
             }
         }
         catch { /* defekter Alt-Snapshot → kein Diff */ }
         return diffs;
     }
+
+    /// <summary>ISO-Datum (yyyy-MM-dd) → CH-Anzeige dd.MM.yyyy — Daten NIE im US-/ISO-Format zeigen (Walter 04.09.2026).</summary>
+    private static string? ChDatum(string? v)
+        => v != null && v.Length == 10 && DateOnly.TryParseExact(v, "yyyy-MM-dd", out var d) ? d.ToString("dd.MM.yyyy") : v;
 
     private static void FlattenJson(System.Text.Json.JsonElement el, string prefix,
         Dictionary<string, string?> into)
