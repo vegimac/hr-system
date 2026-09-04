@@ -1721,7 +1721,8 @@ function loadUebersichtTab() {
     const kAddr = emp.isPayrollExcluded ? '' : _ovCard(
         `<span id="ovAddrCardTitle">${_t('ma.section.otherAddresses', 'Weitere Adressen')}</span>` +
         `<span id="ovAddrCardCount" class="ov-addr-count"></span>` +
-        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Wochenaufenthalt, Korrespondenz, Sozialamt — Hauptadresse oben)')}</span>`,
+        ` <span class="ov-addr-hint">${_t('ma.section.otherAddrHint', '(z.B. Wochenaufenthalt, Korrespondenz, Sozialamt — Hauptadresse oben)')}</span>` +
+        ` <span id="ovAddrHistPill" style="margin-left:10px;display:inline-flex;vertical-align:middle"></span>`,
         null, '',
         `<div id="otherAddressesContent"></div>`,
         `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px" onclick="openEmployeeAddressModal(null)">＋ ${_t('ma.btn.addAddress','Adresse hinzufügen')}</button>`);
@@ -13212,39 +13213,25 @@ async function loadEmployeeAddressesTab(employeeId) {
 }
 
 async function ovLoadWohnortHistorie(employeeId, gen) {
-    const host = document.getElementById('otherAddressesContent');
-    if (!host) return;
+    // Pille «Wohnort-Historie (n)» in der Titelzeile der Adress-Karte
+    // (Walter 04.09.2026: die Liste war unten in der 40px-Box versteckt).
+    // Klick öffnet den Umzugs-Dialog mit der grossen Historie-Liste.
+    const slot = document.getElementById('ovAddrHistPill');
+    if (!slot) return;
+    slot.innerHTML = '';
     let list = [];
     try {
         const r = await fetch(`/api/employees/${employeeId}/wohnort`, { headers: ah(), cache: 'no-store' });
-        if (!r.ok) return;                     // GF ohne Zugriff → kein Block
+        if (!r.ok) return;                     // GF ohne Zugriff → keine Pille
         list = await r.json();
     } catch { return; }
     if (gen !== window._addrLoadGen) return;
-    if (!Array.isArray(list) || list.length < 2 && !list.some(h => h.datumOffen)) return;
-    document.getElementById('ovWohnortHist')?.remove();
-    const f = iso => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
-    const sorted = [...list].sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')) || ((b.id || 0) - (a.id || 0)));
-    const rows = sorted.map((h, i) => {
-        const aktuell = i === 0;
-        const zeit = h.gueltigAb
-            ? `ab ${f(h.gueltigAb)}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}`
-            : (h.gueltigBis ? `bis ${f(h.gueltigBis)}` : 'seit jeher');
-        return `<div class="emp-addr-row" style="${aktuell ? '' : 'opacity:.72'}">
-            <span class="emp-addr-type" style="${h.datumOffen ? 'background:#fffbeb;color:#b45309;border:1px solid #fde68a' : ''}">${h.datumOffen ? 'Datum offen' : (aktuell ? 'Wohnort' : 'früher')}</span>
-            <span class="emp-addr-text">${h.strasse ? esc(h.strasse) + ' · ' : ''}${esc(h.plz || '')} ${esc(h.ort || '')} <b>${esc(h.kantonCode || '')}</b></span>
-            <span class="emp-addr-valid">${zeit}</span>
-            <span class="emp-addr-actions">
-                ${h.datumOffen
-                    ? `<button type="button" class="btn-stamp-edit" style="color:#b45309;font-weight:600" title="Umzugsdatum bestätigen — bei Kantonswechsel wird die QST-Schnittstelle auf das Datum gesetzt" onclick="openUmzugModal(${employeeId})">🚚 Umzugsdatum bestätigen</button>`
-                    : `<button type="button" class="btn-stamp-edit" title="Wohnort-Historie / Umzug" onclick="openUmzugModal(${employeeId})">✎</button>`}
-            </span>
-        </div>`;
-    }).join('');
-    const block = document.createElement('div');
-    block.id = 'ovWohnortHist';
-    block.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.03em;margin:10px 0 4px">WOHNORT-HISTORIE <span style="font-weight:400">· Hauptadresse aus easy@work</span></div>${rows}`;
-    host.appendChild(block);
+    if (!Array.isArray(list)) list = [];
+    const offen = list.some(h => h.datumOffen);
+    const n = list.length;
+    slot.innerHTML = `<button type="button" class="ov-hbtn" style="padding:4px 12px;font-size:12px;${offen ? 'background:#fffbeb;border-color:#fde68a;color:#b45309;font-weight:700' : ''}"
+            title="${offen ? 'Umzugsdatum bestätigen — neue Adresse aus easy@work' : 'Wohnort-Historie anzeigen'}"
+            onclick="openUmzugModal(${employeeId})">${offen ? '🚚 Umzugsdatum bestätigen' : '🕘 Wohnort-Historie' + (n ? ` (${n})` : '')}</button>`;
 }
 
 function _ovUpdateAddrCardCount(n) {
@@ -16188,8 +16175,8 @@ function _umzugEnsureModal() {
     div.id = 'umzugModal';
     div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
-    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(560px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
-        <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug bestätigen</div>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(680px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div id="umzugModalTitle" style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🚚 Umzug bestätigen</div>
         <div id="umzugMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
         <div id="umzugPendingBox" style="margin-bottom:12px"></div>
         <div id="umzugFormBlock">
@@ -16237,7 +16224,7 @@ async function umzugLoadHistorie(empId) {
     try {
         const res = await fetch(`/api/employees/${empId}/wohnort`, { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
-        const list = await res.json();
+        let list = await res.json();
         _umzugHist = list;
         const f = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
         const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
@@ -16259,15 +16246,23 @@ async function umzugLoadHistorie(empId) {
         const formBlock = document.getElementById('umzugFormBlock');
         if (formBlock) formBlock.style.display = pending ? '' : 'none';
 
+        const titleEl = document.getElementById('umzugModalTitle');
+        if (titleEl) titleEl.textContent = pending ? '🚚 Umzug bestätigen' : '🕘 Wohnort-Historie';
+        // Ohne Historie: aktuelle Hauptadresse als «seit jeher» zeigen.
+        if (!list.length && selectedEmployee && (selectedEmployee.zipCode || selectedEmployee.city)) {
+            list = [{ id: 0, strasse: selectedEmployee.street, plz: selectedEmployee.zipCode, ort: stripCityCantonSuffix(selectedEmployee.city), kantonCode: selectedEmployee.cantonCode, gueltigAb: null, gueltigBis: null, datumOffen: false, _nurAktuell: true }];
+        }
         if (!list.length) return;
-        el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:4px">WOHNORT-HISTORIE</div>`
-            + list.map(h => `<div id="umzugRow-${h.id}" style="display:flex;align-items:center;gap:8px;font-size:12px;color:#3f3f3f;padding:3px 0;border-bottom:1px solid rgba(60,55,48,0.08)">
+        // Neueste zuoberst, grosse Zeilen (Walter 04.09.2026).
+        const sorted = [...list].sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')) || ((b.id || 0) - (a.id || 0)));
+        el.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#8b8b8b;margin-bottom:6px">WOHNORT-HISTORIE <span style="font-weight:400">· Hauptadresse aus easy@work · neueste zuoberst</span></div>`
+            + sorted.map((h, i) => `<div id="umzugRow-${h.id}" style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#3f3f3f;padding:9px 12px;margin-bottom:6px;border-radius:10px;background:${i === 0 ? '#fff' : 'rgba(255,255,255,0.5)'};box-shadow:0 1px 4px rgba(60,55,48,0.08);${i === 0 ? '' : 'opacity:.8'}">
+                <span style="flex-shrink:0;font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;${h.datumOffen ? 'color:#b45309;border:1px solid #fde68a;background:#fffbeb' : (i === 0 ? 'color:#166534;background:#dcfce7' : 'color:#6b6152;background:#ece9e2')}">${h.datumOffen ? 'Datum offen' : (i === 0 ? 'aktuell' : 'früher')}</span>
                 <div style="flex:1;min-width:0">
-                    ${h.strasse ? esc(h.strasse) + ', ' : ''}${esc(h.plz)} ${esc(h.ort)} <b>${esc(h.kantonCode)}</b>
-                    <span style="color:#8b8b8b">· ${h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}</span>
-                    ${h.datumOffen ? '<span style="margin-left:6px;font-size:10.5px;font-weight:700;color:#b45309;border:1px solid #fde68a;background:#fffbeb;border-radius:6px;padding:1px 6px">Datum offen</span>' : ''}
+                    <div style="font-weight:600">${h.strasse ? esc(h.strasse) + ', ' : ''}${esc(h.plz)} ${esc(h.ort)} <b>${esc(h.kantonCode)}</b></div>
+                    <div style="color:#8b8b8b;font-size:12px">${h._nurAktuell ? 'seit jeher · noch kein Umzug erfasst' : (h.gueltigAb ? 'ab ' + f(h.gueltigAb) : 'seit jeher') + (h.gueltigBis ? ' bis ' + f(h.gueltigBis) : '')}</div>
                 </div>
-                ${isAdmin ? `
+                ${isAdmin && !h._nurAktuell ? `
                 <button onclick="umzugEntryEdit(${h.id})" title="Gültig-ab-Datum korrigieren"
                         style="flex-shrink:0;background:#fff;border:1px solid #cbd5e1;color:#475569;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">📅 Datum</button>
                 <button onclick="umzugEntryDelete(${h.id})" title="Eintrag löschen"
