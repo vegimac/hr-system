@@ -4730,6 +4730,29 @@ app.Use(async (context, next) =>
 });
 
 app.UseRouting();
+// API-Antworten nie cachen (Walter 04.09.2026: neu abgelegtes Dokument
+// erschien im Dokumente-Tab erst nach Browser-Reload — Safari/Chrome hatten
+// die GET-Antwort von /api/documents/by-employee aus dem HTTP-Cache bedient).
+// Gilt für ALLE /api-Routen: Daten müssen bei jedem Tab-Wechsel frisch sein.
+app.Use(async (ctx, next) =>
+{
+    if (ctx.Request.Path.StartsWithSegments("/api"))
+    {
+        ctx.Response.OnStarting(() =>
+        {
+            var h = ctx.Response.Headers;
+            if (!h.ContainsKey("Cache-Control"))
+            {
+                h["Cache-Control"] = "no-store, no-cache, must-revalidate";
+                h["Pragma"] = "no-cache";
+                h["Expires"] = "0";
+            }
+            return Task.CompletedTask;
+        });
+    }
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 

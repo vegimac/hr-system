@@ -799,6 +799,13 @@ async function saveRetentionYears() {
     let alerting = false;   // Re-Entrance-Schutz für parallele 401-Responses
 
     window.fetch = async function(input, init) {
+        // Walter 04.09.2026: API-GETs nie aus dem Browser-Cache (neu
+        // abgelegtes Dokument war sonst erst nach Reload sichtbar).
+        try {
+            const u = (typeof input === 'string') ? input : (input && input.url) ? input.url : '';
+            const m = ((init && init.method) || (input && input.method) || 'GET').toUpperCase();
+            if (m === 'GET' && u.startsWith('/api/') && !(init && init.cache)) init = Object.assign({}, init, { cache: 'no-store' });
+        } catch (_) {}
         const res = await origFetch(input, init);
         try {
             if (res.status !== 401) return res;
