@@ -128,7 +128,7 @@ public class QstTarifVorschlagService
         // Wohnkanton fehlt, leere Liste, das Logic-Modul liefert dann
         // `InTariftabelleGefunden=false`.
         IReadOnlyList<QstTarifInfo> tarife;
-        if (string.IsNullOrWhiteSpace(emp.CantonCode))
+        if (string.IsNullOrWhiteSpace(kantonAmStichtag))
         {
             tarife = Array.Empty<QstTarifInfo>();
         }
@@ -140,7 +140,7 @@ public class QstTarifVorschlagService
                 // integriert (Testjahr 2026, scharf ab 2027). Historische
                 // Gültig-ab-Daten (z.B. Eintritt 2024) prüfen darum gegen
                 // das früheste geführte Tarifjahr 2026 statt zu warnen.
-                tarife = _tarifService.GetTarifKombinationen(emp.CantonCode, Math.Max(stichtag.Year, 2026));
+                tarife = _tarifService.GetTarifKombinationen(kantonAmStichtag, Math.Max(stichtag.Year, 2026));
             }
             catch
             {
