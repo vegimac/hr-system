@@ -398,6 +398,11 @@ window.toggleTheme = toggleTheme;
 window.applyTheme = applyTheme;
 
 function doLogout() {
+    // Aktive Sitzungen (Walter 04.09.2026): eigene Sitzung aus der Admin-Liste
+    // austragen — Fire-and-forget, der Reload wartet nicht darauf.
+    try {
+        if (authToken) fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, keepalive: true }).catch(() => {});
+    } catch (_) {}
     authToken = null; currentUser = null;
     localStorage.removeItem('hrToken');
     // Impersonation-/Testmodus-Reste miträumen, sonst hängt der Balken.
@@ -833,7 +838,12 @@ async function saveRetentionYears() {
             // zeigt der Balken nach dem Neu-Anmelden weiter die Testperson,
             // waehrend die App mit dem eigenen Konto laeuft.
             clearImpersonationStorage();
-            alert('Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
+            // Walter 04.09.2026: Admin hat den Benutzer unter «Aktive
+            // Sitzungen» abgemeldet → eigener Hinweis statt «abgelaufen».
+            const revoked = (() => { try { return res.headers.get('X-Session-Revoked') === '1'; } catch (_) { return false; } })();
+            alert(revoked
+                ? 'Du wurdest vom Administrator abgemeldet. Bitte melde dich erneut an.'
+                : 'Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.');
             location.reload();
         } catch { /* swallow */ }
         return res;
@@ -1140,7 +1150,7 @@ function roleName(r) {
 // Mapping: Unterseiten → in Sidebar als "admin-hub" markieren, damit der
 // Systemeinstellungen-Eintrag aktiv bleibt wenn man in einem Admin-Bereich ist.
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
-                         'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log',
+                         'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze'];
@@ -1307,6 +1317,7 @@ function showPage(name) {
     if (name === 'warnungen') wcInit();
     if (name === 'easyatwork') eawInit();
     if (name === 'audit-log') alInit();
+    if (name === 'aktive-sitzungen') asInit();
     if (name === 'posteingang') pbInit();
     else pbStopAutoRefresh();
     if (name === 'moments') momInit();

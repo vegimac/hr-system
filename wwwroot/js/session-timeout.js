@@ -137,8 +137,22 @@
         finally { refreshing = false; }
     }
 
+    // Heartbeat (Walter 04.09.2026, Aktive Sitzungen): jede Minute ein
+    // Lebenszeichen an den Server, solange ein Token da ist (Sperrbildschirm
+    // = kein Token = kein Heartbeat). aktiv=1, wenn in der letzten Minute
+    // Tastatur/Maus bewegt wurde. Antwortet der Server 401 (Admin hat
+    // abgemeldet), greift der globale 401-Interceptor.
+    function heartbeat() {
+        if (typeof authToken === 'undefined' || !authToken) return;
+        const aktiv = (now() - lastActivity) <= CHECK_MS ? '1' : '0';
+        try {
+            fetch('/api/auth/heartbeat?aktiv=' + aktiv, { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, cache: 'no-store' }).catch(() => {});
+        } catch (_) {}
+    }
+
     function check() {
         maybeRefresh();
+        heartbeat();
         const { left, reason } = remaining();
         if (left <= 0) { doExpire(reason); return; }
         if (left <= WARN_MS) showWarning();

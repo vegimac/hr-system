@@ -78,6 +78,29 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = false,
             ClockSkew = TimeSpan.Zero
         };
+        // Aktive Sitzungen (Walter 04.09.2026): jeden gültigen Zugriff in der
+        // SessionRegistry vermerken und Admin-Abmeldevermerke durchsetzen
+        // (login_at vor session_revoked_before → 401 + Kopfzeile X-Session-Revoked,
+        // damit das Frontend «vom Administrator abgemeldet» statt «abgelaufen» zeigt).
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = ctx =>
+            {
+                var reg = ctx.HttpContext.RequestServices.GetRequiredService<HrSystem.Services.SessionRegistry>();
+                var db  = ctx.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                if (ctx.Principal != null && reg.IstGesperrt(ctx.Principal, db))
+                {
+                    ctx.HttpContext.Response.Headers["X-Session-Revoked"] = "1";
+                    ctx.Fail("Sitzung vom Administrator beendet.");
+                    return Task.CompletedTask;
+                }
+                var path = ctx.HttpContext.Request.Path.Value ?? "";
+                var heartbeat = path.EndsWith("/api/auth/heartbeat", StringComparison.OrdinalIgnoreCase);
+                var aktiv = heartbeat && ctx.HttpContext.Request.Query["aktiv"] == "1";
+                if (ctx.Principal != null) reg.Touch(ctx.Principal, ctx.HttpContext, heartbeat, aktiv);
+                return Task.CompletedTask;
+            }
+        };
     });
 // Secure-by-default (Walter-Vorgabe 20.05.2026): JEDER Controller/Endpoint
 // verlangt einen authentifizierten User — AUSSER er ist explizit mit
@@ -120,6 +143,7 @@ builder.Services.AddAuthorization(options =>
 
 // Quellensteuer-Tarifdienst (Singleton: Dateien werden einmal beim Start eingelesen)
 builder.Services.AddSingleton<QuellensteuerTarifService>();
+builder.Services.AddSingleton<HrSystem.Services.SessionRegistry>();
 // Zwischenverdienist-PDF-Service
 builder.Services.AddScoped<ZwischenverdienistPdfService>();
 // Quellensteuer-Anmeldeformular-PDF-Service (kantonal, aktuell SO-Template)
@@ -1088,6 +1112,14 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_zivilstand_history_employee
             ON employee_zivilstand_history (employee_id);
+    ");
+
+    // ── Aktive Sitzungen / Admin-Abmeldung (Walter 04.09.2026): Sperrvermerk
+    // pro Benutzer — Tokens mit login_at davor sind ungültig. UTC (timestamptz),
+    // weil der Vergleich gegen den JWT-Claim in UTC läuft.
+    // Platzierung: VOR SchemaCheckService.Pruefe.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS session_revoked_before timestamptz;
     ");
 
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).

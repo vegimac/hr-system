@@ -12344,3 +12344,13 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
 .emp-filter-menu { min-width: 260px; }
 .emp-filter-menu .dok-menu-item { font-size: 12.5px; padding: 7px 12px; white-space: nowrap; }
 .emp-filter-menu .dok-menu-item.is-active { font-weight: 700; }
+
+/* ── Aktive Sitzungen (Walter 04.09.2026) ─────────────────────────────── */
+.as-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.as-table th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+               color: #6b7280; padding: 8px 10px; border-bottom: 1px solid #e7e1d8; white-space: nowrap; }
+.as-table td { padding: 9px 10px; border-bottom: 1px solid #f1ede6; vertical-align: top; }
+.as-table tr:hover td { background: #faf8f4; }
+.as-status { font-weight: 700; white-space: nowrap; }
+.as-online  { color: #15803d; }
+.as-offline { color: #9ca3af; }

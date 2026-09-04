@@ -989,6 +989,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LockedUntil).HasColumnName("locked_until");
             entity.Property(e => e.IdleTimeoutMinutes).HasColumnName("idle_timeout_minutes");
             entity.Property(e => e.MaxSessionMinutes).HasColumnName("max_session_minutes");
+            entity.Property(e => e.SessionRevokedBefore).HasColumnName("session_revoked_before");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.SetNull);
         });
 

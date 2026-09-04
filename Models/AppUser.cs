@@ -131,6 +131,13 @@ public class AppUser
     /// </summary>
     public int? MaxSessionMinutes { get; set; }
 
+    /// <summary>
+    /// Admin-Abmeldung (Walter 04.09.2026): alle Tokens mit login_at vor diesem
+    /// Zeitpunkt (UTC) sind ungültig → 401 beim nächsten Zugriff. NULL = kein
+    /// Sperrvermerk. Wird unter System › Aktive Sitzungen gesetzt.
+    /// </summary>
+    public DateTime? SessionRevokedBefore { get; set; }
+
     public List<UserBranchAccess> BranchAccess { get; set; } = new();
 
     /// <summary>Anzeigename: Vor- + Nachname, Fallback: Username</summary>

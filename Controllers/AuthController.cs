@@ -199,6 +199,25 @@ public class AuthController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Heartbeat des Frontend-Wächters (Walter 04.09.2026, Aktive Sitzungen):
+    /// jede Minute, solange der Browser offen und nicht gesperrt ist. Die
+    /// Registrierung passiert bereits in OnTokenValidated (Program.cs) — hier
+    /// bleibt nur 204. Ein gesperrtes Token bekommt 401 → das Frontend meldet
+    /// «vom Administrator abgemeldet» und lädt neu. ?aktiv=1 = Tastatur/Maus
+    /// in der letzten Minute.
+    /// </summary>
+    [HttpPost("heartbeat")]
+    public IActionResult Heartbeat() => NoContent();
+
+    /// <summary>Abmelden-Button: eigene Sitzung aus der Liste «Aktive Sitzungen» nehmen.</summary>
+    [HttpPost("logout")]
+    public IActionResult Logout([FromServices] HrSystem.Services.SessionRegistry reg)
+    {
+        reg.Entfernen(User);
+        return NoContent();
+    }
+
     [HttpGet("me")]
     // Walter 14.06.2026: lowuser ergänzt — sonst kriegt der eingeschränkte
     // Benutzer beim Login 403 auf /me, das Frontend hat kein currentUser.branches

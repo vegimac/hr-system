@@ -43,6 +43,7 @@ public class EditLockEndpointAuditTests
         ["LohnschemaController"] = "Lohnschema pro Vertragsmodell — reine Stammdaten/Anzeige, Engine liest das Schema nicht (Walter 17.08.2026)",
         // Authentifizierung / User-Verwaltung — kein Lohn-Bezug
         ["AuthController"]                 = "Login/Logout/Password — keine Lohndaten",
+        ["AdminSessionsController"]        = "Aktive Sitzungen / Admin-Abmeldung — reine Sitzungsverwaltung, keine Lohndaten (Walter 04.09.2026)",
         ["UsersController"]                = "Benutzer-Stammdaten (Anlage, Rolle) — keine Lohndaten",
         ["UserBranchController"]           = "User↔Filial-Zuordnung — keine Lohndaten",
         ["AdminSmtpController"]            = "SMTP-Konfiguration — keine Lohndaten",
