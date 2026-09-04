@@ -8832,9 +8832,14 @@
         /* Familie-Tab: kompakte Kacheln (Walter 18.07.2026) */
         .fam-tile-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 10px;
+            /* Walter 04.09.2026: breitere Kacheln, max. 4 nebeneinander —
+               damit die Zulagen-Pille («KZ Satz 1») nicht abgeschnitten wird. */
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
             margin-bottom: 4px;
+        }
+        @media (min-width: 1400px) {
+            .fam-tile-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
         }
         .fam-tile {
             display: flex; flex-direction: column; gap: 6px;
@@ -8907,10 +8912,11 @@
         body.theme-dark .fam-tile-zulage-zeit { color: var(--dlg-text-soft); }
         .fam-tile-chip {
             background: rgba(255,255,255,.72); border: 1px solid #d8d2c6; border-radius: 999px;
-            padding: 3px 9px; font-size: 11px; font-weight: 650; color: #3f3f3f;
+            padding: 3px 10px; font-size: 11.5px; font-weight: 650; color: #3f3f3f;
             cursor: pointer; white-space: nowrap; max-width: 100%;
-            overflow: hidden; text-overflow: ellipsis;
+            overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
         }
+        .fam-tile-zulage-row .fam-tile-chip { min-width: 96px; text-align: left; }
         .fam-tile-chip:hover { border-color: #3f3f3f; }
         .fam-tile-chip.is-locked { background: #fee2e2; border-color: #fecaca; color: #b91c1c; }
         .fam-tile-zulage-btn {
