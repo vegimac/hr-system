@@ -75,6 +75,10 @@ async function openQstModal(employeeId, employeeData) {
     const vfInp = document.getElementById('qstValidFrom');
     if (vfInp && !vfInp.dataset.qstAutoBound) {
         vfInp.addEventListener('change', async () => {
+            // Kopf: Adresse, die AM Gültig-ab galt (Wohnort-Historie) —
+            // Walter 04.09.2026: sonst lässt sich kein Alt-Eintrag (z.B.
+            // frühere Adresse Kanton LU) korrekt erfassen.
+            qstUpdateWohnortKopf(vfInp.value);
             // Server-Vorschlag NEU holen — der Stichtag fliesst in die
             // Kinderzählung ein. Im Edit-Modus (qstCurrentEntryId gesetzt)
             // nur Banner aktualisieren, NIE Felder überschreiben.
@@ -103,6 +107,7 @@ async function openQstModal(employeeId, employeeData) {
     if (current) {
         qstCurrentEntryId = current.id ?? null;
         populateQstForm(current);
+        qstUpdateWohnortKopf(current.validFrom?.slice(0, 10));
         // Edit-Modus: Server-Vorschlag NUR als Banner zeigen, NIE auf die Felder
         // schreiben (Walter-Vorgabe: kein Auto-Overwrite beim Bearbeiten).
         await qstFetchServerVorschlag(current.validFrom);
@@ -851,6 +856,7 @@ async function openQstEntry(id) {
         return todayIso;
     })();
     document.getElementById('qstValidFrom').value = validFromDefault;
+    qstUpdateWohnortKopf(validFromDefault);
 
     // Walter-Vorgabe 14.06.2026 (Update): Tarif/Kinder/Kirchensteuer/QstCode
     // kommen jetzt vom SERVER (QstTarifVorschlagService) — Quelle der Wahrheit.
@@ -1127,7 +1133,10 @@ async function saveQstEntry() {
     // K1 Korrektur-Weg: bei rückwirkender Erfassung verlangt das Backend einen
     // Grund — Feld erscheint nach dem ersten 409 KORREKTUR_GRUND_NOETIG.
     const korrGrund = document.getElementById('qstKorrGrund')?.value?.trim();
-    if (method === 'POST' && korrGrund)
+    const nurHistorie = !!document.getElementById('qstNurHistorie')?.checked;
+    if (method === 'POST' && nurHistorie)
+        url += '?nurHistorie=true';
+    else if (method === 'POST' && korrGrund)
         url += `?korrekturGrund=${encodeURIComponent(korrGrund)}`;
 
     const res = await fetch(url, { method, headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -1186,6 +1195,27 @@ async function saveQstEntry() {
     if (kgi) kgi.value = '';
 }
 
+// Kopf-Adresse zum Stichtag (Walter 04.09.2026): Wohnort/Kanton im Modal
+// zeigen die Adresse, die am «Gültig ab» galt — aus der Wohnort-Historie.
+// Der Server nimmt beim Speichern dieselbe Adresse (Steuerkanton/Gemeinde).
+async function qstUpdateWohnortKopf(datum) {
+    if (!qstCurrentEmployeeId || !datum) return;
+    try {
+        const r = await fetch(`/api/employees/${qstCurrentEmployeeId}/quellensteuer/wohnadresse-am?datum=${encodeURIComponent(datum)}`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) return;
+        const a = await r.json();
+        const city = (typeof stripCityCantonSuffix === 'function') ? stripCityCantonSuffix(a.city) : (a.city || '');
+        const wohnort = [a.zipCode, city].filter(Boolean).join(' ') || '–';
+        const f = iso => iso ? new Date(iso).toLocaleDateString('de-CH') : '';
+        const w = document.getElementById('qstWohnortDisplay');
+        const k = document.getElementById('qstKantonDisplay');
+        if (w) w.innerHTML = a.ausHistorie
+            ? `${wohnort} <span style="color:#b45309;font-size:11px;font-weight:600" title="Adresse gemäss Wohnort-Historie am ${f(a.stichtag)}">· damals (${f(a.gueltigAb) || 'seit jeher'} – ${f(a.gueltigBis)})</span>`
+            : wohnort;
+        if (k) k.textContent = a.cantonCode ? (a.kantonName ? `${a.cantonCode} — ${a.kantonName}` : a.cantonCode) : '–';
+    } catch (_) { /* Kopf bleibt */ }
+}
+
 // K1 (Walter 29.08.2026): Grund-Zeile für rückwirkende Erfassung — erscheint
 // nach 409 KORREKTUR_GRUND_NOETIG direkt über der Ergebnis-Zeile.
 function qstShowKorrGrundRow() {
@@ -1200,7 +1230,11 @@ function qstShowKorrGrundRow() {
             <label style="display:block;font-size:11.5px;font-weight:600;color:#8b8b8b;margin-bottom:3px">
                 Korrektur-Grund (Pflicht bei rückwirkender Erfassung)</label>
             <input id="qstKorrGrund" type="text" placeholder="z.B. Heirat verspätet gemeldet"
-                   style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:7px 10px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">`;
+                   style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:7px 10px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
+            <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#3f3f3f;cursor:pointer">
+                <input type="checkbox" id="qstNurHistorie" onchange="document.getElementById('qstKorrGrund').disabled=this.checked">
+                <span><b>Nur Historie nachtragen</b> — die Löhne dieses Zeitraums wurden nicht in OneCrew gerechnet (z.B. frühere Adresse): kein Korrektur-Posten, kein Grund nötig.</span>
+            </label>`;
         anchor.parentNode.insertBefore(row, anchor);
     }
     row.style.display = '';

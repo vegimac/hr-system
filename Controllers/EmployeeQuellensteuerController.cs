@@ -322,7 +322,7 @@ public class EmployeeQuellensteuerController : ControllerBase
     // Neuen QST-Eintrag anlegen; schliesst vorherigen Eintrag automatisch ab
     [HttpPost]
     public async Task<IActionResult> Create(int employeeId, [FromBody] EmployeeQuellensteuer dto,
-        [FromQuery] string? korrekturGrund = null)
+        [FromQuery] string? korrekturGrund = null, [FromQuery] bool nurHistorie = false)
     {
         // Prozentsatz/Medianlohn nie negativ (Walter 12.08.2026).
         if (dto.Prozentsatz < 0 || dto.MindestlohnSatzbestimmung < 0)
@@ -342,6 +342,10 @@ public class EmployeeQuellensteuerController : ControllerBase
         var branchId     = await GetEmployeeBranchAsync(employeeId);
         var firstAllowed = await GetQstFirstAllowedAsync(branchId);
         bool istRueckwirkend = firstAllowed.HasValue && dto.ValidFrom < firstAllowed.Value;
+        // «Nur Historie nachtragen» (Walter 04.09.2026): die Version dokumentiert
+        // einen Zeitraum, dessen Löhne nicht in OneCrew gerechnet wurden (z.B.
+        // frühere Adresse im Kanton LU) — keine Korrektur-Posten, kein Grund.
+        if (nurHistorie) istRueckwirkend = false;
         // K4.2 Auto-Anlass (Bauplan Punkt 2): der 409-Grund-Zwang wird erst
         // NACH dem Herleitungs-Snapshot geprüft — erkennt der Server eine
         // Differenz zur Vorversion, schreibt er den Grund selbst (weiter
@@ -375,6 +379,13 @@ public class EmployeeQuellensteuerController : ControllerBase
         // entsteht nur systemisch (Folge-Eintrag kappt den Vorgänger,
         // Umzug/Kantonswechsel, Bewilligungswechsel/Befreiung).
         dto.ValidTo = null;
+        // HISTORISCHE Version (Walter 04.09.2026): liegt bereits eine spätere
+        // Version vor, endet die neue systemisch am Tag vor deren Beginn —
+        // sonst gäbe es zwei offene, überlappende Versionen.
+        var naechste = await _db.EmployeeQuellensteuer.AsNoTracking()
+            .Where(q => q.EmployeeId == employeeId && q.ValidFrom > dto.ValidFrom)
+            .OrderBy(q => q.ValidFrom).Select(q => (DateOnly?)q.ValidFrom).FirstOrDefaultAsync();
+        if (naechste.HasValue) dto.ValidTo = naechste.Value.AddDays(-1);
 
         // Steuerkanton/Gemeinde/BFS IMMER aus der Wohnadresse des MA
         // (Walter 12.08.2026): die QST folgt der easy@work-geführten
@@ -690,12 +701,80 @@ public class EmployeeQuellensteuerController : ControllerBase
     /// 12.08.2026): einzige Quelle ist die easy@work-geführte Hauptadresse
     /// (employee.canton_code/city/zip_code, BFS via Ortschaftsverzeichnis).
     /// </summary>
-    private async Task ApplyWohnadresseAsync(EmployeeQuellensteuer entry, int employeeId)
+    /// <summary>
+    /// Hauptadresse des MA, wie sie AM STICHTAG galt (Walter 04.09.2026: «wenn
+    /// ich eine QST mit Gültig-ab erfasse, muss die damals gültige Adresse
+    /// gelten»). Quelle = Wohnort-Historie (bestätigte Einträge, GueltigAb ≤
+    /// Stichtag; der Eintrag ohne Datum = «seit jeher»). Ohne passenden
+    /// Historie-Eintrag gilt die aktuelle Adresse.
+    /// </summary>
+    public sealed record WohnadresseAm(string? Street, string? ZipCode, string? City, string? CantonCode, string? Country, bool AusHistorie, DateOnly? GueltigAb, DateOnly? GueltigBis);
+
+    private async Task<WohnadresseAm?> WohnadresseAmAsync(int employeeId, DateOnly stichtag)
     {
         var e = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == employeeId)
             .Select(x => new { x.CantonCode, x.City, x.ZipCode, x.Street, x.Country })
             .FirstOrDefaultAsync();
+        if (e == null) return null;
+        var hist = await _db.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == employeeId && !h.DatumOffen)
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToListAsync();
+        if (hist.Count > 0)
+        {
+            // Passender Eintrag = letzter mit GueltigAb ≤ Stichtag (oder «seit jeher»)
+            EmployeeWohnortHistory? treffer = null; DateOnly? bis = null;
+            for (int i = 0; i < hist.Count; i++)
+            {
+                var h = hist[i];
+                if (h.GueltigAb == null || h.GueltigAb <= stichtag)
+                {
+                    treffer = h;
+                    bis = (i + 1 < hist.Count && hist[i + 1].GueltigAb.HasValue) ? hist[i + 1].GueltigAb!.Value.AddDays(-1) : null;
+                }
+            }
+            // Nur wenn der Historie-Stand NICHT die heutige Adresse ist
+            // (sonst gilt die MA-Maske inkl. Land/Strasse als Quelle).
+            if (treffer != null && bis != null
+                && (!string.Equals(treffer.Plz ?? "", e.ZipCode ?? "", StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(treffer.Ort ?? "", e.City ?? "", StringComparison.OrdinalIgnoreCase)))
+            {
+                var kanton = (treffer.KantonCode ?? "").Trim();
+                if (kanton.Length == 0 && (treffer.Plz ?? "").Trim().Length == 4)
+                    kanton = (await _db.SwissLocations.AsNoTracking().Where(l => l.Plz4 == treffer.Plz!.Trim()).Select(l => l.Kantonskuerzel).FirstOrDefaultAsync() ?? "").Trim();
+                return new WohnadresseAm(treffer.Strasse, treffer.Plz, treffer.Ort, kanton.Length > 0 ? kanton.ToUpperInvariant() : null, "CH", true, treffer.GueltigAb, bis);
+            }
+        }
+        return new WohnadresseAm(e.Street, e.ZipCode, e.City, e.CantonCode, e.Country, false, null, null);
+    }
+
+    /// <summary>
+    /// GET …/quellensteuer/wohnadresse-am?datum=YYYY-MM-DD — Adresse am
+    /// Stichtag für den Kopf des QST-Modals (Walter 04.09.2026).
+    /// </summary>
+    [HttpGet("wohnadresse-am")]
+    public async Task<IActionResult> WohnadresseAmStichtag(int employeeId, [FromQuery] string? datum)
+    {
+        var d = DateOnly.TryParse(datum, out var x) ? x : DateOnly.FromDateTime(DateTime.Today);
+        var a = await WohnadresseAmAsync(employeeId, d);
+        if (a == null) return NotFound();
+        var kanton = (a.CantonCode ?? "").Trim().ToUpperInvariant();
+        return Ok(new
+        {
+            street = a.Street, zipCode = a.ZipCode, city = a.City, cantonCode = kanton.Length > 0 ? kanton : null,
+            kantonName = kanton.Length > 0 && KantonNamen.TryGetValue(kanton, out var kn) ? kn : null,
+            country = a.Country, ausHistorie = a.AusHistorie,
+            gueltigAb = a.GueltigAb?.ToString("yyyy-MM-dd"), gueltigBis = a.GueltigBis?.ToString("yyyy-MM-dd"),
+            stichtag = d.ToString("yyyy-MM-dd"),
+        });
+    }
+
+    private async Task ApplyWohnadresseAsync(EmployeeQuellensteuer entry, int employeeId)
+    {
+        // Adresse AM STICHTAG (Gültig-ab der Version) — aus der Wohnort-
+        // Historie, sonst aktuelle MA-Adresse (Walter 04.09.2026).
+        var e = await WohnadresseAmAsync(employeeId, entry.ValidFrom);
         if (e == null) return;
 
         // ── Auslands-Hauptwohnsitz (Walter 28.08.2026): Land ≠ CH ⇒ Person
