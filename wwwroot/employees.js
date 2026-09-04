@@ -4362,11 +4362,9 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                                 onclick="event.stopPropagation();qstErklaerungOeffnen(${selectedEmployeeId}, ${e.id})"
                                 title="Erklärt in Alltagssprache, wie dieser Tarifcode zustande kommt">💡 Warum dieser Tarif?</button>
                     </div>${warnZeilenHtml}
-                    ${(e.herleitungDiff && e.herleitungDiff.length) ? `
-                    <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px;line-height:1.5" title="Was sich gegenüber der Vorversion geändert hat (Herleitungs-Snapshot, K4)">
-                        ${e.herleitungDiff.slice(0, 6).map(d => `<div>Δ ${esc(qstDiffLabel(d))}</div>`).join('')}
-                        ${e.herleitungDiff.length > 6 ? `<div>… +${e.herleitungDiff.length - 6} weitere Änderungen</div>` : ''}
-                    </div>` : ''}
+                    <!-- Δ-Herleitungs-Diff in der Liste entfernt (Walter 04.09.2026:
+                         «diese Erklärung brauche ich hier nicht») — die Herleitung
+                         bleibt über «Warum dieser Tarif?» erreichbar. -->
                 </div>
                 <!-- Tarifbestätigung als Beleg (Walter 21.08.2026) — auch bei
                      gesperrten Einträgen verknüpfbar (reiner Beleg, kein Lock). -->
