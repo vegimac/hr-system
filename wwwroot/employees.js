@@ -13205,6 +13205,46 @@ async function loadEmployeeAddressesTab(employeeId) {
         els.forEach(el => { el.innerHTML = ''; });
         _ovUpdateAddrCardCount(0);
     }
+    // Wohnort-Historie sichtbar in der Übersicht (Walter 04.09.2026: «ich sehe
+    // nicht wirklich eine Adressen-History») — unter den weiteren Adressen,
+    // neueste zuoberst, offenes Umzugsdatum mit Knopf zum Bestätigen.
+    ovLoadWohnortHistorie(employeeId, gen);
+}
+
+async function ovLoadWohnortHistorie(employeeId, gen) {
+    const host = document.getElementById('otherAddressesContent');
+    if (!host) return;
+    let list = [];
+    try {
+        const r = await fetch(`/api/employees/${employeeId}/wohnort`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) return;                     // GF ohne Zugriff → kein Block
+        list = await r.json();
+    } catch { return; }
+    if (gen !== window._addrLoadGen) return;
+    if (!Array.isArray(list) || list.length < 2 && !list.some(h => h.datumOffen)) return;
+    document.getElementById('ovWohnortHist')?.remove();
+    const f = iso => iso ? new Date(iso).toLocaleDateString('de-CH') : null;
+    const sorted = [...list].sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')) || ((b.id || 0) - (a.id || 0)));
+    const rows = sorted.map((h, i) => {
+        const aktuell = i === 0;
+        const zeit = h.gueltigAb
+            ? `ab ${f(h.gueltigAb)}${h.gueltigBis ? ' bis ' + f(h.gueltigBis) : ''}`
+            : (h.gueltigBis ? `bis ${f(h.gueltigBis)}` : 'seit jeher');
+        return `<div class="emp-addr-row" style="${aktuell ? '' : 'opacity:.72'}">
+            <span class="emp-addr-type" style="${h.datumOffen ? 'background:#fffbeb;color:#b45309;border:1px solid #fde68a' : ''}">${h.datumOffen ? 'Datum offen' : (aktuell ? 'Wohnort' : 'früher')}</span>
+            <span class="emp-addr-text">${h.strasse ? esc(h.strasse) + ' · ' : ''}${esc(h.plz || '')} ${esc(h.ort || '')} <b>${esc(h.kantonCode || '')}</b></span>
+            <span class="emp-addr-valid">${zeit}</span>
+            <span class="emp-addr-actions">
+                ${h.datumOffen
+                    ? `<button type="button" class="btn-stamp-edit" style="color:#b45309;font-weight:600" title="Umzugsdatum bestätigen — bei Kantonswechsel wird die QST-Schnittstelle auf das Datum gesetzt" onclick="openUmzugModal(${employeeId})">🚚 Umzugsdatum bestätigen</button>`
+                    : `<button type="button" class="btn-stamp-edit" title="Wohnort-Historie / Umzug" onclick="openUmzugModal(${employeeId})">✎</button>`}
+            </span>
+        </div>`;
+    }).join('');
+    const block = document.createElement('div');
+    block.id = 'ovWohnortHist';
+    block.innerHTML = `<div style="font-size:11px;font-weight:700;color:#8b8b8b;letter-spacing:.03em;margin:10px 0 4px">WOHNORT-HISTORIE <span style="font-weight:400">· Hauptadresse aus easy@work</span></div>${rows}`;
+    host.appendChild(block);
 }
 
 function _ovUpdateAddrCardCount(n) {

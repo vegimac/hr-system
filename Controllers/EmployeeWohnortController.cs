@@ -32,9 +32,10 @@ public class EmployeeWohnortController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly LohnEditLockService _editLock;
-    public EmployeeWohnortController(AppDbContext db, LohnEditLockService editLock)
+    private readonly QstKantonswechselService _qstWechsel;
+    public EmployeeWohnortController(AppDbContext db, LohnEditLockService editLock, QstKantonswechselService qstWechsel)
     {
-        _db = db; _editLock = editLock;
+        _db = db; _editLock = editLock; _qstWechsel = qstWechsel;
     }
 
     [HttpGet]
@@ -90,118 +91,21 @@ public class EmployeeWohnortController : ControllerBase
         if (string.IsNullOrEmpty(neuerKanton))
             neuerKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
 
-        // Massgebender ALTER Kanton = Steuerkanton der aktiven QST-Version
-        // (Walter 08.08.2026): robust, egal ob die MA-Adresse schon von easy
-        // überschrieben wurde (Pending) oder der Umzug manuell kommt.
-        // Monatsregel KS 45 mit Monatserster-Spezialfall (Walter 08.08.2026):
-        // Umzug am 1. → KEIN angebrochener Monat, neuer Kanton gilt ab genau
-        // diesem Tag (alter bis Ende Vormonat). Sonst ab 1. des Folgemonats.
-        var folgeMonatErster = umzug.Day == 1
-            ? umzug
-            : new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
-        var qstAlt = await _db.EmployeeQuellensteuer
-            .Where(q => q.EmployeeId == employeeId
-                     && q.ValidFrom < folgeMonatErster
-                     && (q.ValidTo == null || q.ValidTo >= umzug))
-            .OrderByDescending(q => q.ValidFrom)
-            .FirstOrDefaultAsync();
-        var alterKanton = (qstAlt?.Steuerkanton ?? emp.CantonCode ?? "").Trim().ToUpperInvariant();
-        bool kantonswechsel = !string.IsNullOrEmpty(alterKanton) && alterKanton != neuerKanton;
+        // QST-Kantonswechsel zentral (Walter 04.09.2026): der Sync hat die
+        // Folge-Version meist schon mit dem Sync-Tag als Annahme angelegt —
+        // hier wird sie auf das bestätigte Umzugsdatum verschoben; sonst neu
+        // angelegt. Sperre (verarbeitete Lohnperiode) → 409 wie bisher.
+        var qstRes = await _qstWechsel.SplitAsync(employeeId, umzug, neuerKanton, offenerWechsel.Ort, "Umzugsdatum bestätigt");
+        if (qstRes.Gesperrt)
+            return Conflict(new { error = "LOHN_EDIT_LOCKED", message = qstRes.Info });
+        bool kantonswechsel = qstRes.Kantonswechsel;
+        string? qstInfo = qstRes.Info;
 
-        string? qstInfo = null;
-        if (kantonswechsel)
-        {
-            if (qstAlt != null)
-            {
-                // Soft-Lock wie Verträge/QST-Versionen.
-                var branchId = await _db.Employees.Where(e => e.Id == employeeId)
-                    .SelectMany(e => e.Employments)
-                    .Where(x => x.IsActive)
-                    .OrderByDescending(x => x.ContractStartDate)
-                    .Select(x => (int?)x.CompanyProfileId)
-                    .FirstOrDefaultAsync();
-                var firstAllowed = branchId.HasValue
-                    ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
-                    : null;
-                if (firstAllowed.HasValue && folgeMonatErster < firstAllowed.Value)
-                    return Conflict(new
-                    {
-                        error = "LOHN_EDIT_LOCKED",
-                        message = $"QST-Kantonswechsel ab {folgeMonatErster:dd.MM.yyyy} liegt in einer verarbeiteten Lohnperiode (frei ab {firstAllowed:dd.MM.yyyy}).",
-                        firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd"),
-                    });
-            }
-        }
-
-        // 1) Offenen Eintrag bestätigen: nur Datum + Bemerkung — die Adresse
-        //    selbst bleibt exakt wie aus easy@work übernommen.
+        // Offenen Eintrag bestätigen: nur Datum + Bemerkung — die Adresse
+        // selbst bleibt exakt wie aus easy@work übernommen.
         offenerWechsel.GueltigAb = umzug;
         offenerWechsel.DatumOffen = false;
         if (!string.IsNullOrWhiteSpace(dto.Bemerkung)) offenerWechsel.Bemerkung = dto.Bemerkung.Trim();
-
-        // 3) QST-Folge-Version bei Kantonswechsel.
-        // Dedupe (Walter 08.08.2026): wurde der Wechsel schon über den
-        // QST-Tab-Dialog erfasst (Version mit neuem Kanton ab Folgemonat
-        // existiert), keine zweite Version anlegen.
-        bool qstSchonVersioniert = kantonswechsel && await _db.EmployeeQuellensteuer
-            .AnyAsync(q => q.EmployeeId == employeeId
-                        && q.ValidFrom == folgeMonatErster
-                        && q.Steuerkanton == neuerKanton);
-        if (qstSchonVersioniert)
-        {
-            qstInfo = $"QST-Kantonswechsel war bereits erfasst ({neuerKanton} ab {folgeMonatErster:dd.MM.yyyy}) — keine neue Version.";
-        }
-        else if (kantonswechsel && qstAlt != null)
-        {
-            var monatsende = folgeMonatErster.AddDays(-1);
-            qstAlt.ValidTo = monatsende;
-            qstAlt.UpdatedAt = DateTime.Now;
-            var neu = new EmployeeQuellensteuer
-            {
-                EmployeeId = employeeId,
-                ValidFrom = folgeMonatErster,
-                ValidTo = null,
-                Steuerkanton = neuerKanton,
-                SteuerkantonName = KantonName(neuerKanton),
-                QstGemeinde = offenerWechsel.Ort,
-                QstGemeindeBfsNr = null,
-                TarifvorschlagQst = qstAlt.TarifvorschlagQst,
-                TarifCode = qstAlt.TarifCode,
-                TarifBezeichnung = qstAlt.TarifBezeichnung,
-                AnzahlKinder = qstAlt.AnzahlKinder,
-                Kirchensteuer = qstAlt.Kirchensteuer,
-                QstCode = qstAlt.QstCode,
-                SpezielBewilligt = qstAlt.SpezielBewilligt,
-                Kategorie = qstAlt.Kategorie,
-                Prozentsatz = qstAlt.Prozentsatz,
-                MindestlohnSatzbestimmung = qstAlt.MindestlohnSatzbestimmung,
-                PartnerEmployeeId = qstAlt.PartnerEmployeeId,
-                PartnerEinkommenVon = qstAlt.PartnerEinkommenVon,
-                PartnerEinkommenBis = qstAlt.PartnerEinkommenBis,
-                ArbeitsortKanton = qstAlt.ArbeitsortKanton,
-                WeitereBeschaftigungen = qstAlt.WeitereBeschaftigungen,
-                GesamtpensumWeitereAg = qstAlt.GesamtpensumWeitereAg,
-                GesamteinkommenWeitereAg = qstAlt.GesamteinkommenWeitereAg,
-                Halbfamilie = qstAlt.Halbfamilie,
-                WohnsitzAusland = qstAlt.WohnsitzAusland,
-                Wohnsitzstaat = qstAlt.Wohnsitzstaat,
-                AdresseAusland = qstAlt.AdresseAusland,
-                LivesInKonkubinat = qstAlt.LivesInKonkubinat,
-                HasJointParentalCare = qstAlt.HasJointParentalCare,
-                PaysAlimonyAdultChildren = qstAlt.PaysAlimonyAdultChildren,
-                HasHigherIncomeThanPartner = qstAlt.HasHigherIncomeThanPartner,
-                IsGrenzgaenger = qstAlt.IsGrenzgaenger,
-                IsWochenaufenthalter = qstAlt.IsWochenaufenthalter,
-                CreatedAt = DateTime.Now,
-                UpdatedAt = DateTime.Now,
-            };
-            _db.EmployeeQuellensteuer.Add(neu);
-            qstInfo = $"QST: bis {monatsende:dd.MM.yyyy} Kanton {alterKanton}, ab {folgeMonatErster:dd.MM.yyyy} Kanton {neuerKanton} (Tarif {qstAlt.QstCode ?? qstAlt.TarifCode} übernommen — bitte prüfen).";
-        }
-        else if (kantonswechsel)
-        {
-            qstInfo = "Kantonswechsel ohne aktive QST-Erfassung — keine QST-Version angelegt.";
-        }
 
         await _db.SaveChangesAsync();
         return Ok(new
@@ -246,17 +150,6 @@ public class EmployeeWohnortController : ControllerBase
         return Ok(new { deleted = true });
     }
 
-    private static string? KantonName(string code) => code switch
-    {
-        "AG" => "Aargau", "AI" => "Appenzell Innerrhoden", "AR" => "Appenzell Ausserrhoden",
-        "BE" => "Bern", "BL" => "Basel-Landschaft", "BS" => "Basel-Stadt", "FR" => "Freiburg",
-        "GE" => "Genf", "GL" => "Glarus", "GR" => "Graubünden", "JU" => "Jura",
-        "LU" => "Luzern", "NE" => "Neuenburg", "NW" => "Nidwalden", "OW" => "Obwalden",
-        "SG" => "St. Gallen", "SH" => "Schaffhausen", "SO" => "Solothurn", "SZ" => "Schwyz",
-        "TG" => "Thurgau", "TI" => "Tessin", "UR" => "Uri", "VD" => "Waadt",
-        "VS" => "Wallis", "ZG" => "Zug", "ZH" => "Zürich",
-        _ => null,
-    };
 }
 
 public class WohnortEntryDto

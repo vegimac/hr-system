@@ -4124,7 +4124,7 @@ public class EasyAtWorkEmployeeSyncService
                 Bemerkung = "Bestandsadresse (automatisch beim easy@work-Adresswechsel)",
             });
         }
-        _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory
+        var neuEintrag = new EmployeeWohnortHistory
         {
             EmployeeId = emp.Id,
             Plz = neuPlz, Ort = neuOrt, KantonCode = emp.CantonCode?.Trim(),
@@ -4132,7 +4132,33 @@ public class EasyAtWorkEmployeeSyncService
             GueltigAb = DateOnly.FromDateTime(DateTime.Today),
             DatumOffen = true,
             Bemerkung = $"aus easy@work übernommen (vorher {altStrasse} {altPlz} {altOrt}) — Umzugsdatum bestätigen",
-        });
+        };
+        _db.EmployeeWohnortHistories.Add(neuEintrag);
+
+        // Kantonswechsel → QST SOFORT umstellen (Walter 04.09.2026): laufende
+        // Version per Monatsende beenden, neue mit dem neuen Kanton ab dem
+        // 1. des Folgemonats (Umzugsdatum = Sync-Tag als Annahme). Bestätigt
+        // Walter später ein anderes Datum, verschiebt der Umzugs-Dialog die
+        // Schnittstelle. Gesperrte Lohnperiode → nur Hinweis, kein Abbruch.
+        var neuerKanton = (emp.CantonCode ?? "").Trim().ToUpperInvariant();
+        var alterKantonNorm = (altKanton ?? "").Trim().ToUpperInvariant();
+        if (neuerKanton.Length > 0 && alterKantonNorm.Length > 0 && neuerKanton != alterKantonNorm)
+        {
+            try
+            {
+                var wechsel = new QstKantonswechselService(_db, _editLock);
+                var res = await wechsel.SplitAsync(emp.Id, DateOnly.FromDateTime(DateTime.Today), neuerKanton, neuOrt, "automatisch beim easy@work-Sync");
+                neuEintrag.Bemerkung += " · " + res.Info;
+                if (res.Gesperrt)
+                    _log.LogWarning("[Sync] QST-Kantonswechsel MA {Emp} nicht automatisch möglich: {Info}", emp.Id, res.Info);
+                else
+                    _log.LogInformation("[Sync] QST-Kantonswechsel MA {Emp}: {Info}", emp.Id, res.Info);
+            }
+            catch (Exception ex)
+            {
+                _log.LogWarning(ex, "[Sync] QST-Kantonswechsel MA {Emp} fehlgeschlagen — bitte im Umzugs-Dialog bestätigen", emp.Id);
+            }
+        }
     }
 
     private static void ApplyDiffs(Employee emp, List<FieldDiff> diffs, EmployeeMasterData data)

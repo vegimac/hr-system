@@ -217,6 +217,7 @@ builder.Services.AddScoped<DashboardService>();
 builder.Services.AddScoped<VersandFreigabeService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<MitarbeiterMailService>();
+builder.Services.AddScoped<QstKantonswechselService>();
 // Rückläufer aus dem bounce@-Postfach abholen (Walter-Vorgabe 01.09.2026).
 // Der Hintergrunddienst prüft bei jedem Durchgang selber, ob ein Postfach
 // hinterlegt und der Haken gesetzt ist — er darf also immer registriert sein.
