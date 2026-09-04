@@ -12314,3 +12314,12 @@ body.theme-dark .bgs-full { background: linear-gradient(165deg, #232323, #1b1b1b
 body.theme-dark .bgs-topbar { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); }
 body.theme-dark .bgs-top-name { color: #f1f1f1; }
 body.theme-dark .bgs-full .bgs-rail { background: #262626; }
+
+/* Dokument-Struktur: aufgeklappte Dokumentliste unter einem Typ (Walter 04.09.2026) */
+.dokstruktur-docs { background: #faf9f6; border-bottom: 1px solid #ece9e2; }
+.dokstruktur-docs td { padding: 6px 12px; border-top: 1px solid #f0ede6; vertical-align: top; }
+.dokstruktur-docs tbody tr:hover td { background: #f3f1ec; }
+body.theme-dark .dokstruktur-docs { background: rgba(255,255,255,0.03); border-color: var(--dlg-glass-border); }
+body.theme-dark .dokstruktur-docs td { border-color: var(--dlg-glass-border); color: #e2e8f0; }
+body.theme-dark .dokstruktur-docs tbody tr:hover td { background: var(--dlg-glass-field); }
+body.theme-dark .dokstruktur-docs a { color: #93c5fd; }

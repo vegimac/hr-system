@@ -1535,6 +1535,52 @@ public class DocumentsController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Dokumente eines Typs (Walter 04.09.2026: «in der Dokument-Struktur die
+    /// Dokumente sehen, die unter dieser Rubrik abgelegt sind»). Seitenweise,
+    /// optional Volltext über MA-Name/Nummer/Dateiname/Bemerkung.
+    /// </summary>
+    [HttpGet("admin/typ/{id:int}/dokumente")]
+    public async Task<IActionResult> GetTypDokumente(int id, [FromQuery] string? q = null, [FromQuery] int skip = 0, [FromQuery] int take = 50)
+    {
+        take = Math.Clamp(take, 1, 200);
+        var query = _db.EmployeeDokumente.AsNoTracking()
+            .Where(d => d.DokumentTypId == id)
+            .Join(_db.Employees.AsNoTracking(), d => d.EmployeeId, e => e.Id, (d, e) => new { d, e });
+        if (!string.IsNullOrWhiteSpace(q))
+        {
+            var needle = q.Trim().ToLower();
+            query = query.Where(x =>
+                (x.e.FirstName + " " + x.e.LastName).ToLower().Contains(needle)
+                || (x.e.LastName + " " + x.e.FirstName).ToLower().Contains(needle)
+                || x.e.EmployeeNumber.ToLower().Contains(needle)
+                || x.d.FilenameOriginal.ToLower().Contains(needle)
+                || (x.d.Bemerkung != null && x.d.Bemerkung.ToLower().Contains(needle)));
+        }
+        var total = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(x => x.d.HochgeladenAm)
+            .Skip(skip).Take(take)
+            .Select(x => new
+            {
+                x.d.Id,
+                employeeId = x.e.Id,
+                employeeName = (x.e.FirstName + " " + x.e.LastName).Trim(),
+                employeeNumber = x.e.EmployeeNumber,
+                employeeAktiv = x.e.IsActive,
+                x.d.FilenameOriginal,
+                x.d.MimeType,
+                x.d.GroesseBytes,
+                x.d.HochgeladenAm,
+                x.d.GueltigVon,
+                x.d.GueltigBis,
+                x.d.Bemerkung,
+                x.d.BranchCode,
+            })
+            .ToListAsync();
+        return Ok(new { total, items });
+    }
+
     public class KategorieDto {
         public string Name { get; set; } = "";
         public int? SortOrder { get; set; }

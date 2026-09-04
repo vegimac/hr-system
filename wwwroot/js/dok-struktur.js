@@ -5,7 +5,7 @@
 // ══════════════════════════════════════════════════════════════════════
 // ADMIN: DOKUMENT-STRUKTUR (Kategorien & Typen verwalten)
 // ══════════════════════════════════════════════════════════════════════
-let _dokstruktur = { taxonomy: [], selectedKatId: null };
+let _dokstruktur = { taxonomy: [], selectedKatId: null, openTypId: null, docsQ: '', docsSkip: 0, docsItems: [], docsTotal: 0 };
 
 async function loadDokumentStruktur() {
     try {
@@ -91,13 +91,14 @@ function renderDokstrukturTypen() {
         const link = t.linkedFieldCode
             ? `<span style="margin-left:6px;font-size:10px;font-weight:600;background:#ece9e2;color:#6b6152;padding:1px 7px;border-radius:9px">📎 ${fieldLabel[t.linkedFieldCode] || t.linkedFieldCode}</span>`
             : '';
+        const open = _dokstruktur.openTypId === t.id;
         return `
-        <div class="dokstruktur-row">
+        <div class="dokstruktur-row" style="${t.anzahlDokumente > 0 ? 'cursor:pointer' : ''}" onclick="dokstrukturToggleDocs(${t.id})" title="${t.anzahlDokumente > 0 ? 'Klick: abgelegte Dokumente anzeigen' : ''}">
             <div style="flex:1">
                 <div style="font-weight:500;color:#0f172a;font-size:13px">${t.name} ${!t.aktiv ? '<span style="color:#94a3b8;font-weight:400">(inaktiv)</span>' : ''}${link}</div>
-                <div style="font-size:11px;color:#64748b">Sort ${t.sortOrder} · ${t.anzahlDokumente} Dokument${t.anzahlDokumente !== 1 ? 'e' : ''}</div>
+                <div style="font-size:11px;color:#64748b">Sort ${t.sortOrder} · ${t.anzahlDokumente > 0 ? `<span style="text-decoration:underline dotted">${t.anzahlDokumente} Dokument${t.anzahlDokumente !== 1 ? 'e' : ''} ${open ? '▾' : '▸'}</span>` : '0 Dokumente'}</div>
             </div>
-            <div class="dokstruktur-actions">
+            <div class="dokstruktur-actions" onclick="event.stopPropagation()">
                 <div style="position:relative;display:inline-block">
                     <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'dsTyp-${t.id}')" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="dokMenu-dsTyp-${t.id}">
@@ -108,8 +109,95 @@ function renderDokstrukturTypen() {
                     </div>
                 </div>
             </div>
-        </div>`;
+        </div>
+        ${open ? `<div class="dokstruktur-docs" id="dsDocs-${t.id}"><div style="padding:14px;color:#94a3b8;font-size:12.5px">Lade Dokumente …</div></div>` : ''}`;
     }).join('');
+    if (_dokstruktur.openTypId) dokstrukturLoadDocs(_dokstruktur.openTypId, true);
+}
+
+// ── Dokumente eines Typs einblenden (Walter 04.09.2026) ──────────────
+// Klick auf die Typ-Zeile klappt die Liste der abgelegten Dokumente auf:
+// MA, Datei, Datum, Grösse — mit Suche, Vorschau und Sprung zum MA.
+function dokstrukturToggleDocs(typId) {
+    const kat = _dokstruktur.taxonomy.find(k => k.id === _dokstruktur.selectedKatId);
+    const t = kat?.typen.find(x => x.id === typId);
+    if (!t || t.anzahlDokumente === 0) return;
+    _dokstruktur.openTypId = _dokstruktur.openTypId === typId ? null : typId;
+    _dokstruktur.docsQ = '';
+    _dokstruktur.docsSkip = 0;
+    renderDokstrukturTypen();
+}
+
+async function dokstrukturLoadDocs(typId, reset) {
+    const box = document.getElementById('dsDocs-' + typId);
+    if (!box) return;
+    if (reset) { _dokstruktur.docsSkip = 0; _dokstruktur.docsItems = []; }
+    const take = 50;
+    const q = encodeURIComponent(_dokstruktur.docsQ || '');
+    try {
+        const r = await fetch(`/api/documents/admin/typ/${typId}/dokumente?q=${q}&skip=${_dokstruktur.docsSkip}&take=${take}`, { headers: ah() });
+        if (!r.ok) throw new Error('API ' + r.status);
+        const j = await r.json();
+        _dokstruktur.docsItems = (_dokstruktur.docsItems || []).concat(j.items || []);
+        _dokstruktur.docsTotal = j.total || 0;
+        _dokstruktur.docsSkip = _dokstruktur.docsItems.length;
+    } catch (err) {
+        box.innerHTML = `<div style="padding:12px;color:#b91c1c;font-size:12.5px">Fehler: ${err.message}</div>`;
+        return;
+    }
+    const items = _dokstruktur.docsItems;
+    const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b >= 1024 ? Math.round(b / 1024) + ' KB' : b + ' B';
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('de-CH') : '';
+    const rows = items.map(d => `
+        <tr>
+            <td style="white-space:nowrap">
+                <a href="javascript:void(0)" onclick="dashOpenEmployeeDokumente(${d.employeeId})" title="Mitarbeiter öffnen (Tab Dokumente)" style="color:#0f172a;font-weight:600;text-decoration:none">${esc(d.employeeName)}</a>
+                <span style="color:#94a3b8;font-size:11px"> · ${esc(d.employeeNumber || '')}${d.employeeAktiv ? '' : ' · inaktiv'}</span>
+            </td>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(d.filenameOriginal)}${d.bemerkung ? ' — ' + esc(d.bemerkung) : ''}">
+                <a href="javascript:void(0)" onclick="dokstrukturPreview(${d.id}, '${esc(d.filenameOriginal).replace(/'/g, '&#39;')}')" style="color:#1d4ed8;text-decoration:none">${esc(d.filenameOriginal)}</a>
+                ${d.bemerkung ? `<div style="font-size:11px;color:#64748b;white-space:normal">${esc(d.bemerkung)}</div>` : ''}
+            </td>
+            <td style="white-space:nowrap;color:#64748b">${fmtDate(d.hochgeladenAm)}</td>
+            <td style="white-space:nowrap;color:#64748b">${d.gueltigBis ? 'bis ' + fmtDate(d.gueltigBis) : ''}</td>
+            <td style="white-space:nowrap;color:#94a3b8;text-align:right">${fmtSize(d.groesseBytes || 0)}</td>
+        </tr>`).join('');
+    box.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #ece9e2">
+            <input type="search" placeholder="Suchen: Name, Nr., Datei, Bemerkung …" value="${esc(_dokstruktur.docsQ || '')}"
+                   oninput="dokstrukturDocsSearch(${typId}, this.value)" style="flex:1;max-width:340px;padding:5px 9px;border:1px solid #d6d1c7;border-radius:8px;font-size:12.5px">
+            <span style="font-size:12px;color:#64748b">${_dokstruktur.docsTotal} Dokument${_dokstruktur.docsTotal !== 1 ? 'e' : ''}</span>
+        </div>
+        <div style="max-height:420px;overflow:auto">
+            <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+                <thead><tr style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.03em">
+                    <th style="text-align:left;padding:6px 12px">Mitarbeiter</th>
+                    <th style="text-align:left;padding:6px 12px">Datei</th>
+                    <th style="text-align:left;padding:6px 12px">Abgelegt</th>
+                    <th style="text-align:left;padding:6px 12px">Gültig</th>
+                    <th style="text-align:right;padding:6px 12px">Grösse</th>
+                </tr></thead>
+                <tbody class="dokstruktur-docs-body">${rows || '<tr><td colspan="5" style="padding:14px;color:#94a3b8">Keine Dokumente gefunden.</td></tr>'}</tbody>
+            </table>
+            ${items.length < _dokstruktur.docsTotal ? `<div style="padding:8px 12px"><button class="btn btn-outline" style="padding:4px 12px;font-size:12px" onclick="dokstrukturLoadDocs(${typId}, false)">Weitere ${Math.min(50, _dokstruktur.docsTotal - items.length)} laden</button></div>` : ''}
+        </div>`;
+}
+
+let _dokstrukturSearchTimer = null;
+function dokstrukturDocsSearch(typId, value) {
+    _dokstruktur.docsQ = value;
+    clearTimeout(_dokstrukturSearchTimer);
+    _dokstrukturSearchTimer = setTimeout(() => dokstrukturLoadDocs(typId, true), 250);
+}
+
+async function dokstrukturPreview(id, filename) {
+    try {
+        const r = await fetch(`/api/documents/preview/${id}`, { headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob();
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, filename);
+        else window.open(URL.createObjectURL(blob), '_blank');
+    } catch (err) { alert('Vorschau fehlgeschlagen: ' + err.message); }
 }
 
 // ── Modal: Kategorie bearbeiten ──────────────────────────────────────
