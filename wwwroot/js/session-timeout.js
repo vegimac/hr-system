@@ -6,24 +6,30 @@
 // leer = Rollen-Default, bereits server-seitig aufgelöst).
 //
 //   • Inaktivitäts-Logout nach idleTimeoutMinutes (Aktivität setzt ihn zurück)
-//   • Harte Max-Session nach maxSessionMinutes ab Login (NICHT verlängerbar)
-//   • Warnmodal 60 s vorher mit „Angemeldet bleiben" (setzt NUR den Idle-Timer
-//     zurück, verlängert die Max-Session nicht)
-//   • Bei Ablauf der Max-Session ist ein Neu-Login zwingend.
-//
-// Der Server erzwingt die Max-Session zusätzlich hart über die JWT-Ablaufzeit.
+//   • GLEITENDE Verlängerung (Walter 04.09.2026): solange gearbeitet wird,
+//     holt der Wächter ca. alle 30 Minuten still ein frisches Token
+//     (POST /api/auth/refresh) — der 8-Stunden-Rauswurf mitten in der
+//     Arbeit ist damit weg. maxSessionMinutes ist nur noch die Lebensdauer
+//     EINES Tokens (Fallback, wenn kein Refresh mehr gelingt).
+//   • Harte Obergrenze ab dem ersten Login (Server: 14 h, hardEndAt) —
+//     danach ist Neu-Login Pflicht; Warnmodal 60 s vorher.
+//   • Warnmodal 60 s vorher mit „Angemeldet bleiben" (Idle-Fall).
 // ══════════════════════════════════════════════════════════════════════
 (function () {
     const CHECK_MS = 30000;   // Prüf-Intervall (Walter-Vorgabe: alle 30 s)
     const WARN_MS  = 60000;   // Warnmodal 1 Minute vorher
+    const REFRESH_AFTER_MS = 30 * 60000;   // Token-Alter, ab dem bei Aktivität verlängert wird
     const ACTIVITY_EVENTS = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll'];
 
     let idleMs = 0;
-    let maxEndMs = 0;
+    let maxEndMs = 0;        // Ablauf des aktuellen Tokens
+    let hardEndMs = 0;       // harte Obergrenze ab erstem Login
+    let tokenIssuedMs = 0;   // Ausstellung des aktuellen Tokens
     let lastActivity = 0;
     let checkTimer = null;
     let countdownTimer = null;
     let listening = false;
+    let refreshing = false;
 
     const now = () => Date.now();
     const onActivity = () => { lastActivity = now(); };
@@ -37,7 +43,10 @@
 
         idleMs = idleMin * 60000;
         const startedAt = cu.sessionStartedAt ? new Date(cu.sessionStartedAt).getTime() : now();
-        maxEndMs = (isNaN(startedAt) ? now() : startedAt) + maxMin * 60000;
+        tokenIssuedMs = isNaN(startedAt) ? now() : startedAt;
+        maxEndMs = tokenIssuedMs + maxMin * 60000;
+        const hard = cu.hardEndAt ? new Date(cu.hardEndAt).getTime() : NaN;
+        hardEndMs = isNaN(hard) ? tokenIssuedMs + 14 * 3600000 : hard;
         lastActivity = now();
 
         if (!listening) {
@@ -62,15 +71,50 @@
     }
 
     // Verbleibende Zeit bis zum Logout + Grund (idle vs. max).
+    // «max» = Token-Ablauf ODER harte Obergrenze, was früher kommt.
     function remaining() {
         const idleLeft = (lastActivity + idleMs) - now();
-        const maxLeft  = maxEndMs - now();
+        const maxLeft  = Math.min(maxEndMs, hardEndMs) - now();
         return maxLeft < idleLeft
             ? { left: maxLeft, reason: 'max' }
             : { left: idleLeft, reason: 'idle' };
     }
 
+    // Gleitende Verlängerung: Token älter als 30 Min. UND in den letzten
+    // 30 Min. Aktivität UND harte Obergrenze noch nicht erreicht → still
+    // ein frisches Token holen. Scheitert es (Netz, 401, 409), bleibt das
+    // alte Token bis zu seinem Ablauf gültig — der Wächter warnt wie bisher.
+    async function maybeRefresh() {
+        if (refreshing) return;
+        const t = now();
+        if (t - tokenIssuedMs < REFRESH_AFTER_MS) return;
+        if (t - lastActivity > REFRESH_AFTER_MS) return;
+        if (t >= hardEndMs - WARN_MS) return;
+        if (typeof authToken === 'undefined' || !authToken) return;
+        refreshing = true;
+        try {
+            const r = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }, cache: 'no-store' });
+            if (!r.ok) return;
+            const j = await r.json();
+            if (!j || !j.token) return;
+            authToken = j.token;
+            try { localStorage.setItem('hrToken', j.token); } catch (_) {}
+            const issued = j.sessionStartedAt ? new Date(j.sessionStartedAt).getTime() : t;
+            tokenIssuedMs = isNaN(issued) ? t : issued;
+            const maxMin = parseInt(j.maxSessionMinutes, 10) || Math.round((maxEndMs - tokenIssuedMs) / 60000);
+            maxEndMs = tokenIssuedMs + maxMin * 60000;
+            const hard = j.hardEndAt ? new Date(j.hardEndAt).getTime() : NaN;
+            if (!isNaN(hard)) hardEndMs = hard;
+            if (window.currentUser) {
+                window.currentUser.sessionStartedAt = j.sessionStartedAt;
+                window.currentUser.hardEndAt = j.hardEndAt;
+            }
+        } catch (_) { /* nächster Versuch beim nächsten Check */ }
+        finally { refreshing = false; }
+    }
+
     function check() {
+        maybeRefresh();
         const { left } = remaining();
         if (left <= 0) { doExpire(); return; }
         if (left <= WARN_MS) showWarning();
@@ -136,7 +180,7 @@
         if (reason === 'max') {
             // Max-Session: „Angemeldet bleiben" hilft nicht → ausblenden.
             msgEl.textContent =
-                `Die maximale Sitzungsdauer ist erreicht. Du wirst aus Sicherheitsgründen in ${secs} Sekunden abgemeldet. Bitte danach neu anmelden.`;
+                `Die maximale Sitzungsdauer (14 Stunden seit der Anmeldung) ist erreicht. Du wirst aus Sicherheitsgründen in ${secs} Sekunden abgemeldet. Bitte danach neu anmelden.`;
             stayBtn.style.display = 'none';
         } else {
             msgEl.textContent =

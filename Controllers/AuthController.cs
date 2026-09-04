@@ -119,6 +119,8 @@ public class AuthController : ControllerBase
             // Session-Policy (Walter-Vorgabe 21.06.2026) — der Frontend-Wächter
             // startet damit sofort, ohne auf /me warten zu müssen.
             sessionStartedAt   = sessionStart.ToString("o"),
+            loginAt            = sessionStart.ToString("o"),
+            hardEndAt          = sessionStart.AddMinutes(HARD_CAP_MINUTES).ToString("o"),
             idleTimeoutMinutes = EffectiveIdleTimeout(user),
             maxSessionMinutes  = EffectiveMaxSession(user),
             user = new
@@ -158,6 +160,45 @@ public class AuthController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Gleitende Verlängerung (Walter 04.09.2026): der Browser-Wächter ruft
+    /// das bei Aktivität ca. alle 30 Minuten — neues Token mit frischem
+    /// Ablauf, gleicher Benutzer, gleicher Testmodus (impersonated_by bleibt),
+    /// gleicher Original-Login. Harte Obergrenze: HARD_CAP_MINUTES ab dem
+    /// ersten Login → 409 SESSION_HARD_CAP, dann ist Neu-Login Pflicht.
+    /// </summary>
+    [HttpPost("refresh")]
+    [Authorize(Roles = "admin,superuser,user,employee,buchhaltung,lowuser")]
+    public async Task<IActionResult> Refresh()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null || !user.IsActive) return Unauthorized();
+
+        var loginAtStr = User.FindFirst("login_at")?.Value ?? User.FindFirst("session_started_at")?.Value;
+        var loginAt = DateTime.TryParse(loginAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var la)
+            ? la.ToUniversalTime() : DateTime.UtcNow;
+        var hardEnd = loginAt.AddMinutes(HARD_CAP_MINUTES);
+        if (DateTime.UtcNow >= hardEnd)
+            return Conflict(new { error = "SESSION_HARD_CAP", message = "Maximale Sitzungsdauer erreicht — bitte neu anmelden.", hardEndAt = hardEnd.ToString("o") });
+
+        var impClaim = User.Claims.FirstOrDefault(c => c.Type == "impersonated_by" || c.Type.EndsWith("impersonated_by"));
+        int? impersonatedBy = impClaim != null && int.TryParse(impClaim.Value, out var ib) ? ib : null;
+
+        var sessionStart = DateTime.UtcNow;
+        var token = GenerateToken(user, sessionStart, impersonatedBy, loginAt);
+        var policyUser = impersonatedBy.HasValue ? (_context.AppUsers.Find(impersonatedBy.Value) ?? user) : user;
+        return Ok(new
+        {
+            token,
+            sessionStartedAt   = sessionStart.ToString("o"),
+            loginAt            = loginAt.ToString("o"),
+            hardEndAt          = hardEnd.ToString("o"),
+            idleTimeoutMinutes = EffectiveIdleTimeout(policyUser),
+            maxSessionMinutes  = EffectiveMaxSession(policyUser),
+        });
+    }
+
     [HttpGet("me")]
     // Walter 14.06.2026: lowuser ergänzt — sonst kriegt der eingeschränkte
     // Benutzer beim Login 403 auf /me, das Frontend hat kein currentUser.branches
@@ -178,6 +219,9 @@ public class AuthController : ControllerBase
         var idleClaim    = int.TryParse(User.FindFirst("idle_timeout_minutes")?.Value, out var ic) ? ic : EffectiveIdleTimeout(user);
         var maxClaim     = int.TryParse(User.FindFirst("max_session_minutes")?.Value, out var mc) ? mc : EffectiveMaxSession(user);
         var sessionStart = User.FindFirst("session_started_at")?.Value;
+        var loginAtMe    = User.FindFirst("login_at")?.Value ?? sessionStart;
+        string? hardEndMe = DateTime.TryParse(loginAtMe, null, System.Globalization.DateTimeStyles.RoundtripKind, out var laMe)
+            ? laMe.ToUniversalTime().AddMinutes(HARD_CAP_MINUTES).ToString("o") : null;
 
         // Testmodus: wer hat den Wechsel ausgeloest? (Claim aus dem JWT, kein
         // DB-Feld). Nur fuer die Anzeige im Balken und die «Zurueck»-Aktion.
@@ -238,6 +282,8 @@ public class AuthController : ControllerBase
                 : user.AllowedAreas.Split(',', StringSplitOptions.RemoveEmptyEntries),
             // Session-Policy für den Frontend-Wächter.
             sessionStartedAt   = sessionStart,
+            loginAt            = loginAtMe,
+            hardEndAt          = hardEndMe,
             idleTimeoutMinutes = idleClaim,
             maxSessionMinutes  = maxClaim,
             // Filial-Selektor: admin / superuser / lowuser → «all».
@@ -457,7 +503,15 @@ public class AuthController : ControllerBase
     public static bool SeesAllBranches(string? role) =>
         role == "admin" || role == "superuser" || role == "lowuser";
 
-    private string GenerateToken(AppUser user, DateTime sessionStart, int? impersonatedBy = null)
+    /// <summary>
+    /// Harte Obergrenze ab dem ERSTEN Login (Walter 04.09.2026): die
+    /// Sitzung verlängert sich bei Aktivität gleitend (POST /refresh), aber
+    /// spätestens nach 14 Stunden ist ein Neu-Login Pflicht — Sicherung für
+    /// vergessene/offen liegende Geräte.
+    /// </summary>
+    public const int HARD_CAP_MINUTES = 840;
+
+    private string GenerateToken(AppUser user, DateTime sessionStart, int? impersonatedBy = null, DateTime? loginAt = null)
     {
         // Walter-Vorgabe 13.06.2026: KEIN hardgecodeter Fallback.
         var secret = _config["Jwt:Secret"]
@@ -487,6 +541,9 @@ public class AuthController : ControllerBase
             new Claim(ClaimTypes.Role, user.Role),
             // Session-Policy-Claims für den Frontend-Wächter.
             new Claim("session_started_at",    sessionStart.ToString("o")),
+            // Ursprünglicher Login (bleibt über alle Verlängerungen gleich) —
+            // Basis für die harte Obergrenze HARD_CAP_MINUTES.
+            new Claim("login_at",              (loginAt ?? sessionStart).ToString("o")),
             new Claim("idle_timeout_minutes",  idle.ToString()),
             new Claim("max_session_minutes",   max.ToString())
         };
