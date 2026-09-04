@@ -1213,6 +1213,16 @@ async function qstUpdateWohnortKopf(datum) {
             ? `${wohnort} <span style="color:#b45309;font-size:11px;font-weight:600" title="Adresse gemäss Wohnort-Historie am ${f(a.stichtag)}">· damals (${f(a.gueltigAb) || 'seit jeher'} – ${f(a.gueltigBis)})</span>`
             : wohnort;
         if (k) k.textContent = a.cantonCode ? (a.kantonName ? `${a.cantonCode} — ${a.kantonName}` : a.cantonCode) : '–';
+        // Zivilstand am Stichtag (Zivilstand-Historie, Walter 04.09.2026)
+        const zivLabel = QST_ZIVILSTAND_LABELS[a.zivilstand] || a.zivilstand || '–';
+        const z = document.getElementById('qstZivilstandDisplay');
+        if (z) z.innerHTML = a.zivilstandAusHistorie
+            ? `${zivLabel} <span style="color:#b45309;font-size:11px;font-weight:600" title="gemäss Zivilstand-Historie am ${f(a.stichtag)}">· damals</span>`
+            : zivLabel;
+        const zEl = document.getElementById('qstZivilstandAnzeige');
+        if (zEl) zEl.value = zivLabel;
+        const sEl = document.getElementById('qstZivilstandSeit');
+        if (sEl) sEl.value = (a.zivilstandSeit || '').toString().slice(0, 10);
     } catch (_) { /* Kopf bleibt */ }
 }
 

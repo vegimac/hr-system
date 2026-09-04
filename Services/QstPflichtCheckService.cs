@@ -187,7 +187,19 @@ public class QstPflichtCheckService
         // ── 4./5. Ehepartner CH oder C-Ausweis? ──
         // Zivilstand-Normalisierung: «eingetragene Partnerschaft» kommt je nach
         // Quelle mit Leerzeichen ODER Unterstrich («eingetragene_partnerschaft»).
-        var msNorm = (emp.MaritalStatus ?? "").Trim().ToLowerInvariant();
+        // Zivilstand AM STICHTAG (Walter 04.09.2026): aus der Zivilstand-
+        // Historie, sonst aktueller MA-Stand — Lohnläufe alter Monate und
+        // Alt-QST-Einträge rechnen so mit dem damaligen Zivilstand.
+        // Lokale Variablen — emp ist getrackt, nichts daran verändern.
+        var (zivHist, zivSeitHist, zivAusHist) = await new ZivilstandHistorieService(_db).AmAsync(employeeId, stichtag);
+        string? maritalStatus = emp.MaritalStatus;
+        DateOnly? maritalSince = emp.MaritalStatusSince;
+        if (zivAusHist && !string.IsNullOrWhiteSpace(zivHist))
+        {
+            maritalStatus = zivHist;
+            maritalSince = zivSeitHist ?? maritalSince;
+        }
+        var msNorm = (maritalStatus ?? "").Trim().ToLowerInvariant();
         bool isVerheiratet = msNorm == "verheiratet"
                           || (msNorm.Contains("partnerschaft") && !msNorm.Contains("aufgel"));
         // TATSÄCHLICHE Trennung beendet die Ehegatten-Befreiung (Walter
@@ -201,7 +213,7 @@ public class QstPflichtCheckService
         // Feld «Getrennt seit» wurde aus dem UI entfernt — das Datum steht bei
         // diesem Zivilstand in MaritalStatusSince.
         bool isGetrennt = msNorm.Contains("getrennt");
-        DateOnly? trennungDatum = emp.SeparatedSince ?? (isGetrennt ? emp.MaritalStatusSince : null);
+        DateOnly? trennungDatum = emp.SeparatedSince ?? (isGetrennt ? maritalSince : null);
         bool trennungWirksam = trennungDatum.HasValue
             && new DateOnly(trennungDatum.Value.Year, trennungDatum.Value.Month, 1)
                    .AddMonths(1) <= stichtag;
@@ -260,12 +272,12 @@ public class QstPflichtCheckService
                 // selbst ist noch pflichtig, die Befreiung gilt ab dem 1. des
                 // Folgemonats. Heirat 7.1.2026 → QST bis 31.1.2026, befreit ab
                 // 1.2.2026. Ohne erfasstes Heiratsdatum: Befreiung sofort.
-                DateOnly? heiratBefreiungAb = emp.MaritalStatusSince.HasValue
-                    ? new DateOnly(emp.MaritalStatusSince.Value.Year, emp.MaritalStatusSince.Value.Month, 1).AddMonths(1)
+                DateOnly? heiratBefreiungAb = maritalSince.HasValue
+                    ? new DateOnly(maritalSince.Value.Year, maritalSince.Value.Month, 1).AddMonths(1)
                     : null;
                 bool heiratsmonatNochPflichtig = heiratBefreiungAb.HasValue && stichtag < heiratBefreiungAb.Value;
                 if (heiratsmonatNochPflichtig)
-                    wohnsitzHinweis = $"Heirat am {emp.MaritalStatusSince:dd.MM.yyyy} — die Ehegatten-Befreiung gilt ab {heiratBefreiungAb:dd.MM.yyyy} (Heiratsmonat noch quellensteuerpflichtig, KS 45).";
+                    wohnsitzHinweis = $"Heirat am {maritalSince:dd.MM.yyyy} — die Ehegatten-Befreiung gilt ab {heiratBefreiungAb:dd.MM.yyyy} (Heiratsmonat noch quellensteuerpflichtig, KS 45).";
                 bool wohnsitzBefreitJetzt = wohnsitzBefreit && !heiratsmonatNochPflichtig;
 
                 // Läuft eine QST-Erfassung über den Befreiungsbeginn hinaus?
@@ -286,7 +298,7 @@ public class QstPflichtCheckService
                     var (offenId, offenEnde) = await OffeneErfassungAsync();
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-CH",
                         "Verheiratet mit Schweizer/in — nicht QST-pflichtig."
-                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {emp.MaritalStatusSince:dd.MM.yyyy})." : ""),
+                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {maritalSince:dd.MM.yyyy})." : ""),
                         SpouseDokumentFehlt: spouseDokFehlt,
                         OffeneQstErfassungId: offenId, QstEndeVorschlag: offenEnde, BefreiungAb: heiratBefreiungAb);
                 }
@@ -310,7 +322,7 @@ public class QstPflichtCheckService
                     var (offenId, offenEnde) = await OffeneErfassungAsync();
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-C",
                         "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig."
-                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {emp.MaritalStatusSince:dd.MM.yyyy})." : ""),
+                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {maritalSince:dd.MM.yyyy})." : ""),
                         SpouseDokumentFehlt: spouseDokFehlt,
                         OffeneQstErfassungId: offenId, QstEndeVorschlag: offenEnde, BefreiungAb: heiratBefreiungAb);
                 }
@@ -339,7 +351,7 @@ public class QstPflichtCheckService
                 else if (getrenntLebend)
                     wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der MA lebt aber getrennt, darum gilt die Ehegatten-Befreiung nicht mehr.";
                 else
-                    wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der Zivilstand des MA ist aber «{(string.IsNullOrWhiteSpace(emp.MaritalStatus) ? "leer" : emp.MaritalStatus)}». "
+                    wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der Zivilstand des MA ist aber «{(string.IsNullOrWhiteSpace(maritalStatus) ? "leer" : maritalStatus)}». "
                                     + "Die Ehegatten-Befreiung gilt nur bei Zivilstand «verheiratet» oder «eingetragene Partnerschaft» — bitte im Personal-Tab korrigieren.";
             }
         }

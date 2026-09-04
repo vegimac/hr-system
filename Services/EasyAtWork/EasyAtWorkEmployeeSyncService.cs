@@ -778,7 +778,10 @@ public class EasyAtWorkEmployeeSyncService
             if (emp.DateOfBirth?.Date != dob.Date) { emp.DateOfBirth = dob; result.UpdatedFields.Add("Geburtsdatum"); }
         }
         SetString("AHV-Nummer", emp.SocialSecurityNumber, master.Ahv, v => emp.SocialSecurityNumber = v);
+        var zivAltSync = emp.MaritalStatus;
         SetString("Zivilstand", emp.MaritalStatus, master.MaritalStatus, v => emp.MaritalStatus = v);
+        if (emp.Id > 0 && result.UpdatedFields.Contains("Zivilstand"))
+            await new ZivilstandHistorieService(_db).NachfuehrenAsync(emp.Id, zivAltSync, emp.MaritalStatus, emp.MaritalStatusSince, "aus easy@work übernommen");
         SetString("Sprache", emp.LanguageCode, master.LanguageCode, v => emp.LanguageCode = v);
         SetString("Nationalität", emp.Nationality, master.Nationality, v => emp.Nationality = v);
         if (master.NationalityId.HasValue && emp.NationalityId != master.NationalityId.Value)
@@ -2502,8 +2505,12 @@ public class EasyAtWorkEmployeeSyncService
                     // offenem Umzugsdatum anlegen (easy bleibt Adress-Master).
                     var altPlzUp = emp.ZipCode; var altOrtUp = emp.City; var altKantonUp = emp.CantonCode;
                     var altStrasseUp = emp.Street;   // Walter 20.08.2026
+                    var altZivUp = emp.MaritalStatus;
                     ApplyDiffs(emp, row.Diffs, master);
                     await ErfasseWohnortWechselAsync(emp, altPlzUp, altOrtUp, altKantonUp, altStrasseUp, ct);
+                    // Zivilstand-Historie (Walter 04.09.2026)
+                    if (ZivilstandHistorieService.Norm(altZivUp) != ZivilstandHistorieService.Norm(emp.MaritalStatus))
+                        await new ZivilstandHistorieService(_db).NachfuehrenAsync(emp.Id, altZivUp, emp.MaritalStatus, emp.MaritalStatusSince, "aus easy@work übernommen");
                     // Nachtarbeit: Beginn aus easy, Ende gerechnet (Walter 26.07.2026).
                     if (master.NightWorkExamIssued.HasValue)
                     {

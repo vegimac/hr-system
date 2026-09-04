@@ -747,10 +747,23 @@ public class EmployeesController : ControllerBase
 
         // ── ALV / Zwischenverdienst ───────────────────────────────────────
         if (dto.AhvNummer  is not null) employee.SocialSecurityNumber = dto.AhvNummer == "" ? null : dto.AhvNummer;
+        var zivilstandAlt = employee.MaritalStatus;
         if (dto.MaritalStatus is not null) employee.MaritalStatus = dto.MaritalStatus == "" ? null : dto.MaritalStatus;
 
         // ── Erweiterte Zivilstand-Angaben (allgemein) ────────────────────
         if (dto.MaritalStatusSinceSet) employee.MaritalStatusSince = dto.MaritalStatusSince;
+        // Zivilstand-Historie nachführen (Walter 04.09.2026): Wechsel des
+        // Zivilstands → Eintrag ab «Zivilstand seit» (sonst heute).
+        if (dto.MaritalStatus is not null
+            && Services.ZivilstandHistorieService.Norm(zivilstandAlt) != Services.ZivilstandHistorieService.Norm(employee.MaritalStatus))
+        {
+            try
+            {
+                await new Services.ZivilstandHistorieService(_context)
+                    .NachfuehrenAsync(employee.Id, zivilstandAlt, employee.MaritalStatus, employee.MaritalStatusSince, "aus MA-Maske");
+            }
+            catch { /* Historie best-effort */ }
+        }
         if (dto.SeparatedSinceSet)     employee.SeparatedSince     = dto.SeparatedSince;
         // Konfession → QST Kirchensteuer nachziehen (Walter 01.08.2026).
         // Sync läuft bei jedem Save der Religion mit (auch wenn der Wert

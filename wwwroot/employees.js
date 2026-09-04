@@ -1698,7 +1698,10 @@ function loadUebersichtTab() {
 
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
-                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}</div>
+                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}
+                    <button type="button" class="emp-field-docbtn" title="Zivilstand-Historie (Walter 04.09.2026)" onclick="openZivilstandHistorie(${emp.id})"
+                            style="margin-left:6px;background:#f8f7f4;border:1px solid #d5d0c6;color:#6b6152;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;font-size:11px;font-weight:600;line-height:1">🕘</button>
+                </div>
             </div>
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
             <input id="ov-maritalStatusSince" class="ov-softin" type="date" value="${toDateInput(emp.maritalStatusSince)}" onchange="ovDirty()"></div>
@@ -16701,3 +16704,110 @@ async function maAenderungenOeffnen(employeeId) {
     }
 }
 window.maAenderungenOeffnen = maAenderungenOeffnen;
+
+
+// ══════════════════════════════════════════════════════════════════════
+// Zivilstand-Historie (Walter 04.09.2026): Zivilstand mit Gültig-ab — für
+// QST-Alt-Einträge («damals verheiratet»). Wird beim Wechsel automatisch
+// nachgeführt; hier ergänzen/korrigieren.
+// ══════════════════════════════════════════════════════════════════════
+const ZIV_OPTIONEN = [
+    ['ledig', 'Ledig'], ['verheiratet', 'Verheiratet'], ['getrennt', 'Getrennt'],
+    ['geschieden', 'Geschieden'], ['verwitwet', 'Verwitwet'],
+    ['eingetragene_partnerschaft', 'Eingetragene Partnerschaft'], ['aufgeloeste_partnerschaft', 'Aufgelöste Partnerschaft'],
+];
+let _zivEmpId = null;
+
+function _zivEnsureModal() {
+    if (document.getElementById('zivModal')) return;
+    const inp = 'width:100%;margin-top:3px;padding:7px 10px;border:1px solid rgba(60,55,48,0.18);border-radius:8px;font-size:13px;background:#fff;box-sizing:border-box;font-family:inherit;color:#3f3f3f';
+    const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
+    const div = document.createElement('div');
+    div.id = 'zivModal';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.innerHTML = `
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
+        <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🕘 Zivilstand-Historie</div>
+        <div id="zivMaName" style="font-size:12px;color:#8b8b8b;margin-bottom:12px"></div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr 1.4fr auto;gap:10px 12px;align-items:end;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.12);border-radius:10px;padding:10px 12px">
+            <label style="${lbl}">Zivilstand<select id="zivNeu" style="${inp}">${ZIV_OPTIONEN.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
+            <label style="${lbl}">Gültig ab <span style="font-weight:400">(leer = seit jeher)</span><input id="zivAb" type="date" style="${inp}"></label>
+            <label style="${lbl}">Bemerkung<input id="zivBem" style="${inp}" placeholder="z.B. Heirat, Scheidungsurteil"></label>
+            <button onclick="zivAdd()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;height:36px">+ Eintrag</button>
+        </div>
+        <div id="zivListe" style="margin-top:12px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+            <button onclick="document.getElementById('zivModal').style.display='none'"
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Schliessen</button>
+        </div>
+    </div>`;
+    div.addEventListener('click', (e) => { if (e.target === div) div.style.display = 'none'; });
+    document.body.appendChild(div);
+}
+
+async function openZivilstandHistorie(empId) {
+    if (!empId) return;
+    _zivEnsureModal();
+    _zivEmpId = empId;
+    const nameEl = document.getElementById('zivMaName');
+    if (nameEl && selectedEmployee)
+        nameEl.textContent = `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''} — aktuell ${formatMaritalStatus(selectedEmployee.zivilstand ?? selectedEmployee.maritalStatus) || '–'}${selectedEmployee.maritalStatusSince ? ' seit ' + formatDate(selectedEmployee.maritalStatusSince) : ''}`;
+    document.getElementById('zivAb').value = '';
+    document.getElementById('zivBem').value = '';
+    document.getElementById('zivModal').style.display = 'block';
+    await zivLoad();
+}
+
+async function zivLoad() {
+    const el = document.getElementById('zivListe');
+    if (!el || !_zivEmpId) return;
+    let list = [];
+    try {
+        const r = await fetch(`/api/employees/${_zivEmpId}/zivilstand`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) { el.innerHTML = `<div style="color:#b91c1c;font-size:12.5px">Kein Zugriff (HTTP ${r.status}).</div>`; return; }
+        list = await r.json();
+    } catch (e) { el.innerHTML = `<div style="color:#b91c1c;font-size:12.5px">Fehler: ${esc(e.message)}</div>`; return; }
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    if (!list.length) {
+        el.innerHTML = `<div style="font-size:12.5px;color:#8b8b8b;padding:8px 2px">Noch keine Historie — der aktuelle Zivilstand gilt «seit jeher». Ein früherer Stand lässt sich oben nachtragen (z.B. «Verheiratet» ohne Datum = seit jeher, dann «Geschieden» ab Scheidungsdatum).</div>`;
+        return;
+    }
+    const sorted = [...list].sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')) || ((b.id || 0) - (a.id || 0)));
+    el.innerHTML = sorted.map((h, i) => `
+        <div style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#3f3f3f;padding:9px 12px;margin-bottom:6px;border-radius:10px;background:${i === 0 ? '#fff' : 'rgba(255,255,255,0.5)'};box-shadow:0 1px 4px rgba(60,55,48,0.08);${i === 0 ? '' : 'opacity:.8'}">
+            <span style="flex-shrink:0;font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 9px;${i === 0 ? 'color:#166534;background:#dcfce7' : 'color:#6b6152;background:#ece9e2'}">${i === 0 ? 'aktuell' : 'früher'}</span>
+            <div style="flex:1;min-width:0">
+                <div style="font-weight:600">${esc(formatMaritalStatus(h.zivilstand) || h.zivilstand)}</div>
+                <div style="color:#8b8b8b;font-size:12px">${h.gueltigAb ? 'ab ' + formatDate(h.gueltigAb) : 'seit jeher'}${h.gueltigBis ? ' bis ' + formatDate(h.gueltigBis) : ''}${h.bemerkung ? ' · ' + esc(h.bemerkung) : ''}</div>
+            </div>
+            ${isAdmin ? `<button onclick="zivDelete(${h.id})" title="Eintrag löschen" style="flex-shrink:0;background:#fff;border:1px dashed #fca5a5;color:#991b1b;border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer">🗑</button>` : ''}
+        </div>`).join('');
+}
+
+async function zivAdd() {
+    if (!_zivEmpId) return;
+    const body = {
+        zivilstand: document.getElementById('zivNeu').value,
+        gueltigAb: document.getElementById('zivAb').value || null,
+        bemerkung: document.getElementById('zivBem').value.trim() || null,
+    };
+    try {
+        const r = await fetch(`/api/employees/${_zivEmpId}/zivilstand`, { method: 'POST', headers: ah(), body: JSON.stringify(body) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(j.message || j.error || ('Fehler HTTP ' + r.status)); return; }
+        document.getElementById('zivAb').value = '';
+        document.getElementById('zivBem').value = '';
+        await zivLoad();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+async function zivDelete(id) {
+    if (!_zivEmpId || !id) return;
+    const ok = typeof liquidConfirm === 'function' ? await liquidConfirm('Diesen Historie-Eintrag löschen?', { yesLabel: 'Löschen' }) : confirm('Eintrag löschen?');
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/employees/${_zivEmpId}/zivilstand/${id}`, { method: 'DELETE', headers: ah() });
+        if (!r.ok) { alert('Fehler HTTP ' + r.status); return; }
+        await zivLoad();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}

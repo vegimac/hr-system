@@ -218,6 +218,7 @@ builder.Services.AddScoped<VersandFreigabeService>();
 builder.Services.AddScoped<EmailService>();
 builder.Services.AddScoped<MitarbeiterMailService>();
 builder.Services.AddScoped<QstKantonswechselService>();
+builder.Services.AddScoped<ZivilstandHistorieService>();
 // Rückläufer aus dem bounce@-Postfach abholen (Walter-Vorgabe 01.09.2026).
 // Der Hintergrunddienst prüft bei jedem Durchgang selber, ob ein Postfach
 // hinterlegt und der Haken gesetzt ist — er darf also immer registriert sein.
@@ -1071,6 +1072,22 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ix_bewerbungsgespraech_filiale_status ON bewerbungsgespraech (company_profile_id, status);
         -- «An HR senden» (Walter 03.09.2026): Verknüpfung zum angelegten Kandidaten
         ALTER TABLE bewerbungsgespraech ADD COLUMN IF NOT EXISTS kandidat_id integer;
+    ");
+
+    // ── Zivilstand-Historie (Walter 04.09.2026): Zivilstand mit Gültig-ab —
+    // QST-Erfassung zum Stichtag braucht den damaligen Zivilstand.
+    // Platzierung: VOR SchemaCheckService.Pruefe (sonst «fehlende Tabelle»).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS employee_zivilstand_history (
+            id          serial PRIMARY KEY,
+            employee_id integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            zivilstand  text NOT NULL,
+            gueltig_ab  date,
+            bemerkung   text,
+            created_at  timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_zivilstand_history_employee
+            ON employee_zivilstand_history (employee_id);
     ");
 
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).

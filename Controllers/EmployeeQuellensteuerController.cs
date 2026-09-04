@@ -760,12 +760,14 @@ public class EmployeeQuellensteuerController : ControllerBase
         var a = await WohnadresseAmAsync(employeeId, d);
         if (a == null) return NotFound();
         var kanton = (a.CantonCode ?? "").Trim().ToUpperInvariant();
+        var (ziv, zivSeit, zivAusHist) = await new ZivilstandHistorieService(_db).AmAsync(employeeId, d);
         return Ok(new
         {
             street = a.Street, zipCode = a.ZipCode, city = a.City, cantonCode = kanton.Length > 0 ? kanton : null,
             kantonName = kanton.Length > 0 && KantonNamen.TryGetValue(kanton, out var kn) ? kn : null,
             country = a.Country, ausHistorie = a.AusHistorie,
             gueltigAb = a.GueltigAb?.ToString("yyyy-MM-dd"), gueltigBis = a.GueltigBis?.ToString("yyyy-MM-dd"),
+            zivilstand = ziv, zivilstandSeit = zivSeit?.ToString("yyyy-MM-dd"), zivilstandAusHistorie = zivAusHist,
             stichtag = d.ToString("yyyy-MM-dd"),
         });
     }
@@ -963,10 +965,14 @@ public class EmployeeQuellensteuerController : ControllerBase
         var kinder   = familie.Where(f => f.MemberType == "Kind")
             .OrderBy(f => f.DateOfBirth).ThenBy(f => f.Id).ToList();
 
+        // Zivilstand AM STICHTAG (Walter 04.09.2026): aus der Zivilstand-
+        // Historie, sonst aktueller Stand — ein Alt-Eintrag «damals
+        // verheiratet» bekommt so die richtige Herleitung.
+        var (zivAm, zivSeitAm, _) = await new ZivilstandHistorieService(_db).AmAsync(employeeId, entry.ValidFrom);
         var snap = new
         {
-            zivilstand       = e?.MaritalStatus,
-            zivilstandSeit   = e?.MaritalStatusSince?.ToString("yyyy-MM-dd"),
+            zivilstand       = zivAm ?? e?.MaritalStatus,
+            zivilstandSeit   = (zivSeitAm ?? e?.MaritalStatusSince)?.ToString("yyyy-MM-dd"),
             konfession       = e?.Religion,
             nationalitaet    = NatCode(e?.NationalityId),
             wohnLand         = string.IsNullOrWhiteSpace(e?.Country) ? "CH" : e!.Country,

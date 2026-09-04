@@ -96,6 +96,7 @@ public class AppDbContext : DbContext
     public DbSet<LohndatenEmpfaenger>       LohndatenEmpfaengers        => Set<LohndatenEmpfaenger>();
     public DbSet<CompanyProfileEmpfaenger>  CompanyProfileEmpfaengers   => Set<CompanyProfileEmpfaenger>();
     public DbSet<EmployeeWohnortHistory>    EmployeeWohnortHistories    => Set<EmployeeWohnortHistory>();
+    public DbSet<EmployeeZivilstandHistory> EmployeeZivilstandHistories => Set<EmployeeZivilstandHistory>();
     // BFS Lohnstrukturerhebung (Walter 13.08.2026)
     public DbSet<LseVersion>                LseVersions                 => Set<LseVersion>();
     public DbSet<EmployeeLse>               EmployeeLse                 => Set<EmployeeLse>();
@@ -1514,6 +1515,20 @@ public class AppDbContext : DbContext
         });
 
         // ── Wohnort-Historie (Walter 07.08.2026, QST-Umzug) ──────────────────
+        modelBuilder.Entity<EmployeeZivilstandHistory>(entity =>
+        {
+            entity.ToTable("employee_zivilstand_history");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Zivilstand).HasColumnName("zivilstand");
+            entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId);
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<EmployeeWohnortHistory>(entity =>
         {
             entity.ToTable("employee_wohnort_history");
