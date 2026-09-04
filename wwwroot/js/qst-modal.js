@@ -31,6 +31,42 @@ function qstGetHalbfamilie() {
     return r ? r.value : '';
 }
 
+
+// Gültig-ab-Handler EINMAL binden — beide Öffnungspfade (openQstModal UND
+// openQstFromTab, Walter-Bug 04.09.2026: über «+ Neue QST-Version» im Tab
+// wurde der Kopf nach dem Datumswechsel nie nachgezogen).
+function qstBindValidFromHandlers() {
+    const vfInp = document.getElementById('qstValidFrom');
+    if (vfInp && !vfInp.dataset.qstAutoBound) {
+        vfInp.addEventListener('change', async () => {
+            // Kopf: Adresse, die AM Gültig-ab galt (Wohnort-Historie) —
+            // Walter 04.09.2026: sonst lässt sich kein Alt-Eintrag (z.B.
+            // frühere Adresse Kanton LU) korrekt erfassen.
+            qstUpdateWohnortKopf(vfInp.value);
+            // Server-Vorschlag NEU holen — der Stichtag fliesst in die
+            // Kinderzählung ein. Im Edit-Modus (qstCurrentEntryId gesetzt)
+            // nur Banner aktualisieren, NIE Felder überschreiben.
+            if (qstCurrentEmployeeId) {
+                await qstFetchServerVorschlag(vfInp.value);
+                if (!qstCurrentEntryId) {
+                    qstApplyServerVorschlagToForm();
+                } else {
+                    qstRenderVorschlagBanner();
+                }
+            }
+            qstUpdateAutoKinderHint();
+        });
+        // Sofort beim Tippen/Wählen (nicht erst beim Verlassen des Felds):
+        // Kopf mit Adresse + Zivilstand zum Datum (Walter 04.09.2026).
+        let _kopfTimer = null;
+        vfInp.addEventListener('input', () => {
+            clearTimeout(_kopfTimer);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(vfInp.value)) _kopfTimer = setTimeout(() => qstUpdateWohnortKopf(vfInp.value), 250);
+        });
+        vfInp.dataset.qstAutoBound = '1';
+    }
+}
+
 async function openQstModal(employeeId, employeeData) {
     qstCurrentEmployeeId = employeeId;
     qstCurrentEntryId    = null;
@@ -72,35 +108,7 @@ async function openQstModal(employeeId, employeeData) {
     // ValidFrom-Trigger einmalig binden, damit beim Datums-Wechsel sowohl der
     // Hint als auch der Server-Vorschlag neu gerechnet werden (anderer
     // Stichtag → ggf. anderer Tarif/anders viele berechtigte Kinder).
-    const vfInp = document.getElementById('qstValidFrom');
-    if (vfInp && !vfInp.dataset.qstAutoBound) {
-        vfInp.addEventListener('change', async () => {
-            // Kopf: Adresse, die AM Gültig-ab galt (Wohnort-Historie) —
-            // Walter 04.09.2026: sonst lässt sich kein Alt-Eintrag (z.B.
-            // frühere Adresse Kanton LU) korrekt erfassen.
-            qstUpdateWohnortKopf(vfInp.value);
-            // Server-Vorschlag NEU holen — der Stichtag fliesst in die
-            // Kinderzählung ein. Im Edit-Modus (qstCurrentEntryId gesetzt)
-            // nur Banner aktualisieren, NIE Felder überschreiben.
-            if (qstCurrentEmployeeId) {
-                await qstFetchServerVorschlag(vfInp.value);
-                if (!qstCurrentEntryId) {
-                    qstApplyServerVorschlagToForm();
-                } else {
-                    qstRenderVorschlagBanner();
-                }
-            }
-            qstUpdateAutoKinderHint();
-        });
-        // Sofort beim Tippen/Wählen (nicht erst beim Verlassen des Felds):
-        // Kopf mit Adresse + Zivilstand zum Datum (Walter 04.09.2026).
-        let _kopfTimer = null;
-        vfInp.addEventListener('input', () => {
-            clearTimeout(_kopfTimer);
-            if (/^\d{4}-\d{2}-\d{2}$/.test(vfInp.value)) _kopfTimer = setTimeout(() => qstUpdateWohnortKopf(vfInp.value), 250);
-        });
-        vfInp.dataset.qstAutoBound = '1';
-    }
+    qstBindValidFromHandlers();
 
     // Aktuellen Eintrag laden und anzeigen
     const today = new Date().toISOString().slice(0, 10);

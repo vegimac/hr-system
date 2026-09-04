@@ -4914,6 +4914,12 @@ async function openQstFromTab(entryId) {
         }
     }
 
+    // Gültig-ab-Handler binden + Kopf (Adresse/Zivilstand am Datum) sofort
+    // zum aktuellen Gültig-ab laden (Walter 04.09.2026).
+    if (typeof qstBindValidFromHandlers === 'function') qstBindValidFromHandlers();
+    const vfKopf = document.getElementById('qstValidFrom');
+    if (vfKopf && vfKopf.value && typeof qstUpdateWohnortKopf === 'function') qstUpdateWohnortKopf(vfKopf.value);
+
     document.getElementById('qstSaveResult').textContent = '';
     document.getElementById('qstModal').style.display = 'flex';
 }
