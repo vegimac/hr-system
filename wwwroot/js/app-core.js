@@ -90,6 +90,25 @@ new MutationObserver((muts) => {
     }
 }).observe(document.body, { childList: true, subtree: true });
 let authToken = localStorage.getItem('hrToken');
+// Browser zu → abgemeldet (Walter 04.09.2026): Der Session-Wächter schreibt
+// jede Minute ein Lebenszeichen (hrLastAlive). Fehlt es beim Start länger als
+// 2 Minuten, war kein OneCrew-Tab mehr offen → Token verwerfen, Anmeldeseite.
+// Reload und zweiter Tab bleiben angemeldet (Lebenszeichen frisch). Kein
+// Lebenszeichen vorhanden (erster Start nach dem Update) → durchlassen.
+(function abmeldenNachBrowserSchluss() {
+    if (!authToken) return;
+    try {
+        const last = parseInt(localStorage.getItem('hrLastAlive') || '0', 10);
+        if (!last || isNaN(last)) return;
+        if (Date.now() - last > 2 * 60000) {
+            authToken = null;
+            localStorage.removeItem('hrToken');
+            localStorage.removeItem('hrTokenAdmin');
+            localStorage.removeItem('hrImpersonating');
+            localStorage.removeItem('hrLastAlive');
+        }
+    } catch (_) { /* localStorage gesperrt */ }
+})();
 let allBranches = [];
 let editingUserId = null;
 let currentBranchId = null;

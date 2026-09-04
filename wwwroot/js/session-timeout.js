@@ -33,7 +33,19 @@
     let refreshing = false;
 
     const now = () => Date.now();
-    const onActivity = () => { lastActivity = now(); };
+    // Lebenszeichen im Browser-Speicher (Walter 04.09.2026): jede Minute,
+    // bei Aktivität (max. alle 10 s) und beim Verlassen der Seite. app-core.js
+    // prüft beim Start: liegt das letzte Lebenszeichen mehr als 2 Minuten
+    // zurück, war der Browser zu → Token weg, Anmeldeseite. Ein Reload oder
+    // ein zweiter Tab bleibt angemeldet (das Lebenszeichen ist dann frisch).
+    let lastAliveWrite = 0;
+    function aliveMark(force) {
+        const t = now();
+        if (!force && t - lastAliveWrite < 10000) return;
+        lastAliveWrite = t;
+        try { localStorage.setItem('hrLastAlive', String(t)); } catch (_) {}
+    }
+    const onActivity = () => { lastActivity = now(); aliveMark(false); };
 
     // Benutzer-Objekt: `currentUser` ist ein let in app-core.js (KEINE
     // window-Eigenschaft) — Walter-Bug 04.09.2026: window.currentUser war
@@ -66,6 +78,12 @@
         }
         if (checkTimer) clearInterval(checkTimer);
         checkTimer = setInterval(check, CHECK_MS);
+        aliveMark(true);
+        if (!window._sessionAliveBound) {
+            window._sessionAliveBound = true;
+            window.addEventListener('pagehide', () => { if (checkTimer) aliveMark(true); });
+            window.addEventListener('beforeunload', () => { if (checkTimer) aliveMark(true); });
+        }
         if (!window._sessionGuardVisBound) {
             window._sessionGuardVisBound = true;
             // Nach Ruhezustand / Tab-Wechsel sofort prüfen — nicht erst beim
@@ -151,6 +169,7 @@
     }
 
     function check() {
+        aliveMark(true);
         maybeRefresh();
         heartbeat();
         const { left, reason } = remaining();
