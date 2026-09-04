@@ -1104,8 +1104,12 @@ function applyAreaVisibility() {
     // «entwicklung» (Walter 31.08.2026) ist dagegen ein normaler wählbarer
     // Bereich: admin-only als Grundvoraussetzung, zusätzlich pro Benutzer
     // an-/abwählbar. Deshalb NICHT von der Filterung ausnehmen.
+    // McAdmin (Walter 04.09.2026) ist kein eigener wählbarer Bereich — er
+    // fährt in der Sidebar mit «Mitarbeiter» mit; die Dashboard-Kachel muss
+    // dieselbe Regel haben, sonst bleibt sie unsichtbar.
     const ok = (area) => area === 'dashboard' || area === 'todos' || area === 'moments'
-        || allowed.has(area);
+        || allowed.has(area)
+        || (area === 'mcadmin' && allowed.has('mitarbeiter'));
     // Globale Sidebar: jede nav-section enthält genau einen nav-item (data-page).
     document.querySelectorAll('.sidebar .nav-section').forEach(sec => {
         const item = sec.querySelector('.nav-item[data-page]');
