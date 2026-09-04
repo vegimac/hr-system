@@ -37,10 +37,31 @@ public class QstTarifVorschlagService
         var emp = await _db.Employees
             .Where(e => e.Id == employeeId)
             .Select(e => new {
-                e.Id, e.MaritalStatus, e.Religion, e.CantonCode, e.SeparatedSince
+                e.Id, e.MaritalStatus, e.Religion, e.CantonCode, e.SeparatedSince, e.ZipCode, e.City
             })
             .FirstOrDefaultAsync();
         if (emp == null) return null;
+
+        // Steuerkanton AM STICHTAG aus der Wohnort-Historie (Walter 04.09.2026):
+        // ein Alt-Eintrag (frühere Adresse im Kanton LU) bekommt den damaligen
+        // Kanton. Nur wenn der Historie-Stand nicht die heutige Adresse ist.
+        var kantonAmStichtag = emp.CantonCode;
+        try
+        {
+            var hist = await _db.EmployeeWohnortHistories.AsNoTracking()
+                .Where(h => h.EmployeeId == employeeId && !h.DatumOffen)
+                .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+                .ToListAsync();
+            EmployeeWohnortHistory? treffer = null; bool hatNachfolger = false;
+            for (int i = 0; i < hist.Count; i++)
+                if (hist[i].GueltigAb == null || hist[i].GueltigAb <= stichtag) { treffer = hist[i]; hatNachfolger = i + 1 < hist.Count; }
+            if (treffer != null && hatNachfolger
+                && (!string.Equals(treffer.Plz ?? "", emp.ZipCode ?? "", StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(treffer.Ort ?? "", emp.City ?? "", StringComparison.OrdinalIgnoreCase))
+                && !string.IsNullOrWhiteSpace(treffer.KantonCode))
+                kantonAmStichtag = treffer.KantonCode.Trim().ToUpperInvariant();
+        }
+        catch { /* Historie optional */ }
 
         // Kinder mit allen für die Berechnung nötigen Feldern laden.
         // WICHTIG (Walter-Bug 13.07.2026, HTTP 500): DateOnly.FromDateTime darf
@@ -131,7 +152,10 @@ public class QstTarifVorschlagService
         // «verheiratet», aber «Getrennt seit» gesetzt → tarifseitig wie
         // getrennt (A bzw. H mit Kind). Wirksam ab dem FOLGEMONAT der
         // Trennung (AG-Praxis: Trennung 15.08. → neuer Tarif ab 01.09.).
-        var zivilstandEff = emp.MaritalStatus;
+        // Zivilstand AM STICHTAG aus der Zivilstand-Historie (Walter 04.09.2026:
+        // «wenn ich in der Historie verheiratet auswähle, muss C kommen, nicht H»).
+        var (zivHist, _, zivAusHist) = await new ZivilstandHistorieService(_db).AmAsync(employeeId, stichtag);
+        var zivilstandEff = zivAusHist && !string.IsNullOrWhiteSpace(zivHist) ? zivHist : emp.MaritalStatus;
         if (emp.SeparatedSince.HasValue)
         {
             var trennungAb = new DateOnly(emp.SeparatedSince.Value.Year, emp.SeparatedSince.Value.Month, 1)
@@ -144,7 +168,7 @@ public class QstTarifVorschlagService
         return QstTarifVorschlagLogic.Berechne(
             zivilstand:   zivilstandEff,
             religion:     emp.Religion,
-            steuerkanton: emp.CantonCode,
+            steuerkanton: kantonAmStichtag,
             kinder:       kinder,
             stichtag:     stichtag,
             tarifTabelle: tarife,
