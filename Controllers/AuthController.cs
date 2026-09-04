@@ -216,7 +216,13 @@ public class AuthController : ControllerBase
 
         // Session-Policy aus den Token-Claims (am Login fixiert → bleibt über
         // Seiten-Reload konsistent). Fallback auf die effektiven DB-Werte.
-        var idleClaim    = int.TryParse(User.FindFirst("idle_timeout_minutes")?.Value, out var ic) ? ic : EffectiveIdleTimeout(user);
+        // Inaktivitäts-Sperre LIVE aus der DB (Walter 04.09.2026): eine
+        // Änderung im Benutzer gilt beim nächsten Laden — nicht erst beim
+        // nächsten Login. Im Testmodus gilt weiterhin der Wert des Admins.
+        var impClaimMe = User.Claims.FirstOrDefault(c => c.Type == "impersonated_by" || c.Type.EndsWith("impersonated_by"));
+        var policyUserMe = impClaimMe != null && int.TryParse(impClaimMe.Value, out var impIdMe)
+            ? (await _context.AppUsers.FindAsync(impIdMe) ?? user) : user;
+        var idleClaim    = EffectiveIdleTimeout(policyUserMe);
         var maxClaim     = int.TryParse(User.FindFirst("max_session_minutes")?.Value, out var mc) ? mc : EffectiveMaxSession(user);
         var sessionStart = User.FindFirst("session_started_at")?.Value;
         var loginAtMe    = User.FindFirst("login_at")?.Value ?? sessionStart;

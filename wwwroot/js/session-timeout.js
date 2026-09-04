@@ -112,6 +112,12 @@
             tokenIssuedMs = isNaN(issued) ? t : issued;
             const maxMin = parseInt(j.maxSessionMinutes, 10) || Math.round((maxEndMs - tokenIssuedMs) / 60000);
             maxEndMs = tokenIssuedMs + maxMin * 60000;
+            // Inaktivitäts-Wert live übernehmen (Admin hat ihn evtl. geändert).
+            const idleMin = parseInt(j.idleTimeoutMinutes, 10);
+            if (!isNaN(idleMin)) {
+                idleMs = idleMin > 0 ? idleMin * 60000 : Number.POSITIVE_INFINITY;
+                if (window.currentUser) window.currentUser.idleTimeoutMinutes = idleMin;
+            }
             const hard = j.hardEndAt ? new Date(j.hardEndAt).getTime() : NaN;
             if (!isNaN(hard)) hardEndMs = hard;
             if (window.currentUser) {
