@@ -92,6 +92,13 @@ async function openQstModal(employeeId, employeeData) {
             }
             qstUpdateAutoKinderHint();
         });
+        // Sofort beim Tippen/Wählen (nicht erst beim Verlassen des Felds):
+        // Kopf mit Adresse + Zivilstand zum Datum (Walter 04.09.2026).
+        let _kopfTimer = null;
+        vfInp.addEventListener('input', () => {
+            clearTimeout(_kopfTimer);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(vfInp.value)) _kopfTimer = setTimeout(() => qstUpdateWohnortKopf(vfInp.value), 250);
+        });
         vfInp.dataset.qstAutoBound = '1';
     }
 
