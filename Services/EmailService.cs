@@ -415,7 +415,9 @@ public class EmailService
                     builder.Attachments.Add(name, data, MimeTypVon(name));
         mime.Body = builder.ToMessageBody();
 
+        var uhr = System.Diagnostics.Stopwatch.StartNew();
         var versuch = await UebermittelnAsync(cfg, mime);
+        uhr.Stop();
 
         if (!versuch.Ok)
         {
@@ -443,8 +445,10 @@ public class EmailService
         }
 
         await TryWriteLogAsync(kategorieCode, employeeId, to, redirectedTo, subject, anhaenge, true, null, gruppenMailLogId);
-        _log.LogInformation("[EmailService] Mail gesendet an {To} (effektiv: {Eff}) — {Subject}",
-                            to, effectiveTo, subject);
+        _log.LogInformation("[EmailService] Mail gesendet an {To} (effektiv: {Eff}) — {Subject} — SMTP {Ms} ms",
+                            to, effectiveTo, subject, uhr.ElapsedMilliseconds);
+        if (uhr.ElapsedMilliseconds > 5000)
+            _log.LogWarning("[EmailService] SMTP-Übermittlung dauerte {Ms} ms (Host {Host}:{Port})", uhr.ElapsedMilliseconds, cfg.Host, cfg.Port);
     }
 
     // ── Übermittlung + Fehler-Einstufung (Walter-Vorgabe 01.09.2026) ──────

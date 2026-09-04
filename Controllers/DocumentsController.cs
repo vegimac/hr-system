@@ -453,31 +453,47 @@ public class DocumentsController : ControllerBase
             }
         }
 
-        var empfaengerNamen = new List<string>();
-        foreach (var user in gueltige)
+        // Versand im Hintergrund (Walter 04.09.2026: «dauert sehr lange»):
+        // Jede Mail ist eine eigene SMTP-Sitzung (Verbinden, STARTTLS,
+        // Anmelden, Senden) — bei mehreren Empfängern oder einem trägen
+        // Mailserver wartete das Fenster darauf. Jetzt kommt die Antwort
+        // sofort; Erfolg/Fehler stehen im Versandprotokoll (Kategorie
+        // INTERN), vorübergehende Fehler landen in der Wiedervorlage.
+        var empfaengerListe = gueltige.Select(u =>
         {
-            var empfaenger = $"{user.FirstName} {user.LastName}".Trim();
-            if (string.IsNullOrWhiteSpace(empfaenger)) empfaenger = user.Username;
+            var name = $"{u.FirstName} {u.LastName}".Trim();
+            return (Email: u.Email!, Name: string.IsNullOrWhiteSpace(name) ? u.Username : name);
+        }).ToList();
+        var scopeFactory = HttpContext.RequestServices.GetRequiredService<IServiceScopeFactory>();
+        var log = HttpContext.RequestServices.GetRequiredService<ILogger<DocumentsController>>();
+        var empNr = emp.EmployeeNumber; var katName = typ?.KategorieName; var typName = typ?.Name;
+        var dateiName = doc.FilenameOriginal; var bemerkung = doc.Bemerkung;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var email = scope.ServiceProvider.GetRequiredService<EmailService>();
+                foreach (var e in empfaengerListe)
+                {
+                    try
+                    {
+                        await email.SendDokumentNotificationAsync(e.Email, e.Name, actorName, maName, empNr,
+                            katName, typName, dateiName, bemerkung, nachricht);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.LogWarning(ex, "[Dokument-Notify] Mail an {To} fehlgeschlagen", e.Email);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                log.LogError(ex, "[Dokument-Notify] Hintergrund-Versand abgebrochen");
+            }
+        });
 
-            var ok = await _email.SendDokumentNotificationAsync(
-                user.Email!,
-                empfaenger,
-                actorName,
-                maName,
-                emp.EmployeeNumber,
-                typ?.KategorieName,
-                typ?.Name,
-                doc.FilenameOriginal,
-                doc.Bemerkung,
-                nachricht);
-
-            if (ok) empfaengerNamen.Add(empfaenger);
-        }
-
-        if (empfaengerNamen.Count == 0)
-            return StatusCode(500, new { error = "Mail-Versand fehlgeschlagen — bitte SMTP-Einstellungen prüfen." });
-
-        return Ok(new { ok = true, empfaenger = empfaengerNamen });
+        return Ok(new { ok = true, empfaenger = empfaengerListe.Select(e => e.Name).ToList(), imHintergrund = true });
     }
 
     /// <summary>

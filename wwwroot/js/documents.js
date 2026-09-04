@@ -2018,7 +2018,7 @@ async function dokAskNotifyUser(docId, uploadBemerkung) {
             close();
             if (typeof showToast === 'function') {
                 const wer = empfaenger.length ? empfaenger.join(', ') : userIds.length + ' Benutzer';
-                showToast(`✓ Mitteilung gesendet an ${wer}`, 'success');
+                showToast(`✓ Mitteilung geht raus an ${wer} — Ergebnis im Versandprotokoll`, 'success');
             }
         } catch (err) {
             statusEl.style.color = '#b91c1c';
