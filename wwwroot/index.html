@@ -9254,7 +9254,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260904j"></script>
+<script src="employees.js?v=20260904k"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9626,7 +9626,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div><span style="color:#64748b">Wohnort:</span> <span id="qstWohnortDisplay" style="font-weight:500">–</span></div>
             <div><span style="color:#64748b">Kanton:</span> <span id="qstKantonDisplay" style="font-weight:500">–</span></div>
             <div><span style="color:#64748b">Nationalität:</span> <span id="qstNatDisplay" style="font-weight:500">–</span></div>
-            <div><span style="color:#64748b">Zivilstand:</span> <span id="qstZivilstandDisplay" style="font-weight:500">–</span></div>
+            <div><span style="color:#64748b">Zivilstand:</span> <span id="qstZivilstandDisplay" style="font-weight:500">–</span>
+                <button type="button" class="qst-warum-btn" style="margin-left:8px;padding:1px 9px;font-size:10.5px" onclick="openZivilstandHistorie(qstCurrentEmployeeId)" title="Zivilstand-Historie">🕘 Historie</button></div>
         </div>
     </div>
 
@@ -9674,9 +9675,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
             </div>
             <div>
-                <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">aus easy@work</span></label>
+                <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">am Gültig-ab</span>
+                    <button type="button" class="qst-warum-btn" style="margin-left:8px;padding:1px 9px;font-size:10.5px" onclick="openZivilstandHistorie(qstCurrentEmployeeId)" title="Zivilstand-Historie — Stand am Gültig-ab ergänzen/korrigieren">🕘 Historie</button></label>
                 <input type="text" id="qstZivilstandAnzeige" class="qst-inp qst-ro" readonly tabindex="-1"
-                       title="Der Zivilstand kommt aus easy@work — Änderungen dort erfassen.">
+                       title="Zivilstand, der am Gültig-ab galt (Zivilstand-Historie) — ändern über «Historie».">
             </div>
             <div>
                 <label class="qst-lbl">Zivilstand seit <span class="qst-ro-hint">MA-Maske</span></label>

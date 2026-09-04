@@ -1699,8 +1699,7 @@ function loadUebersichtTab() {
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
                 <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}
-                    <button type="button" class="emp-field-docbtn" title="Zivilstand-Historie (Walter 04.09.2026)" onclick="openZivilstandHistorie(${emp.id})"
-                            style="margin-left:6px;background:#f8f7f4;border:1px solid #d5d0c6;color:#6b6152;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;font-size:11px;font-weight:600;line-height:1">🕘</button>
+                    <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>
                 </div>
             </div>
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.maritalSince','Zivilstand seit')}</div>
@@ -16724,7 +16723,7 @@ function _zivEnsureModal() {
     const lbl = 'display:block;font-size:11.5px;font-weight:600;color:#8b8b8b';
     const div = document.createElement('div');
     div.id = 'zivModal';
-    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:320;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
+    div.style.cssText = 'display:none;position:fixed;inset:0;z-index:9700;background:rgba(40,36,30,0.38);backdrop-filter:blur(2px)';
     div.innerHTML = `
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:min(640px,94vw);max-height:92vh;overflow:auto;background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 25px 60px rgba(60,55,48,0.22);padding:22px 24px">
         <div style="font-size:15px;font-weight:700;color:#3f3f3f;margin-bottom:4px">🕘 Zivilstand-Historie</div>
@@ -16737,12 +16736,23 @@ function _zivEnsureModal() {
         </div>
         <div id="zivListe" style="margin-top:12px"></div>
         <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
-            <button onclick="document.getElementById('zivModal').style.display='none'"
+            <button onclick="zivClose()"
                     style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;border-radius:999px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">Schliessen</button>
         </div>
     </div>`;
-    div.addEventListener('click', (e) => { if (e.target === div) div.style.display = 'none'; });
+    div.addEventListener('click', (e) => { if (e.target === div) zivClose(); });
     document.body.appendChild(div);
+}
+
+function zivClose() {
+    const m = document.getElementById('zivModal');
+    if (m) m.style.display = 'none';
+    // QST-Modal offen? → Kopf (Zivilstand am Stichtag) neu laden.
+    try {
+        const vf = document.getElementById('qstValidFrom');
+        if (vf && vf.value && typeof qstUpdateWohnortKopf === 'function' && typeof qstCurrentEmployeeId !== 'undefined' && qstCurrentEmployeeId)
+            qstUpdateWohnortKopf(vf.value);
+    } catch (_) {}
 }
 
 async function openZivilstandHistorie(empId) {
