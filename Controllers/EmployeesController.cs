@@ -1432,6 +1432,11 @@ public class EmployeesController : ControllerBase
             partnerDatenFehlen  = result.PartnerDatenFehlen,
             partnerDatenMaengel = result.PartnerDatenMaengel,
             tarifWarnungen      = result.TarifWarnungen,
+            // Walter 04.09.2026: Heirat mit CH/C — QST-Erfassung läuft noch über
+            // den Befreiungsbeginn hinaus → «per … beenden» im Banner.
+            offeneQstErfassungId = result.OffeneQstErfassungId,
+            qstEndeVorschlag     = result.QstEndeVorschlag?.ToString("yyyy-MM-dd"),
+            befreiungAb          = result.BefreiungAb?.ToString("yyyy-MM-dd"),
             stichtag = date
         });
     }

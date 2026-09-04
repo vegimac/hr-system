@@ -457,6 +457,41 @@ public class EmployeeQuellensteuerController : ControllerBase
     }
 
     // PUT /api/employees/{employeeId}/quellensteuer/{id}
+    public sealed class BeendenDto { public DateOnly ValidTo { get; set; } public string? Grund { get; set; } }
+
+    /// <summary>
+    /// Offene QST-Version per Datum beenden (Walter 04.09.2026): Heirat mit
+    /// CH/C-Partner → QST endet per Monatsende der Heirat (KS 45). Systemisch
+    /// gesetztes Enddatum wie bei Folge-Eintrag/Umzug — PUT ignoriert ValidTo.
+    /// Gesperrt, wenn ein definitiv abgeschlossener Lohnmonat NACH dem neuen
+    /// Enddatum die Version noch verwendet hat.
+    /// </summary>
+    [HttpPost("{id:int}/beenden")]
+    public async Task<IActionResult> Beenden(int employeeId, int id, [FromBody] BeendenDto dto)
+    {
+        var entry = await _db.EmployeeQuellensteuer.FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
+        if (entry is null) return NotFound();
+        if (entry.ValidTo != null)
+            return Conflict(new { error = "QST_ABGESCHLOSSEN", message = $"Diese QST-Version ist bereits per {entry.ValidTo:dd.MM.yyyy} beendet." });
+        if (dto.ValidTo < entry.ValidFrom)
+            return BadRequest(new { error = "ENDE_VOR_BEGINN", message = "Das Enddatum liegt vor dem Beginn der Version." });
+
+        var verwendetIn = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        var nachEnde = verwendetIn.Where(m => m > new DateOnly(dto.ValidTo.Year, dto.ValidTo.Month, 1)).ToList();
+        if (nachEnde.Count > 0)
+            return Conflict(new
+            {
+                error = "LOHN_EDIT_LOCKED",
+                message = $"Nach dem {dto.ValidTo:dd.MM.yyyy} gibt es definitiv abgeschlossene Löhne mit dieser QST-Version (bis {nachEnde.Last():MM.yyyy}). "
+                        + "Die Version kann nicht rückwirkend beendet werden — bitte über eine QST-Korrektur lösen."
+            });
+
+        entry.ValidTo = dto.ValidTo;
+        await _db.SaveChangesAsync();
+        _log.LogInformation("[QST] Version {Id} von MA {Emp} per {Bis} beendet ({Grund})", id, employeeId, dto.ValidTo, dto.Grund);
+        return Ok(new { ok = true, id, validTo = dto.ValidTo.ToString("yyyy-MM-dd") });
+    }
+
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int employeeId, int id, [FromBody] EmployeeQuellensteuer dto)
     {

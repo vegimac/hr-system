@@ -82,7 +82,14 @@ public class QstPflichtCheckService
         // C⇒Partner erwerbstätig, B⇒Partner nicht erwerbstätig, H⇒alleinstehend
         // + Kind im selben Haushalt (+ Konkubinat nur mit höherem Einkommen),
         // A mit Kinderziffer nur mit Behördenbewilligung («Speziell bewilligt»).
-        List<string>? TarifWarnungen = null
+        List<string>? TarifWarnungen = null,
+        // Walter 04.09.2026 (KS 45, Heirat mit CH/C): die Befreiung gilt ab dem
+        // Monat NACH der Heirat — läuft die QST-Erfassung noch über diesen
+        // Zeitpunkt hinaus, hier die Id + das Enddatum, das sie bekommen soll
+        // (Monatsende der Heirat). Frontend bietet «per … beenden» an.
+        int? OffeneQstErfassungId = null,
+        DateOnly? QstEndeVorschlag = null,
+        DateOnly? BefreiungAb = null
     );
 
     public async Task<QstPflichtCheckResult> CheckAsync(int employeeId, DateOnly stichtag)
@@ -246,12 +253,43 @@ public class QstPflichtCheckService
                 var partnerWohnsitz = partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse);
                 bool wohnsitzBefreit = partnerWohnsitz == PartnerWohnsitz.Schweiz
                     || (partnerWohnsitz == PartnerWohnsitz.Unklar && UnklarerWohnsitzBefreit);
+
+                // Walter 04.09.2026 (KS 45): Heiratet ein QST-pflichtiger MA
+                // eine Person mit CH-Pass oder C-Ausweis, endet die Quellen-
+                // besteuerung per ENDE des Heiratsmonats — der Heiratsmonat
+                // selbst ist noch pflichtig, die Befreiung gilt ab dem 1. des
+                // Folgemonats. Heirat 7.1.2026 → QST bis 31.1.2026, befreit ab
+                // 1.2.2026. Ohne erfasstes Heiratsdatum: Befreiung sofort.
+                DateOnly? heiratBefreiungAb = emp.MaritalStatusSince.HasValue
+                    ? new DateOnly(emp.MaritalStatusSince.Value.Year, emp.MaritalStatusSince.Value.Month, 1).AddMonths(1)
+                    : null;
+                bool heiratsmonatNochPflichtig = heiratBefreiungAb.HasValue && stichtag < heiratBefreiungAb.Value;
+                if (heiratsmonatNochPflichtig)
+                    wohnsitzHinweis = $"Heirat am {emp.MaritalStatusSince:dd.MM.yyyy} — die Ehegatten-Befreiung gilt ab {heiratBefreiungAb:dd.MM.yyyy} (Heiratsmonat noch quellensteuerpflichtig, KS 45).";
+                bool wohnsitzBefreitJetzt = wohnsitzBefreit && !heiratsmonatNochPflichtig;
+
+                // Läuft eine QST-Erfassung über den Befreiungsbeginn hinaus?
+                // → Vorschlag: per Monatsende der Heirat beenden.
+                async Task<(int? Id, DateOnly? Ende)> OffeneErfassungAsync()
+                {
+                    if (!heiratBefreiungAb.HasValue) return (null, null);
+                    var ab = heiratBefreiungAb.Value;
+                    var offen = await _db.EmployeeQuellensteuer.AsNoTracking()
+                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom < ab && (q.ValidTo == null || q.ValidTo >= ab))
+                        .OrderByDescending(q => q.ValidFrom).Select(q => (int?)q.Id).FirstOrDefaultAsync();
+                    return (offen, offen == null ? null : ab.AddDays(-1));
+                }
                 // 4. Spouse Schweizer? (0a: nur befreiend, wenn der MA selbst
                 // CH-ansässig ist — bei Auslands-Wohnsitz bleibt er pflichtig)
-                if (!istAusland && wohnsitzBefreit && string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+                if (!istAusland && wohnsitzBefreitJetzt && string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase))
+                {
+                    var (offenId, offenEnde) = await OffeneErfassungAsync();
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-CH",
-                        "Verheiratet mit Schweizer/in — nicht QST-pflichtig.",
-                        SpouseDokumentFehlt: spouseDokFehlt);
+                        "Verheiratet mit Schweizer/in — nicht QST-pflichtig."
+                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {emp.MaritalStatusSince:dd.MM.yyyy})." : ""),
+                        SpouseDokumentFehlt: spouseDokFehlt,
+                        OffeneQstErfassungId: offenId, QstEndeVorschlag: offenEnde, BefreiungAb: heiratBefreiungAb);
+                }
 
                 // 5. Spouse C-Ausweis (mit gültigem Ablauf)? (0a: dito)
                 bool spouseHatC = spouse.PermitType?.Code == "C"
@@ -261,16 +299,21 @@ public class QstPflichtCheckService
                 // Hinweis nur, wenn die Befreiung AUSSCHLIESSLICH an der
                 // Wohnsituation scheitert — der Partner also CH-Bürger ist
                 // oder einen gültigen C-Ausweis hat.
-                if (!wohnsitzBefreit
+                if (!wohnsitzBefreit && wohnsitzHinweis == null
                     && (string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase) || spouseHatC))
                     wohnsitzHinweis = partnerWohnsitz == PartnerWohnsitz.Ausland
                         ? "Der Ehepartner wohnt im Ausland — die Ehegatten-Befreiung (CH/C) gilt deshalb NICHT."
                         : "Wohnsituation des Ehepartners unklar (weder Haushalt noch Häkchen «in der Schweiz lebend» "
                           + "noch Adresse erfasst) — bis zur Klärung mit der Steuerbehörde bleibt der MA pflichtig.";
-                if (!istAusland && wohnsitzBefreit && spouseHatC)
+                if (!istAusland && wohnsitzBefreitJetzt && spouseHatC)
+                {
+                    var (offenId, offenEnde) = await OffeneErfassungAsync();
                     return new QstPflichtCheckResult(false, false, false, "Ehepartner-C",
-                        "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig.",
-                        SpouseDokumentFehlt: spouseDokFehlt);
+                        "Verheiratet mit C-Ausweis-Inhaber — nicht QST-pflichtig."
+                        + (heiratBefreiungAb.HasValue ? $" Befreit seit {heiratBefreiungAb:dd.MM.yyyy} (Heirat {emp.MaritalStatusSince:dd.MM.yyyy})." : ""),
+                        SpouseDokumentFehlt: spouseDokFehlt,
+                        OffeneQstErfassungId: offenId, QstEndeVorschlag: offenEnde, BefreiungAb: heiratBefreiungAb);
+                }
             }
         }
 

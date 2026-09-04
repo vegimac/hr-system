@@ -2597,7 +2597,22 @@ function renderQstPflichtBanner(pflicht) {
                <button onclick="spouseDokuUnlink(${empId}, ${pflicht.spouseFamilyMemberId})" style="background:transparent;border:1px solid #16a34a;color:#16a34a;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer">Verknüpfung aufheben</button>`
             : '';
 
-        return spouseWarn + empWarn + `
+        // Walter 04.09.2026 (KS 45): Heirat mit CH/C-Partner — die QST-
+        // Erfassung läuft noch über den Befreiungsbeginn hinaus. Ein Klick
+        // beendet sie per Monatsende der Heirat.
+        const heiratWarn = (pflicht.offeneQstErfassungId && pflicht.qstEndeVorschlag) ? `
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-left:4px solid #d97706;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:18px">💍</span>
+            <div style="flex:1;min-width:200px">
+                <div style="font-weight:700;color:#92400e;font-size:13px">QST-Erfassung läuft noch — endet durch die Heirat per ${formatDate(pflicht.qstEndeVorschlag)}</div>
+                <div style="color:#a16207;font-size:12px;margin-top:2px">Die Quellensteuerpflicht endet per Ende des Heiratsmonats (KS 45); befreit ab ${formatDate(pflicht.befreiungAb)}. Der Lohn rechnet bereits ohne QST — die Erfassung sollte zur sauberen Historie beendet werden.</div>
+            </div>
+            <button onclick="qstErfassungBeenden(${empId}, ${pflicht.offeneQstErfassungId}, '${pflicht.qstEndeVorschlag}')" style="background:#d97706;color:#fff;border:none;padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-left:auto;white-space:nowrap">
+                Erfassung per ${formatDate(pflicht.qstEndeVorschlag)} beenden
+            </button>
+        </div>` : '';
+
+        return spouseWarn + empWarn + heiratWarn + `
         <div style="background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <span style="font-size:18px">✅</span>
             <div style="flex:1;min-width:200px">
@@ -4145,6 +4160,24 @@ async function qstBefreiungSpeichern() {
     }
     document.getElementById('qstBefreiungModal').remove();
     loadQuellensteuerTab(empId);
+}
+
+// QST-Version per Datum beenden (Walter 04.09.2026, Heirat mit CH/C).
+async function qstErfassungBeenden(empId, qstId, validTo) {
+    if (!empId || !qstId || !validTo) return;
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm(`QST-Erfassung per ${formatDate(validTo)} beenden?`, { yesLabel: 'Beenden' })
+        : confirm(`QST-Erfassung per ${formatDate(validTo)} beenden?`);
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/employees/${empId}/quellensteuer/${qstId}/beenden`, {
+            method: 'POST', headers: ah(), body: JSON.stringify({ validTo, grund: 'Heirat mit CH/C-Partner — Befreiung (KS 45)' }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { alert(j.message || j.error || ('Fehler HTTP ' + r.status)); return; }
+        if (typeof showToast === 'function') showToast(`✓ QST-Erfassung per ${formatDate(validTo)} beendet`, 'success');
+        loadQuellensteuerTab(empId);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }
 
 // Walter-Vorgabe 20.08.2026: roter Banner «Ehepartner-Angaben unvollständig»
