@@ -274,6 +274,33 @@ public class QstPflichtCheckService
             }
         }
 
+        // Walter-Frage 04.09.2026 («Ehemann ist CH, warum trotzdem QST-Pflicht?»):
+        // Ist ein Ehepartner mit CH-Pass oder C-Ausweis erfasst, die
+        // Befreiung greift aber nicht, dann sagt der Banner WARUM — sonst
+        // sucht HR den Fehler in der Familie statt beim Zivilstand/Wohnsitz.
+        if (wohnsitzHinweis == null && (istAusland || !verheiratetUngetrennt))
+        {
+            var ehe = await _db.EmployeeFamilyMembers.AsNoTracking()
+                .Include(f => f.NationalityRef).Include(f => f.PermitType)
+                .Where(f => f.EmployeeId == employeeId && f.MemberType == "Ehepartner" && f.DateOfDeath == null)
+                .OrderByDescending(f => f.Id)
+                .Select(f => new { Nat = f.NationalityRef!.Code, Permit = f.PermitType!.Code, f.FirstName })
+                .FirstOrDefaultAsync();
+            bool eheBefreiend = ehe != null
+                && (string.Equals(ehe.Nat, "CH", StringComparison.OrdinalIgnoreCase) || ehe.Permit == "C");
+            if (eheBefreiend)
+            {
+                var wer = string.IsNullOrWhiteSpace(ehe!.FirstName) ? "Ein Ehepartner" : $"Ehepartner {ehe.FirstName}";
+                if (istAusland)
+                    wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der MA wohnt aber im Ausland ({wohnLand}), darum gilt die Ehegatten-Befreiung nicht.";
+                else if (getrenntLebend)
+                    wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der MA lebt aber getrennt, darum gilt die Ehegatten-Befreiung nicht mehr.";
+                else
+                    wohnsitzHinweis = $"{wer} mit CH/C ist erfasst — der Zivilstand des MA ist aber «{(string.IsNullOrWhiteSpace(emp.MaritalStatus) ? "leer" : emp.MaritalStatus)}». "
+                                    + "Die Ehegatten-Befreiung gilt nur bei Zivilstand «verheiratet» oder «eingetragene Partnerschaft» — bitte im Personal-Tab korrigieren.";
+            }
+        }
+
         // ── Partner-Daten-Vollständigkeit (Walter-Vorgabe 20.08.2026) ──
         // Ab hier ist der MA QST-pflichtig (keine Befreiung gegriffen). Ist er
         // verheiratet, MÜSSEN die Ehepartner-Angaben komplett sein — sie
