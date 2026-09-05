@@ -93,13 +93,15 @@ public class ProbezeitCheckinPdfService
                         r.RelativeItem(2).Element(e => Feld(e, "FUNKTION", d.Funktion));
                         // Gespräch am: nicht vorausfüllen — abgerundeter Kasten zum
                         // Ausfüllen von Hand (Walter 05.09.2026).
-                        r.RelativeItem(1.3f).Column(c =>
+                        // Label links, grosser Kasten rechts daneben (Walter 05.09.2026);
+                        // nimmt die letzten beiden Spalten ein.
+                        r.RelativeItem(2.6f).Row(rr =>
                         {
-                            c.Item().Text("GESPRÄCH AM").FontSize(6.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
+                            rr.AutoItem().AlignMiddle().Text("GESPRÄCH AM").FontSize(6.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
                             // QuestPDF 2024.10 kennt keine runden Ecken → Kasten als SVG.
-                            c.Item().PaddingTop(2).Width(86).Height(18).Svg(RunderKasten(86, 18, 4));
+                            rr.ConstantItem(10);
+                            rr.ConstantItem(120).Height(26).Svg(RunderKasten(120, 26, 5));
                         });
-                        r.RelativeItem(1.3f);
                     });
 
                     // ── DU ──────────────────────────────────────────────────
