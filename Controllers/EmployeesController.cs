@@ -1328,7 +1328,7 @@ public class EmployeesController : ControllerBase
         {
             if (runde == 2)
                 return BadRequest(new { message = "Die Probezeit darf nur einmal verlängert werden." });
-            var altesEnde = anst.ProbationEndDate.Value.Date;
+            var altesEnde = anst!.ProbationEndDate!.Value.Date;
             var neuesEnde = altesEnde.AddMonths(1);
             // OR 335b Abs. 2: Probezeit gesamthaft höchstens 3 Monate.
             var maxEnde = anst.ContractStartDate.Date.AddMonths(3).AddDays(-1);
@@ -1336,7 +1336,7 @@ public class EmployeesController : ControllerBase
                 return BadRequest(new { message = $"Verlängerung nicht möglich: Die Probezeit darf gesamthaft höchstens 3 Monate dauern (OR Art. 335b) — spätestens bis {maxEnde:dd.MM.yyyy}, verlängert wäre sie bis {neuesEnde:dd.MM.yyyy}." });
             emp.ProbezeitEndeVorVerlaengerung = altesEnde;
             emp.ProbezeitVerlaengertAm = heute;
-            anst.ProbationEndDate = neuesEnde;
+            anst!.ProbationEndDate = neuesEnde;
         }
 
         emp.ProbezeitEntscheid = art;
