@@ -930,8 +930,15 @@ async function init() {
 // setzt sessionStorage.hrDesktop — gilt nur für diesen Tab.
 function isMobileGeraet() {
     try {
-        return window.matchMedia('(max-width: 767px)').matches
-            && window.matchMedia('(pointer: coarse)').matches;
+        // Safari «Desktop-Website anfordern» meldet ein breites Fenster und
+        // einen Mac-UserAgent — dann greift nur noch die Bildschirmgrösse
+        // (screen.*) bzw. Touch. iPad (Breite ≥ 768) bleibt beim Programm.
+        const ua = navigator.userAgent || '';
+        const uaPhone = /iPhone|iPod|Android.+Mobile|Windows Phone/i.test(ua);
+        const coarse = window.matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 1;
+        const schmal = window.matchMedia('(max-width: 767px)').matches;
+        const kleinerScreen = Math.min(screen.width || 9999, screen.height || 9999) <= 500;
+        return uaPhone || (coarse && (schmal || kleinerScreen));
     } catch (_) { return false; }
 }
 function mobileUmleitung(role) {
