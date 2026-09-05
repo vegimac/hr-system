@@ -52,7 +52,7 @@ public class ProbezeitCheckinPdfService
         QuestPDF.Settings.License = LicenseType.Community;
         // 1:1 nach Walters Vorlage «OneCrew_Probezeit_Gemeinsam_weiter_v25» (05.09.2026).
         var skalaDu  = new[] { "Ja", "Eher ja", "Eher nein", "Nein" };
-        var skalaWir = new[] { "Stark", "Gut", "Noch üben", "Noch Training" };
+        var skalaWir = new[] { "Stark", "Gut", "Braucht Unterstützung" };
 
         return Document.Create(container =>
         {
@@ -140,8 +140,6 @@ public class ProbezeitCheckinPdfService
         }).GeneratePdf();
     }
 
-    private const float SpaltenBreite = 68f;
-
     /// <summary>Kleines Label in Grau-Versalien, Wert darunter — keine Linien.</summary>
     private static void Feld(IContainer c, string label, string? wert)
     {
@@ -167,8 +165,10 @@ public class ProbezeitCheckinPdfService
                 col.Item().PaddingTop(i == 0 ? 8f : zeilenAbstand).Row(r =>
                 {
                     r.RelativeItem().Text(aussagen[i]).FontSize(9.5f);
+                    // AutoItem statt fester Spalte: «Braucht Unterstützung» ist
+                    // breiter als «Ja» — gleiche Wörter → Zeilen fluchten trotzdem.
                     foreach (var w in skala)
-                        r.ConstantItem(SpaltenBreite).AlignCenter().Text(w).FontSize(9.5f);
+                        r.AutoItem().PaddingLeft(26).Text(w).FontSize(9.5f);
                 });
             }
         });
