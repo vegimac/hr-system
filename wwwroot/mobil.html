@@ -1122,7 +1122,7 @@
         window._msgDocId = docId;
         document.getElementById('msgTitle').textContent = d.originalFilename || 'Mitteilung';
         document.getElementById('msgMeta').textContent = [vonText(d), fmtDate(d.uploadedAt)].filter(Boolean).join(' · ');
-        document.getElementById('msgBody').textContent = d.messageBody || '';
+        document.getElementById('msgBody').textContent = d.messageBody || (d.mimeType ? '(Dokument ohne Text — unten öffnen)' : '');
         const a = document.getElementById('msgAnhang');
         a.style.display = d.mimeType ? '' : 'none';
         a.textContent = '📎 ' + (d.bemerkung || 'Anhang öffnen');
@@ -1138,7 +1138,9 @@
         try { history.replaceState(null, '', location.pathname); } catch (_) {}
         if (!d) return;
         switchTab('in');
-        if (d.messageBody) pfShowMessage(id); else pfOpen(id);
+        // Immer die Mitteilungs-Karte zeigen (mit «Anhang öffnen») — pfOpen
+        // ohne Klick würde die Seite selbst durch das Dokument ersetzen.
+        pfShowMessage(id);
     }
     function closeMsg() { document.getElementById('msgOverlay').style.display = 'none'; }
 
