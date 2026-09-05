@@ -283,13 +283,46 @@ public class EmployeeQuellensteuerController : ControllerBase
                     message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
         }
 
+        // Walter 05.09.2026: Die Tarifbestätigung ist das Mass aller Dinge —
+        // beim Verknüpfen wird der bestätigte Tarif erfasst: NUR der erste
+        // Buchstabe (A/B/C/H/…) und der letzte (Kirchensteuer Y/N). Die
+        // Kinderziffer kommt weiterhin aus der Familie. Ändert Tarifdaten →
+        // gleiche Lohn-Sperre wie beim Bearbeiten.
+        var buchstabe = (dto.TarifBuchstabe ?? "").Trim().ToUpperInvariant();
+        if (dto.DokumentId.HasValue && buchstabe.Length > 0)
+        {
+            if (buchstabe.Length != 1 || !char.IsLetter(buchstabe[0]))
+                return BadRequest(new { error = "TARIF_INVALID", message = "Tarif: nur ein Buchstabe (z.B. B)." });
+            var verwendetIn = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+            if (IstVersionVerwendet(entry, verwendetIn))
+            {
+                var bis = VerwendetBis(entry, verwendetIn);
+                return Conflict(new
+                {
+                    error   = "LOHN_EDIT_LOCKED",
+                    message = $"Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet (bis {bis:MM.yyyy}) und ist eingefroren — bitte eine neue QST-Version mit dem bestätigten Tarif anlegen."
+                });
+            }
+            entry.TarifCode = buchstabe;
+            if (dto.Kirchensteuer.HasValue) entry.Kirchensteuer = dto.Kirchensteuer.Value;
+            entry.QstCode = $"{entry.TarifCode}{entry.AnzahlKinder}{(entry.Kirchensteuer ? "Y" : "N")}";
+            entry.Prozentsatz = null;   // Satz wird aus der Tariftabelle neu gerechnet
+        }
+
         entry.DokumentId = dto.DokumentId;
         entry.UpdatedAt  = DateTime.Now;
         await _db.SaveChangesAsync();
-        return Ok(new { id = entry.Id, dokumentId = entry.DokumentId });
+        return Ok(new { id = entry.Id, dokumentId = entry.DokumentId, tarifCode = entry.TarifCode, kirchensteuer = entry.Kirchensteuer, qstCode = entry.QstCode });
     }
 
-    public class QstDokumentDto { public int? DokumentId { get; set; } }
+    public class QstDokumentDto
+    {
+        public int? DokumentId { get; set; }
+        /// <summary>Bestätigter Tarif-Buchstabe (erster Buchstabe des Codes), optional.</summary>
+        public string? TarifBuchstabe { get; set; }
+        /// <summary>Bestätigte Kirchensteuer (letzter Buchstabe Y/N), optional.</summary>
+        public bool? Kirchensteuer { get; set; }
+    }
 
     /// <summary>
     /// Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026, analog
@@ -927,6 +960,9 @@ public class EmployeeQuellensteuerController : ControllerBase
             .Select(x => x.Religion)
             .FirstOrDefaultAsync();
 
+        // Walter 05.09.2026: mit Tarifbestätigung (DokumentId) gilt das Y/N der
+        // Behörde — nicht die Ableitung aus der Konfession.
+        if (entry.DokumentId != null) return;
         entry.Kirchensteuer = QstTarifVorschlagLogic.IstKirchensteuerPflichtig(religion);
 
         // K4.4 (Bauplan Punkt 4, Walter 29.08.2026): der KANTON hat das

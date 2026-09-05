@@ -3020,8 +3020,14 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
             const qstId = ctx.qstEntryId;
             if (!qstId) { alert('QST-Eintrag-ID fehlt.'); return; }
+            // Walter 05.09.2026: Die Bestätigung ist das Mass aller Dinge —
+            // bestätigten Tarif erfassen: erster Buchstabe + Kirchensteuer.
+            // Die Kinderziffer bleibt aus der Familie.
+            const eintrag = (window._empQstCache || []).find(x => x.id === qstId);
+            const best = await qstTarifBestaetigungDialog(eintrag);
+            if (!best) return;
             url  = `/api/employees/${empId}/quellensteuer/${qstId}/dokument`;
-            body = JSON.stringify({ dokumentId });
+            body = JSON.stringify({ dokumentId, tarifBuchstabe: best.buchstabe, kirchensteuer: best.kirchensteuer });
         } else if (kind === 'behoerden_befreiung') {
             // Gültig-ab/bis ermitteln: erst formInfo (Upload-Pfad), sonst aus
             // dem Dokument selbst (Direct-Pick).
@@ -4345,6 +4351,11 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
             && vorschlagCode && vorschlagCode === code) {
             warnZeilenHtml += `<div style="font-size:12px;color:#15803d;margin-top:5px;line-height:1.45">✓ ${esc(vorschlag.konkubinatInfo)}</div>`;
         }
+        // Walter 05.09.2026: Tarifbestätigung der Behörde ist das Mass aller
+        // Dinge — weicht sie vom Vorschlag ab, das sichtbar sagen (grün).
+        if (isCurrent && e.dokumentId && vorschlagCode && vorschlagCode !== code) {
+            warnZeilenHtml += `<div style="font-size:12px;color:#15803d;margin-top:5px;line-height:1.45">✓ Tarif gemäss Tarifbestätigung der Steuerbehörde — gilt anstelle des Vorschlags (${esc(vorschlagCode)}).</div>`;
+        }
         const kinder   = e.anzahlKinder   ?? 0;
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
@@ -4501,6 +4512,49 @@ function darlehenAusQst(summe, ids, monate) {
 // (gleiche Auswahl wie Dashboard-Warnung qst_kanton_mismatch).
 // Tarifbestätigung von der QST-Version lösen (Walter 21.08.2026) —
 // das Dokument selbst bleibt im Doku-Tab erhalten.
+// Dialog «Bestätigter Tarif» beim Verknüpfen der Tarifbestätigung
+// (Walter 05.09.2026): nur Tarif-Buchstabe und Kirchensteuer — die
+// Kinderziffer ergibt sich weiterhin aus der Familie.
+function qstTarifBestaetigungDialog(eintrag) {
+    return new Promise(resolve => {
+        document.getElementById('qstBestModal')?.remove();
+        const tarife = [['A','A – Alleinstehend'],['B','B – Verheiratet, Alleinverdiener'],['C','C – Verheiratet, Doppelverdiener'],
+                        ['D','D – Nebenerwerb'],['H','H – Alleinerziehend'],['L','L – Grenzgänger'],['M','M – Grenzgänger verheiratet'],
+                        ['N','N – Grenzgänger Nebenerwerb'],['P','P – Pauschale'],['Q','Q – Grenzgänger alleinerz.']];
+        const curT = (eintrag?.tarifCode || '').toUpperCase();
+        const curK = !!eintrag?.kirchensteuer;
+        const kinder = eintrag?.anzahlKinder ?? 0;
+        const ov = document.createElement('div');
+        ov.id = 'qstBestModal';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.innerHTML = `
+            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:440px;width:100%;padding:20px 22px">
+                <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Tarif gemäss Tarifbestätigung</div>
+                <div style="font-size:12.5px;color:#646464;margin-bottom:14px">Die Bestätigung der Steuerbehörde gilt anstelle unseres Vorschlags. Erfasse nur den ersten Buchstaben und die Kirchensteuer — die Kinderziffer (${kinder}) kommt weiterhin aus der Familie.</div>
+                <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Tarif (erster Buchstabe)</label>
+                <select id="qstBestTarif" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;margin-bottom:12px">
+                    ${tarife.map(([v,l]) => `<option value="${v}" ${v === curT ? 'selected' : ''}>${l}</option>`).join('')}
+                </select>
+                <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Kirchensteuer (letzter Buchstabe)</label>
+                <select id="qstBestKirche" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;margin-bottom:16px">
+                    <option value="N" ${!curK ? 'selected' : ''}>N – ohne Kirchensteuer</option>
+                    <option value="Y" ${curK ? 'selected' : ''}>Y – mit Kirchensteuer</option>
+                </select>
+                <div style="display:flex;justify-content:flex-end;gap:10px">
+                    <button id="qstBestNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                    <button id="qstBestYes" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Verknüpfen &amp; übernehmen</button>
+                </div>
+            </div>`;
+        document.body.appendChild(ov);
+        const done = v => { ov.remove(); resolve(v); };
+        ov.querySelector('#qstBestNo').onclick = () => done(null);
+        ov.querySelector('#qstBestYes').onclick = () => done({
+            buchstabe: ov.querySelector('#qstBestTarif').value,
+            kirchensteuer: ov.querySelector('#qstBestKirche').value === 'Y'
+        });
+    });
+}
+
 async function qstTarifDokUnlink(entryId) {
     if (!(await liquidConfirm('Verknüpfung zur Tarifbestätigung lösen? Das Dokument selbst bleibt erhalten.'))) return;
     try {

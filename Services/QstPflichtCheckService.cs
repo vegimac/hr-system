@@ -416,7 +416,10 @@ public class QstPflichtCheckService
         bool hasErfassung = erfassung != null;
 
         // ── Tarif-Plausibilität (Walter-Vorgabe 20.08.2026, nur WARNUNGEN) ──
-        var tarifWarnungen = hasErfassung
+        // Walter 05.09.2026: Liegt eine Tarifbestätigung der Steuerbehörde am
+        // Eintrag (DokumentId), ist SIE das Mass aller Dinge — keine
+        // Plausibilitäts-Warnungen mehr gegen den bestätigten Tarif.
+        var tarifWarnungen = hasErfassung && erfassung!.DokumentId == null
             // getrennt-lebende Verheiratete zählen tarifseitig NICHT mehr als
             // verheiratet (A/H statt B/C, Walter 26.08.2026) — der
             // Ehepartner-Eintrag im Familie-Tab ist dabei KORREKT und löst
