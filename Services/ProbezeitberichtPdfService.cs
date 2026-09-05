@@ -37,6 +37,19 @@ public class ProbezeitberichtPdfService
     private const string Soft = "#6b6152";
     private const string Line = "#9a958c";
 
+    // OneCrew-Logo oben rechts (Walter 05.09.2026) — Assets/onecrew-logo.png.
+    private static byte[]? _logoBytes;
+    private static byte[]? LogoBytes
+    {
+        get
+        {
+            if (_logoBytes != null) return _logoBytes;
+            var pfad = Path.Combine(AppContext.BaseDirectory, "Assets", "onecrew-logo.png");
+            if (File.Exists(pfad)) _logoBytes = File.ReadAllBytes(pfad);
+            return _logoBytes;
+        }
+    }
+
     public byte[] Generate(ProbezeitberichtInput d)
     {
         QuestPDF.Settings.License = LicenseType.Community;
@@ -50,6 +63,18 @@ public class ProbezeitberichtPdfService
                 SetupPage(page);
                 page.Content().Column(col =>
                 {
+                    // Kopfzeile: Titel links, OneCrew-Logo rechts (Walter 05.09.2026).
+                    var logo = LogoBytes;
+                    if (logo != null)
+                    {
+                        col.Item().Row(r =>
+                        {
+                            r.RelativeItem().AlignMiddle().Text("Probezeit Gespräch")
+                                .Bold().FontSize(16f).FontColor(Dark);
+                            r.ConstantItem(118).AlignRight().AlignMiddle().Height(31).Image(logo).FitHeight();
+                        });
+                    }
+                    else
                     col.Item().AlignCenter().Text("Probezeit Gespräch")
                         .FontSize(16f).Bold().FontColor(Dark);
 
