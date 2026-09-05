@@ -28,7 +28,6 @@ public class ProbezeitCheckinPdfService
     private const string Dark  = "#27251F";
     private const string Soft  = "#6b6152";
     private const string Line  = "#9a958c";
-    private const string Shade = "#f3f1ed";
 
     private static byte[]? _logoBytes;
     private static byte[]? LogoBytes
@@ -54,7 +53,7 @@ public class ProbezeitCheckinPdfService
         QuestPDF.Settings.License = LicenseType.Community;
         // Positive Antwort zuerst (Walter 05.09.2026).
         var skalaMa = new[] { "Ja", "Eher ja", "Eher nein", "Nein" };
-        var skalaGf = new[] { "Stark", "Gut", "Auf gutem Weg", "Unterstützung nötig" };
+        var skalaGf = new[] { "Stark", "Gut", "Auf gutem Weg", "Braucht Hilfe" };
 
         return Document.Create(container =>
         {
@@ -79,12 +78,10 @@ public class ProbezeitCheckinPdfService
                         });
                         var logo = LogoBytes;
                         if (logo != null)
-                            // FitWidth statt Höhe+FitHeight: Bei 32 pt Höhe wäre das Logo
-                            // 122 pt breit — breiter als die Spalte → QuestPDF-Layoutfehler (500).
                             r.ConstantItem(120).AlignRight().AlignTop().Image(logo).FitWidth();
                     });
 
-                    // ── Stammdaten-Box ──────────────────────────────────────
+                    // ── Stammdaten (ohne Linien; leer = fein gestrichelt) ──
                     col.Item().PaddingTop(10).Column(c =>
                     {
                         c.Item().Row(r =>
@@ -109,47 +106,42 @@ public class ProbezeitCheckinPdfService
                         });
                     });
 
-                    // ── 1 · So erlebe ich meinen Start (MA) ─────────────────
-                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "1", "SO ERLEBE ICH MEINEN START", "Mitarbeiter/in"));
-                    col.Item().PaddingTop(4).Element(e => SkalaKopf(e, skalaMa));
-                    var fragenMa = new[]
+                    // ── DU · Wie war deine erste Zeit bei uns? ──────────────
+                    col.Item().PaddingTop(12).Element(e => Block(e, "DU", "Wie war deine erste Zeit bei uns?", "Kreise ein, was für dich passt.", skalaMa, new[]
                     {
-                        "Ich fühle mich im Team willkommen.",
-                        "Ich weiss, was von mir erwartet wird.",
-                        "Ich bekomme Unterstützung, wenn ich sie brauche.",
-                        "Die Arbeit gefällt mir.",
-                        "Ich kann mir vorstellen, weiterhin Teil des Teams zu sein."
-                    };
-                    for (var i = 0; i < fragenMa.Length; i++)
-                        col.Item().Element(e => Zeile(e, fragenMa[i], 4, i % 2 == 0));
-                    col.Item().PaddingTop(5).Element(e => Schreibzeile(e, "Das gefällt mir besonders gut:"));
-                    col.Item().PaddingTop(3).Element(e => Schreibzeile(e, "Das könnte für mich besser sein:"));
+                        "Ich fühle mich wohl im Team.",
+                        "Ich weiss, was ich tun soll.",
+                        "Wenn ich Hilfe brauche, bekomme ich sie.",
+                        "Mir gefällt meine Arbeit.",
+                        "Ich möchte weiter hier arbeiten."
+                    }));
+                    col.Item().PaddingTop(6).Element(e => Bemerkung(e));
 
-                    // ── 2 · So erleben wir dich (GF) ────────────────────────
-                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "2", "SO ERLEBEN WIR DICH", "Manager / GF"));
-                    col.Item().PaddingTop(4).Element(e => SkalaKopf(e, skalaGf));
-                    var fragenGf = new[]
+                    // ── WIR · So haben wir dich erlebt ──────────────────────
+                    col.Item().PaddingTop(12).Element(e => Block(e, "WIR", "So haben wir dich erlebt", "Wir kreisen ein, was passt.", skalaGf, new[]
                     {
                         "Arbeitsleistung", "Zuverlässigkeit", "Lernbereitschaft",
                         "Verhalten gegenüber Gästen", "Zusammenarbeit im Team", "Selbständigkeit"
-                    };
-                    for (var i = 0; i < fragenGf.Length; i++)
-                        col.Item().Element(e => Zeile(e, fragenGf[i], 4, i % 2 == 0));
-                    col.Item().PaddingTop(5).Element(e => Schreibzeile(e, "Das machst du bereits richtig gut:"));
-                    col.Item().PaddingTop(3).Element(e => Schreibzeile(e, "Daran möchten wir gemeinsam noch arbeiten:"));
+                    }));
+                    col.Item().PaddingTop(6).Element(e => Bemerkung(e));
 
-                    // ── 3 · Wie geht es weiter? ─────────────────────────────
-                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "3", "WIE GEHT ES WEITER?", "gemeinsamer Entscheid"));
+                    // ── GEMEINSAM · Wie geht es weiter? ─────────────────────
+                    col.Item().PaddingTop(12).Column(c =>
+                    {
+                        c.Item().Text("GEMEINSAM").FontSize(8.5f).Bold().FontColor(Soft).LetterSpacing(0.08f);
+                        c.Item().PaddingTop(1).Text("Wie geht es weiter?").FontSize(14f).Bold();
+                        c.Item().PaddingTop(1).Text("Kreise ein, was gilt.").FontSize(9f).FontColor(Soft);
+                    });
                     col.Item().PaddingTop(6).Row(r =>
                     {
-                        r.RelativeItem().Element(e => EntscheidBox(e, "MITARBEITER/IN", new[]
+                        r.RelativeItem().Element(e => EntscheidSpalte(e, "Mitarbeiter/in", new[]
                         {
                             ("Ja, ich möchte Teil des Teams bleiben.", false),
                             ("Ich bin mir noch nicht ganz sicher.", false),
                             ("Nein, ich möchte nicht weiterarbeiten.", false),
                         }));
-                        r.ConstantItem(12);
-                        r.RelativeItem().Element(e => EntscheidBox(e, "MANAGER / GF", new[]
+                        r.ConstantItem(20);
+                        r.RelativeItem().Element(e => EntscheidSpalte(e, "Manager / GF", new[]
                         {
                             ("Wir möchten mit dir weiterarbeiten — Probezeit bestanden.", d.Entscheid == "weiter"),
                             ("Weiterarbeit mit Entwicklungszielen (siehe Fokus).", false),
@@ -158,12 +150,10 @@ public class ProbezeitCheckinPdfService
                     });
                     col.Item().PaddingTop(6).Element(e => Schreibzeile(e, "Unser gemeinsamer Fokus für die nächsten Wochen:"));
 
-                    // ── Unterschriften ──────────────────────────────────────
-                    // Unterschriften ohne Striche (Walter 05.09.2026): Schreibraum,
-                    // darunter Name + Rolle — wie beim Arbeitsvertrag.
+                    // ── Unterschriften: Schreibraum, darunter Name + Rolle ──
                     col.Item().PaddingTop(10).Column(c =>
                     {
-                        c.Item().Height(38);
+                        c.Item().Height(34);
                         c.Item().Row(r =>
                         {
                             r.RelativeItem().Column(cc =>
@@ -184,7 +174,62 @@ public class ProbezeitCheckinPdfService
         }).GeneratePdf();
     }
 
-    private const float SpaltenBreite = 62f;
+    private const float SpaltenBreite = 72f;
+
+    /// <summary>
+    /// Antwort-Block ohne Kästchen (Walter 05.09.2026): Kicker, Titel, Hinweis,
+    /// Skala-Kopf, dann pro Aussage die Antwortwörter zum Einkreisen.
+    /// </summary>
+    private static void Block(IContainer c, string kicker, string titel, string hinweis, string[] skala, string[] aussagen)
+    {
+        c.Column(col =>
+        {
+            col.Item().Text(kicker).FontSize(8.5f).Bold().FontColor(Soft).LetterSpacing(0.08f);
+            col.Item().PaddingTop(1).Text(titel).FontSize(14f).Bold();
+            col.Item().PaddingTop(1).Row(r =>
+            {
+                r.RelativeItem().AlignBottom().Text(hinweis).FontSize(9f).FontColor(Soft);
+                foreach (var w in skala)
+                    r.ConstantItem(SpaltenBreite).AlignCenter().AlignBottom().Text(w).FontSize(8.5f).Bold().FontColor(Soft);
+            });
+            foreach (var a in aussagen)
+            {
+                col.Item().PaddingTop(6).Row(r =>
+                {
+                    r.RelativeItem().Text(a).FontSize(10f);
+                    foreach (var w in skala)
+                        r.ConstantItem(SpaltenBreite).AlignCenter().Text(w).FontSize(9.5f);
+                });
+            }
+        });
+    }
+
+    /// <summary>Zwei gestrichelte Zeilen «Bemerkung».</summary>
+    private static void Bemerkung(IContainer c)
+    {
+        c.Column(col =>
+        {
+            col.Item().Text("Bemerkung").FontSize(9.5f).Bold();
+            col.Item().Height(20);
+            col.Item().Element(Gestrichelt);
+            col.Item().Height(20);
+            col.Item().Element(Gestrichelt);
+        });
+    }
+
+    /// <summary>Entscheid-Spalte: Optionen als Text zum Einkreisen; vorentschieden = fett mit Haken.</summary>
+    private static void EntscheidSpalte(IContainer c, string titel, (string Text, bool Gewaehlt)[] optionen)
+    {
+        c.Column(col =>
+        {
+            col.Item().Text(titel).FontSize(8.5f).Bold().FontColor(Soft);
+            foreach (var (text, gewaehlt) in optionen)
+            {
+                var t = col.Item().PaddingTop(5).Text(gewaehlt ? "✓  " + text : text).FontSize(10f);
+                if (gewaehlt) t.Bold();
+            }
+        });
+    }
 
     /// <summary>
     /// Stammdaten-Feld: vorausgefüllt → nur Label + Wert, keine Linie.
@@ -221,39 +266,6 @@ public class ProbezeitCheckinPdfService
         });
     }
 
-    private static void Abschnitt(IContainer c, string nr, string titel, string wer)
-    {
-        // Ohne schwarze Nummern-Kachel (Walter 05.09.2026) — Nummer als Text.
-        c.Row(r =>
-        {
-            r.RelativeItem().AlignMiddle().Text($"{nr}   {titel}").FontSize(12f).Bold().LetterSpacing(0.04f);
-            r.AutoItem().AlignMiddle().Text(wer).FontSize(8.5f).FontColor(Soft);
-        });
-    }
-
-    private static void SkalaKopf(IContainer c, string[] skala)
-    {
-        c.Row(r =>
-        {
-            r.RelativeItem();
-            foreach (var s in skala)
-                r.ConstantItem(SpaltenBreite).AlignCenter().AlignBottom()
-                 .Text(s).FontSize(7.5f).FontColor(Soft);
-        });
-    }
-
-    private static void Zeile(IContainer c, string text, int anzahl, bool schattiert)
-    {
-        var box = schattiert ? c.Background(Shade) : c;
-        box.PaddingVertical(2.5f).PaddingLeft(4).Row(r =>
-        {
-            r.RelativeItem().AlignMiddle().Text(text).FontSize(9.5f);
-            for (var i = 0; i < anzahl; i++)
-                r.ConstantItem(SpaltenBreite).AlignCenter().AlignMiddle().Element(e =>
-                    e.Width(11).Height(11).Border(0.9f).BorderColor(Dark));
-        });
-    }
-
     private static void Schreibzeile(IContainer c, string? label)
     {
         c.Column(col =>
@@ -265,23 +277,4 @@ public class ProbezeitCheckinPdfService
         });
     }
 
-    private static void EntscheidBox(IContainer c, string titel, (string Text, bool Kreuz)[] optionen)
-    {
-        c.Column(col =>
-        {
-            col.Item().Text(titel).FontSize(8.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
-            foreach (var (text, kreuz) in optionen)
-            {
-                col.Item().PaddingTop(6).Row(r =>
-                {
-                    r.ConstantItem(17).AlignTop().PaddingTop(1).Element(e =>
-                    {
-                        var b = e.Width(11).Height(11).Border(0.9f).BorderColor(Dark);
-                        if (kreuz) b.AlignCenter().AlignMiddle().Text("X").FontSize(8.5f).Bold();
-                    });
-                    r.RelativeItem().Text(text).FontSize(9.5f);
-                });
-            }
-        });
-    }
-}
+
