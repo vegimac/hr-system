@@ -1316,7 +1316,7 @@
             try {
                 const [r1, r2] = await Promise.all([
                     fetch('/api/mailbox/postfaecher', { headers: ah() }),
-                    fetch('/api/mailbox/user-recipients', { headers: ah() }),
+                    fetch('/api/mailbox/user-recipients?includeSelf=true', { headers: ah() }),
                 ]);
                 _postfaecher = r1.ok ? await r1.json() : [];
                 _userRecipients = r2.ok ? await r2.json() : [];
@@ -1329,7 +1329,10 @@
         if (_postfaecher.some(p => (p.type || '').toUpperCase() === 'HR')) opts.push('<option value="HR">HR-Postfach</option>');
         if (_userRecipients.length) opts.push('<option value="USER">Ein Benutzer …</option>');
         sel.innerHTML = opts.join('') || '<option value="">Kein Postfach verfügbar</option>';
-        document.getElementById('upUser').innerHTML = _userRecipients.map(u => `<option value="${u.id}">${esc(u.name || u.username)}</option>`).join('');
+        // Mich selbst zuoberst (Walter 05.09.2026): Foto «an mich» zum späteren Ablegen.
+        const meId = currentUser?.id;
+        const sortiert = [..._userRecipients].sort((a, b) => (a.id === meId ? -1 : b.id === meId ? 1 : 0));
+        document.getElementById('upUser').innerHTML = sortiert.map(u => `<option value="${u.id}">${esc(u.name || u.username)}${u.id === meId ? ' (ich)' : ''}</option>`).join('');
         upZielChanged();
     }
     function closeUpload() { document.getElementById('upOverlay').style.display = 'none'; }
