@@ -44,8 +44,16 @@ public class ProbezeitberichtPdfService
         get
         {
             if (_logoBytes != null) return _logoBytes;
-            var pfad = Path.Combine(AppContext.BaseDirectory, "Assets", "onecrew-logo.png");
-            if (File.Exists(pfad)) _logoBytes = File.ReadAllBytes(pfad);
+            // Schwarzes Logo: Assets (Publish-Kopie) oder wwwroot/img (Original).
+            foreach (var pfad in new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "Assets", "onecrew-logo.png"),
+                Path.Combine(AppContext.BaseDirectory, "wwwroot", "img", "onecrew-logo.png"),
+                Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "img", "onecrew-logo.png"),
+            })
+            {
+                if (File.Exists(pfad)) { _logoBytes = File.ReadAllBytes(pfad); break; }
+            }
             return _logoBytes;
         }
     }
