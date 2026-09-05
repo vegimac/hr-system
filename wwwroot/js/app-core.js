@@ -944,7 +944,14 @@ function isMobileGeraet() {
 function mobileUmleitung(role) {
     if (!role || role === 'employee') return false;
     if (!isMobileGeraet()) return false;
-    try { if (sessionStorage.getItem('hrDesktop') === '1') return false; } catch (_) {}
+    // «Zum vollständigen Programm» gilt genau EINMAL (Merker wird hier
+    // verbraucht). Vorher blieb der Merker in der Home-Bildschirm-App
+    // hängen — iOS beendet die App nicht, sessionStorage lebte ewig weiter
+    // → das Programm kam immer wieder statt der mobilen Ansicht.
+    try {
+        if (sessionStorage.getItem('hrDesktop') === '1') { sessionStorage.removeItem('hrDesktop'); return false; }
+        if (/[?&]desktop=1/.test(location.search)) return false;
+    } catch (_) {}
     window.location.href = 'mobil.html';
     return true;
 }
