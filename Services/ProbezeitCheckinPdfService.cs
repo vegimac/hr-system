@@ -118,21 +118,22 @@ public class ProbezeitCheckinPdfService
                     col.Item().Height(40);
                     col.Item().Element(e => JaNein(e, "Wollen wir mit dir weitergehen?",
                         d.Entscheid == "weiter" ? true : d.Entscheid == "kuendigung" ? false : null));
+                });
 
-                    // ── Unterschriften ganz unten ───────────────────────────
-                    col.Item().ExtendVertical();
-                    col.Item().Row(r =>
+                // ── Unterschriften als Seitenfuss (Walter 05.09.2026): ExtendVertical
+                // im Column schob den Block auf Seite 2 — der Footer sitzt immer
+                // unten auf derselben Seite.
+                page.Footer().Row(r =>
+                {
+                    r.RelativeItem().Column(c =>
                     {
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text(string.IsNullOrWhiteSpace(d.MaName) ? " " : d.MaName).FontSize(9f);
-                            c.Item().Text("Mitarbeiter/in").FontSize(7.5f).Bold().FontColor(Soft);
-                        });
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Text(string.IsNullOrWhiteSpace(d.GefuehrtVon) ? " " : d.GefuehrtVon).FontSize(9f);
-                            c.Item().Text("Manager / GF").FontSize(7.5f).Bold().FontColor(Soft);
-                        });
+                        c.Item().Text(string.IsNullOrWhiteSpace(d.MaName) ? " " : d.MaName).FontSize(9f);
+                        c.Item().Text("Mitarbeiter/in").FontSize(7.5f).Bold().FontColor(Soft);
+                    });
+                    r.RelativeItem().Column(c =>
+                    {
+                        c.Item().Text(string.IsNullOrWhiteSpace(d.GefuehrtVon) ? " " : d.GefuehrtVon).FontSize(9f);
+                        c.Item().Text("Manager / GF").FontSize(7.5f).Bold().FontColor(Soft);
                     });
                 });
             });
