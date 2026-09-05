@@ -51,8 +51,8 @@ public class ProbezeitCheckinPdfService
     {
         QuestPDF.Settings.License = LicenseType.Community;
         // 1:1 nach Walters Vorlage «OneCrew_Probezeit_Gemeinsam_weiter_v25» (05.09.2026).
-        var skalaDu  = new[] { "Ja", "Eher ja", "Eher nein", "Nein" };
-        var skalaWir = new[] { "Stark", "Gut", "Braucht Unterstützung" };
+        var skalaDu  = new[] { "ja", "eher ja", "eher nein", "nein" };
+        var skalaWir = new[] { "stark", "gut", "braucht Unterstützung" };
 
         return Document.Create(container =>
         {
@@ -91,7 +91,14 @@ public class ProbezeitCheckinPdfService
                     {
                         r.RelativeItem(2).Element(e => Feld(e, "GESPRÄCH MIT", d.GefuehrtVon));
                         r.RelativeItem(2).Element(e => Feld(e, "FUNKTION", d.Funktion));
-                        r.RelativeItem(1.3f).Element(e => Feld(e, "GESPRÄCH AM", d.GespraechAm?.ToString("dd.MM.yyyy")));
+                        // Gespräch am: nicht vorausfüllen — abgerundeter Kasten zum
+                        // Ausfüllen von Hand (Walter 05.09.2026).
+                        r.RelativeItem(1.3f).Column(c =>
+                        {
+                            c.Item().Text("GESPRÄCH AM").FontSize(6.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
+                            c.Item().PaddingTop(2).Width(86).Height(18)
+                             .Border(0.7f).BorderColor(Soft).CornerRadius(4);
+                        });
                         r.RelativeItem(1.3f);
                     });
 
