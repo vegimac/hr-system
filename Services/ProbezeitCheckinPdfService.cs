@@ -78,7 +78,9 @@ public class ProbezeitCheckinPdfService
                         });
                         var logo = LogoBytes;
                         if (logo != null)
-                            r.ConstantItem(120).AlignRight().AlignTop().Height(32).Image(logo).FitHeight();
+                            // FitWidth statt Höhe+FitHeight: Bei 32 pt Höhe wäre das Logo
+                            // 122 pt breit — breiter als die Spalte → QuestPDF-Layoutfehler (500).
+                            r.ConstantItem(120).AlignRight().AlignTop().Image(logo).FitWidth();
                     });
 
                     // ── Stammdaten-Box ──────────────────────────────────────

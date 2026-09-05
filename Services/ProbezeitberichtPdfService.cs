@@ -79,7 +79,7 @@ public class ProbezeitberichtPdfService
                         {
                             r.RelativeItem().AlignMiddle().Text("Probezeit Gespräch")
                                 .Bold().FontSize(16f).FontColor(Dark);
-                            r.ConstantItem(118).AlignRight().AlignMiddle().Height(31).Image(logo).FitHeight();
+                            r.ConstantItem(118).AlignRight().AlignMiddle().Image(logo).FitWidth();
                         });
                     }
                     else
