@@ -3024,6 +3024,8 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             // bestätigten Tarif erfassen: erster Buchstabe + Kirchensteuer.
             // Die Kinderziffer bleibt aus der Familie.
             const eintrag = (window._empQstCache || []).find(x => x.id === qstId);
+            // Wähler zuerst schliessen (liegt auf z-index 9600 über dem Dialog).
+            document.getElementById('ausweisDokuModal')?.remove();
             const best = await qstTarifBestaetigungDialog(eintrag);
             if (!best) return;
             url  = `/api/employees/${empId}/quellensteuer/${qstId}/dokument`;
@@ -4526,7 +4528,7 @@ function qstTarifBestaetigungDialog(eintrag) {
         const kinder = eintrag?.anzahlKinder ?? 0;
         const ov = document.createElement('div');
         ov.id = 'qstBestModal';
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9700;display:flex;align-items:center;justify-content:center;padding:20px';
         ov.innerHTML = `
             <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:440px;width:100%;padding:20px 22px">
                 <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Tarif gemäss Tarifbestätigung</div>
