@@ -209,18 +209,13 @@ public class Employee
 
     /// <summary>
     /// Probezeit-Entscheid (Walter 05.09.2026): nach dem Gespräch entscheidet
-    /// der GF — «weiter» (Vertrag läuft normal weiter), «verlaengert»
-    /// (Probezeit einmalig um einen Monat verlängert → zweites Gespräch,
-    /// Felder Gespräch 2) oder «kuendigung» (Vertrag beenden → Kündigungsmaske).
-    /// NULL = noch kein Entscheid. Nach einer Verlängerung steht hier
-    /// «verlaengert», bis der Entscheid der zweiten Runde fällt.
+    /// der GF — «weiter» (Vertrag läuft normal weiter) oder «kuendigung»
+    /// (Vertrag beenden → Kündigungsmaske). NULL = noch kein Entscheid.
+    /// Keine Verlängerung: Probezeit max. 3 Monate (OR 335b), Absenzen
+    /// verlängern sie bereits automatisch.
     /// </summary>
     public string? ProbezeitEntscheid { get; set; }
     public DateTime? ProbezeitEntscheidAm { get; set; }
-    /// <summary>Datum der einmaligen Verlängerung (NULL = nie verlängert).</summary>
-    public DateTime? ProbezeitVerlaengertAm { get; set; }
-    /// <summary>Probezeit-Ende vor der Verlängerung (für Rückgängig + Historie).</summary>
-    public DateTime? ProbezeitEndeVorVerlaengerung { get; set; }
 
     /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync

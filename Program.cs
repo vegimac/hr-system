@@ -1122,14 +1122,12 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE app_user ADD COLUMN IF NOT EXISTS session_revoked_before timestamptz;
     ");
 
-    // ── Probezeit-Entscheid (Walter 05.09.2026): weiter / einmalig verlängert /
-    // Kündigung — Schritt-für-Schritt-Maske im Probezeit-Fenster.
-    // Platzierung: VOR SchemaCheckService.Pruefe.
+    // ── Probezeit-Entscheid (Walter 05.09.2026): weiter / Kündigung —
+    // Schritt-für-Schritt-Maske im Probezeit-Fenster. Keine Verlängerung
+    // (Probezeit max. 3 Monate, OR 335b). Platzierung: VOR SchemaCheckService.Pruefe.
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_entscheid TEXT;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_entscheid_am DATE;
-        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_verlaengert_am DATE;
-        ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_ende_vor_verlaengerung DATE;
     ");
 
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
@@ -1365,7 +1363,7 @@ using (var scope = app.Services.CreateScope())
         UPDATE todo_anleitung SET titel = 'Probezeitgespräch eintragen', anleitung = 'Mitarbeiter öffnen, im Kopf bei der Probezeit-Pille auf «→ eintragen»: Gesprächsdatum setzen und das unterschriebene Protokoll verknüpfen.'
          WHERE category = 'probezeit_gespraech_offen' AND anleitung = 'Das Gespräch gehört geführt und belegt, solange die Probezeit läuft. Öffne den Mitarbeiter — im Kopf steht die Probezeit-Pille mit «→ eintragen». Dort setzt du das Gesprächsdatum und verknüpfst das unterschriebene Protokoll. Ohne Beleg steht bei einer späteren Trennung Aussage gegen Aussage.';
         -- Walter 05.09.2026: Probezeit-Maske Schritt für Schritt inkl. Entscheid.
-        UPDATE todo_anleitung SET titel = 'Probezeitgespräch und Entscheid eintragen', anleitung = 'Mitarbeiter öffnen, im Kopf bei der Probezeit-Pille auf «→ eintragen». Punkt für Punkt: 1 Gesprächsformular drucken, 2 Gespräch durchführen — Datum setzen und unterschriebenes Protokoll verknüpfen, 3 Entscheid: alles gut (Vertrag läuft weiter), Probezeit einmalig um einen Monat verlängern (zweites Gespräch nötig) oder Vertrag beenden (Kündigung erfassen).'
+        UPDATE todo_anleitung SET titel = 'Probezeitgespräch und Entscheid eintragen', anleitung = 'Mitarbeiter öffnen, im Kopf bei der Probezeit-Pille auf «→ eintragen». Punkt für Punkt: 1 Gesprächsformular drucken, 2 Gespräch durchführen — Datum setzen und unterschriebenes Protokoll verknüpfen, 3 Entscheid: alles gut (Vertrag läuft weiter) oder Vertrag beenden (Kündigung erfassen) — der Entscheid steht auch auf dem Formular und wird vom Mitarbeiter mitunterschrieben.'
          WHERE category = 'probezeit_gespraech_offen' AND titel = 'Probezeitgespräch eintragen';
         UPDATE todo_anleitung SET titel = 'Lohn oder Einstufung korrigieren', anleitung = 'Zuerst prüfen, ob Funktion und Ausbildung richtig erfasst sind — oft stimmt die Einstufung nicht. Ist sie richtig, muss der Lohn rückwirkend auf den L-GAV-Mindestlohn angehoben werden.'
          WHERE category = 'minimum_wage_violation' AND anleitung = 'Der erfasste Stundenlohn liegt unter dem L-GAV-Mindestlohn für diese Funktion und Qualifikation. Prüfe zuerst, ob Funktion und Ausbildung richtig hinterlegt sind — oft stimmt nicht der Lohn, sondern die Einstufung. Ist die Einstufung korrekt, muss der Lohn angehoben werden, rückwirkend auf den Zeitpunkt der Unterschreitung. Das ist kein Ermessensentscheid: der L-GAV gilt zwingend.';

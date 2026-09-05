@@ -1180,7 +1180,7 @@ function renderEmployeeDetail(emp) {
         ? String(_hcActive.probationEndDate).slice(0, 10) : null;
     const _hcPzAktiv = !!( _hcPzEnde && _hcPzEnde >= _hcToday);
     // Walter 05.09.2026: Status = Probezeit-ENTSCHEID (weiter / Kündigung /
-    // verlängert · 2. Runde offen), nicht mehr nur «Gespräch erledigt».
+    // Kündigung offen/erfasst), nicht mehr nur «Gespräch erledigt».
     const _hcPzE = emp.probezeitEntscheid || null;
     if (_hcPzAktiv) {
         const pzStatus = _hcPzE === 'weiter'
@@ -1188,7 +1188,7 @@ function renderEmployeeDetail(emp) {
             : _hcPzE === 'kuendigung'
             ? `<span class="emp-hpz-status open">✕ Kündigung${emp.kuendigungAusgesprochenAm ? ' erfasst' : ' offen'}</span>
                <button type="button" class="emp-hpz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})">→ öffnen</button>`
-            : `<span class="emp-hpz-status open">${emp.probezeitVerlaengertAm ? 'verlängert · 2. Gespräch offen' : 'offen'}</span>
+            : `<span class="emp-hpz-status open">offen</span>
                <button type="button" class="emp-hpz-btn" onclick="event.stopPropagation();openProbezeitModal(${emp.id})"
                  title="Gesprächsformular, Gespräch bestätigen und Entscheid fällen">→ eintragen</button>`;
         _hcBadges.push(`<span class="emp-hbadge hb-prob">⏳ Probezeit bis ${formatDate(_hcPzEnde)} · ${pzStatus}</span>`);
@@ -15786,11 +15786,11 @@ function pzOpenDokuPicker(empId, kind) {
 
 // ── Probezeit-Maske Schritt für Schritt (Walter 05.09.2026) ─────────────
 // Punkt für Punkt, nicht Seite für Seite: 1 Formular drucken → 2 Gespräch
-// durchgeführt (Datum + Protokoll) → 3 Entscheid: weiter / einmalig um einen
-// Monat verlängern (→ zweite Runde mit Gespräch 2) / Kündigung.
+// durchgeführt (Datum + Protokoll) → 3 Entscheid: alles gut (weiter) oder
+// Vertrag beenden (Kündigung). Keine Verlängerung — Probezeit max. 3 Monate
+// (OR 335b), Absenzen verlängern sie bereits automatisch. Der Entscheid
+// steht auch auf dem Gesprächsformular und wird vom MA mitunterschrieben.
 const _pzFormularGeoeffnet = {};   // empId → true (nur Session, kein Backend-Feld)
-
-function _pzRunde(emp) { return emp.probezeitVerlaengertAm ? 2 : 1; }
 
 function _pzLetzterZustelltag(emp) {
     if (!emp.probationEndDate) return null;
@@ -15807,7 +15807,7 @@ function _pzChDate(d) {
     return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()}`;
 }
 
-function _pzStep(nr, state, titel, inhalt) {
+function _pzStep(nr, state, titel, inhalt, letzter) {
     // state: done | active | locked
     const circle = state === 'done'
         ? 'background:rgba(22,163,74,0.14);color:#166534;border:1.5px solid rgba(34,197,94,0.45)'
@@ -15815,12 +15815,12 @@ function _pzStep(nr, state, titel, inhalt) {
             ? 'background:#3f3f3f;color:#fff;border:1.5px solid #3f3f3f'
             : 'background:rgba(255,255,255,0.5);color:#a8a29e;border:1.5px solid rgba(139,139,139,0.3)';
     const txt = state === 'locked' ? 'color:#a8a29e' : 'color:#3f3f3f';
-    return `<div style="display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;position:relative">
-        <div style="display:flex;flex-direction:column;align-items:center;height:100%">
+    return `<div style="display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;align-items:center">
             <div style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex:0 0 auto;${circle}">${state === 'done' ? '✓' : nr}</div>
-            <div style="flex:1 1 auto;width:2px;background:rgba(139,139,139,0.22);margin:4px 0 0;min-height:14px"></div>
+            ${letzter ? '' : '<div style="flex:1 1 auto;width:2px;background:rgba(139,139,139,0.22);margin-top:4px;min-height:14px"></div>'}
         </div>
-        <div style="padding-bottom:16px;min-width:0">
+        <div style="padding-bottom:${letzter ? 4 : 16}px;min-width:0">
             <div style="font-weight:800;font-size:14px;margin:5px 0 8px;${txt}">${titel}</div>
             ${state === 'locked' ? '' : inhalt}
         </div>
@@ -15833,11 +15833,9 @@ function pzRefreshModal() {
     if (!body || !emp) return;
     const ende = emp.probationEndDate ? formatDate(emp.probationEndDate) : '–';
     const inPz = emp.probationEndDate && new Date(emp.probationEndDate) >= new Date(new Date().toDateString());
-    const runde = _pzRunde(emp);
-    const nr = runde;
-    const am = nr === 2 ? emp.probezeitGespraech2Am : emp.probezeitGespraech1Am;
-    const dokId = nr === 2 ? emp.probezeitGespraech2DokumentId : emp.probezeitGespraech1DokumentId;
-    const kind = nr === 2 ? 'probezeit_gespraech2' : 'probezeit_gespraech1';
+    const am = emp.probezeitGespraech1Am;
+    const dokId = emp.probezeitGespraech1DokumentId;
+    const kind = 'probezeit_gespraech1';
     const entscheid = emp.probezeitEntscheid || null;
     const entschieden = entscheid === 'weiter' || entscheid === 'kuendigung';
     const _td = new Date();
@@ -15846,21 +15844,17 @@ function pzRefreshModal() {
     const gespraechOk = !!(am && dokId);
     const formularOk = gespraechOk || !!am || !!_pzFormularGeoeffnet[emp.id];
 
-    // Kopf
-    let kopf = `<div style="margin-bottom:16px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline">
-            <div><div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:2px">Probezeit bis</div>
-            <div style="font-size:15px;font-weight:750;color:#3f3f3f">${ende}${inPz ? ' <span style="font-size:11.5px;font-weight:650;color:#a16207">(läuft)</span>' : ' <span style="font-size:11.5px;font-weight:650;color:#8b8b8b">(abgelaufen)</span>'}</div></div>`;
-    if (emp.probezeitVerlaengertAm) {
-        kopf += `<div style="font-size:12px;color:#a16207;font-weight:650">einmalig verlängert am ${formatDate(emp.probezeitVerlaengertAm)}${emp.probezeitEndeVorVerlaengerung ? ` · vorher bis ${formatDate(emp.probezeitEndeVorVerlaengerung)}` : ''} · 2. Runde</div>`;
-    }
-    kopf += `</div>`;
+    const kopf = `<div style="margin-bottom:16px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px">
+            <div style="font-size:11.5px;font-weight:700;color:#646464;margin-bottom:2px">Probezeit bis</div>
+            <div style="font-size:15px;font-weight:750;color:#3f3f3f">${ende}${inPz ? ' <span style="font-size:11.5px;font-weight:650;color:#a16207">(läuft)</span>' : ' <span style="font-size:11.5px;font-weight:650;color:#8b8b8b">(abgelaufen)</span>'}</div>
+        </div>`;
 
     // Schritt 1 — Formular
     const s1 = _pzStep(1, formularOk ? 'done' : 'active',
-        `Gesprächsformular ausdrucken${nr === 2 ? ' (2. Gespräch)' : ''}`,
+        'Gesprächsformular ausdrucken',
         `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button type="button" onclick="_pzFormularGeoeffnet[${emp.id}]=true;pzGenerateBericht();pzRefreshModal()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Formular öffnen / drucken</button>
-            <span style="font-size:12px;color:#646464">Ausdrucken, im Gespräch ausfüllen, von beiden unterschreiben lassen.</span>
+            <span style="font-size:12px;color:#646464">Im Gespräch ausfüllen, Entscheid ankreuzen, von beiden unterschreiben lassen.</span>
         </div>`);
 
     // Schritt 2 — Gespräch durchgeführt
@@ -15871,45 +15865,41 @@ function pzRefreshModal() {
         : `<button type="button" onclick="pzOpenDokuPicker(${emp.id},'${kind}')" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700">📄 Unterschriebenes Protokoll verknüpfen</button>
            <span style="font-size:11.5px;color:#8b8b8b">Scan unter Dokus · Mitarbeiterentwicklung · Probezeitgespräch</span>`;
     const s2 = _pzStep(2, gespraechOk ? 'done' : (formularOk ? 'active' : 'locked'),
-        `Gespräch durchgeführt${nr === 2 ? ' (2. Gespräch)' : ''}`,
+        'Gespräch durchgeführt',
         `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
             <label style="font-size:11.5px;font-weight:700;color:#646464">Durchgeführt am</label>
-            <input type="date" id="pzAm${nr}" value="${amIso}" ${entschieden ? 'disabled' : ''} style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
-                   onchange="pzSaveDate(${emp.id}, ${nr}, this.value)">
-            ${am ? `<span style="font-size:12px;color:#166534;font-weight:650">✓ ${formatDate(am)}</span>` : `<span style="font-size:11.5px;color:#8b8b8b">Datum wird beim Verknüpfen des Protokolls übernommen</span>`}
+            <input type="date" id="pzAm1" value="${amIso}" ${entschieden ? 'disabled' : ''} style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:13px;background:white"
+                   onchange="pzSaveDate(${emp.id}, 1, this.value)">
+            ${am ? `<span style="font-size:12px;color:#166534;font-weight:650">✓ ${formatDate(am)}</span>` : `<span style="font-size:11.5px;color:#8b8b8b">wird beim Verknüpfen des Protokolls übernommen</span>`}
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${dokBtns}</div>
         ${am && !dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#9f1239;font-weight:650">Datum gesetzt — bitte noch das unterschriebene Protokoll verknüpfen.</div>` : ''}
         ${!am && dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#a16207;font-weight:650">Protokoll verknüpft — bitte noch das Durchführungsdatum setzen.</div>` : ''}`);
 
-    // Schritt 3 — Entscheid
+    // Schritt 3 — Entscheid (wie auf dem Formular angekreuzt)
     let s3inhalt = '';
     if (!entschieden) {
-        const neuesEnde = emp.probationEndDate ? (() => { const d = new Date(String(emp.probationEndDate).slice(0, 10) + 'T00:00:00'); d.setMonth(d.getMonth() + 1); return _pzChDate(d); })() : '–';
-        const verlaengerbar = runde === 1;
-        const opt = (code, icon, titel, text, farbe, aktiv) => `
-            <button type="button" ${aktiv ? `onclick="pzEntscheid(${emp.id}, '${code}')"` : 'disabled'}
-                style="display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;text-align:left;width:100%;padding:11px 14px;border-radius:14px;cursor:${aktiv ? 'pointer' : 'not-allowed'};
-                       background:rgba(255,255,255,0.62);border:1.5px solid ${farbe}40;opacity:${aktiv ? '1' : '0.55'}"
-                onmouseover="if(!this.disabled)this.style.background='${farbe}12'" onmouseout="this.style.background='rgba(255,255,255,0.62)'">
+        const opt = (code, icon, titel, text, farbe) => `
+            <button type="button" onclick="pzEntscheid(${emp.id}, '${code}')"
+                style="display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:center;text-align:left;width:100%;padding:11px 14px;border-radius:14px;cursor:pointer;
+                       background:rgba(255,255,255,0.62);border:1.5px solid ${farbe}40"
+                onmouseover="this.style.background='${farbe}12'" onmouseout="this.style.background='rgba(255,255,255,0.62)'">
                 <div style="font-size:22px;line-height:1">${icon}</div>
                 <div><div style="font-weight:800;font-size:13.5px;color:${farbe}">${titel}</div>
                      <div style="font-size:12px;color:#646464;margin-top:2px">${text}</div></div>
             </button>`;
-        s3inhalt = `<div style="display:flex;flex-direction:column;gap:8px">
-            ${opt('weiter', '✅', 'Alles gut — Vertrag läuft normal weiter', 'Probezeit bestanden. Es ist nichts weiter zu tun.', '#166534', true)}
-            ${opt('verlaengert', '⏳', 'Braucht noch etwas länger — Probezeit einmalig um einen Monat verlängern',
-                  verlaengerbar ? `Neues Probezeit-Ende ${neuesEnde}. Danach ist ein zweites Gespräch nötig. <b>Nur einmal möglich.</b>` : 'Bereits einmal verlängert — eine weitere Verlängerung ist nicht zulässig.',
-                  '#a16207', verlaengerbar)}
-            ${opt('kuendigung', '✕', 'Vertrag beenden — Kündigung während der Probezeit', 'Öffnet die Kündigungsmaske mit der Probezeit-Frist. Die Kündigung muss vor dem letzten Zustelltag draussen sein.', '#9f1239', true)}
+        s3inhalt = `<div style="font-size:12px;color:#646464;margin-bottom:8px">Wie auf dem unterschriebenen Formular angekreuzt:</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            ${opt('weiter', '✅', 'Alles gut — Vertrag läuft normal weiter', 'Probezeit bestanden. Es ist nichts weiter zu tun.', '#166534')}
+            ${opt('kuendigung', '✕', 'Vertrag beenden — Kündigung während der Probezeit', 'Öffnet die Kündigungsmaske mit der Probezeit-Frist. Die Kündigung muss vor dem letzten Zustelltag draussen sein.', '#9f1239')}
         </div>`;
     } else if (entscheid === 'weiter') {
         s3inhalt = `<div style="padding:12px 14px;border-radius:14px;background:rgba(22,163,74,0.10);border:1.5px solid rgba(34,197,94,0.35)">
             <div style="font-weight:800;color:#166534;font-size:13.5px">✅ Alles gut — Vertrag läuft normal weiter</div>
-            <div style="font-size:12px;color:#646464;margin-top:2px">Entschieden am ${emp.probezeitEntscheidAm ? formatDate(emp.probezeitEntscheidAm) : '–'}${runde === 2 ? ' · nach verlängerter Probezeit' : ''}</div>
+            <div style="font-size:12px;color:#646464;margin-top:2px">Entschieden am ${emp.probezeitEntscheidAm ? formatDate(emp.probezeitEntscheidAm) : '–'}</div>
             <button type="button" onclick="pzEntscheid(${emp.id}, 'zuruecksetzen')" style="margin-top:8px;background:none;border:none;color:#8b8b8b;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Entscheid ändern</button>
         </div>`;
-    } else if (entscheid === 'kuendigung') {
+    } else {
         const lz = _pzLetzterZustelltag(emp);
         const erfasst = !!emp.kuendigungAusgesprochenAm;
         const zuSpaet = lz && new Date(new Date().toDateString()) > lz.datum;
@@ -15923,17 +15913,9 @@ function pzRefreshModal() {
             ${erfasst ? '' : `<div><button type="button" onclick="pzEntscheid(${emp.id}, 'zuruecksetzen')" style="margin-top:8px;background:none;border:none;color:#8b8b8b;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Entscheid ändern</button></div>`}
         </div>`;
     }
-    const s3 = _pzStep(3, entschieden ? 'done' : (gespraechOk ? 'active' : 'locked'),
-        `Entscheid${nr === 2 ? ' nach dem 2. Gespräch' : ''}`, s3inhalt);
+    const s3 = _pzStep(3, entschieden ? 'done' : (gespraechOk ? 'active' : 'locked'), 'Entscheid', s3inhalt, true);
 
-    // Verlängerung rückgängig (nur solange Gespräch 2 noch nicht begonnen)
-    const rueck = (runde === 2 && !emp.probezeitGespraech2Am && !emp.probezeitGespraech2DokumentId)
-        ? `<div style="margin-top:4px;text-align:right"><button type="button" onclick="pzEntscheid(${emp.id}, 'verlaengerung_zurueck')" style="background:none;border:none;color:#8b8b8b;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Verlängerung rückgängig machen</button></div>`
-        : '';
-
-    body.innerHTML = kopf + `<div style="padding:4px 2px 0">${s1}${s2}${s3}</div>` + rueck;
-    // Letzter Verbindungsstrich ausblenden
-    try { const strich = body.querySelectorAll('div[style*="min-height:14px"]'); if (strich.length) strich[strich.length - 1].style.display = 'none'; } catch (_) {}
+    body.innerHTML = kopf + `<div style="padding:4px 2px 0">${s1}${s2}${s3}</div>`;
 }
 
 async function pzEntscheid(empId, code) {
@@ -15941,14 +15923,8 @@ async function pzEntscheid(empId, code) {
     if (!emp || emp.id !== empId) return;
     let frage = null, yes = 'Ja';
     if (code === 'weiter') { frage = 'Probezeit bestanden — der Vertrag läuft normal weiter. Entscheid speichern?'; yes = 'Ja, läuft weiter'; }
-    else if (code === 'verlaengert') {
-        const d = new Date(String(emp.probationEndDate).slice(0, 10) + 'T00:00:00'); d.setMonth(d.getMonth() + 1);
-        frage = `Probezeit einmalig um einen Monat verlängern — neues Ende ${_pzChDate(d)}.\n\nDas ist nur EINMAL möglich. Danach ist ein zweites Gespräch mit Protokoll nötig, und die Verlängerung muss dem Mitarbeiter schriftlich mitgeteilt werden. Weiter?`;
-        yes = 'Ja, verlängern';
-    }
     else if (code === 'kuendigung') { frage = 'Vertrag beenden — der Entscheid wird gespeichert und die Kündigungsmaske geöffnet. Bis die Kündigung erfasst ist, bleibt ein kritisches To-do stehen. Weiter?'; yes = 'Ja, Kündigung'; }
     else if (code === 'zuruecksetzen') { frage = 'Entscheid zurücksetzen? Die Probezeit gilt dann wieder als offen.'; yes = 'Zurücksetzen'; }
-    else if (code === 'verlaengerung_zurueck') { frage = 'Verlängerung rückgängig machen? Das Probezeit-Ende wird auf das ursprüngliche Datum zurückgesetzt.'; yes = 'Rückgängig'; }
     if (frage) {
         const ok = (typeof liquidConfirm === 'function') ? await liquidConfirm(frage, { title: 'Probezeit', yesLabel: yes, noLabel: 'Abbrechen' }) : confirm(frage);
         if (!ok) return;
@@ -15966,7 +15942,6 @@ async function pzEntscheid(empId, code) {
         pzRefreshModal();
         if (typeof showToast === 'function') showToast(
             code === 'weiter' ? 'Probezeit bestanden — Vertrag läuft weiter.'
-            : code === 'verlaengert' ? 'Probezeit um einen Monat verlängert.'
             : code === 'kuendigung' ? 'Entscheid gespeichert — Kündigung erfassen.'
             : 'Gespeichert.', 'success');
         if (code === 'kuendigung') pzOpenKuendigung(empId);

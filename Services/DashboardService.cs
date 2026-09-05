@@ -289,7 +289,6 @@ public class DashboardService
             var gespraechErledigt = pzEntscheid == "weiter";
             var pzHinweis = pzEntscheid == "weiter" ? "Entscheid: Vertrag läuft weiter"
                           : pzEntscheid == "kuendigung" ? "Entscheid: Vertrag beenden"
-                          : em.Employee.ProbezeitVerlaengertAm.HasValue ? "Probezeit einmalig verlängert · Entscheid offen"
                           : "";
             var sev = gespraechErledigt
                 ? "info"
@@ -343,16 +342,11 @@ public class DashboardService
                           && em.Employee != null
                           && em.Employee.IsActive
                           && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
-                          // Walter 05.09.2026: offen = Gespräch der aktuellen Runde
-                          // (1, nach Verlängerung 2) unvollständig ODER Entscheid fehlt.
-                          && (em.Employee.ProbezeitVerlaengertAm == null
-                              ? (em.Employee.ProbezeitGespraech1Am == null
-                                 || em.Employee.ProbezeitGespraech1DokumentId == null
-                                 || em.Employee.ProbezeitEntscheid == null)
-                              : (em.Employee.ProbezeitGespraech2Am == null
-                                 || em.Employee.ProbezeitGespraech2DokumentId == null
-                                 || em.Employee.ProbezeitEntscheid == null
-                                 || em.Employee.ProbezeitEntscheid == "verlaengert")));
+                          // Walter 05.09.2026: offen = Gespräch unvollständig ODER
+                          // Entscheid (weiter / Kündigung) fehlt.
+                          && (em.Employee.ProbezeitGespraech1Am == null
+                              || em.Employee.ProbezeitGespraech1DokumentId == null
+                              || em.Employee.ProbezeitEntscheid == null));
             if (companyProfileId.HasValue)
                 pzGespQ = pzGespQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
             var pzGespList = await pzGespQ.ToListAsync();
@@ -363,16 +357,12 @@ public class DashboardService
                 var dueDate = em.ProbationEndDate!.Value;
                 var days = (dueDate.Date - now).Days;
                 var endeTxt = FormatWeekdayDateDe(dueDate);
-                var runde2 = em.Employee!.ProbezeitVerlaengertAm.HasValue;
-                var fehltDatum = runde2 ? em.Employee.ProbezeitGespraech2Am == null
-                                        : em.Employee.ProbezeitGespraech1Am == null;
-                var fehltDok = runde2 ? !em.Employee.ProbezeitGespraech2DokumentId.HasValue
-                                      : !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+                var fehltDatum = em.Employee!.ProbezeitGespraech1Am == null;
+                var fehltDok = !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
                 var fehltTxt = fehltDatum && fehltDok ? "Gesprächsdatum + Protokoll"
                     : fehltDatum ? "Gesprächsdatum"
                     : fehltDok ? "Protokoll"
-                    : "Entscheid (weiter / verlängern / Kündigung)";
-                if (runde2) fehltTxt = "2. Gespräch — " + fehltTxt;
+                    : "Entscheid (weiter / Kündigung)";
                 var name = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim();
                 // Walter 26.07.2026: Probezeit-Ende fett im Titel (auch bei
                 // kritisch — gleiche Title-Zeile, nur Spalte/Farbe anders).

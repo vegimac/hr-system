@@ -497,8 +497,6 @@ public class EmployeesController : ControllerBase
             // Probezeit-Entscheid (Walter 05.09.2026)
             employee.ProbezeitEntscheid,
             employee.ProbezeitEntscheidAm,
-            employee.ProbezeitVerlaengertAm,
-            employee.ProbezeitEndeVorVerlaengerung,
             // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
             nightWorkRequiresDocuments,
             nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,
@@ -1260,15 +1258,12 @@ public class EmployeesController : ControllerBase
 
     /// <summary>
     /// Probezeit-Entscheid (Walter 05.09.2026) — Schritt 3 der Probezeit-Maske.
-    ///   weiter                → Vertrag läuft normal weiter
-    ///   verlaengert           → Probezeit EINMALIG um einen Monat verlängern
-    ///                           (zweites Gespräch nötig, Felder Gespräch 2);
-    ///                           OR 335b Abs. 2: höchstens 3 Monate ab Vertragsbeginn
-    ///   kuendigung            → Vertrag beenden (Frontend springt in die Kündigungsmaske)
-    ///   zuruecksetzen         → Entscheid weiter/kuendigung löschen
-    ///   verlaengerung_zurueck → Verlängerung rückgängig (nur solange Gespräch 2 offen)
-    /// Voraussetzung für weiter/verlaengert/kuendigung: Gespräch der aktuellen
-    /// Runde ist bestätigt (Datum + Protokoll).
+    ///   weiter        → Vertrag läuft normal weiter
+    ///   kuendigung    → Vertrag beenden (Frontend springt in die Kündigungsmaske)
+    ///   zuruecksetzen → Entscheid löschen
+    /// KEINE Verlängerung: Die Probezeit beträgt höchstens 3 Monate (OR 335b);
+    /// Absenzen verlängern sie bereits automatisch.
+    /// Voraussetzung für weiter/kuendigung: Gespräch bestätigt (Datum + Protokoll).
     /// </summary>
     [HttpPost("{id:int}/probezeit-entscheid")]
     [Authorize(Roles = "admin,superuser,user")]
@@ -1282,65 +1277,24 @@ public class EmployeesController : ControllerBase
             .Where(em => em.IsActive)
             .OrderByDescending(em => em.ContractStartDate)
             .FirstOrDefault();
-        var heute = DateTime.Today;
         var art = (dto.Entscheid ?? "").Trim().ToLowerInvariant();
 
         if (art == "zuruecksetzen")
         {
-            if (emp.ProbezeitEntscheid == "verlaengert")
-                return BadRequest(new { message = "Eine Verlängerung wird über «Verlängerung rückgängig» aufgehoben." });
             emp.ProbezeitEntscheid = null;
             emp.ProbezeitEntscheidAm = null;
             await _context.SaveChangesAsync();
             return Ok(ProbezeitStand(emp, anst));
         }
 
-        if (art == "verlaengerung_zurueck")
-        {
-            if (!emp.ProbezeitVerlaengertAm.HasValue)
-                return BadRequest(new { message = "Die Probezeit wurde nicht verlängert." });
-            if (emp.ProbezeitGespraech2Am.HasValue || emp.ProbezeitGespraech2DokumentId.HasValue)
-                return BadRequest(new { message = "Das zweite Gespräch ist bereits eingetragen — Verlängerung kann nicht mehr rückgängig gemacht werden." });
-            if (anst != null && emp.ProbezeitEndeVorVerlaengerung.HasValue)
-                anst.ProbationEndDate = emp.ProbezeitEndeVorVerlaengerung;
-            emp.ProbezeitVerlaengertAm = null;
-            emp.ProbezeitEndeVorVerlaengerung = null;
-            emp.ProbezeitEntscheid = null;
-            emp.ProbezeitEntscheidAm = null;
-            await _context.SaveChangesAsync();
-            return Ok(ProbezeitStand(emp, anst));
-        }
+        if (art != "weiter" && art != "kuendigung")
+            return BadRequest(new { message = "Entscheid muss weiter oder kuendigung sein." });
 
-        if (art != "weiter" && art != "verlaengert" && art != "kuendigung")
-            return BadRequest(new { message = "Entscheid muss weiter, verlaengert oder kuendigung sein." });
-
-        if (anst?.ProbationEndDate == null)
-            return BadRequest(new { message = "Kein aktiver Vertrag mit Probezeit-Ende gefunden." });
-
-        var runde = emp.ProbezeitVerlaengertAm.HasValue ? 2 : 1;
-        var gespraechOk = runde == 1
-            ? emp.ProbezeitGespraech1Am.HasValue && emp.ProbezeitGespraech1DokumentId.HasValue
-            : emp.ProbezeitGespraech2Am.HasValue && emp.ProbezeitGespraech2DokumentId.HasValue;
-        if (!gespraechOk)
-            return BadRequest(new { message = $"Zuerst das {(runde == 2 ? "zweite " : "")}Probezeitgespräch bestätigen (Datum + Protokoll)." });
-
-        if (art == "verlaengert")
-        {
-            if (runde == 2)
-                return BadRequest(new { message = "Die Probezeit darf nur einmal verlängert werden." });
-            var altesEnde = anst!.ProbationEndDate!.Value.Date;
-            var neuesEnde = altesEnde.AddMonths(1);
-            // OR 335b Abs. 2: Probezeit gesamthaft höchstens 3 Monate.
-            var maxEnde = anst.ContractStartDate.Date.AddMonths(3).AddDays(-1);
-            if (neuesEnde > maxEnde)
-                return BadRequest(new { message = $"Verlängerung nicht möglich: Die Probezeit darf gesamthaft höchstens 3 Monate dauern (OR Art. 335b) — spätestens bis {maxEnde:dd.MM.yyyy}, verlängert wäre sie bis {neuesEnde:dd.MM.yyyy}." });
-            emp.ProbezeitEndeVorVerlaengerung = altesEnde;
-            emp.ProbezeitVerlaengertAm = heute;
-            anst!.ProbationEndDate = neuesEnde;
-        }
+        if (!(emp.ProbezeitGespraech1Am.HasValue && emp.ProbezeitGespraech1DokumentId.HasValue))
+            return BadRequest(new { message = "Zuerst das Probezeitgespräch bestätigen (Datum + Protokoll)." });
 
         emp.ProbezeitEntscheid = art;
-        emp.ProbezeitEntscheidAm = heute;
+        emp.ProbezeitEntscheidAm = DateTime.Today;
         await _context.SaveChangesAsync();
         return Ok(ProbezeitStand(emp, anst));
     }
@@ -1350,8 +1304,6 @@ public class EmployeesController : ControllerBase
         id = emp.Id,
         probezeitEntscheid = emp.ProbezeitEntscheid,
         probezeitEntscheidAm = emp.ProbezeitEntscheidAm,
-        probezeitVerlaengertAm = emp.ProbezeitVerlaengertAm,
-        probezeitEndeVorVerlaengerung = emp.ProbezeitEndeVorVerlaengerung,
         probationEndDate = anst?.ProbationEndDate
     };
 
@@ -1424,7 +1376,10 @@ public class EmployeesController : ControllerBase
                 ErstellerTelefon: cp?.Phone, // Filial-Telefon, nie persönliche Nummer
                 GespraechAm: gespraechAm,
                 GespraechOrt: cp?.City,
-                GespraechNr: nr
+                GespraechNr: nr,
+                Entscheid: e.ProbezeitEntscheid,
+                ProbezeitEnde: emp?.ProbationEndDate,
+                KuendigungsfristTage: cp?.NoticePeriodDuringProbationDays ?? 3
             );
             var bytes = pdf.Generate(input);
             var fname = $"PZ-{(e.EmployeeNumber ?? id.ToString())}-{e.FirstName}.pdf"

@@ -23,7 +23,12 @@ public record ProbezeitberichtInput(
     string? ErstellerTelefon,   // Filial-Telefon (CompanyProfile.Phone)
     DateTime? GespraechAm,
     string? GespraechOrt,
-    int GespraechNr                 // 1 oder 2 — nur Label im Titel
+    int GespraechNr,                // 1 oder 2 — nur Label im Titel
+    // Entscheid (Walter 05.09.2026): «weiter» | «kuendigung» | null = offen
+    // (Kreuz vorgesetzt, wenn in OneCrew bereits entschieden).
+    string? Entscheid = null,
+    DateTime? ProbezeitEnde = null,
+    int? KuendigungsfristTage = null
 );
 
 public class ProbezeitberichtPdfService
@@ -109,14 +114,29 @@ public class ProbezeitberichtPdfService
                     col.Item().PaddingTop(HandLinePitch)
                         .Text("Datum").FontSize(9.5f).FontColor(Soft);
 
+                    col.Item().PaddingTop(10).Element(SectionRule);
+
+                    // 4. Entscheid (Walter 05.09.2026) — wird im Gespräch angekreuzt
+                    // und vom MA mitunterschrieben. Nur zwei Wege: weiter oder beenden
+                    // (keine Verlängerung — Probezeit max. 3 Monate, OR 335b).
+                    col.Item().PaddingTop(8).Text("4.  Entscheid").Bold().FontSize(11f);
+                    var fristTxt = d.KuendigungsfristTage.HasValue ? $"{d.KuendigungsfristTage} Kalendertage" : "gemäss Arbeitsvertrag";
+                    var endeTxt = d.ProbezeitEnde.HasValue ? d.ProbezeitEnde.Value.ToString("dd.MM.yyyy") : "…";
+                    col.Item().PaddingTop(6).Element(e => EntscheidZeile(e,
+                        "Probezeit bestanden — das Arbeitsverhältnis wird unverändert weitergeführt.",
+                        d.Entscheid == "weiter"));
+                    col.Item().PaddingTop(5).Element(e => EntscheidZeile(e,
+                        $"Das Arbeitsverhältnis wird beendet — Kündigung während der Probezeit (Frist {fristTxt}, Probezeit bis {endeTxt}).",
+                        d.Entscheid == "kuendigung"));
+
                     // Unterschriften wie Vertrag: Platz darüber, dann Name(+Funktion),
                     // keine Titel/Striche (Walter 21.07.2026).
                     // Links = Rest. Unterzeichner + Funktion, rechts = MA-Name.
                     var unterzeichner = $"{d.ErstellerVorname} {d.ErstellerNachname}".Trim();
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(56).Column(c =>
+                    col.Item().PaddingTop(30).Column(c =>
                     {
-                        c.Item().Height(78); // Schreibraum für beide Unterschriften
+                        c.Item().Height(70); // Schreibraum für beide Unterschriften
                         c.Item().Row(r =>
                         {
                             r.RelativeItem().Column(colR =>
@@ -208,6 +228,20 @@ public class ProbezeitberichtPdfService
             {
                 r.RelativeItem().Element(e => CheckboxLabel(e, label));
             }
+        });
+    }
+
+    /// <summary>Entscheid-Zeile: Kästchen (mit Kreuz, wenn schon entschieden) + Text.</summary>
+    private static void EntscheidZeile(IContainer c, string label, bool angekreuzt)
+    {
+        c.Row(r =>
+        {
+            r.ConstantItem(18).AlignTop().PaddingTop(1).Element(box =>
+            {
+                var b = box.Width(12).Height(12).Border(1.0f).BorderColor(Dark);
+                if (angekreuzt) b.AlignCenter().AlignMiddle().Text("X").FontSize(9f).Bold();
+            });
+            r.RelativeItem().PaddingLeft(4).Text(label).FontSize(10f);
         });
     }
 
