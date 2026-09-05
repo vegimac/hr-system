@@ -646,8 +646,9 @@
                         <select id="pbBranchSelect" data-liquid-select onchange="pbLoadList()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:13px;min-width:240px">
                             <option value="">– wählen –</option>
                         </select>
-                        <button class="btn btn-outline" onclick="pfxOpen()" style="margin-left:auto">✉ Nachricht ins Postfach senden</button>
-                        <button class="btn btn-primary" onclick="pbOpenUpload()">+ Dokument hochladen</button>
+                        <button class="btn btn-primary" onclick="mtOpen()" style="margin-left:auto">✉ Mitteilung an Benutzer</button>
+                        <button class="btn btn-outline" onclick="pfxOpen()">Nachricht ins MA-Postfach</button>
+                        <button class="btn btn-outline" onclick="pbOpenUpload()">+ Dokument hochladen</button>
                     </div>
 
                     <!-- Liste -->
@@ -655,6 +656,38 @@
                 </div>
 
                 <!-- Nachricht ins MA-Postfach (Postfach-Weg: SMS-Push + Login) -->
+                <!-- Mitteilung an Benutzer (Walter 05.09.2026): Text + optionaler Anhang an
+                     einen oder mehrere OneCrew-Benutzer; Mail = nur Ankündigung mit Link. -->
+                <div id="mtModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(15,23,42,0.45);overflow-y:auto" onclick="if(event.target===this)mtClose()">
+                    <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:640px;margin:40px auto;padding:20px 22px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+                            <div style="font-size:16px;font-weight:800;color:#3f3f3f">✉ Mitteilung an Benutzer</div>
+                            <button onclick="mtClose()" style="background:none;border:none;font-size:20px;color:#8b8b8b;cursor:pointer">×</button>
+                        </div>
+                        <div style="font-size:12.5px;color:#646464;margin-bottom:12px">Der Empfänger bekommt per E-Mail nur eine Ankündigung mit Link — Text und Anhang liegen in OneCrew Mobil hinter der Anmeldung.</div>
+                        <div id="mtAlert"></div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+                            <div style="font-size:11.5px;font-weight:700;color:#646464">Empfänger</div>
+                            <button type="button" class="qst-warum-btn" onclick="mtSelectRole('user')">alle GF</button>
+                            <button type="button" class="qst-warum-btn" onclick="mtSelectRole('hr')">HR-Team</button>
+                            <button type="button" class="qst-warum-btn" onclick="mtSelectRole('all')">alle</button>
+                            <button type="button" class="qst-warum-btn" onclick="mtSelectRole('none')">keine</button>
+                        </div>
+                        <div id="mtEmpfaenger" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 10px;max-height:190px;overflow-y:auto;background:#fff;border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:8px 10px;margin-bottom:12px"></div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Betreff</label>
+                        <input type="text" id="mtBetreff" maxlength="120" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;margin-bottom:10px">
+                        <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Mitteilung</label>
+                        <textarea id="mtText" rows="6" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;resize:vertical;margin-bottom:10px"></textarea>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+                            <label style="font-size:12.5px;color:#3f3f3f;display:flex;align-items:center;gap:6px;cursor:pointer">📎 <input type="file" id="mtFile" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" style="font-size:12px"></label>
+                            <label style="font-size:12.5px;color:#3f3f3f;display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto"><input type="checkbox" id="mtMail" checked> per E-Mail ankündigen</label>
+                        </div>
+                        <div style="display:flex;justify-content:flex-end;gap:10px">
+                            <button class="btn btn-outline" onclick="mtClose()">Abbrechen</button>
+                            <button class="btn btn-primary" id="mtSendBtn" onclick="mtSend()">Senden</button>
+                        </div>
+                    </div>
+                </div>
                 <div id="pfxModal" style="display:none;position:fixed;inset:0;z-index:320;background:rgba(15,23,42,0.45);overflow-y:auto">
                   <div style="max-width:600px;margin:40px auto;background:#fff;border-radius:14px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,0.28)">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -10214,7 +10247,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260901a"></script>
+<script src="js/posteingang.js?v=20260905a"></script>
 <script src="js/hr-rav.js?v=20260806a"></script>
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>

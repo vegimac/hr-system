@@ -377,6 +377,136 @@ public class MailboxController : ControllerBase
         return Ok(docs);
     }
 
+    // ── POST: Mitteilung an Benutzer (Walter 05.09.2026) ─────────────────
+    // Text (+ optionaler Anhang) an einen oder mehrere OneCrew-Benutzer —
+    // je Empfänger ein Eintrag im persönlichen Benutzer-Postfach. Per Mail
+    // geht NUR eine Ankündigung raus (Absender, Betreff, Link auf OneCrew
+    // Mobil direkt zur Mitteilung); Inhalt und Anhang bleiben hinter dem Login.
+    [HttpPost("mitteilung")]
+    [DisableRequestSizeLimit]
+    [RequestFormLimits(MultipartBodyLengthLimit = 100_000_000)]
+    public async Task<IActionResult> Mitteilung(
+        [FromForm] string? userIds,
+        [FromForm] string? betreff,
+        [FromForm] string? text,
+        [FromForm] IFormFile? file,
+        [FromServices] IServiceScopeFactory scopeFactory,
+        [FromServices] ILogger<MailboxController> log,
+        [FromForm] bool mail = true)
+    {
+        var uid = GetCurrentUserId();
+        if (uid is null) return Unauthorized();
+        var ids = (userIds ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(x => int.TryParse(x, out var n) ? n : 0).Where(n => n > 0).Distinct().ToList();
+        if (ids.Count == 0) return BadRequest(new { error = "Kein Empfänger gewählt." });
+        betreff = (betreff ?? "").Trim();
+        text = (text ?? "").Trim();
+        if (betreff.Length == 0) return BadRequest(new { error = "Bitte einen Betreff eingeben." });
+        if (text.Length == 0 && (file == null || file.Length == 0))
+            return BadRequest(new { error = "Bitte einen Text eingeben oder eine Datei anhängen." });
+
+        var empfaenger = await _db.AppUsers.AsNoTracking()
+            .Where(u => ids.Contains(u.Id) && u.IsActive && u.Role != "employee")
+            .ToListAsync();
+        if (empfaenger.Count == 0) return BadRequest(new { error = "Kein gültiger Empfänger." });
+
+        var me = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid.Value);
+        var absender = me != null ? $"{me.FirstName} {me.LastName}".Trim() : "";
+        if (string.IsNullOrWhiteSpace(absender)) absender = me?.Username ?? "OneCrew";
+
+        // Herkunfts-Filiale (Pflichtfeld am Eintrag): erste erlaubte Filiale.
+        var allowed = await GetUserAllowedBranchIdsAsync();
+        var branchId = allowed.FirstOrDefault();
+        if (branchId == 0)
+            branchId = await _db.CompanyProfiles.Where(c => c.IsActive).OrderBy(c => c.Id).Select(c => c.Id).FirstOrDefaultAsync();
+
+        byte[]? bytes = null;
+        if (file != null && file.Length > 0)
+        {
+            await using var ms = new MemoryStream();
+            await file.CopyToAsync(ms);
+            bytes = ms.ToArray();
+        }
+
+        var erstellt = new List<(AppUser User, int DocId)>();
+        foreach (var u in empfaenger)
+        {
+            string storage;
+            if (bytes != null)
+            {
+                var ext = Path.GetExtension(file!.FileName);
+                storage = Guid.NewGuid().ToString("N") + ext;
+                var dir = Path.Combine(_storagePath, "mailbox", branchId.ToString());
+                Directory.CreateDirectory(dir);
+                await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storage), bytes);
+            }
+            else storage = $"msg-{Guid.NewGuid():N}";
+
+            var doc = new MailboxDocument
+            {
+                CompanyProfileId = branchId,
+                UploadedBy       = uid.Value,
+                UploadedAt       = DateTime.Now,
+                OriginalFilename = betreff,
+                StorageFilename  = storage,
+                MimeType         = bytes != null ? file!.ContentType : null,
+                FileSizeBytes    = bytes != null ? file!.Length : null,
+                Bemerkung        = bytes != null ? file!.FileName : null,
+                MessageBody      = text.Length > 0 ? text : null,
+                TargetType       = "USER",
+                TargetUserId     = u.Id,
+                NotifyUserId     = mail ? u.Id : null,
+            };
+            _db.MailboxDocuments.Add(doc);
+            await _db.SaveChangesAsync();
+            erstellt.Add((u, doc.Id));
+        }
+
+        // Ankündigung per Mail im Hintergrund — ohne Inhalt, ohne Anhang.
+        var mailAn = 0;
+        if (mail)
+        {
+            var liste = erstellt.Where(x => !string.IsNullOrWhiteSpace(x.User.Email))
+                .Select(x => (To: x.User.Email!, Name: $"{x.User.FirstName} {x.User.LastName}".Trim(), DocId: x.DocId)).ToList();
+            mailAn = liste.Count;
+            var abs = absender; var betr = betreff; var hatAnhang = bytes != null;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    using var scope = scopeFactory.CreateScope();
+                    var svc = scope.ServiceProvider.GetRequiredService<EmailService>();
+                    var cfg = await svc.GetEffectiveConfigAsync();
+                    var site = (cfg.SiteUrl ?? "https://onecrew.ch/").TrimEnd('/') + "/";
+                    string Enc(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+                    foreach (var e in liste)
+                    {
+                        var url = $"{site}mobil.html#m={e.DocId}";
+                        var subject = $"Neue Mitteilung in OneCrew: {betr}";
+                        var html = $@"<div style=""font-family:-apple-system,Segoe UI,Arial,sans-serif;font-size:15px;color:#1a1a1a;line-height:1.5"">
+<p>Hallo {Enc(e.Name)}</p>
+<p><b>{Enc(abs)}</b> hat dir in OneCrew eine Mitteilung geschickt{(hatAnhang ? " (mit Anhang)" : "")}:</p>
+<p style=""font-size:17px;font-weight:700;margin:14px 0"">{Enc(betr)}</p>
+<p><a href=""{url}"" style=""display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:600"">Mitteilung öffnen</a></p>
+<p style=""font-size:12px;color:#6b6b6b"">Der Inhalt liegt in OneCrew Mobil — nach der Anmeldung (Passwort oder Face ID) siehst du ihn direkt. Diese Mail enthält bewusst keinen Inhalt.</p>
+</div>";
+                        var txt = $"Hallo {e.Name}
+
+{abs} hat dir in OneCrew eine Mitteilung geschickt: {betr}
+
+Öffnen: {url}
+";
+                        try { await svc.SendAsync(e.To, e.Name, subject, html, txt, VersandKategorie.Intern); }
+                        catch (Exception ex) { log.LogWarning(ex, "[Mitteilung] Ankündigung an {To} fehlgeschlagen", e.To); }
+                    }
+                }
+                catch (Exception ex) { log.LogError(ex, "[Mitteilung] Hintergrund-Versand abgebrochen"); }
+            });
+        }
+
+        return Ok(new { empfaenger = erstellt.Count, mails = mailAn, ids = erstellt.Select(x => x.DocId).ToList() });
+    }
+
     // ── POST: Dokument hochladen ──────────────────────────────────────────
     // targetType: BRANCH | HR | ADMIN | BUCH | USER | EMPLOYEE
     //   BRANCH   → companyProfileId Pflicht (Filial-Postfach)

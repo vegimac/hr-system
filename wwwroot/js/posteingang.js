@@ -291,9 +291,10 @@ async function pbLoadList() {
                 : (d.originalFilename || 'Dokument');
             // Ablegen: geteilte Postfächer + eigene Box; nicht aus fremdem MA-Postfach-Kontext
             const canAblage = isOps && d.targetType !== 'EMPLOYEE' && !d.messageBody;
-            const hasFile = !!(d.originalFilename && !d.messageBody) || (d.fileSizeBytes > 0 && !d.messageBody);
+            // Mitteilung MIT Anhang (Walter 05.09.2026): Text + Datei am selben Eintrag.
+            const hasFile = !!d.mimeType || (d.fileSizeBytes > 0);
             const previewBtn = d.messageBody
-                ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>`
+                ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${d.bemerkung || 'Anhang'}</span>` : ''}`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
             const docJson = JSON.stringify(d).replace(/'/g, '&#39;');
             return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
@@ -305,7 +306,7 @@ async function pbLoadList() {
                         ${notifyInfo}
                     </div>
                     ${d.messageBody ? `<div style="font-size:13px;color:#475569;margin-top:4px;white-space:pre-wrap">${d.messageBody}</div>` : ''}
-                    ${d.bemerkung ? `<div style="font-size:13px;color:#475569;margin-top:4px">${d.bemerkung}</div>` : ''}
+                    ${d.bemerkung && !(d.messageBody && hasFile) ? `<div style="font-size:13px;color:#475569;margin-top:4px">${d.bemerkung}</div>` : ''}
                     <div style="font-size:12px;color:#64748b;margin-top:6px">
                         <!-- Absender GROSS zuerst (Walter-Vorgabe 13.07.2026) -->
                         <span style="font-size:13.5px;font-weight:700;color:#3f3f3f">${uploaderInfo}</span>${weiterInfo}
@@ -313,7 +314,7 @@ async function pbLoadList() {
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
-                    ${!d.messageBody ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
+                    ${hasFile ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "move")' title="In anderes Postfach verschieben">↗ Verschieben</button>
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "forward")' title="Kopie in anderes Postfach">↪ Weiterleiten</button>
                     ${canAblage ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick='pbOpenMove(${docJson})'>📁 Ablegen</button>` : ''}
@@ -1212,4 +1213,65 @@ function pbCropClose() {
     _pbCrop?.pages?.forEach(p => URL.revokeObjectURL(p.url));
     _pbCrop = null;
     document.getElementById('pbCropModal')?.remove();
+}
+
+
+// ════════════════ Mitteilung an Benutzer (Walter 05.09.2026) ════════════════
+let _mtUsers = [];
+async function mtOpen() {
+    document.getElementById('mtAlert').innerHTML = '';
+    document.getElementById('mtBetreff').value = '';
+    document.getElementById('mtText').value = '';
+    document.getElementById('mtFile').value = '';
+    document.getElementById('mtMail').checked = true;
+    const box = document.getElementById('mtEmpfaenger');
+    box.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Lade …</div>';
+    document.getElementById('mtModal').style.display = 'block';
+    try {
+        const r = await fetch('/api/mailbox/user-recipients', { headers: ah() });
+        _mtUsers = r.ok ? await r.json() : [];
+    } catch (_) { _mtUsers = []; }
+    const rolle = u => u.role === 'user' ? 'GF' : u.role === 'superuser' ? 'HR' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || '');
+    box.innerHTML = _mtUsers.length
+        ? _mtUsers.map(u => `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#3f3f3f;cursor:pointer;padding:2px 0">
+                <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${u.role || ''}" data-hr="${u.isHrTeam ? 1 : 0}">
+                <span>${esc(u.name || u.username)}</span><span style="font-size:11px;color:#8b8b8b">${rolle(u)}</span></label>`).join('')
+        : '<div style="font-size:12px;color:#8b8b8b">Keine Benutzer gefunden.</div>';
+}
+function mtClose() { document.getElementById('mtModal').style.display = 'none'; }
+function mtSelectRole(which) {
+    document.querySelectorAll('.mt-emp').forEach(cb => {
+        if (which === 'none') cb.checked = false;
+        else if (which === 'all') cb.checked = true;
+        else if (which === 'user') cb.checked = cb.dataset.role === 'user';
+        else if (which === 'hr') cb.checked = cb.dataset.hr === '1' || cb.dataset.role === 'superuser';
+    });
+}
+async function mtSend() {
+    const al = document.getElementById('mtAlert');
+    const ids = [...document.querySelectorAll('.mt-emp:checked')].map(cb => cb.value);
+    const betreff = document.getElementById('mtBetreff').value.trim();
+    const text = document.getElementById('mtText').value.trim();
+    const file = document.getElementById('mtFile').files[0];
+    const warn = m => `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:10px;font-size:13px;margin-bottom:10px">${esc(m)}</div>`;
+    if (!ids.length) { al.innerHTML = warn('Bitte mindestens einen Empfänger wählen.'); return; }
+    if (!betreff) { al.innerHTML = warn('Bitte einen Betreff eingeben.'); return; }
+    if (!text && !file) { al.innerHTML = warn('Bitte einen Text eingeben oder eine Datei anhängen.'); return; }
+    const fd = new FormData();
+    fd.append('userIds', ids.join(','));
+    fd.append('betreff', betreff);
+    fd.append('text', text);
+    fd.append('mail', document.getElementById('mtMail').checked ? 'true' : 'false');
+    if (file) fd.append('file', file);
+    const btn = document.getElementById('mtSendBtn');
+    btn.disabled = true; btn.textContent = 'Sende…';
+    try {
+        const r = await fetch('/api/mailbox/mitteilung', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { al.innerHTML = warn(j.error || j.message || ('Fehler ' + r.status)); return; }
+        mtClose();
+        if (typeof showToast === 'function') showToast(`Mitteilung an ${j.empfaenger} Benutzer gesendet${j.mails ? ` · ${j.mails} Ankündigung(en) per E-Mail` : ''}.`, 'success');
+        if (typeof pbLoadList === 'function') pbLoadList();
+    } catch (e) { al.innerHTML = warn('Verbindungsfehler: ' + e.message); }
+    finally { btn.disabled = false; btn.textContent = 'Senden'; }
 }

@@ -788,6 +788,7 @@
         <div class="mb-msg-body" id="msgBody"></div>
         <div class="pf-up-actions">
             <button class="pf-up-btn secondary" onclick="closeMsg()">Schliessen</button>
+            <button class="pf-up-btn primary" id="msgAnhang" style="display:none" onclick="pfOpen(window._msgDocId)">📎 Anhang öffnen</button>
         </div>
     </div>
 </div>
@@ -832,6 +833,48 @@
     </div>
 </div>
 
+<!-- Mitteilung an Benutzer -->
+<div id="mtOverlay" class="pf-up-overlay" onclick="if (event.target === this) mtClose()">
+    <div class="pf-up-card">
+        <div class="pf-up-handle"></div>
+        <h2 class="pf-up-title">Mitteilung senden</h2>
+        <p class="pf-up-sub">An einen oder mehrere OneCrew-Benutzer. Sie bekommen per Mail nur eine Ankündigung mit Link.</p>
+        <div id="mtError" class="pf-up-error"></div>
+        <div class="pf-up-section">
+            <label class="pf-up-label">An wen?</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+                <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('user')">alle GF</button>
+                <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('hr')">HR-Team</button>
+                <button type="button" class="pf-up-btn secondary" style="padding:6px 10px;font-size:12px" onclick="mtSelectRole('none')">keine</button>
+            </div>
+            <div id="mtEmpfaenger" style="max-height:180px;overflow-y:auto;background:#faf8f5;border:1.5px solid #d8d2c8;border-radius:12px;padding:8px 10px"></div>
+        </div>
+        <div class="pf-up-section">
+            <label class="pf-up-label">Betreff</label>
+            <input type="text" id="mtBetreff" class="pf-up-input" maxlength="120" placeholder="z.B. Sitzung Montag">
+        </div>
+        <div class="pf-up-section">
+            <label class="pf-up-label">Mitteilung</label>
+            <textarea id="mtText" class="pf-up-input" rows="4" style="resize:vertical"></textarea>
+        </div>
+        <div class="pf-up-section">
+            <label class="pf-up-label">Anhang <span style="color:var(--muted);font-weight:400">(optional)</span></label>
+            <div class="pf-up-pickers">
+                <label class="pf-up-pick" for="mtInputCamera"><span class="pf-up-pick-icon">📷</span>Foto</label>
+                <label class="pf-up-pick" for="mtInputFile"><span class="pf-up-pick-icon">📎</span>Datei</label>
+            </div>
+            <input type="file" id="mtInputCamera" accept="image/*" capture="environment" style="display:none" onchange="mtFilePicked(this.files)">
+            <input type="file" id="mtInputFile" accept="image/*,application/pdf" style="display:none" onchange="mtFilePicked(this.files)">
+            <div id="mtFileName" style="font-size:12.5px;color:#6b6b6b;margin-top:6px"></div>
+        </div>
+        <div class="pf-up-actions">
+            <button class="pf-up-btn secondary" onclick="mtClose()">Abbrechen</button>
+            <button class="pf-up-btn primary" id="mtSendBtn" onclick="mtSend()">Senden</button>
+        </div>
+    </div>
+</div>
+
+<button class="pf-fab" id="mtFab" onclick="mtOpen()" style="bottom:86px">✉ Mitteilung senden</button>
 <button class="pf-fab" id="upFab" onclick="openUpload()">📷 Dokument senden</button>
 
 <header class="pf-header">
@@ -1024,6 +1067,7 @@
             _outboxDocs = rOut.ok ? await rOut.json() : [];
             updateTabCounts();
             renderCurrentTab();
+            mbOeffneAusLink();
         } catch (e) {
             document.getElementById('pfList').innerHTML =
                 '<div class="pf-empty"><div class="pf-empty-icon">⚠</div><div class="pf-empty-title">Postfach nicht erreichbar</div><div class="pf-empty-text">' + esc(e.message) + '</div></div>';
@@ -1060,11 +1104,12 @@
             const title = esc(istText ? (d.originalFilename || 'Mitteilung') : ((d.bemerkung || '').trim() || d.originalFilename || 'Dokument'));
             const sub = esc([fmtDate(d.uploadedAt), d.fileSizeBytes ? fmtSize(d.fileSizeBytes) : ''].filter(Boolean).join(' · '));
             const from = esc(vonText(d));
+            const hatAnhang = istText && !!d.mimeType;
             return `<a class="pf-doc" href="javascript:void(0)" onclick="${istText ? `pfShowMessage(${d.id})` : `pfOpen(${d.id})`}">
                 <div class="pf-doc-icon"${istText ? ' style="background:#e8e2d8;color:#3f3f3f"' : ''}>${istText ? '💬' : '📄'}</div>
                 <div class="pf-doc-body">
                     <div class="pf-doc-title">${title}</div>
-                    ${from ? `<div class="pf-doc-from">${from}</div>` : ''}
+                    ${from ? `<div class="pf-doc-from">${from}${hatAnhang ? ' · 📎 Anhang' : ''}</div>` : (hatAnhang ? '<div class="pf-doc-from">📎 Anhang</div>' : '')}
                     <div class="pf-doc-sub">${sub}</div>
                 </div>
                 <div class="pf-doc-arrow">›</div>
@@ -1074,10 +1119,26 @@
     function pfShowMessage(docId) {
         const d = (window._pfInbox || []).find(x => x.id === docId);
         if (!d) return;
+        window._msgDocId = docId;
         document.getElementById('msgTitle').textContent = d.originalFilename || 'Mitteilung';
         document.getElementById('msgMeta').textContent = [vonText(d), fmtDate(d.uploadedAt)].filter(Boolean).join(' · ');
         document.getElementById('msgBody').textContent = d.messageBody || '';
+        const a = document.getElementById('msgAnhang');
+        a.style.display = d.mimeType ? '' : 'none';
+        a.textContent = '📎 ' + (d.bemerkung || 'Anhang öffnen');
         document.getElementById('msgOverlay').style.display = 'flex';
+    }
+
+    // Link aus der Ankündigungs-Mail: mobil.html#m=<Id> → Mitteilung direkt öffnen.
+    function mbOeffneAusLink() {
+        const m = /[#&]m=(\d+)/.exec(location.hash || '');
+        if (!m) return;
+        const id = parseInt(m[1], 10);
+        const d = (_inboxDocs || []).find(x => x.id === id);
+        try { history.replaceState(null, '', location.pathname); } catch (_) {}
+        if (!d) return;
+        switchTab('in');
+        if (d.messageBody) pfShowMessage(id); else pfOpen(id);
     }
     function closeMsg() { document.getElementById('msgOverlay').style.display = 'none'; }
 
@@ -1102,7 +1163,7 @@
             const istText = d.messageBody && String(d.messageBody).trim().length > 0;
             const title = esc(istText ? (d.originalFilename || 'Mitteilung') : ((d.bemerkung || '').trim() || d.originalFilename || 'Dokument'));
             const sub = esc([fmtDate(d.uploadedAt), d.fileSizeBytes ? fmtSize(d.fileSizeBytes) : ''].filter(Boolean).join(' · '));
-            return `<a class="pf-doc" href="javascript:void(0)" ${istText ? '' : `onclick="pfOpen(${d.id})"`}>
+            return `<a class="pf-doc" href="javascript:void(0)" ${(!istText || d.mimeType) ? `onclick="pfOpen(${d.id})"` : ''}>
                 <div class="pf-doc-icon" style="background:#e8e2d8;color:#3f3f3f">📤</div>
                 <div class="pf-doc-body">
                     <div class="pf-doc-title">${title}</div>
@@ -1233,6 +1294,66 @@
     mbAlive();
     setInterval(mbAlive, 60000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden && TOKEN) { mbAlive(); loadDocs(); } });
+
+    // ── Mitteilung an Benutzer ─────────────────────────────────────────
+    let _mtFile = null;
+    async function mtOpen() {
+        _mtFile = null;
+        document.getElementById('mtBetreff').value = '';
+        document.getElementById('mtText').value = '';
+        document.getElementById('mtFileName').textContent = '';
+        document.getElementById('mtError').style.display = 'none';
+        document.getElementById('mtOverlay').style.display = 'flex';
+        const box = document.getElementById('mtEmpfaenger');
+        box.innerHTML = '<div style="font-size:12px;color:#6b6b6b">Lade …</div>';
+        if (!_userRecipients.length) {
+            try { const r = await fetch('/api/mailbox/user-recipients', { headers: ah() }); _userRecipients = r.ok ? await r.json() : []; } catch (_) {}
+        }
+        const rolle = u => u.role === 'user' ? 'GF' : u.role === 'superuser' ? 'HR' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || '');
+        box.innerHTML = _userRecipients.length
+            ? _userRecipients.map(u => `<label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#1a1a1a;padding:5px 0">
+                    <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${esc(u.role || '')}" data-hr="${u.isHrTeam ? 1 : 0}" style="width:18px;height:18px">
+                    <span style="flex:1">${esc(u.name || u.username)}</span><span style="font-size:11px;color:#6b6b6b">${esc(rolle(u))}</span></label>`).join('')
+            : '<div style="font-size:12px;color:#6b6b6b">Keine Benutzer gefunden.</div>';
+    }
+    function mtClose() { document.getElementById('mtOverlay').style.display = 'none'; }
+    function mtSelectRole(which) {
+        document.querySelectorAll('.mt-emp').forEach(cb => {
+            if (which === 'none') cb.checked = false;
+            else if (which === 'user') cb.checked = cb.dataset.role === 'user';
+            else if (which === 'hr') cb.checked = cb.dataset.hr === '1' || cb.dataset.role === 'superuser';
+        });
+    }
+    function mtFilePicked(files) {
+        if (!files || !files.length) return;
+        const f = files[0];
+        if (f.size > 25 * 1024 * 1024) { alert('Datei zu gross (max. 25 MB).'); return; }
+        _mtFile = f;
+        document.getElementById('mtFileName').textContent = '📎 ' + (f.name || 'Datei') + ' · ' + fmtSize(f.size);
+    }
+    async function mtSend() {
+        const err = document.getElementById('mtError'); err.style.display = 'none';
+        const ids = [...document.querySelectorAll('.mt-emp:checked')].map(cb => cb.value);
+        const betreff = document.getElementById('mtBetreff').value.trim();
+        const text = document.getElementById('mtText').value.trim();
+        const zeig = m => { err.textContent = m; err.style.display = 'block'; };
+        if (!ids.length) { zeig('Bitte mindestens einen Empfänger wählen.'); return; }
+        if (!betreff) { zeig('Bitte einen Betreff eingeben.'); return; }
+        if (!text && !_mtFile) { zeig('Bitte einen Text eingeben oder etwas anhängen.'); return; }
+        const fd = new FormData();
+        fd.append('userIds', ids.join(',')); fd.append('betreff', betreff); fd.append('text', text); fd.append('mail', 'true');
+        if (_mtFile) fd.append('file', _mtFile);
+        const btn = document.getElementById('mtSendBtn'); btn.disabled = true; btn.textContent = 'Sende…';
+        try {
+            const r = await fetch('/api/mailbox/mitteilung', { method: 'POST', headers: ah(), body: fd });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) { zeig(j.error || j.message || ('Fehler ' + r.status)); return; }
+            mtClose();
+            switchTab('out');
+            loadDocs();
+        } catch (e) { zeig('Verbindungsfehler: ' + e.message); }
+        finally { btn.disabled = false; btn.textContent = 'Senden'; }
+    }
 
     loadMe();
 </script>
