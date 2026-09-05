@@ -52,7 +52,7 @@ public class ProbezeitCheckinPdfService
         QuestPDF.Settings.License = LicenseType.Community;
         // 1:1 nach Walters Vorlage «OneCrew_Probezeit_Gemeinsam_weiter_v25» (05.09.2026).
         var skalaDu  = new[] { "Ja", "Eher ja", "Eher nein", "Nein" };
-        var skalaWir = new[] { "Stark", "Gut", "Noch üben", "Noch Hilfe" };
+        var skalaWir = new[] { "Stark", "Gut", "Noch üben", "Noch Training" };
 
         return Document.Create(container =>
         {
@@ -140,7 +140,7 @@ public class ProbezeitCheckinPdfService
         }).GeneratePdf();
     }
 
-    private const float SpaltenBreite = 64f;
+    private const float SpaltenBreite = 68f;
 
     /// <summary>Kleines Label in Grau-Versalien, Wert darunter — keine Linien.</summary>
     private static void Feld(IContainer c, string label, string? wert)
