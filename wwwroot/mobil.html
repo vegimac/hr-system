@@ -5,14 +5,14 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="manifest" href="/site.webmanifest">
+    <link rel="manifest" href="/mobil.webmanifest">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>OneCrew · Mobil</title>
-    <!-- Mobile Ansicht für Programm-Benutzer (Walter 05.09.2026): Handy-Login
-         landet hier statt im grossen Programm. Empfangen / Gesendet aus dem
-         persönlichen Benutzer-Postfach, Dokument senden (Foto/Datei ins
-         Filial-, HR- oder Benutzer-Postfach), Face ID, Abmelden. Look und
-         Bausteine wie das MA-Postfach (postfach.html). -->
+    <!-- OneCrew Mobil (Walter 05.09.2026): eigener Einstieg für Programm-
+         Benutzer am Handy — eigene Anmeldung (Passwort / Face ID), eigenes
+         Home-Bildschirm-Icon. Empfangen / Gesendet aus dem persönlichen
+         Benutzer-Postfach, Dokument senden, Face ID, Abmelden. Kein Link ins
+         grosse Programm — das ist für den PC. Look wie das MA-Postfach. -->
     <style>
         :root {
             --bg: #f1f5f9;
@@ -739,6 +739,28 @@
     </style>
 </head>
 <body>
+<!-- Anmeldung (eigener Einstieg, kein Umweg über das Programm) -->
+<div id="loginOverlay" class="pf-pwd-overlay" style="display:none">
+    <div class="pf-pwd-card">
+        <img src="img/onecrew-logo.png?v=20260628a" alt="OneCrew" style="height:40px;width:auto;display:block;margin:0 auto 14px">
+        <h2 class="pf-pwd-title">Anmelden</h2>
+        <p class="pf-pwd-sub">OneCrew Mobil — Mitteilungen und Dokumente. Mit deinem OneCrew-Konto.</p>
+        <div id="loginError" class="pf-pwd-error"></div>
+        <form onsubmit="event.preventDefault(); mbLogin();" autocomplete="on">
+            <div class="pf-pwd-field">
+                <label class="pf-pwd-label" for="loginEmail">E-Mail oder Benutzername</label>
+                <input id="loginEmail" name="username" type="text" class="pf-pwd-input" autocomplete="username" inputmode="email" autocapitalize="none" required>
+            </div>
+            <div class="pf-pwd-field">
+                <label class="pf-pwd-label" for="loginPass">Passwort</label>
+                <input id="loginPass" name="password" type="password" class="pf-pwd-input" autocomplete="current-password" required>
+            </div>
+            <button type="submit" id="loginBtn" class="pf-pwd-btn">Anmelden</button>
+            <button type="button" id="loginFaceId" class="pf-pwd-btn" style="display:none;background:#fff;color:#1a1a1a;border:1.5px solid #d8d2c8;margin-top:8px" onclick="mbFaceIdLogin()">Mit Face ID / Touch ID anmelden</button>
+        </form>
+    </div>
+</div>
+
 <!-- Face ID / Touch ID: Geräteverwaltung -->
 <div id="faceIdOverlay" class="pf-up-overlay" onclick="if (event.target === this) closeFaceIdSettings()">
     <div class="pf-up-card">
@@ -821,7 +843,6 @@
             </button>
             <div class="pf-menu" id="pfMenu" style="display:none">
                 <button class="pf-menu-item" id="pfMenuFaceId" onclick="pfMenuAction(openFaceIdSettings)" style="display:none"><img src="img/face-id-kohle-freigestellt-crop.png?v=20260704a" alt="">Face ID / Touch ID</button>
-                <button class="pf-menu-item" onclick="pfMenuAction(mbZumProgramm)"><img src="img/onecrew-arch.png" alt="">Zum vollständigen Programm</button>
                 <button class="pf-menu-item danger" onclick="pfMenuAction(pfLogout)"><img src="img/abmelden.png?v=20260630b" alt="">Abmelden</button>
             </div>
         </div>
@@ -836,15 +857,56 @@
         <button id="pfTabOut" class="pf-tab"        onclick="switchTab('out')"><img class="pf-tab-img" src="img/out.png?v=20260630b" alt="">Gesendet <span class="pf-tab-count" id="pfTabOutCount" style="display:none">0</span></button>
     </div>
     <div id="pfList"><div class="pf-loading">Wird geladen…</div></div>
-    <button class="mb-link" onclick="mbZumProgramm()">Zum vollständigen Programm</button>
     <div class="pf-footer"></div>
 </main>
 
 <script src="js/webauthn.js?v=20260701b"></script>
 <script>
-    const TOKEN = localStorage.getItem('hrToken');
-    if (!TOKEN) { window.location.href = 'index.html'; }
+    let TOKEN = localStorage.getItem('hrToken');
     function ah() { return { 'Authorization': 'Bearer ' + TOKEN }; }
+
+    // ── Anmeldung direkt hier (Walter 05.09.2026) ──────────────────────
+    function mbShowLogin(msg) {
+        TOKEN = null;
+        try { localStorage.removeItem('hrToken'); localStorage.removeItem('hrImpersonating'); localStorage.removeItem('hrTokenAdmin'); } catch (_) {}
+        const err = document.getElementById('loginError');
+        if (err) { err.textContent = msg || ''; err.style.display = msg ? 'block' : 'none'; }
+        document.getElementById('loginOverlay').style.display = 'flex';
+        try { const le = document.getElementById('loginEmail'); if (le && !le.value) le.value = localStorage.getItem('hrLastEmail') || ''; } catch (_) {}
+        try { if (typeof webauthnSupported === 'function' && webauthnSupported()) document.getElementById('loginFaceId').style.display = 'block'; } catch (_) {}
+        document.getElementById('pfList').innerHTML = '';
+    }
+    function mbHideLogin() { document.getElementById('loginOverlay').style.display = 'none'; }
+    async function mbAngemeldet(data) {
+        TOKEN = data.token;
+        try { localStorage.setItem('hrToken', TOKEN); } catch (_) {}
+        if (data.user && data.user.role === 'employee') { window.location.href = 'postfach.html'; return; }
+        document.getElementById('loginPass').value = '';
+        mbHideLogin();
+        await loadMe();
+    }
+    async function mbLogin() {
+        const email = document.getElementById('loginEmail').value.trim();
+        const pass = document.getElementById('loginPass').value;
+        const err = document.getElementById('loginError');
+        const btn = document.getElementById('loginBtn');
+        err.style.display = 'none';
+        if (!email || !pass) { err.textContent = 'Benutzername und Passwort eingeben.'; err.style.display = 'block'; return; }
+        btn.disabled = true; btn.textContent = 'Anmelden…';
+        try {
+            const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass }) });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) { err.textContent = data.message || 'Anmeldung fehlgeschlagen.'; err.style.display = 'block'; return; }
+            try { localStorage.setItem('hrLastEmail', email); } catch (_) {}
+            await mbAngemeldet(data);
+        } catch (e) { err.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; err.style.display = 'block'; }
+        finally { btn.disabled = false; btn.textContent = 'Anmelden'; }
+    }
+    async function mbFaceIdLogin() {
+        const err = document.getElementById('loginError'); err.style.display = 'none';
+        try { const data = await webauthnLoginRaw(); await mbAngemeldet(data); }
+        catch (e) { if (!(e && (e.name === 'NotAllowedError' || e.name === 'AbortError'))) { err.textContent = e.message || 'Face-ID-Anmeldung fehlgeschlagen.'; err.style.display = 'block'; } }
+    }
 
     function pfToggleMenu(e) {
         if (e) e.stopPropagation();
@@ -877,18 +939,12 @@
     let _inboxDocs = [], _outboxDocs = [], _currentTab = 'in';
     let _postfaecher = [], _userRecipients = [], _upFile = null;
 
-    // Vom Handy ins grosse Programm: Merker nur für diesen Tab — beim
-    // nächsten Öffnen kommt wieder die mobile Ansicht.
-    function mbZumProgramm() {
-        try { sessionStorage.setItem('hrDesktop', '1'); } catch (_) {}
-        window.location.href = 'index.html';
-    }
-
     async function loadMe() {
+        if (!TOKEN) { mbShowLogin(); return; }
         try {
             const res = await fetch('/api/auth/me', { headers: ah() });
             if (!res.ok) {
-                if (res.status === 401) { localStorage.removeItem('hrToken'); localStorage.removeItem('hrImpersonating'); localStorage.removeItem('hrTokenAdmin'); window.location.href = 'index.html'; return; }
+                if (res.status === 401) { mbShowLogin(); return; }
                 throw new Error('Status ' + res.status);
             }
             currentUser = await res.json();
@@ -1073,11 +1129,10 @@
 
     function pfLogout() {
         try { fetch('/api/auth/logout', { method: 'POST', headers: ah(), keepalive: true }).catch(() => {}); } catch (_) {}
-        localStorage.removeItem('hrToken');
-        localStorage.removeItem('hrImpersonating');
-        localStorage.removeItem('hrTokenAdmin');
-        localStorage.removeItem('hrLastAlive');
-        window.location.href = 'index.html';
+        try { localStorage.removeItem('hrLastAlive'); } catch (_) {}
+        _inboxDocs = []; _outboxDocs = [];
+        document.getElementById('pfGreeting').textContent = 'Hallo';
+        mbShowLogin();
     }
 
     // ── Dokument senden ────────────────────────────────────────────────
@@ -1171,12 +1226,13 @@
     // Lebenszeichen (Browser-zu-Erkennung in app-core.js) + Heartbeat für
     // «Aktive Sitzungen» — jede Minute, solange die Seite offen ist.
     function mbAlive() {
+        if (!TOKEN) return;
         try { localStorage.setItem('hrLastAlive', String(Date.now())); } catch (_) {}
         try { fetch('/api/auth/heartbeat?aktiv=1', { method: 'POST', headers: ah(), cache: 'no-store' }).catch(() => {}); } catch (_) {}
     }
     mbAlive();
     setInterval(mbAlive, 60000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) { mbAlive(); loadDocs(); } });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && TOKEN) { mbAlive(); loadDocs(); } });
 
     loadMe();
 </script>

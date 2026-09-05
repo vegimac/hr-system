@@ -4844,6 +4844,9 @@ app.MapControllers();
 // der Banner muss aber schon auf der Login-Seite sichtbar sein. Der Endpoint
 // verrät nichts Sensibles (nur das Label) und dient zusätzlich dem
 // Deploy-Gesundheits-Check in deploy.sh (Kanarienvogel).
+// OneCrew Mobil (Walter 05.09.2026): kurze Adresse für das Home-Bildschirm-Icon.
+app.MapGet("/mobil", (HttpContext ctx) => { ctx.Response.Redirect("/mobil.html"); return Task.CompletedTask; });
+
 app.MapGet("/api/instance-info", () => Results.Ok(new
 {
     label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? "",

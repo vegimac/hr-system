@@ -923,41 +923,7 @@ async function init() {
     }
 }
 
-// ── Handy → mobile Benutzer-Ansicht (Walter 05.09.2026) ─────────────────
-// Programm-Benutzer auf dem Handy landen auf mobil.html (Mitteilungen,
-// Dokument senden, Face ID) statt im grossen Programm. Erkennung: schmaler
-// Bildschirm UND Touch (iPad/Mac → Programm). «Zum vollständigen Programm»
-// setzt sessionStorage.hrDesktop — gilt nur für diesen Tab.
-function isMobileGeraet() {
-    try {
-        // Safari «Desktop-Website anfordern» meldet ein breites Fenster und
-        // einen Mac-UserAgent — dann greift nur noch die Bildschirmgrösse
-        // (screen.*) bzw. Touch. iPad (Breite ≥ 768) bleibt beim Programm.
-        const ua = navigator.userAgent || '';
-        const uaPhone = /iPhone|iPod|Android.+Mobile|Windows Phone/i.test(ua);
-        const coarse = window.matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 1;
-        const schmal = window.matchMedia('(max-width: 767px)').matches;
-        const kleinerScreen = Math.min(screen.width || 9999, screen.height || 9999) <= 500;
-        return uaPhone || (coarse && (schmal || kleinerScreen));
-    } catch (_) { return false; }
-}
-function mobileUmleitung(role) {
-    if (!role || role === 'employee') return false;
-    if (!isMobileGeraet()) return false;
-    // «Zum vollständigen Programm» gilt genau EINMAL (Merker wird hier
-    // verbraucht). Vorher blieb der Merker in der Home-Bildschirm-App
-    // hängen — iOS beendet die App nicht, sessionStorage lebte ewig weiter
-    // → das Programm kam immer wieder statt der mobilen Ansicht.
-    try {
-        if (sessionStorage.getItem('hrDesktop') === '1') { sessionStorage.removeItem('hrDesktop'); return false; }
-        if (/[?&]desktop=1/.test(location.search)) return false;
-    } catch (_) {}
-    window.location.href = 'mobil.html';
-    return true;
-}
-
 async function startApp() {
-    if (mobileUmleitung(currentUser?.role)) return;
     // Anmeldemaske weg, App zeigen (Walter 31.08.2026: dieser Block war beim
     // Umbau des Testmodus versehentlich mit entfernt worden — ohne ihn blieb
     // nach der Anmeldung der Login-Bildschirm stehen).
@@ -1740,9 +1706,6 @@ function openMySettings() {
                     <span id="mySetPwInfo" style="font-size:11.5px;color:#8b8b8b"></span>
                 </div>
             </div>
-
-            <div style="border-top:1px solid rgba(60,55,48,0.12);margin:16px 0 12px"></div>
-            <button onclick="try{sessionStorage.removeItem('hrDesktop')}catch(_){};window.location.href='mobil.html'" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:7px 14px;font-size:13px;font-weight:600;cursor:pointer">📱 Zur mobilen Ansicht (Mitteilungen)</button>
 
             <div id="mySetFaceIdBlock" style="display:none">
                 <div style="border-top:1px solid rgba(60,55,48,0.12);margin:16px 0 12px"></div>

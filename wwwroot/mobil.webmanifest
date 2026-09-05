@@ -1,0 +1,21 @@
+{
+  "name": "OneCrew Mobil",
+  "short_name": "OneCrew Mobil",
+  "start_url": "/mobil.html",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#f8f5ee",
+  "background_color": "#f8f5ee",
+  "display": "standalone"
+}
