@@ -767,7 +767,7 @@
     <div style="display:flex;align-items:center;gap:10px;padding:max(10px, env(safe-area-inset-top)) 12px 10px;background:rgba(255,255,255,0.85);border-bottom:1px solid #e2ddd3;backdrop-filter:blur(10px)">
         <button onclick="pfViewClose()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer">← Zurück</button>
         <div id="viewTitle" style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
-        <button id="viewExtern" onclick="pfViewExtern()" style="background:rgba(255,255,255,0.7);color:#1a1a1a;border:1px solid #d8d2c8;border-radius:12px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer">Öffnen ↗</button>
+        <button id="viewExtern" onclick="pfViewTeilen()" style="background:rgba(255,255,255,0.7);color:#1a1a1a;border:1px solid #d8d2c8;border-radius:12px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer">Teilen</button>
     </div>
     <div id="viewBody" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center;padding:10px"></div>
 </div>
@@ -798,6 +798,7 @@
         <p class="pf-up-sub" id="msgMeta"></p>
         <div class="mb-msg-body" id="msgBody"></div>
         <div class="pf-up-actions">
+            <button class="pf-up-btn secondary" style="flex:0 0 auto;padding:12px 14px;color:#8a3b34" onclick="pfDelete(window._msgDocId)" title="Löschen">🗑</button>
             <button class="pf-up-btn secondary" onclick="closeMsg()">Schliessen</button>
             <button class="pf-up-btn primary" id="msgAnhang" style="display:none" onclick="pfOpen(window._msgDocId)">📎 Anhang öffnen</button>
         </div>
@@ -1123,6 +1124,7 @@
                     ${from ? `<div class="pf-doc-from">${from}${hatAnhang ? ' · 📎 Anhang' : ''}</div>` : (hatAnhang ? '<div class="pf-doc-from">📎 Anhang</div>' : '')}
                     <div class="pf-doc-sub">${sub}</div>
                 </div>
+                <button type="button" onclick="event.stopPropagation();event.preventDefault();pfDelete(${d.id})" title="Löschen" style="background:none;border:0;padding:6px;color:#b3a99a;font-size:17px;cursor:pointer;flex-shrink:0">🗑</button>
                 <div class="pf-doc-arrow">›</div>
             </a>`;
         }).join('');
@@ -1205,11 +1207,15 @@
             const res = await fetch('/api/mailbox/' + docId + '/preview', { headers: ah() });
             if (!res.ok) { body.innerHTML = '<div class="pf-empty"><div class="pf-empty-title">Dokument konnte nicht geöffnet werden</div><div class="pf-empty-text">Status ' + res.status + '</div></div>'; return; }
             const blob = await res.blob();
+            _viewBlob = blob;
             if (_viewUrl) { try { URL.revokeObjectURL(_viewUrl); } catch (_) {} }
             _viewUrl = URL.createObjectURL(blob);
             const typ = (blob.type || d?.mimeType || '').toLowerCase();
             if (typ.startsWith('image/')) {
                 body.innerHTML = `<img src="${_viewUrl}" alt="" style="max-width:100%;height:auto;border-radius:10px;box-shadow:0 8px 24px rgba(60,55,48,0.18)">`;
+            } else if (typ.includes('pdf')) {
+                try { await pdfZeichnen(blob, body); }
+                catch (e) { body.style.padding = '0'; body.innerHTML = `<iframe src="${_viewUrl}" style="width:100%;height:100%;border:0;background:#fff" title="Dokument"></iframe>`; }
             } else {
                 body.style.padding = '0';
                 body.innerHTML = `<iframe src="${_viewUrl}" style="width:100%;height:100%;border:0;background:#fff" title="Dokument"></iframe>`;
@@ -1224,10 +1230,69 @@
         body.innerHTML = ''; body.style.padding = '10px';
         if (_viewUrl) { setTimeout(() => { try { URL.revokeObjectURL(_viewUrl); } catch (_) {} }, 1000); }
     }
-    function pfViewExtern() {
-        if (!_viewUrl) return;
-        const w = window.open(_viewUrl, '_blank');
-        if (!w) window.location.href = _viewUrl;
+    // Teilen (Walter 05.09.2026): iOS-Teilen-Blatt (Sichern in Dateien, AirDrop,
+    // Drucken …) — danach ist man wieder hier. Ohne Web-Share: Download.
+    let _viewBlob = null;
+    async function pfViewTeilen() {
+        if (!_viewBlob) return;
+        const name = /\.[a-z0-9]{2,5}$/i.test(_viewName) ? _viewName : (_viewName + (_viewBlob.type === 'application/pdf' ? '.pdf' : _viewBlob.type.startsWith('image/') ? '.jpg' : ''));
+        try {
+            const file = new File([_viewBlob], name, { type: _viewBlob.type || 'application/octet-stream' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: _viewName }); return; }
+        } catch (e) { if (e && e.name === 'AbortError') return; }
+        const a = document.createElement('a'); a.href = _viewUrl; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    // PDF seitenweise in die Seite zeichnen (pdf.js) — das iPhone zeigt im
+    // Rahmen sonst nur die erste Seite. Fällt bei Fehler auf den Rahmen zurück.
+    let _pdfjsReady = null;
+    function pdfjsLaden() {
+        if (_pdfjsReady) return _pdfjsReady;
+        _pdfjsReady = new Promise((resolve, reject) => {
+            const sc = document.createElement('script');
+            sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+            sc.onload = () => { try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; resolve(window.pdfjsLib); } catch (e) { reject(e); } };
+            sc.onerror = () => reject(new Error('pdf.js nicht geladen'));
+            document.head.appendChild(sc);
+        });
+        return _pdfjsReady;
+    }
+    async function pdfZeichnen(blob, body) {
+        const lib = await pdfjsLaden();
+        const data = await blob.arrayBuffer();
+        const pdf = await lib.getDocument({ data }).promise;
+        body.innerHTML = '';
+        body.style.padding = '8px';
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;width:100%;align-items:center';
+        body.appendChild(wrap);
+        const breite = Math.min(body.clientWidth - 16, 900);
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const vp0 = page.getViewport({ scale: 1 });
+            const scale = breite / vp0.width;
+            const vp = page.getViewport({ scale: scale * dpr });
+            const c = document.createElement('canvas');
+            c.width = vp.width; c.height = vp.height;
+            c.style.cssText = `width:${breite}px;height:${vp.height / dpr}px;background:#fff;border-radius:6px;box-shadow:0 6px 18px rgba(60,55,48,0.15)`;
+            wrap.appendChild(c);
+            await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+        }
+    }
+
+    // Mitteilung / Dokument aus dem eigenen Postfach löschen (Walter 05.09.2026).
+    async function pfDelete(docId) {
+        if (!docId) return;
+        const d = (_inboxDocs || []).find(x => x.id === docId);
+        const name = d ? (d.originalFilename || 'Mitteilung') : 'Mitteilung';
+        if (!confirm(`«${name}» löschen?`)) return;
+        try {
+            const r = await fetch('/api/mailbox/' + docId, { method: 'DELETE', headers: ah() });
+            if (!r.ok) { alert('Löschen fehlgeschlagen (Status ' + r.status + ').'); return; }
+            closeMsg();
+            loadDocs();
+        } catch (e) { alert('Verbindungsfehler: ' + e.message); }
     }
 
     function pfLogout() {
