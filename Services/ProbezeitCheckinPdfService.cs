@@ -85,7 +85,7 @@ public class ProbezeitCheckinPdfService
                     });
 
                     // ── Stammdaten-Box ──────────────────────────────────────
-                    col.Item().PaddingTop(12).PaddingHorizontal(0).Column(c =>
+                    col.Item().PaddingTop(10).Column(c =>
                     {
                         c.Item().Row(r =>
                         {
@@ -97,7 +97,7 @@ public class ProbezeitCheckinPdfService
                             r.ConstantItem(10);
                             r.RelativeItem().Element(e => Feld(e, "Probezeit bis", d.ProbezeitBis?.ToString("dd.MM.yyyy")));
                         });
-                        c.Item().PaddingTop(7).Row(r =>
+                        c.Item().PaddingTop(5).Row(r =>
                         {
                             r.RelativeItem().Element(e => Feld(e, "Gespräch geführt von", d.GefuehrtVon));
                             r.ConstantItem(10);
@@ -187,13 +187,38 @@ public class ProbezeitCheckinPdfService
 
     private const float SpaltenBreite = 62f;
 
+    /// <summary>
+    /// Stammdaten-Feld: vorausgefüllt → nur Label + Wert, keine Linie.
+    /// Leer (von Hand) → feine gestrichelte Linie (Walter 05.09.2026).
+    /// </summary>
     private static void Feld(IContainer c, string label, string? wert)
     {
         c.Column(col =>
         {
             col.Item().Text(label).FontSize(8f).FontColor(Soft);
-            col.Item().BorderBottom(0.6f).BorderColor(Line).PaddingBottom(1)
-               .Text(string.IsNullOrWhiteSpace(wert) ? " " : wert).FontSize(10f).Bold();
+            if (string.IsNullOrWhiteSpace(wert))
+            {
+                col.Item().Height(13);
+                col.Item().Element(Gestrichelt);
+            }
+            else
+                col.Item().Text(wert).FontSize(10f).Bold();
+        });
+    }
+
+    /// <summary>
+    /// Feine gestrichelte Linie über die volle Breite — QuestPDF kennt keine
+    /// gestrichelten Rahmen, darum 60 kurze Striche mit Lücken.
+    /// </summary>
+    private static void Gestrichelt(IContainer c)
+    {
+        c.Height(1).Row(r =>
+        {
+            for (var i = 0; i < 60; i++)
+            {
+                r.RelativeItem().BorderBottom(0.5f).BorderColor(Line);
+                r.RelativeItem();
+            }
         });
     }
 
@@ -236,8 +261,10 @@ public class ProbezeitCheckinPdfService
     {
         c.Column(col =>
         {
+            // Handschrift-Zeile: grosszügiger Raum, gestrichelt (Walter 05.09.2026).
             if (label != null) col.Item().Text(label).FontSize(9.5f).Bold();
-            col.Item().Height(15).BorderBottom(0.6f).BorderColor(Line);
+            col.Item().Height(22);
+            col.Item().Element(Gestrichelt);
         });
     }
 
