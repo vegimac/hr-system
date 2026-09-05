@@ -77,15 +77,15 @@ public class ProbezeitberichtPdfService
                     });
 
                     // 1. Zufriedenheit — kein Trennstrich darüber (Walter 21.07.2026)
-                    col.Item().PaddingTop(12).Text("1.  Zufriedenheitsgrad des/der Mitarbeitenden")
+                    col.Item().PaddingTop(8).Text("1.  Zufriedenheitsgrad des/der Mitarbeitenden")
                         .Bold().FontSize(11f);
                     col.Item().PaddingTop(3).Text(
                             "Wie beurteilen Sie den Zufriedenheitsgrad des/der neuen Mitarbeitenden nach den ersten 2 Monaten seit Eintritt in ihren Verantwortungsbereich?")
                         .FontSize(9f).FontColor(Soft);
                     col.Item().PaddingTop(6).Element(e => RatingRow(e, ratings));
                     col.Item().PaddingTop(8).Text("Begründung:").FontSize(9.5f).Bold();
-                    // Grosszügiger Zeilenabstand — unten ist Platz (Walter 21.07.2026).
-                    col.Item().Element(e => WriteSpace(e, 3));
+                    // Walter 05.09.2026: 2 statt 3 Zeilen — alles auf EIN A4 (Abschnitt 4 kam dazu).
+                    col.Item().Element(e => WriteSpace(e, 2));
 
                     col.Item().Element(SectionRule);
 
@@ -96,7 +96,7 @@ public class ProbezeitberichtPdfService
                     col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "c)  Integration ins Team", ratings));
                     col.Item().PaddingTop(6).Element(e => BeurteilungsZeile(e, "d)  Gesamtbeurteilung", ratings));
                     col.Item().PaddingTop(8).Text("Bemerkungen:").FontSize(9.5f).Bold();
-                    col.Item().Element(e => WriteSpace(e, 3));
+                    col.Item().Element(e => WriteSpace(e, 2));
 
                     col.Item().Element(SectionRule);
 
@@ -108,13 +108,13 @@ public class ProbezeitberichtPdfService
                         .Bold().FontSize(11f);
                     // Ort, darunter linksbündig das «Datum»-Label — das Datum wird von
                     // Hand ÜBER dem Label (rechts neben dem Ort) eingetragen (Walter 22.07.2026).
-                    col.Item().PaddingTop(16)
+                    col.Item().PaddingTop(8)
                         .Text(string.IsNullOrWhiteSpace(d.GespraechOrt) ? " " : d.GespraechOrt)
                         .FontSize(11.5f).Bold();
-                    col.Item().PaddingTop(HandLinePitch)
+                    col.Item().PaddingTop(20)
                         .Text("Datum").FontSize(9.5f).FontColor(Soft);
 
-                    col.Item().PaddingTop(10).Element(SectionRule);
+                    col.Item().PaddingTop(4).Element(SectionRule);
 
                     // 4. Entscheid (Walter 05.09.2026) — wird im Gespräch angekreuzt
                     // und vom MA mitunterschrieben. Nur zwei Wege: weiter oder beenden
@@ -134,9 +134,9 @@ public class ProbezeitberichtPdfService
                     // Links = Rest. Unterzeichner + Funktion, rechts = MA-Name.
                     var unterzeichner = $"{d.ErstellerVorname} {d.ErstellerNachname}".Trim();
                     var maName = $"{d.MaVorname} {d.MaNachname}".Trim();
-                    col.Item().PaddingTop(30).Column(c =>
+                    col.Item().PaddingTop(16).Column(c =>
                     {
-                        c.Item().Height(70); // Schreibraum für beide Unterschriften
+                        c.Item().Height(52); // Schreibraum für beide Unterschriften
                         c.Item().Row(r =>
                         {
                             r.RelativeItem().Column(colR =>
