@@ -1005,11 +1005,10 @@
             const fname = currentUser?.firstName || currentUser?.username || 'da';
             document.getElementById('pfGreeting').textContent = 'Hallo ' + fname;
             // Sicherheits-Check: nur employee-Rolle
+            // Programm-Benutzer (GF/HR/Admin) landen hier nur über ein altes
+            // Home-Icon → direkt zu OneCrew Mobil (Walter 05.09.2026).
             if (currentUser?.role !== 'employee') {
-                document.getElementById('pfList').innerHTML =
-                    '<div class="pf-empty"><div class="pf-empty-title">Falscher Benutzertyp</div>' +
-                    '<div class="pf-empty-text">Diese Seite ist nur für Mitarbeiter. ' +
-                    '<a href="index.html">Zur normalen Anwendung</a></div></div>';
+                window.location.replace('mobil.html');
                 return;
             }
             // Pflichtwechsel beim ersten Login: Overlay zeigen, alles
