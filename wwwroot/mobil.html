@@ -761,6 +761,17 @@
     </div>
 </div>
 
+<!-- Dokument-Ansicht im Postfach (Walter 05.09.2026): Bild/PDF in der Seite
+     mit «Zurück» — kein Tab-Wechsel, aus dem es kein Zurück gibt. -->
+<div id="viewOverlay" style="display:none;position:fixed;inset:0;z-index:130;background:#f4f1ea;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:10px;padding:max(10px, env(safe-area-inset-top)) 12px 10px;background:rgba(255,255,255,0.85);border-bottom:1px solid #e2ddd3;backdrop-filter:blur(10px)">
+        <button onclick="pfViewClose()" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 14px;font-size:14px;font-weight:700;cursor:pointer">← Zurück</button>
+        <div id="viewTitle" style="flex:1;min-width:0;font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"></div>
+        <button id="viewExtern" onclick="pfViewExtern()" style="background:rgba(255,255,255,0.7);color:#1a1a1a;border:1px solid #d8d2c8;border-radius:12px;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer">Öffnen ↗</button>
+    </div>
+    <div id="viewBody" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;align-items:flex-start;justify-content:center;padding:10px"></div>
+</div>
+
 <!-- Face ID / Touch ID: Geräteverwaltung -->
 <div id="faceIdOverlay" class="pf-up-overlay" onclick="if (event.target === this) closeFaceIdSettings()">
     <div class="pf-up-card">
@@ -1177,17 +1188,46 @@
         }).join('');
     }
 
-    // PDF/Bild im neuen Tab — window.open synchron im Klick (Mobile Safari).
+    // Dokument in der Seite anzeigen (Walter 05.09.2026): Bild als <img>,
+    // PDF im Rahmen — mit «Zurück». «Öffnen ↗» zeigt es zusätzlich im
+    // Browser-Tab (bei PDFs auf dem iPhone sieht man im Rahmen nur die
+    // erste Seite — dafür der Knopf).
+    let _viewUrl = null, _viewName = '';
     async function pfOpen(docId) {
-        const win = window.open('about:blank', '_blank');
+        const alle = [...(_inboxDocs || []), ...(_outboxDocs || [])];
+        const d = alle.find(x => x.id === docId);
+        _viewName = d ? (d.bemerkung && d.mimeType && d.messageBody ? d.bemerkung : (d.originalFilename || 'Dokument')) : 'Dokument';
+        const body = document.getElementById('viewBody');
+        document.getElementById('viewTitle').textContent = _viewName;
+        body.innerHTML = '<div class="pf-loading" style="padding:30px">Wird geladen…</div>';
+        document.getElementById('viewOverlay').style.display = 'flex';
         try {
             const res = await fetch('/api/mailbox/' + docId + '/preview', { headers: ah() });
-            if (!res.ok) { if (win) win.close(); alert('Dokument konnte nicht geöffnet werden (Status ' + res.status + ').'); return; }
+            if (!res.ok) { body.innerHTML = '<div class="pf-empty"><div class="pf-empty-title">Dokument konnte nicht geöffnet werden</div><div class="pf-empty-text">Status ' + res.status + '</div></div>'; return; }
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            if (win) win.location.href = url; else window.location.href = url;
-            setTimeout(() => URL.revokeObjectURL(url), 60_000);
-        } catch (e) { if (win) win.close(); alert('Verbindungsfehler: ' + e.message); }
+            if (_viewUrl) { try { URL.revokeObjectURL(_viewUrl); } catch (_) {} }
+            _viewUrl = URL.createObjectURL(blob);
+            const typ = (blob.type || d?.mimeType || '').toLowerCase();
+            if (typ.startsWith('image/')) {
+                body.innerHTML = `<img src="${_viewUrl}" alt="" style="max-width:100%;height:auto;border-radius:10px;box-shadow:0 8px 24px rgba(60,55,48,0.18)">`;
+            } else {
+                body.style.padding = '0';
+                body.innerHTML = `<iframe src="${_viewUrl}" style="width:100%;height:100%;border:0;background:#fff" title="Dokument"></iframe>`;
+            }
+        } catch (e) {
+            body.innerHTML = '<div class="pf-empty"><div class="pf-empty-title">Verbindungsfehler</div><div class="pf-empty-text">' + esc(e.message) + '</div></div>';
+        }
+    }
+    function pfViewClose() {
+        document.getElementById('viewOverlay').style.display = 'none';
+        const body = document.getElementById('viewBody');
+        body.innerHTML = ''; body.style.padding = '10px';
+        if (_viewUrl) { setTimeout(() => { try { URL.revokeObjectURL(_viewUrl); } catch (_) {} }, 1000); }
+    }
+    function pfViewExtern() {
+        if (!_viewUrl) return;
+        const w = window.open(_viewUrl, '_blank');
+        if (!w) window.location.href = _viewUrl;
     }
 
     function pfLogout() {
