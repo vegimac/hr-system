@@ -74,7 +74,7 @@ public class ProbezeitCheckinPdfService
                         r.RelativeItem().Column(c =>
                         {
                             c.Item().Text("CHECK-IN · PROBEZEIT").FontSize(8.5f).Bold().FontColor(Soft).LetterSpacing(0.08f);
-                            c.Item().PaddingTop(2).Text("Deine ersten Wochen im Team").FontSize(19f).Bold();
+                            c.Item().PaddingTop(1).Text("Deine ersten Wochen im Team").FontSize(18f).Bold();
                             c.Item().PaddingTop(1).Text("Zwei Blickwinkel. Ein Gespräch. Gemeinsam weiter.").FontSize(9.5f).FontColor(Soft);
                         });
                         var logo = LogoBytes;
@@ -110,7 +110,7 @@ public class ProbezeitCheckinPdfService
                     });
 
                     // ── 1 · So erlebe ich meinen Start (MA) ─────────────────
-                    col.Item().PaddingTop(10).Element(e => Abschnitt(e, "1", "SO ERLEBE ICH MEINEN START", "Mitarbeiter/in"));
+                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "1", "SO ERLEBE ICH MEINEN START", "Mitarbeiter/in"));
                     col.Item().PaddingTop(4).Element(e => SkalaKopf(e, skalaMa));
                     var fragenMa = new[]
                     {
@@ -126,7 +126,7 @@ public class ProbezeitCheckinPdfService
                     col.Item().PaddingTop(3).Element(e => Schreibzeile(e, "Das könnte für mich besser sein:"));
 
                     // ── 2 · So erleben wir dich (GF) ────────────────────────
-                    col.Item().PaddingTop(10).Element(e => Abschnitt(e, "2", "SO ERLEBEN WIR DICH", "Manager / GF"));
+                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "2", "SO ERLEBEN WIR DICH", "Manager / GF"));
                     col.Item().PaddingTop(4).Element(e => SkalaKopf(e, skalaGf));
                     var fragenGf = new[]
                     {
@@ -139,7 +139,7 @@ public class ProbezeitCheckinPdfService
                     col.Item().PaddingTop(3).Element(e => Schreibzeile(e, "Daran möchten wir gemeinsam noch arbeiten:"));
 
                     // ── 3 · Wie geht es weiter? ─────────────────────────────
-                    col.Item().PaddingTop(10).Element(e => Abschnitt(e, "3", "WIE GEHT ES WEITER?", "gemeinsamer Entscheid"));
+                    col.Item().PaddingTop(8).Element(e => Abschnitt(e, "3", "WIE GEHT ES WEITER?", "gemeinsamer Entscheid"));
                     col.Item().PaddingTop(6).Row(r =>
                     {
                         r.RelativeItem().Element(e => EntscheidBox(e, "MITARBEITER/IN", new[]
@@ -156,15 +156,14 @@ public class ProbezeitCheckinPdfService
                             ("Das Arbeitsverhältnis wird während der Probezeit beendet.", d.Entscheid == "kuendigung"),
                         }));
                     });
-                    col.Item().PaddingTop(8).Element(e => Schreibzeile(e, "Unser gemeinsamer Fokus für die nächsten Wochen:"));
-                    col.Item().Element(e => Schreibzeile(e, null));
+                    col.Item().PaddingTop(6).Element(e => Schreibzeile(e, "Unser gemeinsamer Fokus für die nächsten Wochen:"));
 
                     // ── Unterschriften ──────────────────────────────────────
                     // Unterschriften ohne Striche (Walter 05.09.2026): Schreibraum,
                     // darunter Name + Rolle — wie beim Arbeitsvertrag.
-                    col.Item().PaddingTop(16).Column(c =>
+                    col.Item().PaddingTop(10).Column(c =>
                     {
-                        c.Item().Height(46);
+                        c.Item().Height(38);
                         c.Item().Row(r =>
                         {
                             r.RelativeItem().Column(cc =>
@@ -224,12 +223,10 @@ public class ProbezeitCheckinPdfService
 
     private static void Abschnitt(IContainer c, string nr, string titel, string wer)
     {
+        // Ohne schwarze Nummern-Kachel (Walter 05.09.2026) — Nummer als Text.
         c.Row(r =>
         {
-            r.ConstantItem(24).Element(e =>
-                e.Width(22).Height(22).Background(Dark).AlignCenter().AlignMiddle()
-                 .Text(nr).FontSize(11f).Bold().FontColor("#ffffff"));
-            r.RelativeItem().AlignMiddle().PaddingLeft(8).Text(titel).FontSize(12.5f).Bold().LetterSpacing(0.04f);
+            r.RelativeItem().AlignMiddle().Text($"{nr}   {titel}").FontSize(12f).Bold().LetterSpacing(0.04f);
             r.AutoItem().AlignMiddle().Text(wer).FontSize(8.5f).FontColor(Soft);
         });
     }
@@ -248,7 +245,7 @@ public class ProbezeitCheckinPdfService
     private static void Zeile(IContainer c, string text, int anzahl, bool schattiert)
     {
         var box = schattiert ? c.Background(Shade) : c;
-        box.PaddingVertical(3f).PaddingLeft(4).Row(r =>
+        box.PaddingVertical(2.5f).PaddingLeft(4).Row(r =>
         {
             r.RelativeItem().AlignMiddle().Text(text).FontSize(9.5f);
             for (var i = 0; i < anzahl; i++)
