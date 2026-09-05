@@ -289,6 +289,10 @@ public class DashboardService
             // Walter 05.09.2026: Entscheid gefällt (weiter ODER Kündigung) → kein
             // To-do mehr. Die Kündigung läuft über «Kündigung in Probezeit erfassen».
             if (pzEntscheid == "weiter" || pzEntscheid == "kuendigung") continue;
+            // Walter 05.09.2026: solange «Probezeitgespräch offen» dieselbe Person
+            // meldet (aktiv + im Vorlauf), keine zweite Meldung «Probezeit endet»
+            // — das To-do ist dasselbe: Gespräch führen und entscheiden.
+            if (Enabled("probezeit_gespraech_offen") && days <= WarnDays("probezeit_gespraech_offen", 14)) continue;
             var gespraechErledigt = pzEntscheid == "weiter";
             var pzHinweis = pzEntscheid == "weiter" ? "Entscheid: Vertrag läuft weiter"
                           : pzEntscheid == "kuendigung" ? "Entscheid: Vertrag beenden"
