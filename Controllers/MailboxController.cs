@@ -342,6 +342,41 @@ public class MailboxController : ControllerBase
         return Ok(users);
     }
 
+    /// <summary>
+    /// Gesendet-Liste eines Programm-Benutzers (mobile Ansicht, Walter 05.09.2026):
+    /// alles, was der eingeloggte Benutzer selbst hochgeladen hat — egal in
+    /// welches Postfach — mit Empfänger-Beschreibung. Neueste zuerst, max. 200.
+    /// </summary>
+    [HttpGet("user-outbox")]
+    public async Task<IActionResult> UserOutbox()
+    {
+        var uid = GetCurrentUserId();
+        if (uid is null) return Unauthorized();
+        var docs = await _db.MailboxDocuments.AsNoTracking()
+            .Where(m => m.UploadedBy == uid.Value)
+            .OrderByDescending(m => m.UploadedAt)
+            .Take(200)
+            .Select(m => new {
+                m.Id,
+                m.OriginalFilename,
+                m.MimeType,
+                m.FileSizeBytes,
+                m.Bemerkung,
+                m.MessageBody,
+                m.UploadedAt,
+                m.TargetType,
+                m.CompanyProfileId,
+                CompanyProfile = m.CompanyProfile == null ? null : new {
+                    m.CompanyProfile.Id, m.CompanyProfile.RestaurantCode,
+                    name = m.CompanyProfile.BranchName ?? m.CompanyProfile.CompanyName
+                },
+                Employee   = m.Employee == null ? null : new { m.Employee.Id, name = ((m.Employee.FirstName ?? "") + " " + (m.Employee.LastName ?? "")).Trim(), m.Employee.EmployeeNumber },
+                TargetUser = m.TargetUser == null ? null : new { m.TargetUser.Id, name = ((m.TargetUser.FirstName ?? "") + " " + (m.TargetUser.LastName ?? "")).Trim(), m.TargetUser.Username },
+            })
+            .ToListAsync();
+        return Ok(docs);
+    }
+
     // ── POST: Dokument hochladen ──────────────────────────────────────────
     // targetType: BRANCH | HR | ADMIN | BUCH | USER | EMPLOYEE
     //   BRANCH   → companyProfileId Pflicht (Filial-Postfach)
