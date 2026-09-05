@@ -4845,7 +4845,8 @@ app.MapControllers();
 // verrät nichts Sensibles (nur das Label) und dient zusätzlich dem
 // Deploy-Gesundheits-Check in deploy.sh (Kanarienvogel).
 // OneCrew Mobil (Walter 05.09.2026): kurze Adresse für das Home-Bildschirm-Icon.
-app.MapGet("/mobil", (HttpContext ctx) => { ctx.Response.Redirect("/mobil.html"); return Task.CompletedTask; });
+app.MapGet("/mobil", (HttpContext ctx) => { ctx.Response.Redirect("/mobil.html"); return Task.CompletedTask; })
+   .AllowAnonymous();   // FallbackPolicy verlangt sonst ein Login — die Anmeldung ist ja erst auf der Seite
 
 app.MapGet("/api/instance-info", () => Results.Ok(new
 {

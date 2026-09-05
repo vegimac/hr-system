@@ -1157,7 +1157,7 @@
         const sel = document.getElementById('upZiel');
         const opts = [];
         _postfaecher.filter(p => (p.type || '').toUpperCase() === 'BRANCH').forEach(p =>
-            opts.push(`<option value="BRANCH:${p.companyProfileId}">Filiale ${esc(p.name || p.code || '')}</option>`));
+            opts.push(`<option value="BRANCH:${p.companyProfileId}">${esc(/^filiale/i.test(p.name || '') ? p.name : 'Filiale ' + (p.name || p.code || ''))}</option>`));
         if (_postfaecher.some(p => (p.type || '').toUpperCase() === 'HR')) opts.push('<option value="HR">HR-Postfach</option>');
         if (_userRecipients.length) opts.push('<option value="USER">Ein Benutzer …</option>');
         sel.innerHTML = opts.join('') || '<option value="">Kein Postfach verfügbar</option>';
