@@ -60,7 +60,7 @@ public class ProbezeitCheckinPdfService
             {
                 page.Size(PageSizes.A4);
                 page.MarginTop(1.4f, Unit.Centimetre);
-                page.MarginBottom(2.2f, Unit.Centimetre);
+                page.MarginBottom(1.5f, Unit.Centimetre);
                 page.MarginHorizontal(2.1f, Unit.Centimetre);
                 page.DefaultTextStyle(s => s.FontFamily("Arial").FontSize(9.5f).LineHeight(1.25f).FontColor(Dark));
 
@@ -105,7 +105,7 @@ public class ProbezeitCheckinPdfService
                         "Ich möchte weiter hier arbeiten."
                     }, 12f));
                     col.Item().PaddingTop(8).Text("Bemerkungen").Bold();
-                    col.Item().Height(56);
+                    col.Item().Height(48);
                     col.Item().Element(e => JaNein(e, "Willst du mit uns weitergehen?", null));
 
                     // ── WIR ─────────────────────────────────────────────────
@@ -115,7 +115,7 @@ public class ProbezeitCheckinPdfService
                         "Freundlich zu Gästen", "Teamarbeit", "Selbständig arbeiten"
                     }, 9f));
                     col.Item().PaddingTop(8).Text("Bemerkungen").Bold();
-                    col.Item().Height(56);
+                    col.Item().Height(48);
                     col.Item().Element(e => JaNein(e, "Wollen wir mit dir weitergehen?",
                         d.Entscheid == "weiter" ? true : d.Entscheid == "kuendigung" ? false : null));
                 });
