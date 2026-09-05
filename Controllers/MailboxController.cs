@@ -490,12 +490,7 @@ public class MailboxController : ControllerBase
 <p><a href=""{url}"" style=""display:inline-block;background:#1a1a1a;color:#fff;text-decoration:none;padding:12px 26px;border-radius:10px;font-weight:600"">Mitteilung öffnen</a></p>
 <p style=""font-size:12px;color:#6b6b6b"">Der Inhalt liegt in OneCrew Mobil — nach der Anmeldung (Passwort oder Face ID) siehst du ihn direkt. Diese Mail enthält bewusst keinen Inhalt.</p>
 </div>";
-                        var txt = $"Hallo {e.Name}
-
-{abs} hat dir in OneCrew eine Mitteilung geschickt: {betr}
-
-Öffnen: {url}
-";
+                        var txt = $"Hallo {e.Name}\n\n{abs} hat dir in OneCrew eine Mitteilung geschickt: {betr}\n\nÖffnen: {url}\n";
                         try { await svc.SendAsync(e.To, e.Name, subject, html, txt, VersandKategorie.Intern); }
                         catch (Exception ex) { log.LogWarning(ex, "[Mitteilung] Ankündigung an {To} fehlgeschlagen", e.To); }
                     }
