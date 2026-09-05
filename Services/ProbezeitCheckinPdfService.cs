@@ -180,8 +180,8 @@ public class ProbezeitCheckinPdfService
         c.Row(r =>
         {
             r.ConstantItem(190).Text(frage).FontSize(9.5f);
-            r.ConstantItem(100).AlignCenter().Text(t => { var s = t.Span("JA").FontSize(9.5f);   if (ja == true)  s.Bold(); });
-            r.ConstantItem(100).AlignCenter().Text(t => { var s = t.Span("NEIN").FontSize(9.5f); if (ja == false) s.Bold(); });
+            r.ConstantItem(50).AlignCenter().Text(t => { var s = t.Span("JA").FontSize(9.5f);   if (ja == true)  s.Bold(); });
+            r.ConstantItem(50).AlignCenter().Text(t => { var s = t.Span("NEIN").FontSize(9.5f); if (ja == false) s.Bold(); });
         });
     }
 }
