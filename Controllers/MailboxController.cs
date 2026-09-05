@@ -321,13 +321,14 @@ public class MailboxController : ControllerBase
     /// Sortiert nach Vorname (Walter-Konvention).
     /// </summary>
     [HttpGet("user-recipients")]
-    public async Task<IActionResult> GetUserRecipients()
+    public async Task<IActionResult> GetUserRecipients([FromQuery] bool includeSelf = false)
     {
         var uid = GetCurrentUserId();
+        // includeSelf (Walter 05.09.2026): Mitteilung auch an sich selbst — zum Testen.
         var users = await _db.AppUsers.AsNoTracking()
             .Where(u => u.IsActive
                      && u.Role != "employee"
-                     && (uid == null || u.Id != uid.Value))
+                     && (includeSelf || uid == null || u.Id != uid.Value))
             .OrderBy(u => u.FirstName ?? "")
             .ThenBy(u => u.LastName ?? u.Username)
             .Select(u => new {

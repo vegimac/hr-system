@@ -1228,14 +1228,14 @@ async function mtOpen() {
     box.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Lade …</div>';
     document.getElementById('mtModal').style.display = 'block';
     try {
-        const r = await fetch('/api/mailbox/user-recipients', { headers: ah() });
+        const r = await fetch('/api/mailbox/user-recipients?includeSelf=true', { headers: ah() });
         _mtUsers = r.ok ? await r.json() : [];
     } catch (_) { _mtUsers = []; }
     const rolle = u => u.role === 'user' ? 'GF' : u.role === 'superuser' ? 'HR' : u.role === 'buchhaltung' ? 'Buchhaltung' : u.role === 'admin' ? 'Admin' : (u.role || '');
     box.innerHTML = _mtUsers.length
         ? _mtUsers.map(u => `<label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#3f3f3f;cursor:pointer;padding:2px 0">
                 <input type="checkbox" class="mt-emp" value="${u.id}" data-role="${u.role || ''}" data-hr="${u.isHrTeam ? 1 : 0}">
-                <span>${esc(u.name || u.username)}</span><span style="font-size:11px;color:#8b8b8b">${rolle(u)}</span></label>`).join('')
+                <span>${esc(u.name || u.username)}${u.id === currentUser?.id ? ' (ich)' : ''}</span><span style="font-size:11px;color:#8b8b8b">${rolle(u)}</span></label>`).join('')
         : '<div style="font-size:12px;color:#8b8b8b">Keine Benutzer gefunden.</div>';
 }
 function mtClose() { document.getElementById('mtModal').style.display = 'none'; }
