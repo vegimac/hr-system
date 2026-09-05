@@ -52,8 +52,9 @@ public class ProbezeitCheckinPdfService
     public byte[] Generate(ProbezeitCheckinInput d)
     {
         QuestPDF.Settings.License = LicenseType.Community;
-        var skalaMa = new[] { "Nein", "Eher nein", "Eher ja", "Ja" };
-        var skalaGf = new[] { "Unterstützung nötig", "Auf gutem Weg", "Gut", "Stark" };
+        // Positive Antwort zuerst (Walter 05.09.2026).
+        var skalaMa = new[] { "Ja", "Eher ja", "Eher nein", "Nein" };
+        var skalaGf = new[] { "Stark", "Gut", "Auf gutem Weg", "Unterstützung nötig" };
 
         return Document.Create(container =>
         {
@@ -84,7 +85,7 @@ public class ProbezeitCheckinPdfService
                     });
 
                     // ── Stammdaten-Box ──────────────────────────────────────
-                    col.Item().PaddingTop(12).Border(0.8f).BorderColor(Line).Padding(9).Column(c =>
+                    col.Item().PaddingTop(12).PaddingHorizontal(0).Column(c =>
                     {
                         c.Item().Row(r =>
                         {
@@ -159,18 +160,24 @@ public class ProbezeitCheckinPdfService
                     col.Item().Element(e => Schreibzeile(e, null));
 
                     // ── Unterschriften ──────────────────────────────────────
-                    col.Item().PaddingTop(24).Row(r =>
+                    // Unterschriften ohne Striche (Walter 05.09.2026): Schreibraum,
+                    // darunter Name + Rolle — wie beim Arbeitsvertrag.
+                    col.Item().PaddingTop(16).Column(c =>
                     {
-                        r.RelativeItem().Column(c =>
+                        c.Item().Height(46);
+                        c.Item().Row(r =>
                         {
-                            c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(1);
-                            c.Item().PaddingTop(3).Text("Mitarbeiter/in").FontSize(8.5f).FontColor(Soft);
-                        });
-                        r.ConstantItem(60);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().BorderBottom(0.8f).BorderColor(Dark).Height(1);
-                            c.Item().PaddingTop(3).Text("Manager / GF").FontSize(8.5f).FontColor(Soft);
+                            r.RelativeItem().Column(cc =>
+                            {
+                                cc.Item().Text(string.IsNullOrWhiteSpace(d.MaName) ? " " : d.MaName).FontSize(10f);
+                                cc.Item().Text("Mitarbeiter/in").FontSize(8.5f).FontColor(Soft);
+                            });
+                            r.ConstantItem(60);
+                            r.RelativeItem().Column(cc =>
+                            {
+                                cc.Item().Text(string.IsNullOrWhiteSpace(d.GefuehrtVon) ? " " : d.GefuehrtVon).FontSize(10f);
+                                cc.Item().Text("Manager / GF").FontSize(8.5f).FontColor(Soft);
+                            });
                         });
                     });
                 });
@@ -236,7 +243,7 @@ public class ProbezeitCheckinPdfService
 
     private static void EntscheidBox(IContainer c, string titel, (string Text, bool Kreuz)[] optionen)
     {
-        c.Border(0.8f).BorderColor(Line).Padding(9).Column(col =>
+        c.Column(col =>
         {
             col.Item().Text(titel).FontSize(8.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
             foreach (var (text, kreuz) in optionen)
