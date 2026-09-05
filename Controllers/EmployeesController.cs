@@ -1325,10 +1325,42 @@ public class EmployeesController : ControllerBase
     /// Check-in «Deine ersten Wochen im Team» (Walter 05.09.2026) — vereinfachte
     /// Alternative zum klassischen Probezeit-Formular; beide bleiben verfügbar.
     /// </summary>
+    /// <summary>
+    /// Unterzeichner-Optionen für den Check-in (Walter 05.09.2026) — wie beim
+    /// Arbeitsvertrag: Default = Allgemein-Unterzeichner der Filiale (GF),
+    /// Alternative = der eingeloggte Benutzer selbst.
+    /// </summary>
+    [HttpGet("{id:int}/probezeit-checkin-signer-options")]
+    public async Task<IActionResult> GetProbezeitCheckinSignerOptions(int id)
+    {
+        var emp = await _context.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == id && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
+            .FirstOrDefaultAsync();
+        if (emp?.CompanyProfileId == null) return NotFound();
+        var def = await _context.UserBranchAccesses.AsNoTracking()
+            .Include(s => s.User)
+            .Where(s => s.CompanyProfileId == emp.CompanyProfileId.Value && s.IsDefault)
+            .FirstOrDefaultAsync();
+        var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        AppUser? me = null;
+        if (int.TryParse(uidStr, out var uid))
+            me = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid);
+        return Ok(new
+        {
+            defaultSignerName    = def != null ? $"{def.User.FirstName} {def.User.LastName}".Trim() : "",
+            defaultSignerUserId  = def?.UserId,
+            currentUserId        = me?.Id,
+            currentUserName      = me != null ? $"{me.FirstName} {me.LastName}".Trim() : "",
+            isCurrentUserDefault = def != null && me != null && def.UserId == me.Id
+        });
+    }
+
     [HttpGet("{id:int}/probezeit-checkin-pdf")]
     public async Task<IActionResult> GetProbezeitCheckinPdf(
         int id,
-        [FromServices] ProbezeitCheckinPdfService pdf)
+        [FromServices] ProbezeitCheckinPdfService pdf,
+        [FromQuery] int? signerUserId = null)
     {
         var e = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
         if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
@@ -1340,18 +1372,61 @@ public class EmployeesController : ControllerBase
             .ThenByDescending(em => em.ContractStartDate)
             .FirstOrDefaultAsync();
         var cp = emp?.CompanyProfile;
+
+        // Unterzeichner (Walter 05.09.2026): «Gespräch mit» + «Funktion» sind
+        // die des Unterzeichners, NICHT des MA. Default = Allgemein-Unterzeichner
+        // der Filiale (IsDefault, mit FunctionTitle); wählbar nur der eingeloggte
+        // Benutzer selbst (wie beim Arbeitsvertrag — nie eine Drittperson).
         var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        AppUser? user = null;
-        if (int.TryParse(uidStr, out var uid))
-            user = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid);
-        var funktion = !string.IsNullOrWhiteSpace(emp?.JobTitle) ? emp!.JobTitle : (emp?.JobGroup?.Code ?? "");
+        int.TryParse(uidStr, out var meId);
+        if (signerUserId.HasValue && signerUserId.Value != meId) return Forbid();
+
+        string gefuehrtVon = "", funktion = "";
+        UserBranchAccess? acc = null;
+        if (signerUserId.HasValue)
+        {
+            var su = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == signerUserId.Value);
+            if (su != null)
+            {
+                gefuehrtVon = $"{su.FirstName} {su.LastName}".Trim();
+                if (cp != null)
+                    acc = await _context.UserBranchAccesses.AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.UserId == su.Id && a.CompanyProfileId == cp.Id);
+                funktion = acc?.FunctionTitle ?? RolleLabelCheckin(su.Role);
+            }
+        }
+        else if (cp != null)
+        {
+            acc = await _context.UserBranchAccesses.AsNoTracking()
+                .Include(a => a.User)
+                .FirstOrDefaultAsync(a => a.CompanyProfileId == cp.Id && a.IsDefault);
+            if (acc != null)
+            {
+                gefuehrtVon = $"{acc.User.FirstName} {acc.User.LastName}".Trim();
+                funktion = acc.FunctionTitle ?? RolleLabelCheckin(acc.User.Role);
+            }
+        }
+        if (string.IsNullOrWhiteSpace(gefuehrtVon) && meId > 0)
+        {
+            // Kein Allgemein-Unterzeichner hinterlegt → eingeloggter Benutzer.
+            var me = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == meId);
+            if (me != null)
+            {
+                gefuehrtVon = $"{me.FirstName} {me.LastName}".Trim();
+                if (cp != null)
+                    acc = await _context.UserBranchAccesses.AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.UserId == me.Id && a.CompanyProfileId == cp.Id);
+                funktion = acc?.FunctionTitle ?? RolleLabelCheckin(me.Role);
+            }
+        }
+
         var input = new ProbezeitCheckinInput(
             MaName: $"{e.FirstName} {e.LastName}".Trim(),
             Restaurant: cp?.BranchName ?? cp?.FullDisplayName,
             Funktion: funktion,
             Eintritt: e.EntryDate ?? emp?.ContractStartDate,
             ProbezeitBis: emp?.ProbationEndDate,
-            GefuehrtVon: $"{user?.FirstName} {user?.LastName}".Trim(),
+            GefuehrtVon: gefuehrtVon,
             GespraechAm: e.ProbezeitGespraech1Am,
             Entscheid: e.ProbezeitEntscheid
         );
@@ -1359,6 +1434,15 @@ public class EmployeesController : ControllerBase
         var fname = $"Checkin-{(e.EmployeeNumber ?? id.ToString())}-{e.FirstName}.pdf".Replace(" ", "_");
         return File(bytes, "application/pdf", fname);
     }
+
+    private static string RolleLabelCheckin(string? role) => role switch
+    {
+        "admin" => "Admin",
+        "superuser" => "HR",
+        "buchhaltung" => "Buchhaltung",
+        "user" => "Geschäftsführer/in",
+        _ => role ?? ""
+    };
 
     [HttpGet("{id:int}/probezeitbericht-pdf")]
     public async Task<IActionResult> GetProbezeitberichtPdf(

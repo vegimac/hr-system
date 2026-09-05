@@ -15975,7 +15975,9 @@ async function pzGenerateBericht(variante) {
     const fname = `${checkin ? 'Checkin' : 'PZ'}-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
     try {
         if (typeof previewUrlFetch === 'function') {
-            await previewUrlFetch(url, fname, ah());
+            const ok = await previewUrlFetch(url, fname, ah());
+            // Unterzeichner-Umschalter wie beim Arbeitsvertrag (Walter 05.09.2026).
+            if (ok && checkin) pzCheckinInjectSignerSelector(emp.id);
             return;
         }
         const r = await fetch(url, { headers: ah() });
@@ -15987,6 +15989,38 @@ async function pzGenerateBericht(variante) {
         if (typeof previewFileModal === 'function') await previewFileModal(blob, fname);
         else if (typeof saveBlobAsk === 'function') await saveBlobAsk(blob, fname);
     } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// Unterzeichner-Wahl im Check-in (Walter 05.09.2026): Default = Allgemein-
+// Unterzeichner der Filiale (GF), Alternative = eingeloggter Benutzer (ich).
+async function pzCheckinInjectSignerSelector(empId) {
+    try {
+        const r = await fetch(`/api/employees/${empId}/probezeit-checkin-signer-options`, { headers: ah() });
+        if (!r.ok) return;
+        const o = await r.json();
+        if (!o.currentUserId) return;
+        const defLabel = o.defaultSignerName ? `${o.defaultSignerName} (Allgemein)` : 'Allgemein-Unterzeichner';
+        const ichOption = o.isCurrentUserDefault ? '' : `<option value="${o.currentUserId}">${esc(o.currentUserName)} (ich)</option>`;
+        if (typeof filePreviewSetExtra !== 'function') return;
+        filePreviewSetExtra(
+            'Gespräch mit: '
+            + `<select id="pzCheckinSignerSelect" onchange="pzCheckinSignerChanged(${empId})"`
+            + ' style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px;background:white;max-width:260px">'
+            + `<option value="">${esc(defLabel)}</option>` + ichOption + '</select>');
+    } catch (_) { /* optionaler Komfort */ }
+}
+
+async function pzCheckinSignerChanged(empId) {
+    const sel = document.getElementById('pzCheckinSignerSelect');
+    const uid = sel ? sel.value : '';
+    if (sel) sel.disabled = true;
+    try {
+        const url = `/api/employees/${empId}/probezeit-checkin-pdf` + (uid ? `?signerUserId=${uid}` : '');
+        const res = await fetch(url, { headers: ah() });
+        if (!res.ok) { alert('Fehler beim PDF: ' + await res.text()); return; }
+        if (typeof filePreviewReplaceBlob === 'function') filePreviewReplaceBlob(await res.blob());
+    } catch (e) { alert('Fehler: ' + e.message); }
+    finally { if (sel) sel.disabled = false; }
 }
 
 async function pzOpenKuendigung(empId) {

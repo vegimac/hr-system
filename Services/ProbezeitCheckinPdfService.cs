@@ -71,16 +71,16 @@ public class ProbezeitCheckinPdfService
                     col.Item().Row(r =>
                     {
                         r.RelativeItem();
-                        if (logo != null) r.ConstantItem(150).AlignRight().Image(logo).FitWidth();
-                        else r.ConstantItem(150).Height(40);
+                        if (logo != null) r.ConstantItem(130).AlignRight().Image(logo).FitWidth();
+                        else r.ConstantItem(130).Height(34);
                     });
 
                     // ── Titel zentriert ─────────────────────────────────────
-                    col.Item().PaddingTop(34).AlignCenter().Text("DEINE ERSTEN WOCHEN BEI UNS").FontSize(14f).Bold();
+                    col.Item().PaddingTop(22).AlignCenter().Text("DEINE ERSTEN WOCHEN BEI UNS").FontSize(14f).Bold();
                     col.Item().PaddingTop(2).AlignCenter().Text("Zwei Blickwinkel. Ein Gespräch. Gemeinsam weiter.").FontSize(8.5f).FontColor(Soft);
 
                     // ── Stammdaten: kleine Labels, Werte darunter ───────────
-                    col.Item().PaddingTop(30).Row(r =>
+                    col.Item().PaddingTop(20).Row(r =>
                     {
                         r.RelativeItem(2).Element(e => Feld(e, "MITARBEITER/IN", d.MaName));
                         r.RelativeItem(2).Element(e => Feld(e, "RESTAURANT / BEREICH", d.Restaurant));
@@ -96,7 +96,7 @@ public class ProbezeitCheckinPdfService
                     });
 
                     // ── DU ──────────────────────────────────────────────────
-                    col.Item().PaddingTop(28).Element(e => Block(e, "DU", "Wie war deine erste Zeit bei uns?", skalaDu, new[]
+                    col.Item().PaddingTop(20).Element(e => Block(e, "DU", "Wie war deine erste Zeit bei uns?", skalaDu, new[]
                     {
                         "Ich fühle mich wohl im Team.",
                         "Ich weiss, was ich tun soll.",
@@ -105,17 +105,17 @@ public class ProbezeitCheckinPdfService
                         "Ich möchte weiter hier arbeiten."
                     }, 12f));
                     col.Item().PaddingTop(8).Text("Bemerkungen").Bold();
-                    col.Item().Height(48);
+                    col.Item().Height(40);
                     col.Item().Element(e => JaNein(e, "Willst du mit uns weitergehen?", null));
 
                     // ── WIR ─────────────────────────────────────────────────
-                    col.Item().PaddingTop(46).Element(e => Block(e, "WIR", "So erleben wir deinen Start.", skalaWir, new[]
+                    col.Item().PaddingTop(28).Element(e => Block(e, "WIR", "So erleben wir deinen Start.", skalaWir, new[]
                     {
                         "Arbeit / Leistung", "Zuverlässig", "Neues lernen",
                         "Freundlich zu Gästen", "Teamarbeit", "Selbständig arbeiten"
                     }, 9f));
                     col.Item().PaddingTop(8).Text("Bemerkungen").Bold();
-                    col.Item().Height(48);
+                    col.Item().Height(40);
                     col.Item().Element(e => JaNein(e, "Wollen wir mit dir weitergehen?",
                         d.Entscheid == "weiter" ? true : d.Entscheid == "kuendigung" ? false : null));
 
