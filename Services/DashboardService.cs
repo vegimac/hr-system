@@ -281,8 +281,16 @@ public class DashboardService
             var endeTxt = FormatWeekdayDateDe(dueDate);
             // Walter 31.07.2026: wenn Probezeitgespräch erledigt (Datum + Protokoll),
             // «Probezeit endet …» nur noch als Information — nie Wichtig/Kritisch.
-            var gespraechErledigt = em.Employee!.ProbezeitGespraech1Am.HasValue
-                                 && em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+            // Walter 05.09.2026: massgebend ist der Probezeit-ENTSCHEID —
+            // «weiter» → Information; «kuendigung» läuft über die eigene
+            // kritische Meldung; offen (auch nach Verlängerung) → Vorlauf/
+            // Eskalation gemäss Warnungen.
+            var pzEntscheid = em.Employee!.ProbezeitEntscheid;
+            var gespraechErledigt = pzEntscheid == "weiter";
+            var pzHinweis = pzEntscheid == "weiter" ? "Entscheid: Vertrag läuft weiter"
+                          : pzEntscheid == "kuendigung" ? "Entscheid: Vertrag beenden"
+                          : em.Employee.ProbezeitVerlaengertAm.HasValue ? "Probezeit einmalig verlängert · Entscheid offen"
+                          : "";
             var sev = gespraechErledigt
                 ? "info"
                 : Severity("probation_end", days, "info", "warning");
@@ -302,12 +310,12 @@ public class DashboardService
                 // Walter 05.09.2026: sichtbar machen, WARUM nur Information —
                 // sonst wirkt es, als würde die Warnungs-Einstellung ignoriert.
                 Subtitle = $"{em.Employee.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}"
-                         + (gespraechErledigt ? " · Probezeitgespräch erledigt" : ""),
-                SubtitleKey  = gespraechErledigt ? "subtitle.maPersonalnrModel" : "subtitle.maPersonalnr",
+                         + (pzHinweis != "" ? " · " + pzHinweis : ""),
+                SubtitleKey  = pzHinweis != "" ? "subtitle.maPersonalnrModel" : "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
                     ["name"] = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim(),
                     ["empNr"] = em.Employee.EmployeeNumber,
-                    ["model"] = "Probezeitgespräch erledigt"
+                    ["model"] = pzHinweis
                 },
                 DueDate  = dueDate,
                 DaysUntil = days,
@@ -335,8 +343,16 @@ public class DashboardService
                           && em.Employee != null
                           && em.Employee.IsActive
                           && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
-                          && (em.Employee.ProbezeitGespraech1Am == null
-                              || em.Employee.ProbezeitGespraech1DokumentId == null));
+                          // Walter 05.09.2026: offen = Gespräch der aktuellen Runde
+                          // (1, nach Verlängerung 2) unvollständig ODER Entscheid fehlt.
+                          && (em.Employee.ProbezeitVerlaengertAm == null
+                              ? (em.Employee.ProbezeitGespraech1Am == null
+                                 || em.Employee.ProbezeitGespraech1DokumentId == null
+                                 || em.Employee.ProbezeitEntscheid == null)
+                              : (em.Employee.ProbezeitGespraech2Am == null
+                                 || em.Employee.ProbezeitGespraech2DokumentId == null
+                                 || em.Employee.ProbezeitEntscheid == null
+                                 || em.Employee.ProbezeitEntscheid == "verlaengert")));
             if (companyProfileId.HasValue)
                 pzGespQ = pzGespQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
             var pzGespList = await pzGespQ.ToListAsync();
@@ -347,11 +363,16 @@ public class DashboardService
                 var dueDate = em.ProbationEndDate!.Value;
                 var days = (dueDate.Date - now).Days;
                 var endeTxt = FormatWeekdayDateDe(dueDate);
-                var fehltDatum = em.Employee!.ProbezeitGespraech1Am == null;
-                var fehltDok = !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
+                var runde2 = em.Employee!.ProbezeitVerlaengertAm.HasValue;
+                var fehltDatum = runde2 ? em.Employee.ProbezeitGespraech2Am == null
+                                        : em.Employee.ProbezeitGespraech1Am == null;
+                var fehltDok = runde2 ? !em.Employee.ProbezeitGespraech2DokumentId.HasValue
+                                      : !em.Employee.ProbezeitGespraech1DokumentId.HasValue;
                 var fehltTxt = fehltDatum && fehltDok ? "Gesprächsdatum + Protokoll"
                     : fehltDatum ? "Gesprächsdatum"
-                    : "Protokoll";
+                    : fehltDok ? "Protokoll"
+                    : "Entscheid (weiter / verlängern / Kündigung)";
+                if (runde2) fehltTxt = "2. Gespräch — " + fehltTxt;
                 var name = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim();
                 // Walter 26.07.2026: Probezeit-Ende fett im Titel (auch bei
                 // kritisch — gleiche Title-Zeile, nur Spalte/Farbe anders).
@@ -370,6 +391,56 @@ public class DashboardService
                     },
                     DueDate  = dueDate,
                     DaysUntil = days,
+                    EmployeeId     = em.EmployeeId,
+                    EmployeeNumber = em.Employee.EmployeeNumber,
+                    EmployeeName   = name
+                });
+            }
+        }
+
+        // ── 2c) Kündigung in Probezeit erfassen (Walter 05.09.2026) ───────
+        // Entscheid «kuendigung» gefällt, aber noch keine Kündigung erfasst
+        // (Gekündigt am fehlt). Kritisch, kein Vorlauf. Letzter Zustelltag =
+        // Probezeit-Ende minus Frist in der Probezeit (Filiale, Default 3 Tage).
+        // Läuft auch nach dem Probezeit-Ende weiter (dann ist es zu spät —
+        // aber der GF muss es sehen).
+        if (Enabled("probezeit_kuendigung_offen"))
+        {
+            var pzKuQ = _db.Employments
+                .Include(em => em.Employee)
+                .Include(em => em.CompanyProfile)
+                .Where(em => em.IsActive
+                          && em.ProbationEndDate.HasValue
+                          && em.Employee != null
+                          && em.Employee.IsActive
+                          && !em.Employee.EmployeeNumber.ToLower().EndsWith("alt")
+                          && em.Employee.ProbezeitEntscheid == "kuendigung"
+                          && em.Employee.KuendigungAusgesprochenAm == null);
+            if (companyProfileId.HasValue)
+                pzKuQ = pzKuQ.Where(em => em.CompanyProfileId == companyProfileId.Value);
+            var pzKuList = await pzKuQ.ToListAsync();
+            foreach (var em in pzKuList
+                .GroupBy(e => e.EmployeeId)
+                .Select(g => g.OrderBy(x => x.ProbationEndDate).First()))
+            {
+                var ende = em.ProbationEndDate!.Value.Date;
+                var fristTage = em.CompanyProfile?.NoticePeriodDuringProbationDays ?? 3;
+                var letzterTag = ende.AddDays(-fristTage);
+                var days = (letzterTag - now).Days;
+                var name = $"{em.Employee!.FirstName} {em.Employee.LastName}".Trim();
+                var zuSpaet = now > letzterTag;
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "probezeit_kuendigung_offen",
+                    Severity = SeverityState("probezeit_kuendigung_offen", "critical"),
+                    Title    = zuSpaet
+                        ? $"Kündigung in Probezeit erfassen — letzter Zustelltag {letzterTag:dd.MM.yyyy} ist vorbei!"
+                        : $"Kündigung in Probezeit erfassen — spätestens {FormatWeekdayDateDe(letzterTag)}",
+                    Subtitle = $"{name} · Personalnr. {em.Employee.EmployeeNumber}"
+                             + $" — Entscheid «Vertrag beenden» vom {em.Employee.ProbezeitEntscheidAm:dd.MM.yyyy}"
+                             + $" · Probezeit bis {ende:dd.MM.yyyy} · Frist {fristTage} Tage",
+                    DueDate        = letzterTag,
+                    DaysUntil      = days,
                     EmployeeId     = em.EmployeeId,
                     EmployeeNumber = em.Employee.EmployeeNumber,
                     EmployeeName   = name

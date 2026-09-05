@@ -82,6 +82,7 @@ const DASH_CATEGORY_META = {
     permit_missing:         { i18nKey: 'dash.cat.permitMissing',    label: 'Bewilligung fehlt',      icon: '🪪', color: '#b91c1c' },
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     probezeit_gespraech_offen: { i18nKey: 'dash.cat.probationTalkOpen', label: 'Probezeitgespräch offen', icon: '📋', color: '#92400e' },
+    probezeit_kuendigung_offen: { label: 'Kündigung in Probezeit erfassen', icon: '✕', color: '#991b1b' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     kuendigung_ablauf:      { i18nKey: 'dash.cat.terminationEnding', label: 'Vertragsende Kündigung', icon: '🚪', color: '#b91c1c' },
     kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
@@ -376,7 +377,7 @@ function renderDashTodoRow(a) {
                             ? `onclick="dashOpenEmployeeQst(${a.employeeId})"`
                             : a.category === 'contract_end'
                                 ? `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`
-                                : a.category === 'probezeit_gespraech_offen'
+                                : (a.category === 'probezeit_gespraech_offen' || a.category === 'probezeit_kuendigung_offen')
                                 ? `onclick="dashOpenEmployeeProbezeit(${a.employeeId})"`
                                 : a.category === 'availability_missing'
                                 ? `onclick="dashOpenEmployeeVerfuegbarkeit(${a.employeeId})"`
