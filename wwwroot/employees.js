@@ -15971,7 +15971,9 @@ async function pzGenerateBericht(variante) {
     // Walter 05.09.2026: 'checkin' = neues, vereinfachtes Formular; sonst klassisch.
     const checkin = variante === 'checkin';
     const url = checkin ? `/api/employees/${emp.id}/probezeit-checkin-pdf` : `/api/employees/${emp.id}/probezeitbericht-pdf`;
-    const fname = `${checkin ? 'Checkin' : 'PZ'}-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
+    const fname = checkin
+        ? `Probezeitgespraech_${emp.employeeNumber || emp.id}.pdf`
+        : `PZ-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
     try {
         if (typeof previewUrlFetch === 'function') {
             const ok = await previewUrlFetch(url, fname, ah());

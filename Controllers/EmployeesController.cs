@@ -1431,7 +1431,7 @@ public class EmployeesController : ControllerBase
             Entscheid: e.ProbezeitEntscheid
         );
         var bytes = pdf.Generate(input);
-        var fname = $"Checkin-{(e.EmployeeNumber ?? id.ToString())}-{e.FirstName}.pdf".Replace(" ", "_");
+        var fname = $"Probezeitgespraech_{(e.EmployeeNumber ?? id.ToString())}.pdf";
         return File(bytes, "application/pdf", fname);
     }
 
