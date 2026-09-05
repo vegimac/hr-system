@@ -96,8 +96,8 @@ public class ProbezeitCheckinPdfService
                         r.RelativeItem(1.3f).Column(c =>
                         {
                             c.Item().Text("GESPRÄCH AM").FontSize(6.5f).Bold().FontColor(Soft).LetterSpacing(0.06f);
-                            c.Item().PaddingTop(2).Width(86).Height(18)
-                             .Border(0.7f).BorderColor(Soft).CornerRadius(4);
+                            // QuestPDF 2024.10 kennt keine runden Ecken → Kasten als SVG.
+                            c.Item().PaddingTop(2).Width(86).Height(18).Svg(RunderKasten(86, 18, 4));
                         });
                         r.RelativeItem(1.3f);
                     });
@@ -145,6 +145,14 @@ public class ProbezeitCheckinPdfService
                 });
             });
         }).GeneratePdf();
+    }
+
+    /// <summary>Abgerundeter Rahmen (Ausfüllkasten) als SVG — feine graue Linie.</summary>
+    private static string RunderKasten(float w, float h, float r)
+    {
+        var ci = System.Globalization.CultureInfo.InvariantCulture;
+        return $"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{w.ToString(ci)}\" height=\"{h.ToString(ci)}\" viewBox=\"0 0 {w.ToString(ci)} {h.ToString(ci)}\">"
+             + $"<rect x=\"0.5\" y=\"0.5\" width=\"{(w - 1).ToString(ci)}\" height=\"{(h - 1).ToString(ci)}\" rx=\"{r.ToString(ci)}\" ry=\"{r.ToString(ci)}\" fill=\"none\" stroke=\"{Soft}\" stroke-width=\"0.8\"/></svg>";
     }
 
     /// <summary>Kleines Label in Grau-Versalien, Wert darunter — keine Linien.</summary>
