@@ -286,6 +286,9 @@ public class DashboardService
             // kritische Meldung; offen (auch nach Verlängerung) → Vorlauf/
             // Eskalation gemäss Warnungen.
             var pzEntscheid = em.Employee!.ProbezeitEntscheid;
+            // Walter 05.09.2026: Entscheid gefällt (weiter ODER Kündigung) → kein
+            // To-do mehr. Die Kündigung läuft über «Kündigung in Probezeit erfassen».
+            if (pzEntscheid == "weiter" || pzEntscheid == "kuendigung") continue;
             var gespraechErledigt = pzEntscheid == "weiter";
             var pzHinweis = pzEntscheid == "weiter" ? "Entscheid: Vertrag läuft weiter"
                           : pzEntscheid == "kuendigung" ? "Entscheid: Vertrag beenden"
