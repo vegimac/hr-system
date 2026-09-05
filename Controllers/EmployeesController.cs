@@ -1321,6 +1321,45 @@ public class EmployeesController : ControllerBase
     /// 1 Seite ab 21.07.2026). MA + Ersteller vorausgefüllt; Beurteilungen
     /// und Unterschriften auf Papier. Speichert nichts.
     /// </summary>
+    /// <summary>
+    /// Check-in «Deine ersten Wochen im Team» (Walter 05.09.2026) — vereinfachte
+    /// Alternative zum klassischen Probezeit-Formular; beide bleiben verfügbar.
+    /// </summary>
+    [HttpGet("{id:int}/probezeit-checkin-pdf")]
+    public async Task<IActionResult> GetProbezeitCheckinPdf(
+        int id,
+        [FromServices] ProbezeitCheckinPdfService pdf)
+    {
+        var e = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+        var emp = await _context.Employments.AsNoTracking()
+            .Include(em => em.JobGroup)
+            .Include(em => em.CompanyProfile)
+            .Where(em => em.EmployeeId == id && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive)
+            .ThenByDescending(em => em.ContractStartDate)
+            .FirstOrDefaultAsync();
+        var cp = emp?.CompanyProfile;
+        var uidStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        AppUser? user = null;
+        if (int.TryParse(uidStr, out var uid))
+            user = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid);
+        var funktion = !string.IsNullOrWhiteSpace(emp?.JobTitle) ? emp!.JobTitle : (emp?.JobGroup?.Code ?? "");
+        var input = new ProbezeitCheckinInput(
+            MaName: $"{e.FirstName} {e.LastName}".Trim(),
+            Restaurant: cp?.BranchName ?? cp?.FullDisplayName,
+            Funktion: funktion,
+            Eintritt: e.EntryDate ?? emp?.ContractStartDate,
+            ProbezeitBis: emp?.ProbationEndDate,
+            GefuehrtVon: $"{user?.FirstName} {user?.LastName}".Trim(),
+            GespraechAm: e.ProbezeitGespraech1Am,
+            Entscheid: e.ProbezeitEntscheid
+        );
+        var bytes = pdf.Generate(input);
+        var fname = $"Checkin-{(e.EmployeeNumber ?? id.ToString())}-{e.FirstName}.pdf".Replace(" ", "_");
+        return File(bytes, "application/pdf", fname);
+    }
+
     [HttpGet("{id:int}/probezeitbericht-pdf")]
     public async Task<IActionResult> GetProbezeitberichtPdf(
         int id,

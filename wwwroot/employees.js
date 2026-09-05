@@ -15853,8 +15853,9 @@ function pzRefreshModal() {
     const s1 = _pzStep(1, formularOk ? 'done' : 'active',
         'Gesprächsformular ausdrucken',
         `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <button type="button" onclick="_pzFormularGeoeffnet[${emp.id}]=true;pzGenerateBericht();pzRefreshModal()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Formular öffnen / drucken</button>
-            <span style="font-size:12px;color:#646464">Im Gespräch ausfüllen, Entscheid ankreuzen, von beiden unterschreiben lassen.</span>
+            <button type="button" onclick="_pzFormularGeoeffnet[${emp.id}]=true;pzGenerateBericht('checkin');pzRefreshModal()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">📋 Check-in «Deine ersten Wochen»</button>
+            <button type="button" onclick="_pzFormularGeoeffnet[${emp.id}]=true;pzGenerateBericht();pzRefreshModal()" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:8px 14px;cursor:pointer;font-size:12.5px;font-weight:700">Klassisches Formular</button>
+            <span style="font-size:12px;color:#646464;flex-basis:100%">Im Gespräch ausfüllen, Entscheid ankreuzen, von beiden unterschreiben lassen.</span>
         </div>`);
 
     // Schritt 2 — Gespräch durchgeführt
@@ -15965,11 +15966,13 @@ async function pzSaveDate(empId, nr, iso) {
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
-async function pzGenerateBericht() {
+async function pzGenerateBericht(variante) {
     const emp = selectedEmployee;
     if (!emp?.id) return;
-    const url = `/api/employees/${emp.id}/probezeitbericht-pdf`;
-    const fname = `PZ-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
+    // Walter 05.09.2026: 'checkin' = neues, vereinfachtes Formular; sonst klassisch.
+    const checkin = variante === 'checkin';
+    const url = checkin ? `/api/employees/${emp.id}/probezeit-checkin-pdf` : `/api/employees/${emp.id}/probezeitbericht-pdf`;
+    const fname = `${checkin ? 'Checkin' : 'PZ'}-${emp.employeeNumber || emp.id}-${emp.firstName || 'MA'}.pdf`;
     try {
         if (typeof previewUrlFetch === 'function') {
             await previewUrlFetch(url, fname, ah());

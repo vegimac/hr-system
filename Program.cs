@@ -195,6 +195,7 @@ builder.Services.AddSingleton<HrSystem.Services.Elm.ElmXmlValidator>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();
+builder.Services.AddScoped<ProbezeitCheckinPdfService>();
 builder.Services.AddScoped<MutterschaftPdfService>();
 builder.Services.AddScoped<RisikobeurteilungPdfService>();
 // Fibu-Journal-Generator (Buchungsjournal aus den bestätigten Snapshots).
