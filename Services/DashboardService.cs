@@ -630,7 +630,14 @@ public class DashboardService
                 if (massgebend < austrittStichtag) continue;
 
                 // ── P1: Austritt da, Kündigungsangaben unvollständig ────────
-                if (Enabled("austritt_unvollstaendig"))
+                // Vorlauf (Walter 05.09.2026): erst 14 Tage vor dem Austritt
+                // (warn_days, unter Warnungen einstellbar) — vorher ist das
+                // Nachtragen der Kündigungsangaben noch kein Handlungsbedarf.
+                // Austritte in der Vergangenheit bleiben (Nachlauf), bis die
+                // Angaben ergänzt sind.
+                var unvollVorlauf   = WarnDays("austritt_unvollstaendig", 14);
+                var unvollDaysUntil = (e.ExitDate!.Value.Date - now).Days;
+                if (Enabled("austritt_unvollstaendig") && unvollDaysUntil <= unvollVorlauf)
                 {
                     var fehlend = new List<string>();
                     if (!e.KuendigungAusgesprochenAm.HasValue)      fehlend.Add("gekündigt am");
@@ -643,12 +650,12 @@ public class DashboardService
                         alerts.Add(new DashboardAlert
                         {
                             Category = "austritt_unvollstaendig",
-                            Severity = SeverityState("austritt_unvollstaendig", "warning"),
+                            Severity = Severity("austritt_unvollstaendig", unvollDaysUntil, "warning", "warning"),
                             Title    = $"Austritt per {e.ExitDate!.Value:dd.MM.yyyy} — Kündigungsangaben fehlen",
                             Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
                                      + $" — es fehlt: {string.Join(", ", fehlend)}",
                             DueDate        = e.ExitDate,
-                            DaysUntil      = (e.ExitDate!.Value.Date - now).Days,
+                            DaysUntil      = unvollDaysUntil,
                             EmployeeId     = e.Id,
                             EmployeeNumber = e.EmployeeNumber,
                             EmployeeName   = $"{e.FirstName} {e.LastName}".Trim()

@@ -1595,7 +1595,7 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('austritt_unvollstaendig',       'Austritt ohne Kündigungsangaben',        TRUE, NULL, NULL, 'warning',  NULL, FALSE, 25, 57, 'none'),
+            ('austritt_unvollstaendig',       'Austritt ohne Kündigungsangaben',        TRUE, 14,   NULL, 'warning',  NULL, TRUE,  25, 57, 'none'),
             ('austritt_datum_mismatch',       'Austrittsdatum stimmt nicht überein',    TRUE, NULL, NULL, 'warning',  NULL, FALSE, 26, 58, 'none'),
             ('contract_end_weitergearbeitet', 'Nach Vertragsende weitergearbeitet',     TRUE, NULL, NULL, 'critical', NULL, FALSE, 27, 22, 'red')
         ON CONFLICT (category) DO NOTHING;
@@ -1625,6 +1625,11 @@ using (var scope = app.Services.CreateScope())
         -- eigene Einstellung von Walter NICHT überschrieben wird.
         UPDATE dashboard_warning_config SET warn_days = 3650
             WHERE category = 'kuendigung_ablauf' AND warn_days = 14;
+        -- Walter 05.09.2026: «Austritt ohne Kündigungsangaben» kam bisher ohne
+        -- Vorlauf (Monate im Voraus). Neu datumsbasiert mit 14 Tagen Vorlauf,
+        -- unter Warnungen einstellbar. Guard: nur die alte Seed-Zeile umstellen.
+        UPDATE dashboard_warning_config SET is_date_based = TRUE, warn_days = 14
+            WHERE category = 'austritt_unvollstaendig' AND is_date_based = FALSE AND warn_days IS NULL;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)
