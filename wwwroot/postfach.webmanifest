@@ -1,7 +1,7 @@
 {
-  "name": "OneCrew",
-  "short_name": "OneCrew",
-  "start_url": "/index.html",
+  "name": "Mein Postfach · OneCrew",
+  "short_name": "Postfach",
+  "start_url": "/postfach.html",
   "scope": "/",
   "icons": [
     {

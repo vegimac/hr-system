@@ -1706,9 +1706,87 @@ function openMySettings() {
                     <span id="mySetPwInfo" style="font-size:11.5px;color:#8b8b8b"></span>
                 </div>
             </div>
+
+            <div id="mySetFaceIdBlock" style="display:none">
+                <div style="border-top:1px solid rgba(60,55,48,0.12);margin:16px 0 12px"></div>
+                <div style="font-size:13px;font-weight:700;color:#3f3f3f;margin-bottom:4px">Face ID / Touch ID</div>
+                <div style="font-size:11.5px;color:#8b8b8b;margin-bottom:8px">Anmelden und Entsperren ohne Passwort — mit Face ID / Touch ID dieses Geräts. Das Passwort bleibt als Rückfall.</div>
+                <div id="mySetFaceIdList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                    <button id="mySetFaceIdAdd" onclick="mySetFaceIdActivate()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Auf diesem Gerät aktivieren</button>
+                    <span id="mySetFaceIdInfo" style="font-size:11.5px;color:#8b8b8b"></span>
+                </div>
+            </div>
         </div>`;
     ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
     document.body.appendChild(ov);
+    // Face ID (Walter 05.09.2026): bisher konnten nur MA im Postfach Face ID
+    // einrichten — Programm-Benutzer hatten keinen Ort dafür.
+    try {
+        if (typeof webauthnSupported === 'function' && webauthnSupported()) {
+            const blk = document.getElementById('mySetFaceIdBlock');
+            if (blk) { blk.style.display = ''; mySetFaceIdLoad(); }
+        }
+    } catch (_) {}
+}
+
+async function mySetFaceIdLoad() {
+    const el = document.getElementById('mySetFaceIdList');
+    if (!el) return;
+    el.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Wird geladen …</div>';
+    try {
+        const r = await fetch('/api/webauthn/credentials', { headers: ah() });
+        const list = r.ok ? (await r.json()) || [] : [];
+        if (!list.length) {
+            el.innerHTML = '<div style="font-size:12px;color:#8b8b8b">Noch kein Gerät aktiviert.</div>';
+            return;
+        }
+        const d = iso => { try { const x = new Date(iso); return isNaN(x) ? '' : x.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: 'numeric' }); } catch (_) { return ''; } };
+        el.innerHTML = list.map(c => `
+            <div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid rgba(60,55,48,0.18);border-radius:10px;padding:7px 10px">
+                <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:600;color:#3f3f3f">${esc(c.deviceLabel || 'Gerät')}</div>
+                    <div style="font-size:11px;color:#8b8b8b">aktiviert ${d(c.createdAt)}${c.lastUsedAt ? ' · zuletzt ' + d(c.lastUsedAt) : ''}</div>
+                </div>
+                <button onclick="mySetFaceIdRemove(${c.id})" style="background:none;border:none;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Entfernen</button>
+            </div>`).join('');
+    } catch (_) {
+        el.innerHTML = '<div style="font-size:12px;color:#b91c1c">Geräte konnten nicht geladen werden.</div>';
+    }
+}
+
+async function mySetFaceIdActivate() {
+    const info = document.getElementById('mySetFaceIdInfo');
+    const btn = document.getElementById('mySetFaceIdAdd');
+    const zeig = (t, farbe) => { if (info) { info.textContent = t; info.style.color = farbe; } };
+    zeig('', '#8b8b8b');
+    if (btn) { btn.disabled = true; btn.textContent = 'Aktiviere…'; }
+    try {
+        const name = currentUser?.firstName ? ('Gerät von ' + currentUser.firstName) : 'Mein Gerät';
+        await webauthnRegister(ah(), name);
+        zeig('✓ Aktiviert — beim nächsten Anmelden «Mit Face ID / Touch ID anmelden» wählen.', '#166534');
+        mySetFaceIdLoad();
+    } catch (e) {
+        if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError')) { /* abgebrochen */ }
+        else zeig((e && e.name === 'InvalidStateError') ? 'Dieses Gerät ist bereits aktiviert.' : ('Aktivierung fehlgeschlagen: ' + (e?.message || e)), '#b91c1c');
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Auf diesem Gerät aktivieren'; }
+    }
+}
+
+async function mySetFaceIdRemove(id) {
+    const ok = (typeof liquidConfirm === 'function')
+        ? await liquidConfirm('Face ID auf diesem Gerät entfernen? Danach gilt wieder das Passwort.', { title: 'Face ID', yesLabel: 'Entfernen', noLabel: 'Abbrechen' })
+        : confirm('Face ID auf diesem Gerät entfernen?');
+    if (!ok) return;
+    try {
+        const r = await fetch('/api/webauthn/credentials/' + id, { method: 'DELETE', headers: ah() });
+        if (!r.ok) throw new Error();
+        mySetFaceIdLoad();
+    } catch (_) {
+        const info = document.getElementById('mySetFaceIdInfo');
+        if (info) { info.textContent = 'Entfernen fehlgeschlagen.'; info.style.color = '#b91c1c'; }
+    }
 }
 
 async function saveMyStartPage() {
