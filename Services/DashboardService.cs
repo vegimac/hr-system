@@ -299,11 +299,15 @@ public class DashboardService
                          : days == 1 ? "alert.probation.ends_tomorrow"
                          : "alert.probation.ends_in_days",
                 TitleArgs = new Dictionary<string, object> { ["days"] = days, ["ende"] = endeTxt },
-                Subtitle = $"{em.Employee.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}",
-                SubtitleKey  = "subtitle.maPersonalnr",
+                // Walter 05.09.2026: sichtbar machen, WARUM nur Information —
+                // sonst wirkt es, als würde die Warnungs-Einstellung ignoriert.
+                Subtitle = $"{em.Employee.FirstName} {em.Employee.LastName} · Personalnr. {em.Employee.EmployeeNumber}"
+                         + (gespraechErledigt ? " · Probezeitgespräch erledigt" : ""),
+                SubtitleKey  = gespraechErledigt ? "subtitle.maPersonalnrModel" : "subtitle.maPersonalnr",
                 SubtitleArgs = new Dictionary<string, object> {
                     ["name"] = $"{em.Employee.FirstName} {em.Employee.LastName}".Trim(),
-                    ["empNr"] = em.Employee.EmployeeNumber
+                    ["empNr"] = em.Employee.EmployeeNumber,
+                    ["model"] = "Probezeitgespräch erledigt"
                 },
                 DueDate  = dueDate,
                 DaysUntil = days,
