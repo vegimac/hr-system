@@ -1047,16 +1047,25 @@ function renderNumberAliases(empId, rows) {
         const n = (a.number || '').trim();
         if (!n || n === activeNumber || seen.has(n)) continue;
         seen.add(n);
-        uniq.push({ id: a.id, number: n });
+        uniq.push({ id: a.id, number: n, source: a.source || '' });
     }
     if (summary) {
         summary.textContent = uniq.map(a => a.number).join(', ') || '–';
     }
     // Klick auf den Chip entfernt die alte Nummer (Walter 05.08.2026 —
     // Fehlerkorrektur-Aliase wie 10400025 sollen weg können).
+    // Sync-/Merge-Aliase sind geschützt (Walter 06.09.2026): sie verbinden den
+    // beendeten Filial-Datensatz in easy@work mit dieser Person. Nur manuell
+    // erfasste Aliase (oder der Admin) dürfen entfernen.
+    const istAdmin = currentUser?.role === 'admin';
     box.innerHTML = uniq
-        .map(a => `<span class="emp-old-number" style="cursor:pointer" title="Alte Nummer — klicken zum Entfernen"
-            onclick="removeNumberAlias(${empId}, ${a.id}, '${esc(a.number)}')">${esc(a.number)}</span>`)
+        .map(a => {
+            const manuell = (a.source || 'manual').toLowerCase() === 'manual';
+            if (manuell || istAdmin)
+                return `<span class="emp-old-number" style="cursor:pointer" title="Alte Nummer${manuell ? '' : ' (aus easy@work-Sync)'} — klicken zum Entfernen"
+                    onclick="removeNumberAlias(${empId}, ${a.id}, '${esc(a.number)}')">${esc(a.number)}</span>`;
+            return `<span class="emp-old-number" style="cursor:help" title="Alte Nummer aus dem easy@work-Sync — wird für die Zuordnung der Filial-Datensätze gebraucht und kann nicht entfernt werden">${esc(a.number)}</span>`;
+        })
         .join('');
 }
 
@@ -1071,7 +1080,9 @@ async function removeNumberAlias(empId, aliasId, number) {
             method: 'DELETE', headers: ah()
         });
         if (!r.ok && r.status !== 204) {
-            alert('Entfernen fehlgeschlagen (HTTP ' + r.status + ').');
+            let m = 'Entfernen fehlgeschlagen (HTTP ' + r.status + ').';
+            try { const j = await r.json(); if (j.message) m = j.message; } catch {}
+            alert(m);
             return;
         }
         loadNumberAliases(empId);

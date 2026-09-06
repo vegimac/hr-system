@@ -71,6 +71,14 @@ public class EmployeeNumberAliasController : ControllerBase
         var row = await _db.EmployeeNumberAliases
             .FirstOrDefaultAsync(a => a.Id == aliasId && a.EmployeeId == employeeId, ct);
         if (row == null) return NotFound();
+        // Walter 06.09.2026: Alt-Nummern aus dem easy@work-Sync (oder einer
+        // MA-Zusammenführung) sind der Schlüssel, über den der Nachtlauf den
+        // beendeten Filial-Datensatz derselben Person zuordnet — ohne sie fällt
+        // der Sync auf Name+Geburtsdatum zurück. Nur manuell erfasste Aliase
+        // (Fehlerkorrektur) dürfen wieder weg; Sync-Aliase nur durch den Admin.
+        if (!string.Equals(row.Source, "manual", StringComparison.OrdinalIgnoreCase) && !User.IsInRole("admin"))
+            return Conflict(new { error = "ALIAS_GESCHUETZT",
+                message = $"Die alte Nummer {row.Number} stammt aus dem easy@work-Sync und wird für die Zuordnung der Filial-Datensätze gebraucht — sie kann nicht entfernt werden." });
         _db.EmployeeNumberAliases.Remove(row);
         await _db.SaveChangesAsync(ct);
         return NoContent();
