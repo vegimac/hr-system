@@ -15972,7 +15972,9 @@ function pzRefreshModal() {
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${dokBtns}</div>
         ${am && !dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#9f1239;font-weight:650">Datum gesetzt — bitte noch das unterschriebene Protokoll verknüpfen.</div>` : ''}
-        ${!am && dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#a16207;font-weight:650">Protokoll verknüpft — bitte noch das Durchführungsdatum setzen.</div>` : ''}`);
+        ${!am && dokId ? `<div style="margin-top:8px;font-size:11.5px;color:#a16207;font-weight:650">Protokoll verknüpft — bitte noch das Durchführungsdatum setzen.</div>` : ''}
+        ${(am || dokId) && !entschieden ? `<div style="margin-top:10px"><button type="button" onclick="pzGespraechZuruecksetzen(${emp.id})" style="background:none;border:none;color:#8b8b8b;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">Gespräch zurücksetzen</button></div>` : ''}
+        ${entschieden ? `<div style="margin-top:8px;font-size:11.5px;color:#8b8b8b">Zum Rückgängigmachen zuerst unten «Entscheid ändern» wählen.</div>` : ''}`);
 
     // Schritt 3 — Entscheid (wie auf dem Formular angekreuzt)
     let s3inhalt = '';
@@ -16060,6 +16062,28 @@ async function pzSaveDate(empId, nr, iso) {
         }
         if (typeof selectEmployee === 'function') await selectEmployee(empId);
         pzRefreshModal();
+    } catch (e) { alert('Fehler: ' + e.message); }
+}
+
+// Gespräch komplett zurücksetzen (Walter 06.09.2026): Datum UND Protokoll-
+// Verknüpfung in einem Schritt lösen. Das Dokument selbst bleibt unter Dokus.
+async function pzGespraechZuruecksetzen(empId) {
+    if (!(await liquidConfirm('Probezeitgespräch zurücksetzen?\n\nDurchführungsdatum und Protokoll-Verknüpfung werden entfernt — das Gespräch gilt wieder als offen. Das Dokument selbst bleibt unter Dokus erhalten.',
+        { title: 'Gespräch zurücksetzen', yesLabel: 'Zurücksetzen', noLabel: 'Abbrechen' }))) return;
+    try {
+        const r1 = await fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: 'probezeit_gespraech1', dokumentId: null })
+        });
+        if (!r1.ok) { const j = await r1.json().catch(() => null); return alert(j?.message || `Fehler (${r1.status})`); }
+        const r2 = await fetch(`/api/employees/${empId}/probezeit-gespraech`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nr: 1, am: null })
+        });
+        if (!r2.ok) { const j = await r2.json().catch(() => null); return alert(j?.message || `Fehler (${r2.status})`); }
+        if (typeof selectEmployee === 'function') await selectEmployee(empId);
+        pzRefreshModal();
+        if (typeof showToast === 'function') showToast('Probezeitgespräch zurückgesetzt.');
     } catch (e) { alert('Fehler: ' + e.message); }
 }
 
