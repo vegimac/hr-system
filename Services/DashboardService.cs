@@ -448,11 +448,11 @@ public class DashboardService
         // ── 2c) Arbeitszeugnis fehlt (Walter 06.09.2026) ──────────────────
         // Ab 1 Tag nach dem Austritt, solange kein Zeugnis-Dokument am MA
         // verknüpft ist (employee.arbeitszeugnis_dokument_id). Nur Austritte
-        // der letzten 12 Monate — ältere Austritte nicht rückwirkend fluten.
+        // ab 1.1.2026 (Walter 06.09.2026) — ältere nicht rückwirkend fluten.
         // Nach escalate_days (Standard 14) kritisch.
         if (Enabled("arbeitszeugnis_fehlt"))
         {
-            var azVon = now.AddDays(-365);
+            var azVon = new DateTime(2026, 1, 1);
             var azQ = _db.Employees
                 .Where(e => !e.IsHidden && !e.IsPayrollExcluded
                          && !e.EmployeeNumber.ToLower().EndsWith("alt")
