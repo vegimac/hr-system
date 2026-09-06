@@ -1160,8 +1160,12 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('arbeitszeugnis_fehlt', 'Arbeitszeugnis ausstellen', TRUE, NULL, 14, 'warning', 'critical', FALSE, 29, 59, 'none')
+            ('arbeitszeugnis_fehlt', 'Arbeitszeugnis ausstellen', TRUE, NULL, 14, 'warning', 'critical', TRUE, 29, 59, 'none')
         ON CONFLICT (category) DO NOTHING;
+        -- Eskalation (Tage nach Austritt) muss unter Warnungen einstellbar sein →
+        -- datumsbasiert. Guard: nur die alte Seed-Zeile umstellen.
+        UPDATE dashboard_warning_config SET is_date_based = TRUE
+            WHERE category = 'arbeitszeugnis_fehlt' AND is_date_based = FALSE;
         INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
         ('arbeitszeugnis_fehlt',
          'Arbeitszeugnis ausstellen',
