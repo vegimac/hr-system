@@ -342,7 +342,7 @@ function _azGroupOf(i) { return i <= 5 ? 'basis' : i === 6 ? 'trainer' : 'schich
 // Sichtbarkeit der Aufgaben-Gruppen nach gewaehlter Funktion.
 function azUpdateTaskVisibility() {
     const fn = document.getElementById('azFunktion')?.value || '';
-    const istSchicht  = fn.startsWith('Schichtkoordinator') || fn.startsWith('Geschäftsführer');
+    const istSchicht  = fn.startsWith('Schichtkoordinator') || fn.startsWith('Geschäftsführer') || fn.startsWith('Assistant');
     const istTrainer  = fn.startsWith('Crew-Trainer') || istSchicht;
     // Walter 06.09.2026: Funktions-Aufgaben (Training / Schichtführung) werden
     // beim Wählen der Funktion gleich ANGEKREUZT — bisher nur eingeblendet,
@@ -369,7 +369,7 @@ let _azEntwurf = null;         // Entwurf-Modus (HR öffnet einen Entwurf)
 function _azStufe(code) { return ({ crew: 1, ct: 2, schicht: 3, alle: 4 })[String(code || '').toLowerCase()] || 0; }
 function _azFunktionStufe(fn) {
     const f = String(fn || '');
-    if (f.startsWith('Geschäftsführer')) return 4;
+    if (f.startsWith('Geschäftsführer') || f.startsWith('Assistant')) return 4;
     if (f.startsWith('Schichtkoordinator')) return 3;
     if (f.startsWith('Crew-Trainer')) return 2;
     return 1;
@@ -525,17 +525,35 @@ function _azSammleDto() {
 }
 
 // Funktions-Vorschlag aus JobGroup + Pensum des juengsten Vertrags.
+// Walter 06.09.2026: der LETZTE Vertrag bestimmt die Funktion — aktiver
+// Vertrag zuerst, sonst der jüngste; Funktion aus JobGroup-Code, sonst aus
+// dem Funktionstext (Mirus-Aliase wie «Shift Coordinator», «Crew Trainer»).
 function _azFunktionVorschlag(emp, female) {
     const es = (emp?.employments || []).slice()
-        .sort((a, b) => (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
+        .sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0)
+                     || (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
     const c = es[0] || {};
-    const jg = String(c.jobGroupCode || c.jobTitle || '').toUpperCase();
-    if (jg.includes('SHIFT')) return female ? 'Schichtkoordinatorin' : 'Schichtkoordinator';
-    if (jg.includes('HOST_CT') || jg.includes('TRAINER') || jg === 'CT')
+    const jg = String(c.jobGroupCode || '').toUpperCase();
+    const jt = String(c.jobTitle || '').toUpperCase();
+    const hat = (...k) => k.some(x => jg.includes(x) || jt.includes(x));
+    if (hat('REST_MANAGER', 'RESTAURANT MANAGER', 'GESCHÄFTSFÜHRER', 'GESCHAEFTSFUEHRER'))
+        return female ? 'Geschäftsführerin' : 'Geschäftsführer';
+    if (hat('ASST_', 'ASSISTANT')) return 'Assistant Manager';
+    if (hat('SHIFT', 'SCHICHT')) return female ? 'Schichtkoordinatorin' : 'Schichtkoordinator';
+    if (hat('HOST_CT', 'TRAINER') || jg === 'CT')
         return female ? 'Crew-Trainerin' : 'Crew-Trainer';
     const vollzeit = (c.employmentModel === 'FIX' || c.employmentModel === 'FIX-M')
         && Number(c.employmentPercentage ?? 100) >= 100;
     return (vollzeit ? 'Vollzeit-' : 'Teilzeit-') + (female ? 'Crewmitarbeiterin' : 'Crewmitarbeiter');
+}
+
+// Funktionstext des massgebenden Vertrags (für den Hinweis unter dem Dropdown).
+function _azVertragFunktionText(emp) {
+    const es = (emp?.employments || []).slice()
+        .sort((a, b) => (b.isActive ? 1 : 0) - (a.isActive ? 1 : 0)
+                     || (b.contractStartDate || '').localeCompare(a.contractStartDate || ''));
+    const c = es[0] || {};
+    return String(c.jobTitle || c.jobGroupCode || '').trim();
 }
 
 // Braucht das ARBEITSzeugnis ein fiktives Austrittsdatum? (Walter 15.07.2026:
@@ -585,8 +603,8 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
             || emp?.salutation === 'Frau')
         : /in$/.test(String(entwurf?.daten?.funktion || ''));
     const funktionen = female
-        ? ['Teilzeit-Crewmitarbeiterin', 'Vollzeit-Crewmitarbeiterin', 'Crew-Trainerin', 'Schichtkoordinatorin', 'Geschäftsführerin']
-        : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator', 'Geschäftsführer'];
+        ? ['Teilzeit-Crewmitarbeiterin', 'Vollzeit-Crewmitarbeiterin', 'Crew-Trainerin', 'Schichtkoordinatorin', 'Assistant Manager', 'Geschäftsführerin']
+        : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator', 'Assistant Manager', 'Geschäftsführer'];
     const vorschlag = emp ? _azFunktionVorschlag(emp, female) : funktionen[0];
     const subName = emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}`
                   : entwurf ? `${entwurf.employeeName} · Personalnr. ${entwurf.employeeNumber || '–'}` : '';
@@ -638,6 +656,7 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
                     <select id="azFunktion" style="${inp}" onchange="azUpdateTaskVisibility()">
                         ${funktionen.map(fn => `<option value="${fn}" ${fn === vorschlag ? 'selected' : ''}>${fn}</option>`).join('')}
                     </select>
+                    ${emp ? `<div style="font-size:11px;color:#8b8b8b;margin-top:4px">Vorschlag aus dem letzten Vertrag${_azVertragFunktionText(emp) ? ` (${_azVertragFunktionText(emp)})` : ''} — bei Bedarf ändern.</div>` : ''}
                 </div>
                 <div style="flex:1">
                     <div style="${label}">Zeugnis-Datum</div>

@@ -53,7 +53,8 @@ public static class ZeugnisBerechtigung
         var f = (funktion ?? "").Trim();
         if (f.StartsWith("Geschäftsführer", StringComparison.OrdinalIgnoreCase)
             || f.StartsWith("Geschaeftsfuehrer", StringComparison.OrdinalIgnoreCase)
-            || f.StartsWith("Restaurant-Manager", StringComparison.OrdinalIgnoreCase)) return 4;
+            || f.StartsWith("Restaurant-Manager", StringComparison.OrdinalIgnoreCase)
+            || f.StartsWith("Assistant", StringComparison.OrdinalIgnoreCase)) return 4;
         if (f.StartsWith("Schichtkoordinator", StringComparison.OrdinalIgnoreCase)) return 3;
         if (f.StartsWith("Crew-Trainer", StringComparison.OrdinalIgnoreCase)) return 2;
         return 1;
