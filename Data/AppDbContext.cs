@@ -1545,10 +1545,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Daten).HasColumnName("daten");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
-            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am");
+            // Lokalzeit ohne Zeitzone — ohne HasColumnType nimmt Npgsql timestamptz
+            // an und wirft bei DateTime.Now (Kind=Local) → HTTP 500 (Walter 06.09.2026).
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am")
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Status).HasColumnName("status");
             entity.Property(e => e.ErledigtVon).HasColumnName("erledigt_von");
-            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am")
+                  .HasColumnType("timestamp without time zone");
             entity.Property(e => e.Antwort).HasColumnName("antwort");
             entity.Property(e => e.MailboxDocumentId).HasColumnName("mailbox_document_id");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
