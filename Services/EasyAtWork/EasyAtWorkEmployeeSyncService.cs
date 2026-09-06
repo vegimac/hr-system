@@ -1860,15 +1860,29 @@ public class EasyAtWorkEmployeeSyncService
             // den Austritt sofort wieder zurück) — die Vorschau muss dieselbe
             // Regel anwenden, sonst erscheint derselbe MA bei JEDEM Import
             // erneut als UPDATE, obwohl netto nie etwas ändert.
+            // Erweiterung (Walter-Bug 06.09.2026, Gazale Jemmo): NICHT nur der
+            // Austritt, sondern ALLE Stammdaten eines BEENDETEN Filial-Datensatzes
+            // sind für einen MA mit offenem Vertrag anderswo bedeutungslos. Der
+            // alte Datensatz (Sursee, Austritt 18.08.2025) überschrieb sonst jede
+            // Nacht die Adresse des aktiven Datensatzes (Zofingen) → Kantonswechsel-
+            // Historie + QST-Warnung im Ping-Pong. Ein beendeter Datensatz darf
+            // Stammdaten (Adresse, Telefon, Zivilstand, …) nur noch liefern, wenn
+            // der MA NIRGENDS mehr einen offenen Vertrag hat (echter Austritt).
             if (co != null && eaw.To.HasValue && eaw.To.Value < activeAt
-                && diffs.Any(d => d.Field == "Austritt" && d.WillSet))
+                && diffs.Any(d => d.WillSet))
             {
                 var todayDt = DateTime.Today;
                 bool hasOpenContract = await _db.Employments.AsNoTracking()
                     .AnyAsync(em => em.EmployeeId == co.Id
                                  && (em.ContractEndDate == null || em.ContractEndDate >= todayDt), ct);
                 if (hasOpenContract)
+                {
                     diffs.RemoveAll(d => d.Field == "Austritt");
+                    var ignoriert = diffs.Where(d => d.WillSet).Select(d => d.Field).ToList();
+                    foreach (var d in diffs) d.WillSet = false;
+                    if (ignoriert.Count > 0)
+                        res.Notes.Add($"{co.FirstName} {co.LastName} ({co.EmployeeNumber}): beendeter easy@work-Datensatz Nr. {rawNumber} (Austritt {eaw.To:dd.MM.yyyy}) — Stammdaten ({string.Join(", ", ignoriert)}) NICHT übernommen, der MA hat einen offenen Vertrag in einer anderen Filiale.");
+                }
             }
 
             // STRICT-Vertragsprüfung (Walter-Vorgabe 08.07.2026): Erfassungsfehler
