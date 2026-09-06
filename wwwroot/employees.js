@@ -996,6 +996,7 @@ async function loadEmployeePhoto(empId) {
         if (!r.ok) return;  // 404 = kein Foto, einfach Initialen lassen
         const meta = await r.json();
         if (!meta || !meta.id) return;
+        if (String(window.selectedEmployeeId ?? selectedEmployeeId) !== String(empId)) return;
         const mime = (meta.mimeType || '').toLowerCase();
         if (!mime.startsWith('image/')) return;  // nur Bilder einbetten
         // WICHTIG: Backend-Route ist /api/documents/preview/{id} —
@@ -1007,8 +1008,13 @@ async function loadEmployeePhoto(empId) {
         _empPhotoUrl = URL.createObjectURL(blob);
         // Falls inzwischen ein anderer MA aktiv ist (User hat schnell
         // weitergeklickt), nicht in den falschen Container schreiben.
+        // Walter 06.09.2026: der Container hat bei JEDEM MA dieselbe ID —
+        // «existiert noch» reicht nicht, es muss noch DERSELBE MA sein.
+        // Sonst landet beim schnellen Weiterklicken das Foto des vorherigen
+        // MA im Kopf des nächsten (falsches Foto).
         const stillThere = document.getElementById('empDetailPhoto');
-        if (!stillThere) {
+        const nochDerselbe = String(window.selectedEmployeeId ?? selectedEmployeeId) === String(empId);
+        if (!stillThere || !nochDerselbe) {
             try { URL.revokeObjectURL(_empPhotoUrl); } catch {}
             _empPhotoUrl = null;
             return;
