@@ -595,7 +595,16 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
     _azBest = !!best;
     _azEntwurf = entwurf || null;
     await _azLadeBerechtigung();
-    const emp = _azEmpObj(employeeId);
+    // MA-Objekt: aus der MA-Maske, sonst (Zeugnis-Seite mit Picker, HR-Postfach)
+    // vom Server holen — sonst fehlen Vertrag/Funktion, Geschlecht und Austritt
+    // und der Vorschlag fällt auf Teilzeit-Crew zurück (Walter 06.09.2026).
+    let emp = _azEmpObj(employeeId);
+    if (!emp) {
+        try {
+            const r = await fetch(`/api/employees/${employeeId}?_=${Date.now()}`, { headers: { 'Authorization': `Bearer ${authToken}` }, cache: 'no-store' });
+            if (r.ok) emp = await r.json();
+        } catch (_) {}
+    }
     // Ohne MA-Objekt (Entwurf aus dem HR-Postfach): Geschlecht aus der Funktion des Entwurfs.
     const female = emp
         ? (String(emp?.gender || '').toLowerCase().startsWith('f')
