@@ -492,6 +492,47 @@ public class DashboardService
             }
         }
 
+        // ── 2d) Konkubinat ohne Konkubinatspartner (Walter 06.09.2026) ────
+        // Zivilstand «Konkubinat» (aus easy@work), aber im Familie-Tab ist
+        // kein Konkubinatspartner erfasst → die H1/A0-Logik (gemeinsames Kind,
+        // Einkommensfrage) kann nicht greifen. Zustandsbasiert, bis erfasst.
+        if (Enabled("konkubinat_partner_fehlt"))
+        {
+            var kkQ = _db.Employees
+                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                         && e.MaritalStatus != null && e.MaritalStatus.ToLower() == "konkubinat"
+                         && !_db.EmployeeFamilyMembers.Any(f => f.EmployeeId == e.Id
+                                                             && f.MemberType == "Konkubinatspartner"
+                                                             && f.DateOfDeath == null));
+            if (companyProfileId.HasValue)
+            {
+                var cpidKk = companyProfileId.Value;
+                kkQ = kkQ.Where(e =>
+                    e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cpidKk)
+                    || (!e.Employments.Any(em => em.IsActive)
+                        && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                             .Select(em => em.CompanyProfileId).FirstOrDefault() == cpidKk));
+            }
+            var kkList = await kkQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .ToListAsync();
+            foreach (var e in kkList)
+            {
+                var name = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "konkubinat_partner_fehlt",
+                    Severity = SeverityState("konkubinat_partner_fehlt", "warning"),
+                    Title    = "Konkubinat: Partner/in in der Familie erfassen (QST H1/A0)",
+                    Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} — Zivilstand Konkubinat, aber kein Konkubinatspartner im Familie-Tab (gemeinsames Kind / Einkommensfrage für den Tarif)",
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = name
+                });
+            }
+        }
+
         // ── 3) Befristete Verträge enden in 30 Tagen ──────────────────────
         // Walter-Vorgabe 12.07.2026: die Warnung läuft nach dem Ablauf WEITER
         // («seit X Tagen abgelaufen») — ein aktiver MA ohne laufenden Vertrag

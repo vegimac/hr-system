@@ -1166,6 +1166,18 @@ using (var scope = app.Services.CreateScope())
         -- datumsbasiert. Guard: nur die alte Seed-Zeile umstellen.
         UPDATE dashboard_warning_config SET is_date_based = TRUE
             WHERE category = 'arbeitszeugnis_fehlt' AND is_date_based = FALSE;
+        -- Walter 06.09.2026: Zivilstand Konkubinat ohne Konkubinatspartner im Familie-Tab
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('konkubinat_partner_fehlt', 'Konkubinat ohne Partner in Familie (QST)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 30, 44, 'none')
+        ON CONFLICT (category) DO NOTHING;
+        INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
+        ('konkubinat_partner_fehlt',
+         'Konkubinatspartner/in erfassen',
+         'Der Zivilstand «Konkubinat» kommt aus easy@work, in OneCrew fehlt aber der Konkubinatspartner. Für die Quellensteuer zählt: gemeinsames Kind im selben Haushalt → der Elternteil mit dem höheren Erwerbseinkommen erhält Tarif H1, der andere A0 (gemeinsame elterliche Sorge vorausgesetzt). Mitarbeiter öffnen → Familie → «+ Person» Typ Konkubinatspartner/in, Erwerbstätigkeit und die Frage «MA hat das höhere Einkommen?» beantworten; beim gemeinsamen Kind das Flag «gemeinsames Kind mit dem Konkubinatspartner» setzen. OneCrew schlägt danach den richtigen Tarif vor.',
+         165)
+        ON CONFLICT (category) DO NOTHING;
         INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
         ('arbeitszeugnis_fehlt',
          'Arbeitszeugnis ausstellen',
