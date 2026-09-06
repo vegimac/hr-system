@@ -19,21 +19,33 @@ public static class NightWorkComplianceService
 
     public record Result(int MaxNightsInSixWeeks, DateOnly? WindowFrom, DateOnly? WindowTo, bool RequiresDocuments);
 
+    /// <summary>Betrachtungszeitraum: die letzten 3 Monate bis asOf (Walter 06.09.2026).</summary>
+    public const int LookbackMonths = 3;
+
     /// <summary>
-    /// Nacht-Tage im AKTUELLEN 6-Wochen-Fenster zählen: [asOf−41, asOf].
-    /// Walter 06.09.2026 (Fall «23 Nächte / 6 Wochen» ohne Nachtarbeit seit
-    /// Monaten): bisher galt das MAXIMUM über alle 42-Tage-Fenster der letzten
+    /// Maximale Anzahl Nacht-Tage in irgendeinem 42-Tage-Fenster INNERHALB der
+    /// letzten 3 Monate bestimmen. Walter 06.09.2026 (Fall «23 Nächte / 6
+    /// Wochen» ohne Nachtarbeit seit Monaten): bisher galt das Maximum über
     /// 12 Monate — ein Nacht-Block vom letzten Herbst hielt die Untersuch-
-    /// Pflicht ein Jahr lang am Leben. Die Pflicht besteht aber nur, solange
-    /// der MA tatsächlich regelmässig nachts arbeitet — massgebend sind die
-    /// letzten 6 Wochen. Selbstheilend in beide Richtungen.
+    /// Pflicht ein Jahr lang am Leben. Nur die letzten 6 Wochen zu zählen wäre
+    /// aber ein Flip-Flop (Ferien → Pflicht weg → Pflicht wieder da), darum
+    /// 3 Monate Datenfenster mit rollierendem 6-Wochen-Maximum darin.
     /// </summary>
     public static Result Evaluate(IEnumerable<DateOnly> nightDates, DateOnly asOf)
     {
-        var winFrom = asOf.AddDays(-(WindowDays - 1));
-        var dates = nightDates.Where(d => d >= winFrom && d <= asOf).Distinct().ToList();
+        var lookFrom = asOf.AddMonths(-LookbackMonths).AddDays(1);
+        var dates = nightDates.Where(d => d >= lookFrom && d <= asOf).Distinct().OrderBy(d => d).ToList();
         if (dates.Count == 0) return new Result(0, null, null, false);
-        return new Result(dates.Count, winFrom, asOf, dates.Count > Threshold);
+
+        int max = 0;
+        DateOnly bestFrom = dates[0], bestTo = dates[0].AddDays(WindowDays - 1);
+        foreach (var from in dates)
+        {
+            var to = from.AddDays(WindowDays - 1);
+            int count = dates.Count(d => d >= from && d <= to);
+            if (count > max) { max = count; bestFrom = from; bestTo = to; }
+        }
+        return new Result(max, bestFrom, bestTo, max > Threshold);
     }
 
     /// <summary>
