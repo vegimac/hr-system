@@ -76,6 +76,36 @@ function _renderEmpPicker(filterId, searchId, selectId, sourceList) {
         return `<option value="${e.id}">${escapeHtml(name)}${escapeHtml(nr)}${tag}</option>`;
     }).join('');
     if (cur) sel.value = cur;
+
+    // Sichtbare Trefferliste wie in der MA-Liste (Walter 06.09.2026): beim
+    // Tippen erscheinen die passenden MA direkt unter dem Suchfeld — nicht
+    // versteckt im zugeklappten Dropdown. Klick wählt (setzt das Select und
+    // löst dessen onchange aus). Das Select bleibt für die Logik, wird aber
+    // ausgeblendet.
+    let box = document.getElementById(selectId + 'List');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = selectId + 'List';
+        box.style.cssText = 'max-height:280px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;background:white;margin-top:2px';
+        sel.insertAdjacentElement('afterend', box);
+        sel.style.display = 'none';
+    }
+    const selId = sel.value;
+    const MAX = 80;
+    const rows = list.slice(0, MAX).map(e => {
+        const name = `${e.firstName || ''} ${e.lastName || ''}`.trim();
+        const aktiv = String(e.id) === String(selId);
+        return `<div onclick="_empPickerChoose('${selectId}', ${e.id})"
+                     style="display:flex;align-items:center;gap:10px;padding:8px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;${aktiv ? 'background:#e8e4dc;' : ''}"
+                     onmouseover="if(!this.dataset.a)this.style.background='#f8fafc'" onmouseout="if(!this.dataset.a)this.style.background=''" ${aktiv ? 'data-a="1"' : ''}>
+                    <span style="font-weight:${aktiv ? 800 : 650};color:#3f3f3f;font-size:13.5px">${escapeHtml(name)}</span>
+                    ${e.isActive ? '' : '<span style="font-size:12px;color:#8b8b8b">(inaktiv)</span>'}
+                    <span style="margin-left:auto;font-size:12px;color:#8b8b8b">${escapeHtml(e.employeeNumber || '')}</span>
+                </div>`;
+    }).join('');
+    box.innerHTML = rows || `<div style="padding:12px 14px;font-size:13px;color:#8b8b8b">Keine Treffer${search ? ` für «${escapeHtml(search)}»` : ''} — Filter «Alle» prüfen.</div>`;
+    if (list.length > MAX)
+        box.innerHTML += `<div style="padding:8px 14px;font-size:12px;color:#8b8b8b">… ${list.length - MAX} weitere — bitte Suche eingrenzen.</div>`;
     // Wenn die aktuelle Auswahl rausgefiltert wurde, Details ausblenden.
     if (sel.value !== cur) {
         if (selectId === 'kuEmpSelect') {
@@ -84,6 +114,23 @@ function _renderEmpPicker(filterId, searchId, selectId, sourceList) {
             const det = document.getElementById('aaDetails'); if (det) det.style.display = 'none';
         }
     }
+}
+
+// Klick in der Trefferliste → Select setzen + onchange auslösen.
+function _empPickerChoose(selectId, id) {
+    const sel = document.getElementById(selectId);
+    if (!sel) return;
+    sel.value = String(id);
+    sel.dispatchEvent(new Event('change'));
+    // Auswahl in der Liste markieren
+    const box = document.getElementById(selectId + 'List');
+    if (box) [...box.children].forEach(r => {
+        const m = (r.getAttribute('onclick') || '').match(/,\s*(\d+)\)/);
+        const on = m && parseInt(m[1]) === id;
+        r.style.background = on ? '#e8e4dc' : '';
+        if (on) r.dataset.a = '1'; else delete r.dataset.a;
+        const nm = r.querySelector('span'); if (nm) nm.style.fontWeight = on ? 800 : 650;
+    });
 }
 
 function kuOnEmpChange() {
