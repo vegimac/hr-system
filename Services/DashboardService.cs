@@ -723,10 +723,11 @@ public class DashboardService
         // P2 (Kündigung erfasst, kein Austritt in easy@work) läuft bereits über
         // kuendigung_ablauf weiter oben. Hier folgen die beiden Gegenstücke.
         //
-        // Stichtag: nur Austritte ab dem 1.8.2026. Massgebend ist «gekündigt
+        // Stichtag: nur Austritte ab dem 1.1.2026 (Walter 06.09.2026, vorher
+        // 1.8.2026 — gleich wie die Zeugnis-Todo). Massgebend ist «gekündigt
         // per»; fehlt das Feld (der Austritt kam aus easy@work), tritt das
         // easy@work-Austrittsdatum an seine Stelle.
-        var austrittStichtag = new DateTime(2026, 8, 1);
+        var austrittStichtag = new DateTime(2026, 1, 1);
 
         if (Enabled("austritt_unvollstaendig") || Enabled("austritt_datum_mismatch"))
         {
