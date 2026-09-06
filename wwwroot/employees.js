@@ -1149,20 +1149,23 @@ window.addEventListener('resize', () => {
 function _ovArbeitszeugnisRowHtml(emp) {
     if (!emp || !emp.exitDate) return '';
     const dokId = emp.arbeitszeugnisDokumentId || null;
-    const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:5px 12px;cursor:pointer;font-size:11.5px;font-weight:700';
-    const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:5px 12px;cursor:pointer;font-size:11.5px;font-weight:700';
+    const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
+    const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:9px;padding:3px 9px;cursor:pointer;font-size:11px;font-weight:700;line-height:1.3';
     const exitVorbei = new Date(emp.exitDate) < new Date(new Date().toDateString());
     const inhalt = dokId
-        ? `<span style="font-size:12.5px;color:#166534;font-weight:700">✓ ausgestellt</span>
+        ? `<span style="color:#166534;font-weight:700">✓ ausgestellt</span>
            <button type="button" style="${btn}" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})">👁 Zeugnis</button>
            <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">ersetzen</button>
-           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline" onclick="nwUnlinkDoku(${emp.id},'arbeitszeugnis','Arbeitszeugnis')">lösen</button>`
-        : `<span style="font-size:12.5px;color:${exitVorbei ? '#9f1239' : '#a16207'};font-weight:700">${exitVorbei ? '⚠ noch kein Arbeitszeugnis' : 'noch offen'}</span>
-           <button type="button" style="${btn}" onclick="openZeugnisModal(${emp.id})">📄 Zeugnis erstellen</button>
-           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">📎 Zeugnis verknüpfen</button>`;
-    return `<div class="ov-pf" style="margin-top:8px">
-        <div class="ov-pfl">Arbeitszeugnis</div>
-        <div class="ov-pfv" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${inhalt}</div>
+           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer;text-decoration:underline;padding:0" onclick="nwUnlinkDoku(${emp.id},'arbeitszeugnis','Arbeitszeugnis')">lösen</button>`
+        : `<span style="color:${exitVorbei ? '#9f1239' : '#a16207'};font-weight:700">${exitVorbei ? '⚠ fehlt' : 'offen'}</span>
+           <button type="button" style="${btn}" onclick="openZeugnisModal(${emp.id})">📄 erstellen</button>
+           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">📎 verknüpfen</button>`;
+    // Sitzt im freien Slot zwischen Austritt und L-GAV (die Anstellungs-Karte
+    // hat eine feste Höhe mit overflow:hidden — eine zusätzliche Zeile wäre
+    // abgeschnitten).
+    return `<div class="ov-pf ov-anst-pz-slot" style="flex-direction:column;align-items:flex-start;justify-content:flex-end;margin-bottom:0">
+        <div class="ov-pfl" style="margin-bottom:1px">Arbeitszeugnis</div>
+        <div style="display:flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;line-height:28px;min-height:28px;overflow:hidden">${inhalt}</div>
     </div>`;
 }
 
@@ -1816,6 +1819,7 @@ function loadUebersichtTab() {
             <div class="ov-anst-top">
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
+                ${_ovArbeitszeugnisRowHtml(emp)}
                 <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             </div>
             <div class="ov-anst-kuend-row">
@@ -1832,7 +1836,6 @@ function loadUebersichtTab() {
                 <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
                 <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
             </div>
-            ${_ovArbeitszeugnisRowHtml(emp)}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
