@@ -1141,6 +1141,31 @@ window.addEventListener('resize', () => {
     _empHdrResizeT = setTimeout(empHeaderReserveRight, 120);
 });
 
+// ── Arbeitszeugnis in der Anstellung (Walter 06.09.2026) ──────────────
+// Bei ausgetretenen MA: verknüpftes Zeugnis-Dokument anzeigen bzw. Pendenz
+// «noch kein Arbeitszeugnis» mit «Zeugnis erstellen» + «Zeugnis verknüpfen».
+// Die Dashboard-Todo «Arbeitszeugnis ausstellen» verschwindet erst, wenn
+// hier ein Dokument verknüpft ist.
+function _ovArbeitszeugnisRowHtml(emp) {
+    if (!emp || !emp.exitDate) return '';
+    const dokId = emp.arbeitszeugnisDokumentId || null;
+    const btn = 'background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:5px 12px;cursor:pointer;font-size:11.5px;font-weight:700';
+    const btn2 = 'background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:5px 12px;cursor:pointer;font-size:11.5px;font-weight:700';
+    const exitVorbei = new Date(emp.exitDate) < new Date(new Date().toDateString());
+    const inhalt = dokId
+        ? `<span style="font-size:12.5px;color:#166534;font-weight:700">✓ ausgestellt</span>
+           <button type="button" style="${btn}" onclick="qstOpenBefreiungsDok(${emp.id}, ${dokId}, {sticky:true})">👁 Zeugnis</button>
+           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">ersetzen</button>
+           <button type="button" style="background:none;border:none;color:#b91c1c;font-size:11.5px;font-weight:700;cursor:pointer;text-decoration:underline" onclick="nwUnlinkDoku(${emp.id},'arbeitszeugnis','Arbeitszeugnis')">lösen</button>`
+        : `<span style="font-size:12.5px;color:${exitVorbei ? '#9f1239' : '#a16207'};font-weight:700">${exitVorbei ? '⚠ noch kein Arbeitszeugnis' : 'noch offen'}</span>
+           <button type="button" style="${btn}" onclick="openZeugnisModal(${emp.id})">📄 Zeugnis erstellen</button>
+           <button type="button" style="${btn2}" onclick="openAusweisDokuModal(${emp.id},'arbeitszeugnis')">📎 Zeugnis verknüpfen</button>`;
+    return `<div class="ov-pf" style="margin-top:8px">
+        <div class="ov-pfl">Arbeitszeugnis</div>
+        <div class="ov-pfv" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${inhalt}</div>
+    </div>`;
+}
+
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
