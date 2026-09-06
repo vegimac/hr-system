@@ -699,7 +699,8 @@ public class DashboardService
                     Subtitle = $"{e.FirstName} {e.LastName} · Personalnr. {e.EmployeeNumber}"
                              + (e.KuendigungAusgesprochenAm.HasValue ? $" · gekündigt am {e.KuendigungAusgesprochenAm:dd.MM.yyyy}" : "")
                              + (e.KuendigungDurch == "AN" ? " · durch Mitarbeiter"
-                                : e.KuendigungDurch == "AG" ? " · durch uns" : "")
+                                : e.KuendigungDurch == "AG" ? " · durch uns"
+                                : e.KuendigungDurch == "GG" ? " · gegenseitig" : "")
                              + (!string.IsNullOrWhiteSpace(e.Austrittsgrund)
                                  ? $" · {AustrittsgrundCodes.LabelOf(e.Austrittsgrund)}" : "")
                              + (abgelaufen

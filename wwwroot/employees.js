@@ -1238,7 +1238,7 @@ function renderEmployeeDetail(emp) {
     // Stelle aus aufrufen.
     if (emp.kuendigungPer) {
         const _kd = (emp.kuendigungDurch || '').toUpperCase();
-        const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : '';
+        const _kdLbl = _kd === 'AN' ? ' · durch MA' : _kd === 'AG' ? ' · durch uns' : _kd === 'GG' ? ' · gegenseitig' : '';
         _hcBadges2.push(`<span class="emp-hbadge hb-kuend">✕ Gekündigt per ${formatDate(emp.kuendigungPer)}${_kdLbl}</span>`);
     }
     // Probezeit-Badge oben: Datum + Status + «eintragen»
@@ -1838,6 +1838,7 @@ function loadUebersichtTab() {
                     <option value="">—</option>
                     <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
                     <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+                    <option value="GG"${(emp.kuendigungDurch || '').toUpperCase() === 'GG' ? ' selected' : ''}>gegenseitig</option>
                 </select></div>
                 <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
                 <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
@@ -6371,6 +6372,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
                 <option value="">—</option>
                 <option value="AG"${(emp.kuendigungDurch || '').toUpperCase() === 'AG' ? ' selected' : ''}>durch uns</option>
                 <option value="AN"${(emp.kuendigungDurch || '').toUpperCase() === 'AN' ? ' selected' : ''}>durch Mitarbeiter</option>
+                <option value="GG"${(emp.kuendigungDurch || '').toUpperCase() === 'GG' ? ' selected' : ''}>gegenseitig</option>
              </select>`,
             'Wer die Kündigung ausgesprochen hat')}
         ${eField('Austrittsgrund',

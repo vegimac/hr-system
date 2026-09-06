@@ -852,6 +852,7 @@ public class MirusChangeDigestService
         {
             "AG" => "durch uns",
             "AN" => "durch Mitarbeiter",
+            "GG" => "gegenseitig",
             _ => "—"
         };
 

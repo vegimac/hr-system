@@ -731,9 +731,10 @@ public class EmployeesController : ControllerBase
             var durch = string.IsNullOrWhiteSpace(dto.KuendigungDurch)
                 ? null
                 : dto.KuendigungDurch.Trim().ToUpperInvariant();
-            if (durch != null && durch != "AG" && durch != "AN")
+            // GG = gegenseitig / im gegenseitigen Einvernehmen (Walter 06.09.2026).
+            if (durch != null && durch != "AG" && durch != "AN" && durch != "GG")
                 return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
-                    message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
+                    message = "Kündigung durch muss «AG» (durch uns), «AN» (durch Mitarbeiter) oder «GG» (gegenseitig) sein." });
             employee.KuendigungDurch = durch;
             // Austrittsgrund: leer = löschen; ungültiger Code → 400.
             if (string.IsNullOrWhiteSpace(dto.Austrittsgrund))

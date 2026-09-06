@@ -1052,7 +1052,7 @@ async function kuEintragen() {
     const per = body.letzterArbeitstag
         ? body.letzterArbeitstag.slice(8, 10) + '.' + body.letzterArbeitstag.slice(5, 7) + '.' + body.letzterArbeitstag.slice(0, 4)
         : '–';
-    const durchLbl = body.kuendigungDurch === 'AN' ? 'durch Mitarbeiter' : 'durch uns';
+    const durchLbl = body.kuendigungDurch === 'AN' ? 'durch Mitarbeiter' : body.kuendigungDurch === 'GG' ? 'gegenseitig' : 'durch uns';
     const agEl = document.getElementById('kuAustrittsgrund');
     const agLbl = agEl?.selectedOptions?.[0]?.text || '—';
     if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}\nKündigung durch: ${durchLbl}\nAustrittsgrund: ${agLbl}`,

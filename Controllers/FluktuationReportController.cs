@@ -164,7 +164,8 @@ public class FluktuationReportController : ControllerBase
                 }
                 var durch = (e.KuendigungDurch ?? "").Trim().ToUpperInvariant();
                 var durchLbl = durch == "AG" ? "durch uns"
-                    : durch == "AN" ? "durch Mitarbeiter" : "—";
+                    : durch == "AN" ? "durch Mitarbeiter"
+                    : durch == "GG" ? "gegenseitig" : "—";
                 var grundCode = string.IsNullOrWhiteSpace(e.Austrittsgrund)
                     ? null
                     : e.Austrittsgrund.Trim().ToUpperInvariant();

@@ -212,9 +212,9 @@ public class KuendigungController : ControllerBase
         var durch = string.IsNullOrWhiteSpace(dto.KuendigungDurch)
             ? "AG" // Kündigungsschreiben = durch uns
             : dto.KuendigungDurch.Trim().ToUpperInvariant();
-        if (durch != "AG" && durch != "AN")
+        if (durch != "AG" && durch != "AN" && durch != "GG")
             return BadRequest(new { error = "KUENDIGUNG_DURCH_INVALID",
-                message = "Kündigung durch muss «AG» (durch uns) oder «AN» (durch Mitarbeiter) sein." });
+                message = "Kündigung durch muss «AG» (durch uns), «AN» (durch Mitarbeiter) oder «GG» (gegenseitig) sein." });
 
         string? austrittsgrund = null;
         if (!string.IsNullOrWhiteSpace(dto.Austrittsgrund))
