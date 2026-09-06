@@ -122,6 +122,8 @@ public class MailboxController : ControllerBase
             .Select(m => new {
                 m.Id,
                 m.OriginalFilename,
+                // Zeugnis-Entwurf (Walter 06.09.2026): «zeugnis-entwurf-{id}» → Posteingang zeigt «Entwurf öffnen».
+                m.StorageFilename,
                 m.MimeType,
                 m.FileSizeBytes,
                 m.Bemerkung,

@@ -297,6 +297,10 @@ async function pbLoadList() {
                 ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${d.bemerkung || 'Anhang'}</span>` : ''}`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
             const docJson = JSON.stringify(d).replace(/'/g, '&#39;');
+            // Zeugnis-Entwurf für HR (Walter 06.09.2026): Eintrag trägt die Entwurf-ID
+            // im StorageFilename → Knopf «Entwurf öffnen».
+            const zeMatch = /^zeugnis-entwurf-(\d+)$/.exec(d.storageFilename || '');
+            const zeugnisEntwurfId = zeMatch ? parseInt(zeMatch[1]) : null;
             return `<div style="background:white;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;display:flex;gap:14px;align-items:flex-start">
                 ${_pbIsImgDoc(d) ? `<img data-pbthumb="${d.id}" onclick="pbOpenPreview(${d.id})" title="Vorschau öffnen" style="width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;flex:none;cursor:pointer">` : ''}
                 <div style="flex:1;min-width:0">
@@ -314,6 +318,7 @@ async function pbLoadList() {
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end">
+                    ${zeugnisEntwurfId ? `<button class="btn btn-success" style="font-size:12px;padding:6px 12px" onclick="pbOpenZeugnisEntwurf(${zeugnisEntwurfId})">📄 Entwurf öffnen</button>` : ''}
                     ${hasFile ? `<button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick="pbDownload(${d.id})">⬇ Download</button>` : ''}
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "move")' title="In anderes Postfach verschieben">↗ Verschieben</button>
                     <button class="btn btn-outline" style="font-size:12px;padding:6px 12px" onclick='pbOpenTransfer(${docJson}, "forward")' title="Kopie in anderes Postfach">↪ Weiterleiten</button>
@@ -1274,4 +1279,17 @@ async function mtSend() {
         if (typeof pbLoadList === 'function') pbLoadList();
     } catch (e) { al.innerHTML = warn('Verbindungsfehler: ' + e.message); }
     finally { btn.disabled = false; btn.textContent = 'Senden'; }
+}
+
+
+// Zeugnis-Entwurf aus dem HR-Postfach öffnen (Walter 06.09.2026): lädt den
+// Entwurf und öffnet die Zeugnis-Maske im Entwurf-Modus (js/austritt.js).
+async function pbOpenZeugnisEntwurf(entwurfId) {
+    try {
+        const r = await fetch(`/api/arbeitszeugnis/entwurf/${entwurfId}`, { headers: ah() });
+        if (!r.ok) { alert('Entwurf nicht gefunden — vielleicht wurde er zurückgezogen.'); return; }
+        const ent = await r.json();
+        if (typeof openZeugnisModal !== 'function') { alert('Zeugnis-Maske nicht geladen.'); return; }
+        openZeugnisModal(ent.employeeId, ent.art === 'zwischen', ent.art === 'bestaetigung', ent);
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
 }

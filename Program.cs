@@ -1125,6 +1125,28 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE app_user ADD COLUMN IF NOT EXISTS zeugnis_druck_bis TEXT;
     ");
 
+    // ── Zeugnis-Entwürfe für HR (Walter 06.09.2026) ───────────────────────
+    // Platzierung: VOR SchemaCheckService.Pruefe.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS arbeitszeugnis_entwurf (
+            id                  serial PRIMARY KEY,
+            employee_id         integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            company_profile_id  integer,
+            art                 text NOT NULL DEFAULT 'arbeitszeugnis',
+            daten               text NOT NULL DEFAULT '',
+            bemerkung           text,
+            erstellt_von        integer REFERENCES app_user(id) ON DELETE SET NULL,
+            erstellt_am         timestamp without time zone NOT NULL DEFAULT now(),
+            status              text NOT NULL DEFAULT 'offen',
+            erledigt_von        integer REFERENCES app_user(id) ON DELETE SET NULL,
+            erledigt_am         timestamp without time zone,
+            antwort             text,
+            mailbox_document_id integer
+        );
+        CREATE INDEX IF NOT EXISTS ix_az_entwurf_employee ON arbeitszeugnis_entwurf (employee_id);
+        CREATE INDEX IF NOT EXISTS ix_az_entwurf_status ON arbeitszeugnis_entwurf (status);
+    ");
+
     // ── Probezeit-Entscheid (Walter 05.09.2026): weiter / Kündigung —
     // Schritt-für-Schritt-Maske im Probezeit-Fenster. Keine Verlängerung
     // (Probezeit max. 3 Monate, OR 335b). Platzierung: VOR SchemaCheckService.Pruefe.

@@ -120,6 +120,7 @@ public class AppDbContext : DbContext
     public DbSet<KandidatDokument>          KandidatDokumente           => Set<KandidatDokument>();
     public DbSet<OnboardingWunsch>          OnboardingWuensche          => Set<OnboardingWunsch>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
+    public DbSet<ArbeitszeugnisEntwurf>     ArbeitszeugnisEntwuerfe     => Set<ArbeitszeugnisEntwurf>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
     public DbSet<MailBounce>                MailBounces                 => Set<MailBounce>();
@@ -1531,6 +1532,28 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.EmployeeId);
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ArbeitszeugnisEntwurf>(entity =>
+        {
+            entity.ToTable("arbeitszeugnis_entwurf");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.Daten).HasColumnName("daten");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am");
+            entity.Property(e => e.Status).HasColumnName("status");
+            entity.Property(e => e.ErledigtVon).HasColumnName("erledigt_von");
+            entity.Property(e => e.ErledigtAm).HasColumnName("erledigt_am");
+            entity.Property(e => e.Antwort).HasColumnName("antwort");
+            entity.Property(e => e.MailboxDocumentId).HasColumnName("mailbox_document_id");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ErstelltVonUser).WithMany().HasForeignKey(e => e.ErstelltVon).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.ErledigtVonUser).WithMany().HasForeignKey(e => e.ErledigtVon).OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<EmployeeWohnortHistory>(entity =>

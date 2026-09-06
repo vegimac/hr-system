@@ -342,7 +342,7 @@ function _azGroupOf(i) { return i <= 5 ? 'basis' : i === 6 ? 'trainer' : 'schich
 // Sichtbarkeit der Aufgaben-Gruppen nach gewaehlter Funktion.
 function azUpdateTaskVisibility() {
     const fn = document.getElementById('azFunktion')?.value || '';
-    const istSchicht  = fn.startsWith('Schichtkoordinator');
+    const istSchicht  = fn.startsWith('Schichtkoordinator') || fn.startsWith('Geschäftsführer');
     const istTrainer  = fn.startsWith('Crew-Trainer') || istSchicht;
     // Walter 06.09.2026: Funktions-Aufgaben (Training / Schichtführung) werden
     // beim Wählen der Funktion gleich ANGEKREUZT — bisher nur eingeblendet,
@@ -358,6 +358,170 @@ function azUpdateTaskVisibility() {
         if (!zeigen) c.checked = false;
         else if (g !== 'basis' && (!war || !c.checked)) c.checked = true;
     });
+    azRefreshButtons();
+}
+
+// ── Druck-Berechtigung (Walter 06.09.2026) ──────────────────────────────
+// Leiter Crew(1) → Crew-Trainer(2) → Schichtkoordinator(3) → Geschäftsführer(4).
+// Stufe des Benutzers kommt aus /me (zeugnisDruckBis) bzw. /api/arbeitszeugnis/berechtigung.
+let _azBerechtigung = null;    // { code, stufe, label }
+let _azEntwurf = null;         // Entwurf-Modus (HR öffnet einen Entwurf)
+function _azStufe(code) { return ({ crew: 1, ct: 2, schicht: 3, alle: 4 })[String(code || '').toLowerCase()] || 0; }
+function _azFunktionStufe(fn) {
+    const f = String(fn || '');
+    if (f.startsWith('Geschäftsführer')) return 4;
+    if (f.startsWith('Schichtkoordinator')) return 3;
+    if (f.startsWith('Crew-Trainer')) return 2;
+    return 1;
+}
+function _azStufeLabel(n) { return ['keine', 'Crew', 'Crew-Trainer/in', 'Schichtkoordinator/in', 'alle'][n] || 'keine'; }
+async function _azLadeBerechtigung() {
+    if (_azBerechtigung) return _azBerechtigung;
+    try {
+        const r = await fetch('/api/arbeitszeugnis/berechtigung', { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (r.ok) { _azBerechtigung = await r.json(); return _azBerechtigung; }
+    } catch (_) {}
+    const code = (typeof currentUser !== 'undefined' && currentUser?.zeugnisDruckBis) || (currentUser?.role === 'admin' ? 'alle' : 'keine');
+    _azBerechtigung = { code, stufe: _azStufe(code), label: _azStufeLabel(_azStufe(code)) };
+    return _azBerechtigung;
+}
+function azDarfDrucken() {
+    const fn = document.getElementById('azFunktion')?.value || '';
+    return (_azBerechtigung?.stufe ?? 0) >= _azFunktionStufe(fn);
+}
+
+// Knöpfe/Hinweis je nach Berechtigung und gewählter Funktion umschalten.
+function azRefreshButtons() {
+    const go = document.getElementById('azGoBtn');
+    const hr = document.getElementById('azHrBtn');
+    const zw = document.getElementById('azZurueckBtn');
+    const hint = document.getElementById('azDruckHinweis');
+    const bemBox = document.getElementById('azBemerkungBox');
+    if (!go || !hr) return;
+    const fn = document.getElementById('azFunktion')?.value || '';
+    const darf = azDarfDrucken();
+    go.style.display = darf ? '' : 'none';
+    hr.style.display = darf ? 'none' : '';
+    if (bemBox) bemBox.style.display = darf ? 'none' : '';
+    if (zw) zw.style.display = (_azEntwurf && darf) ? '' : 'none';
+    if (hint) {
+        hint.style.display = darf ? 'none' : '';
+        hint.textContent = `Zeugnisse für «${fn}» erstellt HR — du kannst die Maske ausfüllen und als Entwurf an HR senden (deine Stufe: ${_azBerechtigung?.label || 'keine'}).`;
+    }
+}
+
+// Maske aus Entwurf-Daten befüllen (HR öffnet Entwurf / Ersteller lädt seinen Entwurf).
+function _azFuelleAusDaten(d) {
+    if (!d) return;
+    const q = document.querySelector(`input[name="azQuali"][value="${d.qualitaet || 'gut'}"]`); if (q) q.checked = true;
+    const sel = document.getElementById('azFunktion');
+    if (sel && d.funktion) {
+        if (![...sel.options].some(o => o.value === d.funktion)) sel.add(new Option(d.funktion, d.funktion));
+        sel.value = d.funktion;
+    }
+    if (d.datum) document.getElementById('azDatum').value = String(d.datum).slice(0, 10);
+    const azA = document.getElementById('azAustritt'); if (azA && d.austritt) azA.value = String(d.austritt).slice(0, 10);
+    const w = document.getElementById('azWunsch'); if (w) w.checked = d.aufEigenenWunsch !== false;
+    const zu = document.querySelector(`input[name="azZustell"][value="${d.abgabe ? 'A' : 'V'}"]`); if (zu) zu.checked = true;
+    const b = new Set((d.bereiche || []).map(x => String(x).toLowerCase()));
+    const ku = document.getElementById('azKueche'); if (ku) ku.checked = b.has('kueche');
+    const ka = document.getElementById('azKasse');  if (ka) ka.checked = b.has('kasse');
+    const dr = document.getElementById('azDrive');  if (dr) dr.checked = b.has('drive');
+    // Sichtbarkeit nach Funktion, dann die gespeicherten Aufgaben 1:1 setzen.
+    azUpdateTaskVisibility();
+    if (Array.isArray(d.aufgaben)) {
+        const want = new Set(d.aufgaben);
+        document.querySelectorAll('.azAufgabe').forEach(c => { c.checked = want.has(c.value); });
+    }
+    azRefreshButtons();
+}
+
+// Entwurf an HR senden.
+async function azSendeEntwurf() {
+    const alertEl = document.getElementById('azAlert');
+    const btn = document.getElementById('azHrBtn');
+    const body = _azSammleDto();
+    if (!body) return;
+    body.bemerkung = document.getElementById('azBemerkung')?.value?.trim() || null;
+    btn.disabled = true; btn.textContent = '⏳ sende…';
+    try {
+        const res = await fetch(`/api/arbeitszeugnis/${_azEmployeeId}/entwurf`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${err.message || err.error || ('HTTP ' + res.status)}</div>`;
+            return;
+        }
+        document.getElementById('azModal').remove();
+        if (typeof showToast === 'function') showToast('Zeugnis-Entwurf an HR gesendet — HR erstellt und unterschreibt das Zeugnis.');
+        else alert('Zeugnis-Entwurf an HR gesendet.');
+    } catch (e) {
+        alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
+    } finally {
+        btn.disabled = false; btn.textContent = '✉ An HR senden';
+    }
+}
+
+// HR: Entwurf mit Begründung zurückweisen.
+async function azZurueckweisen() {
+    if (!_azEntwurf) return;
+    const grund = prompt('Entwurf zurückweisen — Grund für den Ersteller (optional):', '');
+    if (grund === null) return;
+    try {
+        const res = await fetch(`/api/arbeitszeugnis/entwurf/${_azEntwurf.id}/zurueckweisen`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grund })
+        });
+        if (!res.ok) { alert('Zurückweisen fehlgeschlagen (HTTP ' + res.status + ').'); return; }
+        document.getElementById('azModal').remove();
+        if (typeof showToast === 'function') showToast('Entwurf zurückgewiesen — der Ersteller wurde informiert.');
+        if (typeof pbLoadList === 'function') pbLoadList();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+// Ersteller: eigenen offenen Entwurf zurückziehen.
+async function azEntwurfZurueckziehen(id) {
+    if (!(await liquidConfirm('Entwurf bei HR zurückziehen?'))) return;
+    try {
+        const res = await fetch(`/api/arbeitszeugnis/entwurf/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!res.ok && res.status !== 204) { alert('Zurückziehen fehlgeschlagen.'); return; }
+        const b = document.getElementById('azEntwurfBanner'); if (b) b.remove();
+    } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+// Maskenwerte als DTO (gemeinsam für PDF und Entwurf).
+function _azSammleDto() {
+    const alertEl = document.getElementById('azAlert');
+    const bereiche = [];
+    if (document.getElementById('azKueche').checked) bereiche.push('kueche');
+    if (document.getElementById('azKasse').checked)  bereiche.push('kasse');
+    if (document.getElementById('azDrive').checked)  bereiche.push('drive');
+    const aufgaben = [...document.querySelectorAll('.azAufgabe:checked')].map(c => c.value);
+    if (bereiche.length === 0 && !_azBest) {
+        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens einen Bereich wählen (Küche, Kasse, Drive).</div>';
+        return null;
+    }
+    if (aufgaben.length === 0 && !_azBest) {
+        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens eine Aufgabe ankreuzen.</div>';
+        return null;
+    }
+    const quali = document.querySelector('input[name="azQuali"]:checked')?.value || 'gut';
+    const datum = document.getElementById('azDatum').value || null;
+    return {
+        qualitaet: quali, bereiche, datum, aufgaben,
+        funktion: document.getElementById('azFunktion')?.value || null,
+        aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
+        zwischen: _azZwischen,
+        bestaetigung: _azBest,
+        austritt: document.getElementById('azAustritt')?.value || null,
+        // Abgabe durch Restaurant = Allgemein-Unterzeichner (Walter 12.08.2026).
+        abgabe: document.querySelector('input[name="azZustell"]:checked')?.value === 'A',
+        entwurfId: _azEntwurf?.id || null
+    };
 }
 
 // Funktions-Vorschlag aus JobGroup + Pensum des juengsten Vertrags.
@@ -407,18 +571,31 @@ function _azEmpObj(employeeId) {
 let _azZwischen = false;
 let _azBest = false;   // Arbeitsbestätigung (Vorlage «244 Sursee»)
 
-function openZeugnisModal(employeeId, zwischen = false, best = false) {
+async function openZeugnisModal(employeeId, zwischen = false, best = false, entwurf = null) {
     _azEmployeeId = employeeId;
     _azZwischen = !!zwischen;
     _azBest = !!best;
+    _azEntwurf = entwurf || null;
+    await _azLadeBerechtigung();
     const emp = _azEmpObj(employeeId);
-    const female = String(emp?.gender || '').toLowerCase().startsWith('f')
-        || String(emp?.gender || '').toLowerCase() === 'w'
-        || emp?.salutation === 'Frau';
+    // Ohne MA-Objekt (Entwurf aus dem HR-Postfach): Geschlecht aus der Funktion des Entwurfs.
+    const female = emp
+        ? (String(emp?.gender || '').toLowerCase().startsWith('f')
+            || String(emp?.gender || '').toLowerCase() === 'w'
+            || emp?.salutation === 'Frau')
+        : /in$/.test(String(entwurf?.daten?.funktion || ''));
     const funktionen = female
-        ? ['Teilzeit-Crewmitarbeiterin', 'Vollzeit-Crewmitarbeiterin', 'Crew-Trainerin', 'Schichtkoordinatorin']
-        : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator'];
+        ? ['Teilzeit-Crewmitarbeiterin', 'Vollzeit-Crewmitarbeiterin', 'Crew-Trainerin', 'Schichtkoordinatorin', 'Geschäftsführerin']
+        : ['Teilzeit-Crewmitarbeiter', 'Vollzeit-Crewmitarbeiter', 'Crew-Trainer', 'Schichtkoordinator', 'Geschäftsführer'];
     const vorschlag = emp ? _azFunktionVorschlag(emp, female) : funktionen[0];
+    const subName = emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}`
+                  : entwurf ? `${entwurf.employeeName} · Personalnr. ${entwurf.employeeNumber || '–'}` : '';
+    const entwurfKopf = entwurf ? `
+            <div style="margin:0 0 14px;padding:10px 12px;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;font-size:12.5px;color:#3f3f3f">
+                <b>Entwurf von ${entwurf.erstelltVonName || '–'}</b> · ${entwurf.erstelltAm ? formatDate(entwurf.erstelltAm) : ''}
+                ${entwurf.bemerkung ? `<div style="margin-top:4px;white-space:pre-wrap">Bemerkung: ${entwurf.bemerkung}</div>` : ''}
+                <div style="margin-top:4px;color:#8b8b8b">Prüfen, bei Bedarf anpassen, Unterschrift wählen und «PDF erstellen» — der Ersteller erhält das fertige Zeugnis als Mitteilung.</div>
+            </div>` : '';
 
     const pill = 'display:flex;align-items:center;gap:8px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:12px;padding:7px 11px;cursor:pointer;font-size:12.5px;font-weight:600;color:#3f3f3f';
     const pillS = 'display:flex;align-items:flex-start;gap:8px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:7px 10px;cursor:pointer;font-size:12px;color:#3f3f3f';
@@ -441,7 +618,9 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
                 <button onclick="document.getElementById('azModal').remove()"
                         class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
             </div>
-            <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${emp ? `${emp.firstName} ${emp.lastName} · Personalnr. ${emp.employeeNumber || '–'}` : ''}</div>
+            <div id="azSub" style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${subName}</div>
+            ${entwurfKopf}
+            <div id="azEntwurfBanner"></div>
 
             <div style="display:grid;grid-template-columns:${_azBest ? '1fr' : '1fr 1.1fr'};gap:0 26px;align-items:start">
             <div>
@@ -501,9 +680,16 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
             </div>
 
             <div id="azAlert"></div>
+            <div id="azDruckHinweis" style="display:none;font-size:12px;color:#a16207;background:#fdf1dc;border:1px solid #f3d9a4;border-radius:10px;padding:8px 12px;margin-bottom:10px"></div>
+            <div id="azBemerkungBox" style="display:none;margin-bottom:10px">
+                <div style="${label}">Bemerkung an HR (optional)</div>
+                <textarea id="azBemerkung" rows="2" style="${inp};resize:vertical" placeholder="z.B. MA holt das Zeugnis am Freitag ab">${entwurf?.bemerkung ? String(entwurf.bemerkung).replace(/</g, '&lt;') : ''}</textarea>
+            </div>
             <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:4px">
                 <button onclick="document.getElementById('azModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button id="azZurueckBtn" onclick="azZurueckweisen()" style="display:none;background:rgba(255,255,255,0.55);color:#9f1239;border:1px solid rgba(159,18,57,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Zurückweisen</button>
+                <button id="azHrBtn" onclick="azSendeEntwurf()" style="display:none;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)">✉ An HR senden</button>
                 <button id="azGoBtn" onclick="azGenerate()"
                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700;box-shadow:0 4px 14px rgba(60,55,48,0.22)">📄 PDF erstellen</button>
             </div>
@@ -516,6 +702,31 @@ function openZeugnisModal(employeeId, zwischen = false, best = false) {
     if (azA) azA.value = _azAustrittVorschlag(emp);
     azQuickTasks();
     azUpdateTaskVisibility();
+    if (entwurf) {
+        _azFuelleAusDaten(entwurf.daten);
+    } else {
+        _azZeigeOffenenEntwurf(employeeId);
+    }
+}
+
+// Offener Entwurf dieses MA (eigener oder — für HR — von jemandem): Banner mit «laden».
+async function _azZeigeOffenenEntwurf(employeeId) {
+    try {
+        const art = _azBest ? 'bestaetigung' : _azZwischen ? 'zwischen' : 'arbeitszeugnis';
+        const r = await fetch(`/api/arbeitszeugnis/entwuerfe?employeeId=${employeeId}&status=offen`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        if (!r.ok) return;
+        const list = (await r.json()).filter(x => x.art === art);
+        const box = document.getElementById('azEntwurfBanner');
+        if (!list.length || !box) return;
+        const e = list[0];
+        window._azOffenerEntwurf = e;
+        const eigener = typeof currentUser !== 'undefined' && currentUser?.id === e.erstelltVon;
+        box.innerHTML = `<div style="margin:0 0 14px;padding:10px 12px;background:#fdf1dc;border:1px solid #f3d9a4;border-radius:10px;font-size:12.5px;color:#7c5a10;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <span>⏳ Entwurf vom ${formatDate(e.erstelltAm)}${eigener ? '' : ' von ' + (e.erstelltVonName || '–')} liegt bei HR.</span>
+            <button type="button" onclick="_azEntwurf=window._azOffenerEntwurf;_azFuelleAusDaten(window._azOffenerEntwurf.daten);document.getElementById('azEntwurfBanner').innerHTML=''" style="background:#3f3f3f;color:#fff;border:none;border-radius:10px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:700">Entwurf laden</button>
+            ${eigener ? `<button type="button" onclick="azEntwurfZurueckziehen(${e.id})" style="background:none;border:none;color:#9f1239;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline">zurückziehen</button>` : ''}
+        </div>`;
+    } catch (_) {}
 }
 
 // Bereichs-Schnellwahl → passende Katalog-Aufgaben ankreuzen (Grundset).
@@ -540,36 +751,14 @@ function azQuickTasks() {
 async function azGenerate() {
     const alertEl = document.getElementById('azAlert');
     const btn = document.getElementById('azGoBtn');
-    const bereiche = [];
-    if (document.getElementById('azKueche').checked) bereiche.push('kueche');
-    if (document.getElementById('azKasse').checked)  bereiche.push('kasse');
-    if (document.getElementById('azDrive').checked)  bereiche.push('drive');
-    const aufgaben = [...document.querySelectorAll('.azAufgabe:checked')].map(c => c.value);
-    if (bereiche.length === 0 && !_azBest) {
-        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens einen Bereich wählen (Küche, Kasse, Drive).</div>';
-        return;
-    }
-    if (aufgaben.length === 0 && !_azBest) {
-        alertEl.innerHTML = '<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Bitte mindestens eine Aufgabe ankreuzen.</div>';
-        return;
-    }
-    const quali = document.querySelector('input[name="azQuali"]:checked')?.value || 'gut';
-    const datum = document.getElementById('azDatum').value || null;
+    const body = _azSammleDto();
+    if (!body) return;
     btn.disabled = true; btn.textContent = '⏳ erstelle…';
     try {
         const res = await fetch(`/api/arbeitszeugnis/${_azEmployeeId}/pdf`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                qualitaet: quali, bereiche, datum, aufgaben,
-                funktion: document.getElementById('azFunktion')?.value || null,
-                aufEigenenWunsch: document.getElementById('azWunsch')?.checked ?? true,
-                zwischen: _azZwischen,
-                bestaetigung: _azBest,
-                austritt: document.getElementById('azAustritt')?.value || null,
-                // Abgabe durch Restaurant = Allgemein-Unterzeichner (Walter 12.08.2026).
-                abgabe: document.querySelector('input[name="azZustell"]:checked')?.value === 'A'
-            })
+            body: JSON.stringify(body)
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -580,6 +769,8 @@ async function azGenerate() {
         const cd = res.headers.get('Content-Disposition') || '';
         const m = cd.match(/filename="?([^"]+)"?/);
         document.getElementById('azModal').remove();
+        if (_azEntwurf && typeof pbLoadList === 'function') { try { pbLoadList(); } catch (_) {} }
+        _azEntwurf = null;
         await previewFileModal(blob, m ? m[1] : (_azBest ? 'Arbeitsbestaetigung.pdf' : _azZwischen ? 'Zwischenzeugnis.pdf' : 'Arbeitszeugnis.pdf'));
     } catch (e) {
         alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
