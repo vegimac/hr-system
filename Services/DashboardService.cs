@@ -445,6 +445,53 @@ public class DashboardService
             }
         }
 
+        // ── 2c) Arbeitszeugnis fehlt (Walter 06.09.2026) ──────────────────
+        // Ab 1 Tag nach dem Austritt, solange kein Zeugnis-Dokument am MA
+        // verknüpft ist (employee.arbeitszeugnis_dokument_id). Nur Austritte
+        // der letzten 12 Monate — ältere Austritte nicht rückwirkend fluten.
+        // Nach escalate_days (Standard 14) kritisch.
+        if (Enabled("arbeitszeugnis_fehlt"))
+        {
+            var azVon = now.AddDays(-365);
+            var azQ = _db.Employees
+                .Where(e => !e.IsHidden && !e.IsPayrollExcluded
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                         && e.ExitDate.HasValue && e.ExitDate.Value < now && e.ExitDate.Value >= azVon
+                         && e.ArbeitszeugnisDokumentId == null);
+            if (companyProfileId.HasValue)
+            {
+                var cpidAz = companyProfileId.Value;
+                azQ = azQ.Where(e => e.Employments
+                    .OrderByDescending(em => em.ContractStartDate)
+                    .Select(em => em.CompanyProfileId).FirstOrDefault() == cpidAz);
+            }
+            var azList = await azQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate })
+                .ToListAsync();
+            var cfgAz = warnCfg.TryGetValue("arbeitszeugnis_fehlt", out var cAz) ? cAz : null;
+            var escAz = cfgAz?.EscalateDays ?? 14;
+            foreach (var e in azList)
+            {
+                var exit = e.ExitDate!.Value.Date;
+                var daysSince = (now - exit).Days;
+                var name = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "arbeitszeugnis_fehlt",
+                    Severity = daysSince >= escAz ? (cfgAz?.SeverityEscalated ?? "critical") : (cfgAz?.SeverityBase ?? "warning"),
+                    Title    = daysSince >= escAz
+                        ? $"Arbeitszeugnis ausstellen — Austritt vor {daysSince} Tagen, noch kein Zeugnis hinterlegt"
+                        : "Arbeitszeugnis ausstellen — noch kein Zeugnis hinterlegt",
+                    Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} — Austritt {exit:dd.MM.yyyy}",
+                    DueDate        = exit,
+                    DaysUntil      = -daysSince,
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = name
+                });
+            }
+        }
+
         // ── 3) Befristete Verträge enden in 30 Tagen ──────────────────────
         // Walter-Vorgabe 12.07.2026: die Warnung läuft nach dem Ablauf WEITER
         // («seit X Tagen abgelaufen») — ein aktiver MA ohne laufenden Vertrag

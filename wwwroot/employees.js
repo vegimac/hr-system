@@ -1807,6 +1807,7 @@ function loadUebersichtTab() {
                 <div class="ov-pf ov-anst-date ov-anst-kuend"><div class="ov-pfl">Austrittsgrund</div>
                 <select id="ov-austrittsgrund" class="ov-softin" onchange="ovDirty()">${_austrittsgrundOptionsHtml(emp.austrittsgrund)}</select></div>
             </div>
+            ${_ovArbeitszeugnisRowHtml(emp)}
         </div>`,
         `<button class="ov-hbtn ov-hbtn-primary ov-savebtn" style="display:none" onclick="ovSave()">Speichern</button>`);
     // ── Karte Nachtarbeit (Walter 17.07.2026): der VOLLE Funktions-Block
@@ -2755,7 +2756,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
     if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
           'night_work_exam', 'night_work_ausnahme',
           'probezeit_gespraech1', 'probezeit_gespraech2',
-          'lohn_assignment', 'qst_tarif'].includes(kind)) return;
+          'lohn_assignment', 'qst_tarif', 'arbeitszeugnis'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2776,6 +2777,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                           ? ['probezeitgespraech', 'probezeit_gespraech']
                       : kind === 'lohn_assignment'     ? ['lohnabtretung', 'pfaendung', 'pfändung']
                       : kind === 'qst_tarif'           ? ['qst', 'quellensteuer', 'tarif']
+                      : kind === 'arbeitszeugnis'      ? ['arbeitszeugnis', 'zeugnis', 'schlusszeugnis']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2789,6 +2791,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                            ? /(pfänd|pfaend|abtretung|lohnabtretung|betreibung|ors|vollmacht|inkasso)/i
                        : kind === 'qst_tarif'
                            ? /(tarif|quellensteuer|qst|steuer)/i
+                       : kind === 'arbeitszeugnis'
+                           ? /(arbeitszeugnis|schlusszeugnis|zeugnis)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2835,6 +2839,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'probezeit_gespraech1' ? 'Probezeitgespräch 1: Protokoll verknüpfen'
                    : kind === 'probezeit_gespraech2' ? 'Probezeitgespräch 2: Protokoll verknüpfen'
                    : kind === 'lohn_assignment'     ? 'Lohnabtretung: Beleg-Dokument verknüpfen'
+                   : kind === 'arbeitszeugnis'      ? 'Arbeitszeugnis verknüpfen'
                    : kind === 'qst_tarif'           ? 'QST-Tarifbestätigung verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
@@ -2853,6 +2858,8 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das Abtretungs-/Pfändungsdokument — ohne Beleg ist die Lohnabtretung im Lohnlauf unwirksam. Oder lade ein neues hoch.'
                         : kind === 'qst_tarif'
                             ? 'Wähle die Tarifbestätigung / Tarifmeldung der Steuerbehörde zu dieser QST-Version — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
+                        : kind === 'arbeitszeugnis'
+                            ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -3119,8 +3126,8 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if (kind === 'lohn_assignment' && typeof loadLohnAssignmentsTab === 'function') {
             loadLohnAssignmentsTab(empId);
         }
-        // Nachtarbeit-Belege: MA-Detail neu laden (Anzeige-Buttons im Nachtarbeit-Block).
-        if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme') && typeof selectEmployee === 'function') selectEmployee(empId);
+        // Nachtarbeit-Belege / Arbeitszeugnis: MA-Detail neu laden.
+        if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis') && typeof selectEmployee === 'function') selectEmployee(empId);
         // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,
         // dann Modal + Anstellung neu zeichnen (Walter 21.07.2026).
         if (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2') {

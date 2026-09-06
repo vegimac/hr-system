@@ -1153,6 +1153,21 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_entscheid TEXT;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_entscheid_am DATE;
+        -- Walter 06.09.2026: verknüpftes Arbeitszeugnis (Pendenz ab 1 Tag nach Austritt)
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS arbeitszeugnis_dokument_id INTEGER;
+    ");
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('arbeitszeugnis_fehlt', 'Arbeitszeugnis ausstellen', TRUE, NULL, 14, 'warning', 'critical', FALSE, 29, 59, 'none')
+        ON CONFLICT (category) DO NOTHING;
+        INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
+        ('arbeitszeugnis_fehlt',
+         'Arbeitszeugnis ausstellen',
+         'Der Mitarbeiter ist ausgetreten, ein Arbeitszeugnis ist noch nicht hinterlegt. Mitarbeiter öffnen → Übersicht → Anstellung: «Zeugnis erstellen» (Maske ausfüllen, PDF erstellen bzw. an HR senden), das unterschriebene Zeugnis unter Dokus ablegen und in der Anstellung mit «Zeugnis verknüpfen» anbinden. Erst dann verschwindet die Pendenz.',
+         160)
+        ON CONFLICT (category) DO NOTHING;
     ");
 
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).

@@ -83,6 +83,7 @@ const DASH_CATEGORY_META = {
     probation_end:          { i18nKey: 'dash.cat.probationEnding',  label: 'Probezeit',              icon: '📋', color: '#92400e' },
     probezeit_gespraech_offen: { i18nKey: 'dash.cat.probationTalkOpen', label: 'Probezeitgespräch offen', icon: '📋', color: '#92400e' },
     probezeit_kuendigung_offen: { label: 'Kündigung in Probezeit erfassen', icon: '✕', color: '#991b1b' },
+    arbeitszeugnis_fehlt:   { label: 'Arbeitszeugnis ausstellen', icon: '📄', color: '#92400e' },
     contract_end:           { i18nKey: 'dash.cat.contractEnding',   label: 'Vertragsende',           icon: '📅', color: '#92400e' },
     kuendigung_ablauf:      { i18nKey: 'dash.cat.terminationEnding', label: 'Vertragsende Kündigung', icon: '🚪', color: '#b91c1c' },
     kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
@@ -392,7 +393,8 @@ function renderDashTodoRow(a) {
                                    || a.category === 'night_work_ausnahme_fehlt'
                                    || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch'
-                                   || a.category === 'probation_end')
+                                   || a.category === 'probation_end'
+                                   || a.category === 'arbeitszeugnis_fehlt')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.category === 'audit_log_stumm'
@@ -696,7 +698,8 @@ function renderDashAlertRow(a) {
                                    || a.category === 'night_work_ausnahme_fehlt'
                                    || a.category === 'night_work_exam_expiring'
                                    || a.category === 'night_work_exam_mismatch'
-                                   || a.category === 'probation_end')
+                                   || a.category === 'probation_end'
+                                   || a.category === 'arbeitszeugnis_fehlt')
                                     ? `onclick="dashOpenEmployee(${a.employeeId}, 'uebersicht')"`
                                     : `onclick="dashOpenEmployee(${a.employeeId})"`)
         : (a.category === 'audit_log_stumm'

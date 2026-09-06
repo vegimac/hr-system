@@ -498,6 +498,8 @@ public class EmployeesController : ControllerBase
             // Probezeit-Entscheid (Walter 05.09.2026)
             employee.ProbezeitEntscheid,
             employee.ProbezeitEntscheidAm,
+            // Arbeitszeugnis verknüpft (Walter 06.09.2026)
+            employee.ArbeitszeugnisDokumentId,
             // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
             nightWorkRequiresDocuments,
             nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,
@@ -1191,7 +1193,8 @@ public class EmployeesController : ControllerBase
         var kind = (dto.Kind ?? "").Trim().ToLowerInvariant();
         if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam"
             && kind != "night_work_ausnahme"
-            && kind != "probezeit_gespraech1" && kind != "probezeit_gespraech2")
+            && kind != "probezeit_gespraech1" && kind != "probezeit_gespraech2"
+            && kind != "arbeitszeugnis")
             return BadRequest(new { error = "KIND_INVALID", message = "kind ungültig." });
 
         if (dto.DokumentId.HasValue)
@@ -1208,6 +1211,7 @@ public class EmployeesController : ControllerBase
         else if (kind == "night_work_ausnahme")     emp.NightWorkAusnahmeDokumentId    = dto.DokumentId;
         else if (kind == "probezeit_gespraech1")    emp.ProbezeitGespraech1DokumentId  = dto.DokumentId;
         else if (kind == "probezeit_gespraech2")    emp.ProbezeitGespraech2DokumentId  = dto.DokumentId;
+        else if (kind == "arbeitszeugnis")          emp.ArbeitszeugnisDokumentId       = dto.DokumentId;
         else                                        emp.NightWorkExamDokumentId        = dto.DokumentId;
 
         await _context.SaveChangesAsync();
@@ -1220,7 +1224,8 @@ public class EmployeesController : ControllerBase
             nightWorkExamDokumentId     = emp.NightWorkExamDokumentId,
             nightWorkAusnahmeDokumentId = emp.NightWorkAusnahmeDokumentId,
             probezeitGespraech1DokumentId = emp.ProbezeitGespraech1DokumentId,
-            probezeitGespraech2DokumentId = emp.ProbezeitGespraech2DokumentId
+            probezeitGespraech2DokumentId = emp.ProbezeitGespraech2DokumentId,
+            arbeitszeugnisDokumentId = emp.ArbeitszeugnisDokumentId
         });
     }
 

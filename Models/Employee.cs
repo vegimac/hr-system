@@ -218,6 +218,12 @@ public class Employee
     public DateTime? ProbezeitEntscheidAm { get; set; }
 
     /// <summary>
+    /// Ausgestelltes Arbeitszeugnis (Walter 06.09.2026): verknüpftes Dokument
+    /// in den Dokus. Ab 1 Tag nach dem Austritt Pendenz, bis es verknüpft ist.
+    /// </summary>
+    public int? ArbeitszeugnisDokumentId { get; set; }
+
+    /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync
     /// gesetzt und erlaubt das Auflösen von edited_by_id-Verweisen aus den
     /// Stempelzeit-Audits zum Manager-Namen.
