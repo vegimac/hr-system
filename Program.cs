@@ -1121,6 +1121,8 @@ using (var scope = app.Services.CreateScope())
     // Platzierung: VOR SchemaCheckService.Pruefe.
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE app_user ADD COLUMN IF NOT EXISTS session_revoked_before timestamptz;
+        -- Walter 06.09.2026: Zeugnisse drucken bis Funktion (NULL = Rollen-Standard)
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS zeugnis_druck_bis TEXT;
     ");
 
     // ── Probezeit-Entscheid (Walter 05.09.2026): weiter / Kündigung —

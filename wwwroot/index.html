@@ -8724,6 +8724,21 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </label>
                 <div class="f-hint" style="margin-top:2px">Sieht den Tab «Dokumente» im Filial-Detail (Versicherungspolicen, AHV-/QST-Korrespondenz) — für die zugeteilten Filialen. Admin hat den Zugriff immer.</div>
             </div>
+            <!-- Zeugnisse drucken bis Funktion (Walter 06.09.2026): Leiter Crew →
+                 Crew-Trainer → Schichtkoordinator → Geschäftsführer. Darüber nur
+                 Entwurf an HR. Leer = Standard nach Rolle. -->
+            <div class="f-group" id="umZeugnisGroup">
+                <label class="f-label" for="umZeugnisDruck">Zeugnisse drucken bis Funktion</label>
+                <select id="umZeugnisDruck" class="f-input">
+                    <option value="">Standard nach Rolle</option>
+                    <option value="keine">keine — nur Entwurf an HR</option>
+                    <option value="crew">Crew</option>
+                    <option value="ct">Crew-Trainer/in</option>
+                    <option value="schicht">Schichtkoordinator/in</option>
+                    <option value="alle">alle (inkl. Geschäftsführer/in)</option>
+                </select>
+                <div class="f-hint" style="margin-top:2px" id="umZeugnisHint">Standard: GF (Benutzer) bis Crew-Trainer/in · HR-Team, Superuser, Buchhaltung bis Schichtkoordinator/in · Geschäftsführer-Zeugnisse nur Admin. Zeugnisse für höhere Funktionen kann der Benutzer ausfüllen und als Entwurf an HR senden.</div>
+            </div>
             <div class="f-group">
                 <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
                     <input type="checkbox" id="umMirusDigest" style="width:18px;height:18px;cursor:pointer">
@@ -8829,7 +8844,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260904e"></script>
-<script src="js/users.js?v=20260904a"></script>
+<script src="js/users.js?v=20260906a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260904a"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>

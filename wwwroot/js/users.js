@@ -105,6 +105,9 @@ function umUpdateBranchVisibility() {
     // (für sie irrelevant — lowuser hat eh keinen HR-Bereich).
     const hrGroup = document.getElementById('umIsHrTeam')?.closest('.f-group');
     if (hrGroup) hrGroup.style.display = (isAdmin || role === 'buchhaltung' || role === 'lowuser') ? 'none' : 'block';
+    // Zeugnis-Druckstufe: Admin hat immer «alle» → Feld ausblenden (Walter 06.09.2026).
+    const zGroup = document.getElementById('umZeugnisGroup');
+    if (zGroup) zGroup.style.display = isAdmin ? 'none' : 'block';
 }
 
 // ── «Aus Mitarbeiter übernehmen» (Walter-Vorgabe 13.07.2026) ────────────
@@ -207,6 +210,7 @@ function openUserModal(userId = null) {
             document.getElementById('umActive').value    = u.isActive.toString();
             document.getElementById('umIsHrTeam').checked = !!u.isHrTeam;
             document.getElementById('umCanCompanyDokumente').checked = !!u.canCompanyDokumente;
+            const zSel = document.getElementById('umZeugnisDruck'); if (zSel) zSel.value = u.zeugnisDruckBis || '';
             document.getElementById('umMirusDigest').checked = !!u.receivesMirusChangeDigest;
             document.getElementById('umIdleTimeout').value = u.idleTimeoutMinutes ?? '';
             document.getElementById('umMaxSession').value  = u.maxSessionMinutes ?? '';
@@ -228,6 +232,7 @@ function openUserModal(userId = null) {
         document.getElementById('umActive').value    = 'true';
         document.getElementById('umIsHrTeam').checked = false;
         document.getElementById('umCanCompanyDokumente').checked = false;
+        { const zSel = document.getElementById('umZeugnisDruck'); if (zSel) zSel.value = ''; }
         document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
@@ -394,6 +399,7 @@ async function saveUser() {
     const isHrTeam  = document.getElementById('umIsHrTeam').checked;
     // Zugriff Filial-Dokumente (Walter 06.08.2026) — Tab «Dokumente» im Filial-Detail.
     const canCompanyDokumente = document.getElementById('umCanCompanyDokumente').checked;
+    const zeugnisDruckBis = document.getElementById('umZeugnisDruck')?.value || null;
     const receivesMirusChangeDigest = document.getElementById('umMirusDigest').checked;
     const branchIds = Array.from(document.querySelectorAll('#umBranches input:checked')).map(cb => parseInt(cb.value));
     const username  = `${firstName} ${lastName}`.trim() || email;
@@ -426,7 +432,7 @@ async function saveUser() {
     if (!maxP.ok)  { showErr(`${maxP.label} muss zwischen 5 und 1440 Minuten liegen (oder leer für Rollen-Standard).`); return; }
 
     const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam,
-                   canCompanyDokumente, receivesMirusChangeDigest, branchIds,
+                   canCompanyDokumente, zeugnisDruckBis, receivesMirusChangeDigest, branchIds,
                    idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value,
                    allowedAreas: umGetAreas() };
 

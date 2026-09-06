@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -138,6 +139,7 @@ public class AuthController : ControllerBase
                 // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend
                 // blendet damit den Tab «Dokumente» im Filial-Detail ein/aus.
                 canCompanyDokumente = user.CanCompanyDokumente,
+                zeugnisDruckBis = ZeugnisBerechtigung.Effektiv(user),
                 // Manager-Dienstplan planbar in mind. einer Filiale (Walter 08.08.2026).
                 canDienstplan = user.BranchAccess.Any(b => b.CanDienstplan),
                 canVertragSms = user.BranchAccess.Any(b => b.CanVertragSms),
@@ -298,6 +300,7 @@ public class AuthController : ControllerBase
             // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend blendet
             // damit den Tab «Dokumente» im Filial-Detail ein/aus.
             canCompanyDokumente = user.CanCompanyDokumente,
+                zeugnisDruckBis = ZeugnisBerechtigung.Effektiv(user),
             canDienstplan      = user.BranchAccess.Any(b => b.CanDienstplan),
             canVertragSms      = user.BranchAccess.Any(b => b.CanVertragSms),
             isSuperAdmin       = user.IsSuperAdmin,
@@ -494,6 +497,7 @@ public class AuthController : ControllerBase
                 employeeId        = target.EmployeeId,
                 isHrTeam          = target.IsHrTeam,
                 canCompanyDokumente = target.CanCompanyDokumente,
+                zeugnisDruckBis = ZeugnisBerechtigung.Effektiv(target),
                 isSuperAdmin      = target.IsSuperAdmin,
                 // Dieselbe Filial-Regel wie Login und GET /me.
                 branches = SeesAllBranches(target.Role)

@@ -58,11 +58,38 @@ public class ArbeitszeugnisController : ControllerBase
         public DateOnly? Austritt { get; set; }
     }
 
+    /// <summary>Eingeloggter Benutzer (für Druck-Berechtigung / Entwurf-Ersteller).</summary>
+    private async Task<AppUser?> AktuellerBenutzerAsync()
+    {
+        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(idStr, out var uid)) return null;
+        return await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(x => x.Id == uid);
+    }
+
+    /// <summary>Druck-Berechtigung des eingeloggten Benutzers (Frontend-Anzeige).</summary>
+    [HttpGet("berechtigung")]
+    public async Task<IActionResult> Berechtigung()
+    {
+        var u = await AktuellerBenutzerAsync();
+        if (u == null) return Unauthorized();
+        var code = ZeugnisBerechtigung.Effektiv(u);
+        return Ok(new { code, stufe = ZeugnisBerechtigung.Stufe(code), label = ZeugnisBerechtigung.Label(code) });
+    }
+
     [HttpPost("{empId:int}/pdf")]
     public async Task<IActionResult> GetPdf(int empId, [FromBody] ZeugnisDto dto)
     {
         var e = await _db.Employees.AsNoTracking().FirstOrDefaultAsync(x => x.Id == empId);
         if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+
+        // Druck-Berechtigung (Walter 06.09.2026): Zeugnis-Funktion über der
+        // Stufe des Benutzers → kein PDF, nur Entwurf an HR (Serverseitig,
+        // nicht nur am Knopf).
+        var benutzer = await AktuellerBenutzerAsync();
+        if (benutzer == null) return Unauthorized();
+        if (!ZeugnisBerechtigung.DarfDrucken(benutzer, dto.Funktion))
+            return StatusCode(403, new { error = "ZEUGNIS_DRUCK_GESPERRT",
+                message = $"Zeugnisse für «{dto.Funktion}» darfst du nicht selbst erstellen (deine Stufe: {ZeugnisBerechtigung.Label(ZeugnisBerechtigung.Effektiv(benutzer))}). Bitte als Entwurf an HR senden." });
 
         var quali = (dto.Qualitaet ?? "gut").Trim().ToLowerInvariant();
         if (quali is not ("genuegend" or "durchschnitt" or "gut" or "sehr_gut"))

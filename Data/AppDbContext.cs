@@ -977,6 +977,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsHrTeam).HasColumnName("is_hr_team");
             // Zugriff Filial-Dokumente (Walter 06.08.2026) — pro Benutzer vergeben.
             entity.Property(e => e.CanCompanyDokumente).HasColumnName("can_company_dokumente").HasDefaultValue(false);
+            entity.Property(e => e.ZeugnisDruckBis).HasColumnName("zeugnis_druck_bis");
             entity.Property(e => e.ReceivesMirusChangeDigest).HasColumnName("receives_mirus_change_digest").HasDefaultValue(false);
             entity.Property(e => e.IsSuperAdmin).HasColumnName("is_super_admin").HasDefaultValue(false);
             entity.Property(e => e.AllowedAreas).HasColumnName("allowed_areas");

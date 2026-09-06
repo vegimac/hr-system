@@ -1,5 +1,6 @@
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -50,6 +51,8 @@ public class UsersController : ControllerBase
                 u.IsActive,
                 u.IsHrTeam,
                 u.CanCompanyDokumente,
+                u.ZeugnisDruckBis,
+                zeugnisDruckEffektiv = ZeugnisBerechtigung.Effektiv(u.Role, u.IsHrTeam, u.ZeugnisDruckBis),
                 u.ReceivesMirusChangeDigest,
                 u.IsSuperAdmin,
                 u.CreatedAt,
@@ -80,7 +83,8 @@ public class UsersController : ControllerBase
         bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null,
-        bool? CanCompanyDokumente = false);
+        bool? CanCompanyDokumente = false,
+        string? ZeugnisDruckBis = null);
 
     public record UpdateUserRequest(
         string Username, string? FirstName, string? LastName,
@@ -90,7 +94,15 @@ public class UsersController : ControllerBase
         bool? ReceivesMirusChangeDigest = false,
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null,
-        bool? CanCompanyDokumente = false);
+        bool? CanCompanyDokumente = false,
+        string? ZeugnisDruckBis = null);
+
+    // Zeugnis-Druckstufe normalisieren: leer/unbekannt → NULL (Rollen-Standard).
+    private static string? NormZeugnis(string? v)
+    {
+        var x = (v ?? "").Trim().ToLowerInvariant();
+        return ZeugnisBerechtigung.Codes.Contains(x) ? x : null;
+    }
 
     // Bereichs-Schlüssel → komma-separierter DB-String (Walter 28.06.2026).
     //   NULL-Liste  → null  (Rollen-Default bleibt)
@@ -138,6 +150,7 @@ public class UsersController : ControllerBase
             IsActive  = true,
             IsHrTeam  = req.IsHrTeam ?? false,
             CanCompanyDokumente = req.CanCompanyDokumente ?? false,
+            ZeugnisDruckBis = NormZeugnis(req.ZeugnisDruckBis),
             ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false,
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
@@ -205,6 +218,7 @@ public class UsersController : ControllerBase
         user.IsActive  = req.IsActive;
         user.IsHrTeam  = req.IsHrTeam ?? false;
         user.CanCompanyDokumente = req.CanCompanyDokumente ?? false;
+        user.ZeugnisDruckBis = NormZeugnis(req.ZeugnisDruckBis);
         user.ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false;
         // Sitzungs-Policy nur durch Admin änderbar (Walter 04.09.2026) —
         // Superuser sendet den Wert mit, er wird aber nicht übernommen.
