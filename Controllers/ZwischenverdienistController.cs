@@ -675,6 +675,7 @@ public class ZwischenverdienistController : ControllerBase
     private static string FormatZivilstand(string? code) => code switch
     {
         "ledig"                   => "ledig",
+        "konkubinat"              => "ledig (Konkubinat)",
         "verheiratet"             => "verheiratet",
         "geschieden"              => "geschieden",
         "verwitwet"               => "verwitwet",

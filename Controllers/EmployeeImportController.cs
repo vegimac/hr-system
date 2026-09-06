@@ -697,6 +697,7 @@ public class EmployeeImportController : ControllerBase
         {
             "unbekannt" or "unknown"                                  => "unbekannt",
             "ledig" or "single"                                       => "ledig",
+            "konkubinat" or "concubinage"                             => "konkubinat",
             "verheiratet" or "married"                                => "verheiratet",
             "geschieden" or "divorced"                                => "geschieden",
             "verwitwet" or "widowed"                                  => "verwitwet",

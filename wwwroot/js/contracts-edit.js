@@ -622,6 +622,7 @@ function buildContractPage() {
                         <option value="geschieden">Geschieden</option>
                         <option value="verwitwet">Verwitwet</option>
                         <option value="eingetragene_partnerschaft">Eingetragene Partnerschaft</option>
+                        <option value="konkubinat">Konkubinat</option>
                         <option value="aufgeloeste_partnerschaft">Aufgelöste Partnerschaft</option>
                     </select>
                     <div id="qstBefreitLabel" style="display:none"><label>QST befreit ab</label></div>

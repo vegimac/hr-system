@@ -238,7 +238,7 @@ function qstApplyWochenaufenthaltLock() {
 const QST_ZIVILSTAND_LABELS = {
     unbekannt: 'Unbekannt', ledig: 'Ledig', verheiratet: 'Verheiratet',
     geschieden: 'Geschieden', verwitwet: 'Verwitwet', getrennt: 'Getrennt',
-    eingetragene_partnerschaft: 'Eingetragene Partnerschaft'
+    eingetragene_partnerschaft: 'Eingetragene Partnerschaft', konkubinat: 'Konkubinat'
 };
 const QST_TARIF_BEZ = {
     A: 'Alleinstehend', B: 'Verheiratet, Alleinverdiener',
@@ -345,7 +345,7 @@ function qstRenderPartnerKonkubinat() {
     const row = document.getElementById('qstKonkubinatRow');
     if (!row) return;
     const ziv = ((qstEmployeeData?.zivilstand ?? qstEmployeeData?.maritalStatus ?? '') + '').toLowerCase();
-    row.style.display = ziv === 'ledig' ? 'flex' : 'none';
+    row.style.display = (ziv === 'ledig' || ziv === 'konkubinat') ? 'flex' : 'none';
 }
 
 // ── Behördenbewilligung Kinderabzug Tarif A (Walter 29.08.2026) ─────────
@@ -714,7 +714,7 @@ function qstSuggestTarifBuchstabe(zivilstand, anzahlKinder) {
     const k = parseInt(anzahlKinder, 10) || 0;
     const verheiratet = z.includes('verheiratet') || z.includes('partnerschaft') && !z.includes('aufgeloest');
     const alleinerziehend_basis =
-        z.includes('ledig') || z.includes('geschieden') || z.includes('verwitwet') || z.includes('getrennt');
+        z.includes('ledig') || z.includes('geschieden') || z.includes('verwitwet') || z.includes('getrennt') || z.includes('konkubinat');
     // Walter-Vorgabe 14.06.2026: bei verheiratet → C (Doppelverdiener) als
     // Default, weil das in der Schweizer Praxis der Normalfall ist. Bei
     // tatsächlichem Alleinverdiener wechselt der User manuell auf B.

@@ -1760,7 +1760,8 @@ const ALLOWED_MARITAL_STATUSES = {
     geschieden: 'Geschieden',
     verwitwet: 'Verwitwet',
     getrennt: 'Getrennt',
-    eingetragene_partnerschaft: 'Eingetragene Partnerschaft'
+    eingetragene_partnerschaft: 'Eingetragene Partnerschaft',
+    konkubinat: 'Konkubinat'
 };
 
 function validateMaritalStatusForApiImport(row) {
@@ -1775,6 +1776,7 @@ function validateMaritalStatusForApiImport(row) {
         separated: 'getrennt',
         registered_partnership: 'eingetragene_partnerschaft',
         eingetragene_partnerschaft: 'eingetragene_partnerschaft',
+        konkubinat: 'konkubinat', concubinage: 'konkubinat',
         'eingetr._partnerschaft': 'eingetragene_partnerschaft'
     };
     const code = aliases[normalized] || normalized;

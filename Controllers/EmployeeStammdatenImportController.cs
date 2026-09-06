@@ -682,6 +682,7 @@ public class EmployeeStammdatenImportController : ControllerBase
         return v switch
         {
             "ledig"                                          => "ledig",
+            "konkubinat" or "concubinage"                    => "konkubinat",
             "verheiratet"                                    => "verheiratet",
             "geschieden"                                     => "geschieden",
             "verwitwet"                                      => "verwitwet",

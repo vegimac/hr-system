@@ -681,7 +681,7 @@ public class QstAnmeldungController : ControllerBase
     private static string? MapZivilstand(string? z) =>
         z?.ToLowerInvariant() switch
         {
-            "ledig"                                   => "0",
+            "ledig" or "konkubinat"                   => "0",
             "geschieden"                              => "1",
             "verwitwet"                               => "2",
             "verheiratet"                             => "3",

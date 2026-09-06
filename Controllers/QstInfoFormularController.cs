@@ -110,6 +110,7 @@ public class QstInfoFormularController : ControllerBase
         string? zivilstand = ms switch
         {
             "ledig"                     => "ledig",
+            "konkubinat"                => "ledig",         // kein Zivilstand im Formular → ledig
             "verheiratet"               => "verheiratet",
             "getrennt"                  => "verheiratet",   // rechtlich verheiratet + getrennt lebend
             "geschieden"                => "geschieden",

@@ -525,8 +525,9 @@ public static class QstTarifVorschlagLogic
         var z = (zivilstand ?? "").Trim().ToLowerInvariant();
         var verheiratet = z.Contains("verheiratet")
             || (z.Contains("partnerschaft") && !z.Contains("aufgeloest") && !z.Contains("aufgelöste"));
+        // konkubinat (Walter 06.09.2026): Zivilstand aus easy@work, für die QST wie ledig.
         var alleinerziehend_basis =
-            z.Contains("ledig") || z.Contains("geschieden") || z.Contains("verwitwet") || z.Contains("getrennt");
+            z.Contains("ledig") || z.Contains("geschieden") || z.Contains("verwitwet") || z.Contains("getrennt") || z.Contains("konkubinat");
 
         if (verheiratet)
         {

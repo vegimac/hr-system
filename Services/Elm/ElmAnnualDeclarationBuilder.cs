@@ -423,7 +423,7 @@ public class ElmAnnualDeclarationBuilder
         if (s.Contains("verwitwet")) return "widowed";
         if (s.Contains("aufgel")) return "partnershipDissolvedByLaw";
         if (s.Contains("partnerschaft")) return "registeredPartnership";
-        if (s.Contains("ledig")) return "single";
+        if (s.Contains("ledig") || s.Contains("konkubinat")) return "single";   // Konkubinat ist kein Zivilstand → ledig
         return "unknown";
     }
 }

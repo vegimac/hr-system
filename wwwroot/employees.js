@@ -6330,6 +6330,7 @@ function buildEmpEditPersonal(emp, permitTypes = [], nationalities = []) {
             <option value="verwitwet"                  ${(emp.zivilstand ?? emp.maritalStatus)==='verwitwet'                  ?'selected':''}>${_t('ma.value.maritalStatus.verwitwet','Verwitwet')}</option>
             <option value="getrennt"                   ${(emp.zivilstand ?? emp.maritalStatus)==='getrennt'                   ?'selected':''}>${_t('ma.value.maritalStatus.getrennt','Getrennt')}</option>
             <option value="eingetragene_partnerschaft" ${(emp.zivilstand ?? emp.maritalStatus)==='eingetragene_partnerschaft' ?'selected':''}>${_t('ma.value.maritalStatus.eingetragene_partnerschaft','Eingetragene Partnerschaft')}</option>
+            <option value="konkubinat"                 ${(emp.zivilstand ?? emp.maritalStatus)==='konkubinat'                 ?'selected':''}>${_t('ma.value.maritalStatus.konkubinat','Konkubinat')}</option>
         </select>`)}
         ${eField(_t('ma.field.maritalSince','Zivilstand seit'), `<input id="ef-maritalStatusSince" class="ef-input" type="date" value="${toDateInput(emp.maritalStatusSince)}">`)}
         ${eField(_t('ma.field.religion','Konfession'), `<select id="ef-religion" class="ef-input">
@@ -17050,6 +17051,7 @@ const ZIV_OPTIONEN = [
     ['ledig', 'Ledig'], ['verheiratet', 'Verheiratet'], ['getrennt', 'Getrennt'],
     ['geschieden', 'Geschieden'], ['verwitwet', 'Verwitwet'],
     ['eingetragene_partnerschaft', 'Eingetragene Partnerschaft'], ['aufgeloeste_partnerschaft', 'Aufgelöste Partnerschaft'],
+    ['konkubinat', 'Konkubinat'],
 ];
 let _zivEmpId = null;
 

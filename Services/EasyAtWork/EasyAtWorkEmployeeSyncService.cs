@@ -4747,8 +4747,9 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
-    /// easy@work cf_marital_status → unser Code. Buchstaben: M/S/D/W/E/P
-    /// (E = Getrennt — fehlte bis 01.08.2026 und liess Sync still leer).
+    /// easy@work cf_marital_status → unser Code. Buchstaben: M/S/D/W/E/P/C
+    /// (E = Getrennt — fehlte bis 01.08.2026 und liess Sync still leer;
+    /// C = Konkubinat, seit 06.09.2026 — für die QST wie ledig).
     /// </summary>
     public static string? MapMaritalStatus(string? v)
     {
@@ -4763,7 +4764,9 @@ public class EasyAtWorkEmployeeSyncService
             case "w": return "verwitwet";
             case "e": return "getrennt";
             case "p": return "eingetragene_partnerschaft";
+            case "c": return "konkubinat";   // easy@work CONCUBINAGE (auf Walters Wunsch eröffnet, 06.09.2026)
         }
+        if (s.Contains("konkubinat") || s.Contains("concubin")) return "konkubinat";
         if (s.Contains("ledig") || s.Contains("single") || s.Contains("celibat")) return "ledig";
         if (s.Contains("getrennt") || s.Contains("separat") || s.Contains("separe")) return "getrennt";
         if (s.Contains("geschieden") || s.Contains("divorc")) return "geschieden";

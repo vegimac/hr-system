@@ -306,6 +306,7 @@ window.i18n = (function () {
         'ma.value.maritalStatus.verwitwet':                   { de: 'Verwitwet',                   en: 'Widowed' },
         'ma.value.maritalStatus.getrennt':                    { de: 'Getrennt',                    en: 'Separated' },
         'ma.value.maritalStatus.eingetragene_partnerschaft':  { de: 'Eingetragene Partnerschaft',  en: 'Registered partnership' },
+        'ma.value.maritalStatus.konkubinat':                  { de: 'Konkubinat',                 en: 'Cohabiting (concubinage)' },
         'ma.value.maritalStatus.aufgeloeste_partnerschaft':   { de: 'Aufgelöste Partnerschaft',    en: 'Dissolved partnership' },
         'ma.value.language.de':      { de: 'Deutsch',                      en: 'German' },
         'ma.value.language.fr':      { de: 'Französisch',                  en: 'French' },

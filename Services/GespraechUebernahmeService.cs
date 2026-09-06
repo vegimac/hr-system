@@ -205,6 +205,7 @@ public class GespraechUebernahmeService
     private static string? ZivilstandCode(string? s) => (s ?? "").Trim().ToLowerInvariant() switch
     {
         "ledig" => "ledig",
+        "konkubinat" => "konkubinat",
         "verheiratet" => "verheiratet",
         "geschieden" => "geschieden",
         "verwitwet" => "verwitwet",

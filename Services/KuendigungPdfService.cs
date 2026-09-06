@@ -686,7 +686,7 @@ public class KuendigungPdfService
         var seitTxt = seit?.ToString("dd.MM.yyyy");
         return s switch
         {
-            "ledig" => ("1", null, null),
+            "ledig" or "konkubinat" => ("1", null, null),
             "geschieden" => ("2", null, null),
             "verwitwet" => ("3", null, null),
             "aufgeloeste_partnerschaft" or "aufgelöste_partnerschaft"

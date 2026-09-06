@@ -688,6 +688,7 @@ public class MirusFehlendeMaController : ControllerBase
         return k switch
         {
             "ledig" or "single" => "Ledig",
+            "konkubinat" => "Konkubinat",
             "verheiratet" or "married" => "Verheiratet",
             "geschieden" or "divorced" => "Geschieden",
             "verwitwet" or "widowed" => "Verwitwet",
