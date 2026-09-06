@@ -856,7 +856,7 @@ public class PayrollController : HrControllerBase
             orderby emp.ContractStartDate descending
             select new { emp.EmployeeId, emp.EmploymentModel, e.FirstName, e.LastName, Number = e.EmployeeNumber,
                          emp.EmploymentPercentage, emp.GuaranteedHoursPerWeek, e.EntryDate, e.ExitDate, e.DateOfBirth,
-                         e.NightWorkExamValidUntil, e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId }
+                         e.NightWorkExamValidUntil, e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId, e.KuendigungPer }
         ).ToListAsync();
 
         static int ModelRank2(string? m) => m == "FIX-M" ? 0 : m == "FIX" ? 1 : m == "MTP" ? 2 : 3;
@@ -1039,7 +1039,9 @@ public class PayrollController : HrControllerBase
                 : Enumerable.Empty<DateOnly>();
             var nwEval = NightWorkComplianceService.Evaluate(nachtDates, stichEnd);
             bool nachweiseFehlen = !(e.NightWorkExamDokumentId.HasValue && e.NightWorkAusnahmeDokumentId.HasValue);
-            bool nachtWarn = nwEval.RequiresDocuments && nachweiseFehlen;
+            // Gekündigte / austretende MA: keine Nachtarbeit-Warnung mehr (Walter 06.09.2026).
+            bool nachtWarn = nwEval.RequiresDocuments && nachweiseFehlen
+                             && !NightWorkComplianceService.Ausgenommen(e.ExitDate, e.KuendigungPer);
             string? nachtWarnReason = !nachtWarn ? null
                 : (!e.NightWorkExamDokumentId.HasValue && !e.NightWorkAusnahmeDokumentId.HasValue) ? "Arztzeugnis/Verzicht und Ausnahmeregelung fehlen"
                 : (!e.NightWorkExamDokumentId.HasValue) ? "Arztzeugnis/Verzicht fehlt"

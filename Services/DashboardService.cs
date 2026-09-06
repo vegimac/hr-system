@@ -1890,12 +1890,11 @@ public class DashboardService
             // vorbei) NICHT mehr melden — Zeugnis erneuern lohnt nicht mehr
             // (Walter 20.06.2026 / präzisiert 20.07.2026: KuendigungPer zählt
             // auch wenn ExitDate noch leer ist).
-            var nwExitCutoff = today.AddDays(30);
             foreach (var emp in nwExam)
             {
-                var leaveAt = emp.ExitDate ?? emp.KuendigungPer;
-                if (leaveAt.HasValue
-                    && DateOnly.FromDateTime(leaveAt.Value) <= nwExitCutoff) continue;
+                // Walter 06.09.2026: sobald Austritt ODER Kündigung per erfasst
+                // ist, keine Nachtarbeit-Meldung mehr (ohne 30-Tage-Grenze).
+                if (NightWorkComplianceService.Ausgenommen(emp.ExitDate, emp.KuendigungPer)) continue;
 
                 // Walter-Vorgabe 21.08.2026 (Fall Gazale, ERSETZT «immer melden»
                 // vom 12.07.2026): Nachtarbeit-Warnungen erscheinen NUR, wenn

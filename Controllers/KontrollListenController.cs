@@ -492,9 +492,12 @@ public class KontrollListenController : ControllerBase
         var emps = await empQuery
             .Select(e => new {
                 e.Id, e.EmployeeNumber, e.FirstName, e.LastName,
-                e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId
+                e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId,
+                e.ExitDate, e.KuendigungPer
             })
             .ToListAsync();
+        // Gekündigte / austretende MA nicht listen (Walter 06.09.2026).
+        emps = emps.Where(e => !NightWorkComplianceService.Ausgenommen(e.ExitDate, e.KuendigungPer)).ToList();
         var empIds = emps.Select(e => e.Id).ToList();
         if (empIds.Count == 0) return Ok(Array.Empty<object>());
 

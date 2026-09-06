@@ -8,8 +8,8 @@ namespace HrSystem.Tests;
 
 /// <summary>
 /// Unit-Tests für <see cref="NightWorkComplianceService"/> (Walter-Vorgabe
-/// 22.06.2026, ArGV1 Art. 30). Neue Regel: Warnung bei MEHR ALS 18 Nächten in
-/// einem rollierenden 6-Wochen-Fenster (42 Tage). > 18, NICHT ≥ 18.
+/// 22.06.2026, ArGV1 Art. 30). Regel: Warnung bei MEHR ALS 18 Nächten in
+/// den LETZTEN 6 Wochen (42 Tage bis asOf, Walter 06.09.2026). > 18, NICHT ≥ 18.
 /// Die kombinierte Warnung (Regel UND fehlende Nachweise) wird wie in den
 /// Controllern zusammengesetzt und mitgetestet.
 /// </summary>
@@ -28,7 +28,7 @@ public class NightWorkComplianceServiceTests
     {
         var start = new DateOnly(2026, 1, 1);
         var dates = Consecutive(start, 18);                 // 18 aufeinanderfolgende Nacht-Tage
-        var r = NightWorkComplianceService.Evaluate(dates, start.AddDays(60));
+        var r = NightWorkComplianceService.Evaluate(dates, start.AddDays(30));
         Assert.Equal(18, r.MaxNightsInSixWeeks);
         Assert.False(r.RequiresDocuments);                  // 18 ist NICHT > 18
     }
@@ -38,7 +38,7 @@ public class NightWorkComplianceServiceTests
     {
         var start = new DateOnly(2026, 1, 1);
         var dates = Consecutive(start, 19);                 // 19 Tage, alle innerhalb 42
-        var r = NightWorkComplianceService.Evaluate(dates, start.AddDays(60));
+        var r = NightWorkComplianceService.Evaluate(dates, start.AddDays(30));
         Assert.Equal(19, r.MaxNightsInSixWeeks);
         Assert.True(r.RequiresDocuments);                   // 19 > 18
     }
@@ -55,11 +55,31 @@ public class NightWorkComplianceServiceTests
     }
 
     [Fact]
+    public void Alter_Nachtblock_ausserhalb_der_letzten_6_Wochen_zaehlt_nicht()
+    {
+        // 23 Nächte im letzten Herbst, seither keine Nachtarbeit → keine Pflicht
+        // mehr (Walter 06.09.2026, Fall «23 Nächte / 6 Wochen» ohne Nachtarbeit).
+        var start = new DateOnly(2025, 9, 1);
+        var dates = Consecutive(start, 23);
+        var r = NightWorkComplianceService.Evaluate(dates, new DateOnly(2026, 9, 6));
+        Assert.Equal(0, r.MaxNightsInSixWeeks);
+        Assert.False(r.RequiresDocuments);
+    }
+
+    [Fact]
+    public void Gekuendigte_MA_sind_ausgenommen()
+    {
+        Assert.True(NightWorkComplianceService.Ausgenommen(new DateTime(2026, 12, 31), null));
+        Assert.True(NightWorkComplianceService.Ausgenommen(null, new DateTime(2026, 11, 30)));
+        Assert.False(NightWorkComplianceService.Ausgenommen(null, null));
+    }
+
+    [Fact]
     public void Neunzehn_Naechte_mit_vollstaendigen_Nachweisen_keine_Warnung()
     {
         var start = new DateOnly(2026, 1, 1);
         var dates = Consecutive(start, 19);
-        Assert.False(Warn(dates, start.AddDays(60), hasExam: true, hasChecklist: true));
+        Assert.False(Warn(dates, start.AddDays(30), hasExam: true, hasChecklist: true));
     }
 
     [Fact]
@@ -67,8 +87,8 @@ public class NightWorkComplianceServiceTests
     {
         var start = new DateOnly(2026, 1, 1);
         var dates = Consecutive(start, 19);
-        Assert.True(Warn(dates, start.AddDays(60), hasExam: false, hasChecklist: false));
+        Assert.True(Warn(dates, start.AddDays(30), hasExam: false, hasChecklist: false));
         // Auch wenn nur EIN Nachweis fehlt, bleibt es ein Warnfall:
-        Assert.True(Warn(dates, start.AddDays(60), hasExam: true, hasChecklist: false));
+        Assert.True(Warn(dates, start.AddDays(30), hasExam: true, hasChecklist: false));
     }
 }

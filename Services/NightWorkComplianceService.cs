@@ -20,24 +20,28 @@ public static class NightWorkComplianceService
     public record Result(int MaxNightsInSixWeeks, DateOnly? WindowFrom, DateOnly? WindowTo, bool RequiresDocuments);
 
     /// <summary>
-    /// Maximale Anzahl Nacht-Tage in irgendeinem 42-Tage-Fenster bestimmen.
-    /// Algorithmus: distinct + sortiert; für jeden Nacht-Tag das Fenster
-    /// [date, date+41] zählen; Maximum merken. <paramref name="asOf"/> begrenzt
-    /// nach oben (zukünftige Tage zählen nicht).
+    /// Nacht-Tage im AKTUELLEN 6-Wochen-Fenster zählen: [asOf−41, asOf].
+    /// Walter 06.09.2026 (Fall «23 Nächte / 6 Wochen» ohne Nachtarbeit seit
+    /// Monaten): bisher galt das MAXIMUM über alle 42-Tage-Fenster der letzten
+    /// 12 Monate — ein Nacht-Block vom letzten Herbst hielt die Untersuch-
+    /// Pflicht ein Jahr lang am Leben. Die Pflicht besteht aber nur, solange
+    /// der MA tatsächlich regelmässig nachts arbeitet — massgebend sind die
+    /// letzten 6 Wochen. Selbstheilend in beide Richtungen.
     /// </summary>
     public static Result Evaluate(IEnumerable<DateOnly> nightDates, DateOnly asOf)
     {
-        var dates = nightDates.Where(d => d <= asOf).Distinct().OrderBy(d => d).ToList();
+        var winFrom = asOf.AddDays(-(WindowDays - 1));
+        var dates = nightDates.Where(d => d >= winFrom && d <= asOf).Distinct().ToList();
         if (dates.Count == 0) return new Result(0, null, null, false);
-
-        int max = 0;
-        DateOnly bestFrom = dates[0], bestTo = dates[0].AddDays(WindowDays - 1);
-        foreach (var from in dates)
-        {
-            var to = from.AddDays(WindowDays - 1);
-            int count = dates.Count(d => d >= from && d <= to);
-            if (count > max) { max = count; bestFrom = from; bestTo = to; }
-        }
-        return new Result(max, bestFrom, bestTo, max > Threshold);
+        return new Result(dates.Count, winFrom, asOf, dates.Count > Threshold);
     }
+
+    /// <summary>
+    /// Gekündigte / austretende MA (Austrittsdatum ODER «Kündigung per»
+    /// erfasst) unterliegen in OneCrew keiner Untersuch-Pflicht mehr — ein
+    /// neues Arztzeugnis lohnt sich nicht mehr (Walter 06.09.2026, ersetzt die
+    /// frühere 30-Tage-Grenze).
+    /// </summary>
+    public static bool Ausgenommen(DateTime? exitDate, DateTime? kuendigungPer)
+        => exitDate.HasValue || kuendigungPer.HasValue;
 }

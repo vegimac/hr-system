@@ -416,8 +416,9 @@ public class EmployeesController : ControllerBase
         var todayNw = DateOnly.FromDateTime(DateTime.Today);
         bool nightWorkRequiresDocuments = false;
         int nightWorkMaxNights = 0;
-        bool exitingSoon = employee.ExitDate.HasValue
-            && DateOnly.FromDateTime(employee.ExitDate.Value) <= todayNw.AddDays(30);
+        // Walter 06.09.2026: gekündigte / austretende MA (Austritt ODER
+        // Kündigung per) gar nicht mehr als untersuchungspflichtig führen.
+        bool exitingSoon = NightWorkComplianceService.Ausgenommen(employee.ExitDate, employee.KuendigungPer);
         if (!exitingSoon)
         {
             var rollStart = new DateOnly(todayNw.Year, todayNw.Month, 1).AddMonths(-11);
