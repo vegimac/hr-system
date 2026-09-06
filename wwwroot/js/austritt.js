@@ -357,6 +357,9 @@ function azUpdateTaskVisibility() {
         if (!c) return;
         if (!zeigen) c.checked = false;
         else if (g !== 'basis' && (!war || !c.checked)) c.checked = true;
+        // Schichtkoordinator / Management (Walter 06.09.2026): ALLE Aufgaben
+        // ankreuzen — auch die Crew-Grundaufgaben unabhängig von der Bereichs-Schnellwahl.
+        else if (istSchicht) c.checked = true;
     });
     azRefreshButtons();
 }
