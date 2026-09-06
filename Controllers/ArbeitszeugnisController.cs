@@ -12,9 +12,10 @@ namespace HrSystem.Controllers;
 /// Arbeitszeugnis bei MA-Austritt (Walter-Vorgabe 14.07.2026). Drei
 /// Qualitätsstufen (durchschnitt/gut/sehr_gut), Mehrfachauswahl der
 /// verrichteten Arbeit (kueche/kasse/drive). PDF read-only — schreibt nichts.
-/// GF darf Zeugnisse für seine Filiale erstellen → admin/superuser/user.
+/// GF darf Zeugnisse für seine Filiale erstellen → admin/superuser/user;
+/// buchhaltung (HR-Team) für die Entwurf-Bearbeitung (Walter 06.09.2026).
 /// </summary>
-[Authorize(Roles = "admin,superuser,user")]
+[Authorize(Roles = "admin,superuser,user,buchhaltung")]
 [ApiController]
 [Route("api/arbeitszeugnis")]
 public class ArbeitszeugnisController : ControllerBase
@@ -95,7 +96,7 @@ public class ArbeitszeugnisController : ControllerBase
         x.Id, x.EmployeeId, x.CompanyProfileId, x.Art, artLabel = ArtLabel(x.Art),
         employeeName = x.Employee == null ? "" : $"{x.Employee.FirstName} {x.Employee.LastName}".Trim(),
         employeeNumber = x.Employee?.EmployeeNumber,
-        daten = System.Text.Json.JsonSerializer.Deserialize<ZeugnisDto>(x.Daten, JsonOpts),
+        daten = string.IsNullOrWhiteSpace(x.Daten) ? null : System.Text.Json.JsonSerializer.Deserialize<ZeugnisDto>(x.Daten, JsonOpts),
         x.Bemerkung, x.ErstelltVon, erstelltVonName = Name(x.ErstelltVonUser), x.ErstelltAm,
         x.Status, x.ErledigtVon, erledigtVonName = Name(x.ErledigtVonUser), x.ErledigtAm, x.Antwort,
         x.MailboxDocumentId,
@@ -114,7 +115,10 @@ public class ArbeitszeugnisController : ControllerBase
             .Where(em => em.EmployeeId == empId)
             .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
             .FirstOrDefaultAsync();
-        var cpId = last?.CompanyProfileId;
+        var cpId = last?.CompanyProfileId
+                   ?? await _db.CompanyProfiles.Where(c => c.IsActive).OrderBy(c => c.Id).Select(c => (int?)c.Id).FirstOrDefaultAsync();
+        if (!cpId.HasValue)
+            return BadRequest(new { error = "KEINE_FILIALE", message = "Dem MA ist keine Filiale zugeordnet." });
 
         // Ein offener Entwurf pro MA und Art — ein zweiter ersetzt den ersten.
         var art = dto.Bestaetigung ? "bestaetigung" : dto.Zwischen ? "zwischen" : "arbeitszeugnis";
@@ -151,7 +155,7 @@ public class ArbeitszeugnisController : ControllerBase
                    (bem.Length > 0 ? $"\n\nBemerkung: {bem}" : "");
         var doc = new MailboxDocument
         {
-            CompanyProfileId = cpId ?? 0,
+            CompanyProfileId = cpId.Value,
             UploadedBy = benutzer.Id, UploadedAt = DateTime.Now,
             OriginalFilename = $"Zeugnis-Entwurf: {maName}",
             StorageFilename = $"zeugnis-entwurf-{entwurf.Id}",
@@ -250,7 +254,8 @@ public class ArbeitszeugnisController : ControllerBase
         var ersteller = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == x.ErstelltVon.Value);
         if (ersteller == null) return;
 
-        var branchId = x.CompanyProfileId ?? 0;
+        var branchId = x.CompanyProfileId
+                       ?? await _db.CompanyProfiles.Where(c => c.IsActive).OrderBy(c => c.Id).Select(c => c.Id).FirstOrDefaultAsync();
         string storage;
         if (pdf != null)
         {
