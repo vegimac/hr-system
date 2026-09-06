@@ -1119,6 +1119,28 @@ async function deleteNumberAlias(empId, aliasId) {
     } catch { alert('Verbindungsfehler.'); }
 }
 
+// Rechten Freiraum der Namenszeile an der schwebenden Leiste (#langSwitcher:
+// easy@work sync / Suche / Sprache) ausrichten, damit die Status-Pillen
+// davor umbrechen statt darunter zu verschwinden (Walter 06.09.2026).
+function empHeaderReserveRight() {
+    const line = document.getElementById('empDetailNameLine');
+    const ls = document.getElementById('langSwitcher');
+    if (!line || !ls) return;
+    line.style.paddingRight = '0px';
+    if (getComputedStyle(ls).display === 'none') return;
+    const lr = line.getBoundingClientRect();
+    const sr = ls.getBoundingClientRect();
+    // Nur relevant, wenn die Leiste in der Höhe der Namenszeile liegt.
+    if (sr.bottom < lr.top - 4 || sr.top > lr.bottom + 4) return;
+    const overlap = lr.right - sr.left + 14;
+    if (overlap > 0) line.style.paddingRight = Math.round(overlap) + 'px';
+}
+let _empHdrResizeT = null;
+window.addEventListener('resize', () => {
+    clearTimeout(_empHdrResizeT);
+    _empHdrResizeT = setTimeout(empHeaderReserveRight, 120);
+});
+
 // ── Detail rendern ─────────────────────────────
 function renderEmployeeDetail(emp) {
     const panel = document.getElementById('empDetailPanel');
@@ -1263,10 +1285,18 @@ function renderEmployeeDetail(emp) {
                  class="emp-avatar ${isFemale ? 'female' : ''}"
                  style="border-radius:50%;flex-shrink:0;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;overflow:hidden">${initials}</div>
             <div style="min-width:0;flex:1 1 auto">
-                <div class="emp-detail-name" style="display:flex;align-items:baseline;gap:10px;flex-wrap:nowrap;white-space:nowrap;min-width:0">
-                    <span>${name}</span>
-                    <span style="font-size:16px;font-weight:650;color:#8b8b8b">${nr}</span>
-                    <span id="empNumberAliases" data-emp="${emp.id}"></span>
+                <!-- Name + Nummer bleiben EIN unzertrennlicher Block; die
+                     Status-Pillen (Aktiv, Austritt, Probezeit …) dürfen auf
+                     eine 2. Zeile darunter umbrechen statt unter der
+                     schwebenden Leiste (easy@work sync / Suche) zu
+                     verschwinden (Walter 06.09.2026). Der rechte Freiraum
+                     wird in empHeaderReserveRight() gemessen. -->
+                <div class="emp-detail-name" id="empDetailNameLine" style="display:flex;align-items:baseline;gap:8px 10px;flex-wrap:wrap;min-width:0">
+                    <span style="white-space:nowrap;display:inline-flex;align-items:baseline;gap:10px">
+                        <span>${name}</span>
+                        <span style="font-size:16px;font-weight:650;color:#8b8b8b">${nr}</span>
+                        <span id="empNumberAliases" data-emp="${emp.id}"></span>
+                    </span>
                     ${_hcBadges.join('')}
                 </div>
                 <div class="emp-hvertrag">${_hcVertragLine}${_hcBadges2.join('')}</div>
@@ -1555,6 +1585,7 @@ function renderEmployeeDetail(emp) {
             </div>
         </div>
     </div>`;
+    empHeaderReserveRight();
 
     // Tab-Persistenz: vorher aktiven Tab wiederherstellen statt zurück auf "personal".
     // Wenn Walter z.B. "Familie" angezeigt hat und einen anderen MA wählt, bleibt
