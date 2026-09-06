@@ -344,11 +344,19 @@ function azUpdateTaskVisibility() {
     const fn = document.getElementById('azFunktion')?.value || '';
     const istSchicht  = fn.startsWith('Schichtkoordinator');
     const istTrainer  = fn.startsWith('Crew-Trainer') || istSchicht;
+    // Walter 06.09.2026: Funktions-Aufgaben (Training / Schichtführung) werden
+    // beim Wählen der Funktion gleich ANGEKREUZT — bisher nur eingeblendet,
+    // und beim Schichtkoordinator blieben alle Führungs-Aufgaben leer.
+    // Einzelne Kreuze können danach immer noch von Hand entfernt werden.
     document.querySelectorAll('.azTaskRow').forEach(row => {
         const g = row.dataset.group;
         const zeigen = g === 'basis' || (g === 'trainer' && istTrainer) || (g === 'schicht' && istSchicht);
+        const war = row.style.display !== 'none';
         row.style.display = zeigen ? '' : 'none';
-        if (!zeigen) { const c = row.querySelector('input'); if (c) c.checked = false; }
+        const c = row.querySelector('input');
+        if (!c) return;
+        if (!zeigen) c.checked = false;
+        else if (g !== 'basis' && (!war || !c.checked)) c.checked = true;
     });
 }
 
