@@ -2322,7 +2322,12 @@ public class DashboardService
         {
             // arbeitszeugnis_fehlt (Walter 06.09.2026) betrifft per Definition
             // ausgetretene MA — darf hier nicht weggefiltert werden.
-            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf", "kuendigung_sperrfrist_ende", "arbeitszeugnis_fehlt" };
+            // austritt_unvollstaendig / austritt_datum_mismatch (Walter 06.09.2026):
+            // handeln ebenfalls vom Austritt selbst — seit dem 14-Tage-Vorlauf
+            // (05.09.) lagen ALLE Treffer innerhalb der 30-Tage-Sperre und die
+            // Todo konnte nie mehr erscheinen.
+            var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf", "kuendigung_sperrfrist_ende",
+                                                 "arbeitszeugnis_fehlt", "austritt_unvollstaendig", "austritt_datum_mismatch" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();
