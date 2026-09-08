@@ -4769,6 +4769,10 @@
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
                             <button class="btn-secondary" onclick="eawHrFileTypes()" title="GET /customers/{c}/hr_file_types — Kategorien des Customers der gewählten Filiale">🏷 Dateitypen laden</button>
                             <select id="eawHrType" class="eaw-input" style="min-width:260px"><option value="">— Dateityp (zuerst laden) —</option></select>
+                            <span style="color:#94a3b8">|</span>
+                            <input id="eawHrNewType" class="eaw-input" placeholder="Neuer Dateityp, z.B. Information" style="min-width:220px">
+                            <label style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:#334155"><input type="checkbox" id="eawHrNewTypePdf" checked> nur PDF</label>
+                            <button class="btn-secondary" onclick="eawHrTypeCreate()" title="POST /customers/{c}/hr_file_types — legt die Kategorie beim Customer der gewählten Filiale an (nicht Pflicht)">➕ Dateityp anlegen</button>
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
                             <input id="eawHrNumber" class="eaw-input" placeholder="Personalnr. z.B. 580109" style="min-width:170px">
@@ -8990,7 +8994,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260908a"></script>
+<script src="js/easyatwork.js?v=20260908b"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>

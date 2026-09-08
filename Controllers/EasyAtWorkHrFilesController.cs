@@ -135,6 +135,42 @@ public class EasyAtWorkHrFilesController : ControllerBase
         });
     }
 
+    public sealed record CreateTypeDto(int CompanyProfileId, string Name, bool Mandatory = false, bool OnlyPdf = true);
+
+    /// <summary>
+    /// Dateityp (Kategorie) beim Customer der Filiale anlegen
+    /// (POST /customers/{c}/hr_file_types). Typen gelten nur pro Customer —
+    /// jede Filiale braucht ihren eigenen.
+    /// </summary>
+    [HttpPost("types")]
+    public async Task<IActionResult> CreateType([FromBody] CreateTypeDto dto, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { error = "NAME_REQUIRED", message = "Bitte einen Namen für den Dateityp angeben." });
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == dto.CompanyProfileId, ct);
+        if (mapping == null)
+            return NotFound(new { error = "NO_MAPPING", message = "Diese Filiale ist keinem easy@work-Customer zugeordnet." });
+
+        var payload = new Dictionary<string, object?>
+        {
+            ["name"] = dto.Name.Trim(),
+            ["mandatory"] = dto.Mandatory,
+            ["accept_file_types"] = dto.OnlyPdf ? new[] { "application/pdf" } : null,
+        };
+        var json = JsonSerializer.Serialize(payload);
+        var (status, body) = await _client.SendRawAsync(HttpMethod.Post,
+            $"customers/{mapping.EasyAtWorkCustomerId}/hr_file_types",
+            () => new StringContent(json, System.Text.Encoding.UTF8, "application/json"), ct);
+        var ok = status >= 200 && status < 300;
+        _log.LogInformation("easy@work HR-Files: Dateityp «{Name}» bei Customer {Cid} angelegt → {Status}", dto.Name, mapping.EasyAtWorkCustomerId, status);
+        return StatusCode(ok ? 200 : status, new
+        {
+            ok, status, customerId = mapping.EasyAtWorkCustomerId, sent = payload, response = ParseOrRaw(body),
+        });
+    }
+
     /// <summary>Dossier (HR-Dateien) eines MA nach Personalnummer.</summary>
     [HttpGet("list")]
     public async Task<IActionResult> List([FromQuery] string number, CancellationToken ct)

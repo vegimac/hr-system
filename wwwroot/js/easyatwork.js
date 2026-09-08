@@ -2099,3 +2099,22 @@ async function eawHrFileSend() {
         _eawHrOut(j, !r.ok);
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
+
+async function eawHrTypeCreate() {
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { _eawHrOut('Bitte oben eine Filiale wählen (globaler Selektor).', true); return; }
+    const name = (document.getElementById('eawHrNewType')?.value || '').trim();
+    if (!name) { _eawHrOut('Bitte einen Namen für den neuen Dateityp eingeben.', true); return; }
+    const onlyPdf = !!document.getElementById('eawHrNewTypePdf')?.checked;
+    if (!confirm(`Dateityp «${name}» beim easy@work-Customer dieser Filiale anlegen?`)) return;
+    _eawHrOut('Lege Dateityp an…');
+    try {
+        const r = await fetch('/api/easywork/hr-files/types', {
+            method: 'POST', headers: ah(),
+            body: JSON.stringify({ companyProfileId: Number(cpId), name, mandatory: false, onlyPdf }),
+        });
+        const j = await r.json().catch(() => ({}));
+        _eawHrOut(j, !r.ok);
+        if (r.ok) { document.getElementById('eawHrNewType').value = ''; await eawHrFileTypes(); }
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
