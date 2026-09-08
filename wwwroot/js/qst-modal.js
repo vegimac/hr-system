@@ -134,6 +134,66 @@ async function openQstModal(employeeId, employeeData) {
     }
 
     document.getElementById('qstModal').style.display = 'flex';
+    qstDocPaneInit(employeeId, current);
+}
+
+// ── Dokument rechts (Walter 08.09.2026) ────────────────────────────────
+// Dokumente des MA laden, passende zuerst (verknüpfte Tarifbestätigung /
+// Befreiungsdokument, dann QST/Tarif/Ausweis/Bewilligung im Namen), Vorschau
+// als Blob (Bearer-Header) — PDF im iframe, Bild als <img>.
+let _qstDocUrl = null, _qstDocs = [];
+async function qstDocPaneInit(employeeId, current) {
+    const sel = document.getElementById('qstDocSelect');
+    const body = document.getElementById('qstDocPaneBody');
+    if (!sel || !body) return;
+    if (_qstDocUrl) { URL.revokeObjectURL(_qstDocUrl); _qstDocUrl = null; }
+    sel.innerHTML = '<option value="">— Dokument wählen —</option>';
+    body.textContent = 'Lade Dokumente…';
+    try {
+        const r = await fetch(`/api/documents/by-employee/${employeeId}`, { headers: ah(), cache: 'no-store' });
+        _qstDocs = r.ok ? await r.json() : [];
+    } catch { _qstDocs = []; }
+    const linked = new Set([current?.dokumentId, current?.tarifDokumentId, current?.befreiungsDokumentId].filter(Boolean));
+    const score = d => {
+        const t = ((d.dokumentTypName || '') + ' ' + (d.bemerkung || '') + ' ' + (d.kategorieName || '')).toLowerCase();
+        return (linked.has(d.id) ? 10 : 0)
+             + (/quellensteuer|qst|tarif|steuer/.test(t) ? 5 : 0)
+             + (/ausweis|bewillig|pass|identit|ehegatt|partner/.test(t) ? 2 : 0);
+    };
+    _qstDocs = (_qstDocs || []).filter(d => /pdf|image/i.test(d.mimeType || ''))
+        .sort((a, b) => (score(b) - score(a)) || String(b.hochgeladenAm || '').localeCompare(String(a.hochgeladenAm || '')));
+    const esc = v => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const fmtD = iso => iso ? new Date(iso).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+    sel.innerHTML += _qstDocs.map(d =>
+        `<option value="${d.id}">${esc(d.bemerkung || d.filenameOriginal || '–')} · ${esc(d.dokumentTypName || '')} · ${fmtD(d.hochgeladenAm)}</option>`).join('');
+    if (_qstDocs.length) { sel.value = String(_qstDocs[0].id); qstDocPaneShow(sel.value); }
+    else body.textContent = 'Keine Dokumente beim Mitarbeiter.';
+}
+async function qstDocPaneShow(id) {
+    const body = document.getElementById('qstDocPaneBody');
+    if (!body) return;
+    if (_qstDocUrl) { URL.revokeObjectURL(_qstDocUrl); _qstDocUrl = null; }
+    if (!id) { body.textContent = 'Kein Dokument gewählt'; return; }
+    body.textContent = 'Lädt…';
+    try {
+        const r = await fetch(`/api/documents/preview/${id}`, { headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob();
+        _qstDocUrl = URL.createObjectURL(blob);
+        if ((blob.type || '').startsWith('image/'))
+            body.innerHTML = `<div style="width:100%;height:100%;overflow:auto;text-align:center"><img src="${_qstDocUrl}" style="max-width:100%;max-height:100%;object-fit:contain"></div>`;
+        else
+            body.innerHTML = `<iframe src="${_qstDocUrl}" style="width:100%;height:100%;border:none;background:#fff"></iframe>`;
+    } catch (e) {
+        body.innerHTML = `<div style="padding:16px;color:#fca5a5;font-size:13px">Vorschau nicht möglich: ${String(e.message).replace(/</g,'&lt;')}</div>`;
+    }
+}
+function qstDocPaneZoom() {
+    const sel = document.getElementById('qstDocSelect');
+    const id = sel?.value;
+    if (!id) return;
+    const d = _qstDocs.find(x => String(x.id) === String(id));
+    if (typeof previewUrlFetch === 'function') previewUrlFetch(`/api/documents/preview/${id}`, d?.filenameOriginal || 'dokument', ah());
 }
 
 // PLZ → Gemeinde/BFS/Steuerkanton automatisch füllen (Walter 12.08.2026,
@@ -158,6 +218,8 @@ async function qstPlzLookup(plz) {
 
 function closeQstModal() {
     document.getElementById('qstModal').style.display = 'none';
+    if (_qstDocUrl) { URL.revokeObjectURL(_qstDocUrl); _qstDocUrl = null; }
+    const _b = document.getElementById('qstDocPaneBody'); if (_b) _b.textContent = '';
     const empId = qstCurrentEmployeeId;
     qstCurrentEmployeeId = null;
     qstCurrentEntryId    = null;
