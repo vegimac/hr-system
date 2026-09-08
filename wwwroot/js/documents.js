@@ -72,17 +72,24 @@ async function loadEmpDokumente(employeeId) {
         _dokState.search = '';
     }
     panel.innerHTML = '<div class="emp-placeholder" style="height:200px">Lade Dokumente…</div>';
+    // Race-Schutz (Walter 08.09.2026, «nach Upload erst nach Reload sichtbar»):
+    // läuft noch ein älterer Ladevorgang (Tab-Wechsel) und kommt NACH dem
+    // Neuladen nach dem Upload zurück, überschrieb er die frische Liste mit
+    // der alten. Nur die jüngste Anfrage darf rendern.
+    const gen = (_dokState._loadGen = (_dokState._loadGen || 0) + 1);
 
     try {
         // Walter 14.06.2026: Taxonomie nur beim ersten Mal holen (cached);
         // beim MA-Wechsel fließt ausschliesslich `/by-employee/{id}` neu.
         const [taxonomy, docRes] = await Promise.all([
             loadDokTaxonomyCached(),
-            fetch(`/api/documents/by-employee/${employeeId}`, { headers: ah() })
+            fetch(`/api/documents/by-employee/${employeeId}`, { headers: ah(), cache: 'no-store' })
         ]);
         if (!docRes.ok) throw new Error('API-Fehler');
+        const docs = await docRes.json();
+        if (gen !== _dokState._loadGen) return;   // überholt — jüngere Anfrage rendert
         _dokState.taxonomy = taxonomy;
-        _dokState.docs     = await docRes.json();
+        _dokState.docs     = docs;
         renderDokumenteUi();
     } catch (err) {
         panel.innerHTML = `<div style="color:#b91c1c;font-size:13px">Fehler beim Laden: ${err.message}</div>`;
