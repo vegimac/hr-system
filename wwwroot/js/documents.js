@@ -303,7 +303,7 @@ function renderDokTable(docs, showCategoryColumns) {
     const sortableHead = (col, label) =>
         `<th class="dok-sort-th" onclick="dokSort('${col}')" style="cursor:pointer;user-select:none">${label}${sortArrow(col)}</th>`;
     const colHeaders = showCategoryColumns
-        ? `<th>Kategorie</th><th>Typ</th>${sortableHead('beschreibung','Beschreibung').replace('class="dok-sort-th"','class="dok-sort-th dok-th-desc"')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}<th class="dok-th-actions"></th>`
+        ? `<th class="dok-th-cat">Kategorie</th><th class="dok-th-typ">Typ</th>${sortableHead('beschreibung','Beschreibung').replace('class="dok-sort-th"','class="dok-sort-th dok-th-desc"')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}<th class="dok-th-actions"></th>`
         : `${sortableHead('beschreibung','Beschreibung').replace('class="dok-sort-th"','class="dok-sort-th dok-th-desc"')}${sortableHead('erstellt','Erstellt')}${sortableHead('geaendert','Geändert')}<th class="dok-th-actions"></th>`;
     return {
         head: `<table class="dok-table dok-table-head"><thead><tr>${colHeaders}</tr></thead></table>`,
@@ -533,8 +533,8 @@ function renderDokTableRow(d, showCategoryColumns) {
     if (showCategoryColumns) {
         const catSlug = dokCatSlug(d.kategorieName);
         return `<tr>
-            <td><span class="dok-cat-pill cat-${catSlug}">${d.kategorieName}</span></td>
-            <td>${d.dokumentTypName}</td>
+            <td class="dok-td-cat"><span class="dok-cat-pill cat-${catSlug}">${d.kategorieName}</span></td>
+            <td class="dok-td-typ" title="${esc(d.dokumentTypName || '')}">${d.dokumentTypName}</td>
             <td class="dok-td-desc">${description}</td>
             ${dateCells}
             <td class="dok-td-actions">${actions}</td>

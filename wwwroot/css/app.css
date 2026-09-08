@@ -12430,13 +12430,15 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
             white-space: nowrap;
             overflow: hidden;
         }
-        /* Kategorie/Typ-Spalten (Ansicht «Alle»): feste, schmale Breite. */
-        #page-mitarbeiter.liquid-employee .dok-table td:has(.dok-cat-pill),
-        #page-mitarbeiter.liquid-employee .dok-table thead th:first-child:not(.dok-th-desc) {
-            width: 7.5rem;
-            min-width: 7.5rem;
-            max-width: 7.5rem;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
+        /* Kategorie/Typ-Spalten (Ansicht «Alle»): schmal zugunsten der
+           Beschreibung (Walter 08.09.2026); Typ ellipst, voller Name im Tooltip. */
+        #page-mitarbeiter.liquid-employee .dok-table td.dok-td-cat,
+        #page-mitarbeiter.liquid-employee .dok-table th.dok-th-cat {
+            width: 9.2rem; min-width: 9.2rem; max-width: 9.2rem;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table td.dok-td-typ,
+        #page-mitarbeiter.liquid-employee .dok-table th.dok-th-typ {
+            width: 8.5rem; min-width: 8.5rem; max-width: 8.5rem;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
