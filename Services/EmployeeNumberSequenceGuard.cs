@@ -85,9 +85,11 @@ public static class EmployeeNumberSequenceGuard
 
     /// <summary>
     /// Gelockerte Prüfung für die Pille «trotzdem importieren» (Walter-Vorgabe
-    /// 08.09.2026): easy@work blockiert manchmal einzelne Nummern, dann darf eine
-    /// Lücke nach OBEN entstehen. Weiterhin gesperrt: nicht numerisch, doppelt,
-    /// oder eine Nummer, die kleiner/gleich der letzten Nr. in OneCrew ist.
+    /// 08.09.2026, präzisiert am selben Tag): easy@work blockiert manchmal
+    /// Nummern, und Lücken dürfen auch nachträglich gefüllt werden (z.B. 580108,
+    /// nachdem 580109 schon vergeben ist). Mit der Pille ist jede FREIE Nummer
+    /// erlaubt — weiterhin gesperrt: nicht numerisch oder doppelt in der Auswahl.
+    /// (Dass die Nummer in OneCrew noch frei ist, prüft der Aufrufer.)
     /// </summary>
     public static bool LueckeErlaubt(IReadOnlyList<string> newNumbers, long? maxExisting, out string message)
     {
@@ -107,15 +109,6 @@ public static class EmployeeNumberSequenceGuard
         {
             message = "Doppelte Personalnummern in der Auswahl — Import auch mit «trotzdem importieren» gesperrt.";
             return false;
-        }
-        if (maxExisting is long max)
-        {
-            var zuKlein = parsed.Where(v => v <= max).OrderBy(v => v).ToList();
-            if (zuKlein.Count > 0)
-            {
-                message = $"Personalnummer {string.Join(", ", zuKlein)} ist nicht grösser als die letzte Nr. in OneCrew ({max}) — «trotzdem importieren» erlaubt nur Lücken nach oben.";
-                return false;
-            }
         }
         return true;
     }

@@ -14170,7 +14170,7 @@ async function empImportFromEasyApi() {
             <label id="empEasySeqForceWrap" style="display:none;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:12.5px;color:#3f3f3f">
                 <input type="checkbox" id="empEasySeqForce" style="width:15px;height:15px" onchange="_empEasyCount()">
                 <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d8b8b8;background:#fff;border-radius:999px;padding:3px 10px;font-weight:600">Trotzdem importieren</span>
-                <span style="color:#646464">Nummer in easy@work geblockt — Lücke nach oben akzeptieren (nie kleiner als die letzte Nr.)</span>
+                <span style="color:#646464">Nummer in easy@work geblockt oder Lücke wird gefüllt — freie Nummer trotz Reihenfolge übernehmen</span>
             </label>
             ${_empEasyNotes(j)}`;
         foot.innerHTML = `
@@ -14219,13 +14219,11 @@ function _empEasyValidateNewSequence(newNumbers) {
     if (same) return { ok: true, message: '' };
     // Pille «trotzdem importieren» (Walter 08.09.2026): easy@work blockiert manchmal
     // Nummern → Lücke nach OBEN ist ok. Nach unten bleibt gesperrt (Vertipper).
+    // Präzisiert 08.09.2026: auch Lücken nach UNTEN dürfen gefüllt werden
+    // (580108 nach 580109) — mit der Pille ist jede freie Nummer erlaubt.
     const forceEl = document.getElementById('empEasySeqForce');
-    if (forceEl && forceEl.checked) {
-        const zuKlein = max != null ? parsed.filter(v => v <= max) : [];
-        if (!zuKlein.length) return { ok: true, message: '', forced: true };
-        return { ok: false, message: `Personalnummer ${zuKlein.join(', ')} ist nicht grösser als die letzte Nr. in OneCrew (${max}) — «trotzdem importieren» erlaubt nur Lücken nach oben.`, lueckeMoeglich: false };
-    }
-    const lueckeMoeglich = max == null || parsed.every(v => v > max);
+    if (forceEl && forceEl.checked) return { ok: true, message: '', forced: true };
+    const lueckeMoeglich = true;
     const letzte = max != null ? String(max) : '(keine)';
     const erwartetTxt = expected.join(', ');
     const erhaltenTxt = parsed.join(', ');
@@ -14255,7 +14253,7 @@ function _empEasyCount() {
     const warn = document.getElementById('empEasySeqWarn');
     if (warn) {
         if (!seq.ok) { warn.style.display = 'block'; warn.textContent = '⛔ ' + seq.message; }
-        else if (seq.forced) { warn.style.display = 'block'; warn.textContent = '⚠ Lücke in der Personalnummern-Folge wird auf Wunsch akzeptiert (Nummer in easy@work geblockt).'; }
+        else if (seq.forced) { warn.style.display = 'block'; warn.textContent = '⚠ Abweichung von der Personalnummern-Folge wird auf Wunsch akzeptiert (freie Nummer / Lücke).'; }
         else { warn.style.display = 'none'; warn.textContent = ''; }
     }
     // Pille nur zeigen, wenn eine Lücke nach oben vorliegt (oder sie schon gesetzt ist).
