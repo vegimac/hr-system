@@ -1352,6 +1352,7 @@ function showPage(name) {
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
     if (name === 'manager-schulungen' && typeof msInit === 'function') msInit();
     if (name === 'ma-email' && typeof maEmailInit === 'function') maEmailInit();
+    if (name === 'ma-eaw' && typeof maEawInit === 'function') maEawInit();
     if (name === 'hr-hub' && typeof hrKandBadge === 'function') hrKandBadge();
     if (name === 'kontrolle') kontrolleInit();
     if (name === 'saldo-vortrag') svInit();

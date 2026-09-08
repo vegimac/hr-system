@@ -22,3 +22,26 @@ CREATE TABLE IF NOT EXISTS easyatwork_hr_file_eingang (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_eaw_hr_file_eingang_attachment ON easyatwork_hr_file_eingang (easyatwork_attachment_id);
 CREATE INDEX IF NOT EXISTS ix_eaw_hr_file_eingang_emp ON easyatwork_hr_file_eingang (employee_id);
+
+-- Freigabe-Matrix: dritter Kanal easy@work (Walter 08.09.2026)
+ALTER TABLE versand_kategorie ADD COLUMN IF NOT EXISTS eaw_scharf BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- Versandprotokoll easy@work-Mitteilung (Walter 08.09.2026)
+CREATE TABLE IF NOT EXISTS easyatwork_mitteilung_log (
+    id                    serial PRIMARY KEY,
+    gesendet_am           timestamp without time zone NOT NULL DEFAULT now(),
+    gesendet_von_user_id  integer REFERENCES app_user(id) ON DELETE SET NULL,
+    betreff               text NOT NULL DEFAULT '',
+    filiale               text NOT NULL DEFAULT '',
+    modelle               text NOT NULL DEFAULT '',
+    funktionen            text NOT NULL DEFAULT '',
+    unterzeichner         text,
+    anhang_name           text,
+    mit_text              boolean NOT NULL DEFAULT false,
+    scharf                boolean NOT NULL DEFAULT false,
+    anzahl_gesendet       integer NOT NULL DEFAULT 0,
+    anzahl_fehlgeschlagen integer NOT NULL DEFAULT 0,
+    anzahl_ohne_eaw_id    integer NOT NULL DEFAULT 0,
+    anzahl_umgeleitet     integer NOT NULL DEFAULT 0,
+    details_json          text
+);

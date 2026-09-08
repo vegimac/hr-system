@@ -37,6 +37,8 @@ public enum VersandKategorie
     Kandidat = 7,
     /// <summary>Externe Dritte: Arztpraxis, Behörden.</summary>
     Dritte = 8,
+    /// <summary>Mitteilung/Dokument ins easy@work-Dossier des MA (Walter 08.09.2026).</summary>
+    EasyAtWork = 9,
 }
 
 /// <summary>Stammdaten der Kategorien — Reihenfolge und Texte fürs UI.</summary>
@@ -48,7 +50,9 @@ public record VersandKategorieInfo(
     string Empfaenger,
     bool NutztMail,
     bool NutztSms,
-    bool StandardScharf);
+    bool StandardScharf,
+    /// <summary>Kanal easy@work (Dossier + App-Benachrichtigung) — Walter 08.09.2026.</summary>
+    bool NutztEaw = false);
 
 public static class VersandKategorien
 {
@@ -79,6 +83,10 @@ public static class VersandKategorien
             "Absage, Willkommenstag", "Bewerber", true,  true,  false),
         new(VersandKategorie.Dritte,      "DRITTE",       "Externe Dritte",
             "Arztbrief an die Praxis, Behörden", "externe Dritte", true,  false, false),
+        // Walter 08.09.2026: dritter Kanal neben Mail und SMS. Kein Haken =
+        // die Mitteilung geht nur an die Test-Personalnummer (Systemsteuerung).
+        new(VersandKategorie.EasyAtWork,  "EASYATWORK",   "easy@work-Mitteilung",
+            "Mitteilung/Dokument ins easy@work-Dossier mit App-Benachrichtigung", "alle MA einer Selektion", false, false, false, true),
     };
 
     private static readonly Dictionary<VersandKategorie, VersandKategorieInfo> ByEnum =

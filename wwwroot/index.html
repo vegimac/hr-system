@@ -2182,21 +2182,14 @@
                             </div>
                             <div>
                                 <div class="hr-card-title" data-i18n="hr.card.maCorrespondence">Mitarbeiter-Korrespondenz</div>
-                                <div class="hr-card-status" style="color:#15803d">✓ Gruppen-E-Mail aktiv — Rest in Planung</div>
+                                <div class="hr-card-status" style="color:#15803d">✓ Gruppen-E-Mail · easy@work-Mitteilung</div>
                             </div>
                         </div>
+                        <!-- Walter 08.09.2026: Planungs-Punkte aus der Karte genommen (bleiben als
+                             Vorhaben notiert); neu der Kanal easy@work-Mitteilung neben der E-Mail. -->
                         <ul>
-                            <li><b>Gruppen-E-Mail</b> — Filiale × Vertragsmodell, mit Empfänger-Vorschau <span style="color:#15803d">✓</span></li>
-                            <li>Begrüssungsbrief / Welcome</li>
-                            <li>Probezeit: Bestätigung / Verlängerung / Auflösung</li>
-                            <li>Mitarbeitergespräch / Qualifikation</li>
-                            <li>Zwischenzeugnis / Schlusszeugnis</li>
-                            <li>Verwarnung / Abmahnung</li>
-                            <li>Kündigung (durch AG / AN) / Aufhebungsvertrag</li>
-                            <li>Lohnerhöhung / Vertragsänderung (Pensum, Funktion)</li>
-                            <li>Versetzung / Standortwechsel</li>
-                            <li>Lohnbestätigung (für Mietvertrag, Bank)</li>
-                            <li>Geburtstag / Jubiläum / Pensionierung</li>
+                            <li onclick="event.stopPropagation(); showPage('ma-email')" style="cursor:pointer"><b>Gruppen-E-Mail</b> — Filiale × Vertragsmodell, mit Empfänger-Vorschau <span style="color:#15803d">✓</span></li>
+                            <li onclick="event.stopPropagation(); showPage('ma-eaw')" style="cursor:pointer"><b>easy@work-Mitteilung</b> — gleiche Empfängerwahl, Mitteilung als PDF ins easy@work-Dossier mit App-Benachrichtigung, Unterzeichnung wählbar <span style="color:#15803d">✓</span></li>
                         </ul>
                     </div>
 
@@ -3280,6 +3273,78 @@
                             <button type="button" onclick="meLadeLog()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:12px;text-decoration:underline">neu laden</button>
                         </div>
                         <div id="meLog"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═══════════════ EASY@WORK-MITTEILUNG AN MITARBEITENDE (Walter 08.09.2026) ═══════════════
+                 Dritter Kanal neben Gruppen-E-Mail und SMS. Empfängerwahl wie bei der E-Mail,
+                 Betreff + Text → PDF im Haus-Stil (Unterzeichnung wählbar) ins easy@work-Dossier.
+                 Logik: js/ma-eaw.js (Prefix mw). -->
+            <div class="page liquid-mask fixhead" id="page-ma-eaw">
+                <div class="page-head">
+                    <div>
+                        <h1 class="page-title">easy@work-Mitteilung an Mitarbeitende</h1>
+                        <p class="page-sub">Empfänger nach Filiale, Vertragsmodell und Funktion wählen — wie bei der Gruppen-E-Mail. Aus Betreff und Text entsteht ein PDF im Haus-Stil, das im easy@work-Dossier jedes Mitarbeiters abgelegt wird; easy@work benachrichtigt den MA in seiner App. Erreichbar sind nur MA mit easy@work-ID (aus dem MA-Sync).</p>
+                    </div>
+                </div>
+                <div class="page-body">
+                    <div id="mwStatus" style="margin-bottom:12px"></div>
+                    <div class="card" style="padding:14px 16px;margin-bottom:12px">
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:4px">Filiale
+                                <select id="mwBranch" class="ma-select" style="min-width:220px;margin:0"></select></label>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <span style="font-size:11px;color:#8b8b8b">Vertragsmodell
+                                    <button type="button" onclick="mwAlleModelle(true)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">alle</button>
+                                    <button type="button" onclick="mwAlleModelle(false)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">keine</button></span>
+                                <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#3f3f3f">
+                                    <label><input type="checkbox" id="mwMod-FLEX" checked> FLEX</label>
+                                    <label><input type="checkbox" id="mwMod-MTP" checked> MTP</label>
+                                    <label><input type="checkbox" id="mwMod-FIX" checked> FIX</label>
+                                    <label><input type="checkbox" id="mwMod-FIX-M" checked> FIX-M (Management)</label>
+                                </div>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:4px">
+                                <span style="font-size:11px;color:#8b8b8b">Funktion
+                                    <button type="button" onclick="mwAlleFunk(true)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">alle</button>
+                                    <button type="button" onclick="mwAlleFunk(false)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">keine</button></span>
+                                <div id="mwFunkRow" style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#3f3f3f;max-width:640px"></div>
+                            </div>
+                            <button onclick="mwLadeEmpfaenger()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Empfänger laden</button>
+                        </div>
+                    </div>
+                    <div id="mwListe" style="margin-bottom:12px"></div>
+                    <div class="card" style="padding:14px 16px">
+                        <div class="ma-field" style="margin-bottom:10px">
+                            <div class="ma-field-label">Betreff <span style="font-weight:400;color:#8b8b8b">— Titel der Mitteilung, so sieht sie der MA in der App</span></div>
+                            <input type="text" id="mwBetreff" class="ma-input" placeholder="z.B. Neue Öffnungszeiten ab Oktober">
+                        </div>
+                        <div class="ma-field">
+                            <div class="ma-field-label">Mitteilung <span style="font-weight:400;color:#8b8b8b">— wird zum PDF im Haus-Stil; Leerzeile = neuer Absatz. Kann leer bleiben, wenn ein Dokument angehängt ist</span></div>
+                            <textarea id="mwText" class="ma-textarea" rows="8" placeholder="«Guten Tag …» wird automatisch gesetzt. Hier nur den Text der Mitteilung."></textarea>
+                        </div>
+                        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin-top:10px">
+                            <div class="ma-field" style="margin:0">
+                                <div class="ma-field-label">Unterzeichnung <span style="font-weight:400;color:#8b8b8b">— wählbar; ✍︎ = Unterschrift-Bild hinterlegt</span></div>
+                                <select id="mwUnterzeichner" class="ma-select" style="min-width:280px;margin:0"></select>
+                            </div>
+                            <div class="ma-field" style="margin:0">
+                                <div class="ma-field-label">Dokument statt Text-PDF <span style="font-weight:400;color:#8b8b8b">— optional (PDF)</span></div>
+                                <input type="file" id="mwAnhang" accept="application/pdf" style="font-size:13px">
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
+                            <button onclick="mwSenden()" style="background:#1e3a8a;color:#fff;border:none;border-radius:12px;padding:8px 20px;font-size:13.5px;font-weight:700;cursor:pointer">📱 Mitteilung an easy@work senden</button>
+                            <span id="mwSendInfo" style="font-size:12.5px"></span>
+                        </div>
+                    </div>
+                    <div class="card" style="padding:14px 16px;margin-top:12px">
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                            <div style="font-size:14px;font-weight:700;color:#3f3f3f">Versendete easy@work-Mitteilungen</div>
+                            <button type="button" onclick="mwLadeLog()" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:12px;text-decoration:underline">neu laden</button>
+                        </div>
+                        <div id="mwLog"></div>
                     </div>
                 </div>
             </div>
@@ -8937,7 +9002,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260905e"></script>
+<script src="js/app-core.js?v=20260908a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260725a"></script>
@@ -10437,6 +10502,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260821f"></script>
 <script src="js/ma-email.js?v=20260901g"></script>
+<script src="js/ma-eaw.js?v=20260908a"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
@@ -10458,7 +10524,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <!-- ═══════════════ MODUL-SCRIPTS Block 3 (Phase A) ═══════════════ -->
 <script src="js/keyboard-nav.js?v=20260704p"></script>
 <script src="js/smtp-settings.js?v=20260901g"></script>
-<script src="js/versand-kategorien.js?v=20260901a"></script>
+<script src="js/versand-kategorien.js?v=20260908a"></script>
 <script src="js/ma-sync-fehler.js?v=20260901a"></script>
 <script src="js/ecall-settings.js?v=20260901a"></script>
 <script src="js/bfs-lse.js?v=20260704p"></script>

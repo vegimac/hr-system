@@ -24,6 +24,8 @@ public class VersandKategorieSetting
 
     public bool MailScharf { get; set; }
     public bool SmsScharf  { get; set; }
+    /// <summary>Kanal easy@work scharf (Walter 08.09.2026).</summary>
+    public bool EawScharf  { get; set; }
 
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
     public int? UpdatedByUserId { get; set; }

@@ -27,7 +27,7 @@ public class VersandFreigabeService
     private readonly AppDbContext _db;
     private readonly ILogger<VersandFreigabeService> _log;
 
-    private static Dictionary<string, (bool Mail, bool Sms)>? _cache;
+    private static Dictionary<string, (bool Mail, bool Sms, bool Eaw)>? _cache;
     private static DateTime _cacheUntil = DateTime.MinValue;
     private static readonly object _cacheLock = new();
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(30);
@@ -38,7 +38,7 @@ public class VersandFreigabeService
         _log = log;
     }
 
-    public enum Kanal { Mail, Sms }
+    public enum Kanal { Mail, Sms, EasyAtWork }
 
     /// <summary>
     /// true = scharf an den echten Empfänger, false = Test-Umleitung.
@@ -49,22 +49,22 @@ public class VersandFreigabeService
         var map = await GetMapAsync(ct);
         if (!map.TryGetValue(VersandKategorien.Code(kategorie), out var haken))
             return false;                      // keine Zeile = nicht scharf
-        return kanal == Kanal.Mail ? haken.Mail : haken.Sms;
+        return kanal switch { Kanal.Mail => haken.Mail, Kanal.Sms => haken.Sms, _ => haken.Eaw };
     }
 
     /// <summary>Alle Haken — für die Systemsteuerung.</summary>
-    public async Task<Dictionary<string, (bool Mail, bool Sms)>> GetMapAsync(CancellationToken ct = default)
+    public async Task<Dictionary<string, (bool Mail, bool Sms, bool Eaw)>> GetMapAsync(CancellationToken ct = default)
     {
         lock (_cacheLock)
         {
             if (_cache != null && DateTime.UtcNow < _cacheUntil) return _cache;
         }
 
-        Dictionary<string, (bool, bool)> map;
+        Dictionary<string, (bool, bool, bool)> map;
         try
         {
             map = await _db.VersandKategorien.AsNoTracking()
-                .ToDictionaryAsync(r => r.Code, r => (r.MailScharf, r.SmsScharf), ct);
+                .ToDictionaryAsync(r => r.Code, r => (r.MailScharf, r.SmsScharf, r.EawScharf), ct);
         }
         catch (Exception ex)
         {
@@ -72,7 +72,7 @@ public class VersandFreigabeService
             // für alles «nicht scharf», also Umleitung. Bewusst kein Throw:
             // ein Konfigurationsproblem darf keinen Lohnlauf abbrechen.
             _log.LogError(ex, "[VersandFreigabe] Matrix nicht lesbar — alles gilt als NICHT scharf.");
-            map = new Dictionary<string, (bool, bool)>();
+            map = new Dictionary<string, (bool, bool, bool)>();
         }
 
         lock (_cacheLock)
@@ -81,6 +81,25 @@ public class VersandFreigabeService
             _cacheUntil = DateTime.UtcNow + CacheTtl;
         }
         return map;
+    }
+
+    /// <summary>app_setting-Schlüssel der Test-Personalnummer für den Kanal easy@work.</summary>
+    public const string EawTestNummerKey = "EasyAtWork.TestPersonalnummer";
+
+    /// <summary>
+    /// Umleitungsziel für den Kanal easy@work (Walter 08.09.2026): Personalnummer
+    /// des Test-MA. Kein Haken in der Matrix → die Mitteilung geht NUR an diesen
+    /// MA (einmal), alle anderen werden übersprungen. Leer = blockiert.
+    /// </summary>
+    public async Task<string?> GetEawTestNummerAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var v = await _db.AppSettings.AsNoTracking()
+                .Where(a => a.Key == EawTestNummerKey).Select(a => a.Value).FirstOrDefaultAsync(ct);
+            return string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+        }
+        catch { return null; }
     }
 
     public static void InvalidateCache()
@@ -107,6 +126,7 @@ public class VersandFreigabeService
                 Code       = i.Code,
                 MailScharf = i.StandardScharf && i.NutztMail,
                 SmsScharf  = i.StandardScharf && i.NutztSms,
+                EawScharf  = i.StandardScharf && i.NutztEaw,
                 UpdatedAt  = DateTime.Now,
             })
             .ToList();

@@ -63,20 +63,27 @@ public class AdminVersandKategorieController : ControllerBase
                 empfaenger   = i.Empfaenger,
                 nutztMail    = i.NutztMail,
                 nutztSms     = i.NutztSms,
+                nutztEaw     = i.NutztEaw,
                 mailScharf   = i.NutztMail && haken.Mail,
                 smsScharf    = i.NutztSms  && haken.Sms,
+                eawScharf    = i.NutztEaw  && haken.Eaw,
             };
         }).ToList();
+
+        // Kanal easy@work (Walter 08.09.2026): Umleitungsziel = Test-Personalnummer.
+        var eawTestNummer = await _freigabe.GetEawTestNummerAsync(ct);
 
         return Ok(new
         {
             zeilen,
             testAdresse = string.IsNullOrWhiteSpace(testAdresse) ? null : testAdresse!.Trim(),
             testNummer  = string.IsNullOrWhiteSpace(testNummer)  ? null : testNummer!.Trim(),
+            eawTestNummer,
             // Ohne Umleitungsziel wird eine nicht-scharfe Kategorie blockiert,
             // nicht scharf durchgelassen — das UI weist darauf hin.
             mailBlockiert = string.IsNullOrWhiteSpace(testAdresse),
             smsBlockiert  = string.IsNullOrWhiteSpace(testNummer),
+            eawBlockiert  = string.IsNullOrWhiteSpace(eawTestNummer),
         });
     }
 
@@ -86,11 +93,14 @@ public class AdminVersandKategorieController : ControllerBase
         public string Code { get; set; } = "";
         public bool MailScharf { get; set; }
         public bool SmsScharf { get; set; }
+        public bool EawScharf { get; set; }
     }
 
     public class SaveDto
     {
         public List<ZeileDto> Zeilen { get; set; } = new();
+        /// <summary>Test-Personalnummer für den Kanal easy@work (null = nicht ändern).</summary>
+        public string? EawTestNummer { get; set; }
     }
 
     [HttpPut]
@@ -113,6 +123,7 @@ public class AdminVersandKategorieController : ControllerBase
             // Freigabe, die nie jemand erklären kann.
             var mail = info.NutztMail && z.MailScharf;
             var sms  = info.NutztSms  && z.SmsScharf;
+            var eaw  = info.NutztEaw  && z.EawScharf;
 
             var row = rows.FirstOrDefault(r => r.Code == info.Code);
             if (row == null)
@@ -120,13 +131,29 @@ public class AdminVersandKategorieController : ControllerBase
                 row = new VersandKategorieSetting { Code = info.Code };
                 _db.VersandKategorien.Add(row);
             }
-            if (row.MailScharf != mail || row.SmsScharf != sms)
-                geaendert.Add($"{info.Code}: Mail {(mail ? "scharf" : "Test")}, SMS {(sms ? "scharf" : "Test")}");
+            if (row.MailScharf != mail || row.SmsScharf != sms || row.EawScharf != eaw)
+                geaendert.Add($"{info.Code}: Mail {(mail ? "scharf" : "Test")}, SMS {(sms ? "scharf" : "Test")}, easy@work {(eaw ? "scharf" : "Test")}");
 
             row.MailScharf      = mail;
             row.SmsScharf       = sms;
+            row.EawScharf       = eaw;
             row.UpdatedAt       = DateTime.Now;
             row.UpdatedByUserId = userId;
+        }
+
+        // Test-Personalnummer (Kanal easy@work) mitspeichern, wenn übermittelt.
+        if (dto.EawTestNummer != null)
+        {
+            var wert = dto.EawTestNummer.Trim();
+            var setting = await _db.AppSettings.FirstOrDefaultAsync(a => a.Key == VersandFreigabeService.EawTestNummerKey, ct);
+            if (setting == null)
+            {
+                setting = new AppSetting { Key = VersandFreigabeService.EawTestNummerKey };
+                _db.AppSettings.Add(setting);
+            }
+            if (setting.Value != wert) geaendert.Add($"easy@work-Test-Personalnummer: «{wert}»");
+            setting.Value = wert;
+            setting.UpdatedAt = DateTime.Now;
         }
 
         await _db.SaveChangesAsync(ct);

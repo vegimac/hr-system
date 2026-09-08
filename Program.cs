@@ -1234,6 +1234,35 @@ using (var scope = app.Services.CreateScope())
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
     // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
     // als fehlend, die gerade erst angelegt wurden.
+    // ── Freigabe-Matrix, dritter Kanal easy@work (Walter 08.09.2026) ────────
+    // SQL-Kopie: migrations-archive/add_easyatwork_hr_file_eingang.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE versand_kategorie ADD COLUMN IF NOT EXISTS eaw_scharf BOOLEAN NOT NULL DEFAULT FALSE;
+    ");
+
+    // ── Versandprotokoll easy@work-Mitteilung (Walter 08.09.2026) ─────────
+    // SQL-Kopie: migrations-archive/add_easyatwork_hr_file_eingang.sql
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS easyatwork_mitteilung_log (
+            id                    serial PRIMARY KEY,
+            gesendet_am           timestamp without time zone NOT NULL DEFAULT now(),
+            gesendet_von_user_id  integer REFERENCES app_user(id) ON DELETE SET NULL,
+            betreff               text NOT NULL DEFAULT '',
+            filiale               text NOT NULL DEFAULT '',
+            modelle               text NOT NULL DEFAULT '',
+            funktionen            text NOT NULL DEFAULT '',
+            unterzeichner         text,
+            anhang_name           text,
+            mit_text              boolean NOT NULL DEFAULT false,
+            scharf                boolean NOT NULL DEFAULT false,
+            anzahl_gesendet       integer NOT NULL DEFAULT 0,
+            anzahl_fehlgeschlagen integer NOT NULL DEFAULT 0,
+            anzahl_ohne_eaw_id    integer NOT NULL DEFAULT 0,
+            anzahl_umgeleitet     integer NOT NULL DEFAULT 0,
+            details_json          text
+        );
+    ");
+
     // ── Eingang aus easy@work (Walter 08.09.2026): MA-Uploads aus der App
     // landen NIE direkt im Dossier, sondern im HR-Postfach; diese Tabelle
     // verhindert Doppel-Importe. SQL-Kopie: migrations-archive/add_easyatwork_hr_file_eingang.sql

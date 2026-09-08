@@ -122,6 +122,7 @@ public class AppDbContext : DbContext
     public DbSet<OnboardingWunsch>          OnboardingWuensche          => Set<OnboardingWunsch>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
     public DbSet<EasyAtWorkHrFileEingang>   EasyAtWorkHrFileEingaenge   => Set<EasyAtWorkHrFileEingang>();
+    public DbSet<EasyAtWorkMitteilungLog>   EasyAtWorkMitteilungLogs    => Set<EasyAtWorkMitteilungLog>();
     public DbSet<ArbeitszeugnisEntwurf>     ArbeitszeugnisEntwuerfe     => Set<ArbeitszeugnisEntwurf>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -865,6 +866,30 @@ public class AppDbContext : DbContext
         });
 
         // K1 QST-Korrektur (Walter 29.08.2026)
+        // Versandprotokoll easy@work-Mitteilung (Walter 08.09.2026)
+        modelBuilder.Entity<EasyAtWorkMitteilungLog>(entity =>
+        {
+            entity.ToTable("easyatwork_mitteilung_log");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.GesendetAm).HasColumnName("gesendet_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.GesendetVonUserId).HasColumnName("gesendet_von_user_id");
+            entity.Property(e => e.Betreff).HasColumnName("betreff");
+            entity.Property(e => e.Filiale).HasColumnName("filiale");
+            entity.Property(e => e.Modelle).HasColumnName("modelle");
+            entity.Property(e => e.Funktionen).HasColumnName("funktionen");
+            entity.Property(e => e.Unterzeichner).HasColumnName("unterzeichner");
+            entity.Property(e => e.AnhangName).HasColumnName("anhang_name");
+            entity.Property(e => e.MitText).HasColumnName("mit_text");
+            entity.Property(e => e.Scharf).HasColumnName("scharf");
+            entity.Property(e => e.AnzahlGesendet).HasColumnName("anzahl_gesendet");
+            entity.Property(e => e.AnzahlFehlgeschlagen).HasColumnName("anzahl_fehlgeschlagen");
+            entity.Property(e => e.AnzahlOhneEawId).HasColumnName("anzahl_ohne_eaw_id");
+            entity.Property(e => e.AnzahlUmgeleitet).HasColumnName("anzahl_umgeleitet");
+            entity.Property(e => e.DetailsJson).HasColumnName("details_json");
+            entity.HasOne(e => e.GesendetVonUser).WithMany().HasForeignKey(e => e.GesendetVonUserId).OnDelete(DeleteBehavior.SetNull);
+        });
+
         // Eingang aus easy@work (Walter 08.09.2026): MA-Uploads aus der App → HR-Postfach
         modelBuilder.Entity<EasyAtWorkHrFileEingang>(entity =>
         {
@@ -3023,6 +3048,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(40);
             entity.Property(e => e.MailScharf).HasColumnName("mail_scharf");
             entity.Property(e => e.SmsScharf).HasColumnName("sms_scharf");
+            entity.Property(e => e.EawScharf).HasColumnName("eaw_scharf");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedByUserId).HasColumnName("updated_by_user_id");

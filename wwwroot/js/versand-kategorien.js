@@ -48,7 +48,8 @@ function vkRender(d) {
                       style="width:17px;height:17px;cursor:pointer">`
             : '<span style="color:#cbd5e1">–</span>';
         return `<td style="text-align:center;padding:9px 6px">${cb('mail', z.mailScharf, z.nutztMail)}</td>`
-             + `<td style="text-align:center;padding:9px 6px">${cb('sms',  z.smsScharf,  z.nutztSms)}</td>`;
+             + `<td style="text-align:center;padding:9px 6px">${cb('sms',  z.smsScharf,  z.nutztSms)}</td>`
+             + `<td style="text-align:center;padding:9px 6px">${cb('eaw',  z.eawScharf,  z.nutztEaw)}</td>`;
     };
 
     const rows = _vkZeilen.map(z => `
@@ -70,6 +71,7 @@ function vkRender(d) {
                     <th style="text-align:left;padding:8px 10px;font-size:11.5px;color:#64748b;font-weight:700">Empfänger</th>
                     <th style="padding:8px 6px;font-size:11.5px;color:#64748b;font-weight:700;width:74px">Mail<br>scharf</th>
                     <th style="padding:8px 6px;font-size:11.5px;color:#64748b;font-weight:700;width:74px">SMS<br>scharf</th>
+                    <th style="padding:8px 6px;font-size:11.5px;color:#64748b;font-weight:700;width:84px">easy@work<br>scharf</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -79,12 +81,18 @@ function vkRender(d) {
             Haken = geht an den echten Empfänger. Kein Haken = geht an
             <strong>${escapeHtml(d.testAdresse || '— keine Test-Adresse —')}</strong>
             bzw. <strong>${escapeHtml(d.testNummer || '— keine Test-Nummer —')}</strong>.
+        </div>
+        <!-- Kanal easy@work (Walter 08.09.2026): Umleitungsziel ist ein Test-MA (Personalnummer) -->
+        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:#334155">
+            <label for="vkEawTestNummer">easy@work ohne Haken geht nur an die Test-Personalnummer</label>
+            <input id="vkEawTestNummer" class="eaw-input" value="${escapeHtml(d.eawTestNummer || '')}" placeholder="z.B. 580109" style="width:140px">
         </div>`;
 
     // Ohne Umleitungsziel wird blockiert statt scharf durchgelassen.
     const hinweise = [];
     if (d.mailBlockiert) hinweise.push('Es ist <strong>keine Test-Adresse</strong> hinterlegt — Mails ohne Haken werden blockiert, nicht gesendet.');
     if (d.smsBlockiert)  hinweise.push('Es ist <strong>keine Test-Nummer</strong> hinterlegt — SMS ohne Haken werden blockiert, nicht gesendet.');
+    if (d.eawBlockiert)  hinweise.push('Es ist <strong>keine easy@work-Test-Personalnummer</strong> hinterlegt — easy@work-Mitteilungen ohne Haken werden blockiert, nicht gesendet.');
     const el = document.getElementById('vkBlockHinweis');
     el.innerHTML = hinweise.length
         ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;color:#1e40af;font-size:12.5px;margin-bottom:12px">'
@@ -106,7 +114,7 @@ function vkWarnung() {
         if (!z) return;
         // Interne Benutzer-Mails sind der Normalfall und keine Warnung wert.
         if (z.code === 'INTERN') return;
-        scharf.push(z.bezeichnung + ' (' + (cb.dataset.kanal === 'mail' ? 'Mail' : 'SMS') + ')');
+        scharf.push(z.bezeichnung + ' (' + (cb.dataset.kanal === 'mail' ? 'Mail' : cb.dataset.kanal === 'sms' ? 'SMS' : 'easy@work') + ')');
     });
     el.innerHTML = scharf.length
         ? '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:11px 15px;color:#991b1b;font-size:12.5px;margin-bottom:12px">'
@@ -119,13 +127,15 @@ function vkWarnung() {
 async function vkSave() {
     const btn = document.getElementById('vkSaveBtn');
     const state = document.getElementById('vkSavedState');
-    const zeilen = _vkZeilen.map(z => ({ code: z.code, mailScharf: false, smsScharf: false }));
+    const zeilen = _vkZeilen.map(z => ({ code: z.code, mailScharf: false, smsScharf: false, eawScharf: false }));
     document.querySelectorAll('#vkBody input[type=checkbox]').forEach(cb => {
         const z = zeilen.find(x => x.code === cb.dataset.vk);
         if (!z) return;
-        if (cb.dataset.kanal === 'mail') z.mailScharf = cb.checked;
-        else                             z.smsScharf  = cb.checked;
+        if (cb.dataset.kanal === 'mail')      z.mailScharf = cb.checked;
+        else if (cb.dataset.kanal === 'sms')  z.smsScharf  = cb.checked;
+        else                                  z.eawScharf  = cb.checked;
     });
+    const eawTestNummer = (document.getElementById('vkEawTestNummer')?.value || '').trim();
 
     btn.disabled = true;
     state.textContent = 'Speichere…';
@@ -136,7 +146,7 @@ async function vkSave() {
                 'Authorization': 'Bearer ' + localStorage.hrToken,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ zeilen })
+            body: JSON.stringify({ zeilen, eawTestNummer })
         });
         if (!r.ok) {
             state.textContent = '';

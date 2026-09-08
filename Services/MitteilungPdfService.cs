@@ -29,7 +29,8 @@ public class MitteilungPdfService
         string? AbsenderName,       // wer die Mitteilung schickt (GF / HR)
         string? AbsenderFunktion = null);
 
-    public byte[] Generate(MitteilungData d)
+    /// <param name="signaturePng">Unterschrift als Bild (AppUser.SignaturePng), optional.</param>
+    public byte[] Generate(MitteilungData d, byte[]? signaturePng = null)
     {
         QuestPDF.Settings.License = LicenseType.Community;
 
@@ -83,8 +84,10 @@ public class MitteilungPdfService
                             col.Item().PaddingTop(2).Text(d.FirmaName!.Trim()).Bold();
                         if (!string.IsNullOrWhiteSpace(d.RestaurantName))
                             col.Item().Text(d.RestaurantName!.Trim());
+                        if (signaturePng is { Length: > 0 })
+                            col.Item().PaddingTop(10).Height(48).AlignLeft().Image(signaturePng).FitHeight();
                         if (!string.IsNullOrWhiteSpace(d.AbsenderName))
-                            col.Item().PaddingTop(10).Text(d.AbsenderName!.Trim());
+                            col.Item().PaddingTop(signaturePng is { Length: > 0 } ? 2 : 10).Text(d.AbsenderName!.Trim());
                         if (!string.IsNullOrWhiteSpace(d.AbsenderFunktion))
                             col.Item().Text(d.AbsenderFunktion!.Trim()).FontColor("#475569");
                     }
