@@ -861,6 +861,12 @@ public class DocumentsController : ControllerBase
 
         var tmpDir = Path.Combine(Path.GetTempPath(), "ocr_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(tmpDir);
+        // Zeitmessung pro Phase (Walter 08.09.2026, «einlesen geht unglaublich
+        // lange») — landet als `timing` in der Antwort und im Log.
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+        var timing = new Dictionary<string, long>();
+        long Lap(string name, long since) { var now = swTotal.ElapsedMilliseconds; timing[name] = now - since; return now; }
+        var t0 = 0L;
         try
         {
             var imgPath = fullPath;
@@ -940,7 +946,9 @@ public class DocumentsController : ControllerBase
                 }
                 finally { ocrSem.Release(); }
             }
+            t0 = Lap("render200dpi", t0);
             var pageResults = await Task.WhenAll(imgPaths.Select((img, i) => TsvPass(img, i + 1)));
+            t0 = Lap("ocrSeiten", t0);
             var texts = pageResults.Select(p => p.text).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
             if (texts.Count == 0)
                 return StatusCode(500, new { error = "OCR_FAILED", message = "tesseract lieferte keinen Text (Sprachpaket deu installiert? Scan lesbar?)." });
@@ -970,27 +978,48 @@ public class DocumentsController : ControllerBase
                     // 2) Auflösungs-Kaskade mit FRÜH-ABBRUCH (Walter 12.07.2026,
                     //    Performance): sobald ein Ablaufdatum die ICAO-Prüfziffer
                     //    besteht, keine weiteren Renderings mehr.
-                    foreach (var res in new[] { 1000, 600, 800 })
+                    //    Umbau 08.09.2026 («einlesen geht unglaublich lange»):
+                    //    kleinste Auflösung ZUERST (600 dpi reicht für OCR-B fast
+                    //    immer; 1000 dpi war die teuerste Stufe und lief als erste),
+                    //    alle Bänder einer Runde PARALLEL, harte Zeitlimits.
+                    foreach (var res in new[] { 600, 800, 1000 })
                     {
-                        foreach (var (pageNo, top, bottom, wide) in bands)
+                        var bandTasks = bands.Select(async b =>
                         {
-                            // MRZ-Band («wide»): ~1 Zoll nach oben — dort stehen die
-                            // Rückseiten-Labels (AUSSTELLUNGSDATUM). Kopf-Band: eng.
-                            var up   = wide ? res : res * 3 / 20;
-                            var down = wide ? res / 5 : res * 3 / 20;
-                            var y0 = Math.Max(0, (top * res / 200) - up);
-                            var hBand = (bottom - top) * res / 200 + up + down;
-                            var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}");
-                            await RunProcessAsync(ppm2,
-                                $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"");
-                            var cropImg = Directory.GetFiles(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}*.png").OrderBy(x => x).FirstOrDefault();
-                            if (cropImg == null) continue;
-                            var mrzBase = Path.Combine(tmpDir, $"mrzout{pageNo}_{res}_{(wide ? "w" : "h")}");
-                            await RunProcessAsync(tesseract,
-                                $"\"{cropImg}\" \"{mrzBase}\" --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<");
-                            if (System.IO.File.Exists(mrzBase + ".txt"))
-                                mrzText += await System.IO.File.ReadAllTextAsync(mrzBase + ".txt") + "\n";
-                        }
+                            var (pageNo, top, bottom, wide) = b;
+                            await ocrSem.WaitAsync();
+                            try
+                            {
+                                // MRZ-Band («wide»): ~1 Zoll nach oben — dort stehen die
+                                // Rückseiten-Labels (AUSSTELLUNGSDATUM). Kopf-Band: eng.
+                                var up   = wide ? res : res * 3 / 20;
+                                var down = wide ? res / 5 : res * 3 / 20;
+                                var y0 = Math.Max(0, (top * res / 200) - up);
+                                var hBand = (bottom - top) * res / 200 + up + down;
+                                var cropBase = Path.Combine(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}");
+                                try
+                                {
+                                    await RunProcessAsync(ppm2,
+                                        $"-png -r {res} -f {pageNo} -l {pageNo} -y {y0} -H {hBand} -gray \"{fullPath}\" \"{cropBase}\"", timeoutMs: 30000);
+                                }
+                                catch (TimeoutException) { return ""; }
+                                var cropImg = Directory.GetFiles(tmpDir, $"mrz{pageNo}_{res}_{(wide ? "w" : "h")}*.png").OrderBy(x => x).FirstOrDefault();
+                                if (cropImg == null) return "";
+                                var mrzBase = Path.Combine(tmpDir, $"mrzout{pageNo}_{res}_{(wide ? "w" : "h")}");
+                                try
+                                {
+                                    await RunProcessAsync(tesseract,
+                                        $"\"{cropImg}\" \"{mrzBase}\" --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", timeoutMs: 40000);
+                                }
+                                catch (TimeoutException) { return ""; }
+                                return System.IO.File.Exists(mrzBase + ".txt")
+                                    ? await System.IO.File.ReadAllTextAsync(mrzBase + ".txt") + "\n"
+                                    : "";
+                            }
+                            finally { ocrSem.Release(); }
+                        }).ToList();
+                        foreach (var part in await Task.WhenAll(bandTasks)) mrzText += part;
+                        timing[$"mrz{res}"] = swTotal.ElapsedMilliseconds - t0; t0 = swTotal.ElapsedMilliseconds;
                         // Früh-Abbruch erst, wenn BEIDES sitzt: Ablaufdatum mit
                         // gültiger Prüfziffer UND der Typ aus dem Kartenkopf
                         // (Walter-Bug 12.07.2026: L ging in der 1000er-Runde verloren).
@@ -1044,6 +1073,7 @@ public class DocumentsController : ControllerBase
                     }
                 }
                 catch { /* Eskalation ist best-effort — Teil-Resultat bleibt */ }
+                t0 = Lap("eskalation400dpi", t0);
             }
 
             // ── «Gültig bis»-Datum (OCR-tolerant: GULTIG/GÜLTIG/G0LTIG …) ──
@@ -1179,6 +1209,9 @@ public class DocumentsController : ControllerBase
                 issued = best;
             }
 
+            timing["total"] = swTotal.ElapsedMilliseconds;
+            HttpContext.RequestServices.GetRequiredService<ILogger<DocumentsController>>()
+                .LogInformation("OCR Ausweis Dok {Id}: {Timing}", id, string.Join(", ", timing.Select(kv => $"{kv.Key}={kv.Value}ms")));
             return Ok(new
             {
                 permitCode,
@@ -1186,6 +1219,7 @@ public class DocumentsController : ControllerBase
                 issued = issued?.ToString("yyyy-MM-dd"),
                 zemisNr,
                 mrzGelesen = mrzText.Length > 0,
+                timing,
                 excerpt = ((mrzText.Length > 0 ? "── MRZ ──\n" + mrzText + "\n" : "") + text) is var full && full.Length > 2500 ? full[..2500] : full,
             });
         }

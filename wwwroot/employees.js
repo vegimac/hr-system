@@ -15731,6 +15731,12 @@ async function phfOcrPermit(docId) {
         // (dokumentId im Create-DTO) — kein manuelles «Doku verknüpfen» mehr.
         window._phfOcrDocId = docId;
         const parts = [];
+        // Zeitmessung anzeigen (Walter 08.09.2026): total + Phase, die am längsten brauchte.
+        if (j.timing && j.timing.total) {
+            const phasen = Object.entries(j.timing).filter(([k]) => k !== 'total').sort((a, b) => b[1] - a[1]);
+            const top = phasen[0] ? ` (${phasen[0][0]} ${(phasen[0][1] / 1000).toFixed(1)} s)` : '';
+            parts.push(`⏱ ${(j.timing.total / 1000).toFixed(1)} s${top}`);
+        }
         if (j.permitCode) {
             const typId = window._phfPermitCodeMap?.[j.permitCode.toUpperCase()];
             if (typId) {
