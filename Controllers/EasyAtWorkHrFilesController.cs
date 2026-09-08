@@ -1,4 +1,5 @@
 using HrSystem.Data;
+using HrSystem.Models;
 using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
 using System.Security.Claims;
@@ -28,15 +29,22 @@ public class EasyAtWorkHrFilesController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ILogger<EasyAtWorkHrFilesController> _log;
     private readonly MitteilungPdfService _mitteilungPdf;
+    private readonly string _storagePath;
 
     public EasyAtWorkHrFilesController(EasyAtWorkClient client, AppDbContext db,
                                        ILogger<EasyAtWorkHrFilesController> log,
-                                       MitteilungPdfService mitteilungPdf)
+                                       MitteilungPdfService mitteilungPdf,
+                                       IConfiguration config, IWebHostEnvironment env)
     {
         _client = client;
         _db = db;
         _log = log;
         _mitteilungPdf = mitteilungPdf;
+        // Gleicher Ablageort wie MailboxController (Documents:StoragePath / data/documents).
+        var configured = config["Documents:StoragePath"];
+        if (string.IsNullOrWhiteSpace(configured))
+            configured = Path.Combine(env.ContentRootPath, "data", "documents");
+        _storagePath = configured;
     }
 
     // ───────────────────────── Hilfen ─────────────────────────────
@@ -257,6 +265,152 @@ public class EasyAtWorkHrFilesController : ControllerBase
             catch (Exception ex) { results.Add(new { path, status = -1, count = (int?)null, preview = ex.Message }); }
         }
         return Ok(new { employee = emp, customerId = c, results });
+    }
+
+    /// <summary>
+    /// Eingang aus easy@work (Walter-Vorgabe 08.09.2026): Dateien, die der MA in
+    /// der App «an HR» hochgeladen hat (Anhang mit user_id ≠ null), ins
+    /// HR-Postfach holen — NIE direkt ins Dossier. Schon geholte Anhänge werden
+    /// übersprungen (easyatwork_hr_file_eingang). Stufe 1: ein MA per
+    /// Personalnummer (Testbutton).
+    /// </summary>
+    [HttpPost("eingang")]
+    public async Task<IActionResult> Eingang([FromQuery] string number, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var (emp, err) = await ResolveEmployeeAsync(number, ct);
+        if (err != null) return err;
+        var cid = await FindCustomerForEmployeeAsync(emp!, ct);
+        if (cid == null)
+            return NotFound(new { error = "EAW_EMPLOYEE_NOT_FOUND", message = $"easy@work-ID {emp!.EawEmployeeId} wurde bei keinem gemappten Customer gefunden." });
+
+        var (status, body, via) = await _client.GetHrFilesRawAsync(cid.Value, emp!.EawEmployeeId, ct);
+        if (status < 200 || status >= 300)
+            return StatusCode(status, new { error = "EAW_LIST_FAILED", status, via, response = ParseOrRaw(body) });
+
+        // Dateien aus hr_overview (files) oder hr_files (data) lesen.
+        var root = JsonSerializer.Deserialize<JsonElement>(body);
+        JsonElement files = default;
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            if (!root.TryGetProperty("files", out files) || files.ValueKind != JsonValueKind.Array)
+                root.TryGetProperty("data", out files);
+        }
+        if (files.ValueKind != JsonValueKind.Array)
+            return Ok(new { employee = emp, customerId = cid, via, geholt = 0, uebersprungen = 0, ohneAnhang = 0, hinweis = "Keine Dateiliste in der Antwort.", eintraege = Array.Empty<object>() });
+
+        // Filiale für das Postfach: Filiale des MA, sonst die Filiale des Mappings.
+        var cpId = emp.CompanyProfileId
+                   ?? await _db.EasyAtWorkBranchMappings.AsNoTracking()
+                          .Where(m => m.EasyAtWorkCustomerId == cid.Value)
+                          .Select(m => (int?)m.CompanyProfileId).FirstOrDefaultAsync(ct)
+                   ?? 0;
+        if (cpId <= 0)
+            return Conflict(new { error = "NO_BRANCH", message = "Keine Filiale für das HR-Postfach gefunden." });
+
+        var schon = await _db.EasyAtWorkHrFileEingaenge.AsNoTracking()
+            .Where(x => x.EmployeeId == emp.Id)
+            .Select(x => x.EasyAtWorkAttachmentId)
+            .ToListAsync(ct);
+        var schonSet = new HashSet<long>(schon);
+
+        int geholt = 0, uebersprungen = 0, ohneAnhang = 0, vonOneCrew = 0;
+        var eintraege = new List<object>();
+
+        foreach (var f in files.EnumerateArray())
+        {
+            var fileId = f.TryGetProperty("id", out var fid) && fid.ValueKind == JsonValueKind.Number ? fid.GetInt64() : 0;
+            var dokName = f.TryGetProperty("name", out var fn) && fn.ValueKind == JsonValueKind.String ? fn.GetString() ?? "" : "";
+            if (!f.TryGetProperty("attachments", out var atts) || atts.ValueKind != JsonValueKind.Array || atts.GetArrayLength() == 0)
+            { ohneAnhang++; continue; }
+
+            // Neuester Anhang = aktuelle Version (Doku) — wir nehmen den mit dem höchsten id.
+            JsonElement att = default; long attId = -1;
+            foreach (var a in atts.EnumerateArray())
+            {
+                var id = a.TryGetProperty("id", out var aid) && aid.ValueKind == JsonValueKind.Number ? aid.GetInt64() : 0;
+                if (id > attId) { attId = id; att = a; }
+            }
+            if (attId <= 0) { ohneAnhang++; continue; }
+
+            // user_id null = per API (OneCrew) hochgeladen → gehört nicht in den Eingang.
+            long? eawUserId = att.TryGetProperty("user_id", out var uid) && uid.ValueKind == JsonValueKind.Number ? uid.GetInt64() : null;
+            if (eawUserId == null) { vonOneCrew++; continue; }
+
+            if (schonSet.Contains(attId)) { uebersprungen++; continue; }
+
+            var attName = att.TryGetProperty("name", out var an) && an.ValueKind == JsonValueKind.String ? an.GetString() ?? "" : "";
+            var mime    = att.TryGetProperty("mime", out var am) && am.ValueKind == JsonValueKind.String ? am.GetString() : null;
+            long? size  = att.TryGetProperty("size", out var asz) && asz.ValueKind == JsonValueKind.Number ? asz.GetInt64() : null;
+            DateTime? hochgeladenAm = null;
+            if (att.TryGetProperty("created_at", out var ac) && ac.ValueKind == JsonValueKind.String
+                && DateTime.TryParse(ac.GetString(), out var dtc)) hochgeladenAm = dtc;
+
+            // Binär holen.
+            var (dstatus, bytes, ctype, dlName) = await _client.DownloadHrFileAsync(cid.Value, emp.EawEmployeeId, fileId, ct);
+            if (dstatus < 200 || dstatus >= 300)
+            {
+                eintraege.Add(new { fileId, attachmentId = attId, dokName, ok = false, status = dstatus, message = System.Text.Encoding.UTF8.GetString(bytes) });
+                continue;
+            }
+
+            // Ablegen wie ein Postfach-Upload: mailbox/{filiale}/{guid}{ext}
+            var origName = !string.IsNullOrWhiteSpace(attName) ? attName : (!string.IsNullOrWhiteSpace(dlName) ? dlName! : $"easyatwork-{fileId}");
+            var ext = Path.GetExtension(origName);
+            if (string.IsNullOrWhiteSpace(ext) && (mime ?? ctype) == "application/pdf") ext = ".pdf";
+            var storageName = Guid.NewGuid().ToString("N") + ext;
+            var dir = Path.Combine(_storagePath, "mailbox", cpId.ToString());
+            Directory.CreateDirectory(dir);
+            await System.IO.File.WriteAllBytesAsync(Path.Combine(dir, storageName), bytes, ct);
+
+            // Dokumentname (mit Umlauten) ist der schönere Anzeigename als der Anhangname.
+            var anzeige = !string.IsNullOrWhiteSpace(dokName) ? dokName : origName;
+            if (!string.IsNullOrWhiteSpace(ext) && !anzeige.EndsWith(ext, StringComparison.OrdinalIgnoreCase)) anzeige += ext;
+
+            var wann = hochgeladenAm?.ToString("dd.MM.yyyy HH:mm") ?? "unbekannt";
+            var mbox = new MailboxDocument
+            {
+                CompanyProfileId = cpId,
+                UploadedBy = null,
+                UploadedAt = DateTime.Now,
+                OriginalFilename = anzeige,
+                StorageFilename = storageName,
+                MimeType = mime ?? ctype,
+                FileSizeBytes = bytes.LongLength,
+                Bemerkung = "Aus der easy@work-App hochgeladen (an HR)",
+                MessageBody = $"{emp.Name} ({emp.Number}, {emp.BranchName ?? "Filiale"}) hat am {wann} in der easy@work-App ein Dokument an HR gesendet: «{dokName}». "
+                              + "Bitte prüfen und bei Bedarf ins Dossier des MA übernehmen — es wurde bewusst NICHT automatisch abgelegt.",
+                EmployeeId = emp.Id,
+                NotifyUserId = null,
+                TargetType = "HR",
+            };
+            _db.MailboxDocuments.Add(mbox);
+            await _db.SaveChangesAsync(ct);
+
+            _db.EasyAtWorkHrFileEingaenge.Add(new EasyAtWorkHrFileEingang
+            {
+                EmployeeId = emp.Id,
+                EasyAtWorkCustomerId = cid.Value,
+                EasyAtWorkEmployeeId = emp.EawEmployeeId,
+                EasyAtWorkFileId = fileId,
+                EasyAtWorkAttachmentId = attId,
+                DokumentName = dokName,
+                DateiName = origName,
+                MimeType = mime ?? ctype,
+                FileSizeBytes = size ?? bytes.LongLength,
+                HochgeladenVonEawUserId = eawUserId,
+                HochgeladenAm = hochgeladenAm,
+                MailboxDocumentId = mbox.Id,
+                GeholtAm = DateTime.Now,
+            });
+            await _db.SaveChangesAsync(ct);
+            schonSet.Add(attId);
+            geholt++;
+            eintraege.Add(new { fileId, attachmentId = attId, dokName, dateiName = origName, size = bytes.LongLength, ok = true, mailboxDocumentId = mbox.Id });
+            _log.LogInformation("easy@work Eingang: «{Dok}» ({Size} B) von {Emp} ({Nr}) ins HR-Postfach (mailbox {Mid})", dokName, bytes.LongLength, emp.Name, emp.Number, mbox.Id);
+        }
+
+        return Ok(new { employee = emp, customerId = cid, via, geholt, uebersprungen, vonOneCrew, ohneAnhang, eintraege });
     }
 
     /// <summary>

@@ -121,6 +121,7 @@ public class AppDbContext : DbContext
     public DbSet<KandidatDokument>          KandidatDokumente           => Set<KandidatDokument>();
     public DbSet<OnboardingWunsch>          OnboardingWuensche          => Set<OnboardingWunsch>();
     public DbSet<MailboxDocument>           MailboxDocuments            => Set<MailboxDocument>();
+    public DbSet<EasyAtWorkHrFileEingang>   EasyAtWorkHrFileEingaenge   => Set<EasyAtWorkHrFileEingang>();
     public DbSet<ArbeitszeugnisEntwurf>     ArbeitszeugnisEntwuerfe     => Set<ArbeitszeugnisEntwurf>();
     public DbSet<BranchMinWage>             BranchMinWages              => Set<BranchMinWage>();
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
@@ -864,6 +865,30 @@ public class AppDbContext : DbContext
         });
 
         // K1 QST-Korrektur (Walter 29.08.2026)
+        // Eingang aus easy@work (Walter 08.09.2026): MA-Uploads aus der App → HR-Postfach
+        modelBuilder.Entity<EasyAtWorkHrFileEingang>(entity =>
+        {
+            entity.ToTable("easyatwork_hr_file_eingang");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.EasyAtWorkCustomerId).HasColumnName("easyatwork_customer_id");
+            entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
+            entity.Property(e => e.EasyAtWorkFileId).HasColumnName("easyatwork_file_id");
+            entity.Property(e => e.EasyAtWorkAttachmentId).HasColumnName("easyatwork_attachment_id");
+            entity.Property(e => e.DokumentName).HasColumnName("dokument_name");
+            entity.Property(e => e.DateiName).HasColumnName("datei_name");
+            entity.Property(e => e.MimeType).HasColumnName("mime_type");
+            entity.Property(e => e.FileSizeBytes).HasColumnName("file_size_bytes");
+            entity.Property(e => e.HochgeladenVonEawUserId).HasColumnName("hochgeladen_von_eaw_user_id");
+            entity.Property(e => e.HochgeladenAm).HasColumnName("hochgeladen_am").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.MailboxDocumentId).HasColumnName("mailbox_document_id");
+            entity.Property(e => e.GeholtAm).HasColumnName("geholt_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EasyAtWorkAttachmentId).IsUnique();
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.MailboxDocument).WithMany().HasForeignKey(e => e.MailboxDocumentId).OnDelete(DeleteBehavior.SetNull);
+        });
+
         modelBuilder.Entity<QstKorrektur>(entity =>
         {
             entity.ToTable("qst_korrektur");

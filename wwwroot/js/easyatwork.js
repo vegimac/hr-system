@@ -2187,3 +2187,19 @@ async function eawHrProbe() {
         const dbox = document.getElementById('eawHrDossier'); if (dbox) dbox.innerHTML = '';
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
+
+// Eingang aus easy@work (Walter 08.09.2026): App-Uploads des MA → HR-Postfach, nie direkt ins Dossier.
+async function eawHrEingang() {
+    const nr = (document.getElementById('eawHrNumber')?.value || '').trim();
+    if (!nr) { _eawHrOut('Bitte eine Personalnummer eingeben.', true); return; }
+    _eawHrOut('Hole App-Uploads ins HR-Postfach…');
+    try {
+        const r = await fetch(`/api/easywork/hr-files/eingang?number=${encodeURIComponent(nr)}`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { _eawHrOut(j, true); return; }
+        const head = `✓ ${j.geholt} neu ins HR-Postfach · ${j.uebersprungen} schon früher geholt · ${j.vonOneCrew} von OneCrew gesendet (kein Eingang) · ${j.ohneAnhang} ohne Anhang\n\n`;
+        _eawHrOut(head + JSON.stringify(j, null, 2));
+        const dbox = document.getElementById('eawHrDossier'); if (dbox) dbox.innerHTML = '';
+        if (typeof refreshMailboxCounts === 'function') { try { refreshMailboxCounts(); } catch (_) {} }
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
