@@ -3311,6 +3311,10 @@
                                     <button type="button" onclick="mwAlleFunk(false)" style="background:none;border:none;color:#6b7280;cursor:pointer;font-size:11px;text-decoration:underline">keine</button></span>
                                 <div id="mwFunkRow" style="display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:#3f3f3f;max-width:640px"></div>
                             </div>
+                            <!-- Einzelner MA (Walter 08.09.2026): aus der Liste der aktiven MA der Filiale wählen —
+                                 dann gilt nur dieser eine, Vertragsmodell/Funktion sind egal. -->
+                            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:4px">Einzelner Mitarbeiter
+                                <select id="mwEinzel" class="ma-select" style="min-width:240px;margin:0" onchange="mwEinzelGewaehlt()"><option value="">— alle nach Selektion —</option></select></label>
                             <button onclick="mwLadeEmpfaenger()" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 16px;font-size:13px;font-weight:600;cursor:pointer">Empfänger laden</button>
                         </div>
                     </div>
@@ -10502,7 +10506,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/ferien-planer.js?v=20260814b"></script>
 <script src="js/manager-schulungen.js?v=20260821f"></script>
 <script src="js/ma-email.js?v=20260901g"></script>
-<script src="js/ma-eaw.js?v=20260908a"></script>
+<script src="js/ma-eaw.js?v=20260908b"></script>
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>

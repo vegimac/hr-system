@@ -19,8 +19,9 @@ function maEawInit() {
         sel.innerHTML = '<option value="">Alle Filialen</option>' + (allBranches || [])
             .map(b => `<option value="${b.id}" ${String(b.id) === cur ? 'selected' : ''}>${(b.restaurantCode ? b.restaurantCode + ' – ' : '')}${(b.workLocation || b.city || b.branchName || '').replace(/\s*\([^)]*\)\s*$/, '')}</option>`)
             .join('');
-        sel.onchange = () => mwLadeUnterzeichner();
+        sel.onchange = () => { mwLadeUnterzeichner(); mwLadeEinzelListe(); };
     }
+    mwLadeEinzelListe();
     const list = document.getElementById('mwListe');
     if (list) list.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">Selektion wählen und «Empfänger laden» klicken.</div>';
     _mwEmpfaenger = [];
@@ -70,6 +71,29 @@ async function mwLadeUnterzeichner() {
     } catch (e) { /* Liste bleibt */ }
 }
 
+// Einzelner MA (Walter 08.09.2026): Liste der aktiven MA der gewählten Filiale
+// (alle Modelle). Ist einer gewählt, geht die Mitteilung nur an ihn.
+async function mwLadeEinzelListe() {
+    const sel = document.getElementById('mwEinzel');
+    if (!sel) return;
+    const branch = document.getElementById('mwBranch')?.value || '';
+    sel.innerHTML = '<option value="">— alle nach Selektion —</option>';
+    try {
+        const q = `/api/ma-email/empfaenger?modelle=FLEX,MTP,FIX,FIX-M${branch ? '&companyProfileId=' + branch : ''}`;
+        const r = await fetch(q, { headers: ah() });
+        if (!r.ok) return;
+        const j = ((await r.json()).zeilen || []).filter(e => e.art !== 'BENUTZER' && e.employeeId);
+        j.sort((a, b) => String(a.name).localeCompare(String(b.name), 'de'));
+        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+        sel.innerHTML += j.map(e => `<option value="${e.employeeId}">${esc(e.name)}${branch ? '' : ' — ' + esc(e.filiale || '')}</option>`).join('');
+    } catch (_) { /* Liste bleibt leer */ }
+}
+
+function mwEinzelGewaehlt() {
+    const v = document.getElementById('mwEinzel')?.value || '';
+    if (v) mwLadeEmpfaenger();   // direkt anzeigen — der eine MA, sonst nichts
+}
+
 let _mwFunkGeladen = false;
 async function _mwLadeFunktionen() {
     const row = document.getElementById('mwFunkRow');
@@ -111,20 +135,22 @@ async function mwLadeEmpfaenger() {
     const list = document.getElementById('mwListe');
     if (!list) return;
     const branch = document.getElementById('mwBranch')?.value || '';
-    const modelle = _mwModelle();
+    const einzel = document.getElementById('mwEinzel')?.value || '';
+    const modelle = einzel ? 'FLEX,MTP,FIX,FIX-M' : _mwModelle();
     const funkGewaehlt = document.querySelectorAll('.mwFunkCb:checked').length;
-    if (!modelle && !funkGewaehlt) {
-        showToast('Mindestens ein Vertragsmodell oder eine Funktion wählen.', 'error');
+    if (!einzel && !modelle && !funkGewaehlt) {
+        showToast('Mindestens ein Vertragsmodell oder eine Funktion wählen — oder einen einzelnen Mitarbeiter.', 'error');
         return;
     }
-    const funktionen = _mwFunktionen();
+    const funktionen = einzel ? '' : _mwFunktionen();
     list.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px">Wird geladen…</div>';
     try {
         const q = `/api/ma-email/empfaenger?${modelle ? 'modelle=' + encodeURIComponent(modelle) : ''}${branch ? '&companyProfileId=' + branch : ''}${funktionen ? '&funktionen=' + encodeURIComponent(funktionen) : ''}`;
         const r = await fetch(q, { headers: ah() });
         const antwort = await r.json();
         if (!r.ok) { list.textContent = 'Fehler: ' + (antwort?.message || antwort?.error || ('HTTP ' + r.status)); return; }
-        const j = (antwort.zeilen || []).filter(e => e.art !== 'BENUTZER');
+        let j = (antwort.zeilen || []).filter(e => e.art !== 'BENUTZER');
+        if (einzel) j = j.filter(e => String(e.employeeId) === einzel);
         // easy@work-ID prüfen: nur MA mit ID sind erreichbar.
         let eaw = {};
         try {
@@ -196,8 +222,14 @@ async function mwSenden() {
         const brSel = document.getElementById('mwBranch');
         if (brSel?.value) fd.append('companyProfileId', brSel.value);
         fd.append('filialeText', brSel?.selectedOptions?.[0]?.text || 'Alle Filialen');
-        fd.append('modelleText', _mwModelle() || 'alle');
-        fd.append('funktionenText', _mwFunktionenText());
+        const einzelSel = document.getElementById('mwEinzel');
+        if (einzelSel?.value) {
+            fd.append('modelleText', 'einzelner MA: ' + (einzelSel.selectedOptions?.[0]?.text || ''));
+            fd.append('funktionenText', 'alle');
+        } else {
+            fd.append('modelleText', _mwModelle() || 'alle');
+            fd.append('funktionenText', _mwFunktionenText());
+        }
         const kopf = ah(); delete kopf['Content-Type'];
         const r = await fetch('/api/ma-eaw/senden', { method: 'POST', headers: kopf, body: fd });
         const j = await r.json();
