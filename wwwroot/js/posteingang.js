@@ -138,6 +138,7 @@ async function pbInit() {
         // Liquid-Select-Button nach programmatischem value-Set auffrischen
         // (Walter 13.07.2026 — natives Select ist versteckt).
         branchSel._lqRefresh?.();
+        pbRenderSidebar();
     } catch {}
     // Dokument-Typen laden (hierarchisch + flach)
     try {
@@ -153,6 +154,41 @@ async function pbInit() {
     } catch { _pbAllEmployees = []; }
     pbLoadList();
     pbStartAutoRefresh();
+}
+
+// ── Postfach-Liste fix links (Walter 08.09.2026) ──────────────────────
+// Rendert die Gruppen/Optionen des (versteckten) Selects als Liste mit
+// Zähler-Pille; Klick setzt das Select und lädt die Liste.
+function pbRenderSidebar() {
+    const sel = document.getElementById('pbBranchSelect');
+    const side = document.getElementById('pbSidebar');
+    if (!sel || !side) return;
+    const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const item = (o) => {
+        if (!o.value) return '';
+        const n = parseInt(o.dataset.badge || '0', 10) || 0;
+        return `<button type="button" class="pb-sb-item${o.value === sel.value ? ' active' : ''}" data-v="${esc(o.value)}" onclick="pbSidebarPick(this.dataset.v)">
+            <span class="pb-sb-label">${esc(o.textContent.trim())}</span>
+            <span class="pb-sb-badge${n > 0 ? ' on' : ''}">${n > 0 ? n : '–'}</span></button>`;
+    };
+    let html = '';
+    Array.from(sel.children).forEach(node => {
+        if (node.tagName === 'OPTGROUP') {
+            html += `<div class="pb-sb-group">${esc(node.label)}</div>`;
+            Array.from(node.children).forEach(o => { html += item(o); });
+        } else if (node.tagName === 'OPTION') html += item(node);
+    });
+    side.innerHTML = html || '<div style="padding:12px;color:#8b8b8b;font-size:12.5px">Keine Postfächer.</div>';
+    const cur = sel.selectedOptions?.[0];
+    const title = document.getElementById('pbCurrentTitle');
+    if (title) title.textContent = cur && cur.value ? cur.textContent.trim() : 'Postfach wählen';
+}
+function pbSidebarPick(v) {
+    const sel = document.getElementById('pbBranchSelect');
+    if (!sel) return;
+    sel.value = v;
+    pbRenderSidebar();
+    pbLoadList();
 }
 
 // Zähler im Postfach-Dropdown auffrischen (Walter-Vorgabe 13.07.2026):
@@ -176,6 +212,7 @@ async function pbRefreshPostfachCounts() {
         // Liquid-Select-Button neu zeichnen — sonst bleibt z.B. «(1)» stehen,
         // obwohl die <option>-Texte schon stimmen (Walter-Bug 24.07.2026).
         sel._lqRefresh?.();
+        pbRenderSidebar();
     } catch { /* reine Anzeige */ }
 }
 
@@ -187,6 +224,7 @@ function pbPatchSelectedCount(n) {
     o.textContent = (o.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim() || o.textContent;
     o.dataset.badge = String(n > 0 ? n : 0);
     sel._lqRefresh?.();
+    pbRenderSidebar();
 }
 
 function pbPostfachValue(p) {
@@ -230,6 +268,7 @@ function pbParsePostfach(val) {
 
 async function pbLoadList() {
     const val = document.getElementById('pbBranchSelect').value;
+    pbRenderSidebar();
     const list = document.getElementById('pbList');
     const pf = pbParsePostfach(val);
     if (!pf) { list.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">Bitte Postfach wählen</div>'; return; }
