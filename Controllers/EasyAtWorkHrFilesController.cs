@@ -1,5 +1,7 @@
 using HrSystem.Data;
+using HrSystem.Services;
 using HrSystem.Services.EasyAtWork;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -25,13 +27,16 @@ public class EasyAtWorkHrFilesController : ControllerBase
     private readonly EasyAtWorkClient _client;
     private readonly AppDbContext _db;
     private readonly ILogger<EasyAtWorkHrFilesController> _log;
+    private readonly MitteilungPdfService _mitteilungPdf;
 
     public EasyAtWorkHrFilesController(EasyAtWorkClient client, AppDbContext db,
-                                       ILogger<EasyAtWorkHrFilesController> log)
+                                       ILogger<EasyAtWorkHrFilesController> log,
+                                       MitteilungPdfService mitteilungPdf)
     {
         _client = client;
         _db = db;
         _log = log;
+        _mitteilungPdf = mitteilungPdf;
     }
 
     // ───────────────────────── Hilfen ─────────────────────────────
@@ -191,9 +196,11 @@ public class EasyAtWorkHrFilesController : ControllerBase
     }
 
     /// <summary>
-    /// EIN Dokument an EINEN MA senden (Testkarte). Multipart:
-    /// number, typeId, name, file, notify (1/0), expiresAt (yyyy-MM-dd, optional),
+    /// EIN Dokument ODER eine Mitteilung an EINEN MA senden (Testkarte). Multipart:
+    /// number, typeId, name (= Betreff), file (optional), text (optional — wird zum
+    /// PDF, wenn keine Datei), notify (1/0), expiresAt (yyyy-MM-dd, optional),
     /// warnDays (optional), setExistingAsExpired (1/0).
+    /// easy@work kennt keine reinen Textnachrichten → Mitteilung = PDF im Haus-Stil.
     /// </summary>
     [HttpPost("send")]
     [RequestSizeLimit(50_000_000)]
@@ -201,7 +208,8 @@ public class EasyAtWorkHrFilesController : ControllerBase
         [FromForm] string number,
         [FromForm] int typeId,
         [FromForm] string name,
-        [FromForm] IFormFile file,
+        [FromForm] IFormFile? file = null,
+        [FromForm] string? text = null,
         [FromForm] bool notify = true,
         [FromForm] string? expiresAt = null,
         [FromForm] int? warnDays = null,
@@ -209,8 +217,10 @@ public class EasyAtWorkHrFilesController : ControllerBase
         CancellationToken ct = default)
     {
         if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
-        if (file == null || file.Length == 0)
-            return BadRequest(new { error = "FILE_REQUIRED", message = "Bitte eine Datei auswählen." });
+        var hasFile = file != null && file.Length > 0;
+        var hasText = !string.IsNullOrWhiteSpace(text);
+        if (!hasFile && !hasText)
+            return BadRequest(new { error = "FILE_OR_TEXT_REQUIRED", message = "Bitte eine Datei auswählen oder einen Mitteilungstext eingeben." });
         if (typeId <= 0)
             return BadRequest(new { error = "TYPE_REQUIRED", message = "Bitte einen Dateityp (type_id) wählen." });
         if (string.IsNullOrWhiteSpace(name))
@@ -232,17 +242,49 @@ public class EasyAtWorkHrFilesController : ControllerBase
         }
 
         byte[] bytes;
-        using (var ms = new MemoryStream())
+        string fileName, mime;
+        var alsMitteilung = false;
+        if (hasFile)
         {
-            await file.CopyToAsync(ms, ct);
+            using var ms = new MemoryStream();
+            await file!.CopyToAsync(ms, ct);
             bytes = ms.ToArray();
+            fileName = file.FileName;
+            mime = string.IsNullOrWhiteSpace(file.ContentType) ? "application/octet-stream" : file.ContentType;
+        }
+        else
+        {
+            // Mitteilung → PDF im Haus-Stil (Filiale des MA, Absender = eingeloggter Benutzer).
+            alsMitteilung = true;
+            var filiale = emp!.CompanyProfileId is int cpId
+                ? await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cpId, ct)
+                : null;
+            var uidStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            // DisplayName ist berechnet (nicht in SQL übersetzbar) → erst laden, dann lesen.
+            var absenderUser = int.TryParse(uidStr, out var uid)
+                ? await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == uid, ct)
+                : null;
+            var absender = absenderUser?.DisplayName;
+            bytes = _mitteilungPdf.Generate(new MitteilungPdfService.MitteilungData(
+                FirmaName: filiale?.CompanyName,
+                RestaurantName: filiale?.BranchName,
+                EmpfaengerName: emp.Name,
+                Betreff: name.Trim(),
+                Text: text!.Trim(),
+                Datum: DateOnly.FromDateTime(DateTime.Now),
+                Ort: filiale?.City,
+                AbsenderName: absender));
+            var safe = string.Concat(name.Trim().Select(ch => char.IsLetterOrDigit(ch) ? ch : '-')).Trim('-');
+            if (safe.Length > 60) safe = safe[..60];
+            fileName = $"Mitteilung-{DateTime.Now:yyyy-MM-dd}-{(safe.Length > 0 ? safe : "OneCrew")}.pdf";
+            mime = "application/pdf";
         }
 
-        _log.LogInformation("easy@work HR-Files: sende «{Name}» ({Size} B, {Mime}) an {Emp} ({Nr}, eaw {EawId}, customer {Cid}), type {TypeId}, notify={Notify}",
-            name, bytes.Length, file.ContentType, emp!.Name, emp.Number, emp.EawEmployeeId, cid, typeId, notify);
+        _log.LogInformation("easy@work HR-Files: sende «{Name}» ({Size} B, {Mime}, Mitteilung={Mitteilung}) an {Emp} ({Nr}, eaw {EawId}, customer {Cid}), type {TypeId}, notify={Notify}",
+            name, bytes.Length, mime, alsMitteilung, emp!.Name, emp.Number, emp.EawEmployeeId, cid, typeId, notify);
 
         var (status, body) = await _client.UploadHrFileRawAsync(
-            cid.Value, emp.EawEmployeeId, bytes, file.FileName, file.ContentType ?? "application/octet-stream",
+            cid.Value, emp.EawEmployeeId, bytes, fileName, mime,
             typeId, name.Trim(), notify, exp, warnDays, setExistingAsExpired, ct);
 
         var ok = status >= 200 && status < 300;
@@ -255,7 +297,7 @@ public class EasyAtWorkHrFilesController : ControllerBase
             status,
             employee = emp,
             customerId = cid,
-            sent = new { typeId, name = name.Trim(), fileName = file.FileName, mime = file.ContentType, size = bytes.Length, notify, expiresAt = exp, warnDays, setExistingAsExpired },
+            sent = new { typeId, name = name.Trim(), fileName, mime, size = bytes.Length, alsMitteilung, notify, expiresAt = exp, warnDays, setExistingAsExpired },
             response = ParseOrRaw(body),
         });
     }

@@ -183,6 +183,7 @@ builder.Services.AddScoped<NachtAusnahmePdfService>();
 // Kündigungsschreiben (Walter-Vorgabe 22.06.2026).
 builder.Services.AddScoped<KuendigungPdfService>();
 builder.Services.AddScoped<AufforderungZurArbeitPdfService>();
+builder.Services.AddScoped<MitteilungPdfService>();   // Mitteilung an MA als PDF (easy@work HR-Dateien, 08.09.2026)
 builder.Services.AddScoped<ArbeitszeugnisPdfService>();
 builder.Services.AddScoped<VerwarnungPdfService>();
 builder.Services.AddScoped<BewerbungsbogenPdfService>();

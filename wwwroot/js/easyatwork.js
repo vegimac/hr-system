@@ -2074,15 +2074,18 @@ async function eawHrFileSend() {
     const file   = fileEl && fileEl.files && fileEl.files[0];
     if (!nr)     { _eawHrOut('Bitte eine Personalnummer eingeben.', true); return; }
     if (!typeId) { _eawHrOut('Bitte zuerst die Dateitypen laden und einen wählen.', true); return; }
-    if (!name)   { _eawHrOut('Bitte einen Dokumentnamen angeben — den sieht der MA.', true); return; }
-    if (!file)   { _eawHrOut('Bitte eine Datei auswählen.', true); return; }
-    if (!confirm(`«${name}» (${file.name}) jetzt an Personalnr. ${nr} in easy@work senden?`)) return;
+    const text   = (document.getElementById('eawHrText')?.value || '').trim();
+    if (!name)   { _eawHrOut('Bitte einen Betreff/Dokumentnamen angeben — den sieht der MA.', true); return; }
+    if (!file && !text) { _eawHrOut('Bitte eine Datei auswählen ODER einen Mitteilungstext eingeben.', true); return; }
+    const was = file ? `(${file.name})` : '(Mitteilung als PDF)';
+    if (!confirm(`«${name}» ${was} jetzt an Personalnr. ${nr} in easy@work senden?`)) return;
 
     const fd = new FormData();
     fd.append('number', nr);
     fd.append('typeId', typeId);
     fd.append('name', name);
-    fd.append('file', file, file.name);
+    if (file) fd.append('file', file, file.name);
+    if (!file && text) fd.append('text', text);
     fd.append('notify', document.getElementById('eawHrNotify')?.checked ? 'true' : 'false');
     const exp = document.getElementById('eawHrExpires')?.value || '';
     if (exp) fd.append('expiresAt', exp);
