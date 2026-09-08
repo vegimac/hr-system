@@ -119,11 +119,26 @@ function _akIsHr() {
     return r === 'admin' || r === 'superuser';
 }
 
+// ── Akonto-Lohn ja/nein pro Filiale (Walter 08.09.2026) ──────────────────
+// Filiale mit akontoAktiv=false hat keinen Akonto-Strang: Umschalter weg,
+// Lohnlauf immer im Definitiv-Modus. Quelle ist allBranches (companyprofiles).
+function akontoAktivFuerFiliale(branchId) {
+    const id = branchId
+        || (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        || (typeof currentBranchId !== 'undefined' && currentBranchId) || null;
+    if (!id) return true;
+    const list = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
+    const b = list.find(x => String(x.id) === String(id));
+    return !b || b.akontoAktiv !== false;
+}
+
 // ── Modus-Schalter ────────────────────────────────────────────────────────
 function setLohnMode(mode) {
     if (mode !== 'definitiv' && mode !== 'akonto') return;
+    const erzwungen = (mode === 'akonto' && !akontoAktivFuerFiliale());
+    if (erzwungen) mode = 'definitiv';
     _akWfMode = mode;
-    try { localStorage.setItem(_LOHN_MODE_KEY, mode); } catch {}
+    if (!erzwungen) { try { localStorage.setItem(_LOHN_MODE_KEY, mode); } catch {} }
     _akWfUpdateModeButtons();
     const defView  = document.getElementById('lohnDefinitivView');
     const akView   = document.getElementById('lohnAkontoView');
@@ -213,7 +228,7 @@ async function _autoSelectLohnMode() {
                 const def = d.definitivStatus || 'offen';
                 const defAdvanced = def === 'provisorisch_abgeschlossen' || def === 'abgeschlossen';
                 const ak = d.akontoStatus || 'OFFEN';
-                if (defAdvanced || ak === 'AUSBEZAHLT' || ak === 'UEBERSPRUNGEN')
+                if (defAdvanced || ak === 'AUSBEZAHLT' || ak === 'UEBERSPRUNGEN' || !akontoAktivFuerFiliale(branchId))
                     mode = 'definitiv';
                 else
                     mode = 'akonto';
@@ -288,6 +303,9 @@ function _akWfUpdateModeButtons() {
     const def = document.getElementById('lohnModeDefinitivBtn');
     const ak  = document.getElementById('lohnModeAkontoBtn');
     if (!def || !ak) return;
+    // Filiale ohne Akonto-Lohn: ganzer Umschalter weg (es gibt nur Definitiv).
+    const toggleWrap = ak.parentElement;
+    if (toggleWrap) toggleWrap.style.display = akontoAktivFuerFiliale() ? '' : 'none';
     const active   = 'background:#6b7280;color:white;border-color:#6b7280';
     const inactive = 'background:white;color:#475569;border-color:#cbd5e1';
     const base     = 'padding:7px 14px;border:1px solid;font-size:13px;font-weight:600;cursor:pointer';
@@ -298,6 +316,7 @@ function _akWfUpdateModeButtons() {
 
 // Wird vom showPage('lohn') aufgerufen + von onBranchChange / Period-Change.
 function akWfOnPageOrBranchChange() {
+    if (_akWfMode === 'akonto' && !akontoAktivFuerFiliale()) _akWfMode = 'definitiv';
     _akWfUpdateModeButtons();
     // Bei Page-Open / Filial-Wechsel: auf älteste offene Periode springen
     // (Walter-Vorgabe 16.05.2026 — keine Lücken). Asynchron, blockiert nichts.

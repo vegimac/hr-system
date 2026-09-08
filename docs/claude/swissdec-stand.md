@@ -24,3 +24,9 @@ Elektronische Lohnmeldung: Konzept + Etappenplan E1–E9 in `docs/swissdec-elm6-
 - nginx: gzip_types aktiviert, Test-Site mit expires 7d + http2, Timing-Log /var/log/nginx/test-timing.log.
 - Nächste Schritte: 4b Lohnpositionen aus ELM-Lohnraster, 4c Mutationen (647), 5 Lohnläufe Nov 2024–Feb 2026
   (Ferien-% 8.33 / Ferientage nach Alter der Muster AG als Filial-Einstellung vorher lösen; QST-Jahresmodell TI/VD).
+
+## Stand 09.09.2026 (Nacht)
+- TF01 Monica Herz Januar 2025 stimmt mit dem Swissdec-Soll überein: Brutto 11'916.95, AHV 552.10, ALV 114.59, UVG 167.30, UVGZ 80.63, KTG 3.77, BVG 53.00, Ausgleich 682.00. Einzige Abweichung: L-GAV 49.50 — Fix (LgavBeitragService entfernt Auto-Beitrag bei deaktivierter Filiale) gebaut, noch nicht deployt.
+- Neu gebaut, deployt: Akonto-Lohn ja/nein pro Filiale, Ferienentschädigung monatlich pro Filiale, Swissdec-Lohnart an der Lohnposition + Katalog aus Wage_Types.xlsx, 4b/5b darauf, Rundung 5 Rp. für Lohnzeilen, UVGZ/KTG voll AN, QST-Tarife 2024–2026 BE/LU/TI/VD in Assets/Quellensteuer, WebP-Bilder, Warmlaufen + ReadyToRun, Login-Doppelsubmit, Einstellungen-Tab mit Abschnitten, Zeitstempel-Normalisierung im AppDbContext.
+- Nächste Schritte: deployen (L-GAV-Fix), 5b Monat für Monat für alle Testfälle, Beleg-Vergleich weiterer Fälle (Monatslohn/FIX, QST, Kinderzulagen), Git-Commit des Gesamtstands (Arbeitsstand ist deployt, aber nicht committet — Commit weiterhin 70628dc).
+- Perf: Test nach Deploy — Server/Warmlaufen 229 ms, alle Startaufrufe in 1 s; wahrgenommene Langsamkeit liegt vor dem ersten Request (Neustart-Minute oder Browser). Nächstes Mal Uhrzeit beim Laden notieren.

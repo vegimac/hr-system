@@ -10,6 +10,12 @@
          Tests/* sonst zieht das Haupt-Projekt die Test-Files mit rein (statt
          dass sie nur via Tests/hr-system.Tests.csproj kompiliert werden). -->
     <DefaultItemExcludes>$(DefaultItemExcludes);publish/**;bin/**;obj/**;Tests/**</DefaultItemExcludes>
+    <!-- ReadyToRun (Walter 08.09.2026): Code wird beim Publish vorkompiliert,
+         damit nach einem Neustart nicht jeder erste Aufruf sekundenlang im JIT
+         hängt. deploy.sh publisht mit -r linux-x64 — Voraussetzung für R2R.
+         Publish dauert dadurch länger, die Instanzen starten dafür schnell. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <TieredPGO>true</TieredPGO>
   </PropertyGroup>
 
   <ItemGroup>

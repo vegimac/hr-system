@@ -22,16 +22,31 @@ let _llTab = (() => {
     catch { return 'akonto'; }
 })();
 
+// Akonto-Lohn ja/nein der aktuell gewählten Filiale (Walter 08.09.2026).
+// Bei «nein» gibt es im HR-Lohnlauf nur den Definitiv-Reiter.
+function _llAkontoAktiv() {
+    const cid = document.getElementById('llBranchSelect')?.value
+             || (typeof currentBranchId !== 'undefined' ? currentBranchId : '');
+    const list = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
+    const b = list.find(x => String(x.id) === String(cid));
+    return !b || b.akontoAktiv !== false;
+}
+// Effektiver Reiter: gewünschter Reiter, ausser die Filiale hat kein Akonto.
+function _llEffectiveTab() {
+    return (_llTab === 'akonto' && !_llAkontoAktiv()) ? 'definitiv' : _llTab;
+}
+
 // Tab umschalten: setzt internen State, persistiert in localStorage,
 // blendet die richtige View ein und triggert deren Loader.
 function llSwitchTab(name) {
     _llTab = (name === 'definitiv') ? 'definitiv' : 'akonto';
+    if (_llTab === 'akonto' && !_llAkontoAktiv()) _llTab = 'definitiv';
     try { localStorage.setItem('hrLohnlaufTab', _llTab); } catch {}
     _llUpdateTabUi();
     // Beide Tabs hängen am gleichen Periode-Picker — Inhalt neu laden,
     // damit der eben sichtbare Tab aktuelle Daten zeigt.
-    if (_llTab === 'akonto')    llLoadAkontoTab();
-    else                         llLoadStatus();
+    if (_llEffectiveTab() === 'akonto') llLoadAkontoTab();
+    else                                 llLoadStatus();
 }
 
 // Tab-Pillen-Styles aktualisieren und Views ein-/ausblenden.
@@ -42,7 +57,10 @@ function _llUpdateTabUi() {
     const dfView = document.getElementById('llDefinitivView');
     if (!akBtn || !defBtn || !akView || !dfView) return;
 
-    const isAk = (_llTab === 'akonto');
+    // Filiale ohne Akonto-Lohn: Akonto-Reiter ausblenden, Definitiv erzwingen.
+    const akontoAktiv = _llAkontoAktiv();
+    akBtn.style.display = akontoAktiv ? '' : 'none';
+    const isAk = (_llEffectiveTab() === 'akonto');
     // Aktiver Tab: blauer Border-Bottom + dunkler Text.
     akBtn.style.borderBottomColor = isAk ? '#6b6152' : 'transparent';
     akBtn.style.color             = isAk ? '#0f172a' : '#64748b';
@@ -121,9 +139,10 @@ async function llSyncFromGlobalBranch() {
     // Älteste nicht-abgeschlossene Periode finden und Monat/Jahr darauf setzen
     await llSetDefaultPeriode(parseInt(cid));
 
-    // Aktiven Tab laden (Default Akonto).
-    if (_llTab === 'akonto') llLoadAkontoTab();
-    else                      llLoadStatus();
+    // Aktiven Tab laden (Default Akonto; ohne Akonto-Lohn immer Definitiv).
+    _llUpdateTabUi();
+    if (_llEffectiveTab() === 'akonto') llLoadAkontoTab();
+    else                                 llLoadStatus();
 }
 
 // Setzt die Monat/Jahr-Auswahl auf die älteste nicht-abgeschlossene Periode
@@ -157,14 +176,15 @@ async function llSetDefaultPeriode(companyProfileId) {
 }
 
 function llBranchChanged() {
-    if (_llTab === 'akonto') llLoadAkontoTab();
+    _llUpdateTabUi();
+    if (_llEffectiveTab() === 'akonto') llLoadAkontoTab();
     else                      llLoadStatus();
 }
 
 // Onchange-Hook der gemeinsamen Periode-Selects (Monat/Jahr) — lädt den
 // gerade aktiven Tab neu. Beide Tabs teilen sich Filiale/Monat/Jahr.
 function llPeriodChanged() {
-    if (_llTab === 'akonto') llLoadAkontoTab();
+    if (_llEffectiveTab() === 'akonto') llLoadAkontoTab();
     else                      llLoadStatus();
 }
 

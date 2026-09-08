@@ -742,7 +742,7 @@
 <!-- Anmeldung (eigener Einstieg, kein Umweg über das Programm) -->
 <div id="loginOverlay" class="pf-pwd-overlay" style="display:none">
     <div class="pf-pwd-card">
-        <img src="img/onecrew-logo.png?v=20260628a" alt="OneCrew" style="height:40px;width:auto;display:block;margin:0 auto 14px">
+        <img src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew" style="height:40px;width:auto;display:block;margin:0 auto 14px">
         <h2 class="pf-pwd-title">Anmelden</h2>
         <p class="pf-pwd-sub">OneCrew Mobil — Mitteilungen und Dokumente. Mit deinem OneCrew-Konto.</p>
         <div id="loginError" class="pf-pwd-error"></div>
@@ -891,14 +891,14 @@
 
 <header class="pf-header">
     <div class="pf-header-row">
-        <img class="pf-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+        <img class="pf-logo" src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew">
         <div class="pf-actions" style="position:relative">
             <button class="pf-menu-btn" onclick="pfToggleMenu(event)" aria-label="Einstellungen" title="Einstellungen">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#3f3f3f" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
             <div class="pf-menu" id="pfMenu" style="display:none">
-                <button class="pf-menu-item" id="pfMenuFaceId" onclick="pfMenuAction(openFaceIdSettings)" style="display:none"><img src="img/face-id-kohle-freigestellt-crop.png?v=20260704a" alt="">Face ID / Touch ID</button>
-                <button class="pf-menu-item danger" onclick="pfMenuAction(pfLogout)"><img src="img/abmelden.png?v=20260630b" alt="">Abmelden</button>
+                <button class="pf-menu-item" id="pfMenuFaceId" onclick="pfMenuAction(openFaceIdSettings)" style="display:none"><img src="img/face-id-kohle-freigestellt-crop.webp?v=20260704a" alt="">Face ID / Touch ID</button>
+                <button class="pf-menu-item danger" onclick="pfMenuAction(pfLogout)"><img src="img/abmelden.webp?v=20260630b" alt="">Abmelden</button>
             </div>
         </div>
     </div>
@@ -908,8 +908,8 @@
 
 <main class="pf-main">
     <div class="pf-tabs" role="tablist">
-        <button id="pfTabIn"  class="pf-tab active" onclick="switchTab('in')"><img class="pf-tab-img" src="img/in.png?v=20260630b" alt="">Empfangen <span class="pf-tab-count" id="pfTabInCount" style="display:none">0</span></button>
-        <button id="pfTabOut" class="pf-tab"        onclick="switchTab('out')"><img class="pf-tab-img" src="img/out.png?v=20260630b" alt="">Gesendet <span class="pf-tab-count" id="pfTabOutCount" style="display:none">0</span></button>
+        <button id="pfTabIn"  class="pf-tab active" onclick="switchTab('in')"><img class="pf-tab-img" src="img/in.webp?v=20260630b" alt="">Empfangen <span class="pf-tab-count" id="pfTabInCount" style="display:none">0</span></button>
+        <button id="pfTabOut" class="pf-tab"        onclick="switchTab('out')"><img class="pf-tab-img" src="img/out.webp?v=20260630b" alt="">Gesendet <span class="pf-tab-count" id="pfTabOutCount" style="display:none">0</span></button>
     </div>
     <div id="pfList"><div class="pf-loading">Wird geladen…</div></div>
     <div class="pf-footer"></div>
@@ -1106,7 +1106,7 @@
     function renderInbox(docs) {
         const el = document.getElementById('pfList');
         if (!docs || docs.length === 0) {
-            el.innerHTML = '<div class="pf-empty"><img class="pf-empty-img" src="img/MailboxIcon.png?v=20260630b" alt=""><div class="pf-empty-title">Keine Mitteilungen</div><div class="pf-empty-text">Was dir andere Benutzer ins Postfach legen, erscheint hier.</div></div>';
+            el.innerHTML = '<div class="pf-empty"><img class="pf-empty-img" src="img/MailboxIcon.webp?v=20260630b" alt=""><div class="pf-empty-title">Keine Mitteilungen</div><div class="pf-empty-text">Was dir andere Benutzer ins Postfach legen, erscheint hier.</div></div>';
             return;
         }
         docs.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));
@@ -1170,7 +1170,7 @@
     function renderOutbox(docs) {
         const el = document.getElementById('pfList');
         if (!docs || docs.length === 0) {
-            el.innerHTML = '<div class="pf-empty"><img class="pf-empty-img" src="img/MailboxIcon.png?v=20260630b" alt=""><div class="pf-empty-title">Noch nichts gesendet</div></div>';
+            el.innerHTML = '<div class="pf-empty"><img class="pf-empty-img" src="img/MailboxIcon.webp?v=20260630b" alt=""><div class="pf-empty-title">Noch nichts gesendet</div></div>';
             return;
         }
         docs.sort((a, b) => (b.uploadedAt || '').localeCompare(a.uploadedAt || ''));

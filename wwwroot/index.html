@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260908f">
+    <link rel="stylesheet" href="css/app.css?v=20260909b">
 </head>
 <body>
 
@@ -18,7 +18,7 @@
     <!-- Header: unveränderter Architektur-Sketch (Bogen) + Schriftzug OneCrew,
          darunter Linie + Purpose Statement -->
     <header class="login-header">
-        <img class="login-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+        <img class="login-logo" src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew">
         <hr class="login-rule">
         <p class="login-tagline">Hospitality starts with our Crew.</p>
     </header>
@@ -121,7 +121,7 @@
             <button id="lsEmpSyncBtn" title="Aktualisiert easy@work-Felder des gewählten Mitarbeiters aus der API"
                     onclick="lsEmpSyncClick()"
                     style="display:none;background:#fff;border:1px solid #e2e8f0;cursor:pointer;padding:5px 11px;border-radius:10px;align-items:center;gap:6px;font-size:12.5px;color:#3f3f3f;font-weight:600">
-                <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:16px;height:16px;object-fit:contain">
+                <img src="img/easyatwork-icon.webp?v=20260628a" alt="easy@work" style="width:16px;height:16px;object-fit:contain">
                 <span>easy@work sync</span>
             </button>
             <!-- Walter-Vorgabe 27.05.2026: Globale Suche (Cmd-K) + Hilfe-Button
@@ -163,7 +163,7 @@
         <!-- SIDEBAR -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <img class="sidebar-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+                <img class="sidebar-logo" src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew">
             </div>
             <div class="branch-selector">
                 <span class="branch-label">Filiale</span>
@@ -194,13 +194,13 @@
                 </div>
                 <div class="nav-section todos-section">
                     <div class="nav-item" data-page="todos" onclick="dashOpenTodos()">
-                        <img class="nav-icon-img" src="img/todo-nav.png?v=20260704b" alt="">
+                        <img class="nav-icon-img" src="img/todo-nav.webp?v=20260704b" alt="">
                         <span>To do</span>
                     </div>
                 </div>
                 <div class="nav-section people-section">
                     <div class="nav-item" data-page="mitarbeiter" onclick="showPage('mitarbeiter')">
-                        <img class="nav-icon-img" src="img/mitarbeiter-icon.png?v=20260628b" alt="">
+                        <img class="nav-icon-img" src="img/mitarbeiter-icon.webp?v=20260628b" alt="">
                         <span data-i18n="side.employees">Mitarbeiter</span>
                     </div>
                     <!-- McAdmin (Walter 15.08.2026): Sammelstelle für die
@@ -208,20 +208,20 @@
                          werden schrittweise aus «MA Formulare» hierher gezogen.
                          Reihenfolge (Walter 15.08.2026): direkt unter Mitarbeiter. -->
                     <div class="nav-item" data-page="mcadmin" onclick="showPage('mcadmin')">
-                        <img class="nav-icon-img" src="img/RestAdmin.png?v=20260815b" alt="">
+                        <img class="nav-icon-img" src="img/RestAdmin.webp?v=20260815b" alt="">
                         <span>McAdmin</span>
                     </div>
                 </div>
                 <div class="nav-section overview-section">
                     <div class="nav-item" data-page="posteingang" onclick="showPage('posteingang')">
-                        <img class="nav-icon-img" src="img/postfach-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/postfach-icon.webp?v=20260628a" alt="">
                         <span>Postfach</span>
                         <span id="posteingangBadge" style="display:none;margin-left:auto;background:#ef4444;color:white;font-size:11px;font-weight:700;padding:2px 7px;border-radius:10px"></span>
                     </div>
                 </div>
                 <div class="nav-section finance-section" style="display:none">
                     <div class="nav-item" data-page="auswertungen" onclick="showPage('auswertungen')" title="Auswertungen — Sollstunden, Ferien / Feiertage / Nacht">
-                        <img class="nav-icon-img" src="img/auswertung-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/auswertung-icon.webp?v=20260628a" alt="">
                         <span>Auswertungen</span>
                     </div>
                     <!-- Manager-DP aus der Sidebar nach McAdmin verschoben (Walter 15.08.2026). -->
@@ -229,14 +229,14 @@
                 <!-- «Mirus Absenz Import» aus der Sidebar nach McAdmin verschoben (Walter 15.08.2026). -->
                 <div class="nav-section finance-section" style="display:none">
                     <div class="nav-item" data-page="lohn" onclick="showPage('lohn')">
-                        <img class="nav-icon-img" src="img/lohn-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/lohn-icon.webp?v=20260628a" alt="">
                         <span>Lohnlauf</span>
                     </div>
                 </div>
                 <!-- HR-Hub: nur admin/superuser/buchhaltung -->
                 <div class="nav-section hr-section" style="display:none">
                     <div class="nav-item" data-page="hr-hub" onclick="showPage('hr-hub')">
-                        <img class="nav-icon-img" src="img/hr-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/hr-icon.webp?v=20260628a" alt="">
                         <span>HR-Hub</span>
                     </div>
                 </div>
@@ -245,7 +245,7 @@
                      (Walter 22.07.2026). -->
                 <div class="nav-section buchhaltung-section" style="display:none">
                     <div class="nav-item" data-page="fibu" onclick="showPage('fibu')">
-                        <img class="nav-icon-img" src="img/fibu-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/fibu-icon.webp?v=20260628a" alt="">
                         <span>FIBU</span>
                     </div>
                 </div>
@@ -254,7 +254,7 @@
                      Klasse people-section = gleiche Sichtbarkeits-Steuerung wie vorher. -->
                 <div class="nav-section people-section">
                     <div class="nav-item" data-page="moments" onclick="showPage('moments')">
-                        <img class="nav-icon-img" src="img/moments-icon.png?v=20260630c" alt="">
+                        <img class="nav-icon-img" src="img/moments-icon.webp?v=20260630c" alt="">
                         <span>Moments</span>
                     </div>
                 </div>
@@ -268,13 +268,13 @@
                      macht diese Sektion ausschliesslich applyAreaVisibility(). -->
                 <div class="nav-section entw-only-section" style="display:none">
                     <div class="nav-item" data-page="entwicklung" onclick="showPage('entwicklung')">
-                        <img class="nav-icon-img" src="img/entwkat-swissdec.png?v=20260831a" alt="">
+                        <img class="nav-icon-img" src="img/entwkat-swissdec.webp?v=20260831a" alt="">
                         <span>Entwicklung</span>
                     </div>
                 </div>
                 <div class="nav-section admin-only-section" style="display:none">
                     <div class="nav-item" data-page="admin-hub" onclick="showPage('admin-hub')">
-                        <img class="nav-icon-img" src="img/system-icon.png?v=20260628a" alt="">
+                        <img class="nav-icon-img" src="img/system-icon.webp?v=20260628a" alt="">
                         <span data-i18n="side.settings">System</span>
                     </div>
                 </div>
@@ -333,35 +333,35 @@
                     <div class="liquid-home-shell">
                         <section class="liquid-module-grid" aria-label="Hauptmodule">
                             <button class="liquid-module-card" id="dashTodoTile" onclick="dashOpenTodos()" type="button">
-                                <img src="img/todo.png?v=20260704j" alt="To do" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/todo.webp?v=20260704j" alt="To do" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>To do</span>
                                 <span class="liquid-todo-badge" id="dashTodoBadge" style="display:none">0</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('mitarbeiter')" type="button">
                                 <!-- Mitarbeiter-Icon: Original-Sketch (Walter 28.06.2026). mix-blend-mode:multiply
                                      lässt den cremefarbenen Papier-Hintergrund in der warmen Kachel verschwinden. -->
-                                <img src="img/mitarbeiter-icon.png?v=20260704d" alt="Mitarbeiter"
+                                <img src="img/mitarbeiter-icon.webp?v=20260704d" alt="Mitarbeiter"
                                      style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>Mitarbeiter</span>
                             </button>
                             <!-- McAdmin-Kachel (Walter 04.09.2026): direkt nach Mitarbeiter,
                                  gleiche Reihenfolge wie in der Sidebar. -->
                             <button class="liquid-module-card" onclick="showPage('mcadmin')" type="button">
-                                <img src="img/RestAdmin.png?v=20260815b" alt="McAdmin" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/RestAdmin.webp?v=20260815b" alt="McAdmin" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>McAdmin</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('moments')" type="button">
                                 <!-- Moments-Icon: eng zugeschnittener Sketch, füllt die Kachel fast aus -->
-                                <img src="img/moments-icon.png?v=20260704d" alt="Moments" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/moments-icon.webp?v=20260704d" alt="Moments" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>Moments</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('posteingang')" type="button">
                                 <!-- Postfach-Icon: Original-Sketch (Briefumschlag), gleich wie Mitarbeiter-Icon -->
-                                <img src="img/postfach-icon.png?v=20260704d" alt="Postfach" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/postfach-icon.webp?v=20260704d" alt="Postfach" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>Postfach</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('auswertungen')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <img src="img/auswertung-icon.png?v=20260704d" alt="Auswertungen" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/auswertung-icon.webp?v=20260704d" alt="Auswertungen" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>Auswertungen</span>
                             </button>
                             <!-- Mirus-Absenz-Import-Kachel bewusst ENTFERNT (Walter 12.08.2026):
@@ -372,19 +372,19 @@
                                 <span>Manager<br>Dienstplan</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('lohn')" type="button" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <img src="img/lohn-icon.png?v=20260704d" alt="Lohnlauf" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/lohn-icon.webp?v=20260704d" alt="Lohnlauf" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>Lohnlauf</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('hr-hub')" type="button" data-liquid-roles="admin,superuser,buchhaltung">
-                                <img src="img/hr-icon.png?v=20260704d" alt="HR-Hub" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/hr-icon.webp?v=20260704d" alt="HR-Hub" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>HR-Hub</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('fibu')" type="button" data-liquid-roles="admin,buchhaltung">
-                                <img src="img/fibu-icon.png?v=20260704d" alt="FIBU" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/fibu-icon.webp?v=20260704d" alt="FIBU" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>FIBU</span>
                             </button>
                             <button class="liquid-module-card" onclick="showPage('admin-hub')" type="button" data-liquid-roles="admin">
-                                <img src="img/system-icon.png?v=20260704d" alt="System" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
+                                <img src="img/system-icon.webp?v=20260704d" alt="System" style="width:96px;height:96px;object-fit:contain;position:relative;z-index:1">
                                 <span>System</span>
                             </button>
                         </section>
@@ -423,7 +423,7 @@
                     <div class="emp-layout liquid-employee-layout-grid">
                         <nav class="liquid-employee-nav" aria-label="Schnellnavigation">
                             <div class="liquid-employee-brand">
-                                <img class="sidebar-logo" src="img/onecrew-logo.png?v=20260628a" alt="OneCrew">
+                                <img class="sidebar-logo" src="img/onecrew-logo.webp?v=20260628a" alt="OneCrew">
                             </div>
                             <div class="liquid-employee-branch" id="liquidEmployeeBranchWrap" hidden>
                                 <label>Filiale</label>
@@ -438,15 +438,15 @@
                                 <span>Dashboard</span>
                             </button>
                             <button class="liquid-employee-nav-btn active" onclick="showPage('mitarbeiter')" type="button" title="Mitarbeiter" aria-label="Mitarbeiter">
-                                <img class="le-nav-img" src="img/mitarbeiter-icon.png?v=20260628b" alt="">
+                                <img class="le-nav-img" src="img/mitarbeiter-icon.webp?v=20260628b" alt="">
                                 <span>Mitarbeiter</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('posteingang')" type="button" title="Postfach" aria-label="Postfach">
-                                <img class="le-nav-img" src="img/postfach-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/postfach-icon.webp?v=20260628a" alt="">
                                 <span>Postfach</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('auswertungen')" type="button" title="Auswertungen" aria-label="Auswertungen" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <img class="le-nav-img" src="img/auswertung-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/auswertung-icon.webp?v=20260628a" alt="">
                                 <span>Auswertungen</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('roster-absence-import')" type="button" title="Mirus Absenz Import" aria-label="Mirus Absenz Import" data-liquid-roles="admin,superuser">
@@ -454,19 +454,19 @@
                                 <span>Mirus Absenz<br>Import</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('lohn')" type="button" title="Lohnlauf" aria-label="Lohnlauf" data-liquid-roles="admin,superuser,user,buchhaltung">
-                                <img class="le-nav-img" src="img/lohn-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/lohn-icon.webp?v=20260628a" alt="">
                                 <span>Lohnlauf</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('hr-hub')" type="button" title="HR-Hub" aria-label="HR-Hub" data-liquid-roles="admin,superuser,buchhaltung">
-                                <img class="le-nav-img" src="img/hr-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/hr-icon.webp?v=20260628a" alt="">
                                 <span>HR-Hub</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('fibu')" type="button" title="FIBU" aria-label="FIBU" data-liquid-roles="admin,buchhaltung">
-                                <img class="le-nav-img" src="img/fibu-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/fibu-icon.webp?v=20260628a" alt="">
                                 <span>FIBU</span>
                             </button>
                             <button class="liquid-employee-nav-btn" onclick="showPage('admin-hub')" type="button" title="System" aria-label="System" data-liquid-roles="admin">
-                                <img class="le-nav-img" src="img/system-icon.png?v=20260628a" alt="">
+                                <img class="le-nav-img" src="img/system-icon.webp?v=20260628a" alt="">
                                 <span>System</span>
                             </button>
                         </nav>
@@ -482,7 +482,7 @@
                             <div class="liquid-role-el" data-liquid-roles="admin,superuser,user,buchhaltung" style="padding:0 12px 6px">
                                 <button type="button" class="emp-eaw-new-btn" onclick="empImportFromEasy()"
                                         title="Neuen MA zuerst in easy@work anlegen — dieser Knopf holt ihn dann per Stammdaten-Sync ins System">
-                                    <img src="img/easyatwork-icon.png?v=20260628a" alt="" aria-hidden="true">
+                                    <img src="img/easyatwork-icon.webp?v=20260628a" alt="" aria-hidden="true">
                                     <span>Neuer MA aus easy@work</span>
                                 </button>
                             </div>
@@ -552,7 +552,7 @@
                         <!-- Komposition -->
                         <div style="flex:1;min-width:360px;max-width:580px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
                             <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
-                                <img src="img/moments-icon.png?v=20260630c" alt="" style="width:84px;height:84px;object-fit:contain;mix-blend-mode:multiply">
+                                <img src="img/moments-icon.webp?v=20260630c" alt="" style="width:84px;height:84px;object-fit:contain;mix-blend-mode:multiply">
                                 <div style="font-weight:700;font-size:18px;color:#0f172a">Neuer Moment</div>
                             </div>
 
@@ -1447,80 +1447,80 @@
                      Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster, Lohnschema, Absenz-Typen">
-                        <img src="img/lohn-stammdaten.png?v=20260816b" alt="" loading="lazy">
+                        <img src="img/lohn-stammdaten.webp?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="filialen" onclick="adminHubShowCat('filialen')" title="Restaurants, Zugänge, Rollen, Filial-Berechtigungen">
-                        <img src="img/Filialen.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/Filialen.webp?v=20260816a" alt="" loading="lazy">
                         <span>Filialen &amp; Benutzer</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="kataloge" onclick="adminHubShowCat('kataloge')" title="Ärzte, Behörden, Mutterschaft, Globale Daten, Dokumente">
-                        <img src="img/Verzeichnisse-Vorgaben.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/Verzeichnisse-Vorgaben.webp?v=20260816a" alt="" loading="lazy">
                         <span>Verzeichnisse &amp; Vorgaben</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="komm" onclick="adminHubShowCat('komm')" title="E-Mail, SMS, Moments-Texte, Postfach-Backfill">
-                        <img src="img/Kommunikation.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/Kommunikation.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kommunikation</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="adminHubShowCat('kontrolle')" title="Warnungen, Aktivitäts-Log, Dokumenten-Audit, Datenaufbewahrung">
-                        <img src="img/KontrolleDatenpflege.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/KontrolleDatenpflege.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kontrolle &amp; Datenpflege</span>
                     </button>
                 </div>
                 <div class="admin-hub-group" id="adminHubGrp-lohn" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('perioden')">
-                        <img src="img/lohnkat-perioden.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-perioden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnperioden</div>
                         <div class="admin-card-desc">Abrechnungsperioden verwalten und abschliessen</div>
                     </div>
                         <div class="admin-card" onclick="showPage('sv-saetze')">
-                        <img src="img/lohnkat-sv-saetze.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-sv-saetze.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">SV-Sätze</div>
                         <div class="admin-card-desc">AHV, ALV, NBU, KTG, BVG — Prozentsätze</div>
                     </div>
                         <div class="admin-card" onclick="showPage('mindestloehne')">
-                        <img src="img/lohnkat-mindestloehne.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-mindestloehne.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Mindestlöhne</div>
                         <div class="admin-card-desc">L-GAV Mindestlöhne nach Funktion, Modell und Ausbildung</div>
                     </div>
                         <div class="admin-card" onclick="showPage('lohnpositionen')">
-                        <img src="img/lohnkat-lohnpositionen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">OneCrew Lohnpositionen</div>
                         <div class="admin-card-desc">Lohnarten, SV-Flags, Lohnausweis-Codes</div>
                     </div>
                         <div class="admin-card" onclick="showPage('qst-tarife')">
-                        <img src="img/lohnkat-qst-tarife.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-qst-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">QST Tarife</div>
                         <div class="admin-card-desc">Quellensteuer-Tarife pro Kanton</div>
                     </div>
                         <div class="admin-card" onclick="showPage('fz-tarife')">
-                        <img src="img/lohnkat-fz-tarife.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-fz-tarife.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Familienzulagen-Tarife</div>
                         <div class="admin-card-desc">Kantonale FAK-Sätze (Kinder-/Ausbildungszulage)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('saldo-vortrag')">
-                        <img src="img/lohnkat-saldo-vortrag.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-saldo-vortrag.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Saldi-Vortrag</div>
                         <div class="admin-card-desc">Einmalige Migration vom Alt-System — Zeit/Ferien/13. ML pro MA</div>
                     </div>
                         <div class="admin-card" onclick="showPage('kontoplan')">
-                        <img src="img/lohnkat-kontoplan.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Kontoplan (Fibu)</div>
                         <div class="admin-card-desc">Lohnart→Konten-Mapping für Fibu-Journal / Abacus</div>
                     </div>
                         <div class="admin-card" onclick="showPage('elm-lohnraster')">
-                        <img src="img/lohnkat-lohnraster-elm.png?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-lohnraster-elm.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnraster (ELM)</div>
                         <div class="admin-card-desc">Referenzkatalog — Lohnarten per PickList in OneCrew übernehmen</div>
                     </div>
                         <div class="admin-card" onclick="showPage('lohnschema')">
-                        <img src="img/lohnkat-lohnschema.png?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Lohnschema</div>
                         <div class="admin-card-desc">Standard-Lohnblatt pro Vertragsmodell (FLEX/MTP/FIX/FIX-M)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('absenz-typen')">
-                        <img src="img/vvkat-absenz-typen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-absenz-typen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Absenz-Typen</div>
                         <div class="admin-card-desc">Krank, Unfall, Ferien, Mutterschaft — lohnwirksame Zeitgutschrift-Regeln</div>
                     </div>
@@ -1529,17 +1529,17 @@
                 <div class="admin-hub-group" id="adminHubGrp-filialen" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('hauptsitze')">
-                        <img src="img/hauptsitz-karte.png?v=20260829c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/hauptsitz-karte.webp?v=20260829c" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Hauptsitze</div>
                         <div class="admin-card-desc">Rechtseinheiten (GmbH) — UID, Sitzadresse, Filial-Zuordnung</div>
                     </div>
                         <div class="admin-card" onclick="showPage('filialen')">
-                        <img src="img/Filialen-karte.png?v=20260816b" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/Filialen-karte.webp?v=20260816b" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Filialen</div>
                         <div class="admin-card-desc">Restaurants, Lohnperioden, Karenz-Settings</div>
                     </div>
                         <div class="admin-card" onclick="showPage('benutzer')">
-                        <img src="img/Benutzer-sketch.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/Benutzer-sketch.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Benutzer</div>
                         <div class="admin-card-desc">Zugänge, Rollen, Filial-Berechtigungen</div>
                     </div>
@@ -1548,27 +1548,27 @@
                 <div class="admin-hub-group" id="adminHubGrp-kataloge" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('aerzte')">
-                        <img src="img/vvkat-aerzte.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-aerzte.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Ärzte</div>
                         <div class="admin-card-desc">Behandelnde Ärzte der MA — für Arztbriefe (Mutterschutz)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('behoerden')">
-                        <img src="img/vvkat-behoerden.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Behörden</div>
                         <div class="admin-card-desc">Betreibungsämter, Sozialämter, Empfänger</div>
                     </div>
                         <div class="admin-card" onclick="showPage('pregnancy-rules')">
-                        <img src="img/vvkat-pregnancy.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-pregnancy.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Mutterschafts-Regeln</div>
                         <div class="admin-card-desc">Gesetzliche Fristen bei Schwangerschaft (ArG/ArGV/OR)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('globale-daten')">
-                        <img src="img/vvkat-globale-daten.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-globale-daten.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Globale Daten</div>
                         <div class="admin-card-desc">Banken (SIX-Liste) + Nationen</div>
                     </div>
                         <div class="admin-card" onclick="showPage('dokumentstruktur')">
-                        <img src="img/vvkat-dokumentstruktur.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-dokumentstruktur.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Dokument-Struktur</div>
                         <div class="admin-card-desc">Kategorien & Typen für Personaldossier</div>
                     </div>
@@ -1577,22 +1577,22 @@
                 <div class="admin-hub-group" id="adminHubGrp-komm" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('smtp-settings')">
-                        <img src="img/kommkat-email.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kommkat-email.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">E-Mail-Versand</div>
                         <div class="admin-card-desc">SMTP-Konfiguration + Test-Mail (Lohnzettel-Benachrichtigungen)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('ecall')">
-                        <img src="img/kommkat-sms.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kommkat-sms.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">SMS (eCall)</div>
                         <div class="admin-card-desc">eCall-Zugangsdaten (F24 Schweiz) + Test-SMS</div>
                     </div>
                         <div class="admin-card" onclick="showPage('moment-texte')">
-                        <img src="img/kommkat-moments.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kommkat-moments.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Moments-Texte</div>
                         <div class="admin-card-desc">Vorlagen für Moments, Vertrags-Link &amp; Bewilligungs-SMS</div>
                     </div>
                         <div class="admin-card" onclick="postfachBackfillRun()">
-                        <img src="img/kommkat-postfach.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kommkat-postfach.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Postfach-Backfill</div>
                         <div class="admin-card-desc">Persönliches Postfach für alle aktiven MA erstellen</div>
                     </div>
@@ -1604,12 +1604,12 @@
                              verschoben (Walter-Vorgabe 23.08.2026): Pflege der
                              Dashboard-Warnungen gehört zur Kontrolle/Datenpflege. -->
                         <div class="admin-card" onclick="showPage('warnungen')">
-                        <img src="img/vvkat-warnungen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/vvkat-warnungen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Warnungen</div>
                         <div class="admin-card-desc">Dashboard-Warnungen: an/aus, Priorität, Warnfarbe, Vorlauf, Schweregrad</div>
                     </div>
                         <div class="admin-card admin-only-card" onclick="showPage('audit-log')">
-                        <img src="img/kontkat-audit-log.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kontkat-audit-log.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Aktivitäts-Log</div>
                         <div class="admin-card-desc">Wer hat wann was geändert, erstellt oder gelöscht (admin)</div>
                     </div>
@@ -1619,12 +1619,12 @@
                         <div class="admin-card-desc">Wer ist gerade angemeldet — seit wann, letzte Aktivität, Gerät. Benutzer abmelden (admin)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('dok-audit')">
-                        <img src="img/kontkat-dok-audit.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kontkat-dok-audit.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Dokumenten-Audit</div>
                         <div class="admin-card-desc">Verdachtsfälle finden — Dateiname enthält andere Filiale als der gespeicherte Branch</div>
                     </div>
                         <div class="admin-card" onclick="showPage('datenaufbewahrung')">
-                        <img src="img/kontkat-datenaufbewahrung.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/kontkat-datenaufbewahrung.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Datenaufbewahrung</div>
                         <div class="admin-card-desc">Stempelzeiten automatisch löschen (Aufbewahrung in Jahren)</div>
                     </div>
@@ -1982,19 +1982,19 @@
                      Alle 14 HR-Karten bleiben erhalten. -->
                 <div class="ra-tile-row" id="hrHubCats" style="margin-top:12px;margin-bottom:0">
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="onb" onclick="hrHubShowCat('onb')" title="Interview-Kalender, Kandidaten, On-/Offboarding, Kündigung &amp; Zeugnisse">
-                        <img src="img/hrkat-onb.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/hrkat-onb.webp?v=20260816a" alt="" loading="lazy">
                         <span>Onboarding &amp; Austritt</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="hrHubShowCat('kontrolle')" title="Prüf-Listen, Manager Schulung, Krank- / Unfall-Meldungen">
-                        <img src="img/hrkat-kontrolle.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/hrkat-kontrolle.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kontrolle &amp; Meldungen</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="korr" onclick="hrHubShowCat('korr')" title="Mitarbeiter- &amp; Behörden-Korrespondenz, Brief-Vorlagen">
-                        <img src="img/hrkat-korr.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/hrkat-korr.webp?v=20260816a" alt="" loading="lazy">
                         <span>Korrespondenz</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="ausw" onclick="hrHubShowCat('ausw')" title="Lohnausweis, BFS-Lohnstrukturerhebung, Absenz-Auswertung, Reporting">
-                        <img src="img/hrkat-ausw.png?v=20260816a" alt="" loading="lazy">
+                        <img src="img/hrkat-ausw.webp?v=20260816a" alt="" loading="lazy">
                         <span>Auswertungen &amp; Exporte</span>
                     </button>
                 </div>
@@ -3408,17 +3408,17 @@
                             <span>Gespräch<br>starten</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('bewerbung')" title="Kurzes Bewerbungsformular — gibt der Bewerber ausgefüllt ab (eine Seite)">
-                            <img src="img/bewerbungsbogen.png?v=20260815d" alt="" loading="lazy">
+                            <img src="img/bewerbungsbogen.webp?v=20260815d" alt="" loading="lazy">
                             <span>Bewerbungs-<br>formular</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('gespraech')" title="Wird im Bewerbungsgespräch ausgefüllt — Personalien komplett, Partner, Kinder, Bank, Bedingungen, Notizen">
-                            <img src="img/bewerbungsbogen.png?v=20260815d" alt="" loading="lazy">
+                            <img src="img/bewerbungsbogen.webp?v=20260815d" alt="" loading="lazy">
                             <span>Gesprächs-<br>formular</span>
                         </button>
                         <!-- «Bogen alt (Kontrolle)» entfernt (Walter 03.09.2026) — der
                              Endpoint teil=alt bleibt im Backend, nur die Kachel ist weg. -->
                         <button type="button" class="ra-tile" onclick="openKandidatModal()">
-                            <img src="img/Kandidat-an-HR.png?v=20260815e" alt="" loading="lazy">
+                            <img src="img/Kandidat-an-HR.webp?v=20260815e" alt="" loading="lazy">
                             <span>Kandidat an HR</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="showPage('absenz-kalender')">
@@ -3429,7 +3429,7 @@
                              Fragebogen für MA — ersetzt das alte Mirus-Formular 2021;
                              deckt alle Felder des kantonalen Anmeldeformulars ab. -->
                         <button type="button" class="ra-tile" onclick="raQstInfoPdf()" title="Quellensteuer-Informationen — Blanko-Fragebogen für Mitarbeitende (Zivilstand, Konfession, Nebenerwerb, Partner, Kinder, Elterntarif)">
-                            <img src="img/lohnkat-qst-tarife.png?v=20260816a" alt="" loading="lazy">
+                            <img src="img/lohnkat-qst-tarife.webp?v=20260816a" alt="" loading="lazy">
                             <span>QST-Info<br>Formular</span>
                         </button>
                         <!-- Notfallkontakte-Liste (Walter 25.08.2026): PDF-Aushang
@@ -3443,7 +3443,7 @@
                         <!-- Aus der Sidebar hierher (Walter 15.08.2026) — nur admin,
                              wie die frühere import-section (syncLiquidDashboardCards). -->
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="showPage('manager-dienstplan')" title="Manager-Dienstplan — FIX-M-Schichtplanung aller Filialen (Absenzen automatisch)">
-                            <img src="img/MGR-DP.png?v=20260815a" alt="" loading="lazy">
+                            <img src="img/MGR-DP.webp?v=20260815a" alt="" loading="lazy">
                             <span>Manager-DP</span>
                         </button>
                         <!-- Manager-Schulung pro Filiale (Walter 21.08.2026): dieselbe Liste
@@ -3454,11 +3454,11 @@
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin,superuser,user" onclick="msOpenFiliale()" title="Manager-Schulung — Nothelfer / Peak-Verifizierung / Seco der gewählten Filiale">
                             <!-- Eigenes Schulungs-Icon (Walter 21.08.2026): Trainer am
                                  Kalender + Zertifikat — nicht die Kontrolle-Lupe. -->
-                            <img src="img/manager-schulung.png?v=20260821a" alt="" loading="lazy">
+                            <img src="img/manager-schulung.webp?v=20260821a" alt="" loading="lazy">
                             <span>Manager<br>Schulung</span>
                         </button>
                         <button type="button" class="ra-tile liquid-role-el" data-liquid-roles="admin" onclick="showPage('roster-absence-import')" title="Mirus-Dienstplan-XLS → Absenzen (Ferien / Krankheit / Unfall / unbez. Urlaub)">
-                            <img src="img/mirus-absenz-import.png?v=20260815a" alt="" loading="lazy">
+                            <img src="img/mirus-absenz-import.webp?v=20260815a" alt="" loading="lazy">
                             <span>Mirus Absenz<br>Import</span>
                         </button>
                     </div>
@@ -5105,11 +5105,11 @@
                 </div>
                 <div class="ra-tile-row" id="entwHubCats" style="margin-top:12px;margin-bottom:0">
                     <button type="button" class="ra-tile entw-hub-cat" data-cat="swissdec" onclick="entwHubShowCat('swissdec')" title="Swissdec ELM 6.0 — Lohnmeldung, Testinfrastruktur, Zertifizierung">
-                        <img src="img/entwkat-swissdec.png?v=20260831a" alt="" loading="lazy">
+                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy">
                         <span>Swissdec</span>
                     </button>
                     <button type="button" class="ra-tile entw-hub-cat" data-cat="import" onclick="entwHubShowCat('import')" title="easy@work API, Filial-Import, Archiv, Daten-Fix">
-                        <img src="img/Import-schnittstellen.png?v=20260816b" alt="" loading="lazy">
+                        <img src="img/Import-schnittstellen.webp?v=20260816b" alt="" loading="lazy">
                         <span>Import &amp; Schnittstellen</span>
                     </button>
                     <button type="button" class="ra-tile entw-hub-cat" data-cat="begruessung" onclick="entwHubShowCat('begruessung')" title="Begrüssungen auf der Anmeldeseite pro Tageszeit">
@@ -5129,7 +5129,7 @@
                 <div class="entw-hub-group" id="entwHubGrp-swissdec" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('swissdec')">
-                        <img src="img/entwkat-swissdec.png?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/entwkat-swissdec.webp?v=20260831a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Swissdec ELM 6.0</div>
                         <div class="admin-card-desc">Lohnmeldung, Testinfrastruktur und Zertifizierung</div>
                     </div>
@@ -5138,22 +5138,22 @@
                 <div class="entw-hub-group" id="entwHubGrp-import" style="display:none">
                     <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
                         <div class="admin-card" onclick="showPage('easyatwork')">
-                        <img src="img/impkat-easyatwork.png?v=20260816e" alt="" loading="lazy" style="width:110px;height:72px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/impkat-easyatwork.webp?v=20260816e" alt="" loading="lazy" style="width:110px;height:72px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">easy@work API</div>
                         <div class="admin-card-desc">Schnittstelle zu easy@work — Verbindungstest, Filial-Mapping (Customer-ID)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('filial-onboarding')">
-                        <img src="img/impkat-filial-onboarding.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/impkat-filial-onboarding.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Neue Filiale importieren</div>
                         <div class="admin-card-desc">Erst-Import: ehemalige MA, Bewilligungen, Bankverbindungen, d.velop-Dokumente</div>
                     </div>
                         <div class="admin-card" onclick="showPage('archiv-import')">
-                        <img src="img/impkat-archiv.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/impkat-archiv.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Mitarbeiter-Archiv («…alt»)</div>
                         <div class="admin-card-desc">Pre-Mirus-Archiv-MA: Import + Aufräumen (alle «…alt»-Nummern löschen)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('daten-fix')">
-                        <img src="img/impkat-daten-fix.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/impkat-daten-fix.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Daten-Fix</div>
                         <div class="admin-card-desc">Admin-Korrekturen — z.B. Personalnummer nach easy@work-Änderung</div>
                     </div>
@@ -5310,7 +5310,7 @@
                             <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4b · Lohnpositionen</span>
                             <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('4b', true)">🔍 Vorschau</button>
                             <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('4b', false)">✚ Anlegen</button>
-                            <span style="font-size:11.5px;color:#8b8b8b">65 Swissdec-Lohnarten der Testfälle über den ELM-Lohnraster als Lohnpositionen anlegen/verknüpfen</span>
+                            <span style="font-size:11.5px;color:#8b8b8b">65 Swissdec-Lohnarten der Testfälle: Swissdec-Lohnart an bestehenden OneCrew-Positionen eintragen, fehlende aus dem Swissdec-Musterlohnartenstamm anlegen</span>
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
                             <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4c · Mutationen</span>
@@ -5329,7 +5329,9 @@
                             <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 5b · Monatswerte</span>
                             <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('5b', true)">🔍 Vorschau</button>
                             <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('5b', false)">✚ Anlegen</button>
-                            <span style="font-size:11.5px;color:#8b8b8b">Monatslohn → Vertrag, Stunden → Stempelzeiten, Lohnarten → Zulagen/Abzüge, 5050 → BVG-Fixbetrag (Monat/Testfall-Filter oben gelten auch hier)</span>
+                            <input id="tmMonat5b" type="month" style="font-size:12px;padding:4px 8px;border:1px solid rgba(60,55,48,.2);border-radius:8px" title="Leer = alle Monate chronologisch">
+                            <input id="tmNur5b" placeholder="nur TF01,TF02 …" style="font-size:12px;padding:5px 9px;border:1px solid rgba(60,55,48,.2);border-radius:8px;width:160px" title="Leer = alle 44 Testfälle">
+                            <span style="font-size:11.5px;color:#8b8b8b">Monatslohn → Vertrag, Stunden → Stempelzeiten, Lohnarten → Zulagen/Abzüge, 5050 → BVG-Fixbetrag</span>
                         </div>
                         <div id="tmErgebnis" style="font-size:12.5px;color:#3f3f3f"></div>
                     </div>
@@ -5637,6 +5639,12 @@
                                     <input id="lpLaCode" maxlength="20" placeholder="z.B. I, P, Y, K, O, 13.2.3"
                                         style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
                                 </div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Swissdec-Lohnart <span style="font-weight:400;color:#94a3b8">(Musterlohnartenstamm, z.B. 1005 Stundenlohn, 1161 Feiertagsentschädigung)</span></label>
+                                <input id="lpSwissdec" maxlength="10" list="lpSwissdecListe" placeholder="leer = nicht zugeordnet"
+                                    style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+                                <datalist id="lpSwissdecListe"></datalist>
                             </div>
 
                             <!-- SV-Raster -->
@@ -7398,17 +7406,17 @@
 
                 <div style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:20px;max-width:1360px">
                     <div class="admin-card" onclick="showPage('banken')">
-                        <img src="img/glokat-banken.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/glokat-banken.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Banken</div>
                         <div class="admin-card-desc">Schweizer Bank-Stammdaten (SIX IID-Liste) — Name, BIC, BC-Nummer.</div>
                     </div>
                     <div class="admin-card" onclick="showPage('nationen')">
-                        <img src="img/glokat-nationen.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/glokat-nationen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Nationen</div>
                         <div class="admin-card-desc">ISO-3166-Codes mit optionalem Alternativ-Code (z.B. Mirus „XZ" für Kosovo) und Aktiv-Status.</div>
                     </div>
                     <div class="admin-card" onclick="showPage('swiss-locations')">
-                        <img src="img/glokat-plz.png?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <img src="img/glokat-plz.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">PLZ / Gemeinden</div>
                         <div class="admin-card-desc">Schweizer Ortschaftsverzeichnis (PLZ + Gemeinde + BFS-Nr. + Kanton). Quelle: amtliches Verzeichnis der Post.</div>
                     </div>
@@ -9021,7 +9029,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260908a"></script>
+<script src="js/app-core.js?v=20260908b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9033,14 +9041,14 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260831a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260906b"></script>
+<script src="js/dashboard.js?v=20260909a"></script>
 <script src="js/session-timeout.js?v=20260904h"></script>
 <script src="js/session-lock.js?v=20260904b"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20260722a"></script>
+<script src="js/kontrolle.js?v=20260909a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
@@ -9053,9 +9061,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260820a"></script>
+<script src="js/akonto-workflow.js?v=20260909a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260908a"></script>
+<script src="js/branches-detail.js?v=20260909b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260908a"></script>
@@ -9078,7 +9086,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260907b"></script>
+<script src="js/admin-settings.js?v=20260909a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>
@@ -9092,7 +9100,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260908a"></script>
+<script src="js/swissdec.js?v=20260909a"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
@@ -9562,7 +9570,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260908i"></script>
+<script src="employees.js?v=20260909a"></script>
 <script src="js/versicherung-codes.js?v=20260907b"></script>
 
 <!-- ABSENZ MODAL -->
@@ -10544,7 +10552,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
 <script src="js/kandidaten.js?v=20260903a"></script>
-<script src="js/hr-saldi-lohnlauf.js?v=20260802a"></script>
+<script src="js/hr-saldi-lohnlauf.js?v=20260909a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260829a"></script>
 <script src="js/hr-lohnausweis.js?v=20260816e"></script>
 <script src="js/kuendigung.js?v=20260906b"></script>

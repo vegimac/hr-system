@@ -578,6 +578,20 @@ public class CompanyProfilesController : ControllerBase
 
     public record AutoFerienGeldDezemberDto(bool Aktiv);
 
+    // PATCH /api/companyprofiles/{id}/ferien-auszahlung-monatlich
+    // Ferienentschädigung FLEX/MTP monatlich auszahlen statt Ferien-Pott
+    // (Walter 08.09.2026, Filial-Ebene: alle oder keiner).
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/ferien-auszahlung-monatlich")]
+    public async Task<IActionResult> UpdateFerienAuszahlungMonatlich(int id, [FromBody] AutoFerienGeldDezemberDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        profile.FerienAuszahlungMonatlich = dto.Aktiv;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
     // PATCH /api/companyprofiles/{id}/lgav
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
@@ -678,6 +692,29 @@ public class CompanyProfilesController : ControllerBase
             profile.AkontoProzentFixM   = Math.Round(dto.AkontoProzentFixM.Value,   2);
         if (dto.AkontoProzentHourly.HasValue)
             profile.AkontoProzentHourly = Math.Round(dto.AkontoProzentHourly.Value, 2);
+        // Akonto-Lohn ja/nein (Walter 08.09.2026). Ausschalten nur, wenn keine
+        // Periode der Filiale mitten im Akonto-Strang steht — sonst blieben
+        // vorbereitete/ausbezahlte Akonti ohne Bedienoberfläche zurück.
+        if (dto.AkontoAktiv.HasValue && dto.AkontoAktiv.Value != profile.AkontoAktiv)
+        {
+            if (!dto.AkontoAktiv.Value)
+            {
+                var offen = await _context.PayrollPerioden
+                    .Where(pp => pp.CompanyProfileId == id
+                              && pp.Status != "abgeschlossen"
+                              && pp.AkontoStatus != "OFFEN"
+                              && pp.AkontoStatus != "AUSBEZAHLT"
+                              && pp.AkontoStatus != AkontoDefinitivGuard.StatusUebersprungen)
+                    .OrderBy(pp => pp.Year).ThenBy(pp => pp.Month)
+                    .Select(pp => new { pp.Year, pp.Month, pp.AkontoStatus })
+                    .ToListAsync();
+                if (offen.Count > 0)
+                    return BadRequest(new { message = "Akonto-Lohn kann nicht ausgeschaltet werden: Periode "
+                        + $"{offen[0].Month:00}/{offen[0].Year} steht im Akonto-Status «{offen[0].AkontoStatus}». "
+                        + "Zuerst das Akonto abschliessen oder zurücksetzen." });
+            }
+            profile.AkontoAktiv = dto.AkontoAktiv.Value;
+        }
         await _context.SaveChangesAsync();
 
         return Ok(profile);
@@ -686,7 +723,8 @@ public class CompanyProfilesController : ControllerBase
     public record AkontoProzentDto(
         decimal? AkontoProzentFix,
         decimal? AkontoProzentFixM,
-        decimal? AkontoProzentHourly);
+        decimal? AkontoProzentHourly,
+        bool?    AkontoAktiv = null);
 
     // POST /api/companyprofiles/{id}/copy-einstellungen-to-all
     // Kopiert den kompletten Einstellungen-Block dieser Filiale auf ALLE
@@ -722,6 +760,7 @@ public class CompanyProfilesController : ControllerBase
             t.ThirteenthMonthPayoutMonths     = source.ThirteenthMonthPayoutMonths;
             t.ThirteenthMonthPayoutsPerYear   = source.ThirteenthMonthPayoutsPerYear;
             t.AutoFerienGeldAuszahlungDezember = source.AutoFerienGeldAuszahlungDezember;
+            t.FerienAuszahlungMonatlich        = source.FerienAuszahlungMonatlich;
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;
@@ -736,6 +775,8 @@ public class CompanyProfilesController : ControllerBase
             t.AkontoProzentFix     = source.AkontoProzentFix;
             t.AkontoProzentFixM    = source.AkontoProzentFixM;
             t.AkontoProzentHourly  = source.AkontoProzentHourly;
+            // AkontoAktiv bewusst NICHT kopiert: Akonto ja/nein ist eine Eigenschaft
+            // der einzelnen Filiale (Walter 08.09.2026).
         }
 
         // ── Akonto-Termine des Jahres kopieren (Upsert pro Ziel/Monat) ──

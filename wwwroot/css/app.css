@@ -7561,6 +7561,33 @@
            (graue Sektion-Cards + weisse Wert-Boxen + blauer Akzent-Streifen). */
         #fil-tab-f-einstellungen .ein-group-title { margin: 12px 0 4px; padding-left: 10px; }
 
+        /* ── Einstellungen-Tab: aufklappbare Abschnitte (Walter 08.09.2026) ── */
+        .ein-sec { border: 1px solid rgba(60,55,48,0.12); border-radius: 12px; background: rgba(255,255,255,0.55);
+            margin: 0 0 8px; overflow: hidden; }
+        .ein-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; user-select: none; }
+        .ein-sec > summary::-webkit-details-marker { display: none; }
+        .ein-sec > summary:hover { background: rgba(60,55,48,0.04); }
+        .ein-sec-title { font-size: 11px; font-weight: 800; color: #3f3f3f; text-transform: uppercase; letter-spacing: 0.08em;
+            flex: 0 0 200px; }
+        .ein-sec-sum { flex: 1 1 auto; font-size: 12.5px; color: #6b6152; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ein-sec[open] .ein-sec-sum { color: #a39b8f; }
+        .ein-sec-chev { font-size: 18px; color: #a39b8f; transform: rotate(90deg); transition: transform .15s; line-height: 1; }
+        .ein-sec[open] .ein-sec-chev { transform: rotate(-90deg); }
+        .ein-sec-body { padding: 4px 14px 12px; border-top: 1px solid rgba(60,55,48,0.08); }
+        .ein-sec-body .emp-field-grid { margin-top: 8px; }
+        .ein-hint { font-weight: 400; text-transform: none; color: #94a3b8; letter-spacing: 0; font-size: 11.5px; }
+        .ein-sub { margin-top: 6px; }
+        .ein-sub > summary { cursor: pointer; font-size: 12px; color: #6b6152; font-weight: 600; }
+        .ein-rules { margin-top: 6px; padding: 8px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 9px;
+            font-size: 11.5px; color: #78350f; line-height: 1.45; }
+        body.theme-dark .ein-sec { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+        body.theme-dark .ein-sec-title { color: #e2e8f0; }
+        body.theme-dark .ein-sec-sum { color: #cbd5e1; }
+        body.theme-dark .ein-sec > summary:hover { background: rgba(255,255,255,0.05); }
+        body.theme-dark .ein-sec-body { border-top-color: rgba(255,255,255,0.08); }
+        body.theme-dark .ein-rules { background: #292524; border-color: #78350f; color: #fde68a; }
+
         /* ── Dokumentenverwaltung ─────────────────────────────────────── */
         .dok-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap; }
         .dok-search { flex:1; padding:7px 12px; border:1px solid #e2e8f0; border-radius:8px; font-size:13px; max-width:280px; }
@@ -9276,7 +9303,7 @@
             pointer-events: none;
             opacity: .24;
             transform: none;
-            background-image: url('../img/liquid-glass-arches-reference.png');
+            background-image: url('../img/liquid-glass-arches-reference.webp');
             background-repeat: no-repeat;
             background-position: calc(50% + 10vw) center;
             background-size: 95% auto;
@@ -9758,17 +9785,17 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 }
 .ra-tile img { margin-top: auto; }
 /* Eng zugeschnittene Motive → etwas groesser in der Kachel */
-.ra-tile img[src*="bewerbungsbogen.png"] { width: 104px; height: 104px; }
+.ra-tile img[src*="bewerbungsbogen.webp"] { width: 104px; height: 104px; }
 /* Kandidat an HR: Quermotiv → volle Kachelbreite ausnutzen */
-.ra-tile img[src*="Kandidat-an-HR.png"] { width: 110px; height: 110px; }
+.ra-tile img[src*="Kandidat-an-HR.webp"] { width: 110px; height: 110px; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #f1f5f9; }
 /* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
    mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */
 body.theme-dark .ra-tile img { filter: invert(1) hue-rotate(180deg) brightness(1.7) contrast(1.3); }
 /* Bewerbungsbogen-Icon 1:1 — nicht invertieren (Walter 28.07.2026). */
-body.theme-dark .ra-tile img[src*="bewerbungsbogen.png"] { filter: brightness(1.45) contrast(1.15); }
+body.theme-dark .ra-tile img[src*="bewerbungsbogen.webp"] { filter: brightness(1.45) contrast(1.15); }
 /* Aufforderung-Icon 1:1 — ebenfalls nicht invertieren (Walter 30.07.2026). */
-body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45) contrast(1.15); }
+body.theme-dark .ra-tile img[src*="Aufforderung.webp"] { filter: brightness(1.45) contrast(1.15); }
 
         /* OneCrew-Logo oben links auf allen Druck-Listen (Walter-Vorgabe 14.07.2026) */
         #todosPrintArea .tp-logo { display: block; height: 30px; width: auto; margin-bottom: 10px; }
@@ -10151,7 +10178,7 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
         }
         body.theme-dark .liquid-dashboard::before {
             opacity: .18;
-            background-image: url('../img/liquid-glass-arches-reference.png');
+            background-image: url('../img/liquid-glass-arches-reference.webp');
             background-repeat: no-repeat;
             background-position: calc(50% + 10vw) center;
             background-size: 95% auto;

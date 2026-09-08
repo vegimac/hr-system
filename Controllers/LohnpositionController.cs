@@ -37,6 +37,13 @@ public class LohnpositionController : ControllerBase
         return Ok(items);
     }
 
+    // GET api/lohnpositionen/swissdec-lohnarten — Musterlohnartenstamm für die
+    // Auswahlliste «Swissdec-Lohnart» im Dialog (Walter 08.09.2026).
+    [HttpGet("swissdec-lohnarten")]
+    public IActionResult SwissdecLohnarten()
+        => Ok(HrSystem.Services.SwissdecLohnartenKatalog.Alle
+            .Select(l => new { l.Code, l.Bezeichnung, l.Kategorie, l.Typ, l.Ahv, l.Uvg, l.Uvgz, l.Ktg, l.Bvg, l.Qst, l.Ml13, l.Lohnausweis, l.FibuKonto }));
+
     // GET – einzelne Position
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
@@ -81,6 +88,7 @@ public class LohnpositionController : ControllerBase
         item.ZaehltAlsBasisFerien   = dto.ZaehltAlsBasisFerien;
         item.ZaehltAlsBasis13ml     = dto.ZaehltAlsBasis13ml;
         item.LohnausweisCode = dto.LohnausweisCode;
+        item.SwissdecLohnart = string.IsNullOrWhiteSpace(dto.SwissdecLohnart) ? null : dto.SwissdecLohnart.Trim();
         item.SortOrder       = dto.SortOrder;
         item.IsActive        = dto.IsActive;
 

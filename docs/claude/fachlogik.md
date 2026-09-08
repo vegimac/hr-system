@@ -4,6 +4,16 @@
 
 ## Geschäftslogik-Kernkonzepte
 
+### Rundungsregel Lohnabrechnung (Walter 09.09.2026, ABSOLUT — Zertifizierungsbedingung)
+- Lohnzeilen (Ferien-/Feiertagentschädigung, 13. Monatslohn, prozentuale Lohnarten) kaufmännisch auf **5 Rappen** (`Round05`, AwayFromZero). Beleg Swissdec TF01: 8'986.40 × 8.33 % = 748.567 → 748.55.
+- SV-Abzüge (AHV/ALV/UVG/UVGZ/KTG/QST) **rappengenau** (Swissdec-Soll: ALV 114.59, KTG 3.77).
+- Nettolohn und Auszahlungsbetrag wieder auf 5 Rappen (`Round05` in PayrollCalculationService).
+- Gilt produktiv genauso wie im Testmandanten.
+
+### Zeitstempel (Npgsql-Kind) — zentral gelöst (Walter 09.09.2026, nach drei HTTP-500)
+- `AppDbContext.NormalisiereZeitstempel()` läuft vor jedem `SaveChanges`/`SaveChangesAsync` und richtet jede DateTime-Eigenschaft nach dem Spaltentyp des Modells: «timestamp without time zone» → lokale Zeit/Kind Unspecified, sonst (timestamptz) → Utc. `DateTime.Now` und `DateTime.UtcNow` sind damit überall erlaubt; der Fehler «Cannot write DateTime with Kind=UTC …» kann über EF nicht mehr entstehen.
+- Gilt NICHT für Raw-SQL (`ExecuteSqlRaw` mit DateTime-Parametern) — dort weiterhin auf den Spaltentyp achten.
+
 ### ELM-Code-Standard der Lohnpositionen (Walter-Entscheid 17.08.2026, ABSOLUT)
 
 Die Lohnpositions-Codes folgen seit 17.08.2026 dem **ELM-Raster-Standard** (PickList-Archiv `elm_lohnraster`, Kachel «Lohnraster (ELM)»). Die Umstellung lief im Testmodus (Lohn scharf erst 1.1.2027) als direkter Rename — Bezeichnungen/Lohnzettel-Texte blieben identisch, verifiziert per Basen-Kontrolle 55/55 (Kachel «Lohnraster (ELM)» → Basen-Kontrolle = Schatten-Basen-Rechner, `SchattenBasenService` + `GET /api/payroll/schatten-report`). **Alte Codes NIE wieder verwenden.** Mapping alt→neu: 10→**10.1** Festlohn · 2→**10.2** bezogene Ferien · 3→**10.3** bezogene Feiertage (nur FIX-Split; MTP-Feiertagentschädigung = **195.4**) · 4→**55.3** MTP-Mehrstunden · 50→**50.1** Ausbezahlte Feiertag-Stunden (FLEX-monatliche Feiertagentschädigung = **195.2**) · 70→**70.1** / 60→**60.2** Karenz 88% · 70.2 bleibt / 60.2→**60.3** Taggeld 80% · 75→**75.1** / 65→**65.1** Korrekturen (alte 65 deaktiviert; Slip-Text «Korrektur Unfall» literal in der Engine) · Zeitsaldo/Minusstunden-Austritt = **55.2**. **Ferienentschädigung dynamisch pro MA**: FLEX 5 Wo = 195.1, FLEX 6 Wo = 195.3, MTP = 195.5/195.6 (Engine wählt via `vacationPct >= 13m`). OneCrew-eigen ohne Raster-Pendant: 20/22 Stundenlohn, 901–906 Vorträge, 600.24 LGAV (= Kontoplan-Position). SQL: `migrations-archive/elm_code_umstellung.sql`. Zugehörig: Kachel **«Lohnschema»** (`vertragsmodell_lohnschema`, Standard-Lohnblatt pro Modell, reine Doku — Engine liest es NICHT; Steuerung erst Phase 3 nach langem Grün-Lauf).
@@ -249,6 +259,23 @@ Der frühere kombinierte Tab „Absenzen Zulagen Abzüge" ist jetzt in zwei sepa
 - Mindestbetrag pro Kanton (z.B. LU 13 CHF) — `GetMindestbetrag` in `QuellensteuerTarifService`. Mindestbetrag-Check in `PayrollController` muss VOR dem `qstBetrag <= 0`-Return greifen.
 - Anmeldeformulare pro Kanton: `QstAnmeldungPdfService` mit Mappern für SO/AG/ZH/BE (jeder Kanton hat andere AcroForm-Feldnamen + andere Ja/Nein-Konventionen).
 - **Wohnkanton** für QST kommt aus `employee.canton_code` (Hauptadresse direkt am Employee). Zusatzadressen in `employee_address` sind NICHT QST-relevant.
+
+### Swissdec-Lohnart an der Lohnposition (Walter 08.09.2026)
+- `Lohnposition.SwissdecLohnart` (`swissdec_lohnart`, vierstellig aus dem Swissdec-Musterlohnartenstamm). Interne Nummer bleibt Schlüssel (Lohnschema, FIBU) — wie Mirus (60.3 «Versicherungstaggeld UVG» = 2030). Mehrere Positionen dürfen dieselbe Swissdec-Lohnart tragen.
+- Katalog: `Assets/Swissdec/SwissdecLohnarten.json` — aus der offiziellen Swissdec `Wage_Types.xlsx` (172 Lohnarten mit Steuerung +/−; Brutto/AHV/UVG/UVGZ/KTG/BVG, Lohnausweis-Charakteristik, Swissdec-FIBU-Konto, LSE-Statistik; QST und 13.ML als OneCrew-Startwerte), `SwissdecLohnartenKatalog`, `GET /api/lohnpositionen/swissdec-lohnarten` (Auswahlliste im Dialog).
+- Testmandant 4b: trägt die Swissdec-Lohnart an bestehenden OneCrew-Positionen ein (`EngineZuordnung`, nur wo leer) und legt fehlende Positionen mit Swissdec-Nummer als Code an; 5b bucht Zulagen über `SwissdecLohnart`. Das alte Vorgehen über `ElmLohnraster.Code` griff nie (Raster hat OneCrew-Codes 10.1 …, Swissdec zählt 1000 …).
+- Nicht übernommen: ChatGPT-Vorschlag mit eigener Neunummerierung (1160 = Sonntagszulage usw.) — kollidiert mit dem echten Swissdec-Stamm.
+
+### Akonto-Lohn ja/nein pro Filiale (Walter 08.09.2026)
+- `CompanyProfile.AkontoAktiv` (Spalte `company_profile.akonto_aktiv`, Default true). Für Lizenznehmer ohne Akonto und den Swissdec-Testmandanten (Schritt 5a setzt nein).
+- Bei nein: GF-Lohnlauf ohne Umschalter Akonto/Definitiv (akonto-workflow.js `akontoAktivFuerFiliale`), HR-Hub ohne Akonto-Reiter (hr-saldi-lohnlauf.js `_llEffectiveTab`), `POST /api/akonto/workflow/start` → 409. Akonto-Prozente bleiben gespeichert, nur ausgegraut.
+- Keine Rechenlogik nötig: AkontoStatus bleibt OFFEN, das gilt für Sperren/Reihenfolge/Definitiv bereits als erledigt (`AkontoDefinitivGuard.IsAkontoStrangFertig`).
+- Ausschalten wird abgelehnt (400), solange eine nicht abgeschlossene Periode der Filiale im Akonto-Zwischenstatus steht. «Auf alle Filialen übertragen» kopiert den Schalter bewusst nicht.
+
+### Ferienentschädigung monatlich auszahlen (Filial-Schalter, Walter 08.09.2026)
+- `CompanyProfile.FerienAuszahlungMonatlich` (`ferien_auszahlung_monatlich`, Default false). Filial-Ebene bewusst: «alle oder keiner». Swissdec-Testmandant: true (Schritt 5a).
+- Engine (MTP- und UTP-Block): bei true `betrag = ferienEnt`, `totalLohn += ferienEnt`, `AddAmount(code)` (Flag-Basen 13. ML etc.), in den Pott geht 0 (`ferienEntPott` / CalcFerienGeld mit 0). Ferientage-Gutschrift läuft weiter; ein bestehender Pott-Saldo bleibt und wird wie bisher (Bezug/Dezember/Austritt) ausbezahlt.
+- Ob die monatliche Ferienentschädigung in die 13.-ML-Basis zählt, steuert das Häkchen «zählt als Basis 13. ML» der Lohnposition 195.1/195.3/195.5/195.6 — nicht der Schalter.
 
 ### Lohnperioden
 

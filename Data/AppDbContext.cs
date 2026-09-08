@@ -142,6 +142,61 @@ public class AppDbContext : DbContext
     public DbSet<EasyAtWorkSyncLog>         EasyAtWorkSyncLogs          => Set<EasyAtWorkSyncLog>();
     public DbSet<EmployeeNumberAlias>       EmployeeNumberAliases       => Set<EmployeeNumberAlias>();
 
+    // ── Zeitstempel-Normalisierung beim Speichern (Walter 09.09.2026) ────────
+    // Npgsql verlangt: Spalte «timestamp with time zone» → DateTime.Kind = Utc,
+    // Spalte «timestamp without time zone» → Kind = Unspecified/Local. Ein
+    // falscher Kind wirft beim Speichern «Cannot write DateTime with Kind=UTC …»
+    // (HTTP 500) — das ist dreimal passiert (FamilyMember, Versicherungs-Code,
+    // Lohnposition). Statt bei jedem Schreibzugriff daran denken zu müssen,
+    // richtet der Kontext die Werte hier zentral: vor JEDEM SaveChanges wird
+    // jede DateTime-Eigenschaft auf den Spaltentyp des Modells umgerechnet.
+    //   ohne Zeitzone : Utc  → lokale Zeit, Kind Unspecified
+    //   mit Zeitzone  : Local/Unspecified (= lokale Zeit) → Utc
+    // Damit sind DateTime.Now und DateTime.UtcNow beide überall erlaubt.
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        NormalisiereZeitstempel();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        NormalisiereZeitstempel();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    private void NormalisiereZeitstempel()
+    {
+        foreach (var entry in ChangeTracker.Entries())
+        {
+            if (entry.State != EntityState.Added && entry.State != EntityState.Modified) continue;
+            foreach (var prop in entry.Properties)
+            {
+                var clr = prop.Metadata.ClrType;
+                if (clr != typeof(DateTime) && clr != typeof(DateTime?)) continue;
+                if (prop.CurrentValue is not DateTime dt) continue;
+
+                var spaltentyp = prop.Metadata.GetColumnType() ?? "";
+                bool ohneZeitzone = spaltentyp.Contains("without", StringComparison.OrdinalIgnoreCase)
+                                    || spaltentyp.Equals("timestamp", StringComparison.OrdinalIgnoreCase);
+                if (ohneZeitzone)
+                {
+                    if (dt.Kind == DateTimeKind.Utc)
+                        prop.CurrentValue = DateTime.SpecifyKind(dt.ToLocalTime(), DateTimeKind.Unspecified);
+                    else if (dt.Kind == DateTimeKind.Local)
+                        prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
+                }
+                else
+                {
+                    if (dt.Kind == DateTimeKind.Unspecified)
+                        prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Local).ToUniversalTime();
+                    else if (dt.Kind == DateTimeKind.Local)
+                        prop.CurrentValue = dt.ToUniversalTime();
+                }
+            }
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Employee>(entity =>
@@ -640,6 +695,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ThirteenthMonthPayoutsPerYear).HasColumnName("thirteenth_month_payouts_per_year").HasDefaultValue(12);
             entity.Property(e => e.ThirteenthMonthPayoutMonths).HasColumnName("thirteenth_month_payout_months").HasMaxLength(40);
             entity.Property(e => e.AutoFerienGeldAuszahlungDezember).HasColumnName("auto_ferien_geld_auszahlung_dezember").HasDefaultValue(true);
+            entity.Property(e => e.FerienAuszahlungMonatlich).HasColumnName("ferien_auszahlung_monatlich").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisBoxFFreierTransport).HasColumnName("lohnausweis_box_f_freier_transport").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisBoxGKantineGratis).HasColumnName("lohnausweis_box_g_kantine_gratis").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");
@@ -659,6 +715,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LgavTriggerMonat).HasColumnName("lgav_trigger_monat").HasDefaultValue(1);
             entity.Property(e => e.LgavBeitragVoll).HasColumnName("lgav_beitrag_voll").HasColumnType("numeric(8,2)").HasDefaultValue(99m);
             entity.Property(e => e.LgavBeitragReduziert).HasColumnName("lgav_beitrag_reduziert").HasColumnType("numeric(8,2)").HasDefaultValue(49.5m);
+            entity.Property(e => e.AkontoAktiv).HasColumnName("akonto_aktiv").HasDefaultValue(true);
             entity.Property(e => e.AkontoProzentFix).HasColumnName("akonto_prozent_fix").HasColumnType("numeric(5,2)").HasDefaultValue(80m);
             entity.Property(e => e.AkontoProzentFixM).HasColumnName("akonto_prozent_fix_m").HasColumnType("numeric(5,2)").HasDefaultValue(90m);
             entity.Property(e => e.AkontoProzentHourly).HasColumnName("akonto_prozent_hourly").HasColumnType("numeric(5,2)").HasDefaultValue(100m);
@@ -2702,6 +2759,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgPflichtig).HasColumnName("bvg_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.QstPflichtig).HasColumnName("qst_pflichtig").HasDefaultValue(true);
             entity.Property(e => e.LohnausweisCode).HasColumnName("lohnausweis_code").HasMaxLength(20);
+            entity.Property(e => e.SwissdecLohnart).HasColumnName("swissdec_lohnart").HasMaxLength(10);
             entity.Property(e => e.DreijehnterMlPflichtig).HasColumnName("dreijehnter_ml_pflichtig").HasDefaultValue(false);
             entity.Property(e => e.ZaehltAlsBasisFeiertag).HasColumnName("zaehlt_als_basis_feiertag").HasDefaultValue(false);
             entity.Property(e => e.ZaehltAlsBasisFerien).HasColumnName("zaehlt_als_basis_ferien").HasDefaultValue(false);

@@ -410,32 +410,46 @@ function renderFilialenDetail(b) {
             <!-- Kein „Einstellungen"-Titel mehr (steht schon im Tab) und keine
                  Buttons hier — die Aktions-Buttons sitzen oben in der
                  Tab-Leiste (Walter-Vorgabe 15.05.2026). -->
-            <div class="ein-group-title" style="margin-top:0">Arbeitszeit</div>
+            ${einSec('arbeitszeit', 'Arbeitszeit',
+                `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'}`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Nacht Beginn</div>
                     <div class="emp-field-value"><input type="time" id="einNightStart" class="ef-input" value="${nightStart}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Nacht Ende</div>
                     <div class="emp-field-value"><input type="time" id="einNightEnd" class="ef-input" value="${nightEnd}"></div></div>
                 ${fField('Normale Wochenstunden', b.normalWeeklyHours)}
-                <div class="emp-field"><div class="emp-field-label">Max. Stunden / Woche <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(Warnung im Stempel-Tab)</span></div>
+                <div class="emp-field"><div class="emp-field-label">Max. Stunden / Woche <span class="ein-hint">(Warnung im Stempel-Tab)</span></div>
                     <div class="emp-field-value"><input type="number" id="einMaxWeeklyHours" class="ef-input" min="0" max="168" step="0.5" placeholder="keine Grenze" value="${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) : ''}"></div></div>
-            </div>
+            </div>`)}
 
-            <div class="ein-group-title">Ferien- &amp; Feiertags-Vorgaben <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(% nur Anzeige · Alter editierbar)</span></div>
+            ${einSec('ferien', 'Ferien &amp; Feiertage',
+                `Ferien ${b.defaultVacationPercent5Weeks ?? '–'} % · erhöht ${b.defaultVacationPercent6Weeks ?? '–'} % ab ${b.vacationSixWeeksFromAge ?? 50}${Number(b.vacationSixWeeksFromAge ?? 50) >= 99 ? ' (nie)' : ''} · Feiertag ${b.defaultHolidayPercent ?? '–'} % · ${b.ferienAuszahlungMonatlich === true ? 'monatlich ausbezahlt' : 'Ferien-Pott'}`, `
             <div class="emp-field-grid">
                 ${fField('Ferien % Standard', b.defaultVacationPercent5Weeks)}
                 ${fField('Ferien % erhöht (ab Alter)', b.defaultVacationPercent6Weeks)}
-                <div class="emp-field"><div class="emp-field-label">Erhöht ab Alter <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(99 = nie)</span></div>
+                <div class="emp-field"><div class="emp-field-label">Erhöht ab Alter <span class="ein-hint">(99 = nie)</span></div>
                     <div class="emp-field-value"><input type="number" id="einVacationSixWeeksFromAge" class="ef-input" min="0" max="100" step="1" value="${b.vacationSixWeeksFromAge ?? 50}"></div></div>
                 ${fField('Feiertag %',          b.defaultHolidayPercent)}
             </div>
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Ferienentschädigung (FLEX/MTP)</div>
+                    <div class="emp-field-value"><select id="einFerienMonatlich" class="ef-input">
+                        <option value="false" ${b.ferienAuszahlungMonatlich !== true ? 'selected' : ''}>Zurückbehalten (Ferien-Pott)</option>
+                        <option value="true"  ${b.ferienAuszahlungMonatlich === true ? 'selected' : ''}>Monatlich auszahlen</option>
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Ferien-Pott im Dezember (FLEX/MTP)</div>
+                    <div class="emp-field-value"><select id="einAutoFerienGeld" class="ef-input">
+                        <option value="true"  ${b.autoFerienGeldAuszahlungDezember !== false ? 'selected' : ''}>Auto-Auszahlung Dezember</option>
+                        <option value="false" ${b.autoFerienGeldAuszahlungDezember === false ? 'selected' : ''}>Manuell</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Prozente sind nur Anzeige (L-GAV / Vertrag) · Alter editierbar</div>`)}
 
-            <div class="ein-group-title">13. Monatslohn</div>
+            ${einSec('dreizehnter', '13. Monatslohn',
+                `${b.defaultThirteenthSalaryPercent != null ? Number(b.defaultThirteenthSalaryPercent) + ' %' : 'kein Vorgabe-%'} · ${einTpSummary(b)}`, `
             <div style="display:flex;gap:32px;align-items:flex-start;margin-bottom:5px;flex-wrap:wrap">
                 <div class="emp-field" style="flex:0 0 130px;margin-bottom:0">
-                    <!-- unsichtbarer Label-Spacer, damit der Input auf gleicher Höhe wie
-                         die Monatskreuze rechts liegt (Walter-Vorgabe 06.06.2026) -->
-                    <div class="emp-field-label" style="visibility:hidden">.</div>
+                    <div class="emp-field-label">Vorgabe %</div>
                     <div class="emp-field-value" style="gap:6px">
                         <input type="number" id="einDefaultThirteenthPct" class="ef-input" min="0" max="100" step="0.01" placeholder="8.33" value="${b.defaultThirteenthSalaryPercent != null ? Number(b.defaultThirteenthSalaryPercent) : ''}" style="flex:1;min-width:0">
                         <span style="font-size:13px;color:#475569;font-weight:600">%</span>
@@ -446,49 +460,17 @@ function renderFilialenDetail(b) {
                     <div id="einTpGrid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px"></div>
                     <div id="einTpHint" style="font-size:11.5px;margin-top:3px"></div>
                 </div>
-            </div>
+            </div>`)}
+
+            ${einSec('akonto', 'Akonto-Lohn',
+                b.akontoAktiv === false ? 'kein Akonto – nur Definitivlauf'
+                    : `FIX ${Number(b.akontoProzentFix ?? 80).toFixed(0)} % · FIX-M ${Number(b.akontoProzentFixM ?? 90).toFixed(0)} % · FLEX/MTP ${Number(b.akontoProzentHourly ?? 100).toFixed(0)} %`, `
             <div class="emp-field-grid">
-                <div class="emp-field"><div class="emp-field-label">Ferien-Geld Dezember (FLEX/MTP)</div>
-                    <div class="emp-field-value"><select id="einAutoFerienGeld" class="ef-input">
-                        <option value="true"  ${b.autoFerienGeldAuszahlungDezember !== false ? 'selected' : ''}>Auto-Auszahlung Dezember</option>
-                        <option value="false" ${b.autoFerienGeldAuszahlungDezember === false ? 'selected' : ''}>Manuell</option>
+                <div class="emp-field"><div class="emp-field-label">Akonto-Lohn</div>
+                    <div class="emp-field-value"><select id="einAkontoAktiv" class="ef-input" onchange="einAkontoAktivToggle()">
+                        <option value="true"  ${b.akontoAktiv !== false ? 'selected' : ''}>Ja – Akonto + Definitiv</option>
+                        <option value="false" ${b.akontoAktiv === false ? 'selected' : ''}>Nein – nur Definitiv</option>
                     </select></div></div>
-            </div>
-
-            <div class="ein-group-title">Karenz (Krank / Unfall)</div>
-            <div class="emp-field-grid-3">
-                <div class="emp-field"><div class="emp-field-label">Karenzjahr-Basis</div>
-                    <div class="emp-field-value"><select id="einKarenzBasis" class="ef-input">
-                        <option value="ARBEITSJAHR"  ${(b.karenzjahrBasis || 'ARBEITSJAHR') === 'ARBEITSJAHR' ? 'selected' : ''}>Arbeitsjahr (ab MA-Eintritt)</option>
-                        <option value="KALENDERJAHR" ${b.karenzjahrBasis === 'KALENDERJAHR' ? 'selected' : ''}>Kalenderjahr (01.01.–31.12.)</option>
-                    </select></div></div>
-                <div class="emp-field"><div class="emp-field-label">Karenz-Tage Krank</div>
-                    <div class="emp-field-value"><input type="number" id="einKarenzKrank" class="ef-input" min="0" max="365" value="${b.karenzTageMax ?? 14}"></div></div>
-                <div class="emp-field"><div class="emp-field-label">Karenz-Tage Unfall</div>
-                    <div class="emp-field-value"><input type="number" id="einKarenzUnfall" class="ef-input" min="0" max="365" value="${b.karenzTageMaxUnfall ?? 2}"></div></div>
-                <div class="emp-field"><div class="emp-field-label">BVG-Wartefrist (Monate)</div>
-                    <div class="emp-field-value"><input type="number" id="einBvgWartefrist" class="ef-input" min="0" max="24" value="${b.bvgWartefristMonate ?? 3}"></div></div>
-            </div>
-
-            <div class="ein-group-title">L-GAV-Vollzugsbeitrag</div>
-            <div class="emp-field-grid-3">
-                <div class="emp-field"><div class="emp-field-label">Status</div>
-                    <div class="emp-field-value"><select id="einLgavAktiv" class="ef-input">
-                        <option value="true"  ${b.lgavAktiv !== false ? 'selected' : ''}>Aktiv</option>
-                        <option value="false" ${b.lgavAktiv === false ? 'selected' : ''}>Deaktiviert</option>
-                    </select></div></div>
-                <div class="emp-field"><div class="emp-field-label">Abzugs-Monat</div>
-                    <div class="emp-field-value"><select id="einLgavMonat" class="ef-input">
-                        ${LGAV_MONTH_LABELS.map((m, i) => `<option value="${i + 1}" ${(b.lgavTriggerMonat ?? 1) === (i + 1) ? 'selected' : ''}>${m}</option>`).join('')}
-                    </select></div></div>
-                <div class="emp-field"><div class="emp-field-label">Voller Beitrag (CHF)</div>
-                    <div class="emp-field-value"><input type="number" id="einLgavVoll" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragVoll ?? 99).toFixed(2)}"></div></div>
-                <div class="emp-field"><div class="emp-field-label">Reduzierter Beitrag (CHF)</div>
-                    <div class="emp-field-value"><input type="number" id="einLgavRed" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}"></div></div>
-            </div>
-
-            <div class="ein-group-title">Akonto-Lohn</div>
-            <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Akonto-% FIX</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzent" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentFix ?? 80).toFixed(0)}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Akonto-% FIX-M</div>
@@ -496,16 +478,18 @@ function renderFilialenDetail(b) {
                 <div class="emp-field"><div class="emp-field-label">Akonto-% FLEX / MTP</div>
                     <div class="emp-field-value"><input type="number" id="einAkontoProzentHourly" class="ef-input" min="0" max="100" step="1" value="${Number(b.akontoProzentHourly ?? 100).toFixed(0)}"></div></div>
             </div>
-            <div style="margin-top:6px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:9px;font-size:11.5px;color:#78350f;line-height:1.45">
-                <b>Akonto-Regeln (Walter 16.05.2026, fix):</b><br>
-                ① Kein Akonto wenn Vertragsende ≤ Periodenende.<br>
-                ② Kein Akonto bei Krankheit / Unfall / Mutterschaft am Stichtag.<br>
-                ③ FIX: <b>Akonto-% (FIX) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
-                ④ FIX-M: <b>Akonto-% (FIX-M) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
-                ⑤ FLEX / MTP: <b>Akonto-% (FLEX/MTP) × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
-                <span style="color:#92400e">Ferien-Pott: nur bis Stichtag vollständig abgeschlossene Bezüge — anteilsmässig aus (Vormonats-Saldo + Akkumulation diesen Monat).</span>
-            </div>
-            <div style="margin-top:6px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
+            <details class="ein-sub">
+                <summary>Akonto-Regeln (fix, Walter 16.05.2026)</summary>
+                <div class="ein-rules">
+                    ① Kein Akonto wenn Vertragsende ≤ Periodenende.<br>
+                    ② Kein Akonto bei Krankheit / Unfall / Mutterschaft am Stichtag.<br>
+                    ③ FIX: <b>Akonto-% (FIX) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
+                    ④ FIX-M: <b>Akonto-% (FIX-M) × Definitiv-Auszahlung</b>, abgerundet auf CHF 10.<br>
+                    ⑤ FLEX / MTP: <b>Akonto-% (FLEX/MTP) × (gestempelte Stunden × Stundenlohn + Ferien-Pott − SV-Abzüge)</b>, abgerundet auf CHF 10.<br>
+                    <span style="color:#92400e">Ferien-Pott: nur bis Stichtag vollständig abgeschlossene Bezüge — anteilsmässig aus (Vormonats-Saldo + Akkumulation diesen Monat).</span>
+                </div>
+            </details>
+            <div id="einAkontoTermineBox" style="margin-top:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
                 <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px">
                     <span style="font-size:13px;font-weight:600;color:#0f172a">Akonto-Termine</span>
                     <span style="font-size:11.5px;color:#94a3b8">Auszahlungsdatum pro Monat — bei Wochenende/Feiertag von Hand anpassen</span>
@@ -523,15 +507,50 @@ function renderFilialenDetail(b) {
                     <button class="btn btn-primary" style="font-size:11.5px;padding:4px 12px;background:#16a34a" onclick="saveAkontoTermine(${b.id})">💾 Termine speichern</button>
                 </div>
                 <div id="einAkontoTermineGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px 10px"></div>
-            </div>
+            </div>`)}
 
-            <div class="ein-group-title">Gemeinde/Kanton Minimum Lohn
-                <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt; übersteuert den L-GAV nach oben</span></div>
-            <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
+            ${einSec('karenz', 'Karenz &amp; BVG-Wartefrist',
+                `${(b.karenzjahrBasis || 'ARBEITSJAHR') === 'KALENDERJAHR' ? 'Kalenderjahr' : 'Arbeitsjahr'} · Krank ${b.karenzTageMax ?? 14} Tage · Unfall ${b.karenzTageMaxUnfall ?? 2} Tage · BVG-Wartefrist ${b.bvgWartefristMonate ?? 3} Mte`, `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Karenzjahr-Basis</div>
+                    <div class="emp-field-value"><select id="einKarenzBasis" class="ef-input">
+                        <option value="ARBEITSJAHR"  ${(b.karenzjahrBasis || 'ARBEITSJAHR') === 'ARBEITSJAHR' ? 'selected' : ''}>Arbeitsjahr (ab MA-Eintritt)</option>
+                        <option value="KALENDERJAHR" ${b.karenzjahrBasis === 'KALENDERJAHR' ? 'selected' : ''}>Kalenderjahr (01.01.–31.12.)</option>
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Karenz-Tage Krank</div>
+                    <div class="emp-field-value"><input type="number" id="einKarenzKrank" class="ef-input" min="0" max="365" value="${b.karenzTageMax ?? 14}"></div></div>
+                <div class="emp-field"><div class="emp-field-label">Karenz-Tage Unfall</div>
+                    <div class="emp-field-value"><input type="number" id="einKarenzUnfall" class="ef-input" min="0" max="365" value="${b.karenzTageMaxUnfall ?? 2}"></div></div>
+                <div class="emp-field"><div class="emp-field-label">BVG-Wartefrist (Monate)</div>
+                    <div class="emp-field-value"><input type="number" id="einBvgWartefrist" class="ef-input" min="0" max="24" value="${b.bvgWartefristMonate ?? 3}"></div></div>
+            </div>`)}
 
-            <div class="ein-group-title">easy@work Auto-Sync
-                <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">— automatischer Stempelzeiten-Import dieser Filiale, täglich um 05:00</span></div>
-            <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>
+            ${einSec('lgav', 'L-GAV-Vollzugsbeitrag',
+                b.lgavAktiv === false ? 'deaktiviert'
+                    : `aktiv · Abzug im ${LGAV_MONTH_LABELS[(b.lgavTriggerMonat ?? 1) - 1]} · CHF ${Number(b.lgavBeitragVoll ?? 99).toFixed(2)} / ${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}`, `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Status</div>
+                    <div class="emp-field-value"><select id="einLgavAktiv" class="ef-input">
+                        <option value="true"  ${b.lgavAktiv !== false ? 'selected' : ''}>Aktiv</option>
+                        <option value="false" ${b.lgavAktiv === false ? 'selected' : ''}>Deaktiviert</option>
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Abzugs-Monat</div>
+                    <div class="emp-field-value"><select id="einLgavMonat" class="ef-input">
+                        ${LGAV_MONTH_LABELS.map((m, i) => `<option value="${i + 1}" ${(b.lgavTriggerMonat ?? 1) === (i + 1) ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Voller Beitrag (CHF)</div>
+                    <div class="emp-field-value"><input type="number" id="einLgavVoll" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragVoll ?? 99).toFixed(2)}"></div></div>
+                <div class="emp-field"><div class="emp-field-label">Reduzierter Beitrag (CHF)</div>
+                    <div class="emp-field-value"><input type="number" id="einLgavRed" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}"></div></div>
+            </div>`)}
+
+            ${einSec('mindestlohn', 'Mindestlohn Gemeinde / Kanton',
+                'nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt – übersteuert den L-GAV nach oben', `
+            <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`)}
+
+            ${einSec('eaw', 'easy@work Auto-Sync',
+                'automatischer Stempelzeiten-Import dieser Filiale, täglich um 05:00', `
+            <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`)}
 
             <!-- Periodenregel-Anzeige entfernt (Walter-Vorgabe 15.05.2026):
                  die Lohnperiode ist jetzt immer der Kalendermonat.
@@ -566,6 +585,7 @@ function renderFilialenDetail(b) {
             <div id="filDoksList"><div style="color:#8b8b8b;padding:16px;text-align:center;font-size:12px">Wird geladen…</div></div>
         </div>` : ''}
     </div>`;
+    einAkontoAktivToggle();   // Akonto-Prozente ausgrauen, wenn Akonto-Lohn = nein
     // SSL-Nummern-Block entfernt (Walter 06.08.2026) — Pflege im Tab
     // «Lohndaten Empfänger»; loadSslListForBranch bleibt toter Code.
     // AHV-Kasse/BVG-Versicherer aus den Empfänger-Zuordnungen ableiten.
@@ -838,6 +858,7 @@ async function saveEinstellungen(branchId) {
     const maxWeeklyRaw = g('einMaxWeeklyHours')?.value;
     const maxWeekly    = (maxWeeklyRaw == null || maxWeeklyRaw === '') ? null : Number(maxWeeklyRaw);
     const autoFG       = g('einAutoFerienGeld')?.value === 'true';
+    const ferienMonatl = g('einFerienMonatlich')?.value === 'true';
     const karenzBasis  = g('einKarenzBasis')?.value || 'ARBEITSJAHR';
     const karenzKrank  = Number(g('einKarenzKrank')?.value);
     const karenzUnfall = Number(g('einKarenzUnfall')?.value);
@@ -846,6 +867,7 @@ async function saveEinstellungen(branchId) {
     const lgavMonat    = parseInt(g('einLgavMonat')?.value, 10);
     const lgavVoll     = Number(g('einLgavVoll')?.value);
     const lgavRed      = Number(g('einLgavRed')?.value);
+    const akontoAktiv         = g('einAkontoAktiv')?.value !== 'false';
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
     const akontoProzentFixM   = Number(g('einAkontoProzentFixM')?.value);
     const akontoProzentHourly = Number(g('einAkontoProzentHourly')?.value);
@@ -873,26 +895,36 @@ async function saveEinstellungen(branchId) {
 
     const btn = g('einSaveBtn-' + branchId);
     if (btn) { btn.disabled = true; btn.textContent = '⏳ Speichern…'; }
+    const b0AkontoAktiv = ((typeof allBranches !== 'undefined' ? allBranches : []).find(x => x.id === branchId)?.akontoAktiv) !== false;
     const H = { ...ah(), 'Content-Type': 'application/json' };
     try {
         const results = await Promise.all([
             fetch(`/api/companyprofiles/${branchId}/nighthours`,                 { method: 'PATCH', headers: H, body: JSON.stringify({ nightStartTime: nightStart, nightEndTime: nightEnd }) }),
             fetch(`/api/companyprofiles/${branchId}/auto-ferien-geld-dezember`,   { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: autoFG }) }),
+            fetch(`/api/companyprofiles/${branchId}/ferien-auszahlung-monatlich`, { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: ferienMonatl }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
-            fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly }) }),
+            fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly, akontoAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly }) }),
             fetch(`/api/companyprofiles/${branchId}/vacation-six-weeks-from-age`, { method: 'PATCH', headers: H, body: JSON.stringify({ vacationSixWeeksFromAge: vacSixWeeksAge }) }),
             fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth }) }),
         ]);
         const failed = results.filter(r => !r.ok).length;
+        // Akonto ja/nein kann fachlich abgelehnt werden (Periode mitten im Akonto-Strang) —
+        // die Begründung des Servers anzeigen statt nur «1 von 9 fehlgeschlagen».
+        const akontoRes = results.find(r => (r.url || '').includes('/akonto-prozent'));
+        if (akontoRes && !akontoRes.ok) {
+            const d = await akontoRes.json().catch(() => ({}));
+            if (d.message) alert(d.message);
+        }
 
         // Lokale Kopien aktualisieren (analog zu den früheren Modal-Saves)
         const patch = {
             nightStartTime: nightStart, nightEndTime: nightEnd,
             maxWeeklyHours: maxWeekly,
             autoFerienGeldAuszahlungDezember: autoFG,
+            ferienAuszahlungMonatlich: ferienMonatl,
             karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank,
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,
@@ -900,6 +932,7 @@ async function saveEinstellungen(branchId) {
             akontoProzentFix: akontoProzent,
             akontoProzentFixM: akontoProzentFixM,
             akontoProzentHourly: akontoProzentHourly,
+            akontoAktiv: (akontoRes && !akontoRes.ok) ? b0AkontoAktiv : akontoAktiv,
             vacationSixWeeksFromAge: vacSixWeeksAge,
             defaultThirteenthSalaryPercent: defaultThirteenth,
         };
@@ -915,7 +948,7 @@ async function saveEinstellungen(branchId) {
         if (typeof loadFilialen === 'function') loadFilialen();
 
         if (failed > 0) {
-            alert(`${failed} von 9 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
+            alert(`${failed} von 10 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
         } else if (typeof showToast === 'function') {
             showToast('Einstellungen gespeichert.', 'success');
         }
@@ -2956,4 +2989,43 @@ async function oeffnungszeitenAufAlle() {
     } catch (e) {
         if (err) { err.textContent = 'Verbindungsfehler: ' + (e?.message || e); err.style.display = 'block'; }
     }
+}
+
+
+// Akonto-Lohn ja/nein (Walter 08.09.2026): bei «nein» sind die Akonto-Prozente
+// ohne Wirkung — nur ausgrauen, Werte bleiben erhalten für ein späteres «ja».
+function einAkontoAktivToggle() {
+    const aktiv = document.getElementById('einAkontoAktiv')?.value !== 'false';
+    ['einAkontoProzent', 'einAkontoProzentFixM', 'einAkontoProzentHourly'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.disabled = !aktiv;
+        el.style.opacity = aktiv ? '' : '.45';
+    });
+}
+
+
+// ── Einstellungen-Tab: aufklappbare Abschnitte (Walter 08.09.2026) ─────────
+// Jeder Abschnitt zeigt zugeklappt eine Kurzfassung der aktuellen Werte, so
+// bleibt der Tab auf einen Blick lesbar. Auf/zu wird pro Abschnitt im Browser
+// gemerkt (localStorage), Standard: zugeklappt.
+function einSec(key, titel, kurz, body) {
+    let open = false;
+    try { open = localStorage.getItem('einSec:' + key) === 'open'; } catch {}
+    return `<details class="ein-sec" data-sec="${key}" ${open ? 'open' : ''} ontoggle="einSecToggled(this)">
+        <summary><span class="ein-sec-title">${titel}</span><span class="ein-sec-sum">${kurz || ''}</span><span class="ein-sec-chev">›</span></summary>
+        <div class="ein-sec-body">${body}</div>
+    </details>`;
+}
+function einSecToggled(el) {
+    try { localStorage.setItem('einSec:' + el.dataset.sec, el.open ? 'open' : 'closed'); } catch {}
+}
+function einTpSummary(b) {
+    let months = tpParseMonths(b.thirteenthMonthPayoutMonths);
+    if (months.length === 0) {           // gleiche Legacy-Ableitung wie einTpInit
+        const v = Number(b.thirteenthMonthPayoutsPerYear ?? 12);
+        months = v === 1 ? [12] : v === 2 ? [6, 12] : v === 4 ? [3, 6, 9, 12] : [1,2,3,4,5,6,7,8,9,10,11,12];
+    }
+    if (months.length === 12) return 'monatlich anteilig';
+    return 'Auszahlung ' + months.map(m => TP_MONTH_NAMES[m - 1]).join(', ');
 }

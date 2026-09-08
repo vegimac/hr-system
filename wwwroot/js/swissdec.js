@@ -47,8 +47,11 @@ async function tmSchritt(nr, vorschau) {
     out.innerHTML = '⏳ …';
     try {
         const qs = [];
-        if (['4', '4c', '5b'].includes(String(nr)) && document.getElementById('tmNur')?.value.trim()) qs.push(`nur=${encodeURIComponent(document.getElementById('tmNur').value.trim())}`);
-        if (['4c', '5b'].includes(String(nr)) && document.getElementById('tmMonat')?.value) qs.push(`monat=${encodeURIComponent(document.getElementById('tmMonat').value)}`);
+        // 5b hat eigene Filterfelder in seiner Zeile (Walter 08.09.2026); 4a/4c nutzen die oberen.
+        const nurEl   = document.getElementById(String(nr) === '5b' ? 'tmNur5b'   : 'tmNur');
+        const monatEl = document.getElementById(String(nr) === '5b' ? 'tmMonat5b' : 'tmMonat');
+        if (['4', '4c', '5b'].includes(String(nr)) && nurEl?.value.trim()) qs.push(`nur=${encodeURIComponent(nurEl.value.trim())}`);
+        if (['4c', '5b'].includes(String(nr)) && monatEl?.value) qs.push(`monat=${encodeURIComponent(monatEl.value)}`);
         const nur = qs.length ? '?' + qs.join('&') : '';
         const r = await fetch(`/api/swissdec/testmandant/schritt${nr}/${vorschau ? 'vorschau' : 'anlegen'}${nur}`,
             { method: vorschau ? 'GET' : 'POST', headers: ah() });

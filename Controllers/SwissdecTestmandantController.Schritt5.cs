@@ -17,7 +17,7 @@ namespace HrSystem.Controllers;
 ///            Feiertag-%, 13. ML) — nur Soll-Vergleich
 ///       5050 BVG-Beitrag → BVG-Fixbetrag am Versicherungs-Eintrag
 ///       alle übrigen → Zulagen/Abzüge der Periode (LohnZulage) auf der Lohnposition
-///            aus dem ELM-Lohnraster (Schritt 4b)
+///            über das Feld SwissdecLohnart der Lohnposition (Schritt 4b)
 /// </summary>
 public partial class SwissdecTestmandantController
 {
@@ -52,6 +52,9 @@ public partial class SwissdecTestmandantController
                 ["Ferien % Standard"] = "8.33 (4 Wochen)", ["Ferien % erhöht"] = "8.33 · erhöht ab Alter 99 (nie)",
                 ["Feiertag %"] = "4.00", ["13. ML %"] = "8.33 · Auszahlung Dezember (Stundenlohn monatlich)",
                 ["Ferienwochen"] = "4", ["Wochenstunden"] = "42",
+                ["Akonto-Lohn"] = "nein – nur Definitiv (Swissdec kennt keinen Akonto-Lauf)",
+                ["Ferienentschädigung"] = "monatlich auszahlen (kein Ferien-Pott)",
+                ["L-GAV-Vollzugsbeitrag"] = "deaktiviert (Muster AG ist kein Gastro-Betrieb; Swissdec-Soll kennt keinen L-GAV-Abzug)",
                 ["bisher"] = $"Ferien {f.DefaultVacationPercent5Weeks}/{f.DefaultVacationPercent6Weeks} ab {f.VacationSixWeeksFromAge} · Feiertag {f.DefaultHolidayPercent} · 13. {f.DefaultThirteenthSalaryPercent} ({f.ThirteenthMonthPayoutMonths ?? "–"})",
             };
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
@@ -61,6 +64,9 @@ public partial class SwissdecTestmandantController
                 f.DefaultHolidayPercent = 4.00m; f.DefaultThirteenthSalaryPercent = 8.33m;
                 f.ThirteenthMonthPayoutMonths = "12"; f.ThirteenthMonthPayoutsPerYear = 1;
                 f.DefaultVacationWeeks = 4; f.NormalWeeklyHours ??= 42m;
+                f.AkontoAktiv = false;
+                f.FerienAuszahlungMonatlich = true;
+                f.LgavAktiv = false;
             }
             int neu = 0;
             for (var m = TmVon; m <= TmBis; m = m.AddMonths(1))
@@ -124,8 +130,14 @@ public partial class SwissdecTestmandantController
         var stundenJeMonat = LeseMonatsreihe("PersonNumberOfHours");
         var lektionenJeMonat = LeseMonatsreihe("PersonNumberOfLessons");
 
-        var raster = await _db.ElmLohnraster.AsNoTracking().Where(r => r.VerwendetLohnpositionId != null).ToDictionaryAsync(r => r.Code, r => r.VerwendetLohnpositionId!.Value);
-        var positionen = await _db.Lohnpositionen.AsNoTracking().ToDictionaryAsync(l => l.Id, l => l);
+        // Swissdec-Lohnart → OneCrew-Lohnposition (Feld SwissdecLohnart, Schritt 4b).
+        // Tragen mehrere Positionen dieselbe Swissdec-Lohnart (195.2 + 195.4 → 1161),
+        // nimmt der Import die mit der kleinsten Sortierung — das betrifft nur Lohnarten,
+        // die OneCrew ohnehin selbst rechnet und die hier nicht gebucht werden.
+        var nachSwissdec = (await _db.Lohnpositionen.AsNoTracking()
+                .Where(l => l.IsActive && l.SwissdecLohnart != null && l.SwissdecLohnart != "")
+                .OrderBy(l => l.SortOrder).ThenBy(l => l.Id).ToListAsync())
+            .GroupBy(l => l.SwissdecLohnart!).ToDictionary(g => g.Key, g => g.First());
         var aktionen = new List<Aktion>(); var hinweise = new List<string>();
         var fehlendePos = new HashSet<string>();
 
@@ -197,7 +209,7 @@ public partial class SwissdecTestmandantController
                     continue;
                 }
                 // übrige → LohnZulage
-                if (!raster.TryGetValue(w.Code, out var lpId) || !positionen.TryGetValue(lpId, out var lp))
+                if (!nachSwissdec.TryGetValue(w.Code, out var lp))
                 {
                     fehlendePos.Add($"{w.Code} {w.Label}"); probleme.Add($"{w.Code} {w.Label}: keine Lohnposition (4b)");
                     continue;

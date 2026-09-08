@@ -1314,6 +1314,8 @@ function lpOpenForm(id) {
     document.getElementById('lpKategorie').value      = d?.kategorie ?? '';
     document.getElementById('lpTyp').value            = d?.typ ?? 'ZULAGE';
     document.getElementById('lpLaCode').value         = d?.lohnausweisCode ?? '';
+    document.getElementById('lpSwissdec').value       = d?.swissdecLohnart ?? '';
+    lpLadeSwissdecListe();
     document.getElementById('lpSortOrder').value      = d?.sortOrder ?? 99;
     document.getElementById('lpIsActive').checked     = d?.isActive ?? true;
     document.getElementById('lpAhv').checked          = d?.ahvAlvPflichtig ?? true;
@@ -1355,6 +1357,7 @@ async function lpSave(e) {
         kategorie:       document.getElementById('lpKategorie').value.trim(),
         typ:             document.getElementById('lpTyp').value,
         lohnausweisCode: document.getElementById('lpLaCode').value.trim() || null,
+        swissdecLohnart: document.getElementById('lpSwissdec').value.trim() || null,
         sortOrder:       parseInt(document.getElementById('lpSortOrder').value) || 99,
         isActive:        document.getElementById('lpIsActive').checked,
         ahvAlvPflichtig: document.getElementById('lpAhv').checked,
@@ -2330,4 +2333,20 @@ function atFlexZwToggle() {
     if (!zw) return;
     zw.disabled = !an;
     zw.style.opacity = an ? '1' : '0.4';
+}
+
+
+// Swissdec-Lohnarten-Katalog für die Auswahlliste im Lohnpositionen-Dialog
+// (Walter 08.09.2026). Einmal laden, danach aus dem Speicher.
+let _lpSwissdecKatalog = null;
+async function lpLadeSwissdecListe() {
+    const dl = document.getElementById('lpSwissdecListe');
+    if (!dl) return;
+    if (!_lpSwissdecKatalog) {
+        try {
+            const r = await fetch('/api/lohnpositionen/swissdec-lohnarten', { headers: ah() });
+            _lpSwissdecKatalog = r.ok ? await r.json() : [];
+        } catch { _lpSwissdecKatalog = []; }
+    }
+    dl.innerHTML = _lpSwissdecKatalog.map(k => `<option value="${k.code}">${k.code} ${k.bezeichnung}</option>`).join('');
 }

@@ -20,7 +20,15 @@ public class Lohnposition
     public bool    BvgPflichtig    { get; set; } = true;   // Berufliche Vorsorge (BVG)
     public bool    QstPflichtig    { get; set; } = true;   // Quellensteuer-pflichtig
 
-    public string? LohnausweisCode { get; set; }           // Lohnausweisposition: I, P, Y, K, O, 7, 13.2.3 …
+    public string? LohnausweisCode { get; set; }
+    /// <summary>
+    /// Swissdec-Lohnart (Musterlohnartenstamm, vierstellig: 1000 Monatslohn,
+    /// 1005 Stundenlohn, 1161 Feiertagsentschädigung, 2030 Unfall-Taggeld …).
+    /// Bedeutungs-Zuordnung für ELM-Meldung und Testmandant; die interne Nummer
+    /// (Code) bleibt Schlüssel für Lohnschema/FIBU. Mehrere Positionen dürfen
+    /// dieselbe Swissdec-Lohnart tragen (195.2 + 195.4 → 1161). Walter 08.09.2026.
+    /// </summary>
+    public string? SwissdecLohnart { get; set; }           // Lohnausweisposition: I, P, Y, K, O, 7, 13.2.3 …
 
     /// <summary>
     /// true = Der eingegebene Betrag wird automatisch in Basis (12/13) + 13. ML (1/13 = 8.33%)

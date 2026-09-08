@@ -1108,6 +1108,9 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_voll_arbeitsfaehig boolean;
         ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_basis_manuell numeric(12,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS thirteenth_salary boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS akonto_aktiv boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferien_auszahlung_monatlich boolean NOT NULL DEFAULT false;
+        ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
     ");
@@ -5043,5 +5046,47 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await SwissLocationReimportService.EnsureFreshAsync(db, app.Environment.ContentRootPath);
 }
+
+// ── Warmlaufen nach dem Start (Walter 08.09.2026) ─────────────────────────
+// Eine frisch gestartete .NET-App ist beim ERSTEN Aufruf jeder Funktion langsam
+// (JIT) und EF Core baut beim ersten Datenbankzugriff das komplette Modell auf.
+// Nach jedem Deploy war darum der erste Mensch auf der Testinstanz minutenlang
+// blockiert (auf Produktiv laufen die MA die App warm, bevor Walter kommt).
+// Hier übernimmt das die App selbst: Modell aufbauen, die wichtigsten Tabellen
+// einmal abfragen und die HTTP-Pipeline (Routing, MVC, JSON, JWT) einmal
+// durchlaufen. Läuft im Hintergrund, blockiert den Start nicht, Fehler sind egal.
+app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
+{
+    var log = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("WarmUp");
+    var sw  = System.Diagnostics.Stopwatch.StartNew();
+    try
+    {
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await db.CompanyProfiles.AsNoTracking().Take(1).ToListAsync();
+            await db.Employees.AsNoTracking().Take(1).ToListAsync();
+            await db.Employments.AsNoTracking().Take(1).ToListAsync();
+            await db.PayrollPerioden.AsNoTracking().Take(1).ToListAsync();
+            await db.EmployeeTimeEntries.AsNoTracking().Take(1).ToListAsync();
+            await db.AppUsers.AsNoTracking().Take(1).ToListAsync();
+        }
+        var addr = app.Urls.FirstOrDefault(u => u.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                   ?? app.Urls.FirstOrDefault();
+        if (addr != null)
+        {
+            var basis = addr.Replace("*", "127.0.0.1").Replace("+", "127.0.0.1")
+                            .Replace("0.0.0.0", "127.0.0.1").Replace("[::]", "127.0.0.1").TrimEnd('/');
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            foreach (var pfad in new[] { "/api/instance-info", "/api/login-greeting", "/api/auth/me",
+                                         "/api/companyprofiles", "/api/akonto/workflow/pending-counts", "/index.html" })
+            {
+                try { using var _r = await http.GetAsync(basis + pfad); } catch { /* egal */ }
+            }
+        }
+        log.LogInformation("Warmlaufen abgeschlossen in {Ms} ms", sw.ElapsedMilliseconds);
+    }
+    catch (Exception ex) { log.LogWarning(ex, "Warmlaufen abgebrochen nach {Ms} ms", sw.ElapsedMilliseconds); }
+}));
 
 app.Run();

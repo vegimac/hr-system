@@ -85,18 +85,18 @@ public partial class SwissdecTestmandantController
                 if (m == f || f == null || m == null)
                 {
                     var satz = (m ?? f)!.Value;
-                    specs.Add(new SvSpec(svCode, c, name, c == "11", Math.Round(satz / 2m, 4), Math.Round(satz / 2m, 4), null, band, bis, "gross", sort, "Swissdec-Testdaten — Prämie hälftig AN/AG (Annahme)"));
+                    specs.Add(new SvSpec(svCode, c, name, c == "11", Math.Round(satz, 4), 0m, null, band, bis, "gross", sort, "Swissdec-Testdaten — Prämie voll zulasten AN (Soll TF01: UVGZ 80.63 = 0.774 % von 10'416.97)"));
                 }
                 else
                 {
-                    specs.Add(new SvSpec(svCode, c, name + " (M)", c == "11", Math.Round(m.Value / 2m, 4), Math.Round(m.Value / 2m, 4), "M", band, bis, "gross", sort, "Swissdec-Testdaten — Prämie hälftig AN/AG (Annahme)"));
-                    specs.Add(new SvSpec(svCode, c, name + " (F)", c == "11", Math.Round(f.Value / 2m, 4), Math.Round(f.Value / 2m, 4), "F", band, bis, "gross", sort, "Swissdec-Testdaten — Prämie hälftig AN/AG (Annahme)"));
+                    specs.Add(new SvSpec(svCode, c, name + " (M)", c == "11", Math.Round(m.Value, 4), 0m, "M", band, bis, "gross", sort, "Swissdec-Testdaten — Prämie voll zulasten AN (Soll TF01)"));
+                    specs.Add(new SvSpec(svCode, c, name + " (F)", c == "11", Math.Round(f.Value, 4), 0m, "F", band, bis, "gross", sort, "Swissdec-Testdaten — Prämie voll zulasten AN (Soll TF01)"));
                 }
             }
         }
         Loesungen("UVGZ", "CompanyUVGZLAAC", "UVG-Zusatz", 45);
         Loesungen("KTG",  "CompanyKTGAMC",   "KTG",        35);
-        hinweise.Add("UVGZ/KTG: Swissdec nennt nur die Gesamtprämie — geladen wird hälftig AN/AG (Annahme, in den SV-Sätzen änderbar). Code 10 «nicht versichert» = keine Zeile. Code 12 = Überschusslohn als Lohnband (ab/Höchst pro Monat).");
+        hinweise.Add("UVGZ/KTG: Die Swissdec-Prämie geht voll zulasten AN (Soll TF01 Jan 2025: UVGZ 80.63, KTG 3.77 = volle Sätze) — AG 0 %, in den SV-Sätzen änderbar. Code 10 «nicht versichert» = keine Zeile. Code 12 = Überschusslohn als Lohnband (ab/Höchst pro Monat).");
 
         // ── BVG: Pläne 11/21/22 (Prozent gesamt), K2010 ohne Satz ──
         foreach (var c in (T25("CompanyBVGLPPPossibleSolutions") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

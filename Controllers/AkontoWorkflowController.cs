@@ -204,6 +204,12 @@ public class AkontoWorkflowController : HrControllerBase
     {
         if (!await CanAccessBranchAsync(req.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        // Filiale ohne Akonto-Lohn (Walter 08.09.2026): der Akonto-Strang wird
+        // hier gar nicht erst gestartet — alle Folgeschritte setzen «start» voraus.
+        var akontoAktiv = await _db.CompanyProfiles
+            .Where(c => c.Id == req.CompanyProfileId).Select(c => (bool?)c.AkontoAktiv).FirstOrDefaultAsync();
+        if (akontoAktiv == false)
+            return StatusCode(409, new { error = "Diese Filiale führt keinen Akonto-Lohn (Filial-Einstellungen → Akonto-Lohn: nein). Der Lohnlauf geht direkt zum Definitiv." });
         if (!DateOnly.TryParseExact(req.Stichtag, "yyyy-MM-dd",
                                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var stichtag))
             return BadRequest(new { error = "Stichtag-Format: JJJJ-MM-TT." });

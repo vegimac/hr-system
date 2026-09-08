@@ -176,6 +176,18 @@ public class CompanyProfile
     public bool AutoFerienGeldAuszahlungDezember { get; set; } = true;
 
     /// <summary>
+    /// Ferienentschädigung (FLEX/MTP) monatlich auszahlen statt in den Ferien-
+    /// Pott (Walter 08.09.2026). Standard false = heutiges Verhalten (Pott,
+    /// Auszahlung beim Ferienbezug / Dezember / Austritt). Bei true steht der
+    /// Zuschlag jeden Monat in «Ausbezahlt», fliesst in Total Lohn und über die
+    /// Häkchen der Lohnposition in SV/QST/13. ML; in den Pott wandert nichts.
+    /// Ein bestehender Pott-Saldo bleibt stehen und wird wie bisher ausbezahlt.
+    /// Gilt für alle Stundenlöhner der Filiale (Walter: «alle oder keiner»).
+    /// Swissdec-Testmandant: true.
+    /// </summary>
+    public bool FerienAuszahlungMonatlich { get; set; } = false;
+
+    /// <summary>
     /// Lohnausweis Box F (Form 11 dfe): "Unentgeltliche Beförderung
     /// zwischen Wohn- und Arbeitsort". Bei McDonald's typischerweise false
     /// (kein Werks-Bus).
@@ -302,6 +314,17 @@ public class CompanyProfile
     public decimal LgavBeitragReduziert { get; set; } = 49.5m;
 
     // ── Akonto-Lohn ────────────────────────────────────────────────────────
+    /// <summary>
+    /// Akonto-Lohn ja/nein pro Filiale (Walter 08.09.2026). Standard ja.
+    /// Bei nein gibt es für diese Filiale keinen Akonto-Strang: kein Akonto-
+    /// Reiter im GF- und HR-Lohnlauf, keine Akonto-Zähler, die Akonto-Start-
+    /// Endpunkte lehnen ab; der Lohnlauf geht direkt zum Definitiv. Perioden
+    /// bleiben auf AkontoStatus OFFEN, was für Sperren/Reihenfolge bereits als
+    /// «erledigt» gilt (AkontoDefinitivGuard). Für Lizenznehmer ohne Akonto
+    /// und den Swissdec-Testmandanten.
+    /// </summary>
+    public bool AkontoAktiv { get; set; } = true;
+
     /// <summary>
     /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
     /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.

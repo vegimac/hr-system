@@ -53,8 +53,28 @@ public class LgavBeitragService
         DateOnly periodFrom,
         DateOnly periodTo)
     {
-        if (!profile.LgavAktiv) return;
         if (employee is null || employment is null) return;
+
+        if (!profile.LgavAktiv)
+        {
+            // Filiale ohne L-GAV (Walter 09.09.2026): ein automatisch gesetzter
+            // Beitrag der laufenden Periode wird wieder entfernt — sonst bliebe
+            // ein Abzug stehen, der beim Abschalten schon eingefügt war
+            // (Muster AG: L-GAV-Beitrag 49.50 im Januar trotz «deaktiviert»).
+            // Nur automatische Einträge (Bemerkung null) und nur diese Periode;
+            // abgeschlossene Perioden werden nicht mehr gerechnet.
+            var periodeAus = $"{year}-{month:D2}";
+            var lpAus = await _db.Lohnpositionen
+                .Where(l => l.Code == LgavCode && l.IsActive)
+                .Select(l => (int?)l.Id).FirstOrDefaultAsync();
+            if (lpAus is null) return;
+            var alte = await _db.LohnZulagen
+                .Where(z => z.EmployeeId == employee.Id && z.LohnpositionId == lpAus
+                         && z.Periode == periodeAus && z.Bemerkung == null)
+                .ToListAsync();
+            if (alte.Count > 0) { _db.LohnZulagen.RemoveRange(alte); await _db.SaveChangesAsync(); }
+            return;
+        }
 
         // 1) Duplikatsschutz: bereits in diesem Jahr erfasst?
         var yearPrefix = $"{year}-";

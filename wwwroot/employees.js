@@ -14107,7 +14107,7 @@ function ocLoadingCardHtml(titel, text) {
         <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#f3f8ea 0%,#faf8f5 60%);border:1px solid #d7e4bd;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
             <!-- Der Gag (Walter 08.09.2026): statt Sanduhr dreht sich das grüne @ von easy@work -->
             <div style="width:56px;height:56px;border-radius:50%;background:#eaf2da;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #b7d17a">
-                <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:34px;height:34px;object-fit:contain;animation:ocAtSpin 1.8s ease-in-out infinite">
+                <img src="img/easyatwork-icon.webp?v=20260628a" alt="easy@work" style="width:34px;height:34px;object-fit:contain;animation:ocAtSpin 1.8s ease-in-out infinite">
             </div>
             <div style="min-width:0;flex:1">
                 <div style="font-size:15px;font-weight:700;color:#3f3f3f">${esc(titel)}<span class="oc-load-dots"></span></div>
@@ -15922,16 +15922,16 @@ function _raTilesHtml() {
             <span>${title}</span>
         </button>`;
     const kontoTiles = selectedEmployee?.isPayrollExcluded ? '' : `
-        ${tile('Postfach passwort.png', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
-        ${tile('onboarding qr.png', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
-        ${tile('face id zurück.png', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
+        ${tile('Postfach passwort.webp', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
+        ${tile('onboarding qr.webp', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
+        ${tile('face id zurück.webp', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
     return `<div class="ra-tile-row">
-        ${tile('probezeit.png', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
-        ${tile('arbeitsbestaetigung.png', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
-        ${tile('verwarnung.png', 'Verwarnung', 'openVerwarnungModal(null)')}
-        ${tile('Aufforderung.png', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
-        ${tile('Schlusszeugnis.png', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
-        ${tile('zwischenzeugnis.png', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
+        ${tile('probezeit.webp', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
+        ${tile('arbeitsbestaetigung.webp', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
+        ${tile('verwarnung.webp', 'Verwarnung', 'openVerwarnungModal(null)')}
+        ${tile('Aufforderung.webp', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
+        ${tile('Schlusszeugnis.webp', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
+        ${tile('zwischenzeugnis.webp', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}
     </div>`;

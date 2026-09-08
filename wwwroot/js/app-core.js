@@ -135,7 +135,13 @@ let nationalityCodeToId = {};
 // ══════════════════════════════════════════════
 // AUTH
 // ══════════════════════════════════════════════
+let _loginLaeuft = false;
 async function doLogin() {
+    if (_loginLaeuft) return;   // Doppelklick / Enter+Klick nicht doppelt senden
+    _loginLaeuft = true;
+    try { await _doLoginInner(); } finally { _loginLaeuft = false; }
+}
+async function _doLoginInner() {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const errEl = document.getElementById('loginError');
@@ -330,7 +336,8 @@ function renderImpersonationBanner() {
     }
 })();
 
-document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+// Enter im Passwortfeld löst bereits den Form-Submit (onsubmit → doLogin) aus;
+// ein zusätzlicher keydown-Handler schickte die Anmeldung doppelt (Walter 08.09.2026).
 
 async function checkAuth() {
     if (!authToken) return false;

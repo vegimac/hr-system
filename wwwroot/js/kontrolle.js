@@ -571,7 +571,7 @@ function _kontrolleExportCombiPdf() {
             <button onclick="window.close()">← Schliessen</button>
             <button class="primary" onclick="window.print()">🖨 Drucken / PDF</button>
         </div>
-        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.png" alt="OneCrew">
+        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.webp" alt="OneCrew">
         <h1>⚠ Kontrolle — Lücken-Erkennung</h1>
         <div class="sub">Stand ${today}</div>
         ${empSection}
@@ -766,7 +766,7 @@ function _kontrolleSpouseExportPdf_LEGACY() {
             tr:nth-child(even) td { background:#fafafa }
             @media print { @page { margin: 0 } body { margin: 12mm } }
         </style></head><body>
-        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.png" alt="OneCrew">
+        <img class="oc-logo" src="${location.origin}/img/onecrew-logo.webp" alt="OneCrew">
         <h1>⚠ Kontrolle — Ausweis Ehegatte fehlt</h1>
         <div class="sub">${_kontrolleSpouseCache.length} MA · Stand ${today}</div>
         <table>
