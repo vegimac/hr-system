@@ -149,10 +149,14 @@ async function vkSave() {
             body: JSON.stringify({ zeilen, eawTestNummer })
         });
         if (!r.ok) {
-            state.textContent = '';
-            showPageAlert('smtpAlert', 'Speichern fehlgeschlagen: ' + (await r.text() || r.status), 'error');
+            const txt = await r.text();
+            state.textContent = '✗ Speichern fehlgeschlagen (HTTP ' + r.status + ')';
+            state.style.color = '#b91c1c';
+            showPageAlert('smtpAlert', 'Speichern fehlgeschlagen: ' + (txt || r.status), 'error');
+            if (typeof showToast === 'function') showToast('Freigabe konnte nicht gespeichert werden (HTTP ' + r.status + ').', 'error');
             return;
         }
+        state.style.color = '';
         state.textContent = '✓ Gespeichert';
         await vkLoad();
     } catch (e) {

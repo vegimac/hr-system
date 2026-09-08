@@ -153,7 +153,8 @@ public class AdminVersandKategorieController : ControllerBase
             }
             if (setting.Value != wert) geaendert.Add($"easy@work-Test-Personalnummer: «{wert}»");
             setting.Value = wert;
-            setting.UpdatedAt = DateTime.Now;
+            // app_setting.updated_at ist timestamptz (Altbestand) → UtcNow, sonst 500 (Kind=Local).
+            setting.UpdatedAt = DateTime.UtcNow;
         }
 
         await _db.SaveChangesAsync(ct);
