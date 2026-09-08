@@ -2149,7 +2149,7 @@ function _eawHrRenderDossier(j, nr) {
             <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569">${escapeHtml(att.name || '')} ${size ? '<span style="color:#94a3b8">(' + size + ')</span>' : ''}</td>
             <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569">${escapeHtml(von)}</td>
             <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;white-space:nowrap">${f.expires_at ? '<span style="color:#b45309">bis ' + escapeHtml(f.expires_at.slice(0, 10)) + '</span>' : ''}</td>
-            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0"><button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="eawHrFileDownload('${escapeHtml(nr)}', ${Number(f.id)}, ${JSON.stringify(att.name || (f.name + '.pdf'))})">⬇ Holen</button></td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0"><button class="btn-secondary" style="padding:4px 10px;font-size:12px" data-nr="${escapeHtml(nr)}" data-id="${Number(f.id)}" data-name="${escapeHtml(att.name || (f.name + '.pdf'))}" onclick="eawHrFileDownload(this.dataset.nr, this.dataset.id, this.dataset.name, this)">⬇ Holen</button></td>
         </tr>`;
     }).join('');
     box.innerHTML = `<div style="margin-top:12px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px">
@@ -2160,10 +2160,14 @@ function _eawHrRenderDossier(j, nr) {
             </tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
-async function eawHrFileDownload(nr, fileId, fileName) {
+async function eawHrFileDownload(nr, fileId, fileName, btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ …'; }
+    _eawHrOut(`Hole Datei ${fileId} …`);
     try {
-        const r = await fetch(`/api/easywork/hr-files/download?number=${encodeURIComponent(nr)}&fileId=${fileId}`, { headers: ah() });
-        if (!r.ok) { const j = await r.json().catch(() => ({})); _eawHrOut(j, true); return; }
+        const r = await fetch(`/api/easywork/hr-files/download?number=${encodeURIComponent(nr)}&fileId=${encodeURIComponent(fileId)}`, { headers: ah() });
+        if (btn) { btn.disabled = false; btn.textContent = '⬇ Holen'; }
+        if (!r.ok) { const j = await r.json().catch(() => ({})); _eawHrOut({ fileId, httpStatus: r.status, ...j }, true); return; }
+        _eawHrOut(`✓ Datei ${fileId} geladen (${r.headers.get('content-type') || '?'}) — wird geöffnet/gespeichert.`);
         const blob = await r.blob();
         const url = URL.createObjectURL(blob);
         // Öffnen im neuen Tab (PDF/Bild wird angezeigt); zusätzlich Download-Link.
@@ -2171,7 +2175,7 @@ async function eawHrFileDownload(nr, fileId, fileName) {
         a.href = url; a.download = fileName || `easyatwork-${fileId}`; a.target = '_blank';
         document.body.appendChild(a); a.click(); a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 60000);
-    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+    } catch (e) { if (btn) { btn.disabled = false; btn.textContent = '⬇ Holen'; } _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
 
 async function eawHrProbe() {
