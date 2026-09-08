@@ -268,6 +268,97 @@ public class EasyAtWorkHrFilesController : ControllerBase
     }
 
     /// <summary>
+    /// Tiefen-Probe (Walter 08.09.2026): durchsucht die Filial-Übersichten
+    /// (hr_overview aller gemappten Customers, alle Typen, inkl. inaktive) nach
+    /// JEDEM Datei-Objekt mit Anhang, das ein App-Benutzer hochgeladen hat
+    /// (attachments.user_id ≠ null) — egal in welchem Bereich es hängt
+    /// (employees, requested_files, unsigned_files …). Zeigt auch die Struktur
+    /// der Übersicht (Schlüssel + Anzahl). Read-only.
+    /// </summary>
+    [HttpGet("probe-deep")]
+    public async Task<IActionResult> ProbeDeep([FromQuery] string? sinceDate, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var since = DateTime.TryParse(sinceDate, out var sd) ? sd.Date : DateTime.Today;
+        var mappings = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .Select(m => new { m.EasyAtWorkCustomerId, m.EasyAtWorkCustomerName })
+            .ToListAsync(ct);
+        var customers = new List<object>();
+        var treffer = new List<object>();
+
+        foreach (var m in mappings.GroupBy(x => x.EasyAtWorkCustomerId).Select(g => g.First()))
+        {
+            var path = $"customers/{m.EasyAtWorkCustomerId}/hr_overview?all_types=1&include_inactive=1";
+            int status; string body;
+            try { (status, body) = await _client.GetRawAsync(path, ct); }
+            catch (Exception ex) { customers.Add(new { customerId = m.EasyAtWorkCustomerId, m.EasyAtWorkCustomerName, status = -1, error = ex.Message }); continue; }
+
+            var struktur = new Dictionary<string, object?>();
+            var gefunden = 0;
+            if (status >= 200 && status < 300)
+            {
+                try
+                {
+                    var root = JsonSerializer.Deserialize<JsonElement>(body);
+                    if (root.ValueKind == JsonValueKind.Object)
+                        foreach (var prop in root.EnumerateObject())
+                            struktur[prop.Name] = prop.Value.ValueKind switch
+                            {
+                                JsonValueKind.Array => $"Array[{prop.Value.GetArrayLength()}]",
+                                JsonValueKind.Object => $"Object{{{prop.Value.EnumerateObject().Count()}}}",
+                                _ => prop.Value.ToString(),
+                            };
+                    // Rekursiv alle Objekte mit "attachments" einsammeln.
+                    void Walk(JsonElement el, string pfad)
+                    {
+                        if (el.ValueKind == JsonValueKind.Object)
+                        {
+                            if (el.TryGetProperty("attachments", out var atts) && atts.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var a in atts.EnumerateArray())
+                                {
+                                    var uid = a.TryGetProperty("user_id", out var u) && u.ValueKind == JsonValueKind.Number ? u.GetInt64() : (long?)null;
+                                    var created = a.TryGetProperty("created_at", out var c) && c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+                                    DateTime.TryParse(created, out var cdt);
+                                    if (uid != null && cdt >= since)
+                                    {
+                                        gefunden++;
+                                        treffer.Add(new
+                                        {
+                                            customerId = m.EasyAtWorkCustomerId,
+                                            bereich = pfad,
+                                            fileId = el.TryGetProperty("id", out var fi) ? fi.ToString() : null,
+                                            employeeId = el.TryGetProperty("employee_id", out var ei) ? ei.ToString() : null,
+                                            name = el.TryGetProperty("name", out var n) ? n.ToString() : null,
+                                            typeId = el.TryGetProperty("type_id", out var ti) ? ti.ToString() : null,
+                                            attachmentId = a.TryGetProperty("id", out var ai) ? ai.ToString() : null,
+                                            attachmentName = a.TryGetProperty("name", out var an) ? an.ToString() : null,
+                                            userId = uid,
+                                            createdAt = created,
+                                            objekt = el.ToString().Length > 1500 ? el.ToString()[..1500] + " …" : el.ToString(),
+                                        });
+                                    }
+                                }
+                            }
+                            foreach (var prop in el.EnumerateObject())
+                                Walk(prop.Value, pfad + "." + prop.Name);
+                        }
+                        else if (el.ValueKind == JsonValueKind.Array)
+                        {
+                            var i = 0;
+                            foreach (var item in el.EnumerateArray()) Walk(item, pfad + "[" + (i++) + "]");
+                        }
+                    }
+                    Walk(root, "hr_overview");
+                }
+                catch (Exception ex) { struktur["_parseError"] = ex.Message; }
+            }
+            customers.Add(new { customerId = m.EasyAtWorkCustomerId, m.EasyAtWorkCustomerName, status, gefunden, struktur, bodyLength = body.Length });
+        }
+        return Ok(new { seit = since.ToString("yyyy-MM-dd"), customers, treffer });
+    }
+
+    /// <summary>
     /// Eingang aus easy@work (Walter-Vorgabe 08.09.2026): Dateien, die der MA in
     /// der App «an HR» hochgeladen hat (Anhang mit user_id ≠ null), ins
     /// HR-Postfach holen — NIE direkt ins Dossier. Schon geholte Anhänge werden

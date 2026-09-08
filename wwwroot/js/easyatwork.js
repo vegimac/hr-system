@@ -2203,3 +2203,16 @@ async function eawHrEingang() {
         if (typeof refreshMailboxCounts === 'function') { try { refreshMailboxCounts(); } catch (_) {} }
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
+
+async function eawHrProbeDeep() {
+    _eawHrOut('Tiefen-Probe läuft (alle gemappten Filialen)…');
+    try {
+        const r = await fetch('/api/easywork/hr-files/probe-deep', { headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { _eawHrOut(j, true); return; }
+        const c = (j.customers || []).map(x => `${String(x.status).padStart(3)}  ${String(x.gefunden ?? '-').padStart(3)}  Customer ${x.customerId} ${x.easyAtWorkCustomerName || ''}  ${x.struktur ? Object.entries(x.struktur).map(([k, v]) => k + '=' + v).join(', ') : (x.error || '')}`);
+        const t = (j.treffer || []).map(x => `• Customer ${x.customerId} · ${x.bereich}\n  Datei ${x.fileId} «${x.name}» (Typ ${x.typeId}, employee_id ${x.employeeId}) — Anhang ${x.attachmentId} «${x.attachmentName}», User ${x.userId}, ${x.createdAt}`);
+        _eawHrOut(`App-Uploads seit ${j.seit}: ${(j.treffer || []).length} Treffer\n\nStatus  Anz  Customer  (Struktur der Übersicht)\n${c.join('\n')}\n\n${t.join('\n\n') || '(keine Treffer)'}\n\n` + JSON.stringify(j, null, 2));
+        const dbox = document.getElementById('eawHrDossier'); if (dbox) dbox.innerHTML = '';
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
