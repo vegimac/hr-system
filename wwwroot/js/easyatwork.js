@@ -2024,3 +2024,78 @@ async function eawAbsenceSync(dryRun) {
         if (out) out.textContent = 'Verbindungsfehler: ' + e.message;
     }
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────
+// HR-Dateien: Dokument an MA via easy@work (Walter 08.09.2026, Stufe 1 = Test)
+// ─────────────────────────────────────────────────────────────────────────
+
+function _eawHrOut(obj, isErr) {
+    const out = document.getElementById('eawHrResult');
+    if (!out) return;
+    out.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+    out.style.borderLeft = isErr ? '4px solid #ef4444' : '4px solid #22c55e';
+}
+
+async function eawHrFileTypes() {
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { _eawHrOut('Bitte oben eine Filiale wählen (globaler Selektor).', true); return; }
+    _eawHrOut('Lade Dateitypen…');
+    try {
+        const r = await fetch(`/api/easywork/hr-files/types?companyProfileId=${encodeURIComponent(cpId)}`, { headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { _eawHrOut(j, true); return; }
+        const sel = document.getElementById('eawHrType');
+        const data = (j.response && j.response.data) || [];
+        if (sel) {
+            sel.innerHTML = '<option value="">— Dateityp wählen —</option>'
+                + data.map(t => `<option value="${t.id}">${escapeHtml(t.name)} (id ${t.id}${t.mandatory ? ', Pflicht' : ''}${(t.accept_file_types || []).length ? ', ' + t.accept_file_types.join('/') : ''})</option>`).join('');
+        }
+        _eawHrOut(j);
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
+
+async function eawHrFileList() {
+    const nr = (document.getElementById('eawHrNumber')?.value || '').trim();
+    if (!nr) { _eawHrOut('Bitte eine Personalnummer eingeben.', true); return; }
+    _eawHrOut('Lade Dossier…');
+    try {
+        const r = await fetch(`/api/easywork/hr-files/list?number=${encodeURIComponent(nr)}`, { headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        _eawHrOut(j, !r.ok);
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
+
+async function eawHrFileSend() {
+    const nr     = (document.getElementById('eawHrNumber')?.value || '').trim();
+    const typeId = document.getElementById('eawHrType')?.value || '';
+    const name   = (document.getElementById('eawHrName')?.value || '').trim();
+    const fileEl = document.getElementById('eawHrFile');
+    const file   = fileEl && fileEl.files && fileEl.files[0];
+    if (!nr)     { _eawHrOut('Bitte eine Personalnummer eingeben.', true); return; }
+    if (!typeId) { _eawHrOut('Bitte zuerst die Dateitypen laden und einen wählen.', true); return; }
+    if (!name)   { _eawHrOut('Bitte einen Dokumentnamen angeben — den sieht der MA.', true); return; }
+    if (!file)   { _eawHrOut('Bitte eine Datei auswählen.', true); return; }
+    if (!confirm(`«${name}» (${file.name}) jetzt an Personalnr. ${nr} in easy@work senden?`)) return;
+
+    const fd = new FormData();
+    fd.append('number', nr);
+    fd.append('typeId', typeId);
+    fd.append('name', name);
+    fd.append('file', file, file.name);
+    fd.append('notify', document.getElementById('eawHrNotify')?.checked ? 'true' : 'false');
+    const exp = document.getElementById('eawHrExpires')?.value || '';
+    if (exp) fd.append('expiresAt', exp);
+    const warn = document.getElementById('eawHrWarnDays')?.value || '';
+    if (exp && warn) fd.append('warnDays', warn);
+    fd.append('setExistingAsExpired', document.getElementById('eawHrExpireOld')?.checked ? 'true' : 'false');
+
+    _eawHrOut('Sende…');
+    try {
+        // multipart: KEIN Content-Type setzen (Browser setzt die Boundary) — ah() hätte application/json.
+        const hdr = { ...ah() }; delete hdr['Content-Type'];
+        const r = await fetch('/api/easywork/hr-files/send', { method: 'POST', headers: hdr, body: fd });
+        const j = await r.json().catch(() => ({}));
+        _eawHrOut(j, !r.ok);
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}

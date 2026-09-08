@@ -187,6 +187,81 @@ public class EasyAtWorkClient
         return r;
     }
 
+    /// <summary>
+    /// Beliebige Methode (POST/PUT/DELETE …) mit optionalem Body — für die
+    /// HR-Dateien (Dokumente an MA, Walter 08.09.2026). Gibt Status + Roh-Body
+    /// zurück, wirft NICHT bei Fehler-Status. Bei 401 einmal Token-Refresh + Retry.
+    /// <paramref name="contentFactory"/> wird pro Versuch neu aufgerufen, weil
+    /// ein HttpContent nach dem Senden nicht wiederverwendbar ist.
+    /// </summary>
+    public async Task<(int status, string body)> SendRawAsync(
+        HttpMethod method, string path, Func<HttpContent?>? contentFactory = null,
+        CancellationToken ct = default)
+    {
+        EnsureConfigured();
+        async Task<(int, string)> SendOnce()
+        {
+            var token = await GetTokenAsync(ct);
+            var req = new HttpRequestMessage(method,
+                $"{_settings.BaseUrl.TrimEnd('/')}/{path.TrimStart('/')}");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            req.Content = contentFactory?.Invoke();
+            using var resp = await _http.SendAsync(req, ct);
+            var body = await resp.Content.ReadAsStringAsync(ct);
+            return ((int)resp.StatusCode, body);
+        }
+        var r = await SendOnce();
+        if (r.Item1 == 401) { InvalidateToken(); r = await SendOnce(); }
+        return r;
+    }
+
+    // ──────────────────── HR-Dateien (Dokumente an MA) ──────────────
+
+    /// <summary>Dateitypen (Kategorien) eines Customers — Roh-JSON.</summary>
+    public Task<(int status, string body)> GetHrFileTypesRawAsync(int customerId, CancellationToken ct = default)
+        => GetRawAsync($"customers/{customerId}/hr_file_types?per_page=100", ct);
+
+    /// <summary>HR-Dateien eines MA inkl. Typ + Anhänge — Roh-JSON.</summary>
+    public Task<(int status, string body)> GetHrFilesRawAsync(int customerId, int employeeId, CancellationToken ct = default)
+        => GetRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files?with[]=type&with[]=attachments&per_page=100", ct);
+
+    /// <summary>
+    /// Lädt EIN Dokument in das easy@work-Dossier eines MA hoch
+    /// (POST multipart /customers/{c}/employees/{e}/hr_files). easy@work
+    /// benachrichtigt den MA selbst, wenn <paramref name="notify"/> gesetzt ist.
+    /// Erwartete Antwort: 202 mit dem Datei-Objekt.
+    /// </summary>
+    public Task<(int status, string body)> UploadHrFileRawAsync(
+        int customerId, int employeeId,
+        byte[] fileBytes, string fileName, string mimeType,
+        int typeId, string name, bool notify,
+        DateOnly? expiresAt = null, int? warnDays = null,
+        bool setExistingAsExpired = false,
+        CancellationToken ct = default)
+    {
+        HttpContent Build()
+        {
+            var form = new MultipartFormDataContent();
+            var file = new ByteArrayContent(fileBytes);
+            file.Headers.ContentType = new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(mimeType) ? "application/octet-stream" : mimeType);
+            form.Add(file, "file", fileName);
+            form.Add(new StringContent(typeId.ToString()), "type_id");
+            form.Add(new StringContent(name), "name");
+            form.Add(new StringContent(notify ? "1" : "0"), "notify");
+            if (expiresAt.HasValue)
+                form.Add(new StringContent(expiresAt.Value.ToString("yyyy-MM-dd")), "expires_at");
+            if (warnDays.HasValue && expiresAt.HasValue)
+                form.Add(new StringContent(warnDays.Value.ToString()), "warn_days");
+            if (setExistingAsExpired)
+                form.Add(new StringContent("1"), "set_existing_as_expired");
+            return form;
+        }
+        return SendRawAsync(HttpMethod.Post,
+            $"customers/{customerId}/employees/{employeeId}/hr_files", Build, ct);
+    }
+
     // ──────────────────── Convenience-Endpoints ─────────────────────
 
     /// <summary>Liste aller für den Client sichtbaren Customers (Filialen).</summary>
