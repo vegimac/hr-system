@@ -5329,10 +5329,24 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
     };
     const yearsLabel = window.i18n && window.i18n.getLang && i18n.getLang() === 'en' ? 'years' : 'Jahre';
 
+    // Gruppen klar abgrenzen (Walter 08.09.2026): jede Gruppe (Ehepartner,
+    // Kinder …) in einem eigenen, leicht getönten Rahmen mit Symbol und
+    // Anzahl im Titel — Partner und Kinder waren optisch kaum zu trennen.
+    const famGroupMeta = {
+        Ehepartner:         { icon: '💍', cls: 'fam-group-partner' },
+        Konkubinatspartner: { icon: '💞', cls: 'fam-group-partner' },
+        Kind:               { icon: '👶', cls: 'fam-group-kinder' },
+        Mutter:             { icon: '👩', cls: 'fam-group-eltern' },
+        Vater:              { icon: '👨', cls: 'fam-group-eltern' },
+        Sonstige:           { icon: '👤', cls: 'fam-group-sonstige' },
+    };
     typeOrder.forEach(type => {
         if (!groups[type]) return;
         const sectionTitle = typeLabel(type, groups[type].length);
-        html += `<div class="emp-section-title" style="margin-top:14px">${sectionTitle}</div>`;
+        const meta = famGroupMeta[type] || famGroupMeta.Sonstige;
+        const n = groups[type].length;
+        html += `<div class="fam-group ${meta.cls}">`;
+        html += `<div class="emp-section-title fam-group-title"><span class="fam-group-icon">${meta.icon}</span>${sectionTitle}${n > 1 ? ` <span class="fam-group-count">${n}</span>` : ''}</div>`;
         // Walter 18.07.2026: kompakte Kachel-Raster statt vollbreiter
         // Listen + leerer Zulagen-Boxen (war unübersichtlich bei mehreren Kindern).
         html += `<div class="fam-tile-grid">`;
@@ -5530,7 +5544,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 ${kindAllowancesBlock}
             </div>`;
         });
-        html += `</div>`;
+        html += `</div></div>`;
     });
 
     // Walter 11.06.2026: Mutterschafts-Modul komplett im Familie-Tab — nur

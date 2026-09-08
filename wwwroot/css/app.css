@@ -12459,3 +12459,39 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
             width: 11rem; min-width: 11rem; max-width: 11rem;
             overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
+
+
+        /* ── Familie: Gruppen abgrenzen (Walter 08.09.2026) ─────────────────
+           Ehepartner/Konkubinat, Kinder, Eltern: je ein eigener, leicht
+           getönter Rahmen mit Symbol und Anzahl im Titel. */
+        .fam-group {
+            margin-top: 18px;
+            padding: 10px 14px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(90,80,65,.12);
+            background: rgba(255,255,255,.28);
+        }
+        .fam-group:first-of-type { margin-top: 6px; }
+        .fam-group .fam-group-title {
+            margin: 0 0 10px !important;
+            display: flex; align-items: center; gap: 8px;
+            background: none !important; border-left: none !important; padding-left: 0 !important;
+            font-size: 12px; letter-spacing: .06em;
+        }
+        .fam-group-icon { font-size: 16px; line-height: 1; }
+        .fam-group-count {
+            display: inline-block; min-width: 1.6em; text-align: center;
+            font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px;
+            background: #3f3f3f; color: #fff; letter-spacing: 0;
+        }
+        .fam-group .fam-tile-grid { margin-bottom: 0; }
+        .fam-group-partner { background: linear-gradient(180deg, rgba(237,233,254,.55) 0%, rgba(255,255,255,.25) 100%); border-color: rgba(124,58,237,.16); }
+        .fam-group-partner .fam-group-title { color: #5b21b6; }
+        .fam-group-kinder  { background: linear-gradient(180deg, rgba(220,252,231,.55) 0%, rgba(255,255,255,.25) 100%); border-color: rgba(22,163,74,.16); }
+        .fam-group-kinder .fam-group-title { color: #166534; }
+        .fam-group-eltern  { background: linear-gradient(180deg, rgba(254,243,199,.5) 0%, rgba(255,255,255,.25) 100%); border-color: rgba(180,83,9,.16); }
+        .fam-group-eltern .fam-group-title { color: #92400e; }
+        body.theme-dark .fam-group { background: rgba(255,255,255,.04); border-color: rgba(150,200,255,.12); }
+        body.theme-dark .fam-group-partner .fam-group-title { color: #c4b5fd; }
+        body.theme-dark .fam-group-kinder .fam-group-title { color: #86efac; }
+        body.theme-dark .fam-group-eltern .fam-group-title { color: #fcd34d; }
