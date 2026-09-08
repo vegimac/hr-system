@@ -253,9 +253,20 @@ public class EasyAtWorkClient
         int customerId, int employeeId, long fileId, CancellationToken ct = default)
         => GetBytesRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files/{fileId}/download", ct);
 
-    /// <summary>HR-Dateien eines MA inkl. Typ + Anhänge — Roh-JSON.</summary>
-    public Task<(int status, string body)> GetHrFilesRawAsync(int customerId, int employeeId, CancellationToken ct = default)
-        => GetRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files?with[]=type&with[]=attachments&per_page=100", ct);
+    /// <summary>
+    /// Dossier eines MA. Die Live-API lehnt <c>with[]=type/attachments</c> mit 422 ab
+    /// (08.09.2026, entgegen der Doku) → zuerst die MA-HR-Übersicht
+    /// (<c>hr_overview?include_expired=1</c>, liefert files mit attachments), sonst
+    /// die einfache Liste ohne with. Gibt zurück, welcher Weg gegriffen hat.
+    /// </summary>
+    public async Task<(int status, string body, string via)> GetHrFilesRawAsync(int customerId, int employeeId, CancellationToken ct = default)
+    {
+        var (s1, b1) = await GetRawAsync($"customers/{customerId}/employees/{employeeId}/hr_overview?include_expired=1", ct);
+        if (s1 >= 200 && s1 < 300) return (s1, b1, "hr_overview");
+        var (s2, b2) = await GetRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files?per_page=100", ct);
+        if (s2 >= 200 && s2 < 300) return (s2, b2, "hr_files");
+        return (s1, $"{{\"hr_overview\":{{\"status\":{s1},\"body\":{System.Text.Json.JsonSerializer.Serialize(b1)}}},\"hr_files\":{{\"status\":{s2},\"body\":{System.Text.Json.JsonSerializer.Serialize(b2)}}}}}", "none");
+    }
 
     /// <summary>
     /// Lädt EIN Dokument in das easy@work-Dossier eines MA hoch

@@ -188,10 +188,10 @@ public class EasyAtWorkHrFilesController : ControllerBase
         if (cid == null)
             return NotFound(new { error = "EAW_EMPLOYEE_NOT_FOUND", message = $"easy@work-ID {emp!.EawEmployeeId} wurde bei keinem gemappten Customer gefunden." });
 
-        var (status, body) = await _client.GetHrFilesRawAsync(cid.Value, emp!.EawEmployeeId, ct);
+        var (status, body, via) = await _client.GetHrFilesRawAsync(cid.Value, emp!.EawEmployeeId, ct);
         return StatusCode(status >= 200 && status < 300 ? 200 : status, new
         {
-            employee = emp, customerId = cid, status, response = ParseOrRaw(body),
+            employee = emp, customerId = cid, status, via, response = ParseOrRaw(body),
         });
     }
 

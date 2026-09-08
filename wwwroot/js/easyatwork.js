@@ -2130,8 +2130,13 @@ function _eawHrRenderDossier(j, nr) {
     const out = document.getElementById('eawHrResult');
     if (!box && out) { box = document.createElement('div'); box.id = 'eawHrDossier'; out.parentNode.insertBefore(box, out); }
     if (!box) return;
-    const files = (j && j.response && j.response.data) || [];
     if (!j) { box.innerHTML = ''; return; }
+    // hr_overview: { types: {id: {...}}, files: [...] } — hr_files: { data: [...] }
+    const resp = j.response || {};
+    let files = Array.isArray(resp.files) ? resp.files : (Array.isArray(resp.data) ? resp.data : []);
+    if (!Array.isArray(files) && files && typeof files === 'object') files = Object.values(files);
+    const types = resp.types || {};
+    files = files.map(f => ({ ...f, type: f.type || types[f.type_id] || types[String(f.type_id)] || null }));
     if (!files.length) { box.innerHTML = '<div style="margin-top:12px;color:#64748b;font-size:13px">Keine Dateien im Dossier.</div>'; return; }
     const rows = files.map(f => {
         const att = (f.attachments || [])[0] || {};
