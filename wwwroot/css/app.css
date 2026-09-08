@@ -12382,3 +12382,61 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
 .as-status { font-weight: 700; white-space: nowrap; }
 .as-online  { color: #15803d; }
 .as-offline { color: #9ca3af; }
+
+
+        /* ── Dokumente-Liste (Walter 08.09.2026): Beschreibung kürzen, Datum und
+           ⋯ rechts FIX. Vorher: Tabelle max-content-breit, ⋯-Zelle sticky und
+           transparent → der Knopf lag über dem Erstellt-Datum. Jetzt: feste
+           Spaltenbreiten, Beschreibung ellipst, nichts scrollt seitlich. */
+        #page-mitarbeiter.liquid-employee .dok-list .dok-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table td.dok-td-desc,
+        #page-mitarbeiter.liquid-employee .dok-table th.dok-th-desc {
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        #page-mitarbeiter.liquid-employee .dok-td-desc .dok-name-line {
+            max-width: 100%;
+            display: inline-block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+        #page-mitarbeiter.liquid-employee .dok-td-desc .dok-expiry-badge {
+            white-space: nowrap;
+        }
+        #page-mitarbeiter.liquid-employee .dok-td-actions,
+        #page-mitarbeiter.liquid-employee .dok-th-actions {
+            position: static !important;
+            width: 2.8rem !important;
+            min-width: 2.8rem !important;
+            max-width: 2.8rem !important;
+            padding: 4px 8px 4px 4px !important;
+            box-sizing: border-box;
+        }
+        #page-mitarbeiter.liquid-employee .dok-table td.dok-date-cell,
+        #page-mitarbeiter.liquid-employee .dok-table thead th.dok-sort-th[onclick*="erstellt"],
+        #page-mitarbeiter.liquid-employee .dok-table thead th.dok-sort-th[onclick*="geaendert"] {
+            width: 4.8rem !important;
+            min-width: 4.8rem !important;
+            max-width: 4.8rem !important;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        /* Kategorie/Typ-Spalten (Ansicht «Alle»): feste, schmale Breite. */
+        #page-mitarbeiter.liquid-employee .dok-table td:has(.dok-cat-pill),
+        #page-mitarbeiter.liquid-employee .dok-table thead th:first-child:not(.dok-th-desc) {
+            width: 7.5rem;
+            min-width: 7.5rem;
+            max-width: 7.5rem;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
