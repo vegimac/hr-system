@@ -2213,6 +2213,11 @@ async function easyworkSyncSelectedEmployee(empId) {
     // Spinner im Button, solange die API-Calls laufen (kann einige Sekunden
     // dauern — Verträge, Properties, Verfügbarkeit).
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="eaw-spin"></span> synchronisiere…'; }
+    // Ladekarte als Overlay (Walter 08.09.2026) — gleiche Optik wie beim Neuzugang.
+    const _syncName = (typeof selectedEmployee !== 'undefined' && selectedEmployee && selectedEmployee.id === empId)
+        ? `${selectedEmployee.firstName || ''} ${selectedEmployee.lastName || ''}`.trim() : '';
+    ocLoadingOverlay(true, _syncName ? `Synchronisiere ${_syncName} mit easy@work` : 'Synchronisiere Mitarbeiter mit easy@work',
+        'Stammdaten, Verträge, Lohn, Zivilstand und Verfügbarkeit werden aus easy@work geholt und abgeglichen. Das dauert einige Sekunden.');
     try {
         const res = await fetch(`/api/easywork/employees/cowork/${empId}/sync`, {
             method: 'POST',
@@ -2220,6 +2225,7 @@ async function easyworkSyncSelectedEmployee(empId) {
             body: JSON.stringify({ companyProfileId: fixedCompanyProfileId || null })
         });
         const data = await res.json().catch(() => ({}));
+        ocLoadingOverlay(false);
         if (!res.ok || data.success === false) {
             const errors = data.errors && data.errors.length ? data.errors : [data.message || data.error || 'easy@work-Abgleich fehlgeschlagen.'];
             const notes = (data.notes && data.notes.length) ? '\n\nHinweise:\n' + data.notes.map(n => '• ' + n).join('\n') : '';
@@ -2301,6 +2307,7 @@ async function easyworkSyncSelectedEmployee(empId) {
     } catch (e) {
         alert('easy@work-Abgleich fehlgeschlagen: ' + (e?.message || e));
     } finally {
+        ocLoadingOverlay(false);
         const btn2 = document.getElementById('btnEmpEasyworkSync')
             || document.getElementById('lsEmpSyncBtn');
         if (btn2) { btn2.disabled = false; if (oldHtml) btn2.innerHTML = oldHtml; }
@@ -14064,6 +14071,45 @@ async function empContractEdit(employmentId, employeeId) {
 // Sonst gesamter Import gesperrt. Nur dieser Neuzugang-Pfad — nicht Admin-Sync.
 let _empEasyNumberSeq = null; // { maxExisting, prefix } aus Preview
 
+// ── Ladekarte im OneCrew-Stil (Walter 08.09.2026) ─────────────────────
+// Sanduhr + warme Karte + laufender Balken. Einmal als HTML (für Modals)
+// und einmal als Vollbild-Overlay (für den Einzel-MA-Sync ohne Modal).
+function ocLoadingCardHtml(titel, text) {
+    const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return `
+        <style>
+            @keyframes ocHourglass { 0%,20% { transform: rotate(0deg); } 45%,70% { transform: rotate(180deg); } 95%,100% { transform: rotate(360deg); } }
+            @keyframes ocDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%,100% { content: '...'; } }
+            @keyframes ocBar { 0% { left: -40%; } 100% { left: 100%; } }
+            .oc-load-dots::after { content: ''; animation: ocDots 1.6s steps(1) infinite; }
+        </style>
+        <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#fbf7ec 0%,#faf8f5 60%);border:1px solid #e8dcb8;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
+            <div style="width:56px;height:56px;border-radius:50%;background:#f5e6b3;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #e8cf7a">
+                <span style="font-size:28px;display:inline-block;animation:ocHourglass 2.4s ease-in-out infinite">⏳</span>
+            </div>
+            <div style="min-width:0;flex:1">
+                <div style="font-size:15px;font-weight:700;color:#3f3f3f">${esc(titel)}<span class="oc-load-dots"></span></div>
+                <div style="font-size:12.5px;color:#6b6152;margin-top:3px;line-height:1.5">${esc(text)}</div>
+                <div style="position:relative;height:6px;border-radius:3px;background:#ece9e2;overflow:hidden;margin-top:12px">
+                    <div style="position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:linear-gradient(90deg,#e8cf7a,#c9a227);animation:ocBar 1.4s ease-in-out infinite"></div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function ocLoadingOverlay(an, titel, text) {
+    let ov = document.getElementById('ocLoadingOverlay');
+    if (!an) { if (ov) ov.style.display = 'none'; return; }
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'ocLoadingOverlay';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:450;background:rgba(60,55,48,0.35);display:flex;align-items:flex-start;justify-content:center;padding:120px 20px';
+        document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+    ov.innerHTML = `<div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:560px;width:100%;padding:12px 18px 14px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">${ocLoadingCardHtml(titel, text)}</div>`;
+}
+
 // Walter 08.09.2026: keine Auswahlfrage API/CSV mehr — immer die API, und der
 // Sync startet sofort. Der alte CSV-Importer bleibt über openImportTool('csv')
 // erreichbar (Entwicklung → Import), nur nicht mehr von hier.
@@ -14095,27 +14141,7 @@ async function empImportFromEasyApi() {
                         style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464;flex-shrink:0">&times;</button>
             </div>
             <div id="empEasyImportBody" style="padding:6px 22px 12px;overflow-y:auto;flex:1">
-                <!-- Ladezustand im OneCrew-Stil (Walter 08.09.2026): Sanduhr, warme Karte, Schritte -->
-                <style>
-                    @keyframes ocHourglass { 0%,20% { transform: rotate(0deg); } 45%,70% { transform: rotate(180deg); } 95%,100% { transform: rotate(360deg); } }
-                    @keyframes ocDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%,100% { content: '...'; } }
-                    @keyframes ocBar { 0% { left: -40%; } 100% { left: 100%; } }
-                    .oc-load-dots::after { content: ''; animation: ocDots 1.6s steps(1) infinite; }
-                </style>
-                <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#fbf7ec 0%,#faf8f5 60%);border:1px solid #e8dcb8;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
-                    <div style="width:56px;height:56px;border-radius:50%;background:#f5e6b3;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #e8cf7a">
-                        <span style="font-size:28px;display:inline-block;animation:ocHourglass 2.4s ease-in-out infinite">⏳</span>
-                    </div>
-                    <div style="min-width:0;flex:1">
-                        <div style="font-size:15px;font-weight:700;color:#3f3f3f">Hole Daten aus easy@work<span class="oc-load-dots"></span></div>
-                        <div style="font-size:12.5px;color:#6b6152;margin-top:3px;line-height:1.5">
-                            Aktive Mitarbeitende und künftige Eintritte der Filiale werden mit OneCrew abgeglichen — Verträge, Lohn und Zivilstand inklusive. Das dauert je nach Filiale 10–40 Sekunden.
-                        </div>
-                        <div style="position:relative;height:6px;border-radius:3px;background:#ece9e2;overflow:hidden;margin-top:12px">
-                            <div style="position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:linear-gradient(90deg,#e8cf7a,#c9a227);animation:ocBar 1.4s ease-in-out infinite"></div>
-                        </div>
-                    </div>
-                </div>
+                ${ocLoadingCardHtml('Hole Daten aus easy@work', 'Aktive Mitarbeitende und künftige Eintritte der Filiale werden mit OneCrew abgeglichen — Verträge, Lohn und Zivilstand inklusive. Das dauert je nach Filiale 10–40 Sekunden.')}
             </div>
             <div id="empEasyImportFoot" style="display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px 22px 18px;border-top:1px solid rgba(139,139,139,0.2)"></div>
         </div>`;
@@ -14280,6 +14306,12 @@ async function empEasyImportCommit(cpId) {
     const btn = document.getElementById('empEasyCommitBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Importiere …'; }
     const body = document.getElementById('empEasyImportBody');
+    // Ladekarte während des Imports (Walter 08.09.2026) — vorherigen Inhalt
+    // merken, damit bei einem Fehler die Liste wieder da ist.
+    const vorher = body ? body.innerHTML : '';
+    if (body) body.innerHTML = ocLoadingCardHtml(
+        numbers.length === 1 ? 'Importiere 1 Mitarbeiter aus easy@work' : `Importiere ${numbers.length} Mitarbeitende aus easy@work`,
+        'Stammdaten, Verträge, Lohn und Zivilstand werden angelegt und die Personalnummern geprüft. Bitte das Fenster offen lassen.');
     try {
         const r = await fetch('/api/easywork/neuzugang/commit', {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -14298,8 +14330,10 @@ async function empEasyImportCommit(cpId) {
             } else {
                 msg = j.message || j.error || ('Fehler HTTP ' + r.status);
             }
-            body.innerHTML = `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap">✗ ${esc(msg)}</div>`;
-            if (btn) { btn.disabled = false; btn.textContent = 'Erneut versuchen'; }
+            body.innerHTML = vorher + `<div style="background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:12px;font-size:13px;white-space:pre-wrap;margin-top:8px">✗ ${esc(msg)}</div>`;
+            _empEasyCount();
+            const btnN = document.getElementById('empEasyCommitBtn');
+            if (btnN) { btnN.disabled = false; btnN.textContent = 'Erneut versuchen'; }
             return;
         }
         const skipped = (j.skippedContracts && j.skippedContracts.length)
