@@ -14064,39 +14064,11 @@ async function empContractEdit(employmentId, employeeId) {
 // Sonst gesamter Import gesperrt. Nur dieser Neuzugang-Pfad — nicht Admin-Sync.
 let _empEasyNumberSeq = null; // { maxExisting, prefix } aus Preview
 
+// Walter 08.09.2026: keine Auswahlfrage API/CSV mehr — immer die API, und der
+// Sync startet sofort. Der alte CSV-Importer bleibt über openImportTool('csv')
+// erreichbar (Entwicklung → Import), nur nicht mehr von hier.
 function empImportFromEasy() {
-    const cpId0 = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
-    if (!cpId0) { alert('Bitte zuerst oben in der Sidebar eine Filiale wählen.'); return; }
-
-    let ov = document.getElementById('empEasyImportModal');
-    if (!ov) {
-        ov = document.createElement('div');
-        ov.id = 'empEasyImportModal';
-        ov.style.cssText = 'position:fixed;inset:0;z-index:400;background:rgba(60,55,48,0.4);display:flex;align-items:flex-start;justify-content:center;padding:40px 20px';
-        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
-        document.body.appendChild(ov);
-    }
-    ov.style.display = 'flex';
-    ov.innerHTML = `
-        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:520px;width:100%;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 6px">
-                <div style="font-size:17px;font-weight:700;color:#3f3f3f">＋ Neuer MA aus easy@work</div>
-                <button onclick="document.getElementById('empEasyImportModal').style.display='none'" aria-label="Schliessen"
-                        style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464;flex-shrink:0">&times;</button>
-            </div>
-            <div style="padding:6px 22px 20px;display:flex;flex-direction:column;gap:10px">
-                <button onclick="empImportFromEasyApi()"
-                        style="text-align:left;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:13px 16px;cursor:pointer">
-                    <div style="font-size:14px;font-weight:700">Via easy@work-API <span style="font-weight:400;opacity:0.75">(Normalfall)</span></div>
-                    <div style="font-size:12px;opacity:0.75;margin-top:2px">Holt neue MA + Änderungen aktiver MA direkt aus easy@work.</div>
-                </button>
-                <button onclick="document.getElementById('empEasyImportModal').style.display='none'; openImportTool('csv');"
-                        style="text-align:left;background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:13px 16px;cursor:pointer">
-                    <div style="font-size:14px;font-weight:700">Via CSV-Datei <span style="font-weight:400;color:#8b8b8b">(alter Importer)</span></div>
-                    <div style="font-size:12px;color:#8b8b8b;margin-top:2px">Für MA, deren easy@work-Datensatz in einem fremden Restaurant gesperrt ist — die API sieht sie nicht. Export-Liste aus easy@work als CSV hochladen.</div>
-                </button>
-            </div>
-        </div>`;
+    empImportFromEasyApi();
 }
 
 async function empImportFromEasyApi() {
