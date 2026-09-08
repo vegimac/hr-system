@@ -14095,7 +14095,27 @@ async function empImportFromEasyApi() {
                         style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:34px;height:34px;font-size:19px;cursor:pointer;color:#646464;flex-shrink:0">&times;</button>
             </div>
             <div id="empEasyImportBody" style="padding:6px 22px 12px;overflow-y:auto;flex:1">
-                <div style="color:#8b8b8b;font-size:13px;padding:14px 0">⏳ Hole Daten aus easy@work — das kann einen Moment dauern …</div>
+                <!-- Ladezustand im OneCrew-Stil (Walter 08.09.2026): Sanduhr, warme Karte, Schritte -->
+                <style>
+                    @keyframes ocHourglass { 0%,20% { transform: rotate(0deg); } 45%,70% { transform: rotate(180deg); } 95%,100% { transform: rotate(360deg); } }
+                    @keyframes ocDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%,100% { content: '...'; } }
+                    @keyframes ocBar { 0% { left: -40%; } 100% { left: 100%; } }
+                    .oc-load-dots::after { content: ''; animation: ocDots 1.6s steps(1) infinite; }
+                </style>
+                <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#fbf7ec 0%,#faf8f5 60%);border:1px solid #e8dcb8;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
+                    <div style="width:56px;height:56px;border-radius:50%;background:#f5e6b3;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #e8cf7a">
+                        <span style="font-size:28px;display:inline-block;animation:ocHourglass 2.4s ease-in-out infinite">⏳</span>
+                    </div>
+                    <div style="min-width:0;flex:1">
+                        <div style="font-size:15px;font-weight:700;color:#3f3f3f">Hole Daten aus easy@work<span class="oc-load-dots"></span></div>
+                        <div style="font-size:12.5px;color:#6b6152;margin-top:3px;line-height:1.5">
+                            Aktive Mitarbeitende und künftige Eintritte der Filiale werden mit OneCrew abgeglichen — Verträge, Lohn und Zivilstand inklusive. Das dauert je nach Filiale 10–40 Sekunden.
+                        </div>
+                        <div style="position:relative;height:6px;border-radius:3px;background:#ece9e2;overflow:hidden;margin-top:12px">
+                            <div style="position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:linear-gradient(90deg,#e8cf7a,#c9a227);animation:ocBar 1.4s ease-in-out infinite"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div id="empEasyImportFoot" style="display:flex;gap:10px;justify-content:flex-end;align-items:center;padding:12px 22px 18px;border-top:1px solid rgba(139,139,139,0.2)"></div>
         </div>`;
