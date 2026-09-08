@@ -1571,7 +1571,30 @@ public class EasyAtWorkEmployeeSyncService
             if (req.OnlyActive)
             {
                 eawEmps = await _client.GetAllEmployeesActiveAtAsync(mapping.EasyAtWorkCustomerId, activeAt, ct);
-                res.Notes.Add($"{eawEmps.Count} aktive MA.");
+                // Künftige Eintritte mitnehmen (Walter 08.09.2026): ein neuer MA wird
+                // in easy@work Tage/Wochen VOR dem Eintritt erfasst und fehlt dann in
+                // «active=heute». Zweite Abfrage am Stichtag +180 Tage; übernommen
+                // werden nur MA, die heute noch nicht dabei sind und deren Eintritt
+                // in der Zukunft liegt.
+                var kuenftig = 0;
+                try
+                {
+                    var spaeter = await _client.GetAllEmployeesActiveAtAsync(
+                        mapping.EasyAtWorkCustomerId, activeAt.AddDays(180), ct);
+                    var schon = new HashSet<int>(eawEmps.Select(e => e.Id));
+                    foreach (var e in spaeter)
+                    {
+                        if (schon.Contains(e.Id)) continue;
+                        if (e.From.HasValue && e.From.Value > activeAt && (!e.To.HasValue || e.To.Value >= e.From.Value))
+                        {
+                            eawEmps.Add(e); schon.Add(e.Id); kuenftig++;
+                        }
+                    }
+                }
+                catch (Exception ex) { _log.LogWarning(ex, "easy@work: Abfrage künftiger Eintritte fehlgeschlagen"); }
+                res.Notes.Add(kuenftig > 0
+                    ? $"{eawEmps.Count - kuenftig} aktive MA + {kuenftig} mit Eintritt in der Zukunft."
+                    : $"{eawEmps.Count} aktive MA.");
             }
             else
             {
