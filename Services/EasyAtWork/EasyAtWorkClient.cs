@@ -216,11 +216,42 @@ public class EasyAtWorkClient
         return r;
     }
 
+    /// <summary>
+    /// GET, liefert den Binär-Body (Download). Bei 401 einmal Token-Refresh + Retry.
+    /// Wirft NICHT bei Fehler-Status.
+    /// </summary>
+    public async Task<(int status, byte[] bytes, string? contentType, string? fileName)> GetBytesRawAsync(
+        string path, CancellationToken ct = default)
+    {
+        EnsureConfigured();
+        async Task<(int, byte[], string?, string?)> SendOnce()
+        {
+            var token = await GetTokenAsync(ct);
+            var req = new HttpRequestMessage(HttpMethod.Get,
+                $"{_settings.BaseUrl.TrimEnd('/')}/{path.TrimStart('/')}");
+            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+            var bytes = await resp.Content.ReadAsByteArrayAsync(ct);
+            var ctype = resp.Content.Headers.ContentType?.ToString();
+            var fname = resp.Content.Headers.ContentDisposition?.FileNameStar
+                        ?? resp.Content.Headers.ContentDisposition?.FileName?.Trim('"');
+            return ((int)resp.StatusCode, bytes, ctype, fname);
+        }
+        var r = await SendOnce();
+        if (r.Item1 == 401) { InvalidateToken(); r = await SendOnce(); }
+        return r;
+    }
+
     // ──────────────────── HR-Dateien (Dokumente an MA) ──────────────
 
     /// <summary>Dateitypen (Kategorien) eines Customers — Roh-JSON.</summary>
     public Task<(int status, string body)> GetHrFileTypesRawAsync(int customerId, CancellationToken ct = default)
         => GetRawAsync($"customers/{customerId}/hr_file_types?per_page=100", ct);
+
+    /// <summary>Neueste Version (Anhang) einer HR-Datei herunterladen.</summary>
+    public Task<(int status, byte[] bytes, string? contentType, string? fileName)> DownloadHrFileAsync(
+        int customerId, int employeeId, long fileId, CancellationToken ct = default)
+        => GetBytesRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files/{fileId}/download", ct);
 
     /// <summary>HR-Dateien eines MA inkl. Typ + Anhänge — Roh-JSON.</summary>
     public Task<(int status, string body)> GetHrFilesRawAsync(int customerId, int employeeId, CancellationToken ct = default)

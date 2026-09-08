@@ -2063,6 +2063,7 @@ async function eawHrFileList() {
         const r = await fetch(`/api/easywork/hr-files/list?number=${encodeURIComponent(nr)}`, { headers: ah() });
         const j = await r.json().catch(() => ({}));
         _eawHrOut(j, !r.ok);
+        _eawHrRenderDossier(r.ok ? j : null, nr);
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
 
@@ -2119,5 +2120,51 @@ async function eawHrTypeCreate() {
         const j = await r.json().catch(() => ({}));
         _eawHrOut(j, !r.ok);
         if (r.ok) { document.getElementById('eawHrNewType').value = ''; await eawHrFileTypes(); }
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}
+
+// Dossier als Tabelle über dem Roh-JSON: Name, Typ, Datum, Anhang, «von» (user_id
+// gesetzt = aus der App/Web hochgeladen, null = per API/OneCrew) + Download.
+function _eawHrRenderDossier(j, nr) {
+    let box = document.getElementById('eawHrDossier');
+    const out = document.getElementById('eawHrResult');
+    if (!box && out) { box = document.createElement('div'); box.id = 'eawHrDossier'; out.parentNode.insertBefore(box, out); }
+    if (!box) return;
+    const files = (j && j.response && j.response.data) || [];
+    if (!j) { box.innerHTML = ''; return; }
+    if (!files.length) { box.innerHTML = '<div style="margin-top:12px;color:#64748b;font-size:13px">Keine Dateien im Dossier.</div>'; return; }
+    const rows = files.map(f => {
+        const att = (f.attachments || [])[0] || {};
+        const von = att.user_id ? `App/Web (User ${att.user_id})` : 'API / OneCrew';
+        const size = att.size ? (att.size > 1048576 ? (att.size / 1048576).toFixed(1) + ' MB' : Math.round(att.size / 1024) + ' KB') : '';
+        return `<tr>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0">${escapeHtml(f.name || '')}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569">${escapeHtml((f.type && f.type.name) || ('Typ ' + f.type_id))}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569;white-space:nowrap">${escapeHtml(f.created_at || '')}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569">${escapeHtml(att.name || '')} ${size ? '<span style="color:#94a3b8">(' + size + ')</span>' : ''}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#475569">${escapeHtml(von)}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0;white-space:nowrap">${f.expires_at ? '<span style="color:#b45309">bis ' + escapeHtml(f.expires_at.slice(0, 10)) + '</span>' : ''}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #e2e8f0"><button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="eawHrFileDownload('${escapeHtml(nr)}', ${Number(f.id)}, ${JSON.stringify(att.name || (f.name + '.pdf'))})">⬇ Holen</button></td>
+        </tr>`;
+    }).join('');
+    box.innerHTML = `<div style="margin-top:12px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:8px">
+        <table style="border-collapse:collapse;width:100%;font-size:12.5px">
+            <thead><tr style="background:#f8fafc;color:#334155;text-align:left">
+                <th style="padding:6px 8px">Dokument</th><th style="padding:6px 8px">Typ</th><th style="padding:6px 8px">Erstellt</th>
+                <th style="padding:6px 8px">Anhang</th><th style="padding:6px 8px">Hochgeladen von</th><th style="padding:6px 8px">Ablauf</th><th></th>
+            </tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+
+async function eawHrFileDownload(nr, fileId, fileName) {
+    try {
+        const r = await fetch(`/api/easywork/hr-files/download?number=${encodeURIComponent(nr)}&fileId=${fileId}`, { headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); _eawHrOut(j, true); return; }
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        // Öffnen im neuen Tab (PDF/Bild wird angezeigt); zusätzlich Download-Link.
+        const a = document.createElement('a');
+        a.href = url; a.download = fileName || `easyatwork-${fileId}`; a.target = '_blank';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }

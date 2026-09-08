@@ -196,6 +196,29 @@ public class EasyAtWorkHrFilesController : ControllerBase
     }
 
     /// <summary>
+    /// Datei aus dem easy@work-Dossier holen (z.B. was der MA aus der App
+    /// hochgeladen hat) — streamt die neueste Version. Jeder Abruf landet im
+    /// Download-Log von easy@work.
+    /// </summary>
+    [HttpGet("download")]
+    public async Task<IActionResult> Download([FromQuery] string number, [FromQuery] long fileId, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        if (fileId <= 0) return BadRequest(new { error = "FILE_ID_REQUIRED", message = "Bitte eine Datei-ID angeben." });
+        var (emp, err) = await ResolveEmployeeAsync(number, ct);
+        if (err != null) return err;
+        var cid = await FindCustomerForEmployeeAsync(emp!, ct);
+        if (cid == null)
+            return NotFound(new { error = "EAW_EMPLOYEE_NOT_FOUND", message = $"easy@work-ID {emp!.EawEmployeeId} wurde bei keinem gemappten Customer gefunden." });
+
+        var (status, bytes, contentType, fileName) = await _client.DownloadHrFileAsync(cid.Value, emp!.EawEmployeeId, fileId, ct);
+        if (status < 200 || status >= 300)
+            return StatusCode(status, new { error = "EAW_DOWNLOAD_FAILED", status, message = System.Text.Encoding.UTF8.GetString(bytes) });
+        return File(bytes, string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
+                    string.IsNullOrWhiteSpace(fileName) ? $"easyatwork-{fileId}" : fileName);
+    }
+
+    /// <summary>
     /// EIN Dokument ODER eine Mitteilung an EINEN MA senden (Testkarte). Multipart:
     /// number, typeId, name (= Betreff), file (optional), text (optional — wird zum
     /// PDF, wenn keine Datei), notify (1/0), expiresAt (yyyy-MM-dd, optional),
