@@ -2669,6 +2669,21 @@
         .lqsel-opt.sel { font-weight: 700; }
         .lqsel-opt.sel::before { content: "✓ "; color: #6b7280; }
         .lqsel-opt.dis { color: #b8b2a7; cursor: default; }
+        /* Zähler-Spalte in Dropdowns (Walter 08.09.2026): Name links, Anzahl
+           rechts fix ausgerichtet als Pille — «welches Postfach hat Post?» auf
+           einen Blick. Leer = dezenter Strich. */
+        .lqsel-opt-badge { display: flex; align-items: center; gap: 12px; padding: 9px 12px; font-size: 13.5px; }
+        .lqsel-opt-badge .lqsel-opt-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+        .lqsel-badge {
+            flex: 0 0 auto; min-width: 2.4em; text-align: center; box-sizing: border-box;
+            font-size: 12px; font-weight: 700; line-height: 1; padding: 5px 8px; border-radius: 999px;
+            color: #b8b2a7; background: transparent; font-variant-numeric: tabular-nums;
+        }
+        .lqsel-badge.on { color: #fff; background: #c9a227; box-shadow: 0 1px 2px rgba(60,55,48,0.18); }
+        .lqsel-opt.sel .lqsel-badge.on { background: #3f3f3f; }
+        .lqsel-btn .lqsel-badge { margin-left: 8px; }
+        body.theme-dark .lqsel-badge { color: #6b7280; }
+        body.theme-dark .lqsel-badge.on { color: #1a1a1a; background: #e8cf7a; }
         body.theme-dark .lqsel-btn { color: var(--dlg-text-strong) !important; }
         body.theme-dark .lqsel-btn:hover {
             background-image: var(--dlg-fill), var(--dlg-rim) !important;

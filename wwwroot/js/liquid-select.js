@@ -71,8 +71,16 @@
             const o = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
             return o ? o.textContent.trim() : '';
         };
+        // Zähler-Spalte (Walter 08.09.2026): <option data-badge="N"> → Name links,
+        // Anzahl rechts in einer fixen Spalte als Pille (Postfächer).
+        const badgeHtml = (o) => {
+            if (!o || o.dataset.badge === undefined) return '';
+            const n = parseInt(o.dataset.badge, 10) || 0;
+            return `<span class="lqsel-badge${n > 0 ? ' on' : ''}">${n > 0 ? n : '–'}</span>`;
+        };
         function renderBtn() {
-            btn.innerHTML = `<span class="lqsel-label">${lqEsc(curLabel() || '– wählen –')}</span><span class="lqsel-chev">▾</span>`;
+            const o = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+            btn.innerHTML = `<span class="lqsel-label">${lqEsc(curLabel() || '– wählen –')}</span>${badgeHtml(o)}<span class="lqsel-chev">▾</span>`;
             // disabled-State des Original-Selects auf den Button spiegeln
             // (Bug-Fix 17.07.2026 — Sperre darf nicht umgehbar sein).
             btn.disabled = sel.disabled;
@@ -82,7 +90,9 @@
         new MutationObserver(renderBtn).observe(sel, { attributes: true, attributeFilter: ['disabled'] });
         const optHtml = (o) =>
             o.hidden ? '' :
-            `<div class="lqsel-opt${o.value === sel.value ? ' sel' : ''}${o.disabled ? ' dis' : ''}" data-v="${lqEsc(o.value)}">${lqEsc(o.textContent.trim())}</div>`;
+            o.dataset.badge !== undefined
+                ? `<div class="lqsel-opt lqsel-opt-badge${o.value === sel.value ? ' sel' : ''}${o.disabled ? ' dis' : ''}" data-v="${lqEsc(o.value)}"><span class="lqsel-opt-label">${lqEsc(o.textContent.trim())}</span>${badgeHtml(o)}</div>`
+                : `<div class="lqsel-opt${o.value === sel.value ? ' sel' : ''}${o.disabled ? ' dis' : ''}" data-v="${lqEsc(o.value)}">${lqEsc(o.textContent.trim())}</div>`;
         function renderPanel() {
             let html = '';
             Array.from(sel.children).forEach(node => {
@@ -152,7 +162,7 @@
         new MutationObserver(() => {
             renderBtn();
             if (panel.style.display !== 'none') renderPanel();
-        }).observe(sel, { childList: true, subtree: true, characterData: true });
+        }).observe(sel, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['data-badge'] });
 
         // Nach programmatischem value-Set (ohne change-Event) aufrufbar.
         sel._lqRefresh = renderBtn;

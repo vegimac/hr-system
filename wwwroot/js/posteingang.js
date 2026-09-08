@@ -84,40 +84,35 @@ async function pbInit() {
             );
             html += '<optgroup label="Benutzer">';
             userOpts.forEach(p => {
-                const cnt = p.count > 0 ? ` (${p.count})` : '';
-                html += `<option value="${pbPostfachValue(p)}">${pbPostfachLabel(p)}${cnt}</option>`;
+                html += `<option value="${pbPostfachValue(p)}" data-badge="${p.count || 0}">${pbPostfachLabel(p)}</option>`;
             });
             html += '</optgroup>';
         }
         if (branchOpts.length) {
             html += '<optgroup label="Filialen">';
             html += branchOpts.map(p => {
-                const cnt = p.count > 0 ? ` (${p.count})` : '';
-                return `<option value="BRANCH:${p.companyProfileId}">${p.code || ''} ${p.name || ''}${cnt}</option>`;
+                return `<option value="BRANCH:${p.companyProfileId}" data-badge="${p.count || 0}">${p.code || ''} ${p.name || ''}</option>`;
             }).join('');
             html += '</optgroup>';
         }
         if (hrOpts.length) {
             html += '<optgroup label="Geteilt">';
             hrOpts.forEach(p => {
-                const cnt = p.count > 0 ? ` (${p.count})` : '';
-                html += `<option value="HR">HR-Postfach${cnt}</option>`;
+                html += `<option value="HR" data-badge="${p.count || 0}">HR-Postfach</option>`;
             });
             html += '</optgroup>';
         }
         if (buchOpts.length) {
             html += '<optgroup label="Buchhaltung">';
             buchOpts.forEach(p => {
-                const cnt = p.count > 0 ? ` (${p.count})` : '';
-                html += `<option value="BUCH">Buchhaltungs-Postfach${cnt}</option>`;
+                html += `<option value="BUCH" data-badge="${p.count || 0}">Buchhaltungs-Postfach</option>`;
             });
             html += '</optgroup>';
         }
         if (adminOpts.length) {
             html += '<optgroup label="Admin">';
             adminOpts.forEach(p => {
-                const cnt = p.count > 0 ? ` (${p.count})` : '';
-                html += `<option value="ADMIN">Admin-Postfach${cnt}</option>`;
+                html += `<option value="ADMIN" data-badge="${p.count || 0}">Admin-Postfach</option>`;
             });
             html += '</optgroup>';
         }
@@ -175,8 +170,8 @@ async function pbRefreshPostfachCounts() {
         Array.from(sel.options).forEach(o => {
             const p = byVal[o.value];
             if (!p) return;
-            const cnt = p.count > 0 ? ` (${p.count})` : '';
-            o.textContent = `${pbPostfachLabel(p)}${cnt}`;
+            o.textContent = pbPostfachLabel(p);
+            o.dataset.badge = String(p.count || 0);
         });
         // Liquid-Select-Button neu zeichnen — sonst bleibt z.B. «(1)» stehen,
         // obwohl die <option>-Texte schon stimmen (Walter-Bug 24.07.2026).
@@ -189,8 +184,8 @@ function pbPatchSelectedCount(n) {
     const sel = document.getElementById('pbBranchSelect');
     const o = sel?.selectedOptions?.[0];
     if (!o) return;
-    const base = (o.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim() || o.textContent;
-    o.textContent = n > 0 ? `${base} (${n})` : base;
+    o.textContent = (o.textContent || '').replace(/\s*\(\d+\)\s*$/, '').trim() || o.textContent;
+    o.dataset.badge = String(n > 0 ? n : 0);
     sel._lqRefresh?.();
 }
 
