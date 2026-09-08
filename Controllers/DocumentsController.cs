@@ -768,6 +768,91 @@ public class DocumentsController : ControllerBase
 
     /// <summary>Ablaufdatum aus MRZ-Text: [Geschlecht](JJMMTT)(Prüfziffer) — nur
     /// mit korrekter Prüfziffer. NULL wenn kein valider Treffer.</summary>
+    /// <summary>
+    /// Personen-Daten aus der MRZ (Walter 08.09.2026, «beim Erfassen des Partners
+    /// den Ausweis lesen»): TD3 (Pass, 2×44) und TD1 (Ausweiskarte/Bewilligung,
+    /// 3×30). Liefert Name, Vornamen, Geschlecht, Geburtsdatum, Nationalität
+    /// (alpha-3), Dokumenttyp und Ablauf — jeweils nur, wenn die ICAO-Prüfziffer
+    /// stimmt. Best-effort; null-Felder = nicht gelesen.
+    /// </summary>
+    private static object? ParseMrzPerson(string mrzRaw, string fullText)
+    {
+        var src = (mrzRaw ?? "") + "\n" + (fullText ?? "");
+        var lines = src.Split('\n').Select(l => Regex.Replace(l.ToUpperInvariant(), @"[^A-Z0-9<]", "")).Where(l => l.Length >= 25).ToList();
+        string? lastName = null, firstNames = null, sex = null, nat = null, docType = null, docNo = null;
+        DateOnly? birth = null, expiry = null;
+
+        static DateOnly? Yymmdd(string d, bool isBirth)
+        {
+            if (!int.TryParse(d[..2], out var y) || !int.TryParse(d[2..4], out var m) || !int.TryParse(d[4..], out var dd)) return null;
+            if (m is < 1 or > 12 || dd is < 1 or > 31) return null;
+            var year = isBirth ? (y > DateTime.Today.Year % 100 ? 1900 + y : 2000 + y) : 2000 + y;
+            try { return new DateOnly(year, m, dd); } catch { return null; }
+        }
+        static string Titel(string s) => string.Join(" ", s.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(w => w.Length > 1 ? char.ToUpperInvariant(w[0]) + w[1..].ToLowerInvariant() : w.ToUpperInvariant()));
+        static (string? ln, string? fn) Names(string namePart)
+        {
+            var cut = namePart.IndexOf("<<", StringComparison.Ordinal);
+            if (cut < 0) return (Titel(namePart.Replace('<', ' ').Trim()), null);
+            var ln = namePart[..cut].Replace('<', ' ').Trim();
+            var fn = namePart[(cut + 2)..].Replace('<', ' ').Trim();
+            return (ln.Length > 0 ? Titel(ln) : null, fn.Length > 0 ? Titel(fn) : null);
+        }
+
+        // TD3 (Pass): Zeile 2 = DocNo(9) Prüf(1) Nat(3) Geb(6) Prüf(1) Sex(1) Ablauf(6) Prüf(1)
+        foreach (var l in lines)
+        {
+            var m = Regex.Match(l, @"([A-Z0-9<]{9})(\d)([A-Z<]{3})(\d{6})(\d)([MF<])(\d{6})(\d)");
+            if (!m.Success) continue;
+            var b = m.Groups[4].Value; var e = m.Groups[7].Value;
+            if (IcaoCheck(b) != m.Groups[5].Value[0] - '0' || IcaoCheck(e) != m.Groups[8].Value[0] - '0') continue;
+            docType = "P"; docNo = m.Groups[1].Value.Replace("<", "");
+            nat = m.Groups[3].Value.Replace("<", ""); birth = Yymmdd(b, true); expiry = Yymmdd(e, false);
+            sex = m.Groups[6].Value == "<" ? null : m.Groups[6].Value;
+            // Zeile 1: P<CHE + Namen
+            var l1 = lines.FirstOrDefault(x => Regex.IsMatch(x, @"^P[A-Z<][A-Z<]{3}[A-Z<]+"));
+            if (l1 != null && l1.Length > 5) { var (ln, fn) = Names(l1[5..]); lastName = ln; firstNames = fn; }
+            break;
+        }
+        // TD1 (Karte): Zeile 2 = Geb(6) Prüf(1) Sex(1) Ablauf(6) Prüf(1) Nat(3); Zeile 1 = Typ(2) Land(3) DocNo; Zeile 3 = Namen
+        if (docType == null)
+        {
+            for (var i = 0; i < lines.Count; i++)
+            {
+                var m = Regex.Match(lines[i], @"^(\d{6})(\d)([MF<])(\d{6})(\d)([A-Z<]{3})");
+                if (!m.Success) continue;
+                var b = m.Groups[1].Value; var e = m.Groups[4].Value;
+                if (IcaoCheck(b) != m.Groups[2].Value[0] - '0' || IcaoCheck(e) != m.Groups[5].Value[0] - '0') continue;
+                birth = Yymmdd(b, true); expiry = Yymmdd(e, false);
+                sex = m.Groups[3].Value == "<" ? null : m.Groups[3].Value;
+                nat = m.Groups[6].Value.Replace("<", "");
+                if (i > 0)
+                {
+                    var l1 = lines[i - 1];
+                    var m1 = Regex.Match(l1, @"^([A-Z])([A-Z<])([A-Z]{3})([A-Z0-9<]{9})");
+                    if (m1.Success)
+                    {
+                        docType = m1.Groups[1].Value == "I" ? "ID" : m1.Groups[1].Value == "A" ? "PERMIT" : m1.Groups[1].Value;
+                        docNo = m1.Groups[4].Value.Replace("<", "");
+                    }
+                    else docType = "TD1";
+                }
+                else docType = "TD1";
+                if (i + 1 < lines.Count && lines[i + 1].Contains("<<")) { var (ln, fn) = Names(lines[i + 1]); lastName = ln; firstNames = fn; }
+                break;
+            }
+        }
+        if (docType == null && birth == null) return null;
+        return new
+        {
+            docType, docNo, lastName, firstNames, sex,
+            birthDate = birth?.ToString("yyyy-MM-dd"),
+            nationality = nat,
+            expiry = expiry?.ToString("yyyy-MM-dd"),
+        };
+    }
+
     private static DateOnly? ParseMrzExpiry(string mrz)
     {
         foreach (Match m in Regex.Matches(mrz, @"[MF<](\d{6})(\d)"))
@@ -1219,6 +1304,7 @@ public class DocumentsController : ControllerBase
                 issued = issued?.ToString("yyyy-MM-dd"),
                 zemisNr,
                 mrzGelesen = mrzText.Length > 0,
+                person = ParseMrzPerson(mrzText, text),
                 timing,
                 excerpt = ((mrzText.Length > 0 ? "── MRZ ──\n" + mrzText + "\n" : "") + text) is var full && full.Length > 2500 ? full[..2500] : full,
             });

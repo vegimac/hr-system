@@ -6328,6 +6328,9 @@ function natMakeCombo(sel) {
         inp.value = curLabel();
         if (list.style.display !== 'none') render(inp.value);
     }).observe(sel, { childList: true, subtree: true });
+    // Programmatisches Setzen von sel.value (z.B. Ausweis-OCR, 08.09.2026) →
+    // Anzeige nachziehen.
+    sel._natSync = () => { opts = readOpts(); inp.value = curLabel(); };
 }
 
 let _nationalityCache = null;
@@ -7148,6 +7151,10 @@ function openFamilyModal(member) {
     if (docUploadBtn) {
         docUploadBtn.style.display = isSpouse ? 'inline-flex' : 'none';
     }
+    const ocrBtn = document.getElementById('fmOcrBtn');
+    if (ocrBtn) ocrBtn.style.display = 'inline-flex';
+    const ocrInfo = document.getElementById('fmOcrInfo');
+    if (ocrInfo) ocrInfo.textContent = '';
 
     // ── Adresse: Radio-Modus + Dropdown der MA-Zusatzadressen befüllen
     fmRefreshAddressUi(member?.alternativeAddressId ?? null, member?.lebtImHaushalt);
@@ -17302,4 +17309,123 @@ async function zivDelete(id) {
         if (!r.ok) { alert('Fehler HTTP ' + r.status); return; }
         await zivLoad();
     } catch (e) { alert('Verbindungsfehler: ' + e.message); }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// Familienangehöriger: Ausweis/Pass einlesen (Walter 08.09.2026)
+// Dokument des MA wählen (z.B. «CH Pass Ehemann») → OCR (MRZ) → Felder
+// Vorname, Nachname, Geschlecht, Geburtsdatum, Nationalität, Bewilligung +
+// Ablauf, ZEMIS-Nr. füllen. Beim Bearbeiten werden nur LEERE Felder gefüllt.
+// ══════════════════════════════════════════════════════════════════════
+async function fmOcrAusweis() {
+    if (!selectedEmployeeId) { alert('Bitte zuerst einen Mitarbeiter wählen.'); return; }
+    const info = document.getElementById('fmOcrInfo');
+    let docs = [];
+    try {
+        const r = await fetch(`/api/documents/by-employee/${selectedEmployeeId}`, { headers: ah(), cache: 'no-store' });
+        if (r.ok) docs = await r.json();
+    } catch {}
+    docs = (docs || []).filter(d => /pdf|image/i.test(d.mimeType || ''))
+        .sort((a, b) => String(b.hochgeladenAm || '').localeCompare(String(a.hochgeladenAm || '')));
+    // Passende zuerst: Ehegatten/Ausweis/Pass/ID im Typ oder in der Bemerkung.
+    const score = d => {
+        const t = ((d.dokumentTypName || '') + ' ' + (d.bemerkung || '') + ' ' + (d.kategorieName || '')).toLowerCase();
+        return (/ehegatt|ehepartner|partner/.test(t) ? 4 : 0) + (/ausweis|pass|identit|bewillig|permit/.test(t) ? 2 : 0);
+    };
+    docs.sort((a, b) => score(b) - score(a));
+
+    // Auswahl-Overlay
+    let ov = document.getElementById('fmOcrPick');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'fmOcrPick';
+        ov.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.onclick = e => { if (e.target === ov) ov.style.display = 'none'; };
+        document.body.appendChild(ov);
+    }
+    ov.style.display = 'flex';
+    const esc2 = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    const fmtD = iso => iso ? new Date(iso).toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+    ov.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:560px;width:100%;max-height:calc(100vh - 60px);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px 8px">
+                <div>
+                    <div style="font-size:16px;font-weight:700;color:#3f3f3f">🪪 Ausweis einlesen</div>
+                    <div style="font-size:12.5px;color:#8b8b8b;margin-top:2px">Welches Dokument des Mitarbeiters ist der Ausweis/Pass des Angehörigen?</div>
+                </div>
+                <button onclick="document.getElementById('fmOcrPick').style.display='none'" style="background:rgba(255,255,255,0.6);border:1px solid rgba(0,0,0,0.06);border-radius:10px;width:32px;height:32px;font-size:18px;cursor:pointer;color:#646464">&times;</button>
+            </div>
+            <div id="fmOcrPickBody" style="padding:4px 20px 16px;overflow-y:auto;flex:1">
+                ${docs.length ? docs.map(d => `
+                    <button type="button" onclick="fmOcrAusweisRun(${d.id})"
+                            style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:rgba(255,255,255,0.6);border:1px solid rgba(139,139,139,0.28);border-radius:12px;padding:9px 12px;margin-bottom:6px;cursor:pointer">
+                        <span style="font-size:10px;font-weight:800;padding:2px 6px;border-radius:5px;background:${/pdf/i.test(d.mimeType) ? '#dc2626' : '#57534e'};color:#fff">${/pdf/i.test(d.mimeType) ? 'PDF' : 'IMG'}</span>
+                        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;color:#3f3f3f;font-size:13px">${esc2(d.bemerkung || d.filenameOriginal || '–')}</span>
+                        <span style="color:#8b8b8b;font-size:12px;white-space:nowrap">${esc2(d.dokumentTypName || '')} · ${fmtD(d.hochgeladenAm)}</span>
+                    </button>`).join('')
+                : '<div style="color:#8b8b8b;font-size:13px;padding:10px 0">Noch kein Dokument beim Mitarbeiter — zuerst den Ausweis hochladen.</div>'}
+                <button type="button" onclick="document.getElementById('fmOcrPick').style.display='none'; fmOpenSpouseDocUpload();"
+                        style="margin-top:8px;background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">⬆ Ausweis zuerst hochladen…</button>
+            </div>
+        </div>`;
+}
+
+async function fmOcrAusweisRun(docId) {
+    const ov = document.getElementById('fmOcrPick');
+    const body = document.getElementById('fmOcrPickBody');
+    if (body) body.innerHTML = `<div style="display:flex;align-items:center;gap:14px;padding:12px 4px">
+             <span style="font-size:26px;display:inline-block;animation:spin 1.2s linear infinite">🪪</span>
+             <div><div style="font-weight:700;color:#3f3f3f">Lese Ausweis…</div>
+             <div style="font-size:12.5px;color:#8b8b8b">Maschinenlesezone wird erkannt — je nach Scan 5–30 Sekunden.</div></div>
+           </div><style>@keyframes spin{to{transform:rotate(360deg)}}</style>`;
+    try {
+        const r = await fetch(`/api/documents/${docId}/ocr-permit`, { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { if (body) body.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px 0">${(j.message || j.error || ('OCR fehlgeschlagen (HTTP ' + r.status + ')')).replace(/</g,'&lt;')}</div>`; return; }
+        const p = j.person || {};
+        const neu = editingFamilyMemberId == null;   // NEU: alles setzen; Bearbeiten: nur leere Felder
+        const setIf = (id, val) => {
+            const el = document.getElementById(id);
+            if (!el || val == null || val === '') return false;
+            if (!neu && (el.value || '').trim()) return false;
+            el.value = val; return true;
+        };
+        const gesetzt = [];
+        if (setIf('fmFirstName', p.firstNames)) gesetzt.push('Vorname');
+        if (setIf('fmLastName', p.lastName)) gesetzt.push('Nachname');
+        if (p.sex && setIf('fmGender', p.sex === 'M' ? 'Männlich' : 'Weiblich')) gesetzt.push('Geschlecht');
+        if (setIf('fmDateOfBirth', p.birthDate)) { gesetzt.push('Geburtsdatum'); if (typeof updateFmAgeDisplay === 'function') updateFmAgeDisplay(); }
+        // Nationalität: Option mit dem alpha-3-Code «… / CHE)» oder «(CHE)» finden.
+        if (p.nationality) {
+            const natSel = document.getElementById('fmNationalityId');
+            if (natSel && (neu || !natSel.value)) {
+                const code3 = p.nationality.toUpperCase();
+                const opt = Array.from(natSel.options).find(o => new RegExp('[(/ ]\\s*' + code3 + '\\s*\\)', 'i').test(o.textContent || ''));
+                if (opt) { natSel.value = opt.value; natSel._natSync?.(); natSel.dispatchEvent(new Event('change')); gesetzt.push('Nationalität'); }
+            }
+        }
+        // Bewilligung (nur bei Ausländerausweis): Typ per Buchstabe, Ablauf, ZEMIS.
+        if (j.permitCode) {
+            const sel = document.getElementById('fmPermitTypeId');
+            if (sel && (neu || !sel.value)) {
+                const opt = Array.from(sel.options).find(o => new RegExp('^\\s*' + j.permitCode + '\\b', 'i').test(o.textContent || '') || new RegExp('Ausweis\\s+' + j.permitCode + '\\b', 'i').test(o.textContent || ''));
+                if (opt) { sel.value = opt.value; sel.dispatchEvent(new Event('change')); sel._lqRefresh?.(); gesetzt.push('Bewilligung ' + j.permitCode); }
+            }
+            if (setIf('fmPermitExpiry', j.validUntil || p.expiry)) gesetzt.push('Gültig bis');
+            if (setIf('fmZemisNumber', j.zemisNr)) gesetzt.push('ZEMIS');
+        } else if (p.docType === 'P' || p.docType === 'ID') {
+            // Pass/ID — Ablauf ist der Dokument-Ablauf, keine Bewilligung.
+            if (p.nationality === 'CHE') gesetzt.push('CH-Bürger (Pass/ID)');
+        }
+        if (ov) ov.style.display = 'none';
+        const info = document.getElementById('fmOcrInfo');
+        const txt = gesetzt.length
+            ? `✓ Aus dem Ausweis übernommen: ${gesetzt.join(', ')}${p.docType ? ' (' + (p.docType === 'P' ? 'Pass' : p.docType === 'ID' ? 'ID' : 'Ausweis') + ')' : ''} — bitte prüfen.`
+            : 'Keine Maschinenlesezone erkannt — bitte Felder von Hand ausfüllen.';
+        if (info) { info.textContent = txt; info.style.color = gesetzt.length ? '#166534' : '#b45309'; }
+        if (typeof showToast === 'function') showToast(txt, gesetzt.length ? 'success' : 'error');
+    } catch (e) {
+        if (body) body.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px 0">Fehler: ${String(e.message || e).replace(/</g,'&lt;')}</div>`;
+    }
 }

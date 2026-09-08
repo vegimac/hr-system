@@ -9166,6 +9166,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                      mehr — der Upload geht über das normale Dokument-Modal,
                      wo Walter selbst die Kategorie wählt
                      (z.B. „Persönliche Angaben / Ehegatten Dokumente"). -->
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                <!-- Ausweis einlesen (Walter 08.09.2026): OCR/MRZ eines Dokuments → Felder füllen -->
+                <button type="button" id="fmOcrBtn" onclick="fmOcrAusweis()" title="Pass/ID/Ausweis des Angehörigen per OCR lesen und die Felder füllen" style="display:none;background:#fff;color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;align-items:center;gap:5px">🪪 Ausweis einlesen</button>
                 <button type="button" id="fmSpouseDocBtn" onclick="fmOpenSpouseDocUpload()" style="display:none;background:#3f3f3f;color:#fff;border:1px solid #1a1a1a;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;align-items:center;gap:5px">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -9174,7 +9177,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                         <polyline points="9 14 12 11 15 14"/>
                     </svg>Dokument hochladen
                 </button>
+                </span>
             </div>
+            <div id="fmOcrInfo" style="font-size:12px;margin:6px 0 2px;min-height:0"></div>
             <div class="emp-field-grid-3">
                 <div class="fmf-field" id="fmPermitField" style="grid-column:span 2">
                     <label class="fmf-label" data-i18n="fam.field.permit">Bewilligung</label>
@@ -9542,7 +9547,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260908h"></script>
+<script src="employees.js?v=20260908i"></script>
 <script src="js/versicherung-codes.js?v=20260907b"></script>
 
 <!-- ABSENZ MODAL -->
