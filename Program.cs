@@ -1234,6 +1234,31 @@ using (var scope = app.Services.CreateScope())
     // Modell gegen die echte Datenbank pruefen (Walter 31.08.2026).
     // Muss NACH allen ALTER-TABLE-Bloecken laufen, sonst meldet sie Spalten
     // als fehlend, die gerade erst angelegt wurden.
+    // ── Eingang aus easy@work (Walter 08.09.2026): MA-Uploads aus der App
+    // landen NIE direkt im Dossier, sondern im HR-Postfach; diese Tabelle
+    // verhindert Doppel-Importe. SQL-Kopie: migrations-archive/add_easyatwork_hr_file_eingang.sql
+    // Platzierung: VOR SchemaCheckService.Pruefe (sonst «fehlende Tabelle»).
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS easyatwork_hr_file_eingang (
+            id                          serial PRIMARY KEY,
+            employee_id                 integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            easyatwork_customer_id      integer NOT NULL,
+            easyatwork_employee_id      integer NOT NULL,
+            easyatwork_file_id          bigint  NOT NULL,
+            easyatwork_attachment_id    bigint  NOT NULL,
+            dokument_name               text    NOT NULL DEFAULT '',
+            datei_name                  text    NOT NULL DEFAULT '',
+            mime_type                   text,
+            file_size_bytes             bigint,
+            hochgeladen_von_eaw_user_id bigint,
+            hochgeladen_am              timestamp without time zone,
+            mailbox_document_id         integer REFERENCES mailbox_document(id) ON DELETE SET NULL,
+            geholt_am                   timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_eaw_hr_file_eingang_attachment ON easyatwork_hr_file_eingang (easyatwork_attachment_id);
+        CREATE INDEX IF NOT EXISTS ix_eaw_hr_file_eingang_emp ON easyatwork_hr_file_eingang (employee_id);
+    ");
+
     HrSystem.Services.SchemaCheckService.Pruefe(
         db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
                  .CreateLogger("SchemaCheck"));
@@ -4657,30 +4682,6 @@ using (var scope = app.Services.CreateScope())
             created_by            varchar(150)
         );
         CREATE INDEX IF NOT EXISTS ix_qst_korrektur_emp ON qst_korrektur (employee_id, jahr, monat);
-    ");
-
-    // ── Eingang aus easy@work (Walter 08.09.2026): MA-Uploads aus der App
-    // landen NIE direkt im Dossier, sondern im HR-Postfach; diese Tabelle
-    // verhindert Doppel-Importe. SQL-Kopie: migrations-archive/add_easyatwork_hr_file_eingang.sql
-    db.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS easyatwork_hr_file_eingang (
-            id                          serial PRIMARY KEY,
-            employee_id                 integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
-            easyatwork_customer_id      integer NOT NULL,
-            easyatwork_employee_id      integer NOT NULL,
-            easyatwork_file_id          bigint  NOT NULL,
-            easyatwork_attachment_id    bigint  NOT NULL,
-            dokument_name               text    NOT NULL DEFAULT '',
-            datei_name                  text    NOT NULL DEFAULT '',
-            mime_type                   text,
-            file_size_bytes             bigint,
-            hochgeladen_von_eaw_user_id bigint,
-            hochgeladen_am              timestamp without time zone,
-            mailbox_document_id         integer REFERENCES mailbox_document(id) ON DELETE SET NULL,
-            geholt_am                   timestamp without time zone NOT NULL DEFAULT now()
-        );
-        CREATE UNIQUE INDEX IF NOT EXISTS ux_eaw_hr_file_eingang_attachment ON easyatwork_hr_file_eingang (easyatwork_attachment_id);
-        CREATE INDEX IF NOT EXISTS ix_eaw_hr_file_eingang_emp ON easyatwork_hr_file_eingang (employee_id);
     ");
 
     // ── K4.1 Herleitungs-Snapshot (Walter 29.08.2026, Bauplan Punkt 1) ─────
