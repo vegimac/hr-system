@@ -801,8 +801,12 @@
             </div>
 
             <!-- POSTEINGANG: Move-to-Employee Modal -->
+            <!-- Walter 08.09.2026: links Erfassung, rechts das Dokument — wie an
+                 den anderen Stellen. Das Modal ist eine Zweispalten-Box; die
+                 Vorschau (pbMovePreview) füllt pbOpenMove per Blob. -->
             <div id="pbMoveModal" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.4)">
-                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;border-radius:12px;width:520px;max-width:92vw;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,0.25)">
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:white;border-radius:12px;width:min(96vw,1400px);height:min(92vh,980px);display:flex;box-shadow:0 20px 50px rgba(0,0,0,0.25);overflow:hidden">
+                <div style="width:520px;max-width:100%;flex:0 0 auto;padding:24px;overflow-y:auto;box-sizing:border-box;border-right:1px solid #e2e8f0">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
                         <h2 style="margin:0;font-size:17px;font-weight:700">In MA-Personalakte ablegen</h2>
                         <button onclick="pbCloseMove()" style="background:none;border:none;cursor:pointer;font-size:22px;color:#64748b">&times;</button>
@@ -842,6 +846,11 @@
                             <button type="button" onclick="pbCloseMove()" class="btn btn-outline" style="flex:1">Abbrechen</button>
                         </div>
                     </form>
+                </div>
+                <div id="pbMovePreview" style="flex:1 1 auto;min-width:0;background:#1f2937;display:flex;flex-direction:column">
+                    <div id="pbMovePreviewTitle" style="padding:8px 14px;font-size:12px;color:#cbd5e1;background:#111827;border-bottom:1px solid #374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">👁 Dokument</div>
+                    <div id="pbMovePreviewBody" style="flex:1;min-height:0;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:13px">Lädt…</div>
+                </div>
                 </div>
             </div>
 
@@ -10501,7 +10510,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
      POSTEINGANG (Mailbox pro Filiale)
      ═══════════════════════════════════════════════════════════════════ -->
 <!-- ═══════════════ MODUL-SCRIPTS Block 2 (Phase A) ═══════════════ -->
-<script src="js/posteingang.js?v=20260908a"></script>
+<script src="js/posteingang.js?v=20260908b"></script>
 <script src="js/hr-rav.js?v=20260806a"></script>
 <script src="js/lohn-edit-lock.js?v=20260806a"></script>
 <script src="js/lohn-abtretungen-list.js?v=20260806a"></script>

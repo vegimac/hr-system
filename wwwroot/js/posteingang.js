@@ -574,7 +574,37 @@ async function pbDownload(id) {
     } catch (err) { alert('Download-Fehler: ' + err.message); }
 }
 
+let _pbMovePreviewUrl = null;
+async function _pbMoveLoadPreview(d) {
+    const body = document.getElementById('pbMovePreviewBody');
+    const title = document.getElementById('pbMovePreviewTitle');
+    if (!body) return;
+    if (_pbMovePreviewUrl) { URL.revokeObjectURL(_pbMovePreviewUrl); _pbMovePreviewUrl = null; }
+    if (title) title.textContent = '👁 ' + (d.originalFilename || 'Dokument');
+    if (d.messageBody && !d.mimeType) {
+        body.innerHTML = `<div style="padding:24px;color:#e5e7eb;font-size:13px;white-space:pre-wrap;max-width:640px">${String(d.messageBody).replace(/</g,'&lt;')}</div>`;
+        return;
+    }
+    body.innerHTML = 'Lädt…';
+    try {
+        const r = await fetch(`/api/mailbox/${d.id}/preview`, { headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const blob = await r.blob();
+        _pbMovePreviewUrl = URL.createObjectURL(blob);
+        const fn = d.originalFilename || '';
+        const mime = blob.type || '';
+        const isPdf = mime.includes('pdf') || /\.pdf$/i.test(fn);
+        const isImg = mime.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(fn);
+        if (isPdf)      body.innerHTML = `<iframe src="${_pbMovePreviewUrl}" style="width:100%;height:100%;border:none;background:white"></iframe>`;
+        else if (isImg) body.innerHTML = `<div style="width:100%;height:100%;overflow:auto;text-align:center"><img src="${_pbMovePreviewUrl}" style="max-width:100%;max-height:100%;object-fit:contain"></div>`;
+        else            body.innerHTML = '<div style="padding:24px;color:#9ca3af">Keine Vorschau für diesen Dateityp.</div>';
+    } catch (err) {
+        body.innerHTML = `<div style="padding:16px;color:#fca5a5;font-size:13px">Vorschau nicht möglich: ${String(err.message).replace(/</g,'&lt;')}</div>`;
+    }
+}
+
 function pbOpenMove(d) {
+    _pbMoveLoadPreview(d);   // rechts das Dokument (Walter 08.09.2026)
     document.getElementById('pbMoveId').value = d.id;
     document.getElementById('pbMoveFileInfo').innerHTML = `<b>${d.originalFilename}</b>${d.bemerkung ? '<br>' + d.bemerkung : ''}`;
     document.getElementById('pbMoveBemerkung').value = d.bemerkung || '';
@@ -689,7 +719,11 @@ function pbSelectTyp(typId) {
     document.getElementById('pbMoveTyp').value = String(typId);
     pbRenderTypTree();
 }
-function pbCloseMove() { document.getElementById('pbMoveModal').style.display = 'none'; }
+function pbCloseMove() {
+    document.getElementById('pbMoveModal').style.display = 'none';
+    if (_pbMovePreviewUrl) { URL.revokeObjectURL(_pbMovePreviewUrl); _pbMovePreviewUrl = null; }
+    const b = document.getElementById('pbMovePreviewBody'); if (b) b.innerHTML = '';
+}
 
 async function pbDoMove(e) {
     e.preventDefault();
