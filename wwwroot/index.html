@@ -4790,7 +4790,8 @@
                         </div>
                         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                             <button class="btn-primary" onclick="eawHrFileSend()" title="POST multipart /customers/{c}/employees/{e}/hr_files">📤 Dokument senden</button>
-                            <button class="btn-secondary" onclick="eawHrFileList()" title="GET /customers/{c}/employees/{e}/hr_files?with[]=type&with[]=attachments">📂 Dossier des MA anzeigen</button>
+                            <button class="btn-secondary" onclick="eawHrFileList()" title="GET hr_overview?include_expired=1 (Fallback hr_files)">📂 Dossier des MA anzeigen</button>
+                            <button class="btn-secondary" onclick="eawHrProbe()" title="Testet read-only plausible Endpoints durch — wo landet eine Datei, die der MA aus der App hochlädt? Status 200 + Anzahl = Treffer">🔎 Probe: Uploads aus der App</button>
                         </div>
                         <pre id="eawHrResult" style="margin-top:12px;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:11.5px;line-height:1.45;overflow:auto;max-height:520px;white-space:pre-wrap;word-break:break-word"></pre>
                     </div>
@@ -8997,7 +8998,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260908e"></script>
+<script src="js/easyatwork.js?v=20260908f"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>

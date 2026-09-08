@@ -2173,3 +2173,17 @@ async function eawHrFileDownload(nr, fileId, fileName) {
         setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
+
+async function eawHrProbe() {
+    const nr = (document.getElementById('eawHrNumber')?.value || '').trim();
+    if (!nr) { _eawHrOut('Bitte eine Personalnummer eingeben.', true); return; }
+    _eawHrOut('Probe läuft (ca. 20 Abfragen)…');
+    try {
+        const r = await fetch(`/api/easywork/hr-files/probe?number=${encodeURIComponent(nr)}`, { headers: ah() });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { _eawHrOut(j, true); return; }
+        const lines = (j.results || []).map(x => `${String(x.status).padStart(3)}  ${x.count != null ? String(x.count).padStart(4) : '   -'}  ${x.path}`);
+        _eawHrOut('Status  Anz  Endpoint   (200 + Anzahl > 0 = Treffer; 404 = gibt es nicht; 403 = keine Berechtigung)\n' + lines.join('\n') + '\n\n' + JSON.stringify(j, null, 2));
+        const dbox = document.getElementById('eawHrDossier'); if (dbox) dbox.innerHTML = '';
+    } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
+}

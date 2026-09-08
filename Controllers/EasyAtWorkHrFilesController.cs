@@ -196,6 +196,70 @@ public class EasyAtWorkHrFilesController : ControllerBase
     }
 
     /// <summary>
+    /// Lese-Probe (Walter 08.09.2026): Wo landet eine Datei, die der MA aus der
+    /// App hochlädt? Testet read-only plausible Endpoints durch und zeigt Status
+    /// + Trefferzahl + Anfang der Antwort. Schreibt nichts.
+    /// </summary>
+    [HttpGet("probe")]
+    public async Task<IActionResult> Probe([FromQuery] string number, CancellationToken ct)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var (emp, err) = await ResolveEmployeeAsync(number, ct);
+        if (err != null) return err;
+        var cid = await FindCustomerForEmployeeAsync(emp!, ct);
+        if (cid == null)
+            return NotFound(new { error = "EAW_EMPLOYEE_NOT_FOUND", message = $"easy@work-ID {emp!.EawEmployeeId} wurde bei keinem gemappten Customer gefunden." });
+        var e = emp!.EawEmployeeId;
+        var c = cid.Value;
+        var paths = new[]
+        {
+            $"customers/{c}/employees/{e}/hr_files?per_page=100",
+            $"customers/{c}/employees/{e}/hr_files?per_page=100&include_expired=1",
+            $"customers/{c}/employees/{e}/hr_overview?include_expired=1",
+            $"customers/{c}/hr_overview?all_types=1",
+            $"customers/{c}/hr_files?per_page=100",
+            $"customers/{c}/employees/{e}/documents?per_page=100",
+            $"customers/{c}/employees/{e}/files?per_page=100",
+            $"customers/{c}/employees/{e}/uploads?per_page=100",
+            $"customers/{c}/employees/{e}/attachments?per_page=100",
+            $"customers/{c}/employees/{e}/hr_file_requests?per_page=100",
+            $"customers/{c}/employees/{e}/requested_files?per_page=100",
+            $"customers/{c}/employees/{e}/absences?per_page=50",
+            $"customers/{c}/employees/{e}/sick_notes?per_page=50",
+            $"customers/{c}/employees/{e}/messages?per_page=50",
+            $"customers/{c}/documents?per_page=100",
+            $"customers/{c}/files?per_page=100",
+            $"customers/{c}/hr_file_requests?per_page=100",
+            $"customers/{c}/messages?per_page=50",
+            $"customers/{c}/notifications?per_page=50",
+        };
+        var results = new List<object>();
+        foreach (var path in paths)
+        {
+            try
+            {
+                var (status, body) = await _client.GetRawAsync(path, ct);
+                int? count = null;
+                try
+                {
+                    var el = JsonSerializer.Deserialize<JsonElement>(body);
+                    if (el.ValueKind == JsonValueKind.Array) count = el.GetArrayLength();
+                    else if (el.ValueKind == JsonValueKind.Object)
+                    {
+                        if (el.TryGetProperty("total", out var t) && t.ValueKind == JsonValueKind.Number) count = t.GetInt32();
+                        else if (el.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Array) count = d.GetArrayLength();
+                        else if (el.TryGetProperty("files", out var f) && f.ValueKind == JsonValueKind.Array) count = f.GetArrayLength();
+                    }
+                }
+                catch { /* kein JSON */ }
+                results.Add(new { path, status, count, preview = body.Length > 600 ? body[..600] + " …" : body });
+            }
+            catch (Exception ex) { results.Add(new { path, status = -1, count = (int?)null, preview = ex.Message }); }
+        }
+        return Ok(new { employee = emp, customerId = c, results });
+    }
+
+    /// <summary>
     /// Datei aus dem easy@work-Dossier holen (z.B. was der MA aus der App
     /// hochgeladen hat) — streamt die neueste Version. Jeder Abruf landet im
     /// Download-Log von easy@work.
