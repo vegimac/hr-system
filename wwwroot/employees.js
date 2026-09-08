@@ -14078,20 +14078,21 @@ function ocLoadingCardHtml(titel, text) {
     const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
     return `
         <style>
-            @keyframes ocHourglass { 0%,20% { transform: rotate(0deg); } 45%,70% { transform: rotate(180deg); } 95%,100% { transform: rotate(360deg); } }
+            @keyframes ocAtSpin { 0% { transform: rotate(0deg) scale(1); } 50% { transform: rotate(180deg) scale(1.08); } 100% { transform: rotate(360deg) scale(1); } }
             @keyframes ocDots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75%,100% { content: '...'; } }
             @keyframes ocBar { 0% { left: -40%; } 100% { left: 100%; } }
             .oc-load-dots::after { content: ''; animation: ocDots 1.6s steps(1) infinite; }
         </style>
-        <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#fbf7ec 0%,#faf8f5 60%);border:1px solid #e8dcb8;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
-            <div style="width:56px;height:56px;border-radius:50%;background:#f5e6b3;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #e8cf7a">
-                <span style="font-size:28px;display:inline-block;animation:ocHourglass 2.4s ease-in-out infinite">⏳</span>
+        <div style="display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,#f3f8ea 0%,#faf8f5 60%);border:1px solid #d7e4bd;border-radius:16px;padding:18px 20px;margin:8px 0 4px">
+            <!-- Der Gag (Walter 08.09.2026): statt Sanduhr dreht sich das grüne @ von easy@work -->
+            <div style="width:56px;height:56px;border-radius:50%;background:#eaf2da;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:inset 0 0 0 2px #b7d17a">
+                <img src="img/easyatwork-icon.png?v=20260628a" alt="easy@work" style="width:34px;height:34px;object-fit:contain;animation:ocAtSpin 1.8s ease-in-out infinite">
             </div>
             <div style="min-width:0;flex:1">
                 <div style="font-size:15px;font-weight:700;color:#3f3f3f">${esc(titel)}<span class="oc-load-dots"></span></div>
                 <div style="font-size:12.5px;color:#6b6152;margin-top:3px;line-height:1.5">${esc(text)}</div>
                 <div style="position:relative;height:6px;border-radius:3px;background:#ece9e2;overflow:hidden;margin-top:12px">
-                    <div style="position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:linear-gradient(90deg,#e8cf7a,#c9a227);animation:ocBar 1.4s ease-in-out infinite"></div>
+                    <div style="position:absolute;top:0;bottom:0;width:40%;border-radius:3px;background:linear-gradient(90deg,#b7d17a,#8db33a);animation:ocBar 1.4s ease-in-out infinite"></div>
                 </div>
             </div>
         </div>`;
