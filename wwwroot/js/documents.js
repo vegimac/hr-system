@@ -356,6 +356,13 @@ function dokSyncDokColWidths() {
     const headTbl = document.querySelector('#empTabDokumente .dok-table-head');
     const bodyTbl = document.querySelector('#empTabDokumente .dok-table-body');
     if (!headTbl || !bodyTbl) return;
+    // Walter 08.09.2026: bei table-layout:fixed (Liquid-Layout) regeln die
+    // CSS-Spaltenbreiten alles — die gemessenen px-Breiten würden die Tabelle
+    // wieder über die Panelbreite hinaus aufblasen. Dann nichts tun.
+    if (getComputedStyle(bodyTbl).tableLayout === 'fixed') {
+        headTbl.style.width = bodyTbl.style.width = '';
+        return;
+    }
     const ths = headTbl.querySelectorAll('thead th');
     const row = bodyTbl.querySelector('tbody tr');
     if (!ths.length || !row) return;

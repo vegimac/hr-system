@@ -12400,6 +12400,8 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
             white-space: nowrap;
             text-overflow: ellipsis;
             min-width: 0;
+            width: auto !important;
+            max-width: 0;   /* Tabellen-Trick: Zelle nimmt den Rest, Inhalt ellipst statt zu drücken */
         }
         #page-mitarbeiter.liquid-employee .dok-td-desc .dok-name-line {
             max-width: 100%;
@@ -12439,6 +12441,6 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         }
         #page-mitarbeiter.liquid-employee .dok-table td.dok-td-typ,
         #page-mitarbeiter.liquid-employee .dok-table th.dok-th-typ {
-            width: 8.5rem; min-width: 8.5rem; max-width: 8.5rem;
+            width: 11rem; min-width: 11rem; max-width: 11rem;
             overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
         }
