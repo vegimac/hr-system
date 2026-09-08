@@ -1,0 +1,386 @@
+SSC Tag EN,2024,2025,2026
+AccountingPeriod,2024,2025,2026
+Company,,,
+CompanyName,Muster AG,Muster AG,Muster AG
+CompanyStreet,Bahnhofstrasse 1,Bahnhofstrasse 1,Bahnhofstrasse 1
+CompanyZIPCode,6003,6003,6003
+CompanyCity,Luzern,Luzern,Luzern
+CompanyCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyUIDBFS,CHE-999.999.996,CHE-999.999.996,CHE-999.999.996
+CompanyContactPerson,Hans Muster,Hans Muster,Hans Muster
+CompanyEmailAddress,MusterAG@xxxxx.ch,MusterAG@xxxxx.ch,MusterAG@xxxxx.ch
+CompanyPhoneNumber,041 218 65 32,041 218 65 32,041 218 65 32
+CompanyWorkplaces,,,
+CompanyWorkplaceLU,,,
+CompanyWorkplaceLUWorkplaceID,#LU,#LU,#LU
+CompanyWorkplaceLUBUR-REE-Number,A92978109,A92978109,A92978109
+CompanyWorkplaceLUDesignation,Hauptsitz,Hauptsitz,Hauptsitz
+CompanyWorkplaceLUStreet,Bahnhofstrasse 1,Bahnhofstrasse 1,Bahnhofstrasse 1
+CompanyWorkplaceLUZIPCode,6003,6003,6003
+CompanyWorkplaceLUCity,Luzern,Luzern,Luzern
+CompanyWorkplaceLUCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceLUCanton,LU,LU,LU
+CompanyWorkplaceLUMunicipalityID,1061,1061,1061
+CompanyWorkplaceLUFAKSolution,Spida,Familienausgleichskassen Kanton Luzern,Familienausgleichskassen Kanton Luzern
+CompanyWorkplaceBE,,,
+CompanyWorkplaceBEWorkplaceID,#BE,#BE,#BE
+CompanyWorkplaceBEBUR-REE-Number,A89058593,A89058593,A89058593
+CompanyWorkplaceBEDesignation,Werkhof/Büro,Werkhof/Büro,Werkhof/Büro
+CompanyWorkplaceBEStreet,Zeughausgasse 9,Zeughausgasse 9,Zeughausgasse 9
+CompanyWorkplaceBEZIPCode,3011,3011,3011
+CompanyWorkplaceBECity,Bern,Bern,Bern
+CompanyWorkplaceBECountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceBECanton,BE,BE,BE
+CompanyWorkplaceBEMunicipalityID,351,351,351
+CompanyWorkplaceBEFAKSolution,Spida,Familienausgleichskasse Kanton Bern,Familienausgleichskasse Kanton Bern
+CompanyWorkplaceVD,,,
+CompanyWorkplaceVDWorkplaceID,#VD,#VD,#VD
+CompanyWorkplaceVDBUR-REE-Number,A89058588,A89058588,A89058588
+CompanyWorkplaceVDDesignation,Verkauf,Verkauf,Verkauf
+CompanyWorkplaceVDStreet,Rue des Moulins 9,Rue des Moulins 9,Rue des Moulins 9
+CompanyWorkplaceVDZIPCode,1800,1800,1800
+CompanyWorkplaceVDCity,Vevey,Vevey,Vevey
+CompanyWorkplaceVDCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceVDCanton,VD,VD,VD
+CompanyWorkplaceVDMunicipalityID,5890,5890,5890
+CompanyWorkplaceVDFAKSolution,Spida,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
+CompanyWorkplaceTI,,,
+CompanyWorkplaceTIWorkplaceID,#TI,#TI,#TI
+CompanyWorkplaceTIBUR-REE-Number,A92978114,A92978114,A92978114
+CompanyWorkplaceTIDesignation,Beratung,Beratung,Beratung
+CompanyWorkplaceTIStreet,Via Canonico Ghiringhelli 19,Via Canonico Ghiringhelli 19,Via Canonico Ghiringhelli 19
+CompanyWorkplaceTIZIPCode,6500,6500,6500
+CompanyWorkplaceTICity,Bellinzona,Bellinzona,Bellinzona
+CompanyWorkplaceTICountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceTICanton,TI,TI,TI
+CompanyWorkplaceTIMunicipalityID,5002,5002,5002
+CompanyWorkplaceTIFAKSolution,Spida,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
+CompanyWorkplaceAG,,,
+CompanyWorkplaceAGWorkplaceID,#AG,#AG,#AG
+CompanyWorkplaceAGBUR-REE-Number,A12054926,A12054926,A12054926
+CompanyWorkplaceAGDesignation,Beratung,Beratung,Beratung
+CompanyWorkplaceAGStreet,Galterstrasse 3,Galterstrasse 3,Galterstrasse 3
+CompanyWorkplaceAGZIPCode,5272,5272,5272
+CompanyWorkplaceAGCity,Gansingen,Gansingen,Gansingen
+CompanyWorkplaceAGCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceAGCanton,AG,AG,AG
+CompanyWorkplaceAGMunicipalityID,4164,4164,4164
+CompanyWorkplaceAGFAKSolution,Spida,Familienausgleichskasse Kanton Aargau,Familienausgleichskasse Kanton Aargau
+CompanyWorkplaceZG,,,
+CompanyWorkplaceZGWorkplaceID,#ZG,#ZG,#ZG
+CompanyWorkplaceZGBUR-REE-Number,A38197421,A38197421,A38197421
+CompanyWorkplaceZGDesignation,Beratung,Beratung,Beratung
+CompanyWorkplaceZGStreet,Grafenaustrasse 5,Grafenaustrasse 5,Grafenaustrasse 5
+CompanyWorkplaceZGZIPCode,6003,6003,6003
+CompanyWorkplaceZGCity,Zug,Zug,Zug
+CompanyWorkplaceZGCountry,SWITZERLAND,SWITZERLAND,SWITZERLAND
+CompanyWorkplaceZGCanton,ZG,ZG,ZG
+CompanyWorkplaceZGMunicipalityID,1711,1711,1711
+CompanyWorkplaceZGFAKSolution,Spida,Familienausgleichskasse Kanton Zug,Familienausgleichskasse Kanton Zug
+CompanyWorkingTimeModel1,,,
+CompanyWorkingTimeModel1CompanyWorkingTimeID,#CompanyWorkingTime1,#CompanyWorkingTime1,#CompanyWorkingTime1
+CompanyWorkingTimeModel1Description,Standard,Standard,Standard
+CompanyWorkingTimeModel1WeeklyHours,42,42,42
+CompanyWorkingTimeModel2,,,
+CompanyWorkingTimeModel2CompanyWorkingTimeID,#CompanyWorkingTime2,#CompanyWorkingTime2,#CompanyWorkingTime2
+CompanyWorkingTimeModel2Description,Lager,Lager,Lager
+CompanyWorkingTimeModel2WeeklyHours,40,40,40
+CompanyWorkingTimeModel3,,,
+CompanyWorkingTimeModel3CompanyWorkingTimeID,#CompanyWorkingTime3,#CompanyWorkingTime3,#CompanyWorkingTime3
+CompanyWorkingTimeModel3Description,Lager,Lager,Lager
+CompanyWorkingTimeModel3WeeklyLessons,21,21,21
+CompanyWorkingTimeModel4,,,
+CompanyWorkingTimeModel4CompanyWorkingTimeID,#CompanyWorkingTime4,#CompanyWorkingTime4,#CompanyWorkingTime4
+CompanyWorkingTimeModel4Description,Lager,Lager,Lager
+CompanyWorkingTimeModel4WeeklyHours,20,20,20
+CompanyWorkingTimeModel4WeeklyLessons,10,10,10
+CompanyInsurers,,,
+CompanyAHVAVS,,,
+CompanyAKCCBranchNumber,079,003,003
+CompanyAKCCCustomerNumber,7019.2,100-9976.9,100-9976.9
+CompanyAHVAVSInstitutionID,#AHV_Spida,#AHV_KK,#AHV_KK
+CompanyAHVAVSUVGLAAInsurerInformation,,,
+CompanyAHVAVSUVGLAAInsurerName,Backwork-Versicherungen,Backwork-Versicherungen,Backwork-Versicherungen
+CompanyAHVAVSUVGLAAInsurerUIDBFS,CHE-999.999.973,CHE-999.999.973,CHE-999.999.973
+CompanyAHVAVSUVGLAAInsurerValidAsOf,2021-01-01,2021-01-01,2021-01-01
+CompanyAHVAVSBVGLPPInsurerInformation,,,
+CompanyAHVAVSBVGLPPInsurerName,Pensionskasse Oldsoft,Pensionskasse Oldsoft,Pensionskasse Oldsoft
+CompanyAHVAVSBVGLPPInsurerUIDBFS,CHE-999.999.967,CHE-999.999.967,CHE-999.999.967
+CompanyAHVAVSBVGLPPInsurerValidAsOf,2021-01-01,2021-01-01,2021-01-01
+CompanyAHVAVSStartPayContributions,18,18,18
+CompanyAHVAVSStartPensionAgeMale,65,65,65
+CompanyAHVAVSStartPensionAgeFemale,64,64,64
+CompanyAHVAVSExemptionLimit,16800,16800,16800
+CompanyALVACLimit,148200,148200,148200
+CompanyALVZACSLimit,370500,370500,370500
+CompanyAHVAVSEmployeeContributions,0.053,0.053,0.053
+CompanyAHVAVSEmployerContributions,0.053,0.053,0.053
+CompanyALVACEmployeeContributions,0.011,0.011,0.011
+CompanyALVACEmployerContributions,0.011,0.011,0.011
+CompanyALVZACSEmployeeContributions,0.005,0.005,0.005
+CompanyALVZACSEmployerContributions,0.005,0.005,0.005
+CompanyFakCAFPossibleSolutions,Spida,"Familienausgleichskassen Kanton Luzern,Familienausgleichskasse Kanton Bern,Caisse cantonale vaudoise de compensation,Istituto delle assicurazioni sociali","Familienausgleichskassen Kanton Luzern,Familienausgleichskasse Kanton Bern,Caisse cantonale vaudoise de compensation,Istituto delle assicurazioni sociali"
+CompanyFAKCAF,,,
+CompanyFAKCAFSpida,,,
+CompanyFAKCAFSpidaName,Spida,,
+CompanyFAKCAFSpidaBranchNumber,079,,
+CompanyFAKCAFSpidaCustomerNumber,5676.3,,
+CompanyFAKCAFSpidaInstitutionID,#FAK_Spida,,
+CompanyFAKCAFSpidaLUChildAllowanceEducationAllowance,LU,,
+CompanyFAKCAFSpidaLURate0to11,200,,
+CompanyFAKCAFSpidaLURate12to15,210,,
+CompanyFAKCAFSpidaLURate16to25,250,,
+CompanyFAKCAFSpidaLURateBirthAllowance,1000,,
+CompanyFAKCAFSpidaBE,BE,,
+CompanyFAKCAFSpidaBERate0to15,230,,
+CompanyFAKCAFSpidaBERate16to25,290,,
+CompanyFAKCAFSpidaVD,VD,,
+CompanyFAKCAFSpidaVDRate0to15,300,,
+CompanyFAKCAFSpidaVDRate0to15From3rdChild,380,,
+CompanyFAKCAFSpidaVDRate16to25,360,,
+CompanyFAKCAFSpidaVDRate16to25From3rdChild,440,,
+CompanyFAKCAFSpidaVDRateBirthAllowance,1500,,
+CompanyFAKCAFSpidaTI,TI,,
+CompanyFAKCAFSpidaTIRate0to15,200,,
+CompanyFAKCAFSpidaTIRate16to25,250,,
+CompanyFAKCAFSpidaAG,AG,,
+CompanyFAKCAFSpidaAGRate0to15,215,,
+CompanyFAKCAFSpidaAGRate16to25,268,,
+CompanyFAKCAFLU,,,
+CompanyFAKCAFLUName,,Familienausgleichskassen Kanton Luzern,Familienausgleichskassen Kanton Luzern
+CompanyFAKCAFLUBranchNumber,,003,003
+CompanyFAKCAFLUCustomerNumber,,100-9976.70,100-9976.70
+CompanyFAKCAFLUWorkplaceCanton,,LU,LU
+CompanyFAKCAFLUInstitutionID,,#FAK_LU_KK,#FAK_LU_KK
+CompanyFAKCAFLUIntercantonalAgreement,,,
+CompanyFAKCAFLUChildAllowanceEducationAllowance,,,
+CompanyFAKCAFLURate0to11,,200,200
+CompanyFAKCAFLURate12to15,,210,210
+CompanyFAKCAFLURate16to25,,250,250
+CompanyFAKCAFLURateBirthAllowance,,1000,1000
+CompanyFAKCAFBE,,,
+CompanyFAKCAFBEName,,Familienausgleichskasse Kanton Bern,Familienausgleichskasse Kanton Bern
+CompanyFAKCAFBEBranchNumber,,002,002
+CompanyFAKCAFBECustomerNumber,,100-2136.90,100-2136.90
+CompanyFAKCAFBEWorkplaceCanton,,BE,BE
+CompanyFAKCAFBEInstitutionID,,#FAK_BE_KK,#FAK_BE_KK
+CompanyFAKCAFBEIntercantonalAgreement,,,
+CompanyFAKCAFBERate0to15,,230,230
+CompanyFAKCAFBERate16to25,,290,290
+CompanyFAKCAFVD,,,
+CompanyFAKCAFVDName,,Caisse cantonale vaudoise de compensation,Caisse cantonale vaudoise de compensation
+CompanyFAKCAFVDBranchNumber,,022,022
+CompanyFAKCAFVDCustomerNumber,,100-7766.80,100-7766.80
+CompanyFAKCAFVDWorkplaceCanton,,VD,VD
+CompanyFAKCAFVDInstitutionID,,#FAK_VD_KK,#FAK_VD_KK
+CompanyFAKCAFVDIntercantonalAgreement,,,
+CompanyFAKCAFVDRate0to15,,300,300
+CompanyFAKCAFVDRate0to15From3rdChild,,380,380
+CompanyFAKCAFVDRate16to25,,360,360
+CompanyFAKCAFVDRate16to25From3rdChild,,440,440
+CompanyFAKCAFVDRateBirthAllowance,,1500,1500
+CompanyFAKCAFTI,,,
+CompanyFAKCAFTIName,,Istituto delle assicurazioni sociali,Istituto delle assicurazioni sociali
+CompanyFAKCAFTIBranchNumber,,021,021
+CompanyFAKCAFTICustomerNumber,,100-5467.80,100-5467.80
+CompanyFAKCAFTIWorkplaceCanton,,TI,TI
+CompanyFAKCAFTIInstitutionID,,#FAK_TI_KK,#FAK_TI_KK
+CompanyFAKCAFTIIntercantonalAgreement,,x,x
+CompanyFAKCAFTIRate0to15,,200,200
+CompanyFAKCAFTIRate16to25,,250,250
+CompanyFAKCAFAG,,,
+CompanyFAKCAFAGName,,SVA Aargau,SVA Aargau
+CompanyFAKCAFAGBranchNumber,,019,019
+CompanyFAKCAFAGCustomerNumber,,5050.1,5050.1
+CompanyFAKCAFAGWorkplaceCanton,,AG,AG
+CompanyFAKCAFAGInstitutionID,,#FAK_AG_SVA,#FAK_AG_SVA
+CompanyFAKCAFAGIntercantonalAgreement,,,
+CompanyFAKCAFAGRate0to15,,215,215
+CompanyFAKCAFAGRate16to25,,268,268
+CompanyFAKCAFZG,,,
+CompanyFAKCAFZGName,,AK Zug,AK Zug
+CompanyFAKCAFZGBranchNumber,,009,009
+CompanyFAKCAFZGCustomerNumber,,100-3146.90,100-3146.90
+CompanyFAKCAFZGWorkplaceCanton,,ZG,ZG
+CompanyFAKCAFZGInstitutionID,,#FAK_ZG_KK,#FAK_ZG_KK
+CompanyFAKCAFZGIKV,,LU,LU
+CompanyUVGLAA,,,
+CompanyUVGLAAInsuranceID,S1000,S1000,S1000
+CompanyUVGLAACustomerIdentity,12577.2 ,12577.2 ,12577.2 
+CompanyUVGLAAContractIdentity,125,125,125
+CompanyUVGLAAInsurerName,Backwork-Versicherungen,Backwork-Versicherungen,Backwork-Versicherungen
+CompanyUVGLAAInsurerAddress,"Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern"
+CompanyUVGLAAInstitutionID,#UVG,#UVG,#UVG
+CompanyUVGLAALimit,148200,148200,148200
+CompanyUVGLAAPossibleSolutions,"A,B,P,Q,J,G,H,ML,I,K","A,B,P,Q,J,G,H,ML,I,K","A,B,P,Q,J,G,H,ML,I,K"
+CompanyUVGLAANBUVAANPRateA,0.01606,0.01606,0.01606
+CompanyUVGLAABUVAAPRateA,0.00175,0.00175,0.00175
+CompanyUVGLAANBUVAANPRateB,0.01212,0.01212,0.01212
+CompanyUVGLAABUVAAPRateB,0.001757,0.001757,0.001757
+CompanyUVGLAANBUVAANPRateP,0.01,0.01,0.01
+CompanyUVGLAABUVAAPRateP,,,
+CompanyUVGLAANBUVAANPRateQ,0.02,0.02,0.02
+CompanyUVGLAABUVAAPRateQ,,,
+CompanyUVGLAANBUVAANPRateJ,0.03,0.03,0.03
+CompanyUVGLAABUVAAPRateJ,,,
+CompanyUVGLAANBUVAANPRateG,0.04,0.04,0.04
+CompanyUVGLAABUVAAPRateG,,,
+CompanyUVGLAANBUVAANPRateH,0.05,0.05,0.05
+CompanyUVGLAABUVAAPRateH,,,
+CompanyUVGLAANBUVAANPRateM,0.06,0.06,0.06
+CompanyUVGLAABUVAAPRateM,,,
+CompanyUVGLAANBUVAANPRateL,0.07,0.07,0.07
+CompanyUVGLAABUVAAPRateL,,,
+CompanyUVGLAANBUVAANPRateI,0.08,0.08,0.08
+CompanyUVGLAABUVAAPRateI,,,
+CompanyUVGLAANBUVAANPRateK,0.09,0.09,0.09
+CompanyUVGLAABUVAAPRateK,,,
+CompanyUVGZLAAC,,,
+CompanyUVGZLAACInsuranceID,S1000,S1000,S1000
+CompanyUVGZLAACCustomerIdentity,7651-873.1,7651-873.1,7651-873.1
+CompanyUVGZLAACContractIdentity,4566-4,4566-4,4566-4
+CompanyUVGZLAACInsurerName,Backwork-Versicherungen,Backwork-Versicherungen,Backwork-Versicherungen
+CompanyUVGZLAACInsurerAddress,"Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern"
+CompanyUVGZLAACInstitutionID,#UVGZ,#UVGZ,#UVGZ
+CompanyUVGZLAACPossibleSolutions,"10,11,12","10,11,12","10,11,12"
+CompanyUVGZLAACCode10,10,10,10
+CompanyUVGZLAACCode10SolutionName,nicht versichert,nicht versichert,nicht versichert
+CompanyUVGZLAACLimit10From,0,0,0
+CompanyUVGZLAACLimit10Until,0,0,0
+CompanyUVGZLAACRateMale10,0,0,0
+CompanyUVGZLAACRateFemale10,0,0,0
+CompanyUVGZLAACCode11,11,11,11
+CompanyUVGZLAACCode11SolutionName,UVG-Lohn,UVG-Lohn,UVG-Lohn
+CompanyUVGZLAACLimit11From,0,0,0
+CompanyUVGZLAACLimit11Until,148200,148200,148200
+CompanyUVGZLAACRateMale11,0.00774,0.00774,0.00774
+CompanyUVGZLAACRateFemale11,0.00774,0.00774,0.00774
+CompanyUVGZLAACBenefits11 ,,,
+CompanyUVGZLAACWaitingDays11,100%  1.-3. Tag,100%  1.-3. Tag,100%  1.-3. Tag
+CompanyUVGZLAACSupplement11,20%  ab 4. Tag,20%  ab 4. Tag,20%  ab 4. Tag
+CompanyUVGZLAACCode12,12,12,12
+CompanyUVGZLAACCode12SolutionName,Überschusslohn,Überschusslohn,Überschusslohn
+CompanyUVGZLAACLimit12From,148200,148200,148200
+CompanyUVGZLAACLimit12Until,300000,300000,300000
+CompanyUVGZLAACRateMale12,0.00508,0.00508,0.00508
+CompanyUVGZLAACRateFemale12,0.00508,0.00508,0.00508
+CompanyUVGZLAACBenefits12 ,,,
+CompanyUVGZLAACSurplusWage12,100%  ab 4. Tag,100%  ab 4. Tag,100%  ab 4. Tag
+CompanyKTGAMC,,,
+CompanyKTGAMCInsuranceID,S1000,S1000,S1000
+CompanyKTGAMCCustomerIdentity,7651-873.1,7651-873.1,7651-873.1
+CompanyKTGAMCContractIdentity,4567-4,4567-4,4567-4
+CompanyKTGAMCInsurerName,Backwork-Versicherungen,Backwork-Versicherungen,Backwork-Versicherungen
+CompanyKTGAMCInsurerAddress,"Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern","Bahnhofstrasse 7
+Postfach
+6003 Luzern"
+CompanyKTGAMCInstitutionID,#KTG,#KTG,#KTG
+CompanyKTGAMCPossibleSolutions,"10,11,12","10,11,12","10,11,12"
+CompanyKTGAMCCode10,10,10,10
+CompanyKTGAMCCode10SolutionName,nicht versichert,nicht versichert,nicht versichert
+CompanyKTGAMCLimit10From,0,0,0
+CompanyKTGAMCLimit10Until,0,0,0
+CompanyKTGAMCRateMale10,0,0,0
+CompanyKTGAMCRateFemale10,0,0,0
+CompanyKTGAMCCode11,11,11,11
+CompanyKTGAMCCode11SolutionName,KTG-Lohn,KTG-Lohn,KTG-Lohn
+CompanyKTGAMCLimit11From,0,0,0
+CompanyKTGAMCLimit11Until,120000,120000,120000
+CompanyKTGAMCRateMale11,0.00966,0.00966,0.00966
+CompanyKTGAMCRateFemale11,0.01309,0.01309,0.01309
+CompanyKTGAMCBenefits11,,,
+CompanyKTGAMCDailySicknessBenefits80%11,80%  ab 15. Tag,80%  ab 15. Tag,80%  ab 15. Tag
+CompanyKTGAMCDailySicknessBenefits100%11,100%  ab 31. Tag,100%  ab 31. Tag,100%  ab 31. Tag
+CompanyKTGAMCBirthBenefit11,20%  ab Geburt während 112 Tagen,20%  ab Geburt während 112 Tagen,20%  ab Geburt während 112 Tagen
+CompanyKTGAMCDailySicknessBenefitsNumberOfDays11,Anspruch 730 Tage pro Fall,Anspruch 730 Tage pro Fall,Anspruch 730 Tage pro Fall
+CompanyKTGAMCCode12,12,12,12
+CompanyKTGAMCCode12SolutionName,Mutterschaft überobligatorisch,Mutterschaft überobligatorisch,Mutterschaft überobligatorisch
+CompanyKTGAMCLimit12From,88200,88200,88200
+CompanyKTGAMCLimit12Until,500000,500000,500000
+CompanyKTGAMCRateMale12,0.00105,0.00105,0.00105
+CompanyKTGAMCRateFemale12,0.00123,0.00123,0.00123
+CompanyKTGAMCBenefits12,,,
+CompanyKTGAMCDailySicknessBenefits80%12,80%  ab 15. Tag,80%  ab 15. Tag,80%  ab 15. Tag
+CompanyKTGAMCDailySicknessBenefits100%12,100%  ab 31. Tag,100%  ab 31. Tag,100%  ab 31. Tag
+CompanyKTGAMCBirthBenefit12,nicht versichert,nicht versichert,nicht versichert
+CompanyKTGAMCDailySicknessBenefitsNumberOfDays12,Anspruch 730 Tage pro Fall,Anspruch 730 Tage pro Fall,Anspruch 730 Tage pro Fall
+CompanyBVGLPP,,,
+CompanyBVGLPPInsuranceID,L1200,L1200,L1200
+CompanyBVGLPPCustomerIdentity,1099-8777.1,1099-8777.1,1099-8777.1
+CompanyBVGLPPContractIdentity,4500-0,4500-0,4500-0
+CompanyBVGLPPInsurerName,Pensionskasse Oldsoft,Pensionskasse Oldsoft,Pensionskasse Oldsoft
+CompanyBVGLPPInsurerAddress,"Fellerstrasse 23
+3027 Bern","Fellerstrasse 23
+3027 Bern","Fellerstrasse 23
+3027 Bern"
+CompanyBVGLPPGeneralValidAsOf,2021-01-01,2022-01-01,2023-01-01
+CompanyBVGLPPInstitutionID,#BVG,#BVG,#BVG
+CompanyBVGLPPPossibleSolutions,"11,21,22,K2010","11,21,22,K2010","11,21,22,K2010"
+CompanyBVGLPPCode,,,
+CompanyBVGLPPCode11,11,11,11
+CompanyBVGLPPCode11Percentage,0.08,0.08,0.08
+CompanyBVGLPPCode11SolutionName,Produktion,Produktion,Produktion
+CompanyBVGLPPCode21,21,21,21
+CompanyBVGLPPCode21Percentage,0.06,0.06,0.06
+CompanyBVGLPPCode21SolutionName,Verkauf,Verkauf,Verkauf
+CompanyBVGLPPCode22,22,22,22
+CompanyBVGLPPCode22Percentage,0.07,0.07,0.07
+CompanyBVGLPPCode22SolutionName,Administration,Administration,Administration
+CompanyBVGLPPCodeK2010,K2010,K2010,K2010
+CompanyBVGLPPCodeK2010SolutionName,Kader überobligatorisch,Kader überobligatorisch,Kader überobligatorisch
+CompanyTASCantons,"LU,BE,VD,TI","LU,BE,VD,TI","LU,BE,VD,TI"
+CompanyTASLU,,,
+CompanyTASLUCantonID,LU,LU,LU
+CompanyTASLUCustomerIdentity,158.87.6,158.87.6,158.87.6
+CompanyTASLUInstitutionID,#QST-LU,#QST-LU,#QST-LU
+CompanyTASBE,,,
+CompanyTASBECantonID,BE,BE,BE
+CompanyTASBECustomerIdentity,9217.8,9217.8,9217.8
+CompanyTASBEInstitutionID,#QST-BE,#QST-BE,#QST-BE
+CompanyTASVD,,,
+CompanyTASVDCantonID,VD,VD,VD
+CompanyTASVDCustomerIdentity,23.957.55.6,23.957.55.6,23.957.55.6
+CompanyTASVDInstitutionID,#QST-VD,#QST-VD,#QST-VD
+CompanyTASTI,,,
+CompanyTASTICantonID,TI,TI,TI
+CompanyTASTICustomerIdentity,83189.7,83189.7,83189.7
+CompanyTASTIInstitutionID,#QST-TI,#QST-TI,#QST-TI
+CompanyTax,,,
+CompanyTaxChargesRuleDate,2021-01-01,2021-01-01,2021-01-01
+CompanyTaxChargesRuleCanton,LU,LU,LU
+CompanyTaxStaffShareMarketValueDate,2021-07-01,2021-07-01,2021-07-01
+CompanyTaxStaffShareMarketValueCanton,LU,LU,LU
+CompanyTaxExpatriateRulingDate,2020-03-01,2020-03-01,2020-03-01
+CompanyTaxExpatriateRulingCanton,LU,LU,LU
+CompanyTaxOtherFringeBenefits,Vergünstigung Versicherungsprämien,Vergünstigung Versicherungsprämien,Vergünstigung Versicherungsprämien
+CompanyStatistic,,,
+CompanyStatisticPayAgreement,individualContract,individualContract,individualContract
+CompanyStatisticInstitutionID,#BFS,#BFS,#BFS
+CompanyVacationEntitlement,,,
+CompanyVacationEntitlement16to49,20,20,20
+CompanyVacationEntitlement50to59,25,25,25
+CompanyVacationEntitlement60,30,30,30
+CompanyTACTI,,,
+CompanyTACTICantonID,TI,TI,TI
+CompanyTACTICustomerIdentity,83189.7,83189.7,83189.7
+CompanyTACTIInstitutionID,#TAC-TI,#TAC-TI,#TAC-TI
+CompanyTACBE,,,
+CompanyTACBECantonID,BE,BE,BE
+CompanyTACBECustomerIdentity,9217.8,9217.8,9217.8
+CompanyTACBEInstitutionID,#TAC-BE,#TAC-BE,#TAC-BE

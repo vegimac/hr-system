@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260904f">
+    <link rel="stylesheet" href="css/app.css?v=20260907e">
 </head>
 <body>
 
@@ -4235,7 +4235,9 @@
                         <option value="">Alle Typen</option>
                         <option value="AHV">AHV / IV / EO</option>
                         <option value="ALV">ALV</option>
+                        <option value="ALVZ">ALVZ Solidaritätsprozent</option>
                         <option value="NBUV">NBUV / NBU</option>
+                        <option value="UVGZ">UVGZ UVG-Zusatz</option>
                         <option value="KTG">KTG Krankentaggeld</option>
                         <option value="BVG">BVG Uno Basis</option>
                         <option value="BVG_ZUSATZ">BVG Zusatz (Kader)</option>
@@ -4315,7 +4317,9 @@
                                 <select id="svCode" required style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                     <option value="AHV">AHV / IV / EO</option>
                                     <option value="ALV">ALV – Arbeitslosenversicherung</option>
-                                    <option value="NBUV">NBUV – Nichtberufsunfall</option>
+                                    <option value="ALVZ">ALVZ – ALV Solidaritätsprozent (Lohnband)</option>
+                                    <option value="NBUV">NBUV – Nichtberufsunfall (UVG)</option>
+                                    <option value="UVGZ">UVGZ – UVG-Zusatzversicherung</option>
                                     <option value="KTG">KTG – Krankentaggeld</option>
                                     <option value="BVG">BVG – Uno Basis</option>
                                     <option value="BVG_ZUSATZ">BVG_ZUSATZ – Uno Int McD (Kader)</option>
@@ -4361,6 +4365,18 @@
                                     <option value="M">Nur Männer</option>
                                 </select>
                             </div>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr 2fr;gap:12px;margin-bottom:12px">
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px" title="Versicherungs-Lösung / Swissdec-Code: UVG A, B, P …; UVGZ und KTG 10/11/12; BVG 11/21/22/K2010. Leer = Zeile gilt für alle MA ohne Code (wie bisher).">Lösungs-Code</label>
+                                <input id="svLoesungsCode" maxlength="10" placeholder="leer = für alle" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box;text-transform:uppercase">
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Standard-Lösung</label>
+                                <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;padding:8px 0"><input id="svIsDefaultCode" type="checkbox"> gilt für MA ohne eigenen Code</label>
+                            </div>
+                            <div style="font-size:10.5px;color:#8b8578;line-height:1.4;align-self:end;padding-bottom:6px">Mit Code gilt die Zeile nur für Mitarbeiter, denen dieser Code zugewiesen ist (MA → Vertrag → Versicherungen) — oder als Standard für alle ohne Code. Der Code steht später in der Swissdec-Meldung.</div>
                         </div>
 
                         <div style="display:grid;grid-template-columns:1fr 1fr 1.5fr 0.7fr 0.7fr;gap:12px;margin-bottom:12px">
@@ -4409,11 +4425,16 @@
                             </div>
                         </div>
 
-                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px">
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Höchstlohn/Mt. (CHF)</label>
                                 <input id="svMaxBase" type="number" step="0.01" min="0" placeholder="– (unbegrenzt)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
                                 <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">ALV/NBU: 12'350 (= 148'200/Jahr), mit Dezember-Aufrollverfahren. Leer = unbegrenzt (z.B. AHV).</div>
+                            </div>
+                            <div>
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Lohnband ab/Mt. (CHF)</label>
+                                <input id="svBandVon" type="number" step="0.01" min="0" placeholder="– (ab 0)" style="width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box">
+                                <div style="font-size:10px;color:#8b8578;margin-top:3px;line-height:1.35">Nur der Teil über diesem Wert (bis Höchstlohn) ist pflichtig: Überschusslohn KTG/UVGZ Code 12, ALVZ 12'350–30'875.</div>
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Max. Basis/Mt. flach (CHF)</label>
@@ -5121,6 +5142,73 @@
                         </div>
                         <div style="font-weight:700;font-size:12.5px;margin-bottom:6px">Aus dem Empfänger-Katalog <span style="font-weight:400;color:#8b8b8b">(automatisch fürs Meldungs-XML)</span></div>
                         <div id="elmStKatalog" style="font-size:12.5px;color:#3f3f3f">⏳ wird geladen…</div>
+                    </div>
+
+                    <!-- Swissdec-Testmandant «Muster AG» (Walter 07.09.2026) — NUR Testinstanz -->
+                    <div class="card" id="tmCard" style="padding:16px 18px;max-width:980px;margin-top:16px;display:none">
+                        <div style="font-weight:700;font-size:14px;margin-bottom:4px">Testmandant «Muster AG» <span style="font-weight:400;color:#8b8b8b">— offizielle Swissdec-Testdaten, nur Testinstanz</span></div>
+                        <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
+                            Lädt die Swissdec-Testdaten (<code>Assets/Swissdec/Testmandant/*.csv</code>) Schritt für Schritt — <b>exakt</b>, ohne Umbenennen:
+                            gegen diese Stammdaten laufen die Zertifizierungs-Testfälle. <b>Vorschau</b> zeigt, was angelegt/aktualisiert würde und schreibt nichts;
+                            <b>Anlegen</b> ist wiederholbar (bestehende Datensätze werden aktualisiert, nie doppelt).
+                        </p>
+                        <div id="tmStatus" style="font-size:12.5px;color:#3f3f3f;margin-bottom:12px">⏳ Status wird geladen…</div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 1 · Firma + Filialen</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt(1, true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt(1, false)">✚ Anlegen</button>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 2 · Lohndaten-Empfänger</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt(2, true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt(2, false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">AK, FAK je Kanton, UVG/UVGZ/KTG, BVG, QST je Kanton, Lohnausweis BE/TI — inkl. Kassenwechsel Spida → AK Luzern per 1.1.2025</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 3a · AHV/ALV + FAK-Ansätze</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt(3, true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt(3, false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">globale SV-Sätze AHV/ALV, Familienzulagen-Tarife LU/BE/VD/TI/AG — Versicherungs-Lösungen (Codes) folgen in 3b</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 3b · Versicherungs-Lösungen</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('3b', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('3b', false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">SV-Sätze mit Lösungs-Code: UVG A1/A2/A3 …, UVGZ/KTG 11/12 (M/F, Lohnband), BVG 11/21/22, ALVZ — Prod-Kopien NBUV/KTG/BVG werden deaktiviert</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4a · Personen + Verträge</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt(4, true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt(4, false)">✚ Anlegen</button>
+                            <input id="tmNur" placeholder="nur TF01,TF02 …" style="font-size:12px;padding:5px 9px;border:1px solid rgba(60,55,48,.2);border-radius:8px;width:160px" title="Leer = alle 44 Testfälle; sonst Komma-Liste der Testfall-Nummern">
+                            <span style="font-size:11.5px;color:#8b8b8b">44 Testfall-Personen mit Vertrag (manuell + Block), Familie, Wochenaufenthalt, Versicherungs-Codes, QST-Erfassung — Stand Eintritt</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4b · Lohnpositionen</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('4b', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('4b', false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">65 Swissdec-Lohnarten der Testfälle über den ELM-Lohnraster als Lohnpositionen anlegen/verknüpfen</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4c · Mutationen</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('4c', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('4c', false)">✚ Anlegen</button>
+                            <input id="tmMonat" type="month" style="font-size:12px;padding:4px 8px;border:1px solid rgba(60,55,48,.2);border-radius:8px" title="Leer = alle Monate chronologisch">
+                            <span style="font-size:11.5px;color:#8b8b8b">647 Änderungen Nov 2024–Feb 2026 in Wohnort-/Zivilstand-Historie, Verträge, Austritte, QST-Einträge, Versicherungs-Codes — Monatswerte → Schritt 5</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 5a · Filialen + Perioden</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('5a', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('5a', false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">Ferien 8.33 % / Feiertag 4 % / 13. ML Dezember für die 6 Filialen; Lohnperioden Nov 2024–Feb 2026</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 5b · Monatswerte</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('5b', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('5b', false)">✚ Anlegen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">Monatslohn → Vertrag, Stunden → Stempelzeiten, Lohnarten → Zulagen/Abzüge, 5050 → BVG-Fixbetrag (Monat/Testfall-Filter oben gelten auch hier)</span>
+                        </div>
+                        <div id="tmErgebnis" style="font-size:12.5px;color:#3f3f3f"></div>
                     </div>
                 </div>
             </div>
@@ -7957,6 +8045,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <div><label class="f-label">BUR-Nummer</label><input id="stmBurNummer" class="f-input" placeholder="CH-XXX.X.XXX.XXX-X" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></div>
                     <div><label class="f-label">UID-Nummer</label><input id="stmUidNummer" class="f-input" placeholder="CHE-XXX.XXX.XXX" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></div>
                 </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+                    <div><label class="f-label">BFS-Gemeindenummer <span style="font-weight:400;color:#8b8b8b">(Swissdec)</span></label><input id="stmBfsGemeindeNr" class="f-input" type="number" min="1" max="9999" placeholder="z.B. 1061" style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></div>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px">
                     <div><label class="f-label">Branchen-Code (NOGA)</label><input id="stmBranchenCode" class="f-input" placeholder="5610"></div>
                     <!-- Hauptsitz-Zuordnung: seit 29.08.2026 GANZ OBEN im Modal
@@ -8729,7 +8820,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  Crew-Trainer → Schichtkoordinator → Geschäftsführer. Darüber nur
                  Entwurf an HR. Leer = Standard nach Rolle. -->
             <div class="f-group" id="umZeugnisGroup">
-                <label class="f-label" for="umZeugnisDruck">Zeugnisse drucken bis Funktion</label>
+                <label class="f-label" for="umZeugnisDruck">Arbeitsbestätigungen drucken bis Funktion</label>
                 <select id="umZeugnisDruck" class="f-input">
                     <option value="">Standard nach Rolle</option>
                     <option value="keine">keine — nur Entwurf an HR</option>
@@ -8738,7 +8829,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <option value="schicht">Schichtkoordinator/in</option>
                     <option value="alle">alle (inkl. Geschäftsführer/in)</option>
                 </select>
-                <div class="f-hint" style="margin-top:2px" id="umZeugnisHint">Standard: GF (Benutzer) bis Crew-Trainer/in · HR-Team, Superuser, Buchhaltung bis Schichtkoordinator/in · Geschäftsführer-Zeugnisse nur Admin. Zeugnisse für höhere Funktionen kann der Benutzer ausfüllen und als Entwurf an HR senden.</div>
+                <div class="f-hint" style="margin-top:2px" id="umZeugnisHint">Gilt nur für die einfache Arbeitsbestätigung. Arbeits- und Zwischenzeugnisse erstellt immer HR — der GF füllt die Beurteilung aus und sendet sie an HR (Regel seit 07.09.2026). Standard: GF (Benutzer) bis Crew-Trainer/in · HR-Team, Superuser, Buchhaltung bis Schichtkoordinator/in · Geschäftsführer nur Admin.</div>
             </div>
             <div class="f-group">
                 <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -8835,36 +8926,36 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/saldo-vortrag-import-stunden.js?v=20260803i"></script>
 <script src="js/mirus-address-compare.js?v=20260831a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20260903b"></script>
-<script src="js/gespraech.js?v=20260903l"></script>
+<script src="js/gespraech.js?v=20260907g"></script>
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260820a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260902e"></script>
+<script src="js/branches-detail.js?v=20260908a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260906a"></script>
+<script src="js/qst-modal.js?v=20260907a"></script>
 <script src="js/users.js?v=20260906a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260904a"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
-<script src="js/dok-struktur.js?v=20260904a"></script>
+<script src="js/dok-struktur.js?v=20260907a"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
-<script src="js/austritt.js?v=20260906e"></script>
-<script src="js/contracts-edit.js?v=20260906a"></script>
-<script src="js/payroll.js?v=20260831a"></script>
+<script src="js/austritt.js?v=20260907b"></script>
+<script src="js/contracts-edit.js?v=20260908a"></script>
+<script src="js/payroll.js?v=20260908a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260803c"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260829a"></script>
+<script src="js/admin-settings.js?v=20260907b"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>
@@ -8878,7 +8969,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260829a"></script>
+<script src="js/swissdec.js?v=20260908a"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
@@ -9296,12 +9387,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         </div>
     </div>
     <!-- Side-Panel: Entscheidungsdokument als Info (Walter 19.07.2026) -->
-    <div id="al-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:360px;max-width:44vw;max-height:92vh;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)">
+    <div id="al-docpanel" class="side-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:360px;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
             <div id="al-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></div>
             <button id="al-doczoom" style="display:none;background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0" title="Im grossen Vorschaufenster öffnen">⤢ Vergrössern</button>
         </div>
-        <div id="al-docview" style="flex:1;min-height:320px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>
+        <div id="al-docview" class="side-docview" style="flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>
     </div>
 </div>
 
@@ -9343,7 +9434,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260906i"></script>
+<script src="employees.js?v=20260908a"></script>
+<script src="js/versicherung-codes.js?v=20260907b"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->
@@ -9871,6 +9963,22 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         <div id="qstWohnsituationWrap" style="display:none">
             <div class="emp-section-title">2 · Wohnsituation</div>
             <div id="qstWohnsituationInfo" style="background:#f6f3ee;border:1px solid #e7e1d8;border-radius:14px;padding:11px 14px;margin-bottom:6px;font-size:12.5px;color:#475569;line-height:1.6"></div>
+            <!-- Grenzgänger-Angaben (Walter 07.09.2026, Swissdec «Crossborder»): nur sichtbar bei Grenzgänger.
+                 Steuer-ID des Wohnsitzstaats (IT Codice fiscale / FR numéro fiscal), Geburtsort, Status ab. -->
+            <div id="qstGrenzgaengerBox" class="ma-grid cols-3" style="display:none;margin-bottom:6px">
+                <div class="ma-field">
+                    <div class="ma-field-label">Steuer-ID Wohnsitzstaat <span class="opt">(IT Codice fiscale / FR n° fiscal)</span></div>
+                    <input id="qstGrenzSteuerId" class="ma-input" maxlength="40" placeholder="z.B. RNLMSM67D11A794W" style="text-transform:uppercase">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Geburtsort</div>
+                    <input id="qstGrenzGeburtsort" class="ma-input" maxlength="120" placeholder="z.B. Bergamo">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Grenzgängerstatus ab <span class="opt">(CH–IT: neue Grenzgänger ab 17.7.2023)</span></div>
+                    <input id="qstGrenzAb" type="date" class="ma-input">
+                </div>
+            </div>
         </div>
         <div style="display:none">
             <input type="checkbox" id="qstIsGrenzgaenger" tabindex="-1">
@@ -10209,9 +10317,26 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                             <button type="button" class="active" onclick="empSetYesNo('ceTeilzeitUnter8h', false)">nein</button>
                         </div>
                     </div>
+                    <div class="ce-field" id="ceThirteenthWrap">
+                        <label class="ce-lbl" title="13. Monatslohn (L-GAV: immer ja). Nein = kein Zuschlag und keine Rückstellung — nur für Verträge ausserhalb des L-GAV.">13. Monatslohn</label>
+                        <div class="emp-yesno-toggle" data-target="ceThirteenth">
+                            <input type="hidden" id="ceThirteenth" value="true">
+                            <button type="button" class="active" onclick="empSetYesNo('ceThirteenth', true)">ja</button>
+                            <button type="button" onclick="empSetYesNo('ceThirteenth', false)">nein</button>
+                        </div>
+                    </div>
                     <div class="ce-field" id="ceGuaranteedWrap" style="display:none">
                         <label class="ce-lbl" data-i18n="vt.modal.field.guarHours">Garantierte h/Woche</label>
                         <input type="number" id="ceGuaranteedHours" class="ce-inp" step="0.5" oninput="checkCeMinimumWage()">
+                    </div>
+                    <!-- Lektionenlohn (Walter 07.09.2026, Swissdec 1006): nur bei Stundenlohn-Modellen, leer = keiner -->
+                    <div class="ce-field" id="ceLessonRateWrap" style="display:none">
+                        <label class="ce-lbl" title="Lohn pro Lektion (Lehrpersonal). Leer = kein Lektionenlohn.">Lohn / Lektion (CHF)</label>
+                        <input type="number" id="ceLessonRate" class="ce-inp" step="0.05" min="0" placeholder="–">
+                    </div>
+                    <div class="ce-field" id="ceWeeklyLessonsWrap" style="display:none">
+                        <label class="ce-lbl" title="Vereinbarte Wochenlektionen">Lektionen / Woche</label>
+                        <input type="number" id="ceWeeklyLessons" class="ce-inp" step="0.5" min="0" placeholder="–">
                     </div>
                     <div class="ce-eaw ce-span-4">
                         <input type="checkbox" id="ceEasyAtWorkManualOverride" class="ce-eaw-cb">

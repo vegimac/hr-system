@@ -183,9 +183,9 @@ public class KuendigungPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(24).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(38).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(18).Text("Kündigungsbestätigung").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(4).Text("Kündigungsbestätigung").Bold().FontSize(12.5f);
 
                     col.Item().PaddingTop(14).Text($"{d.DuAnrede},");
 
@@ -291,9 +291,9 @@ public class KuendigungPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(24).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(38).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(18).Text("Aufhebungsvereinbarung").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(4).Text("Aufhebungsvereinbarung").Bold().FontSize(12.5f);
 
                     col.Item().PaddingTop(14).Text($"{d.DuAnrede},");
 
@@ -793,13 +793,13 @@ public class KuendigungPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(34).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(48).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
                     if (d.NichtigSchwangerschaft)
                     {
                         // Walter-Textvorschlag 16.07.2026: nachtraeglich gemeldete
                         // Schwangerschaft → Kuendigung nichtig (OR 336c).
-                        col.Item().PaddingTop(34).Text($"Kündigung vom {d.KuendigungVom:dd.MM.yyyy} – Fortbestehen des Arbeitsverhältnisses")
+                        col.Item().PaddingTop(20).Text($"Kündigung vom {d.KuendigungVom:dd.MM.yyyy} – Fortbestehen des Arbeitsverhältnisses")
                             .Bold().FontSize(12.5f);
 
                         col.Item().PaddingTop(26).Text($"{d.Briefanrede},");
@@ -835,7 +835,7 @@ public class KuendigungPdfService
                     }
                     else
                     {
-                        col.Item().PaddingTop(34).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
+                        col.Item().PaddingTop(20).Text($"Rückzug unserer Kündigung vom {d.KuendigungVom:dd.MM.yyyy}")
                             .Bold().FontSize(12.5f);
 
                         col.Item().PaddingTop(26).Text($"{d.Briefanrede},");
@@ -944,11 +944,11 @@ public class KuendigungPdfService
                     });
 
                     // Ort, Datum — linksbuendig (Walter 15.07.2026).
-                    col.Item().PaddingTop(30)
+                    col.Item().PaddingTop(44)
                         .Text($"{d.Ort}, {d.KuendigungsDatum:dd.MM.yyyy}");
 
                     // Betreff.
-                    col.Item().PaddingTop(30).Text("Kündigung des Arbeitsverhältnisses").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(16).Text("Kündigung des Arbeitsverhältnisses").Bold().FontSize(12.5f);
 
                     // Anrede.
                     col.Item().PaddingTop(22).Text($"{d.Briefanrede},");

@@ -68,6 +68,10 @@ public class ArbeitszeugnisController : ControllerBase
         public DateOnly? Austritt { get; set; }
         /// <summary>Entwurf, aus dem HR das PDF erstellt (wird damit erledigt).</summary>
         public int? EntwurfId { get; set; }
+        /// <summary>Unterzeichner/in (Walter 07.09.2026): nur Name + Funktion im
+        /// PDF — KEIN Unterschriftsbild, HR unterschreibt das Original von Hand.
+        /// Leer = eingeloggter Benutzer.</summary>
+        public int? SignerUserId { get; set; }
         /// <summary>Bemerkung des Erstellers an HR (nur beim Entwurf).</summary>
         public string? Bemerkung { get; set; }
     }
@@ -241,14 +245,34 @@ public class ArbeitszeugnisController : ControllerBase
         return Ok(new { ok = true });
     }
 
-    /// <summary>HR-Postfach-Eintrag entfernen + Rückmeldung (Mitteilung, optional mit PDF) an den Ersteller.</summary>
-    private async Task EntwurfAbschliessenAsync(ArbeitszeugnisEntwurf x, AppUser hr, string betreff, string text, byte[]? pdf, string? pdfName)
+    /// <summary>«✓ erstellt»-Vermerk an den HR-Postfach-Eintrag hängen (idempotent).</summary>
+    private static void MarkiereErstellt(MailboxDocument md, AppUser hr)
+    {
+        const string marker = "\n\n✓ Erstellt am ";
+        var body = md.MessageBody ?? "";
+        var idx = body.IndexOf(marker, StringComparison.Ordinal);
+        if (idx >= 0) body = body[..idx];
+        md.MessageBody = body + $"{marker}{DateTime.Now:dd.MM.yyyy HH:mm} von {Name(hr)} — Eintrag bleibt, bis du ihn löschst.";
+    }
+
+    /// <summary>
+    /// Rückmeldung (Mitteilung, optional mit PDF) an den Ersteller. Der
+    /// HR-Postfach-Eintrag wird nur beim Zurückweisen entfernt
+    /// (<paramref name="postfachEintragEntfernen"/>); nach dem Erstellen des
+    /// PDFs BLEIBT er, bis HR ihn selbst löscht (Walter 07.09.2026) — er
+    /// bekommt stattdessen einen «✓ erstellt»-Vermerk.
+    /// </summary>
+    private async Task EntwurfAbschliessenAsync(ArbeitszeugnisEntwurf x, AppUser hr, string betreff, string text, byte[]? pdf, string? pdfName,
+                                                bool postfachEintragEntfernen = true)
     {
         if (x.MailboxDocumentId.HasValue)
         {
             var md = await _db.MailboxDocuments.FirstOrDefaultAsync(m => m.Id == x.MailboxDocumentId.Value);
-            if (md != null) _db.MailboxDocuments.Remove(md);
-            x.MailboxDocumentId = null;
+            if (md != null)
+            {
+                if (postfachEintragEntfernen) { _db.MailboxDocuments.Remove(md); x.MailboxDocumentId = null; }
+                else MarkiereErstellt(md, hr);
+            }
         }
         if (!x.ErstelltVon.HasValue) return;
         var ersteller = await _db.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == x.ErstelltVon.Value);
@@ -325,7 +349,68 @@ public class ArbeitszeugnisController : ControllerBase
         var u = await AktuellerBenutzerAsync();
         if (u == null) return Unauthorized();
         var code = ZeugnisBerechtigung.Effektiv(u);
-        return Ok(new { code, stufe = ZeugnisBerechtigung.Stufe(code), label = ZeugnisBerechtigung.Label(code) });
+        // Walter 07.09.2026: Arbeits-/Zwischenzeugnis erstellt IMMER HR; der GF
+        // füllt nur die Beurteilung aus. Stufe gilt nur noch für die Arbeitsbestätigung.
+        return Ok(new { code, stufe = ZeugnisBerechtigung.Stufe(code), label = ZeugnisBerechtigung.Label(code), istHr = IstHr(u),
+                        // Diagnose (Walter 07.09.2026): WARUM gilt der Benutzer als HR?
+                        istHrGrund = string.Equals(u.Role, "admin", StringComparison.OrdinalIgnoreCase) ? "Rolle admin"
+                                   : u.IsHrTeam ? "Häkchen «HR-Team-Mitglied» in der Benutzerverwaltung" : null,
+                        benutzer = Name(u), rolle = u.Role });
+    }
+
+    /// <summary>
+    /// Mögliche Unterzeichner/innen für das Zeugnis eines MA (Walter 07.09.2026):
+    /// HR-Team, Admin, Superuser sowie Benutzer mit Zugang zur Filiale des MA —
+    /// also NICHT die GF anderer Restaurants. Es wird nur der Name gedruckt,
+    /// die Unterschrift erfolgt von Hand auf dem Ausdruck.
+    /// GET /api/arbeitszeugnis/{empId}/unterzeichner
+    /// </summary>
+    [HttpGet("{empId:int}/unterzeichner")]
+    public async Task<IActionResult> Unterzeichner(int empId)
+    {
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId)
+            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfileId)
+            .FirstOrDefaultAsync();
+        var list = await UnterzeichnerListeAsync(cpId);
+        return Ok(list.Select(x => new { id = x.Id, name = x.Name, funktion = x.Titel }).ToList());
+    }
+
+    private record UnterzeichnerEintrag(int Id, string Name, string? Titel);
+
+    private async Task<List<UnterzeichnerEintrag>> UnterzeichnerListeAsync(int? cpId)
+    {
+        var users = await _db.AppUsers.AsNoTracking()
+            .Where(u => u.IsActive)
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Username, u.Role, u.IsHrTeam })
+            .ToListAsync();
+        var zugaenge = new List<(int UserId, string? FunctionTitle, string? Role)>();
+        if (cpId.HasValue)
+        {
+            var raw = await _db.UserBranchAccesses.AsNoTracking()
+                .Where(a => a.CompanyProfileId == cpId.Value)
+                .Select(a => new { a.UserId, a.FunctionTitle, a.Role })
+                .ToListAsync();
+            zugaenge = raw.Select(a => (a.UserId, a.FunctionTitle, a.Role)).ToList();
+        }
+        var zugangIds = zugaenge.Select(z => z.UserId).ToHashSet();
+        return users
+            .Where(u => u.IsHrTeam
+                     || string.Equals(u.Role, "admin", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(u.Role, "superuser", StringComparison.OrdinalIgnoreCase)
+                     || zugangIds.Contains(u.Id))
+            .Select(u =>
+            {
+                var full = $"{u.FirstName} {u.LastName}".Trim();
+                var hatZ = zugangIds.Contains(u.Id);
+                var z = hatZ ? zugaenge.First(x => x.UserId == u.Id) : default;
+                var titel = hatZ && !string.IsNullOrWhiteSpace(z.FunctionTitle) ? z.FunctionTitle
+                          : (hatZ && z.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
+                return new UnterzeichnerEintrag(u.Id, string.IsNullOrWhiteSpace(full) ? (u.Username ?? "") : full, titel);
+            })
+            .OrderBy(x => x.Name)
+            .ToList();
     }
 
     [HttpPost("{empId:int}/pdf")]
@@ -339,9 +424,16 @@ public class ArbeitszeugnisController : ControllerBase
         // nicht nur am Knopf).
         var benutzer = await AktuellerBenutzerAsync();
         if (benutzer == null) return Unauthorized();
-        if (!ZeugnisBerechtigung.DarfDrucken(benutzer, dto.Funktion))
+        // Walter 07.09.2026 (Entscheid mit seinem Sohn): Arbeits- und
+        // Zwischenzeugnisse erstellt IMMER HR — der GF füllt nur die Beurteilung
+        // aus und sendet sie als Entwurf. Die Stufenlogik gilt nur noch für die
+        // Arbeitsbestätigung (die darf der GF weiterhin selbst drucken).
+        if (!dto.Bestaetigung && !IstHr(benutzer))
+            return StatusCode(403, new { error = "ZEUGNIS_NUR_HR",
+                message = "Arbeits- und Zwischenzeugnisse erstellt HR — bitte die Beurteilung ausfüllen und an HR senden." });
+        if (dto.Bestaetigung && !ZeugnisBerechtigung.DarfDrucken(benutzer, dto.Funktion))
             return StatusCode(403, new { error = "ZEUGNIS_DRUCK_GESPERRT",
-                message = $"Zeugnisse für «{dto.Funktion}» darfst du nicht selbst erstellen (deine Stufe: {ZeugnisBerechtigung.Label(ZeugnisBerechtigung.Effektiv(benutzer))}). Bitte als Entwurf an HR senden." });
+                message = $"Arbeitsbestätigungen für «{dto.Funktion}» darfst du nicht selbst erstellen (deine Stufe: {ZeugnisBerechtigung.Label(ZeugnisBerechtigung.Effektiv(benutzer))}). Bitte als Entwurf an HR senden." });
 
         var quali = (dto.Qualitaet ?? "gut").Trim().ToLowerInvariant();
         if (quali is not ("genuegend" or "durchschnitt" or "gut" or "sehr_gut"))
@@ -398,55 +490,27 @@ public class ArbeitszeugnisController : ControllerBase
                    || string.Equals(e.Gender, "f", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(e.Salutation, "Frau", StringComparison.OrdinalIgnoreCase);
 
-        // Unterzeichner folgt der Zustellart (HR-Idee, Walter 12.08.2026):
-        // Versand an MA = EINGELOGGTER User · Abgabe durch Restaurant =
-        // Allgemein-Unterzeichner der Filiale (IsDefault, Fallback GF).
+        // Unterzeichner/in (Walter 07.09.2026): HR wählt die Person aus der
+        // Liste (HR/Admin/Superuser + Benutzer mit Zugang zur MA-Filiale);
+        // Default = eingeloggter Benutzer. Ins PDF kommen NUR Name + Funktion —
+        // KEIN Unterschriftsbild: HR unterschreibt das Original von Hand,
+        // scannt es ein und legt es beim MA ab. Die frühere Zustellart-Logik
+        // (Versand/Abgabe, Allgemein-Unterzeichner) ist damit weg.
         byte[]? sigPng = null; string signerName = ""; string? signerTitle = null;
-        if (dto.Abgabe)
         {
-            var uba = await _db.UserBranchAccesses.AsNoTracking()
-                .Include(a => a.User)
-                .Where(a => a.CompanyProfileId == cp.Id && a.IsDefault
-                         && a.User != null && a.User.IsActive)
-                .FirstOrDefaultAsync()
-                ?? await _db.UserBranchAccesses.AsNoTracking()
-                    .Include(a => a.User)
-                    .Where(a => a.CompanyProfileId == cp.Id && a.Role == "GESCHAEFTSFUEHRER"
-                             && a.User != null && a.User.IsActive)
-                    .OrderBy(a => a.Id)
-                    .FirstOrDefaultAsync();
-            if (uba?.User == null)
-                return BadRequest(new { error = "KEIN_ALLGEMEIN_UNTERZEICHNER",
-                    message = "Kein Allgemein-Unterzeichner für diese Filiale definiert — im Filial-Tab «Unterzeichner» das grüne «Allgemein» setzen, oder «Versand an Mitarbeiter» wählen." });
-            sigPng = uba.User.SignaturePng;
-            var fullD = $"{uba.User.FirstName} {uba.User.LastName}".Trim();
-            signerName = string.IsNullOrWhiteSpace(fullD) ? (uba.User.Username ?? "") : fullD;
-            signerTitle = !string.IsNullOrWhiteSpace(uba.FunctionTitle)
-                ? uba.FunctionTitle
-                : (uba.Role == "GESCHAEFTSFUEHRER" ? "Geschäftsführer/in" : null);
-        }
-        else
-        {
-        var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(idStr, out var uid))
-        {
-            var u = await _db.AppUsers.AsNoTracking()
-                .Where(x => x.Id == uid)
-                .Select(x => new { x.SignaturePng, x.FirstName, x.LastName, x.Username })
-                .FirstOrDefaultAsync();
-            if (u != null)
+            var erlaubt = await UnterzeichnerListeAsync(cp.Id);
+            UnterzeichnerEintrag? signer = null;
+            if (dto.SignerUserId.HasValue)
             {
-                sigPng = u.SignaturePng;
-                var full = $"{u.FirstName} {u.LastName}".Trim();
-                signerName = string.IsNullOrWhiteSpace(full) ? (u.Username ?? "") : full;
+                signer = erlaubt.FirstOrDefault(x => x.Id == dto.SignerUserId.Value);
+                if (signer == null)
+                    return BadRequest(new { error = "SIGNER_UNGUELTIG",
+                        message = "Die gewählte Person darf dieses Zeugnis nicht unterzeichnen (nur HR, Admin, Superuser oder Benutzer der MA-Filiale)." });
             }
-            // Funktionsbezeichnung aus dem Filial-Zugang (z.B. «Restaurantleiterin»).
-            signerTitle = await _db.UserBranchAccesses.AsNoTracking()
-                .Where(a => a.UserId == uid && a.CompanyProfileId == cp.Id
-                         && a.FunctionTitle != null && a.FunctionTitle != "")
-                .Select(a => a.FunctionTitle)
-                .FirstOrDefaultAsync();
-        }
+            signer ??= erlaubt.FirstOrDefault(x => x.Id == benutzer.Id)
+                       ?? new UnterzeichnerEintrag(benutzer.Id, Name(benutzer), null);
+            signerName  = signer.Name;
+            signerTitle = signer.Titel;
         }
 
         var strasse = string.Join(" ", new[] { cp.Street, cp.HouseNumber }
@@ -491,23 +555,27 @@ public class ArbeitszeugnisController : ControllerBase
         var fileName = $"{art}_{e.LastName}_{e.FirstName}.pdf".Replace(" ", "_");
 
         // Aus einem Entwurf erstellt (Walter 06.09.2026): Entwurf erledigen,
-        // HR-Postfach-Eintrag weg, fertiges PDF als Mitteilung an den Ersteller.
+        // fertiges PDF als Mitteilung an den Ersteller. Walter 07.09.2026: der
+        // HR-Postfach-Eintrag BLEIBT (mit «✓ erstellt»-Vermerk), bis HR ihn
+        // selbst löscht — «PDF erstellen» ist auch nur ein Anschauen/Probedruck.
         if (dto.EntwurfId.HasValue)
         {
             var x = await _db.ArbeitszeugnisEntwuerfe.FirstOrDefaultAsync(z => z.Id == dto.EntwurfId.Value);
             if (x != null && x.Status == "offen")
             {
                 x.Status = "erledigt"; x.ErledigtVon = benutzer.Id; x.ErledigtAm = DateTime.Now;
+                // Walter 07.09.2026: der GF bekommt nur eine kurze Info, KEIN PDF —
+                // HR druckt, unterschreibt von Hand, scannt, legt ab und schickt
+                // das Zeugnis zusammen mit den Austrittsformularen per Post an den MA.
                 if (x.ErstelltVon != benutzer.Id)
                     await EntwurfAbschliessenAsync(x, benutzer,
                         $"{ArtLabel(x.Art)} für {e.FirstName} {e.LastName} ist erstellt",
-                        $"{Name(benutzer)} (HR) hat das {ArtLabel(x.Art)} für {e.FirstName} {e.LastName} aus deinem Entwurf erstellt und unterschrieben. Das PDF ist angehängt — bitte ausdrucken bzw. dem MA übergeben.",
-                        bytes, fileName);
+                        $"{Name(benutzer)} (HR) hat das {ArtLabel(x.Art)} für {e.FirstName} {e.LastName} aus deiner Beurteilung erstellt. HR unterschreibt es, legt es beim MA ab und schickt es zusammen mit den Austrittsformularen per Post an den MA — du musst nichts weiter tun.",
+                        null, null, postfachEintragEntfernen: false);
                 else if (x.MailboxDocumentId.HasValue)
                 {
                     var md = await _db.MailboxDocuments.FirstOrDefaultAsync(m => m.Id == x.MailboxDocumentId.Value);
-                    if (md != null) _db.MailboxDocuments.Remove(md);
-                    x.MailboxDocumentId = null;
+                    if (md != null) MarkiereErstellt(md, benutzer);
                 }
                 await _db.SaveChangesAsync();
             }

@@ -1,0 +1,46 @@
+# Konfigurationstabellen, die beim Reset der Testinstanz aus Produktiv
+# übernommen werden (Walter-Entscheid 07.09.2026: Testmandant «Muster AG»).
+# NUR mandantenneutrale Konfiguration — KEINE Tabelle mit Personenbezug,
+# KEINE Filial-/Firmendaten, KEINE Integrationen/Secrets.
+# Eine Tabelle pro Zeile; Zeilen mit # sind Kommentare.
+#
+# Lohnstammdaten
+lohnposition
+lohn_konto_mapping
+vertragstyp_lohnposition
+vertragsmodell_lohnschema
+employment_model_component
+elm_lohnraster
+lse_version
+lse_code_mapping
+lse_lohnart_mapping
+# Regelwerke
+social_insurance_rate
+familienzulagen_tarif
+minimum_wage_rule_new
+absenz_typ
+lohn_zulag_typ
+pregnancy_rule
+dashboard_warning_config
+# Kataloge
+nationality
+permit_type
+swiss_location
+education_level
+job_group
+dokument_kategorie
+dokument_typ
+bank_master
+behoerde
+behoerde_sachbearbeiter
+lohndaten_empfaenger
+dienstplan_code
+# Texte / Vorlagen
+contract_text
+app_text
+todo_anleitung
+moment_type
+moment_tone
+moment_text
+versand_kategorie
+app_setting

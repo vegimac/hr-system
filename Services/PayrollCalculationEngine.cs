@@ -476,6 +476,9 @@ public class PayrollCalculationEngine
                 OnlyQuellensteuer     = r.OnlyQuellensteuer,
                 EmploymentModelCode   = r.EmploymentModelCode,
                 Gender                = r.Gender,
+                LoesungsCode          = r.LoesungsCode,
+                IsDefaultCode         = r.IsDefaultCode,
+                BandVonMonthly        = r.BandVonMonthly,
                 ValidFrom             = r.ValidFrom,
                 SortOrder             = r.SortOrder,
                 IsActive              = true,
@@ -535,6 +538,11 @@ public class PayrollCalculationEngine
                      && (!IsNbuBefreitUnter8h(emp, employee)
                          || !string.Equals(r.CategoryCode, "NBUV", StringComparison.OrdinalIgnoreCase)))
             .ToList();
+
+        // Versicherungs-Lösungen / Swissdec-Codes (Walter 07.09.2026): Zeilen mit
+        // Code gelten nur für MA mit diesem Code (oder als Standard); BVG-Fixbetrag
+        // ersetzt die BVG-Prozentzeilen.
+        deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, periodFrom, ueberReferenzalter);
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
         // Auch hier CompanyProfileId mitfiltern — sonst könnte der Vormonats-
@@ -621,6 +629,8 @@ public class PayrollCalculationEngine
         decimal vacationPct   = company.DefaultVacationPercent5Weeks    ?? 0;
         decimal holidayPct    = company.DefaultHolidayPercent           ?? 0;
         decimal thirteenthPct = company.DefaultThirteenthSalaryPercent  ?? 0;
+        // 13. ML ja/nein am Vertrag (Walter 08.09.2026): nein → kein Zuschlag, keine Rückstellung.
+        if (!emp.ThirteenthSalary) thirteenthPct = 0;
 
         // ── Probezeit-Sperre für 13. ML (L-GAV Art. 12 Ziffer 2) ───────────
         // Während der Probezeit: akkumulieren, nicht auszahlen.
@@ -4498,6 +4508,7 @@ public class PayrollCalculationEngine
                     OnlyQuellensteuer = r.OnlyQuellensteuer,
                     EmploymentModelCode = r.EmploymentModelCode,
                     Gender = r.Gender,
+                    LoesungsCode = r.LoesungsCode, IsDefaultCode = r.IsDefaultCode, BandVonMonthly = r.BandVonMonthly,
                     ValidFrom = r.ValidFrom, SortOrder = r.SortOrder, IsActive = true,
                 }).ToList()
                 : BuildSwissStandardDeductions(companyProfileId);
@@ -4514,6 +4525,7 @@ public class PayrollCalculationEngine
                          && !(ueberRef && (string.Equals(r.CategoryCode, "ALV", StringComparison.OrdinalIgnoreCase)
                                         || string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase))))
                 .ToList();
+            deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, periodFrom, ueberRef);
 
             var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
 
@@ -4597,6 +4609,55 @@ public class PayrollCalculationEngine
             return new ObjectResult(new { error = "CORRECTION_FAILED", message = ex.Message })
                 { StatusCode = 500 };
         }
+    }
+
+    /// <summary>
+    /// Versicherungs-Lösungen (Walter 07.09.2026): lädt die Codes des MA am
+    /// Periodenanfang, filtert die Regeln (siehe ApplyVersicherungsCodes) und
+    /// ersetzt bei einem BVG-Fixbetrag die BVG-Prozentzeilen durch eine feste
+    /// Abzugszeile (AN) mit festem AG-Beitrag. Ohne Einträge am MA und ohne
+    /// Code-Zeilen in den SV-Sätzen ändert sich nichts am bisherigen Ergebnis.
+    /// </summary>
+    private async Task<List<DeductionRule>> WendeVersicherungsCodesAnAsync(
+        List<DeductionRule> deductions, int employeeId, DateOnly stichtag, bool ueberReferenzalter)
+    {
+        var eintraege = await _db.EmployeeVersicherungCodes.AsNoTracking()
+            .Where(v => v.EmployeeId == employeeId && v.ValidFrom <= stichtag && (v.ValidTo == null || v.ValidTo >= stichtag))
+            .OrderByDescending(v => v.ValidFrom)
+            .ToListAsync();
+        var codes = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var e in eintraege.Where(e => !string.IsNullOrWhiteSpace(e.Code)))
+        {
+            if (!codes.TryGetValue(e.Art, out var set)) codes[e.Art] = set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            set.Add(e.Code!.Trim());
+        }
+
+        var result = ApplyVersicherungsCodes(deductions, codes);
+
+        var bvgFix = eintraege.FirstOrDefault(e => e.Art == "BVG" && (e.BeitragFixAn is > 0 || e.BeitragFixAg is > 0));
+        if (bvgFix != null && !ueberReferenzalter)
+        {
+            var vorlage = result.FirstOrDefault(r => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase));
+            result.RemoveAll(r => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase));
+            result.Add(new DeductionRule
+            {
+                Id               = -900000 - bvgFix.Id,
+                CompanyProfileId = vorlage?.CompanyProfileId ?? 0,
+                CategoryCode     = "BVG",
+                CategoryName     = vorlage?.CategoryName ?? "BVG",
+                Name             = (vorlage?.Name ?? "BVG") + " (Fixbetrag)",
+                Type             = "fixed",
+                Rate             = bvgFix.BeitragFixAn ?? 0m,
+                RateEmployer     = bvgFix.BeitragFixAg,
+                BasisType        = "bvg_basis",
+                LoesungsCode     = bvgFix.Code ?? vorlage?.LoesungsCode,
+                ValidFrom        = bvgFix.ValidFrom,
+                SortOrder        = vorlage?.SortOrder ?? 50,
+                IsActive         = true,
+            });
+            result = result.OrderBy(r => r.SortOrder).ToList();
+        }
+        return result;
     }
 
     /// <summary>

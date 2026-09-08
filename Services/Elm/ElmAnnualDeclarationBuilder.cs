@@ -48,6 +48,14 @@ public class ElmAnnualDeclarationBuilder
 
     private static string Amt(decimal v) => v.ToString("0.00", CultureInfo.InvariantCulture);
 
+    /// <summary>«Bahnhofstrasse» + «1» → «Bahnhofstrasse 1» (Swissdec führt Strasse und Nummer in EINEM Feld).</summary>
+    private static string StrasseMitNr(string? strasse, string? nr)
+    {
+        var st = (strasse ?? "").Trim(); var n = (nr ?? "").Trim();
+        if (st.Length == 0) return n;
+        return n.Length == 0 || st.EndsWith(" " + n) ? st : $"{st} {n}";
+    }
+
     public async Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
     {
         var warn = new List<string>();
@@ -109,10 +117,12 @@ public class ElmAnnualDeclarationBuilder
         var uvgE = empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e));
         var bvgE = empf.FirstOrDefault(e => e.Art == "BVG");
 
-        static string? GemeinsameMitgliedNr(Models.LohndatenEmpfaenger? e)
+        // Stichtag für die Zuordnung = 31.12. des Lohnjahres (Gültig ab/bis, Walter 07.09.2026)
+        var stichtagZuord = new DateOnly(year, 12, 31);
+        string? GemeinsameMitgliedNr(Models.LohndatenEmpfaenger? e)
         {
             if (e == null) return null;
-            var nrs = e.Zuordnungen.Where(z => z.IsActive)
+            var nrs = e.Zuordnungen.Where(z => z.GiltAm(stichtagZuord))
                 .Select(z => (z.Mitgliednummer ?? "").Trim())
                 .Where(v => v.Length > 0).Distinct().ToList();
             return nrs.Count == 1 ? nrs[0] : null;
@@ -134,7 +144,7 @@ public class ElmAnnualDeclarationBuilder
         var akAbrechnung = GemeinsameMitgliedNr(akE) ?? "";
         if (string.IsNullOrEmpty(akAbrechnung))
         {
-            if (akE != null && akE.Zuordnungen.Any(z => z.IsActive))
+            if (akE != null && akE.Zuordnungen.Any(z => z.GiltAm(stichtagZuord)))
                 warn.Add("AK-Mitgliednummern sind pro Filiale unterschiedlich — im XML steht vorerst die Kassen-Nr. (Zuordnung pro Filiale kommt in E5).");
             akAbrechnung = akKasse;
         }
@@ -315,23 +325,53 @@ public class ElmAnnualDeclarationBuilder
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
         var companyName = (hs?.Name ?? main.CompanyName ?? "Schaub Restaurants GmbH").Trim();
+        // Sitzadresse der Rechtseinheit: Hauptsitz-Verwaltung, Fallback erste Filiale.
+        var sitzStrasse = !string.IsNullOrWhiteSpace(hs?.Strasse) ? hs!.Strasse!.Trim() : StrasseMitNr(main.Street, main.HouseNumber);
+        var sitzPlz     = !string.IsNullOrWhiteSpace(hs?.Plz)     ? hs!.Plz!.Trim()     : (main.ZipCode ?? "").Trim();
+        var sitzOrt     = !string.IsNullOrWhiteSpace(hs?.Ort)     ? hs!.Ort!.Trim()     : (main.City ?? "").Trim();
+        // Workplace-IDs: Filialcode (z.B. #LU, #058) — stabil und lesbar; Fallback DB-Id.
+        string WpId(Models.CompanyProfile b2) => "#" + (string.IsNullOrWhiteSpace(b2.RestaurantCode) ? $"wp{b2.Id}" : b2.RestaurantCode!.Trim());
+        // BFS-Gemeindenummer: Feld an der Filiale ist massgebend (Ausnahmen/Testdaten);
+        // ist es leer, aus dem Ortschaftsverzeichnis (swiss_location) über PLZ+Ort ableiten.
+        var gemeindeNr = new Dictionary<int, int>();
+        foreach (var b2 in branches)
+        {
+            if (b2.BfsGemeindeNr is > 0) { gemeindeNr[b2.Id] = b2.BfsGemeindeNr.Value; continue; }
+            var plz = (b2.ZipCode ?? "").Trim(); var ort = (b2.City ?? "").Trim().ToLowerInvariant();
+            if (plz.Length != 4) { warn.Add($"Filiale «{b2.FullDisplayName}»: keine BFS-Gemeindenummer (PLZ fehlt) — Swissdec verlangt MunicipalityID pro Workplace."); continue; }
+            var treffer = await _db.SwissLocations.AsNoTracking()
+                .Where(l => l.Plz4 == plz).Select(l => new { l.BfsNr, l.Ortschaftsname, l.Gemeindename }).ToListAsync(ct);
+            var nrs = treffer.Select(t => t.BfsNr).Distinct().ToList();
+            var best = treffer.FirstOrDefault(t => (t.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort) || (t.Gemeindename ?? "").ToLowerInvariant() == ort)?.BfsNr
+                       ?? (nrs.Count == 1 ? nrs[0] : (int?)null);
+            if (best is > 0) gemeindeNr[b2.Id] = best.Value;
+            else warn.Add($"Filiale «{b2.FullDisplayName}»: BFS-Gemeindenummer nicht eindeutig ableitbar (PLZ {plz}, {nrs.Count} Gemeinden) — bitte in den Stammdaten → Betriebsangaben eintragen.");
+        }
         var companyDescription = new XElement(Sd + "CompanyDescription",
             new XElement(C + "Name", new XElement(C + "HR-RC-Name", companyName)),
             new XElement(C + "Address",
-                string.IsNullOrWhiteSpace(main.Street) ? null : new XElement(C + "Street", main.Street.Trim()),
-                new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(main.ZipCode) ? "0000" : main.ZipCode!.Trim()),
-                new XElement(C + "City", string.IsNullOrWhiteSpace(main.City) ? "Unbekannt" : main.City!.Trim())),
+                string.IsNullOrWhiteSpace(sitzStrasse) ? null : new XElement(C + "Street", sitzStrasse),
+                new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(sitzPlz) ? "0000" : sitzPlz),
+                new XElement(C + "City", string.IsNullOrWhiteSpace(sitzOrt) ? "Unbekannt" : sitzOrt),
+                new XElement(C + "Country", "SWITZERLAND")),
             new XElement(C + "UID-BFS", new XElement(Ep + "UID", uid)),
             branches.Select(b2 => new XElement(C + "Workplace",
-                new XAttribute("workplaceID", $"#wp{b2.Id}"),
+                new XAttribute("workplaceID", WpId(b2)),
                 // BUR-Nummer = offizielle Betriebsstätten-Kennung (Muster A63837147);
                 // nur mitgeben, wenn sie dem XSD-Pattern [A-Z][0-9]{8} entspricht.
                 Regex.IsMatch((b2.BurNummer ?? "").Trim(), "^[A-Z][0-9]{8}$")
                     ? new XElement(C + "BUR-REE-Number", b2.BurNummer!.Trim())
                     : null,
+                // AddressExtended (Reihenfolge XSD): ComplementaryLine, Street, ZIP, City, Country, Canton, MunicipalityID.
+                // ComplementaryLine = Filialbezeichnung («Hauptsitz», «Werkhof/Büro» — Swissdec-Testmandant).
                 new XElement(C + "AddressExtended",
+                    string.IsNullOrWhiteSpace(b2.BranchName) ? null : new XElement(C + "ComplementaryLine", b2.BranchName!.Trim()),
+                    string.IsNullOrWhiteSpace(StrasseMitNr(b2.Street, b2.HouseNumber)) ? null : new XElement(C + "Street", StrasseMitNr(b2.Street, b2.HouseNumber)),
                     new XElement(C + "ZIP-Code", string.IsNullOrWhiteSpace(b2.ZipCode) ? "0000" : b2.ZipCode!.Trim()),
-                    new XElement(C + "City", string.IsNullOrWhiteSpace(b2.City) ? "Unbekannt" : b2.City!.Trim())))),
+                    new XElement(C + "City", string.IsNullOrWhiteSpace(b2.City) ? "Unbekannt" : b2.City!.Trim()),
+                    new XElement(C + "Country", "SWITZERLAND"),
+                    string.IsNullOrWhiteSpace(b2.KantonCode) ? null : new XElement(C + "Canton", b2.KantonCode!.Trim().ToUpperInvariant()),
+                    gemeindeNr.TryGetValue(b2.Id, out var gnr) ? new XElement(C + "MunicipalityID", gnr) : null))),
             new XElement(C + "CompanyWorkingTime",
                 new XAttribute("companyWorkingTimeID", "#cwt1"),
                 new XElement(C + "WeeklyHours", Amt(main.NormalWeeklyHours ?? 42m))));

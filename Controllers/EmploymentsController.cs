@@ -136,10 +136,12 @@ public class EmploymentsController : ControllerBase
                 jobGroupCode = e.JobGroup != null ? e.JobGroup.Code : null,
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
-                e.WeeklyHours, e.GuaranteedHoursPerWeek,
+                e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary,
                 e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
+                // Herkunft (Walter 07.09.2026): easy@work-Sync vs. manuell erfasst — nur Anzeige.
+                e.EasyAtWorkContractId, e.EasyAtWorkUpdatedAt,
                 e.VacationPaymentMode, e.ProbationPeriodMonths, e.ProbationEndDate,
                 e.ProbationStartDate,
                 probationGrund   = probationGrundByEmp.TryGetValue(e.Id, out var pg) ? pg : null,
@@ -614,6 +616,10 @@ public class EmploymentsController : ControllerBase
         existing.EmploymentPercentage   = dto.EmploymentPercentage;
         existing.WeeklyHours            = dto.WeeklyHours;
         existing.GuaranteedHoursPerWeek = dto.GuaranteedHoursPerWeek;
+        // Lektionenlohn (Walter 07.09.2026): nur bei Stundenlohn-Modellen sinnvoll; leer = keiner.
+        existing.ThirteenthSalary       = dto.ThirteenthSalary;
+        existing.LessonRate             = dto.LessonRate is > 0 ? dto.LessonRate : null;
+        existing.WeeklyLessons          = dto.WeeklyLessons is > 0 ? dto.WeeklyLessons : null;
         // < 8 h / Wo. nur bei FLEX (Walter 31.07.2026); andere Modelle immer false.
         var isFlexModel = string.Equals(dto.EmploymentModel, "FLEX", StringComparison.OrdinalIgnoreCase)
                        || string.Equals(dto.EmploymentModel, "UTP", StringComparison.OrdinalIgnoreCase);

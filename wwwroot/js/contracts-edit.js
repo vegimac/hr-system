@@ -167,15 +167,23 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('cePensum').value             = c.employmentPercentage ?? '';
     document.getElementById('ceWeeklyHours').value        = c.weeklyHours ?? '';
     document.getElementById('ceGuaranteedHours').value    = c.guaranteedHoursPerWeek ?? '';
+    const _lr = document.getElementById('ceLessonRate');    if (_lr) _lr.value = c.lessonRate ?? '';
+    const _wl = document.getElementById('ceWeeklyLessons'); if (_wl) _wl.value = c.weeklyLessons ?? '';
     // < 8 h / Wo. nur FLEX — Toggle-Wert setzen (empSetYesNo aktualisiert ja/nein).
     const unter8 = !!(c.teilzeitUnter8hWoche);
     if (typeof empSetYesNo === 'function') empSetYesNo('ceTeilzeitUnter8h', unter8);
+    // 13. Monatslohn ja/nein (Walter 08.09.2026) — Standard ja
+    const dreizehnter = c.thirteenthSalary !== false;
+    if (typeof empSetYesNo === 'function') empSetYesNo('ceThirteenth', dreizehnter);
+    else { const t13 = document.getElementById('ceThirteenth'); if (t13) t13.value = dreizehnter ? 'true' : 'false'; }
     else {
         const u8 = document.getElementById('ceTeilzeitUnter8h');
         if (u8) u8.value = unter8 ? 'true' : 'false';
     }
     const overrideEl = document.getElementById('ceEasyAtWorkManualOverride');
-    if (overrideEl) overrideEl.checked = c.easyAtWorkManualOverride === true;
+    // Handerfassung (Walter 07.09.2026): neuer Vertrag ohne easy@work-Herkunft ist
+    // automatisch geschützt — sonst könnte der Sync ihn später kappen.
+    if (overrideEl) overrideEl.checked = c.easyAtWorkManualOverride === true || (mode === 'new' && !c.easyAtWorkContractId);
     // Walter-Vorgabe 26.05.2026: Vorbelegung aus Filial-Defaults wenn leer.
     //   Feiertag % → immer DefaultHolidayPercent (z.B. 2.27)
     //   Ferien %   → DefaultVacationPercent5Weeks bei Alter <50 am Vertrags-
@@ -228,6 +236,9 @@ function onCeModelChange() {
     // automatisch = GuaranteedHoursPerWeek gesetzt.
     show('ceWeeklyWrap',     isUtp);
     show('ceGuaranteedWrap', isMtp);
+    // Lektionenlohn nur bei Stundenlohn-Modellen (FLEX/UTP/MTP), nie bei FIX.
+    show('ceLessonRateWrap', !isFix);
+    show('ceWeeklyLessonsWrap', !isFix);
     // < 8 h / Wo. nur bei FLEX — eigene Grid-Zelle rechts neben Max. h/Woche.
     show('ceTeilzeitUnter8hWrap', isUtp);
     if (!isUtp && typeof empSetYesNo === 'function')
@@ -527,6 +538,9 @@ async function saveContractEdit() {
                                 : !isFix ? (parseFloat(document.getElementById('ceWeeklyHours').value) || null)
                                 : null,
         guaranteedHoursPerWeek:  parseFloat(document.getElementById('ceGuaranteedHours').value) || null,
+        thirteenthSalary:        document.getElementById('ceThirteenth')?.value !== 'false',
+        lessonRate:              !isFix ? (parseFloat(document.getElementById('ceLessonRate')?.value) || null) : null,
+        weeklyLessons:           !isFix ? (parseFloat(document.getElementById('ceWeeklyLessons')?.value) || null) : null,
         // < 8 h / Wo. nur FLEX (Walter 31.07.2026) — NBU-Befreiung am Vertrag.
         teilzeitUnter8hWoche:    employmentModel === 'FLEX'
                                     && document.getElementById('ceTeilzeitUnter8h')?.value === 'true',

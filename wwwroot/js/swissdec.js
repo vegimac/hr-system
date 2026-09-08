@@ -11,6 +11,61 @@ function swissdecInit() {
     const y = document.getElementById('elmAnnualYear');
     if (y && !y.value) y.value = new Date().getFullYear();
     elmStammLoad();
+    tmInit();
+}
+
+// ── Testmandant «Muster AG» (Walter 07.09.2026) — nur Testinstanz ──────────
+// Karte erscheint nur, wenn der Server INSTANCE_LABEL gesetzt hat (Test).
+async function tmInit() {
+    const card = document.getElementById('tmCard');
+    if (!card) return;
+    try {
+        const r = await fetch('/api/swissdec/testmandant/status', { headers: ah() });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (!j.istTestinstanz) return;      // Produktiv: Karte bleibt unsichtbar
+        card.style.display = '';
+        tmRenderStatus(j);
+    } catch (_) {}
+}
+function tmRenderStatus(j) {
+    const el = document.getElementById('tmStatus');
+    if (!el) return;
+    const csv = Object.entries(j.csv || {}).map(([n, ok]) => `${ok ? '✓' : '✗'} ${n}`).join(' · ');
+    const fil = (j.filialen || []).length
+        ? `<table style="border-collapse:collapse;font-size:12px;margin-top:6px"><thead><tr>${['Code','Bezeichnung','Ort','BUR-Nr.','BFS-Gemeinde'].map(h => `<th style="text-align:left;padding:2px 10px 2px 0;color:#8b8b8b;font-weight:600">${h}</th>`).join('')}</tr></thead><tbody>`
+          + j.filialen.map(f => `<tr>${[f.restaurantCode, f.branchName, f.city, f.burNummer, f.bfsGemeindeNr].map(v => `<td style="padding:2px 10px 2px 0">${esc(String(v ?? '–'))}</td>`).join('')}</tr>`).join('')
+          + '</tbody></table>'
+        : '<div style="color:#8b8b8b;margin-top:4px">Noch keine Filialen des Testmandanten.</div>';
+    el.innerHTML = `<div>Dateien: ${csv}</div>`
+        + `<div style="margin-top:4px">Hauptsitz: <b>${j.hauptsitz ? esc(j.hauptsitz.name + ' · ' + j.hauptsitz.uid) : '– noch nicht angelegt –'}</b></div>`
+        + fil;
+}
+async function tmSchritt(nr, vorschau) {
+    const out = document.getElementById('tmErgebnis');
+    if (!vorschau && !(await liquidConfirm(`Schritt ${nr} jetzt ANLEGEN? (Vorschau vorher angeschaut?)`))) return;
+    out.innerHTML = '⏳ …';
+    try {
+        const qs = [];
+        if (['4', '4c', '5b'].includes(String(nr)) && document.getElementById('tmNur')?.value.trim()) qs.push(`nur=${encodeURIComponent(document.getElementById('tmNur').value.trim())}`);
+        if (['4c', '5b'].includes(String(nr)) && document.getElementById('tmMonat')?.value) qs.push(`monat=${encodeURIComponent(document.getElementById('tmMonat').value)}`);
+        const nur = qs.length ? '?' + qs.join('&') : '';
+        const r = await fetch(`/api/swissdec/testmandant/schritt${nr}/${vorschau ? 'vorschau' : 'anlegen'}${nur}`,
+            { method: vorschau ? 'GET' : 'POST', headers: ah() });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">✗ ${esc(j?.message || j?.error || ('HTTP ' + r.status))}</span>`; return; }
+        const kopf = `<div style="font-weight:700;margin-bottom:6px">${vorschau ? '🔍 Vorschau' : '✓ Angelegt'} — ${esc(j.schritt)} · ${j.aktionen.length} Aktionen</div>`;
+        const rows = j.aktionen.map(a => {
+            const felder = Object.entries(a.felder || {}).filter(([, v]) => v != null && v !== '')
+                .map(([k, v]) => `<span style="white-space:nowrap"><span style="color:#8b8b8b">${esc(k)}:</span> ${esc(String(v))}</span>`).join(' · ');
+            const farbe = a.typ === 'anlegen' ? '#15803d' : '#b45309';
+            return `<div style="padding:6px 0;border-top:1px solid #eee"><span style="color:${farbe};font-weight:700">${a.typ === 'anlegen' ? '＋ anlegen' : '↻ aktualisieren'}</span> <b>${esc(a.objekt)}</b> ${esc(a.was)}<div style="margin-top:2px;line-height:1.6">${felder}</div></div>`;
+        }).join('');
+        const hinw = (j.hinweise || []).length
+            ? `<div style="margin-top:8px;background:#fdf1dc;border:1px solid #f3d9a4;border-radius:8px;padding:8px 10px;color:#7c5a10">${j.hinweise.map(h => '⚠ ' + esc(h)).join('<br>')}</div>` : '';
+        out.innerHTML = kopf + rows + hinw;
+        if (!vorschau) tmInit();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</span>`; }
 }
 
 // ── E3: Stammdaten Rechtseinheit ────────────────────────────────────────────

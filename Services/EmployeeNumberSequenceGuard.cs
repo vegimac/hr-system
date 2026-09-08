@@ -84,6 +84,43 @@ public static class EmployeeNumberSequenceGuard
     }
 
     /// <summary>
+    /// Gelockerte Prüfung für die Pille «trotzdem importieren» (Walter-Vorgabe
+    /// 08.09.2026): easy@work blockiert manchmal einzelne Nummern, dann darf eine
+    /// Lücke nach OBEN entstehen. Weiterhin gesperrt: nicht numerisch, doppelt,
+    /// oder eine Nummer, die kleiner/gleich der letzten Nr. in OneCrew ist.
+    /// </summary>
+    public static bool LueckeErlaubt(IReadOnlyList<string> newNumbers, long? maxExisting, out string message)
+    {
+        message = "";
+        var parsed = new List<long>();
+        foreach (var raw in newNumbers ?? Array.Empty<string>())
+        {
+            var n = (raw ?? "").Trim();
+            if (!Regex.IsMatch(n, @"^\d+$") || !long.TryParse(n, NumberStyles.None, CultureInfo.InvariantCulture, out var v))
+            {
+                message = $"Personalnummer «{n}» ist nicht rein numerisch — Import auch mit «trotzdem importieren» gesperrt.";
+                return false;
+            }
+            parsed.Add(v);
+        }
+        if (parsed.Count != parsed.Distinct().Count())
+        {
+            message = "Doppelte Personalnummern in der Auswahl — Import auch mit «trotzdem importieren» gesperrt.";
+            return false;
+        }
+        if (maxExisting is long max)
+        {
+            var zuKlein = parsed.Where(v => v <= max).OrderBy(v => v).ToList();
+            if (zuKlein.Count > 0)
+            {
+                message = $"Personalnummer {string.Join(", ", zuKlein)} ist nicht grösser als die letzte Nr. in OneCrew ({max}) — «trotzdem importieren» erlaubt nur Lücken nach oben.";
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Höchste rein numerische Personalnummer mit Filial-Präfix
     /// (wie «letzte Nr.» in der MA-Liste: keine «alt»-Suffixe, keine
     /// Archivnummern). Ohne Nummernkreis wird nur das Präfix geprüft.

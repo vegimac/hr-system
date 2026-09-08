@@ -1459,7 +1459,7 @@ function svRender() {
         `${globalRows.length} Satz${globalRows.length !== 1 ? 'sätze' : ''} angezeigt`
         + (branchRows.length ? ` · ${branchRows.length} Filial-Abweichung${branchRows.length !== 1 ? 'en' : ''}` : '');
 
-    const codeColor = { AHV: '#3f3f3f', ALV: '#f59e0b', NBUV: '#10b981', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
+    const codeColor = { AHV: '#3f3f3f', ALV: '#f59e0b', ALVZ: '#d97706', NBUV: '#10b981', BUV: '#059669', UVGZ: '#0d9488', KTG: '#06b6d4', BVG: '#8b5cf6', BVG_ZUSATZ: '#ec4899' };
     const basisLabel = { gross: 'Brutto', bvg_basis: 'BVG-Basis', coord_deduction: 'Koord.-Abzug' };
     // Kompakte Grenzen-Zeile (Koordinationsabzug / Min / Max / Eintrittsschwelle /
     // Höchstlohn) als kleine 2. Zeile in der Basis-Spalte — damit man BVG-Limits &
@@ -1474,6 +1474,7 @@ function svRender() {
             if (r.minBaseMonthly     != null) parts.push(`min ${chf(r.minBaseMonthly)}`);
             if (r.maxBaseFlatMonthly != null) parts.push(`max ${chf(r.maxBaseFlatMonthly)}`);
         }
+        if (r.bandVonMonthly       != null) parts.push(`ab ${chf(r.bandVonMonthly)}`);
         if (r.maxBaseMonthly       != null) parts.push(`Höchst. ${chf(r.maxBaseMonthly)}`);
         if (r.entryThresholdYearly != null) parts.push(`Eintr. ${chf(r.entryThresholdYearly)}/J`);
         if (r.freibetragMonthly    != null) parts.push(`Freibetr. ${chf(r.freibetragMonthly)}`);
@@ -1541,9 +1542,9 @@ function svRender() {
         return `<tr style="${st.dim ? 'opacity:0.5;' : ''}">
             <td style="padding:4px 12px;text-align:center;color:#4f4c45;font-variant-numeric:tabular-nums">${r.sortOrder ?? 99}</td>
             <td style="padding:4px 12px">
-                <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>
+                <span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:${col}22;color:${col}">${r.code}</span>${r.loesungsCode ? ` <span title="Versicherungs-Lösung / Swissdec-Code${r.isDefaultCode ? ' — Standard für MA ohne Code' : ''}" style="font-size:11px;font-weight:700;padding:1px 7px;border-radius:8px;border:1px solid ${col};color:${col};white-space:nowrap">${r.loesungsCode}${r.isDefaultCode ? ' ★' : ''}</span>` : ''}
             </td>
-            <td style="padding:4px 12px;font-weight:500;color:#1e293b"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
+            <td style="padding:4px 12px;font-weight:500;color:#1e293b" title="${String(r.name).replace(/"/g, '&quot;')}"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}${lockPill}</div></td>
             <td style="padding:4px 12px;text-align:right;font-weight:600;color:#0f172a;white-space:nowrap">${rate.toFixed(3)} %</td>
             <td style="padding:4px 12px;text-align:right;white-space:nowrap;color:${r.rateEmployer != null ? '#0f172a' : '#a39d90'};font-weight:${r.rateEmployer != null ? '600' : '400'}">${r.rateEmployer != null ? Number(r.rateEmployer).toFixed(3) + ' %' : '—'}</td>
             <td style="padding:4px 12px;color:#4f4c45;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${[(basisLabel[r.basisType] ?? r.basisType), ...svLimitParts(r)].join(' · ')}">${basisLabel[r.basisType] ?? r.basisType}${svLimits(r)}</td>
@@ -1701,6 +1702,9 @@ function svOpenForm(rate, mode) {
     document.getElementById('svEmploymentModel').value = rate?.employmentModelCode ?? '';
     // Geschlechts-Filter (Walter 06.08.2026, KTG-Fall): '' = alle, F/M.
     const _sg = document.getElementById('svGender'); if (_sg) _sg.value = rate?.gender ?? '';
+    const _lc = document.getElementById('svLoesungsCode'); if (_lc) _lc.value = rate?.loesungsCode ?? '';
+    const _dc = document.getElementById('svIsDefaultCode'); if (_dc) _dc.checked = !!rate?.isDefaultCode;
+    const _bv = document.getElementById('svBandVon'); if (_bv) _bv.value = rate?.bandVonMonthly ?? '';
     // «Gilt für» (Walter 06.08.2026): erste Option = globaler Standard,
     // danach die Filialen aus allBranches (Sortierung wie Filial-Selektor).
     // Bei «Neu ab» ist die Filiale Teil des Fach-Schlüssels — das Backend
@@ -1811,6 +1815,9 @@ async function svSave(event) {
         basisType:             document.getElementById('svBasisType').value,
         employmentModelCode:   document.getElementById('svEmploymentModel').value || null,
         gender:                document.getElementById('svGender')?.value || null,
+        loesungsCode:          (document.getElementById('svLoesungsCode')?.value || '').trim().toUpperCase() || null,
+        isDefaultCode:         !!document.getElementById('svIsDefaultCode')?.checked,
+        bandVonMonthly:        parseNum('svBandVon'),
         // SV-Sätze pro Filiale (Walter 06.08.2026): leer = globaler Standard.
         companyProfileId:      (() => {
             const v = document.getElementById('svCompanyProfile')?.value || '';

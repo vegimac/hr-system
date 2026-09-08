@@ -25,16 +25,18 @@ let _bgsTermine = null;
 let _bgsDubletten = null;
 let _bgsDublettenKey = '';
 let _bgsInputTimer = null;
+let _bgsBenutzer = null;       // Berechtigte der Filiale für «Gespräch geführt von»
+let _bgsBenutzerCp = null;
 
 const GS_LEVELS = ['sehr gut', 'gut', 'Grundkenntnisse', 'keine'];
-const GS_ZIVIL = ['Ledig', 'Verheiratet', 'Geschieden', 'Verwitwet', 'Getrennt', 'Eingetragene Partnerschaft'];
+const GS_ZIVIL = ['Ledig', 'Verheiratet', 'Getrennt', 'Geschieden', 'Verwitwet', 'Eingetragene Partnerschaft', 'Aufgelöste Partnerschaft', 'Konkubinat'];
 const GS_TAGE = [['mo', 'Montag'], ['di', 'Dienstag'], ['mi', 'Mittwoch'], ['do', 'Donnerstag'], ['fr', 'Freitag'], ['sa', 'Samstag'], ['so', 'Sonntag']];
 const GS_BEDINGUNGEN = [
     'Aussehen: Haare kragenlang bzw. zusammengebunden, sauber rasiert, diskretes Make-up, kein Nagellack.',
     'Es müssen schwarze, geschlossene Schuhe getragen werden.',
     'Die vereinbarten Arbeitszeiten können frühestens nach 4 Monaten geändert werden.',
     'Für Teilzeit-Angestellte richtet sich die wöchentliche Arbeitszeit nach den Bedürfnissen des Arbeitgebers und ist — innerhalb der vereinbarten Arbeitszeiten — variabel.',
-    'Jugendliche bis zum vollendeten 18. Altersjahr dürfen bis spätestens 22.00 Uhr arbeiten.',
+    'Jugendliche zwischen 16 und 18 Jahren dürfen bis spätestens 22.00 Uhr arbeiten. Für unter 16-Jährige gelten andere Regelungen.',
     'Im Falle von Änderungen jeder Art im Laufe des Arbeitsverhältnisses besteht die Verpflichtung, den Arbeitgeber zu informieren.',
 ];
 
@@ -68,7 +70,7 @@ const GS_STEPS = [
       fields: [
           { k: 'nationalitaet', l: 'Nationalität', t: 'nation' },
           { k: 'zivilstand', l: 'Zivilstand', t: 'choice', opts: GS_ZIVIL },
-          { k: 'zivilstand_seit', l: 'seit dem', t: 'date', when: a => ['Verheiratet', 'Geschieden', 'Verwitwet', 'Getrennt', 'Eingetragene Partnerschaft'].includes(a.zivilstand) },
+          { k: 'zivilstand_seit', l: 'seit dem', t: 'date', when: a => !!a.zivilstand && a.zivilstand !== 'Ledig' },
       ] },
     { key: 'bewilligung', teil: 'A', title: 'Aufenthaltsbewilligung', hint: 'Nur für Ausländer/innen — bei Schweizer Nationalität wird dieser Schritt übersprungen.',
       when: a => !!a.nationalitaet && !bgsIstCh(a),
@@ -80,8 +82,8 @@ const GS_STEPS = [
     { key: 'sprachen', teil: 'A', title: 'Sprachkenntnisse',
       fields: [
           { k: 'sprache_deutsch', l: 'Deutsch', t: 'choice', opts: GS_LEVELS },
-          { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Portugiesisch' },
-          { k: 'sprache_andere_niveau', l: 'Niveau', t: 'choice', opts: GS_LEVELS.slice(0, 3), when: a => !!a.sprache_andere },
+          { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Englisch, Portugiesisch' },
+          { k: 'sprache_andere_niveau', l: 'Niveau andere Sprache', t: 'choice', opts: GS_LEVELS },
       ] },
     { key: 'einsatz', teil: 'A', title: 'Dein Einsatz bei uns',
       fields: [
@@ -94,10 +96,13 @@ const GS_STEPS = [
           { k: 'verf', l: '', t: 'availability' },
           { k: 'verf_bemerkung', l: 'Spezielle Wünsche / Einschränkungen', t: 'textarea', ph: 'z.B. Mo und Di Kinderbetreuung, nur bis 22:00' },
       ] },
+    { key: 'gesundheit', teil: 'A', title: 'Gesundheit',
+      fields: [
+          { k: 'krankheit', l: 'Müssen wir bei deinem Arbeitseinsatz aus gesundheitlichen Gründen oder aufgrund von Allergien etwas berücksichtigen?', t: 'yesno' },
+          { k: 'krankheit_welche', l: 'Auf was müssen wir achten?', t: 'textarea', when: a => a.krankheit === true },
+      ] },
     { key: 'fragen', teil: 'A', title: 'Noch ein paar Fragen',
       fields: [
-          { k: 'krankheit', l: 'Chronische Krankheit oder Allergien (v.a. Hautallergien)?', t: 'yesno' },
-          { k: 'krankheit_welche', l: 'welche?', t: 'text', when: a => a.krankheit === true },
           { k: 'sozialleistungen', l: 'Beziehst du Sozialleistungen?', t: 'multi', opts: ['Arbeitslosengeld', 'AHV-Rente', 'IV-Rente'] },
           { k: 'iv_grad', l: 'Invaliditätsgrad', t: 'text', when: a => (a.sozialleistungen || []).includes('IV-Rente') },
           { k: 'vorbestraft', l: 'Bist du vorbestraft?', t: 'yesno' },
@@ -109,7 +114,8 @@ const GS_STEPS = [
       hint: 'Wenn du mit diesem Bewerber weitermachen willst, brauchen wir jetzt die Angaben für die Anstellung (AHV, Konfession, Partner, Kinder, Bank). Sonst direkt zum Entscheid — dann bleibt der Rest leer.' },
     { key: 'ahv', teil: 'B', title: 'AHV-Nummer & Quellensteuer',
       fields: [
-          { k: 'ahv', l: 'AHV-Nummer', t: 'ahv' },
+          { k: 'ahv', l: 'AHV-Nummer', t: 'ahv', when: a => a.ahv_fehlt !== true },
+          { k: 'ahv_fehlt', l: '', t: 'check', cl: 'Noch keine AHV-Nummer — muss bestellt werden', hint: 'Ankreuzen, wenn der Bewerber noch keine AHV-Nummer hat. HR bestellt dann den Versicherungsausweis.' },
           { k: 'qst', l: 'Quellensteuerpflichtig?', t: 'yesno', hintFn: a => bgsIstCh(a) || a.bewilligung === 'C' ? 'Schweizer/in bzw. C-Ausweis → in der Regel nein' : (a.nationalitaet ? 'Ausländer/in ohne C-Ausweis → in der Regel ja' : '') },
       ] },
     { key: 'konfession', teil: 'B', title: 'Konfession',
@@ -149,12 +155,12 @@ const GS_STEPS = [
     { key: 'vertreter', teil: 'B', title: 'Gesetzlicher Vertreter', hint: 'Der Bewerber ist minderjährig — Angaben und Einverständnis des gesetzlichen Vertreters.',
       when: a => { const x = bgsAlter(a.geburtsdatum); return x !== null && x < 18; },
       fields: [{ k: 'vertreter_name', l: 'Vorname Name', t: 'text' }, { k: 'vertreter_telefon', l: 'Telefon', t: 'tel' }] },
-    { key: 'unterschrift', teil: 'B', title: 'Zusammenfassung & Unterschrift', type: 'summary',
-      hint: 'Bildschirm dem Bewerber zeigen — er prüft die Angaben und unterschreibt mit dem Finger.',
-      fields: [{ k: 'unterschrift', l: 'Unterschrift Bewerber/in', t: 'signature' }] },
+    { key: 'unterschrift', teil: 'B', title: 'Zusammenfassung', type: 'summary',
+      hint: 'Bildschirm dem Bewerber zeigen — er prüft die Angaben. (Unterschrift weggelassen, Walter 07.09.2026)',
+      fields: [] },
     { key: 'entscheid', teil: 'C', title: 'Entscheid', type: 'entscheid', hint: 'Intern — nicht Teil der Bewerbung.',
       fields: [
-          { k: 'teilnehmende', l: 'Teilnehmende', t: 'text' },
+          { k: 'teilnehmende', l: 'Gespräch geführt von', t: 'gefuehrt' },
           { k: 'eintritt_vereinbart', l: 'Eintritt vereinbart per', t: 'date' },
           { k: 'dauer_mind', l: 'Für eine Dauer von mindestens', t: 'text', ph: 'z.B. 6 Monate' },
           { k: 'notizen', l: 'Eindruck / Notizen', t: 'textarea' },
@@ -566,6 +572,12 @@ function bgsJump(key) {
     const m = document.querySelector('.bgs-main'); if (m) m.scrollTop = 0;
 }
 function bgsNext() {
+    const bad = bgsStepInvalidField();
+    if (bad) {
+        if (bad.el) { bad.el.classList.add('bgs-input-error'); bad.el.focus(); setTimeout(() => bad.el.classList.remove('bgs-input-error'), 2500); }
+        if (typeof showToast === 'function') showToast(bad.msg, 'error'); else alert(bad.msg);
+        return;
+    }
     const vis = bgsVisibleSteps();
     const i = vis.findIndex(s => s.key === _bgsStepKey);
     if (i < vis.length - 1) bgsJump(vis[i + 1].key);
@@ -612,8 +624,12 @@ function bgsRenderField(f) {
     const label = f.l ? `<label class="bgs-label" for="bgsf_${f.k}">${esc(f.l)}</label>` : '';
     const hint = f.hint ? `<div class="bgs-fhint">${esc(f.hint)}</div>` : (f.hintFn ? `<div class="bgs-fhint">${esc(f.hintFn(_bgsAnswers) || '')}</div>` : '');
     switch (f.t) {
-        case 'text': case 'tel': case 'email':
-            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" type="${f.t}" value="${esc(v)}" placeholder="${esc(f.ph || '')}" autocomplete="off" ${f.t === 'email' ? 'inputmode="email"' : ''} ${f.t === 'tel' ? 'inputmode="tel"' : ''}>${hint}</div>`;
+        case 'text':
+            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" type="text" value="${esc(v)}" placeholder="${esc(f.ph || '')}" autocomplete="off">${hint}</div>`;
+        case 'tel':
+            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-tel="1" type="tel" inputmode="tel" value="${esc(bgsTelFormat(v))}" placeholder="${esc(f.ph || '079 123 45 67')}" autocomplete="off"><div class="bgs-fhint" id="bgsTelHint_${f.k}">${bgsTelHint(v)}</div></div>`;
+        case 'email':
+            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-email="1" type="email" inputmode="email" value="${esc(v)}" placeholder="${esc(f.ph || 'name@beispiel.ch')}" autocomplete="off" spellcheck="false"><div class="bgs-fhint" id="bgsEmailHint_${f.k}">${bgsEmailHint(v)}</div></div>`;
         case 'number':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="number" inputmode="numeric" value="${esc(v)}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''}>${hint}</div>`;
         case 'date':
@@ -627,12 +643,15 @@ function bgsRenderField(f) {
         case 'multi': {
             const cur = Array.isArray(v) ? v : [];
             const opts = f.opts.map(o => `<button type="button" class="bgs-opt ${cur.includes(o) ? 'on' : ''}" data-key="${f.k}" data-multi="1" data-val="${esc(o)}">${esc(o)}</button>`).join('');
-            return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsf_${f.k}">${opts}<button type="button" class="bgs-opt ${!cur.length && _bgsAnswers[f.k] !== undefined ? 'on' : ''}" data-key="${f.k}" data-multi="1" data-val="">keine</button></div>${hint}</div>`;
+            return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsf_${f.k}"><button type="button" class="bgs-opt ${!cur.length && _bgsAnswers[f.k] !== undefined ? 'on' : ''}" data-key="${f.k}" data-multi="1" data-val="">keine</button>${opts}</div>${hint}</div>`;
         }
+        case 'check':
+            return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsf_${f.k}">
+                <button type="button" class="bgs-opt bgs-check ${v === true ? 'on' : ''}" data-key="${f.k}" data-check="1">${v === true ? '☑' : '☐'} ${esc(f.cl || f.l)}</button></div>${hint}</div>`;
         case 'yesno':
             return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsf_${f.k}">
-                <button type="button" class="bgs-opt bgs-yn ${v === true ? 'on' : ''}" data-key="${f.k}" data-bool="1">Ja</button>
-                <button type="button" class="bgs-opt bgs-yn ${v === false ? 'on' : ''}" data-key="${f.k}" data-bool="0">Nein</button></div>${hint}</div>`;
+                <button type="button" class="bgs-opt bgs-yn ${v === false ? 'on' : ''}" data-key="${f.k}" data-bool="0">Nein</button>
+                <button type="button" class="bgs-opt bgs-yn ${v === true ? 'on' : ''}" data-key="${f.k}" data-bool="1">Ja</button></div>${hint}</div>`;
         case 'plz':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="text" inputmode="numeric" maxlength="4" value="${esc(v)}" autocomplete="off"><div class="bgs-fhint" id="bgsPlzHint"></div></div>`;
         case 'nation':
@@ -642,7 +661,7 @@ function bgsRenderField(f) {
         case 'iban':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-mono" id="bgsf_${f.k}" data-key="${f.k}" data-iban="1" type="text" placeholder="CH00 0000 0000 0000 0000 0" value="${esc(v)}" autocomplete="off"><div class="bgs-fhint" id="bgsIbanHint">${bgsIbanHint(v)}</div></div>`;
         case 'availability':
-            return `<div class="bgs-field"><table class="bgs-verf"><thead><tr><th></th><th>von</th><th>bis</th><th></th></tr></thead><tbody>
+            return `<div class="bgs-field"><div class="bgs-jugend" id="bgsJugendHinweis" ${bgsJugendHinweis() ? '' : 'hidden'}>⚠ ${esc(bgsJugendHinweis())}</div><table class="bgs-verf"><thead><tr><th></th><th>von</th><th>bis</th><th></th></tr></thead><tbody>
                 ${GS_TAGE.map(([k, l]) => `<tr><td>${l}</td>
                     <td><input class="bgs-input bgs-input-time" data-key="verf_${k}_von" type="time" value="${esc(bgsVal('verf_' + k + '_von'))}"></td>
                     <td><input class="bgs-input bgs-input-time" data-key="verf_${k}_bis" type="time" value="${esc(bgsVal('verf_' + k + '_bis'))}"></td>
@@ -656,6 +675,8 @@ function bgsRenderField(f) {
             return `<div class="bgs-field" id="bgsKinderWrap">${bgsRenderKinder()}</div>`;
         case 'termine':
             return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsTermine"><span class="bgs-fhint">Lade Termine…</span></div></div>`;
+        case 'gefuehrt':
+            return `<div class="bgs-field">${label}<div class="bgs-opts" id="bgsGefuehrt"><span class="bgs-fhint">Lade Benutzer…</span></div>${hint}</div>`;
         case 'signature':
             return `<div class="bgs-field">${label}
                 <div class="bgs-sig-wrap"><canvas id="bgsSig" class="bgs-sig" width="800" height="240"></canvas>
@@ -686,12 +707,12 @@ function bgsRenderSummary() {
     add('Erfahrung', a.erfahrung);
     add('Verfügbarkeit', GS_TAGE.map(([k, l]) => (a[`verf_${k}_von`] || a[`verf_${k}_bis`]) ? `${l.slice(0, 2)} ${a[`verf_${k}_von`] || '?'}–${a[`verf_${k}_bis`] || '?'}` : '').filter(Boolean).join(' · '));
     add('Wünsche / Einschränkungen', a.verf_bemerkung);
-    add('Krankheit / Allergien', yn(a.krankheit) + (a.krankheit_welche ? ' — ' + a.krankheit_welche : ''));
+    add('Gesundheit / Allergien', yn(a.krankheit) + (a.krankheit_welche ? ' — ' + a.krankheit_welche : ''));
     add('Sozialleistungen', (a.sozialleistungen || []).join(', ') + (a.iv_grad ? ' (IV-Grad ' + a.iv_grad + ')' : ''));
     add('Vorbestraft', yn(a.vorbestraft));
     add('Militär', yn(a.militaer) + (a.militaer_dauer ? ' — ' + a.militaer_dauer : ''));
     add('Ausbildung Gastro', yn(a.ausbildung_gastro));
-    add('AHV-Nummer', a.ahv);
+    add('AHV-Nummer', a.ahv_fehlt === true ? 'noch keine — muss bestellt werden' : a.ahv);
     add('Quellensteuer', yn(a.qst));
     add('Konfession', a.konfession);
     if (a.qst === true) add('Partner', [((a.partner_vorname || '') + ' ' + (a.partner_nachname || '')).trim(), a.partner_ahv, a.partner_arbeitet === true ? 'arbeitet' + (a.partner_arbeitgeber ? ' bei ' + a.partner_arbeitgeber : '') : (a.partner_arbeitet === false ? 'arbeitet nicht' : '')].filter(Boolean).join(' · '));
@@ -743,6 +764,67 @@ function bgsKinderCollect() {
     bgsSet('kinder', list);
 }
 
+// Telefon (Walter 07.09.2026): Anzeige immer als 999 999 99 99.
+// +41 / 0041 wird zu 0…; andere Auslandnummern bleiben als +… stehen.
+function bgsTelDigits(s) {
+    let raw = (s || '').trim();
+    let intl = false;
+    if (raw.startsWith('+')) intl = true;
+    let d = raw.replace(/\D/g, '');
+    if (d.startsWith('00')) { intl = true; d = d.slice(2); }
+    if (intl && d.startsWith('41')) { d = '0' + d.slice(2); intl = false; }
+    return { d, intl };
+}
+function bgsTelFormat(s) {
+    const { d, intl } = bgsTelDigits(s);
+    if (!d.length) return '';
+    if (intl) return '+' + d;
+    const x = d.slice(0, 10);
+    let out = x.slice(0, 3);
+    if (x.length > 3) out += ' ' + x.slice(3, 6);
+    if (x.length > 6) out += ' ' + x.slice(6, 8);
+    if (x.length > 8) out += ' ' + x.slice(8, 10);
+    return out;
+}
+function bgsTelOk(s) {
+    const { d, intl } = bgsTelDigits(s);
+    if (intl) return d.length >= 8 && d.length <= 15;
+    return /^0[1-9]\d{8}$/.test(d);
+}
+function bgsTelHint(v) {
+    const { d, intl } = bgsTelDigits(v);
+    if (!d.length) return '';
+    if (bgsTelOk(v)) return '<span style="color:#166534">✓ Nummer gültig</span>';
+    if (intl) return '<span style="color:#991b1b">✗ Auslandnummer unvollständig</span>';
+    if (d.length < 10) return `${10 - d.length} Ziffern fehlen — Format 079 123 45 67`;
+    return '<span style="color:#991b1b">✗ Ungültige Nummer — Format 079 123 45 67</span>';
+}
+// E-Mail: einfache, aber strenge Prüfung (Name@Domain.TLD, keine Leerzeichen/Umlaute).
+function bgsEmailOk(s) {
+    const e = (s || '').trim();
+    if (!e || e.length > 254) return false;
+    return /^[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}$/.test(e);
+}
+function bgsEmailHint(v) {
+    const e = (v || '').trim();
+    if (!e.length) return '';
+    return bgsEmailOk(e) ? '<span style="color:#166534">✓ E-Mail gültig</span>' : '<span style="color:#991b1b">✗ Keine gültige E-Mail-Adresse (z.B. name@beispiel.ch)</span>';
+}
+// Alle sichtbaren Tel./E-Mail-Felder des aktuellen Schritts prüfen; leer ist erlaubt,
+// ein ausgefülltes aber ungültiges Feld blockiert «Weiter».
+function bgsStepInvalidField() {
+    const step = bgsCurrentStep();
+    if (!step) return null;
+    for (const f of (step.fields || []).filter(f => !f.when || f.when(_bgsAnswers))) {
+        const el = document.getElementById('bgsf_' + f.k);
+        const v = el ? el.value : bgsVal(f.k);
+        if (!(v || '').trim()) continue;
+        if (f.t === 'tel' && !bgsTelOk(v)) return { f, el, msg: 'Bitte eine gültige Telefonnummer im Format 079 123 45 67 eingeben.' };
+        if (f.t === 'email' && !bgsEmailOk(v)) return { f, el, msg: 'Bitte eine gültige E-Mail-Adresse eingeben.' };
+    }
+    return null;
+}
+
 // AHV-Prüfziffer (EAN-13): Gewichte 1,3,1,3,… über die ersten 12 Ziffern.
 function bgsAhvOk(s) {
     const d = (s || '').replace(/\D/g, '');
@@ -775,6 +857,26 @@ function bgsIbanOk(s) {
     for (let i = 0; i < n.length; i += 7) mod = parseInt(String(mod) + n.slice(i, i + 7), 10) % 97;
     return mod === 1;
 }
+// Bank aus der IBAN vorschlagen (Walter 07.09.2026): /api/banks/lookup (lokale
+// Bank-Stammdaten). Füllt «Bank» und «Bankadresse» nur, wenn leer oder zuletzt
+// selbst vorgeschlagen — manuell Eingegebenes bleibt stehen.
+let _bgsBankAuto = { bank: null, adresse: null };
+async function bgsBankVorschlag(iban) {
+    let info = null;
+    try { const r = await fetch('/api/banks/lookup?iban=' + encodeURIComponent(iban), { headers: ah() }); if (r.ok) info = await r.json(); } catch (_) { info = null; }
+    if (!info || !info.name) return;
+    const adresse = [info.strasse, [info.plz, info.ort].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const setIf = (key, val, autoKey) => {
+        if (!val) return;
+        const cur = _bgsAnswers[key] || '';
+        if (cur && cur !== _bgsBankAuto[autoKey]) return;
+        _bgsBankAuto[autoKey] = val;
+        const el = document.getElementById('bgsf_' + key); if (el) el.value = val;
+        bgsSet(key, val, { immediate: true });
+    };
+    setIf('bank', info.name, 'bank');
+    setIf('bankadresse', adresse, 'adresse');
+}
 function bgsIbanHint(v) {
     const c = (v || '').replace(/\s+/g, '');
     if (!c.length) return '';
@@ -801,7 +903,26 @@ function bgsVerfVorschlag() {
         const von = b['opening' + suffix + 'From'], bis = b['opening' + suffix + 'To'];
         if (von && bis) { out[`verf_${k}_von`] = bgsShiftTime(von, -60); out[`verf_${k}_bis`] = bgsShiftTime(bis, 60); any = true; }
     }
+    // Jugendschutz (Walter 07.09.2026): unter 18 → spätestens 22:00.
+    if (bgsJugendLimit()) for (const k of Object.keys(out)) if (k.endsWith('_bis') && bgsNachLimit(out[k])) out[k] = '22:00';
     return any ? out : null;
+}
+// Alter < 18 → Limite 22:00 gilt. Zeiten nach Mitternacht (00:00–05:59) zählen als «nach 22:00».
+function bgsJugendLimit() { const x = bgsAlter(_bgsAnswers.geburtsdatum); return x !== null && x < 18; }
+function bgsNachLimit(hhmm) {
+    const m = /^(\d{1,2})[:.](\d{2})$/.exec((hhmm || '').trim()); if (!m) return false;
+    const h = parseInt(m[1], 10), mi = parseInt(m[2], 10);
+    return h < 6 || h > 22 || (h === 22 && mi > 0);
+}
+function bgsJugendHinweis() {
+    const x = bgsAlter(_bgsAnswers.geburtsdatum);
+    if (x === null || x >= 18) return '';
+    const zuSpaet = GS_TAGE.filter(([k]) => bgsNachLimit(_bgsAnswers[`verf_${k}_bis`])).map(([, l]) => l);
+    let txt = x < 16
+        ? `Der Bewerber ist ${x} Jahre alt — für unter 16-Jährige gelten andere Regelungen (Jugendarbeitsschutz). Bitte vor einer Anstellung mit HR klären.`
+        : `Der Bewerber ist ${x} Jahre alt — Jugendliche zwischen 16 und 18 Jahren dürfen bis spätestens 22.00 Uhr arbeiten. Die Vorbelegung ist auf 22:00 begrenzt.`;
+    if (zuSpaet.length) txt += ` Achtung: ${zuSpaet.join(', ')} endet nach 22:00.`;
+    return txt;
 }
 function bgsVerfOeffnungText() {
     const b = bgsBranch();
@@ -860,6 +981,30 @@ async function bgsAfterRender(step) {
             ? frei.map(t => { const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}`; return `<button type="button" class="bgs-opt ${cur === String(t.id) ? 'on' : ''}" data-key="willkommenstag_termin_id" data-val="${t.id}" data-label="${esc(lbl)}">${esc(lbl)} <span style="opacity:.6;font-size:.8em">· ${t.frei} frei</span></button>`; }).join('')
             : '<span class="bgs-fhint">Zurzeit kein Onboarding-Tag mit freiem Platz (HR-Kalender).</span>';
     }
+    const gf = document.getElementById('bgsGefuehrt');
+    if (gf) {
+        // Berechtigte dieser Filiale (GF, HR, Supervisor, Admin …) als Auswahl;
+        // Vorbelegung: der angemeldete Benutzer, falls er in der Liste ist.
+        if (!_bgsBenutzer || _bgsBenutzerCp !== _bgsCpId()) {
+            _bgsBenutzerCp = _bgsCpId();
+            try { const r = await fetch('/api/userbranch/company/' + _bgsBenutzerCp, { headers: ah() }); _bgsBenutzer = r.ok ? await r.json() : []; } catch (_) { _bgsBenutzer = []; }
+        }
+        const liste = (_bgsBenutzer || []).filter(x => x.canBewerbungsgespraech || x.CanBewerbungsgespraech).map(x => {
+            const u = x.user || x.User || {};
+            const name = [u.firstName, u.lastName].filter(Boolean).join(' ') || u.username || '';
+            const rolle = x.functionTitle || x.role || '';
+            return { name, label: rolle ? `${name} · ${rolle}` : name };
+        }).filter(x => x.name);
+        let cur = _bgsAnswers.teilnehmende || '';
+        if (!cur && typeof currentUser !== 'undefined' && currentUser) {
+            const me = [currentUser.firstName, currentUser.lastName].filter(Boolean).join(' ');
+            if (me && liste.some(x => x.name === me)) { cur = me; bgsSet('teilnehmende', me, { immediate: true }); }
+        }
+        if (!cur && liste.length === 1) { cur = liste[0].name; bgsSet('teilnehmende', cur, { immediate: true }); }
+        gf.innerHTML = liste.length
+            ? liste.map(x => `<button type="button" class="bgs-opt ${cur === x.name ? 'on' : ''}" data-key="teilnehmende" data-val="${esc(x.name)}">${esc(x.label)}</button>`).join('')
+            : '<span class="bgs-fhint">Für diese Filiale ist niemand als «Bewerbungsgespräche führen» eingetragen (Filiale → Zuweisungen).</span>';
+    }
     if (document.getElementById('bgsSig')) bgsSigInit();
     // Dubletten-Check, sobald Name + Geburtsdatum da sind
     const a = _bgsAnswers;
@@ -903,6 +1048,12 @@ document.addEventListener('input', e => {
         try { el.setSelectionRange(el.value.length, el.value.length); } catch (_) { void pos; }
     }
     if (el.dataset.iban) { const h = document.getElementById('bgsIbanHint'); if (h) h.innerHTML = bgsIbanHint(el.value); }
+    if (el.dataset.tel) {
+        const f = bgsTelFormat(el.value);
+        if (f !== el.value && el.selectionStart === el.value.length) el.value = f;
+        const h = document.getElementById('bgsTelHint_' + key); if (h) h.innerHTML = bgsTelHint(el.value);
+    }
+    if (el.dataset.email) { const h = document.getElementById('bgsEmailHint_' + key); if (h) h.innerHTML = bgsEmailHint(el.value); }
     if (el.type === 'text' && key === 'plz') bgsPlzLookup(el.value);
     clearTimeout(_bgsInputTimer);
     _bgsInputTimer = setTimeout(() => bgsSet(key, el.type === 'number' ? (el.value === '' ? null : Number(el.value)) : el.value), 450);
@@ -916,8 +1067,11 @@ document.addEventListener('change', e => {
     clearTimeout(_bgsInputTimer);
     let v = el.value;
     if (el.type === 'number') v = v === '' ? null : Number(v);
-    if (el.dataset.iban) v = v.replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim();
+    if (el.dataset.iban) { v = v.replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim(); if (bgsIbanOk(v)) bgsBankVorschlag(v); }
+    if (el.dataset.tel) { v = bgsTelFormat(v); el.value = v; const h = document.getElementById('bgsTelHint_' + key); if (h) h.innerHTML = bgsTelHint(v); }
+    if (el.dataset.email) { v = v.trim().toLowerCase(); el.value = v; const h = document.getElementById('bgsEmailHint_' + key); if (h) h.innerHTML = bgsEmailHint(v); }
     bgsSet(key, v, { immediate: true });
+    if (key.startsWith('verf_')) { const j = document.getElementById('bgsJugendHinweis'); if (j) { const t = bgsJugendHinweis(); j.hidden = !t; j.textContent = t ? '⚠ ' + t : ''; } }
     const needsRerender = ['zivilstand', 'nationalitaet', 'bewilligung', 'sprache_andere'].includes(key);
     if (needsRerender) bgsRenderFlow();
 });
@@ -925,6 +1079,12 @@ document.addEventListener('click', e => {
     const b = e.target.closest && e.target.closest('#bgsFields button.bgs-opt');
     if (!b || !_bgsId || b.disabled) return;
     const key = b.dataset.key;
+    if (b.dataset.check !== undefined) {
+        const neu = _bgsAnswers[key] === true ? null : true;
+        if (key === 'ahv_fehlt' && neu === true && _bgsAnswers.ahv) bgsSet('ahv', null, { immediate: true });
+        bgsSet(key, neu, { immediate: true, rerender: true });
+        return;
+    }
     if (b.dataset.bool !== undefined) {
         const val = b.dataset.bool === '1';
         bgsSet(key, _bgsAnswers[key] === val ? null : val, { immediate: true, rerender: true });

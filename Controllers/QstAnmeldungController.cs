@@ -144,7 +144,8 @@ public class QstAnmeldungController : ControllerBase
                 .Where(z => z.CompanyProfileId == company.Id && z.IsActive
                          && z.Empfaenger!.Art == "QST"
                          && z.Empfaenger!.KantonCode == wohnkanton
-                         && (z.GueltigAb == null || z.GueltigAb <= heute))
+                         && (z.GueltigAb == null || z.GueltigAb <= heute)
+                         && (z.GueltigBis == null || z.GueltigBis >= heute))
                 .OrderByDescending(z => z.GueltigAb)
                 .Select(z => z.Mitgliednummer)
                 .FirstOrDefaultAsync();
@@ -420,10 +421,12 @@ public class QstAnmeldungController : ControllerBase
         // Quelle: QST-Lohndatenempfänger des Kantons (Fallback Alt-Tabelle).
         if (employment != null && !string.IsNullOrWhiteSpace(emp.CantonCode))
         {
+            var heuteSsl = DateOnly.FromDateTime(DateTime.Today);
             var sslExists = await _db.CompanyProfileEmpfaengers.AnyAsync(z =>
                 z.CompanyProfileId == employment.CompanyProfileId && z.IsActive
                 && z.Empfaenger!.Art == "QST"
                 && z.Empfaenger!.KantonCode == emp.CantonCode
+                && (z.GueltigBis == null || z.GueltigBis >= heuteSsl)
                 && z.Mitgliednummer != null && z.Mitgliednummer != "");
             if (!sslExists)
             {

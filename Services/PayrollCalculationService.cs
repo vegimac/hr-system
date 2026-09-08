@@ -45,7 +45,10 @@ public static class PayrollCalculations
                 r.BasisType,
                 // Geschlechts-Filter (Walter 06.08.2026): F-/M-Zeilen desselben
                 // Satzes sind eigene Fach-Schlüssel — beide überleben die Dedupe.
-                r.Gender
+                r.Gender,
+                // Versicherungs-Lösung (Walter 07.09.2026): Zeilen «A», «B», «P» …
+                // desselben Satzes sind eigene Fach-Schlüssel.
+                r.LoesungsCode
             })
             .Select(g => g
                 .OrderByDescending(r => r.CompanyProfileId != null)   // Filial-Override vor global
@@ -53,6 +56,54 @@ public static class PayrollCalculations
                 .First())
             .OrderBy(r => r.SortOrder)
             .ToList();
+    }
+
+    /// <summary>
+    /// Versicherungs-Lösungen (Walter 07.09.2026, Swissdec-Codes): filtert die
+    /// Abzugsregeln nach dem Code des MA pro Versicherungsart.
+    ///   • Regel ohne Versicherungsart (AHV, ALV, ALVZ, QST, BVG_ZUSATZ …) → bleibt.
+    ///   • MA hat für die Art einen expliziten Code → nur Zeilen mit genau diesem Code.
+    ///   • MA hat keinen Code → Zeilen ohne Code (heutiges Verhalten) + Zeilen mit
+    ///     «Standard»-Häkchen.
+    /// <paramref name="codes"/>: Art (UVG/UVGZ/KTG/BVG) → Codes des MA am Stichtag.
+    /// Mehrere Codes gleichzeitig sind möglich (Swissdec: KTG 11 + 12 = Grundlohn + Überschusslohn).
+    /// </summary>
+    public static List<DeductionRule> ApplyVersicherungsCodes(
+        IEnumerable<DeductionRule> rules, IReadOnlyDictionary<string, HashSet<string>> codes)
+    {
+        var result = new List<DeductionRule>();
+        foreach (var r in rules)
+        {
+            var art = EmployeeVersicherungCode.ArtFuerSvCode(r.CategoryCode);
+            if (art == null) { result.Add(r); continue; }
+            if (codes.TryGetValue(art, out var set) && set.Count > 0)
+            {
+                if (set.Contains((r.LoesungsCode ?? "").Trim()))
+                    result.Add(r);
+            }
+            else if (string.IsNullOrWhiteSpace(r.LoesungsCode) || r.IsDefaultCode)
+                result.Add(r);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Effektiver Versicherungs-Code eines MA pro Art (für ELM/Anzeige): expliziter
+    /// Eintrag am Stichtag, sonst die Standard-Zeile der SV-Sätze (IsDefaultCode),
+    /// sonst NULL (= Zeile ohne Code / keine Lösung).
+    /// </summary>
+    public static string? EffektiverCode(string art, IEnumerable<EmployeeVersicherungCode> eintraege,
+        IEnumerable<SocialInsuranceRate> saetze, DateOnly stichtag)
+    {
+        var e = eintraege.Where(x => x.Art == art && x.GiltAm(stichtag) && !string.IsNullOrWhiteSpace(x.Code))
+                         .OrderByDescending(x => x.ValidFrom).FirstOrDefault();
+        if (e != null) return e.Code;
+        var svCodes = EmployeeVersicherungCode.SvCodesFuer(art);
+        return saetze.Where(s => s.IsActive && s.IsDefaultCode && !string.IsNullOrWhiteSpace(s.LoesungsCode)
+                              && svCodes.Contains(s.Code, StringComparer.OrdinalIgnoreCase)
+                              && s.ValidFrom <= stichtag && (s.ValidTo == null || s.ValidTo >= stichtag))
+                     .OrderByDescending(s => s.CompanyProfileId != null).ThenByDescending(s => s.ValidFrom)
+                     .Select(s => s.LoesungsCode).FirstOrDefault();
     }
 
     /// <summary>
@@ -232,8 +283,8 @@ public static class PayrollCalculations
                 "bvg"             => Math.Max(0, svBases.Bvg - (d.CoordinationDeduction ?? 0)), // legacy
                 _ => d.CategoryCode switch   // "gross"
                 {
-                    "AHV" or "ALV" => svBases.Ahv,
-                    "NBUV"         => svBases.Nbuv,
+                    "AHV" or "ALV" or "ALVZ" => svBases.Ahv,
+                    "NBUV" or "BUV" or "UVGZ" => svBases.Nbuv,   // UVG-Zusatz rechnet auf dem UVG-Lohn
                     "KTG"          => svBases.Ktg,
                     "BVG"          => svBases.Bvg,
                     // Walter-Vorgabe 28.05.2026: QST muss die QST-Basis (inkl.
@@ -285,21 +336,26 @@ public static class PayrollCalculations
             //     in Vormonaten über den Monats-Höchstlohn hinaus unterdeckelter
             //     Betrag im Dezember sauber nachverbeitragt wird (Beweis: Dez-Basis
             //     ≤ jahresPflichtig ≤ 148'200, und ≥ 0).
+            // Lohnband «ab» (Walter 07.09.2026): Überschusslohn-Lösungen (KTG 12,
+            // UVGZ 12) und ALVZ verbeitragen nur den Teil ZWISCHEN von und bis.
+            // von = 0 → unverändert das bisherige Verhalten (nur Deckelung oben).
             bool dezAusgleich = false;
-            if (d.MaxBaseMonthly is > 0)
+            decimal von = d.BandVonMonthly is > 0 ? d.BandVonMonthly.Value : 0m;
+            if (d.MaxBaseMonthly is > 0 || von > 0)
             {
-                decimal cap = d.MaxBaseMonthly.Value;
+                decimal cap = d.MaxBaseMonthly is > 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
+                decimal Band(decimal b) => Math.Max(0m, Math.Min(b, cap) - von);
                 if (ytdSvBasesDezember is not null)   // Dezember → Jahresausgleich
                 {
                     decimal ytdGross     = ytdSvBasesDezember.Sum();
-                    decimal ytdGedeckelt = ytdSvBasesDezember.Sum(b => Math.Min(b, cap));
-                    decimal jahresPflichtig = Math.Min(ytdGross + basis, cap * 12m);
-                    basis = Math.Max(0m, jahresPflichtig - ytdGedeckelt);
+                    decimal ytdGedeckelt = ytdSvBasesDezember.Sum(Band);
+                    decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * 12m) - von * 12m);
+                    basis = Math.Max(0m, jahresBand - ytdGedeckelt);
                     dezAusgleich = true;
                 }
-                else                                  // normaler Monat → flache Deckelung
+                else                                  // normaler Monat → flaches Band
                 {
-                    basis = Math.Min(basis, cap);
+                    basis = Band(basis);
                 }
             }
 
@@ -319,8 +375,9 @@ public static class PayrollCalculations
             // Basis wie der AN-Abzug → die richtige (alters-/modellgestaffelte) Stufe
             // greift automatisch (wichtig bei BVG). Positiv (= AG-Aufwand). Wird im
             // Fibu-Journal auf 4060/4061/4062 gebucht; berührt Konto 1920 NICHT.
-            decimal? agBetrag = (d.Type == "percent" && d.RateEmployer is > 0)
-                ? Math.Round(basis * d.RateEmployer.Value / 100m, 2)
+            decimal? agBetrag = d.RateEmployer is > 0
+                ? (d.Type == "fixed" ? Math.Round(d.RateEmployer.Value, 2)          // fester AG-Beitrag (BVG-Fixbetrag)
+                                     : Math.Round(basis * d.RateEmployer.Value / 100m, 2))
                 : (decimal?)null;
 
             totalAbzuege += betrag;

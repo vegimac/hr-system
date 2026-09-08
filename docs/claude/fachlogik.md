@@ -191,6 +191,8 @@ Vertiefung der QST-Prüfungen um Ehepartner- und Kinder-Regeln (KS 45):
 - **Neue Felder `employee_family_member`** (Migration `add_family_qst_partner_kind_felder.sql`, idempotent in Program.cs): `erwerbstaetig` (bool NULL = Frage offen), Arbeitgeber KOMPLETT wie auf dem QST-Anmeldeformular — `arbeitgeber_name`, `arbeitgeber_strasse`, `arbeitgeber_plz`, `arbeitgeber_ort`, `arbeitgeber_kanton`, `stellenantritt` (date) — (Ehepartner) + `in_erstausbildung` (Kind). UI im Familien-Modal: Sektion «Erwerbstätigkeit Ehepartner» kompakt in 2 Zeilen (Segment-Pille –/Ja/Nein + Arbeitgeber + Strasse/Nr. · PLZ mit `plzLookupGeneric`-Auto-Lookup → Ort+Kanton · Stellenantritt; nur bei MemberType=Ehepartner via `fmQstBlocksVisibility`), Checkbox «in Erstausbildung» im QST-Block (nur Kind; ganze QST-Sektion nur bei Kind sichtbar). Daneben Dokumenten-Panel (`famLoadSpouseDocs`): Dropdown über verknüpftes Doku → spouse-Dokus → 📂 alle beim MA ABGELEGTEN Dokumente (Walter-Vorgabe 20.08.2026: BEWUSST KEINE Postfach-Eingänge — ein Postfach-Doku muss zuerst beim MA abgelegt werden, sonst könnten falsche Dokus erscheinen); bei offenem Panel wird die Box schmaler (`#familyModal.fam-docs-open`). Familie-Tab zeigt Badges (💼 erwerbstätig/⚠ Erwerbstätig?/🎓 Erstausbildung).
 - **Harter Lohnlauf-Block `QST_PARTNER_DATEN_FEHLEN` (409)**: `QstPflichtCheckService` liefert `PartnerDatenFehlen` + `PartnerDatenMaengel`, wenn ein VERHEIRATETER, QST-pflichtiger MA (keine Befreiung) unvollständige Partner-Daten hat: Eintrag fehlt · Nationalität fehlt · Ausländer-Partner ohne Bewilligung · Erwerbstätig-Frage offen · erwerbstätig ohne Arbeitgeber. Greift in `ConfirmPayroll` UND `AkontoWorkflowController.Freigeben`; `check-period` listet `problem="QST_PARTNER"` im «mit Lohnproblem»-Aggregat; Dashboard-Card `qst_partner_daten` (kritisch, Klick → Familie-Tab); QST-Tab roter Banner mit Sprung-Button. Befreite MA (eigener CH/C, Behörde, CH/C-Partner) sind NICHT betroffen.
 - **Tarif-Plausibilitäts-WARNUNGEN (kein Block)**: `BuildTarifWarnungenAsync` zur aktiven Erfassung — verheiratet⇒B/C (nicht A/H) · C⇒Partner erwerbstätig · B⇒Partner nicht erwerbstätig · H⇒alleinstehend + QST-berechtigtes Kind im SELBEN Haushalt · Konkubinat-H nur mit `HasHigherIncomeThanPartner` · A mit Kinderziffer nur mit `SpezielBewilligt`. Anzeige als oranger Banner im QST-Tab (`renderQstTarifWarnBanner`), Feld `tarifWarnungen` im `qst-pflicht`-Endpoint.
+- **Tarifbestätigung verknüpfen = ganzer Code + Beleg daneben (Walter 07.09.2026)**: `qstTarifBestaetigungDialog(eintrag, dokumentId, dokName)` erfasst Buchstabe + Kinderziffer (0–9, Default aus Familie) + Kirchensteuer mit Live-Vorschau des Codes; links daneben die Dokument-Vorschau (`/api/documents/preview/{id}`, ⤢ Vergrössern via `previewUrlFetch`) — gleiche Mechanik wie das Ehepartner-Doku-Panel; Panel steht RECHTS. **Alle Dokumenten-Seitenpanels** (#fam-docpanel, #al-docpanel, #phf-docpanel, #qstBestDocPanel) tragen die Klassen `side-docpanel`/`side-docview` (app.css): volle Fensterhöhe, ganze Restbreite, Vorschau füllt das Panel — Walter 07.09.2026 «so gross wie der Bildschirm erlaubt». Backend `PATCH …/quellensteuer/{id}/dokument` nimmt zusätzlich `anzahlKinder` (0–9) entgegen und setzt `AnzahlKinder` mit.
+- **Tarifbestätigung vs. spätere Familienänderung (Walter 07.09.2026, Fall Hasani C0N)**: Mit Tarifbestätigung (`DokumentId`) werden die Plausibilitäts-Warnungen unterdrückt — AUSSER ein Partner/Kind/K-Partner wurde NACH dem Speichern der Bestätigung (`UpdatedAt ?? CreatedAt` des QST-Eintrags) erfasst oder geändert (`CreatedAt`/`UpdatedAt` des Familienmitglieds). Dann laufen die Warnungen wieder, mit vorangestelltem Hinweis «Familienangehörige nach der Tarifbestätigung geändert — neue Bestätigung einholen»; Frontend blendet in dem Fall die grüne «gilt anstelle des Vorschlags»-Zeile aus.
 - **Kinderziffer-Wächter + AZ-Ableitung (Walter 20.08.2026, «Kind wird 18»)**: `BuildTarifWarnungenAsync` zählt die am Stichtag QST-berechtigten Kinder und warnt bei Abweichung zur ERFASSTEN `AnzahlKinder` der aktiven Erfassung (B/C = alle berechtigten, H = nur Haushalt) — reagiert damit automatisch, wenn ein Kind 18 wird ohne Erstausbildung. **Erstausbildung wird zusätzlich aus einer am Stichtag AKTIVEN Ausbildungszulage (AZ) abgeleitet** (Vorschlag UND Warnungen — wer AZ bekommt, ist belegt in Ausbildung). `IstQstBerechtigt`: ein abgelaufenes explizites «bis»-Datum (Auto-Prefill = 18. Geburtstag) wird durch Erstausbildung ÜBERSTIMMT (sonst müsste HR das Datum von Hand löschen); ein künftiges «ab» blockt immer.
 - **Tarifvorschlag-Fixes** (`QstTarifVorschlagLogic`): Kinderziffer bei Tarif **A immer 0** (A1–9 nur mit Behördenbewilligung — vorher schlug das System fälschlich «A2» für Geschiedene mit Kindern bei der Ex vor!), bei **H nur Kinder im selben Haushalt**, ab **18 nur mit `in_erstausbildung`** (explizite QstDeductible-Daten behalten Vorrang). Tests in `QstTarifVorschlagLogicTests` entsprechend nachgeführt.
 - **QST-Anmeldung**: `EpHatErwerbJaNein` kommt aus `spouse.Erwerbstaetig` (vorher fix «Nein» — bei Tarif C falsch auf dem Behördenformular; NULL = kein Kreuz). Validierung verlangt bei verheiratet zusätzlich Nationalität + beantwortete Erwerbstätig-Frage (+ Arbeitgeber wenn erwerbstätig).
@@ -321,3 +323,49 @@ Auto-Import auseinander:
 - Alte (Pre-Mirus) MA mit potentieller Nummernkollision werden über den **Archiv-Import** mit `+alt`-Suffix angelegt (`750038alt`).
 - Im normalen Import werden nur AKTIVE MA angelegt (Bis-Datum offen oder ≥ heute). Inaktive werden übersprungen — Logik in `EmployeeImportController.UploadCsv`, Variable `isActiveByNumber`.
 
+## Arbeitszeugnis-Entwurf GF → HR (ArbeitszeugnisController, posteingang.js, austritt.js)
+- GF füllt das Zeugnis aus und sendet es als Entwurf (`POST /api/arbeitszeugnis/{empId}/entwurf`); im HR-Postfach erscheint eine Mitteilung mit `StorageFilename = zeugnis-entwurf-{id}` → Knopf «Entwurf öffnen».
+- **Ablauf ABSOLUT (Walter + Sohn, 07.09.2026): Arbeits- und Zwischenzeugnisse erstellt IMMER HR.** Der GF füllt nur die Beurteilung aus und sendet sie an HR (`azDarfDrucken()` = `istHr` aus `GET /api/arbeitszeugnis/berechtigung`; Server: `ZEUGNIS_NUR_HR`). Die Stufe «Zeugnis drucken bis» gilt nur noch für die **Arbeitsbestätigung** (GF darf sie innerhalb seiner Stufe selbst drucken). HR kontrolliert/korrigiert, erstellt das PDF, druckt es, unterschreibt **von Hand** (KEIN Unterschriftsbild im PDF — `SignaturePng=null`, nur Name + Funktion; Platzhalter 48pt im PdfService), scannt es ein, legt es beim MA ab und schickt es zusammen mit den Austrittsformularen per Post an den MA. Unterzeichner/in wählt HR (`GET /api/arbeitszeugnis/{empId}/unterzeichner`: HR-Team, Admin, Superuser + Benutzer mit Zugang zur MA-Filiale — NICHT GF anderer Restaurants; `ZeugnisDto.SignerUserId`, Default eingeloggter User; Server validiert `SIGNER_UNGUELTIG`). Die frühere Zustellart (Versand/Abgabe, Allgemein-Unterzeichner) ist entfernt (`Abgabe` im DTO bleibt nur aus Kompatibilität, wird ignoriert). Der GF bekommt nach dem Erstellen nur eine kurze Info-Mitteilung ohne PDF.
+- **HR-Postfach-Eintrag bleibt bis zum aktiven Löschen (Walter 07.09.2026, ABSOLUT):** «PDF erstellen» aus dem Entwurf setzt den Entwurf auf `erledigt` und schickt dem GF das PDF als Mitteilung, ENTFERNT den HR-Eintrag aber NICHT mehr — er bekommt einen «✓ Erstellt am … von …»-Vermerk (`MarkiereErstellt`). Nur «Zurückweisen» räumt den Eintrag weg (aktive HR-Aktion); ein neuer Entwurf des GF ersetzt den alten.
+
+## Brief-Layout (alle Briefe an MA/Ärzte, Walter 07.09.2026)
+- Adressblock wie im Arbeitszeugnis: `Height(40)` Abstandhalter + `PaddingTop(16)` (bzw. EINSCHREIBEN-Zeile + 3) → C5-Fensterzone. **Datumszeile eine Textzeile (14 pt) tiefer als vorher, der nachfolgende Betreff rückt NICHT mit** (Datum-Padding +14, Betreff-Padding −14). Umgesetzt in Arbeitszeugnis (`padDatum`/`padTitel`), Kündigung (Bestätigung, Aufhebung, Rückzug/Nichtig, AG-Kündigung), Mutterschaft (Arzt-Schreiben, Urlaub, Vereinbarung), Aufforderung zur Arbeit. Neue Briefe gleich aufbauen.
+
+## Lohndaten-Empfänger: Filial-Zuordnung mit Gültig ab / bis (Walter 07.09.2026)
+
+- Katalog `lohndaten_empfaenger` (zentral: Art, Name, UID, Adresse, Kassen-/Versicherernummer, Kanton) +
+  Zuordnung `company_profile_empfaenger` pro Filiale (Mitglied-/Kundennummer, Sub-/Vertragsnummer,
+  gültig ab, gültig bis, Bemerkung).
+- **«Gültig bis» bleibt normalerweise offen** (NULL = gilt weiterhin). Ein neuer Satz derselben Art
+  (bei QST/FAK/Lohnausweis: derselbe Kanton) mit «Gültig ab» beendet die offenen Vorgänger automatisch
+  am **Neubeginn − 1 Tag** (`CompanyProfileEmpfaengerController.SchliesseVorgaengerAsync`).
+  Zukunftssätze (ab > Neubeginn) bleiben unberührt.
+- Derselbe Empfänger darf pro Filiale mehrfach vorkommen (Vertragswechsel beim gleichen Versicherer) —
+  Unique-Index `ux_cp_empfaenger_cp_empf` entfernt; Duplikat nur, wenn kein «Gültig ab» oder gleiches «Gültig ab».
+- Alle Verbraucher filtern am Stichtag (`GiltAm`): AHV-/QST-Anmeldung, Zwischenverdienst, ELM-Stammdaten-
+  Vorschlag (heute) und ELM-Jahresmeldung (31.12. des Lohnjahres).
+- Swissdec-Begriffe: Versicherernummer = InsuranceID (S1000), Kundennummer = CustomerIdentity,
+  Vertragsnummer = ContractIdentity, AK-Kassennummer = AK-CC-BranchNumber, Mitgliednummer = AK-CC-CustomerNumber.
+  Labels: UVG/UVGZ/KTG → Kundennummer/Vertragsnummer; BVG → «Kundennummer (Mitgliednummer)»/Vertragsnummer;
+  QST → SSL-Nummer/Buchungskreis; AK/FAK → Mitgliednummer/Subnummer.
+
+## Versicherungs-Lösungen / Swissdec-Codes (Walter 07.09.2026)
+
+Entscheid: OneCrew-Logik behalten — Sätze zentral in **System → SV-Sätze** (Standard für alle,
+Abweichung pro Filiale), NICHT beim Lohndaten-Empfänger. Ergänzt um:
+- `social_insurance_rate.loesungs_code` (+ `is_default_code`, `band_von_monthly`): Zeile mit Code gilt nur
+  für MA mit diesem Code; Zeile ohne Code = für alle ohne Code (bisheriges Verhalten); Zeile mit ★ Standard =
+  für alle ohne eigenen Code. Fach-Schlüssel/Unique-Index enthalten den Code (`ux_social_insurance_rate_natural4`).
+- `employee_versicherung_code` (Art UVG/UVGZ/KTG/BVG, Code, ab/bis, BVG-Fixbetrag AN/AG): nur Abweichungen
+  erfassen; neuer Eintrag beendet Vorgänger derselben Art am Vortag. UI: MA → Lohn/Abzüge-Tab → «Versicherungen»
+  (js/versicherung-codes.js), API `api/employees/{id}/versicherung-codes` (liefert effektiven Code + Optionen).
+- Engine: `PayrollCalculations.ApplyVersicherungsCodes` + `PayrollCalculationEngine.WendeVersicherungsCodesAnAsync`
+  (beide Rechenpfade). BVG-Fixbetrag ersetzt die BVG-Prozentzeilen durch eine «fixed»-Zeile (AN) mit AG-Fixbetrag.
+- Lohnband «ab» (`BandVonMonthly`): nur Basis zwischen von und Höchst ist pflichtig; Dezember-Aufrollung wie
+  beim Höchstlohn. Verwendung: KTG/UVGZ Code 12 (Überschusslohn), ALVZ (12'350–30'875).
+- Neue SV-Typen: `ALVZ` (Basis AHV), `UVGZ` (Basis NBUV/UVG-Lohn). Basis-Mapping in PayrollCalculationService.
+- UVG-Code = Betriebsteil + Versicherungsart (A1 BU+NBU mit AN-Abzug, A2 AG trägt NBU, A3 nur BU, 0 = keine
+  Zeile). Der FLEX-Schalter «< 8 h/Woche» (NBU-befreit) entspricht …3 — Engine lässt NBUV wie bisher weg.
+- Übergang Prod: ohne Code-Zeilen und ohne MA-Einträge rechnet alles wie bisher.
+- Testmandant Schritt 3b (`SwissdecTestmandantController.Schritt3b.cs`) lädt die Muster-AG-Lösungen; Annahme
+  Prämie/Beitrag hälftig AN/AG bei UVGZ/KTG/BVG (Swissdec nennt nur Gesamtsätze).

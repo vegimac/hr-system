@@ -75,7 +75,8 @@ public class AhvAnmeldungController : ControllerBase
             abrechnungsNr = await _db.CompanyProfileEmpfaengers.AsNoTracking()
                 .Where(z => z.CompanyProfileId == cp.Id && z.IsActive
                          && z.Empfaenger!.Art == "AUSGLEICHSKASSE"
-                         && (z.GueltigAb == null || z.GueltigAb <= heuteAbr))
+                         && (z.GueltigAb == null || z.GueltigAb <= heuteAbr)
+                         && (z.GueltigBis == null || z.GueltigBis >= heuteAbr))
                 .OrderByDescending(z => z.GueltigAb)
                 .Select(z => z.Mitgliednummer)
                 .FirstOrDefaultAsync();

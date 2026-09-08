@@ -7304,19 +7304,22 @@
            Zeile liefen sonst optisch in die Nachbarspalten). */
         /* Walter 06.08.2026 (2. Runde): «in Lohn»-Pille bleibt HINTER dem
            Namen in EINER Zeile — Platz kommt aus den Zahlen-/Kurzspalten. */
-        #page-sv-saetze .sv-c-nr { width: 3%; }
+        /* Walter 07.09.2026 (3. Runde, Lösungs-Codes): Bezeichnung braucht
+           deutlich mehr Platz («UVG Betriebsteil B — BU+NBU, NBU-Abzug AN») —
+           Basis, Fibu und die Kurzspalten geben ab. */
+        #page-sv-saetze .sv-c-nr { width: 2.5%; }
         #page-sv-saetze .sv-c-typ { width: 6%; }
-        #page-sv-saetze .sv-c-name { width: 19.5%; }
-        #page-sv-saetze .sv-c-an { width: 6%; }
-        #page-sv-saetze .sv-c-ag { width: 6%; }
-        #page-sv-saetze .sv-c-basis { width: 18%; }
-        #page-sv-saetze .sv-c-alter { width: 4.5%; }
-        #page-sv-saetze .sv-c-vertrag { width: 5.5%; }
-        #page-sv-saetze .sv-c-fibu { width: 8%; }
-        #page-sv-saetze .sv-c-ab { width: 5.5%; }
-        #page-sv-saetze .sv-c-bis { width: 5.5%; }
-        #page-sv-saetze .sv-c-status { width: 5.5%; }
-        #page-sv-saetze .sv-c-act { width: 4%; }
+        #page-sv-saetze .sv-c-name { width: 33.5%; }
+        #page-sv-saetze .sv-c-an { width: 5.5%; }
+        #page-sv-saetze .sv-c-ag { width: 5.5%; }
+        #page-sv-saetze .sv-c-basis { width: 13%; }
+        #page-sv-saetze .sv-c-alter { width: 4%; }
+        #page-sv-saetze .sv-c-vertrag { width: 4.5%; }
+        #page-sv-saetze .sv-c-fibu { width: 6.5%; }
+        #page-sv-saetze .sv-c-ab { width: 5%; }
+        #page-sv-saetze .sv-c-bis { width: 5%; }
+        #page-sv-saetze .sv-c-status { width: 5%; }
+        #page-sv-saetze .sv-c-act { width: 3.5%; }
 
         #page-lohnpositionen .lp-c-code { width: 7%; }
         #page-lohnpositionen .lp-c-name { width: 15%; }
@@ -9258,7 +9261,7 @@
             pointer-events: none;
             opacity: .24;
             transform: none;
-            background-image: url('img/liquid-glass-arches-reference.png');
+            background-image: url('../img/liquid-glass-arches-reference.png');
             background-repeat: no-repeat;
             background-position: calc(50% + 10vw) center;
             background-size: 95% auto;
@@ -10133,7 +10136,7 @@ body.theme-dark .ra-tile img[src*="Aufforderung.png"] { filter: brightness(1.45)
         }
         body.theme-dark .liquid-dashboard::before {
             opacity: .18;
-            background-image: url('img/liquid-glass-arches-reference.png');
+            background-image: url('../img/liquid-glass-arches-reference.png');
             background-repeat: no-repeat;
             background-position: calc(50% + 10vw) center;
             background-size: 95% auto;
@@ -12100,9 +12103,30 @@ body.theme-dark #qstModal .qst-cb-ro {
    gesetzt in famLoadSpouseDocs). Auf schmalen Fenstern (<1000px) verschwindet
    das Panel — die Erfassung hat Vorrang. */
 #familyModal.fam-docs-open .family-modal-box {
-    width: min(760px, 55vw);
+    width: min(760px, 48vw);
     flex-shrink: 0;
 }
+/* ── Dokumenten-Seitenpanels so gross wie der Bildschirm erlaubt (Walter
+   07.09.2026): gilt für ALLE Panels neben einer Erfassung — Ehepartner
+   (#fam-docpanel), Zulagen-Entscheid (#al-docpanel), Bewilligung
+   (#phf-docpanel), Tarifbestätigung (#qstBestDocPanel). Das Panel steht
+   IMMER RECHTS der Erfassung, nimmt die ganze Restbreite und die volle
+   Fensterhöhe; die Vorschau (iframe/Bild) füllt das Panel. */
+.side-docpanel {
+    flex: 1 1 auto !important;
+    min-width: 380px !important;
+    max-width: none !important;
+    height: calc(100vh - 32px) !important;
+    max-height: calc(100vh - 32px) !important;
+    box-sizing: border-box;
+}
+.side-docview {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+}
+.side-docview iframe { width: 100% !important; height: 100% !important; min-height: 0 !important; border: none; }
+.side-docview img    { max-width: 100%; max-height: 100%; object-fit: contain; }
 #familyModal.fam-docs-open #fam-docpanel { display: flex; }
 @media (max-width: 1000px) {
     #familyModal.fam-docs-open .family-modal-box { width: min(1080px, calc(100vw - 40px)); }
@@ -12209,6 +12233,10 @@ body.theme-dark #qstModal .qst-cb-ro {
     box-shadow: 0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9); outline: none; }
 .bgs-input:focus { box-shadow: 0 0 0 3px rgba(63,63,63,0.18), 0 2px 6px rgba(60,55,48,0.13); }
 .bgs-input-short { max-width: 240px; }
+.bgs-jugend { background: #fff7ed; border: 1.5px solid #f59e0b; color: #7c2d12; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.bgs-full .bgs-jugend { font-size: 17px; }
+body.theme-dark .bgs-jugend { background: rgba(245,158,11,0.15); color: #fcd34d; }
+.bgs-input-error { border-color: #b91c1c !important; box-shadow: 0 0 0 3px rgba(185,28,28,.18) !important; }
 .bgs-input-mono { font-family: ui-monospace, Menlo, monospace; letter-spacing: .04em; max-width: 340px; }
 .bgs-input-time { padding: 7px 8px; font-size: 14px; max-width: 130px; }
 .bgs-textarea { min-height: 84px; resize: vertical; font-family: inherit; }

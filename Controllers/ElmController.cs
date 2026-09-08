@@ -121,7 +121,8 @@ public class ElmController : ControllerBase
         // Mitglied-/Subnummer nur übernehmen, wenn filialübergreifend identisch.
         (string? mitglied, string? sub) Gemeinsam(LohndatenEmpfaenger e)
         {
-            var akt = e.Zuordnungen.Where(z => z.IsActive).ToList();
+            var heute = DateOnly.FromDateTime(DateTime.Today);
+            var akt = e.Zuordnungen.Where(z => z.GiltAm(heute)).ToList();
             if (akt.Count == 0) return (null, null);
             var m = akt.Select(z => (z.Mitgliednummer ?? "").Trim()).Distinct().ToList();
             var su = akt.Select(z => (z.Subnummer ?? "").Trim()).Distinct().ToList();

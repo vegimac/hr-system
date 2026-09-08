@@ -124,7 +124,8 @@ public class ZwischenverdienistController : ControllerBase
             await _db.CompanyProfileEmpfaengers.AsNoTracking()
                 .Where(z => z.CompanyProfileId == companyProfileId && z.IsActive
                          && z.Empfaenger!.Art == art
-                         && (z.GueltigAb == null || z.GueltigAb <= heuteEmpf))
+                         && (z.GueltigAb == null || z.GueltigAb <= heuteEmpf)
+                         && (z.GueltigBis == null || z.GueltigBis >= heuteEmpf))
                 .OrderByDescending(z => z.GueltigAb)
                 .Select(z => z.Empfaenger!.Bezeichnung)
                 .FirstOrDefaultAsync();

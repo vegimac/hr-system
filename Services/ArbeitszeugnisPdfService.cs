@@ -282,7 +282,8 @@ public class ArbeitszeugnisPdfService
         else    absaetze.AddRange(new[] { beurteilung, austritt, dank });
 
         // padGruss ≈ 2 Zeilen Abstand Text → «Freundliche Grüsse» (Walter 21.07.2026).
-        float lh = 1.22f, padAbs = 12f, padDatum = 20f, padTitel = 18f, padGruss = 28f;
+        // Walter 07.09.2026: Datum eine Zeile tiefer, Folgetext bleibt (padDatum +14, padTitel −14).
+        float lh = 1.22f, padAbs = 12f, padDatum = 34f, padTitel = 4f, padGruss = 28f;
         float bulletPad = 2f;
         float rest = 0f;
         float[] lhOpts = { 1.3f, 1.22f, 1.14f, 1.07f };
@@ -315,7 +316,7 @@ public class ArbeitszeugnisPdfService
         float padIntro = padAbs;
 
         // Arbeitsbestaetigung (nur 1 Satz): grosszuegige feste Abstaende.
-        if (d.Bestaetigung) { padDatum = 56f; padTitel = 72f; padGruss = 48f; }
+        if (d.Bestaetigung) { padDatum = 70f; padTitel = 58f; padGruss = 48f; }
         float padSatz = d.Bestaetigung ? 60f : 22f;
 
         return Document.Create(container =>

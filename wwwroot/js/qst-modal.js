@@ -336,6 +336,9 @@ function qstRenderWohnsituation() {
 
     wrap.style.display = lines.length ? '' : 'none';
     el.innerHTML = lines.join('<br>');
+    // Grenzgänger-Angaben (Walter 07.09.2026): editierbar, nur bei Grenzgänger.
+    const gb = document.getElementById('qstGrenzgaengerBox');
+    if (gb) gb.style.display = istAusland ? '' : 'none';
 }
 
 // Konkubinat-Frage NUR bei Zivilstand «ledig» zeigen (Walter 29.08.2026 v2) —
@@ -992,6 +995,12 @@ function populateQstForm(entry) {
     c('qstHasHigherIncomeThanPartner', entry?.hasHigherIncomeThanPartner);
     c('qstIsGrenzgaenger',             entry?.isGrenzgaenger);
     c('qstIsWochenaufenthalter',       entry?.isWochenaufenthalter);
+    (function () {
+        const v = (id, val) => { const e = document.getElementById(id); if (e) e.value = val ?? ''; };
+        v('qstGrenzSteuerId',   entry?.grenzgaengerSteuerId);
+        v('qstGrenzGeburtsort', entry?.grenzgaengerGeburtsort);
+        v('qstGrenzAb',         entry?.grenzgaengerAb ? String(entry.grenzgaengerAb).slice(0, 10) : '');
+    })();
     // Konkubinat aus dem Familie-Tab befüllen + sperren (Walter 25.08.2026).
     qstApplyKonkubinatLock();
     // Wochenaufenthalt aus der Wohnsituation befüllen + sperren (Walter 28.08.2026).
@@ -1132,6 +1141,9 @@ async function saveQstEntry() {
         hasHigherIncomeThanPartner: document.getElementById('qstHasHigherIncomeThanPartner').checked,
         isGrenzgaenger:             document.getElementById('qstIsGrenzgaenger').checked,
         isWochenaufenthalter:       document.getElementById('qstIsWochenaufenthalter').checked,
+        grenzgaengerSteuerId:       (document.getElementById('qstGrenzSteuerId')?.value || '').trim().toUpperCase() || null,
+        grenzgaengerGeburtsort:     (document.getElementById('qstGrenzGeburtsort')?.value || '').trim() || null,
+        grenzgaengerAb:             document.getElementById('qstGrenzAb')?.value || null,
     };
 
     if (!payload.validFrom) { resultEl.innerHTML = '<span style="color:#dc2626">Gültig ab ist Pflicht.</span>'; return; }

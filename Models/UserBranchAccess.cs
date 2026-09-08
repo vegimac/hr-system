@@ -22,6 +22,10 @@ public class UserBranchAccess
     /// <summary>Darf Vertrags-SMS-Links dieser Filiale senden/verwalten (Walter 10.08.2026).</summary>
     public bool CanVertragSms { get; set; }
 
+    /// <summary>Führt in dieser Filiale Bewerbungsgespräche (Walter 07.09.2026) —
+    /// nur diese Personen sind im Gesprächsmodus unter «Gespräch geführt von» wählbar.</summary>
+    public bool CanBewerbungsgespraech { get; set; }
+
     /// <summary>Ist diese Person der Standard-Unterzeichner für diese Filiale?</summary>
     public bool IsDefault { get; set; } = false;
 

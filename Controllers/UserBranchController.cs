@@ -36,6 +36,7 @@ public class UserBranchController : ControllerBase
                 uba.IsDefault,
                 uba.CanDienstplan,
                 uba.CanVertragSms,
+                uba.CanBewerbungsgespraech,
                 User = new
                 {
                     uba.User.Id,
@@ -85,7 +86,7 @@ public class UserBranchController : ControllerBase
         });
     }
 
-    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault, bool? CanDienstplan = null, bool? CanVertragSms = null);
+    public record UbaRequest(int UserId, int CompanyProfileId, string? Role, string? FunctionTitle, bool IsDefault, bool? CanDienstplan = null, bool? CanVertragSms = null, bool? CanBewerbungsgespraech = null);
 
     // POST /api/userbranch
     // Sicherheit (Walter-Vorgabe 23.05.2026): Filial-Zugriffe vergeben/ändern nur
@@ -105,6 +106,7 @@ public class UserBranchController : ControllerBase
             existing.FunctionTitle = req.FunctionTitle;
             if (req.CanDienstplan.HasValue) existing.CanDienstplan = req.CanDienstplan.Value;
             if (req.CanVertragSms.HasValue) existing.CanVertragSms = req.CanVertragSms.Value;
+            if (req.CanBewerbungsgespraech.HasValue) existing.CanBewerbungsgespraech = req.CanBewerbungsgespraech.Value;
             existing.IsDefault     = req.IsDefault;
             await _context.SaveChangesAsync();
             return Ok(existing);
@@ -119,6 +121,7 @@ public class UserBranchController : ControllerBase
             IsDefault        = req.IsDefault,
             CanDienstplan    = req.CanDienstplan ?? false,
             CanVertragSms    = req.CanVertragSms ?? false,
+            CanBewerbungsgespraech = req.CanBewerbungsgespraech ?? false,
         };
         _context.UserBranchAccesses.Add(uba);
         await _context.SaveChangesAsync();
@@ -151,6 +154,7 @@ public class UserBranchController : ControllerBase
         uba.IsDefault     = req.IsDefault;
         if (req.CanDienstplan.HasValue) uba.CanDienstplan = req.CanDienstplan.Value;
         if (req.CanVertragSms.HasValue) uba.CanVertragSms = req.CanVertragSms.Value;
+        if (req.CanBewerbungsgespraech.HasValue) uba.CanBewerbungsgespraech = req.CanBewerbungsgespraech.Value;
         await _context.SaveChangesAsync();
         return Ok(uba);
     }

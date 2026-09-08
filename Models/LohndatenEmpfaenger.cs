@@ -68,10 +68,19 @@ public class CompanyProfileEmpfaenger
     /// alter Empfänger bleibt mit altem Datum, neuer kommt mit neuem Ab-Datum.
     /// NULL = seit jeher gültig.</summary>
     public DateOnly? GueltigAb { get; set; }
+
+    /// <summary>Gültig bis (Walter 07.09.2026): NULL = offen = gilt weiterhin.
+    /// Wird ein neuer Satz derselben Art für dieselbe Filiale mit Gültig-ab
+    /// erfasst, setzt das System hier automatisch «Neubeginn − 1 Tag».</summary>
+    public DateOnly? GueltigBis { get; set; }
     public string? Bemerkung { get; set; }
 
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+
+    /// <summary>Gilt die Zuordnung am Stichtag? (ab ≤ Stichtag ≤ bis, offen = unbegrenzt)</summary>
+    public bool GiltAm(DateOnly stichtag) =>
+        IsActive && (GueltigAb == null || GueltigAb <= stichtag) && (GueltigBis == null || GueltigBis >= stichtag);
 }

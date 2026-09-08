@@ -1579,6 +1579,24 @@ function renderEmployeeDetail(emp) {
 
             <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
 
+            <!-- Versicherungs-Codes (Walter 07.09.2026, Swissdec-Lösungen): UVG/UVGZ/KTG/BVG.
+                 Ohne Eintrag gilt der Standard der SV-Sätze — erfasst wird nur, wer abweicht. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between">
+                <span title="Versicherungs-Lösung pro Versicherung (Swissdec-Code). Ohne Eintrag gilt der Standard der SV-Sätze.">Versicherungen (UVG · UVG-Zusatz · KTG · BVG)</span>
+                <span style="display:inline-flex;align-items:center;gap:8px">
+                    <span id="vcHistPillSlot"></span>
+                    <button class="btn-emp-add" onclick="vcOpenModal(null)">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Abweichung erfassen
+                    </button>
+                </span>
+            </div>
+            <div id="vcContent">
+                <div class="emp-placeholder"><span>${_t('ma.selectEmployee','Bitte wähle einen Mitarbeiter')}</span></div>
+            </div>
+
+            <div style="height:1px;background:#e2e8f0;margin:10px 0"></div>
+
             <!-- Bereich 3: BVG-Zusatz-Mitgliedschaft (Walter-Vorgabe 26.05.2026):
                  Belohnungs-Programm — Personalentscheid pro MA, versioniert.
                  Walter-Vorgabe 26.05.2026 (nachträglich): ans Ende des Tabs
@@ -2384,6 +2402,7 @@ function switchEmpTab(tab) {
         }
         if (typeof loadUniformDepotTab === 'function') loadUniformDepotTab(selectedEmployeeId);
         if (typeof loadBvgZusatzTab === 'function') loadBvgZusatzTab(selectedEmployeeId);
+        if (typeof vcLoad === 'function') vcLoad(selectedEmployeeId);
         if (typeof loadDarlehenTab === 'function') loadDarlehenTab(selectedEmployeeId);
         loadRecurringWagesTab(selectedEmployeeId);
         loadLohnAssignmentsTab(selectedEmployeeId);
@@ -3110,10 +3129,13 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             const eintrag = (window._empQstCache || []).find(x => x.id === qstId);
             // Wähler zuerst schliessen (liegt auf z-index 9600 über dem Dialog).
             document.getElementById('ausweisDokuModal')?.remove();
-            const best = await qstTarifBestaetigungDialog(eintrag);
+            // Walter 07.09.2026: Dokument daneben anzeigen (wie beim Ehepartner)
+            // und den GANZEN Code inkl. Kinderziffer erfassen.
+            const dokMeta = Array.isArray(_dokState?.docs) ? _dokState.docs.find(x => x.id === dokumentId) : null;
+            const best = await qstTarifBestaetigungDialog(eintrag, dokumentId, dokMeta?.filenameOriginal || '');
             if (!best) return;
             url  = `/api/employees/${empId}/quellensteuer/${qstId}/dokument`;
-            body = JSON.stringify({ dokumentId, tarifBuchstabe: best.buchstabe, kirchensteuer: best.kirchensteuer });
+            body = JSON.stringify({ dokumentId, tarifBuchstabe: best.buchstabe, anzahlKinder: best.anzahlKinder, kirchensteuer: best.kirchensteuer });
         } else if (kind === 'behoerden_befreiung') {
             // Gültig-ab/bis ermitteln: erst formInfo (Upload-Pfad), sonst aus
             // dem Dokument selbst (Direct-Pick).
@@ -4439,7 +4461,9 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
         }
         // Walter 05.09.2026: Tarifbestätigung der Behörde ist das Mass aller
         // Dinge — weicht sie vom Vorschlag ab, das sichtbar sagen (grün).
-        if (isCurrent && e.dokumentId && vorschlagCode && vorschlagCode !== code) {
+        // Walter 07.09.2026: NICHT, wenn der Server Warnungen liefert (Familie
+        // nach der Bestätigung geändert) — dann gilt die rote Warnung.
+        if (isCurrent && e.dokumentId && vorschlagCode && vorschlagCode !== code && !zeilenWarnungen.length) {
             warnZeilenHtml += `<div style="font-size:12px;color:#15803d;margin-top:5px;line-height:1.45">✓ Tarif gemäss Tarifbestätigung der Steuerbehörde — gilt anstelle des Vorschlags (${esc(vorschlagCode)}).</div>`;
         }
         const kinder   = e.anzahlKinder   ?? 0;
@@ -4599,9 +4623,11 @@ function darlehenAusQst(summe, ids, monate) {
 // Tarifbestätigung von der QST-Version lösen (Walter 21.08.2026) —
 // das Dokument selbst bleibt im Doku-Tab erhalten.
 // Dialog «Bestätigter Tarif» beim Verknüpfen der Tarifbestätigung
-// (Walter 05.09.2026): nur Tarif-Buchstabe und Kirchensteuer — die
-// Kinderziffer ergibt sich weiterhin aus der Familie.
-function qstTarifBestaetigungDialog(eintrag) {
+// (Walter 05.09.2026). Walter 07.09.2026: der GANZE Code (Buchstabe +
+// Kinderziffer + Kirchensteuer) wird erfasst, und das Dokument wird daneben
+// angezeigt (wie das Doku-Panel beim Ehepartner), damit HR beim Abtippen
+// den Beleg vor Augen hat.
+function qstTarifBestaetigungDialog(eintrag, dokumentId, dokName) {
     return new Promise(resolve => {
         document.getElementById('qstBestModal')?.remove();
         const tarife = [['A','A – Alleinstehend'],['B','B – Verheiratet, Alleinverdiener'],['C','C – Verheiratet, Doppelverdiener'],
@@ -4609,35 +4635,81 @@ function qstTarifBestaetigungDialog(eintrag) {
                         ['N','N – Grenzgänger Nebenerwerb'],['P','P – Pauschale'],['Q','Q – Grenzgänger alleinerz.']];
         const curT = (eintrag?.tarifCode || '').toUpperCase();
         const curK = !!eintrag?.kirchensteuer;
-        const kinder = eintrag?.anzahlKinder ?? 0;
+        const kinder = Number(eintrag?.anzahlKinder ?? 0);
+        const selStyle = 'width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f';
         const ov = document.createElement('div');
         ov.id = 'qstBestModal';
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9700;display:flex;align-items:center;justify-content:center;padding:20px';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(30,28,25,0.45);z-index:9700;display:flex;align-items:center;justify-content:center;gap:14px;padding:16px';
         ov.innerHTML = `
-            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:440px;width:100%;padding:20px 22px">
+            <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 18px 50px rgba(60,55,48,0.22);max-width:440px;width:100%;padding:20px 22px;flex-shrink:0">
                 <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Tarif gemäss Tarifbestätigung</div>
-                <div style="font-size:12.5px;color:#646464;margin-bottom:14px">Die Bestätigung der Steuerbehörde gilt anstelle unseres Vorschlags. Erfasse nur den ersten Buchstaben und die Kirchensteuer — die Kinderziffer (${kinder}) kommt weiterhin aus der Familie.</div>
-                <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Tarif (erster Buchstabe)</label>
-                <select id="qstBestTarif" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;margin-bottom:12px">
-                    ${tarife.map(([v,l]) => `<option value="${v}" ${v === curT ? 'selected' : ''}>${l}</option>`).join('')}
-                </select>
-                <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Kirchensteuer (letzter Buchstabe)</label>
-                <select id="qstBestKirche" style="width:100%;background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:8px 10px;font-size:13.5px;color:#3f3f3f;margin-bottom:16px">
-                    <option value="N" ${!curK ? 'selected' : ''}>N – ohne Kirchensteuer</option>
-                    <option value="Y" ${curK ? 'selected' : ''}>Y – mit Kirchensteuer</option>
-                </select>
+                <div style="font-size:12.5px;color:#646464;margin-bottom:14px">Die Bestätigung der Steuerbehörde gilt anstelle unseres Vorschlags. Erfasse den Tarifcode genau so, wie er auf der Bestätigung steht — Buchstabe, Kinderziffer und Kirchensteuer.</div>
+                <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:12px">
+                    <div>
+                        <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Tarif (erster Buchstabe)</label>
+                        <select id="qstBestTarif" style="${selStyle}">
+                            ${tarife.map(([v,l]) => `<option value="${v}" ${v === curT ? 'selected' : ''}>${l}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Kinderziffer</label>
+                            <select id="qstBestKinder" style="${selStyle}">
+                                ${[0,1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}" ${n === kinder ? 'selected' : ''}>${n}${n === kinder ? ' (aus Familie)' : ''}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;font-weight:700;color:#646464;display:block;margin-bottom:4px">Kirchensteuer</label>
+                            <select id="qstBestKirche" style="${selStyle}">
+                                <option value="N" ${!curK ? 'selected' : ''}>N – ohne</option>
+                                <option value="Y" ${curK ? 'selected' : ''}>Y – mit</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div style="font-size:12.5px;color:#3f3f3f;margin-bottom:16px">Bestätigter Code: <strong id="qstBestCodePreview" style="font-size:15px;letter-spacing:.04em"></strong></div>
                 <div style="display:flex;justify-content:flex-end;gap:10px">
                     <button id="qstBestNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                     <button id="qstBestYes" style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Verknüpfen &amp; übernehmen</button>
                 </div>
+            </div>
+            <div id="qstBestDocPanel" class="side-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <div id="qstBestDocName" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(dokName || 'Tarifbestätigung')}</div>
+                    <button id="qstBestDocZoom" style="background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0" title="Im grossen Vorschaufenster öffnen (mit Drucken/Zoom)">⤢ Vergrössern</button>
+                </div>
+                <div id="qstBestDocView" class="side-docview" style="flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>
             </div>`;
         document.body.appendChild(ov);
-        const done = v => { ov.remove(); resolve(v); };
+        const selT = ov.querySelector('#qstBestTarif');
+        const selN = ov.querySelector('#qstBestKinder');
+        const selK = ov.querySelector('#qstBestKirche');
+        const upd = () => { ov.querySelector('#qstBestCodePreview').textContent = `${selT.value}${selN.value}${selK.value}`; };
+        [selT, selN, selK].forEach(el => el.onchange = upd);
+        upd();
+        let objUrl = null;
+        const done = v => { if (objUrl) URL.revokeObjectURL(objUrl); ov.remove(); resolve(v); };
         ov.querySelector('#qstBestNo').onclick = () => done(null);
         ov.querySelector('#qstBestYes').onclick = () => done({
-            buchstabe: ov.querySelector('#qstBestTarif').value,
-            kirchensteuer: ov.querySelector('#qstBestKirche').value === 'Y'
+            buchstabe: selT.value,
+            anzahlKinder: parseInt(selN.value, 10),
+            kirchensteuer: selK.value === 'Y'
         });
+        // Dokument-Vorschau (best-effort, gleiche Mechanik wie famShowSpouseDoc).
+        if (dokumentId) {
+            const previewUrl = `/api/documents/preview/${dokumentId}`;
+            ov.querySelector('#qstBestDocZoom').onclick = () => previewUrlFetch(previewUrl, dokName || 'tarifbestaetigung', ah());
+            fetch(previewUrl, { headers: ah() }).then(async pr => {
+                if (!pr.ok) return;
+                const blob = await pr.blob();
+                objUrl = URL.createObjectURL(blob);
+                const view = ov.querySelector('#qstBestDocView');
+                view.innerHTML = (blob.type || '').startsWith('image/')
+                    ? `<img src="${objUrl}" style="max-width:100%;max-height:100%;object-fit:contain">`
+                    : `<iframe src="${objUrl}" style="width:100%;height:100%;border:none"></iframe>`;
+                ov.querySelector('#qstBestDocPanel').style.display = 'flex';
+            }).catch(() => { /* Panel bleibt unsichtbar */ });
+        }
     });
 }
 
@@ -7093,13 +7165,14 @@ async function famLoadSpouseDocs(member) {
         modal.style.gap = '14px';
         panel = document.createElement('div');
         panel.id = 'fam-docpanel';
-        panel.style.cssText = 'display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;max-width:44vw;max-height:92vh;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)';
+        panel.className = 'side-docpanel';
+        panel.style.cssText = 'display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;padding:14px;flex-direction:column;gap:8px;box-shadow:0 24px 48px rgba(0,0,0,0.25)';
         panel.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                 <div id="fam-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0"></div>
                 <button id="fam-doczoom" style="display:none;background:rgba(255,255,255,0.6);border:1px solid #e2ddd3;color:#3f3f3f;border-radius:10px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;flex-shrink:0" title="Im grossen Vorschaufenster öffnen (mit Drucken/Zoom)">⤢ Vergrössern</button>
             </div>
-            <div id="fam-docview" style="flex:1;min-height:320px;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>`;
+            <div id="fam-docview" class="side-docview" style="flex:1;min-height:0;overflow:auto;display:flex;align-items:flex-start;justify-content:center;background:#f6f3ee;border-radius:10px"></div>`;
         modal.appendChild(panel);
     }
     panel.style.display = 'none';
@@ -14102,6 +14175,11 @@ async function empImportFromEasyApi() {
                 </label>`;
             }).join('')}
             <div id="empEasySeqWarn" style="display:none;background:#f3e7e7;border:1px solid #d8b8b8;color:#7a3f3f;border-radius:10px;padding:10px 12px;font-size:12.5px;margin-top:8px;white-space:pre-wrap"></div>
+            <label id="empEasySeqForceWrap" style="display:none;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:12.5px;color:#3f3f3f">
+                <input type="checkbox" id="empEasySeqForce" style="width:15px;height:15px" onchange="_empEasyCount()">
+                <span style="display:inline-flex;align-items:center;gap:6px;border:1px solid #d8b8b8;background:#fff;border-radius:999px;padding:3px 10px;font-weight:600">Trotzdem importieren</span>
+                <span style="color:#646464">Nummer in easy@work geblockt — Lücke nach oben akzeptieren (nie kleiner als die letzte Nr.)</span>
+            </label>
             ${_empEasyNotes(j)}`;
         foot.innerHTML = `
             <button onclick="document.getElementById('empEasyImportModal').style.display='none'"
@@ -14121,7 +14199,7 @@ function _empEasySeqBanner(seq) {
     return `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#3f3f3f;margin-bottom:10px">
         Letzte Nr. in OneCrew: <b style="font-family:monospace">${esc(max)}</b>
         · Neue NEU-Nummern müssen fortlaufend anschliessen (nächste: <b style="font-family:monospace">${esc(next)}</b>${seq.maxExisting != null ? ', dann +1 …' : ''}).
-        Sonst ist der Import gesperrt — bitte in easy@work korrigieren.
+        Sonst ist der Import gesperrt — bitte in easy@work korrigieren, oder bei einer von easy@work geblockten Nummer die Pille «Trotzdem importieren» setzen.
     </div>`;
 }
 
@@ -14147,13 +14225,22 @@ function _empEasyValidateNewSequence(newNumbers) {
     }
     const same = parsed.length === expected.length && parsed.every((v, i) => v === expected[i]);
     if (same) return { ok: true, message: '' };
+    // Pille «trotzdem importieren» (Walter 08.09.2026): easy@work blockiert manchmal
+    // Nummern → Lücke nach OBEN ist ok. Nach unten bleibt gesperrt (Vertipper).
+    const forceEl = document.getElementById('empEasySeqForce');
+    if (forceEl && forceEl.checked) {
+        const zuKlein = max != null ? parsed.filter(v => v <= max) : [];
+        if (!zuKlein.length) return { ok: true, message: '', forced: true };
+        return { ok: false, message: `Personalnummer ${zuKlein.join(', ')} ist nicht grösser als die letzte Nr. in OneCrew (${max}) — «trotzdem importieren» erlaubt nur Lücken nach oben.`, lueckeMoeglich: false };
+    }
+    const lueckeMoeglich = max == null || parsed.every(v => v > max);
     const letzte = max != null ? String(max) : '(keine)';
     const erwartetTxt = expected.join(', ');
     const erhaltenTxt = parsed.join(', ');
     const message = parsed.length === 1
         ? `Personalnummer muss direkt anschliessen. Letzte Nr. in OneCrew: ${letzte}. Erwartet: ${erwartetTxt}. Erhalten: ${erhaltenTxt}.`
         : `Neue Personalnummern müssen fortlaufend an die letzte Nr. und untereinander anschliessen. Letzte Nr. in OneCrew: ${letzte}. Erwartet: ${erwartetTxt}. Erhalten: ${erhaltenTxt}.`;
-    return { ok: false, message };
+    return { ok: false, message, lueckeMoeglich };
 }
 
 function _empEasyNotes(j) {
@@ -14176,7 +14263,16 @@ function _empEasyCount() {
     const warn = document.getElementById('empEasySeqWarn');
     if (warn) {
         if (!seq.ok) { warn.style.display = 'block'; warn.textContent = '⛔ ' + seq.message; }
+        else if (seq.forced) { warn.style.display = 'block'; warn.textContent = '⚠ Lücke in der Personalnummern-Folge wird auf Wunsch akzeptiert (Nummer in easy@work geblockt).'; }
         else { warn.style.display = 'none'; warn.textContent = ''; }
+    }
+    // Pille nur zeigen, wenn eine Lücke nach oben vorliegt (oder sie schon gesetzt ist).
+    const forceWrap = document.getElementById('empEasySeqForceWrap');
+    const forceEl = document.getElementById('empEasySeqForce');
+    if (forceWrap) {
+        const show = (forceEl && forceEl.checked) || (!seq.ok && seq.lueckeMoeglich);
+        forceWrap.style.display = show ? 'flex' : 'none';
+        if (!show && forceEl) forceEl.checked = false;
     }
     const btn = document.getElementById('empEasyCommitBtn');
     if (btn) {
@@ -14197,7 +14293,10 @@ async function empEasyImportCommit(cpId) {
     try {
         const r = await fetch('/api/easywork/neuzugang/commit', {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ companyProfileId: cpId, selectedNumbers: numbers }),
+            body: JSON.stringify({
+                companyProfileId: cpId, selectedNumbers: numbers,
+                trotzdemImportieren: !!(document.getElementById('empEasySeqForce') || {}).checked,
+            }),
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || j.blocked) {
@@ -15075,7 +15174,7 @@ async function openPermitHistoryModal(entryId) {
     if (!modal) {
         modal = document.createElement('div');
         modal.id = 'permitHistoryModal';
-        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
+        modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;gap:14px';
         document.body.appendChild(modal);
     }
     // Code→TypId-Map für die OCR-Übernahme (Walter 12.07.2026)
@@ -15127,7 +15226,7 @@ async function openPermitHistoryModal(entryId) {
             </div>
             <div id="phf-error" style="margin-top:10px;color:#b91c1c;font-size:12.5px"></div>
         </div>
-        <div id="phf-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;max-height:90vh;padding:14px;flex-direction:column;gap:8px">
+        <div id="phf-docpanel" class="side-docpanel" style="display:none;background:#fff;border-radius:14px;flex:1;min-width:380px;padding:14px;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                 <div id="phf-docname" style="font-size:12.5px;font-weight:700;color:#3f3f3f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
                 <div style="display:flex;gap:6px;flex-shrink:0">
@@ -15136,7 +15235,7 @@ async function openPermitHistoryModal(entryId) {
                 </div>
             </div>
             <div id="phf-ocrresult" style="display:none;font-size:12px;padding:7px 10px;border-radius:8px"></div>
-            <div id="phf-docview" style="flex:1;min-height:300px;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center"></div>
+            <div id="phf-docview" class="side-docview" style="flex:1;min-height:0;background:#f6f3ee;border:1px solid #e7e1d8;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center"></div>
         </div>
         </div>`;
     modal.style.display = 'flex';

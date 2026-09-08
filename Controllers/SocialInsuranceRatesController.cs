@@ -51,6 +51,8 @@ public class SocialInsuranceRatesController : ControllerBase
             r.CompanyProfileId,
             // Geschlechts-Filter (Walter 06.08.2026): NULL = alle, «F»/«M».
             r.Gender,
+            // Versicherungs-Lösung / Swissdec-Code + Lohnband «ab» (Walter 07.09.2026)
+            r.LoesungsCode, r.IsDefaultCode, r.BandVonMonthly,
             inLohnVerwendet = frozenPerioden.Any(p =>
                 r.ValidFrom <= p.PeriodTo
              && (r.ValidTo == null || r.ValidTo >= p.PeriodFrom))
@@ -110,6 +112,8 @@ public class SocialInsuranceRatesController : ControllerBase
              // Geschlechts-Namensraum (Walter 06.08.2026): F-/M-Zeilen desselben
              // Satzes sind KEIN Duplikat.
              && r.Gender == dto.Gender
+             // Lösungs-Namensraum (Walter 07.09.2026): Zeilen «A»/«B»/«P» … sind KEIN Duplikat.
+             && (r.LoesungsCode ?? "") == (dto.LoesungsCode ?? "")
              && r.ValidFrom == dto.ValidFrom);
         if (duplicate)
             return Conflict(new {
@@ -119,6 +123,9 @@ public class SocialInsuranceRatesController : ControllerBase
         dto.Id        = 0;
         dto.IsActive  = true;
         dto.CreatedAt = DateTime.UtcNow;
+        dto.LoesungsCode   = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
+        dto.IsDefaultCode  = dto.LoesungsCode != null && dto.IsDefaultCode;
+        dto.BandVonMonthly = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         _db.SocialInsuranceRates.Add(dto);
         await _db.SaveChangesAsync();
         return Ok(dto);
@@ -161,6 +168,9 @@ public class SocialInsuranceRatesController : ControllerBase
         rate.OnlyQuellensteuer     = dto.OnlyQuellensteuer;
         rate.CompanyProfileId      = dto.CompanyProfileId;
         rate.Gender                = dto.Gender;
+        rate.LoesungsCode          = string.IsNullOrWhiteSpace(dto.LoesungsCode) ? null : dto.LoesungsCode.Trim().ToUpperInvariant();
+        rate.IsDefaultCode         = rate.LoesungsCode != null && dto.IsDefaultCode;
+        rate.BandVonMonthly        = dto.BandVonMonthly is > 0 ? dto.BandVonMonthly : null;
         rate.FibuPosition          = dto.FibuPosition;
         rate.ValidFrom             = dto.ValidFrom;
         rate.ValidTo               = dto.ValidTo;
@@ -228,6 +238,9 @@ public class SocialInsuranceRatesController : ControllerBase
             CompanyProfileId      = oldRate.CompanyProfileId,
             // Geschlecht ebenso Teil des Schlüssels (F-/M-Zeilen, Walter 06.08.2026).
             Gender                = oldRate.Gender,
+            LoesungsCode          = oldRate.LoesungsCode,
+            IsDefaultCode         = oldRate.IsDefaultCode,
+            BandVonMonthly        = dto.BandVonMonthly ?? oldRate.BandVonMonthly,
             FibuPosition          = dto.FibuPosition ?? oldRate.FibuPosition,
             ValidFrom             = dto.ValidFrom,
             ValidTo               = dto.ValidTo,

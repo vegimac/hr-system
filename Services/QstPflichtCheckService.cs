@@ -419,14 +419,41 @@ public class QstPflichtCheckService
         // Walter 05.09.2026: Liegt eine Tarifbestätigung der Steuerbehörde am
         // Eintrag (DokumentId), ist SIE das Mass aller Dinge — keine
         // Plausibilitäts-Warnungen mehr gegen den bestätigten Tarif.
-        var tarifWarnungen = hasErfassung && erfassung!.DokumentId == null
-            // getrennt-lebende Verheiratete zählen tarifseitig NICHT mehr als
-            // verheiratet (A/H statt B/C, Walter 26.08.2026) — der
-            // Ehepartner-Eintrag im Familie-Tab ist dabei KORREKT und löst
-            // keine Meldung mehr aus (W4 gestrichen, Walter 30.08.2026).
-            ? await BuildTarifWarnungenAsync(employeeId, erfassung!, verheiratetUngetrennt, spouse, stichtag,
-                  trennungDatumFehlt: getrenntLebend && trennungDatum == null)
-            : null;
+        // Walter 07.09.2026 (Fall Hasani, C0N bestätigt → danach Kind erfasst):
+        // Die Bestätigung deckt nur die Familiensituation ab, die die Behörde
+        // damals kannte. Wird NACH dem Erfassen der Bestätigung ein Partner/
+        // Kind angelegt oder geändert, kommen die Warnungen wieder — mit dem
+        // Hinweis, dass eine NEUE Tarifbestätigung einzuholen ist.
+        List<string>? tarifWarnungen = null;
+        if (hasErfassung)
+        {
+            bool bestaetigt = erfassung!.DokumentId != null;
+            bool familieNachBestaetigungGeaendert = false;
+            if (bestaetigt)
+            {
+                var bestaetigtAm = erfassung.UpdatedAt ?? erfassung.CreatedAt;
+                if (bestaetigtAm.HasValue)
+                    familieNachBestaetigungGeaendert = await _db.EmployeeFamilyMembers.AsNoTracking()
+                        .AnyAsync(f => f.EmployeeId == employeeId
+                                    && (f.MemberType == "Kind" || f.MemberType == "Ehepartner"
+                                        || f.MemberType == "Konkubinatspartner")
+                                    && (f.CreatedAt > bestaetigtAm.Value || f.UpdatedAt > bestaetigtAm.Value));
+            }
+            if (!bestaetigt || familieNachBestaetigungGeaendert)
+            {
+                // getrennt-lebende Verheiratete zählen tarifseitig NICHT mehr als
+                // verheiratet (A/H statt B/C, Walter 26.08.2026) — der
+                // Ehepartner-Eintrag im Familie-Tab ist dabei KORREKT und löst
+                // keine Meldung mehr aus (W4 gestrichen, Walter 30.08.2026).
+                tarifWarnungen = await BuildTarifWarnungenAsync(employeeId, erfassung!, verheiratetUngetrennt, spouse, stichtag,
+                      trennungDatumFehlt: getrenntLebend && trennungDatum == null);
+                if (bestaetigt && tarifWarnungen is { Count: > 0 })
+                    tarifWarnungen.Insert(0,
+                        $"Familienangehörige wurden NACH der Tarifbestätigung ({(erfassung.UpdatedAt ?? erfassung.CreatedAt)!.Value:dd.MM.yyyy}) "
+                        + $"erfasst oder geändert — der bestätigte Tarif {erfassung.TarifCode} passt vermutlich nicht mehr. "
+                        + "Neue Tarifbestätigung bei der Steuerbehörde einholen und als neuen QST-Eintrag erfassen.");
+            }
+        }
 
         if (hasErfassung)
             return new QstPflichtCheckResult(false, true, true, null,

@@ -121,7 +121,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
             .Select(z => new
             {
                 z.Id, z.EmpfaengerId, z.Mitgliednummer, z.Subnummer,
-                z.GueltigAb, z.Bemerkung, z.IsActive,
+                z.GueltigAb, z.GueltigBis, z.Bemerkung, z.IsActive,
                 art          = z.Empfaenger!.Art,
                 bezeichnung  = z.Empfaenger!.Bezeichnung,
                 zusatz       = z.Empfaenger!.Zusatz,
@@ -145,19 +145,61 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         if (!cpExists) return NotFound(new { error = "BRANCH_NOT_FOUND" });
         var empExists = await _db.LohndatenEmpfaengers.AnyAsync(e => e.Id == dto.EmpfaengerId);
         if (!empExists) return NotFound(new { error = "EMPFAENGER_NOT_FOUND" });
-        var dup = await _db.CompanyProfileEmpfaengers
-            .AnyAsync(z => z.CompanyProfileId == cpId && z.EmpfaengerId == dto.EmpfaengerId);
-        if (dup) return Conflict(new { error = "EMPFAENGER_BEREITS_ZUGEORDNET" });
-
         var z = new CompanyProfileEmpfaenger
         {
             CompanyProfileId = cpId,
             EmpfaengerId     = dto.EmpfaengerId,
         };
         ApplyZuordnung(z, dto);
+        if (z.GueltigAb != null && z.GueltigBis != null && z.GueltigBis < z.GueltigAb)
+            return BadRequest(new { error = "GUELTIG_BIS_VOR_AB" });
+
+        // Derselbe Empfänger nochmals ohne Gültig-ab = echtes Duplikat.
+        // Mit Gültig-ab ist es ein neuer Satz (neuer Vertrag / neue Nummer).
+        var gleicher = await _db.CompanyProfileEmpfaengers
+            .AnyAsync(x => x.CompanyProfileId == cpId && x.EmpfaengerId == dto.EmpfaengerId
+                        && (z.GueltigAb == null || x.GueltigAb == z.GueltigAb));
+        if (gleicher) return Conflict(new { error = "EMPFAENGER_BEREITS_ZUGEORDNET" });
+
+        var geschlossen = await SchliesseVorgaengerAsync(cpId, z);
         _db.CompanyProfileEmpfaengers.Add(z);
         await _db.SaveChangesAsync();
-        return Ok(new { z.Id });
+        return Ok(new { z.Id, vorgaengerGeschlossen = geschlossen });
+    }
+
+    /// <summary>
+    /// Walter 07.09.2026: «Gültig bis» bleibt normalerweise offen. Ein neuer
+    /// Satz DERSELBEN ART (z.B. neue UVG-Versicherung ab 1.1.) setzt bei allen
+    /// noch offenen Sätzen dieser Art in dieser Filiale das Ende automatisch
+    /// auf Neubeginn − 1 Tag. Sätze, die erst nach dem Neubeginn starten,
+    /// bleiben unberührt (Zukunftssatz). Bei QST/FAK/Lohnausweis zählt der
+    /// Kanton mit — pro Kanton ist es ein eigener «Strang».
+    /// </summary>
+    private async Task<List<string>> SchliesseVorgaengerAsync(int cpId, CompanyProfileEmpfaenger neu)
+    {
+        var info = new List<string>();
+        if (neu.GueltigAb == null) return info;
+        var neuE = await _db.LohndatenEmpfaengers.AsNoTracking().FirstOrDefaultAsync(e => e.Id == neu.EmpfaengerId);
+        if (neuE == null) return info;
+        var kantonZaehlt = neuE.Art is "QST" or "FAK" or "LOHNAUSWEIS";
+        var ende = neu.GueltigAb.Value.AddDays(-1);
+
+        var offene = await _db.CompanyProfileEmpfaengers
+            .Include(x => x.Empfaenger)
+            .Where(x => x.CompanyProfileId == cpId && x.IsActive && x.Id != neu.Id
+                     && x.Empfaenger!.Art == neuE.Art
+                     && (x.GueltigBis == null || x.GueltigBis >= neu.GueltigAb)
+                     && (x.GueltigAb == null || x.GueltigAb < neu.GueltigAb))
+            .ToListAsync();
+        foreach (var alt in offene)
+        {
+            if (kantonZaehlt && !string.Equals(alt.Empfaenger?.KantonCode ?? "", neuE.KantonCode ?? "", StringComparison.OrdinalIgnoreCase))
+                continue;
+            alt.GueltigBis = ende;
+            alt.UpdatedAt  = DateTime.Now;
+            info.Add($"{alt.Empfaenger?.Bezeichnung} → gültig bis {ende:dd.MM.yyyy}");
+        }
+        return info;
     }
 
     [HttpPut("{id:int}")]
@@ -167,6 +209,8 @@ public class CompanyProfileEmpfaengerController : ControllerBase
             .FirstOrDefaultAsync(x => x.Id == id && x.CompanyProfileId == cpId);
         if (z == null) return NotFound();
         ApplyZuordnung(z, dto);
+        if (z.GueltigAb != null && z.GueltigBis != null && z.GueltigBis < z.GueltigAb)
+            return BadRequest(new { error = "GUELTIG_BIS_VOR_AB" });
         z.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
         return Ok(new { z.Id });
@@ -189,6 +233,7 @@ public class CompanyProfileEmpfaengerController : ControllerBase
         z.Subnummer      = string.IsNullOrWhiteSpace(dto.Subnummer) ? null : dto.Subnummer.Trim();
         z.Bemerkung      = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
         z.GueltigAb      = DateOnly.TryParse(dto.GueltigAb, out var ab) ? ab : null;
+        z.GueltigBis     = DateOnly.TryParse(dto.GueltigBis, out var bis) ? bis : null;
         if (dto.IsActive.HasValue) z.IsActive = dto.IsActive.Value;
     }
 }
@@ -218,5 +263,7 @@ public class CpEmpfaengerDto
     public string? Bemerkung { get; set; }
     /// <summary>ISO yyyy-MM-dd (native Datumsfelder) — leer = seit jeher.</summary>
     public string? GueltigAb { get; set; }
+    /// <summary>ISO yyyy-MM-dd — leer = offen (gilt weiterhin).</summary>
+    public string? GueltigBis { get; set; }
     public bool? IsActive { get; set; }
 }

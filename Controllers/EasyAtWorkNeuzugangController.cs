@@ -44,7 +44,11 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
         _empSync = empSync;
     }
 
-    public record NeuzugangDto(int CompanyProfileId, List<string>? SelectedNumbers);
+    /// <param name="TrotzdemImportieren">Walter-Vorgabe 08.09.2026: easy@work blockiert
+    /// manchmal einzelne Nummern, dann entsteht eine Lücke. Mit dieser Pille wird die
+    /// Lücke akzeptiert — Nummern müssen aber weiterhin numerisch, eindeutig und
+    /// GRÖSSER als die letzte Nr. sein (kein Vertipper nach unten).</param>
+    public record NeuzugangDto(int CompanyProfileId, List<string>? SelectedNumbers, bool TrotzdemImportieren = false);
 
     [HttpPost("preview")]
     public async Task<IActionResult> Preview([FromBody] NeuzugangDto dto, CancellationToken ct)
@@ -129,7 +133,9 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
         {
             var seq = await BuildNumberSequenceInfoAsync(dto.CompanyProfileId, ct);
             if (!EmployeeNumberSequenceGuard.TryValidate(
-                    newSelected, seq.MaxExisting, out var msg, out var expected, out var received))
+                    newSelected, seq.MaxExisting, out var msg, out var expected, out var received)
+                && !(dto.TrotzdemImportieren
+                     && EmployeeNumberSequenceGuard.LueckeErlaubt(newSelected, seq.MaxExisting, out msg)))
             {
                 return Conflict(new
                 {

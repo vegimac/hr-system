@@ -702,6 +702,9 @@ async function renderVtDetail(emp) {
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="${modelClass(c.employmentModel)}" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px">${modelLabel[c.employmentModel]||modelDisplay(c.employmentModel)||'–'}</span>
                     ${isActive ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#dcfce7;color:#15803d">${_t('vt.badge.active')}</span>` : `<span style="font-size:11px;color:#94a3b8;padding:3px 10px;border-radius:10px;background:#f1f5f9">${_t('vt.badge.completed')}</span>`}
+                    ${c.easyAtWorkContractId
+                        ? `<span title="Aus easy@work synchronisiert${c.easyAtWorkUpdatedAt ? ' · Stand ' + new Date(c.easyAtWorkUpdatedAt).toLocaleDateString('de-CH') : ''}" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0">easy@work</span>`
+                        : `<span title="Von Hand in OneCrew erfasst — nicht aus easy@work" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;background:#dbeafe;color:#1d4ed8;border:1px solid #bfdbfe">manuell</span>`}
                     ${c.easyAtWorkManualOverride ? `<span title="easy@work-Import blockiert: Dieser Vertrag/Lohn wird lokal gepflegt und nicht vom easy@work-Sync überschrieben." style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5">easy@work Block</span>` : ''}
                 </div>
                 <div style="display:flex;gap:6px;align-items:center">

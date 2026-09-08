@@ -1068,6 +1068,47 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_praefix varchar(6);
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS personalnummer_stellen integer;
+        -- Walter 07.09.2026: BFS-Gemeindenummer (Swissdec Workplace/MunicipalityID) — VOR der
+        -- Schema-Pruefung, sonst meldet der erste Start nach dem Deploy «fehlende Spalte».
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS bfs_gemeinde_nr integer;
+        -- Walter 07.09.2026: «Gültig bis» auf der Filial-Zuordnung der Lohndaten-Empfänger
+        -- (Kassen-/Vertragswechsel). Derselbe Empfänger darf pro Filiale mehrfach vorkommen
+        -- (alter Vertrag bis / neuer Vertrag ab) → Unique-Index wird zu normalem Index.
+        -- (IF EXISTS: auf einer ganz frischen DB entsteht die Tabelle erst weiter unten.)
+        ALTER TABLE IF EXISTS company_profile_empfaenger ADD COLUMN IF NOT EXISTS gueltig_bis date;
+        DROP INDEX IF EXISTS ux_cp_empfaenger_cp_empf;
+        -- Walter 07.09.2026: Versicherungs-Lösungen (Swissdec-Codes) an den SV-Sätzen +
+        -- Lohnband «ab»; Code pro Versicherung am MA. Alles VOR der Schema-Pruefung.
+        ALTER TABLE IF EXISTS social_insurance_rate ADD COLUMN IF NOT EXISTS loesungs_code varchar(10);
+        ALTER TABLE IF EXISTS social_insurance_rate ADD COLUMN IF NOT EXISTS is_default_code boolean NOT NULL DEFAULT false;
+        ALTER TABLE IF EXISTS social_insurance_rate ADD COLUMN IF NOT EXISTS band_von_monthly numeric(10,2);
+        CREATE TABLE IF NOT EXISTS employee_versicherung_code (
+            id             serial PRIMARY KEY,
+            employee_id    integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            art            varchar(10) NOT NULL,
+            code           varchar(10),
+            valid_from     date NOT NULL,
+            valid_to       date,
+            beitrag_fix_an numeric(10,2),
+            beitrag_fix_ag numeric(10,2),
+            bemerkung      text,
+            created_at     timestamp with time zone NOT NULL DEFAULT now(),
+            created_by     integer
+        );
+        CREATE INDEX IF NOT EXISTS ix_emp_vers_code_emp_art_from
+            ON employee_versicherung_code (employee_id, art, valid_from);
+        -- Walter 07.09.2026: Grenzgänger-Angaben (Steuer-ID, Geburtsort, ab) in der QST-Erfassung;
+        -- BVG-Eintrittsangaben am Versicherungs-Eintrag; Lektionenlohn am Vertrag.
+        ALTER TABLE IF EXISTS employee_quellensteuer ADD COLUMN IF NOT EXISTS grenzgaenger_steuer_id varchar(40);
+        ALTER TABLE IF EXISTS employee_quellensteuer ADD COLUMN IF NOT EXISTS grenzgaenger_geburtsort varchar(120);
+        ALTER TABLE IF EXISTS employee_quellensteuer ADD COLUMN IF NOT EXISTS grenzgaenger_ab date;
+        ALTER TABLE IF EXISTS employee_versicherung_code ALTER COLUMN created_at TYPE timestamp with time zone;
+        ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_eintrittsgrund varchar(30);
+        ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_voll_arbeitsfaehig boolean;
+        ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_basis_manuell numeric(12,2);
+        ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS thirteenth_salary boolean NOT NULL DEFAULT true;
+        ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
+        ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
     ");
 
     // ── Gesprächsmodus Bewerbungsgespräch (Walter 03.09.2026) ─────────────
@@ -1155,6 +1196,9 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS probezeit_entscheid_am DATE;
         -- Walter 06.09.2026: verknüpftes Arbeitszeugnis (Pendenz ab 1 Tag nach Austritt)
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS arbeitszeugnis_dokument_id INTEGER;
+        -- Walter 07.09.2026: wer führt in dieser Filiale Bewerbungsgespräche
+        -- (Gesprächsmodus «Gespräch geführt von»). Doku: migrations-archive/add_can_bewerbungsgespraech.sql
+        ALTER TABLE user_branch_access ADD COLUMN IF NOT EXISTS can_bewerbungsgespraech boolean NOT NULL DEFAULT false;
     ");
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config
@@ -2964,22 +3008,25 @@ using (var scope = app.Services.CreateScope())
         BEGIN
             DROP INDEX IF EXISTS ux_social_insurance_rate_natural;
             DROP INDEX IF EXISTS ux_social_insurance_rate_natural2;
+            DROP INDEX IF EXISTS ux_social_insurance_rate_natural3;
             IF NOT EXISTS (
                 SELECT 1 FROM (
                     SELECT 1 FROM social_insurance_rate
                     GROUP BY code, valid_from, COALESCE(min_age, -1),
                              COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
                              basis_type, only_quellensteuer,
-                             COALESCE(company_profile_id, 0), COALESCE(gender, '')
+                             COALESCE(company_profile_id, 0), COALESCE(gender, ''),
+                             COALESCE(loesungs_code, '')
                     HAVING COUNT(*) > 1
                 ) dup
             ) THEN
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural3
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_social_insurance_rate_natural4
                 ON social_insurance_rate (
                     code, valid_from, COALESCE(min_age, -1),
                     COALESCE(max_age, -1), COALESCE(employment_model_code, ''),
                     basis_type, only_quellensteuer,
-                    COALESCE(company_profile_id, 0), COALESCE(gender, '')
+                    COALESCE(company_profile_id, 0), COALESCE(gender, ''),
+                    COALESCE(loesungs_code, '')
                 );
             END IF;
         END $$;
@@ -3810,10 +3857,12 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_cp_empfaenger_company_profile
             ON company_profile_empfaenger (company_profile_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS ux_cp_empfaenger_cp_empf
+        CREATE INDEX IF NOT EXISTS ix_cp_empfaenger_cp_empf
             ON company_profile_empfaenger (company_profile_id, empfaenger_id);
         ALTER TABLE company_profile_empfaenger
             ADD COLUMN IF NOT EXISTS gueltig_ab date;
+        ALTER TABLE company_profile_empfaenger
+            ADD COLUMN IF NOT EXISTS gueltig_bis date;
     ");
 
     // ── Wohnort-Historie (Walter 07.08.2026): PLZ/Ort/Kanton mit Gültig-ab —
@@ -4422,6 +4471,10 @@ using (var scope = app.Services.CreateScope())
         );
         CREATE INDEX IF NOT EXISTS ix_lse_lohnart_mapping_code ON lse_lohnart_mapping (lohnart_code);
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS bur_nr varchar(8);
+        -- Walter 07.09.2026: Swissdec-BUR-REE-Nummer hat 9 Zeichen (A92978109) → auf 20 erweitern (idempotent).
+        ALTER TABLE company_profile ALTER COLUMN bur_nr TYPE varchar(20);
+        -- Walter 07.09.2026: BFS-Gemeindenummer des Standorts (Swissdec Workplace/MunicipalityID).
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS bfs_gemeinde_nr integer;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS uid_bfs varchar(20);
         CREATE TABLE IF NOT EXISTS lse_code_mapping (
             id          serial PRIMARY KEY,

@@ -434,7 +434,7 @@ public class BewerbungsbogenPdfService
                     "Es müssen schwarze, geschlossene Schuhe getragen werden.",
                     "Die vereinbarten Arbeitszeiten können frühestens nach 4 Monaten geändert werden.",
                     "Für Teilzeit-Angestellte richtet sich die wöchentliche Arbeitszeit nach den Bedürfnissen des Arbeitgebers und ist — innerhalb der vereinbarten Arbeitszeiten — variabel.",
-                    "Jugendliche bis zum vollendeten 18. Altersjahr dürfen bis spätestens 22.00 Uhr arbeiten.",
+                    "Jugendliche zwischen 16 und 18 Jahren dürfen bis spätestens 22.00 Uhr arbeiten. Für unter 16-Jährige gelten andere Regelungen.",
                 })
                 {
                     c.Item().PaddingBottom(1).Row(r =>
@@ -702,7 +702,7 @@ public class BewerbungsbogenPdfService
                     "Es müssen schwarze, geschlossene Schuhe getragen werden.",
                     "Die vereinbarten Arbeitszeiten können frühestens nach 4 Monaten geändert werden.",
                     "Für Teilzeit-Angestellte richtet sich die wöchentliche Arbeitszeit nach den Bedürfnissen des Arbeitgebers und ist — innerhalb der vereinbarten Arbeitszeiten — variabel.",
-                    "Jugendliche bis zum vollendeten 18. Altersjahr dürfen bis spätestens 22.00 Uhr arbeiten.",
+                    "Jugendliche zwischen 16 und 18 Jahren dürfen bis spätestens 22.00 Uhr arbeiten. Für unter 16-Jährige gelten andere Regelungen.",
                 })
                 {
                     c.Item().PaddingBottom(1).Row(r =>

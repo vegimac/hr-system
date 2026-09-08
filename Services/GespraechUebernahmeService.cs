@@ -211,6 +211,7 @@ public class GespraechUebernahmeService
         "verwitwet" => "verwitwet",
         "getrennt" => "getrennt",
         "eingetragene partnerschaft" => "eingetragene_partnerschaft",
+        "aufgelöste partnerschaft" => "aufgeloeste_partnerschaft",
         _ => null
     };
 

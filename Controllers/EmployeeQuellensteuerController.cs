@@ -115,6 +115,7 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.LivesInKonkubinat, q.HasJointParentalCare,
         q.PaysAlimonyAdultChildren, q.HasHigherIncomeThanPartner,
         q.IsGrenzgaenger, q.IsWochenaufenthalter,
+        q.GrenzgaengerSteuerId, q.GrenzgaengerGeburtsort, q.GrenzgaengerAb,
         // Walter 21.08.2026: Tarifbestätigung als Beleg-Doku.
         q.DokumentId,
         q.CreatedAt, q.UpdatedAt,
@@ -305,6 +306,15 @@ public class EmployeeQuellensteuerController : ControllerBase
             }
             entry.TarifCode = buchstabe;
             if (dto.Kirchensteuer.HasValue) entry.Kirchensteuer = dto.Kirchensteuer.Value;
+            // Walter 07.09.2026: der GANZE bestätigte Code wird erfasst — auch
+            // die Kinderziffer (die Behörde kann bewusst von der Familie
+            // abweichen, z.B. Kinderabzug beim anderen Elternteil).
+            if (dto.AnzahlKinder.HasValue)
+            {
+                if (dto.AnzahlKinder.Value < 0 || dto.AnzahlKinder.Value > 9)
+                    return BadRequest(new { error = "KINDER_INVALID", message = "Kinderziffer: 0–9." });
+                entry.AnzahlKinder = dto.AnzahlKinder.Value;
+            }
             entry.QstCode = $"{entry.TarifCode}{entry.AnzahlKinder}{(entry.Kirchensteuer ? "Y" : "N")}";
             entry.Prozentsatz = null;   // Satz wird aus der Tariftabelle neu gerechnet
         }
@@ -312,7 +322,7 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.DokumentId = dto.DokumentId;
         entry.UpdatedAt  = DateTime.Now;
         await _db.SaveChangesAsync();
-        return Ok(new { id = entry.Id, dokumentId = entry.DokumentId, tarifCode = entry.TarifCode, kirchensteuer = entry.Kirchensteuer, qstCode = entry.QstCode });
+        return Ok(new { id = entry.Id, dokumentId = entry.DokumentId, tarifCode = entry.TarifCode, anzahlKinder = entry.AnzahlKinder, kirchensteuer = entry.Kirchensteuer, qstCode = entry.QstCode });
     }
 
     public class QstDokumentDto
@@ -322,6 +332,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         public string? TarifBuchstabe { get; set; }
         /// <summary>Bestätigte Kirchensteuer (letzter Buchstabe Y/N), optional.</summary>
         public bool? Kirchensteuer { get; set; }
+        /// <summary>Bestätigte Kinderziffer (mittlere Stelle 0–9), optional (Walter 07.09.2026).</summary>
+        public int? AnzahlKinder { get; set; }
     }
 
     /// <summary>
@@ -631,6 +643,9 @@ public class EmployeeQuellensteuerController : ControllerBase
         entry.HasHigherIncomeThanPartner = dto.HasHigherIncomeThanPartner;
         entry.IsGrenzgaenger             = dto.IsGrenzgaenger;
         entry.IsWochenaufenthalter       = dto.IsWochenaufenthalter;
+        entry.GrenzgaengerSteuerId       = string.IsNullOrWhiteSpace(dto.GrenzgaengerSteuerId) ? null : dto.GrenzgaengerSteuerId.Trim().ToUpperInvariant();
+        entry.GrenzgaengerGeburtsort     = string.IsNullOrWhiteSpace(dto.GrenzgaengerGeburtsort) ? null : dto.GrenzgaengerGeburtsort.Trim();
+        entry.GrenzgaengerAb             = dto.GrenzgaengerAb;
 
         // Konkubinat IMMER aus dem Familie-Tab (Walter 25.08.2026) — analog
         // Wohnadresse/Kirchensteuer, siehe ApplyKonkubinatAsync.

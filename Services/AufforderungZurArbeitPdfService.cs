@@ -81,9 +81,9 @@ public class AufforderungZurArbeitPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(44).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(28).Text("Aufforderung zur Arbeit").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(14).Text("Aufforderung zur Arbeit").Bold().FontSize(12.5f);
 
                     col.Item().PaddingTop(20).Text($"{d.GutenTagAnrede}");
 

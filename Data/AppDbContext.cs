@@ -59,6 +59,7 @@ public class AppDbContext : DbContext
     public DbSet<LohnZulage> LohnZulagen => Set<LohnZulage>();
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
+    public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
     public DbSet<EmployeeUniformDepot> EmployeeUniformDepots => Set<EmployeeUniformDepot>();
     public DbSet<PregnancyRule>     PregnancyRules     => Set<PregnancyRule>();
     public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
@@ -257,6 +258,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmploymentPercentage).HasColumnName("employment_percentage");
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
+            entity.Property(e => e.ThirteenthSalary).HasColumnName("thirteenth_salary").HasDefaultValue(true);
+            entity.Property(e => e.LessonRate).HasColumnName("lesson_rate").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.WeeklyLessons).HasColumnName("weekly_lessons").HasColumnType("numeric(6,2)");
             // UVG Art. 1a: NBU-Befreiung < 8 h/Wo. — pro FLEX-Vertrag (Walter 31.07.2026).
             entity.Property(e => e.TeilzeitUnter8hWoche)
                   .HasColumnName("teilzeit_unter_8h_woche")
@@ -606,8 +610,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.PersonalnummerPraefix).HasColumnName("personalnummer_praefix").HasMaxLength(6);
             entity.Property(e => e.PersonalnummerStellen).HasColumnName("personalnummer_stellen");
             entity.Property(e => e.Phone).HasColumnName("phone");
-            entity.Property(e => e.BurNr).HasColumnName("bur_nr").HasMaxLength(8);
+            entity.Property(e => e.BurNr).HasColumnName("bur_nr").HasMaxLength(20);
             entity.Property(e => e.UidBfs).HasColumnName("uid_bfs").HasMaxLength(20);
+            entity.Property(e => e.BfsGemeindeNr).HasColumnName("bfs_gemeinde_nr");
             entity.Property(e => e.Email).HasColumnName("email");
             entity.Property(e => e.NormalWeeklyHours).HasColumnName("normal_weekly_hours");
             entity.Property(e => e.MaxWeeklyHours).HasColumnName("max_weekly_hours").HasColumnType("numeric(5,2)");
@@ -1057,6 +1062,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsDefault).HasColumnName("is_default");
             entity.Property(e => e.CanDienstplan).HasColumnName("can_dienstplan");
             entity.Property(e => e.CanVertragSms).HasColumnName("can_vertrag_sms");
+            entity.Property(e => e.CanBewerbungsgespraech).HasColumnName("can_bewerbungsgespraech");
             entity.HasOne(e => e.User).WithMany(e => e.BranchAccess).HasForeignKey(e => e.UserId);
             entity.HasOne(e => e.CompanyProfile).WithMany().HasForeignKey(e => e.CompanyProfileId);
         });
@@ -1503,6 +1509,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Mitgliednummer).HasColumnName("mitgliednummer");
             entity.Property(e => e.Subnummer).HasColumnName("subnummer");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.IsActive).HasColumnName("is_active");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
@@ -2093,6 +2100,30 @@ public class AppDbContext : DbContext
                   .HasDatabaseName("ix_bvg_member_emp_period");
         });
 
+        // ── EmployeeVersicherungCode (Walter 07.09.2026, Swissdec-Lösungscodes) ──
+        modelBuilder.Entity<EmployeeVersicherungCode>(entity =>
+        {
+            entity.ToTable("employee_versicherung_code");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Art).HasColumnName("art").HasMaxLength(10);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(10);
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.BeitragFixAn).HasColumnName("beitrag_fix_an").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.BeitragFixAg).HasColumnName("beitrag_fix_ag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.BvgEintrittsgrund).HasColumnName("bvg_eintrittsgrund").HasMaxLength(30);
+            entity.Property(e => e.BvgVollArbeitsfaehig).HasColumnName("bvg_voll_arbeitsfaehig");
+            entity.Property(e => e.BvgBasisManuell).HasColumnName("bvg_basis_manuell").HasColumnType("numeric(12,2)");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
+            entity.HasIndex(e => new { e.EmployeeId, e.Art, e.ValidFrom })
+                  .HasDatabaseName("ix_emp_vers_code_emp_art_from");
+        });
+
         // ── EmployeeUniformDepot (Walter Aug 2026) ─────────────────────────
         modelBuilder.Entity<EmployeeUniformDepot>(entity =>
         {
@@ -2557,6 +2588,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HasHigherIncomeThanPartner).HasColumnName("has_higher_income_than_partner");
             entity.Property(e => e.IsGrenzgaenger).HasColumnName("is_grenzgaenger");
             entity.Property(e => e.IsWochenaufenthalter).HasColumnName("is_wochenaufenthalter");
+            entity.Property(e => e.GrenzgaengerSteuerId).HasColumnName("grenzgaenger_steuer_id").HasMaxLength(40);
+            entity.Property(e => e.GrenzgaengerGeburtsort).HasColumnName("grenzgaenger_geburtsort").HasMaxLength(120);
+            entity.Property(e => e.GrenzgaengerAb).HasColumnName("grenzgaenger_ab").HasColumnType("date");
             // TIMESTAMP (= without time zone) — ohne HasColumnType mappt Npgsql 8
             // DateTime als timestamptz und SaveChanges scheitert beim Schreiben.
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
@@ -2591,6 +2625,9 @@ public class AppDbContext : DbContext
             entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
             entity.Property(e => e.Gender).HasColumnName("gender").HasMaxLength(1);
             entity.Property(e => e.FibuPosition).HasColumnName("fibu_position");
+            entity.Property(e => e.LoesungsCode).HasColumnName("loesungs_code").HasMaxLength(10);
+            entity.Property(e => e.IsDefaultCode).HasColumnName("is_default_code").HasDefaultValue(false);
+            entity.Property(e => e.BandVonMonthly).HasColumnName("band_von_monthly").HasColumnType("numeric(10,2)");
             entity.Property(e => e.RateEmployer).HasColumnName("rate_employer").HasColumnType("numeric(6,3)");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");

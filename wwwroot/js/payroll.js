@@ -860,7 +860,12 @@ async function loadLohnList() {
 
         listEl.innerHTML = '';
         if (active.length === 0) {
-            listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter</div>';
+            const monthNamesLeer = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+            listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter im ${monthNamesLeer[m-1] || ''} ${y}<div style="font-size:11.5px;margin-top:6px">Periode oben wechseln</div></div>`;
+            // Walter 08.09.2026: Periodenauswahl auch ohne MA anzeigen — sonst kommt
+            // man aus einer leeren Filiale/Periode nicht mehr heraus (Sackgasse).
+            const perTb = document.getElementById('lohnPeriodToolbar');
+            if (perTb) perTb.style.display = 'flex';
             _lohnWfRenderStatusBar();
             return;
         }

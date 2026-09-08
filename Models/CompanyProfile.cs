@@ -76,6 +76,9 @@ public class CompanyProfile
 
     /// <summary>UID fürs BFS (LSE-Spalte R «uidBFS», z.B. CHE-123.456.789).</summary>
     public string? UidBfs { get; set; }
+    /// <summary>BFS-Gemeindenummer des Standorts (z.B. 1061 Luzern) — Pflicht in der
+    /// Swissdec-Meldung (Workplace/AddressExtended/MunicipalityID, Walter 07.09.2026).</summary>
+    public int? BfsGemeindeNr { get; set; }
     public string? Email { get; set; }
 
     public decimal? NormalWeeklyHours { get; set; }

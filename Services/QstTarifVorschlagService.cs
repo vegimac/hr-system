@@ -37,7 +37,7 @@ public class QstTarifVorschlagService
         var emp = await _db.Employees
             .Where(e => e.Id == employeeId)
             .Select(e => new {
-                e.Id, e.MaritalStatus, e.Religion, e.CantonCode, e.SeparatedSince, e.ZipCode, e.City
+                e.Id, e.MaritalStatus, e.Religion, e.CantonCode, e.SeparatedSince, e.ZipCode, e.City, e.Country
             })
             .FirstOrDefaultAsync();
         if (emp == null) return null;
@@ -64,6 +64,39 @@ public class QstTarifVorschlagService
                 kantonAmStichtag = treffer.KantonCode.Trim().ToUpperInvariant();
         }
         catch { /* Historie optional */ }
+
+        // Wohnsitz im AUSLAND (Grenzgänger / internationale Wochenaufenthalter,
+        // Walter 07.09.2026, Testfall TF34 Rinaldi): kein Wohnkanton → QST-Kanton
+        // wie beim Speichern (ApplyWohnadresse): Kanton der Wochenaufenthalts-
+        // adresse, sonst Arbeitskanton der Filiale. Ohne das lief der Vorschlag
+        // ohne Kanton → Kirchensteuer-Sperrliste (TI/VD/GE/NE/VS) blieb wirkungslos
+        // (A0Y statt A0N) und «Wohnkanton nicht gepflegt» erschien fälschlich.
+        var landU = (emp.Country ?? "").Trim().ToUpperInvariant();
+        var wohnsitzAusland = landU.Length > 0 && landU != "CH" && landU != "CHE" && landU != "SCHWEIZ";
+        if (string.IsNullOrWhiteSpace(kantonAmStichtag) && wohnsitzAusland)
+        {
+            try
+            {
+                var waPlz = await _db.EmployeeAddresses.AsNoTracking()
+                    .Where(a => a.EmployeeId == employeeId && a.AddressType == "Wochenaufenthalt")
+                    .Select(a => a.ZipCode).FirstOrDefaultAsync();
+                string? kt = null;
+                if (!string.IsNullOrWhiteSpace(waPlz))
+                    kt = await _db.SwissLocations.AsNoTracking().Where(l => l.Plz4 == waPlz.Trim()).Select(l => l.Kantonskuerzel).FirstOrDefaultAsync();
+                if (string.IsNullOrWhiteSpace(kt))
+                {
+                    var st = stichtag.ToDateTime(TimeOnly.MinValue);
+                    kt = await (from em in _db.Employments
+                                join c in _db.CompanyProfiles on em.CompanyProfileId equals c.Id
+                                where em.EmployeeId == employeeId && em.IsActive
+                                      && em.ContractStartDate <= st && (em.ContractEndDate == null || em.ContractEndDate >= st)
+                                orderby em.ContractStartDate descending
+                                select c.KantonCode).FirstOrDefaultAsync();
+                }
+                if (!string.IsNullOrWhiteSpace(kt)) kantonAmStichtag = kt.Trim().ToUpperInvariant();
+            }
+            catch { /* Fallback optional */ }
+        }
 
         // Kinder mit allen für die Berechnung nötigen Feldern laden.
         // WICHTIG (Walter-Bug 13.07.2026, HTTP 500): DateOnly.FromDateTime darf

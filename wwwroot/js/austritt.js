@@ -389,6 +389,10 @@ async function _azLadeBerechtigung() {
     return _azBerechtigung;
 }
 function azDarfDrucken() {
+    // Walter 07.09.2026 (Entscheid mit seinem Sohn): Arbeits- und Zwischen-
+    // zeugnisse erstellt IMMER HR — der GF füllt nur die Beurteilung aus.
+    // Die Stufe «Zeugnis drucken bis» gilt nur noch für die Arbeitsbestätigung.
+    if (!_azBest) return !!_azBerechtigung?.istHr;
     const fn = document.getElementById('azFunktion')?.value || '';
     return (_azBerechtigung?.stufe ?? 0) >= _azFunktionStufe(fn);
 }
@@ -409,7 +413,19 @@ function azRefreshButtons() {
     if (zw) zw.style.display = (_azEntwurf && darf) ? '' : 'none';
     if (hint) {
         hint.style.display = darf ? 'none' : '';
-        hint.textContent = `Zeugnisse für «${fn}» erstellt HR — du kannst die Maske ausfüllen und als Entwurf an HR senden (deine Stufe: ${_azBerechtigung?.label || 'keine'}).`;
+        hint.textContent = _azBest
+            ? `Arbeitsbestätigungen für «${fn}» erstellt HR — du kannst die Maske ausfüllen und als Entwurf an HR senden (deine Stufe: ${_azBerechtigung?.label || 'keine'}).`
+            : 'Arbeits- und Zwischenzeugnisse erstellt HR: Fülle hier die Beurteilung aus und sende sie an HR. HR kontrolliert, druckt, unterschreibt und schickt das Zeugnis zusammen mit den Austrittsformularen per Post an den MA.';
+    }
+    // Unterzeichner-Wahl nur, wenn HR das PDF erstellt.
+    const sig = document.getElementById('azSignerBox');
+    if (sig) sig.style.display = darf ? '' : 'none';
+    // Diagnose-Zeile: als wer und warum darf hier ein PDF erstellt werden.
+    const diag = document.getElementById('azDiag');
+    if (diag) {
+        diag.style.display = darf ? '' : 'none';
+        diag.textContent = `Du erstellst als ${_azBerechtigung?.benutzer || '?'} (Rolle ${_azBerechtigung?.rolle || '?'})`
+            + (_azBerechtigung?.istHrGrund ? ` — HR-Berechtigung: ${_azBerechtigung.istHrGrund}.` : '.');
     }
 }
 
@@ -425,7 +441,6 @@ function _azFuelleAusDaten(d) {
     if (d.datum) document.getElementById('azDatum').value = String(d.datum).slice(0, 10);
     const azA = document.getElementById('azAustritt'); if (azA && d.austritt) azA.value = String(d.austritt).slice(0, 10);
     const w = document.getElementById('azWunsch'); if (w) w.checked = d.aufEigenenWunsch !== false;
-    const zu = document.querySelector(`input[name="azZustell"][value="${d.abgabe ? 'A' : 'V'}"]`); if (zu) zu.checked = true;
     const b = new Set((d.bereiche || []).map(x => String(x).toLowerCase()));
     const ku = document.getElementById('azKueche'); if (ku) ku.checked = b.has('kueche');
     const ka = document.getElementById('azKasse');  if (ka) ka.checked = b.has('kasse');
@@ -459,7 +474,7 @@ async function azSendeEntwurf() {
             return;
         }
         document.getElementById('azModal').remove();
-        if (typeof showToast === 'function') showToast('Zeugnis-Entwurf an HR gesendet — HR erstellt und unterschreibt das Zeugnis.');
+        if (typeof showToast === 'function') showToast('Beurteilung an HR gesendet — HR erstellt, unterschreibt und verschickt das Zeugnis per Post an den MA.');
         else alert('Zeugnis-Entwurf an HR gesendet.');
     } catch (e) {
         alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">Netzwerkfehler: ${e.message}</div>`;
@@ -521,8 +536,10 @@ function _azSammleDto() {
         zwischen: _azZwischen,
         bestaetigung: _azBest,
         austritt: document.getElementById('azAustritt')?.value || null,
-        // Abgabe durch Restaurant = Allgemein-Unterzeichner (Walter 12.08.2026).
-        abgabe: document.querySelector('input[name="azZustell"]:checked')?.value === 'A',
+        // Walter 07.09.2026: keine Zustellart mehr — HR wählt die Unterzeichner/in,
+        // Unterschrift erfolgt von Hand auf dem Ausdruck (kein Bild im PDF).
+        abgabe: false,
+        signerUserId: parseInt(document.getElementById('azSigner')?.value || '', 10) || null,
         entwurfId: _azEntwurf?.id || null
     };
 }
@@ -591,6 +608,21 @@ function _azEmpObj(employeeId) {
 
 let _azZwischen = false;
 let _azBest = false;   // Arbeitsbestätigung (Vorlage «244 Sursee»)
+
+// Unterzeichner-Liste (Walter 07.09.2026): HR/Admin/Superuser + Benutzer der
+// MA-Filiale; Vorbelegung = eingeloggter Benutzer.
+async function _azLadeUnterzeichner(employeeId) {
+    const sel = document.getElementById('azSigner');
+    if (!sel) return;
+    try {
+        const r = await fetch(`/api/arbeitszeugnis/${employeeId}/unterzeichner`, { headers: { 'Authorization': `Bearer ${authToken}` } });
+        const list = r.ok ? await r.json() : [];
+        const me = (typeof currentUser !== 'undefined' && currentUser?.id) || null;
+        sel.innerHTML = list.map(u =>
+            `<option value="${u.id}" ${u.id === me ? 'selected' : ''}>${u.name}${u.funktion ? ' · ' + u.funktion : ''}</option>`).join('')
+            || '<option value="">– keine Unterzeichner gefunden –</option>';
+    } catch (_) { sel.innerHTML = '<option value="">– Fehler beim Laden –</option>'; }
+}
 
 async function openZeugnisModal(employeeId, zwischen = false, best = false, entwurf = null) {
     _azEmployeeId = employeeId;
@@ -683,13 +715,10 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
                 <div style="font-size:11.5px;color:#8b8b8b;margin-top:4px">Vorschlag = erfasstes Austrittsdatum des MA (sonst Vertragsende / Monatsende). Im Zeugnis gilt das HIER eingetragene Datum.</div>
             </div>` : ''}
 
-            <div style="margin-bottom:16px">
-                <div style="${label}">Zustellung &amp; Unterzeichner</div>
-                <div class="zst-wrap">
-                    <label class="zst-pill"><input type="radio" name="azZustell" value="V" checked>📮 Versand an Mitarbeiter</label>
-                    <label class="zst-pill"><input type="radio" name="azZustell" value="A">🏪 Abgabe durch Restaurant</label>
-                </div>
-                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Versand: unterzeichnet der angemeldete Benutzer · Abgabe: unterzeichnet der Allgemein-Unterzeichner der Filiale.</div>
+            <div id="azSignerBox" style="margin-bottom:16px;display:none">
+                <div style="${label}">Unterzeichner/in</div>
+                <select id="azSigner" style="${inp}"><option value="">– lädt… –</option></select>
+                <div style="font-size:11px;color:#8b8b8b;margin-top:4px">Im PDF stehen nur Name und Funktion — die Unterschrift erfolgt von Hand auf dem Ausdruck. Danach einscannen, beim MA ablegen und zusammen mit den Austrittsformularen per Post an den MA senden.</div>
             </div>
 
             <label style="${pill};margin-bottom:16px;${(_azZwischen || _azBest) ? 'display:none' : ''}"><input type="checkbox" id="azWunsch" checked> Austritt auf eigenen Wunsch <span style="color:#8b8b8b;font-weight:400">— «verlässt unser Unternehmen auf eigenen Wunsch»</span></label>
@@ -711,6 +740,7 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
             </div>
 
             <div id="azAlert"></div>
+            <div id="azDiag" style="display:none;font-size:11.5px;color:#8b8b8b;margin-bottom:8px"></div>
             <div id="azDruckHinweis" style="display:none;font-size:12px;color:#a16207;background:#fdf1dc;border:1px solid #f3d9a4;border-radius:10px;padding:8px 12px;margin-bottom:10px"></div>
             <div id="azBemerkungBox" style="display:none;margin-bottom:10px">
                 <div style="${label}">Bemerkung an HR (optional)</div>
@@ -726,6 +756,7 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
             </div>
         </div>`;
     document.body.appendChild(ov);
+    _azLadeUnterzeichner(employeeId);
     document.getElementById('azDatum').value = isoLocalDate(new Date());
     // Austrittsdatum: Vorschlag = MA-Austritt → Vertragsende → Monatsende
     // (Walter 12.08.2026); im Zeugnis gilt das eingetragene Datum.
@@ -801,6 +832,8 @@ async function azGenerate() {
         const m = cd.match(/filename="?([^"]+)"?/);
         document.getElementById('azModal').remove();
         if (_azEntwurf && typeof pbLoadList === 'function') { try { pbLoadList(); } catch (_) {} }
+        if (_azEntwurf && typeof showToast === 'function')
+            showToast('Zeugnis erstellt — ausdrucken, von Hand unterschreiben, einscannen und beim MA ablegen; Versand mit den Austrittsformularen per Post.');
         _azEntwurf = null;
         await previewFileModal(blob, m ? m[1] : (_azBest ? 'Arbeitsbestaetigung.pdf' : _azZwischen ? 'Zwischenzeugnis.pdf' : 'Arbeitszeugnis.pdf'));
     } catch (e) {

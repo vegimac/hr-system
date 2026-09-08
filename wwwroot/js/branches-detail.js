@@ -290,6 +290,7 @@ function renderFilialenDetail(b) {
                 ${fField('BUR-Nummer',      b.burNummer)}
                 ${fField('UID-Nummer',      b.uidNummer)}
                 ${fField('Branchen-Code',   b.branchenCode)}
+                ${fField('BFS-Gemeinde-Nr. (Swissdec)', b.bfsGemeindeNr)}
                 <!-- AHV-Kasse/BVG-Versicherer aus den Lohndatenempfängern
                      abgeleitet (Walter 06.08.2026) — keine Freitextfelder mehr.
                      Wird nach dem Render async aus den Zuordnungen gefüllt. -->
@@ -382,6 +383,11 @@ function renderFilialenDetail(b) {
                             <input type="checkbox" id="sig-canVertragSms" style="width:16px;height:16px">
                             <span style="font-size:13px;color:#64748b">Vertrags-SMS senden</span>
                         </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:6px"
+                               title="Führt in dieser Filiale Bewerbungsgespräche — nur diese Personen sind im Gesprächsmodus wählbar (Walter 07.09.2026)">
+                            <input type="checkbox" id="sig-canBewerbungsgespraech" style="width:16px;height:16px">
+                            <span style="font-size:13px;color:#64748b">Bewerbungsgespräche führen</span>
+                        </label>
                     </div>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:14px">
@@ -417,9 +423,9 @@ function renderFilialenDetail(b) {
 
             <div class="ein-group-title">Ferien- &amp; Feiertags-Vorgaben <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(% nur Anzeige · Alter editierbar)</span></div>
             <div class="emp-field-grid">
-                ${fField('Ferien % (5 Wochen)', b.defaultVacationPercent5Weeks)}
-                ${fField('Ferien % (6 Wochen)', b.defaultVacationPercent6Weeks)}
-                <div class="emp-field"><div class="emp-field-label">6 Wochen ab Alter</div>
+                ${fField('Ferien % Standard', b.defaultVacationPercent5Weeks)}
+                ${fField('Ferien % erhöht (ab Alter)', b.defaultVacationPercent6Weeks)}
+                <div class="emp-field"><div class="emp-field-label">Erhöht ab Alter <span style="font-weight:400;text-transform:none;color:#94a3b8;letter-spacing:0">(99 = nie)</span></div>
                     <div class="emp-field-value"><input type="number" id="einVacationSixWeeksFromAge" class="ef-input" min="0" max="100" step="1" value="${b.vacationSixWeeksFromAge ?? 50}"></div></div>
                 ${fField('Feiertag %',          b.defaultHolidayPercent)}
             </div>
@@ -985,6 +991,7 @@ function renderSignatoryList(list) {
                 ${s.isDefault ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#f0fdf4;color:#15803d">Allgemein</span>` : ''}
                 ${s.canDienstplan ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#dbeafe;color:#1d4ed8">Dienstplan</span>` : ''}
                 ${s.canVertragSms ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#dcfce7;color:#166534">Vertrags-SMS</span>` : ''}
+                ${s.canBewerbungsgespraech ? `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;background:#fef3c7;color:#92400e">Bewerbungsgespräche</span>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-shrink:0">
                 <button class="btn btn-outline" style="font-size:12px;padding:3px 10px" onclick='openSignatoryForm(${JSON.stringify(s)})'>✎</button>
@@ -1023,6 +1030,8 @@ async function openSignatoryForm(s) {
     if (dpChk) dpChk.checked = s?.canDienstplan || false;
     const smsChk = document.getElementById('sig-canVertragSms');
     if (smsChk) smsChk.checked = s?.canVertragSms || false;
+    const bgChk = document.getElementById('sig-canBewerbungsgespraech');
+    if (bgChk) bgChk.checked = s?.canBewerbungsgespraech || false;
     document.getElementById('signatoryForm').style.display = 'block';
     document.getElementById('signatoryForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -1045,6 +1054,7 @@ async function saveSignatory() {
             isDefault:     !!document.getElementById('sig-isDefault')?.checked,
             canDienstplan: !!document.getElementById('sig-canDienstplan')?.checked,
             canVertragSms: !!document.getElementById('sig-canVertragSms')?.checked,
+            canBewerbungsgespraech: !!document.getElementById('sig-canBewerbungsgespraech')?.checked,
         };
         const url    = editingSignatoryId ? `/api/userbranch/${editingSignatoryId}` : '/api/userbranch';
         const method = editingSignatoryId ? 'PUT' : 'POST';
@@ -1109,6 +1119,7 @@ async function openStmModal(id) {
         if (stmWl) stmWl.value = b.workLocation || '';
         document.getElementById('stmBurNummer').value      = b.burNummer      || '';
         document.getElementById('stmUidNummer').value      = b.uidNummer      || '';
+        const stmBfs = document.getElementById('stmBfsGemeindeNr'); if (stmBfs) stmBfs.value = b.bfsGemeindeNr ?? '';
         document.getElementById('stmBranchenCode').value   = b.branchenCode   || '';
         // Hauptsitz-Dropdown (Rechtseinheiten, Walter 29.08.2026)
         (async () => {
@@ -1243,11 +1254,19 @@ async function stmPlzLookup(rawPlz) {
                 : (l.ortschaftsname || l.gemeindename));
             cityEl.value   = ortName;
             kantonEl.value = l.kantonskuerzel;
-            hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}</span>`;
+            // BFS-Gemeindenummer (Swissdec MunicipalityID, Walter 07.09.2026) gleich mitsetzen.
+            const bfsEl = document.getElementById('stmBfsGemeindeNr');
+            if (bfsEl && l.bfsNr) bfsEl.value = l.bfsNr;
+            hint.innerHTML = `<span style="color:#16a34a">✓ ${ortName}${l.bfsNr ? ' · Gemeinde-Nr. ' + l.bfsNr : ''}</span>`;
             return;
         }
-        // Mehrere Treffer: nur Hinweis — Ort und Kanton nicht überschreiben falls schon gefüllt
-        hint.innerHTML = `<span style="color:#8b8b8b">${locs.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen.</span>`;
+        // Mehrere Treffer: nur Hinweis — Ort und Kanton nicht überschreiben falls schon gefüllt.
+        // Gehören alle Treffer zur SELBEN Gemeinde (z.B. Lausanne 1000–1018), ist die
+        // Gemeinde-Nr. trotzdem eindeutig → setzen.
+        const bfsSet = new Set(locs.map(l => l.bfsNr).filter(Boolean));
+        const bfsEl2 = document.getElementById('stmBfsGemeindeNr');
+        if (bfsEl2 && bfsSet.size === 1) bfsEl2.value = [...bfsSet][0];
+        hint.innerHTML = `<span style="color:#8b8b8b">${locs.length} Orte für PLZ ${plz} gefunden — bitte Ort manuell wählen${bfsSet.size === 1 ? ' (Gemeinde-Nr. ' + [...bfsSet][0] + ' gesetzt)' : bfsSet.size > 1 ? ' — mehrere Gemeinden, Gemeinde-Nr. bitte prüfen' : ''}.</span>`;
     } catch {
         hint.innerHTML = `<span style="color:#b45309">PLZ-Lookup nicht verfügbar.</span>`;
     }
@@ -1275,6 +1294,7 @@ async function saveStm() {
         workLocation:   trimOrNull('stmWorkLocation'),
         burNummer:      trimOrNull('stmBurNummer'),
         uidNummer:      trimOrNull('stmUidNummer'),
+        bfsGemeindeNr:  (() => { const v = (document.getElementById('stmBfsGemeindeNr')?.value || '').trim(); const n = parseInt(v, 10); return Number.isFinite(n) && n > 0 ? n : null; })(),
         hauptsitzId:    (() => { const v = document.getElementById('stmHauptsitz')?.value; return v ? parseInt(v, 10) : null; })(),
         branchenCode:   trimOrNull('stmBranchenCode'),
         // ahvKasse/bvgVersicherer nicht mehr im Payload — DB-Felder bleiben
@@ -2291,9 +2311,15 @@ function cpEmpfArtLabel(code) {
 function cpEmpfFieldLabels(art) {
     // BVG bewusst NICHT dabei (Walter 06.08.2026): GastroSocial führt BVG wie
     // die Ausgleichskasse → gleiche Felder (Kasse/Mitglied/Sub) wie bei AHV.
-    if (art === 'KTG' || art === 'UVG')
+    // Swissdec: Versicherer (UVG/UVGZ/KTG/BVG) führen Kundennummer (CustomerIdentity)
+    // + Vertragsnummer (ContractIdentity). Bei BVG bleibt «Mitgliednummer» in Klammern,
+    // weil GastroSocial das so nennt (Walter 06.08./07.09.2026) — gleiches Feld.
+    if (art === 'KTG' || art === 'UVG' || art === 'UVGZ')
         return { kasse: 'Versicherernummer', mitglied: 'Kundennummer', sub: 'Vertragsnummer',
                  phMitglied: 'z.B. 6494895' };
+    if (art === 'BVG')
+        return { kasse: 'Versicherernummer / Nummer der Kasse', mitglied: 'Kundennummer (Mitgliednummer)', sub: 'Vertragsnummer',
+                 phMitglied: 'z.B. 629.0714.00' };
     if (art === 'QST')
         return { kasse: 'Nummer der Kasse', mitglied: 'SSL-Nummer', sub: 'Buchungskreis',
                  phMitglied: 'z.B. 1914715' };
@@ -2360,13 +2386,23 @@ function cpEmpfRender() {
 function cpEmpfRowHtml(z) {
     const adr = [z.strasse, z.postfach, [z.plz, z.ort].filter(Boolean).join(' ')]
         .filter(s => s && s.trim()).join(' · ');
-    const isVers = (z.art === 'KTG' || z.art === 'UVG');
+    const isVers = (z.art === 'KTG' || z.art === 'UVG' || z.art === 'UVGZ' || z.art === 'BVG');
     const isQst  = (z.art === 'QST');
+    const fmtD = (d) => new Date(d).toLocaleDateString('de-CH');
+    const today = new Date().toISOString().slice(0, 10);
+    const abgelaufen = z.gueltigBis && String(z.gueltigBis).slice(0, 10) < today;
+    const zukunft    = z.gueltigAb  && String(z.gueltigAb).slice(0, 10)  > today;
+    let zeitraum = null;
+    if (z.gueltigAb && z.gueltigBis) zeitraum = `${fmtD(z.gueltigAb)} – ${fmtD(z.gueltigBis)}`;
+    else if (z.gueltigAb)  zeitraum = `ab ${fmtD(z.gueltigAb)}`;
+    else if (z.gueltigBis) zeitraum = `bis ${fmtD(z.gueltigBis)}`;
+    if (zeitraum && abgelaufen) zeitraum = `<span style="color:#991b1b">${zeitraum} (abgelaufen)</span>`;
+    else if (zeitraum && zukunft) zeitraum = `<span style="color:#1d4ed8">${zeitraum} (künftig)</span>`;
     const nums = [
         z.kassennummer   ? `${isVers ? 'Versicherer' : 'Kasse'} ${cdokEsc(z.kassennummer)}` : null,
         z.mitgliednummer ? `${isVers ? 'Kunde' : isQst ? 'SSL' : 'Mitglied'} ${cdokEsc(z.mitgliednummer)}` : null,
         z.subnummer      ? `${isVers ? 'Vertrag' : isQst ? 'Buchungskreis' : 'Sub'} ${cdokEsc(z.subnummer)}` : null,
-        z.gueltigAb      ? `ab ${new Date(z.gueltigAb).toLocaleDateString('de-CH')}` : null,
+        zeitraum,
     ].filter(Boolean).join(' · ');
     return `
     <div style="display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid rgba(60,55,48,0.08)">
@@ -2437,7 +2473,9 @@ function cpEmpfEnsureModal() {
                 <label style="${lbl}"><span id="cpEmpfLblMitglied">Mitgliednummer</span><input id="cpEmpfMitglied" placeholder="z.B. 629.0714.00" style="${inp}"></label>
                 <label style="${lbl}"><span id="cpEmpfLblSub">Subnummer</span><input id="cpEmpfSub" style="${inp}"></label>
                 <label style="${lbl}">Gültig ab<input id="cpEmpfGueltigAb" type="date" style="${inp}"></label>
-                <label style="${lbl}">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
+                <label style="${lbl}">Gültig bis <span style="font-weight:400;color:#8b8b8b">(leer = offen)</span><input id="cpEmpfGueltigBis" type="date" style="${inp}"></label>
+                <label style="${lbl};grid-column:span 2">Bemerkung<input id="cpEmpfBem" style="${inp}"></label>
+                <div style="grid-column:span 2;font-size:11px;color:#8b8b8b;line-height:1.4">Ein neuer Satz derselben Art mit «Gültig ab» beendet den bisherigen automatisch am Vortag (z.B. Wechsel der UVG-Versicherung).</div>
             </div>
         </div>
 
@@ -2469,7 +2507,7 @@ function cpEmpfOpenModal(zuordnungId) {
         pick.innerHTML = '<option value="NEW">+ Neuen Empfänger erfassen…</option>'
             + frei.map(k => `<option value="${k.id}">${cdokEsc(cpEmpfArtLabel(k.art))} — ${cdokEsc(k.bezeichnung)}${k.kantonCode ? ' (' + cdokEsc(k.kantonCode) + ')' : ''}</option>`).join('');
         pick.value = frei.length ? String(frei[0].id) : 'NEW';
-        ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb'].forEach(id => set(id, ''));
+        ['cpEmpfMitglied','cpEmpfSub','cpEmpfBem','cpEmpfGueltigAb','cpEmpfGueltigBis'].forEach(id => set(id, ''));
         cpEmpfPickChanged();
     } else {
         // BEARBEITEN: Zuordnung + zentrale Stammdaten in einem Formular
@@ -2486,6 +2524,7 @@ function cpEmpfOpenModal(zuordnungId) {
         set('cpEmpfSub', z.subnummer);
         set('cpEmpfBem', z.bemerkung);
         set('cpEmpfGueltigAb', z.gueltigAb ? String(z.gueltigAb).slice(0, 10) : '');
+        set('cpEmpfGueltigBis', z.gueltigBis ? String(z.gueltigBis).slice(0, 10) : '');
     }
     modal.style.display = 'block';
 }
@@ -2547,7 +2586,11 @@ async function cpEmpfSave() {
         subnummer: val('cpEmpfSub'),
         bemerkung: val('cpEmpfBem'),
         gueltigAb: val('cpEmpfGueltigAb'),
+        gueltigBis: val('cpEmpfGueltigBis'),
     };
+    if (zuordnungFields.gueltigAb && zuordnungFields.gueltigBis && zuordnungFields.gueltigBis < zuordnungFields.gueltigAb) {
+        showToast('«Gültig bis» liegt vor «Gültig ab».', 'error'); return;
+    }
     if (btn) btn.disabled = true;
     try {
         if (_cpEmpfEditId == null) {
@@ -2575,9 +2618,18 @@ async function cpEmpfSave() {
             });
             if (!r2.ok) {
                 let msg = 'Zuordnung fehlgeschlagen.';
-                try { const j = await r2.json(); if (j.error === 'EMPFAENGER_BEREITS_ZUGEORDNET') msg = 'Dieser Empfänger ist der Filiale bereits zugeordnet.'; } catch (_) {}
+                try {
+                    const j = await r2.json();
+                    if (j.error === 'EMPFAENGER_BEREITS_ZUGEORDNET') msg = 'Dieser Empfänger ist der Filiale bereits zugeordnet (für einen neuen Satz «Gültig ab» setzen).';
+                    else if (j.error === 'GUELTIG_BIS_VOR_AB') msg = '«Gültig bis» liegt vor «Gültig ab».';
+                } catch (_) {}
                 showToast(msg, 'error'); return;
             }
+            try {
+                const j = await r2.clone().json();
+                if (Array.isArray(j.vorgaengerGeschlossen) && j.vorgaengerGeschlossen.length)
+                    showToast('Bisheriger Satz beendet: ' + j.vorgaengerGeschlossen.join(', '), 'info');
+            } catch (_) {}
         } else {
             // Bearbeiten: zentrale Stammdaten + Zuordnung parallel speichern
             const z = _cpEmpfCache.find(x => x.id === _cpEmpfEditId);
@@ -2645,7 +2697,8 @@ async function stmFillDerivedKassen(branchId) {
         const today = new Date().toISOString().slice(0, 10);
         const pick = (art) => {
             const cands = list.filter(z => z.art === art && z.isActive !== false
-                && (!z.gueltigAb || String(z.gueltigAb).slice(0, 10) <= today));
+                && (!z.gueltigAb  || String(z.gueltigAb).slice(0, 10)  <= today)
+                && (!z.gueltigBis || String(z.gueltigBis).slice(0, 10) >= today));
             cands.sort((a, b) => String(b.gueltigAb || '').localeCompare(String(a.gueltigAb || '')));
             return cands[0] || null;
         };

@@ -117,6 +117,15 @@ public class EmployeeQuellensteuer
     /// <summary>Wochenaufenthalter/in mit wöchentlicher Rückkehr.</summary>
     public bool IsWochenaufenthalter { get; set; } = false;
 
+    // ── Grenzgänger-Angaben (Walter 07.09.2026, Swissdec «Crossborder») ──
+    // Steuer-ID des Ansässigkeitsstaats (IT: Codice fiscale, FR: numéro fiscal),
+    // Geburtsort und «Grenzgängerstatus ab» — Pflicht für das Grenzgänger-
+    // abkommen CH–IT (TI/GR/VS, seit 2024: neue vs. alte Grenzgänger) bzw. die
+    // Meldung an Frankreich. Nur relevant, wenn IsGrenzgaenger.
+    public string? GrenzgaengerSteuerId { get; set; }
+    public string? GrenzgaengerGeburtsort { get; set; }
+    public DateOnly? GrenzgaengerAb { get; set; }
+
     // ── Beleg (Walter-Vorgabe 21.08.2026) ────────────────────────────────────
     /// <summary>
     /// Tarifbestätigung der Steuerbehörde als verknüpftes Dokument

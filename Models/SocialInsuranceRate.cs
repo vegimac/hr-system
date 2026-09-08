@@ -49,6 +49,27 @@ public class SocialInsuranceRate
     /// </summary>
     public int?     FibuPosition          { get; set; }
 
+    /// <summary>
+    /// Versicherungs-Lösung / Swissdec-Code (Walter 07.09.2026): NULL = Zeile gilt
+    /// für alle MA ohne Code (heutiges Verhalten). Gesetzt (z.B. UVG «A», «B», «P»;
+    /// UVGZ/KTG «10/11/12»; BVG «11/21/22/K2010») = Zeile gilt nur für MA, denen
+    /// dieser Code zugewiesen ist (<see cref="EmployeeVersicherungCode"/>) — oder,
+    /// wenn der MA keinen Code hat, für die als Standard markierte Zeile
+    /// (<see cref="IsDefaultCode"/>). Der Code steht später in der ELM-Meldung.
+    /// </summary>
+    public string?  LoesungsCode          { get; set; }
+
+    /// <summary>Standard-Lösung: gilt für MA ohne expliziten Code (nur sinnvoll mit LoesungsCode).</summary>
+    public bool     IsDefaultCode         { get; set; }
+
+    /// <summary>
+    /// Lohnband «ab» pro Monat (Walter 07.09.2026): nur der Teil der Basis ÜBER
+    /// diesem Wert (bis MaxBaseMonthly) ist beitragspflichtig — Überschusslohn-
+    /// Lösungen (KTG 12: 120'000–500'000, UVGZ 12: 148'200–300'000) und ALVZ
+    /// (148'200–370'500). NULL = ab 0. Dezember-Aufrollung wie beim Höchstlohn.
+    /// </summary>
+    public decimal? BandVonMonthly        { get; set; }
+
     public DateOnly ValidFrom             { get; set; }
     public DateOnly? ValidTo              { get; set; }
     public int      SortOrder             { get; set; } = 99;

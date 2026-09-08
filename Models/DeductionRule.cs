@@ -109,6 +109,12 @@ public class DeductionRule
     [NotMapped]
     public string? Gender { get; set; }
 
+    /// <summary>Versicherungs-Lösung / Swissdec-Code (aus SocialInsuranceRate.LoesungsCode).</summary>
+    [NotMapped] public string? LoesungsCode { get; set; }
+    [NotMapped] public bool IsDefaultCode { get; set; }
+    /// <summary>Lohnband ab (Monat) — nur Basis über diesem Wert ist pflichtig.</summary>
+    [NotMapped] public decimal? BandVonMonthly { get; set; }
+
     public DateOnly ValidFrom { get; set; } = new DateOnly(2026, 1, 1);
     public DateOnly? ValidTo { get; set; }
 

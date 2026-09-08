@@ -64,6 +64,15 @@ public class Employment
     public decimal? WeeklyHours { get; set; }
     public decimal? GuaranteedHoursPerWeek { get; set; }
 
+    /// <summary>13. Monatslohn ja/nein (Walter 08.09.2026): Standard true (L-GAV: alle). false = kein 13. ML,
+    /// keine Rückstellung — für Verträge ausserhalb L-GAV (Lizenznehmer, Swissdec-Testfälle).</summary>
+    public bool ThirteenthSalary { get; set; } = true;
+
+    /// <summary>Lektionenlohn (Walter 07.09.2026, Swissdec Lohnart 1006): Lohn pro Lektion — nur bei Lehrpersonal; leer = kein Lektionenlohn.</summary>
+    public decimal? LessonRate { get; set; }
+    /// <summary>Vereinbarte Wochenlektionen (Swissdec AgreedWeeklyLessons).</summary>
+    public decimal? WeeklyLessons { get; set; }
+
     /// <summary>
     /// UVG Art. 1a Abs. 6: Arbeitszeit &lt; 8 h/Woche → NBU-befreit.
     /// Nur bei FLEX-Verträgen sinnvoll/editierbar (Walter 31.07.2026 —

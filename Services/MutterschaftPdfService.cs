@@ -100,9 +100,9 @@ public class MutterschaftPdfService
                         foreach (var ln in arztLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(30).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(44).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(30).Text("Medizinische Eignungsuntersuchung bei schwangeren Frauen und stillenden Müttern")
+                    col.Item().PaddingTop(16).Text("Medizinische Eignungsuntersuchung bei schwangeren Frauen und stillenden Müttern")
                         .Bold().FontSize(12.5f);
 
                     col.Item().PaddingTop(20).Text(t =>
@@ -241,9 +241,9 @@ public class MutterschaftPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(22).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(36).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(22).Text(beendigung
+                    col.Item().PaddingTop(8).Text(beendigung
                         ? "Mutterschaftsurlaub und Beendigung des Arbeitsverhältnisses"
                         : "Mutterschaftsurlaub und Wiederaufnahme der Arbeit").Bold().FontSize(12.5f);
 
@@ -731,9 +731,9 @@ public class MutterschaftPdfService
                         foreach (var ln in maLines) c.Item().Text(ln);
                     });
 
-                    col.Item().PaddingTop(22).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
+                    col.Item().PaddingTop(36).Text($"{d.Ort}, {d.Datum:dd.MM.yyyy}");
 
-                    col.Item().PaddingTop(22).Text("Mutterschaftsvereinbarung").Bold().FontSize(12.5f);
+                    col.Item().PaddingTop(8).Text("Mutterschaftsvereinbarung").Bold().FontSize(12.5f);
 
                     col.Item().PaddingTop(16).Text($"Liebe {d.MaVorname},");
 
