@@ -248,10 +248,49 @@ public class EasyAtWorkClient
     public Task<(int status, string body)> GetHrFileTypesRawAsync(int customerId, CancellationToken ct = default)
         => GetRawAsync($"customers/{customerId}/hr_file_types?per_page=100", ct);
 
-    /// <summary>Neueste Version (Anhang) einer HR-Datei herunterladen.</summary>
-    public Task<(int status, byte[] bytes, string? contentType, string? fileName)> DownloadHrFileAsync(
+    /// <summary>
+    /// Neueste Version (Anhang) einer HR-Datei herunterladen. Weg 1: direkter
+    /// Stream. Liefert easy@work dabei 5xx (08.09.2026 bei einem App-Upload:
+    /// «Something went wrong with the database»), Weg 2: <c>download?url=1</c>
+    /// → vorsignierter Link (10 Min.) → Datei ohne Bearer von dort holen.
+    /// </summary>
+    public async Task<(int status, byte[] bytes, string? contentType, string? fileName)> DownloadHrFileAsync(
         int customerId, int employeeId, long fileId, CancellationToken ct = default)
-        => GetBytesRawAsync($"customers/{customerId}/employees/{employeeId}/hr_files/{fileId}/download", ct);
+    {
+        var path = $"customers/{customerId}/employees/{employeeId}/hr_files/{fileId}/download";
+        var r = await GetBytesRawAsync(path, ct);
+        if (r.status >= 200 && r.status < 300 && r.bytes.Length > 0) return r;
+        _log.LogWarning("easy@work Download {Path}: Status {Status}, {Len} B — versuche url=1", path, r.status, r.bytes.Length);
+
+        var (s2, body2) = await GetRawAsync(path + "?url=1", ct);
+        if (s2 < 200 || s2 >= 300)
+            return (r.status >= 200 && r.status < 300 ? s2 : r.status,
+                    System.Text.Encoding.UTF8.GetBytes($"{{\"direct\":{{\"status\":{r.status},\"body\":{JsonSerializer.Serialize(System.Text.Encoding.UTF8.GetString(r.bytes))}}},\"url\":{{\"status\":{s2},\"body\":{JsonSerializer.Serialize(body2)}}}}}"),
+                    "application/json", null);
+        string? url = null;
+        try
+        {
+            var el = JsonSerializer.Deserialize<JsonElement>(body2);
+            if (el.ValueKind == JsonValueKind.Object && el.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String) url = u.GetString();
+            else if (el.ValueKind == JsonValueKind.String) url = el.GetString();
+        }
+        catch { /* unten behandelt */ }
+        if (string.IsNullOrWhiteSpace(url))
+            return (502, System.Text.Encoding.UTF8.GetBytes($"{{\"error\":\"NO_URL\",\"body\":{JsonSerializer.Serialize(body2)}}}"), "application/json", null);
+
+        // Vorsignierter Link: KEIN Authorization-Header (würde bei S3 & Co. stören).
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        using var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct);
+        var bytes = await resp.Content.ReadAsByteArrayAsync(ct);
+        var ctype = resp.Content.Headers.ContentType?.ToString();
+        var fname = resp.Content.Headers.ContentDisposition?.FileNameStar
+                    ?? resp.Content.Headers.ContentDisposition?.FileName?.Trim('"');
+        if (string.IsNullOrWhiteSpace(fname))
+        {
+            try { fname = Path.GetFileName(new Uri(url).AbsolutePath); } catch { /* egal */ }
+        }
+        return ((int)resp.StatusCode, bytes, ctype, fname);
+    }
 
     /// <summary>
     /// Dossier eines MA. Die Live-API lehnt <c>with[]=type/attachments</c> mit 422 ab
