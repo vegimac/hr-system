@@ -1560,7 +1560,8 @@ public class PayrollController : HrControllerBase
             // negativer Netto). Hart gesperrt, bis ein Lohn erfasst ist.
             // Rule-unabhängig (greift auch wenn keine Mindestlohnregel existiert).
             if (MinimumWageCheckService.IsLohnsummeMissing(
-                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate))
+                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate)
+                && !await _minWage.HatLohnzeilenAsync(dto.EmployeeId, dto.Year, dto.Month))
                 return Conflict(new { error = "LOHNSUMME_FEHLT",
                     message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Lohnlauf bestätigt wird." });
 

@@ -452,7 +452,8 @@ public class AkontoWorkflowController : HrControllerBase
             // ohne Lohnsumme → 0 Lohn. Hart gesperrt, rule-unabhängig. Analog
             // zur Definitiv-Sperre in PayrollController.ConfirmPayroll.
             if (MinimumWageCheckService.IsLohnsummeMissing(
-                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate))
+                    mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate)
+                && !await _minWage.HatLohnzeilenAsync(z.EmployeeId, z.PeriodYear, z.PeriodMonth))
                 return StatusCode(409, new { error = "LOHNSUMME_FEHLT",
                     message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Akonto-Lohnlauf freigegeben wird." });
 

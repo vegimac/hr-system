@@ -106,12 +106,20 @@ public class CompanyProfilesController : ControllerBase
         if (profile is null) return NotFound();
 
         profile.MaxWeeklyHours = dto.MaxWeeklyHours;
+        // Normale Wochenstunden dezimal mit Hundertsteln (Swissdec-Hinweis, Walter 09.09.2026):
+        // z.B. 42.3 — Basis für Pensum→Stunden, LGAV, KTG, LSE. Nur setzen, wenn mitgeliefert.
+        if (dto.NormalWeeklyHours is decimal nw)
+        {
+            if (nw < 1m || nw > 168m)
+                return BadRequest(new { message = "Normale Wochenstunden müssen zwischen 1 und 168 liegen." });
+            profile.NormalWeeklyHours = Math.Round(nw, 2, MidpointRounding.AwayFromZero);
+        }
         await _context.SaveChangesAsync();
 
         return Ok(profile);
     }
 
-    public record MaxWeeklyHoursDto(decimal? MaxWeeklyHours);
+    public record MaxWeeklyHoursDto(decimal? MaxWeeklyHours, decimal? NormalWeeklyHours = null);
 
     // PATCH /api/companyprofiles/{id}/vacation-six-weeks-from-age
     // Alter, ab dem die 6-Wochen-Ferien-Regel greift. L-GAV-Standard = 50.
@@ -578,6 +586,22 @@ public class CompanyProfilesController : ControllerBase
 
     public record AutoFerienGeldDezemberDto(bool Aktiv);
 
+    // PATCH /api/companyprofiles/{id}/teilmonat-methode  (Walter 09.09.2026)
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/teilmonat-methode")]
+    public async Task<IActionResult> UpdateTeilmonatMethode(int id, [FromBody] TeilmonatMethodeDto dto)
+    {
+        var erlaubt = new[] { "TAGESSATZ365", "KALENDERTAGE", "TAGE30" };
+        if (dto is null || !erlaubt.Contains(dto.Methode))
+            return BadRequest(new { message = "Methode muss TAGESSATZ365, KALENDERTAGE oder TAGE30 sein." });
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        profile.TeilmonatMethode = dto.Methode;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+    public record TeilmonatMethodeDto(string Methode);
+
     // PATCH /api/companyprofiles/{id}/ferien-auszahlung-monatlich
     // Ferienentschädigung FLEX/MTP monatlich auszahlen statt Ferien-Pott
     // (Walter 08.09.2026, Filial-Ebene: alle oder keiner).
@@ -761,6 +785,7 @@ public class CompanyProfilesController : ControllerBase
             t.ThirteenthMonthPayoutsPerYear   = source.ThirteenthMonthPayoutsPerYear;
             t.AutoFerienGeldAuszahlungDezember = source.AutoFerienGeldAuszahlungDezember;
             t.FerienAuszahlungMonatlich        = source.FerienAuszahlungMonatlich;
+            t.TeilmonatMethode                 = source.TeilmonatMethode;
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;

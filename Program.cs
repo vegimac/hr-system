@@ -8,6 +8,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
+// ── Schema-Stand (Walter-Vorgabe 09.09.2026) ────────────────────────────────
+// Der grosse Start-SQL-Block (CREATE/ALTER IF NOT EXISTS, Seeds — rund 100
+// Roundtrips) läuft nur noch, wenn die Datenbank einen älteren Stand meldet als
+// diese Zahl. Tabelle schema_stand (eine Zeile) merkt sich den zuletzt
+// ausgeführten Stand. REGEL: Kommt im Startblock neues SQL dazu (neue Spalte,
+// Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
+// Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
+// Layout/Menü/JS/CSS ändern den Stand NICHT.
+const int SchemaStand = 2;   // 2: teilmonat_methode (09.09.2026)
+
 var builder = WebApplication.CreateBuilder(args);
 
 // HttpContextAccessor — fuer den AuditSaveChangesInterceptor (User aus JWT).
@@ -369,7 +379,29 @@ if (app.Environment.IsDevelopment())
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var startLog = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartSQL");
 
+    // Schema-Stand lesen (Tabelle bei Bedarf anlegen). applied_at ist «timestamp
+    // without time zone» und wird DB-seitig mit LOCALTIMESTAMP gesetzt — kein
+    // DateTime-Parameter, also kein Npgsql-Kind-Thema.
+    db.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS schema_stand (
+            id         integer PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+            stand      integer NOT NULL,
+            applied_at timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+        );");
+    int dbStand = db.Database
+        .SqlQueryRaw<int>("SELECT COALESCE((SELECT stand FROM schema_stand WHERE id = 1), 0) AS \"Value\"")
+        .AsEnumerable().First();
+    bool startSqlNoetig = dbStand < SchemaStand;
+    var startSqlUhr = System.Diagnostics.Stopwatch.StartNew();
+    if (!startSqlNoetig)
+        startLog.LogInformation("Schema-Stand {Stand}, Start-SQL übersprungen", dbStand);
+    else
+        startLog.LogInformation("Schema-Stand DB {DbStand} < Programm {Soll} — Start-SQL wird ausgeführt", dbStand, SchemaStand);
+
+    if (startSqlNoetig)
+    {
     // ── Versand-Freigabe, Mail-Protokoll, MA-Sync-Fehlerliste ────────────
     // (Walter-Vorgabe 01.09.2026). Bewusst HIER und nicht nur als SQL-Skript:
     // der Schema-Waechter vergleicht EF-Modell gegen Datenbank und blockiert
@@ -1110,6 +1142,7 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS thirteenth_salary boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS akonto_aktiv boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferien_auszahlung_monatlich boolean NOT NULL DEFAULT false;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS teilmonat_methode varchar(20) NOT NULL DEFAULT 'TAGESSATZ365';
         ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
@@ -1291,10 +1324,15 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ix_eaw_hr_file_eingang_emp ON easyatwork_hr_file_eingang (employee_id);
     ");
 
+    } // Ende Start-SQL Teil 1 (vor Schema-Check)
+
+    // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(
         db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
                  .CreateLogger("SchemaCheck"));
 
+    if (startSqlNoetig)
+    {
     // Neue Job-Gruppen: 2. Assistent, 1. Assistent, Restaurant Manager
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO job_group (code, sort_order, is_active)
@@ -4866,6 +4904,15 @@ using (var scope = app.Services.CreateScope())
             ('umzug_datum_offen', 'Umzugsdatum bestätigen (QST)', TRUE, NULL, NULL, 'warning', NULL, FALSE, 27, 17, 'red')
         ON CONFLICT (category) DO NOTHING;
     ");
+
+    // Stand speichern — erst NACH erfolgreichem Durchlauf. Bricht der Block ab,
+    // bleibt der alte Stand stehen und der nächste Start versucht es erneut
+    // (alles idempotent).
+    db.Database.ExecuteSqlRaw(
+        "INSERT INTO schema_stand (id, stand, applied_at) VALUES (1, {0}, LOCALTIMESTAMP) " +
+        "ON CONFLICT (id) DO UPDATE SET stand = EXCLUDED.stand, applied_at = LOCALTIMESTAMP", SchemaStand);
+    startLog.LogInformation("Start-SQL ausgeführt in {Ms} ms — Schema-Stand {Stand} gespeichert", startSqlUhr.ElapsedMilliseconds, SchemaStand);
+    } // Ende Start-SQL Teil 2
 }
 
 // Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE

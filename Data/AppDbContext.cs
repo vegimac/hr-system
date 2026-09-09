@@ -696,6 +696,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ThirteenthMonthPayoutMonths).HasColumnName("thirteenth_month_payout_months").HasMaxLength(40);
             entity.Property(e => e.AutoFerienGeldAuszahlungDezember).HasColumnName("auto_ferien_geld_auszahlung_dezember").HasDefaultValue(true);
             entity.Property(e => e.FerienAuszahlungMonatlich).HasColumnName("ferien_auszahlung_monatlich").HasDefaultValue(false);
+            entity.Property(e => e.TeilmonatMethode).HasColumnName("teilmonat_methode").HasMaxLength(20).HasDefaultValue("TAGESSATZ365");
             entity.Property(e => e.LohnausweisBoxFFreierTransport).HasColumnName("lohnausweis_box_f_freier_transport").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisBoxGKantineGratis).HasColumnName("lohnausweis_box_g_kantine_gratis").HasDefaultValue(false);
             entity.Property(e => e.LohnausweisPos21VerpflegungMonat).HasColumnName("lohnausweis_pos_2_1_verpflegung_monat").HasColumnType("numeric(10,2)");

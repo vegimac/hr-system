@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HrSystem.Models;
+using HrSystem.Services;
 using System.Globalization;
 
 namespace HrSystem.Controllers;
@@ -55,6 +56,7 @@ public partial class SwissdecTestmandantController
                 ["Akonto-Lohn"] = "nein – nur Definitiv (Swissdec kennt keinen Akonto-Lauf)",
                 ["Ferienentschädigung"] = "monatlich auszahlen (kein Ferien-Pott)",
                 ["L-GAV-Vollzugsbeitrag"] = "deaktiviert (Muster AG ist kein Gastro-Betrieb; Swissdec-Soll kennt keinen L-GAV-Abzug)",
+                ["Teilmonat"] = "30-Tage-Methode (Swissdec: Monatslohn voll + Lohnkorrektur 1001)",
                 ["bisher"] = $"Ferien {f.DefaultVacationPercent5Weeks}/{f.DefaultVacationPercent6Weeks} ab {f.VacationSixWeeksFromAge} · Feiertag {f.DefaultHolidayPercent} · 13. {f.DefaultThirteenthSalaryPercent} ({f.ThirteenthMonthPayoutMonths ?? "–"})",
             };
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
@@ -67,6 +69,7 @@ public partial class SwissdecTestmandantController
                 f.AkontoAktiv = false;
                 f.FerienAuszahlungMonatlich = true;
                 f.LgavAktiv = false;
+                f.TeilmonatMethode = "TAGE30";
             }
             int neu = 0;
             for (var m = TmVon; m <= TmBis; m = m.AddMonths(1))
@@ -214,13 +217,42 @@ public partial class SwissdecTestmandantController
                     fehlendePos.Add($"{w.Code} {w.Label}"); probleme.Add($"{w.Code} {w.Label}: keine Lohnposition (4b)");
                     continue;
                 }
-                zulagen.Add($"{w.Code}→{lp.Code} {lp.Bezeichnung} {w.Betrag:0.00}");
+                // 1001 Lohnkorrektur (Walter 09.09.2026): Swissdec zahlt im Ein-/Austrittsmonat den
+                // vollen Monatslohn und korrigiert mit 1001 auf den Teilmonat. OneCrew rechnet den
+                // Teilmonat selbst (Filiale: 30-Tage-Methode). Entspricht die Korrektur genau dem
+                // 30-Tage-Anteil, wird sie NICHT importiert (sonst doppelt). Alle anderen 1001
+                // (echte Korrekturen, Nachzahlungen) werden vorzeichenrichtig gebucht.
+                if (w.Code == "1001" && vertrag != null)
+                {
+                    var lohn1000 = grp.Where(x => x.Code == "1000").Select(x => (decimal?)x.Betrag).FirstOrDefault();
+                    var monatslohn = lohn1000 ?? vertrag.MonthlySalary ?? 0m;
+                    var von = DateOnly.FromDateTime(vertrag.ContractStartDate) > m ? DateOnly.FromDateTime(vertrag.ContractStartDate) : m;
+                    var bisD = vertrag.ContractEndDate.HasValue && DateOnly.FromDateTime(vertrag.ContractEndDate.Value) < monatsEnde ? DateOnly.FromDateTime(vertrag.ContractEndDate.Value) : monatsEnde;
+                    bool teilmonat = von > m || bisD < monatsEnde;
+                    if (teilmonat && monatslohn > 0)
+                    {
+                        var anteil = PayrollCalculationEngine.TeilmonatAnteil("TAGE30", monatslohn, von, bisD, bisD.DayNumber - von.DayNumber + 1, monatsEnde.Day);
+                        if (Math.Abs((monatslohn + w.Betrag) - anteil) <= 0.05m)
+                        {
+                            felder["Lohnkorrektur 1001"] = $"{w.Betrag:0.00} = Teilmonat ({von:dd.MM.}–{bisD:dd.MM.}, 30-Tage-Anteil {anteil:0.00}) → nicht importiert, OneCrew rechnet anteilig";
+                            if (!vorschau)
+                            {
+                                var alt = await _db.LohnZulagen.FirstOrDefaultAsync(z => z.EmployeeId == emp.Id && z.Periode == periodeStr && z.LohnpositionId == lp.Id && z.Bemerkung == "Swissdec-Testdaten");
+                                if (alt != null) _db.LohnZulagen.Remove(alt);   // frühere (falsche) Buchung aufräumen
+                            }
+                            continue;
+                        }
+                    }
+                }
+                // Vorzeichen: Zulage-Positionen tragen den Betrag wie geliefert (auch negativ =
+                // Korrektur); Abzugs-Positionen erwarten den Betrag positiv.
+                var betragBuchung = lp.Typ == "ABZUG" ? Math.Abs(w.Betrag) : w.Betrag;
+                zulagen.Add($"{w.Code}→{lp.Code} {lp.Bezeichnung} {betragBuchung:0.00}");
                 if (!vorschau)
                 {
                     var vorhanden = await _db.LohnZulagen.FirstOrDefaultAsync(z => z.EmployeeId == emp.Id && z.Periode == periodeStr && z.LohnpositionId == lp.Id && z.Bemerkung == "Swissdec-Testdaten");
-                    if (vorhanden == null) _db.LohnZulagen.Add(new LohnZulage { EmployeeId = emp.Id, Periode = periodeStr, LohnpositionId = lp.Id, Betrag = Math.Abs(w.Betrag), Bemerkung = "Swissdec-Testdaten", CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now });
-                    else { vorhanden.Betrag = Math.Abs(w.Betrag); vorhanden.UpdatedAt = DateTime.Now; }
-                    if (w.Betrag < 0 && lp.Typ != "ABZUG") probleme.Add($"{w.Code}: negativer Betrag auf Zulage-Position {lp.Code} — als positiver Betrag gespeichert, bitte prüfen");
+                    if (vorhanden == null) _db.LohnZulagen.Add(new LohnZulage { EmployeeId = emp.Id, Periode = periodeStr, LohnpositionId = lp.Id, Betrag = betragBuchung, Bemerkung = "Swissdec-Testdaten", CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now });
+                    else { vorhanden.Betrag = betragBuchung; vorhanden.UpdatedAt = DateTime.Now; }
                 }
             }
             if (!vorschau) await _db.SaveChangesAsync();

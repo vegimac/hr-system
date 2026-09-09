@@ -14,8 +14,18 @@ public class EmployeeVersicherungCode
     public int Id { get; set; }
     public int EmployeeId { get; set; }
 
-    /// <summary>UVG | UVGZ | KTG | BVG</summary>
+    /// <summary>UVG | UVGZ | KTG | BVG | AHV (nur Code SONDERFALL = AHV/ALV-Sonderfall, nicht beitragspflichtig)</summary>
     public string Art { get; set; } = "UVG";
+
+    /// <summary>
+    /// AHV/ALV-Sonderfall (Swissdec «AHV-ALV-Sonderfall», Walter 09.09.2026): Person ist
+    /// nicht AHV/IV/EO- und ALV-beitragspflichtig (z.B. Versicherung im Ausland mit
+    /// A1-Bescheinigung, Entsandte). UVG/UVGZ/KTG/BVG/QST laufen normal; der Lohn wird
+    /// in der AHV-Meldung als «AHV-Open/ALV-Open» ausgewiesen, keine FAK-Meldung.
+    /// </summary>
+    public const string ArtAhv = "AHV";
+    public const string CodeSonderfall = "SONDERFALL";
+    public bool IstAhvSonderfall => Art == ArtAhv && string.Equals(Code, CodeSonderfall, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Lösungscode (SocialInsuranceRate.LoesungsCode). Leer erlaubt, wenn nur ein Fixbetrag (BVG) erfasst wird.</summary>
     public string? Code { get; set; }
@@ -50,6 +60,7 @@ public class EmployeeVersicherungCode
         "UVGZ" => new[] { "UVGZ" },
         "KTG"  => new[] { "KTG" },
         "BVG"  => new[] { "BVG" },
+        "AHV"  => new[] { "AHV", "ALV", "ALVZ" },
         _      => Array.Empty<string>(),
     };
 

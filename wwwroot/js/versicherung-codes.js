@@ -3,7 +3,7 @@
 // Ohne Eintrag gilt der Standard der SV-Sätze (Zeile mit ★). API:
 // /api/employees/{id}/versicherung-codes  (GET liefert pro Art effektiven Code + Optionen)
 let _vcData = null;
-const VC_ARTEN = { UVG: 'UVG (Unfall)', UVGZ: 'UVG-Zusatz', KTG: 'KTG', BVG: 'BVG' };
+const VC_ARTEN = { UVG: 'UVG (Unfall)', UVGZ: 'UVG-Zusatz', KTG: 'KTG', BVG: 'BVG', AHV: 'AHV/ALV' };
 
 async function vcLoad(employeeId) {
     const el = document.getElementById('vcContent');
@@ -28,6 +28,7 @@ function vcRender(el) {
             + ((a.weitereCodes || []).length ? ` <span style="color:#64748b">+ ${a.weitereCodes.map(esc).join(', ')}</span>` : '');
         const herk = a.herkunft === 'manuell' ? '<span style="background:#fef3c7;color:#92400e;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">MANUELL</span>'
                    : a.herkunft === 'standard' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">STANDARD</span>'
+                   : a.herkunft === 'beitragspflichtig' ? '<span style="background:#dcfce7;color:#166534;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">BEITRAGSPFLICHTIG</span>'
                    : `<span style="color:#94a3b8;font-size:11px">${esc(a.herkunft)}</span>`;
         const fix = a.explizit && (a.explizit.beitragFixAn || a.explizit.beitragFixAg)
             ? `<div style="font-size:11.5px;color:#475569">Fixbetrag/Mt.: AN ${Number(a.explizit.beitragFixAn || 0).toFixed(2)} · AG ${Number(a.explizit.beitragFixAg || 0).toFixed(2)}</div>` : '';
@@ -38,7 +39,7 @@ function vcRender(el) {
         const zeit = a.explizit ? `<div style="font-size:11.5px;color:#64748b">ab ${fmt(a.explizit.validFrom)}${a.explizit.validTo ? ' bis ' + fmt(a.explizit.validTo) : ''}${a.explizit.bemerkung ? ' · ' + esc(a.explizit.bemerkung) : ''}</div>` : '';
         const btns = a.explizit
             ? `<button class="btn-emp-edit" onclick="vcOpenModal(${a.explizit.id})">Bearbeiten</button> <button class="btn-emp-del" onclick="vcDelete(${a.explizit.id})">Löschen</button>`
-            : `<button class="btn-emp-edit" onclick="vcOpenModal(null, '${a.art}')">Abweichung</button>`;
+            : `<button class="btn-emp-edit" onclick="vcOpenModal(null, '${a.art}')">${a.art === 'AHV' ? 'Sonderfall' : 'Abweichung'}</button>`;
         return `<div class="emp-family-card" style="border-left:3px solid ${a.herkunft === 'manuell' ? '#d97706' : '#cbd5e1'};margin-bottom:6px">
             <div class="emp-family-card-head">
                 <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
@@ -68,7 +69,7 @@ function vcOpenModal(entryId, artVorgabe) {
     const optHtml = (a, sel) => {
         const arten = _vcData.arten.find(x => x.art === a);
         const opts = (arten?.optionen || []).map(o => `<option value="${esc(o.code)}" ${o.code === sel ? 'selected' : ''}>${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
-        return `<option value="">– kein Code (nur Fixbetrag) –</option>` + opts;
+        return (a === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) + opts;
     };
     const html = `
     <div id="vcModal" style="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px"
@@ -162,7 +163,7 @@ function vcArtChanged() {
     const art = document.getElementById('vcArt').value;
     const arten = _vcData.arten.find(x => x.art === art);
     const sel = document.getElementById('vcCode');
-    sel.innerHTML = `<option value="">– kein Code (nur Fixbetrag) –</option>` +
+    sel.innerHTML = (art === 'AHV' ? '' : `<option value="">– kein Code (nur Fixbetrag) –</option>`) +
         (arten?.optionen || []).map(o => `<option value="${esc(o.code)}">${esc(o.code)} · ${esc(o.name)}${o.istStandard ? ' ★ Standard' : ''}</option>`).join('');
     document.getElementById('vcFixBox').style.display = art === 'BVG' ? '' : 'none';
 }

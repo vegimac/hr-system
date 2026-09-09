@@ -188,6 +188,17 @@ public class CompanyProfile
     public bool FerienAuszahlungMonatlich { get; set; } = false;
 
     /// <summary>
+    /// Teilmonat (Ein-/Austritt mitten im Monat) beim Monatslohn FIX/FIX-M
+    /// berechnen nach (Walter 09.09.2026):
+    ///   TAGESSATZ365 — Monatslohn × 12 ÷ 365 × Kalendertage (bisheriges Verhalten,
+    ///                  stimmig mit Taggeld-/Absenz-Tagessatz; Standard Schaub)
+    ///   KALENDERTAGE — Monatslohn × Tage ÷ Kalendertage des Monats (15/30, 16/31)
+    ///   TAGE30       — 30-Tage-Methode: jeder Monat 30 Tage (Swissdec-Testmandant)
+    /// Wirkt NUR auf den anteiligen Monatslohn; Taggelder/Absenzen bleiben 365.
+    /// </summary>
+    public string TeilmonatMethode { get; set; } = "TAGESSATZ365";
+
+    /// <summary>
     /// Lohnausweis Box F (Form 11 dfe): "Unentgeltliche Beförderung
     /// zwischen Wohn- und Arbeitsort". Bei McDonald's typischerweise false
     /// (kein Werks-Bus).

@@ -1,0 +1,15 @@
+---
+description: ABSOLUT — SchemaStand in Program.cs hochzählen bei jedem neuen Start-SQL
+alwaysApply: true
+---
+
+# Schema-Stand (Walter-Vorgabe 09.09.2026)
+
+Der Start-SQL-Block in `Program.cs` (CREATE/ALTER IF NOT EXISTS, Seeds) läuft nur,
+wenn die Datenbank einen älteren Stand meldet als `const int SchemaStand` (oben in Program.cs).
+
+**Regel:** Wer im Startblock etwas ergänzt oder ändert (Spalte, Tabelle, Index, Seed,
+UPDATE-Migration), erhöht `SchemaStand` im selben Commit um 1. Layout/JS/CSS: nicht erhöhen.
+Walter ändert diese Zahl nie selbst — das ist Pflicht des Agenten, der das SQL schreibt.
+Vergessen ⇒ Schema-Check meldet fehlende Spalte, `deploy.sh` stoppt vor Prod.
+Reine Daten-Seeds fängt der Check NICHT ab — trotzdem erhöhen.

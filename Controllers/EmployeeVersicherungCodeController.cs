@@ -29,7 +29,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
                             string? BvgEintrittsgrund = null, bool? BvgVollArbeitsfaehig = null, decimal? BvgBasisManuell = null,
                             bool Zusaetzlich = false);   // true = bisherige Codes derselben Art bleiben (z.B. KTG 11 + 12)
 
-    private static readonly string[] Arten = { "UVG", "UVGZ", "KTG", "BVG" };
+    private static readonly string[] Arten = { "UVG", "UVGZ", "KTG", "BVG", "AHV" };
 
     [HttpGet]
     public async Task<IActionResult> List(int employeeId, [FromQuery] DateOnly? stichtag)
@@ -48,7 +48,10 @@ public class EmployeeVersicherungCodeController : ControllerBase
         var arten = Arten.Select(art =>
         {
             var svCodes = EmployeeVersicherungCode.SvCodesFuer(art);
-            var optionen = saetze.Where(s => svCodes.Contains(s.Code, StringComparer.OrdinalIgnoreCase))
+            var optionen = art == EmployeeVersicherungCode.ArtAhv
+                // AHV/ALV kennt keine Lösungs-Codes in den SV-Sätzen — einzige Abweichung ist der Sonderfall.
+                ? new[] { new { code = EmployeeVersicherungCode.CodeSonderfall, name = "AHV/ALV-Sonderfall – nicht beitragspflichtig (z.B. Versicherung im Ausland, A1)", istStandard = false } }.ToList()
+                : saetze.Where(s => svCodes.Contains(s.Code, StringComparer.OrdinalIgnoreCase))
                 .GroupBy(s => s.LoesungsCode!.ToUpperInvariant())
                 .Select(g => new {
                     code = g.Key,
@@ -63,7 +66,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
                 art,
                 effektiverCode = PayrollCalculations.EffektiverCode(art, eintraege, saetze, tag),
                 weitereCodes = alleCodes.Skip(1).ToList(),
-                herkunft = explizit?.Code != null ? "manuell" : (optionen.Any(o => o.istStandard) ? "standard" : (optionen.Count == 0 ? "keine Lösungen erfasst" : "ohne Code")),
+                herkunft = explizit?.Code != null ? "manuell" : art == EmployeeVersicherungCode.ArtAhv ? "beitragspflichtig" : (optionen.Any(o => o.istStandard) ? "standard" : (optionen.Count == 0 ? "keine Lösungen erfasst" : "ohne Code")),
                 explizit = explizit == null ? null : new { explizit.Id, explizit.Code, explizit.ValidFrom, explizit.ValidTo, explizit.BeitragFixAn, explizit.BeitragFixAg, explizit.Bemerkung,
                                                            explizit.BvgEintrittsgrund, explizit.BvgVollArbeitsfaehig, explizit.BvgBasisManuell },
                 optionen,
@@ -161,7 +164,9 @@ public class EmployeeVersicherungCodeController : ControllerBase
 
     private static string? Pruefe(UpsertDto dto)
     {
-        if (!Arten.Contains(dto.Art)) return "Art muss UVG, UVGZ, KTG oder BVG sein.";
+        if (!Arten.Contains(dto.Art)) return "Art muss UVG, UVGZ, KTG, BVG oder AHV sein.";
+        if (dto.Art == EmployeeVersicherungCode.ArtAhv && !string.Equals(dto.Code?.Trim(), EmployeeVersicherungCode.CodeSonderfall, StringComparison.OrdinalIgnoreCase))
+            return "Bei AHV ist nur der Code SONDERFALL (nicht beitragspflichtig) möglich — Normalfall = kein Eintrag.";
         if (dto.ValidTo != null && dto.ValidTo < dto.ValidFrom) return "«Gültig bis» liegt vor «Gültig ab».";
         var hatCode = !string.IsNullOrWhiteSpace(dto.Code);
         var hatFix  = dto.Art == "BVG" && (dto.BeitragFixAn is > 0 || dto.BeitragFixAg is > 0);

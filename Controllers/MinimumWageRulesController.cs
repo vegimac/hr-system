@@ -303,7 +303,8 @@ public class MinimumWageRulesController : ControllerBase
             // problem="NO_SALARY" geliefert; das Frontend zeigt dasselbe ⚠/Banner
             // wie beim Mindestlohn und sperrt das Bestätigen.
             if (MinimumWageCheckService.IsLohnsummeMissing(
-                    em.EmploymentModel, em.MonthlySalary, em.MonthlySalaryFte, em.HourlyRate))
+                    em.EmploymentModel, em.MonthlySalary, em.MonthlySalaryFte, em.HourlyRate)
+                && !await _minWage.HatLohnzeilenAsync(em.EmployeeId, year, month))
             {
                 underpaid.Add(new
                 {

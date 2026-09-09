@@ -1376,6 +1376,11 @@ public class PayrollCalculationEngine
         decimal zulagenSvTotal = 0;
         // Per-SV-Typ Zulage-Deltas (für separate SV-Basen)
         decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+        // QST-pflichtige PERIODISCHE Zulagen (Kinder-/Ausbildungs-/Haushaltszulage):
+        // werden im Kurzmonat satzbestimmend wie der Monatslohn auf 30 Tage
+        // hochgerechnet (Swissdec: «hochgerechnet werden die abgerechneten
+        // periodischen Lohnwerte»; Muster AG TF37: 5'000 + 250 → Satz bei 10'500).
+        decimal deltaQstPeriodisch = 0;
 
         // Walter-Bug 04.08.2026 (Feride Alimi): FamZ-Synthetics werden hier
         // mit vollem Betrag verbucht, aber für die nachgelagerte
@@ -1443,6 +1448,7 @@ public class PayrollCalculationEngine
             if (lp.KtgPflichtig)    deltaKtg  += b;
             if (lp.BvgPflichtig)    deltaBvg  += b;
             if (lp.QstPflichtig)    deltaQst  += b;
+            if (lp.QstPflichtig && IstPeriodischeZulage(lp)) deltaQstPeriodisch += b;
 
             // Beitrag in das flag-basierte Basis-Tracking aufnehmen
             AddAmount(lp.Code, b);
@@ -2865,6 +2871,9 @@ public class PayrollCalculationEngine
                 var mtpFestDiff = Math.Round(
                     guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate
                     * (1m + holidayPct / 100m), 2);
+                // periodische Zulagen (Kinderzulage) ebenfalls auf den vollen Monat (Walter 09.09.2026)
+                if (shortPeriodDays > 0 && deltaQstPeriodisch > 0)
+                    mtpFestDiff += Math.Round(deltaQstPeriodisch * ((decimal)normalPeriodDays / shortPeriodDays - 1m), 2);
                 if (mtpFestDiff > 0)
                 {
                     var satzKurzMtp = svBasesMtp.Qst + mtpFestDiff;
@@ -3573,8 +3582,10 @@ public class PayrollCalculationEngine
             //   Tagessatz = MonthlySalary × 12 / 365
             //   Lohn      = Tagessatz × Kalendertage der Kurzperiode
             // Schluss-Rundung auf den Periodenlohn (Finalbetrag).
+            // Teilmonat-Methode der Filiale (Walter 09.09.2026): TAGESSATZ365 (bisher),
+            // KALENDERTAGE (Tage ÷ Monatstage), TAGE30 (30-Tage-Methode, Swissdec).
             decimal monthSalaryExact = isShortPeriod
-                ? monthSalaryFull * 12m / 365m * shortPeriodDays
+                ? TeilmonatAnteil(company.TeilmonatMethode, monthSalaryFull, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays)
                 : monthSalaryFull;
             decimal monthSalary = Math.Round(monthSalaryExact, 2);
 
@@ -4112,7 +4123,10 @@ public class PayrollCalculationEngine
             // Satzbasis durch den vollen Monatslohn ersetzen.
             if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary)
             {
-                var satzKurzFix = svBasesFix.Qst - monthSalary + monthSalaryFull;
+                // periodische Zulagen im gleichen Verhältnis hochrechnen (Walter 09.09.2026)
+                var faktorKurz = monthSalary > 0 ? monthSalaryFull / monthSalary : 1m;
+                var satzKurzFix = svBasesFix.Qst - monthSalary + monthSalaryFull
+                                + Math.Round(deltaQstPeriodisch * (faktorKurz - 1m), 2);
                 if (!satzBruttoFix.HasValue || satzKurzFix > satzBruttoFix.Value)
                     satzBruttoFix = satzKurzFix;
             }
@@ -4302,7 +4316,8 @@ public class PayrollCalculationEngine
                 einstellung.AnzahlKinder,
                 einstellung.Kirchensteuer,
                 satzbestimmenderBruttoCHF: satzBrutto,
-                istBruttoCHF: bruttolohn);
+                istBruttoCHF: bruttolohn,
+                jahr: periodFrom.Year);   // Tarif der Lohnperiode, nicht des Rechen-Tages (Walter 09.09.2026)
             if (qstCalc is null) return null;
             qstBetrag = qstCalc.SteuerbetragCHF;
 
@@ -4659,6 +4674,11 @@ public class PayrollCalculationEngine
 
         var result = ApplyVersicherungsCodes(deductions, codes);
 
+        // AHV/ALV-Sonderfall (Walter 09.09.2026, Muster AG TF14): nicht beitragspflichtig →
+        // AHV/IV/EO, ALV und ALVZ (AN und AG) fallen weg; UVG/UVGZ/KTG/BVG/QST unverändert.
+        if (eintraege.Any(e => e.IstAhvSonderfall))
+            result.RemoveAll(r => r.CategoryCode is "AHV" or "ALV" or "ALVZ");
+
         var bvgFix = eintraege.FirstOrDefault(e => e.Art == "BVG" && (e.BeitragFixAn is > 0 || e.BeitragFixAg is > 0));
         if (bvgFix != null && !ueberReferenzalter)
         {
@@ -4696,5 +4716,41 @@ public class PayrollCalculationEngine
                   || string.Equals(model, "UTP", StringComparison.OrdinalIgnoreCase);
         if (!isFlex) return false;
         return employment.TeilzeitUnter8hWoche || employee.TeilzeitUnter8hWoche;
+    }
+
+    /// <summary>
+    /// Periodische Zulage im Sinn der QST-Hochrechnung (Kinder-, Ausbildungs-,
+    /// Haushaltszulage): OneCrew 190.1/190.2 bzw. Swissdec 3000/3010/3030.
+    /// Geburts-/Adoptionszulage (190.3, 3034) ist einmalig → nicht hochrechnen.
+    /// </summary>
+    private static bool IstPeriodischeZulage(Lohnposition lp)
+    {
+        var sd = lp.SwissdecLohnart;
+        if (sd == "3000" || sd == "3010" || sd == "3030") return true;
+        return lp.Code == "190.1" || lp.Code == "190.2";
+    }
+
+    /// <summary>
+    /// Anteiliger Monatslohn im Teilmonat nach Filial-Methode (Walter 09.09.2026).
+    /// 30-Tage-Methode: Tag 31 zählt als 30, ein Monatsende (auch 28./29. Februar)
+    /// zählt als Tag 30 — Eintritt 16.11. → 15 Tage, Eintritt 27.02. → 4 Tage.
+    /// </summary>
+    internal static decimal TeilmonatAnteil(string? methode, decimal monatslohn, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
+    {
+        switch ((methode ?? "TAGESSATZ365").ToUpperInvariant())
+        {
+            case "KALENDERTAGE":
+                return monatstage > 0 ? monatslohn * kalendertage / monatstage : monatslohn;
+            case "TAGE30":
+            {
+                int letzterTag = DateTime.DaysInMonth(bis.Year, bis.Month);
+                int start = Math.Min(von.Day, 30);
+                int ende  = bis.Day >= letzterTag ? 30 : Math.Min(bis.Day, 30);
+                int tage  = Math.Max(0, ende - start + 1);
+                return monatslohn * tage / 30m;
+            }
+            default:
+                return monatslohn * 12m / 365m * kalendertage;
+        }
     }
 }

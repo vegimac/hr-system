@@ -4,6 +4,32 @@
 
 ## Geschäftslogik-Kernkonzepte
 
+### Schema-Stand: Start-SQL nur bei Änderung (Walter 09.09.2026)
+- `const int SchemaStand` oben in Program.cs; Tabelle `schema_stand` (eine Zeile: stand, applied_at timestamp without time zone via LOCALTIMESTAMP). DB-Stand < SchemaStand → der grosse idempotente SQL-/Seed-Block läuft einmal, danach wird der Stand gespeichert; sonst «Schema-Stand X, Start-SQL übersprungen».
+- `SchemaCheckService.Pruefe` läuft IMMER (deploy.sh liest weiterhin schemaOk).
+- REGEL: neues SQL im Startblock (Spalte, Tabelle, Seed) ⇒ SchemaStand +1. Layout/JS/CSS ⇒ nicht erhöhen. Vergessen ⇒ Schema-Check meldet fehlende Spalte, Deploy stoppt vor Prod.
+- Frische Datenbank (neue Kunden-Kapsel): Stand 0 ⇒ kompletter Block läuft automatisch.
+
+### AHV/ALV-Sonderfall (Walter 09.09.2026, Swissdec «AHV-ALV-Sonderfall», Muster AG TF14)
+- `EmployeeVersicherungCode` Art `AHV`, Code `SONDERFALL` (versioniert ab/bis, MA → Versicherungs-Codes): Person nicht AHV/IV/EO- und ALV-beitragspflichtig (Versicherung im Ausland/A1, Entsandte). Engine `WendeVersicherungsCodesAnAsync` entfernt AHV/ALV/ALVZ-Regeln (AN+AG); UVG/UVGZ/KTG/BVG/QST unverändert. Normalfall = kein Eintrag («beitragspflichtig»).
+- Schritt 4 legt den Eintrag aus `PersonAHVALVSpecialCase = x` an. ELM (später): AHV-Lohn als `AHV-AVS-Open`/`ALV-AC-Open`, keine FAK-Meldung.
+
+### Lohnsumme-fehlt-Sperre mit Lohnzeilen (Walter 09.09.2026, Muster AG TF16)
+- Die Sperre «Vertrag ohne Lohnsumme» (Bestätigen, Akonto-Freigabe, check-period-Banner) greift nur, wenn der MA in der Periode auch keine AHV-pflichtigen Lohnzeilen > 0 hat (`MinimumWageCheckService.HatLohnzeilenAsync`). Honorar-/Bonus-/Sitzungsgeld-Fälle mit Vertragslohn 0 sind damit bestätigbar; der Schutz vor 0-Lohn mit lauter Abzügen bleibt.
+
+### QST Kurzmonat & Tarifstufe (Walter 09.09.2026, Muster AG TF37)
+- Tarifjahr = Jahr der Lohnperiode (`jahr: periodFrom.Year`), nie das Rechen-Datum. Fehlt die Datei des Jahres, nimmt `QuellensteuerTarifService` das nächstliegende geladene Jahr (−1…−3, dann +1…+3).
+- ESTV-Stufe 1045 = 10'450.01–10'500.00 («10'451–10'500»): Lookup mit `(floor(Lohn) − 1) / 10` → 10'500 gehört zur Stufe 1045.
+- Kurzmonat (Ein-/Austritt): satzbestimmend werden Monatslohn UND periodische Zulagen (Kinder-/Ausbildungs-/Haushaltszulage, `IstPeriodischeZulage`: 190.1/190.2 bzw. Swissdec 3000/3010/3030) auf den vollen Monat hochgerechnet; 13. ML, Geburtszulage, Schlussabrechnung nicht. TF37 Nov 2024: 5'000 + 250 → Satz bei 10'500 = 11.74 % × 5'250 = 616.35.
+
+### Arbeitszeit dezimal (Walter 09.09.2026, Swissdec-Hinweis)
+- Wochenstunden dezimal mit Hundertsteln (z.B. 42.3, 41.25): Filiale «Normale Wochenstunden» editierbar in Einstellungen → Arbeitszeit (PATCH `max-weekly-hours` mit `normalWeeklyHours`, Backend rundet auf 2 Stellen, 1–168); Vertrag «Wochenstunden»/«Lektionen» step 0.01. Nie Stunden:Minuten (42:18), immer Dezimalstunden.
+
+### Teilmonat-Methode pro Filiale (Walter 09.09.2026)
+- `CompanyProfile.TeilmonatMethode` (`teilmonat_methode`): TAGESSATZ365 (Standard, bisher: Lohn × 12 ÷ 365 × Kalendertage), KALENDERTAGE (Tage ÷ Monatstage), TAGE30 (30-Tage-Methode: Tag 31 = 30, Monatsende = 30). Nur anteiliger Monatslohn FIX/FIX-M (`PayrollCalculationEngine.TeilmonatAnteil`); Taggelder/Absenzen/Ferienbezug bleiben 365er-Kalendertag-Satz.
+- Schaub bleibt auf TAGESSATZ365 (Walter-Entscheid); Testmandant TAGE30 (Schritt 5a).
+- Testmandant 5b: Swissdec-Lohnkorrektur 1001 im Ein-/Austrittsmonat wird NICHT importiert, wenn sie genau dem 30-Tage-Anteil entspricht (OneCrew rechnet selbst); alle anderen 1001 vorzeichenrichtig als Zulage (negativ erlaubt). Vorher wurden negative Beträge als positiv gebucht (Fehler).
+
 ### Rundungsregel Lohnabrechnung (Walter 09.09.2026, ABSOLUT — Zertifizierungsbedingung)
 - Lohnzeilen (Ferien-/Feiertagentschädigung, 13. Monatslohn, prozentuale Lohnarten) kaufmännisch auf **5 Rappen** (`Round05`, AwayFromZero). Beleg Swissdec TF01: 8'986.40 × 8.33 % = 748.567 → 748.55.
 - SV-Abzüge (AHV/ALV/UVG/UVGZ/KTG/QST) **rappengenau** (Swissdec-Soll: ALV 114.59, KTG 3.77).

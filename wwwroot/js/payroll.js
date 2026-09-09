@@ -2000,13 +2000,13 @@ function renderLohnSlip(s, targetEl) {
                 return `
                 <tr${warning ? ' style="background:#fffbeb"' : ''}>
                     <td class="ls-desc" style="color:${labelCol}">
-                        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+                        <div style="display:flex;align-items:center;gap:10px;min-width:0;flex-wrap:wrap">
                             ${typeBadge}
                             <span style="flex-shrink:0">${namePart}</span>
-                            ${ibanInline}
-                            ${bankSpan}
-                            ${fixBankBtn}
+                            ${warning ? '' : ibanInline}
+                            ${warning ? '' : bankSpan}
                         </div>
+                        ${warning ? `<div style="display:flex;align-items:center;gap:10px;margin-top:4px;flex-wrap:wrap">${ibanInline}${fixBankBtn}</div>` : ''}
                         ${subTxt ? `<div style="font-size:11px;color:#64748b;margin-top:1px">${subTxt}</div>` : ''}
                     </td>
                     <td class="ls-amt" style="font-weight:600">${fmt(e.betrag)}</td>

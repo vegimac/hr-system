@@ -216,12 +216,14 @@ public partial class SwissdecTestmandantController
             }
             var bvgVersichert = V("PersonBVGLPPInsured") == "1.0" || V("PersonBVGLPPInsured") == "1";
             if (bvgVersichert && V("PersonBVGLPPCode1") is { } b) codes.Add(("BVG", NummerOhneKomma(b)!));
+            // AHV/ALV-Sonderfall (Testdaten «x») → Art AHV, Code SONDERFALL: keine AHV/ALV-Beiträge (Walter 09.09.2026)
+            if (V("PersonAHVALVSpecialCase") != null) codes.Add((EmployeeVersicherungCode.ArtAhv, EmployeeVersicherungCode.CodeSonderfall));
             var codeTexte = new List<string>();
             foreach (var (art, code) in codes)
             {
                 var svCodes = EmployeeVersicherungCode.SvCodesFuer(art);
-                var bekannt = svLoesungen.Any(s => svCodes.Contains(s.Code) && string.Equals(s.LoesungsCode, code, StringComparison.OrdinalIgnoreCase));
-                codeTexte.Add($"{art} {code}{(bekannt ? "" : " (keine Satz-Zeile → kein Abzug)")}");
+                var bekannt = art == EmployeeVersicherungCode.ArtAhv || svLoesungen.Any(s => svCodes.Contains(s.Code) && string.Equals(s.LoesungsCode, code, StringComparison.OrdinalIgnoreCase));
+                codeTexte.Add(art == EmployeeVersicherungCode.ArtAhv ? "AHV/ALV-Sonderfall (nicht beitragspflichtig)" : $"{art} {code}{(bekannt ? "" : " (keine Satz-Zeile → kein Abzug)")}");
             }
             if (bvgVersichert) codeTexte.Add($"BVG: {V("PersonBVGLPPEntryReason")} · {V("PersonBVGLPPFullyFitForWorkEntry")}" + (Dez(V("PersonBVGLPPManuallyBase")) is { } mb ? $" · Basis manuell {mb:0}" : ""));
             else codeTexte.Add("BVG: nicht versichert");
@@ -243,7 +245,6 @@ public partial class SwissdecTestmandantController
                 }
                 await _db.SaveChangesAsync();
             }
-            if (V("PersonAHVALVSpecialCase") != null) probleme.Add("AHV/ALV-Sonderfall markiert (Testdaten «x») — im Programm noch kein Feld; klären wir am Testfall.");
 
             // ── Quellensteuer ──
             if (V("PersonTASCanton") is { } tasKt)

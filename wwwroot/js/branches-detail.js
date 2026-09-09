@@ -91,7 +91,7 @@ function openNewBranchModal() {
                 </div>
                 <div class="ma-field">
                     <div class="ma-field-label">Wöchentl. Normalarbeitszeit (h)</div>
-                    <input type="number" step="0.1" id="nbWeekly" class="ma-input" value="43.5">
+                    <input type="number" step="0.01" id="nbWeekly" class="ma-input" value="43.5">
                 </div>
                 <div class="ma-field">
                     <div class="ma-field-label">Ferienwochen</div>
@@ -411,16 +411,26 @@ function renderFilialenDetail(b) {
                  Buttons hier — die Aktions-Buttons sitzen oben in der
                  Tab-Leiste (Walter-Vorgabe 15.05.2026). -->
             ${einSec('arbeitszeit', 'Arbeitszeit',
-                `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'}`, `
+                `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'} · Teilmonat ${({TAGESSATZ365:'Tagessatz 365',KALENDERTAGE:'Kalendertage',TAGE30:'30 Tage'})[b.teilmonatMethode || 'TAGESSATZ365']}`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Nacht Beginn</div>
                     <div class="emp-field-value"><input type="time" id="einNightStart" class="ef-input" value="${nightStart}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Nacht Ende</div>
                     <div class="emp-field-value"><input type="time" id="einNightEnd" class="ef-input" value="${nightEnd}"></div></div>
-                ${fField('Normale Wochenstunden', b.normalWeeklyHours)}
+                <div class="emp-field"><div class="emp-field-label">Normale Wochenstunden <span class="ein-hint">(dezimal, z.B. 42.3)</span></div>
+                    <div class="emp-field-value"><input type="number" id="einNormalWeeklyHours" class="ef-input" min="1" max="168" step="0.01" value="${b.normalWeeklyHours != null ? Number(b.normalWeeklyHours) : ''}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Max. Stunden / Woche <span class="ein-hint">(Warnung im Stempel-Tab)</span></div>
                     <div class="emp-field-value"><input type="number" id="einMaxWeeklyHours" class="ef-input" min="0" max="168" step="0.5" placeholder="keine Grenze" value="${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) : ''}"></div></div>
-            </div>`)}
+            </div>
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Teilmonat Monatslohn <span class="ein-hint">(Ein-/Austritt mitten im Monat)</span></div>
+                    <div class="emp-field-value"><select id="einTeilmonat" class="ef-input">
+                        <option value="TAGESSATZ365" ${(b.teilmonatMethode || 'TAGESSATZ365') === 'TAGESSATZ365' ? 'selected' : ''}>Tagessatz 365 (Lohn × 12 ÷ 365 × Tage)</option>
+                        <option value="KALENDERTAGE" ${b.teilmonatMethode === 'KALENDERTAGE' ? 'selected' : ''}>Kalendertage des Monats (15/30, 16/31)</option>
+                        <option value="TAGE30" ${b.teilmonatMethode === 'TAGE30' ? 'selected' : ''}>30-Tage-Methode (jeder Monat 30 Tage)</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Gilt nur für den anteiligen Monatslohn. Taggelder und Absenzen rechnen immer mit dem Kalendertag-Satz (× 12 ÷ 365).</div>`)}
 
             ${einSec('ferien', 'Ferien &amp; Feiertage',
                 `Ferien ${b.defaultVacationPercent5Weeks ?? '–'} % · erhöht ${b.defaultVacationPercent6Weeks ?? '–'} % ab ${b.vacationSixWeeksFromAge ?? 50}${Number(b.vacationSixWeeksFromAge ?? 50) >= 99 ? ' (nie)' : ''} · Feiertag ${b.defaultHolidayPercent ?? '–'} % · ${b.ferienAuszahlungMonatlich === true ? 'monatlich ausbezahlt' : 'Ferien-Pott'}`, `
@@ -857,8 +867,11 @@ async function saveEinstellungen(branchId) {
     const nightEnd     = g('einNightEnd')?.value || '';
     const maxWeeklyRaw = g('einMaxWeeklyHours')?.value;
     const maxWeekly    = (maxWeeklyRaw == null || maxWeeklyRaw === '') ? null : Number(maxWeeklyRaw);
+    const normalWeeklyRaw = g('einNormalWeeklyHours')?.value;
+    const normalWeekly    = (normalWeeklyRaw == null || normalWeeklyRaw === '') ? null : Math.round(Number(normalWeeklyRaw) * 100) / 100;
     const autoFG       = g('einAutoFerienGeld')?.value === 'true';
     const ferienMonatl = g('einFerienMonatlich')?.value === 'true';
+    const teilmonat    = g('einTeilmonat')?.value || 'TAGESSATZ365';
     const karenzBasis  = g('einKarenzBasis')?.value || 'ARBEITSJAHR';
     const karenzKrank  = Number(g('einKarenzKrank')?.value);
     const karenzUnfall = Number(g('einKarenzUnfall')?.value);
@@ -878,6 +891,7 @@ async function saveEinstellungen(branchId) {
 
     // Validierung
     if (!nightStart || !nightEnd) { alert('Bitte beide Nachtzeiten angeben.'); return; }
+    if (normalWeekly == null || !Number.isFinite(normalWeekly) || normalWeekly < 1 || normalWeekly > 168) { alert('Normale Wochenstunden müssen zwischen 1 und 168 liegen (Dezimal, z.B. 42.3).'); return; }
     if (maxWeekly != null && (!Number.isFinite(maxWeekly) || maxWeekly < 0 || maxWeekly > 168)) { alert('Max. Stunden / Woche muss zwischen 0 und 168 liegen (oder leer für keine Grenze).'); return; }
     if (!['ARBEITSJAHR', 'KALENDERJAHR'].includes(karenzBasis)) { alert('Karenzjahr-Basis ungültig.'); return; }
     if (!Number.isFinite(karenzKrank)  || karenzKrank  < 0 || karenzKrank  > 365) { alert('Karenz-Tage Krank muss zwischen 0 und 365 liegen.'); return; }
@@ -902,11 +916,12 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/nighthours`,                 { method: 'PATCH', headers: H, body: JSON.stringify({ nightStartTime: nightStart, nightEndTime: nightEnd }) }),
             fetch(`/api/companyprofiles/${branchId}/auto-ferien-geld-dezember`,   { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: autoFG }) }),
             fetch(`/api/companyprofiles/${branchId}/ferien-auszahlung-monatlich`, { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: ferienMonatl }) }),
+            fetch(`/api/companyprofiles/${branchId}/teilmonat-methode`,           { method: 'PATCH', headers: H, body: JSON.stringify({ methode: teilmonat }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
             fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly, akontoAktiv }) }),
-            fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly }) }),
+            fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly, normalWeeklyHours: normalWeekly }) }),
             fetch(`/api/companyprofiles/${branchId}/vacation-six-weeks-from-age`, { method: 'PATCH', headers: H, body: JSON.stringify({ vacationSixWeeksFromAge: vacSixWeeksAge }) }),
             fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth }) }),
         ]);
@@ -923,8 +938,10 @@ async function saveEinstellungen(branchId) {
         const patch = {
             nightStartTime: nightStart, nightEndTime: nightEnd,
             maxWeeklyHours: maxWeekly,
+            normalWeeklyHours: normalWeekly,
             autoFerienGeldAuszahlungDezember: autoFG,
             ferienAuszahlungMonatlich: ferienMonatl,
+            teilmonatMethode: teilmonat,
             karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank,
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,
@@ -948,7 +965,7 @@ async function saveEinstellungen(branchId) {
         if (typeof loadFilialen === 'function') loadFilialen();
 
         if (failed > 0) {
-            alert(`${failed} von 10 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
+            alert(`${failed} von 11 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
         } else if (typeof showToast === 'function') {
             showToast('Einstellungen gespeichert.', 'success');
         }

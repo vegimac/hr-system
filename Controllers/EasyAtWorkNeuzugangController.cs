@@ -113,40 +113,37 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
         if (dto.SelectedNumbers == null || dto.SelectedNumbers.Count == 0)
             return BadRequest(new { error = "Bitte mindestens einen Mitarbeitenden auswählen." });
 
-        // Harte Nummernfolge nur für NEW (noch nicht in OneCrew). UPDATE bleibt frei.
+        // Personalnummern-Folge (Walter 09.09.2026, gelockert): nur noch eine
+        // WARNUNG, keine Sperre — sonst blockiert jede Nummern-Optimierung in
+        // easy@work den Import. Geprüft werden ausschliesslich echte NEU-Zeilen;
+        // welche das sind, sagt die Vorschau-Klassifizierung (ein bestehender MA
+        // mit neuer Personalnummer ist ein UPDATE, kein Neuzugang — vorher wurde
+        // er fälschlich als «neu» gegen die Folge geprüft und der Import gesperrt).
+        // Hart gesperrt bleiben nur nicht-numerische oder doppelte NEU-Nummern.
         var selected = dto.SelectedNumbers
             .Select(n => (n ?? "").Trim())
             .Where(n => n.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var existingNums = await _db.Employees.AsNoTracking()
-            .Where(e => !e.IsHidden && e.EmployeeNumber != null && e.EmployeeNumber != "")
-            .Select(e => e.EmployeeNumber!)
-            .ToListAsync(ct);
-        var existingSet = new HashSet<string>(
-            existingNums.Select(n => n.Trim()),
-            StringComparer.OrdinalIgnoreCase);
-
-        var newSelected = selected.Where(n => !existingSet.Contains(n)).ToList();
+        string? numberSequenceWarning = null;
+        var preview = await _empSync.PreviewAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
+        {
+            CompanyProfileId = dto.CompanyProfileId,
+            OnlyActive       = true,
+        }, ct);
+        var newSelected = preview.Rows
+            .Where(r => r.Status == "NEW" && selected.Contains((r.Number ?? "").Trim(), StringComparer.OrdinalIgnoreCase))
+            .Select(r => (r.Number ?? "").Trim())
+            .ToList();
         if (newSelected.Count > 0)
         {
             var seq = await BuildNumberSequenceInfoAsync(dto.CompanyProfileId, ct);
+            if (!EmployeeNumberSequenceGuard.LueckeErlaubt(newSelected, seq.MaxExisting, out var hart))
+                return Conflict(new { error = "NUMBER_INVALID", message = hart });
             if (!EmployeeNumberSequenceGuard.TryValidate(
-                    newSelected, seq.MaxExisting, out var msg, out var expected, out var received)
-                && !(dto.TrotzdemImportieren
-                     && EmployeeNumberSequenceGuard.LueckeErlaubt(newSelected, seq.MaxExisting, out msg)))
-            {
-                return Conflict(new
-                {
-                    error = "NUMBER_SEQUENCE_INVALID",
-                    message = msg,
-                    maxExisting = seq.MaxExisting,
-                    prefix = seq.Prefix,
-                    expected = expected.Select(x => x.ToString()).ToList(),
-                    received = received.Select(x => x.ToString()).ToList(),
-                });
-            }
+                    newSelected, seq.MaxExisting, out var msg, out _, out _))
+                numberSequenceWarning = msg;
         }
 
         var res = await _empSync.CommitAsync(new EasyAtWorkEmployeeSyncService.SyncRequest
@@ -164,6 +161,7 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             numberConflicts = res.NumberConflicts,
             skippedContracts = res.SkippedContracts,
             notes = res.Notes,
+            numberSequenceWarning,
         });
     }
 
@@ -177,10 +175,17 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
         // Folge verschieben, weil er zwar mit 122 beginnt, aber viel kleiner
         // ist als jede echte 122xxxx-Nummer.
         var kreis = Nummernkreis.Fuer(filiale);
+        // «Vergeben ist vergeben» (Walter 02.09./09.09.2026): ALLE je vergebenen
+        // Nummern zählen — auch gelöschte/versteckte MA und frühere Nummern aus
+        // der Alias-Tabelle (Umnummerierungen). Vorher fehlten die versteckten
+        // MA, und die «letzte Nr.» war zu tief.
         var nums = await _db.Employees.AsNoTracking()
-            .Where(e => !e.IsHidden && e.EmployeeNumber != null && e.EmployeeNumber != "")
+            .Where(e => e.EmployeeNumber != null && e.EmployeeNumber != "")
             .Select(e => e.EmployeeNumber!)
             .ToListAsync(ct);
+        nums.AddRange(await _db.EmployeeNumberAliases.AsNoTracking()
+            .Where(a => a.Number != null && a.Number != "")
+            .Select(a => a.Number).ToListAsync(ct));
         var max = kreis.Hoechste(nums);
         return new NumberSequenceInfo(kreis.Praefix, max, filiale?.RestaurantCode,
                                       kreis.HatLaenge ? kreis.Stellen : (int?)null,

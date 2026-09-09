@@ -219,11 +219,27 @@ public class QuellensteuerTarifService
         string key = $"{jahr}|{kanton.ToUpper()}|{tarifCode.ToUpper()}|{kinder}|{(kirchensteuer ? 'Y' : 'N')}";
 
         if (!_tarife.TryGetValue(key, out var lookup))
-            return null;
+        {
+            // Tarifjahr nicht geladen (z.B. Nachberechnung Dezember im Folgejahr, nur
+            // die aktuelle Datei vorhanden): nächstliegendes geladenes Jahr nehmen —
+            // zuerst rückwärts (Vorjahres-Tarif), dann vorwärts. Lieber der Nachbar-
+            // Tarif als gar kein QST-Abzug. (Walter 09.09.2026)
+            lookup = null;
+            foreach (var delta in new[] { -1, -2, -3, 1, 2, 3 })
+            {
+                var altKey = $"{jahr + delta}|{kanton.ToUpper()}|{tarifCode.ToUpper()}|{kinder}|{(kirchensteuer ? 'Y' : 'N')}";
+                if (_tarife.TryGetValue(altKey, out lookup)) break;
+            }
+            if (lookup is null) return null;
+        }
 
-        // Lookup-Schlüssel = Monatseinkommen in CHF/10
-        // (bestehende Parser-Konvention: Stufe 135 = ab ca. CHF 1'350)
-        int lohn = (int)Math.Floor(bruttolohnCHF / 10m);
+        // Lookup-Schlüssel = Monatseinkommen in CHF/10.
+        // ESTV-Stufe 1045 heisst «10'450.01 bis 10'500.00» (kantonale Tabellen:
+        // «10'451 – 10'500») — die Obergrenze gehört noch zur unteren Stufe.
+        // Darum: satzbestimmenden Lohn auf ganze Franken abrunden, 1 Franken
+        // abziehen, dann /10 → 10'500 → 1049 → Stufe 1045. (Walter 09.09.2026,
+        // Muster AG TF37: 10'500 → 11.74 %, nicht 11.78 %.)
+        int lohn = (int)Math.Max(0, Math.Floor(bruttolohnCHF) - 1) / 10;
         if (lookup.Count == 0) return new QstTarifStufe(0, 0m);
 
         int idx = BinarySearchFloor(lookup.Keys, lohn);

@@ -19,6 +19,7 @@ function swissdecInit() {
 async function tmInit() {
     const card = document.getElementById('tmCard');
     if (!card) return;
+    tmFuelleMonate();
     try {
         const r = await fetch('/api/swissdec/testmandant/status', { headers: ah() });
         if (!r.ok) return;
@@ -260,4 +261,19 @@ function elmAnnualDownload() {
         a.click();
         a.remove();
     }
+}
+
+
+// Monatsauswahl für Schritt 5b (Walter 09.09.2026): Nov 2024 – Feb 2026 als
+// lesbare Liste statt nativem Monatsfeld; leer = alle Monate chronologisch.
+function tmFuelleMonate() {
+    const sel = document.getElementById('tmMonat5b');
+    if (!sel || sel.options.length) return;
+    const namen = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+    const opts = ['<option value="">Alle Monate (chronologisch)</option>'];
+    for (let y = 2024, m = 11; y < 2026 || (y === 2026 && m <= 2); m++) {
+        if (m > 12) { m = 1; y++; }
+        opts.push(`<option value="${y}-${String(m).padStart(2, '0')}">${namen[m - 1]} ${y}</option>`);
+    }
+    sel.innerHTML = opts.join('');
 }

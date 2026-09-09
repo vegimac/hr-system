@@ -14238,8 +14238,8 @@ function _empEasySeqBanner(seq) {
     const next = seq.maxExisting != null ? String(Number(seq.maxExisting) + 1) : 'erste Nummer der Filiale';
     return `<div style="background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.28);border-radius:10px;padding:10px 12px;font-size:12.5px;color:#3f3f3f;margin-bottom:10px">
         Letzte Nr. in OneCrew: <b style="font-family:monospace">${esc(max)}</b>
-        · Neue NEU-Nummern müssen fortlaufend anschliessen (nächste: <b style="font-family:monospace">${esc(next)}</b>${seq.maxExisting != null ? ', dann +1 …' : ''}).
-        Sonst ist der Import gesperrt — bitte in easy@work korrigieren, oder bei einer von easy@work geblockten Nummer die Pille «Trotzdem importieren» setzen.
+        · Nächste freie Nummer: <b style="font-family:monospace">${esc(next)}</b>${seq.maxExisting != null ? ', dann +1 …' : ''}.
+        Weicht eine NEU-Nummer davon ab, erscheint eine Warnung — der Import bleibt möglich.
     </div>`;
 }
 
@@ -14300,22 +14300,21 @@ function _empEasyCount() {
     const seq = _empEasyValidateNewSequence(newNums);
     const warn = document.getElementById('empEasySeqWarn');
     if (warn) {
-        if (!seq.ok) { warn.style.display = 'block'; warn.textContent = '⛔ ' + seq.message; }
-        else if (seq.forced) { warn.style.display = 'block'; warn.textContent = '⚠ Abweichung von der Personalnummern-Folge wird auf Wunsch akzeptiert (freie Nummer / Lücke).'; }
+        // Walter 09.09.2026: Abweichung von der Folge ist nur noch eine Warnung.
+        if (!seq.ok) { warn.style.display = 'block'; warn.style.background = '#fdf6dd'; warn.style.borderColor = '#e4d28a'; warn.style.color = '#6b5a1f'; warn.textContent = '⚠ ' + seq.message + '\nDer Import ist trotzdem möglich — bitte nur prüfen, ob die Nummer so gewollt ist.'; }
         else { warn.style.display = 'none'; warn.textContent = ''; }
     }
     // Pille nur zeigen, wenn eine Lücke nach oben vorliegt (oder sie schon gesetzt ist).
     const forceWrap = document.getElementById('empEasySeqForceWrap');
     const forceEl = document.getElementById('empEasySeqForce');
     if (forceWrap) {
-        const show = (forceEl && forceEl.checked) || (!seq.ok && seq.lueckeMoeglich);
-        forceWrap.style.display = show ? 'flex' : 'none';
-        if (!show && forceEl) forceEl.checked = false;
+        forceWrap.style.display = 'none';   // Pille «Trotzdem importieren» überflüssig — Folge ist nur noch Warnung
+        if (forceEl) forceEl.checked = false;
     }
     const btn = document.getElementById('empEasyCommitBtn');
     if (btn) {
         btn.textContent = `Ausgewählte importieren (${n})`;
-        const block = n === 0 || !seq.ok;
+        const block = n === 0;   // Folge-Abweichung sperrt nicht mehr (Walter 09.09.2026)
         btn.disabled = block;
         btn.style.opacity = block ? '0.5' : '1';
     }
@@ -14345,8 +14344,8 @@ async function empEasyImportCommit(cpId) {
         const j = await r.json().catch(() => ({}));
         if (!r.ok || j.blocked) {
             let msg;
-            if (j.error === 'NUMBER_SEQUENCE_INVALID') {
-                msg = 'Import gesperrt — Personalnummern-Folge:\n' + (j.message || '');
+            if (j.error === 'NUMBER_SEQUENCE_INVALID' || j.error === 'NUMBER_INVALID') {
+                msg = 'Import gesperrt — Personalnummer:\n' + (j.message || '');
             } else if (j.blocked) {
                 msg = 'Import blockiert — Personalnummern-Kollision:\n' + (j.numberConflicts || []).join('\n');
             } else {
@@ -14360,10 +14359,12 @@ async function empEasyImportCommit(cpId) {
         }
         const skipped = (j.skippedContracts && j.skippedContracts.length)
             ? `<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:8px;white-space:pre-wrap">⚠ Nicht importierte Verträge (Periode abgeschlossen):\n${j.skippedContracts.map(escapeHtml).join('\n')}</div>` : '';
+        const seqWarn = j.numberSequenceWarning
+            ? `<div style="background:#fdf6dd;border:1px solid #e4d28a;color:#6b5a1f;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:8px;white-space:pre-wrap">⚠ Personalnummern-Folge: ${escapeHtml(j.numberSequenceWarning)}</div>` : '';
         body.innerHTML = `
             <div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:12px;font-size:13px">
                 ✓ Import abgeschlossen — ${j.inserted || 0} neu angelegt, ${j.updated || 0} aktualisiert.
-            </div>${skipped}`;
+            </div>${seqWarn}${skipped}`;
         const foot = document.getElementById('empEasyImportFoot');
         if (foot) foot.innerHTML = `
             <button onclick="document.getElementById('empEasyImportModal').style.display='none'"

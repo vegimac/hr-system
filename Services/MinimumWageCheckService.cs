@@ -51,6 +51,22 @@ public class MinimumWageCheckService
         return !((hourlyRate ?? 0m) > 0m);
     }
 
+    /// <summary>
+    /// Hat der MA in der Periode AHV-pflichtige Lohnzeilen (Zulagen/Honorare > 0)?
+    /// Dann ist «Vertrag ohne Lohnsumme» KEINE Sperre: der Lohn kommt aus den
+    /// Zulagen (Honorar-Journalistin, Muster AG TF16; Verwaltungsrat mit Sitzungs-
+    /// geld; GF mit Lohn 0 und Bonus). Die Sperre soll nur den 0-Lohn mit lauter
+    /// Abzügen verhindern. (Walter 09.09.2026)
+    /// </summary>
+    public async Task<bool> HatLohnzeilenAsync(int employeeId, int year, int month)
+    {
+        var periode = $"{year}-{month:D2}";
+        return await _db.LohnZulagen
+            .Where(z => z.EmployeeId == employeeId && z.Periode == periode && z.Betrag > 0m
+                     && z.Lohnposition!.AhvAlvPflichtig)
+            .AnyAsync();
+    }
+
     public async Task<MinWageCheckResult> CheckAsync(
         string? jobGroupCode,
         string? educationLevelCode,
