@@ -438,3 +438,7 @@ Ferien-TAGE laufen immer weiter (Egli +2.92 trotz %-Entschädigung ist gewollt).
 - `PersonResidenceCategory` (z.B. annual-B → settled-C) setzt nicht nur `Employee.PermitTypeId`, sondern führt die **EmployeePermitHistory** nach (Vorgänger per Vortag schliessen, neuer Eintrag ab Monatsanfang, idempotent). 4a legt den Erst-Eintrag ab Eintritt an. Grund: `QstPflichtCheckService` liest die History («einmal C, immer C»); ohne Zeile bliebe der MA QST-pflichtig.
 - `PersonTASCode = NON` beendet die QST-Pflicht: offene QST-Einträge werden per Vortag geschlossen, **kein** neuer Eintrag (sonst würde der A0Y-Vorgänger kopiert und weitergerechnet). Beides zusammen nötig — nur die QST-Zeile schliessen ergäbe beim Bestätigen 409 QST_PFLICHT_OFFEN.
 - Beispiel TF14 Egli Dezember 2024: C-Ausweis + NON ab 1.12.2024 → Beleg ohne Quellensteuer. Die November-Korrektur (ELM) ist ein späteres Thema.
+
+## Uniform-Depot als Filial-Schalter (Walter 10.09.2026)
+
+`CompanyProfile.UniformDepotAktiv` (boolean NOT NULL DEFAULT true, Schema-Stand 4). Bei false legt der Lohnlauf (`PayrollCalculationEngine` vor `EnsureChargeAsync`) und das Nachziehen pro Periode (`UniformDepotService.EnsureChargesForPeriodAsync`) keinen CHF-50-Abzug (600.32) mehr an; bestehende Depots und deren Rückerstattung bleiben unverändert. UI: Filial-Einstellungen, Sektion «Uniform-Depot» direkt nach L-GAV-Vollzugsbeitrag; PATCH `/api/companyprofiles/{id}/uniform-depot`. Muster AG (5a): false.

@@ -60,6 +60,7 @@ public partial class SwissdecTestmandantController
                 ["Ferien-Tage am Austritt"] = "nicht in CHF auszahlen (Saldo bleibt in Tagen)",
                 ["Feiertag-Tage am Austritt"] = "nicht in CHF auszahlen (Saldo bleibt in Tagen)",
                 ["Stunden-Saldo im Lohn"] = "nicht verrechnen (Soll/Ist nur Anzeige; Quality Tool kennt keine Saldo-Auszahlung)",
+                ["Uniform-Depot"] = "deaktiviert (kein CHF-50-Abzug beim ersten Lohn)",
                 ["bisher"] = $"Ferien {f.DefaultVacationPercent5Weeks}/{f.DefaultVacationPercent6Weeks} ab {f.VacationSixWeeksFromAge} · Feiertag {f.DefaultHolidayPercent} · 13. {f.DefaultThirteenthSalaryPercent} ({f.ThirteenthMonthPayoutMonths ?? "–"})",
             };
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
@@ -77,6 +78,12 @@ public partial class SwissdecTestmandantController
                 f.FerientageAmAustrittAuszahlen = false;
                 f.FeiertagstageAmAustrittAuszahlen = false;
                 f.StundenSaldoImLohnVerrechnen = false;
+                f.UniformDepotAktiv = false;   // Walter 10.09.2026
+                // Bereits angelegte Depot-Zeilen der Muster-AG-Personen entfernen (sonst
+                // Rückgabe-Hinweis beim letzten Lohn), es gab dafür nie einen Abzug.
+                var depotEmpIds = await _db.Employments.Where(e => e.CompanyProfileId == f.Id).Select(e => e.EmployeeId).Distinct().ToListAsync();
+                var depots = await _db.EmployeeUniformDepots.Where(d => depotEmpIds.Contains(d.EmployeeId)).ToListAsync();
+                if (depots.Count > 0) _db.EmployeeUniformDepots.RemoveRange(depots);
             }
             int neu = 0;
             for (var m = TmVon; m <= TmBis; m = m.AddMonths(1))

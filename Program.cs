@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 3;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter (10.09.2026)
+const int SchemaStand = 4;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1147,6 +1147,7 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferientage_am_austritt_auszahlen boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS feiertagstage_am_austritt_auszahlen boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS stunden_saldo_im_lohn_verrechnen boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS uniform_depot_aktiv boolean NOT NULL DEFAULT true;
         ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);

@@ -46,7 +46,17 @@ SIZE=$(du -h "$TARBALL" | cut -f1)
 echo "    $TARBALL ($SIZE)"
 
 echo "── 3/4 Hochladen ──"
-scp "$TARBALL" "$SERVER_USER@$SERVER_IP:~/"
+# rsync mit Wiederaufnahme (Walter 10.09.2026): ein Hänger bei 160 MB bricht
+# nicht mehr alles ab, sondern setzt beim nächsten Versuch fort. Bis zu 5 Versuche.
+if command -v rsync >/dev/null 2>&1; then
+    n=0
+    until rsync --partial --inplace --progress -e "ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=4" "$TARBALL" "$SERVER_USER@$SERVER_IP:~/"; do
+        n=$((n+1)); [ "$n" -ge 5 ] && { echo "Upload nach 5 Versuchen abgebrochen."; exit 1; }
+        echo "Upload unterbrochen – Versuch $((n+1))/5 in 5 s …"; sleep 5
+    done
+else
+    scp "$TARBALL" "$SERVER_USER@$SERVER_IP:~/"
+fi
 
 echo "── 4/4 Server-Deploy ──"
 ssh "$SERVER_USER@$SERVER_IP" "bash -s" "$MODE" "$COMMIT" <<'REMOTE'

@@ -575,6 +575,17 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value"><input type="number" id="einLgavRed" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}"></div></div>
             </div>`)}
 
+            ${einSec('uniformdepot', 'Uniform-Depot',
+                b.uniformDepotAktiv === false ? 'deaktiviert' : 'aktiv · CHF 50 Abzug beim ersten Lohn (Lohnposition 600.32), Rückgabe beim Austritt', `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Status</div>
+                    <div class="emp-field-value"><select id="einUniformDepotAktiv" class="ef-input">
+                        <option value="true"  ${b.uniformDepotAktiv !== false ? 'selected' : ''}>Aktiv</option>
+                        <option value="false" ${b.uniformDepotAktiv === false ? 'selected' : ''}>Deaktiviert</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Bei «Deaktiviert» wird kein Depot-Abzug mehr angelegt. Bereits einbehaltene Depots bleiben und werden beim Austritt wie bisher zurückerstattet.</div>`)}
+
             ${einSec('mindestlohn', 'Mindestlohn Gemeinde / Kanton',
                 'nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt – übersteuert den L-GAV nach oben', `
             <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`)}
@@ -904,6 +915,7 @@ async function saveEinstellungen(branchId) {
     const lgavMonat    = parseInt(g('einLgavMonat')?.value, 10);
     const lgavVoll     = Number(g('einLgavVoll')?.value);
     const lgavRed      = Number(g('einLgavRed')?.value);
+    const uniformDepotAktiv = g('einUniformDepotAktiv')?.value !== 'false';
     const akontoAktiv         = g('einAkontoAktiv')?.value !== 'false';
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
     const akontoProzentFixM   = Number(g('einAkontoProzentFixM')?.value);
@@ -941,6 +953,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/auto-ferien-geld-dezember`,   { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: autoFG }) }),
             fetch(`/api/companyprofiles/${branchId}/ferien-auszahlung-monatlich`, { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: ferienMonatl }) }),
             fetch(`/api/companyprofiles/${branchId}/teilmonat-methode`,           { method: 'PATCH', headers: H, body: JSON.stringify({ methode: teilmonat }) }),
+            fetch(`/api/companyprofiles/${branchId}/uniform-depot`,               { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: uniformDepotAktiv }) }),
             fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
@@ -973,6 +986,7 @@ async function saveEinstellungen(branchId) {
             karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank,
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,
+            uniformDepotAktiv,
             thirteenthMonthPayoutMonths: tpMonths.join(','), thirteenthMonthPayoutsPerYear: tpMonths.length || 12,
             akontoProzentFix: akontoProzent,
             akontoProzentFixM: akontoProzentFixM,

@@ -359,6 +359,14 @@ public class CompanyProfile
     public bool StundenSaldoImLohnVerrechnen { get; set; } = true;
 
     /// <summary>
+    /// Uniformen-Depot CHF 50 beim ersten Lohn (Lohnposition 600.32) für diese
+    /// Filiale aktiv (Walter 10.09.2026). Default true = Schaub. Bei false wird
+    /// kein Depot-Abzug angelegt; bestehende Depots (Rückgabe/Refund) laufen
+    /// unverändert weiter. Swissdec-Testmandant: false.
+    /// </summary>
+    public bool UniformDepotAktiv { get; set; } = true;
+
+    /// <summary>
     /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
     /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.
     /// Default 80 %, pro Filiale im Einstellungen-Tab änderbar. Siehe

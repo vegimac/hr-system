@@ -122,6 +122,11 @@ public class UniformDepotService
         var periodFrom = new DateTime(year, month, 1);
         var periodTo   = periodFrom.AddMonths(1).AddDays(-1);
 
+        // Filial-Schalter «Uniform-Depot» (Walter 10.09.2026): aus → nichts nachziehen.
+        var filialeAktiv = await _db.CompanyProfiles.AsNoTracking()
+            .Where(c => c.Id == companyProfileId).Select(c => (bool?)c.UniformDepotAktiv).FirstOrDefaultAsync();
+        if (filialeAktiv == false) return (0, new List<int>());
+
         var empIds = await _db.Employments.AsNoTracking()
             .Where(em => em.CompanyProfileId == companyProfileId
                       && em.ContractStartDate <= periodTo

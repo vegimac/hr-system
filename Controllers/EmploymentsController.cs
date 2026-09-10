@@ -391,7 +391,10 @@ public class EmploymentsController : ControllerBase
         decimal ferienSaldoStichtag = lastSaldo?.FerienTageSaldo ?? 0;
         decimal ferienErwarteterSaldoBeiAustritt = Math.Round(ferienSaldoStichtag + ferienAnspruchRest, 2);
 
-        var uniformDepot = await _uniformDepot.GetDtoAsync(employment.EmployeeId);
+        // Filial-Schalter «Uniform-Depot» aus → kein Depot-Hinweis im Austritts-Lohn (Walter 10.09.2026)
+        var uniformDepot = (employment.CompanyProfile?.UniformDepotAktiv ?? true)
+            ? await _uniformDepot.GetDtoAsync(employment.EmployeeId)
+            : null;
 
         return Ok(new
         {

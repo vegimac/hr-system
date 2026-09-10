@@ -633,6 +633,19 @@ public class CompanyProfilesController : ControllerBase
     }
     public record SchlussabrechnungDto(bool? FerientageAmAustrittAuszahlen = null, bool? FeiertagstageAmAustrittAuszahlen = null, bool? StundenSaldoImLohnVerrechnen = null);
 
+    // PATCH /api/companyprofiles/{id}/uniform-depot  (Walter 10.09.2026)
+    // Uniformen-Depot CHF 50 beim ersten Lohn für diese Filiale an/aus.
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/uniform-depot")]
+    public async Task<IActionResult> UpdateUniformDepot(int id, [FromBody] AutoFerienGeldDezemberDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        profile.UniformDepotAktiv = dto.Aktiv;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
     // PATCH /api/companyprofiles/{id}/lgav
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
@@ -807,6 +820,7 @@ public class CompanyProfilesController : ControllerBase
             t.FerientageAmAustrittAuszahlen    = source.FerientageAmAustrittAuszahlen;
             t.FeiertagstageAmAustrittAuszahlen = source.FeiertagstageAmAustrittAuszahlen;
             t.StundenSaldoImLohnVerrechnen     = source.StundenSaldoImLohnVerrechnen;
+            t.UniformDepotAktiv                = source.UniformDepotAktiv;
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;

@@ -1018,7 +1018,9 @@ public class PayrollCalculationEngine
 
         // Uniformen-Depot CHF 50 beim 1. Lohn (Walter Aug 2026) — idempotent,
         // schreibt LohnZulage 600.32 + employee_uniform_depot vor dem Laden.
-        await _uniformDepot.EnsureChargeAsync(employee, year, month);
+        // Filial-Schalter «Uniform-Depot» (Walter 10.09.2026): aus → kein Abzug.
+        if (company.UniformDepotAktiv)
+            await _uniformDepot.EnsureChargeAsync(employee, year, month);
 
         // ── Zulagen & Abzüge für diese Periode laden ──────────────────────
         // Einmalige Einträge (manuell pro Periode erfasst) + wiederkehrende
@@ -1731,8 +1733,10 @@ public class PayrollCalculationEngine
         // Uniformen-Depot Rückerstattung (Walter Aug 2026): positiver Betrag
         // in abzugLines (= Auszahlung) wenn Austritt + Uniform zurückgegeben.
         // Status-Wechsel erst bei Confirm (ApplyAfterConfirmAsync).
-        var (depotRefund, depotAmt, depotLabel) =
-            await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+        // Filial-Schalter «Uniform-Depot» aus → kein Depot-Strang (Walter 10.09.2026).
+        var (depotRefund, depotAmt, depotLabel) = company.UniformDepotAktiv
+            ? await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo)
+            : (false, 0m, (string?)null);
         if (depotRefund && depotAmt > 0)
         {
             lohnposAbzugLines.Add(new {
@@ -4470,9 +4474,10 @@ public class PayrollCalculationEngine
                 lohnposAbzugTotal += b;
             }
 
-            // Uniformen-Depot-Refund (auch Monate nach Austritt)
-            var (depotRefund, depotAmt, depotLabel) =
-                await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo);
+            // Uniformen-Depot-Refund (auch Monate nach Austritt); Filial-Schalter aus → keiner (Walter 10.09.2026)
+            var (depotRefund, depotAmt, depotLabel) = company.UniformDepotAktiv
+                ? await _uniformDepot.GetPendingRefundAsync(employeeId, periodFrom, periodTo)
+                : (false, 0m, (string?)null);
             if (depotRefund && depotAmt > 0)
             {
                 lohnposAbzugLines.Add(new {

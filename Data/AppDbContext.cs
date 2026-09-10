@@ -729,6 +729,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FerientageAmAustrittAuszahlen).HasColumnName("ferientage_am_austritt_auszahlen").HasDefaultValue(true);
             entity.Property(e => e.FeiertagstageAmAustrittAuszahlen).HasColumnName("feiertagstage_am_austritt_auszahlen").HasDefaultValue(true);
             entity.Property(e => e.StundenSaldoImLohnVerrechnen).HasColumnName("stunden_saldo_im_lohn_verrechnen").HasDefaultValue(true);
+            entity.Property(e => e.UniformDepotAktiv).HasColumnName("uniform_depot_aktiv").HasDefaultValue(true);   // Walter 10.09.2026
             entity.Property(e => e.AkontoProzentFix).HasColumnName("akonto_prozent_fix").HasColumnType("numeric(5,2)").HasDefaultValue(80m);
             entity.Property(e => e.AkontoProzentFixM).HasColumnName("akonto_prozent_fix_m").HasColumnType("numeric(5,2)").HasDefaultValue(90m);
             entity.Property(e => e.AkontoProzentHourly).HasColumnName("akonto_prozent_hourly").HasColumnType("numeric(5,2)").HasDefaultValue(100m);
