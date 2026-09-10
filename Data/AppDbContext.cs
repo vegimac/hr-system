@@ -179,6 +179,8 @@ public class AppDbContext : DbContext
                 var spaltentyp = prop.Metadata.GetColumnType() ?? "";
                 bool ohneZeitzone = spaltentyp.Contains("without", StringComparison.OrdinalIgnoreCase)
                                     || spaltentyp.Equals("timestamp", StringComparison.OrdinalIgnoreCase);
+                bool mitZeitzone  = spaltentyp.Contains("with time zone", StringComparison.OrdinalIgnoreCase)
+                                    || spaltentyp.Equals("timestamptz", StringComparison.OrdinalIgnoreCase);
                 if (ohneZeitzone)
                 {
                     if (dt.Kind == DateTimeKind.Utc)
@@ -186,13 +188,19 @@ public class AppDbContext : DbContext
                     else if (dt.Kind == DateTimeKind.Local)
                         prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
                 }
-                else
+                else if (mitZeitzone)
                 {
+                    // Nur echte timestamptz-Spalten: Unspecified gilt als Lokalzeit → UTC.
                     if (dt.Kind == DateTimeKind.Unspecified)
                         prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Local).ToUniversalTime();
                     else if (dt.Kind == DateTimeKind.Local)
                         prop.CurrentValue = dt.ToUniversalTime();
                 }
+                // «date»-Spalten (Vertragsbeginn, Austritt, Gültig-ab …) und alles andere:
+                // NIE verschieben — ein Mitternachts-Datum würde durch ToUniversalTime()
+                // zum Vortag (Bug 10.09.2026: Eintritt 16.11. wurde zu 15.11., Monatslohn 0).
+                else if (dt.Kind == DateTimeKind.Utc && dt.TimeOfDay == TimeSpan.Zero)
+                    prop.CurrentValue = DateTime.SpecifyKind(dt, DateTimeKind.Unspecified);
             }
         }
     }
@@ -717,6 +725,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LgavBeitragVoll).HasColumnName("lgav_beitrag_voll").HasColumnType("numeric(8,2)").HasDefaultValue(99m);
             entity.Property(e => e.LgavBeitragReduziert).HasColumnName("lgav_beitrag_reduziert").HasColumnType("numeric(8,2)").HasDefaultValue(49.5m);
             entity.Property(e => e.AkontoAktiv).HasColumnName("akonto_aktiv").HasDefaultValue(true);
+            // Schlussabrechnung / Stunden im Lohn (Walter 10.09.2026)
+            entity.Property(e => e.FerientageAmAustrittAuszahlen).HasColumnName("ferientage_am_austritt_auszahlen").HasDefaultValue(true);
+            entity.Property(e => e.FeiertagstageAmAustrittAuszahlen).HasColumnName("feiertagstage_am_austritt_auszahlen").HasDefaultValue(true);
+            entity.Property(e => e.StundenSaldoImLohnVerrechnen).HasColumnName("stunden_saldo_im_lohn_verrechnen").HasDefaultValue(true);
             entity.Property(e => e.AkontoProzentFix).HasColumnName("akonto_prozent_fix").HasColumnType("numeric(5,2)").HasDefaultValue(80m);
             entity.Property(e => e.AkontoProzentFixM).HasColumnName("akonto_prozent_fix_m").HasColumnType("numeric(5,2)").HasDefaultValue(90m);
             entity.Property(e => e.AkontoProzentHourly).HasColumnName("akonto_prozent_hourly").HasColumnType("numeric(5,2)").HasDefaultValue(100m);

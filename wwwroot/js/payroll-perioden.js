@@ -84,6 +84,7 @@ async function perLoadPerioden() {
 
             // Akonto-Pille (neue Anzeige): zeigt den parallelen Akonto-Workflow-Status
             const akS = (p.akontoStatus || 'OFFEN').toUpperCase();
+            const akontoAktiv = ((typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === p.companyProfileId)?.akontoAktiv) !== false;
             const akontoMap = {
                 'OFFEN':              { lbl: 'Akonto offen',   bg: '#f1f5f9', fg: '#64748b' },
                 'IN_BEARBEITUNG_GF':  { lbl: 'Akonto bei GF',  bg: '#efece5', fg: '#6b6152' },
@@ -93,7 +94,10 @@ async function perLoadPerioden() {
                 'AUSBEZAHLT':         { lbl: 'Akonto bezahlt', bg: '#dcfce7', fg: '#166534' }
             };
             const akI = akontoMap[akS] || akontoMap['OFFEN'];
-            const akBadge = `<span style="background:${akI.bg};color:${akI.fg};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Akonto-Workflow-Status">${akI.lbl}</span>`;
+            // Filiale ohne Akonto (Walter 09.09.2026): keine Akonto-Pille — es gibt keinen Akonto-Strang.
+            const akBadge = akontoAktiv
+                ? `<span style="background:${akI.bg};color:${akI.fg};padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600" title="Akonto-Workflow-Status">${akI.lbl}</span>`
+                : '';
 
             // Kombi-Zelle: zwei Pillen untereinander
             const statusCell = `<div style="display:flex;flex-direction:column;gap:3px;align-items:flex-start">${akBadge}${defBadge}</div>`;
@@ -144,7 +148,8 @@ async function perLoadPerioden() {
             // zurück damit lohnrelevante Edits wieder möglich werden. Audit-
             // Trail wird im Backend geschrieben.
             const isAdmin = (typeof currentUser !== 'undefined' && currentUser?.role === 'admin');
-            const akontoResetBtn = (isAdmin && !akontoOffen)
+            // Akonto ja/nein pro Filiale (Walter 09.09.2026): bei «nein» keine Akonto-Knöpfe.
+            const akontoResetBtn = (isAdmin && !akontoOffen && akontoAktiv)
                 ? `<button class="btn btn-sm btn-outline" style="color:#92400e;border-color:#fcd34d;background:#fffbeb"
                             onclick="perAkontoReset(${p.companyProfileId},${p.year},${p.month},'${(p.label || '').replace(/'/g, "\\'")}')"
                             title="Akonto-Workflow dieser Periode komplett zurücksetzen — danach sind Lohn-Edits wieder möglich">↺ Akonto zurücksetzen</button>`
@@ -163,7 +168,7 @@ async function perLoadPerioden() {
 
             // Akonto-DTA-Download (Walter 17.05.2026, Phase 3d): bei AUSBEZAHLT
             // kann das pain.001-XML jederzeit re-downloaded werden.
-            const akontoDtaBtn = (akS === 'AUSBEZAHLT')
+            const akontoDtaBtn = (akS === 'AUSBEZAHLT' && akontoAktiv)
                 ? `<button class="btn btn-sm btn-outline" style="color:#6b6152;border-color:#d0c8b8"
                             onclick="perAkontoDtaDownload(${p.companyProfileId},${p.year},${p.month})"
                             title="pain.001-DTA-File für diesen Akonto-Lauf herunterladen">📥 Akonto-DTA</button>`
@@ -171,7 +176,7 @@ async function perLoadPerioden() {
             // Akonto-Liste als PDF (Walter 18.05.2026): Begleitliste zum DTA,
             // Buchhaltungs-Beleg. Verfügbar sobald der Akonto-Workflow gestartet
             // wurde (auch in der HR-Kontrolle, nicht nur nach AUSBEZAHLT).
-            const akontoListeBtn = (akS !== 'OFFEN')
+            const akontoListeBtn = (akS !== 'OFFEN' && akontoAktiv)
                 ? `<button class="btn btn-sm btn-outline" style="color:#6b6152;border-color:#d0c8b8"
                             onclick="perAkontoListePdf(${p.companyProfileId},${p.year},${p.month})"
                             title="Akonto-Zahlungsliste als PDF herunterladen">📄 Akonto-Liste</button>`

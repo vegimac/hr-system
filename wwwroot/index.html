@@ -4925,6 +4925,8 @@
                     <p style="color:#64748b;font-size:13px;margin-bottom:10px">Alle Sync-Läufe: automatischer täglicher Stempelzeiten-Sync (05:00 Europe/Zurich) UND manuelle Mitarbeiter-Sync-Commits (Zeilen mit „MA-Sync…" — BLOCKIERT = nichts geschrieben, z.B. wegen Personalnummern-Kollision). Pro Filiale und Lauf eine Zeile —so siehst du, ob alles durchgelaufen ist, ohne aufs Server-Log zu schauen.</p>
                     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px">
                         <button class="btn-secondary" onclick="eawLogLoad()">↻ Aktualisieren</button>
+                        <button id="eawRunNowBtn" class="btn-primary" onclick="eawRunNow()" title="Den täglichen 05:00-Lauf sofort ausführen (MA-Stammdaten → Stempelzeiten → Verschollen-Check, alle Filialen)">▶ Nachtlauf jetzt starten</button>
+                        <span id="eawRunNowStatus" style="color:#475569;font-size:12px"></span>
                         <span style="color:#94a3b8;font-size:12px">neueste zuerst, max. 100 Einträge · Aufbewahrung 90 Tage</span>
                     </div>
                     <div id="eawLogContainer"></div>
@@ -9067,7 +9069,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
 <script src="js/akonto-workflow.js?v=20260909a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260909d"></script>
+<script src="js/branches-detail.js?v=20260910a"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260908a"></script>
@@ -9085,10 +9087,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260907b"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260909a"></script>
+<script src="js/payroll.js?v=20260910a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
-<script src="js/payroll-perioden.js?v=20260803c"></script>
+<script src="js/payroll-perioden.js?v=20260910a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
 <script src="js/admin-settings.js?v=20260909a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
@@ -9096,7 +9098,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260908i"></script>
+<script src="js/easyatwork.js?v=20260910a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>

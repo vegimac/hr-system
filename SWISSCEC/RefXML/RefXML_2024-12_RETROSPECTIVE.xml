@@ -1,0 +1,874 @@
+<sdcst:DeclareAnnualSalary xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                           xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                           xmlns:c="urn:ch:swissdec:common:v3:20260306"
+                           xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                           xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
+                           xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>SalaryCalculator</ep:Name>
+            <ep:Version>20260828</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/A</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>Muster AG</ep:CompanyName>
+        <ep:TransmissionDate>2026-08-28T16:56:29.828+02:00</ep:TransmissionDate>
+        <ep:RequestID>requestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#AHV_Spida">
+                <ep:AddresseeIdentification>079.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_Spida">
+                <ep:AddresseeIdentification>079.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#UVG">
+                <ep:AddresseeIdentification>S1000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#UVGZ">
+                <ep:AddresseeIdentification>S1000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#KTG">
+                <ep:AddresseeIdentification>S1000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#BE_TAX">
+                <ep:AddresseeIdentification>BE</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#NW_TAX">
+                <ep:AddresseeIdentification>NW</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#LU_TAX">
+                <ep:AddresseeIdentification>LU</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+    </sdc:Job>
+    <sd:AnnualSalaryDeclaration schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>Muster AG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:Street>Bahnhofstrasse 1</c:Street>
+                <c:ZIP-Code>6003</c:ZIP-Code>
+                <c:City>Luzern</c:City>
+                <c:Country>SWITZERLAND</c:Country>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-999.999.996</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#LU">
+                <c:BUR-REE-Number>A92978109</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Hauptsitz</c:ComplementaryLine>
+                    <c:Street>Bahnhofstrasse 1</c:Street>
+                    <c:ZIP-Code>6003</c:ZIP-Code>
+                    <c:City>Luzern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>LU</c:Canton>
+                    <c:MunicipalityID>1061</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#BE">
+                <c:BUR-REE-Number>A89058593</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Werkhof/Büro</c:ComplementaryLine>
+                    <c:Street>Zeughausgasse 9</c:Street>
+                    <c:ZIP-Code>3011</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>BE</c:Canton>
+                    <c:MunicipalityID>351</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#VD">
+                <c:BUR-REE-Number>A89058588</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Verkauf</c:ComplementaryLine>
+                    <c:Street>Rue des Moulins 9</c:Street>
+                    <c:ZIP-Code>1800</c:ZIP-Code>
+                    <c:City>Vevey</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>VD</c:Canton>
+                    <c:MunicipalityID>5890</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#TI">
+                <c:BUR-REE-Number>A92978114</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Via Canonico Ghiringhelli 19</c:Street>
+                    <c:ZIP-Code>6500</c:ZIP-Code>
+                    <c:City>Bellinzona</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>TI</c:Canton>
+                    <c:MunicipalityID>5002</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#AG">
+                <c:BUR-REE-Number>A12054926</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Galterstrasse 3</c:Street>
+                    <c:ZIP-Code>5272</c:ZIP-Code>
+                    <c:City>Gansingen</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>AG</c:Canton>
+                    <c:MunicipalityID>4164</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#ZG">
+                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Grafenaustrasse 5</c:Street>
+                    <c:ZIP-Code>6300</c:ZIP-Code>
+                    <c:City>Zug</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>ZG</c:Canton>
+                    <c:MunicipalityID>1711</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
+                <c:WeeklyHours>42.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime2">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime3">
+                <c:WeeklyLessons>21.00</c:WeeklyLessons>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime4">
+                <c:WeeklyHoursAndLessons>
+                    <c:WeeklyHours>20.00</c:WeeklyHours>
+                    <c:WeeklyLessons>10.00</c:WeeklyLessons>
+                </c:WeeklyHoursAndLessons>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.1886.7922.72</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>7</c:EmployeeNumber>
+                    <c:Lastname>Burri</c:Lastname>
+                    <c:Firstname>Heidi</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1960-12-16</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>1995-12-14</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Laupenstrasse 45</c:Street>
+                            <c:ZIP-Code>3008</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF07_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-01</c:EntryDate>
+                    <c:WithdrawalDate>2024-12-31</c:WithdrawalDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_Spida">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>16000.00</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>16000.00</sd:AHV-AVS-Income>
+                        <sd:ALV-AC-Income>16000.00</sd:ALV-AC-Income>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:FAK-CAF-Salaries>
+                    <sd:FAK-CAF-Salary addresseeIDRef="#FAK_Spida">
+                        <sd:FAK-CAF-Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:FAK-CAF-Period>
+                        <sd:FAK-CAF-ContributorySalary>16000.00</sd:FAK-CAF-ContributorySalary>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-Salary>
+                </sd:FAK-CAF-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>16000.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>16000.00</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>16000.00</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>11</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>16000.00</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>16000.00</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>11</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>16000.00</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>16000.00</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#BE_TAX">
+                        <sd:DocID>#DOC-ID</sd:DocID>
+                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:Period>
+                        <sd:Income>16000.00</sd:Income>
+                        <sd:GrossIncome>16000.00</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1280.95</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:BVG-LPP-Contribution>
+                            <sd:Regular>1280.00</sd:Regular>
+                        </sd:BVG-LPP-Contribution>
+                        <sd:NetIncome>13439.05</sd:NetIncome>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.1927.3247.52</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>14</c:EmployeeNumber>
+                    <c:Lastname>Egli</c:Lastname>
+                    <c:Firstname>Anna</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1980-07-13</c:DateOfBirth>
+                    <c:Nationality>DE</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>separated</c:Status>
+                        <c:ValidAsOf>2020-04-28</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Seestrasse 5</c:Street>
+                            <c:ZIP-Code>6353</c:ZIP-Code>
+                            <c:City>Weggis</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>LU</c:ResidenceCanton>
+                            <c:MunicipalityID>1069</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>settled-C</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF14_0">
+                    <c:WorkingTime>
+                        <c:Unsteady/>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-01</c:EntryDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_Spida">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>6236.50</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>0.00</sd:AHV-AVS-Income>
+                        <sd:AHV-AVS-Open>6236.50</sd:AHV-AVS-Open>
+                        <sd:ALV-AC-Income>0.00</sd:ALV-AC-Income>
+                        <sd:ALV-AC-Open>6236.50</sd:ALV-AC-Open>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>6236.50</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>6236.50</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>6236.50</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>11</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>6236.50</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>6236.50</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>11</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>6236.50</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>6236.50</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#LU_TAX">
+                        <sd:DocID>#DOC-ID</sd:DocID>
+                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:Period>
+                        <sd:FreeTransport/>
+                        <sd:Income>6236.50</sd:Income>
+                        <sd:GrossIncome>6236.50</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>100.15</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:NetIncome>6136.35</sd:NetIncome>
+                        <sd:ChargesRule>
+                            <sd:Guidance/>
+                        </sd:ChargesRule>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3047.5009.62</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>16</c:EmployeeNumber>
+                    <c:Lastname>Aebi</c:Lastname>
+                    <c:Firstname>Anna</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1960-12-31</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>single</c:Status>
+                        <c:ValidAsOf>1960-12-31</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Bundesstrasse 5</c:Street>
+                            <c:ZIP-Code>6003</c:ZIP-Code>
+                            <c:City>Luzern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>LU</c:ResidenceCanton>
+                            <c:MunicipalityID>1061</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF16_0">
+                    <c:WorkingTime>
+                        <c:Unsteady/>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-01</c:EntryDate>
+                    <c:WithdrawalDate>2024-12-20</c:WithdrawalDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_Spida">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>22353.35</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>22353.35</sd:AHV-AVS-Income>
+                        <sd:ALV-AC-Income>20583.35</sd:ALV-AC-Income>
+                        <sd:ALVZ-ACS-Income>1770.00</sd:ALVZ-ACS-Income>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:FAK-CAF-Salaries>
+                    <sd:FAK-CAF-Salary addresseeIDRef="#FAK_Spida">
+                        <sd:FAK-CAF-Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:FAK-CAF-Period>
+                        <sd:FAK-CAF-ContributorySalary>22353.35</sd:FAK-CAF-ContributorySalary>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
+                        <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-Salary>
+                </sd:FAK-CAF-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>22603.35</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>22353.35</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>20583.35</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>12</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>22353.35</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>1770.00</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>10</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>22353.35</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>0.00</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#LU_TAX">
+                        <sd:DocID>#DOC-ID</sd:DocID>
+                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-20</ep:until>
+                        </sd:Period>
+                        <sd:Income>18353.35</sd:Income>
+                        <sd:SporadicBenefits>
+                            <sd:Text>Sonderzulage</sd:Text>
+                            <sd:Sum>3000.00</sd:Sum>
+                        </sd:SporadicBenefits>
+                        <sd:OtherBenefits>
+                            <sd:Text>Vom AG übern. Säule 3 b, Vom AG übern. Säule 3 a, Vom AG übern. AN-Anteil KTG
+                            </sd:Text>
+                            <sd:Sum>1250.00</sd:Sum>
+                        </sd:OtherBenefits>
+                        <sd:GrossIncome>22603.35</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1750.55</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:BVG-LPP-Contribution>
+                            <sd:Regular>1516.65</sd:Regular>
+                        </sd:BVG-LPP-Contribution>
+                        <sd:NetIncome>19336.15</sd:NetIncome>
+                        <sd:ChargesRule>
+                            <sd:WithRegulation>
+                                <sd:Allowed>2021-01-01</sd:Allowed>
+                                <sd:Canton>LU</sd:Canton>
+                            </sd:WithRegulation>
+                        </sd:ChargesRule>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                        <sd:StandardRemark>
+                            <sd:RelocationCosts>2000.00</sd:RelocationCosts>
+                        </sd:StandardRemark>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.6462.6899.46</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>37</c:EmployeeNumber>
+                    <c:Lastname>Oberli</c:Lastname>
+                    <c:Firstname>Christine</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1993-10-15</c:DateOfBirth>
+                    <c:Nationality>DE</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>divorced</c:Status>
+                        <c:ValidAsOf>2023-06-20</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Hopfenweg 22</c:Street>
+                            <c:ZIP-Code>3007</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>shortTerm-L</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF37_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-16</c:EntryDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_Spida">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>15000.00</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>15000.00</sd:AHV-AVS-Income>
+                        <sd:ALV-AC-Income>15000.00</sd:ALV-AC-Income>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:FAK-CAF-Salaries>
+                    <sd:FAK-CAF-Salary addresseeIDRef="#FAK_Spida">
+                        <sd:FAK-CAF-Period>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:FAK-CAF-Period>
+                        <sd:FAK-CAF-ContributorySalary>15000.00</sd:FAK-CAF-ContributorySalary>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>500.00
+                        </sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-Salary>
+                </sd:FAK-CAF-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>15500.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>15000.00</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>15000.00</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>11</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>15000.00</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>15000.00</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>11</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>15000.00</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>15000.00</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#BE_TAX">
+                        <sd:DocID>#DOC-ID</sd:DocID>
+                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-16</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:Period>
+                        <sd:Income>15500.00</sd:Income>
+                        <sd:GrossIncome>15500.00</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>1200.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:BVG-LPP-Contribution>
+                            <sd:Regular>1600.00</sd:Regular>
+                        </sd:BVG-LPP-Contribution>
+                        <sd:NetIncome>12699.10</sd:NetIncome>
+                        <sd:DeductionAtSource>1799.20</sd:DeductionAtSource>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                        <sd:StandardRemark>
+                            <sd:TaxAtSourcePeriodForObjection/>
+                        </sd:StandardRemark>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.0000.9994.29</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>44</c:EmployeeNumber>
+                    <c:Lastname>Lusser</c:Lastname>
+                    <c:Firstname>Hans</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1960-02-05</c:DateOfBirth>
+                    <c:Nationality>CH</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>1982-08-14</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Buochserstrasse 4</c:Street>
+                            <c:ZIP-Code>6370</c:ZIP-Code>
+                            <c:City>Stans</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>NW</c:ResidenceCanton>
+                            <c:MunicipalityID>1509</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF44_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>42.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2024-11-01</c:EntryDate>
+                </c:Work>
+                <sd:AHV-AVS-Salaries>
+                    <sd:AHV-AVS-Salary addresseeIDRef="#AHV_Spida">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:AHV-AVS-BaseSalary>41000.00</sd:AHV-AVS-BaseSalary>
+                        <sd:AHV-AVS-Income>41000.00</sd:AHV-AVS-Income>
+                        <sd:ALV-AC-Income>24700.00</sd:ALV-AC-Income>
+                        <sd:ALVZ-ACS-Income>16300.00</sd:ALVZ-ACS-Income>
+                    </sd:AHV-AVS-Salary>
+                </sd:AHV-AVS-Salaries>
+                <sd:FAK-CAF-Salaries>
+                    <sd:FAK-CAF-Salary addresseeIDRef="#FAK_Spida">
+                        <sd:FAK-CAF-Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:FAK-CAF-Period>
+                        <sd:FAK-CAF-ContributorySalary>41000.00</sd:FAK-CAF-ContributorySalary>
+                        <sd:FAK-CAF-FamilyIncomeSupplementRepetitive>0.00</sd:FAK-CAF-FamilyIncomeSupplementRepetitive>
+                        <sd:FAK-CAF-FamilyIncomeSupplementSingular>0.00</sd:FAK-CAF-FamilyIncomeSupplementSingular>
+                        <sd:FAK-CAF-WorkplaceCanton>LU</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-Salary>
+                </sd:FAK-CAF-Salaries>
+                <sd:UVG-LAA-Salaries>
+                    <sd:UVG-LAA-Salary addresseeIDRef="#UVG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVG-LAA-Code>A1</sd:UVG-LAA-Code>
+                        <sd:UVG-LAA-GrossSalary>41000.00</sd:UVG-LAA-GrossSalary>
+                        <sd:UVG-LAA-BaseSalary>41000.00</sd:UVG-LAA-BaseSalary>
+                        <sd:UVG-LAA-ContributorySalary>24700.00</sd:UVG-LAA-ContributorySalary>
+                    </sd:UVG-LAA-Salary>
+                </sd:UVG-LAA-Salaries>
+                <sd:UVGZ-LAAC-Salaries>
+                    <sd:UVGZ-LAAC-Salary addresseeIDRef="#UVGZ">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:UVGZ-LAAC-Code>12</sd:UVGZ-LAAC-Code>
+                        <sd:UVGZ-LAAC-BaseSalary>41000.00</sd:UVGZ-LAAC-BaseSalary>
+                        <sd:UVGZ-LAAC-ContributorySalary>16300.00</sd:UVGZ-LAAC-ContributorySalary>
+                    </sd:UVGZ-LAAC-Salary>
+                </sd:UVGZ-LAAC-Salaries>
+                <sd:KTG-AMC-Salaries>
+                    <sd:KTG-AMC-Salary addresseeIDRef="#KTG">
+                        <sd:AccountingTime>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:AccountingTime>
+                        <sd:KTG-AMC-Code>12</sd:KTG-AMC-Code>
+                        <sd:Reference-AHV-AVS-Salary>41000.00</sd:Reference-AHV-AVS-Salary>
+                        <sd:KTG-AMC-ContributorySalary>26300.00</sd:KTG-AMC-ContributorySalary>
+                    </sd:KTG-AMC-Salary>
+                </sd:KTG-AMC-Salaries>
+                <sd:TaxSalaries>
+                    <sd:TaxSalary addresseeIDRef="#NW_TAX">
+                        <sd:DocID>#DOC-ID</sd:DocID>
+                        <sd:CreationDate>2025-07-14T00:00:00.000</sd:CreationDate>
+                        <sd:Period>
+                            <ep:from>2024-11-01</ep:from>
+                            <ep:until>2024-12-31</ep:until>
+                        </sd:Period>
+                        <sd:Income>11000.00</sd:Income>
+                        <sd:SporadicBenefits>
+                            <sd:Text>Dienstaltersgeschenke</sd:Text>
+                            <sd:Sum>30000.00</sd:Sum>
+                        </sd:SporadicBenefits>
+                        <sd:GrossIncome>41000.00</sd:GrossIncome>
+                        <sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>2922.90</sd:AHV-ALV-NBUV-AVS-AC-AANP-Contribution>
+                        <sd:BVG-LPP-Contribution>
+                            <sd:Regular>770.00</sd:Regular>
+                        </sd:BVG-LPP-Contribution>
+                        <sd:NetIncome>37307.10</sd:NetIncome>
+                        <sd:OtherFringeBenefits>Vergünstigung Versicherungsprämien</sd:OtherFringeBenefits>
+                    </sd:TaxSalary>
+                </sd:TaxSalaries>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:AHV-AVS addresseeIDRef="#AHV_Spida">
+                <sd:AK-CC-CustomerNumber>7019.2</sd:AK-CC-CustomerNumber>
+                <sd:UVG-LAA-Insurance>
+                    <sd:Name>Backwork-Versicherungen</sd:Name>
+                    <sd:UID-BFS>
+                        <ep:UID>CHE-999.999.973</ep:UID>
+                    </sd:UID-BFS>
+                    <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
+                </sd:UVG-LAA-Insurance>
+                <sd:BVG-LPP-Insurance>
+                    <sd:Name>Pensionskasse Oldsoft</sd:Name>
+                    <sd:UID-BFS>
+                        <ep:UID>CHE-999.999.967</ep:UID>
+                    </sd:UID-BFS>
+                    <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
+                </sd:BVG-LPP-Insurance>
+            </sd:AHV-AVS>
+            <sd:FAK-CAF addresseeIDRef="#FAK_Spida">
+                <sd:FAK-CAF-CustomerNumber>5676.3</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:UVG-LAA addresseeIDRef="#UVG">
+                <sd:InsuranceCompanyName>Backwork-Versicherungen</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>12577.2</sd:CustomerIdentity>
+                <sd:ContractIdentity>125</sd:ContractIdentity>
+            </sd:UVG-LAA>
+            <sd:UVGZ-LAAC addresseeIDRef="#UVGZ">
+                <sd:InsuranceCompanyName>Backwork-Versicherungen</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>7651-873.1</sd:CustomerIdentity>
+                <sd:ContractIdentity>4566-4</sd:ContractIdentity>
+            </sd:UVGZ-LAAC>
+            <sd:KTG-AMC addresseeIDRef="#KTG">
+                <sd:InsuranceCompanyName>Backwork-Versicherungen</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>7651-873.1</sd:CustomerIdentity>
+                <sd:ContractIdentity>4567-4</sd:ContractIdentity>
+            </sd:KTG-AMC>
+            <sd:Tax addresseeIDRef="#LU_TAX"/>
+            <sd:Tax addresseeIDRef="#BE_TAX"/>
+            <sd:Tax addresseeIDRef="#NW_TAX"/>
+        </sd:Institutions>
+        <sd:SalaryTotals>
+            <sd:AHV-AVS-Totals addresseeIDRef="#AHV_Spida">
+                <sd:Total-AHV-AVS-Incomes>94353.35</sd:Total-AHV-AVS-Incomes>
+                <sd:Total-AHV-AVS-Open>6236.50</sd:Total-AHV-AVS-Open>
+                <sd:Total-ALV-AC-Incomes>76283.35</sd:Total-ALV-AC-Incomes>
+                <sd:Total-ALVZ-ACS-Incomes>18070.00</sd:Total-ALVZ-ACS-Incomes>
+                <sd:Total-ALV-AC-Open>6236.50</sd:Total-ALV-AC-Open>
+            </sd:AHV-AVS-Totals>
+            <sd:FAK-CAF-Totals addresseeIDRef="#FAK_Spida">
+                <sd:Total-FAK-CAF-PerCanton>
+                    <sd:Total-FAK-CAF-ContributorySalary>31000.00</sd:Total-FAK-CAF-ContributorySalary>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>500.00
+                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
+                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Canton>BE</sd:Canton>
+                </sd:Total-FAK-CAF-PerCanton>
+                <sd:Total-FAK-CAF-PerCanton>
+                    <sd:Total-FAK-CAF-ContributorySalary>63353.35</sd:Total-FAK-CAF-ContributorySalary>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>0.00
+                    </sd:Total-FAK-CAF-FamilyIncomeSupplementRepetitive>
+                    <sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>0.00
+                    </sd:Total-FAK-CAF-FamilyIncomeSupplementSingular>
+                    <sd:Canton>LU</sd:Canton>
+                </sd:Total-FAK-CAF-PerCanton>
+            </sd:FAK-CAF-Totals>
+            <sd:UVG-LAA-Totals addresseeIDRef="#UVG">
+                <sd:UVG-LAA-BranchTotals>
+                    <sd:UVG-LAA-BranchTotal>
+                        <sd:BranchIdentifier>A</sd:BranchIdentifier>
+                        <sd:Female-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>57819.85</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>0.00</sd:BU-AP-Total>
+                        </sd:Female-Totals>
+                        <sd:Male-Totals>
+                            <sd:NBU-BU-ANP-AP-Total>24700.00</sd:NBU-BU-ANP-AP-Total>
+                            <sd:BU-AP-Total>0.00</sd:BU-AP-Total>
+                        </sd:Male-Totals>
+                    </sd:UVG-LAA-BranchTotal>
+                </sd:UVG-LAA-BranchTotals>
+                <sd:UVG-LAA-MasterTotal>82519.85</sd:UVG-LAA-MasterTotal>
+            </sd:UVG-LAA-Totals>
+            <sd:UVGZ-LAAC-Totals addresseeIDRef="#UVGZ">
+                <sd:UVGZ-LAAC-CategoryTotals>
+                    <sd:UVGZ-LAAC-CategoryTotal>
+                        <sd:CategoryCode>11</sd:CategoryCode>
+                        <sd:Female-Total>37236.50</sd:Female-Total>
+                        <sd:Male-Total>0.00</sd:Male-Total>
+                    </sd:UVGZ-LAAC-CategoryTotal>
+                    <sd:UVGZ-LAAC-CategoryTotal>
+                        <sd:CategoryCode>12</sd:CategoryCode>
+                        <sd:Female-Total>1770.00</sd:Female-Total>
+                        <sd:Male-Total>16300.00</sd:Male-Total>
+                    </sd:UVGZ-LAAC-CategoryTotal>
+                </sd:UVGZ-LAAC-CategoryTotals>
+                <sd:UVGZ-LAAC-MasterTotal>55306.50</sd:UVGZ-LAAC-MasterTotal>
+            </sd:UVGZ-LAAC-Totals>
+            <sd:KTG-AMC-Totals addresseeIDRef="#KTG">
+                <sd:KTG-AMC-CategoryTotals>
+                    <sd:KTG-AMC-CategoryTotal>
+                        <sd:CategoryCode>11</sd:CategoryCode>
+                        <sd:Female-Total>37236.50</sd:Female-Total>
+                        <sd:Male-Total>0.00</sd:Male-Total>
+                    </sd:KTG-AMC-CategoryTotal>
+                    <sd:KTG-AMC-CategoryTotal>
+                        <sd:CategoryCode>12</sd:CategoryCode>
+                        <sd:Female-Total>0.00</sd:Female-Total>
+                        <sd:Male-Total>26300.00</sd:Male-Total>
+                    </sd:KTG-AMC-CategoryTotal>
+                    <sd:KTG-AMC-CategoryTotal>
+                        <sd:CategoryCode>10</sd:CategoryCode>
+                        <sd:Female-Total>0.00</sd:Female-Total>
+                        <sd:Male-Total>0.00</sd:Male-Total>
+                    </sd:KTG-AMC-CategoryTotal>
+                </sd:KTG-AMC-CategoryTotals>
+                <sd:KTG-AMC-MasterTotal>63536.50</sd:KTG-AMC-MasterTotal>
+            </sd:KTG-AMC-Totals>
+        </sd:SalaryTotals>
+        <sd:SalaryCounters>
+            <sd:NumberOf-AHV-AVS-Salary-Tags>5</sd:NumberOf-AHV-AVS-Salary-Tags>
+            <sd:NumberOf-FAK-CAF-Salary-Tags>4</sd:NumberOf-FAK-CAF-Salary-Tags>
+            <sd:NumberOf-UVG-LAA-Salary-Tags>5</sd:NumberOf-UVG-LAA-Salary-Tags>
+            <sd:NumberOf-UVGZ-LAAC-Salary-Tags>5</sd:NumberOf-UVGZ-LAAC-Salary-Tags>
+            <sd:NumberOf-KTG-AMC-Salary-Tags>5</sd:NumberOf-KTG-AMC-Salary-Tags>
+            <sd:NumberOf-TaxSalary-Tags>5</sd:NumberOf-TaxSalary-Tags>
+        </sd:SalaryCounters>
+        <sd:GeneralSalaryDeclarationDescription>
+            <sd:CreationDate>2026-08-28T16:56:29.902301300</sd:CreationDate>
+            <sd:AccountingPeriod>2024</sd:AccountingPeriod>
+            <sd:ContactPerson>
+                <sd:Name>Hans Muster</sd:Name>
+                <sd:EmailAddress>MusterAG@xxxxx.ch</sd:EmailAddress>
+                <sd:PhoneNumber>041 218 65 32</sd:PhoneNumber>
+            </sd:ContactPerson>
+        </sd:GeneralSalaryDeclarationDescription>
+    </sd:AnnualSalaryDeclaration>
+</sdcst:DeclareAnnualSalary>

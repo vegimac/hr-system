@@ -76,7 +76,7 @@ public partial class SwissdecTestmandantController
             };
             aktionen.Add(new Aktion(r == null ? "anlegen" : "aktualisieren", "SV-Satz", z.Name, felder));
             if (vorschau) continue;
-            if (r == null) { r = new SocialInsuranceRate { Code = z.Code, MinAge = z.MinAge, MaxAge = z.MaxAge, BasisType = "gross", CreatedAt = DateTime.UtcNow }; _db.SocialInsuranceRates.Add(r); svAlle.Add(r); }
+            if (r == null) { r = new SocialInsuranceRate { Code = z.Code, MinAge = z.MinAge, MaxAge = z.MaxAge, BasisType = "gross", CreatedAt = DateTime.Now }; _db.SocialInsuranceRates.Add(r); svAlle.Add(r); }
             r.Name = z.Name; r.Description = z.Desc; r.Rate = z.An ?? r.Rate; r.RateEmployer = z.Ag;
             r.FreibetragMonthly = z.Freib; r.MaxBaseMonthly = z.MaxMt; r.SortOrder = z.Sort; r.IsActive = true;
             if (r.ValidFrom > ab) r.ValidFrom = ab;
@@ -122,7 +122,7 @@ public partial class SwissdecTestmandantController
             };
             aktionen.Add(new Aktion(t == null ? "anlegen" : "aktualisieren", "FAK-Tarif", $"{kt} · {T25(P("Name"))}", felder));
             if (vorschau) continue;
-            if (t == null) { t = new FamilienzulagenTarif { KantonCode = kt, ValidFrom = ab, CreatedAt = DateTime.UtcNow }; _db.FamilienzulagenTarife.Add(t); fakAlle.Add(t); }
+            if (t == null) { t = new FamilienzulagenTarif { KantonCode = kt, ValidFrom = ab, CreatedAt = DateTime.Now }; _db.FamilienzulagenTarife.Add(t); fakAlle.Add(t); }
             t.ValidTo = null;
             t.KinderzulageSatz1 = kz1; t.KinderzulageSatz2 = kz2; t.KinderzulageSatz2AbAlter = kz2Alter;
             t.AusbildungszulageSatz1 = r16to25; t.AusbildungszulageSatz2 = az2; t.AusbildungszulageSatz2AbAlter = null;
@@ -131,8 +131,8 @@ public partial class SwissdecTestmandantController
             t.AltersGrenzeKinder = 16; t.AltersGrenzeAusbildung = 25;
             t.Quelle = "Swissdec-Testmandant Muster AG (company_export.csv)";
             t.Bemerkung = "Swissdec-Testdaten — Mindesterwerbseinkommen nicht in den Testdaten enthalten";
-            t.IsActive = true; t.UpdatedAt = DateTime.UtcNow;
-            foreach (var u in ueberlappend) { u.IsActive = false; u.UpdatedAt = DateTime.UtcNow; }
+            t.IsActive = true; t.UpdatedAt = DateTime.Now;
+            foreach (var u in ueberlappend) { u.IsActive = false; u.UpdatedAt = DateTime.Now; }
         }
         hinweise.Add("Mindesterwerbseinkommen (Jahr/Monat) steht nicht in den Testdaten — bleibt leer; falls ein Testfall es braucht, ergänzen wir es dann.");
         hinweise.Add("Geburtszulage wird auch als Adoptionszulage übernommen (Testdaten nennen nur «BirthAllowance»).");

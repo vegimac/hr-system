@@ -1,0 +1,659 @@
+<sdcst:NotifyChanges xmlns:ep="urn:ch:swissdec:basis:v1:20260306:components"
+                     xmlns:sdc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:container"
+                     xmlns:c="urn:ch:swissdec:common:v3:20260306"
+                     xmlns:sd="urn:ch:swissdec:elm:v6:20260306:salarydeclaration"
+                     xmlns:sdcc="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:consumer:container"
+                     xmlns:sdcst="urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types">
+    <ep:RequestContext>
+        <ep:UserAgent>
+            <ep:Producer>Swissdec</ep:Producer>
+            <ep:Name>SalaryCalculator</ep:Name>
+            <ep:Version>20260828</ep:Version>
+            <ep:StandardVersion>6.0</ep:StandardVersion>
+            <ep:Certificate>n/A</ep:Certificate>
+        </ep:UserAgent>
+        <ep:CompanyName>Muster AG</ep:CompanyName>
+        <ep:TransmissionDate>2026-08-28T16:56:48.354+02:00</ep:TransmissionDate>
+        <ep:RequestID>requestID</ep:RequestID>
+        <ep:LanguageCode>de</ep:LanguageCode>
+    </ep:RequestContext>
+    <sdc:Job>
+        <sdc:Addressees>
+            <sdc:Addressee addresseeID="#AHV_KK">
+                <ep:AddresseeIdentification>003.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_LU_KK">
+                <ep:AddresseeIdentification>003.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_BE_KK">
+                <ep:AddresseeIdentification>002.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_VD_KK">
+                <ep:AddresseeIdentification>022.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_TI_KK">
+                <ep:AddresseeIdentification>021.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_AG_SVA">
+                <ep:AddresseeIdentification>019.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#FAK_Spida">
+                <ep:AddresseeIdentification>079.000</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+            <sdc:Addressee addresseeID="#BVG">
+                <ep:AddresseeIdentification>L1200</ep:AddresseeIdentification>
+                <ep:ProcessByDistributor>true</ep:ProcessByDistributor>
+            </sdc:Addressee>
+        </sdc:Addressees>
+    </sdc:Job>
+    <sd:ChangeNotification schemaVersion="0.0">
+        <sd:CompanyDescription>
+            <c:Name>
+                <c:HR-RC-Name>Muster AG</c:HR-RC-Name>
+            </c:Name>
+            <c:Address>
+                <c:Street>Bahnhofstrasse 1</c:Street>
+                <c:ZIP-Code>6003</c:ZIP-Code>
+                <c:City>Luzern</c:City>
+                <c:Country>SWITZERLAND</c:Country>
+            </c:Address>
+            <c:UID-BFS>
+                <ep:UID>CHE-999.999.996</ep:UID>
+            </c:UID-BFS>
+            <c:Workplace workplaceID="#LU">
+                <c:BUR-REE-Number>A92978109</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Hauptsitz</c:ComplementaryLine>
+                    <c:Street>Bahnhofstrasse 1</c:Street>
+                    <c:ZIP-Code>6003</c:ZIP-Code>
+                    <c:City>Luzern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>LU</c:Canton>
+                    <c:MunicipalityID>1061</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#BE">
+                <c:BUR-REE-Number>A89058593</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Werkhof/Büro</c:ComplementaryLine>
+                    <c:Street>Zeughausgasse 9</c:Street>
+                    <c:ZIP-Code>3011</c:ZIP-Code>
+                    <c:City>Bern</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>BE</c:Canton>
+                    <c:MunicipalityID>351</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#VD">
+                <c:BUR-REE-Number>A89058588</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Verkauf</c:ComplementaryLine>
+                    <c:Street>Rue des Moulins 9</c:Street>
+                    <c:ZIP-Code>1800</c:ZIP-Code>
+                    <c:City>Vevey</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>VD</c:Canton>
+                    <c:MunicipalityID>5890</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#TI">
+                <c:BUR-REE-Number>A92978114</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Via Canonico Ghiringhelli 19</c:Street>
+                    <c:ZIP-Code>6500</c:ZIP-Code>
+                    <c:City>Bellinzona</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>TI</c:Canton>
+                    <c:MunicipalityID>5002</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#AG">
+                <c:BUR-REE-Number>A12054926</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Galterstrasse 3</c:Street>
+                    <c:ZIP-Code>5272</c:ZIP-Code>
+                    <c:City>Gansingen</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>AG</c:Canton>
+                    <c:MunicipalityID>4164</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:Workplace workplaceID="#ZG">
+                <c:BUR-REE-Number>A38197423</c:BUR-REE-Number>
+                <c:AddressExtended>
+                    <c:ComplementaryLine>Beratung</c:ComplementaryLine>
+                    <c:Street>Grafenaustrasse 5</c:Street>
+                    <c:ZIP-Code>6300</c:ZIP-Code>
+                    <c:City>Zug</c:City>
+                    <c:Country>SWITZERLAND</c:Country>
+                    <c:Canton>ZG</c:Canton>
+                    <c:MunicipalityID>1711</c:MunicipalityID>
+                </c:AddressExtended>
+            </c:Workplace>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime1">
+                <c:WeeklyHours>42.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime2">
+                <c:WeeklyHours>40.00</c:WeeklyHours>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime3">
+                <c:WeeklyLessons>21.00</c:WeeklyLessons>
+            </c:CompanyWorkingTime>
+            <c:CompanyWorkingTime companyWorkingTimeID="#CompanyWorkingTime4">
+                <c:WeeklyHoursAndLessons>
+                    <c:WeeklyHours>20.00</c:WeeklyHours>
+                    <c:WeeklyLessons>10.00</c:WeeklyLessons>
+                </c:WeeklyHoursAndLessons>
+            </c:CompanyWorkingTime>
+        </sd:CompanyDescription>
+        <sd:Staff>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3598.1127.37</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>2</c:EmployeeNumber>
+                    <c:Lastname>Paganini</c:Lastname>
+                    <c:Firstname>Maria</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1961-06-30</c:DateOfBirth>
+                    <c:Nationality>IT</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>1995-03-13</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Zentralstrasse 17</c:Street>
+                            <c:ZIP-Code>6030</c:ZIP-Code>
+                            <c:City>Ebikon</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>LU</c:ResidenceCanton>
+                            <c:MunicipalityID>1054</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>settled-C</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime4" workID="#work_TF02_0">
+                    <c:WorkingTime>
+                        <c:Unsteady/>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                </c:Work>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF02_0">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-09-30</sd:ValidAsOf>
+                            <sd:Reason>retirement</sd:Reason>
+                            <sd:FullyFitForWork/>
+                        </sd:Withdrawal>
+                        <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>59890.10</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3552.6511.80</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>8</c:EmployeeNumber>
+                    <c:Lastname>Lamon</c:Lastname>
+                    <c:Firstname>René</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1987-03-16</c:DateOfBirth>
+                    <c:Nationality>FR</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>unknown</c:Status>
+                        <c:ValidAsOf>1987-03-16</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Effingerstrasse 87</c:Street>
+                            <c:ZIP-Code>3008</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>settled-C</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF08_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>32.00</c:WeeklyHours>
+                            <c:ActivityRate>80.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                </c:Work>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF08_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>changeSalary</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code>11</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>90569.25</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3729.5603.90</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>18</c:EmployeeNumber>
+                    <c:Lastname>Blanc</c:Lastname>
+                    <c:Firstname>Pierre</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1985-12-11</c:DateOfBirth>
+                    <c:Nationality>FR</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2024-11-01</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Freiburgstrasse 312</c:Street>
+                            <c:ZIP-Code>3018</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>ProvisionallyAdmittedForeigners-F</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime1" workID="#work_TF18_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>8.40</c:WeeklyHours>
+                            <c:ActivityRate>20.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                </c:Work>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF18_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>changeSalary</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>15288.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:unknown/>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>30</c:EmployeeNumber>
+                    <c:Lastname>Müller</c:Lastname>
+                    <c:Firstname>Heinrich</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1977-07-13</c:DateOfBirth>
+                    <c:Nationality>DE</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>single</c:Status>
+                        <c:ValidAsOf>1977-07-13</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Junkerngasse 42</c:Street>
+                            <c:ZIP-Code>3011</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                        <c:Address>
+                            <c:Street>Lilienstrasse 22</c:Street>
+                            <c:ZIP-Code>81669</c:ZIP-Code>
+                            <c:City>München</c:City>
+                            <c:Country>GERMANY</c:Country>
+                            <c:ResidenceCanton>EX</c:ResidenceCanton>
+                            <c:DepartureDate>2025-04-15</c:DepartureDate>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>annual-B</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF30_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                    <c:WithdrawalDate>2025-09-30</c:WithdrawalDate>
+                </c:Work>
+                <sd:AHV-AVS-ChangeNotifications>
+                    <sd:AHV-AVS-ChangeNotification addresseeIDRef="#AHV_KK">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-09-30</sd:ValidAsOf>
+                        </sd:Withdrawal>
+                    </sd:AHV-AVS-ChangeNotification>
+                </sd:AHV-AVS-ChangeNotifications>
+                <sd:FAK-CAF-ChangeNotifications>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_BE_KK">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-09-30</sd:ValidAsOf>
+                            <sd:Reason>withdrawalCompany</sd:Reason>
+                        </sd:Withdrawal>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                </sd:FAK-CAF-ChangeNotifications>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF30_0">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-09-30</sd:ValidAsOf>
+                            <sd:Reason>withdrawalPensionPlan</sd:Reason>
+                            <sd:FullyFitForWork/>
+                        </sd:Withdrawal>
+                        <sd:BVG-LPP-Code>11</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>66000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3728.4917.63</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>32</c:EmployeeNumber>
+                    <c:Lastname>Armanini</c:Lastname>
+                    <c:Firstname>Laura</c:Firstname>
+                    <c:Sex>F</c:Sex>
+                    <c:DateOfBirth>1980-10-04</c:DateOfBirth>
+                    <c:Nationality>IT</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>single</c:Status>
+                        <c:ValidAsOf>1980-10-04</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Kehrgasse 8</c:Street>
+                            <c:ZIP-Code>3018</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>annual-B</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF32_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-09-01</c:EntryDate>
+                </c:Work>
+                <sd:AHV-AVS-ChangeNotifications>
+                    <sd:AHV-AVS-ChangeNotification addresseeIDRef="#AHV_KK">
+                        <sd:Entry>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                        </sd:Entry>
+                    </sd:AHV-AVS-ChangeNotification>
+                </sd:AHV-AVS-ChangeNotifications>
+                <sd:FAK-CAF-ChangeNotifications>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_BE_KK">
+                        <sd:Entry>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>entryCompany</sd:Reason>
+                        </sd:Entry>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                </sd:FAK-CAF-ChangeNotifications>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF32_0">
+                        <sd:Entry>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>entryPensionPlan</sd:Reason>
+                            <sd:FullyFitForWork/>
+                        </sd:Entry>
+                        <sd:BVG-LPP-Code>11</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>60000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.6498.9438.07</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>35</c:EmployeeNumber>
+                    <c:Lastname>Roos</c:Lastname>
+                    <c:Firstname>Roland</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1970-05-16</c:DateOfBirth>
+                    <c:Nationality>FR</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2025-05-25</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Blockweg 2</c:Street>
+                            <c:ZIP-Code>3007</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                        </c:Address>
+                        <c:Address>
+                            <c:Street>Via Ospedale 10</c:Street>
+                            <c:ZIP-Code>6500</c:ZIP-Code>
+                            <c:City>Bellinzona</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>TI</c:ResidenceCanton>
+                            <c:MunicipalityID>5002</c:MunicipalityID>
+                            <c:DepartureDate>2025-08-31</c:DepartureDate>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>annual-B</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF35_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                </c:Work>
+                <sd:FAK-CAF-ChangeNotifications>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_BE_KK">
+                        <sd:Entry>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>cantonChange</sd:Reason>
+                        </sd:Entry>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_TI_KK">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-08-31</sd:ValidAsOf>
+                            <sd:Reason>cantonChange</sd:Reason>
+                        </sd:Withdrawal>
+                        <sd:FAK-CAF-WorkplaceCanton>TI</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                </sd:FAK-CAF-ChangeNotifications>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF35_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>changeBVG-LPP-Code</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code oldCode="22">11</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>65000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF35_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>residence</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code>11</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>65000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+            <sd:Person>
+                <c:Particulars>
+                    <c:Social-InsuranceIdentification>
+                        <c:SV-AS-Number>756.3641.0372.46</c:SV-AS-Number>
+                    </c:Social-InsuranceIdentification>
+                    <c:EmployeeNumber>36</c:EmployeeNumber>
+                    <c:Lastname>Maldini</c:Lastname>
+                    <c:Firstname>Fabio</c:Firstname>
+                    <c:Sex>M</c:Sex>
+                    <c:DateOfBirth>1991-06-17</c:DateOfBirth>
+                    <c:Nationality>IT</c:Nationality>
+                    <c:CivilStatus>
+                        <c:Status>married</c:Status>
+                        <c:ValidAsOf>2025-05-25</c:ValidAsOf>
+                    </c:CivilStatus>
+                    <c:Addresses>
+                        <c:Address>
+                            <c:Street>Via Milano 26</c:Street>
+                            <c:ZIP-Code>22100</c:ZIP-Code>
+                            <c:City>Como</c:City>
+                            <c:Country>ITALY</c:Country>
+                            <c:ResidenceCanton>EX</c:ResidenceCanton>
+                        </c:Address>
+                        <c:Address>
+                            <c:Street>Blockweg 2</c:Street>
+                            <c:ZIP-Code>3007</c:ZIP-Code>
+                            <c:City>Bern</c:City>
+                            <c:Country>SWITZERLAND</c:Country>
+                            <c:ResidenceCanton>BE</c:ResidenceCanton>
+                            <c:MunicipalityID>351</c:MunicipalityID>
+                            <c:DepartureDate>2025-08-28</c:DepartureDate>
+                        </c:Address>
+                    </c:Addresses>
+                    <c:ResidenceCategory>crossBorder-G</c:ResidenceCategory>
+                    <c:LanguageCode>de</c:LanguageCode>
+                </c:Particulars>
+                <c:Work companyWorkingTimeIDRef="#CompanyWorkingTime2" workID="#work_TF36_0">
+                    <c:WorkingTime>
+                        <c:Steady>
+                            <c:WeeklyHours>40.00</c:WeeklyHours>
+                            <c:ActivityRate>100.00</c:ActivityRate>
+                        </c:Steady>
+                    </c:WorkingTime>
+                    <c:EntryDate>2025-01-01</c:EntryDate>
+                </c:Work>
+                <sd:FAK-CAF-ChangeNotifications>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_TI_KK">
+                        <sd:Entry>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>cantonChange</sd:Reason>
+                        </sd:Entry>
+                        <sd:FAK-CAF-WorkplaceCanton>TI</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                    <sd:FAK-CAF-ChangeNotification addresseeIDRef="#FAK_BE_KK">
+                        <sd:Withdrawal>
+                            <sd:ValidAsOf>2025-08-31</sd:ValidAsOf>
+                            <sd:Reason>cantonChange</sd:Reason>
+                        </sd:Withdrawal>
+                        <sd:FAK-CAF-WorkplaceCanton>BE</sd:FAK-CAF-WorkplaceCanton>
+                    </sd:FAK-CAF-ChangeNotification>
+                </sd:FAK-CAF-ChangeNotifications>
+                <sd:BVG-LPP-ChangeNotifications>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF36_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>incapacityToWork</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>65000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF36_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>changeBVG-LPP-Code</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code oldCode="11">22</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>65000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                    <sd:BVG-LPP-ChangeNotification addresseeIDRef="#BVG" workIDRef="#work_TF36_0">
+                        <sd:Mutation>
+                            <sd:ValidAsOf>2025-09-01</sd:ValidAsOf>
+                            <sd:Reason>residence</sd:Reason>
+                        </sd:Mutation>
+                        <sd:BVG-LPP-Code>22</sd:BVG-LPP-Code>
+                        <sd:BVG-LPP-AnnualBasis>65000.00</sd:BVG-LPP-AnnualBasis>
+                    </sd:BVG-LPP-ChangeNotification>
+                </sd:BVG-LPP-ChangeNotifications>
+            </sd:Person>
+        </sd:Staff>
+        <sd:Institutions>
+            <sd:AHV-AVS addresseeIDRef="#AHV_KK">
+                <sd:AK-CC-CustomerNumber>100-9976.9</sd:AK-CC-CustomerNumber>
+                <sd:UVG-LAA-Insurance>
+                    <sd:Name>Backwork-Versicherungen</sd:Name>
+                    <sd:UID-BFS>
+                        <ep:UID>CHE-999.999.973</ep:UID>
+                    </sd:UID-BFS>
+                    <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
+                </sd:UVG-LAA-Insurance>
+                <sd:BVG-LPP-Insurance>
+                    <sd:Name>Pensionskasse Oldsoft</sd:Name>
+                    <sd:UID-BFS>
+                        <ep:UID>CHE-999.999.967</ep:UID>
+                    </sd:UID-BFS>
+                    <sd:ValidAsOf>2021-01-01</sd:ValidAsOf>
+                </sd:BVG-LPP-Insurance>
+            </sd:AHV-AVS>
+            <sd:FAK-CAF addresseeIDRef="#FAK_Spida">
+                <sd:FAK-CAF-CustomerNumber>5676.3</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:FAK-CAF addresseeIDRef="#FAK_LU_KK">
+                <sd:FAK-CAF-CustomerNumber>100-9976.70</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:FAK-CAF addresseeIDRef="#FAK_BE_KK">
+                <sd:FAK-CAF-CustomerNumber>100-2136.90</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:FAK-CAF addresseeIDRef="#FAK_VD_KK">
+                <sd:FAK-CAF-CustomerNumber>100-7766.80</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:FAK-CAF addresseeIDRef="#FAK_TI_KK">
+                <sd:FAK-CAF-CustomerNumber>100-5467.80</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:FAK-CAF addresseeIDRef="#FAK_AG_SVA">
+                <sd:FAK-CAF-CustomerNumber>5050.1</sd:FAK-CAF-CustomerNumber>
+            </sd:FAK-CAF>
+            <sd:BVG-LPP addresseeIDRef="#BVG">
+                <sd:InsuranceCompanyName>Pensionskasse Oldsoft</sd:InsuranceCompanyName>
+                <sd:CustomerIdentity>1099-8777.1</sd:CustomerIdentity>
+                <sd:ContractIdentity>4500-0</sd:ContractIdentity>
+                <sd:GeneralValidAsOf>2025-01-01</sd:GeneralValidAsOf>
+            </sd:BVG-LPP>
+        </sd:Institutions>
+        <sd:ContactPerson>
+            <sd:Name>Hans Muster</sd:Name>
+            <sd:EmailAddress>MusterAG@xxxxx.ch</sd:EmailAddress>
+            <sd:PhoneNumber>041 218 65 32</sd:PhoneNumber>
+        </sd:ContactPerson>
+    </sd:ChangeNotification>
+</sdcst:NotifyChanges>

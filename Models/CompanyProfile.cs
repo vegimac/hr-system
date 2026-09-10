@@ -337,6 +337,28 @@ public class CompanyProfile
     public bool AkontoAktiv { get; set; } = true;
 
     /// <summary>
+    /// Schlussabrechnung / Stunden im Lohn — drei Filial-Schalter (Walter 10.09.2026).
+    /// Standard true = heutiges Schaub-Verhalten. Swissdec-Testmandant: alle false
+    /// (das Quality Tool kennt keine CHF-Auszahlung von Tages-/Stunden-Saldi).
+    /// Bei false laufen die Saldi in TAGEN/STUNDEN unverändert weiter — es
+    /// entsteht nur keine CHF-Lohnzeile.
+    /// </summary>
+    /// <remarks>Ferien-Tage-Saldo beim letzten Lohn (FIX/FIX-M/MTP) in CHF auszahlen
+    /// bzw. Vorbezug verrechnen; bei false bleibt der Tages-Saldo stehen.</remarks>
+    public bool FerientageAmAustrittAuszahlen { get; set; } = true;
+
+    /// <summary>Feiertag-Tage-Saldo beim letzten Lohn (FIX/FIX-M, Code 50.1) in CHF
+    /// auszahlen; bei false bleibt der Tages-Saldo stehen. (Walter 10.09.2026)</summary>
+    public bool FeiertagstageAmAustrittAuszahlen { get; set; } = true;
+
+    /// <summary>Soll/Ist-Stundensaldo im LOHN verrechnen (Walter 10.09.2026):
+    /// FIX/FIX-M Austritt «Zeitsaldo Auszahlung / Verrechnung Minusstunden» (55.2),
+    /// MTP «MTP + Stunden» (55.3) und Minusstunden am Austritt. Bei false ändert
+    /// Soll/Ist den Lohn nicht mehr; Anzeige und Saldo laufen weiter. FLEX ignoriert
+    /// den Schalter (dort SIND die Stunden der Lohn).</summary>
+    public bool StundenSaldoImLohnVerrechnen { get; set; } = true;
+
+    /// <summary>
     /// Akonto-Prozentsatz für FIX (Akonto-Lohn-Modell). Das Akonto für FIX
     /// = AkontoProzentFix % des voraussichtlich ausbezahlten Monatslohns.
     /// Default 80 %, pro Filiale im Einstellungen-Tab änderbar. Siehe

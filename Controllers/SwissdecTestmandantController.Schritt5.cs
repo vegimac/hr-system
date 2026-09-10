@@ -57,6 +57,9 @@ public partial class SwissdecTestmandantController
                 ["Ferienentschädigung"] = "monatlich auszahlen (kein Ferien-Pott)",
                 ["L-GAV-Vollzugsbeitrag"] = "deaktiviert (Muster AG ist kein Gastro-Betrieb; Swissdec-Soll kennt keinen L-GAV-Abzug)",
                 ["Teilmonat"] = "30-Tage-Methode (Swissdec: Monatslohn voll + Lohnkorrektur 1001)",
+                ["Ferien-Tage am Austritt"] = "nicht in CHF auszahlen (Saldo bleibt in Tagen)",
+                ["Feiertag-Tage am Austritt"] = "nicht in CHF auszahlen (Saldo bleibt in Tagen)",
+                ["Stunden-Saldo im Lohn"] = "nicht verrechnen (Soll/Ist nur Anzeige; Quality Tool kennt keine Saldo-Auszahlung)",
                 ["bisher"] = $"Ferien {f.DefaultVacationPercent5Weeks}/{f.DefaultVacationPercent6Weeks} ab {f.VacationSixWeeksFromAge} · Feiertag {f.DefaultHolidayPercent} · 13. {f.DefaultThirteenthSalaryPercent} ({f.ThirteenthMonthPayoutMonths ?? "–"})",
             };
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
@@ -70,6 +73,10 @@ public partial class SwissdecTestmandantController
                 f.FerienAuszahlungMonatlich = true;
                 f.LgavAktiv = false;
                 f.TeilmonatMethode = "TAGE30";
+                // Schlussabrechnung / Stunden im Lohn: aus (Walter 10.09.2026)
+                f.FerientageAmAustrittAuszahlen = false;
+                f.FeiertagstageAmAustrittAuszahlen = false;
+                f.StundenSaldoImLohnVerrechnen = false;
             }
             int neu = 0;
             for (var m = TmVon; m <= TmBis; m = m.AddMonths(1))
@@ -348,7 +355,7 @@ public partial class SwissdecTestmandantController
         {
             EmployeeId = employeeId, Art = "BVG", Code = aktiv?.Code, ValidFrom = monat, ValidTo = aktiv?.ValidTo,
             BeitragFixAn = betrag, BeitragFixAg = betrag, BvgEintrittsgrund = aktiv?.BvgEintrittsgrund, BvgVollArbeitsfaehig = aktiv?.BvgVollArbeitsfaehig,
-            BvgBasisManuell = aktiv?.BvgBasisManuell, Bemerkung = "Swissdec-Testdaten (Lohnart 5050)", CreatedAt = DateTime.UtcNow,
+            BvgBasisManuell = aktiv?.BvgBasisManuell, Bemerkung = "Swissdec-Testdaten (Lohnart 5050)", CreatedAt = DateTime.Now,
         };
         if (aktiv != null) aktiv.ValidTo = monat.AddDays(-1);
         _db.EmployeeVersicherungCodes.Add(neu);

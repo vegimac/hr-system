@@ -54,6 +54,8 @@ Danach: E6 (QST-Monatsmeldung) und E7 (Statistik) gegen die Soll-XML Januar 2025
 
 Swissdec baut **absichtlich Fehler/Fallen** in die Testdaten ein, um sicherzustellen, dass die Software die Meldungen selbst aus ihren Daten erzeugt und nicht Kopien der Testdatensätze sendet. Darum: Import nimmt IMMER die CSV-Eingabedaten; unsere XML entsteht aus unserem Datenmodell + unserer Logik; die Soll-XML dient nur zum Aufspüren von Abweichungen — wo sie eine Falle enthält (z.B. PLZ «3008.00», doppeltes `Contractual13th`, ZG-BUR A38197423 statt CSV A38197421), muss unsere Ausgabe KORREKT sein und DARF abweichen. Niemals Werte «in Richtung XML» hinbiegen.
 
+**Bewusste Fach-Abweichungen** (AHV 21, Ferien-Tage, Rundung, CSV vor XML-Falle): `docs/swissdec-abweichungsprotokoll.md`. Quality-Tool-Differenzen zuerst dort nachschlagen — Status BEWUSST = nicht fixen.
+
 ## Bekannte Widersprüche zwischen CSV und Soll-XML (vermutlich absichtlich)
 
 - **ZG BUR-Nummer:** `company_export.csv` = A38197421, Soll-XML Januar 2025 = A38197423. Import übernimmt den CSV-Wert (bleibt so).

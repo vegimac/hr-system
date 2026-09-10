@@ -91,8 +91,29 @@ public partial class SwissdecTestmandantController
             if (Hat("PersonResidenceCategory"))
             {
                 var pc = MapPermit(V("PersonResidenceCategory"), out var ph); var p = pc == null ? null : permits.FirstOrDefault(x => x.Code.Equals(pc, StringComparison.OrdinalIgnoreCase));
-                stamm.Add($"Bewilligung → {pc ?? "–"}"); if (ph != null) probleme.Add(ph);
-                if (!vorschau) emp.PermitTypeId = p?.Id;
+                stamm.Add($"Bewilligung → {pc ?? "–"} ab {tag1:dd.MM.yyyy}" + (pc == "C" ? " (C-Ausweis → keine QST-Pflicht mehr)" : "")); if (ph != null) probleme.Add(ph);
+                if (!vorschau)
+                {
+                    emp.PermitTypeId = p?.Id;
+                    // Bewilligungs-Historie nachführen (Walter 10.09.2026): der QST-Pflicht-Check
+                    // (QstPflichtCheckService) liest die EmployeePermitHistory, nicht nur
+                    // Employee.PermitTypeId — ohne History-Zeile bliebe ein C-Ausweis wirkungslos
+                    // (TF14 Egli Dez 2024: annual-B → settled-C, QST NON).
+                    // Gleiches Muster wie EmployeePermitHistoryController: Vorgänger schliessen,
+                    // neuen Eintrag idempotent anlegen.
+                    var histAlle = await _db.EmployeePermitHistories.Where(h => h.EmployeeId == emp.Id).ToListAsync();
+                    if (!histAlle.Any(h => h.ValidFrom == tag1 && h.PermitTypeId == p?.Id))
+                    {
+                        foreach (var vg in histAlle.Where(h => h.ValidFrom < tag1 && (h.ValidTo == null || h.ValidTo >= tag1)))
+                            vg.ValidTo = tag1.AddDays(-1);
+                        _db.EmployeePermitHistories.Add(new EmployeePermitHistory
+                        {
+                            EmployeeId = emp.Id, PermitTypeId = p?.Id, ValidFrom = tag1,
+                            Note = $"Swissdec-Testdaten Mutation {mon:yyyy-MM} ({V("PersonResidenceCategory")})",
+                            CreatedAt = DateTime.Now,
+                        });
+                    }
+                }
             }
             if (Hat("PersonDateOfDeath"))
             {
@@ -272,7 +293,7 @@ public partial class SwissdecTestmandantController
                     foreach (var c in neueCodes)
                         _db.EmployeeVersicherungCodes.Add(new EmployeeVersicherungCode
                         {
-                            EmployeeId = emp.Id, Art = art, Code = c.ToUpperInvariant(), ValidFrom = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.UtcNow,
+                            EmployeeId = emp.Id, Art = art, Code = c.ToUpperInvariant(), ValidFrom = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now,
                             BvgEintrittsgrund = art == "BVG" ? vorlage?.BvgEintrittsgrund : null, BvgVollArbeitsfaehig = art == "BVG" ? vorlage?.BvgVollArbeitsfaehig : null,
                             BvgBasisManuell = art == "BVG" ? (Hat("PersonBVGLPPManuallyBase") ? basis : vorlage?.BvgBasisManuell) : null,
                             BeitragFixAn = art == "BVG" ? vorlage?.BeitragFixAn : null, BeitragFixAg = art == "BVG" ? vorlage?.BeitragFixAg : null,
@@ -289,8 +310,13 @@ public partial class SwissdecTestmandantController
                 var ab = Datum(V("PersonTASCodeValidAsOf")) ?? tag1;
                 var code = V("PersonTASCode"); var kt = V("PersonTASCanton");
                 var aend = rows.Where(r => qstTags.Contains(r.Tag)).Select(r => $"{r.Label}: {r.Alt ?? "–"} → {r.Neu ?? "–"}").ToList();
-                var beenden = Hat("PersonTASCode") && code == null && Hat("PersonTASCanton") && kt == null;
-                felder["Quellensteuer"] = (beenden ? $"QST-Pflicht endet per {vortag:dd.MM.yyyy}: " : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
+                // QST-Pflicht endet (Walter 10.09.2026): Code leer UND Kanton leer (Januar-Muster)
+                // ODER Code «NON» (Swissdec: nicht quellensteuerpflichtig, z.B. nach C-Ausweis —
+                // TF14 Egli Dez 2024). Bei NON keinen neuen Eintrag anlegen, sonst würde der
+                // A0Y-Vorgänger kopiert und weiter gerechnet.
+                var codeNon = string.Equals(code, "NON", StringComparison.OrdinalIgnoreCase);
+                var beenden = (Hat("PersonTASCode") && code == null && Hat("PersonTASCanton") && kt == null) || codeNon;
+                felder["Quellensteuer"] = (beenden ? $"QST-Pflicht endet per {(ab.AddDays(-1)):dd.MM.yyyy}{(codeNon ? " (Code NON)" : "")}: " : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
                 if (!vorschau)
                 {
                     var eintraege = await _db.EmployeeQuellensteuer.Where(q => q.EmployeeId == emp.Id).OrderByDescending(q => q.ValidFrom).ToListAsync();

@@ -422,3 +422,19 @@ Abweichung pro Filiale), NICHT beim Lohndaten-Empfänger. Ergänzt um:
 - Übergang Prod: ohne Code-Zeilen und ohne MA-Einträge rechnet alles wie bisher.
 - Testmandant Schritt 3b (`SwissdecTestmandantController.Schritt3b.cs`) lädt die Muster-AG-Lösungen; Annahme
   Prämie/Beitrag hälftig AN/AG bei UVGZ/KTG/BVG (Swissdec nennt nur Gesamtsätze).
+
+## Schlussabrechnung & Stunden im Lohn — Filial-Schalter (Walter 10.09.2026)
+
+Drei Schalter pro Filiale (`company_profile`, boolean NOT NULL DEFAULT true, Schema-Stand 3), gleiches Muster wie Akonto ja/nein. Default true = heutiges Schaub-Verhalten; Muster AG (Schritt 5a) setzt alle drei auf false, weil das Swissdec Quality Tool keine CHF-Auszahlung von Tages-/Stunden-Saldi kennt.
+
+- `FerientageAmAustrittAuszahlen` — beim letzten Lohn FIX/FIX-M: Zeile «Ferien-Tage Auszahlung / Verrechnung Ferien-Vorbezug» (40.1) und Saldo → 0. MTP: Tage-Saldo → 0 nach Ferien-Geld-Auszahlung. Bei false bleibt der Tages-Saldo stehen.
+- `FeiertagstageAmAustrittAuszahlen` — analog «Feiertag-Tage Auszahlung» (50.1) FIX/FIX-M.
+- `StundenSaldoImLohnVerrechnen` — FIX/FIX-M Austritt «Zeitsaldo Auszahlung / Verrechnung Minusstunden» (55.2); MTP «MTP + Stunden» (55.3, Mehrstunden bleiben bei false als positiver Saldo stehen) und Minusstunden-Verrechnung am Austritt. FLEX ignoriert den Schalter — dort sind die Stunden der Lohn.
+
+Ferien-TAGE laufen immer weiter (Egli +2.92 trotz %-Entschädigung ist gewollt). Anzeige/PDF/Saldo-Block zeigen Soll/Ist unverändert. UI: Filial-Einstellungen → «Schlussabrechnung & Stunden im Lohn», eigener PATCH `/api/companyprofiles/{id}/schlussabrechnung`. AHV-Referenzalter (AHV 21), 13. ML am Austritt, Nacht-Saldo, Ferien-Pott-Logik unverändert.
+
+## Testmandant 4c: Bewilligungswechsel & QST-Code NON (Walter 10.09.2026)
+
+- `PersonResidenceCategory` (z.B. annual-B → settled-C) setzt nicht nur `Employee.PermitTypeId`, sondern führt die **EmployeePermitHistory** nach (Vorgänger per Vortag schliessen, neuer Eintrag ab Monatsanfang, idempotent). 4a legt den Erst-Eintrag ab Eintritt an. Grund: `QstPflichtCheckService` liest die History («einmal C, immer C»); ohne Zeile bliebe der MA QST-pflichtig.
+- `PersonTASCode = NON` beendet die QST-Pflicht: offene QST-Einträge werden per Vortag geschlossen, **kein** neuer Eintrag (sonst würde der A0Y-Vorgänger kopiert und weitergerechnet). Beides zusammen nötig — nur die QST-Zeile schliessen ergäbe beim Bestätigen 409 QST_PFLICHT_OFFEN.
+- Beispiel TF14 Egli Dezember 2024: C-Ausweis + NON ab 1.12.2024 → Beleg ohne Quellensteuer. Die November-Korrektur (ELM) ist ein späteres Thema.

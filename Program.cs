@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 2;   // 2: teilmonat_methode (09.09.2026)
+const int SchemaStand = 3;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter (10.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1143,6 +1143,10 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS akonto_aktiv boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferien_auszahlung_monatlich boolean NOT NULL DEFAULT false;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS teilmonat_methode varchar(20) NOT NULL DEFAULT 'TAGESSATZ365';
+        -- Schlussabrechnung / Stunden im Lohn, Filial-Schalter (Walter 10.09.2026); Default true = Schaub
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferientage_am_austritt_auszahlen boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS feiertagstage_am_austritt_auszahlen boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS stunden_saldo_im_lohn_verrechnen boolean NOT NULL DEFAULT true;
         ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
@@ -5124,7 +5128,7 @@ app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
         {
             var basis = addr.Replace("*", "127.0.0.1").Replace("+", "127.0.0.1")
                             .Replace("0.0.0.0", "127.0.0.1").Replace("[::]", "127.0.0.1").TrimEnd('/');
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
             foreach (var pfad in new[] { "/api/instance-info", "/api/login-greeting", "/api/auth/me",
                                          "/api/companyprofiles", "/api/akonto/workflow/pending-counts", "/index.html" })
             {

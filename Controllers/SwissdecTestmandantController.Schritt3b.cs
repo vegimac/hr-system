@@ -127,7 +127,7 @@ public partial class SwissdecTestmandantController
             };
             aktionen.Add(new Aktion(r == null ? "anlegen" : "aktualisieren", "SV-Satz", s.Name, felder));
             if (vorschau) continue;
-            if (r == null) { r = new SocialInsuranceRate { Code = s.Code, LoesungsCode = loes, Gender = s.Gender, ValidFrom = ab, CreatedAt = DateTime.UtcNow }; _db.SocialInsuranceRates.Add(r); alle.Add(r); }
+            if (r == null) { r = new SocialInsuranceRate { Code = s.Code, LoesungsCode = loes, Gender = s.Gender, ValidFrom = ab, CreatedAt = DateTime.Now }; _db.SocialInsuranceRates.Add(r); alle.Add(r); }
             r.Name = s.Name.Length > 100 ? s.Name[..100] : s.Name; r.Description = s.Bem;
             r.Rate = s.An; r.RateEmployer = s.Ag; r.BasisType = s.BasisType;
             r.IsDefaultCode = s.Default; r.BandVonMonthly = s.BandVon; r.MaxBaseMonthly = s.Max;

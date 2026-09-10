@@ -45,7 +45,44 @@ public class EasyAtWorkAutoSyncRunner
         _log = log;
     }
 
-    public async Task RunAllBranchesAsync(CancellationToken ct)
+    // ── Lauf-Status (Walter 10.09.2026): ein Lauf gleichzeitig, manuell startbar ──
+    private int _laufAktiv;                       // 0 = frei, 1 = läuft (Interlocked)
+    public bool      LaeuftGerade      => Volatile.Read(ref _laufAktiv) == 1;
+    public DateTime? LetzterStart      { get; private set; }
+    public DateTime? LetztesEnde       { get; private set; }
+    public string?   LetzterAusloeser  { get; private set; }   // "automatisch" | "manuell (Name)"
+
+    /// <summary>
+    /// Nachtlauf sofort im Hintergrund starten (Admin-Knopf «Nachtlauf jetzt
+    /// starten»). Identischer Ablauf wie 05:00: MA-Stammdaten → Stempelzeiten →
+    /// Verschollen-Check. Läuft bereits einer → false, nichts gestartet.
+    /// </summary>
+    public bool StarteManuell(string ausloeser)
+    {
+        if (LaeuftGerade) return false;
+        _ = Task.Run(async () =>
+        {
+            try { await RunAllBranchesAsync(CancellationToken.None, $"manuell ({ausloeser})"); }
+            catch (Exception ex) { _log.LogError(ex, "easy@work Auto-Sync (manuell) fehlgeschlagen."); }
+        });
+        return true;
+    }
+
+    public Task RunAllBranchesAsync(CancellationToken ct) => RunAllBranchesAsync(ct, "automatisch");
+
+    private async Task RunAllBranchesAsync(CancellationToken ct, string ausloeser)
+    {
+        if (Interlocked.CompareExchange(ref _laufAktiv, 1, 0) != 0)
+        {
+            _log.LogWarning("easy@work Auto-Sync: Lauf übersprungen — es läuft bereits einer ({Ausloeser}).", LetzterAusloeser);
+            return;
+        }
+        LetzterStart = DateTime.Now; LetztesEnde = null; LetzterAusloeser = ausloeser;
+        try { await RunAllBranchesKernAsync(ct); }
+        finally { LetztesEnde = DateTime.Now; Volatile.Write(ref _laufAktiv, 0); }
+    }
+
+    private async Task RunAllBranchesKernAsync(CancellationToken ct)
     {
         if (!_client.IsConfigured)
         {

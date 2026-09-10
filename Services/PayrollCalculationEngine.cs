@@ -2172,8 +2172,11 @@ public class PayrollCalculationEngine
             // bei MTP OHNE Krank/Unfall/Ferien (Walter 30.05. / 03.08.2026).
             // EXAKT gegen sollStundenExakt — keine Zwischenrundung (Walter 31.07.2026).
             decimal nettoH         = workedHours + absenzGutschrift - sollStundenExakt + vormonatHourSaldo;
-            decimal mehrstundenAus = Math.Round(Math.Max(0, nettoH), 2);
-            decimal neuerSaldo     = Math.Round(Math.Min(0, nettoH), 2);
+            // Filial-Schalter «Stunden-Saldo im Lohn verrechnen» (Walter 10.09.2026):
+            // aus → keine «MTP + Stunden»-Zeile, Mehrstunden bleiben als Saldo stehen.
+            bool stundenSaldoImLohnMtp = company?.StundenSaldoImLohnVerrechnen ?? true;
+            decimal mehrstundenAus = stundenSaldoImLohnMtp ? Math.Round(Math.Max(0, nettoH), 2) : 0m;
+            decimal neuerSaldo     = stundenSaldoImLohnMtp ? Math.Round(Math.Min(0, nettoH), 2) : Math.Round(nettoH, 2);
 
             decimal mtpExact = mehrstundenAus * hourlyRate;
             decimal mtpBasis = Math.Round(mtpExact, 2);
@@ -2631,7 +2634,7 @@ public class PayrollCalculationEngine
                 // Negativer Zeitsaldo → verrechnen (negative Lohnzeile).
                 // Bewusst NICHT in die 13.-ML-Basis (nur Nacht- + Ferien-Geld-
                 // Auszahlung, Walter 04.08.2026 / Mirus-Referenz).
-                if (neuerSaldo < 0 && hourlyRate > 0)
+                if (neuerSaldo < 0 && hourlyRate > 0 && stundenSaldoImLohnMtp)   // Schalter: Walter 10.09.2026
                 {
                     decimal minusBetrag = ExitSettlementBetrag(neuerSaldo, hourlyRate); // negativ
                     lohnLines.Add(new {
@@ -2670,7 +2673,9 @@ public class PayrollCalculationEngine
                     ferienGeldSaldoNeu    = 0m;
                 }
                 // Ferien-Tage-Saldo ist mit der Geld-Auszahlung abgegolten → 0.
-                ferienTageSaldoNeu = 0m;
+                // Filial-Schalter «Ferien-Tage am Austritt auszahlen» aus → Tage bleiben (Walter 10.09.2026).
+                if (company?.FerientageAmAustrittAuszahlen ?? true)
+                    ferienTageSaldoNeu = 0m;
             }
 
             // ── 13. Monatslohn: Auszahlung oder Rückstellung je Firmen-Rhythmus ─
@@ -4035,7 +4040,9 @@ public class PayrollCalculationEngine
                     neuerNachtSaldoFix = 0m;
                 }
                 // Zeitsaldo: positiv auszahlen, negativ verrechnen
-                if (neuerHourSaldoFix != 0m && exitStundensatzFix > 0)
+                // Filial-Schalter «Stunden-Saldo im Lohn verrechnen» aus → keine Zeile,
+                // Saldo bleibt in Stunden stehen (Walter 10.09.2026).
+                if (neuerHourSaldoFix != 0m && exitStundensatzFix > 0 && (company?.StundenSaldoImLohnVerrechnen ?? true))
                 {
                     decimal saldoBetrag = ExitSettlementBetrag(neuerHourSaldoFix, exitStundensatzFix);
                     lohnLines.Add(new {
@@ -4057,8 +4064,11 @@ public class PayrollCalculationEngine
                 // Ferien-Tage: positiv auszahlen, negativ (Vorbezug) verrechnen.
                 // Anzeige-Anzahl = auf 2 Dez. gerundet — nur wenn der gerundete
                 // Wert ≠ 0 (Saldo ist auf 4 Dez. geführt → keine 0.00-Rauschzeile).
+                // Filial-Schalter «Ferien-Tage am Austritt auszahlen» (Walter 10.09.2026):
+                // aus → keine CHF-Zeile, Tages-Saldo bleibt stehen.
+                bool ferientageAuszahlenFix = company?.FerientageAmAustrittAuszahlen ?? true;
                 decimal ferienTageAnzeige = Math.Round(ferienTageSaldoNeu, 2);
-                if (ferienTageAnzeige != 0m && fixTagessatz > 0)
+                if (ferientageAuszahlenFix && ferienTageAnzeige != 0m && fixTagessatz > 0)
                 {
                     decimal ferienBetrag = ExitSettlementBetrag(ferienTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {
@@ -4076,10 +4086,11 @@ public class PayrollCalculationEngine
                     deltaAhv += ferienBetrag; deltaNbuv += ferienBetrag; deltaKtg += ferienBetrag;
                     deltaBvg += ferienBetrag; deltaQst += ferienBetrag;
                 }
-                ferienTageSaldoNeu = 0m;
+                if (ferientageAuszahlenFix) ferienTageSaldoNeu = 0m;
                 // Feiertag-Tage: Resttage auszahlen (gleicher Tagessatz)
+                // Filial-Schalter «Feiertag-Tage am Austritt auszahlen» aus → Saldo bleibt (Walter 10.09.2026).
                 decimal feiertagTageAnzeige = Math.Round(feiertagTageSaldoNeu, 2);
-                if (feiertagTageAnzeige > 0 && fixTagessatz > 0)
+                if (feiertagTageAnzeige > 0 && fixTagessatz > 0 && (company?.FeiertagstageAmAustrittAuszahlen ?? true))
                 {
                     decimal feiertagBetrag = ExitSettlementBetrag(feiertagTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {

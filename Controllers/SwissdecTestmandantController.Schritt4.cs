@@ -100,6 +100,13 @@ public partial class SwissdecTestmandantController
                 emp.IsActive = true; emp.LgavPflichtig = false;
                 if (neu) _db.Employees.Add(emp);
                 await _db.SaveChangesAsync();
+                // Bewilligungs-Historie ab Eintritt (Walter 10.09.2026): der QST-Pflicht-Check
+                // liest die History; 4c schliesst diesen Eintrag bei einem Bewilligungswechsel.
+                if (permit != null && !await _db.EmployeePermitHistories.AnyAsync(h => h.EmployeeId == emp.Id && h.ValidFrom == f.Entry && h.PermitTypeId == permit.Id))
+                {
+                    _db.EmployeePermitHistories.Add(new EmployeePermitHistory { EmployeeId = emp.Id, PermitTypeId = permit.Id, ValidFrom = f.Entry, Note = "Swissdec-Testdaten", CreatedAt = DateTime.Now });
+                    await _db.SaveChangesAsync();
+                }
             }
 
             // ── Vertrag ──
@@ -132,7 +139,13 @@ public partial class SwissdecTestmandantController
                 vertrag.EmploymentModel = modell;
                 vertrag.SalaryType = modell == "FIX" ? "monthly" : "hourly";
                 vertrag.ContractStartDate = f.Entry.ToDateTime(TimeOnly.MinValue);
-                vertrag.ContractEndDate = null;
+                // Wiederholter 4a-Lauf: existiert bereits ein späterer Abschnitt (aus 5b —
+                // Lohnänderung/Austritt), bleibt dieser Vertrag bis zum Vortag befristet.
+                // Sonst hätte die Person zwei überlappende Verträge (Walter 10.09.2026).
+                var naechster = emp.Employments
+                    .Where(x => !ReferenceEquals(x, vertrag) && x.EasyAtWorkContractId == null && x.ContractStartDate > vertrag.ContractStartDate)
+                    .OrderBy(x => x.ContractStartDate).FirstOrDefault();
+                vertrag.ContractEndDate = naechster?.ContractStartDate.AddDays(-1);
                 vertrag.ContractType = V("PersonContractMonthly") == "fixedSalaryMth" ? "befristet" : "unbefristet";
                 vertrag.JobTitle = V("PersonJobTitle");
                 vertrag.EducationLevelCode = edu;
@@ -141,8 +154,10 @@ public partial class SwissdecTestmandantController
                 vertrag.HourlyRate = modell == "FLEX" ? stdSatz : null;
                 vertrag.LessonRate = (wochenLekt != null || V("PersonNumberOfLessons") != null) ? lektSatz : null;
                 vertrag.WeeklyLessons = wochenLekt;
-                vertrag.MonthlySalary = modell == "FIX" ? lohnMt : null;
-                vertrag.MonthlySalaryFte = modell == "FIX" && lohnMt != null && pensum is > 0 ? Math.Round(lohnMt.Value * 100m / pensum.Value, 2) : null;
+                // Monatslohn kommt aus 5b (Lohnart 1000) — ein Wiederholungslauf darf ihn nicht löschen.
+                var lohnNeu = modell == "FIX" ? (lohnMt ?? vertrag.MonthlySalary) : null;
+                vertrag.MonthlySalary = lohnNeu;
+                vertrag.MonthlySalaryFte = lohnNeu != null && pensum is > 0 ? Math.Round(lohnNeu.Value * 100m / pensum.Value, 2) : (lohnNeu != null ? vertrag.MonthlySalaryFte ?? lohnNeu : null);
                 vertrag.TeilzeitUnter8hWoche = false;
                 vertrag.ThirteenthSalary = V("PersonContractMonthly13th") != null || V("PersonContractHourly13th") != null;
                 vertrag.EasyAtWorkManualOverride = true;   // manuell erfasst → geschützt (Walter 07.09.2026)
@@ -230,16 +245,21 @@ public partial class SwissdecTestmandantController
             felder["Versicherungen"] = string.Join(" · ", codeTexte);
             if (!vorschau)
             {
+                // Wiederholungslauf: BVG-Fixbetrag aus 5b (Lohnart 5050) am Eintrittstag
+                // übernehmen, sonst fällt der MA nach 4a zurück auf %-BVG (Aebi 10.09.2026).
+                var bvgBisher = (await _db.EmployeeVersicherungCodes.Where(v => v.EmployeeId == emp.Id && v.Art == "BVG").ToListAsync())
+                    .Where(v => v.GiltAm(f.Entry)).OrderByDescending(v => v.ValidFrom).FirstOrDefault();
                 var alt = await _db.EmployeeVersicherungCodes.Where(v => v.EmployeeId == emp.Id && v.ValidFrom == f.Entry).ToListAsync();
                 _db.EmployeeVersicherungCodes.RemoveRange(alt);
                 foreach (var (art, code) in codes)
                 {
-                    var e = new EmployeeVersicherungCode { EmployeeId = emp.Id, Art = art, Code = code.ToUpperInvariant(), ValidFrom = f.Entry, Bemerkung = "Swissdec-Testdaten", CreatedAt = DateTime.UtcNow };
+                    var e = new EmployeeVersicherungCode { EmployeeId = emp.Id, Art = art, Code = code.ToUpperInvariant(), ValidFrom = f.Entry, Bemerkung = "Swissdec-Testdaten", CreatedAt = DateTime.Now };
                     if (art == "BVG")
                     {
                         e.BvgEintrittsgrund = V("PersonBVGLPPEntryReason");
                         e.BvgVollArbeitsfaehig = V("PersonBVGLPPFullyFitForWorkEntry") == null ? null : V("PersonBVGLPPFullyFitForWorkEntry") == "FullyFitForWork";
                         e.BvgBasisManuell = Dez(V("PersonBVGLPPManuallyBase"));
+                        if (bvgBisher != null) { e.BeitragFixAn = bvgBisher.BeitragFixAn; e.BeitragFixAg = bvgBisher.BeitragFixAg; }
                     }
                     _db.EmployeeVersicherungCodes.Add(e);
                 }

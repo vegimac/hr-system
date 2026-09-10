@@ -486,8 +486,70 @@ function _eawDate(iso) {
     return s.length === 10 ? `${s.slice(8,10)}.${s.slice(5,7)}.${s.slice(0,4)}` : s;
 }
 
+// ─────────────────── Nachtlauf jetzt starten (Walter 10.09.2026) ──────────
+// Gleicher Ablauf wie 05:00 (MA-Stammdaten → Stempelzeiten → Verschollen-Check),
+// läuft im Hintergrund; wir pollen den Status und laden danach das Protokoll neu.
+let _eawRunNowTimer = null;
+async function eawRunNow() {
+    const btn = document.getElementById('eawRunNowBtn');
+    const st  = document.getElementById('eawRunNowStatus');
+    if (!confirm('Nachtlauf jetzt starten?\n\nMA-Stammdaten und Stempelzeiten aller Filialen werden aus easy@work synchronisiert – genau wie um 05:00.')) return;
+    btn.disabled = true;
+    st.textContent = '⏳ Lauf gestartet…';
+    try {
+        const r = await fetch('/api/easywork/auto-sync/run-now', { method: 'POST', headers: ah() });
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            st.textContent = '⚠ ' + (j.error || ('Fehler ' + r.status));
+            btn.disabled = false;
+            return;
+        }
+        _eawRunNowPoll();
+    } catch (e) {
+        st.textContent = '⚠ Netzwerkfehler';
+        btn.disabled = false;
+    }
+}
+async function _eawRunNowPoll() {
+    const btn = document.getElementById('eawRunNowBtn');
+    const st  = document.getElementById('eawRunNowStatus');
+    clearTimeout(_eawRunNowTimer);
+    try {
+        const r = await fetch('/api/easywork/auto-sync/status', { headers: ah(), cache: 'no-store' });
+        const s = r.ok ? await r.json() : null;
+        if (s && s.laeuft) {
+            const seit = s.letzterStart ? new Date(s.letzterStart).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : '';
+            st.textContent = `⏳ Sync läuft (seit ${seit}, ${s.ausloeser || ''})…`;
+            btn.disabled = true;
+            _eawRunNowTimer = setTimeout(_eawRunNowPoll, 4000);
+            return;
+        }
+        if (s && s.letztesEnde) {
+            st.textContent = '✓ Letzter Lauf beendet ' + new Date(s.letztesEnde).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) + ` (${s.ausloeser || ''})`;
+        } else {
+            st.textContent = '';
+        }
+    } catch (e) { st.textContent = ''; }
+    btn.disabled = false;
+    eawLogLoad();
+}
+
 // ─────────────────── Auto-Sync-Protokoll (Admin-Ansicht) ─────────────────
+let _eawRunNowStatusShown = false;
+function _eawRunNowStatusOnce() { if (_eawRunNowStatusShown) return; _eawRunNowStatusShown = true; _eawRunNowPollStatusOnly(); }
+async function _eawRunNowPollStatusOnly() {
+    const st = document.getElementById('eawRunNowStatus'); const btn = document.getElementById('eawRunNowBtn');
+    if (!st) return;
+    try {
+        const r = await fetch('/api/easywork/auto-sync/status', { headers: ah(), cache: 'no-store' });
+        const s = r.ok ? await r.json() : null;
+        if (s && s.laeuft) { _eawRunNowPoll(); return; }
+        if (s && s.letztesEnde) st.textContent = '✓ Letzter Lauf beendet ' + new Date(s.letztesEnde).toLocaleString('de-CH', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ` (${s.ausloeser || ''})`;
+    } catch (e) {}
+    if (btn) btn.disabled = false;
+}
 async function eawLogLoad() {
+    _eawRunNowStatusOnce();
     const el = document.getElementById('eawLogContainer');
     if (!el) return;
     el.innerHTML = `<div style="color:#64748b;font-size:13px;padding:8px">⏳ Lade…</div>`;

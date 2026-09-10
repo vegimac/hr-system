@@ -795,6 +795,26 @@ public class EasyAtWorkController : ControllerBase
         return Ok(new { ok = true, autoSyncEnabled = row.AutoSyncEnabled });
     }
 
+    // ──────────── Nachtlauf manuell starten (Walter 10.09.2026) ─────────
+    /// <summary>Status des Auto-Sync-Laufs (läuft gerade? letzter Start/Ende).</summary>
+    [HttpGet("auto-sync/status")]
+    public IActionResult GetAutoSyncStatus([FromServices] Services.EasyAtWork.EasyAtWorkAutoSyncRunner runner)
+        => Ok(new { laeuft = runner.LaeuftGerade, letzterStart = runner.LetzterStart,
+                    letztesEnde = runner.LetztesEnde, ausloeser = runner.LetzterAusloeser });
+
+    /// <summary>Den täglichen Nachtlauf (05:00) sofort starten — gleicher Ablauf,
+    /// läuft im Hintergrund; Fortschritt im Sync-Protokoll. 409 wenn schon einer läuft.</summary>
+    [HttpPost("auto-sync/run-now")]
+    [Authorize(Roles = "admin,superuser")]
+    public IActionResult RunAutoSyncNow([FromServices] Services.EasyAtWork.EasyAtWorkAutoSyncRunner runner)
+    {
+        var wer = User.Identity?.Name ?? "?";
+        if (!runner.StarteManuell(wer))
+            return StatusCode(409, new { error = "Es läuft bereits ein Sync-Lauf. Bitte warten, bis er fertig ist." });
+        _log.LogInformation("easy@work Auto-Sync manuell gestartet von {User}.", wer);
+        return Ok(new { ok = true });
+    }
+
     // ──────────── Auto-Sync-Protokoll (Admin-Ansicht) ────────────────
     public record SyncLogDto(
         int Id, int CompanyProfileId, string? CompanyProfileName, DateTime RunAt,

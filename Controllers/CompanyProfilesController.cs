@@ -616,6 +616,23 @@ public class CompanyProfilesController : ControllerBase
         return Ok(profile);
     }
 
+    // PATCH /api/companyprofiles/{id}/schlussabrechnung  (Walter 10.09.2026)
+    // Drei Filial-Schalter: Ferien-Tage / Feiertag-Tage am Austritt in CHF,
+    // Stunden-Saldo im Lohn verrechnen. Nur gesetzte Felder werden geändert.
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/schlussabrechnung")]
+    public async Task<IActionResult> UpdateSchlussabrechnung(int id, [FromBody] SchlussabrechnungDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        if (dto.FerientageAmAustrittAuszahlen.HasValue)   profile.FerientageAmAustrittAuszahlen   = dto.FerientageAmAustrittAuszahlen.Value;
+        if (dto.FeiertagstageAmAustrittAuszahlen.HasValue) profile.FeiertagstageAmAustrittAuszahlen = dto.FeiertagstageAmAustrittAuszahlen.Value;
+        if (dto.StundenSaldoImLohnVerrechnen.HasValue)     profile.StundenSaldoImLohnVerrechnen     = dto.StundenSaldoImLohnVerrechnen.Value;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+    public record SchlussabrechnungDto(bool? FerientageAmAustrittAuszahlen = null, bool? FeiertagstageAmAustrittAuszahlen = null, bool? StundenSaldoImLohnVerrechnen = null);
+
     // PATCH /api/companyprofiles/{id}/lgav
     [Authorize(Roles = "admin")]
     [HttpPatch("{id:int}/lgav")]
@@ -786,6 +803,10 @@ public class CompanyProfilesController : ControllerBase
             t.AutoFerienGeldAuszahlungDezember = source.AutoFerienGeldAuszahlungDezember;
             t.FerienAuszahlungMonatlich        = source.FerienAuszahlungMonatlich;
             t.TeilmonatMethode                 = source.TeilmonatMethode;
+            // Schlussabrechnung / Stunden im Lohn (Walter 10.09.2026)
+            t.FerientageAmAustrittAuszahlen    = source.FerientageAmAustrittAuszahlen;
+            t.FeiertagstageAmAustrittAuszahlen = source.FeiertagstageAmAustrittAuszahlen;
+            t.StundenSaldoImLohnVerrechnen     = source.StundenSaldoImLohnVerrechnen;
             // ── Karenz ──
             t.KarenzjahrBasis      = source.KarenzjahrBasis;
             t.KarenzTageMax        = source.KarenzTageMax;

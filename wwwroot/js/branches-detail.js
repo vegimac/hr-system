@@ -455,6 +455,27 @@ function renderFilialenDetail(b) {
             </div>
             <div class="ein-hint" style="margin-top:2px">Prozente sind nur Anzeige (L-GAV / Vertrag) · Alter editierbar</div>`)}
 
+            ${einSec('schlussabrechnung', 'Schlussabrechnung &amp; Stunden im Lohn',
+                `Ferien-Tage ${b.ferientageAmAustrittAuszahlen === false ? 'nein' : 'ja'} · Feiertag-Tage ${b.feiertagstageAmAustrittAuszahlen === false ? 'nein' : 'ja'} · Stunden-Saldo ${b.stundenSaldoImLohnVerrechnen === false ? 'nein' : 'ja'}`, `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Ferien-Tage am Austritt auszahlen</div>
+                    <div class="emp-field-value"><select id="einFerientageAustritt" class="ef-input">
+                        <option value="true"  ${b.ferientageAmAustrittAuszahlen !== false ? 'selected' : ''}>Ja (Rest-Tage in CHF, Vorbezug verrechnen)</option>
+                        <option value="false" ${b.ferientageAmAustrittAuszahlen === false ? 'selected' : ''}>Nein (Saldo bleibt in Tagen)</option>
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Feiertag-Tage am Austritt auszahlen</div>
+                    <div class="emp-field-value"><select id="einFeiertagstageAustritt" class="ef-input">
+                        <option value="true"  ${b.feiertagstageAmAustrittAuszahlen !== false ? 'selected' : ''}>Ja (Rest-Tage in CHF)</option>
+                        <option value="false" ${b.feiertagstageAmAustrittAuszahlen === false ? 'selected' : ''}>Nein (Saldo bleibt in Tagen)</option>
+                    </select></div></div>
+                <div class="emp-field"><div class="emp-field-label">Stunden-Saldo im Lohn verrechnen</div>
+                    <div class="emp-field-value"><select id="einStundenSaldoImLohn" class="ef-input">
+                        <option value="true"  ${b.stundenSaldoImLohnVerrechnen !== false ? 'selected' : ''}>Ja (MTP-Mehrstunden, Zeitsaldo am Austritt)</option>
+                        <option value="false" ${b.stundenSaldoImLohnVerrechnen === false ? 'selected' : ''}>Nein (Soll/Ist nur Anzeige)</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Gilt für FIX/FIX-M und MTP. Stundenlohn FLEX ist nie betroffen (dort sind die Stunden der Lohn). Bei «Nein» laufen die Saldi in Tagen/Stunden weiter, es entsteht nur keine CHF-Zeile.</div>`)}
+
             ${einSec('dreizehnter', '13. Monatslohn',
                 `${b.defaultThirteenthSalaryPercent != null ? Number(b.defaultThirteenthSalaryPercent) + ' %' : 'kein Vorgabe-%'} · ${einTpSummary(b)}`, `
             <div style="display:flex;gap:32px;align-items:flex-start;margin-bottom:5px;flex-wrap:wrap">
@@ -872,6 +893,9 @@ async function saveEinstellungen(branchId) {
     const autoFG       = g('einAutoFerienGeld')?.value === 'true';
     const ferienMonatl = g('einFerienMonatlich')?.value === 'true';
     const teilmonat    = g('einTeilmonat')?.value || 'TAGESSATZ365';
+    const ferientageAustritt   = g('einFerientageAustritt')?.value !== 'false';
+    const feiertagstageAustritt= g('einFeiertagstageAustritt')?.value !== 'false';
+    const stundenSaldoImLohn   = g('einStundenSaldoImLohn')?.value !== 'false';
     const karenzBasis  = g('einKarenzBasis')?.value || 'ARBEITSJAHR';
     const karenzKrank  = Number(g('einKarenzKrank')?.value);
     const karenzUnfall = Number(g('einKarenzUnfall')?.value);
@@ -917,6 +941,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/auto-ferien-geld-dezember`,   { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: autoFG }) }),
             fetch(`/api/companyprofiles/${branchId}/ferien-auszahlung-monatlich`, { method: 'PATCH', headers: H, body: JSON.stringify({ aktiv: ferienMonatl }) }),
             fetch(`/api/companyprofiles/${branchId}/teilmonat-methode`,           { method: 'PATCH', headers: H, body: JSON.stringify({ methode: teilmonat }) }),
+            fetch(`/api/companyprofiles/${branchId}/schlussabrechnung`,           { method: 'PATCH', headers: H, body: JSON.stringify({ ferientageAmAustrittAuszahlen: ferientageAustritt, feiertagstageAmAustrittAuszahlen: feiertagstageAustritt, stundenSaldoImLohnVerrechnen: stundenSaldoImLohn }) }),
             fetch(`/api/companyprofiles/${branchId}/karenz`,                      { method: 'PATCH', headers: H, body: JSON.stringify({ karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank, karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist }) }),
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
@@ -942,6 +967,9 @@ async function saveEinstellungen(branchId) {
             autoFerienGeldAuszahlungDezember: autoFG,
             ferienAuszahlungMonatlich: ferienMonatl,
             teilmonatMethode: teilmonat,
+            ferientageAmAustrittAuszahlen: ferientageAustritt,
+            feiertagstageAmAustrittAuszahlen: feiertagstageAustritt,
+            stundenSaldoImLohnVerrechnen: stundenSaldoImLohn,
             karenzjahrBasis: karenzBasis, karenzTageMax: karenzKrank,
             karenzTageMaxUnfall: karenzUnfall, bvgWartefristMonate: bvgWartefrist,
             lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed,

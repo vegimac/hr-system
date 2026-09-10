@@ -1096,9 +1096,19 @@ function showLohnVertragInfo(emp) {
         return;
     }
 
-    const contract = (emp.employments || [])
-        .filter(c => c.isActive)
-        .sort((a,b) => (b.contractStartDate||'') > (a.contractStartDate||'') ? 1 : -1)[0];
+    // Vertrag, der in der gewählten Lohnperiode gilt — nicht einfach der neuste
+    // (Walter 10.09.2026: Oberli Dez 2024 zeigte den Januar-Vertrag mit 5'000).
+    // Kein Vertrag im Monat (z.B. Nachzahlung nach Austritt) → neuster als Rückfall.
+    const _hy = parseInt(document.getElementById('lohnYearSelect')?.value) || new Date().getFullYear();
+    const _hm = parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
+    const _pStart = `${_hy}-${String(_hm).padStart(2, '0')}-01`;
+    const _pEnd   = `${_hy}-${String(_hm).padStart(2, '0')}-${String(new Date(_hy, _hm, 0).getDate()).padStart(2, '0')}`;
+    const _alle = (emp.employments || [])
+        .slice().sort((a,b) => (b.contractStartDate||'') > (a.contractStartDate||'') ? 1 : -1);
+    const contract = _alle.find(c =>
+            (!c.contractStartDate || String(c.contractStartDate).slice(0, 10) <= _pEnd) &&
+            (!c.contractEndDate   || String(c.contractEndDate).slice(0, 10)   >= _pStart))
+        || _alle.find(c => c.isActive) || _alle[0];
 
     if (!contract) {
         targets.forEach(t => {
