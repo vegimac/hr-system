@@ -117,6 +117,24 @@ public class AppUser
     /// </summary>
     public bool MustChangePassword { get; set; } = false;
 
+    /// <summary>
+    /// Zweite Prüfung per Authenticator-App (Walter 11.09.2026) — das Häkchen
+    /// in der Benutzerverwaltung, pro Benutzer, NICHT pro Rolle. Geteilte
+    /// Büro-PCs speichern das Passwort im Browser; erst der 6-stellige Code
+    /// vom Handy gibt das volle Token. Treuhänder bleiben passwort-only.
+    /// </summary>
+    public bool TotpRequired { get; set; } = false;
+
+    /// <summary>
+    /// TOTP-Secret (Base32). NIE in GET /api/users, NIE ins JWT, NIE ins
+    /// Frontend — ausser genau einmal beim Einrichten an den pending-User.
+    /// NULL = noch nicht eingerichtet (nächster Login = Einrichtungs-Wizard).
+    /// </summary>
+    public string? TotpSecret { get; set; }
+
+    /// <summary>Zeitpunkt der bestätigten Einrichtung (Lokalzeit). NULL = nicht eingerichtet.</summary>
+    public DateTime? TotpConfirmedAt { get; set; }
+
     /// <summary>Anzahl aufeinanderfolgender Login-Fehler. Reset nach erfolgreichem Login.</summary>
     public int FailedLoginCount { get; set; } = 0;
 

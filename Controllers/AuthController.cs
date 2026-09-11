@@ -4,6 +4,7 @@ using HrSystem.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -17,6 +18,7 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _config;
+    private readonly IMemoryCache _cache;
 
     // ── Lockout-Parameter ─────────────────────────────────────────────────
     // Nach 5 aufeinanderfolgenden Fehlversuchen wird der Account für 15 Min
@@ -33,10 +35,29 @@ public class AuthController : ControllerBase
     private const int    JWT_HOURS_BACKOFFICE = 8;
     private const int    JWT_HOURS_EMPLOYEE   = 4;
 
-    public AuthController(AppDbContext context, IConfiguration config)
+    public AuthController(AppDbContext context, IConfiguration config, IMemoryCache cache)
     {
         _context = context;
         _config = config;
+        _cache = cache;
+    }
+
+    // ── Zweite Prüfung per Authenticator-App (Walter 11.09.2026) ──────────
+    // Nach richtigem Passwort gibt es bei gesetztem Häkchen KEIN volles JWT,
+    // sondern nur einen kurzlebigen pending-Schlüssel im MemoryCache (analog
+    // WebAuthn-Challenge). Erst der 6-stellige Code vom Handy macht daraus
+    // ein Token. Ohne Code keine API — auch nicht für den Sperrbildschirm.
+    private static readonly TimeSpan TotpPendingTtl = TimeSpan.FromMinutes(5);
+    private const int TOTP_MAX_FEHLVERSUCHE = 5;
+
+    private sealed class TotpPending
+    {
+        public int UserId { get; init; }
+        /// <summary>Nur beim Einrichten gesetzt: das noch NICHT gespeicherte Secret.</summary>
+        public string? SetupSecret { get; init; }
+        /// <summary>Sperrbildschirm: ursprünglicher Login (harte Obergrenze bleibt).</summary>
+        public DateTime? LoginAt { get; init; }
+        public int Fehlversuche { get; set; }
     }
 
     // Login per Email (Backoffice-User) oder Username (= EmployeeNumber für
@@ -104,14 +125,193 @@ public class AuthController : ControllerBase
             }
         }
 
+        // Zweite Prüfung (Walter 11.09.2026): Häkchen AN → kein Token, nur
+        // pending. Passwort war richtig → Lockout-Zähler zurück, aber
+        // LastLoginAt erst nach dem Code. MA-Postfach bleibt aussen vor.
+        if (user.TotpRequired && user.Role != "employee")
+        {
+            user.FailedLoginCount = 0;
+            user.LockedUntil      = null;
+            await _context.SaveChangesAsync();
+            return TotpPendingAntwort(user);
+        }
+
+        return await AnmeldungAbschliessen(user, DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Pending-Antwort für die zweite Prüfung. Noch kein bestätigtes Secret →
+    /// Einrichtungs-Wizard (QR + Secret zum Abtippen) — das Secret liegt nur
+    /// im Cache und wird erst nach gültigem Code in die DB geschrieben.
+    /// </summary>
+    private IActionResult TotpPendingAntwort(AppUser user)
+    {
+        var pending = Guid.NewGuid().ToString("N");
+        var einrichten = string.IsNullOrEmpty(user.TotpSecret) || user.TotpConfirmedAt == null;
+        if (einrichten)
+        {
+            var secret = TotpService.GenerateSecret();
+            _cache.Set("totp:pending:" + pending, new TotpPending { UserId = user.Id, SetupSecret = secret }, TotpPendingTtl);
+            var uri = TotpService.BuildOtpAuthUri(secret, user.Email);
+            return Ok(new
+            {
+                needsTotpSetup = true,
+                pending,
+                account   = user.Email,
+                issuer    = TotpService.Issuer,
+                secret    = TotpService.FormatSecretForDisplay(secret),
+                qrDataUrl = TotpService.BuildQrDataUrl(uri),
+            });
+        }
+        _cache.Set("totp:pending:" + pending, new TotpPending { UserId = user.Id }, TotpPendingTtl);
+        return Ok(new { needsTotp = true, pending });
+    }
+
+    public record TotpCodeRequest(string Pending, string Code);
+
+    /// <summary>Zweite Prüfung: Code der Authenticator-App prüfen → volles Token.</summary>
+    [AllowAnonymous]
+    [HttpPost("totp/verify")]
+    public async Task<IActionResult> TotpVerify([FromBody] TotpCodeRequest req)
+    {
+        var (p, fehler) = TotpPendingHolen(req?.Pending);
+        if (p == null) return Unauthorized(new { message = fehler });
+        if (p.SetupSecret != null)
+            return BadRequest(new { message = "Die zweite Prüfung ist noch nicht eingerichtet." });
+
+        var user = await LadeBenutzer(p.UserId);
+        if (user == null || !user.TotpRequired || string.IsNullOrEmpty(user.TotpSecret) || user.TotpConfirmedAt == null)
+        {
+            _cache.Remove("totp:pending:" + req!.Pending);
+            return Unauthorized(new { message = "Bitte neu anmelden." });
+        }
+
+        var schritt = TotpService.Verify(user.TotpSecret, req!.Code);
+        if (schritt == null || !TotpReplayOk(user.Id, schritt.Value))
+            return TotpFehlversuch(req.Pending, p);
+
+        _cache.Remove("totp:pending:" + req.Pending);
+        return await AnmeldungAbschliessen(user, DateTime.UtcNow, p.LoginAt);
+    }
+
+    /// <summary>
+    /// Einrichtung bestätigen: erst wenn der Code zum frischen Secret passt,
+    /// wird das Secret in die DB geschrieben (+ Bestätigungs-Zeitpunkt) und
+    /// das volle Token ausgegeben.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("totp/setup-confirm")]
+    public async Task<IActionResult> TotpSetupConfirm([FromBody] TotpCodeRequest req)
+    {
+        var (p, fehler) = TotpPendingHolen(req?.Pending);
+        if (p == null) return Unauthorized(new { message = fehler });
+        if (p.SetupSecret == null)
+            return BadRequest(new { message = "Kein Einrichtungs-Vorgang offen." });
+
+        var user = await LadeBenutzer(p.UserId);
+        if (user == null || !user.TotpRequired)
+        {
+            _cache.Remove("totp:pending:" + req!.Pending);
+            return Unauthorized(new { message = "Bitte neu anmelden." });
+        }
+
+        var schritt = TotpService.Verify(p.SetupSecret, req!.Code);
+        if (schritt == null)
+            return TotpFehlversuch(req.Pending, p);
+
+        user.TotpSecret      = p.SetupSecret;
+        user.TotpConfirmedAt = DateTime.Now;
+        _cache.Remove("totp:pending:" + req.Pending);
+        TotpReplayOk(user.Id, schritt.Value);
+        return await AnmeldungAbschliessen(user, DateTime.UtcNow);
+    }
+
+    /// <summary>
+    /// Sperrbildschirm (Walter 11.09.2026): das noch gültige Token wird gegen
+    /// einen Entsperr-Schlüssel getauscht, BEVOR der Browser das Token
+    /// wegwirft. Entsperren dann nur mit Code (nicht mit dem im Browser
+    /// gespeicherten Passwort). mode: totp | password | relogin.
+    /// </summary>
+    [HttpPost("lock")]
+    [Authorize(Roles = "admin,superuser,user,buchhaltung,lowuser")]
+    public async Task<IActionResult> Lock()
+    {
+        var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _context.AppUsers.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null || !user.IsActive) return Unauthorized();
+
+        if (!user.TotpRequired)
+            return Ok(new { mode = "password" });
+        if (string.IsNullOrEmpty(user.TotpSecret) || user.TotpConfirmedAt == null)
+            return Ok(new { mode = "relogin" });
+
+        var loginAtStr = User.FindFirst("login_at")?.Value ?? User.FindFirst("session_started_at")?.Value;
+        var loginAt = DateTime.TryParse(loginAtStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var la)
+            ? la.ToUniversalTime() : DateTime.UtcNow;
+        var hardEnd = loginAt.AddMinutes(HARD_CAP_MINUTES);
+        var rest = hardEnd - DateTime.UtcNow;
+        if (rest <= TimeSpan.FromMinutes(1))
+            return Ok(new { mode = "relogin" });
+
+        var ticket = Guid.NewGuid().ToString("N");
+        _cache.Set("totp:pending:" + ticket, new TotpPending { UserId = user.Id, LoginAt = loginAt }, rest);
+        return Ok(new { mode = "totp", ticket, hardEndAt = hardEnd.ToString("o") });
+    }
+
+    // Pending-Eintrag aus dem Cache holen (null + Meldung, wenn abgelaufen).
+    private (TotpPending? p, string fehler) TotpPendingHolen(string? pending)
+    {
+        if (string.IsNullOrWhiteSpace(pending))
+            return (null, "Anmeldung abgelaufen — bitte neu anmelden.");
+        if (!_cache.TryGetValue("totp:pending:" + pending, out TotpPending? p) || p == null)
+            return (null, "Anmeldung abgelaufen — bitte neu anmelden.");
+        return (p, "");
+    }
+
+    // Falscher Code: bis zu 5 Versuche pro pending, danach Neu-Login.
+    private IActionResult TotpFehlversuch(string pending, TotpPending p)
+    {
+        p.Fehlversuche += 1;
+        if (p.Fehlversuche >= TOTP_MAX_FEHLVERSUCHE)
+        {
+            _cache.Remove("totp:pending:" + pending);
+            return Unauthorized(new { message = "Zu viele falsche Codes — bitte neu anmelden.", neuAnmelden = true });
+        }
+        var rest = TOTP_MAX_FEHLVERSUCHE - p.Fehlversuche;
+        return Unauthorized(new { message = $"Code falsch — noch {rest} Versuch(e).", verbleibend = rest });
+    }
+
+    // Replay-Schutz: derselbe Zeitschritt darf pro Benutzer nur einmal gelten.
+    private bool TotpReplayOk(int userId, long schritt)
+    {
+        var key = "totp:used:" + userId;
+        if (_cache.TryGetValue(key, out object? letzter) && letzter is long l && l >= schritt) return false;
+        _cache.Set(key, schritt, TimeSpan.FromMinutes(3));
+        return true;
+    }
+
+    private Task<AppUser?> LadeBenutzer(int id) =>
+        _context.AppUsers
+            .Include(u => u.BranchAccess)
+                .ThenInclude(ba => ba.CompanyProfile)
+            .Include(u => u.Employee)
+            .FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
+
+    /// <summary>
+    /// Gemeinsamer Abschluss: Zähler zurück, LastLoginAt, Token, Antwort —
+    /// für Passwort-Login ohne Häkchen, nach dem TOTP-Code und beim
+    /// Entsperren (dann mit dem ursprünglichen loginAt für die Obergrenze).
+    /// </summary>
+    private async Task<IActionResult> AnmeldungAbschliessen(AppUser user, DateTime sessionStart, DateTime? loginAt = null)
+    {
         // Erfolgreich → Lockout-Counter zurücksetzen, Letzten Login speichern
         user.FailedLoginCount = 0;
         user.LockedUntil      = null;
         user.LastLoginAt      = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        var sessionStart = DateTime.UtcNow;
-        var token = GenerateToken(user, sessionStart);
+        var token = GenerateToken(user, sessionStart, loginAt: loginAt);
+        var effLoginAt = loginAt ?? sessionStart;
 
         return Ok(new
         {
@@ -120,8 +320,8 @@ public class AuthController : ControllerBase
             // Session-Policy (Walter-Vorgabe 21.06.2026) — der Frontend-Wächter
             // startet damit sofort, ohne auf /me warten zu müssen.
             sessionStartedAt   = sessionStart.ToString("o"),
-            loginAt            = sessionStart.ToString("o"),
-            hardEndAt          = sessionStart.AddMinutes(HARD_CAP_MINUTES).ToString("o"),
+            loginAt            = effLoginAt.ToString("o"),
+            hardEndAt          = effLoginAt.AddMinutes(HARD_CAP_MINUTES).ToString("o"),
             idleTimeoutMinutes = EffectiveIdleTimeout(user),
             maxSessionMinutes  = EffectiveMaxSession(user),
             user = new
@@ -129,6 +329,8 @@ public class AuthController : ControllerBase
                 user.Id,
                 user.Username,
                 firstName = user.FirstName,   // persoenliche Anrede (To-do-Anleitung)
+                totpRequired = user.TotpRequired,
+                totpEingerichtet = user.TotpRequired && user.TotpSecret != null && user.TotpConfirmedAt != null,
                 user.Email,
                 user.Role,
                 user.Theme,
@@ -296,6 +498,10 @@ public class AuthController : ControllerBase
             user.LastName,
             employeeId         = user.EmployeeId,
             mustChangePassword = user.MustChangePassword,
+            // Zweite Prüfung (Walter 11.09.2026): der Sperrbildschirm entscheidet
+            // damit Code statt Passwort. Secret selbst NIE hier.
+            totpRequired       = user.TotpRequired,
+            totpEingerichtet   = user.TotpRequired && user.TotpSecret != null && user.TotpConfirmedAt != null,
             isHrTeam           = user.IsHrTeam,
             // Zugriff Filial-Dokumente (Walter 06.08.2026) — Frontend blendet
             // damit den Tab «Dokumente» im Filial-Detail ein/aus.

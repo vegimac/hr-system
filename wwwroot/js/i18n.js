@@ -30,6 +30,28 @@ window.i18n = (function () {
         'topbar.themeDark':  { de: 'Dunkel', en: 'Dark'  },
         'topbar.themeLight': { de: 'Hell',   en: 'Light' },
 
+        // ── Login: Zweite Prüfung (Authenticator) + Pflicht-Passwortwechsel (11.09.2026)
+        'login.totp.setupTitle':  { de: 'Zweite Prüfung einrichten', en: 'Set up second check' },
+        'login.totp.setupText':   { de: 'Öffne auf deinem Handy den Microsoft Authenticator oder Google Authenticator, wähle «Konto hinzufügen» und scanne diesen Code:',
+                                    en: 'On your phone, open Microsoft Authenticator or Google Authenticator, choose “Add account” and scan this code:' },
+        'login.totp.manualText':  { de: 'Kein Scanner? Schlüssel von Hand eintippen:', en: 'No scanner? Type the key by hand:' },
+        'login.totp.confirm':     { de: 'Einrichtung bestätigen', en: 'Confirm setup' },
+        'login.totp.codeTitle':   { de: 'Zweite Prüfung', en: 'Second check' },
+        'login.totp.codeText':    { de: 'Gib den 6-stelligen Code aus deiner Authenticator-App ein.', en: 'Enter the 6-digit code from your authenticator app.' },
+        'login.totp.verify':      { de: 'Bestätigen', en: 'Confirm' },
+        'login.totp.back':        { de: 'Zurück zur Anmeldung', en: 'Back to sign-in' },
+        'login.totp.sixDigits':   { de: 'Bitte den 6-stelligen Code eingeben.', en: 'Please enter the 6-digit code.' },
+        'login.totp.wrong':       { de: 'Code falsch.', en: 'Wrong code.' },
+        'login.pw.title':         { de: 'Neues Passwort setzen', en: 'Set a new password' },
+        'login.pw.text':          { de: 'Dein Passwort wurde von der Administration gesetzt. Bitte wähle jetzt ein eigenes (mindestens 8 Zeichen), bevor es weitergeht.',
+                                    en: 'Your password was set by the administration. Please choose your own (at least 8 characters) before continuing.' },
+        'login.pw.save':          { de: 'Passwort speichern', en: 'Save password' },
+        'login.pw.logout':        { de: 'Abmelden', en: 'Log out' },
+        'login.pw.currentMissing':{ de: 'Bitte das aktuelle Passwort eingeben.', en: 'Please enter your current password.' },
+        'login.pw.tooShort':      { de: 'Das neue Passwort muss mindestens 8 Zeichen lang sein.', en: 'The new password must be at least 8 characters.' },
+        'login.pw.mismatch':      { de: 'Die beiden Eingaben stimmen nicht überein.', en: 'The two entries do not match.' },
+        'login.pw.same':          { de: 'Das neue Passwort muss sich vom aktuellen unterscheiden.', en: 'The new password must differ from the current one.' },
+
         // ── Sidebar Sektion-Titel ─────────────────────────────────────
         'side.section.overview':     { de: 'Übersicht',     en: 'Overview' },
         'side.section.people':       { de: 'Personal',      en: 'People' },

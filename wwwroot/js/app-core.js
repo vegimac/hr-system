@@ -157,37 +157,213 @@ async function _doLoginInner() {
             errEl.style.display = 'block'; return;
         }
         const data = await res.json();
-        // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
-        // Reste einer abgelaufenen Testmodus-Sitzung VOR dem neuen Token weg.
-        clearImpersonationStorage();
-        authToken = data.token;
-        localStorage.setItem('hrToken', authToken);
-        // Email für nächsten Login merken (Convenience zusätzlich zum
-        // Browser-Passwort-Manager). Passwort wird NIEMALS lokal
-        // gespeichert — das übernimmt der Browser-Passwort-Manager
-        // verschlüsselt im Keychain/Credential-Store.
         localStorage.setItem('hrLastEmail', email);
-        // ── Mitarbeiter-Login → eigene Mobile-View (Postfach) ──
-        // Backoffice-User bleiben in der vollen App, MA werden auf eine
-        // schlanke Mobile-Seite umgeleitet wo sie nur ihre Lohnzettel sehen.
-        if (data.user?.role === 'employee') {
-            window.location.href = 'postfach.html';
+        // ── Zweite Prüfung (Walter 11.09.2026): Passwort stimmt, aber der
+        // Server gibt bewusst KEIN Token — erst der Code vom Handy. Das
+        // Passwort bleibt nur im Speicher dieser Seite (für den Pflicht-
+        // Passwortwechsel danach), nie im localStorage.
+        if (data.needsTotpSetup || data.needsTotp) {
+            _loginPwMerken = password;
+            totpSchrittZeigen(data);
             return;
         }
-        // currentUser IMMER aus GET /me (Walter 01.09.2026), analog Face-ID.
-        // Login und /me hatten zeitweise unterschiedliche Filial-Listen
-        // (superuser fehlte in Login.branches → «Alle Filialen» erst nach Reload).
-        const ok = await checkAuth();
-        if (!ok) {
-            errEl.textContent = 'Anmeldung unvollständig — bitte erneut versuchen.';
-            errEl.style.display = 'block';
-            return;
-        }
-        startApp();
+        await loginTokenUebernehmen(data, email, password);
     } catch {
         errEl.textContent = 'Verbindungsfehler. Bitte versuch es erneut.';
         errEl.style.display = 'block';
     }
+}
+
+// Volles Token übernehmen → MA-Postfach / Pflicht-Passwortwechsel / App.
+// Gemeinsam für Passwort-Login, Zweite Prüfung und Einrichtung.
+async function loginTokenUebernehmen(data, email, password) {
+    const errEl = document.getElementById('loginError');
+    // Eine normale Anmeldung ist NIE ein Testmodus (Walter 31.08.2026):
+    // Reste einer abgelaufenen Testmodus-Sitzung VOR dem neuen Token weg.
+    clearImpersonationStorage();
+    authToken = data.token;
+    localStorage.setItem('hrToken', authToken);
+    // Email für nächsten Login merken (Convenience zusätzlich zum
+    // Browser-Passwort-Manager). Passwort wird NIEMALS lokal
+    // gespeichert — das übernimmt der Browser-Passwort-Manager
+    // verschlüsselt im Keychain/Credential-Store.
+    if (email) localStorage.setItem('hrLastEmail', email);
+    // ── Mitarbeiter-Login → eigene Mobile-View (Postfach) ──
+    // Backoffice-User bleiben in der vollen App, MA werden auf eine
+    // schlanke Mobile-Seite umgeleitet wo sie nur ihre Lohnzettel sehen.
+    if (data.user?.role === 'employee') {
+        window.location.href = 'postfach.html';
+        return;
+    }
+    // currentUser IMMER aus GET /me (Walter 01.09.2026), analog Face-ID.
+    // Login und /me hatten zeitweise unterschiedliche Filial-Listen
+    // (superuser fehlte in Login.branches → «Alle Filialen» erst nach Reload).
+    const ok = await checkAuth();
+    if (!ok) {
+        errEl.textContent = 'Anmeldung unvollständig — bitte erneut versuchen.';
+        errEl.style.display = 'block';
+        loginSchrittZeigen(null);
+        return;
+    }
+    // Pflicht-Passwortwechsel (Walter 11.09.2026): BEVOR die App startet.
+    if (currentUser?.mustChangePassword) {
+        _loginPwMerken = password || _loginPwMerken;
+        pwChangeSchrittZeigen();
+        return;
+    }
+    _loginPwMerken = null;
+    startApp();
+}
+
+// ── Zweite Prüfung per Authenticator-App (Walter 11.09.2026) ──────────
+// Der Server hält nach richtigem Passwort nur einen pending-Schlüssel
+// (5 Min). Einrichtung: QR + Schlüssel zum Abtippen kommen EINMAL in
+// dieser Antwort — nie per Mail, nie im Admin. Nach gültigem Code
+// speichert der Server das Secret und gibt das volle Token.
+let _totpPending = null;
+let _loginPwMerken = null;
+
+// Übersetzung mit deutschem Fallback — i18n ist vor dem Login noch nicht
+// initialisiert (init() läuft erst in startApp).
+function _lt(key, de) {
+    try { const v = window.i18n && window.i18n.t(key); if (v && v !== key) return v; } catch (_) {}
+    return de;
+}
+
+// Welcher Schritt auf dem Anmeldebildschirm sichtbar ist:
+// null = Anmeldeformular, sonst die Panel-ID.
+function loginSchrittZeigen(panelId) {
+    const form = document.getElementById('loginForm');
+    const title = document.getElementById('loginGreeting');
+    const sub = document.querySelector('#loginScreen .login-sub');
+    const panels = ['totpSetupPanel', 'totpCodePanel', 'pwChangePanel'];
+    panels.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (id === panelId) ? 'block' : 'none'; });
+    if (form) form.style.display = panelId ? 'none' : '';
+    const fb = document.getElementById('faceIdLoginBtn');
+    if (fb && panelId) fb.style.display = 'none';
+    if (title) title.style.display = panelId ? 'none' : '';
+    if (sub) sub.style.display = panelId ? 'none' : '';
+    const errEl = document.getElementById('loginError');
+    if (errEl) errEl.style.display = 'none';
+    const ls = document.getElementById('loginScreen');
+    if (ls) ls.style.display = '';
+}
+
+function totpSchrittZeigen(data) {
+    _totpPending = data.pending;
+    if (data.needsTotpSetup) {
+        const img = document.getElementById('totpQrImg');
+        if (img) img.src = data.qrDataUrl || '';
+        const sec = document.getElementById('totpSecretText');
+        if (sec) sec.textContent = data.secret || '';
+        const acc = document.getElementById('totpAccount');
+        if (acc) acc.textContent = data.account || '';
+        loginSchrittZeigen('totpSetupPanel');
+        const inp = document.getElementById('totpSetupCode');
+        if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+    } else {
+        loginSchrittZeigen('totpCodePanel');
+        const inp = document.getElementById('totpCode');
+        if (inp) { inp.value = ''; setTimeout(() => inp.focus(), 50); }
+    }
+}
+
+function totpAbbrechen() {
+    _totpPending = null;
+    _loginPwMerken = null;
+    const img = document.getElementById('totpQrImg'); if (img) img.src = '';
+    const sec = document.getElementById('totpSecretText'); if (sec) sec.textContent = '';
+    loginSchrittZeigen(null);
+    const pw = document.getElementById('loginPassword'); if (pw) pw.value = '';
+    const fb = document.getElementById('faceIdLoginBtn');
+    try { if (fb && typeof webauthnSupported === 'function' && webauthnSupported()) fb.style.display = 'block'; } catch (_) {}
+}
+
+let _totpLaeuft = false;
+async function _totpSenden(url, code) {
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    const clean = String(code || '').replace(/\D/g, '');
+    if (clean.length !== 6) {
+        errEl.textContent = _lt('login.totp.sixDigits', 'Bitte den 6-stelligen Code eingeben.');
+        errEl.style.display = 'block'; return;
+    }
+    if (_totpLaeuft) return;
+    _totpLaeuft = true;
+    try {
+        const res = await fetch(url, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pending: _totpPending, code: clean })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            errEl.textContent = data.message || _lt('login.totp.wrong', 'Code falsch.');
+            errEl.style.display = 'block';
+            if (data.neuAnmelden || res.status === 400) {
+                // pending verbraucht/abgelaufen → zurück zum Passwort
+                const msg = errEl.textContent;
+                totpAbbrechen();
+                errEl.textContent = msg; errEl.style.display = 'block';
+            }
+            return;
+        }
+        const email = document.getElementById('loginEmail')?.value.trim();
+        const img = document.getElementById('totpQrImg'); if (img) img.src = '';
+        const sec = document.getElementById('totpSecretText'); if (sec) sec.textContent = '';
+        _totpPending = null;
+        await loginTokenUebernehmen(data, email, _loginPwMerken);
+    } catch {
+        errEl.textContent = 'Verbindungsfehler. Bitte versuch es erneut.';
+        errEl.style.display = 'block';
+    } finally { _totpLaeuft = false; }
+}
+function totpVerify()       { return _totpSenden('/api/auth/totp/verify',        document.getElementById('totpCode')?.value); }
+function totpSetupConfirm() { return _totpSenden('/api/auth/totp/setup-confirm', document.getElementById('totpSetupCode')?.value); }
+
+// ── Pflicht-Passwortwechsel vor dem App-Start (Walter 11.09.2026) ─────
+// Bisher nur im MA-Postfach erzwungen; jetzt auch in der Haupt-App, nach
+// Passwort (und nach dem Code, falls Zweite Prüfung aktiv).
+function pwChangeSchrittZeigen() {
+    loginSchrittZeigen('pwChangePanel');
+    const curField = document.getElementById('pwChangeCurrentField');
+    const cur = document.getElementById('pwChangeCurrent');
+    // Aktuelles Passwort ist aus dem Login bekannt → Feld ausblenden.
+    // Nach Seiten-Reload mit gültigem Token ist es unbekannt → Feld zeigen.
+    if (curField) curField.style.display = _loginPwMerken ? 'none' : '';
+    if (cur) cur.value = '';
+    const n = document.getElementById('pwChangeNew'); if (n) n.value = '';
+    const r = document.getElementById('pwChangeRepeat'); if (r) r.value = '';
+    setTimeout(() => { (_loginPwMerken ? n : cur)?.focus(); }, 50);
+}
+
+let _pwChangeLaeuft = false;
+async function loginPwChangeSubmit() {
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    const current = _loginPwMerken || document.getElementById('pwChangeCurrent')?.value || '';
+    const neu = document.getElementById('pwChangeNew')?.value || '';
+    const rep = document.getElementById('pwChangeRepeat')?.value || '';
+    const fehler = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
+    if (!current) return fehler(_lt('login.pw.currentMissing', 'Bitte das aktuelle Passwort eingeben.'));
+    if (neu.length < 8) return fehler(_lt('login.pw.tooShort', 'Das neue Passwort muss mindestens 8 Zeichen lang sein.'));
+    if (neu !== rep) return fehler(_lt('login.pw.mismatch', 'Die beiden Eingaben stimmen nicht überein.'));
+    if (neu === current) return fehler(_lt('login.pw.same', 'Das neue Passwort muss sich vom aktuellen unterscheiden.'));
+    if (_pwChangeLaeuft) return;
+    _pwChangeLaeuft = true;
+    try {
+        const res = await fetch('/api/auth/change-password', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify({ currentPassword: current, newPassword: neu })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { fehler(data.message || 'Passwort konnte nicht geändert werden.'); return; }
+        _loginPwMerken = null;
+        if (currentUser) currentUser.mustChangePassword = false;
+        loginSchrittZeigen(null);
+        startApp();
+    } catch {
+        fehler('Verbindungsfehler. Bitte versuch es erneut.');
+    } finally { _pwChangeLaeuft = false; }
 }
 
 // ── Anmeldung per Face ID / Touch ID (WebAuthn) ───────────────────────
@@ -202,6 +378,8 @@ async function faceIdLogin() {
         currentUser = data.user || null;
         if (data.user && data.user.role === 'employee') { window.location.href = 'postfach.html'; return; }
         await checkAuth();   // Backoffice: currentUser vollständig laden
+        // Pflicht-Passwortwechsel (Walter 11.09.2026) auch nach Face ID.
+        if (currentUser?.mustChangePassword) { _loginPwMerken = null; pwChangeSchrittZeigen(); return; }
         startApp();
     } catch (e) {
         // Abbruch durch den User (Face ID abgebrochen) → still ignorieren.
@@ -851,7 +1029,9 @@ async function saveRetentionYears() {
             // Walter 01.09.2026: /change-password ditto (Tippfehler im aktuellen
             // Passwort). Backend liefert dort inzwischen 400; Skip bleibt als
             // Schutz, falls irgendwo wieder 401 zurückkommt.
+            // Walter 11.09.2026: /totp/* ditto — 401 heisst «Code falsch».
             if (url.includes('/api/auth/login')
+                || url.includes('/api/auth/totp/')
                 || url.includes('/api/auth/impersonate')
                 || url.includes('/api/auth/change-password')) return res;
             // Nur wenn der Browser überhaupt eingeloggt war.
@@ -926,6 +1106,9 @@ async function init() {
             window.location.href = 'postfach.html';
             return;
         }
+        // Pflicht-Passwortwechsel (Walter 11.09.2026): auch nach Reload mit
+        // gültigem Token erst das Passwort, dann die App.
+        if (currentUser?.mustChangePassword) { _loginPwMerken = null; pwChangeSchrittZeigen(); return; }
         startApp();
     }
 }

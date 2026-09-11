@@ -952,6 +952,8 @@
             const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pass }) });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) { err.textContent = data.message || 'Anmeldung fehlgeschlagen.'; err.style.display = 'block'; return; }
+            // Zweite Prüfung (Walter 11.09.2026): auf der Mobil-Seite kein Code-Dialog.
+            if (data.needsTotp || data.needsTotpSetup || !data.token) { err.textContent = 'Für dieses Konto ist die zweite Prüfung aktiv — bitte über die OneCrew-Hauptseite anmelden.'; err.style.display = 'block'; return; }
             try { localStorage.setItem('hrLastEmail', email); } catch (_) {}
             await mbAngemeldet(data);
         } catch (e) { err.textContent = 'Verbindungsfehler. Bitte erneut versuchen.'; err.style.display = 'block'; }

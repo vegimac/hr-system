@@ -59,6 +59,11 @@ public class UsersController : ControllerBase
                 u.LastLoginAt,
                 u.IdleTimeoutMinutes,
                 u.MaxSessionMinutes,
+                u.MustChangePassword,
+                // Zweite Prüfung / Authenticator (Walter 11.09.2026): nur Häkchen +
+                // Einrichtungs-Zeitpunkt. Das Secret verlässt den Server hier NIE.
+                u.TotpRequired,
+                totpEingerichtetAm = u.TotpConfirmedAt,
                 // Sichtbare Bereiche (Walter 28.06.2026): NULL = Rollen-Default.
                 allowedAreas = u.AllowedAreas == null
                     ? null
@@ -84,7 +89,9 @@ public class UsersController : ControllerBase
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null,
         bool? CanCompanyDokumente = false,
-        string? ZeugnisDruckBis = null);
+        string? ZeugnisDruckBis = null,
+        bool? TotpRequired = false,
+        bool? MustChangePassword = null);
 
     public record UpdateUserRequest(
         string Username, string? FirstName, string? LastName,
@@ -95,7 +102,9 @@ public class UsersController : ControllerBase
         int? IdleTimeoutMinutes = null, int? MaxSessionMinutes = null,
         List<string>? AllowedAreas = null,
         bool? CanCompanyDokumente = false,
-        string? ZeugnisDruckBis = null);
+        string? ZeugnisDruckBis = null,
+        bool? TotpRequired = false,
+        bool? MustChangePassword = null);
 
     // Zeugnis-Druckstufe normalisieren: leer/unbekannt → NULL (Rollen-Standard).
     private static string? NormZeugnis(string? v)
@@ -155,6 +164,12 @@ public class UsersController : ControllerBase
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
             AllowedAreas = JoinAreas(req.AllowedAreas),
+            // Zweite Prüfung (Walter 11.09.2026): nur das Häkchen — QR/Secret
+            // richtet der Benutzer beim ersten Login selbst ein.
+            TotpRequired = req.TotpRequired ?? false,
+            // Initial-Passwort vom Admin → beim ersten Login neues Passwort setzen
+            // (abwählbar über das Häkchen im Modal).
+            MustChangePassword = req.MustChangePassword ?? true,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -229,8 +244,23 @@ public class UsersController : ControllerBase
         }
         user.AllowedAreas       = JoinAreas(req.AllowedAreas);
 
+        // Zweite Prüfung (Walter 11.09.2026): Häkchen pro Benutzer. Beim
+        // Abwählen bleibt ein vorhandenes Secret stehen (erneutes Anhaken =
+        // weiter mit demselben Authenticator-Eintrag); Zurücksetzen ist ein
+        // eigener Admin-Knopf (POST {id}/totp-reset).
+        user.TotpRequired = req.TotpRequired ?? false;
+
+        // Passwort-Pflichtwechsel: neues Admin-Passwort → automatisch true,
+        // sonst das Häkchen aus dem Modal (null = unverändert lassen).
         if (!string.IsNullOrWhiteSpace(req.Password))
+        {
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password);
+            user.MustChangePassword = true;
+        }
+        else if (req.MustChangePassword.HasValue)
+        {
+            user.MustChangePassword = req.MustChangePassword.Value;
+        }
 
         // Filialen-Zuweisungen per DIFF statt Löschen+Neuanlegen (Walter-Bug
         // 06.08.2026): das frühere RemoveRange+Add legte NACKTE Zeilen an und
@@ -255,6 +285,31 @@ public class UsersController : ControllerBase
 
         await _context.SaveChangesAsync();
         return Ok(new { user.Id, user.Username, user.FirstName, user.LastName, user.Email, user.Phone, user.Role, user.IsActive });
+    }
+
+    // POST /api/users/{id}/totp-reset – nur admin (Walter 11.09.2026):
+    // Handy verloren / neues Handy → Secret + Bestätigung löschen, Häkchen
+    // bleibt. Nächster Login = Neu-Einrichtung beim Benutzer selbst. Es gibt
+    // KEINEN Weg, über die Admin-Oberfläche ein Secret oder einen QR zu sehen.
+    [HttpPost("{id}/totp-reset")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> TotpReset(int id)
+    {
+        var callerId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var user = await _context.AppUsers.FindAsync(id);
+        if (user == null) return NotFound();
+
+        var callerIsSuper = await _context.AppUsers
+            .Where(u => u.Id == callerId)
+            .Select(u => u.IsSuperAdmin)
+            .FirstOrDefaultAsync();
+        if (user.IsSuperAdmin && !callerIsSuper && callerId != id)
+            return StatusCode(403, new { message = "Nur ein Super-Admin darf einen Super-Admin-Account ändern." });
+
+        user.TotpSecret      = null;
+        user.TotpConfirmedAt = null;
+        await _context.SaveChangesAsync();
+        return Ok(new { user.Id, totpRequired = user.TotpRequired, totpEingerichtetAm = (DateTime?)null });
     }
 
     // DELETE /api/users/{id} – nur admin

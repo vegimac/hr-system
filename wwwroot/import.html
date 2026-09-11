@@ -665,6 +665,8 @@ async function doLogin() {
         });
         if (!res.ok) { errEl.textContent = 'Falsche E-Mail oder Passwort.'; errEl.style.display = 'block'; return; }
         const data = await res.json();
+        // Zweite Prüfung (Walter 11.09.2026): hier kein Code-Dialog → Hauptseite.
+        if (data.needsTotp || data.needsTotpSetup || !data.token) { errEl.textContent = 'Bitte zuerst in OneCrew anmelden (zweite Prüfung) und den Import von dort öffnen.'; errEl.style.display = 'block'; return; }
         authToken = data.token;
         localStorage.setItem('hrToken', authToken);
         startApp();

@@ -214,6 +214,11 @@ function openUserModal(userId = null) {
             document.getElementById('umMirusDigest').checked = !!u.receivesMirusChangeDigest;
             document.getElementById('umIdleTimeout').value = u.idleTimeoutMinutes ?? '';
             document.getElementById('umMaxSession').value  = u.maxSessionMinutes ?? '';
+            // Pflicht-Passwortwechsel + Zweite Prüfung (Walter 11.09.2026)
+            document.getElementById('umMustChangePw').checked = !!u.mustChangePassword;
+            document.getElementById('umTotpRequired').checked = !!u.totpRequired;
+            umTotpStatusZeigen(u.totpEingerichtetAm);
+            umSyncMustChangePw();
             const ids = u.branches?.map(b => b.id) || [];
             document.querySelectorAll('#umBranches input[type=checkbox]').forEach(cb => {
                 cb.checked = ids.includes(parseInt(cb.value));
@@ -236,6 +241,11 @@ function openUserModal(userId = null) {
         document.getElementById('umMirusDigest').checked = false;
         document.getElementById('umIdleTimeout').value = '';
         document.getElementById('umMaxSession').value  = '';
+        // Neuer Benutzer: Initial-Passwort → Wechsel beim ersten Login (abwählbar).
+        document.getElementById('umMustChangePw').checked = true;
+        document.getElementById('umTotpRequired').checked = false;
+        umTotpStatusZeigen(null);
+        umSyncMustChangePw();
         umSetAreas(null);   // neuer User: Standard-Bereiche, Entwicklung opt-in
         umUpdateBranchVisibility();
         umApplyPolicyPermission();
@@ -244,6 +254,57 @@ function openUserModal(userId = null) {
 }
 
 function closeUserModal() { document.getElementById('userModalBg').classList.remove('open'); editingUserId = null; }
+
+// ── Zweite Prüfung / Authenticator (Walter 11.09.2026) ────────────────
+// Status read-only + Reset-Knopf (nur admin, nur bestehende Benutzer).
+// Bewusst KEIN QR/Secret im Admin — das richtet der Benutzer selbst ein.
+function umTotpStatusZeigen(eingerichtetAm) {
+    const st  = document.getElementById('umTotpStatus');
+    const btn = document.getElementById('umTotpResetBtn');
+    const hint = document.getElementById('umTotpResetHint');
+    if (!st) return;
+    const isAdmin = typeof currentUser !== 'undefined' && currentUser?.role === 'admin';
+    if (eingerichtetAm) {
+        const d = new Date(eingerichtetAm);
+        const dd = isNaN(d) ? '' : `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+        st.textContent = 'Status: eingerichtet am ' + dd;
+        if (btn)  btn.style.display  = (isAdmin && editingUserId) ? '' : 'none';
+        if (hint) hint.style.display = (isAdmin && editingUserId) ? '' : 'none';
+    } else {
+        st.textContent = 'Status: noch nicht eingerichtet (QR-Code erscheint beim nächsten Login des Benutzers)';
+        if (btn)  btn.style.display  = 'none';
+        if (hint) hint.style.display = 'none';
+    }
+}
+
+async function umTotpReset() {
+    if (!editingUserId) return;
+    const ok = await liquidConfirm('Die Einrichtung der Authenticator-App wird gelöscht. Beim nächsten Login erscheint der QR-Code erneut beim Benutzer. Das Häkchen «Zweite Prüfung» bleibt gesetzt.\n\nJetzt zurücksetzen?', { title: 'Zweite Prüfung zurücksetzen', yesLabel: 'Zurücksetzen', noLabel: 'Abbrechen' });
+    if (!ok) return;
+    try {
+        const r = await fetch(`/api/users/${editingUserId}/totp-reset`, { method: 'POST', headers: ah() });
+        if (!r.ok) {
+            let msg = `Server antwortete mit ${r.status}.`;
+            try { const d = await r.json(); msg = d.message || msg; } catch (_) {}
+            document.getElementById('userModalAlert').innerHTML = `<div class="alert alert-err">${msg}</div>`;
+            return;
+        }
+        umTotpStatusZeigen(null);
+        document.getElementById('userModalAlert').innerHTML = '<div class="alert alert-ok">Zweite Prüfung zurückgesetzt — der Benutzer richtet sie beim nächsten Login neu ein.</div>';
+    } catch (e) {
+        document.getElementById('userModalAlert').innerHTML = `<div class="alert alert-err">Verbindungsfehler: ${e.message || 'Unbekannt'}</div>`;
+    }
+}
+
+// Neues Passwort im Modal → Pflichtwechsel automatisch an + gesperrt
+// (der Server setzt ihn bei neuem Passwort ohnehin).
+function umSyncMustChangePw() {
+    const pw = document.getElementById('umPassword')?.value || '';
+    const cb = document.getElementById('umMustChangePw');
+    if (!cb) return;
+    if (pw) { cb.checked = true; cb.disabled = true; }
+    else { cb.disabled = false; }
+}
 
 // ── Sichtbare Bereiche — Walter 28.06.2026, Entwicklung opt-in 31.08.2026
 // arr = Array von Bereichs-Schlüsseln, oder null => Standard-Bereiche
@@ -355,6 +416,7 @@ async function umRemoveSignature() {
 }
 
 function umCheckPwMatch() {
+    if (typeof umSyncMustChangePw === 'function') umSyncMustChangePw();
     const pw   = document.getElementById('umPassword').value;
     const pw2  = document.getElementById('umPasswordConfirm').value;
     const hint = document.getElementById('umPwMatchHint');
@@ -401,6 +463,9 @@ async function saveUser() {
     const canCompanyDokumente = document.getElementById('umCanCompanyDokumente').checked;
     const zeugnisDruckBis = document.getElementById('umZeugnisDruck')?.value || null;
     const receivesMirusChangeDigest = document.getElementById('umMirusDigest').checked;
+    // Zweite Prüfung + Pflicht-Passwortwechsel (Walter 11.09.2026)
+    const totpRequired = document.getElementById('umTotpRequired').checked;
+    const mustChangePassword = password ? true : document.getElementById('umMustChangePw').checked;
     const branchIds = Array.from(document.querySelectorAll('#umBranches input:checked')).map(cb => parseInt(cb.value));
     const username  = `${firstName} ${lastName}`.trim() || email;
 
@@ -434,7 +499,7 @@ async function saveUser() {
     const body = { username, firstName, lastName, phone, email, password: password || null, role, isActive, isHrTeam,
                    canCompanyDokumente, zeugnisDruckBis, receivesMirusChangeDigest, branchIds,
                    idleTimeoutMinutes: idleP.value, maxSessionMinutes: maxP.value,
-                   allowedAreas: umGetAreas() };
+                   allowedAreas: umGetAreas(), totpRequired, mustChangePassword };
 
     try {
         let res;

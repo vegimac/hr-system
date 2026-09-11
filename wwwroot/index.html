@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260909b">
+    <link rel="stylesheet" href="css/app.css?v=20260911a">
 </head>
 <body>
 
@@ -47,6 +47,57 @@
                 <button type="submit" class="login-btn">Anmelden <span class="login-arrow">→</span></button>
                 <button type="button" id="faceIdLoginBtn" onclick="faceIdLogin()" style="display:none;width:100%;margin-top:12px;padding:14px 20px;background:transparent;border:1px solid #BFBFBF;border-radius:0;color:#111;cursor:pointer;font-size:14px;letter-spacing:1px">Mit Face ID / Touch ID anmelden</button>
                 <a class="login-forgot" onclick="event.preventDefault(); alert('Bitte wende dich an deine HR-Administration, um dein Passwort zurückzusetzen.');">Passwort vergessen?</a>
+            </form>
+
+            <!-- ══ Zweite Prüfung per Authenticator-App (Walter 11.09.2026) ══
+                 Drei Schritte NACH dem richtigen Passwort, in derselben Session,
+                 auf demselben Bildschirm: (1) Einrichtung mit QR + Secret zum
+                 Abtippen, (2) 6-stelliger Code, (3) Pflicht-Passwortwechsel.
+                 Die Code-Felder sind autocomplete="one-time-code" — NIE
+                 current-password, sonst füllt der Browser sie aus. -->
+            <form id="totpSetupPanel" class="login-step" style="display:none" onsubmit="event.preventDefault(); totpSetupConfirm();" autocomplete="off">
+                <div class="login-step-title" data-i18n="login.totp.setupTitle">Zweite Prüfung einrichten</div>
+                <p class="login-step-text" data-i18n="login.totp.setupText">Öffne auf deinem Handy den Microsoft Authenticator oder Google Authenticator, wähle «Konto hinzufügen» und scanne diesen Code:</p>
+                <div class="totp-qr-wrap"><img id="totpQrImg" alt="QR-Code für die Authenticator-App" src=""></div>
+                <p class="login-step-text" style="margin-bottom:6px"><span data-i18n="login.totp.manualText">Kein Scanner? Schlüssel von Hand eintippen:</span></p>
+                <div class="totp-secret" id="totpSecretText"></div>
+                <p class="login-step-text" style="margin-top:-14px;font-size:12px;color:#8b8b8b">OneCrew · <span id="totpAccount"></span></p>
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 12h.01M12 12h.01M17 12h.01"/></svg></span>
+                    <input type="text" id="totpSetupCode" class="login-input totp-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-stelliger Code aus der App" autocomplete="one-time-code" required>
+                </div>
+                <button type="submit" class="login-btn"><span data-i18n="login.totp.confirm">Einrichtung bestätigen</span> <span class="login-arrow">→</span></button>
+                <a class="login-forgot" href="#" onclick="event.preventDefault(); totpAbbrechen();" data-i18n="login.totp.back">Zurück zur Anmeldung</a>
+            </form>
+
+            <form id="totpCodePanel" class="login-step" style="display:none" onsubmit="event.preventDefault(); totpVerify();" autocomplete="off">
+                <div class="login-step-title" data-i18n="login.totp.codeTitle">Zweite Prüfung</div>
+                <p class="login-step-text" data-i18n="login.totp.codeText">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 12h.01M12 12h.01M17 12h.01"/></svg></span>
+                    <input type="text" id="totpCode" class="login-input totp-code" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="6-stelliger Code" autocomplete="one-time-code" required>
+                </div>
+                <button type="submit" class="login-btn"><span data-i18n="login.totp.verify">Bestätigen</span> <span class="login-arrow">→</span></button>
+                <a class="login-forgot" href="#" onclick="event.preventDefault(); totpAbbrechen();" data-i18n="login.totp.back">Zurück zur Anmeldung</a>
+            </form>
+
+            <form id="pwChangePanel" class="login-step" style="display:none" onsubmit="event.preventDefault(); loginPwChangeSubmit();" autocomplete="off">
+                <div class="login-step-title" data-i18n="login.pw.title">Neues Passwort setzen</div>
+                <p class="login-step-text" data-i18n="login.pw.text">Dein Passwort wurde von der Administration gesetzt. Bitte wähle jetzt ein eigenes (mindestens 8 Zeichen), bevor es weitergeht.</p>
+                <div class="login-field" id="pwChangeCurrentField">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+                    <input type="password" id="pwChangeCurrent" class="login-input" placeholder="Aktuelles Passwort" autocomplete="off">
+                </div>
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="1.5"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>
+                    <input type="password" id="pwChangeNew" class="login-input" placeholder="Neues Passwort (min. 8 Zeichen)" autocomplete="new-password" required>
+                </div>
+                <div class="login-field">
+                    <span class="lf-icon" aria-hidden="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+                    <input type="password" id="pwChangeRepeat" class="login-input" placeholder="Neues Passwort wiederholen" autocomplete="new-password" required>
+                </div>
+                <button type="submit" class="login-btn"><span data-i18n="login.pw.save">Passwort speichern</span> <span class="login-arrow">→</span></button>
+                <a class="login-forgot" href="#" onclick="event.preventDefault(); doLogout();" data-i18n="login.pw.logout">Abmelden</a>
             </form>
         </div>
     </main>
@@ -8919,6 +8970,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     </select>
                 </div>
             </div>
+            <!-- Pflicht-Passwortwechsel (Walter 11.09.2026): Häkchen; sobald hier
+                 ein neues Passwort eingetippt wird, automatisch an + gesperrt. -->
+            <div class="f-group">
+                <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="checkbox" id="umMustChangePw" style="width:18px;height:18px;cursor:pointer">
+                    <span>Beim nächsten Login neues Passwort setzen</span>
+                </label>
+                <div class="f-hint" style="margin-top:2px" id="umMustChangePwHint">Wird automatisch gesetzt, wenn du hier ein Passwort vergibst. Der Benutzer muss dann vor dem ersten Arbeiten ein eigenes Passwort wählen.</div>
+            </div>
 
             <!-- ── SICHERHEIT / SESSION (Walter-Vorgabe 21.06.2026) ─────────── -->
             <div class="emp-section-title">Sicherheit / Session</div>
@@ -8933,6 +8993,23 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <input type="number" class="f-input um-policy-field" id="umMaxSession" min="5" max="1440" step="1" placeholder="Rollen-Standard">
                     <div class="f-hint">Leer = Rollen-Standard (MA 30 · übrige 480). Verlängert sich bei Aktivität automatisch — harte Obergrenze 14 Std. ab Anmeldung, dann Neu-Login.</div>
                 </div>
+            </div>
+
+            <!-- ── ZWEITE PRÜFUNG / Authenticator-App (Walter 11.09.2026) ─────
+                 Pro Benutzer, nicht pro Rolle. Der QR-Code erscheint NUR beim
+                 Benutzer selbst nach dem ersten richtigen Passwort — hier gibt
+                 es bewusst keinen QR, kein Secret, nichts zum Verschicken. -->
+            <div class="f-group">
+                <label class="f-label" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+                    <input type="checkbox" id="umTotpRequired" style="width:18px;height:18px;cursor:pointer">
+                    <span>Zweite Prüfung (Authenticator-App)</span>
+                </label>
+                <div class="f-hint" style="margin-top:2px">Nach dem Passwort zusätzlich ein 6-stelliger Code vom Handy (Microsoft Authenticator oder Google Authenticator). Den QR-Code richtet der Benutzer beim nächsten Login selbst ein — nichts verschicken. Für geteilte Büro-PCs mit gespeichertem Passwort; Treuhänder ohne Häkchen lassen.</div>
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:8px">
+                    <span class="f-hint" id="umTotpStatus" style="margin:0"></span>
+                    <button type="button" class="btn btn-outline" id="umTotpResetBtn" style="display:none;padding:4px 12px;font-size:12px" onclick="umTotpReset()">Zweite Prüfung zurücksetzen</button>
+                </div>
+                <div class="f-hint" id="umTotpResetHint" style="display:none;margin-top:4px">Handy verloren oder neu? Zurücksetzen löscht die Einrichtung — beim nächsten Login erscheint der QR-Code wieder beim Benutzer. Das Häkchen bleibt gesetzt.</div>
             </div>
 
             <!-- ── BERECHTIGUNGEN (HR-Team + Filialen) ────────────────────── -->
@@ -9035,7 +9112,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260908b"></script>
+<script src="js/app-core.js?v=20260911a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9049,7 +9126,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/action-menu.js?v=20260704p"></script>
 <script src="js/dashboard.js?v=20260909a"></script>
 <script src="js/session-timeout.js?v=20260904h"></script>
-<script src="js/session-lock.js?v=20260904b"></script>
+<script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
@@ -9073,7 +9150,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260908a"></script>
-<script src="js/users.js?v=20260906a"></script>
+<script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260908d"></script>
 <script src="js/dvelop-import.js?v=20260711b"></script>
@@ -9116,7 +9193,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20260816a"></script>
-<script src="js/i18n.js?v=20260906a"></script>
+<script src="js/i18n.js?v=20260911a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
     <div class="family-modal-box">

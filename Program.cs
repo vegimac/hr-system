@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 4;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026)
+const int SchemaStand = 5;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung (11.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1206,6 +1206,16 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE app_user ADD COLUMN IF NOT EXISTS session_revoked_before timestamptz;
         -- Walter 06.09.2026: Zeugnisse drucken bis Funktion (NULL = Rollen-Standard)
         ALTER TABLE app_user ADD COLUMN IF NOT EXISTS zeugnis_druck_bis TEXT;
+    ");
+
+    // ── Zweite Prüfung per Authenticator-App (Walter 11.09.2026, Schema-Stand 5):
+    // Häkchen pro Benutzer, Secret (Base32) und Bestätigungs-Zeitpunkt.
+    // Zeitspalte bewusst timestamp WITHOUT time zone (ACHTUNG TIME).
+    // Platzierung: VOR SchemaCheckService.Pruefe.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS totp_required boolean NOT NULL DEFAULT false;
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS totp_secret text;
+        ALTER TABLE app_user ADD COLUMN IF NOT EXISTS totp_confirmed_at timestamp without time zone;
     ");
 
     // ── Zeugnis-Entwürfe für HR (Walter 06.09.2026) ───────────────────────

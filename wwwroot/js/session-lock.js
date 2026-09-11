@@ -8,10 +8,19 @@
 // GLEICHEN Person → neues Token → Sperre weg → weiter, wo man war.
 // Andere Person → kompletter Neustart (Reload), nichts vom Vorgänger sichtbar.
 // Testmodus (impersoniert) → kein Sperren, sondern wie bisher Abmelden.
+//
+// Zweite Prüfung (Walter 11.09.2026): Ist beim Benutzer die Authenticator-
+// App aktiv und eingerichtet, entsperrt NUR der 6-stellige Code (oder ein
+// Passkey) — das Passwort-Feld gibt es dann nicht. Grund: Chrome füllt ein
+// current-password-Feld aus dem Speicher, die Sperre wäre wertlos. Vor dem
+// Wegwerfen des Tokens holt sich der Browser bei POST /api/auth/lock einen
+// Entsperr-Schlüssel (nur im Speicher dieser Seite); Reload = voller Login.
 // ══════════════════════════════════════════════════════════════════════
 (function () {
     let el = null;
     let locked = false;
+    let mode = 'password';   // password | totp
+    let ticket = null;       // Entsperr-Schlüssel für den Code-Modus
     // `currentUser` ist ein let in app-core.js, keine window-Eigenschaft.
     function cuGet() {
         try { if (typeof currentUser !== 'undefined' && currentUser) return currentUser; } catch (_) {}
@@ -34,6 +43,8 @@
                     <input type="text" id="sessionLockEmail" name="username" autocomplete="username" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
                     <input type="password" id="sessionLockPw" name="password" autocomplete="current-password" placeholder="Passwort"
                            style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid rgba(60,55,48,0.2);border-radius:10px;font-size:15px;background:#fff">
+                    <input type="text" id="sessionLockCode" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="Code aus der Authenticator-App"
+                           style="display:none;width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid rgba(60,55,48,0.2);border-radius:10px;font-size:18px;letter-spacing:5px;text-align:center;background:#fff">
                     <button type="submit" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer">Entsperren</button>
                     <button type="button" id="sessionLockPasskey" style="display:none;background:transparent;border:1px solid #bfbfbf;border-radius:12px;padding:11px 18px;font-size:14px;color:#1a1a1a;cursor:pointer">Mit Face ID / Touch ID entsperren</button>
                     <div id="sessionLockErr" style="display:none;color:#b91c1c;font-size:12.5px"></div>
@@ -42,7 +53,7 @@
                 <button type="button" id="sessionLockLogout" style="margin-top:10px;background:none;border:none;color:#8b8b8b;font-size:12.5px;text-decoration:underline;cursor:pointer">Abmelden und neu starten</button>
             </div>`;
         document.body.appendChild(el);
-        el.querySelector('#sessionLockForm').addEventListener('submit', (e) => { e.preventDefault(); unlockWithPassword(); });
+        el.querySelector('#sessionLockForm').addEventListener('submit', (e) => { e.preventDefault(); if (mode === 'totp') unlockWithCode(); else unlockWithPassword(); });
         el.querySelector('#sessionLockLogout').addEventListener('click', () => { if (typeof doLogout === 'function') doLogout(); else location.reload(); });
         const pk = el.querySelector('#sessionLockPasskey');
         try { if (typeof webauthnSupported === 'function' && webauthnSupported()) pk.style.display = ''; } catch (_) {}
@@ -65,17 +76,60 @@
             return;
         }
         locked = true;
-        try { authToken = null; } catch (_) {}
-        try { localStorage.removeItem('hrToken'); } catch (_) {}
         if (window.SessionGuard) window.SessionGuard.stop();
         ensure();
+        mode = 'password'; ticket = null;
+        // Zweite Prüfung aktiv → Entsperr-Schlüssel holen, solange das Token
+        // noch gilt. Schlägt das fehl (offline, abgelaufen) → Neu-Login.
+        let tok = null;
+        try { tok = authToken; } catch (_) {}
+        if (cu.totpRequired) {
+            if (!cu.totpEingerichtet || !tok) { if (typeof doLogout === 'function') doLogout(); else location.reload(); return; }
+            fetch('/api/auth/lock', { method: 'POST', headers: { 'Authorization': 'Bearer ' + tok } })
+                .then(r => r.ok ? r.json() : null)
+                .then(d => {
+                    if (!d || d.mode !== 'totp' || !d.ticket) { if (typeof doLogout === 'function') doLogout(); else location.reload(); return; }
+                    ticket = d.ticket;
+                })
+                .catch(() => { if (typeof doLogout === 'function') doLogout(); else location.reload(); });
+            mode = 'totp';
+        }
+        try { authToken = null; } catch (_) {}
+        try { localStorage.removeItem('hrToken'); } catch (_) {}
         el.querySelector('#sessionLockWho').textContent = `${cu.firstName || cu.username || ''} — gesperrt nach Inaktivität`;
         el.querySelector('#sessionLockEmail').value = cu.email || '';
         el.querySelector('#sessionLockPw').value = '';
+        el.querySelector('#sessionLockCode').value = '';
+        // Code-Modus: Passwort-Feld GAR NICHT im DOM-Fluss (Chrome füllt es sonst).
+        el.querySelector('#sessionLockPw').style.display   = mode === 'totp' ? 'none' : '';
+        el.querySelector('#sessionLockPw').disabled        = mode === 'totp';
+        el.querySelector('#sessionLockCode').style.display = mode === 'totp' ? '' : 'none';
         el.querySelector('#sessionLockErr').style.display = 'none';
         el.style.display = 'flex';
         document.body.classList.add('session-locked');
-        setTimeout(() => el.querySelector('#sessionLockPw').focus(), 50);
+        setTimeout(() => el.querySelector(mode === 'totp' ? '#sessionLockCode' : '#sessionLockPw').focus(), 50);
+    }
+
+    // Entsperren mit dem 6-stelligen Code (Zweite Prüfung).
+    async function unlockWithCode() {
+        const code = String(el.querySelector('#sessionLockCode').value || '').replace(/\D/g, '');
+        if (code.length !== 6) { showErr('Bitte den 6-stelligen Code eingeben.'); return; }
+        if (!ticket) await new Promise(r => setTimeout(r, 1500));   // Schlüssel evtl. noch unterwegs
+        if (!ticket) { showErr('Sperre konnte nicht vorbereitet werden — bitte neu anmelden.'); return; }
+        try {
+            const res = await fetch('/api/auth/totp/verify', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ pending: ticket, code }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                showErr(data.message || 'Code falsch.');
+                if (data.neuAnmelden || res.status === 400) { ticket = null; setTimeout(() => { if (typeof doLogout === 'function') doLogout(); else location.reload(); }, 1500); }
+                return;
+            }
+            ticket = null;
+            applyUnlock(data);
+        } catch (e) { showErr('Verbindungsfehler: ' + e.message); }
     }
 
     async function unlockWithPassword() {
@@ -89,6 +143,9 @@
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) { showErr(data.message || 'Anmeldung fehlgeschlagen.'); return; }
+            // Zweite Prüfung wurde inzwischen aktiviert → Passwort allein
+            // reicht nicht mehr → voller Login-Ablauf mit Code.
+            if (data.needsTotp || data.needsTotpSetup) { if (typeof doLogout === 'function') doLogout(); else location.reload(); return; }
             applyUnlock(data);
         } catch (e) { showErr('Verbindungsfehler: ' + e.message); }
     }
@@ -123,6 +180,7 @@
         locked = false;
         el.style.display = 'none';
         el.querySelector('#sessionLockPw').value = '';
+        el.querySelector('#sessionLockCode').value = '';
         document.body.classList.remove('session-locked');
         if (window.SessionGuard) window.SessionGuard.start();
     }

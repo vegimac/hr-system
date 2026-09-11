@@ -1121,6 +1121,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IdleTimeoutMinutes).HasColumnName("idle_timeout_minutes");
             entity.Property(e => e.MaxSessionMinutes).HasColumnName("max_session_minutes");
             entity.Property(e => e.SessionRevokedBefore).HasColumnName("session_revoked_before");
+            // Zweite Prüfung / Authenticator (Walter 11.09.2026).
+            entity.Property(e => e.TotpRequired).HasColumnName("totp_required").HasDefaultValue(false);
+            entity.Property(e => e.TotpSecret).HasColumnName("totp_secret");
+            entity.Property(e => e.TotpConfirmedAt).HasColumnName("totp_confirmed_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.SetNull);
         });
 
