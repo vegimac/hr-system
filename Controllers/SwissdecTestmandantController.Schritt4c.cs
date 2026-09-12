@@ -331,15 +331,23 @@ public partial class SwissdecTestmandantController
                     var basis = Dez(V("PersonBVGLPPManuallyBase"));
                     txt.Add($"{art}: {string.Join("+", aktuelle.Select(a => a.Code)) } → {(neueCodes.Count == 0 ? "nicht versichert" : string.Join("+", neueCodes))}" + (art == "BVG" && Hat("PersonBVGLPPManuallyBase") ? $" · Basis manuell {(basis?.ToString("0") ?? "–")}" : ""));
                     if (vorschau) continue;
-                    foreach (var a in aktuelle) if (a.ValidFrom < tag1) a.ValidTo = vortag; else _db.EmployeeVersicherungCodes.Remove(a);
-                    var vorlage = aktuelle.FirstOrDefault(a => a.Art == "BVG");
+                    var schonAbTag1 = bestehend.Where(v => v.Art == art && v.ValidFrom == tag1).ToList();
+                    var fix5050 = schonAbTag1.FirstOrDefault(x => x.Bemerkung != null && x.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase));
+                    foreach (var a in aktuelle)
+                        if (a.ValidFrom < tag1) a.ValidTo = vortag;
+                        else _db.EmployeeVersicherungCodes.Remove(a);
+                    foreach (var a in schonAbTag1)
+                        if (_db.Entry(a).State != EntityState.Deleted)
+                            _db.EmployeeVersicherungCodes.Remove(a);
+                    var vorlage = aktuelle.FirstOrDefault(a => a.Art == "BVG") ?? schonAbTag1.FirstOrDefault();
                     foreach (var c in neueCodes)
                         _db.EmployeeVersicherungCodes.Add(new EmployeeVersicherungCode
                         {
                             EmployeeId = emp.Id, Art = art, Code = c.ToUpperInvariant(), ValidFrom = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now,
                             BvgEintrittsgrund = art == "BVG" ? vorlage?.BvgEintrittsgrund : null, BvgVollArbeitsfaehig = art == "BVG" ? vorlage?.BvgVollArbeitsfaehig : null,
                             BvgBasisManuell = art == "BVG" ? (Hat("PersonBVGLPPManuallyBase") ? basis : vorlage?.BvgBasisManuell) : null,
-                            BeitragFixAn = art == "BVG" ? vorlage?.BeitragFixAn : null, BeitragFixAg = art == "BVG" ? vorlage?.BeitragFixAg : null,
+                            BeitragFixAn = art == "BVG" ? (fix5050?.BeitragFixAn ?? vorlage?.BeitragFixAn) : null,
+                            BeitragFixAg = art == "BVG" ? (fix5050?.BeitragFixAg ?? vorlage?.BeitragFixAg) : null,
                         });
                 }
                 felder["Versicherungen"] = string.Join(" · ", txt);

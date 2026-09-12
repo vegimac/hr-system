@@ -4824,7 +4824,7 @@ public class PayrollCalculationEngine
         if (eintraege.Any(e => e.IstAhvSonderfall))
             result.RemoveAll(r => r.CategoryCode is "AHV" or "ALV" or "ALVZ");
 
-        var bvgFix = eintraege.FirstOrDefault(e => e.Art == "BVG" && (e.BeitragFixAn is > 0 || e.BeitragFixAg is > 0));
+        var bvgFix = PayrollCalculations.WaehleBvgFix(eintraege);
         if (bvgFix != null && !ueberReferenzalter)
         {
             var vorlage = result.FirstOrDefault(r => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase));

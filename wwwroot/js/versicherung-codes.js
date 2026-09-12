@@ -52,11 +52,34 @@ function vcRender(el) {
             ${fix}${bvgInfo}${zeit}
         </div>`;
     }).join('');
-    // History: beendete Einträge
+    // History: beendete Einträge — mit Fixbetrag/Basis, sonst sieht man nur Daten
     const heute = new Date().toISOString().slice(0, 10);
-    const hist = (d.eintraege || []).filter(e => e.validTo && String(e.validTo).slice(0, 10) < heute);
-    const histHtml = hist.map(e => `<div style="font-size:12px;color:#64748b;padding:3px 4px">${VC_ARTEN[e.art] || e.art} · <b>${esc(e.code || 'Fix')}</b> · ${fmt(e.validFrom)} – ${fmt(e.validTo)}
-        <button class="btn-emp-del" style="margin-left:6px" onclick="vcDelete(${e.id})">Löschen</button></div>`).join('');
+    const hist = (d.eintraege || []).filter(e => e.validTo && String(e.validTo).slice(0, 10) < heute)
+        .slice().sort((a, b) => String(b.validFrom || '').localeCompare(String(a.validFrom || '')) || (b.id - a.id));
+    const histHtml = hist.map(e => {
+        const teile = [];
+        if (e.beitragFixAn || e.beitragFixAg)
+            teile.push(`Fix AN ${Number(e.beitragFixAn || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / AG ${Number(e.beitragFixAg || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        if (e.bvgBasisManuell)
+            teile.push('Basis manuell ' + Number(e.bvgBasisManuell).toLocaleString('de-CH'));
+        if (e.bvgEintrittsgrund === 'entryCompany') teile.push('Firmeneintritt');
+        else if (e.bvgEintrittsgrund === 'interruptionOfEmployment') teile.push('Wiedereintritt');
+        else if (e.bvgEintrittsgrund) teile.push(e.bvgEintrittsgrund);
+        if (e.bvgVollArbeitsfaehig === true) teile.push('voll arbeitsfähig');
+        else if (e.bvgVollArbeitsfaehig === false) teile.push('nicht voll arbeitsfähig');
+        if (e.bemerkung) teile.push(e.bemerkung);
+        const detail = teile.length ? `<div style="font-size:11.5px;color:#64748b;margin-top:2px">${teile.map(esc).join(' · ')}</div>` : '';
+        return `<div style="font-size:12px;color:#3f3f3f;padding:8px 4px;border-bottom:1px solid rgba(60,55,48,0.10)">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <span>${VC_ARTEN[e.art] || e.art} · <b>${esc(e.code || 'Fix')}</b> · ${fmt(e.validFrom)} – ${fmt(e.validTo)}</span>
+                <span style="margin-left:auto;display:flex;gap:6px">
+                    <button class="btn-emp-edit" onclick="vcOpenModal(${e.id})">Details</button>
+                    <button class="btn-emp-del" onclick="vcDelete(${e.id})">Löschen</button>
+                </span>
+            </div>
+            ${detail}
+        </div>`;
+    }).join('');
     el.innerHTML = rows + (histHtml ? `<div id="vcHistWrap" style="display:none">${histHtml}</div>` : '');
     if (typeof zulHistFillSlot === 'function') zulHistFillSlot('vcHistPillSlot', hist.length, 'vcHistWrap', 'vcHistPill');
 }

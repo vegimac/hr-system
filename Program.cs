@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 9;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026)
+const int SchemaStand = 10;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1139,6 +1139,19 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_eintrittsgrund varchar(30);
         ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_voll_arbeitsfaehig boolean;
         ALTER TABLE IF EXISTS employee_versicherung_code ADD COLUMN IF NOT EXISTS bvg_basis_manuell numeric(12,2);
+        -- Walter 12.09.2026: Schritt 4c/5 hat BVG-Zeilen mit gleichem ab/bis mehrfach angelegt
+        -- (TF22 Bucher). Eine Zeile behalten — Lohnart 5050 vor Mutation, sonst höchste Id.
+        DELETE FROM employee_versicherung_code v
+         WHERE v.id NOT IN (
+            SELECT keep_id FROM (
+                SELECT DISTINCT ON (employee_id, art, valid_from, COALESCE(valid_to, DATE '9999-12-31'), COALESCE(code, ''))
+                       id AS keep_id
+                  FROM employee_versicherung_code
+                 ORDER BY employee_id, art, valid_from, COALESCE(valid_to, DATE '9999-12-31'), COALESCE(code, ''),
+                          CASE WHEN bemerkung ILIKE '%5050%' THEN 0 ELSE 1 END,
+                          id DESC
+            ) s
+         );
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS thirteenth_salary boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS akonto_aktiv boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferien_auszahlung_monatlich boolean NOT NULL DEFAULT false;

@@ -369,13 +369,25 @@ public partial class SwissdecTestmandantController
         await _db.SaveChangesAsync();
     }
 
-    /// <summary>BVG-Fixbetrag (AN = AG, Annahme) ab Monat — neuer Eintrag nur bei Änderung.</summary>
+    /// <summary>BVG-Fixbetrag (AN = AG, Annahme) ab Monat — neuer Eintrag nur bei Änderung. Dubletten ab demselben Tag werden zusammengelegt (5050 gewinnt).</summary>
     private async Task SetzeBvgFixAsync(int employeeId, DateOnly monat, decimal betrag)
     {
         var eintraege = await _db.EmployeeVersicherungCodes.Where(v => v.EmployeeId == employeeId && v.Art == "BVG").OrderBy(v => v.ValidFrom).ToListAsync();
+        var amMonat = eintraege.Where(v => v.ValidFrom == monat).ToList();
+        if (amMonat.Count > 0)
+        {
+            var keep = PayrollCalculations.WaehleBvgFix(amMonat) ?? amMonat[0];
+            keep.BeitragFixAn = betrag;
+            keep.BeitragFixAg = betrag;
+            if (keep.Bemerkung == null || keep.Bemerkung.IndexOf("5050", StringComparison.OrdinalIgnoreCase) < 0)
+                keep.Bemerkung = "Swissdec-Testdaten (Lohnart 5050)";
+            foreach (var d in amMonat.Where(x => x.Id != keep.Id))
+                _db.EmployeeVersicherungCodes.Remove(d);
+            await _db.SaveChangesAsync();
+            return;
+        }
         var aktiv = eintraege.LastOrDefault(v => v.GiltAm(monat));
         if (aktiv != null && aktiv.BeitragFixAn == betrag) return;
-        if (aktiv != null && aktiv.ValidFrom == monat) { aktiv.BeitragFixAn = betrag; aktiv.BeitragFixAg = betrag; await _db.SaveChangesAsync(); return; }
         var neu = new EmployeeVersicherungCode
         {
             EmployeeId = employeeId, Art = "BVG", Code = aktiv?.Code, ValidFrom = monat, ValidTo = aktiv?.ValidTo,

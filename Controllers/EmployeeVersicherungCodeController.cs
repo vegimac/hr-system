@@ -59,8 +59,11 @@ public class EmployeeVersicherungCodeController : ControllerBase
                     istStandard = g.Any(x => x.IsDefaultCode),
                 })
                 .OrderBy(o => o.code).ToList();
-            var explizit = eintraege.FirstOrDefault(e => e.Art == art && e.GiltAm(tag));
-            var alleCodes = eintraege.Where(e => e.Art == art && e.GiltAm(tag) && !string.IsNullOrWhiteSpace(e.Code)).Select(e => e.Code!).Distinct().ToList();
+            var amTag = eintraege.Where(e => e.Art == art && e.GiltAm(tag)).ToList();
+            var explizit = art == "BVG"
+                ? (PayrollCalculations.WaehleBvgFix(amTag) ?? amTag.FirstOrDefault())
+                : amTag.FirstOrDefault();
+            var alleCodes = amTag.Where(e => !string.IsNullOrWhiteSpace(e.Code)).Select(e => e.Code!).Distinct().ToList();
             return new
             {
                 art,

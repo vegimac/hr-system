@@ -107,6 +107,22 @@ public static class PayrollCalculations
     }
 
     /// <summary>
+    /// BVG-Fixbetrag am Stichtag: bei überlappenden Dubletten (Schritt 4c + 5)
+    /// gewinnt die jüngste «ab»-Zeile, dann Lohnart 5050, dann die höchste Id.
+    /// (Walter 12.09.2026, TF22 Bucher Februar.)
+    /// </summary>
+    public static EmployeeVersicherungCode? WaehleBvgFix(IEnumerable<EmployeeVersicherungCode> eintraege)
+    {
+        return eintraege
+            .Where(e => e.Art == "BVG" && (e.BeitragFixAn is > 0 || e.BeitragFixAg is > 0))
+            .OrderByDescending(e => e.ValidFrom)
+            .ThenByDescending(e => e.Bemerkung != null
+                && e.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase))
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefault();
+    }
+
+    /// <summary>
     /// Geschlechts-Match für SV-Sätze (Walter 06.08.2026, KTG-Fall):
     /// Regel-Gender NULL/leer = gilt für alle. «F» matcht weiblich
     /// (gender f/w/female/frau/weiblich, Fallback Anrede «Frau»), «M» matcht
