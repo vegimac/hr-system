@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using HrSystem.Data;
 using HrSystem.Models;
 using HrSystem.Services;
 using System.Globalization;
@@ -397,5 +398,63 @@ public partial class SwissdecTestmandantController
         if (aktiv != null) aktiv.ValidTo = monat.AddDays(-1);
         _db.EmployeeVersicherungCodes.Add(neu);
         await _db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Testinstanz: 5050-Beträge aus der CSV auf bestehende BVG-Zeilen schreiben,
+    /// die an diesem Monat beginnen. Nur der Fixbetrag, keine neue Version.
+    /// (Walter 12.09.2026: Schritt 4c hatte den Januar-Fix auf die Mutationszeile kopiert.)
+    /// </summary>
+    internal static int NachziehenBvg5050AusCsv(AppDbContext db, string contentRoot)
+    {
+        var pfad = Path.Combine(contentRoot, "Assets", "Swissdec", "Testmandant", "wagetypes_export.csv");
+        if (!System.IO.File.Exists(pfad)) return 0;
+        var zeilen = System.IO.File.ReadAllLines(pfad);
+        if (zeilen.Length < 2) return 0;
+        var kopf = zeilen[0].Split(',');
+        var monate = new List<(int Idx, DateOnly Monat)>();
+        for (int i = 3; i < kopf.Length; i++)
+            if (DateOnly.TryParseExact(kopf[i].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d))
+                monate.Add((i, d));
+
+        var soll = new List<(string PersNr, DateOnly Monat, decimal Betrag)>();
+        foreach (var ln in zeilen.Skip(1))
+        {
+            var t = ln.Split(',');
+            if (t.Length < 4 || t[1].Trim() != "5050") continue;
+            var persNr = t[0].Trim().ToUpperInvariant().Replace("TF", "", StringComparison.Ordinal).TrimStart('0');
+            if (persNr.Length == 0) continue;
+            foreach (var (idx, m) in monate)
+            {
+                if (idx >= t.Length) continue;
+                if (decimal.TryParse(t[idx].Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out var b) && b != 0)
+                    soll.Add((persNr, m, b));
+            }
+        }
+        if (soll.Count == 0) return 0;
+
+        var nrs = soll.Select(s => s.PersNr).Distinct().ToList();
+        var idByNr = db.Employees.AsNoTracking()
+            .Where(e => nrs.Contains(e.EmployeeNumber))
+            .Select(e => new { e.Id, e.EmployeeNumber })
+            .ToList()
+            .ToDictionary(e => e.EmployeeNumber, e => e.Id);
+        if (idByNr.Count == 0) return 0;
+        var empIds = idByNr.Values.ToList();
+        var bvg = db.EmployeeVersicherungCodes.Where(v => empIds.Contains(v.EmployeeId) && v.Art == "BVG").ToList();
+        var n = 0;
+        foreach (var s in soll)
+        {
+            if (!idByNr.TryGetValue(s.PersNr, out var empId)) continue;
+            foreach (var v in bvg.Where(x => x.EmployeeId == empId && x.ValidFrom == s.Monat))
+            {
+                if (v.BeitragFixAn == s.Betrag && v.BeitragFixAg == s.Betrag) continue;
+                v.BeitragFixAn = s.Betrag;
+                v.BeitragFixAg = s.Betrag;
+                n++;
+            }
+        }
+        if (n > 0) db.SaveChanges();
+        return n;
     }
 }
