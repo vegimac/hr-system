@@ -4829,6 +4829,9 @@ public class PayrollCalculationEngine
         {
             var vorlage = result.FirstOrDefault(r => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase));
             result.RemoveAll(r => string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase));
+            // Fix 0 = bewusst kein AN-Abzug (CSV ohne 5050, TF34 Rinaldi). Null = Prozent.
+            if ((bvgFix.BeitragFixAn ?? 0) == 0 && (bvgFix.BeitragFixAg ?? 0) == 0)
+                return result;
             result.Add(new DeductionRule
             {
                 Id               = -900000 - bvgFix.Id,

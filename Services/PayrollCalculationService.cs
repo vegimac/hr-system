@@ -114,7 +114,7 @@ public static class PayrollCalculations
     public static EmployeeVersicherungCode? WaehleBvgFix(IEnumerable<EmployeeVersicherungCode> eintraege)
     {
         return eintraege
-            .Where(e => e.Art == "BVG" && (e.BeitragFixAn is > 0 || e.BeitragFixAg is > 0))
+            .Where(e => e.Art == "BVG" && (e.BeitragFixAn != null || e.BeitragFixAg != null))
             .OrderByDescending(e => e.ValidFrom)
             .ThenByDescending(e => e.Bemerkung != null
                 && e.Bemerkung.Contains("5050", StringComparison.OrdinalIgnoreCase))

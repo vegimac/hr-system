@@ -38,6 +38,15 @@ public class BvgFixAuswahlTests
         Assert.Equal(320.83m, gewaehlt!.BeitragFixAn);
     }
 
+    [Fact]
+    public void WaehleBvgFix_NimmtExpliziteNull_NichtProzent()
+    {
+        var keinBeitrag = Zeile(1, new DateOnly(2025, 1, 1), 0m, "kein 5050");
+        var gewaehlt = PayrollCalculations.WaehleBvgFix(new[] { keinBeitrag });
+        Assert.NotNull(gewaehlt);
+        Assert.Equal(0m, gewaehlt!.BeitragFixAn);
+    }
+
     private static EmployeeVersicherungCode Zeile(int id, DateOnly von, decimal fix, string bemerkung) => new()
     {
         Id = id, EmployeeId = 22, Art = "BVG", Code = "22",
