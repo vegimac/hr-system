@@ -1007,7 +1007,18 @@ public class EmployeeQuellensteuerController : ControllerBase
         else
         {
             var code = entry.QstCode?.Trim().ToUpperInvariant();
-            if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
+            var vordef = QstVordefinierteKategorie.Parse(code);
+            if (vordef != null && QstVordefinierteKategorie.IstNullAbzug(vordef.Value.Art))
+            {
+                // NON/NOY/SFN nicht zu SFY verbiegen
+            }
+            else if (vordef != null
+                && (QstVordefinierteKategorie.IstMitarbeiterbeteiligung(vordef.Value.Art)
+                    || QstVordefinierteKategorie.IstVerwaltungsrat(vordef.Value.Art)))
+            {
+                entry.QstCode = vordef.Value.Code[..2] + (entry.Kirchensteuer ? "Y" : "N");
+            }
+            else if (!string.IsNullOrEmpty(code) && (code.EndsWith("Y") || code.EndsWith("N")))
                 entry.QstCode = code[..^1] + (entry.Kirchensteuer ? "Y" : "N");
         }
     }

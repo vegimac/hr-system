@@ -112,19 +112,23 @@ public class PayrollCalculationEngine
         // zählen nicht. NULL ausserhalb Dezember = flache Monatsdeckelung wie
         // bisher. Leere Liste (Dezember ohne Vormonate, z.B. Eintritt im Dez)
         // = Jahresausgleich gegen Jahres-Höchstlohn ab 0.
-        List<decimal>? ytdSvBasesDez = null;
-        if (month == 12)
-        {
-            ytdSvBasesDez = await (
-                from s in _db.PayrollSnapshots
-                join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
-                where s.EmployeeId == employeeId
-                   && p.Year == year
-                   && p.Month >= 1 && p.Month <= 11
-                   && s.Status != "STORNIERT"
-                select s.SvBasisAhv
-            ).ToListAsync();
-        }
+        // Walter 11.09.2026 (Swissdec-Richtlinien, RefXML TF16 Aebi Dez 2024): die
+        // Kumulation läuft jetzt in JEDEM Monat (Aufrollmethode), nicht nur im Dezember,
+        // und der kumulierte Höchstlohn folgt den Beschäftigungsmonaten (Teilmonate
+        // anteilig auf 30-Tage-Basis) statt pauschal 12 × Monatsmaximum.
+        var ytdSnapshots = await (
+            from s in _db.PayrollSnapshots
+            join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employeeId
+               && p.Year == year
+               && p.Month >= 1 && p.Month < month
+               && s.Status != "STORNIERT"
+            select new { p.Month, s.SvBasisAhv }
+        ).ToListAsync();
+        List<decimal>? ytdSvBasesDez = ytdSnapshots.Select(x => x.SvBasisAhv).ToList();
+        var ytdMonate = ytdSnapshots.Select(x => x.Month).ToHashSet();
+        decimal kapMonateBisher = PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, 1, month - 1, ytdMonate);
+        decimal kapMonateTotal  = kapMonateBisher + PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, month, month);
 
         // ── Lohnperiode berechnen ──────────────────────────────────────────
         // Wichtig: Periode muss VOR der Vertragsauswahl berechnet werden,
@@ -385,9 +389,7 @@ public class PayrollCalculationEngine
         bool ueberReferenzalter = employee.DateOfBirth.HasValue
             && PayrollCalculations.HatReferenzalterErreicht(
                 employee.Gender, employee.DateOfBirth.Value, year, month);
-        int? effectiveAge = employeeAge;
-        if (ueberReferenzalter && (effectiveAge == null || effectiveAge < 65))
-            effectiveAge = 65;
+        int? effectiveAge = PayrollCalculations.EffectiveAgeFuerSvSaetze(employeeAge, ueberReferenzalter);
 
         // ── Quellensteuer-Pflicht (Walter-Vorgabe 09.06.2026) ──────────────────
         // Single Source of Truth ist `QstPflichtCheckService.CheckAsync`. Dieser
@@ -426,6 +428,12 @@ public class PayrollCalculationEngine
         // ohne QST weiter, damit die Vorschau lädt.
         bool isQuellensteuer = qstPflicht.IsQstPflichtig && qstEinstellung != null;
         if (!isQuellensteuer) qstEinstellung = null;
+        // QST bei Wohnsitz Ausland: Arbeitstage CH / effektiv dieses Monats (Walter 11.09.2026)
+        _qstArbeitstage = qstEinstellung == null ? null
+            : await _db.EmployeeQstArbeitstage.AsNoTracking()
+                .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+        _sonderSaetze = qstEinstellung == null ? null
+            : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
 
         // ── Abzugsregeln: ausschliesslich aus social_insurance_rate ───────────
         bool usingDefaultDeductions = false;
@@ -1383,6 +1391,9 @@ public class PayrollCalculationEngine
         // hochgerechnet (Swissdec: «hochgerechnet werden die abgerechneten
         // periodischen Lohnwerte»; Muster AG TF37: 5'000 + 250 → Satz bei 10'500).
         decimal deltaQstPeriodisch = 0;
+        // QST-pflichtige einmalige Zulagen (Bonus, Provision, VR, …): satzbestimmend
+        // 1:1, ohne Nebenerwerb-Hochrechnung (Walter 12.09.2026, TF28 Arbenz).
+        decimal deltaQstEinmalig = 0;
 
         // Walter-Bug 04.08.2026 (Feride Alimi): FamZ-Synthetics werden hier
         // mit vollem Betrag verbucht, aber für die nachgelagerte
@@ -1451,6 +1462,7 @@ public class PayrollCalculationEngine
             if (lp.BvgPflichtig)    deltaBvg  += b;
             if (lp.QstPflichtig)    deltaQst  += b;
             if (lp.QstPflichtig && IstPeriodischeZulage(lp)) deltaQstPeriodisch += b;
+            if (lp.QstPflichtig && !IstPeriodischeZulage(lp)) deltaQstEinmalig += b;
 
             // Beitrag in das flag-basierte Basis-Tracking aufnehmen
             AddAmount(lp.Code, b);
@@ -2861,7 +2873,8 @@ public class PayrollCalculationEngine
             // Wie UTP: nur Hochrechnen wenn Nebenbeschäftigung gemeldet
             // (siehe ausführlicher Kommentar im UTP-Block).
             decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
-                qstEinstellung, svBasesMtp.Qst, workedHours, company);
+                qstEinstellung, svBasesMtp.Qst, workedHours, company,
+                einmaligNichtHochrechnen: deltaQstEinmalig);
             // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026): bei
             // untermonatigem Ein-/Austritt wird der IST-Betrag besteuert, aber
             // zum SATZ des vollen Monats — nur der PERIODISCHE Kern (Garantie-
@@ -2944,6 +2957,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
+                ausgleichMonate: kapMonateTotal,
+                ausgleichMonateBisher: kapMonateBisher,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturMtp + unfallBvgKorrekturMtp,
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
@@ -3518,7 +3533,8 @@ public class PayrollCalculationEngine
             // Steuerung über qst.WeitereBeschaftigungen + GesamtpensumWeitereAg
             // im QST-Eintrag.
             decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
-                qstEinstellung, svBasesUtp.Qst, workedHours, company);
+                qstEinstellung, svBasesUtp.Qst, workedHours, company,
+                einmaligNichtHochrechnen: deltaQstEinmalig);
             var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
@@ -3571,6 +3587,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
+                ausgleichMonate: kapMonateTotal,
+                ausgleichMonateBisher: kapMonateBisher,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturUtp + unfallBvgKorrekturUtp,
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
@@ -3603,8 +3621,10 @@ public class PayrollCalculationEngine
                 : shortReasonStart
                     ? $"Eintritt {periodEffectiveFrom:dd.MM.yyyy}"
                     : $"Austritt {periodTo:dd.MM.yyyy}";
+            // Label zeigt die Tage der angewendeten Methode (30-Tage-Methode: 18 von 30, nicht 18 von 31 — Walter 11.09.2026)
+            var (lblTage, lblBasis) = TeilmonatTageFuerAnzeige(company.TeilmonatMethode, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays);
             string monatslohnLabel = isShortPeriod
-                ? $"Monatslohn ({shortPeriodDays} von {normalPeriodDays} Tagen – {fixReasonTxt})"
+                ? $"Monatslohn ({lblTage} von {lblBasis} Tagen – {fixReasonTxt})"
                 : "Monatslohn";
 
             // ── FIX/FIX-M Festlohn-Split (Mirus-Style) ────────────────────
@@ -4129,7 +4149,8 @@ public class PayrollCalculationEngine
             // Bei FIX wird in der Hochrechnungs-Logik das Pensum genutzt.
             decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesFix.Qst, workedHours: 0, company,
-                pensumPct: emp.EmploymentPercentage);
+                pensumPct: emp.EmploymentPercentage,
+                einmaligNichtHochrechnen: deltaQstEinmalig);
             // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026):
             // untermonatiger Ein-/Austritt → besteuert wird der IST-Betrag,
             // satzbestimmend zählt aber der VOLLE Monatslohn (nur der
@@ -4194,6 +4215,8 @@ public class PayrollCalculationEngine
                 akontoBereitsAusbezahlt: akontoBereitsAusbezahlt,
                 akontoBereitsAusbezahltDatum: akontoBereitsAusbezahltDatum,
                 ytdSvBasesDezember: ytdSvBasesDez,
+                ausgleichMonate: kapMonateTotal,
+                ausgleichMonateBisher: kapMonateBisher,
                 lohnposByCode: lohnposByCode,
                 schattenBvgKorrektur: krankBvgKorrekturFix + unfallBvgKorrekturFix,
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
@@ -4283,6 +4306,20 @@ public class PayrollCalculationEngine
     /// synthetische DeductionRule zurück (Type = "fixed", Rate = CHF-Betrag positiv).
     /// Gibt null zurück wenn kein Tarif gefunden oder Betrag = 0.
     /// </summary>
+    /// <summary>Arbeitstage CH/effektiv der laufenden Periode (nur bei QST-Pflicht geladen).</summary>
+    private EmployeeQstArbeitstage? _qstArbeitstage;
+    private List<QstSonderkategorieSatz>? _sonderSaetze;
+
+    /// <summary>
+    /// Wohnsitz im Ausland (Grenzgänger, internationaler Wochenaufenthalter): steuerbar
+    /// ist nur der Anteil der in der Schweiz geleisteten Arbeitstage (Walter 11.09.2026,
+    /// Swissdec TF28: 15 von 20 Tagen → 4'500 von 6'000, Satz auf 8'000).
+    /// </summary>
+    private static bool IstWohnsitzAusland(EmployeeQuellensteuer e)
+        => !string.IsNullOrWhiteSpace(e.WohnsitzAusland)
+        || (!string.IsNullOrWhiteSpace(e.Wohnsitzstaat) && !string.Equals(e.Wohnsitzstaat, "CH", StringComparison.OrdinalIgnoreCase))
+        || e.IsGrenzgaenger;
+
     private DeductionRule? ComputeQstDeduction(
         EmployeeQuellensteuer? einstellung,
         decimal bruttolohn,
@@ -4290,10 +4327,22 @@ public class PayrollCalculationEngine
         DateOnly periodFrom,
         decimal? satzbestimmenderBrutto = null)
     {
-        if (einstellung is null
-            || string.IsNullOrEmpty(einstellung.Steuerkanton)
-            || string.IsNullOrEmpty(einstellung.TarifCode))
+        if (einstellung is null || string.IsNullOrEmpty(einstellung.Steuerkanton))
             return null;
+        var vordef = QstVordefinierteKategorie.Parse(einstellung.QstCode);
+        if (vordef == null && string.IsNullOrEmpty(einstellung.TarifCode))
+            return null;
+
+        // Steuerbarer Anteil nach Arbeitstagen CH (nur Wohnsitz Ausland). Der Satz
+        // bleibt auf dem vollen satzbestimmenden Lohn; nur die Bemessung schrumpft.
+        decimal bruttoVoll = bruttolohn;
+        string? tageHinweis = null;
+        var tage = _qstArbeitstage;
+        if (tage != null && tage.TageEffektiv > 0 && tage.TageCh < tage.TageEffektiv && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
+        {
+            bruttolohn = Math.Round(bruttoVoll * tage.TageCh / tage.TageEffektiv, 2);
+            tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH)";
+        }
 
         // ── Satzbestimmender Lohn ──────────────────────────────────────────
         // Reihenfolge:
@@ -4304,15 +4353,43 @@ public class PayrollCalculationEngine
         //   3. Fallback: der Brutto selbst → keine Hochrechnung.
         decimal satzBrutto = einstellung.MindestlohnSatzbestimmung
             ?? satzbestimmenderBrutto
-            ?? bruttolohn;
+            ?? bruttoVoll;
         // Schutz: nie unter den IST-Brutto fallen (sonst wäre Steuer < eigentlich
         // geschuldete; satzbestimmend MUSS ≥ IST-Brutto sein).
-        if (satzBrutto < bruttolohn) satzBrutto = bruttolohn;
+        if (satzBrutto < bruttoVoll) satzBrutto = bruttoVoll;
 
         decimal qstBetrag;
         decimal? satzPct;
+        string? sonderHinweis = null;
 
-        if (einstellung.Prozentsatz.HasValue)
+        if (vordef != null)
+        {
+            // Swissdec CategoryPredefined — Pauschale, kein ESTV-Buchstabe.
+            // MEY ≠ ESTV-Tarif M (4.5 %). TF30 Müller Jan: BE 29.5 % × 5'500 = 1'622.50.
+            if (QstVordefinierteKategorie.IstNullAbzug(vordef.Value.Art))
+            {
+                qstBetrag = 0;
+                satzPct = 0;
+            }
+            else if (QstVordefinierteKategorie.IstMitarbeiterbeteiligung(vordef.Value.Art)
+                  || QstVordefinierteKategorie.IstVerwaltungsrat(vordef.Value.Art))
+            {
+                var satz = QstVordefinierteKategorie.SatzFuer(vordef.Value.Code, einstellung.Steuerkanton, periodFrom, _sonderSaetze);
+                if (satz == null)
+                {
+                    qstBetrag = 0;
+                    satzPct = 0;
+                    sonderHinweis = $"Kein hinterlegter Pauschalsatz für {vordef.Value.Code} in Kanton {einstellung.Steuerkanton} — mit dem QST-Amt klären, nichts erfinden.";
+                }
+                else
+                {
+                    qstBetrag = Math.Round(bruttolohn * satz.Value / 100m, 2);
+                    satzPct = satz;
+                }
+            }
+            else return null;
+        }
+        else if (einstellung.Prozentsatz.HasValue)
         {
             // Manuell überschriebener Prozentsatz — direkt auf IST-Brutto.
             qstBetrag = Math.Round(bruttolohn * einstellung.Prozentsatz.Value / 100m, 2);
@@ -4353,9 +4430,11 @@ public class PayrollCalculationEngine
         // mit dem tatsächlich gerechnet wird (TarifCode+Kinder+Kirchensteuer) —
         // qst_code ist nur Anzeige-Cache und war vereinzelt inkonsistent
         // (A gerechnet, C0N angezeigt). Fallback qst_code nur ohne TarifCode.
-        string qstCode     = !string.IsNullOrWhiteSpace(einstellung.TarifCode)
-            ? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}"
-            : (einstellung.QstCode ?? "");
+        string qstCode = vordef != null
+            ? vordef.Value.Code
+            : !string.IsNullOrWhiteSpace(einstellung.TarifCode)
+                ? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}"
+                : (einstellung.QstCode ?? "");
 
         return new DeductionRule
         {
@@ -4365,7 +4444,7 @@ public class PayrollCalculationEngine
             CategoryName     = "Quellensteuer",
             // Satz nicht mehr im Namen — kommt über DisplayRatePercent in die
             // Prozent-Spalte des Lohnzettels (konsistent mit AHV/ALV/NBU/...).
-            Name             = $"Quellensteuer {qstCode} {einstellung.Steuerkanton}",
+            Name             = $"Quellensteuer {qstCode} {einstellung.Steuerkanton}{tageHinweis}",
             Type             = "fixed",
             Rate             = qstBetrag,   // BuildResult negiert diesen Wert
             BasisType        = "gross",
@@ -4374,6 +4453,8 @@ public class PayrollCalculationEngine
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
             QstSatzBasis     = satzBrutto,  // transient — in die Slip-Zeile (K1 Korrektur)
+            BasisOverride    = tageHinweis != null ? bruttolohn : null,   // steuerbarer Anteil (Arbeitstage CH)
+            Hinweis          = sonderHinweis,
         };
     }
 
@@ -4527,20 +4608,61 @@ public class PayrollCalculationEngine
                 }
             }
 
+            // ── Nachzahlung nach Austritt (Walter 11.09.2026, Swissdec TF07) ──
+            // Art. 30ter Abs. 3 AHVV: Lohn, der nach dem Austritt ausbezahlt wird, gilt als
+            // in der Anstellungsperiode erzielt. Deshalb SV-rechtlich der AUSTRITTSPERIODE
+            // zurechnen: Alter/Referenzalter, Sätze und ALV-/BVG-Pflicht per Austrittsmonat,
+            // Höchstlöhne (ALV/UVG/UVGZ/KTG) als Jahresausgleich über die Anstellungsmonate
+            // des Austrittsjahres abzüglich der dort schon verbeitragten Basen.
+            // Beispiel Burri: Austritt 31.12.2024, Überzeit 15'000 im Jan 2025 → AHV voll
+            // (kein Rentnerfreibetrag, 64 erst per Jan 2025), ALV 8'700 + ALVZ 6'300
+            // (24'700 − 16'000), UVG 8'700, KTG 4'000 (20'000 − 16'000).
+            DateOnly? austrittKorr = ResolveAustrittDate(employee.ExitDate, emp.ContractEndDate);
+            bool nachzahlungNachAustritt = austrittKorr.HasValue && austrittKorr.Value < periodFrom;
+            int svYear = nachzahlungNachAustritt ? austrittKorr!.Value.Year : year;
+            int svMonth = nachzahlungNachAustritt ? austrittKorr!.Value.Month : month;
+            var (svPeriodFrom, svPeriodTo) = nachzahlungNachAustritt ? CalcPeriod(svYear, svMonth) : (periodFrom, periodTo);
+            List<decimal>? ytdAustrittsjahr = null;
+            decimal ausgleichMonate = 12m;
+            decimal ausgleichMonateBisher = -1m;
+            string? ausgleichLabel = null;
+            if (nachzahlungNachAustritt)
+            {
+                // Beschäftigungsmonate im Austrittsjahr (Teilmonate anteilig) — die Nachzahlung
+                // kommt zum bereits verbeitragten Lohn dieser Monate hinzu (bisher = total).
+                var snapsAustritt = await (
+                    from s in _db.PayrollSnapshots
+                    join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                    where s.EmployeeId == employeeId && p.Year == svYear && p.Month <= svMonth && s.Status != "STORNIERT"
+                    select new { p.Month, s.SvBasisAhv }).ToListAsync();
+                // Frühere Nachzahlungen nach dem Austritt (z.B. Burri Jan 2025)
+                // gehören zur selben Austritts-AHV, sonst fehlt die 15'000 in der
+                // Februar-Korrektur und ALV/NBU können die Überzahlung nicht zurückgeben.
+                var snapsNachzahlung = await (
+                    from s in _db.PayrollSnapshots
+                    join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                    where s.EmployeeId == employeeId && s.Status != "STORNIERT"
+                       && (p.Year > svYear || (p.Year == svYear && p.Month > svMonth))
+                       && (p.Year < year || (p.Year == year && p.Month < month))
+                    select s.SvBasisAhv).ToListAsync();
+                ytdAustrittsjahr = snapsAustritt.Select(x => x.SvBasisAhv).Concat(snapsNachzahlung).ToList();
+                ausgleichMonate = Math.Max(1m / 30m, PayrollCalculations.BeschaeftigungsMonate(employee.Employments, svYear, 1, svMonth, snapsAustritt.Select(x => x.Month).ToHashSet()));
+                ausgleichMonateBisher = ausgleichMonate;
+                ausgleichLabel = $" (Nachzahlung, Austrittsjahr {svYear})";
+            }
+
             // SV-Regeln (Alter), ohne QST-Auto — Korrekturen kommen manuell (565 etc.).
             int? employeeAge = employee.DateOfBirth.HasValue
-                ? year - employee.DateOfBirth.Value.Year : null;
+                ? svYear - employee.DateOfBirth.Value.Year : null;
             bool ueberRef = employee.DateOfBirth.HasValue
                 && PayrollCalculations.HatReferenzalterErreicht(
-                    employee.Gender, employee.DateOfBirth.Value, year, month);
-            int? effectiveAge = employeeAge;
-            if (ueberRef && (effectiveAge == null || effectiveAge < 65))
-                effectiveAge = 65;
+                    employee.Gender, employee.DateOfBirth.Value, svYear, svMonth);
+            int? effectiveAge = PayrollCalculations.EffectiveAgeFuerSvSaetze(employeeAge, ueberRef);
 
             var globalRates = await _db.SocialInsuranceRates
                 .Where(r => r.IsActive
-                         && r.ValidFrom <= periodTo
-                         && (r.ValidTo == null || r.ValidTo >= periodFrom)
+                         && r.ValidFrom <= svPeriodTo
+                         && (r.ValidTo == null || r.ValidTo >= svPeriodFrom)
                          && !(r.Rate == 0 && r.RateEmployer != null)
                          // Filial-Namensraum (Walter 05.08.2026)
                          && (r.CompanyProfileId == null || r.CompanyProfileId == companyProfileId))
@@ -4581,7 +4703,11 @@ public class PayrollCalculationEngine
                          && !(ueberRef && (string.Equals(r.CategoryCode, "ALV", StringComparison.OrdinalIgnoreCase)
                                         || string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase))))
                 .ToList();
-            deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, periodFrom, ueberRef);
+            deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, svPeriodFrom, ueberRef);
+            // Nachzahlung nach Austritt: BVG-Versicherung endete mit dem Austritt → kein BVG-Abzug
+            // (Swissdec TF07 Jan 2025: kein BVG auf der Überzeit-Nachzahlung).
+            if (nachzahlungNachAustritt)
+                deductions = deductions.Where(r => !string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase)).ToList();
 
             var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
 
@@ -4651,7 +4777,10 @@ public class PayrollCalculationEngine
                 periodeFooterText: existingPeriod?.PdfFooterText,
                 akontoBereitsAusbezahlt: 0m,
                 akontoBereitsAusbezahltDatum: null,
-                ytdSvBasesDezember: null);
+                ytdSvBasesDezember: ytdAustrittsjahr,
+                ausgleichMonate: ausgleichMonate,
+                ausgleichMonateBisher: ausgleichMonateBisher,
+                ausgleichLabel: ausgleichLabel);
 
             // isCorrection-Flag auf Result setzen (BuildResult ist anonym)
             var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -4751,6 +4880,16 @@ public class PayrollCalculationEngine
     /// 30-Tage-Methode: Tag 31 zählt als 30, ein Monatsende (auch 28./29. Februar)
     /// zählt als Tag 30 — Eintritt 16.11. → 15 Tage, Eintritt 27.02. → 4 Tage.
     /// </summary>
+    /// <summary>Tage/Basis für die Anzeige im Lohnzeilen-Label, passend zur Methode (TAGE30: x von 30).</summary>
+    internal static (int Tage, int Basis) TeilmonatTageFuerAnzeige(string? methode, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
+    {
+        if (!string.Equals(methode, "TAGE30", StringComparison.OrdinalIgnoreCase)) return (kalendertage, monatstage);
+        int letzterTag = DateTime.DaysInMonth(bis.Year, bis.Month);
+        int start = Math.Min(von.Day, 30);
+        int ende  = bis.Day >= letzterTag ? 30 : Math.Min(bis.Day, 30);
+        return (Math.Max(0, ende - start + 1), 30);
+    }
+
     internal static decimal TeilmonatAnteil(string? methode, decimal monatslohn, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
     {
         switch ((methode ?? "TAGESSATZ365").ToUpperInvariant())

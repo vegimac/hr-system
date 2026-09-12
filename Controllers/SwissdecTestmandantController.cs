@@ -32,6 +32,20 @@ public partial class SwissdecTestmandantController : ControllerBase
     public SwissdecTestmandantController(AppDbContext db, IWebHostEnvironment env, ILogger<SwissdecTestmandantController> log)
     { _db = db; _env = env; _log = log; }
 
+    /// <summary>Testfall-Filter «nur»: «TF07», «tf7», «07», «7» → TF07; kommagetrennt (Walter 11.09.2026).</summary>
+    private static HashSet<string>? NurSet(string? nur)
+    {
+        if (string.IsNullOrWhiteSpace(nur)) return null;
+        var set = new HashSet<string>();
+        foreach (var raw in nur.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var t = raw.ToUpperInvariant();
+            if (t.StartsWith("TF")) t = t[2..];
+            set.Add(int.TryParse(t, out var n) ? $"TF{n:D2}" : raw.ToUpperInvariant());
+        }
+        return set;
+    }
+
     private static bool IstTestinstanz()
         => !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL"));
 

@@ -242,7 +242,18 @@ public static class PayrollCalculations
         decimal darlehenVormonat = 0m,
         decimal darlehenAuszahlung = 0m,
         decimal darlehenRateBezogen = 0m,
-        decimal darlehenSaldoNeu = 0m)
+        decimal darlehenSaldoNeu = 0m,
+        // Nachzahlung nach Austritt (Walter 11.09.2026, Art. 30ter Abs. 3 AHVV /
+        // Swissdec TF07): der Jahresausgleich läuft über die Anstellungsmonate der
+        // Austrittsperiode (z.B. Nov–Dez = 2) statt über 12; ytdSvBasesDezember
+        // enthält dann die Basen dieser Periode. Label kennzeichnet die Zeilen.
+        // Kumulierte Höchstlohn-Methode (Swissdec-Richtlinien, Walter 11.09.2026):
+        // ausgleichMonate = Beschäftigungsmonate im Jahr INKLUSIVE dieser Periode
+        // (Teilmonate anteilig, 30-Tage-Basis), ausgleichMonateBisher = bis zur
+        // Vorperiode. Basis = kum(bis inkl.) − kum(bisher). −1 = alte Dezember-Formel.
+        decimal ausgleichMonate = 12m,
+        decimal ausgleichMonateBisher = -1m,
+        string? ausgleichLabel = null)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -298,6 +309,8 @@ public static class PayrollCalculations
                     _              => svBases.Ahv
                 }
             };
+            // QST Wohnsitz Ausland: steuerbarer Anteil (Arbeitstage CH) als Basis zeigen (Walter 11.09.2026)
+            if (d.BasisOverride.HasValue) basis = d.BasisOverride.Value;
 
             // Freibetrag abziehen (z.B. AHV 65+: CHF 1'400/Mt.)
             // Basis = max(0, Lohn − Freibetrag)
@@ -345,13 +358,35 @@ public static class PayrollCalculations
             {
                 decimal cap = d.MaxBaseMonthly is > 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
                 decimal Band(decimal b) => Math.Max(0m, Math.Min(b, cap) - von);
-                if (ytdSvBasesDezember is not null)   // Dezember → Jahresausgleich
+                if (ytdSvBasesDezember is not null)   // kumulierte Höchstlohn-Methode
                 {
-                    decimal ytdGross     = ytdSvBasesDezember.Sum();
-                    decimal ytdGedeckelt = ytdSvBasesDezember.Sum(Band);
-                    decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * 12m) - von * 12m);
-                    basis = Math.Max(0m, jahresBand - ytdGedeckelt);
-                    dezAusgleich = true;
+                    decimal flach    = Band(basis);
+                    decimal ytdGross = ytdSvBasesDezember.Sum();
+                    if (ausgleichMonateBisher >= 0m)
+                    {
+                        // Swissdec-Richtlinien (Aufrollmethode): kumulierter Höchstlohn =
+                        // Σ Monats-Höchstlöhne der Beschäftigungsmonate (Teilmonat anteilig,
+                        // 30-Tage-Basis). Pflichtig kumuliert = min(kum. Lohn, kum. Höchstlohn)
+                        // abzüglich Band «von»; Periode = Differenz zur Vorperiode.
+                        // Beispiel Aebi Dez 2024 (Austritt 20.12.): Nov 12'958.35 → ALV 12'350 +
+                        // ALVZ 608.35; Dez 9'395 bei Höchstlohn 20/30 × 12'350 → ALV 8'233.33,
+                        // ALVZ 1'161.67 (RefXML: 8'233.35 / 1'161.65).
+                        decimal kumBisher = Math.Max(0m, Math.Min(ytdGross, cap * ausgleichMonateBisher) - von * ausgleichMonateBisher);
+                        decimal kumTotal  = Math.Max(0m, Math.Min(ytdGross + basis, cap * ausgleichMonate) - von * ausgleichMonate);
+                        // Darf negativ sein: eine spätere Korrektur senkt die YTD-Basis
+                        // unter das schon Verbeitragte → Rückerstattung (TF07 Burri Feb:
+                        // Nachzahlung 15'000 → 5'500, ALV/NBU Januar anteilig zurück).
+                        basis = kumTotal - kumBisher;
+                    }
+                    else
+                    {
+                        decimal ytdGedeckelt = ytdSvBasesDezember.Sum(Band);
+                        decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * ausgleichMonate) - von * ausgleichMonate);
+                        basis = jahresBand - ytdGedeckelt;
+                    }
+                    // Kennzeichnen nur, wenn die Kumulation etwas gegenüber der flachen
+                    // Monatsdeckelung ändert (sonst bleibt die Zeile ruhig).
+                    dezAusgleich = Math.Abs(basis - flach) > 0.005m;
                 }
                 else                                  // normaler Monat → flaches Band
                 {
@@ -386,7 +421,7 @@ public static class PayrollCalculations
                 ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
                 : d.Name;
             // Transparenz: im Dezember ist die ALV/NBU-Basis aufgerollt → kennzeichnen
-            if (dezAusgleich) abzugBezeichnung += " (Jahresausgleich)";
+            if (dezAusgleich) abzugBezeichnung += ausgleichLabel ?? " (kumuliert)";
 
             abzugResult.Add(new
             {
@@ -748,6 +783,10 @@ public static class PayrollCalculations
             svBasisAhv  = Math.Round(svBases.Ahv,  2),
             svBasisBvg  = Math.Round(svBases.Bvg,  2),
             qstBetrag   = Math.Round(qstBetragOut, 2),
+            qstHinweise = deductions
+                .Where(d => d.CategoryCode == "QST" && !string.IsNullOrWhiteSpace(d.Hinweis))
+                .Select(d => d.Hinweis!)
+                .ToList(),
             // Schatten-Basen-Vergleich (Swissdec Schritt 2) — komplette Basen
             // fürs Protokoll + Flag-Nachrechnung. Reine Diagnose, kein Einfluss
             // auf Beträge; null wenn kein Katalog übergeben wurde.
@@ -1151,22 +1190,31 @@ public static class PayrollCalculations
     ///   ComputeQstDeduction den IST-Brutto direkt nimmt.
     ///
     /// Variante B — Nebenbeschäftigung gemeldet (qst.WeitereBeschaftigungen):
-    ///   B1) Gesamtpensum bekannt → Brutto × 100/Gesamtpensum
+    ///   B1) Gesamtpensum bekannt → periodischer Lohn × min(Eigen+Andere, 100) / Eigen
+    ///       (auch bei Summe = 100 %: 70 %+30 % → Satz auf Vollpensum, TF17)
     ///   B2) Gesamteinkommen bekannt → IST-Brutto + GesamteinkommenWeitereAg
     ///   B3) Weder Pensum noch Einkommen → Hochrechnung auf 100%:
     ///        - bei Stundenlöhner: × 180h/IST-Stunden
     ///        - bei Festlohn: × 100/Pensum
+    ///   Einmalige Zulagen (Bonus, Provision, VR) zählen 1:1, ohne Hochrechnung.
     /// </summary>
     public static decimal? ComputeSatzBruttoForNebenjob(
         EmployeeQuellensteuer? qst,
         decimal bruttolohn,
         decimal workedHours,
         CompanyProfile company,
-        decimal? pensumPct = null)
+        decimal? pensumPct = null,
+        decimal einmaligNichtHochrechnen = 0)
     {
         // Variante A: keine Nebenbeschäftigung → kein Hochrechnen
         if (qst is null || !qst.WeitereBeschaftigungen)
             return null;
+
+        // Bonus / Provision / VR / Verbesserungsvorschlag: schon der volle
+        // Frankenbetrag. Nur der periodische Lohn (Monats-/Stundenlohn) wird
+        // aufs Gesamtpensum hochgerechnet (Walter 12.09.2026, TF28 Arbenz).
+        var einmalig = Math.Max(0m, einmaligNichtHochrechnen);
+        var periodisch = Math.Max(0m, bruttolohn - einmalig);
 
         // B1: Gesamtpensum aller AGs bekannt
         if (qst.GesamtpensumWeitereAg.HasValue && qst.GesamtpensumWeitereAg.Value > 0)
@@ -1174,10 +1222,14 @@ public static class PayrollCalculations
             // GesamtpensumWeitereAg ist das Pensum bei den ANDEREN AGs.
             // Eigenes Pensum kommt vom Vertrag oder wird aus Stundenanteil ermittelt.
             decimal eigenesPensum = pensumPct ?? EstimatePensumFromStunden(workedHours, company);
-            decimal gesamtPensum = eigenesPensum + qst.GesamtpensumWeitereAg.Value;
-            if (gesamtPensum >= 100m) return null; // Vollpensum erreicht → kein Hochrechnen
-            if (eigenesPensum > 0)
-                return Math.Round(bruttolohn * gesamtPensum / eigenesPensum, 2);
+            if (eigenesPensum <= 0)
+                return einmalig > 0 ? einmalig : null;
+            // Summe ≥ 100 % heisst nicht «kein Hochrechnen» — der IST-Lohn ist
+            // nur der eigene Anteil. Satzbestimmend = auf das Gesamtpensum
+            // hochrechnen, höchstens 100 % (KS 45). TF17 Binggeli: 70 % + 30 %
+            // → 4'550 × 100/70 = 6'500, nicht 4'550.
+            decimal gesamtPensum = Math.Min(100m, eigenesPensum + qst.GesamtpensumWeitereAg.Value);
+            return Math.Round(periodisch * gesamtPensum / eigenesPensum + einmalig, 2);
         }
 
         // B2: Gesamteinkommen aller AGs bekannt
@@ -1190,14 +1242,14 @@ public static class PayrollCalculations
         if (workedHours > 0)
         {
             // Stundenlöhner: Umrechnung auf 180h/Monat (ESTV-Vorgabe)
-            return Math.Round(bruttolohn * 180m / workedHours, 2);
+            return Math.Round(periodisch * 180m / workedHours + einmalig, 2);
         }
         if (pensumPct.HasValue && pensumPct.Value > 0 && pensumPct.Value < 100)
         {
             // Festlohn: Umrechnung über Pensum
-            return Math.Round(bruttolohn * 100m / pensumPct.Value, 2);
+            return Math.Round(periodisch * 100m / pensumPct.Value + einmalig, 2);
         }
-        return null;
+        return einmalig > 0 && periodisch == 0 ? einmalig : null;
     }
 
     /// <summary>
@@ -1211,6 +1263,45 @@ public static class PayrollCalculations
     }
 
     // Walter-Vorgabe 20.05.2026: Lohnperiode = IMMER Kalendermonat (1.–letzter Tag).
+    /// <summary>
+    /// Beschäftigungsmonate eines MA im Jahr von Monat «von» bis «bis» (inkl.), Teilmonate
+    /// anteilig nach 30-Tage-Basis (Swissdec-Höchstlohn: Jahreshöchstlohn / 360 × Tage).
+    /// Mehrere/überlappende Verträge (Filialwechsel) zählen pro Tag nur einmal.
+    /// (Walter 11.09.2026)
+    /// </summary>
+    public static decimal BeschaeftigungsMonate(IEnumerable<Employment> employments, int year, int von, int bis, ISet<int>? nurMonate = null)
+    {
+        decimal summe = 0m;
+        var emps = employments.ToList();
+        for (int m = Math.Max(1, von); m <= Math.Min(12, bis); m++)
+        {
+            // nurMonate: nur Monate zählen, die in OneCrew abgerechnet sind (Snapshot) —
+            // vor der Einführung abgerechnete Monate kennen wir nicht → kein zusätzlicher
+            // Höchstlohn-Spielraum aus unbekannter Vergangenheit.
+            if (nurMonate != null && !nurMonate.Contains(m)) continue;
+            int letzter = DateTime.DaysInMonth(year, m);
+            var tage = new bool[31];
+            foreach (var e in emps)
+            {
+                var start = DateOnly.FromDateTime(e.ContractStartDate);
+                var ende  = e.ContractEndDate.HasValue ? DateOnly.FromDateTime(e.ContractEndDate.Value) : DateOnly.MaxValue;
+                var mVon = new DateOnly(year, m, 1); var mBis = new DateOnly(year, m, letzter);
+                if (start > mBis || ende < mVon) continue;
+                int d1 = start > mVon ? start.Day : 1;
+                int d2 = ende < mBis ? ende.Day : letzter;
+                for (int d = d1; d <= d2; d++) tage[d - 1] = true;
+            }
+            if (!tage.Any(t => t)) continue;
+            // 30-Tage-Basis: erster/letzter beschäftigter Tag → Tag 31 zählt als 30, Monatsende als 30
+            int ersterTag = Array.IndexOf(tage, true) + 1;
+            int letzterTag = Array.LastIndexOf(tage, true) + 1;
+            int s = Math.Min(ersterTag, 30);
+            int en = letzterTag >= letzter ? 30 : Math.Min(letzterTag, 30);
+            summe += Math.Max(0, en - s + 1) / 30m;
+        }
+        return summe;
+    }
+
     public static (DateOnly from, DateOnly to) CalcPeriod(int year, int month)
     {
         var from = new DateOnly(year, month, 1);
@@ -1367,12 +1458,15 @@ public static class PayrollCalculations
     }
 
     /// <summary>
-    /// Prüft, ob ein MA im Lohnmonat (year, month) das Referenzalter bereits
-    /// erreicht hat. Die Beitragspflicht-Änderung (AHV-Freibetrag, ALV/BVG-
-    /// Wegfall) greift IM MONAT, in dem das Referenzalter erreicht wird.
+    /// Prüft, ob für den Lohnmonat (year, month) die Beitragspflicht-Änderung nach
+    /// Erreichen des Referenzalters gilt (AHV-Freibetrag, ALV/BVG-Wegfall).
+    /// AHVG Art. 3 Abs. 1: Die Beitragspflicht dauert «bis zum Ende des Monats, in
+    /// welchem das Referenzalter erreicht wird» → die Änderung greift ab dem
+    /// FOLGEMONAT (Walter 11.09.2026; vorher fälschlich im Erreichungsmonat —
+    /// Swissdec TF07 Burri, geb. 16.12.1960: Dezember 2024 noch voll AHV/ALV/BVG,
+    /// Freibetrag ab Januar 2025).
     /// Beispiel: Frau Jg. 1962, geboren März → Referenzalter 64J+6M = September
-    /// 2026. Im Lohnlauf August 2026 noch normal SV; ab September 2026 greift
-    /// die AHV-Freibetrag-Regel und ALV/BVG fallen weg.
+    /// 2026. September noch normal SV; ab Oktober 2026 AHV-Freibetrag, ALV/BVG weg.
     /// </summary>
     public static bool HatReferenzalterErreicht(string? gender, DateTime dateOfBirth, int year, int month)
     {
@@ -1380,6 +1474,23 @@ public static class PayrollCalculations
         int geburtsMonatAbsolut   = dateOfBirth.Year * 12 + dateOfBirth.Month;
         int referenzMonatAbsolut  = geburtsMonatAbsolut + refMonate;
         int aktuellerMonatAbsolut = year * 12 + month;
-        return aktuellerMonatAbsolut >= referenzMonatAbsolut;
+        return aktuellerMonatAbsolut > referenzMonatAbsolut;
+    }
+
+    /// <summary>
+    /// Alter für die SV-Satz-Auswahl (MinAge/MaxAge).
+    /// Beitragsbeginn bleibt Kalenderjahr (AHV/ALV ab 1.1. des Jahres, in dem
+    /// man 18 wird). Beitragsende und AHV-Freibetrag erst ab dem Folgemonat
+    /// des Referenzalters — sonst gilt jemand im ganzen 65er-Jahr schon ab
+    /// Januar als Rentner (TF05 Moser, geb. 15.04.1960: Januar 2025 wäre
+    /// 2025−1960=65 und würde AHV 65+ / kein ALV bekommen).
+    /// </summary>
+    public static int? EffectiveAgeFuerSvSaetze(int? alterKalenderjahr, bool ueberReferenzalter)
+    {
+        if (ueberReferenzalter)
+            return alterKalenderjahr is null or < 65 ? 65 : alterKalenderjahr;
+        if (alterKalenderjahr >= 65)
+            return 64;
+        return alterKalenderjahr;
     }
 }

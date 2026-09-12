@@ -200,7 +200,7 @@ public class QstTarifVorschlagService
                 zivilstandEff = "getrennt";
         }
 
-        return QstTarifVorschlagLogic.Berechne(
+        var result = QstTarifVorschlagLogic.Berechne(
             zivilstand:   zivilstandEff,
             religion:     emp.Religion,
             steuerkanton: kantonAmStichtag,
@@ -209,6 +209,10 @@ public class QstTarifVorschlagService
             tarifTabelle: tarife,
             konkubinat:   konkubinat,
             ehepartnerErwerbstaetig: ehepartnerErwerb);
+        if (!wohnsitzAusland) return result;
+        var warns = result.Warnings.ToList();
+        warns.Add(QstVordefinierteKategorie.HinweisWohnsitzAusland);
+        return result with { Warnings = warns };
     }
 }
 

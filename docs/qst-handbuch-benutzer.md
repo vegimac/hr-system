@@ -224,6 +224,33 @@ Tarife.
   werden, greift als letzte Stufe die Medianlohn-Regel der ESTV — das ist
   kein Behördenentscheid, sondern der offizielle Fallback.
 
+## 10a · Sondercodes ohne Tarifbuchstaben (Swissdec 2026)
+
+Neben den normalen Tarifcodes (Buchstabe + Kinderzahl + Y/N) kennt Swissdec
+sieben Sondercodes. Die letzte Stelle ist immer gleich zu lesen:
+**N = ohne Kirchensteuer, Y = mit Kirchensteuer.**
+
+| Code | Bedeutung | Wann |
+|---|---|---|
+| HEN / HEY | Verwaltungsratshonorar, Wohnsitz Ausland | Person wohnt im Ausland und erhält von einer CH-Gesellschaft ein VR-Honorar. Linearer Satz aus der Tarifdatei. Hat die Person daneben normalen Lohn, werden Lohn und VR-Honorar getrennt behandelt. |
+| MEN / MEY | Mitarbeiterbeteiligungen, Wohnsitz Ausland | Aktien/Optionen aus früherer CH-Tätigkeit werden nach dem Wegzug realisiert; der CH-Anteil wird mit linearem Satz besteuert. Bei uns praktisch nie, für Swissdec-Konformität trotzdem vorgesehen. |
+| NON / NOY | nicht quellensteuerpflichtig | Vor allem für **Korrekturen und Tarifmitteilungen**: ab dem Zeitraum, in dem keine QST mehr abzurechnen ist — z.B. C-Bewilligung, Heirat mit Schweizer/in bzw. C-Ausweis-Partner, Einbürgerung. In OneCrew beendet ein NON-Code die QST-Pflicht (bestehender Eintrag wird per Vortag geschlossen). Ein Schweizer MA bekommt **kein** NON — er ist schlicht nicht im QST-Verfahren. |
+| SFN | Sondervereinbarung Frankreich | Wohnsitz Frankreich, Kanton BE/BL/BS/JU/NE/SO/VD/VS, Voraussetzungen erfüllt (Ansässigkeitsbescheinigung, Grenzgängerregel): **keine CH-QST abziehen, QST-Lohn aber an den Kanton melden.** Nicht dasselbe wie «nicht pflichtig». |
+
+Wie OneCrew damit umgeht: Die Codes wählt niemand von Hand. OneCrew leitet
+sie aus der Situation ab — normale QST-Person → Buchstabe + Kinder + Y/N;
+VR-Honorar mit Wohnsitz Ausland → HEN/HEY; exportierte Beteiligung → MEN/MEY;
+Korrektur einer Periode ohne QST-Pflicht → NON/NOY; Frankreich-Grenzgänger im
+Sondervereinbarungskanton → SFN. Im MA-Profil erscheint eine verständliche
+Bezeichnung («Sonderkategorie: Frankreich-Grenzgänger»), der technische Code
+steht im QST-Datensatz und in der Swissdec-Meldung.
+
+**Wohnsitz Ausland und Arbeitstage Schweiz:** Bei Grenzgängern und
+internationalen Wochenaufenthaltern ist nur der Anteil der in der Schweiz
+geleisteten Arbeitstage steuerbar (Basis = Lohn × CH-Tage / effektive Tage);
+der Satz kommt weiterhin vom vollen satzbestimmenden Lohn. Die Tage werden pro
+Lohnmonat im Lohnbeleg erfasst (Box «Quellensteuer — Arbeitstage Schweiz»).
+
 ## 11 · Was OneCrew bewusst NICHT selbst entscheidet
 
 OneCrew automatisiert nur Tarife, die aus den Angaben eindeutig folgen.

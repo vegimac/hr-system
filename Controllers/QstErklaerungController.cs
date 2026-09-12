@@ -60,13 +60,23 @@ public class QstErklaerungController : ControllerBase
         if (erfassung != null)
         {
             tarifCode = erfassung.TarifCode;
+            var sonder = QstVordefinierteKategorie.Parse(erfassung.QstCode);
             var buchstabe = (erfassung.TarifCode ?? "").Trim().ToUpperInvariant();
             buchstabe = buchstabe.Length > 0 ? buchstabe[..1] : "";
-            kopf = $"Tarif {tarifCode} — so kommt dieser Code zustande.";
-
-            if (buchstabe.Length == 1) codes.Add($"tarif.{buchstabe}");
-            codes.Add(erfassung.AnzahlKinder > 0 ? "kinder.n" : "kinder.0");
-            codes.Add(erfassung.Kirchensteuer ? "kirche.Y" : "kirche.N");
+            if (sonder != null)
+            {
+                tarifCode = sonder.Value.Code;
+                kopf = $"Sonderkategorie {sonder.Value.Code} — kein Tarif A/B/C/H.";
+                codes.Add("sonder." + sonder.Value.Code);
+                codes.Add(erfassung.Kirchensteuer || sonder.Value.Code.EndsWith('Y') ? "kirche.Y" : "kirche.N");
+            }
+            else
+            {
+                kopf = $"Tarif {tarifCode} — so kommt dieser Code zustande.";
+                if (buchstabe.Length == 1) codes.Add($"tarif.{buchstabe}");
+                codes.Add(erfassung.AnzahlKinder > 0 ? "kinder.n" : "kinder.0");
+                codes.Add(erfassung.Kirchensteuer ? "kirche.Y" : "kirche.N");
+            }
 
             var ms = (emp.MaritalStatus ?? "").Trim().ToLowerInvariant();
             if (ms.Contains("getrennt") || emp.SeparatedSince.HasValue) codes.Add("lage.getrennt");
@@ -75,7 +85,7 @@ public class QstErklaerungController : ControllerBase
                 .AnyAsync(f => f.EmployeeId == employeeId && f.MemberType == "Konkubinatspartner" && f.DateOfDeath == null);
             if (hatKPartner || erfassung.LivesInKonkubinat) codes.Add("lage.konkubinat");
 
-            if (buchstabe == "A" && erfassung.AnzahlKinder > 0) codes.Add("lage.speziell_bewilligt");
+            if (sonder == null && buchstabe == "A" && erfassung.AnzahlKinder > 0) codes.Add("lage.speziell_bewilligt");
             if (erfassung.IsWochenaufenthalter) codes.Add("lage.wochenaufenthalt");
         }
         else
@@ -105,6 +115,34 @@ public class QstErklaerungController : ControllerBase
             .Select(t => new ErklaerungBaustein(t.Code, t.Titel, t.Text))
             .ToList();
 
+        foreach (var code in codes.Where(c => c.StartsWith("sonder.") && bausteine.All(b => b.Code != c)))
+        {
+            var sonderCode = code.Length > 7 ? code.Substring(7) : code;
+            var kat = await _db.QstSonderkategorien.AsNoTracking()
+                .FirstOrDefaultAsync(k => k.Code == sonderCode);
+            if (kat == null) continue;
+            bausteine.Insert(0, new ErklaerungBaustein(code, kat.Bezeichnung,
+                kat.Erklaerung + " " + kat.Automatik + (string.IsNullOrWhiteSpace(kat.Warnung) ? "" : " " + kat.Warnung)));
+        }
+
         return Ok(new ErklaerungResult(tarifCode, kopf, bausteine));
+    }
+
+    /// <summary>Wissens-Katalog Swissdec CategoryPredefined (kein A/B/C/H).</summary>
+    [HttpGet("/api/qst-sonderkategorien")]
+    public async Task<IActionResult> Katalog()
+    {
+        var kat = await _db.QstSonderkategorien.AsNoTracking().OrderBy(k => k.SortOrder).ToListAsync();
+        var saetze = await _db.QstSonderkategorieSaetze.AsNoTracking()
+            .Where(s => s.ValidTo == null).OrderBy(s => s.Gruppe).ThenBy(s => s.Kanton).ToListAsync();
+        return Ok(new
+        {
+            kategorien = kat.Select(k => new
+            {
+                k.Code, k.Gruppe, k.Bezeichnung, k.Erklaerung, k.Automatik, k.Warnung,
+                k.Kirchensteuer, k.AbzugArt
+            }),
+            saetze = saetze.Select(s => new { s.Code, s.Gruppe, s.Kanton, s.SatzPct, s.Quelle, s.ValidFrom, s.ValidTo })
+        });
     }
 }

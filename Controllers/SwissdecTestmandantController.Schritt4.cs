@@ -37,7 +37,7 @@ public partial class SwissdecTestmandantController
         var faelle = LeseTestfaelle(pfad);
         if (!string.IsNullOrWhiteSpace(nur))
         {
-            var set = nur.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => x.ToUpperInvariant()).ToHashSet();
+            var set = NurSet(nur)!;
             faelle = faelle.Where(f => set.Contains(f.Id.ToUpperInvariant())).ToList();
         }
 
@@ -204,7 +204,9 @@ public partial class SwissdecTestmandantController
             if (V("PersonPartnerLastname") != null)
             {
                 var pLand = LandCode(V("PersonPartnerCountry"));
-                felder["Partner"] = $"{V("PersonPartnerFirstname")} {V("PersonPartnerLastname")} ({Datum(V("PersonPartnerDateOfBirth")):dd.MM.yyyy}) · {V("PersonPartnerStreet")}, {NummerOhneKomma(V("PersonPartnerZIPCode"))} {V("PersonPartnerCity")} {pLand} {V("PersonPartnerResidenceCantonCH")}";
+                var tasBuchstabe = Regex.Match(V("PersonTASCode") ?? "", @"^([A-Z]{1,2})\d[YN]$").Groups[1].Value;
+                felder["Partner"] = $"{V("PersonPartnerFirstname")} {V("PersonPartnerLastname")} ({Datum(V("PersonPartnerDateOfBirth")):dd.MM.yyyy}) · {V("PersonPartnerStreet")}, {NummerOhneKomma(V("PersonPartnerZIPCode"))} {V("PersonPartnerCity")} {pLand} {V("PersonPartnerResidenceCantonCH")}"
+                    + (tasBuchstabe == "B" ? " · nicht erwerbstätig (Tarif B)" : tasBuchstabe == "C" ? " · erwerbstätig (Tarif C)" : "");
                 if (!vorschau)
                 {
                     var p = await _db.EmployeeFamilyMembers.FirstOrDefaultAsync(m => m.EmployeeId == emp.Id && m.MemberType == "Ehepartner")
@@ -213,7 +215,11 @@ public partial class SwissdecTestmandantController
                     p.DateOfBirth = Datum(V("PersonPartnerDateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
                     p.SocialSecurityNumber = V("PersonPartnerSVASNumber") == "unknown" ? null : V("PersonPartnerSVASNumber");
                     p.LivesInSwitzerland = pLand == "CH" || V("PersonPartnerResidenceCantonCH") != null;
+                    // Eigene Partner-Adresse = nicht im Haushalt des MA (Blanc: Riehen vs. Bern).
+                    p.LebtImHaushalt = V("PersonPartnerStreet") == null;
                     p.Gender = sex == "female" ? "male" : sex == "male" ? "female" : null;
+                    ErgaenzePartnerFuerQst(p, V("PersonTASCode"), V("PersonPartnerNationality"),
+                        V("PersonPartnerResidenceCategory"), natCode, nats, permits);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -395,6 +401,45 @@ public partial class SwissdecTestmandantController
         "romanCatholic" => "roemisch_katholisch", "reformedEvangelical" => "evangelisch_reformiert",
         "christianCatholic" => "christ_katholisch", "jewishCommunity" => "israelitisch", "otherOrNone" => "keine", _ => null,
     };
+
+    /// <summary>
+    /// Der Lohnlauf-Block «Ehepartner-Angaben unvollständig» bleibt unverändert.
+    /// Swissdec liefert oft nur Name/Adresse + den offiziellen TAS-Code — daraus
+    /// füllen wir die Pflichtfelder (Erwerbstätig aus B/C). Nationalität CH nie
+    /// erfinden: das wäre eine Ehegatten-Befreiung und würde die QST streichen.
+    /// </summary>
+    private static void ErgaenzePartnerFuerQst(
+        EmployeeFamilyMember p,
+        string? tasCode,
+        string? partnerNatRoh,
+        string? partnerPermitRoh,
+        string? maNatCode,
+        IReadOnlyList<Nationality> nats,
+        IReadOnlyList<PermitType> permits)
+    {
+        var m = Regex.Match(tasCode ?? "", @"^([A-Z]{1,2})\d[YN]$");
+        var tarif = m.Success ? m.Groups[1].Value : null;
+        if (p.Erwerbstaetig == null && tarif == "B") p.Erwerbstaetig = false;
+        if (p.Erwerbstaetig == null && tarif == "C") p.Erwerbstaetig = true;
+
+        if (p.NationalityId == null)
+        {
+            var code = partnerNatRoh;
+            if (string.IsNullOrWhiteSpace(code)
+                && !string.Equals(maNatCode, "CH", StringComparison.OrdinalIgnoreCase))
+                code = maNatCode;
+            if (!string.IsNullOrWhiteSpace(code))
+                p.NationalityId = nats.FirstOrDefault(n => n.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+
+        var natIstCh = p.NationalityId != null
+            && nats.Any(n => n.Id == p.NationalityId && n.Code.Equals("CH", StringComparison.OrdinalIgnoreCase));
+        if (p.LivesInSwitzerland && !natIstCh && p.PermitTypeId == null)
+        {
+            var pc = MapPermit(partnerPermitRoh, out _) ?? "B";
+            p.PermitTypeId = permits.FirstOrDefault(x => x.Code.Equals(pc, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+    }
 
     private static string? MapPermit(string? s, out string? hinweis)
     {

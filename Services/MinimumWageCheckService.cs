@@ -67,6 +67,16 @@ public class MinimumWageCheckService
             .AnyAsync();
     }
 
+    /// <summary>
+    /// Echter 0-Beleg ohne Vertragslohn: erlaubt, wenn der MA nicht L-GAV-
+    /// pflichtig ist (Honorar / Verwaltungsrat / Swissdec NoTimeConstraint).
+    /// Muster AG TF39 Hasler Jan 2025: Eintritt, Honorar erst im April —
+    /// Swissdec erwartet die Person mit 0 in der Monatsmeldung, nicht «raus».
+    /// Bei L-GAV (Schaub-Crew) bleibt die Sperre: leerer Vertrag = Lohn fehlt.
+    /// (Walter 11.09.2026)
+    /// </summary>
+    public static bool IstNullBelegErlaubt(bool lgavPflichtig) => !lgavPflichtig;
+
     public async Task<MinWageCheckResult> CheckAsync(
         string? jobGroupCode,
         string? educationLevelCode,

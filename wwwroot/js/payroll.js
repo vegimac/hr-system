@@ -36,6 +36,41 @@ async function lzInit(empId, compId, year, month) {
 
     await lzLoad();
     await lzLoadDepotRefund();
+    await lzLoadQstTage();
+}
+
+/** QST-Arbeitstage CH (Wohnsitz Ausland) — Box im Zulagen-Panel (Walter 11.09.2026). */
+async function lzLoadQstTage() {
+    const box = document.getElementById('lohnQstTageBox');
+    if (!box) return;
+    box.style.display = 'none'; box.innerHTML = '';
+    const empId = _lzCurrentEmpId; const y = _lzCurrentYear, m = _lzCurrentMonth;
+    if (!empId || !y || !m) return;
+    try {
+        const r = await fetch(`/api/payroll/qst-arbeitstage?employeeId=${empId}&year=${y}&month=${m}`, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (!d.relevant) return;
+        const eff = d.tageEffektiv ?? '', ch = d.tageCh ?? '';
+        box.innerHTML = `
+            <div style="font-weight:700;margin-bottom:4px">Quellensteuer — Arbeitstage Schweiz</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Wohnsitz im Ausland: steuerbar ist nur der Anteil der in der Schweiz geleisteten Arbeitstage. Leer = voller Lohn steuerbar.</div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <label style="font-size:12px">CH <input id="lzQstTageCh" type="number" min="0" max="31" step="0.5" value="${ch}" style="width:64px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px"></label>
+                <label style="font-size:12px">von <input id="lzQstTageEff" type="number" min="0" max="31" step="0.5" value="${eff}" style="width:64px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px"> Tagen</label>
+                <button class="btn btn-sm" onclick="lzSaveQstTage()" style="font-size:12px">Speichern</button>
+            </div>`;
+        box.style.display = 'block';
+    } catch (e) { /* Box bleibt zu */ }
+}
+async function lzSaveQstTage() {
+    const empId = _lzCurrentEmpId; const y = _lzCurrentYear, m = _lzCurrentMonth;
+    const eff = parseFloat(document.getElementById('lzQstTageEff')?.value || '0') || 0;
+    const ch  = parseFloat(document.getElementById('lzQstTageCh')?.value || '0') || 0;
+    const r = await fetch(`/api/payroll/qst-arbeitstage?employeeId=${empId}&year=${y}&month=${m}`,
+        { method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ tageEffektiv: eff, tageCh: ch }) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || 'Speichern fehlgeschlagen.'); return; }
+    if (typeof loadLohnSlipFromPanel === 'function') loadLohnSlipFromPanel();
 }
 
 /** MA-Cache aus loadLohnList (u.a. exitDate für Depot-UI). */
@@ -65,6 +100,13 @@ async function lzLoadDepotRefund() {
     if (!empId) return;
     // Aktive MA ohne Austritt: Abzug läuft still im Slip, keine Refund-Buttons
     if (!_lzIsExitOrLastPayroll(empId)) return;
+    // Filial-Schalter «Uniform-Depot» aus → kein Depot-Strang, keine Box (Walter 11.09.2026)
+    try {
+        const cidRaw = document.getElementById('lohnBranchSelect')?.value;
+        const cid = parseInt(cidRaw, 10) || (typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null);
+        const br = (typeof allBranches !== 'undefined' ? allBranches : []).find(b => b.id === cid);
+        if (br && br.uniformDepotAktiv === false) return;
+    } catch (e) { /* Fallback: Box wie bisher */ }
     try {
         const res = await fetch(`/api/employees/${empId}/uniform-depot`, { headers: ah(), cache: 'no-store' });
         if (!res.ok) return;
@@ -348,11 +390,13 @@ async function setDefaultLohnPeriode(companyProfileId) {
     const now = new Date();
     let defMonth = now.getMonth() + 1;
     let defYear  = now.getFullYear();
+    const periodenJahre = new Set();   // alle Jahre mit Lohnperioden dieser Filiale (Walter 11.09.2026)
     if (companyProfileId) {
         try {
             const r = await fetch(`/api/payroll-perioden?companyProfileId=${companyProfileId}`, { headers: ah() });
             if (r.ok) {
                 const arr = await r.json();
+                (arr || []).forEach(p => { if (p.year) periodenJahre.add(p.year); });
                 const open = (arr || []).filter(p => p.status !== 'abgeschlossen');
                 if (open.length > 0) {
                     open.sort((a, b) => (a.year - b.year) || (a.month - b.month));
@@ -366,7 +410,10 @@ async function setDefaultLohnPeriode(companyProfileId) {
     const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
     monthSel.innerHTML = monthNames.map((m,i) =>
         `<option value="${i+1}" ${i+1 === defMonth ? 'selected' : ''}>${m}</option>`).join('');
-    const yearSet = new Set([now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1, defYear]);
+    // Jahre frei wählbar (Walter 11.09.2026): drei Jahre zurück bis ein Jahr voraus,
+    // plus alle Jahre mit Perioden — so lässt sich jede Filiale/jeder Monat anschauen,
+    // auch ohne bestehende Periode.
+    const yearSet = new Set([now.getFullYear()-3, now.getFullYear()-2, now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1, defYear, ...periodenJahre]);
     const years   = [...yearSet].sort((a,b) => a - b);
     yearSel.innerHTML = years.map(y =>
         `<option value="${y}" ${y === defYear ? 'selected' : ''}>${y}</option>`).join('');
@@ -1139,11 +1186,14 @@ function showLohnVertragInfo(emp) {
     const periodMonth = parseInt(document.getElementById('lohnMonthSelect')?.value) || (new Date().getMonth() + 1);
     const periodStart = new Date(periodYear, periodMonth - 1, 1);
     let alterStr = '–';
+    let gebStr = '–';
     if (emp.dateOfBirth) {
-        const dob = new Date(emp.dateOfBirth);
-        let age = periodStart.getFullYear() - dob.getFullYear();
-        if (periodStart.getMonth() < dob.getMonth()
-            || (periodStart.getMonth() === dob.getMonth() && periodStart.getDate() < dob.getDate())) {
+        const dobIso = String(emp.dateOfBirth).slice(0, 10);
+        gebStr = dobIso.slice(8, 10) + '.' + dobIso.slice(5, 7) + '.' + dobIso.slice(0, 4);
+        const [jy, jm, jd] = dobIso.split('-').map(Number);
+        let age = periodStart.getFullYear() - jy;
+        if (periodStart.getMonth() + 1 < jm
+            || (periodStart.getMonth() + 1 === jm && periodStart.getDate() < jd)) {
             age--;
         }
         alterStr = `${age} J. (am ${periodStart.toLocaleDateString('de-CH')})`;
@@ -1166,6 +1216,7 @@ function showLohnVertragInfo(emp) {
             ${contract.guaranteedHoursPerWeek ? `<div>Garantiert: <b style="color:#374151">${contract.guaranteedHoursPerWeek} h/Wo</b></div>` : ''}
             ${contract.employmentPercentage ? `<div>Pensum: <b style="color:#374151">${contract.employmentPercentage}%</b></div>` : ''}
             <div>Vertrag seit: <b style="color:#374151">${fmt(contract.contractStartDate)}</b></div>
+            <div title="Geburtsdatum — für AHV 21 / Referenzalter massgebend, nicht nur das Kalenderalter">Geburtsdatum: <b style="color:#374151">${gebStr}</b></div>
             <div title="Alter zum Periodenbeginn — relevant für Ferienanspruch (5/6 Wochen) und Alters-Mindestlöhne">Alter: <b style="color:#374151">${alterStr}</b></div>
             ${pzInPeriode ? `<div style="color:#92400e">Probezeit bis: <b>${fmt(contract.probationEndDate)}</b></div>` : ''}
         </div>`;
@@ -1628,6 +1679,7 @@ function renderLohnSlip(s, targetEl) {
                     <td class="ls-amt" style="color:#dc2626">${fmt(s.totalAbzuege)}</td>
                 </tr>
                 ${s.usingDefaultDeductions ? `<tr><td colspan="6" style="font-size:10px;color:#92400e;padding:2px 8px 6px">⚠ Standardsätze AHV 5.3 % / ALV 1.1 % – bitte unter Filialen &gt; Abzüge konfigurieren</td></tr>` : ''}
+                ${(s.qstHinweise || []).map(h => `<tr><td colspan="6" style="font-size:11px;color:#92400e;padding:4px 8px 6px;line-height:1.4">⚠ ${String(h).replace(/</g,'&lt;')}</td></tr>`).join('')}
                 ` : ''}
 
                 <tr><td colspan="6" style="height:3px"></td></tr>

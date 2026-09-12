@@ -21,6 +21,16 @@ public class QstKonfessionSyncTests
         Assert.Equal(expected, code);
     }
 
+    [Theory]
+    [InlineData("MEY", true,  "MEY")]
+    [InlineData("MEY", false, "MEN")]
+    [InlineData("HEN", true,  "HEY")]
+    [InlineData("NON", true,  "NON")]
+    public void RebuildQstCode_LaesstVordefinierteKategorie(string previous, bool kirche, string expected)
+    {
+        Assert.Equal(expected, QstKonfessionSyncService.RebuildQstCode(null, 0, kirche, previous));
+    }
+
     [Fact]
     public void ChristKatholisch_IstKirchensteuerPflichtig()
     {

@@ -451,14 +451,16 @@ public class AkontoWorkflowController : HrControllerBase
             // Lohnsumme-fehlt-Sperre (Walter-Vorgabe 21.05.2026): gültiger Vertrag
             // ohne Lohnsumme → 0 Lohn. Hart gesperrt, rule-unabhängig. Analog
             // zur Definitiv-Sperre in PayrollController.ConfirmPayroll.
+            var mwMa = await _db.Employees.Where(e => e.Id == z.EmployeeId)
+                .Select(e => new { e.DateOfBirth, e.LgavPflichtig }).FirstOrDefaultAsync();
             if (MinimumWageCheckService.IsLohnsummeMissing(
                     mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate)
-                && !await _minWage.HatLohnzeilenAsync(z.EmployeeId, z.PeriodYear, z.PeriodMonth))
+                && !await _minWage.HatLohnzeilenAsync(z.EmployeeId, z.PeriodYear, z.PeriodMonth)
+                && !MinimumWageCheckService.IstNullBelegErlaubt(mwMa?.LgavPflichtig ?? true))
                 return StatusCode(409, new { error = "LOHNSUMME_FEHLT",
                     message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Akonto-Lohnlauf freigegeben wird." });
 
-            var mwDob = await _db.Employees.Where(e => e.Id == z.EmployeeId)
-                .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
+            var mwDob = mwMa?.DateOfBirth;
             var mwChk = await _minWage.CheckAsync(
                 mwEmp.JobGroup?.Code, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,

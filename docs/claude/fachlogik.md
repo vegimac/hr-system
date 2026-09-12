@@ -16,11 +16,13 @@
 
 ### Lohnsumme-fehlt-Sperre mit Lohnzeilen (Walter 09.09.2026, Muster AG TF16)
 - Die Sperre «Vertrag ohne Lohnsumme» (Bestätigen, Akonto-Freigabe, check-period-Banner) greift nur, wenn der MA in der Periode auch keine AHV-pflichtigen Lohnzeilen > 0 hat (`MinimumWageCheckService.HatLohnzeilenAsync`). Honorar-/Bonus-/Sitzungsgeld-Fälle mit Vertragslohn 0 sind damit bestätigbar; der Schutz vor 0-Lohn mit lauter Abzügen bleibt.
+- **0-Beleg ohne Lohnzeilen** (Walter 11.09.2026, Muster AG TF39 Hasler Jan): Verwaltungsrat / NoTimeConstraint ohne Sitzungsgeld in diesem Monat. Swissdec führt die Person in der Monatsmeldung mit TaxableEarning 0 (Eintritt), nicht «MA raus». Sperre greift dann nicht, wenn `LgavPflichtig = false` (`IstNullBelegErlaubt`). Schaub-Crew (L-GAV ja) bleibt gesperrt, bis ein Lohn im Vertrag steht. Honorar kommt bei Hasler erst im April (Lohnart 1500).
 
 ### QST Kurzmonat & Tarifstufe (Walter 09.09.2026, Muster AG TF37)
 - Tarifjahr = Jahr der Lohnperiode (`jahr: periodFrom.Year`), nie das Rechen-Datum. Fehlt die Datei des Jahres, nimmt `QuellensteuerTarifService` das nächstliegende geladene Jahr (−1…−3, dann +1…+3).
 - ESTV-Stufe 1045 = 10'450.01–10'500.00 («10'451–10'500»): Lookup mit `(floor(Lohn) − 1) / 10` → 10'500 gehört zur Stufe 1045.
 - Kurzmonat (Ein-/Austritt): satzbestimmend werden Monatslohn UND periodische Zulagen (Kinder-/Ausbildungs-/Haushaltszulage, `IstPeriodischeZulage`: 190.1/190.2 bzw. Swissdec 3000/3010/3030) auf den vollen Monat hochgerechnet; 13. ML, Geburtszulage, Schlussabrechnung nicht. TF37 Nov 2024: 5'000 + 250 → Satz bei 10'500 = 11.74 % × 5'250 = 616.35.
+- Nebenerwerb (Walter 12.09.2026, TF28): dieselbe Trennung — hochrechnen nur periodischer Lohn; Bonus/Provision/VR bleiben 1:1 (`einmaligNichtHochrechnen`). 6'000 (60 %) + 20 % andere AG + Bonus 20'000 → Satzbasis 8'000 + 20'000 = 28'000.
 
 ### Arbeitszeit dezimal (Walter 09.09.2026, Swissdec-Hinweis)
 - Wochenstunden dezimal mit Hundertsteln (z.B. 42.3, 41.25): Filiale «Normale Wochenstunden» editierbar in Einstellungen → Arbeitszeit (PATCH `max-weekly-hours` mit `normalWeeklyHours`, Backend rundet auf 2 Stellen, 1–168); Vertrag «Wochenstunden»/«Lektionen» step 0.01. Nie Stunden:Minuten (42:18), immer Dezimalstunden.
@@ -298,6 +300,12 @@ Der frühere kombinierte Tab „Absenzen Zulagen Abzüge" ist jetzt in zwei sepa
 - Keine Rechenlogik nötig: AkontoStatus bleibt OFFEN, das gilt für Sperren/Reihenfolge/Definitiv bereits als erledigt (`AkontoDefinitivGuard.IsAkontoStrangFertig`).
 - Ausschalten wird abgelehnt (400), solange eine nicht abgeschlossene Periode der Filiale im Akonto-Zwischenstatus steht. «Auf alle Filialen übertragen» kopiert den Schalter bewusst nicht.
 
+### Ferien-% nach Alter — Filiale, kein neues Feld (Walter 12.09.2026, Swissdec TF02)
+- Bereits vorhanden: `DefaultVacationPercent5Weeks` / `DefaultVacationPercent6Weeks` / `VacationSixWeeksFromAge`. Engine setzt den erhöhten Satz, sobald der X-te Geburtstag ≤ Periodenende.
+- **Schaub:** 10.65 % / 13.04 % ab 50 (L-GAV). Unverändert.
+- **Muster AG (Schritt 5a + Schema-Stand 9):** 8.33 % (20 Tage) bis 59, **13.04 % ab 60** (30 Tage, `CompanyVacationEntitlement60`). CSV TF02 Paganini 1160 = 4'500 × 13.04 % = 586.80 — nicht 8.33 %. Kein drittes Band für 25 Tage ab 50 (FLEX springt 8.33 → 13.04).
+- **Lektionenlohn 1006:** Flags Ferien + Feiertag + 13. ML (gleiche %-Kaskade wie Stundenlohn; eine Zeile, Summe = CSV 1160+1162 / 1161+1163 / 1201+1202). **Schicht 1070:** nicht 13.-ML-Basis (CSV ohne Schicht in 1201, Katalog ml13 bewusst überschrieben).
+
 ### Ferienentschädigung monatlich auszahlen (Filial-Schalter, Walter 08.09.2026)
 - `CompanyProfile.FerienAuszahlungMonatlich` (`ferien_auszahlung_monatlich`, Default false). Filial-Ebene bewusst: «alle oder keiner». Swissdec-Testmandant: true (Schritt 5a).
 - Engine (MTP- und UTP-Block): bei true `betrag = ferienEnt`, `totalLohn += ferienEnt`, `AddAmount(code)` (Flag-Basen 13. ML etc.), in den Pott geht 0 (`ferienEntPott` / CalcFerienGeld mit 0). Ferientage-Gutschrift läuft weiter; ein bestehender Pott-Saldo bleibt und wird wie bisher (Bezug/Dezember/Austritt) ausbezahlt.
@@ -442,3 +450,36 @@ Ferien-TAGE laufen immer weiter (Egli +2.92 trotz %-Entschädigung ist gewollt).
 ## Uniform-Depot als Filial-Schalter (Walter 10.09.2026)
 
 `CompanyProfile.UniformDepotAktiv` (boolean NOT NULL DEFAULT true, Schema-Stand 4). Bei false legt der Lohnlauf (`PayrollCalculationEngine` vor `EnsureChargeAsync`) und das Nachziehen pro Periode (`UniformDepotService.EnsureChargesForPeriodAsync`) keinen CHF-50-Abzug (600.32) mehr an; bestehende Depots und deren Rückerstattung bleiben unverändert. UI: Filial-Einstellungen, Sektion «Uniform-Depot» direkt nach L-GAV-Vollzugsbeitrag; PATCH `/api/companyprofiles/{id}/uniform-depot`. Muster AG (5a): false.
+
+## Nachzahlung nach Austritt — SV der Austrittsperiode zurechnen (Walter 11.09.2026)
+
+Korrekturlohn für Ausgetretene (`CalculateCorrectionAsync`), wenn der Austritt vor der Lohnperiode liegt: Art. 30ter Abs. 3 AHVV — der nach dem Austritt ausbezahlte Lohn gilt als in der Anstellungsperiode erzielt. Deshalb:
+- Alter/Referenzalter, SV-Sätze, ALV-Pflicht und Versicherungscodes per **Austrittsmonat** (kein Rentnerfreibetrag, wenn das Referenzalter erst nach dem Austritt erreicht wird).
+- Höchstlöhne (ALV/ALVZ/UVG/UVGZ/KTG) als Jahresausgleich über die **Anstellungsmonate des Austrittsjahres** (`ausgleichMonate`) abzüglich der dort schon verbeitragten Basen (Snapshots `SvBasisAhv` der Anstellung **plus** frühere Nachzahlungs-Snapshots nach dem Austritt). Zeilen tragen «(Nachzahlung, Austrittsjahr yyyy)».
+- Eine spätere Korrektur darf die gedeckelte Basis **unter 0** drücken (Rückerstattung). `kumTotal − kumBisher` nicht auf 0 flooren.
+- Kein BVG (Versicherung endete mit dem Austritt).
+Referenz Swissdec TF07 Burri: Jan 2025 Überzeit 15'000 → AHV 15'000, ALV 8'700 + ALVZ 6'300, UVG/UVGZ 8'700, KTG 4'000. Feb 2025 Taggeld-Paar 9'500/−9'500 → Nachzahlungs-AHV 5'500, ALV/NBU Januar anteilig zurück (YTD inkl. Jan-Snapshot). Meldeperiode im ELM (2024-11-01–2024-12-31) ist ein späteres Thema.
+
+## Höchstlöhne kumuliert (Aufrollmethode) — jeden Monat, Teilmonate anteilig (Walter 11.09.2026)
+
+Bisher: flache Monatsdeckelung (12'350) und nur im Dezember ein Jahresausgleich gegen 12 × Maximum. Neu gemäss Swissdec-Richtlinien (RefXML TF16 Aebi Dez 2024, Austritt 20.12.): kumulierter Höchstlohn = Σ Monatsmaxima der **in OneCrew abgerechneten** Beschäftigungsmonate, Teilmonate anteilig auf **30-Tage-Basis** (Jahresmaximum / 360 × Tage). Pflichtig kumuliert = min(kum. AHV-Lohn, kum. Höchstlohn) − Band «von» × Monate; Periode = Differenz zur Vorperiode (`BuildResult`: `ausgleichMonate` / `ausgleichMonateBisher`, Helfer `PayrollCalculations.BeschaeftigungsMonate`). Gilt für ALV/ALVZ, UVG/UVGZ, KTG; BVG bleibt flach. Label «(kumuliert)» nur, wenn sich gegenüber der flachen Deckelung etwas ändert. Monate ohne OneCrew-Snapshot (vor Einführung) zählen nicht mit → kein Spielraum aus unbekannter Vergangenheit.
+Beispiel Aebi: Nov 12'958.35 → ALV 12'350 + ALVZ 608.35; Dez 9'395 bei Höchstlohn 20/30 × 12'350 = 8'233.33 → ALV 8'233.33, ALVZ 1'161.67 (Swissdec 8'233.35 / 1'161.65).
+
+## QST bei Wohnsitz Ausland: Arbeitstage Schweiz (Walter 11.09.2026)
+
+Grenzgänger / internationale Wochenaufenthalter (QST-Eintrag mit `Wohnsitzstaat ≠ CH`, `WohnsitzAusland` oder `IsGrenzgaenger`): steuerbar ist nur der Anteil der in der Schweiz geleisteten Arbeitstage — QST-Basis = Bruttolohn × TageCH / TageEffektiv; der **Satz** bleibt auf dem vollen satzbestimmenden Lohn (inkl. Nebenerwerb-Hochrechnung). Tabelle `employee_qst_arbeitstage` (Schema-Stand 6, pro MA/Jahr/Monat), API `GET/PUT /api/payroll/qst-arbeitstage`, Erfassung im Lohnbeleg-Panel (Box «Quellensteuer — Arbeitstage Schweiz», nur bei Wohnsitz Ausland). Lohnzeile: «Quellensteuer A0Y BE (15 von 20 Arbeitstagen CH)», Basis = steuerbarer Anteil (`DeductionRule.BasisOverride`). 5b importiert `PersonEffectiveWorkingDays` / `PersonWorkingDaysCH` pro Monat.
+Referenz Swissdec TF28 Arbenz Jan 2025: 6'000 brutto, 15/20 Tage → TaxableEarning 4'500, satzbestimmend 8'000 (60 % + 20 % Nebenerwerb), QST 659.70.
+Nebenerwerb-Hochrechnung gilt nur für Monats-/Stundenlohn und periodische Zulagen (Kinder etc.). Einmalige Zulagen (Bonus, Verbesserungsvorschläge, Provision, VR-Honorar) zählen satzbestimmend **1:1**, ohne × Gesamtpensum/Eigen. TF28 Arbenz Feb 2025: 6'000 × 80/60 + 20'000 = **28'000**, nicht 26'000 × 80/60.
+
+## QST-Sonderkategorien HEN/HEY · MEN/MEY · NON/NOY · SFN (Walter 11.09.2026)
+
+Swissdec `CategoryPredefined` — **nicht** in die Tarifauswahl A/B/C/H mischen und **nicht** ESTV-Tarif M (Kapitalleistung 4.5 %, Grenzgänger-DE). Letzte Stelle: N = ohne Kirchensteuer, Y = mit.
+
+| Code | Bedeutung | OneCrew |
+|---|---|---|
+| HEN / HEY | VR-Honorar, Wohnsitz Ausland | Automatik nur bei Lohnart 1500 ohne normalen Lohn; sonst Amt. Satz nur wenn hinterlegt. |
+| MEN / MEY | exportierte Mitarbeiterbeteiligungen nach Wegzug | Automatik nur bei Lohnart 1960 ohne normalen Lohn; gemischt → Amt. Satz aus Amts-Merkblatt (nicht ESTV-Datei). |
+| NON / NOY | nicht QST-pflichtig | **nur Korrektur**. Kein Status «MA nicht pflichtig» (dafür CH/C/Ehepartner + Version schliessen). |
+| SFN | Sondervereinbarung Frankreich | Nur mit Bescheinigung + Grenzgängerregel (BE/BS/BL/JU/NE/SO/VD/VS). Ohne Nachweis: ordentlich, ROT. |
+
+**Daten:** Wissen in `qst_sonderkategorie`. Sätze in `qst_sonderkategorie_satz` mit **gültig von/bis** — Quelle ESTV Satzart 11 aus `tar{JJ}{kt}.txt` (Start + Tarif-Import + Cache neu laden). Pflege unter Systemeinstellungen → Quellensteuer-Tarife (Tabelle unter den geladenen Dateien). Neue Jahresdatei schliesst die Vorjahreszeile per Vortag. Handpflege (Quelle ohne Prefix `ESTV `) bleibt; ESTV-Zeilen nur Gültig-bis oder «Neu ab». Lookup: Code + Kanton + Stichtag der Lohnperiode. Unbekannt = kein Satz, Amt fragen. Referenz TF30 Müller Jan 2025: 1960 5'500, MEY BE 29.5 % → 1'622.50. TF39 Hasler Apr: HEY BE 23 % auf 10'000.

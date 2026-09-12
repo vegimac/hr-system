@@ -51,7 +51,7 @@ public partial class SwissdecTestmandantController
         var alle = LeseMutationen(pfad);
         DateOnly? nurMonat = null;
         if (!string.IsNullOrWhiteSpace(monat) && DateOnly.TryParseExact(monat.Trim() + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mm)) nurMonat = mm;
-        var nurSet = string.IsNullOrWhiteSpace(nur) ? null : nur.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => x.ToUpperInvariant()).ToHashSet();
+        var nurSet = NurSet(nur);
         var auswahl = alle.Where(m => (nurMonat == null || m.Monat == nurMonat) && (nurSet == null || nurSet.Contains(m.Fall.Split(' ')[0].ToUpperInvariant()))).ToList();
 
         var aktionen = new List<Aktion>();
@@ -60,6 +60,7 @@ public partial class SwissdecTestmandantController
         if (hs == null) return BadRequest(new { error = "SCHRITT1_FEHLT", message = "Zuerst Schritt 1." });
         var filialen = await _db.CompanyProfiles.Where(c => c.HauptsitzId == hs.Id).ToListAsync();
         var permits = await _db.PermitTypes.AsNoTracking().ToListAsync();
+        var nats = await _db.Nationalities.AsNoTracking().ToListAsync();
         var monate = auswahl.Select(m => m.Monat).Distinct().OrderBy(x => x).ToList();
         int gruppen = 0;
 
@@ -154,10 +155,36 @@ public partial class SwissdecTestmandantController
                 }
             }
             if (Hat("PersonDepartureDate")) { stamm.Add($"Wegzug aus der Schweiz per {Datum(V("PersonDepartureDate")):dd.MM.yyyy} (QST-Wirkung mit der Adressmutation)"); }
-            if (Hat("PersonEntryDate") && !Hat("PersonWithdrawalDate"))
+            // Wiedereintritt (Walter 11.09.2026, TF16 Aebi: Austritt 20.12.2024, Wiedereintritt 15.01.2025):
+            // neuer Vertragsabschnitt ab dem Wiedereintritt (Kopie des letzten), der alte Vertrag
+            // bleibt per Austritt beendet — auch wenn im selben Monat «Austritt → leer» kommt.
+            var wiedereintritt = Hat("PersonEntryDate") ? Datum(V("PersonEntryDate")) : null;
+            var letzterVertrag = emp.Employments.OrderByDescending(x => x.ContractStartDate).FirstOrDefault();
+            bool istWiedereintritt = wiedereintritt.HasValue && letzterVertrag != null
+                && wiedereintritt.Value.ToDateTime(TimeOnly.MinValue) > letzterVertrag.ContractStartDate
+                && (letzterVertrag.ContractEndDate.HasValue || emp.ExitDate.HasValue);
+            if (wiedereintritt.HasValue)
             {
-                var d = Datum(V("PersonEntryDate")); stamm.Add($"Wiedereintritt {d:dd.MM.yyyy}");
-                if (!vorschau && d != null) { emp.EntryDate = d.Value.ToDateTime(TimeOnly.MinValue); emp.ExitDate = null; emp.KuendigungPer = null; emp.IsActive = true; }
+                var d = wiedereintritt; stamm.Add($"Wiedereintritt {d:dd.MM.yyyy}" + (istWiedereintritt ? " (neuer Vertragsabschnitt)" : ""));
+                if (!vorschau && d != null)
+                {
+                    if (istWiedereintritt && letzterVertrag != null && !emp.Employments.Any(x => x.ContractStartDate.Date == d.Value.ToDateTime(TimeOnly.MinValue).Date))
+                    {
+                        var vorher = letzterVertrag;
+                        vorher.ContractEndDate ??= emp.ExitDate ?? d.Value.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+                        var neuV = new Employment
+                        {
+                            EmployeeId = emp.Id, CompanyProfileId = vorher.CompanyProfileId, EmploymentModel = vorher.EmploymentModel, SalaryType = vorher.SalaryType,
+                            ContractStartDate = d.Value.ToDateTime(TimeOnly.MinValue), ContractEndDate = null, JobTitle = vorher.JobTitle, JobGroupId = vorher.JobGroupId,
+                            ContractType = vorher.ContractType, EducationLevelCode = vorher.EducationLevelCode, EmploymentPercentage = vorher.EmploymentPercentage,
+                            WeeklyHours = vorher.WeeklyHours, GuaranteedHoursPerWeek = vorher.GuaranteedHoursPerWeek, LessonRate = vorher.LessonRate, WeeklyLessons = vorher.WeeklyLessons,
+                            TeilzeitUnter8hWoche = vorher.TeilzeitUnter8hWoche, MonthlySalaryFte = vorher.MonthlySalaryFte, MonthlySalary = vorher.MonthlySalary, HourlyRate = vorher.HourlyRate,
+                            EasyAtWorkManualOverride = true, VacationPaymentMode = vorher.VacationPaymentMode, IsActive = true, ThirteenthSalary = vorher.ThirteenthSalary,
+                        };
+                        _db.Employments.Add(neuV); emp.Employments.Add(neuV);
+                    }
+                    emp.EntryDate = d.Value.ToDateTime(TimeOnly.MinValue); emp.ExitDate = null; emp.KuendigungPer = null; emp.KuendigungAusgesprochenAm = null; emp.IsActive = true;
+                }
             }
             if (stamm.Count > 0) felder["Person"] = string.Join(" · ", stamm);
             if (!vorschau) await _db.SaveChangesAsync();
@@ -183,6 +210,11 @@ public partial class SwissdecTestmandantController
                         var pw = V("PersonPartnerWorkplace"); if (pw != null) { p.ArbeitgeberOrt = pw.Length > 2 ? pw : null; p.ArbeitgeberKanton = pw.Length == 2 ? pw : p.ArbeitgeberKanton; }
                     }
                     p.Gender = emp.Gender == "female" ? "male" : emp.Gender == "male" ? "female" : p.Gender;
+                    var tas = V("PersonTASCode") ?? (await _db.EmployeeQuellensteuer.AsNoTracking()
+                        .Where(q => q.EmployeeId == emp.Id && q.ValidFrom <= tag1 && (q.ValidTo == null || q.ValidTo >= tag1))
+                        .OrderByDescending(q => q.ValidFrom).Select(q => q.QstCode).FirstOrDefaultAsync());
+                    ErgaenzePartnerFuerQst(p, tas, V("PersonPartnerNationality"), V("PersonPartnerResidenceCategory"),
+                        emp.Nationality, nats, permits);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -211,12 +243,23 @@ public partial class SwissdecTestmandantController
             if (Hat("PersonWithdrawalDate"))
             {
                 var d = Datum(V("PersonWithdrawalDate"));
-                felder["Austritt"] = d == null ? "Austritt zurückgenommen" : $"per {d:dd.MM.yyyy}";
+                felder["Austritt"] = d == null ? (istWiedereintritt ? "Austritt aufgehoben (Wiedereintritt)" : "Austritt zurückgenommen") : $"per {d:dd.MM.yyyy}";
                 if (!vorschau)
                 {
-                    emp.ExitDate = d?.ToDateTime(TimeOnly.MinValue); emp.KuendigungPer = emp.ExitDate;
-                    emp.KuendigungAusgesprochenAm = d == null ? null : mon.AddDays(-1).ToDateTime(TimeOnly.MinValue);
-                    if (aktiv != null) aktiv.ContractEndDate = emp.ExitDate;
+                    if (d != null)
+                    {
+                        emp.ExitDate = d.Value.ToDateTime(TimeOnly.MinValue); emp.KuendigungPer = emp.ExitDate;
+                        emp.KuendigungAusgesprochenAm = mon.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+                        // Vertrag, der am Austrittstag gilt, per Austritt beenden
+                        var amAustritt = emp.Employments.Where(x => x.ContractStartDate <= emp.ExitDate.Value).OrderByDescending(x => x.ContractStartDate).FirstOrDefault() ?? aktiv;
+                        if (amAustritt != null) amAustritt.ContractEndDate = emp.ExitDate;
+                    }
+                    else if (!istWiedereintritt)
+                    {
+                        // Austritt zurückgenommen (kein Wiedereintritt): Vertrag wieder öffnen
+                        emp.ExitDate = null; emp.KuendigungPer = null; emp.KuendigungAusgesprochenAm = null;
+                        if (aktiv != null) aktiv.ContractEndDate = null;
+                    }
                     await _db.SaveChangesAsync();
                 }
             }

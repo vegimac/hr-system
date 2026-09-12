@@ -50,9 +50,9 @@ public partial class SwissdecTestmandantController
         {
             var felder = new Dictionary<string, string?>
             {
-                ["Ferien % Standard"] = "8.33 (4 Wochen)", ["Ferien % erhöht"] = "8.33 · erhöht ab Alter 99 (nie)",
+                ["Ferien % Standard"] = "8.33 (4 Wochen / 20 Tage)", ["Ferien % erhöht"] = "13.04 · erhöht ab Alter 60 (6 Wochen / 30 Tage)",
                 ["Feiertag %"] = "4.00", ["13. ML %"] = "8.33 · Auszahlung Dezember (Stundenlohn monatlich)",
-                ["Ferienwochen"] = "4", ["Wochenstunden"] = "42",
+                ["Ferienwochen"] = "4 Standard / 6 ab Alter 60", ["Wochenstunden"] = "42",
                 ["Akonto-Lohn"] = "nein – nur Definitiv (Swissdec kennt keinen Akonto-Lauf)",
                 ["Ferienentschädigung"] = "monatlich auszahlen (kein Ferien-Pott)",
                 ["L-GAV-Vollzugsbeitrag"] = "deaktiviert (Muster AG ist kein Gastro-Betrieb; Swissdec-Soll kennt keinen L-GAV-Abzug)",
@@ -66,7 +66,7 @@ public partial class SwissdecTestmandantController
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
             if (!vorschau)
             {
-                f.DefaultVacationPercent5Weeks = 8.33m; f.DefaultVacationPercent6Weeks = 8.33m; f.VacationSixWeeksFromAge = 99;
+                f.DefaultVacationPercent5Weeks = 8.33m; f.DefaultVacationPercent6Weeks = 13.04m; f.VacationSixWeeksFromAge = 60;
                 f.DefaultHolidayPercent = 4.00m; f.DefaultThirteenthSalaryPercent = 8.33m;
                 f.ThirteenthMonthPayoutMonths = "12"; f.ThirteenthMonthPayoutsPerYear = 1;
                 f.DefaultVacationWeeks = 4; f.NormalWeeklyHours ??= 42m;
@@ -101,7 +101,7 @@ public partial class SwissdecTestmandantController
             aktionen.Add(new Aktion(neu > 0 ? "anlegen" : "aktualisieren", "Lohnperioden", $"{f.RestaurantCode}: {neu} neue Perioden {TmVon:MM.yyyy}–{TmBis:MM.yyyy}", new()));
         }
         if (!vorschau) await _db.SaveChangesAsync();
-        hinweise.Add("Muster AG: 20 Ferientage (8.33 %), keine altersabhängige Erhöhung bei den Stundenlöhnern (Testdaten: 8.33 % auch bei 64-Jährigen); 25/30 Tage ab 50/60 betreffen nur die Ferientage der Monatslöhner (Absenzen), nicht den Lohn.");
+        hinweise.Add("Muster AG: 20 Ferientage (8.33 %) bis Alter 59, 30 Tage (13.04 %) ab 60 — gilt für den Stundenlohn-Zuschlag (CSV TF02 Paganini 1160 = 13.04 %). Die 25 Tage ab 50 (Monatslöhner-Tage) haben bei uns kein drittes %-Band; FLEX springt 8.33 → 13.04.");
         hinweise.Add("13. Monatslohn: Monatslöhner im Dezember (Testdaten 1200 nur im Dezember), Stundenlöhner monatlich (1201) — FLEX rechnet OneCrew ohnehin monatlich.");
         return Ok(new SchrittErgebnis("5a · Filial-Einstellungen + Perioden", vorschau, aktionen, hinweise));
     }
@@ -124,7 +124,7 @@ public partial class SwissdecTestmandantController
             if (DateOnly.TryParseExact(kopf[i].Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var d)) monate.Add((i, d));
         DateOnly? nurMonat = null;
         if (!string.IsNullOrWhiteSpace(monat) && DateOnly.TryParseExact(monat.Trim() + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mm)) nurMonat = mm;
-        var nurSet = string.IsNullOrWhiteSpace(nur) ? null : nur.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(x => x.ToUpperInvariant()).ToHashSet();
+        var nurSet = NurSet(nur);
 
         // Zeilen → (Fall, Code, Label, Monat, Betrag)
         var werte = new List<(string Fall, string Code, string Label, DateOnly Monat, decimal Betrag)>();
@@ -146,6 +146,9 @@ public partial class SwissdecTestmandantController
         // Stunden/Lektionen pro Monat: Startwert (testcases) + Mutationen (differences)
         var stundenJeMonat = LeseMonatsreihe("PersonNumberOfHours");
         var lektionenJeMonat = LeseMonatsreihe("PersonNumberOfLessons");
+        // Arbeitstage effektiv / CH pro Monat (QST bei Wohnsitz Ausland, Walter 11.09.2026)
+        var tageEffJeMonat = LeseMonatsreihe("PersonEffectiveWorkingDays");
+        var tageChJeMonat  = LeseMonatsreihe("PersonWorkingDaysCH");
 
         // Swissdec-Lohnart → OneCrew-Lohnposition (Feld SwissdecLohnart, Schritt 4b).
         // Tragen mehrere Positionen dieselbe Swissdec-Lohnart (195.2 + 195.4 → 1161),
@@ -173,6 +176,21 @@ public partial class SwissdecTestmandantController
             if (vertrag == null) probleme.Add("kein Vertrag in diesem Monat (Nachzahlung nach Austritt? → Korrekturlohn)");
 
             var zulagen = new List<string>(); var soll = new List<string>();
+
+            // Arbeitstage effektiv / CH → employee_qst_arbeitstage (Engine wendet sie nur bei Wohnsitz Ausland an)
+            var tEff = WertImMonat(tageEffJeMonat, fall, m); var tCh = WertImMonat(tageChJeMonat, fall, m);
+            if (tEff is > 0 && tCh != null)
+            {
+                felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH" + (tCh < tEff ? " → QST-Anteil bei Wohnsitz Ausland" : "");
+                if (!vorschau)
+                {
+                    var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == emp.Id && a.Year == m.Year && a.Month == m.Month)
+                          ?? new EmployeeQstArbeitstage { EmployeeId = emp.Id, Year = m.Year, Month = m.Month, CreatedAt = DateTime.Now };
+                    at.TageEffektiv = tEff.Value; at.TageCh = tCh.Value; at.Bemerkung = "Swissdec-Testdaten"; at.UpdatedAt = DateTime.Now;
+                    if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
+                    await _db.SaveChangesAsync();
+                }
+            }
             foreach (var w in grp.OrderBy(x => x.Code))
             {
                 // 1000 Monatslohn → Vertrag

@@ -141,5 +141,19 @@ public class DeductionRule
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public decimal? QstSatzBasis { get; set; }
 
+    /// <summary>
+    /// Transient (Walter 11.09.2026): abweichende Bemessungsbasis für die Anzeige
+    /// im Lohnzettel — QST bei Wohnsitz Ausland: nur der CH-Arbeitstage-Anteil
+    /// des Bruttolohns ist steuerbar (Swissdec TaxableEarning).
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? BasisOverride { get; set; }
+
+    /// <summary>
+    /// Transient: HR-Hinweis zur QST-Sonderkategorie (MEN/MEY, HEN/HEY, …).
+    /// </summary>
+    [NotMapped]
+    public string? Hinweis { get; set; }
+
     public CompanyProfile? CompanyProfile { get; set; }
 }

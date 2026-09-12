@@ -537,6 +537,44 @@ public class PayrollController : HrControllerBase
     }
 
     /// <summary>
+    // ── QST-Arbeitstage CH bei Wohnsitz Ausland (Walter 11.09.2026) ──────────
+    // Grenzgänger / internationale Wochenaufenthalter: steuerbar ist nur der Anteil
+    // der in der Schweiz geleisteten Arbeitstage. Pro MA und Lohnmonat erfasst.
+    public record QstArbeitstageDto(decimal TageEffektiv, decimal TageCh, string? Bemerkung = null);
+
+    [HttpGet("qst-arbeitstage")]
+    public async Task<IActionResult> GetQstArbeitstage([FromQuery] int employeeId, [FromQuery] int year, [FromQuery] int month)
+    {
+        var (pf, pt) = PayrollCalculations.CalcPeriod(year, month);
+        var qst = await _db.EmployeeQuellensteuer.AsNoTracking()
+            .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= pt && (q.ValidTo == null || q.ValidTo >= pf))
+            .OrderByDescending(q => q.ValidFrom).FirstOrDefaultAsync();
+        bool relevant = qst != null && (!string.IsNullOrWhiteSpace(qst.WohnsitzAusland)
+            || (!string.IsNullOrWhiteSpace(qst.Wohnsitzstaat) && !string.Equals(qst.Wohnsitzstaat, "CH", StringComparison.OrdinalIgnoreCase))
+            || qst.IsGrenzgaenger);
+        var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+        return Ok(new { relevant, tageEffektiv = at?.TageEffektiv, tageCh = at?.TageCh, bemerkung = at?.Bemerkung });
+    }
+
+    [HttpPut("qst-arbeitstage")]
+    public async Task<IActionResult> PutQstArbeitstage([FromQuery] int employeeId, [FromQuery] int year, [FromQuery] int month, [FromBody] QstArbeitstageDto dto)
+    {
+        if (dto.TageEffektiv < 0 || dto.TageEffektiv > 31 || dto.TageCh < 0 || dto.TageCh > dto.TageEffektiv)
+            return BadRequest(new { message = "Arbeitstage CH müssen zwischen 0 und den effektiven Arbeitstagen (max. 31) liegen." });
+        var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+        if (dto.TageEffektiv == 0)
+        {
+            if (at != null) { _db.EmployeeQstArbeitstage.Remove(at); await _db.SaveChangesAsync(); }
+            return Ok(new { ok = true, geloescht = true });
+        }
+        at ??= new EmployeeQstArbeitstage { EmployeeId = employeeId, Year = year, Month = month, CreatedAt = DateTime.Now };
+        at.TageEffektiv = dto.TageEffektiv; at.TageCh = dto.TageCh; at.Bemerkung = dto.Bemerkung; at.UpdatedAt = DateTime.Now;
+        if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
+        await _db.SaveChangesAsync();
+        return Ok(new { ok = true });
+    }
+
     /// Kandidaten für Korrekturlohn: MA mit Vertrag in der Filiale, die in
     /// der Periode keinen laufenden Vertrag mehr haben (ausgetreten / inaktiv).
     /// Flaggt zusätzlich offene Zulagen / Depot-Refund.
@@ -1559,14 +1597,16 @@ public class PayrollController : HrControllerBase
             // UTP/MTP ohne Stundenlohn) → der MA bekäme 0 Lohn (nur Abzüge,
             // negativer Netto). Hart gesperrt, bis ein Lohn erfasst ist.
             // Rule-unabhängig (greift auch wenn keine Mindestlohnregel existiert).
+            var mwMa = await _db.Employees.Where(e => e.Id == dto.EmployeeId)
+                .Select(e => new { e.DateOfBirth, e.LgavPflichtig }).FirstOrDefaultAsync();
             if (MinimumWageCheckService.IsLohnsummeMissing(
                     mwEmp.EmploymentModel, mwEmp.MonthlySalary, mwEmp.MonthlySalaryFte, mwEmp.HourlyRate)
-                && !await _minWage.HatLohnzeilenAsync(dto.EmployeeId, dto.Year, dto.Month))
+                && !await _minWage.HatLohnzeilenAsync(dto.EmployeeId, dto.Year, dto.Month)
+                && !MinimumWageCheckService.IstNullBelegErlaubt(mwMa?.LgavPflichtig ?? true))
                 return Conflict(new { error = "LOHNSUMME_FEHLT",
                     message = "Vertrag ohne Lohnsumme — bitte zuerst einen Lohn erfassen, bevor der Lohnlauf bestätigt wird." });
 
-            var mwDob = await _db.Employees.Where(e => e.Id == dto.EmployeeId)
-                .Select(e => e.DateOfBirth).FirstOrDefaultAsync();
+            var mwDob = mwMa?.DateOfBirth;
             var mwChk = await _minWage.CheckAsync(
                 mwEmp.JobGroup?.Code, mwEmp.EducationLevelCode, mwEmp.EmploymentModel,
                 mwEmp.EmploymentPercentage, mwEmp.HourlyRate, mwEmp.MonthlySalary,

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 5;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung (11.09.2026)
+const int SchemaStand = 9;   // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1148,10 +1148,88 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS feiertagstage_am_austritt_auszahlen boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS stunden_saldo_im_lohn_verrechnen boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS uniform_depot_aktiv boolean NOT NULL DEFAULT true;
+        -- QST-Arbeitstage CH pro Monat bei Wohnsitz Ausland (Walter 11.09.2026, Swissdec TF28)
+        CREATE TABLE IF NOT EXISTS employee_qst_arbeitstage (
+            id            serial PRIMARY KEY,
+            employee_id   integer NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            year          integer NOT NULL,
+            month         integer NOT NULL,
+            tage_effektiv numeric(5,2) NOT NULL,
+            tage_ch       numeric(5,2) NOT NULL,
+            bemerkung     text,
+            created_at    timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP,
+            updated_at    timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_emp_qst_arbeitstage ON employee_qst_arbeitstage (employee_id, year, month);
         ALTER TABLE IF EXISTS lohnposition ADD COLUMN IF NOT EXISTS swissdec_lohnart varchar(10);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS lesson_rate numeric(10,2);
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS weekly_lessons numeric(6,2);
+        -- Swissdec CategoryPredefined (MEN/MEY, HEN/HEY, NON/NOY, SFN) — Wissen, kein ESTV-Buchstabe
+        CREATE TABLE IF NOT EXISTS qst_sonderkategorie (
+            code                    varchar(8) PRIMARY KEY,
+            gruppe                  varchar(20) NOT NULL,
+            bezeichnung             text NOT NULL,
+            erklaerung              text NOT NULL,
+            automatik               text NOT NULL,
+            warnung                 text NOT NULL,
+            kirchensteuer           boolean NOT NULL,
+            abzug_art               varchar(12) NOT NULL,
+            nie_als_normaler_tarif  boolean NOT NULL DEFAULT true,
+            sort_order              integer NOT NULL DEFAULT 0
+        );
+        CREATE TABLE IF NOT EXISTS qst_sonderkategorie_satz (
+            id          serial PRIMARY KEY,
+            code        varchar(8) NOT NULL DEFAULT '',
+            gruppe      varchar(20) NOT NULL,
+            kanton      varchar(2) NOT NULL,
+            satz_pct    numeric(5,2) NOT NULL,
+            quelle      text NOT NULL,
+            valid_from  date NOT NULL,
+            valid_to    date,
+            created_at  timestamp without time zone NOT NULL DEFAULT LOCALTIMESTAMP
+        );
+        ALTER TABLE qst_sonderkategorie_satz ADD COLUMN IF NOT EXISTS code varchar(8) NOT NULL DEFAULT '';
+        DELETE FROM qst_sonderkategorie_satz WHERE trim(code) = '';
+        DROP INDEX IF EXISTS ux_qst_sonder_satz;
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_qst_sonder_satz
+            ON qst_sonderkategorie_satz (code, kanton, valid_from);
+        -- Muster AG: Ferien-% der Stundenlöhner folgt dem Firmen-Ferienanspruch
+        -- (20 Tage / 8.33 % bis 59, 30 Tage / 13.04 % ab 60). CSV TF02 Paganini.
+        -- Nur Hauptsitz CHE-999.999.996 — Schaub-Filialen bleiben L-GAV (ab 50).
+        UPDATE company_profile cp
+           SET default_vacation_percent_6weeks = 13.04,
+               vacation_six_weeks_from_age     = 60
+          FROM hauptsitz h
+         WHERE cp.hauptsitz_id = h.id AND h.uid = 'CHE-999.999.996';
+        -- Lektionenlohn: gleiche %-Kaskade wie Stundenlohn (Ferien/Feiertag/13. ML).
+        UPDATE lohnposition
+           SET zaehlt_als_basis_ferien   = true,
+               zaehlt_als_basis_feiertag = true,
+               zaehlt_als_basis_13ml     = true
+         WHERE swissdec_lohnart = '1006' AND is_active = true;
+        -- Schichtzulage: Katalog ml13=true, CSV 1201/1202 ohne Schicht (TF02).
+        UPDATE lohnposition
+           SET zaehlt_als_basis_13ml = false
+         WHERE swissdec_lohnart = '1070' AND is_active = true;
     ");
+
+    // Katalog + veröffentlichte Sätze (system-eigene Texte dürfen nachziehen;
+    // Kantonssätze ON CONFLICT DO NOTHING — von Hand gepflegte Werte bleiben).
+    {
+        var katalog = QstVordefinierteKategorie.Katalog();
+        foreach (var k in katalog)
+        {
+            var da = db.QstSonderkategorien.FirstOrDefault(x => x.Code == k.Code);
+            if (da == null) db.QstSonderkategorien.Add(k);
+            else
+            {
+                da.Gruppe = k.Gruppe; da.Bezeichnung = k.Bezeichnung; da.Erklaerung = k.Erklaerung;
+                da.Automatik = k.Automatik; da.Warnung = k.Warnung; da.Kirchensteuer = k.Kirchensteuer;
+                da.AbzugArt = k.AbzugArt; da.NieAlsNormalerTarif = k.NieAlsNormalerTarif; da.SortOrder = k.SortOrder;
+            }
+        }
+        db.SaveChanges();
+    }
 
     // ── Gesprächsmodus Bewerbungsgespräch (Walter 03.09.2026) ─────────────
     // Ein JSON-Dokument pro Gespräch (antworten_json) + Revision gegen zwei
@@ -1340,6 +1418,20 @@ using (var scope = app.Services.CreateScope())
     ");
 
     } // Ende Start-SQL Teil 1 (vor Schema-Check)
+
+    // ESTV Satzart 11 → qst_sonderkategorie_satz (gültig von/bis).
+    // Nur wenn eine neue tar*.txt noch fehlt — sonst 75 MB / 1.2 Mio.
+    // Zeilen bei jedem Deploy (Start wieder Minuten). Neue Jahresdatei
+    // (tar27be) ist noch nicht in der Tabelle → Sync läuft von selbst.
+    {
+        var satz11Uhr = System.Diagnostics.Stopwatch.StartNew();
+        var satz11 = QstSatzart11.SyncAusVerzeichnis(
+            db, Path.Combine(app.Environment.ContentRootPath, "Assets", "Quellensteuer"));
+        if (satz11 == 0)
+            startLog.LogInformation("Satzart 11: Dateien schon eingelesen, übersprungen ({Ms} ms)", satz11Uhr.ElapsedMilliseconds);
+        else
+            startLog.LogInformation("Satzart 11: {N} Zeilen nachgezogen in {Ms} ms", satz11, satz11Uhr.ElapsedMilliseconds);
+    }
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(

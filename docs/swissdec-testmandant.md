@@ -115,6 +115,6 @@ Neue Produktfelder dafür: `employee_quellensteuer.grenzgaenger_*`, `employee_ve
   Monatsanfang (Mehrfachcodes 11+12), QST-Eintrag ab «gültig ab» (Vorgänger endet Vortag; Kopie aller Felder).
   Monatswerte (Stunden, Lektionen, Arbeitstage CH/effektiv, Nachzahlung nach Austritt, BVG-Basis, Telearbeit,
   AHV-Splitting, Rektifikat) nur angezeigt → Schritt 5. Chronologisch anlegen (leer = alle Monate).
-- Offen vor Schritt 5: Ferienregelung Muster AG (4 Wo = 8.33 %, 25/30 Tage ab 50/60) als Filial-Einstellung;
+- Schritt 5a: Ferienregelung Muster AG 8.33 % (20 Tage) bis 59, 13.04 % ab 60 (30 Tage). FLEX-Zuschlag folgt dem Alter (TF02 Paganini). 25 Tage ab 50 haben kein eigenes %-Band.
   Monatslohn/Stunden/Zulagen aus wagetypes_export.csv in den Lohnlauf; QST-Jahresmodell TI/VD; Tarifdateien
   2024/2025 LU/BE/VD/TI.

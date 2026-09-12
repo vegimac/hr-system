@@ -304,7 +304,8 @@ public class MinimumWageRulesController : ControllerBase
             // wie beim Mindestlohn und sperrt das Bestätigen.
             if (MinimumWageCheckService.IsLohnsummeMissing(
                     em.EmploymentModel, em.MonthlySalary, em.MonthlySalaryFte, em.HourlyRate)
-                && !await _minWage.HatLohnzeilenAsync(em.EmployeeId, year, month))
+                && !await _minWage.HatLohnzeilenAsync(em.EmployeeId, year, month)
+                && !MinimumWageCheckService.IstNullBelegErlaubt(em.Employee!.LgavPflichtig))
             {
                 underpaid.Add(new
                 {

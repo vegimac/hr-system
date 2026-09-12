@@ -1157,6 +1157,7 @@
                                 </div>
                                 <!-- Depot-Refund-Hinweis (Korrekturlohn / Austritt) -->
                                 <div id="lohnDepotRefundBox" style="display:none;padding:10px 18px;border-bottom:1px solid #f1f5f9"></div>
+                                <div id="lohnQstTageBox" style="display:none;padding:10px 18px;border-bottom:1px solid #f1f5f9"></div>
                                 <div id="lohnZulagenList" style="padding:0 18px"></div>
                                 <!-- Walter 19.05.2026: das Erfassungs-Formular wurde
                                      aus dieser Card ausgelagert in einen globalen Modal
@@ -4032,7 +4033,7 @@
                 <div class="page-head">
                     <div>
                         <h1 class="page-title">Quellensteuer-Tarife</h1>
-                        <p class="page-sub">Verwaltung der ESTV-Tarifdateien pro Kanton und Jahr</p>
+                        <p class="page-sub">ESTV-Tarifdateien (Satzart 06) und unsere Sonderkategorien (Satzart 11) mit gültig von/bis</p>
                     </div>
                     <button class="btn btn-primary" onclick="reloadQstTarife()" id="qstReloadBtn">
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -4050,6 +4051,111 @@
                                 <div style="color:#94a3b8;font-size:13px;padding:8px 0">Lade…</div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- SONDERKATEGORIEN Satzart 11 (Walter 12.09.2026) -->
+                    <div class="card" style="overflow:visible">
+                        <div style="padding:22px 28px 10px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap">
+                            <div>
+                                <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:4px">Sonderkategorien (Satzart 11)</div>
+                                <div style="font-size:13px;color:#64748b;max-width:720px;line-height:1.45">Lineare Sätze HEN/HEY, MEN/MEY, NON/NOY, SFN — nicht A/B/C/H. Kommen aus derselben ESTV-Datei (Satzart 11), liegen aber in <em>unserer</em> Tabelle mit gültig von/bis. Neue Jahresdatei schliesst die Vorjahreszeile. Handpflege bleibt beim Import unangetastet.</div>
+                            </div>
+                            <button type="button" class="btn btn-primary" onclick="qsskOpenForm(null)" style="flex-shrink:0">+ Neuer Satz</button>
+                        </div>
+                        <div id="qsskKatalog" style="padding:4px 28px 12px;display:flex;flex-wrap:wrap;gap:6px"></div>
+                        <div class="sticky-section-head" style="display:flex;gap:10px;padding:0 28px 12px;flex-wrap:wrap;align-items:center">
+                            <select id="qsskFilterKanton" onchange="qsskRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                                <option value="">Alle Kantone</option>
+                            </select>
+                            <select id="qsskFilterCode" onchange="qsskRender()" style="padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
+                                <option value="">Alle Codes</option>
+                            </select>
+                            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer">
+                                <input type="checkbox" id="qsskShowExpired" onchange="qsskRender()" style="cursor:pointer"> Abgelaufene anzeigen
+                            </label>
+                            <span id="qsskInfo" style="font-size:12px;color:#94a3b8;margin-left:auto"></span>
+                        </div>
+                        <table style="width:100%;border-collapse:collapse;font-size:13px">
+                            <thead>
+                                <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0">
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Code</th>
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Kanton</th>
+                                    <th style="padding:10px 14px;text-align:right;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Satz</th>
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Gültig ab</th>
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Gültig bis</th>
+                                    <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;position:sticky;top:0;background:#f8fafc">Quelle</th>
+                                    <th style="padding:10px 14px;position:sticky;top:0;background:#f8fafc"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="qsskTableBody">
+                                <tr><td colspan="7" style="padding:30px;text-align:center;color:#94a3b8">Lade…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="qsskFormOverlay" style="display:none;position:fixed;inset:0;background:rgba(60,55,48,0.28);z-index:1000" onclick="qsskCloseForm()"></div>
+                    <div id="qsskFormPanel" class="modal" style="display:none;position:fixed;right:0;top:0;bottom:0;width:min(440px,96vw);z-index:1001;overflow-y:auto;padding:28px;border-radius:0;box-shadow:-4px 0 24px rgba(60,55,48,0.16)">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+                            <h2 id="qsskFormTitle" style="font-size:17px;font-weight:700;color:#3f3f3f;margin:0">Sonder-Satz</h2>
+                            <button type="button" onclick="qsskCloseForm()" style="background:none;border:none;cursor:pointer;color:#646464;font-size:20px">✕</button>
+                        </div>
+                        <p id="qsskEstvHint" style="display:none;font-size:12.5px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin:0 0 14px;line-height:1.4"></p>
+                        <form id="qsskForm" onsubmit="qsskSave(event)">
+                            <input type="hidden" id="qsskId">
+                            <input type="hidden" id="qsskPredecessorId">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Code *</label>
+                                    <select id="qsskCode" required>
+                                        <option value="">— wählen —</option>
+                                        <option value="HEN">HEN — VR-Honorar, ohne Kirche</option>
+                                        <option value="HEY">HEY — VR-Honorar, mit Kirche</option>
+                                        <option value="MEN">MEN — Beteiligung, ohne Kirche</option>
+                                        <option value="MEY">MEY — Beteiligung, mit Kirche</option>
+                                        <option value="NON">NON — Korrektur, ohne Kirche</option>
+                                        <option value="NOY">NOY — Korrektur, mit Kirche</option>
+                                        <option value="SFN">SFN — Sondervereinbarung FR</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Kanton *</label>
+                                    <select id="qsskKanton" required>
+                                        <option value="">— wählen —</option>
+                                        <option value="AG">AG</option><option value="AI">AI</option><option value="AR">AR</option>
+                                        <option value="BE">BE</option><option value="BL">BL</option><option value="BS">BS</option>
+                                        <option value="FR">FR</option><option value="GE">GE</option><option value="GL">GL</option>
+                                        <option value="GR">GR</option><option value="JU">JU</option><option value="LU">LU</option>
+                                        <option value="NE">NE</option><option value="NW">NW</option><option value="OW">OW</option>
+                                        <option value="SG">SG</option><option value="SH">SH</option><option value="SO">SO</option>
+                                        <option value="SZ">SZ</option><option value="TG">TG</option><option value="TI">TI</option>
+                                        <option value="UR">UR</option><option value="VD">VD</option><option value="VS">VS</option>
+                                        <option value="ZG">ZG</option><option value="ZH">ZH</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:14px">
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Satz % *</label>
+                                <input id="qsskSatz" type="number" step="0.01" min="0" max="100" required style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
+                            </div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gültig ab *</label>
+                                    <input id="qsskValidFrom" type="date" required style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
+                                </div>
+                                <div>
+                                    <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Gültig bis</label>
+                                    <input id="qsskValidTo" type="date" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
+                                </div>
+                            </div>
+                            <div style="margin-bottom:20px">
+                                <label style="display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px">Quelle</label>
+                                <input id="qsskQuelle" maxlength="160" placeholder="z.B. Amts-Merkblatt 2027" style="width:100%;box-sizing:border-box;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:8px 12px;font-size:13px;box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9)">
+                            </div>
+                            <div style="display:flex;justify-content:flex-end;gap:10px">
+                                <button type="button" class="btn" onclick="qsskCloseForm()" style="background:rgba(255,255,255,0.45);color:#3f3f3f;border:1px solid rgba(255,255,255,0.62)">Abbrechen</button>
+                                <button type="submit" class="btn btn-primary" id="qsskSaveBtn">Speichern</button>
+                            </div>
+                        </form>
                     </div>
 
                     <!-- TARIF-PROBE (Walter 29.08.2026): Nachschlagen direkt in der
@@ -4128,7 +4234,8 @@
                         <strong>Tipp:</strong> Neue ESTV-Tarifdateien jährlich herunterladen unter
                         <span style="font-family:monospace;background:#dcfce7;padding:1px 6px;border-radius:4px">steuern.[kanton].ch</span>
                         — Format: <span style="font-family:monospace;background:#dcfce7;padding:1px 6px;border-radius:4px">tar{JJ}{kanton}.txt</span>
-                        (z.B. tar27lu.txt für 2027 Luzern). Einfach hochladen, der Rest passiert automatisch.
+                        (z.B. tar27lu.txt für 2027 Luzern). Einfach hochladen, der Rest passiert automatisch —
+                        Satzart 06 landet im Tarif-Cache, Satzart 11 in der Sonderkategorien-Tabelle oben.
                     </div>
 
                 </div>
@@ -5356,7 +5463,7 @@
                             <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 4a · Personen + Verträge</span>
                             <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt(4, true)">🔍 Vorschau</button>
                             <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt(4, false)">✚ Anlegen</button>
-                            <input id="tmNur" placeholder="nur TF01,TF02 …" style="font-size:12px;padding:5px 9px;border:1px solid rgba(60,55,48,.2);border-radius:8px;width:160px" title="Leer = alle 44 Testfälle; sonst Komma-Liste der Testfall-Nummern">
+                            <input id="tmNur" placeholder="nur 1, 2 oder TF01 …" style="font-size:12px;padding:5px 9px;border:1px solid rgba(60,55,48,.2);border-radius:8px;width:160px" title="Leer = alle 44 Testfälle; sonst Komma-Liste der Testfall-Nummern">
                             <span style="font-size:11.5px;color:#8b8b8b">44 Testfall-Personen mit Vertrag (manuell + Block), Familie, Wochenaufenthalt, Versicherungs-Codes, QST-Erfassung — Stand Eintritt</span>
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
@@ -5386,7 +5493,7 @@
                                 <select id="tmMonat5b" class="ef-input" style="width:auto;min-width:170px;font-size:12.5px;padding:6px 10px" title="Alle Monate = Nov 2024 – Feb 2026 chronologisch"></select>
                             </label>
                             <label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#6b6152">Testfälle
-                                <input id="tmNur5b" class="ef-input" placeholder="alle · oder TF01, TF02 …" style="width:190px;font-size:12.5px;padding:6px 10px" title="Leer = alle 44 Testfälle; sonst Komma-Liste">
+                                <input id="tmNur5b" class="ef-input" placeholder="alle · oder 7, 16, 37 …" style="width:190px;font-size:12.5px;padding:6px 10px" title="Leer = alle 44 Testfälle; sonst Komma-Liste">
                             </label>
                             <span style="font-size:11.5px;color:#8b8b8b">Monatslohn → Vertrag, Stunden → Stempelzeiten, Lohnarten → Zulagen/Abzüge, 5050 → BVG-Fixbetrag</span>
                         </div>
@@ -9149,7 +9256,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/branches-detail.js?v=20260910b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260908a"></script>
+<script src="js/qst-modal.js?v=20260911a"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260908d"></script>
@@ -9164,12 +9271,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260907b"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260910a"></script>
+<script src="js/payroll.js?v=20260912a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260909a"></script>
+<script src="js/admin-settings.js?v=20260912a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>

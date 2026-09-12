@@ -309,6 +309,18 @@ const QST_TARIF_BEZ = {
     N: 'Grenzgänger (DE) verheiratet, Doppelverdiener', P: 'Grenzgänger (DE) alleinerziehend',
     Q: 'Grenzgänger (DE)'
 };
+const QST_SONDER_BEZ = {
+    HEN: 'VR-Honorar Ausland, ohne Kirchensteuer',
+    HEY: 'VR-Honorar Ausland, mit Kirchensteuer',
+    MEN: 'Mitarbeiterbeteiligungen nach Wegzug, ohne Kirchensteuer',
+    MEY: 'Mitarbeiterbeteiligungen nach Wegzug, mit Kirchensteuer',
+    NON: 'Nicht QST-pflichtig (Korrektur), ohne Kirchensteuer',
+    NOY: 'Nicht QST-pflichtig (Korrektur), mit Kirchensteuer',
+    SFN: 'Sondervereinbarung Frankreich'
+};
+function qstIstSonderkategorie(code) {
+    return Object.prototype.hasOwnProperty.call(QST_SONDER_BEZ, (code || '').toString().trim().toUpperCase());
+}
 
 // Vorgemerkte Inline-Änderungen (Walter 29.08.2026, Sammel-Speichern):
 // Änderungen an «Zivilstand seit» / «Konfession» werden NICHT sofort
@@ -485,7 +497,9 @@ function qstRenderResultat() {
     const pct   = (document.getElementById('qstProzentsatz')?.value || '').toString().trim();
     codeEl.textContent = code || (pct ? `${pct} %` : '–');
     const v = _qstServerVorschlag;
-    let bez = (v && v.tarifCode === tarif && v.tarifBezeichnung) ? v.tarifBezeichnung : (QST_TARIF_BEZ[tarif] || '');
+    let bez = qstIstSonderkategorie(code)
+        ? ('Sonderkategorie · ' + QST_SONDER_BEZ[code])
+        : ((v && v.tarifCode === tarif && v.tarifBezeichnung) ? v.tarifBezeichnung : (QST_TARIF_BEZ[tarif] || ''));
     if (pct) bez = (bez ? bez + ' · ' : '') + 'manueller Prozentsatz';
     if (besEl) besEl.textContent = bez;
 
@@ -1103,7 +1117,9 @@ function onQstTarifChange() {
 }
 
 function buildQstCode() {
+    const existing = (document.getElementById('qstCode')?.value || '').toString().trim().toUpperCase();
     const tarif   = document.getElementById('qstTarifCode')?.value ?? '';
+    if (qstIstSonderkategorie(existing) && !tarif) { qstRenderResultat(); return; }
     const kinder  = parseInt(document.getElementById('qstKinder')?.value ?? '0');
     const kirche  = document.getElementById('qstKirchensteuer')?.checked;
     if (!tarif) { qstRenderResultat(); return; }

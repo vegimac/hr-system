@@ -783,6 +783,7 @@ async function loadQstTarifeStatus() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         renderQstStatusGrid(data.dateien);
+        loadQstSonderSaetze();
     } catch(e) {
         grid.innerHTML = '<div style="color:#ef4444;font-size:13px">Fehler: ' + e.message + '</div>';
     }
@@ -884,6 +885,7 @@ async function qstImportieren() {
                 </div>`;
             qstDateiClear();
             loadQstTarifeStatus();
+            loadQstSonderSaetze();
         }
     } catch(e) {
         ergebnis.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;color:#dc2626;font-size:13px">Verbindungsfehler: ${e.message}</div>`;
@@ -901,10 +903,208 @@ async function reloadQstTarife() {
         const res = await fetch('/api/admin/quellensteuer/reload', { method: 'POST', headers: ah() });
         const data = await res.json();
         await loadQstTarifeStatus();
+        await loadQstSonderSaetze();
     } catch(e) { alert('Fehler: ' + e.message); }
     finally {
         btn.disabled = false;
         btn.innerHTML = '<svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" style="margin-right:6px"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Cache neu laden';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// QST-SONDERKATEGORIEN (Satzart 11, gültig von/bis)
+// ══════════════════════════════════════════════════════════════════
+
+let _qsskKategorien = [];
+let _qsskSaetze = [];
+let _qsskFormMode = 'new';
+
+function qsskHeute() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function qsskIstAktuell(s) {
+    const t = qsskHeute();
+    const von = (s.validFrom || '').substring(0, 10);
+    const bis = s.validTo ? String(s.validTo).substring(0, 10) : null;
+    return von <= t && (!bis || bis >= t);
+}
+function qsskFmtDate(d) {
+    if (!d) return '–';
+    return String(d).substring(0, 10).split('-').reverse().join('.');
+}
+
+async function loadQstSonderSaetze() {
+    const tbody = document.getElementById('qsskTableBody');
+    if (!tbody) return;
+    try {
+        const res = await fetch('/api/admin/quellensteuer/sonderkategorien', { headers: ah() });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        _qsskKategorien = data.kategorien || [];
+        _qsskSaetze = data.saetze || [];
+        const katEl = document.getElementById('qsskKatalog');
+        if (katEl) {
+            katEl.innerHTML = _qsskKategorien.map(k =>
+                `<span title="${escHtml(k.erklaerung || '')}" style="font-size:11px;padding:3px 9px;border-radius:999px;border:1px solid rgba(60,55,48,0.18);color:#3f3f3f;background:rgba(255,255,255,0.35)">${escHtml(k.code)} · ${escHtml(k.bezeichnung)}</span>`
+            ).join('');
+        }
+        const ktSel = document.getElementById('qsskFilterKanton');
+        if (ktSel) {
+            const cur = ktSel.value;
+            const kantone = [...new Set(_qsskSaetze.map(s => s.kanton))].sort();
+            ktSel.innerHTML = '<option value="">Alle Kantone</option>'
+                + kantone.map(k => `<option value="${k}">${k}</option>`).join('');
+            ktSel.value = kantone.includes(cur) ? cur : '';
+        }
+        const cSel = document.getElementById('qsskFilterCode');
+        if (cSel) {
+            const cur = cSel.value;
+            cSel.innerHTML = '<option value="">Alle Codes</option>'
+                + _qsskKategorien.map(k => `<option value="${k.code}">${k.code}</option>`).join('');
+            if ([...cSel.options].some(o => o.value === cur)) cSel.value = cur;
+        }
+        qsskRender();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:16px;color:#dc2626">Sonderkategorien: ${escHtml(e.message)}</td></tr>`;
+    }
+}
+
+function qsskRender() {
+    const tbody = document.getElementById('qsskTableBody');
+    if (!tbody) return;
+    const kt = document.getElementById('qsskFilterKanton')?.value || '';
+    const code = document.getElementById('qsskFilterCode')?.value || '';
+    const showExp = document.getElementById('qsskShowExpired')?.checked ?? false;
+    let rows = _qsskSaetze.slice();
+    if (kt) rows = rows.filter(s => s.kanton === kt);
+    if (code) rows = rows.filter(s => s.code === code);
+    if (!showExp) rows = rows.filter(qsskIstAktuell);
+    const info = document.getElementById('qsskInfo');
+    if (info) info.textContent = `${rows.length} Satz${rows.length === 1 ? '' : 'e'}`;
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding:28px;text-align:center;color:#94a3b8;font-style:italic">Noch keine Sätze — Tarifdatei importieren oder «+ Neuer Satz».</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(s => {
+        const aktuell = qsskIstAktuell(s);
+        const json = JSON.stringify(s).replace(/'/g, '&apos;');
+        const quelleKurz = (s.quelle || '').replace(/^ESTV\s+/, 'ESTV · ');
+        return `<tr style="${aktuell ? '' : 'opacity:0.45'}">
+            <td style="padding:10px 14px"><span style="font-weight:700;font-variant-numeric:tabular-nums">${escHtml(s.code)}</span></td>
+            <td style="padding:10px 14px"><span style="font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:12px;background:#ece9e2;color:#3f3f3f">${escHtml(s.kanton)}</span></td>
+            <td style="padding:10px 14px;text-align:right;font-variant-numeric:tabular-nums;font-weight:600">${Number(s.satzPct).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %</td>
+            <td style="padding:10px 14px;color:#475569;font-size:12px">${qsskFmtDate(s.validFrom)}</td>
+            <td style="padding:10px 14px;color:#475569;font-size:12px">${qsskFmtDate(s.validTo)}</td>
+            <td style="padding:10px 14px;font-size:11.5px;color:#64748b">${s.estv
+                ? `<span style="font-size:10.5px;padding:2px 7px;border-radius:8px;background:#dcfce7;color:#166534;margin-right:6px">ESTV</span>`
+                : `<span style="font-size:10.5px;padding:2px 7px;border-radius:8px;background:#fef3c7;color:#92400e;margin-right:6px">Hand</span>`
+            }${escHtml(quelleKurz)}</td>
+            <td style="padding:10px 14px;text-align:right">
+                <div style="position:relative;display:inline-block">
+                    <button class="dok-menu-btn" onclick="dokToggleMenu(event, 'qssk-${s.id}')" title="Aktionen">⋮</button>
+                    <div class="dok-menu" id="dokMenu-qssk-${s.id}">
+                        <button class="dok-menu-item" onclick='dokCloseAllMenus();qsskOpenForm(${json}, "edit")'>${s.estv ? 'Gültig-bis' : 'Bearbeiten'}</button>
+                        <button class="dok-menu-item" onclick='dokCloseAllMenus();qsskOpenForm(${json}, "new-version")'>Neu ab Datum</button>
+                        ${s.estv ? '' : `<button class="dok-menu-item danger" onclick='dokCloseAllMenus();qsskDelete(${s.id}, ${JSON.stringify(s.code + " " + s.kanton)})'>Löschen</button>`}
+                    </div>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function qsskOpenForm(satz, mode) {
+    _qsskFormMode = mode || (satz ? 'edit' : 'new');
+    const isNewVer = _qsskFormMode === 'new-version';
+    const isEstv = !!(satz && satz.estv && !isNewVer);
+    document.getElementById('qsskFormTitle').textContent = isNewVer
+        ? `Neue Version ab — ${satz.code} ${satz.kanton}`
+        : (satz ? (isEstv ? `ESTV-Zeile — ${satz.code} ${satz.kanton}` : `Satz bearbeiten — ${satz.code} ${satz.kanton}`) : 'Neuer Sonder-Satz');
+    document.getElementById('qsskId').value = isNewVer ? '' : (satz?.id ?? '');
+    document.getElementById('qsskPredecessorId').value = isNewVer ? (satz?.id ?? '') : '';
+    document.getElementById('qsskCode').value = satz?.code ?? '';
+    document.getElementById('qsskKanton').value = satz?.kanton ?? '';
+    document.getElementById('qsskSatz').value = satz?.satzPct ?? '';
+    if (isNewVer) {
+        document.getElementById('qsskValidFrom').value = '';
+        document.getElementById('qsskValidTo').value = '';
+        document.getElementById('qsskQuelle').value = 'Handpflege';
+    } else {
+        document.getElementById('qsskValidFrom').value = satz?.validFrom ? String(satz.validFrom).substring(0, 10) : '';
+        document.getElementById('qsskValidTo').value = satz?.validTo ? String(satz.validTo).substring(0, 10) : '';
+        document.getElementById('qsskQuelle').value = satz?.quelle ?? '';
+    }
+    const hint = document.getElementById('qsskEstvHint');
+    hint.style.display = isEstv ? 'block' : 'none';
+    hint.textContent = isEstv
+        ? 'Diese Zeile kommt aus der ESTV-Tarifdatei. Satz, Code und Gültig-ab sind fest — nur Gültig-bis darf geschlossen werden. Für einen neuen Satz «Neu ab Datum».'
+        : '';
+    ['qsskCode', 'qsskKanton', 'qsskSatz', 'qsskValidFrom', 'qsskQuelle'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = isEstv || (isNewVer && (id === 'qsskCode' || id === 'qsskKanton'));
+    });
+    document.getElementById('qsskFormOverlay').style.display = 'block';
+    document.getElementById('qsskFormPanel').style.display = 'block';
+}
+
+function qsskCloseForm() {
+    document.getElementById('qsskFormOverlay').style.display = 'none';
+    document.getElementById('qsskFormPanel').style.display = 'none';
+}
+
+async function qsskSave(event) {
+    event.preventDefault();
+    const id = document.getElementById('qsskId').value;
+    const pred = document.getElementById('qsskPredecessorId').value;
+    const body = {
+        code: document.getElementById('qsskCode').value,
+        kanton: document.getElementById('qsskKanton').value,
+        satzPct: parseFloat(document.getElementById('qsskSatz').value),
+        quelle: document.getElementById('qsskQuelle').value.trim() || null,
+        validFrom: document.getElementById('qsskValidFrom').value,
+        validTo: document.getElementById('qsskValidTo').value || null,
+        predecessorId: pred ? parseInt(pred, 10) : null,
+    };
+    const btn = document.getElementById('qsskSaveBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Speichere…'; }
+    try {
+        const res = await fetch(id ? `/api/admin/quellensteuer/sonder-satz/${id}` : '/api/admin/quellensteuer/sonder-satz', {
+            method: id ? 'PUT' : 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            if (typeof showToast === 'function') showToast(data.message || data.error || 'Speichern fehlgeschlagen', 'error');
+            else alert(data.message || 'Speichern fehlgeschlagen');
+            return;
+        }
+        qsskCloseForm();
+        await loadQstSonderSaetze();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(e.message, 'error');
+        else alert(e.message);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Speichern'; }
+    }
+}
+
+async function qsskDelete(id, label) {
+    const ok = typeof liquidConfirm === 'function'
+        ? await liquidConfirm(`Satz «${label}» wirklich löschen?`, { title: 'Sonder-Satz löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' })
+        : confirm(`Satz «${label}» löschen?`);
+    if (!ok) return;
+    try {
+        const res = await fetch(`/api/admin/quellensteuer/sonder-satz/${id}`, { method: 'DELETE', headers: ah() });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            if (typeof showToast === 'function') showToast(data.message || 'Löschen fehlgeschlagen', 'error');
+            return;
+        }
+        await loadQstSonderSaetze();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(e.message, 'error');
     }
 }
 

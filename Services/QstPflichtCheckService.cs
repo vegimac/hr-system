@@ -137,20 +137,19 @@ public class QstPflichtCheckService
                 EmployeeDokumentFehlt: !hasIdPassDoc);
         }
 
-        // ── 2. MA hat IRGENDWANN einen C-Ausweis bekommen? ──
-        // Walter-Vorgabe 14.06.2026: „einmal C immer C" — wir prüfen NICHT
-        // mehr das Ablaufdatum, sondern nur ob in der Permit-History
-        // mindestens ein Eintrag mit PermitType=C existiert. C ist eine
-        // Niederlassung, sie läuft administrativ nie ab (sie wird nur
-        // erneuert oder durch Einbürgerung ersetzt). Das verknüpfte Doku
-        // zum C-Eintrag (PermitHistory.DokumentId) zählt jetzt als Beleg.
-        // 0a: bei Auslands-Wohnsitz befreit auch der C-Ausweis NICHT.
+        // ── 2. MA hat am Stichtag einen C-Ausweis? ──
+        // Walter-Vorgabe 14.06.2026: „einmal C immer C" gilt für das
+        // Ablaufdatum der Karte (administrativ, zählt nicht). Aber
+        // ValidFrom MUSS ≤ Stichtag sein — sonst befreit ein C ab November
+        // den Januar-Lohn (TF24 Utzinger: B 1.1.2025, C erst 1.11.2025).
+        // Fachlogik: ValidFrom ≤ Stichtag. 0a: Auslands-Wohnsitz → keine Befreiung.
         var cEintrag = istAusland ? null : await _db.EmployeePermitHistories
             .AsNoTracking()
             .Include(h => h.PermitType)
             .Where(h => h.EmployeeId == employeeId
                      && h.PermitType != null
-                     && h.PermitType.Code == "C")
+                     && h.PermitType.Code == "C"
+                     && h.ValidFrom <= stichtag)
             .OrderByDescending(h => h.ValidFrom)
             .ThenByDescending(h => h.Id)
             .FirstOrDefaultAsync();

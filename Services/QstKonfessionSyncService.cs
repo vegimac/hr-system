@@ -138,6 +138,17 @@ public class QstKonfessionSyncService
     public static string RebuildQstCode(
         string? tarifCode, int anzahlKinder, bool kirchensteuer, string? previousQstCode)
     {
+        // MEY/HEN/… sind Swissdec-Kategorien, kein ESTV-Buchstabe.
+        // Ohne diesen Guard würde MEY → M0Y (ESTV Kapitalleistung 4.5 %).
+        if (string.IsNullOrWhiteSpace(tarifCode)
+            && QstVordefinierteKategorie.Parse(previousQstCode) is { } vordef)
+        {
+            if (QstVordefinierteKategorie.IstMitarbeiterbeteiligung(vordef.Art)
+                || QstVordefinierteKategorie.IstVerwaltungsrat(vordef.Art))
+                return vordef.Code[..2] + (kirchensteuer ? "Y" : "N");
+            return vordef.Code;
+        }
+
         string tarif;
         if (!string.IsNullOrWhiteSpace(tarifCode))
             tarif = tarifCode.Trim().ToUpperInvariant();

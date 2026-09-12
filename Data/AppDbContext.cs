@@ -60,6 +60,9 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeRecurringWage> EmployeeRecurringWages => Set<EmployeeRecurringWage>();
     public DbSet<EmployeeBvgZusatzMember> EmployeeBvgZusatzMembers => Set<EmployeeBvgZusatzMember>();
     public DbSet<EmployeeVersicherungCode> EmployeeVersicherungCodes => Set<EmployeeVersicherungCode>();
+    public DbSet<EmployeeQstArbeitstage>   EmployeeQstArbeitstage      => Set<EmployeeQstArbeitstage>();   // Walter 11.09.2026
+    public DbSet<QstSonderkategorie>       QstSonderkategorien         => Set<QstSonderkategorie>();
+    public DbSet<QstSonderkategorieSatz>   QstSonderkategorieSaetze    => Set<QstSonderkategorieSatz>();
     public DbSet<EmployeeUniformDepot> EmployeeUniformDepots => Set<EmployeeUniformDepot>();
     public DbSet<PregnancyRule>     PregnancyRules     => Set<PregnancyRule>();
     public DbSet<EmployeePregnancy> EmployeePregnancies => Set<EmployeePregnancy>();
@@ -2659,6 +2662,56 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
             entity.HasIndex(e => new { e.EmployeeId, e.ValidFrom, e.ValidTo })
                   .HasDatabaseName("idx_emp_bank_period");
+        });
+
+        // QST-Arbeitstage CH pro Monat (Wohnsitz Ausland) — Walter 11.09.2026
+        modelBuilder.Entity<EmployeeQstArbeitstage>(entity =>
+        {
+            entity.ToTable("employee_qst_arbeitstage");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Year).HasColumnName("year");
+            entity.Property(e => e.Month).HasColumnName("month");
+            entity.Property(e => e.TageEffektiv).HasColumnName("tage_effektiv").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.TageCh).HasColumnName("tage_ch").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.EmployeeId, e.Year, e.Month }).IsUnique().HasDatabaseName("ux_emp_qst_arbeitstage");
+            entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<QstSonderkategorie>(entity =>
+        {
+            entity.ToTable("qst_sonderkategorie");
+            entity.HasKey(e => e.Code);
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(8);
+            entity.Property(e => e.Gruppe).HasColumnName("gruppe").HasMaxLength(20);
+            entity.Property(e => e.Bezeichnung).HasColumnName("bezeichnung");
+            entity.Property(e => e.Erklaerung).HasColumnName("erklaerung");
+            entity.Property(e => e.Automatik).HasColumnName("automatik");
+            entity.Property(e => e.Warnung).HasColumnName("warnung");
+            entity.Property(e => e.Kirchensteuer).HasColumnName("kirchensteuer");
+            entity.Property(e => e.AbzugArt).HasColumnName("abzug_art").HasMaxLength(12);
+            entity.Property(e => e.NieAlsNormalerTarif).HasColumnName("nie_als_normaler_tarif");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+        });
+
+        modelBuilder.Entity<QstSonderkategorieSatz>(entity =>
+        {
+            entity.ToTable("qst_sonderkategorie_satz");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(8);
+            entity.Property(e => e.Gruppe).HasColumnName("gruppe").HasMaxLength(20);
+            entity.Property(e => e.Kanton).HasColumnName("kanton").HasMaxLength(2);
+            entity.Property(e => e.SatzPct).HasColumnName("satz_pct").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.Quelle).HasColumnName("quelle");
+            entity.Property(e => e.ValidFrom).HasColumnName("valid_from");
+            entity.Property(e => e.ValidTo).HasColumnName("valid_to");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => new { e.Code, e.Kanton, e.ValidFrom }).IsUnique().HasDatabaseName("ux_qst_sonder_satz");
         });
 
         modelBuilder.Entity<EmployeeQuellensteuer>(entity =>

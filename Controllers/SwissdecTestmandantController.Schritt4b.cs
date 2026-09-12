@@ -130,16 +130,36 @@ public partial class SwissdecTestmandantController
                 ZaehltAlsBasis13ml = k.Ml13, LohnausweisCode = k.Lohnausweis.Length > 0 ? k.Lohnausweis : null,
                 SwissdecLohnart = code, SortOrder = ++maxSort, IsActive = true, CreatedAt = DateTime.Now,   // created_at ohne Zeitzone → lokale Zeit (Npgsql-Kind)
             };
+            WendeSwissdecBasisFlagsAn(lp);
             _db.Lohnpositionen.Add(lp);
             positionen.Add(lp);
         }
         if (!vorschau)
         {
+            foreach (var lp in positionen.Where(p => p.IsActive && (p.SwissdecLohnart == "1006" || p.SwissdecLohnart == "1070")))
+                WendeSwissdecBasisFlagsAn(lp);
             await _db.SaveChangesAsync();
             _log.LogInformation("Swissdec-Testmandant Schritt 4b: {Neu} neu, {Z} zugeordnet, {B} bereits, {U} kein Import", neu, zugeordnet, bereits, uebersprungen);
         }
         hinweise.Insert(0, $"{verwendet.Count} Swissdec-Lohnarten in den Testfällen: {bereits} bereits zugeordnet, {zugeordnet} an bestehende OneCrew-Positionen zugeordnet, {neu} neu, {uebersprungen} kein Import.");
         hinweise.Add("Neue Positionen tragen die Swissdec-Nummer als Code und die Pflichten aus dem Musterlohnartenstamm — danach im Lohnpositionen-Dialog editierbar (Feld «Swissdec-Lohnart»). Für die Anzeige beim MA müssen sie im Lohnschema des Vertragsmodells stehen.");
+        hinweise.Add("1006 Lektionenlohn: Ferien-, Feiertag- und 13.-ML-Basis (wie Stundenlohn). 1070 Schichtzulage: nicht 13.-ML-Basis (CSV 1201/1202 ohne Schicht, trotz Katalog ml13).");
         return Ok(new SchrittErgebnis("4b · Lohnpositionen ↔ Swissdec-Lohnarten", vorschau, aktionen, hinweise));
+    }
+
+    /// <summary>
+    /// CSV-massgebliche Basis-Flags, die der Musterlohnartenstamm nicht kennt
+    /// (Ferien/Feiertag) bzw. bei Schicht (1070) widerspricht.
+    /// </summary>
+    private static void WendeSwissdecBasisFlagsAn(Lohnposition lp)
+    {
+        if (lp.SwissdecLohnart == "1006")
+        {
+            lp.ZaehltAlsBasisFerien = true;
+            lp.ZaehltAlsBasisFeiertag = true;
+            lp.ZaehltAlsBasis13ml = true;
+        }
+        else if (lp.SwissdecLohnart == "1070")
+            lp.ZaehltAlsBasis13ml = false;
     }
 }
