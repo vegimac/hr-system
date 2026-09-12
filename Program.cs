@@ -5033,15 +5033,6 @@ using (var scope = app.Services.CreateScope())
         "ON CONFLICT (id) DO UPDATE SET stand = EXCLUDED.stand, applied_at = LOCALTIMESTAMP", SchemaStand);
     startLog.LogInformation("Start-SQL ausgeführt in {Ms} ms — Schema-Stand {Stand} gespeichert", startSqlUhr.ElapsedMilliseconds, SchemaStand);
     } // Ende Start-SQL Teil 2
-
-    // Testinstanz: 5050-Fixbeträge auf BVG-Zeilen nachziehen (4c kopierte sonst den Januar-Fix).
-    if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("INSTANCE_LABEL")))
-    {
-        var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
-        var n5050 = HrSystem.Controllers.SwissdecTestmandantController.NachziehenBvg5050AusCsv(db, env.ContentRootPath);
-        if (n5050 > 0)
-            startLog.LogInformation("BVG-5050 nachgezogen: {N} Zeilen", n5050);
-    }
 }
 
 // Security-Header (Walter-Vorgabe 23.05.2026): „einfache" Härtung, gilt für ALLE
