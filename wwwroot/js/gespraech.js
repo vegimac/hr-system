@@ -176,7 +176,9 @@ const GS_STEPS = [
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
           { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
           { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
-          { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn (nach dem Onboarding-Tag)', t: 'date', when: a => a.willkommenstag_teilnahme === true },
+          { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn', t: 'date',
+            when: a => a.willkommenstag_teilnahme === true && !!a.willkommenstag_termin_id,
+            hint: 'Gleicher Tag wie der Onboarding-Tag oder danach.' },
       ] },
     { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', when: a => bgsDarfWeiter(a), hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
       fields: [
@@ -869,6 +871,18 @@ function bgsEmailHint(v) {
 }
 // Alle sichtbaren Tel./E-Mail-Felder des aktuellen Schritts prüfen; leer ist erlaubt,
 // ein ausgefülltes aber ungültiges Feld blockiert «Weiter».
+function bgsOnboardingDatum() {
+    const id = _bgsAnswers.willkommenstag_termin_id;
+    if (!id) return null;
+    const t = (_bgsTermine || []).find(x => String(x.id) === String(id));
+    return t && t.datum ? String(t.datum).slice(0, 10) : null;
+}
+function bgsSyncArbeitsbeginnVorschlag() {
+    const ob = bgsOnboardingDatum();
+    if (!ob) return;
+    const cur = bgsToIso(_bgsAnswers.eintritt_vereinbart);
+    if (!cur || cur < ob) bgsSet('eintritt_vereinbart', ob, { immediate: true });
+}
 function bgsStepInvalidField() {
     const step = bgsCurrentStep();
     if (!step) return null;
@@ -878,6 +892,13 @@ function bgsStepInvalidField() {
         if (!(v || '').trim()) continue;
         if (f.t === 'tel' && !bgsTelOk(v)) return { f, el, msg: 'Bitte eine gültige Telefonnummer im Format 079 123 45 67 eingeben.' };
         if (f.t === 'email' && !bgsEmailOk(v)) return { f, el, msg: 'Bitte eine gültige E-Mail-Adresse eingeben.' };
+        if (f.k === 'eintritt_vereinbart') {
+            const iso = bgsParseChDate(v);
+            const ob = bgsOnboardingDatum();
+            if (iso && ob && iso < ob) {
+                return { f, el, msg: 'Arbeitsbeginn frühestens am Onboarding-Tag (' + bgsFmtD(ob) + ').' };
+            }
+        }
     }
     return null;
 }
@@ -1037,6 +1058,7 @@ async function bgsAfterRender(step) {
         tm.innerHTML = frei.length
             ? frei.map(t => { const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}`; return `<button type="button" class="bgs-opt ${cur === String(t.id) ? 'on' : ''}" data-key="willkommenstag_termin_id" data-val="${t.id}" data-label="${esc(lbl)}">${esc(lbl)} <span style="opacity:.6;font-size:.8em">· ${t.frei} frei</span></button>`; }).join('')
             : '<span class="bgs-fhint">Zurzeit kein Onboarding-Tag mit freiem Platz (HR-Kalender).</span>';
+        if (_bgsAnswers.willkommenstag_termin_id) bgsSyncArbeitsbeginnVorschlag();
     }
     const gf = document.getElementById('bgsGefuehrt');
     if (gf) {
@@ -1146,6 +1168,14 @@ document.addEventListener('change', e => {
         if (iso) { el.value = bgsFmtD(iso); v = iso; }
         else if (!String(v || '').trim()) v = null;
         else return;
+        if (key === 'eintritt_vereinbart' && v) {
+            const ob = bgsOnboardingDatum();
+            if (ob && v < ob) {
+                v = ob;
+                el.value = bgsFmtD(ob);
+                if (typeof showToast === 'function') showToast('Arbeitsbeginn frühestens am Onboarding-Tag (' + bgsFmtD(ob) + ').', 'error');
+            }
+        }
         bgsSet(key, v, { immediate: true });
         bgsPaintAlterHeute(iso);
         bgsRefreshGeburtUi();
@@ -1188,7 +1218,14 @@ document.addEventListener('click', e => {
     }
     const val = b.dataset.val;
     const neu = _bgsAnswers[key] === val ? null : val;
-    if (key === 'willkommenstag_termin_id') bgsSet('willkommenstag_termin', neu === null ? null : (b.dataset.label || ''));
+    if (key === 'willkommenstag_termin_id') {
+        bgsSet('willkommenstag_termin', neu === null ? null : (b.dataset.label || ''));
+        bgsSet(key, neu, { immediate: true });
+        if (neu) bgsSyncArbeitsbeginnVorschlag();
+        else bgsSet('eintritt_vereinbart', null);
+        bgsRenderFlow();
+        return;
+    }
     bgsSet(key, neu, { immediate: true, rerender: true });
 });
 document.addEventListener('keydown', e => {
