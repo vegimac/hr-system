@@ -931,7 +931,7 @@ function entwHubShowCat(cat) {
     else init();
 })();
 
-// HR-Hub: gleiche Mechanik fuer die 4 HR-Kategorien (Walter 15.08.2026).
+// HR-Hub: Kategorie-Kacheln (Walter 15.08.2026; + Kündigung/Austritt 13.09.2026).
 function hrHubShowCat(cat) {
     document.querySelectorAll('.hr-hub-group').forEach(g => { g.style.display = 'none'; });
     const grp = document.getElementById('hrHubGrp-' + cat);

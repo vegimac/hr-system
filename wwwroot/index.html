@@ -2029,21 +2029,29 @@
                 </style>
 
                 <!-- Hauptkategorie-Kacheln (Walter 15.08.2026, analog Systemeinstellungen):
-                     4 Kategorie-Kacheln, Klick blendet die HR-Karten der Kategorie ein
+                     Klick blendet die HR-Karten der Kategorie ein
                      (hrHubShowCat in app-core.js, Wahl in localStorage.hrHrHubCat).
-                     Alle 14 HR-Karten bleiben erhalten. -->
+                     Walter 13.09.2026: Onboarding allein; Kündigung/Austritt eigene Kachel. -->
                 <div class="ra-tile-row" id="hrHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="onb" onclick="hrHubShowCat('onb')" title="Interview-Kalender, Kandidaten, On-/Offboarding, Kündigung &amp; Zeugnisse">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="onb" onclick="hrHubShowCat('onb')" title="Kandidaten, Welcome-Day, Vertrags-Link, Onboarding-Dokumente">
                         <img src="img/hrkat-onb.webp?v=20260816a" alt="" loading="lazy">
-                        <span>Onboarding &amp; Austritt</span>
+                        <span>Onboarding</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="austritt" onclick="hrHubShowCat('austritt')" title="Kündigung, Zeugnisse, Verwarnung, Aufforderung, Aufhebung">
+                        <img src="img/hrkat-austritt.png?v=20260913c" alt="" loading="lazy">
+                        <span>Kündigung und<br>Austritt</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="kontrolle" onclick="hrHubShowCat('kontrolle')" title="Prüf-Listen, Manager Schulung, Krank- / Unfall-Meldungen">
                         <img src="img/hrkat-kontrolle.webp?v=20260816a" alt="" loading="lazy">
                         <span>Kontrolle &amp; Meldungen</span>
                     </button>
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="korr" onclick="hrHubShowCat('korr')" title="Mitarbeiter- &amp; Behörden-Korrespondenz, Brief-Vorlagen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="korr" onclick="hrHubShowCat('korr')" title="Mitarbeiter-Korrespondenz, Brief-Vorlagen">
                         <img src="img/hrkat-korr.webp?v=20260816a" alt="" loading="lazy">
                         <span>Korrespondenz</span>
+                    </button>
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="behoerden" onclick="hrHubShowCat('behoerden')" title="AKIS, QST, AHV, RAV, Lohnabtretungen">
+                        <img src="img/hrkat-behoerden.png?v=20260913c" alt="" loading="lazy">
+                        <span>Behörden<br>Korrespondenz</span>
                     </button>
                     <button type="button" class="ra-tile admin-hub-cat" data-cat="ausw" onclick="hrHubShowCat('ausw')" title="Lohnausweis, BFS-Lohnstrukturerhebung, Absenz-Auswertung, Reporting">
                         <img src="img/hrkat-ausw.webp?v=20260816a" alt="" loading="lazy">
@@ -2124,11 +2132,15 @@
                          führen den GF + HR sowieso über die Sidebar haben.
                          page-lohnlauf + hr-saldi-lohnlauf.js bleiben als Dead
                          Code im Repo (kein UI-Verweis mehr). -->
-
+                    </div>
+                </div>
+                <div class="hr-hub-group" id="hrHubGrp-austritt" style="display:none">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
                     <!-- Kündigung / Zeugnisse (Walter-Vorgabe 15.07.2026): EINE Karte,
                          darin direkte Menuepunkte — nichts verschachtelt.
                          +7 Kündigungsbestätigung (Walter 26.07.2026).
-                         +8 Aufhebungsvereinbarung (Walter 28.07.2026). -->
+                         +8 Aufhebungsvereinbarung (Walter 28.07.2026).
+                         Walter 13.09.2026: eigene Hub-Kategorie «Kündigung und Austritt». -->
                     <div class="hr-card" style="opacity:1">
                         <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
@@ -2263,59 +2275,6 @@
 
                     <div class="hr-card hr-plan">
                         <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#fef3c7;color:#854d0e">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title" data-i18n="hr.card.authoritiesCorrespondence">Behörden-Korrespondenz</div>
-                                <div class="hr-card-status" data-i18n="hr.status.planned">In Planung</div>
-                            </div>
-                        </div>
-                        <ul>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
-                                <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px" data-i18n="hr.status.openLink">— öffnen</span>
-                            </li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('lohn-abtretungen')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>Lohnabtretungen</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                            <li>Quellensteuer: Mutation / Abmeldung</li>
-                            <li>Aufenthaltsbewilligungs-Antrag (B/L/G)</li>
-                            <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
-                            <li>Familienzulagen-Antrag</li>
-                            <li>Mutterschafts- / Vaterschafts-Anmeldung</li>
-                            <li>RAV-Arbeitgeberbescheinigung</li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('zwischenverdienst')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u data-i18n="zvi.pageTitle">RAV-Zwischenverdienst</u></b>
-                                <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px" data-i18n="hr.status.openLink">— öffnen</span>
-                            </li>
-                            <li>L-GAV-Anmeldung Arbeitgeber</li>
-                            <li>IV-Schadenmeldung / Wiedereingliederung</li>
-                            <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
-                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
-                                <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
-                                <span style="color:#15803d">✓ vorhanden</span>
-                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
-                            </li>
-                        </ul>
-                    </div>
-
-
-                    <div class="hr-card hr-plan">
-                        <div class="hr-card-head">
                             <div class="hr-card-icon" style="background:#fef3c7;color:#92400e">
                                 <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                             </div>
@@ -2358,6 +2317,62 @@
                             <li>Allgemeine Mitteilungen / Newsletter</li>
                             <li>Krankheits-Rückkehr / Wiedereinstieg-Info</li>
                             <li>Versand-Logs &amp; Lese-Bestätigung</li>
+                        </ul>
+                    </div>
+                    </div>
+                </div>
+                <div class="hr-hub-group" id="hrHubGrp-behoerden" style="display:none">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:16px;margin-top:18px">
+                    <!-- Walter 13.09.2026: eigene Hub-Kategorie «Behörden Korrespondenz». -->
+                    <div class="hr-card" style="opacity:1">
+                        <div class="hr-card-head">
+                            <div class="hr-card-icon" style="background:#fef3c7;color:#854d0e">
+                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-6h6v6"/></svg>
+                            </div>
+                            <div>
+                                <div class="hr-card-title" data-i18n="hr.card.authoritiesCorrespondence">Behörden-Korrespondenz</div>
+                                <div class="hr-card-status">Formulare an Ämter — direkt zum Ablauf</div>
+                            </div>
+                        </div>
+                        <ul>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('akis-meldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>An-/Abmeldung Ausgleichskasse (AKIS)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('qst-anmeldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u data-i18n="qsta.pageTitle">Quellensteuer-Anmeldung</u></b>
+                                <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px" data-i18n="hr.status.openLink">— öffnen</span>
+                            </li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('lohn-abtretungen')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>Lohnabtretungen</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
+                            <li>Quellensteuer: Mutation / Abmeldung</li>
+                            <li>Aufenthaltsbewilligungs-Antrag (B/L/G)</li>
+                            <li>BVG-Anmeldung / -Abmeldung / Beitragsbefreiung</li>
+                            <li>Familienzulagen-Antrag</li>
+                            <li>Mutterschafts- / Vaterschafts-Anmeldung</li>
+                            <li>RAV-Arbeitgeberbescheinigung</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('zwischenverdienst')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u data-i18n="zvi.pageTitle">RAV-Zwischenverdienst</u></b>
+                                <span style="color:#15803d" data-i18n="hr.status.available">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px" data-i18n="hr.status.openLink">— öffnen</span>
+                            </li>
+                            <li>L-GAV-Anmeldung Arbeitgeber</li>
+                            <li>IV-Schadenmeldung / Wiedereingliederung</li>
+                            <li class="hr-done" style="cursor:pointer" onclick="showPage('ahv-anmeldung')"
+                                onmouseover="this.style.color='#6b7280'" onmouseout="this.style.color=''">
+                                <b><u>AHV-Anmeldung (Versicherungsausweis)</u></b>
+                                <span style="color:#15803d">✓ vorhanden</span>
+                                <span style="color:#94a3b8;font-size:11px">— öffnen</span>
+                            </li>
                         </ul>
                     </div>
                     </div>

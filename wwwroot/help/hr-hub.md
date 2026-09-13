@@ -2,7 +2,7 @@
 
 Unter **HR** in der Sidebar liegen die Werkzeuge für Formulare, Kontrollen und Behörden — getrennt vom Filial-Alltag des Geschäftsführers.
 
-Der HR-Hub ist in **vier Kategorie-Kacheln** gegliedert (wie die Systemeinstellungen): **Onboarding & Austritt**, **Kontrolle & Meldungen**, **Korrespondenz** und **Auswertungen & Exporte**. Ein Klick auf die Kategorie zeigt die zugehörigen Karten; die Auswahl bleibt gespeichert.
+Der HR-Hub ist in Kategorie-Kacheln gegliedert (wie die Systemeinstellungen): **Onboarding**, **Kündigung und Austritt**, **Kontrolle & Meldungen**, **Korrespondenz**, **Behörden Korrespondenz** und **Auswertungen & Exporte**. Ein Klick auf die Kategorie zeigt die zugehörigen Karten; die Auswahl bleibt gespeichert.
 
 ## Was findest du hier?
 
