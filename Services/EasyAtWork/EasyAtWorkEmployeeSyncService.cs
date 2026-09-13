@@ -2362,8 +2362,8 @@ public class EasyAtWorkEmployeeSyncService
             {
                 var eaw = eawEmps.FirstOrDefault(e => e.Id == row.EawEmployeeId);
                 if (eaw == null) continue;
-                // Funktion aus /positions → JobGroup; Kader ⇒ FIX-M (Walter 22.06.2026).
-                // Gilt für ALLE Timeline-Segmente dieses MA (Position ist MA-bezogen).
+                // Funktion aus /positions → JobGroup. Kader ⇒ FIX-M nur bei
+                // Monatslohn-Vertrag; MTP/FLEX bleiben Stundenlohn (Walter 13.09.2026).
                 var posName = PositionFor(row.EawEmployeeId);
                 int? jobGroupId = null; string? jobGroupCode = null; bool isKader = false;
                 if (!string.IsNullOrWhiteSpace(posName) && jobGroupByCode.TryGetValue(posName!.Trim(), out var jg))
@@ -2991,8 +2991,8 @@ public class EasyAtWorkEmployeeSyncService
     ///   • FIX/FIX-M: MonthlySalary = effektiver Pensumslohn aus easy@work,
     ///     MonthlySalaryFte = 100%-Lohn (effektiv / Pensum × 100).
     ///   • Lohnsatz ≤ 1.00 = Platzhalter ("kein Lohn") → ignoriert.
-    ///   • <paramref name="isKader"/> (Position IsKader) → Modell FIX-M, Monatslohnfelder
-    ///     bleiben erhalten (spiegelt ApplyJg im Commit-Loop).
+    ///   • <paramref name="isKader"/> → FIX-M nur bei Monatslohn; MTP/FLEX bleiben
+    ///     Stundenlohn (Schichtführer kann MTP sein).
     /// </summary>
     /// <summary>
     /// Vertragsregeln der Rechtseinheit, zu der diese Filiale gehört
@@ -3126,9 +3126,10 @@ public class EasyAtWorkEmployeeSyncService
             info.SalaryType           = "hourly";
         }
 
-        // Kader (Position IsKader) ⇒ FIX-M. Monatslohnfelder bleiben unverändert
-        // (spiegelt ApplyJg im Commit-Loop). Walter-Vorgabe 23.06.2026.
-        if (isKader)
+        // Kader (Position IsKader) ⇒ FIX-M nur beim Monatslohn-Vertrag.
+        // Ein Schichtführer kann MTP sein — die aktuelle Funktion darf ein
+        // Stundenlohn-Modell nicht umschreiben (Walter 13.09.2026).
+        if (isKader && (info.EmploymentModel == "FIX" || info.EmploymentModel == "FIX-M"))
         {
             info.EmploymentModel = "FIX-M";
             info.SalaryType      = "monthly";
@@ -3214,17 +3215,56 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
+    /// Folgt ein späterer Vertrag, endet der vorherige am Tag davor
+    /// (Walter 13.09.2026): offenes MTP + Fix ab 1.10. → MTP-Ende 30.9.
+    /// Gilt nur, wenn der Vorgänger sonst in den neuen Vertrag hineinragen
+    /// würde (offen oder Überlappung). Ein früher endender zur Historie bleibt.
+    /// </summary>
+    public static void SchliesseVorgaengerAmTagVorNachfolger(List<EawContract>? contracts)
+    {
+        if (contracts == null || contracts.Count < 2) return;
+        var ordered = contracts.Where(c => !c.IsDeleted && c.From.HasValue)
+            .OrderBy(c => c.From!.Value).ThenBy(c => c.Id).ToList();
+        for (int i = 0; i < ordered.Count - 1; i++)
+        {
+            var prev = ordered[i];
+            var nextFrom = ordered[i + 1].From!.Value;
+            if (!prev.To.HasValue || prev.To.Value >= nextFrom)
+                prev.ToRaw = nextFrom.AddDays(-1).ToString("yyyy-MM-dd");
+        }
+    }
+
+    /// <summary>
+    /// Gleicher Schnitt beim Lohn: beginnt ein neuer Tarif, endet der
+    /// vorherige am Vortag — damit Stundenlohn und Monatslohn nicht in
+    /// dasselbe Segment fallen.
+    /// </summary>
+    public static void SchliesseVorgaengerTarifeAmTagVorNachfolger(List<EawPayRate>? rates)
+    {
+        if (rates == null || rates.Count < 2) return;
+        var ordered = rates.Where(r => !r.IsDeleted && r.From.HasValue)
+            .OrderBy(r => r.From!.Value).ThenBy(r => r.Id).ToList();
+        for (int i = 0; i < ordered.Count - 1; i++)
+        {
+            var prev = ordered[i];
+            var nextFrom = ordered[i + 1].From!.Value;
+            if (!prev.To.HasValue || prev.To.Value >= nextFrom)
+                prev.ToRaw = nextFrom.AddDays(-1).ToString("yyyy-MM-dd");
+        }
+    }
+
+    /// <summary>
     /// STRICT-Validierung der easy@work-Verträge eines MA (Walter-Vorgabe
     /// 08.07.2026): Verträge dürfen sich NICHT überschneiden — auch nicht um
     /// einen Tag (Ende 1.4. + neuer Beginn 1.4. ist falsch; korrekt wäre Ende
-    /// 31.3.). Ebenso darf es nur EINEN offenen (unbefristeten) Vertrag geben.
-    /// Liefert die Fehlermeldung oder null. Bei Fehler wird für diesen MA
-    /// KEIN Vertrag importiert — Korrektur erfolgt in easy@work.
+    /// 31.3.). Offener Vorgänger plus späterer Vertrag wird vorher am Vortag
+    /// geschlossen (Walter 13.09.2026) und ist damit kein Fehler mehr.
     /// </summary>
     public static string? ValidateContractOverlaps(List<EawContract>? contracts, DateOnly? nurAktiveAb = null)
     {
         if (contracts == null || contracts.Count < 2) return null;
-        var ordered = contracts.Where(c => c.From.HasValue)
+        SchliesseVorgaengerAmTagVorNachfolger(contracts);
+        var ordered = contracts.Where(c => !c.IsDeleted && c.From.HasValue)
             .OrderBy(c => c.From!.Value).ThenBy(c => c.To ?? DateOnly.MaxValue)
             .ToList();
         for (int i = 0; i < ordered.Count - 1; i++)
@@ -3280,9 +3320,11 @@ public class EasyAtWorkEmployeeSyncService
     {
         contracts ??= new();
         rates     ??= new();
+        SchliesseVorgaengerAmTagVorNachfolger(contracts);
+        SchliesseVorgaengerTarifeAmTagVorNachfolger(rates);
 
-        static bool CApplies(EawContract c, DateOnly d) => c.From.HasValue && c.From.Value <= d && (!c.To.HasValue || c.To.Value >= d);
-        static bool RApplies(EawPayRate r, DateOnly d)  => r.From.HasValue && r.From.Value <= d && (!r.To.HasValue || r.To.Value >= d);
+        static bool CApplies(EawContract c, DateOnly d) => !c.IsDeleted && c.From.HasValue && c.From.Value <= d && (!c.To.HasValue || c.To.Value >= d);
+        static bool RApplies(EawPayRate r, DateOnly d)  => !r.IsDeleted && r.From.HasValue && r.From.Value <= d && (!r.To.HasValue || r.To.Value >= d);
 
         var bset = new SortedSet<DateOnly>();
         foreach (var c in contracts)

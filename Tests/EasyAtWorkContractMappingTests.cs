@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using HrSystem.Services.EasyAtWork;
 using Xunit;
 
@@ -215,30 +216,28 @@ public class EasyAtWorkContractMappingTests
     // ───── STRICT-Validierungen (Walter-Vorgabe 08.07.2026) ─────
 
     [Fact]
-    public void UeberlappendeVertraege_SindErfassungsfehler()
+    public void UeberlappendeVertraege_WerdenAmVortagGeschlossen()
     {
-        // Ende 1.4. + neuer Beginn 1.4. = 1 Tag Ueberlappung → Fehler.
         var contracts = new List<EawContract>
         {
             new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2025-10-10", ToRaw = "2026-04-01" },
             new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2026-04-01" },
         };
-        var err = EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts);
-        Assert.NotNull(err);
-        Assert.Contains("überschneiden", err);
+        Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts));
+        Assert.Equal(new DateOnly(2026, 3, 31), contracts[0].To);
     }
 
     [Fact]
-    public void OffenerAltVertrag_MitFolgevertrag_IstErfassungsfehler()
+    public void OffenerAltVertrag_WirdAmVortagDesNeuenGeschlossen()
     {
         var contracts = new List<EawContract>
         {
-            new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2025-10-10" },   // offen!
-            new() { Type = "Fix",  AmountType = "percent", Amount = 100m, FromRaw = "2026-04-01" },
+            new() { Type = "MTP/TPM", AmountType = "week", Amount = 34m, FromRaw = "2025-09-01" },
+            new() { Type = "Fix", AmountType = "percent", Amount = 100m, Percentage = 100m, FromRaw = "2026-10-01" },
         };
-        var err = EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts);
-        Assert.NotNull(err);
-        Assert.Contains("OFFEN", err);
+        Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(contracts));
+        Assert.Equal(new DateOnly(2026, 9, 30), contracts[0].To);
+        Assert.Null(contracts[1].To);
     }
 
     [Fact]
@@ -271,6 +270,64 @@ public class EasyAtWorkContractMappingTests
     }
 
     [Fact]
+    public void MtpWoche_BleibtMtp_AuchWennAktuellePositionKader()
+    {
+        var c = new EawContract
+        {
+            Type = "MTP/TPM",
+            AmountType = "week",
+            Amount = 34m,
+            FromRaw = "2025-09-01",
+            ToRaw = "2026-09-30",
+        };
+        var rates = new List<EawPayRate>
+        {
+            new EawPayRate { Type = "hour", Rate = 21.66m, FromRaw = "2026-01-01", ToRaw = "2026-09-30" },
+        };
+
+        var info = EasyAtWorkEmployeeSyncService.ComputeContractInfo(c, rates, new DateOnly(2026, 1, 1), isKader: true);
+
+        Assert.Null(info.DataError);
+        Assert.Equal("MTP", info.EmploymentModel);
+        Assert.Equal("hourly", info.SalaryType);
+        Assert.Equal(34m, info.GuaranteedHoursPerWeek);
+        Assert.Equal(21.66m, info.HourlyRate);
+    }
+
+    [Fact]
+    public void Befoerderung_MtpDannFix_KaderGiltNurAbFix()
+    {
+        var contracts = new List<EawContract>
+        {
+            new() { Type = "MTP/TPM", AmountType = "week", Amount = 34m, FromRaw = "2025-09-01" },
+            new() { Type = "Fix", AmountType = "percent", Amount = 100m, Percentage = 100m, FromRaw = "2026-10-01" },
+        };
+        var rates = new List<EawPayRate>
+        {
+            new() { Type = "hour", Rate = 21.50m, FromRaw = "2025-01-01", ToRaw = "2025-12-31" },
+            new() { Type = "hour", Rate = 21.66m, FromRaw = "2026-01-01", ToRaw = "2026-09-30" },
+            new() { Type = "month", Rate = 4300m, FromRaw = "2026-10-01" },
+        };
+
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(
+            contracts, rates, new DateOnly(2026, 9, 13), isKader: true);
+
+        Assert.All(tl, s => Assert.Null(s.Info.DataError));
+        Assert.Contains(tl, s => s.Info.EmploymentModel == "MTP");
+        var mtp = tl.First(s => s.Start == new DateOnly(2026, 1, 1));
+        Assert.Equal("MTP", mtp.Info.EmploymentModel);
+        Assert.Equal(34m, mtp.Info.GuaranteedHoursPerWeek);
+        Assert.Equal(21.66m, mtp.Info.HourlyRate);
+
+        var fix = tl.First(s => s.Start >= new DateOnly(2026, 10, 1));
+        Assert.Equal("FIX-M", fix.Info.EmploymentModel);
+        Assert.Equal(100m, fix.Info.EmploymentPercentage);
+        Assert.Equal(4300m, fix.Info.MonthlySalary);
+        Assert.Equal(new DateOnly(2026, 9, 30), contracts[0].To);
+        Assert.True(tl.Where(s => s.Info.EmploymentModel == "MTP").All(s => s.End <= new DateOnly(2026, 9, 30)));
+    }
+
+    [Fact]
     public void FixM_OhneLohn_IstLegal()
     {
         // GF-Fall: FIX-M darf ohne Lohn sein (vertraulich, wird in OneCrew erfasst).
@@ -292,13 +349,14 @@ public class EasyAtWorkContractMappingTests
         };
         Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(vergangen, Stichtag));
 
-        // Dieselbe Ueberlappung, aber der zweite Vertrag laeuft noch → Fehler.
+        // Dieselbe Ueberlappung, aber der zweite Vertrag laeuft noch → Vorgänger endet am Vortag.
         var aktiv = new List<EawContract>
         {
             new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-01-01", ToRaw = "2023-06-30" },
             new() { Type = "Flex", AmountType = "week", Amount = 17m, FromRaw = "2023-06-30" },
         };
-        Assert.NotNull(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(aktiv, Stichtag));
+        Assert.Null(EasyAtWorkEmployeeSyncService.ValidateContractOverlaps(aktiv, Stichtag));
+        Assert.Equal(new DateOnly(2023, 6, 29), aktiv[0].To);
     }
 }
 
