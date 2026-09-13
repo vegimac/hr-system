@@ -10,7 +10,6 @@
 let _obRep = null;          // letzter Report
 let _obRepInaktive = false; // Filter «inaktive anzeigen»
 let _obInvCp = null;        // Filiale im Einladungs-Modal
-let _obInvOffset = 0;       // Eintrittsmonat: Offset zum aktuellen Monat (−1…+2)
 
 function _obEsc(s) { return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
 
@@ -19,9 +18,9 @@ function _obFmt(ts) {
     return `${ts.slice(8, 10)}.${ts.slice(5, 7)}.${ts.slice(2, 4)} ${ts.slice(11, 16)}`;
 }
 
-// ── Schritt 2: MA zum Onboarding einladen (Walter 10.08.2026) ───────────
-// Restaurant wählen → alle MA mit Eintritt in der Zukunft → Vertrags-SMS
-// (inkl. Onboarding-Dokumente am Link) direkt auslösen.
+// ── Schritt 2: Kandidaten einladen (Walter 13.09.2026) ──────────────────
+// Nur angenommene Kandidaten, die noch kein MA sind. Sobald HR den
+// Kandidaten mit einem importierten MA verknüpft, fällt die Zeile weg.
 function hrObInvite() {
     _ivModalShell('hrObInvModal', '📲 Vertrags-SMS senden — Vertrag + Dokumente', 1180);
     document.getElementById('hrObInvModal').style.display = 'flex';
@@ -31,118 +30,94 @@ function hrObInvite() {
 async function hrObInvReload() {
     const body = document.getElementById('hrObInvModalBody');
     if (!body) return;
-    // KEINE Filial-Auswahl (Walter 10.08.2026): immer ALLE Eintritte des
-    // gewählten Monats (−1…+2), sortiert nach Eintrittsdatum, Filiale pro Zeile.
-    const monNamen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
-    const now = new Date();
-    const monOpts = [-1, 0, 1, 2].map(off => {
-        const d = new Date(now.getFullYear(), now.getMonth() + off, 1);
-        return `<option value="${off}"${off === _obInvOffset ? ' selected' : ''}>${monNamen[d.getMonth()]} ${d.getFullYear()}</option>`;
-    }).join('');
-    const selDate = new Date(now.getFullYear(), now.getMonth() + _obInvOffset, 1);
-
     body.innerHTML = `
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">
-            <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Eintrittsmonat
-                <select onchange="_obInvOffset=parseInt(this.value,10);hrObInvReload()" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;font-size:13px;color:#3f3f3f">${monOpts}</select></label>
-            <span style="font-size:11.5px;color:#8b8b8b;padding-bottom:8px">Alle MA mit Eintritt im gewählten Monat, über alle Restaurants.</span>
-        </div>
+        <div style="font-size:11.5px;color:#8b8b8b;margin-bottom:10px">Nur angenommene Kandidaten — keine Mitarbeitenden, keine Neueintritte. Nach der Umstellung zum MA verschwindet die Person hier.</div>
         <div id="hrObInvList" style="font-size:13px;color:#3f3f3f">Wird geladen…</div>`;
     const list = document.getElementById('hrObInvList');
     try {
-        // MA-Liste + Onboarding-Termine + wartende Kandidaten parallel laden.
-        const [r, rt, rk] = await Promise.all([
-            fetch(`/api/contract-share/onboarding-einladungen?year=${selDate.getFullYear()}&month=${selDate.getMonth() + 1}`, { headers: ah() }),
-            fetch('/api/kandidaten/termine', { headers: ah() }),
+        const [rk, rt] = await Promise.all([
             fetch('/api/kandidaten?status=ANGENOMMEN', { headers: ah() }),
+            fetch('/api/kandidaten/termine', { headers: ah() }),
         ]);
-        const rows = await r.json();
-        if (!r.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
+        const kand = rk.ok ? await rk.json() : [];
+        if (!rk.ok) { list.textContent = 'Laden fehlgeschlagen.'; return; }
         const termine = rt.ok ? await rt.json() : [];
-        // Hinweis (Walter 11.08.2026): angenommene Kandidaten sind hier noch
-        // NICHT einladbar — die Willkommens-SMS enthält den Vertrags-Link und
-        // braucht einen importierten MA. Sichtbar machen statt rätseln lassen.
-        let wartendHtml = '';
-        try {
-            const kand = rk.ok ? await rk.json() : [];
-            if (Array.isArray(kand) && kand.length) {
-                const namen = kand.map(k =>
-                    `<b>${_obEsc(k.vorname)} ${_obEsc(k.name)}</b> (${_obEsc(k.filiale)}${k.fruehesterEintritt ? ', Eintritt ab ' + _obFmt(k.fruehesterEintritt + ' 00:00').slice(0, 8) : ''})`).join(' · ');
-                wartendHtml = `
-                    <div style="background:#fef9c3;border:1px solid #fde68a;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12.5px;color:#854d0e">
-                        ⏳ <b>Noch nicht einladbar:</b> ${namen} — zuerst in easy@work erfassen, nach OneCrew importieren
-                        und unter «Kandidaten prüfen» verknüpfen. Danach erscheint der MA hier automatisch.
-                    </div>`;
-            }
-        } catch (_) { /* Hinweis ist nur Komfort */ }
-        if (!rows.length) { list.innerHTML = wartendHtml + '<span style="color:#8b8b8b">Keine Mitarbeitenden mit Eintritt in diesem Monat.</span>'; return; }
-        // Tabellen-Grid mit festen Spalten (Walter 10.08.2026 «schöner anordnen»):
-        // MA (Name + Eintritt·Filiale·Modell) | Einladung (Status) | Termin | Aktion.
+        const rows = (Array.isArray(kand) ? kand : [])
+            .filter(k => !k.verknuepftEmployeeId)
+            .sort((a, b) => (a.vorname || '').localeCompare(b.vorname || '', 'de')
+                || (a.name || '').localeCompare(b.name || '', 'de'));
+        if (!rows.length) {
+            list.innerHTML = '<span style="color:#8b8b8b">Keine offenen Kandidaten. Nach der Verknüpfung mit einem MA erscheint niemand mehr hier.</span>';
+            return;
+        }
         const gridCols = 'grid-template-columns:minmax(200px,1fr) minmax(150px,0.7fr) minmax(320px,360px) 150px';
-        const rowsHtml = rows.map((m, i) => {
+        const rowsHtml = rows.map((k, i) => {
+            const name = `${k.vorname || ''} ${k.name || ''}`.trim();
+            const gesendet = k.willkommenGesendetAm;
             let status;
-            if (!m.gesendetAm) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap">noch nicht eingeladen</span>';
+            if (!gesendet) status = '<span style="background:#fef9c3;color:#854d0e;border-radius:8px;padding:2px 9px;font-size:11px;font-weight:700;white-space:nowrap">noch nicht eingeladen</span>';
             else {
-                status = `<div style="white-space:nowrap">📲 ${_obFmt(m.gesendetAm)}</div>
-                          <div style="white-space:nowrap;margin-top:2px">${m.geoeffnetAm
-                    ? `👁 ${_obFmt(m.geoeffnetAm)}${m.pdfAm ? ' <span style="color:#166534;font-weight:700">✓</span>' : ''}`
-                    : '<span style="color:#b45309">👁 noch nicht geöffnet</span>'}</div>`;
+                const ant = k.willkommenAntwort === 'ANGENOMMEN'
+                    ? '<span style="color:#166534;font-weight:700">✓ bestätigt</span>'
+                    : k.willkommenAntwort === 'ABGELEHNT'
+                        ? '<span style="color:#991b1b">✕ abgesagt</span>'
+                        : '<span style="color:#b45309">⏳ wartet auf Antwort</span>';
+                status = `<div style="white-space:nowrap">📲 ${_obFmt(gesendet)}</div>
+                          <div style="white-space:nowrap;margin-top:2px">${ant}</div>`;
             }
-            const kannSms = !!(m.telefon && m.telefon.trim());
-            // Termin-Zelle (Walter 11.08.2026): ist der Willkommenstag bereits
-            // über die Kandidaten-SMS gebucht, nur den Status zeigen (kein
-            // Select) — der Vertrags-Link übernimmt den gebuchten Termin.
+            const kannSms = !!(k.telefon && String(k.telefon).trim());
+            const bestaetigt = k.willkommenAntwort === 'ANGENOMMEN';
             let terminZelle;
-            if (m.gebuchtTermin) {
-                const badge = m.gebuchtAntwort === 'ANGENOMMEN'
-                    ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">✓ bestätigt</span>'
-                    : '<span style="background:#f1efe9;color:#8b8b8b;border-radius:8px;padding:1px 8px;font-size:11px">⏳ unbestätigt</span>';
+            if (bestaetigt && k.wunschTermin) {
                 terminZelle = `<div style="font-size:12.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
-                    <input type="hidden" id="kdInvTermin${m.employeeId}" value="${m.gebuchtTerminId}">
-                    <span>📅 ${_obEsc(m.gebuchtTermin)}</span>${badge}</div>`;
+                    <input type="hidden" id="kdInvTermin${k.id}" value="${k.wunschTerminId || ''}">
+                    <span>📅 ${_obEsc(k.wunschTermin)}</span>
+                    <span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700">✓ bestätigt</span></div>`;
             } else {
                 const terminOpts = ['<option value="">— ohne Termin —</option>']
-                    .concat(termine.filter(t => t.frei > 0 || t.id === m.wunschTerminId).map(t =>
-                        `<option value="${t.id}"${t.id === m.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === m.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
+                    .concat(termine.filter(t => t.frei > 0 || t.id === k.wunschTerminId).map(t =>
+                        `<option value="${t.id}"${t.id === k.wunschTerminId ? ' selected' : ''}>${_obFmt(t.datum + ' 00:00').slice(0, 8)} · ${t.von}${t.bis ? '–' + t.bis : ''} (${t.frei} frei)${t.id === k.wunschTerminId ? ' ★ Wunsch' : ''}</option>`))
                     .join('');
-                terminZelle = `<select id="kdInvTermin${m.employeeId}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;width:100%">${terminOpts}</select>`;
+                terminZelle = `<select id="kdInvTermin${k.id}" style="background:#fff;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:5px 8px;font-size:12px;color:#3f3f3f;width:100%">${terminOpts}</select>`;
             }
+            const eintritt = k.fruehesterEintritt ? `Eintritt ${_obFmt(k.fruehesterEintritt + ' 00:00').slice(0, 8)} · ` : '';
             return `
             <div style="display:grid;${gridCols};gap:12px;align-items:center;padding:9px 10px;border-bottom:1px solid rgba(60,55,48,0.08);${i % 2 ? 'background:rgba(255,255,255,0.45);' : ''}">
                 <div>
-                    <div style="font-weight:800">${_obEsc(m.name)}</div>
-                    <div style="color:#8b8b8b;font-size:11.5px;margin-top:2px">Eintritt ${_obFmt(m.eintritt + ' 00:00').slice(0, 8)} · ${_obEsc(m.filiale || '')}${m.modell ? ' · ' + _obEsc(m.modell) : ''}</div>
+                    <div style="font-weight:800">${_obEsc(name)}</div>
+                    <div style="color:#8b8b8b;font-size:11.5px;margin-top:2px">${eintritt}${_obEsc(k.filiale || '')}${k.lgavAusbildung ? ' · ' + _obEsc(k.lgavAusbildung) : ''}</div>
                 </div>
                 <div style="font-size:12px">${status}</div>
                 ${kannSms
                     ? `<div>${terminZelle}</div>
-                       <button onclick="hrObInvSend(${m.employeeId}, '${_obEsc(m.name)}', '${_obEsc(m.telefon)}')" style="background:${m.gesendetAm ? 'rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22)' : '#3f3f3f;color:#fff;border:none'};border-radius:12px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${m.gesendetAm ? '📱 Erneut senden' : '📱 Vertrag senden'}</button>`
-                    : '<span style="grid-column:span 2;color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt — im MA-Detail erfassen">kein Telefon hinterlegt</span>'}
+                       <button onclick='hrObInvSend(${k.id}, ${JSON.stringify(name)}, ${JSON.stringify(k.telefon || '')})' style="background:${gesendet ? 'rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(60,55,48,0.22)' : '#3f3f3f;color:#fff;border:none'};border-radius:12px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${gesendet ? '📱 Erneut senden' : '📱 Einladen'}</button>`
+                    : '<span style="grid-column:span 2;color:#991b1b;font-size:12px" title="Keine Handynummer hinterlegt">kein Telefon hinterlegt</span>'}
             </div>`;
         }).join('');
-        list.innerHTML = wartendHtml + `
+        list.innerHTML = `
             <div style="display:grid;${gridCols};gap:12px;padding:4px 10px 6px;font-size:10.5px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;color:#8b8b8b;border-bottom:2px solid rgba(60,55,48,0.14)">
-                <span>Mitarbeiter/in</span><span>Einladung</span><span>Onboarding-Termin</span><span></span>
+                <span>Kandidat/in</span><span>Einladung</span><span>Onboarding-Termin</span><span></span>
             </div>${rowsHtml}`;
     } catch (_) { list.textContent = 'Verbindungsfehler.'; }
 }
 
-async function hrObInvSend(employeeId, name, telefon) {
-    const terminSel = document.getElementById(`kdInvTermin${employeeId}`);
+async function hrObInvSend(kandidatId, name, telefon) {
+    const terminSel = document.getElementById(`kdInvTermin${kandidatId}`);
     const terminId = terminSel && terminSel.value ? parseInt(terminSel.value, 10) : null;
-    // Hidden-Input (bereits gebuchter Willkommenstag) hat keine options.
-    const terminTxt = terminId
-        ? (terminSel.options
-            ? ` — inkl. Onboarding-Termin ${terminSel.options[terminSel.selectedIndex].text.replace(/ \(\d+ frei\).*/, '')}`
-            : ' — der Link zeigt den bereits gebuchten Willkommenstag')
+    if (!terminId) { showToast('Zuerst einen Onboarding-Tag wählen.', 'error'); return; }
+    const terminTxt = terminSel.options
+        ? ` — ${terminSel.options[terminSel.selectedIndex].text.replace(/ \(\d+ frei\).*/, '')}`
         : '';
     if (typeof liquidConfirm === 'function'
-        && !await liquidConfirm(`Vertrags-SMS (inkl. Onboarding-Dokumente am Link) an ${name} — ${telefon} — senden?${terminTxt}`, { title: 'Onboarding-Einladung' })) return;
-    const r = await fetch('/api/contract-share/send', {
-        method: 'POST', headers: ah(), body: JSON.stringify({ employeeId, terminId }),
+        && !await liquidConfirm(`Einladung an ${name} — ${telefon} — senden?${terminTxt}`, { title: 'Onboarding-Einladung' })) return;
+    const tr = await fetch(`/api/kandidaten/${kandidatId}/termin`, {
+        method: 'POST', headers: ah(), body: JSON.stringify({ terminId }),
     });
+    const tj = await tr.json().catch(() => ({}));
+    if (!tr.ok) { showToast(tj.message || tj.error || 'Termin konnte nicht gesetzt werden.', 'error'); return; }
+    const r = await fetch(`/api/kandidaten/${kandidatId}/willkommen-sms`, { method: 'POST', headers: ah() });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) { showToast(j.error || j.message || 'Versand fehlgeschlagen.', 'error'); return; }
+    if (!r.ok) { showToast(j.message || j.error || 'Versand fehlgeschlagen.', 'error'); return; }
     showToast(`Einladung an ${j.to} gesendet.` + (j.redirectedTo ? ` (Test-Umleitung: ${j.redirectedTo})` : ''), 'success');
     hrObInvReload();
 }
