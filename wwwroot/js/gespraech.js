@@ -536,10 +536,12 @@ function bgsRenderFlow() {
         </aside>
         <main class="bgs-main">
             <div class="bgs-card" id="bgsCard">
-                <h2 class="bgs-title">${esc(step.title)}</h2>
-                ${step.hint ? `<p class="bgs-hint">${esc(step.hint)}</p>` : ''}
-                <div id="bgsDubletten"></div>
-                <div class="bgs-fields" id="bgsFields">${bgsRenderStepBody(step)}</div>
+                <div class="bgs-card-body" id="bgsCardBody">
+                    <h2 class="bgs-title">${esc(step.title)}</h2>
+                    ${step.hint ? `<p class="bgs-hint">${esc(step.hint)}</p>` : ''}
+                    <div id="bgsDubletten"></div>
+                    <div class="bgs-fields" id="bgsFields">${bgsRenderStepBody(step)}</div>
+                </div>
                 <div class="bgs-nav">
                     <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPrev()" ${idx === 0 ? 'disabled' : ''}>← Zurück</button>
                     ${locked ? '' : `<button type="button" class="bgs-btn bgs-btn-ghost" style="color:#991b1b" onclick="bgsAbbrechen()" title="Gespräch abbrechen — alle bisherigen Antworten werden gelöscht">✕ Abbrechen</button>`}
@@ -568,14 +570,17 @@ function bgsRenderFlow() {
 // abgeschnitten, nichts scrollt.
 let _bgsFitTimer = null;
 function bgsFitCard() {
-    const main = document.querySelector('.bgs-full .bgs-main');
     const card = document.getElementById('bgsCard');
-    if (!main || !card) return;
-    card.style.zoom = '1';
-    const cs = getComputedStyle(main);
-    const avail = main.clientHeight - parseFloat(cs.paddingTop || '0') - parseFloat(cs.paddingBottom || '0');
-    const need = card.scrollHeight;
-    if (need > avail && avail > 100) card.style.zoom = String(Math.max(0.5, Math.floor((avail / need) * 100) / 100));
+    const body = document.getElementById('bgsCardBody');
+    if (!card || !body) return;
+    body.style.zoom = '1';
+    const nav = card.querySelector('.bgs-nav');
+    const cs = getComputedStyle(card);
+    const pad = parseFloat(cs.paddingTop || '0') + parseFloat(cs.paddingBottom || '0');
+    const navH = nav ? nav.offsetHeight : 0;
+    const avail = card.clientHeight - pad - navH;
+    const need = body.scrollHeight;
+    if (need > avail && avail > 80) body.style.zoom = String(Math.max(0.5, Math.floor((avail / need) * 100) / 100));
 }
 window.addEventListener('resize', () => { clearTimeout(_bgsFitTimer); _bgsFitTimer = setTimeout(bgsFitCard, 80); });
 let _bgsStepTimer = null;

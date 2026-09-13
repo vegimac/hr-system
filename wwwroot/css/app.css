@@ -12415,8 +12415,9 @@ body.bgs-fullscreen { overflow: hidden; }
 .bgs-full .bgs-dot { width: 24px; height: 24px; flex-basis: 24px; font-size: 12px; }
 /* Kein Scrollen auf Frage-Bildschirmen: main ist der Rahmen, die Karte wird
    per JS (bgsFitCard, CSS zoom) eingepasst, wenn sie nicht hineinpasst. */
-.bgs-full .bgs-main { flex: 1; min-width: 0; overflow: hidden; padding: 18px 26px 18px; display: flex; align-items: flex-start; justify-content: center; }
-.bgs-full .bgs-card { width: 100%; max-width: 1240px; padding: 30px 46px 24px; border-radius: 26px; box-sizing: border-box; }
+.bgs-full .bgs-main { flex: 1; min-width: 0; overflow: hidden; padding: 18px 26px 18px; display: flex; align-items: stretch; justify-content: center; }
+.bgs-full .bgs-card { width: 100%; max-width: 1240px; height: 100%; max-height: 100%; min-height: 0; padding: 30px 46px 20px; border-radius: 26px; box-sizing: border-box; display: flex; flex-direction: column; }
+.bgs-full .bgs-card-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
 .bgs-full .bgs-title { font-size: 38px; margin: 0 0 6px; }
 .bgs-full .bgs-hint { font-size: 18px; line-height: 1.4; }
 .bgs-full .bgs-fields { margin-top: 18px; gap: 18px; }
@@ -12431,7 +12432,7 @@ body.bgs-fullscreen { overflow: hidden; }
 .bgs-full .bgs-opts { gap: 10px; }
 .bgs-full .bgs-opt { font-size: 21px; padding: 12px 26px; }
 .bgs-full .bgs-yn { min-width: 130px; }
-.bgs-full .bgs-nav { margin-top: 22px; padding-top: 16px; }
+.bgs-full .bgs-nav { margin-top: 0; padding-top: 16px; flex: 0 0 auto; min-height: 68px; align-items: center; }
 .bgs-full .bgs-nav .bgs-btn { font-size: 19px; padding: 12px 24px; border-radius: 16px; }
 .bgs-full .bgs-verf td { padding: 2px 8px; }
 .bgs-full .bgs-verf .bgs-btn { padding: 4px 10px; font-size: 14px; }
