@@ -537,7 +537,6 @@ public class BewerbungsgespraechController : HrControllerBase
         ("Minderjährige", "vertreter_name", "Gesetzlicher Vertreter"),
         ("Minderjährige", "vertreter_telefon", "Telefon Vertreter"),
         ("Gespräch (intern)", "teilnehmende", "Gespräch geführt von"),
-        ("Gespräch (intern)", "dauer_mind", "Für eine Dauer von mindestens"),
         ("Gespräch (intern)", "notizen", "Eindruck / Notizen"),
     };
 

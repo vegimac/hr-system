@@ -170,16 +170,6 @@ const GS_STEPS = [
           { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Englisch, Portugiesisch' },
           { k: 'sprache_andere_niveau', l: 'Niveau andere Sprache', t: 'choice', opts: GS_LEVELS },
       ] },
-    { key: 'einsatz', teil: 'A', title: 'Einsatz & Onboarding-Tag', when: a => bgsDarfWeiter(a),
-      fields: [
-          { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
-          { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
-          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
-          { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
-          { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn', t: 'date',
-            when: a => a.willkommenstag_teilnahme === true && !!a.willkommenstag_termin_id,
-            hint: 'Gleicher Tag wie der Onboarding-Tag oder danach.' },
-      ] },
     { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', when: a => bgsDarfWeiter(a), hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
       fields: [
           { k: 'verf', l: '', t: 'availability' },
@@ -199,6 +189,16 @@ const GS_STEPS = [
           { k: 'militaer_dauer', l: 'Dauer vom – bis', t: 'text', when: a => a.militaer === true },
           { k: 'ausbildung_gastro', l: 'Ausbildung in der Hotellerie oder Restauration?', t: 'yesno', hint: 'Falls ja: Kopie beilegen' },
       ] },
+    { key: 'einsatz', teil: 'A', title: 'Einsatz & Onboarding-Tag', when: a => bgsDarfWeiter(a),
+      fields: [
+          { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
+          { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
+          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
+          { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
+          { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn', t: 'date',
+            when: a => a.willkommenstag_teilnahme === true && !!a.willkommenstag_termin_id,
+            hint: 'Gleicher Tag wie der Onboarding-Tag oder danach.' },
+      ] },
     { key: 'willkommen', teil: 'B', title: 'Onboarding-Tag', when: () => false, // in «einsatz» zusammengefasst (Walter 13.09.2026)
       fields: [] },
     { key: 'vertreter', teil: 'B', title: 'Gesetzlicher Vertreter', hint: 'Der Bewerber ist minderjährig — Angaben und Einverständnis des gesetzlichen Vertreters.',
@@ -211,7 +211,6 @@ const GS_STEPS = [
       hint: 'Intern — der Bewerber sieht das nicht. Nein: dem Kandidaten jetzt absagen. Weiter: an HR für die Organisation des Onboarding-Tags.',
       fields: [
           { k: 'teilnehmende', l: 'Gespräch geführt von', t: 'gefuehrt' },
-          { k: 'dauer_mind', l: 'Für eine Dauer von mindestens', t: 'text', ph: 'z.B. 6 Monate' },
           { k: 'notizen', l: 'Eindruck / Notizen', t: 'textarea' },
       ] },
 ];
