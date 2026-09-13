@@ -881,11 +881,11 @@ function bgsOnboardingDatum() {
     const t = (_bgsTermine || []).find(x => String(x.id) === String(id));
     return t && t.datum ? String(t.datum).slice(0, 10) : null;
 }
-function bgsSyncArbeitsbeginnVorschlag() {
+function bgsSyncArbeitsbeginnVorschlag(force) {
     const ob = bgsOnboardingDatum();
     if (!ob) return;
     const cur = bgsToIso(_bgsAnswers.eintritt_vereinbart);
-    if (!cur || cur < ob) bgsSet('eintritt_vereinbart', ob, { immediate: true });
+    if (force || !cur || cur < ob) bgsSet('eintritt_vereinbart', ob, { immediate: true });
 }
 function bgsStepInvalidField() {
     const step = bgsCurrentStep();
@@ -1225,7 +1225,7 @@ document.addEventListener('click', e => {
     if (key === 'willkommenstag_termin_id') {
         bgsSet('willkommenstag_termin', neu === null ? null : (b.dataset.label || ''));
         bgsSet(key, neu, { immediate: true });
-        if (neu) bgsSyncArbeitsbeginnVorschlag();
+        if (neu) bgsSyncArbeitsbeginnVorschlag(true);
         else bgsSet('eintritt_vereinbart', null);
         bgsRenderFlow();
         return;
