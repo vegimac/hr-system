@@ -71,10 +71,7 @@ Icon-Kacheln für den Filial-Alltag:
 |---|---|
 | **Bewerbungsbogen** | Blanko-Bewerbungsbogen der Filiale als PDF |
 | **Probezeit** | Probezeit-Gespräch-PDF, Datum + Protokoll verknüpfen, Kündigung in Probezeit |
-| **Arbeitsbestätigung / Arbeitszeugnis / Zwischenzeugnis** | PDF erzeugen |
-| **Verwarnung** | Verwarnung erfassen + Formular |
-| **Arbeits Aufforderung** | Schriftliche Aufforderung zur Arbeit (HR-Menü Kündigung / Zeugnisse oder diese Kachel) |
-| **Absenzkalender** | Monatsübersicht der Filiale |
+| **Umzug erfassen** | Wohnortwechsel am MA |
 | **Postfach-Passwort** | Reset auf Personalnummer + Login-Sperre weg |
 | **Onboarding-QR** | QR für ersten Postfach-Login |
 | **Face ID zurücksetzen** | Alle Passkeys des MA löschen |

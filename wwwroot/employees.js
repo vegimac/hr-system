@@ -15930,13 +15930,17 @@ function _raTilesHtml() {
         ${tile('Postfach passwort.webp', 'Postfach-Passwort', 'postfachResetPassword(selectedEmployeeId)')}
         ${tile('onboarding qr.webp', 'Onboarding-QR', 'postfachSetupQr(selectedEmployeeId)')}
         ${tile('face id zurück.webp', 'Face ID zurücksetzen', 'faceIdAdminReset(selectedEmployeeId)')}`;
+    // Arbeitsbestätigung / Verwarnung / Aufforderung / Arbeitszeugnis /
+    // Zwischenzeugnis: aus diesem Menü ausgeblendet (Walter 13.09.2026) —
+    // macht künftig nur HR. Icons + Abläufe bleiben (HR-Hub bzw. später
+    // HR-Einbau). Nicht löschen.
+    // ${tile('arbeitsbestaetigung.webp', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
+    // ${tile('verwarnung.webp', 'Verwarnung', 'openVerwarnungModal(null)')}
+    // ${tile('Aufforderung.webp', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
+    // ${tile('Schlusszeugnis.webp', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
+    // ${tile('zwischenzeugnis.webp', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
     return `<div class="ra-tile-row">
         ${tile('probezeit.webp', 'Probezeit', 'openProbezeitModal(selectedEmployeeId)')}
-        ${tile('arbeitsbestaetigung.webp', 'Arbeitsbestätigung', 'openZeugnisModal(selectedEmployeeId, false, true)')}
-        ${tile('verwarnung.webp', 'Verwarnung', 'openVerwarnungModal(null)')}
-        ${tile('Aufforderung.webp', 'Arbeits Aufforderung', 'raOpenAufforderungArbeit(selectedEmployeeId)')}
-        ${tile('Schlusszeugnis.webp', 'Arbeitszeugnis', 'openZeugnisModal(selectedEmployeeId)')}
-        ${tile('zwischenzeugnis.webp', 'Zwischenzeugnis', 'openZeugnisModal(selectedEmployeeId, true)')}
         ${tile('umzug.svg', 'Umzug erfassen', 'openUmzugModal(selectedEmployeeId)')}
         ${kontoTiles}
     </div>`;

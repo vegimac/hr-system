@@ -35,7 +35,7 @@ Das 4-Augen-Prinzip: GF bereitet vor und gibt frei, HR bestätigt und sendet. Ad
 
 **superuser** — Dashboard, Mitarbeiter, Verträge, Lohn, Lohnperioden, Posteingang, HR-Modul (RAV, QST-Anmeldung, Lohnausweis, BFS-LSE), aber **keine** Systemeinstellungen.
 
-**user** (GF) — Dashboard, Mitarbeiter (inkl. MA Formulare: Verwarnung, Probezeit, Zeugnisse, Face ID, Onboarding-QR), Verträge, Lohn (GF-Schritte), Posteingang, Bewilligungen, Dokumente ablegen/löschen. Filtert automatisch auf die zugeteilten Filialen. Systemeinstellungen und HR-Abschluss (DTA) bleiben HR/Admin.
+**user** (GF) — Dashboard, Mitarbeiter (inkl. MA Formulare: Probezeit, Umzug, Face ID, Onboarding-QR), Verträge, Lohn (GF-Schritte), Posteingang, Bewilligungen, Dokumente ablegen/löschen. Zeugnisse und Verwarnung macht HR. Filtert automatisch auf die zugeteilten Filialen. Systemeinstellungen und HR-Abschluss (DTA) bleiben HR/Admin.
 
 **buchhaltung** — wie superuser, plus zusätzlich der **Buchhaltungs-Bereich** (Fibu-Journal, Saldo-Listen). Filtert ebenfalls auf zugeteilte Filialen.
 

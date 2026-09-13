@@ -37,7 +37,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 
 ## So ist das Programm aufgebaut
 
-**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen (Probezeit, Verwarnung, Zeugnisse …) liegen im Tab **MA Formulare**.
+**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen am MA (Probezeit, Umzug, Postfach …) liegen im Tab **MA Formulare**. Zeugnisse und Verwarnung macht HR.
 
 **Verträge** sagen, wie viel jemand verdient. Bei Änderungen legst du einen **neuen** Vertrag an (nicht den alten überschreiben).
 

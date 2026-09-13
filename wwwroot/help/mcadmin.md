@@ -19,5 +19,6 @@ direkt unter «Mitarbeiter».
 | **Manager Schulung** | Nothelfer / Peak-Verifizierung / Seco der gewählten Filiale. |
 | **Mirus Absenz Import** | (nur Admin) Mirus-Dienstplan-XLS in Absenzen umwandeln. |
 
-Die mitarbeiterbezogenen Formulare (Zeugnisse, Verwarnung, Probezeit …)
-bleiben beim jeweiligen MA im Tab **«MA Formulare»** (früher «Restaurant Admin»).
+Zeugnisse, Verwarnung und Arbeits-Aufforderung macht künftig nur HR
+(HR-Hub). Beim MA bleiben im Tab **«MA Formulare»** Probezeit, Umzug,
+Postfach-Passwort, Onboarding-QR und Face ID.
