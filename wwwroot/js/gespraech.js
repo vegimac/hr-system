@@ -170,11 +170,13 @@ const GS_STEPS = [
           { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Englisch, Portugiesisch' },
           { k: 'sprache_andere_niveau', l: 'Niveau andere Sprache', t: 'choice', opts: GS_LEVELS },
       ] },
-    { key: 'einsatz', teil: 'A', title: 'Dein Einsatz bei uns', when: a => bgsDarfWeiter(a),
+    { key: 'einsatz', teil: 'A', title: 'Einsatz & Onboarding-Tag', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
-          { k: 'erfahrung', l: 'Erfahrung in der Gastronomie — wo / was?', t: 'textarea' },
+          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
+          { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
+          { k: 'eintritt_vereinbart', l: 'Arbeitsbeginn (nach dem Onboarding-Tag)', t: 'date', when: a => a.willkommenstag_teilnahme === true },
       ] },
     { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', when: a => bgsDarfWeiter(a), hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
       fields: [
@@ -195,11 +197,8 @@ const GS_STEPS = [
           { k: 'militaer_dauer', l: 'Dauer vom – bis', t: 'text', when: a => a.militaer === true },
           { k: 'ausbildung_gastro', l: 'Ausbildung in der Hotellerie oder Restauration?', t: 'yesno', hint: 'Falls ja: Kopie beilegen' },
       ] },
-    { key: 'willkommen', teil: 'B', title: 'Onboarding-Tag', when: a => bgsDarfWeiter(a),
-      fields: [
-          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
-          { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
-      ] },
+    { key: 'willkommen', teil: 'B', title: 'Onboarding-Tag', when: () => false, // in «einsatz» zusammengefasst (Walter 13.09.2026)
+      fields: [] },
     { key: 'vertreter', teil: 'B', title: 'Gesetzlicher Vertreter', hint: 'Der Bewerber ist minderjährig — Angaben und Einverständnis des gesetzlichen Vertreters.',
       when: () => false, // 16 und jünger stoppt am Geburtsdatum (Walter 13.09.2026)
       fields: [{ k: 'vertreter_name', l: 'Vorname Name', t: 'text' }, { k: 'vertreter_telefon', l: 'Telefon', t: 'tel' }] },
@@ -210,15 +209,15 @@ const GS_STEPS = [
       hint: 'Intern — der Bewerber sieht das nicht. Nein: dem Kandidaten jetzt absagen. Weiter: an HR für die Organisation des Onboarding-Tags.',
       fields: [
           { k: 'teilnehmende', l: 'Gespräch geführt von', t: 'gefuehrt' },
-          { k: 'eintritt_vereinbart', l: 'Eintritt vereinbart per', t: 'date' },
           { k: 'dauer_mind', l: 'Für eine Dauer von mindestens', t: 'text', ph: 'z.B. 6 Monate' },
           { k: 'notizen', l: 'Eindruck / Notizen', t: 'textarea' },
       ] },
 ];
 const GS_TEILE = { A: 'Kennenlernen', B: 'Onboarding', C: 'Abschluss' };
 const GS_ALT_SCHRITT = {
-    uebergang: 'willkommen', ahv: 'willkommen', konfession: 'willkommen',
-    partner: 'willkommen', kinder: 'willkommen', bank: 'willkommen', bedingungen: 'willkommen',
+    willkommen: 'einsatz',
+    uebergang: 'einsatz', ahv: 'einsatz', konfession: 'einsatz',
+    partner: 'einsatz', kinder: 'einsatz', bank: 'einsatz', bedingungen: 'einsatz',
 };
 
 function bgsVisibleSteps() {
@@ -693,12 +692,12 @@ function bgsRenderField(f) {
         case 'number':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="number" inputmode="numeric" value="${esc(v)}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''}>${hint}</div>`;
         case 'date': {
-            if (f.k === 'geburtsdatum') {
-                const shown = v ? (bgsFmtD(v) === '—' ? '' : bgsFmtD(v)) : '';
-                const warn = v && (bgsIstZuJung() || bgsAlter(v) < 0);
-                return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-chdate="1" data-yp="birth" type="text" inputmode="numeric" placeholder="tt.mm.jjjj" maxlength="10" value="${esc(shown)}" autocomplete="off"><div class="${warn ? 'bgs-jugend' : 'bgs-alter-heute'}" id="bgsAlterHeute"${v ? '' : ' hidden'}>${esc(bgsGeburtAlterHinweis(v))}</div>${hint}</div>`;
-            }
-            return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="date" value="${esc(v)}">${hint}</div>`;
+            const shown = v ? (bgsFmtD(v) === '—' ? '' : bgsFmtD(v)) : '';
+            const yp = f.k === 'geburtsdatum' ? 'birth' : 'on';
+            const alter = f.k === 'geburtsdatum'
+                ? `<div class="${v && (bgsIstZuJung() || bgsAlter(v) < 0) ? 'bgs-jugend' : 'bgs-alter-heute'}" id="bgsAlterHeute"${v ? '' : ' hidden'}>${esc(bgsGeburtAlterHinweis(v))}</div>`
+                : '';
+            return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-chdate="1" data-yp="${yp}" type="text" inputmode="numeric" placeholder="tt.mm.jjjj" maxlength="10" value="${esc(shown)}" autocomplete="off">${alter}${hint}</div>`;
         }
         case 'textarea':
             return `<div class="bgs-field">${label}<textarea class="bgs-input bgs-textarea" id="bgsf_${f.k}" data-key="${f.k}" rows="3">${esc(v)}</textarea>${hint}</div>`;
@@ -769,8 +768,7 @@ function bgsRenderSummary() {
     add('Zivilstand', a.zivilstand + (a.zivilstand_seit ? ' seit ' + bgsFmtD(a.zivilstand_seit) : ''));
     add('Bewilligung', a.bewilligung ? a.bewilligung + (a.bewilligung_bis ? ' bis ' + bgsFmtD(a.bewilligung_bis) : '') : '');
     add('Sprachen', ['Deutsch: ' + (a.sprache_deutsch || '—'), a.sprache_andere ? a.sprache_andere + ': ' + (a.sprache_andere_niveau || '—') : ''].filter(Boolean).join(' · '));
-    add('Pensum / Eintritt', [a.pensum ? a.pensum + ' %' : '', a.eintritt ? bgsFmtD(a.eintritt) : ''].filter(Boolean).join(' · '));
-    add('Erfahrung', a.erfahrung);
+    add('Pensum / frühester Eintritt', [a.pensum ? a.pensum + ' %' : '', a.eintritt ? bgsFmtD(a.eintritt) : ''].filter(Boolean).join(' · '));
     add('Verfügbarkeit', GS_TAGE.map(([k, l]) => (a[`verf_${k}_von`] || a[`verf_${k}_bis`]) ? `${l.slice(0, 2)} ${a[`verf_${k}_von`] || '?'}–${a[`verf_${k}_bis`] || '?'}` : '').filter(Boolean).join(' · '));
     add('Wünsche / Einschränkungen', a.verf_bemerkung);
     add('Gesundheit / Allergien', yn(a.krankheit) + (a.krankheit_welche ? ' — ' + a.krankheit_welche : ''));
@@ -779,6 +777,7 @@ function bgsRenderSummary() {
     add('Militär', yn(a.militaer) + (a.militaer_dauer ? ' — ' + a.militaer_dauer : ''));
     add('Ausbildung Gastro', yn(a.ausbildung_gastro));
     add('Onboarding-Tag', yn(a.willkommenstag_teilnahme) + (a.willkommenstag_termin ? ' — ' + a.willkommenstag_termin : ''));
+    add('Arbeitsbeginn', a.willkommenstag_teilnahme === true && a.eintritt_vereinbart ? bgsFmtD(a.eintritt_vereinbart) : '');
     add('Gesetzl. Vertreter', [a.vertreter_name, a.vertreter_telefon].filter(Boolean).join(' · '));
     return `<div class="bgs-summary">${rows.map(([l, v]) => `<div class="bgs-sum-row"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}
         <div class="bgs-fhint" style="margin-top:8px">Mit der Unterschrift bestätigt der/die Bewerber/in die Richtigkeit der Angaben. Die Angaben dienen der Prüfung der Bewerbung — dies ist noch kein Anstellungsversprechen.</div></div>`;
@@ -1169,7 +1168,13 @@ document.addEventListener('click', e => {
     }
     if (b.dataset.bool !== undefined) {
         const val = b.dataset.bool === '1';
-        bgsSet(key, _bgsAnswers[key] === val ? null : val, { immediate: true, rerender: true });
+        const neu = _bgsAnswers[key] === val ? null : val;
+        if (key === 'willkommenstag_teilnahme' && neu !== true) {
+            bgsSet('willkommenstag_termin_id', null);
+            bgsSet('willkommenstag_termin', null);
+            bgsSet('eintritt_vereinbart', null);
+        }
+        bgsSet(key, neu, { immediate: true, rerender: true });
         return;
     }
     if (b.dataset.multi) {
