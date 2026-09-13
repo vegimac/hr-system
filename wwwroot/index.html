@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260911a">
+    <link rel="stylesheet" href="css/app.css?v=20260913a">
 </head>
 <body>
 
@@ -3448,15 +3448,16 @@
                 </div>
                 <div class="page-body">
                     <!-- Kacheln aus «MA Formulare» hierher verschoben (Walter 15.08.2026):
-                         Bewerbungsbogen (Blanko der Sidebar-Filiale), Kandidat an HR,
-                         Absenzkalender. Funktionen leben in employees.js / kandidaten.js
-                         (global geladen) und brauchen KEINEN selectedEmployee. -->
+                         Bewerbungsbogen, Gespräch starten (ersetzt «Kandidat an HR»,
+                         Walter 12.09.2026), Absenzkalender. Funktionen leben in
+                         employees.js / gespraech.js (global geladen). -->
                     <div class="ra-tile-row" style="margin-top:14px">
                         <!-- Gesprächsmodus (Walter 03.09.2026): das Bewerbungsgespräch direkt
                              in OneCrew führen — eine Frage pro Bildschirm, jede Antwort sofort
-                             gespeichert. js/gespraech.js -->
-                        <button type="button" class="ra-tile" onclick="showPage('gespraech')" title="Bewerbungsgespräch direkt in OneCrew führen — eine Frage pro Bildschirm, jede Antwort wird sofort gespeichert">
-                            <img src="img/gespraech.svg?v=20260903a" alt="" loading="lazy">
+                             gespeichert. An HR senden sitzt am Ende des Gesprächs.
+                             Icon: bisher «Kandidat an HR» (Walter 12.09.2026). -->
+                        <button type="button" class="ra-tile" onclick="showPage('gespraech')" title="Bewerbungsgespräch direkt in OneCrew führen — am Ende an HR senden">
+                            <img src="img/Kandidat-an-HR.webp?v=20260815e" alt="" loading="lazy">
                             <span>Gespräch<br>starten</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('bewerbung')" title="Kurzes Bewerbungsformular — gibt der Bewerber ausgefüllt ab (eine Seite)">
@@ -3464,15 +3465,17 @@
                             <span>Bewerbungs-<br>formular</span>
                         </button>
                         <button type="button" class="ra-tile" onclick="raBewerbungsbogenPdf('gespraech')" title="Wird im Bewerbungsgespräch ausgefüllt — Personalien komplett, Partner, Kinder, Bank, Bedingungen, Notizen">
-                            <img src="img/bewerbungsbogen.webp?v=20260815d" alt="" loading="lazy">
+                            <img src="img/gespraech.svg?v=20260903a" alt="" loading="lazy">
                             <span>Gesprächs-<br>formular</span>
                         </button>
-                        <!-- «Bogen alt (Kontrolle)» entfernt (Walter 03.09.2026) — der
-                             Endpoint teil=alt bleibt im Backend, nur die Kachel ist weg. -->
-                        <button type="button" class="ra-tile" onclick="openKandidatModal()">
-                            <img src="img/Kandidat-an-HR.webp?v=20260815e" alt="" loading="lazy">
-                            <span>Kandidat an HR</span>
+                        <!-- Arbeitszeugnis als eigene Kachel (Walter 12.09.2026):
+                             die alte Karte «Kündigung / Zeugnisse» darunter ist weg. -->
+                        <button type="button" class="ra-tile" onclick="zdOpen('arbeitszeugnis')" title="Arbeitszeugnis — Mitarbeiter wählen und an HR zum Erstellen senden">
+                            <img src="img/arbeitszeugnis-bestellen.png?v=20260912e" alt="" loading="lazy">
+                            <span>Arbeitszeugnis<br>bestellen</span>
                         </button>
+                        <!-- «Bogen alt (Kontrolle)» entfernt (Walter 03.09.2026).
+                             «Kandidat an HR» entfernt (Walter 12.09.2026) — läuft über Gespräch starten. -->
                         <button type="button" class="ra-tile" onclick="showPage('absenz-kalender')">
                             <img src="img/absenzkalender.svg?v=20260815d" alt="" loading="lazy">
                             <span>Absenzkalender</span>
@@ -3513,36 +3516,6 @@
                             <img src="img/mirus-absenz-import.webp?v=20260815a" alt="" loading="lazy">
                             <span>Mirus Absenz<br>Import</span>
                         </button>
-                    </div>
-
-                    <!-- Kündigung / Zeugnisse auch im McAdmin (Walter 23.08.2026):
-                         identische Karte wie im HR-Hub (dort bleibt sie bestehen) —
-                         gleiche 9 Menüpunkte, gleiche globalen Funktionen
-                         (kuendigung.js / zdOpen). AUCH für GF «user» (Walter
-                         23.08.2026: GF muss Kündigung/Aufhebung/Verwarnung sofort
-                         erstellen können) — die drei Controller (Kuendigung/
-                         Arbeitszeugnis/EmployeeVerwarnung) erlauben user bereits. -->
-                    <div class="hr-card liquid-role-el" data-liquid-roles="admin,superuser,user" style="opacity:1;max-width:380px;margin-top:22px">
-                        <div class="hr-card-head">
-                            <div class="hr-card-icon" style="background:#fee2e2;color:#991b1b">
-                                <svg width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-                            </div>
-                            <div>
-                                <div class="hr-card-title">Kündigung / Zeugnisse</div>
-                                <div class="hr-card-status">Dokument wählen — direkt zum Ablauf</div>
-                            </div>
-                        </div>
-                        <div style="display:flex;flex-direction:column;gap:6px;margin-top:10px">
-                            <button type="button" class="kz-menu-item" onclick="showPage('kuendigung')">1&nbsp;·&nbsp;Kündigung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('arbeitszeugnis')">2&nbsp;·&nbsp;Arbeitszeugnis</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('zwischen')">3&nbsp;·&nbsp;Zwischenzeugnis</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('best')">4&nbsp;·&nbsp;Arbeitsbestätigung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('verwarnung')">5&nbsp;·&nbsp;Verwarnung</button>
-                            <button type="button" class="kz-menu-item" onclick="showPage('aufforderung-arbeit')">6&nbsp;·&nbsp;Arbeits Aufforderung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('rueckzug')">7&nbsp;·&nbsp;Kündigungsrückzug</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('bestaetigung')">8&nbsp;·&nbsp;Kündigungsbestätigung</button>
-                            <button type="button" class="kz-menu-item" onclick="zdOpen('aufhebung')">9&nbsp;·&nbsp;Aufhebungsvereinbarung</button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -9247,11 +9220,11 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/saldo-vortrag-import-stunden.js?v=20260803i"></script>
 <script src="js/mirus-address-compare.js?v=20260831a"></script>
 <script src="js/mirus-fehlende-ma.js?v=20260903b"></script>
-<script src="js/gespraech.js?v=20260907g"></script>
+<script src="js/gespraech.js?v=20260912b"></script>
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260909a"></script>
+<script src="js/akonto-workflow.js?v=20260912b"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/branches-detail.js?v=20260910b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
@@ -9269,9 +9242,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/webauthn.js?v=20260704p"></script>
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
-<script src="js/austritt.js?v=20260907b"></script>
+<script src="js/austritt.js?v=20260913a"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260912a"></script>
+<script src="js/payroll.js?v=20260912b"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
@@ -9760,7 +9733,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260909c"></script>
+<script src="employees.js?v=20260912a"></script>
 <script src="js/versicherung-codes.js?v=20260912c"></script>
 
 <!-- ABSENZ MODAL -->
@@ -10741,7 +10714,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/lse.js?v=20260813a"></script>
 <script src="js/interview-fenster.js?v=20260828a"></script>
 <script src="js/onboarding-report.js?v=20260811a"></script>
-<script src="js/kandidaten.js?v=20260903a"></script>
+<script src="js/kandidaten.js?v=20260912b"></script>
 <script src="js/hr-saldi-lohnlauf.js?v=20260909a"></script>
 <script src="js/hr-qst-anmeldung.js?v=20260829a"></script>
 <script src="js/hr-lohnausweis.js?v=20260816e"></script>

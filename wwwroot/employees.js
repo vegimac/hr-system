@@ -11772,10 +11772,11 @@ async function saveZulage(employeeId, periode) {
     if (!betrag || betrag <= 0) { alert('Bitte einen gültigen Betrag eingeben.'); return; }
 
     try {
+        const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : null;
         const res = await fetch('/api/lohn-zulagen', {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ employeeId, periode, typId, betrag, bemerkung: bemerkg })
+            body: JSON.stringify({ employeeId, periode, typId, betrag, bemerkung: bemerkg, companyProfileId: cid })
         });
         if (!res.ok) { const e = await res.text(); alert('Fehler: ' + e); return; }
         closeZulageForm();
@@ -11786,7 +11787,10 @@ async function saveZulage(employeeId, periode) {
 async function deleteZulage(id) {
     if (!(await liquidConfirm('Eintrag wirklich löschen?'))) return;
     try {
-        const res = await fetch(`/api/lohn-zulagen/${id}`, { method: 'DELETE', headers: ah() });
+        const cid = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+            ? `?companyProfileId=${fixedCompanyProfileId}` : '';
+        const res = await fetch(`/api/lohn-zulagen/${id}${cid}`, { method: 'DELETE', headers: ah() });
+        if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) { alert('Fehler beim Löschen.'); return; }
         loadZulagenTab(selectedEmployeeId);
     } catch { alert('Verbindungsfehler.'); }

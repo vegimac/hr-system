@@ -24,7 +24,7 @@ public class Bewerbungsgespraech
     /// <summary>in_arbeit | abgeschlossen</summary>
     public string Status { get; set; } = "in_arbeit";
 
-    /// <summary>Zusage | Absage | Rueckstellung (erst beim Abschluss).</summary>
+    /// <summary>Zusage (Weiter an HR) | Absage. Alte Rueckstellung bleibt lesbar.</summary>
     public string? Entscheid { get; set; }
 
     public string? Vorname { get; set; }

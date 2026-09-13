@@ -29,33 +29,23 @@ public class LohnZulagenController : ControllerBase
     /// Gesperrt erst wenn der Definitiv-Lauf <c>abgeschlossen</c> ist (DTA).
     /// Der Akonto-Status allein sperrt nicht mehr (sonst keine Korrekturen
     /// im Definitivlauf nach Akonto-Auszahlung). Soft-Lock wie Verträge/QST.
+    /// Filiale aus dem Lohnlauf mitgeben — sonst trifft der letzte aktive
+    /// Vertrag eine andere Filiale und eine offene Periode wirkt «zu».
     /// </summary>
-    private async Task<IActionResult?> CheckLohnLockAsync(int employeeId, string periode)
+    private async Task<IActionResult?> CheckLohnLockAsync(
+        int employeeId, string periode, int? companyProfileId = null)
     {
         if (periode.Length != 7 || periode[4] != '-') return null;
         if (!int.TryParse(periode[..4], out var y))    return null;
         if (!int.TryParse(periode[5..], out var m))    return null;
 
-        var branchId = await _db.Employees
-            .Where(e => e.Id == employeeId)
-            .SelectMany(e => e.Employments)
-            .Where(x => x.IsActive)
-            .OrderByDescending(x => x.ContractStartDate)
-            .Select(x => (int?)x.CompanyProfileId)
-            .FirstOrDefaultAsync();
-        if (branchId is null) return null;
-
-        var per = await _db.PayrollPerioden
-            .FirstOrDefaultAsync(p => p.CompanyProfileId == branchId.Value
-                                   && p.Year == y && p.Month == m);
-        if (per is null) return null;   // Periode existiert noch nicht → offen
-
-        if (per.Status != "abgeschlossen") return null;
+        var res = await _editLock.CheckZulageMonthAsync(employeeId, y, m, companyProfileId);
+        if (!res.Locked) return null;
 
         return Conflict(new
         {
             error = "LOHN_EDIT_LOCKED",
-            message = $"Periode {m:D2}/{y} ist definitiv abgeschlossen (DTA). Zulagen/Abzüge können nicht mehr erfasst werden.",
+            message = res.Reason,
         });
     }
 
@@ -148,7 +138,7 @@ public class LohnZulagenController : ControllerBase
             return BadRequest("Betrag muss grösser als 0 sein.");
 
         // Lohnlauf-Sperre: keine Zulage in einer in-Verarbeitung-Periode anlegen.
-        var locked = await CheckLohnLockAsync(dto.EmployeeId, dto.Periode);
+        var locked = await CheckLohnLockAsync(dto.EmployeeId, dto.Periode, dto.CompanyProfileId);
         if (locked != null) return locked;
 
         var lp = await _db.Lohnpositionen.FindAsync(dto.LohnpositionId);
@@ -187,7 +177,10 @@ public class LohnZulagenController : ControllerBase
 
     /// <summary>Eintrag aktualisieren (Betrag / Bemerkung)</summary>
     [HttpPut("lohn-zulagen/{id}")]
-    public async Task<IActionResult> UpdateZulage(int id, [FromBody] LohnZulageUpdateDto dto)
+    public async Task<IActionResult> UpdateZulage(
+        int id,
+        [FromBody] LohnZulageUpdateDto dto,
+        [FromQuery] int? companyProfileId = null)
     {
         var entry = await _db.LohnZulagen
             .Include(z => z.Lohnposition)
@@ -196,7 +189,7 @@ public class LohnZulagenController : ControllerBase
         if (dto.Betrag <= 0) return BadRequest("Betrag muss grösser als 0 sein.");
 
         // Lohnlauf-Sperre: keine Änderung in einer in-Verarbeitung-Periode.
-        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode);
+        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode, companyProfileId);
         if (locked != null) return locked;
 
         entry.Betrag    = Math.Round(dto.Betrag, 2);
@@ -222,13 +215,13 @@ public class LohnZulagenController : ControllerBase
 
     /// <summary>Eintrag löschen</summary>
     [HttpDelete("lohn-zulagen/{id}")]
-    public async Task<IActionResult> DeleteZulage(int id)
+    public async Task<IActionResult> DeleteZulage(int id, [FromQuery] int? companyProfileId = null)
     {
         var entry = await _db.LohnZulagen.FindAsync(id);
         if (entry is null) return NotFound();
 
         // Lohnlauf-Sperre: kein Löschen in einer in-Verarbeitung-Periode.
-        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode);
+        var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode, companyProfileId);
         if (locked != null) return locked;
 
         _db.LohnZulagen.Remove(entry);
@@ -244,7 +237,8 @@ public record LohnZulageDto(
     string  Periode,
     int     LohnpositionId,
     decimal Betrag,
-    string? Bemerkung
+    string? Bemerkung,
+    int?    CompanyProfileId = null
 );
 
 public record LohnZulageUpdateDto(

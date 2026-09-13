@@ -53,55 +53,63 @@ function bgsAlter(iso) {
     if (m < 0 || (m === 0 && h.getDate() < g.getDate())) a--;
     return a;
 }
+function bgsIstMinderjaehrig(a) {
+    const x = bgsAlter((a || _bgsAnswers).geburtsdatum);
+    return x !== null && x < 18;
+}
+function bgsDarfWeiter(a) { return !bgsIstMinderjaehrig(a); }
 
 // ── Fragenfluss ────────────────────────────────────────────────────────
-// teil: A = Kennenlernen, B = Anstellungsdaten, C = Abschluss.
+// teil: A = Kennenlernen, B = Onboarding, C = Abschluss.
+// Gate «Anstellungsdaten» + AHV/QST/Konfession/Kinder/Bank/Bedingungen
+// entfernt (Walter 12.09.2026). Entscheid nur am Schluss: Absage oder
+// Weiter an HR für den Onboarding-Tag. Rückstellung gibt es nicht mehr.
 // when(a) blendet ganze Schritte aus; Felder haben ihr eigenes when.
 const GS_STEPS = [
     { key: 'name', teil: 'A', title: 'Wie heisst du?', hint: 'Damit legt OneCrew das Gespräch an — ab jetzt wird jede Antwort sofort gespeichert.',
       fields: [{ k: 'vorname', l: 'Vorname', t: 'text' }, { k: 'nachname', l: 'Name', t: 'text' }] },
     { key: 'geburt', teil: 'A', title: 'Geburtsdatum & Geschlecht',
       fields: [{ k: 'geburtsdatum', l: 'Geburtsdatum', t: 'date' }, { k: 'geschlecht', l: 'Geschlecht', t: 'choice', opts: ['Weiblich', 'Männlich'] }] },
-    { key: 'adresse', teil: 'A', title: 'Wo wohnst du?',
+    { key: 'adresse', teil: 'A', title: 'Wo wohnst du?', when: a => bgsDarfWeiter(a),
       fields: [{ k: 'adresse', l: 'Strasse / Nr.', t: 'text' }, { k: 'plz', l: 'PLZ', t: 'plz' }, { k: 'ort', l: 'Ort', t: 'text' }] },
-    { key: 'kontakt', teil: 'A', title: 'Wie erreichen wir dich?',
+    { key: 'kontakt', teil: 'A', title: 'Wie erreichen wir dich?', when: a => bgsDarfWeiter(a),
       fields: [{ k: 'mobile', l: 'Mobile / Tel.', t: 'tel' }, { k: 'email', l: 'E-Mail', t: 'email' }] },
-    { key: 'herkunft', teil: 'A', title: 'Nationalität & Zivilstand',
+    { key: 'herkunft', teil: 'A', title: 'Nationalität & Zivilstand', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'nationalitaet', l: 'Nationalität', t: 'nation' },
           { k: 'zivilstand', l: 'Zivilstand', t: 'choice', opts: GS_ZIVIL },
           { k: 'zivilstand_seit', l: 'seit dem', t: 'date', when: a => !!a.zivilstand && a.zivilstand !== 'Ledig' },
       ] },
     { key: 'bewilligung', teil: 'A', title: 'Aufenthaltsbewilligung', hint: 'Nur für Ausländer/innen — bei Schweizer Nationalität wird dieser Schritt übersprungen.',
-      when: a => !!a.nationalitaet && !bgsIstCh(a),
+      when: a => bgsDarfWeiter(a) && !!a.nationalitaet && !bgsIstCh(a),
       fields: [
           { k: 'bewilligung', l: 'Bewilligung / Ausweis', t: 'choice', opts: ['B', 'C', 'L', 'G', 'S', 'F', 'N'],
             labels: { B: 'B · Jahresaufenthalt', C: 'C · Niederlassung', L: 'L · Kurzaufenthalt', G: 'G · Grenzgänger', S: 'S · Schutzbedürftig', F: 'F · Vorläufig aufgenommen', N: 'N · Asylsuchend' } },
           { k: 'bewilligung_bis', l: 'gültig bis', t: 'date', when: a => a.bewilligung && a.bewilligung !== 'C' },
       ] },
-    { key: 'sprachen', teil: 'A', title: 'Sprachkenntnisse',
+    { key: 'sprachen', teil: 'A', title: 'Sprachkenntnisse', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'sprache_deutsch', l: 'Deutsch', t: 'choice', opts: GS_LEVELS },
           { k: 'sprache_andere', l: 'Andere Sprache', t: 'text', ph: 'z.B. Englisch, Portugiesisch' },
           { k: 'sprache_andere_niveau', l: 'Niveau andere Sprache', t: 'choice', opts: GS_LEVELS },
       ] },
-    { key: 'einsatz', teil: 'A', title: 'Dein Einsatz bei uns',
+    { key: 'einsatz', teil: 'A', title: 'Dein Einsatz bei uns', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'pensum', l: 'Gewünschtes Pensum (%)', t: 'number', min: 0, max: 100 },
           { k: 'eintritt', l: 'Frühester Eintritt', t: 'date' },
           { k: 'erfahrung', l: 'Erfahrung in der Gastronomie — wo / was?', t: 'textarea' },
       ] },
-    { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
+    { key: 'verfuegbar', teil: 'A', title: 'Wann kannst du arbeiten?', when: a => bgsDarfWeiter(a), hint: 'Vorausgefüllt mit den Öffnungszeiten der Filiale (1 Stunde vor Öffnung bis 1 Stunde nach Schliessung). Anpassen, wo der Bewerber nicht kann; leer = an diesem Tag nicht verfügbar.',
       fields: [
           { k: 'verf', l: '', t: 'availability' },
           { k: 'verf_bemerkung', l: 'Spezielle Wünsche / Einschränkungen', t: 'textarea', ph: 'z.B. Mo und Di Kinderbetreuung, nur bis 22:00' },
       ] },
-    { key: 'gesundheit', teil: 'A', title: 'Gesundheit',
+    { key: 'gesundheit', teil: 'A', title: 'Gesundheit', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'krankheit', l: 'Müssen wir bei deinem Arbeitseinsatz aus gesundheitlichen Gründen oder aufgrund von Allergien etwas berücksichtigen?', t: 'yesno' },
           { k: 'krankheit_welche', l: 'Auf was müssen wir achten?', t: 'textarea', when: a => a.krankheit === true },
       ] },
-    { key: 'fragen', teil: 'A', title: 'Noch ein paar Fragen',
+    { key: 'fragen', teil: 'A', title: 'Noch ein paar Fragen', when: a => bgsDarfWeiter(a),
       fields: [
           { k: 'sozialleistungen', l: 'Beziehst du Sozialleistungen?', t: 'multi', opts: ['Arbeitslosengeld', 'AHV-Rente', 'IV-Rente'] },
           { k: 'iv_grad', l: 'Invaliditätsgrad', t: 'text', when: a => (a.sozialleistungen || []).includes('IV-Rente') },
@@ -110,64 +118,31 @@ const GS_STEPS = [
           { k: 'militaer_dauer', l: 'Dauer vom – bis', t: 'text', when: a => a.militaer === true },
           { k: 'ausbildung_gastro', l: 'Ausbildung in der Hotellerie oder Restauration?', t: 'yesno', hint: 'Falls ja: Kopie beilegen' },
       ] },
-    { key: 'uebergang', teil: 'B', title: 'Weiter mit den Anstellungsdaten?', type: 'gate',
-      hint: 'Wenn du mit diesem Bewerber weitermachen willst, brauchen wir jetzt die Angaben für die Anstellung (AHV, Konfession, Partner, Kinder, Bank). Sonst direkt zum Entscheid — dann bleibt der Rest leer.' },
-    { key: 'ahv', teil: 'B', title: 'AHV-Nummer & Quellensteuer',
+    { key: 'willkommen', teil: 'B', title: 'Onboarding-Tag', when: a => bgsDarfWeiter(a),
       fields: [
-          { k: 'ahv', l: 'AHV-Nummer', t: 'ahv', when: a => a.ahv_fehlt !== true },
-          { k: 'ahv_fehlt', l: '', t: 'check', cl: 'Noch keine AHV-Nummer — muss bestellt werden', hint: 'Ankreuzen, wenn der Bewerber noch keine AHV-Nummer hat. HR bestellt dann den Versicherungsausweis.' },
-          { k: 'qst', l: 'Quellensteuerpflichtig?', t: 'yesno', hintFn: a => bgsIstCh(a) || a.bewilligung === 'C' ? 'Schweizer/in bzw. C-Ausweis → in der Regel nein' : (a.nationalitaet ? 'Ausländer/in ohne C-Ausweis → in der Regel ja' : '') },
-      ] },
-    { key: 'konfession', teil: 'B', title: 'Konfession',
-      fields: [{ k: 'konfession', l: '', t: 'choice', opts: ['Evang.-reformiert', 'Röm.-katholisch', 'Christ-katholisch', 'Israelitisch', 'Andere', 'Keine'] }] },
-    { key: 'partner', teil: 'B', title: 'Angaben über Partner', hint: 'Nur bei Quellensteuerpflicht — für die Tarifbestimmung.',
-      when: a => a.qst === true && ['Verheiratet', 'Eingetragene Partnerschaft', 'Getrennt'].includes(a.zivilstand),
-      fields: [
-          { k: 'partner_nachname', l: 'Name', t: 'text' },
-          { k: 'partner_vorname', l: 'Vorname', t: 'text' },
-          { k: 'partner_geschlecht', l: 'Geschlecht', t: 'choice', opts: ['Weiblich', 'Männlich'] },
-          { k: 'partner_ahv', l: 'AHV-Nummer', t: 'ahv' },
-          { k: 'partner_adresse', l: 'Adresse (nur falls abweichend)', t: 'text' },
-          { k: 'partner_arbeitet', l: 'Arbeitet der Partner?', t: 'yesno' },
-          { k: 'partner_ausweis', l: 'Ausweis', t: 'text', when: a => !bgsIstCh(a) },
-          { k: 'partner_arbeitgeber', l: 'Arbeitgeber, Adresse (Strasse/Nr., PLZ, Ort)', t: 'text', when: a => a.partner_arbeitet === true },
-          { k: 'partner_stellenantritt', l: 'Stellenantritt Partner', t: 'date', when: a => a.partner_arbeitet === true },
-      ] },
-    { key: 'kinder', teil: 'B', title: 'Kinder',
-      fields: [
-          { k: 'hat_kinder', l: 'Hast du Kinder?', t: 'yesno' },
-          { k: 'kinder', l: '', t: 'kinder', when: a => a.hat_kinder === true },
-      ] },
-    { key: 'bank', teil: 'B', title: 'Krankenkasse & Bank',
-      fields: [
-          { k: 'krankenkasse', l: 'Krankenkasse', t: 'text' },
-          { k: 'iban', l: 'Kontonummer / IBAN', t: 'iban' },
-          { k: 'bank', l: 'Bank', t: 'text' },
-          { k: 'bankadresse', l: 'Bankadresse', t: 'text' },
-      ] },
-    { key: 'willkommen', teil: 'B', title: 'Willkommenstag',
-      fields: [
-          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Willkommenstag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
+          { k: 'willkommenstag_teilnahme', l: 'Bist du bereit, am Onboarding-Tag in Zofingen teilzunehmen? Er dauert einen halben Tag; vor Ort werden pauschal CHF 50.00 Entschädigung ausbezahlt.', t: 'yesno' },
           { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
       ] },
-    { key: 'bedingungen', teil: 'B', title: 'Allgemeine Bedingungen', type: 'bedingungen',
-      fields: [{ k: 'bedingungen_akzeptiert', l: 'Bedingungen besprochen und akzeptiert?', t: 'yesno' }] },
     { key: 'vertreter', teil: 'B', title: 'Gesetzlicher Vertreter', hint: 'Der Bewerber ist minderjährig — Angaben und Einverständnis des gesetzlichen Vertreters.',
-      when: a => { const x = bgsAlter(a.geburtsdatum); return x !== null && x < 18; },
+      when: () => false, // unter 18 stoppt am Geburtsdatum (Walter 12.09.2026)
       fields: [{ k: 'vertreter_name', l: 'Vorname Name', t: 'text' }, { k: 'vertreter_telefon', l: 'Telefon', t: 'tel' }] },
-    { key: 'unterschrift', teil: 'B', title: 'Zusammenfassung', type: 'summary',
+    { key: 'unterschrift', teil: 'B', title: 'Zusammenfassung', type: 'summary', when: a => bgsDarfWeiter(a),
       hint: 'Bildschirm dem Bewerber zeigen — er prüft die Angaben. (Unterschrift weggelassen, Walter 07.09.2026)',
       fields: [] },
-    { key: 'entscheid', teil: 'C', title: 'Entscheid', type: 'entscheid', hint: 'Intern — nicht Teil der Bewerbung.',
+    { key: 'entscheid', teil: 'C', title: 'Entscheid', type: 'entscheid', when: a => bgsDarfWeiter(a),
+      hint: 'Intern — der Bewerber sieht das nicht. Nein: dem Kandidaten jetzt absagen. Weiter: an HR für die Organisation des Onboarding-Tags.',
       fields: [
           { k: 'teilnehmende', l: 'Gespräch geführt von', t: 'gefuehrt' },
           { k: 'eintritt_vereinbart', l: 'Eintritt vereinbart per', t: 'date' },
           { k: 'dauer_mind', l: 'Für eine Dauer von mindestens', t: 'text', ph: 'z.B. 6 Monate' },
           { k: 'notizen', l: 'Eindruck / Notizen', t: 'textarea' },
-          { k: 'entscheid', l: 'Entscheid', t: 'choice', opts: ['Zusage', 'Absage', 'Rueckstellung'], labels: { Rueckstellung: 'Rückstellung' } },
       ] },
 ];
-const GS_TEILE = { A: 'Kennenlernen', B: 'Anstellungsdaten', C: 'Abschluss' };
+const GS_TEILE = { A: 'Kennenlernen', B: 'Onboarding', C: 'Abschluss' };
+const GS_ALT_SCHRITT = {
+    uebergang: 'willkommen', ahv: 'willkommen', konfession: 'willkommen',
+    partner: 'willkommen', kinder: 'willkommen', bank: 'willkommen', bedingungen: 'willkommen',
+};
 
 function bgsVisibleSteps() {
     return GS_STEPS.filter(s => !s.when || s.when(_bgsAnswers));
@@ -264,7 +239,7 @@ async function bgsRenderStart() {
 function bgsStepTitle(key) { const s = GS_STEPS.find(x => x.key === key); return s ? s.title : key; }
 function bgsEntscheidPill(e) {
     if (!e) return '';
-    const map = { Zusage: ['Zusage', '#dcfce7', '#166534'], Absage: ['Absage', '#fee2e2', '#991b1b'], Rueckstellung: ['Rückstellung', '#fef3c7', '#92400e'] };
+    const map = { Zusage: ['Weiter an HR', '#dcfce7', '#166534'], Absage: ['Absage', '#fee2e2', '#991b1b'], Rueckstellung: ['Rückstellung', '#fef3c7', '#92400e'] };
     const [l, bg, fg] = map[e] || [e, '#f1f5f9', '#475569'];
     return `<span class="bgs-pill" style="background:${bg};color:${fg}">${l}</span>`;
 }
@@ -305,7 +280,8 @@ function bgsLoadInto(g) {
     _bgsVisited = new Set(Array.isArray(_bgsAnswers._visited) ? _bgsAnswers._visited : []);
     const vis = bgsVisibleSteps();
     _bgsStepKey = (g.schritt && vis.some(s => s.key === g.schritt)) ? g.schritt : vis[0].key;
-    if (g.status === 'abgeschlossen') _bgsStepKey = 'entscheid';
+    if (g.status === 'abgeschlossen')
+        _bgsStepKey = vis.some(s => s.key === 'entscheid') ? 'entscheid' : (vis.find(s => s.key === 'geburt') || vis[0]).key;
     _bgsDubletten = null; _bgsDublettenKey = '';
 }
 async function bgsDelete(id) {
@@ -434,9 +410,13 @@ window.addEventListener('beforeunload', () => {
 
 // ── Fluss rendern ──────────────────────────────────────────────────────
 function bgsCurrentStep() {
+    if (_bgsStepKey && GS_ALT_SCHRITT[_bgsStepKey]) _bgsStepKey = GS_ALT_SCHRITT[_bgsStepKey];
     const vis = bgsVisibleSteps();
     let s = vis.find(x => x.key === _bgsStepKey);
-    if (!s) { s = vis[0]; _bgsStepKey = s.key; }
+    if (!s) {
+        s = (bgsIstMinderjaehrig() && vis.find(x => x.key === 'geburt')) || vis[0];
+        _bgsStepKey = s.key;
+    }
     return s;
 }
 function bgsRenderFlow() {
@@ -533,15 +513,14 @@ function bgsRememberStep() {
     }, 800);
 }
 function bgsRenderNavRight(step, idx, n, locked) {
-    if (step.type === 'gate') {
-        return `<button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsJump('entscheid')">Direkt zum Entscheid</button>
-                <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsNext()">Ja, weiter mit Anstellungsdaten →</button>`;
-    }
     if (step.type === 'entscheid') {
         if (locked) return `<span class="bgs-fhint" style="align-self:center">${_bgsMeta && _bgsMeta.kandidatId ? '✓ An HR gesendet (Kandidat #' + _bgsMeta.kandidatId + ')' : '✓ abgeschlossen'}</span>
                             <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsReopenCurrent()">Wieder öffnen</button>`;
-        return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsAnHrSenden()">An HR senden &amp; beenden ✓</button>`;
+        return `<button type="button" class="bgs-btn bgs-btn-ghost" style="color:#991b1b" onclick="bgsAbsagen()">Nein — absagen</button>
+                <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsAnHrSenden()">Weiter — an HR für Onboarding-Tag</button>`;
     }
+    if (step.key === 'geburt' && bgsIstMinderjaehrig())
+        return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsMinderjaehrigBeenden()">Gespräch beenden</button>`;
     return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsNext()">Weiter →</button>`;
 }
 function bgsUpdateRail() {
@@ -572,6 +551,13 @@ function bgsJump(key) {
     const m = document.querySelector('.bgs-main'); if (m) m.scrollTop = 0;
 }
 function bgsNext() {
+    const geb = document.getElementById('bgsf_geburtsdatum');
+    if (geb && geb.value) bgsSet('geburtsdatum', geb.value, { immediate: true });
+    if (bgsIstMinderjaehrig()) {
+        if (typeof showToast === 'function') showToast('Unter 18 — hier Schluss.', 'error');
+        bgsRenderFlow();
+        return;
+    }
     const bad = bgsStepInvalidField();
     if (bad) {
         if (bad.el) { bad.el.classList.add('bgs-input-error'); bad.el.focus(); setTimeout(() => bad.el.classList.remove('bgs-input-error'), 2500); }
@@ -602,18 +588,9 @@ async function bgsBackToList() {
 
 // ── Felder ─────────────────────────────────────────────────────────────
 function bgsRenderStepBody(step) {
-    if (step.type === 'gate') {
-        const a = _bgsAnswers;
-        return `<div class="bgs-gate">
-            <div class="bgs-gate-row"><span>Bewerber/in</span><b>${esc(((a.vorname || '') + ' ' + (a.nachname || '')).trim() || '—')}</b></div>
-            <div class="bgs-gate-row"><span>Pensum / Eintritt</span><b>${esc(a.pensum ? a.pensum + ' %' : '—')} · ${bgsFmtD(a.eintritt)}</b></div>
-            <div class="bgs-gate-row"><span>Nationalität / Bewilligung</span><b>${esc(a.nationalitaet || '—')} ${a.bewilligung ? '· ' + esc(a.bewilligung) : ''}</b></div>
-        </div>`;
-    }
     let html = '';
-    if (step.type === 'bedingungen') {
-        html += `<ul class="bgs-bedingungen">${GS_BEDINGUNGEN.map(b => `<li>${esc(b)}</li>`).join('')}</ul>`;
-    }
+    if (step.key === 'geburt' && bgsIstMinderjaehrig())
+        html += `<div class="bgs-jugend" id="bgsMinderHinweis">Unter 18 — hier Schluss. Dem Kandidaten jetzt Bescheid sagen und das Gespräch beenden. Es geht nicht an HR.</div>`;
     if (step.type === 'summary') html += bgsRenderSummary();
     html += (step.fields || []).filter(f => !f.when || f.when(_bgsAnswers)).map(f => bgsRenderField(f)).join('');
     return html;
@@ -712,15 +689,7 @@ function bgsRenderSummary() {
     add('Vorbestraft', yn(a.vorbestraft));
     add('Militär', yn(a.militaer) + (a.militaer_dauer ? ' — ' + a.militaer_dauer : ''));
     add('Ausbildung Gastro', yn(a.ausbildung_gastro));
-    add('AHV-Nummer', a.ahv_fehlt === true ? 'noch keine — muss bestellt werden' : a.ahv);
-    add('Quellensteuer', yn(a.qst));
-    add('Konfession', a.konfession);
-    if (a.qst === true) add('Partner', [((a.partner_vorname || '') + ' ' + (a.partner_nachname || '')).trim(), a.partner_ahv, a.partner_arbeitet === true ? 'arbeitet' + (a.partner_arbeitgeber ? ' bei ' + a.partner_arbeitgeber : '') : (a.partner_arbeitet === false ? 'arbeitet nicht' : '')].filter(Boolean).join(' · '));
-    add('Kinder', a.hat_kinder === false ? 'keine' : (a.kinder || []).map(k => `${k.vorname || ''} ${k.nachname || ''} (${bgsFmtD(k.geburtsdatum)})`.trim()).join(', '));
-    add('Krankenkasse', a.krankenkasse);
-    add('Bank', [a.iban, a.bank, a.bankadresse].filter(Boolean).join(' · '));
-    add('Willkommenstag', yn(a.willkommenstag_teilnahme) + (a.willkommenstag_termin ? ' — ' + a.willkommenstag_termin : ''));
-    add('Bedingungen akzeptiert', yn(a.bedingungen_akzeptiert));
+    add('Onboarding-Tag', yn(a.willkommenstag_teilnahme) + (a.willkommenstag_termin ? ' — ' + a.willkommenstag_termin : ''));
     add('Gesetzl. Vertreter', [a.vertreter_name, a.vertreter_telefon].filter(Boolean).join(' · '));
     return `<div class="bgs-summary">${rows.map(([l, v]) => `<div class="bgs-sum-row"><span>${esc(l)}</span><b>${esc(v)}</b></div>`).join('')}
         <div class="bgs-fhint" style="margin-top:8px">Mit der Unterschrift bestätigt der/die Bewerber/in die Richtigkeit der Angaben. Die Angaben dienen der Prüfung der Bewerbung — dies ist noch kein Anstellungsversprechen.</div></div>`;
@@ -1072,7 +1041,7 @@ document.addEventListener('change', e => {
     if (el.dataset.email) { v = v.trim().toLowerCase(); el.value = v; const h = document.getElementById('bgsEmailHint_' + key); if (h) h.innerHTML = bgsEmailHint(v); }
     bgsSet(key, v, { immediate: true });
     if (key.startsWith('verf_')) { const j = document.getElementById('bgsJugendHinweis'); if (j) { const t = bgsJugendHinweis(); j.hidden = !t; j.textContent = t ? '⚠ ' + t : ''; } }
-    const needsRerender = ['zivilstand', 'nationalitaet', 'bewilligung', 'sprache_andere'].includes(key);
+    const needsRerender = ['zivilstand', 'nationalitaet', 'bewilligung', 'sprache_andere', 'geburtsdatum'].includes(key);
     if (needsRerender) bgsRenderFlow();
 });
 document.addEventListener('click', e => {
@@ -1183,22 +1152,19 @@ function bgsSigClear() {
     bgsSet('unterschrift_am', null);
 }
 
-// ── Abschluss: an HR senden & beenden (Walter 03.09.2026) ─────────────
-// Schliesst das Gespräch mit dem Entscheid ab UND stellt es als Kandidat
-// (mit Gesprächs-PDF als Anhang) in die HR-Pipeline — wie «Kandidat an HR».
+// ── Abschluss (Walter 12.09.2026): Nein = Absage jetzt; Weiter = an HR
+// für den Onboarding-Tag (wie früher «Kandidat an HR»).
 async function bgsAnHrSenden() {
-    const e = _bgsAnswers.entscheid;
-    if (!e) { alert('Bitte zuerst den Entscheid wählen (Zusage / Absage / Rückstellung).'); return; }
     if (!_bgsAnswers.vorname || !_bgsAnswers.nachname) { alert('Vorname und Name fehlen — bitte im Schritt «Wie heisst du?» erfassen.'); return; }
+    _bgsAnswers.entscheid = 'Zusage';
     await bgsFlush();
     if (Object.keys(_bgsPending).length) { alert('Es sind noch Antworten nicht gespeichert (keine Verbindung). Bitte kurz warten und nochmals versuchen.'); return; }
-    const lbl = e === 'Rueckstellung' ? 'Rückstellung' : e;
     const ok = typeof liquidConfirm === 'function'
-        ? await liquidConfirm(`Gespräch mit Entscheid «${lbl}» an HR senden und beenden? HR erhält den Kandidaten mit dem Gesprächs-PDF in der Kandidaten-Pipeline.`, { title: 'An HR senden', yesLabel: 'Senden & beenden', noLabel: 'Noch nicht' })
+        ? await liquidConfirm('Weiter an HR für die Organisation des Onboarding-Tags? HR erhält den Kandidaten mit dem Gesprächs-PDF.', { title: 'An HR senden', yesLabel: 'Senden & beenden', noLabel: 'Noch nicht' })
         : confirm('An HR senden und beenden?');
     if (!ok) return;
     try {
-        const r = await fetch(`/api/bewerbungsgespraech/${_bgsId}/an-hr-senden`, { method: 'POST', headers: ah(), body: JSON.stringify({ entscheid: e, revision: _bgsRevision }) });
+        const r = await fetch(`/api/bewerbungsgespraech/${_bgsId}/an-hr-senden`, { method: 'POST', headers: ah(), body: JSON.stringify({ entscheid: 'Zusage', revision: _bgsRevision }) });
         if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || j.error || ('Fehler ' + r.status)); return; }
         const g = await r.json();
         try { localStorage.removeItem('bgs_pending_' + _bgsId); } catch (_) { }
@@ -1210,23 +1176,35 @@ async function bgsAnHrSenden() {
     } catch (err) { alert('Netzwerkfehler: ' + err.message); }
 }
 
-async function bgsAbschliessen() {
-    const e = _bgsAnswers.entscheid;
-    if (!e) { alert('Bitte zuerst den Entscheid wählen (Zusage / Absage / Rückstellung).'); return; }
+async function bgsMinderjaehrigBeenden() {
+    return bgsAbsagen({
+        title: 'Unter 18 — Schluss',
+        msg: 'Der Kandidat ist unter 18. Gespräch beenden? Es geht nicht an HR.',
+        yes: 'Ja, beenden',
+        toast: 'Gespräch beendet — unter 18.',
+    });
+}
+async function bgsAbsagen(opts = {}) {
+    if (!_bgsAnswers.vorname || !_bgsAnswers.nachname) { alert('Vorname und Name fehlen — bitte im Schritt «Wie heisst du?» erfassen.'); return; }
+    _bgsAnswers.entscheid = 'Absage';
     await bgsFlush();
     if (Object.keys(_bgsPending).length) { alert('Es sind noch Antworten nicht gespeichert (keine Verbindung). Bitte kurz warten und nochmals versuchen.'); return; }
+    const title = opts.title || 'Absage';
+    const msg = opts.msg || 'Dem Kandidaten jetzt absagen? Das Gespräch wird beendet und geht nicht an HR.';
+    const yes = opts.yes || 'Ja, absagen';
     const ok = typeof liquidConfirm === 'function'
-        ? await liquidConfirm(`Gespräch mit Entscheid «${e === 'Rueckstellung' ? 'Rückstellung' : e}» abschliessen? Danach ist es nur noch lesbar (kann wieder geöffnet werden).`, { title: 'Gespräch abschliessen', yesLabel: 'Abschliessen', noLabel: 'Noch nicht' })
-        : confirm('Gespräch abschliessen?');
+        ? await liquidConfirm(msg, { title, yesLabel: yes, noLabel: 'Zurück' })
+        : confirm(msg);
     if (!ok) return;
     try {
-        const r = await fetch(`/api/bewerbungsgespraech/${_bgsId}/abschliessen`, { method: 'POST', headers: ah(), body: JSON.stringify({ entscheid: e, revision: _bgsRevision }) });
+        const r = await fetch(`/api/bewerbungsgespraech/${_bgsId}/abschliessen`, { method: 'POST', headers: ah(), body: JSON.stringify({ entscheid: 'Absage', revision: _bgsRevision }) });
         if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || j.error || ('Fehler ' + r.status)); return; }
         const g = await r.json();
         bgsLoadInto(g);
         try { localStorage.removeItem('bgs_pending_' + _bgsId); } catch (_) { }
         bgsRenderFlow();
-        if (typeof showToast === 'function') showToast('Gespräch abgeschlossen — PDF liegt bereit.', 'success');
+        if (typeof showToast === 'function') showToast(opts.toast || 'Absage erfasst — Gespräch beendet.', 'success');
+        setTimeout(() => { if (_bgsId === g.id) { _bgsId = null; document.body.classList.remove('bgs-fullscreen'); bgsRenderStart(); } }, 1800);
     } catch (err) { alert('Netzwerkfehler: ' + err.message); }
 }
 // Abbrechen = Gespräch samt allen Antworten löschen (Walter 03.09.2026);

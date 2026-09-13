@@ -219,8 +219,8 @@ public class BewerbungsgespraechController : HrControllerBase
         if (g == null) return NotFound();
         if (!await CanAccessBranchAsync(g.CompanyProfileId)) return Forbid();
         var e = (dto.Entscheid ?? "").Trim();
-        if (e is not ("Zusage" or "Absage" or "Rueckstellung"))
-            return BadRequest(new { error = "Entscheid muss Zusage, Absage oder Rueckstellung sein." });
+        if (e is not ("Zusage" or "Absage"))
+            return BadRequest(new { error = "Entscheid muss Zusage oder Absage sein." });
         if (dto.Revision != g.Revision)
             return Conflict(new { error = "REVISION", message = "Das Gespräch wurde inzwischen geändert.", gespraech = ToDto(g, true) });
         g.Entscheid = e;
@@ -234,11 +234,11 @@ public class BewerbungsgespraechController : HrControllerBase
     }
 
     /// <summary>
-    /// «An HR senden &amp; beenden» (Walter 03.09.2026): Gespräch mit Entscheid
-    /// abschliessen UND als Kandidat in die HR-Pipeline stellen (wie «Kandidat
-    /// an HR»), mit dem Gesprächs-PDF als Anhang. HR sieht den GF-Entscheid
-    /// in der Bemerkung und entscheidet dort weiter. Idempotent: ist schon
-    /// ein Kandidat verknüpft, wird keiner doppelt angelegt.
+    /// «Weiter — an HR für Onboarding-Tag» (Walter 12.09.2026): Gespräch
+    /// mit Zusage abschliessen UND als Kandidat in die HR-Pipeline stellen
+    /// (wie früher «Kandidat an HR»), mit dem Gesprächs-PDF als Anhang.
+    /// Absage geht NICHT hierher — die schliesst nur das Gespräch.
+    /// Idempotent: ist schon ein Kandidat verknüpft, wird keiner doppelt angelegt.
     /// </summary>
     [HttpPost("{id:int}/an-hr-senden")]
     public async Task<IActionResult> AnHrSenden(int id, [FromBody] AbschlussDto dto)
@@ -247,8 +247,8 @@ public class BewerbungsgespraechController : HrControllerBase
         if (g == null) return NotFound();
         if (!await CanAccessBranchAsync(g.CompanyProfileId)) return Forbid();
         var e = (dto.Entscheid ?? "").Trim();
-        if (e is not ("Zusage" or "Absage" or "Rueckstellung"))
-            return BadRequest(new { error = "Entscheid muss Zusage, Absage oder Rueckstellung sein." });
+        if (e != "Zusage")
+            return BadRequest(new { error = "An HR nur bei Weiter (Zusage) — Absage schliesst das Gespräch ohne Kandidat." });
         if (dto.Revision != g.Revision)
             return Conflict(new { error = "REVISION", message = "Das Gespräch wurde inzwischen geändert.", gespraech = ToDto(g, true) });
 
@@ -346,7 +346,7 @@ public class BewerbungsgespraechController : HrControllerBase
     {
         var bem = new List<string>
         {
-            $"Bewerbungsgespräch vom {g.GestartetAm:dd.MM.yyyy} ({actor ?? g.GestartetVon ?? "GF"}) — Entscheid GF: {EntscheidText(entscheid)}",
+            $"Bewerbungsgespräch vom {g.GestartetAm:dd.MM.yyyy} ({actor ?? g.GestartetVon ?? "GF"}) — {EntscheidText(entscheid)}",
         };
         var pensum = Str(a, "pensum");
         if (!string.IsNullOrWhiteSpace(pensum)) bem.Add($"Pensum {pensum} %");
@@ -530,8 +530,8 @@ public class BewerbungsgespraechController : HrControllerBase
         ("Ergänzende Angaben", "iban", "IBAN"),
         ("Ergänzende Angaben", "bank", "Bank"),
         ("Ergänzende Angaben", "bankadresse", "Bankadresse"),
-        ("Willkommenstag", "willkommenstag_teilnahme", "Teilnahme"),
-        ("Willkommenstag", "willkommenstag_termin", "Gewünschter Onboarding-Tag"),
+        ("Onboarding-Tag", "willkommenstag_teilnahme", "Teilnahme"),
+        ("Onboarding-Tag", "willkommenstag_termin", "Gewünschter Onboarding-Tag"),
         ("Bedingungen", "bedingungen_akzeptiert", "Allgemeine Bedingungen akzeptiert"),
         ("Minderjährige", "vertreter_name", "Gesetzlicher Vertreter"),
         ("Minderjährige", "vertreter_telefon", "Telefon Vertreter"),
@@ -707,7 +707,7 @@ public class BewerbungsgespraechController : HrControllerBase
 
     private static string EntscheidText(string? e) => e switch
     {
-        "Zusage" => "Zusage",
+        "Zusage" => "Weiter an HR — Onboarding-Tag organisieren",
         "Absage" => "Absage",
         "Rueckstellung" => "Rückstellung",
         _ => "—"

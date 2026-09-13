@@ -349,4 +349,48 @@ public class LohnEditLockServiceTests
         Assert.Null(await svc.GetFirstAllowedDateForContractsAsync(58));
         Assert.Equal(new DateOnly(2026, 8, 1), await svc.GetFirstAllowedDateAsync(User("user"), 58));
     }
+
+    // ──────────────────────────────────────────────────────────────────
+    // Zulagen: nur GENAU dieser Monat, Filiale aus dem Lohnlauf
+    // ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Zulage_JanuarZu_FebruarOffen_FebruarFrei()
+    {
+        using var db = NewDb();
+        db.PayrollPerioden.Add(Periode(58, 2025, 1, "abgeschlossen"));
+        db.PayrollPerioden.Add(Periode(58, 2025, 2, "offen"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        Assert.True((await svc.CheckZulageMonthAsync(1, 2025, 1, 58)).Locked);
+        Assert.False((await svc.CheckZulageMonthAsync(1, 2025, 2, 58)).Locked);
+    }
+
+    [Fact]
+    public async Task Zulage_LohnlaufFilialeOffen_GewinntGegenAnderenVertrag()
+    {
+        using var db = NewDb();
+        db.Employees.Add(new Employee { Id = 25, EmployeeNumber = "25", FirstName = "Nadine", LastName = "Lehmann" });
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 25, CompanyProfileId = 58, IsActive = false,
+            ContractStartDate = new DateTime(2025, 2, 10),
+            EmploymentModel = "FIX", SalaryType = "MONTHLY"
+        });
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = 25, CompanyProfileId = 99, IsActive = true,
+            ContractStartDate = new DateTime(2026, 1, 1),
+            EmploymentModel = "FIX", SalaryType = "MONTHLY"
+        });
+        db.PayrollPerioden.Add(Periode(58, 2025, 2, "offen"));
+        db.PayrollPerioden.Add(Periode(99, 2025, 2, "abgeschlossen"));
+        await db.SaveChangesAsync();
+
+        var svc = new LohnEditLockService(db);
+        Assert.False((await svc.CheckZulageMonthAsync(25, 2025, 2, 58)).Locked);
+        Assert.False((await svc.CheckZulageMonthAsync(25, 2025, 2, null)).Locked);
+        Assert.True((await svc.CheckZulageMonthAsync(25, 2025, 2, 99)).Locked);
+    }
 }

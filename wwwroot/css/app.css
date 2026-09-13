@@ -9813,8 +9813,9 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 .ra-tile img { margin-top: auto; }
 /* Eng zugeschnittene Motive → etwas groesser in der Kachel */
 .ra-tile img[src*="bewerbungsbogen.webp"] { width: 104px; height: 104px; }
-/* Kandidat an HR: Quermotiv → volle Kachelbreite ausnutzen */
+/* Gespräch starten (Icon war «Kandidat an HR»): Quermotiv → volle Kachelbreite */
 .ra-tile img[src*="Kandidat-an-HR.webp"] { width: 110px; height: 110px; }
+.ra-tile img[src*="arbeitszeugnis-bestellen.png"] { width: 110px; height: 110px; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #f1f5f9; }
 /* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
    mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */
@@ -11351,6 +11352,31 @@ body.theme-dark .dp-table td { background:#fff; }
    body.theme-dark .kd-day-Regel (Selektor-Liste oben). */
 /* Onboarding-Modals: warmer Verlauf wie die MA-Maske (Walter 11.08.2026). */
 .iv-modal-box { background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%); }
+/* Arbeitszeugnis-Maske: eine Ansicht, kein Scrollen (Walter 13.09.2026).
+   Oben Stammdaten, darunter zwei Aufgabenspalten (Crew | höhere MA). */
+.az-modal {
+    display: flex; flex-direction: column;
+    max-width: 1180px; width: 100%;
+    max-height: 92vh; overflow: hidden;
+    padding: 16px 20px 14px; box-sizing: border-box;
+}
+.az-modal .az-meta { flex: 0 0 auto; }
+.az-modal .az-tasks {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px 22px; flex: 1 1 auto; min-height: 0;
+    align-content: start; margin-top: 8px;
+}
+.az-modal .az-tasks.az-tasks-nur-basis { grid-template-columns: 1fr; }
+.az-modal .az-tasks-col { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.az-modal .az-task {
+    display: flex; align-items: flex-start; gap: 7px;
+    background: transparent; border: 1px solid rgba(60,55,48,0.20);
+    border-radius: 10px; padding: 4px 8px; cursor: pointer;
+    font-size: 11.5px; line-height: 1.25; color: #3f3f3f; font-weight: 600;
+}
+.az-modal .az-task input { margin-top: 2px; flex: 0 0 auto; }
+.az-modal .az-foot { flex: 0 0 auto; margin-top: 8px; }
+body.theme-dark .az-modal .az-task { color: #f1f5f9; border-color: rgba(255,255,255,0.22); }
 .kd-day { background:rgba(255,255,255,0.48); border:1px solid rgba(255,255,255,0.70); border-radius:16px;
           padding:16px 18px; margin-bottom:12px;
           box-shadow:0 10px 30px rgba(70,64,55,0.12), inset 0 1px 0 rgba(255,255,255,0.58); }

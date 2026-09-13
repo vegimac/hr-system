@@ -1252,10 +1252,9 @@ public class KandidatenController : ControllerBase
     }
 
     /// <summary>
-    /// Kandidaten-Daten sofort löschen (Walter 11.08.2026) — z.B. Test-
-    /// Einträge, statt auf die 30-Tage-Routine zu warten. Nur für bereits
-    /// abgeschlossene Kandidaturen (ERLEDIGT/ABGELEHNT); Buchungen bleiben
-    /// bestehen (Kandidaten-Bezug wird gelöst, MA-Bezug bleibt).
+    /// Kandidaten-Daten sofort löschen (Walter 12.09.2026) — in jedem Status
+    /// (Zu prüfen / angenommen / abgelehnt / erledigt). Buchungen ohne MA
+    /// werden abgesagt; verknüpfter MA und Gespräch bleiben, der Bezug wird gelöst.
     /// </summary>
     [HttpDelete("{id:int}")]
     [Authorize(Roles = "admin,superuser")]
@@ -1263,12 +1262,18 @@ public class KandidatenController : ControllerBase
     {
         var k = await _db.Kandidaten.FirstOrDefaultAsync(x => x.Id == id);
         if (k == null) return NotFound();
-        if (k.Status == "NEU" || k.Status == "ANGENOMMEN")
-            return Conflict(new { error = "NOCH_AKTIV", message = "Aktive Kandidaturen zuerst ablehnen oder verknüpfen — erst danach löschen." });
 
+        await _db.HrInterviewBuchungen
+            .Where(b => b.KandidatId == id && b.EmployeeId == null)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(b => b.KandidatId, (int?)null)
+                .SetProperty(b => b.Status, "ABGESAGT"));
         await _db.HrInterviewBuchungen
             .Where(b => b.KandidatId == id)
             .ExecuteUpdateAsync(s => s.SetProperty(b => b.KandidatId, (int?)null));
+        await _db.Bewerbungsgespraeche
+            .Where(g => g.KandidatId == id)
+            .ExecuteUpdateAsync(s => s.SetProperty(g => g.KandidatId, (int?)null));
         await _db.KandidatDokumente.Where(d => d.KandidatId == id).ExecuteDeleteAsync();
         _db.Kandidaten.Remove(k);
         await _db.SaveChangesAsync();

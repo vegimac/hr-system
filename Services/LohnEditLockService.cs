@@ -296,4 +296,59 @@ public class LohnEditLockService
         }
         return new LockResult(false, "", null);
     }
+
+    /// <summary>
+    /// Zulagen/Abzüge (Walter 12.09.2026): sperrt NUR den Definitiv-Abschluss
+    /// GENAU dieser Periode — nicht «alles vor der spätesten gesperrten».
+    /// Januar abgeschlossen + Februar offen ⇒ Februar bleibt editierbar.
+    ///
+    /// <paramref name="companyProfileId"/> = Filiale aus dem Lohnlauf
+    /// (gewinner). Fehlt sie, gelten die Verträge des MA in diesem Monat;
+    /// sobald eine dieser Filialen den Monat noch offen hat, darf gelöscht
+    /// werden. Der letzte <c>IsActive</c>-Vertrag allein reicht nicht —
+    /// der kann auf einer anderen Filiale liegen, deren Monat schon zu ist.
+    /// </summary>
+    public async Task<LockResult> CheckZulageMonthAsync(
+        int employeeId,
+        int year,
+        int month,
+        int? companyProfileId)
+    {
+        var branchIds = new List<int>();
+        if (companyProfileId is > 0)
+        {
+            branchIds.Add(companyProfileId.Value);
+        }
+        else
+        {
+            var monthStart = new DateTime(year, month, 1);
+            var monthEnd   = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+            branchIds = await _db.Employments
+                .Where(x => x.EmployeeId == employeeId && x.CompanyProfileId != null)
+                .Where(x => x.ContractStartDate <= monthEnd
+                         && (x.ContractEndDate == null || x.ContractEndDate >= monthStart))
+                .Select(x => x.CompanyProfileId!.Value)
+                .Distinct()
+                .ToListAsync();
+        }
+
+        if (branchIds.Count == 0)
+            return new LockResult(false, "", null);
+
+        var stati = await _db.PayrollPerioden
+            .Where(p => branchIds.Contains(p.CompanyProfileId)
+                     && p.Year == year && p.Month == month)
+            .Select(p => p.Status)
+            .ToListAsync();
+
+        // Keine Periode = noch nicht angelegt = offen.
+        // Offen gewinnt: eine nicht abgeschlossene Filiale reicht.
+        if (stati.Count == 0 || stati.Any(s => s != "abgeschlossen"))
+            return new LockResult(false, "", null);
+
+        return new LockResult(
+            Locked: true,
+            Reason: $"Periode {month:00}/{year} ist definitiv abgeschlossen (DTA). Zulagen/Abzüge können nicht mehr erfasst werden.",
+            FirstAllowedDate: null);
+    }
 }

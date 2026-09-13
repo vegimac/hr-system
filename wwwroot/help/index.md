@@ -17,7 +17,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 | Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
 | Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
 | Jahres-Lohnausweis erstellen (Form 11 + Barcode) | [Jahres-Lohnausweis](#lohnausweis) |
-| Bewerbungsbogen, Kandidat an HR, Ferienplaner | [McAdmin](#mcadmin) |
+| Bewerbungsformular, Gespräch starten, Arbeitszeugnis bestellen | [McAdmin](#mcadmin) |
 | Lohnabtretung / Pfändung an Behörde | [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
 | Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |

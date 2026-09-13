@@ -454,6 +454,8 @@ async function hrKandReload() {
                 <label style="font-size:11px;color:#8b8b8b;display:flex;flex-direction:column;gap:3px">Ablehnungsgrund
                     <input id="kdGrund${k.id}" style="${_kdInp};min-width:220px"></label>
                 <button onclick="hrKandEntscheid(${k.id}, false)" style="background:#fff;border:1.5px solid #991b1b;color:#991b1b;border-radius:12px;padding:6px 14px;font-size:12.5px;font-weight:700;cursor:pointer">✕ Ablehnen</button>
+                <span style="flex:1"></span>
+                ${_kdLoeschenBtn(k)}
             </div>`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine unbearbeiteten Kandidaten. 🎉</span>';
 
@@ -479,7 +481,10 @@ async function hrKandReload() {
                     <div><b>${_kdEsc(k.vorname)} ${_kdEsc(k.name)}</b></div>
                     <div class="kd-dim" style="font-size:11.5px;white-space:nowrap">${k.telefon ? _kdEsc(k.telefon) : ''}</div>
                     <div><span class="kd-chip kd-chip-gelb">Onboarding-Tag wählen → Details</span></div>
-                    <a class="kd-link" onclick="_kdObToggle('k${k.id}', ${k.id})" style="font-size:12px;justify-self:end">Details ⌄</a>
+                    <div style="display:flex;gap:8px;align-items:center;justify-self:end;flex-wrap:wrap">
+                        <a class="kd-link" onclick="_kdObToggle('k${k.id}', ${k.id})" style="font-size:12px">Details ⌄</a>
+                        ${_kdLoeschenBtn(k)}
+                    </div>
                 </div>
                 <div id="kdObDetk${k.id}" style="display:none"></div>`).join('')}`);
         }
@@ -501,6 +506,7 @@ async function hrKandReload() {
                        <button onclick="hrKandZuruecknehmen(${k.id})" title="Ablehnung zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
                                style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#3f3f3f">↶ Entscheid zurücknehmen</button>`}
                 <span style="color:#b0aca4;font-size:11px">wird 30 Tage nach dem Entscheid automatisch gelöscht</span>
+                ${_kdLoeschenBtn(k)}
             </div>
             ${_kdNotizHtml(k)}`)).join('')
             : '<span style="color:#8b8b8b;font-size:12.5px">Keine offenen Absagen.</span>';
@@ -517,7 +523,7 @@ async function hrKandReload() {
                     <span class="kd-chip kd-chip-indigo">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
                     <span class="kd-dim" style="font-size:11px">wird 30 Tage später automatisch gelöscht</span>
                     <span style="flex:1"></span>
-                    <a class="kd-link" onclick="hrKandLoeschen(${k.id}, '${_kdEsc(k.vorname)} ${_kdEsc(k.name)}')" style="font-size:12px;color:#991b1b">🗑 Jetzt löschen</a>
+                    ${_kdLoeschenBtn(k)}
                 </div>
                 ${_kdNotizHtml(k)}`)).join('');
         }
@@ -567,7 +573,7 @@ function _kdObRow(t, r) {
     if (!r.abgeschlossenAm && !t.vergangen && (r.kandidatId || r.buchungId))
         aktionen += `<button class="kd-btn-glass" onclick="_kdObTagWechsel('${key}', ${r.kandidatId ?? 'null'}, ${r.buchungId ?? 'null'})" title="Person auf einen anderen Onboarding-Tag verschieben">⇄ Tag ändern</button>`;
     if (k)
-        aktionen += `<a class="kd-link" onclick="_kdObToggle('${key}', ${k.id})" style="font-size:12px">Details ⌄</a>`;
+        aktionen += `<a class="kd-link" onclick="_kdObToggle('${key}', ${k.id})" style="font-size:12px">Details ⌄</a>` + _kdLoeschenBtn(k);
     return `
         <div class="kd-row">
             <div>${r.filiale ? `<span class="kd-chip kd-chip-kohle">${_kdEsc(r.filiale)}</span>` : ''}</div>
@@ -700,6 +706,7 @@ function _kdAngenommenInner(k) {
             <span style="flex:1"></span>
             <button onclick="hrKandZuruecknehmen(${k.id})" title="Annahme zurücknehmen — der Kandidat steht wieder unter «Zu prüfen»"
                     style="background:transparent;border:none;padding:6px 4px;font-size:12px;cursor:pointer;color:#8b8b8b;text-decoration:underline">↶ Entscheid zurücknehmen</button>
+            ${_kdLoeschenBtn(k)}
         </div>
         <div id="kdLink${k.id}" style="margin-top:6px"></div>`;
 }
@@ -712,16 +719,30 @@ function _kdErledigtInner(k) {
             <span class="kd-chip kd-chip-indigo">✓ verknüpft ${_kdFmtTs(k.erledigtAm)}</span>
             <span class="kd-dim" style="font-size:11px">Kandidaten-Daten werden 30 Tage nach der Verknüpfung automatisch gelöscht</span>
             <span style="flex:1"></span>
-            <a class="kd-link" onclick="hrKandLoeschen(${k.id}, '${_kdEsc(k.vorname)} ${_kdEsc(k.name)}')" style="font-size:12px;color:#991b1b">🗑 Jetzt löschen</a>
+            ${_kdLoeschenBtn(k)}
         </div>
         ${_kdNotizHtml(k)}`;
 }
 
-// Kandidaten-Daten sofort löschen (Walter 11.08.2026) — z.B. Test-Einträge.
-// Der MA und seine Termin-Buchung bleiben unberührt.
+function _kdLoeschenBtn(k) {
+    const name = JSON.stringify(`${k.vorname || ''} ${k.name || ''}`.trim());
+    return `<button type="button" onclick='hrKandLoeschen(${k.id}, ${name})' title="Kandidat inkl. Anhänge löschen"
+        style="background:rgba(255,255,255,0.55);border:1px solid rgba(153,27,27,0.35);border-radius:12px;padding:6px 12px;font-size:12px;cursor:pointer;color:#991b1b">🗑 Löschen</button>`;
+}
+
+// Kandidaten-Daten sofort löschen — in jedem Status (Walter 12.09.2026).
+// Verknüpfter MA bleibt; Onboarding-Buchung ohne MA wird abgesagt.
 async function hrKandLoeschen(id, name) {
+    const k = _kdHrList.find(x => x.id === id);
+    const wer = name || (k ? `${k.vorname || ''} ${k.name || ''}`.trim() : 'diesen Kandidaten');
+    let msg = `Kandidat ${wer} inkl. Anhänge löschen? Der Eintrag verschwindet aus der Liste.`;
+    if (k && k.status === 'ERLEDIGT')
+        msg = `Kandidaten-Daten von ${wer} jetzt löschen (inkl. Anhänge)? Der verknüpfte MA und seine Termin-Buchung bleiben bestehen.`;
+    else if (k && k.status === 'ANGENOMMEN')
+        msg = `Kandidat ${wer} löschen? Eine Onboarding-Buchung ohne MA wird abgesagt.`;
     if (typeof liquidConfirm === 'function'
-        && !await liquidConfirm(`Kandidaten-Daten von ${name} jetzt löschen (inkl. Anhänge)? Der verknüpfte MA und seine Termin-Buchung bleiben bestehen.`, { title: 'Kandidat löschen' })) return;
+        && !await liquidConfirm(msg, { title: 'Kandidat löschen', yesLabel: 'Ja, löschen', noLabel: 'Abbrechen' })) return;
+    if (typeof liquidConfirm !== 'function' && !confirm(msg)) return;
     const r = await fetch(`/api/kandidaten/${id}`, { method: 'DELETE', headers: ah() });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) { showToast(j.message || j.error || 'Löschen fehlgeschlagen.', 'error'); return; }

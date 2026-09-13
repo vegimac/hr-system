@@ -306,7 +306,7 @@ async function lzSave() {
     try {
         let res;
         if (id) {
-            res = await fetch(`/api/lohn-zulagen/${id}`, {
+            res = await fetch(`/api/lohn-zulagen/${id}?companyProfileId=${_lzCurrentCompId || ''}`, {
                 method: 'PUT',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
                 body: JSON.stringify({ betrag, bemerkung: bem })
@@ -315,7 +315,7 @@ async function lzSave() {
             res = await fetch('/api/lohn-zulagen', {
                 method: 'POST',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ employeeId: _lzCurrentEmpId, periode, lohnpositionId: lpId, betrag, bemerkung: bem })
+                body: JSON.stringify({ employeeId: _lzCurrentEmpId, periode, lohnpositionId: lpId, betrag, bemerkung: bem, companyProfileId: _lzCurrentCompId || null })
             });
         }
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
@@ -337,7 +337,8 @@ async function lzSave() {
 async function lzDelete(id) {
     if (!confirm('Eintrag löschen?')) return;
     try {
-        const res = await fetch(`/api/lohn-zulagen/${id}`, { method: 'DELETE', headers: ah() });
+        const cid = _lzCurrentCompId ? `?companyProfileId=${_lzCurrentCompId}` : '';
+        const res = await fetch(`/api/lohn-zulagen/${id}${cid}`, { method: 'DELETE', headers: ah() });
         if (window.lohnEditLock && await window.lohnEditLock.handleResponse(res)) return;
         if (!res.ok) {
             const err = await res.text();

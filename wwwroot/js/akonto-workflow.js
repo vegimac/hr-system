@@ -964,8 +964,20 @@ function _akWfApplyZulagenLock() {
     //                  provisorisch_abgeschlossen → nur HR
     //                  abgeschlossen             → niemand
     const akStatus = _akWfData?.akontoStatus || 'OFFEN';
-    const defStatus = window._currentLohnPeriode?.status
-                   || window._lohnWfData?.status
+    // Immer die Periode des offenen Zulagen-Monats — nicht eine andere,
+    // schon abgeschlossene Periode, die noch in _currentLohnPeriode hängt.
+    const lzY = typeof _lzCurrentYear === 'number' ? _lzCurrentYear : null;
+    const lzM = typeof _lzCurrentMonth === 'number' ? _lzCurrentMonth : null;
+    const pNow = window._currentLohnPeriode;
+    const periodePasst = pNow && lzY && lzM
+        && Number(pNow.year) === Number(lzY)
+        && Number(pNow.month) === Number(lzM);
+    const defStatus = (periodePasst ? pNow.status : null)
+                   || (typeof _lohnWfData !== 'undefined' && _lohnWfData && lzY && lzM
+                       && _lohnWfData.periode
+                       && Number(_lohnWfData.periode.year) === Number(lzY)
+                       && Number(_lohnWfData.periode.month) === Number(lzM)
+                       ? _lohnWfData.status : null)
                    || 'offen';
     const isHr = _akIsHr();
     const mode = (typeof _akWfMode !== 'undefined' && _akWfMode) ? _akWfMode : 'akonto';
