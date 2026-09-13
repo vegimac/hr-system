@@ -36,6 +36,8 @@
                 d: +v.slice(8, 10),
             };
         }
+        const ch = v && /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(String(v).trim());
+        if (ch) return { y: +ch[3], m: +ch[2] - 1, d: +ch[1] };
         return todayParts();
     }
 
@@ -99,7 +101,10 @@
     function commit(y, m, d) {
         if (!_activeInput) return;
         const inp = _activeInput;
-        inp.value = toIso(y, m, d);
+        const swiss = inp.getAttribute('data-chdate') === '1' || (inp.type || '').toLowerCase() !== 'date';
+        inp.value = swiss
+            ? `${pad2(d)}.${pad2(m + 1)}.${y}`
+            : toIso(y, m, d);
         inp.dispatchEvent(new Event('input', { bubbles: true }));
         inp.dispatchEvent(new Event('change', { bubbles: true }));
         // Kündigungsbestätigung: Frist-Vorschlag nach Datumswahl (Walter 26.07.2026)
@@ -356,8 +361,11 @@
 
     function attach(input) {
         if (!input || input._ypAttached) return;
-        if (input.getAttribute('data-yp') === 'off') return;
-        if ((input.type || '').toLowerCase() !== 'date') return;
+        const yp = (input.getAttribute('data-yp') || '').toLowerCase();
+        if (yp === 'off') return;
+        const isDate = (input.type || '').toLowerCase() === 'date';
+        const isCh = input.getAttribute('data-chdate') === '1' || yp === 'birth' || yp === 'on';
+        if (!isDate && !isCh) return;
         input._ypAttached = true;
 
         const next = input.nextElementSibling;
@@ -387,8 +395,8 @@
 
     function scan(root) {
         const scope = root && root.querySelectorAll ? root : document;
-        if (scope.matches && scope.matches('input[type="date"]')) attach(scope);
-        scope.querySelectorAll('input[type="date"]').forEach(el => attach(el));
+        if (scope.matches && (scope.matches('input[type="date"]') || scope.matches('input[data-yp], input[data-chdate]'))) attach(scope);
+        scope.querySelectorAll('input[type="date"], input[data-yp], input[data-chdate]').forEach(el => attach(el));
     }
 
     function startAuto() {
@@ -402,7 +410,7 @@
                         n.remove();
                         continue;
                     }
-                    if (n.matches && n.matches('input[type="date"]')) attach(n);
+                    if (n.matches && (n.matches('input[type="date"]') || n.matches('input[data-yp], input[data-chdate]'))) attach(n);
                     else if (n.querySelectorAll) scan(n);
                 }
             }

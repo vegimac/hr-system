@@ -6348,7 +6348,9 @@
             width: 100%;
             min-width: 0;
         }
-        .yp-field-wrap > input[type="date"] {
+        .yp-field-wrap > input[type="date"],
+        .yp-field-wrap > input[data-chdate],
+        .yp-field-wrap > input[data-yp] {
             flex: 1 1 auto;
             min-width: 0;
         }
@@ -12329,8 +12331,14 @@ body.theme-dark #qstModal .qst-cb-ro {
 .bgs-input:focus { box-shadow: 0 0 0 3px rgba(63,63,63,0.18), 0 2px 6px rgba(60,55,48,0.13); }
 .bgs-input-short { max-width: 240px; }
 .bgs-jugend { background: #fff7ed; border: 1.5px solid #f59e0b; color: #7c2d12; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; font-size: 14px; font-weight: 600; }
+.bgs-field .bgs-jugend { margin: 8px 0 0; }
 .bgs-full .bgs-jugend { font-size: 17px; }
 body.theme-dark .bgs-jugend { background: rgba(245,158,11,0.15); color: #fcd34d; }
+.bgs-field .yp-field-wrap { max-width: 280px; width: 100%; }
+.bgs-alter-heute { margin-top: 6px; font-size: 15px; font-weight: 700; color: #3f3f3f; }
+.bgs-full .bgs-alter-heute { font-size: 17px; }
+body.theme-dark .bgs-alter-heute { color: #e7e5e4; }
+.bgs-full input[type="date"]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; }
 .bgs-input-error { border-color: #b91c1c !important; box-shadow: 0 0 0 3px rgba(185,28,28,.18) !important; }
 .bgs-input-mono { font-family: ui-monospace, Menlo, monospace; letter-spacing: .04em; max-width: 340px; }
 .bgs-input-time { padding: 7px 8px; font-size: 14px; max-width: 130px; }

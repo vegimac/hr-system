@@ -44,20 +44,97 @@ function bgsIstCh(a) {
     const n = (a.nationalitaet || '').trim().toLowerCase();
     return n === 'ch' || n === 'schweiz' || n === 'schweizerin' || n === 'schweizer' || n.startsWith('schweiz');
 }
+function bgsYmd(raw) {
+    const s = String(raw || '').trim();
+    let y, mo, d;
+    let m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+    else {
+        m = /^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$/.exec(s);
+        if (m) { d = +m[1]; mo = +m[2]; y = +m[3]; }
+        else return null;
+    }
+    if (y < 1900 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+    return { y, mo, d };
+}
+function bgsToIso(raw) {
+    const p = bgsYmd(raw);
+    return p ? `${p.y}-${String(p.mo).padStart(2, '0')}-${String(p.d).padStart(2, '0')}` : null;
+}
+function bgsChDateFormat(raw) {
+    const s = String(raw || '').trim();
+    if (/^\d{1,2}\.\d{0,2}(\.\d{0,4})?$/.test(s)) return s.slice(0, 10);
+    const digits = s.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 4) return digits.slice(0, 2) + '.' + digits.slice(2);
+    return digits.slice(0, 2) + '.' + digits.slice(2, 4) + '.' + digits.slice(4);
+}
+function bgsParseChDate(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return null;
+    const iso = bgsToIso(s);
+    if (iso) return iso;
+    const digits = s.replace(/\D/g, '');
+    if (digits.length === 8) return bgsToIso(digits.slice(0, 2) + '.' + digits.slice(2, 4) + '.' + digits.slice(4));
+    return null;
+}
 function bgsAlter(iso) {
-    if (!iso) return null;
-    const g = new Date(iso); if (isNaN(g)) return null;
+    const p = bgsYmd(iso);
+    if (!p) return null;
     const h = new Date();
-    let a = h.getFullYear() - g.getFullYear();
-    const m = h.getMonth() - g.getMonth();
-    if (m < 0 || (m === 0 && h.getDate() < g.getDate())) a--;
+    let a = h.getFullYear() - p.y;
+    const m = h.getMonth() - (p.mo - 1);
+    if (m < 0 || (m === 0 && h.getDate() < p.d)) a--;
     return a;
 }
 function bgsIstMinderjaehrig(a) {
     const x = bgsAlter((a || _bgsAnswers).geburtsdatum);
     return x !== null && x < 18;
 }
-function bgsDarfWeiter(a) { return !bgsIstMinderjaehrig(a); }
+// Einstellung erst ab 17 (Walter 13.09.2026): 16 und jünger = zu jung.
+function bgsIstZuJung(a) {
+    const x = bgsAlter((a || _bgsAnswers).geburtsdatum);
+    return x !== null && x <= 16;
+}
+function bgsDarfWeiter(a) { return !bgsIstZuJung(a); }
+function bgsJahreWort(n) { return n === 1 ? '1 Jahr' : n + ' Jahre'; }
+function bgsAlterHeuteText(iso) {
+    const x = bgsAlter(iso);
+    if (x === null) return '';
+    if (x < 0) return 'Dieses Datum liegt in der Zukunft.';
+    return 'Heute ' + bgsJahreWort(x) + ' alt.';
+}
+function bgsGeburtAlterHinweis(iso) {
+    const x = bgsAlter(iso);
+    if (x === null) return '';
+    if (x < 0) return 'Dieses Datum liegt in der Zukunft.';
+    if (x <= 16) return 'Heute ' + bgsJahreWort(x) + ' alt — noch zu jung. Später wieder melden.';
+    return 'Heute ' + bgsJahreWort(x) + ' alt.';
+}
+function bgsPaintAlterHeute(iso) {
+    const el = document.getElementById('bgsAlterHeute');
+    if (!el) return;
+    const txt = bgsGeburtAlterHinweis(iso);
+    el.hidden = !txt;
+    el.textContent = txt;
+    el.className = (bgsAlter(iso) !== null && (bgsAlter(iso) < 0 || bgsAlter(iso) <= 16)) ? 'bgs-jugend' : 'bgs-alter-heute';
+}
+function bgsRefreshGeburtUi() {
+    const step = bgsCurrentStep();
+    if (!step || step.key !== 'geburt') return;
+    const vis = bgsVisibleSteps();
+    const idx = vis.indexOf(step);
+    const locked = _bgsMeta && _bgsMeta.status === 'abgeschlossen';
+    const html = bgsRenderNavRight(step, idx, vis.length, locked);
+    const top = document.getElementById('bgsNavRightTop');
+    const bot = document.getElementById('bgsNavRightBot');
+    if (top) top.innerHTML = html;
+    if (bot) bot.innerHTML = html;
+    bgsUpdateRail();
+    bgsFitCard();
+}
 
 // ── Fragenfluss ────────────────────────────────────────────────────────
 // teil: A = Kennenlernen, B = Onboarding, C = Abschluss.
@@ -124,7 +201,7 @@ const GS_STEPS = [
           { k: 'willkommenstag_termin_id', l: 'Welcher Onboarding-Tag passt? (nur Termine mit freiem Platz)', t: 'termine', when: a => a.willkommenstag_teilnahme === true },
       ] },
     { key: 'vertreter', teil: 'B', title: 'Gesetzlicher Vertreter', hint: 'Der Bewerber ist minderjährig — Angaben und Einverständnis des gesetzlichen Vertreters.',
-      when: () => false, // unter 18 stoppt am Geburtsdatum (Walter 12.09.2026)
+      when: () => false, // 16 und jünger stoppt am Geburtsdatum (Walter 13.09.2026)
       fields: [{ k: 'vertreter_name', l: 'Vorname Name', t: 'text' }, { k: 'vertreter_telefon', l: 'Telefon', t: 'tel' }] },
     { key: 'unterschrift', teil: 'B', title: 'Zusammenfassung', type: 'summary', when: a => bgsDarfWeiter(a),
       hint: 'Bildschirm dem Bewerber zeigen — er prüft die Angaben. (Unterschrift weggelassen, Walter 07.09.2026)',
@@ -414,7 +491,7 @@ function bgsCurrentStep() {
     const vis = bgsVisibleSteps();
     let s = vis.find(x => x.key === _bgsStepKey);
     if (!s) {
-        s = (bgsIstMinderjaehrig() && vis.find(x => x.key === 'geburt')) || vis[0];
+        s = (bgsIstZuJung() && vis.find(x => x.key === 'geburt')) || vis[0];
         _bgsStepKey = s.key;
     }
     return s;
@@ -445,7 +522,7 @@ function bgsRenderFlow() {
             <div class="bgs-top-right">
                 ${locked ? `<button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPdf()">📄 PDF</button>` : ''}
                 <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPrev()" ${idx === 0 ? 'disabled' : ''}>← Zurück</button>
-                ${bgsRenderNavRight(step, idx, vis.length, locked)}
+                <span id="bgsNavRightTop">${bgsRenderNavRight(step, idx, vis.length, locked)}</span>
             </div>
         </div>
         <div class="bgs-progress"><div class="bgs-progress-bar" style="width:${Math.round(((idx + 1) / vis.length) * 100)}%"></div></div>
@@ -467,7 +544,7 @@ function bgsRenderFlow() {
                     <button type="button" class="bgs-btn bgs-btn-ghost" onclick="bgsPrev()" ${idx === 0 ? 'disabled' : ''}>← Zurück</button>
                     ${locked ? '' : `<button type="button" class="bgs-btn bgs-btn-ghost" style="color:#991b1b" onclick="bgsAbbrechen()" title="Gespräch abbrechen — alle bisherigen Antworten werden gelöscht">✕ Abbrechen</button>`}
                     <div style="flex:1"></div>
-                    ${bgsRenderNavRight(step, idx, vis.length, locked)}
+                    <span id="bgsNavRightBot">${bgsRenderNavRight(step, idx, vis.length, locked)}</span>
                 </div>
             </div>
         </main>
@@ -519,7 +596,7 @@ function bgsRenderNavRight(step, idx, n, locked) {
         return `<button type="button" class="bgs-btn bgs-btn-ghost" style="color:#991b1b" onclick="bgsAbsagen()">Nein — absagen</button>
                 <button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsAnHrSenden()">Weiter — an HR für Onboarding-Tag</button>`;
     }
-    if (step.key === 'geburt' && bgsIstMinderjaehrig())
+    if (step.key === 'geburt' && bgsIstZuJung())
         return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsMinderjaehrigBeenden()">Gespräch beenden</button>`;
     return `<button type="button" class="bgs-btn bgs-btn-primary" onclick="bgsNext()">Weiter →</button>`;
 }
@@ -552,9 +629,17 @@ function bgsJump(key) {
 }
 function bgsNext() {
     const geb = document.getElementById('bgsf_geburtsdatum');
-    if (geb && geb.value) bgsSet('geburtsdatum', geb.value, { immediate: true });
-    if (bgsIstMinderjaehrig()) {
-        if (typeof showToast === 'function') showToast('Unter 18 — hier Schluss.', 'error');
+    if (geb && geb.value) {
+        const iso = bgsParseChDate(geb.value);
+        if (iso) { geb.value = bgsFmtD(iso); bgsSet('geburtsdatum', iso, { immediate: true }); }
+        else if (geb.value.trim()) {
+            if (typeof showToast === 'function') showToast('Geburtsdatum als tt.mm.jjjj eingeben, z.B. 06.07.1960.', 'error');
+            geb.focus();
+            return;
+        }
+    }
+    if (bgsIstZuJung()) {
+        if (typeof showToast === 'function') showToast('Noch zu jung — später wieder melden.', 'error');
         bgsRenderFlow();
         return;
     }
@@ -589,8 +674,6 @@ async function bgsBackToList() {
 // ── Felder ─────────────────────────────────────────────────────────────
 function bgsRenderStepBody(step) {
     let html = '';
-    if (step.key === 'geburt' && bgsIstMinderjaehrig())
-        html += `<div class="bgs-jugend" id="bgsMinderHinweis">Unter 18 — hier Schluss. Dem Kandidaten jetzt Bescheid sagen und das Gespräch beenden. Es geht nicht an HR.</div>`;
     if (step.type === 'summary') html += bgsRenderSummary();
     html += (step.fields || []).filter(f => !f.when || f.when(_bgsAnswers)).map(f => bgsRenderField(f)).join('');
     return html;
@@ -609,8 +692,14 @@ function bgsRenderField(f) {
             return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-email="1" type="email" inputmode="email" value="${esc(v)}" placeholder="${esc(f.ph || 'name@beispiel.ch')}" autocomplete="off" spellcheck="false"><div class="bgs-fhint" id="bgsEmailHint_${f.k}">${bgsEmailHint(v)}</div></div>`;
         case 'number':
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="number" inputmode="numeric" value="${esc(v)}" ${f.min != null ? `min="${f.min}"` : ''} ${f.max != null ? `max="${f.max}"` : ''}>${hint}</div>`;
-        case 'date':
+        case 'date': {
+            if (f.k === 'geburtsdatum') {
+                const shown = v ? (bgsFmtD(v) === '—' ? '' : bgsFmtD(v)) : '';
+                const warn = v && (bgsIstZuJung() || bgsAlter(v) < 0);
+                return `<div class="bgs-field">${label}<input class="bgs-input" id="bgsf_${f.k}" data-key="${f.k}" data-chdate="1" data-yp="birth" type="text" inputmode="numeric" placeholder="tt.mm.jjjj" maxlength="10" value="${esc(shown)}" autocomplete="off"><div class="${warn ? 'bgs-jugend' : 'bgs-alter-heute'}" id="bgsAlterHeute"${v ? '' : ' hidden'}>${esc(bgsGeburtAlterHinweis(v))}</div>${hint}</div>`;
+            }
             return `<div class="bgs-field">${label}<input class="bgs-input bgs-input-short" id="bgsf_${f.k}" data-key="${f.k}" type="date" value="${esc(v)}">${hint}</div>`;
+        }
         case 'textarea':
             return `<div class="bgs-field">${label}<textarea class="bgs-input bgs-textarea" id="bgsf_${f.k}" data-key="${f.k}" rows="3">${esc(v)}</textarea>${hint}</div>`;
         case 'choice': {
@@ -1024,6 +1113,20 @@ document.addEventListener('input', e => {
     }
     if (el.dataset.email) { const h = document.getElementById('bgsEmailHint_' + key); if (h) h.innerHTML = bgsEmailHint(el.value); }
     if (el.type === 'text' && key === 'plz') bgsPlzLookup(el.value);
+    if (el.dataset.chdate) {
+        const f = bgsChDateFormat(el.value);
+        if (f !== el.value && el.selectionStart === el.value.length) el.value = f;
+        const iso = bgsParseChDate(el.value);
+        bgsPaintAlterHeute(iso);
+        bgsRefreshGeburtUi();
+        clearTimeout(_bgsInputTimer);
+        _bgsInputTimer = setTimeout(() => {
+            const fertig = bgsParseChDate(el.value);
+            if (fertig) bgsSet(key, fertig);
+            else if (!el.value.trim()) bgsSet(key, null);
+        }, 450);
+        return;
+    }
     clearTimeout(_bgsInputTimer);
     _bgsInputTimer = setTimeout(() => bgsSet(key, el.type === 'number' ? (el.value === '' ? null : Number(el.value)) : el.value), 450);
 });
@@ -1039,9 +1142,19 @@ document.addEventListener('change', e => {
     if (el.dataset.iban) { v = v.replace(/\s+/g, '').toUpperCase().replace(/(.{4})/g, '$1 ').trim(); if (bgsIbanOk(v)) bgsBankVorschlag(v); }
     if (el.dataset.tel) { v = bgsTelFormat(v); el.value = v; const h = document.getElementById('bgsTelHint_' + key); if (h) h.innerHTML = bgsTelHint(v); }
     if (el.dataset.email) { v = v.trim().toLowerCase(); el.value = v; const h = document.getElementById('bgsEmailHint_' + key); if (h) h.innerHTML = bgsEmailHint(v); }
+    if (el.dataset.chdate) {
+        const iso = bgsParseChDate(v);
+        if (iso) { el.value = bgsFmtD(iso); v = iso; }
+        else if (!String(v || '').trim()) v = null;
+        else return;
+        bgsSet(key, v, { immediate: true });
+        bgsPaintAlterHeute(iso);
+        bgsRefreshGeburtUi();
+        return;
+    }
     bgsSet(key, v, { immediate: true });
     if (key.startsWith('verf_')) { const j = document.getElementById('bgsJugendHinweis'); if (j) { const t = bgsJugendHinweis(); j.hidden = !t; j.textContent = t ? '⚠ ' + t : ''; } }
-    const needsRerender = ['zivilstand', 'nationalitaet', 'bewilligung', 'sprache_andere', 'geburtsdatum'].includes(key);
+    const needsRerender = ['zivilstand', 'nationalitaet', 'bewilligung', 'sprache_andere'].includes(key);
     if (needsRerender) bgsRenderFlow();
 });
 document.addEventListener('click', e => {
@@ -1177,11 +1290,12 @@ async function bgsAnHrSenden() {
 }
 
 async function bgsMinderjaehrigBeenden() {
+    const x = bgsAlter(_bgsAnswers.geburtsdatum);
     return bgsAbsagen({
-        title: 'Unter 18 — Schluss',
-        msg: 'Der Kandidat ist unter 18. Gespräch beenden? Es geht nicht an HR.',
+        title: 'Noch zu jung',
+        msg: `Der Kandidat ist ${x !== null ? bgsJahreWort(x) + ' alt' : '16 oder jünger'} — noch zu jung. Später wieder melden. Gespräch beenden? Es geht nicht an HR.`,
         yes: 'Ja, beenden',
-        toast: 'Gespräch beendet — unter 18.',
+        toast: 'Gespräch beendet — noch zu jung.',
     });
 }
 async function bgsAbsagen(opts = {}) {
