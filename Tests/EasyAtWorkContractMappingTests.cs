@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HrSystem.Models;
 using HrSystem.Services.EasyAtWork;
 using Xunit;
 
@@ -325,6 +326,30 @@ public class EasyAtWorkContractMappingTests
         Assert.Equal(4300m, fix.Info.MonthlySalary);
         Assert.Equal(new DateOnly(2026, 9, 30), contracts[0].To);
         Assert.True(tl.Where(s => s.Info.EmploymentModel == "MTP").All(s => s.End <= new DateOnly(2026, 9, 30)));
+    }
+
+    [Fact]
+    public void OffenerMtp_WirdAmVortagDesFixM_Geschlossen()
+    {
+        var rows = new List<Employment>
+        {
+            new()
+            {
+                Id = 1, ContractStartDate = new DateTime(2026, 1, 1),
+                ContractEndDate = null, IsActive = true, EmploymentModel = "MTP",
+            },
+            new()
+            {
+                Id = 2, ContractStartDate = new DateTime(2026, 10, 1),
+                ContractEndDate = null, IsActive = true, EmploymentModel = "FIX-M",
+            },
+        };
+        EasyAtWorkEmployeeSyncService.SchliesseEmploymentVorgaengerAmTagVorNachfolger(
+            rows, firstAllowedDate: new DateOnly(2026, 9, 1), today: new DateOnly(2026, 9, 13));
+
+        Assert.Equal(new DateTime(2026, 9, 30), rows[0].ContractEndDate);
+        Assert.True(rows[0].IsActive);
+        Assert.Null(rows[1].ContractEndDate);
     }
 
     [Fact]

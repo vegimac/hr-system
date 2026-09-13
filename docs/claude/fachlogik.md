@@ -431,6 +431,10 @@ Abweichung pro Filiale), NICHT beim Lohndaten-Empfänger. Ergänzt um:
 - Testmandant Schritt 3b (`SwissdecTestmandantController.Schritt3b.cs`) lädt die Muster-AG-Lösungen; Annahme
   Prämie/Beitrag hälftig AN/AG bei UVGZ/KTG/BVG (Swissdec nennt nur Gesamtsätze).
 
+## Schlussabrechnung bei Modellwechsel Stundenlohn → Monatslohn (Walter 13.09.2026)
+
+Wechsel **FLEX/MTP → FIX/FIX-M** (oder umgekehrt) in derselben Periode = **Schlusslohn**, auch wenn ein Folgevertrag existiert. Alle Saldi des alten Modells werden ausbezahlt und auf Null gestellt (Ferien-Pott/Tage, 13.-ML-Saldo, Nacht, Stunden) — wie beim Austritt. Danach startet FIX/FIX-M mit bezahlten Ferien und bezahlten Feiertagen bei Saldo 0. Gleicher Familie (MTP→MTP, FIX→FIX-M) kein Schlusslohn. Trigger: `PayrollCalculations.IsModellwechselSchlusslohn`. Swissdec verlangt denselben Schnitt (Stundenlohn-% darf nicht in Monatslohn-Tage weiterlaufen).
+
 ## Schlussabrechnung & Stunden im Lohn — Filial-Schalter (Walter 10.09.2026)
 
 Drei Schalter pro Filiale (`company_profile`, boolean NOT NULL DEFAULT true, Schema-Stand 3), gleiches Muster wie Akonto ja/nein. Default true = heutiges Schaub-Verhalten; Muster AG (Schritt 5a) setzt alle drei auf false, weil das Swissdec Quality Tool keine CHF-Auszahlung von Tages-/Stunden-Saldi kennt.

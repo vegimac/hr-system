@@ -3490,9 +3490,23 @@ public class EasyAtWorkEmployeeSyncService
             // «abgeschlossen») werden NICHT importiert. Während provisorisch
             // (Kontrolle vor DTA) ist Import erlaubt. Vorhandenes Segment bleibt
             // unangetastet (matched); fehlendes → klare Skip-Meldung.
+            // Ausnahme (Walter 13.09.2026): das ENDE darf nachgezogen werden,
+            // wenn es in/ab der offenen Periode liegt — sonst bleibt ein MTP
+            // aus Januar offen, obwohl der FIX-M ab 1.10. schon steht.
             if (firstAllowedDate.HasValue && seg.Start < firstAllowedDate.Value)
             {
-                if (existing != null) matched.Add(existing);
+                if (existing != null)
+                {
+                    matched.Add(existing);
+                    DateOnly? altEnde = existing.ContractEndDate.HasValue
+                        ? DateOnly.FromDateTime(existing.ContractEndDate.Value) : null;
+                    if (seg.End.HasValue && seg.End.Value >= firstAllowedDate.Value
+                        && altEnde != seg.End.Value)
+                    {
+                        existing.ContractEndDate = seg.End.Value.ToDateTime(TimeOnly.MinValue);
+                        existing.IsActive = seg.End.Value >= today;
+                    }
+                }
                 else skippedContracts?.Add(
                     $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen abgeschlossener Lohnperiode nicht importiert werden.");
                 continue;
@@ -3670,12 +3684,54 @@ public class EasyAtWorkEmployeeSyncService
             }
         }
 
+        // Offener Vorgänger in derselben Filiale endet am Vortag des nächsten
+        // Vertrags — auch wenn das Start-Segment wegen FirstAllowed nicht
+        // komplett neu geschrieben wurde (Walter 13.09.2026, Fall Alessia).
+        var bleiben = existingAll.Where(e => db.Entry(e).State != EntityState.Deleted).ToList();
+        bleiben.AddRange(db.ChangeTracker.Entries<Employment>()
+            .Where(e => e.State == EntityState.Added
+                     && e.Entity.EmployeeId == emp.Id
+                     && e.Entity.CompanyProfileId == companyProfileId)
+            .Select(e => e.Entity));
+        SchliesseEmploymentVorgaengerAmTagVorNachfolger(bleiben, firstAllowedDate, today);
+
         // Aktuellstes aktives Segment → offene Verträge in anderen Filialen schliessen.
         var latestActive = timeline.Where(s => !s.End.HasValue || s.End.Value >= today)
                                    .OrderByDescending(s => s.Start).FirstOrDefault();
         if (latestActive != null)
             await CloseOtherBranchOpenEmploymentsAsync(
                 db, emp.Id, companyProfileId, latestActive.Start.ToDateTime(TimeOnly.MinValue), eawTo, ct);
+    }
+
+    /// <summary>
+    /// Offener oder überlappender Vorgänger endet am Tag vor dem nächsten
+    /// Vertrag (Walter 13.09.2026). Liegt das neue Ende vor FirstAllowed,
+    /// bleibt die geschlossene Periode unangetastet.
+    /// </summary>
+    public static void SchliesseEmploymentVorgaengerAmTagVorNachfolger(
+        IList<Employment> rows, DateOnly? firstAllowedDate, DateOnly today)
+    {
+        if (rows == null || rows.Count < 2) return;
+        var geordnet = rows
+            .Distinct()
+            .OrderBy(e => e.ContractStartDate)
+            .ThenBy(e => e.Id)
+            .ToList();
+        for (int i = 0; i < geordnet.Count - 1; i++)
+        {
+            var prev = geordnet[i];
+            var nextStart = DateOnly.FromDateTime(geordnet[i + 1].ContractStartDate);
+            var sollEnde = nextStart.AddDays(-1);
+            if (firstAllowedDate.HasValue && sollEnde < firstAllowedDate.Value)
+                continue;
+            DateOnly? prevEnde = prev.ContractEndDate.HasValue
+                ? DateOnly.FromDateTime(prev.ContractEndDate.Value) : null;
+            if (!prevEnde.HasValue || prevEnde.Value >= nextStart)
+            {
+                prev.ContractEndDate = sollEnde.ToDateTime(TimeOnly.MinValue);
+                prev.IsActive = sollEnde >= today;
+            }
+        }
     }
 
     /// <summary>

@@ -1088,6 +1088,53 @@ public static class PayrollCalculations
     }
 
     /// <summary>
+    /// Stundenlohn-Familie (Ferien-/Feiertag als % im Stundenlohn, Ferien-Pott).
+    /// UTP ist der Legacy-Name für FLEX.
+    /// </summary>
+    public static bool IstStundenlohnModell(string? model)
+    {
+        var m = (model ?? "").Trim().ToUpperInvariant();
+        return m is "FLEX" or "MTP" or "UTP";
+    }
+
+    /// <summary>
+    /// Monatslohn-Familie (bezahlte Ferien, bezahlte Feiertage, kein %-Pott).
+    /// </summary>
+    public static bool IstMonatslohnModell(string? model)
+    {
+        var m = (model ?? "").Trim().ToUpperInvariant();
+        return m is "FIX" or "FIX-M";
+    }
+
+    /// <summary>
+    /// Schlusslohn bei Modellwechsel Stundenlohn ↔ Monatslohn (Walter 13.09.2026,
+    /// wie Swissdec): der alte Vertrag endet in der Periode, danach startet ein
+    /// Vertrag der anderen Lohn-Familie. Dann dieselben Saldo-Auszahlungen wie
+    /// beim Austritt — Ferien-Pott / 13.-ML-Saldo / Nacht / Stunden auf Null,
+    /// weil FIX/FIX-M anschliessend bezahlte Ferien und Feiertage führt.
+    /// Gleicher Familie (MTP→MTP, FIX→FIX-M) kein Schlusslohn.
+    /// </summary>
+    public static bool IsModellwechselSchlusslohn(
+        DateOnly? contractEnd,
+        string? currentModel,
+        DateOnly periodFrom,
+        DateOnly periodToFull,
+        IEnumerable<(DateOnly Start, string Model)> andereVertraege)
+    {
+        if (!contractEnd.HasValue || andereVertraege == null) return false;
+        var end = contractEnd.Value;
+        if (end < periodFrom || end > periodToFull) return false;
+        // FirstOrDefault auf Value-Tuple: keine Folge → Start = 0001-01-01.
+        var folge = andereVertraege.Where(v => v.Start > end).OrderBy(v => v.Start).FirstOrDefault();
+        if (folge.Start == default) return false;
+        bool vonStunden = IstStundenlohnModell(currentModel);
+        bool aufMonat   = IstMonatslohnModell(folge.Model);
+        bool vonMonat   = IstMonatslohnModell(currentModel);
+        bool aufStunden = IstStundenlohnModell(folge.Model);
+        return (vonStunden && aufMonat) || (vonMonat && aufStunden);
+    }
+
+    /// <summary>
     /// Betrag einer Austritts-Saldo-Zeile (Auszahlung ODER Verrechnung) aus
     /// den ANGEZEIGTEN Werten: anzahl (auf 2 Dez. gerundet) × satz (auf 2 Dez.
     /// gerundet), Resultat auf 2 Dez. — damit die sichtbare Formel-Zeile

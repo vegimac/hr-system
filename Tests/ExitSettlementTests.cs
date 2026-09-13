@@ -144,6 +144,64 @@ public class ExitSettlementTests
         Assert.False(PayrollCalculations.IsLetzterLohn(
             new DateOnly(2026, 6, 30), Jul1, Jul31, Array.Empty<DateOnly>()));
     }
+
+    // ── Modellwechsel Stundenlohn → Monatslohn = Schlusslohn (Walter 13.09.2026)
+    private static readonly DateOnly Sep1  = new(2026, 9, 1);
+    private static readonly DateOnly Sep30 = new(2026, 9, 30);
+
+    [Fact]
+    public void Modellwechsel_MtpNachFixM_IstSchlusslohn()
+    {
+        bool result = PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "MTP", Sep1, Sep30,
+            new[] { (new DateOnly(2026, 10, 1), "FIX-M") });
+        Assert.True(result);
+        Assert.False(PayrollCalculations.IsLetzterLohn(
+            new DateOnly(2026, 9, 30), Sep1, Sep30,
+            new[] { new DateOnly(2026, 10, 1) }));
+    }
+
+    [Fact]
+    public void Modellwechsel_FlexNachFix_IstSchlusslohn()
+    {
+        Assert.True(PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "FLEX", Sep1, Sep30,
+            new[] { (new DateOnly(2026, 10, 1), "FIX") }));
+    }
+
+    [Fact]
+    public void Modellwechsel_FixNachMtp_IstSchlusslohn()
+    {
+        Assert.True(PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "FIX", Sep1, Sep30,
+            new[] { (new DateOnly(2026, 10, 1), "MTP") }));
+    }
+
+    [Fact]
+    public void Modellwechsel_MtpNachMtp_KeinSchlusslohn()
+    {
+        Assert.False(PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "MTP", Sep1, Sep30,
+            new[] { (new DateOnly(2026, 10, 1), "MTP") }));
+    }
+
+    [Fact]
+    public void Modellwechsel_FixNachFixM_KeinSchlusslohn()
+    {
+        Assert.False(PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "FIX", Sep1, Sep30,
+            new[] { (new DateOnly(2026, 10, 1), "FIX-M") }));
+    }
+
+    [Fact]
+    public void Modellwechsel_OhneFolgevertrag_KeinSchlusslohn_SondernAustritt()
+    {
+        Assert.False(PayrollCalculations.IsModellwechselSchlusslohn(
+            new DateOnly(2026, 9, 30), "MTP", Sep1, Sep30,
+            Array.Empty<(DateOnly, string)>()));
+        Assert.True(PayrollCalculations.IsLetzterLohn(
+            new DateOnly(2026, 9, 30), Sep1, Sep30, Array.Empty<DateOnly>()));
+    }
 }
 
 /// <summary>

@@ -331,19 +331,29 @@ public class PayrollCalculationEngine
             shortPeriodDays = periodTo.DayNumber - periodEffectiveFrom.DayNumber + 1;
         }
 
-        // ── Austritts-Schlussabrechnung: letzter Lohn? (Walter-Vorgabe 04.08.2026) ──
-        // Der in der Periode gültige Vertrag endet in dieser Abrechnungsperiode
-        // UND der MA hat KEINEN Folgevertrag (in keiner Filiale) mit Beginn
-        // NACH dem Vertragsende → beim letzten Lohn werden alle Saldi
-        // ausbezahlt bzw. verrechnet (siehe Modell-Blöcke unten).
-        // employee.Employments ist komplett geladen (Include ohne Filial-Filter).
-        bool isLetzterLohn = IsLetzterLohn(
-            emp.ContractEndDate.HasValue
-                ? (DateOnly?)DateOnly.FromDateTime(emp.ContractEndDate.Value) : null,
-            periodFrom, periodToFull,
-            employee.Employments
-                .Where(e2 => e2.Id != emp.Id)
-                .Select(e2 => DateOnly.FromDateTime(e2.ContractStartDate)));
+        // ── Schlussabrechnung: letzter Lohn oder Modellwechsel? ──────────
+        // Austritt (Walter 04.08.2026): Vertrag endet in der Periode, kein
+        // Folgevertrag → alle Saldi auszahlen / auf Null.
+        // Modellwechsel Stundenlohn ↔ Monatslohn (Walter 13.09.2026, Swissdec):
+        // auch MIT Folgevertrag — MTP/FLEX-Pott darf nicht in FIX/FIX-M
+        // (bezahlte Ferien/Feiertage) weiterlaufen. Gleicher Familie
+        // (MTP→MTP, FIX→FIX-M) kein Schlusslohn.
+        DateOnly? vertragEndeInPeriode = emp.ContractEndDate.HasValue
+            ? DateOnly.FromDateTime(emp.ContractEndDate.Value) : null;
+        var andereVertraege = employee.Employments
+            .Where(e2 => e2.Id != emp.Id)
+            .Select(e2 => (
+                DateOnly.FromDateTime(e2.ContractStartDate),
+                e2.EmploymentModel ?? ""))
+            .ToList();
+        bool isAustritt = IsLetzterLohn(
+            vertragEndeInPeriode, periodFrom, periodToFull,
+            andereVertraege.Select(v => v.Item1));
+        bool isModellwechsel = IsModellwechselSchlusslohn(
+            vertragEndeInPeriode, emp.EmploymentModel, periodFrom, periodToFull,
+            andereVertraege);
+        bool isLetzterLohn = isAustritt || isModellwechsel;
+        string SchlussSuffix() => isAustritt ? "Austritt" : "Schlusslohn";
 
         // ── Stempelzeiten laden ────────────────────────────────────────────
         var timeEntries = await _db.EmployeeTimeEntries
@@ -2633,7 +2643,7 @@ public class PayrollCalculationEngine
                 {
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldo, hourlyRate);
                     lohnLines.Add(new {
-                        bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldo, 2),
                         prozent = (decimal?)null,
@@ -2654,7 +2664,7 @@ public class PayrollCalculationEngine
                 {
                     decimal minusBetrag = ExitSettlementBetrag(neuerSaldo, hourlyRate); // negativ
                     lohnLines.Add(new {
-                        bezeichnung = "Verrechnung Minusstunden (Austritt)",
+                        bezeichnung = $"Verrechnung Minusstunden ({SchlussSuffix()})",
                         code    = "55.2",
                         anzahl  = (decimal?)Math.Round(neuerSaldo, 2),
                         prozent = (decimal?)null,
@@ -2673,7 +2683,7 @@ public class PayrollCalculationEngine
                 {
                     decimal fgAusz = ferienGeldSaldoNeu;   // bereits auf 2 Dez.
                     lohnLines.Add(new {
-                        bezeichnung = "Ferien-Geld Auszahlung (Austritt)",
+                        bezeichnung = $"Ferien-Geld Auszahlung ({SchlussSuffix()})",
                         code    = "40.1",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)null,
@@ -3149,7 +3159,7 @@ public class PayrollCalculationEngine
                 {
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldoUtp, hourlyRate);
                     lohnLines.Add(new {
-                        bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldoUtp, 2),
                         prozent = (decimal?)null,
@@ -3169,7 +3179,7 @@ public class PayrollCalculationEngine
                 {
                     decimal fgAusz = ferienGeldSaldoNeu;   // bereits auf 2 Dez.
                     lohnLines.Add(new {
-                        bezeichnung = "Ferien-Geld Auszahlung (Austritt)",
+                        bezeichnung = $"Ferien-Geld Auszahlung ({SchlussSuffix()})",
                         code    = "40.1",
                         anzahl  = (decimal?)null,
                         prozent = (decimal?)null,
@@ -4050,7 +4060,7 @@ public class PayrollCalculationEngine
                 {
                     decimal nachtAusz = ExitSettlementBetrag(neuerNachtSaldoFix, exitStundensatzFix);
                     lohnLines.Add(new {
-                        bezeichnung = "Nacht-Saldo Auszahlung (Austritt)",
+                        bezeichnung = $"Nacht-Saldo Auszahlung ({SchlussSuffix()})",
                         code    = "55.10",
                         anzahl  = (decimal?)Math.Round(neuerNachtSaldoFix, 2),
                         prozent = (decimal?)null,
@@ -4071,8 +4081,8 @@ public class PayrollCalculationEngine
                     decimal saldoBetrag = ExitSettlementBetrag(neuerHourSaldoFix, exitStundensatzFix);
                     lohnLines.Add(new {
                         bezeichnung = neuerHourSaldoFix > 0
-                            ? "Zeitsaldo Auszahlung (Austritt)"
-                            : "Verrechnung Minusstunden (Austritt)",
+                            ? $"Zeitsaldo Auszahlung ({SchlussSuffix()})"
+                            : $"Verrechnung Minusstunden ({SchlussSuffix()})",
                             code    = "55.2",
                         anzahl  = (decimal?)Math.Round(neuerHourSaldoFix, 2),
                         prozent = (decimal?)null,
@@ -4097,8 +4107,8 @@ public class PayrollCalculationEngine
                     decimal ferienBetrag = ExitSettlementBetrag(ferienTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {
                         bezeichnung = ferienTageAnzeige > 0
-                            ? "Ferien-Tage Auszahlung (Austritt)"
-                            : "Verrechnung Ferien-Vorbezug (Austritt)",
+                            ? $"Ferien-Tage Auszahlung ({SchlussSuffix()})"
+                            : $"Verrechnung Ferien-Vorbezug ({SchlussSuffix()})",
                             code    = "40.1",
                         anzahl  = (decimal?)ferienTageAnzeige,
                         prozent = (decimal?)null,
@@ -4118,7 +4128,7 @@ public class PayrollCalculationEngine
                 {
                     decimal feiertagBetrag = ExitSettlementBetrag(feiertagTageSaldoNeu, fixTagessatz);
                     lohnLines.Add(new {
-                        bezeichnung = "Feiertag-Tage Auszahlung (Austritt)",
+                        bezeichnung = $"Feiertag-Tage Auszahlung ({SchlussSuffix()})",
                         code    = "50.1",
                         anzahl  = (decimal?)feiertagTageAnzeige,
                         prozent = (decimal?)null,
