@@ -875,17 +875,24 @@ function bgsEmailHint(v) {
 }
 // Alle sichtbaren Tel./E-Mail-Felder des aktuellen Schritts prüfen; leer ist erlaubt,
 // ein ausgefülltes aber ungültiges Feld blockiert «Weiter».
-function bgsOnboardingDatum() {
-    const id = _bgsAnswers.willkommenstag_termin_id;
+function bgsOnboardingDatum(terminId) {
+    const id = terminId != null ? terminId : _bgsAnswers.willkommenstag_termin_id;
     if (!id) return null;
     const t = (_bgsTermine || []).find(x => String(x.id) === String(id));
     return t && t.datum ? String(t.datum).slice(0, 10) : null;
+}
+function bgsSchreibeArbeitsbeginnFeld() {
+    const el = document.getElementById('bgsf_eintritt_vereinbart');
+    if (!el) return;
+    const iso = bgsToIso(_bgsAnswers.eintritt_vereinbart);
+    el.value = iso ? bgsFmtD(iso) : '';
 }
 function bgsSyncArbeitsbeginnVorschlag(force) {
     const ob = bgsOnboardingDatum();
     if (!ob) return;
     const cur = bgsToIso(_bgsAnswers.eintritt_vereinbart);
-    if (force || !cur || cur < ob) bgsSet('eintritt_vereinbart', ob, { immediate: true });
+    if (force || !cur || cur < ob) bgsSet('eintritt_vereinbart', ob, { immediate: true, force: true });
+    bgsSchreibeArbeitsbeginnFeld();
 }
 function bgsStepInvalidField() {
     const step = bgsCurrentStep();
@@ -1060,9 +1067,9 @@ async function bgsAfterRender(step) {
         const frei = (_bgsTermine || []).filter(t => (t.frei ?? 1) > 0);
         const cur = _bgsAnswers.willkommenstag_termin_id ? String(_bgsAnswers.willkommenstag_termin_id) : '';
         tm.innerHTML = frei.length
-            ? frei.map(t => { const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}`; return `<button type="button" class="bgs-opt ${cur === String(t.id) ? 'on' : ''}" data-key="willkommenstag_termin_id" data-val="${t.id}" data-label="${esc(lbl)}">${esc(lbl)} <span style="opacity:.6;font-size:.8em">· ${t.frei} frei</span></button>`; }).join('')
+            ? frei.map(t => { const iso = String(t.datum || '').slice(0, 10); const lbl = `${bgsFmtD(t.datum)} ${t.von}${t.bis ? '–' + t.bis : ''}`; return `<button type="button" class="bgs-opt ${cur === String(t.id) ? 'on' : ''}" data-key="willkommenstag_termin_id" data-val="${t.id}" data-datum="${esc(iso)}" data-label="${esc(lbl)}">${esc(lbl)} <span style="opacity:.6;font-size:.8em">· ${t.frei} frei</span></button>`; }).join('')
             : '<span class="bgs-fhint">Zurzeit kein Onboarding-Tag mit freiem Platz (HR-Kalender).</span>';
-        if (_bgsAnswers.willkommenstag_termin_id) bgsSyncArbeitsbeginnVorschlag();
+        if (_bgsAnswers.willkommenstag_termin_id) bgsSyncArbeitsbeginnVorschlag(true);
     }
     const gf = document.getElementById('bgsGefuehrt');
     if (gf) {
@@ -1221,12 +1228,18 @@ document.addEventListener('click', e => {
         return;
     }
     const val = b.dataset.val;
-    const neu = _bgsAnswers[key] === val ? null : val;
+    const neu = String(_bgsAnswers[key] ?? '') === String(val) ? null : val;
     if (key === 'willkommenstag_termin_id') {
+        clearTimeout(_bgsInputTimer);
         bgsSet('willkommenstag_termin', neu === null ? null : (b.dataset.label || ''));
         bgsSet(key, neu, { immediate: true });
-        if (neu) bgsSyncArbeitsbeginnVorschlag(true);
-        else bgsSet('eintritt_vereinbart', null);
+        if (neu) {
+            const iso = bgsToIso(b.dataset.datum) || bgsOnboardingDatum(neu);
+            if (iso) bgsSet('eintritt_vereinbart', iso, { immediate: true, force: true });
+            else bgsSyncArbeitsbeginnVorschlag(true);
+        } else {
+            bgsSet('eintritt_vereinbart', null);
+        }
         bgsRenderFlow();
         return;
     }
