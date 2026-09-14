@@ -1,3 +1,4 @@
+using System.Globalization;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -5,17 +6,17 @@ using QuestPDF.Infrastructure;
 namespace HrSystem.Services;
 
 /// <summary>
-/// Druckbare Übersicht der Dokument-Struktur (Kategorien + Typen).
-/// Walter 14.09.2026: Personaldossier-Ablage als A4-Liste.
+/// Druckbare Übersicht der Dokument-Struktur als Baum
+/// (Kategorie → Typen). Walter 14.09.2026.
 /// </summary>
 public class DokumentStrukturPdfService
 {
+    private static readonly CultureInfo CH = CultureInfo.GetCultureInfo("de-CH");
     private static readonly string Ink   = "#1a1a1a";
     private static readonly string Body  = "#3f3f3f";
     private static readonly string Muted = "#8b8b8b";
     private static readonly string Line  = "#c8c0b2";
     private static readonly string Soft  = "#f1efe9";
-    private static readonly string KatBg = "#e7e4db";
 
     public sealed class TypZeile
     {
@@ -49,7 +50,7 @@ public class DokumentStrukturPdfService
             {
                 page.Size(PageSizes.A4);
                 page.Margin(1.4f, Unit.Centimetre);
-                page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(9f).FontColor(Body));
+                page.DefaultTextStyle(t => t.FontFamily("Arial").FontSize(9.5f).FontColor(Body));
 
                 page.Header().Column(col =>
                 {
@@ -58,17 +59,17 @@ public class DokumentStrukturPdfService
                         $"Personaldossier-Ablage · Stand {stand:dd.MM.yyyy}")
                         .FontSize(9f).FontColor(Muted);
                     col.Item().PaddingTop(1).Text(
-                        $"{nKat} Kategorien · {nTyp} Typen · {nDok} Dokumente")
+                        $"{nKat} Kategorien · {nTyp} Typen · {nDok.ToString("N0", CH)} Dokumente")
                         .FontSize(8.5f).FontColor(Muted);
-                    col.Item().PaddingTop(8);
+                    col.Item().PaddingTop(10).LineHorizontal(0.6f).LineColor(Line);
+                    col.Item().PaddingBottom(6);
                 });
 
                 page.Content().Column(col =>
                 {
+                    col.Spacing(2);
                     foreach (var k in kategorien)
-                    {
-                        col.Item().PaddingBottom(10).Element(c => KategorieTabelle(c, k));
-                    }
+                        col.Item().Element(c => KategorieAst(c, k));
                 });
 
                 page.Footer().AlignRight().Text(t =>
@@ -83,79 +84,51 @@ public class DokumentStrukturPdfService
         }).GeneratePdf();
     }
 
-    private static void KategorieTabelle(IContainer container, KategorieBlock k)
+    private static void KategorieAst(IContainer container, KategorieBlock k)
     {
-        var katTitel = k.Name + (k.Aktiv ? "" : " (inaktiv)");
-        var katMeta  = $"{k.Typen.Count} Typen · {k.AnzahlDokumente} Dokumente";
+        var katName = k.Name + (k.Aktiv ? "" : "  · inaktiv");
 
-        container.Table(t =>
+        container.PaddingBottom(10).Column(col =>
         {
-            t.ColumnsDefinition(c =>
+            col.Item().Background(Soft).PaddingVertical(5).PaddingHorizontal(8).Row(r =>
             {
-                c.RelativeColumn(4.2f); // Typ
-                c.ConstantColumn(36);   // Sort
-                c.RelativeColumn(2.4f); // Verknüpfung
-                c.ConstantColumn(62);   // Dokumente
-                c.ConstantColumn(52);   // Status
-            });
-
-            t.Header(h =>
-            {
-                h.Cell().ColumnSpan(5).Background(KatBg)
-                    .BorderBottom(0.8f).BorderColor(Ink)
-                    .PaddingVertical(5).PaddingHorizontal(6)
-                    .Row(r =>
-                    {
-                        r.RelativeItem().Text(katTitel).Bold().FontSize(10.5f).FontColor(Ink);
-                        r.AutoItem().AlignRight().AlignMiddle()
-                            .Text(katMeta).FontSize(8f).FontColor(Muted);
-                    });
-
-                void Th(string s, bool right = false)
-                {
-                    var cell = h.Cell().Background(Soft)
-                        .BorderBottom(0.7f).BorderColor(Line)
-                        .PaddingVertical(3).PaddingHorizontal(5);
-                    (right ? cell.AlignRight() : cell)
-                        .Text(s).Bold().FontSize(7.5f).FontColor(Ink);
-                }
-                Th("Typ");
-                Th("Sort", true);
-                Th("Verknüpfung");
-                Th("Dokumente", true);
-                Th("Status");
+                r.RelativeItem().AlignMiddle().Text(katName).Bold().FontSize(11f).FontColor(Ink);
+                r.ConstantItem(72).AlignRight().AlignMiddle()
+                    .Text(k.AnzahlDokumente.ToString("N0", CH)).Bold().FontSize(10f).FontColor(Ink);
             });
 
             if (k.Typen.Count == 0)
             {
-                t.Cell().ColumnSpan(5)
-                    .BorderBottom(0.4f).BorderColor(Line)
-                    .PaddingVertical(5).PaddingHorizontal(6)
-                    .Text("Keine Typen").FontSize(8.5f).FontColor(Muted).Italic();
+                col.Item().PaddingLeft(14).PaddingTop(4)
+                    .Text("keine Typen").FontSize(8.5f).Italic().FontColor(Muted);
                 return;
             }
 
-            foreach (var typ in k.Typen)
-            {
-                Td(t, typ.Name + (typ.Aktiv ? "" : " (inaktiv)"));
-                Td(t, typ.SortOrder.ToString(), right: true);
-                Td(t, LinkedLabel(typ.LinkedFieldCode));
-                Td(t, typ.AnzahlDokumente.ToString("N0"), right: true);
-                Td(t, typ.Aktiv ? "aktiv" : "inaktiv");
-            }
+            col.Item().PaddingLeft(12).BorderLeft(1.4f).BorderColor(Line)
+                .PaddingLeft(12).PaddingTop(2).Column(zweig =>
+                {
+                    foreach (var typ in k.Typen)
+                    {
+                        var name = typ.Name + (typ.Aktiv ? "" : "  · inaktiv");
+                        var link = LinkedLabel(typ.LinkedFieldCode);
+                        zweig.Item().PaddingVertical(2.5f).Row(r =>
+                        {
+                            r.RelativeItem().AlignMiddle().Text(t =>
+                            {
+                                t.Span(name).FontSize(9.5f).FontColor(Body);
+                                if (link != null)
+                                    t.Span("  · " + link).FontSize(8f).FontColor(Muted);
+                            });
+                            r.ConstantItem(72).AlignRight().AlignMiddle()
+                                .Text(typ.AnzahlDokumente.ToString("N0", CH))
+                                .FontSize(9f).FontColor(Muted);
+                        });
+                    }
+                });
         });
     }
 
-    private static void Td(TableDescriptor t, string text, bool right = false)
-    {
-        var cell = t.Cell().BorderBottom(0.4f).BorderColor(Line)
-            .PaddingVertical(3).PaddingHorizontal(5);
-        var box = right ? cell.AlignRight() : cell;
-        box.Text(string.IsNullOrWhiteSpace(text) ? "—" : text)
-            .FontSize(8.5f).FontColor(Body);
-    }
-
-    private static string LinkedLabel(string? code) => (code ?? "").Trim() switch
+    private static string? LinkedLabel(string? code) => (code ?? "").Trim() switch
     {
         "permit"           => "Bewilligung",
         "passport"         => "Pass",
@@ -169,7 +142,7 @@ public class DokumentStrukturPdfService
         "spouse"           => "Ehegatte (Familie)",
         "employee_photo"   => "Mitarbeiterfoto",
         "family_allowance" => "FAK-Entscheid (Kinderzulage)",
-        ""                 => "—",
-        _                  => code!
+        ""                 => null,
+        _                  => code
     };
 }
