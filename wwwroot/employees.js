@@ -16486,11 +16486,11 @@ async function openVerwarnungModal(id) {
             <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
                 <button onclick="document.getElementById('vwModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-                ${!edit ? `<button id="vwSaveBtn" onclick="vwSave(false)"
+                ${!edit ? `<button type="button" id="vwSaveBtn" onclick="vwSave(false)"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
-                <button id="vwSavePrintBtn" onclick="vwSave(true)"
+                <button type="button" id="vwSavePrintBtn" onclick="vwSave(true)"
                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern und drucken</button>`
-                    : `<button id="vwSaveBtn" onclick="vwSave(false)"
+                    : `<button type="button" id="vwSaveBtn" onclick="vwSave(false)"
                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${speichernLbl}</button>`}
             </div>
         </div>`;
@@ -16525,7 +16525,6 @@ async function vwSave(drucken) {
     const printBtn = document.getElementById('vwSavePrintBtn');
     const showErr = msg => alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${msg}</div>`;
 
-    const warNeu = !_vwEditId;
     const auchDrucken = !!drucken;
     const saveLbl = (btn?.textContent || 'Speichern').replace(/^⏳.*/, '').trim() || 'Speichern';
     const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
@@ -16594,27 +16593,31 @@ async function vwSave(drucken) {
         // über «Unterschrift nachführen» («Unterschreiben fehlt»).
 
         // 2) Verwarnung speichern
-        const body = JSON.stringify({
+        const pdfBody = JSON.stringify({
             datum: document.getElementById('vwDatum').value || null,
             stufe: document.getElementById('vwStufe').value,
-            gruende, beschreibung, dokumentId
+            gruende,
+            beschreibung: beschreibung || null
         });
-        const url = _vwEditId ? `/api/verwarnungen/${_vwEditId}` : `/api/verwarnungen/${selectedEmployeeId}`;
-        const r = await fetch(url, {
+        const r = await fetch(_vwEditId ? `/api/verwarnungen/${_vwEditId}` : `/api/verwarnungen/${selectedEmployeeId}`, {
             method: _vwEditId ? 'PUT' : 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body
+            body: JSON.stringify({
+                datum: document.getElementById('vwDatum').value || null,
+                stufe: document.getElementById('vwStufe').value,
+                gruende, beschreibung, dokumentId
+            })
         });
         if (!r.ok) {
             const err = await r.json().catch(() => ({}));
             showErr(err.message || err.error || ('HTTP ' + r.status)); return;
         }
-        const data = await r.json().catch(() => ({}));
         document.getElementById('vwModal')?.remove();
+        if (auchDrucken) await _vwFetchFormular(pdfBody);
         await loadVerwarnungenTab(selectedEmployeeId);
-        if (warNeu && auchDrucken && data && (data.id || data.Id)) await vwPrintFormular(data.id || data.Id);
     } catch (e) {
-        showErr('Netzwerkfehler: ' + e.message);
+        if (document.getElementById('vwAlert')) showErr('Netzwerkfehler: ' + e.message);
+        else alert('Netzwerkfehler: ' + e.message);
     } finally {
         if (btn) { btn.disabled = false; btn.textContent = saveLbl; }
         if (printBtn) printBtn.disabled = false;
@@ -16623,8 +16626,16 @@ async function vwSave(drucken) {
 
 // Formular-PDF aus einer bestehenden Verwarnungs-Zeile (Erstdruck nach Speichern / Nachdruck).
 async function vwPrintFormular(id) {
-    const v = _vwList.find(x => x.id === id);
-    if (!v) return;
+    const v = (_vwList || []).find(x => Number(x.id) === Number(id));
+    if (!v) { alert('Verwarnung nicht gefunden — bitte die Liste neu laden.'); return; }
+    const body = JSON.stringify({
+        datum: v.datum ? String(v.datum).slice(0, 10) : null,
+        stufe: v.stufe,
+        gruende: (v.gruende || '').split('\n').filter(Boolean),
+        beschreibung: v.beschreibung || null
+    });
+    await _vwFetchFormular(body);
+}
     const body = JSON.stringify({
         datum: v.datum ? String(v.datum).slice(0, 10) : null,
         stufe: v.stufe,
