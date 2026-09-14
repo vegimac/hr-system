@@ -12,7 +12,7 @@ direkt unter «Mitarbeiter».
 | **Bewerbungsformular** | Kurzes Formular, das der Bewerber ausgefüllt abgibt (eine Seite). |
 | **Gesprächsformular** | Wird im Gespräch ausgefüllt — Personalien, Partner, Kinder, Bank, Bedingungen. |
 | **Arbeitszeugnis bestellen** | Mitarbeiter wählen und an HR zum Erstellen senden. |
-| **Verwarnung** | Mitarbeiter wählen und das Verwarnungs-Formular erstellen (1. / 2. / letzte). |
+| **Verwarnung** | Mitarbeiter wählen, Verwarnung speichern, Formular drucken. Nach der Unterschrift den Scan nachführen (landet in den MA-Dokumenten). |
 | **Aufhebungsvertrag** | Mitarbeiter wählen und die Aufhebungsvereinbarung erstellen. |
 | **Absenzkalender** | Monats-Übersicht aller Absenzen der Filiale. |
 | **QST-Info Formular** | Fragebogen «Quellensteuer-Informationen» zum Ausdrucken — Blanko oder mit MA-Vorauswahl vorbefüllt. Deckt alle Fragen des kantonalen QST-Anmeldeformulars ab (Partner, Kinder, weitere Arbeitgeber). Zusammen mit dem MA ausfüllen, dann in OneCrew nachtragen — siehe [Quellensteuer](#qst). |

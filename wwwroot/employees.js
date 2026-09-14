@@ -15884,7 +15884,10 @@ function renderVerwarnungenTab(el) {
             <div style="position:relative;display:inline-block">
                 <button class="dok-menu-btn" onclick="vwToggleMenu(event, ${v.id})">⋮</button>
                 <div class="dok-menu" id="vwMenu${v.id}" style="display:none;position:absolute;right:0;top:32px;z-index:50;background:#fff;border:1px solid #e2e8f0;border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.12);min-width:180px">
-                    ${!v.storniert ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten / Scan nachreichen</div><div class="dok-menu-item" onclick="vwPrintFormular(${v.id})">🖨 Formular drucken</div>` : ''}
+                    ${!v.storniert ? (v.dokumentId
+                        ? `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Bearbeiten</div>`
+                        : `<div class="dok-menu-item" onclick="openVerwarnungModal(${v.id})">✎ Unterschrift nachführen</div>`) : ''}
+                    ${!v.storniert ? `<div class="dok-menu-item" onclick="vwPrintFormular(${v.id})">🖨 Formular drucken</div>` : ''}
                     ${isOpsRole()
                         ? `<div class="dok-menu-item danger" onclick="vwDelete(${v.id})">🗑 Löschen</div>` : ''}
                 </div>
@@ -15897,7 +15900,7 @@ function renderVerwarnungenTab(el) {
                 <span style="flex:1"></span>
                 ${v.dokumentId
                     ? `<button class="dok-menu-btn" title="Verwarnungsschreiben ansehen (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Doku</button>`
-                    : (!v.storniert ? `<span title="Formular drucken, unterschreiben lassen und den Scan über ✎ Bearbeiten hinterlegen" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">⚠ Schreiben fehlt</span>` : '')}
+                    : (!v.storniert ? `<span title="Formular drucken, unterschreiben lassen und den Scan über «Unterschrift nachführen» ablegen" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">⚠ Unterschreiben fehlt</span>` : '')}
                 ${menu}
             </div>
             ${gruende.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${gruende.map(g =>
@@ -16418,17 +16421,39 @@ async function openVerwarnungModal(id) {
     ov.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(60,55,48,0.4);display:flex;align-items:center;justify-content:center;padding:20px';
     ov.onclick = e => { if (e.target === ov) ov.remove(); };
 
+    const hatDoku = !!edit?.dokumentId;
+    const nachfuehren = !!(edit && !hatDoku);
+    const titel = !edit ? 'Verwarnung erfassen'
+        : (nachfuehren ? 'Unterschrift nachführen' : 'Verwarnung bearbeiten');
+    const hinweis = !edit
+        ? 'Speichern legt die Verwarnung an. Danach öffnet sich das Formular zum Drucken. Nach der Unterschrift den Scan hier nachführen — er landet in den MA-Dokumenten.'
+        : (nachfuehren
+            ? 'Unterschriebenes Formular hochladen. Der Scan wird in den MA-Dokumenten abgelegt und an diese Verwarnung gehängt.'
+            : 'Angaben anpassen oder den Scan ersetzen.');
+    const speichernLbl = nachfuehren ? 'Nachführen' : 'Speichern';
     const pill = 'display:flex;align-items:center;gap:7px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:#3f3f3f';
     const heute = new Date();
     const heuteIso = `${heute.getFullYear()}-${String(heute.getMonth()+1).padStart(2,'0')}-${String(heute.getDate()).padStart(2,'0')}`;
+    const uploadBlock = edit ? `
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Unterschriebenes Formular</div>
+            <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(139,139,139,0.25);border-radius:12px;padding:12px;margin-bottom:14px">
+                ${hatDoku ? `<div style="font-size:12.5px;color:#15803d;font-weight:600;margin-bottom:8px">✓ Verknüpft: ${esc(edit.dokumentName || 'Dokument #' + edit.dokumentId)} <span style="color:#8b8b8b;font-weight:400">— neues Hochladen/Wählen ersetzt es</span></div>` : ''}
+                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="upload" checked> 📤 Datei hochladen (Scan)</label>
+                <input type="file" id="vwFile" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" style="font-size:12px;margin:0 0 10px 24px;display:block">
+                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="existing"> 📁 Bestehendes Dokument wählen</label>
+                <select id="vwExistingDoc" style="display:none;width:calc(100% - 24px);margin-left:24px;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:12.5px;color:#3f3f3f">
+                    <option value="">– lädt… –</option>
+                </select>
+            </div>` : '';
 
     ov.innerHTML = `
         <div class="iv-modal-box" style="border:1px solid rgba(255,255,255,0.62);border-radius:18px;max-width:760px;width:100%;max-height:92vh;overflow:auto;padding:22px 24px;box-shadow:0 24px 60px rgba(60,55,48,0.22)">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:2px">
-                <div style="font-size:16px;font-weight:800;color:#3f3f3f">${edit ? 'Verwarnung bearbeiten' : 'Verwarnung erfassen'}</div>
+                <div style="font-size:16px;font-weight:800;color:#3f3f3f">${titel}</div>
                 <button type="button" onclick="document.getElementById('vwModal').remove()" class="kd-btn-glass" style="font-size:13px;padding:7px 16px;border-radius:12px">← Zurück</button>
             </div>
-            <div style="font-size:12.5px;color:#8b8b8b;margin-bottom:14px">${selectedEmployee ? esc(selectedEmployee.firstName + ' ' + selectedEmployee.lastName) : ''}</div>
+            <div style="font-size:12.5px;color:#8b8b8b;margin-bottom:8px">${selectedEmployee ? esc(selectedEmployee.firstName + ' ' + selectedEmployee.lastName) : ''}</div>
+            <div style="font-size:12px;color:#6b6152;margin-bottom:14px">${hinweis}</div>
 
             <div style="display:flex;gap:12px;margin-bottom:14px">
                 <div style="flex:1">
@@ -16446,47 +16471,36 @@ async function openVerwarnungModal(id) {
                 </div>
             </div>
 
-            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Gründe (wie Papier-Formular, Mehrfachauswahl)</div>
+            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Gründe (Mehrfachauswahl)</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">
-                ${gruende.map((g, i) => `<label style="${pill}"><input type="checkbox" class="vwGrund" value="${esc(g)}" ${gewaehlt.has(g)?'checked':''}> ${esc(g)}</label>`).join('')}
+                ${gruende.map((g) => `<label style="${pill}"><input type="checkbox" class="vwGrund" value="${esc(g)}" ${gewaehlt.has(g)?'checked':''}> ${esc(g)}</label>`).join('')}
             </div>
 
             <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:5px">Beschreibung / Bemerkung</div>
             <textarea id="vwBeschreibung" rows="3" placeholder="Was ist vorgefallen? Was wird erwartet?"
                       style="width:100%;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:13px;color:#3f3f3f;resize:vertical;margin-bottom:14px">${edit?.beschreibung ? esc(edit.beschreibung) : ''}</textarea>
 
-            <div style="font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;margin-bottom:6px">Unterschriebenes Verwarnungsschreiben</div>
-            <div style="font-size:11.5px;color:#8b8b8b;margin:-2px 0 8px">Ablauf: unten «Formular drucken» → von MA + Schichtführer unterschreiben lassen → Scan hier hochladen (auch nachträglich über ✎ Bearbeiten möglich).</div>
-            <div style="background:rgba(255,255,255,0.45);border:1px solid rgba(139,139,139,0.25);border-radius:12px;padding:12px;margin-bottom:14px">
-                ${edit?.dokumentId ? `<div style="font-size:12.5px;color:#15803d;font-weight:600;margin-bottom:8px">✓ Verknüpft: ${esc(edit.dokumentName || 'Dokument #' + edit.dokumentId)} <span style="color:#8b8b8b;font-weight:400">— neues Hochladen/Wählen ersetzt es</span></div>` : ''}
-                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="upload" checked> 📤 Datei hochladen (Scan)</label>
-                <input type="file" id="vwFile" accept=".pdf,.jpg,.jpeg,.png,.tif,.tiff" style="font-size:12px;margin:0 0 10px 24px;display:block">
-                <label style="${pill};margin-bottom:8px"><input type="radio" name="vwDocMode" value="existing"> 📁 Bestehendes Dokument wählen</label>
-                <select id="vwExistingDoc" style="display:none;width:calc(100% - 24px);margin-left:24px;box-sizing:border-box;background:rgba(255,255,255,0.55);border:1px solid rgba(139,139,139,0.35);border-radius:10px;padding:8px 12px;font-size:12.5px;color:#3f3f3f">
-                    <option value="">– lädt… –</option>
-                </select>
-            </div>
+            ${uploadBlock}
 
             <div id="vwAlert"></div>
-            <div style="display:flex;gap:10px;align-items:center">
-                <button onclick="vwFormularPdf()"
-                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">🖨 Formular drucken</button>
-                <span style="flex:1"></span>
+            <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">
                 <button onclick="document.getElementById('vwModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
                 <button id="vwSaveBtn" onclick="vwSave()"
-                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${speichernLbl}</button>
             </div>
         </div>`;
     document.body.appendChild(ov);
 
-    // Radio-Umschaltung Upload vs. bestehendes Dokument
     ov.querySelectorAll('input[name="vwDocMode"]').forEach(r => r.addEventListener('change', async () => {
         const mode = ov.querySelector('input[name="vwDocMode"]:checked')?.value;
-        document.getElementById('vwFile').style.display = mode === 'upload' ? 'block' : 'none';
+        const fileEl = document.getElementById('vwFile');
         const sel = document.getElementById('vwExistingDoc');
-        sel.style.display = mode === 'existing' ? 'block' : 'none';
-        if (mode === 'existing' && sel.options.length <= 1) await _vwFillExistingDocs(sel);
+        if (fileEl) fileEl.style.display = mode === 'upload' ? 'block' : 'none';
+        if (sel) {
+            sel.style.display = mode === 'existing' ? 'block' : 'none';
+            if (mode === 'existing' && sel.options.length <= 1) await _vwFillExistingDocs(sel);
+        }
     }));
 }
 
@@ -16506,19 +16520,26 @@ async function vwSave() {
     const btn = document.getElementById('vwSaveBtn');
     const showErr = msg => alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${msg}</div>`;
 
+    const warNeu = !_vwEditId;
+    const saveLbl = (document.getElementById('vwSaveBtn')?.textContent || 'Speichern').replace(/^⏳.*/, '').trim() || 'Speichern';
     const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
     const beschreibung = document.getElementById('vwBeschreibung').value.trim();
     if (gruende.length === 0 && !beschreibung) { showErr('Mindestens einen Grund ankreuzen oder eine Beschreibung erfassen.'); return; }
 
     const edit = _vwEditId ? _vwList.find(v => v.id === _vwEditId) : null;
+    const nachfuehren = !!(edit && !edit.dokumentId);
     const mode = document.querySelector('input[name="vwDocMode"]:checked')?.value;
     const file = document.getElementById('vwFile')?.files?.[0];
     const existingId = parseInt(document.getElementById('vwExistingDoc')?.value) || null;
+    if (nachfuehren && !(mode === 'upload' && file) && !(mode === 'existing' && existingId)) {
+        showErr('Bitte den unterschriebenen Scan hochladen oder ein bestehendes Dokument wählen.');
+        return;
+    }
 
     let dokumentId = edit?.dokumentId || null;
     btn.disabled = true; btn.textContent = '⏳ speichere…';
     try {
-        // 1) Dokument beschaffen (Pflicht bei Neuerfassung)
+        // 1) Scan hochladen (beim Nachführen)
         if (mode === 'upload' && file) {
             const branch = (typeof allBranches !== 'undefined' ? allBranches : [])?.find(b => b.id === fixedCompanyProfileId);
             const branchCode = branch?.restaurantCode || '';
@@ -16562,8 +16583,8 @@ async function vwSave() {
         } else if (mode === 'existing' && existingId) {
             dokumentId = existingId;
         }
-        // Dokument optional (Walter 15.07.2026): Formular-Workflow — Scan wird
-        // nach der Unterschrift über ✎ Bearbeiten nachgereicht («Schreiben fehlt»).
+        // Dokument optional bei Neuerfassung: Scan kommt nach der Unterschrift
+        // über «Unterschrift nachführen» («Unterschreiben fehlt»).
 
         // 2) Verwarnung speichern
         const body = JSON.stringify({
@@ -16581,28 +16602,18 @@ async function vwSave() {
             const err = await r.json().catch(() => ({}));
             showErr(err.message || err.error || ('HTTP ' + r.status)); return;
         }
+        const data = await r.json().catch(() => ({}));
         document.getElementById('vwModal')?.remove();
-        loadVerwarnungenTab(selectedEmployeeId);
+        await loadVerwarnungenTab(selectedEmployeeId);
+        if (warNeu && data && (data.id || data.Id)) await vwPrintFormular(data.id || data.Id);
     } catch (e) {
         showErr('Netzwerkfehler: ' + e.message);
     } finally {
-        btn.disabled = false; btn.textContent = 'Speichern';
+        btn.disabled = false; btn.textContent = saveLbl;
     }
 }
 
-// Formular-PDF aus den aktuellen Modal-Feldern (speichert nichts).
-async function vwFormularPdf() {
-    const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
-    const body = JSON.stringify({
-        datum: document.getElementById('vwDatum')?.value || null,
-        stufe: document.getElementById('vwStufe')?.value || 'VERWARNUNG_1',
-        gruende,
-        beschreibung: document.getElementById('vwBeschreibung')?.value.trim() || null
-    });
-    await _vwFetchFormular(body);
-}
-
-// Formular-PDF aus einer bestehenden Verwarnungs-Zeile (z.B. Nachdruck).
+// Formular-PDF aus einer bestehenden Verwarnungs-Zeile (Erstdruck nach Speichern / Nachdruck).
 async function vwPrintFormular(id) {
     const v = _vwList.find(x => x.id === id);
     if (!v) return;

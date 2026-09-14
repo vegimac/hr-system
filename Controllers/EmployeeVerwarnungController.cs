@@ -154,9 +154,9 @@ public class EmployeeVerwarnungController : ControllerBase
         var err = Validate(dto, out var stufe);
         if (err != null) return BadRequest(err);
 
-        // Dokument OPTIONAL bei der Erfassung (Walter 15.07.2026, Formular-
-        // Workflow: erfassen → Formular drucken → unterschreiben → Scan
-        // nachreichen). Ohne Dokument zeigt die Zeile «Schreiben fehlt» in Rot.
+        // Dokument OPTIONAL bei der Erfassung (Walter 15.07.2026 / 14.09.2026):
+        // erfassen → speichern → Formular drucken → unterschreiben → Scan
+        // nachführen. Ohne Dokument zeigt die Zeile «Unterschreiben fehlt».
         if (dto.DokumentId != null)
         {
             var docOk = await _db.EmployeeDokumente
@@ -210,9 +210,9 @@ public class EmployeeVerwarnungController : ControllerBase
         return Ok(new { v.Id });
     }
 
-    /// <summary>Verwarnungs-Formular als PDF (Walter 15.07.2026) — vorausgefüllt
-    /// mit Stufe/Gründen/Bemerkung aus dem Modal. Speichert NICHTS: drucken,
-    /// unterschreiben lassen (MA + Schichtführer), Scan als Dokument nachreichen.</summary>
+    /// <summary>Verwarnungs-Formular als PDF (Walter 15.07.2026 / 14.09.2026) —
+    /// vorausgefüllt aus der gespeicherten Verwarnung. Eine Seite, nur
+    /// angekreuzte Gründe. Speichert nichts — der Scan kommt über Nachführen.</summary>
     [HttpPost("{empId:int}/formular-pdf")]
     public async Task<IActionResult> FormularPdf(int empId, [FromBody] VerwarnungDto dto)
     {
@@ -249,7 +249,6 @@ public class EmployeeVerwarnungController : ControllerBase
                 Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
                 StufeLabel:       stufeLabel,
                 StufeKritisch:    stufe == "LETZTE",
-                AlleGruende:      StandardGruende,
                 GewaehlteGruende: dto.Gruende,
                 Beschreibung:     dto.Beschreibung
             );

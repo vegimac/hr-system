@@ -19,7 +19,7 @@ Im HR-Menü Kündigung / Zeugnisse:
 2. **Arbeitszeugnis** — Schlusszeugnis
 3. **Zwischenzeugnis**
 4. **Arbeitsbestätigung**
-5. **Verwarnung**
+5. **Verwarnung** — speichern, drucken, unterschreiben, Scan nachführen
 6. **Kündigungsrückzug** — z.B. nach gemeldeter Schwangerschaft (Kündigung am MA wieder entfernen)
 7. **Kündigungsbestätigung** — wenn der **MA** gekündigt hat
 8. **Aufhebungsvereinbarung**
