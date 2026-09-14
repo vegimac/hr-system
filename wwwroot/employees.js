@@ -16426,7 +16426,7 @@ async function openVerwarnungModal(id) {
     const titel = !edit ? 'Verwarnung erfassen'
         : (nachfuehren ? 'Unterschrift nachführen' : 'Verwarnung bearbeiten');
     const hinweis = !edit
-        ? 'Speichern legt die Verwarnung an. Danach öffnet sich das Formular zum Drucken. Nach der Unterschrift den Scan hier nachführen — er landet in den MA-Dokumenten.'
+        ? 'Speichern legt die Verwarnung an. «Speichern und drucken» öffnet danach das Formular. Nach der Unterschrift den Scan nachführen — er landet in den MA-Dokumenten.'
         : (nachfuehren
             ? 'Unterschriebenes Formular hochladen. Der Scan wird in den MA-Dokumenten abgelegt und an diese Verwarnung gehängt.'
             : 'Angaben anpassen oder den Scan ersetzen.');
@@ -16483,11 +16483,15 @@ async function openVerwarnungModal(id) {
             ${uploadBlock}
 
             <div id="vwAlert"></div>
-            <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end">
+            <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
                 <button onclick="document.getElementById('vwModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-                <button id="vwSaveBtn" onclick="vwSave()"
-                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${speichernLbl}</button>
+                ${!edit ? `<button id="vwSaveBtn" onclick="vwSave(false)"
+                        style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+                <button id="vwSavePrintBtn" onclick="vwSave(true)"
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern und drucken</button>`
+                    : `<button id="vwSaveBtn" onclick="vwSave(false)"
+                        style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${speichernLbl}</button>`}
             </div>
         </div>`;
     document.body.appendChild(ov);
@@ -16515,13 +16519,15 @@ async function _vwFillExistingDocs(sel) {
     } catch {}
 }
 
-async function vwSave() {
+async function vwSave(drucken) {
     const alertEl = document.getElementById('vwAlert');
     const btn = document.getElementById('vwSaveBtn');
+    const printBtn = document.getElementById('vwSavePrintBtn');
     const showErr = msg => alertEl.innerHTML = `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:12px">${msg}</div>`;
 
     const warNeu = !_vwEditId;
-    const saveLbl = (document.getElementById('vwSaveBtn')?.textContent || 'Speichern').replace(/^⏳.*/, '').trim() || 'Speichern';
+    const auchDrucken = !!drucken;
+    const saveLbl = (btn?.textContent || 'Speichern').replace(/^⏳.*/, '').trim() || 'Speichern';
     const gruende = [...document.querySelectorAll('.vwGrund:checked')].map(c => c.value);
     const beschreibung = document.getElementById('vwBeschreibung').value.trim();
     if (gruende.length === 0 && !beschreibung) { showErr('Mindestens einen Grund ankreuzen oder eine Beschreibung erfassen.'); return; }
@@ -16537,7 +16543,8 @@ async function vwSave() {
     }
 
     let dokumentId = edit?.dokumentId || null;
-    btn.disabled = true; btn.textContent = '⏳ speichere…';
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ speichere…'; }
+    if (printBtn) printBtn.disabled = true;
     try {
         // 1) Scan hochladen (beim Nachführen)
         if (mode === 'upload' && file) {
@@ -16605,11 +16612,12 @@ async function vwSave() {
         const data = await r.json().catch(() => ({}));
         document.getElementById('vwModal')?.remove();
         await loadVerwarnungenTab(selectedEmployeeId);
-        if (warNeu && data && (data.id || data.Id)) await vwPrintFormular(data.id || data.Id);
+        if (warNeu && auchDrucken && data && (data.id || data.Id)) await vwPrintFormular(data.id || data.Id);
     } catch (e) {
         showErr('Netzwerkfehler: ' + e.message);
     } finally {
-        btn.disabled = false; btn.textContent = saveLbl;
+        if (btn) { btn.disabled = false; btn.textContent = saveLbl; }
+        if (printBtn) printBtn.disabled = false;
     }
 }
 
