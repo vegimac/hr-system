@@ -22,7 +22,7 @@ Die Seite ist in **sechs Hauptkategorie-Kacheln** gegliedert: **Lohn-Stammdaten*
 | **Behörden** | Stamm für [Lohnabtretungen](#lohnabtretungen): Adresse, IBAN, Sachbearbeiter, optional Kontoinhaber = andere Behörde (für DTA, z.B. ORS Burgdorf → Zürich) |
 | **Ärzte** | Für Mutterschutz-Briefe |
 | **Mutterschafts-Regeln** | Gesetzliche Fristen (ArG/OR) |
-| **Dokument-Struktur** | Kategorien und Dokumenttypen |
+| **Dokument-Struktur** | Kategorien und Dokumenttypen; ausdrucken über «Drucken» |
 | **Dokumenten-Audit** | Verdächtige Dateinamen (falsche Filiale?) |
 | **Globale Daten** | Banken, Nationen, PLZ/Gemeinden |
 | **Aktivitäts-Log** | Wer hat was geändert — [Audit](#audit) |

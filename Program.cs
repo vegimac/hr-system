@@ -199,6 +199,7 @@ builder.Services.AddScoped<VerwarnungPdfService>();
 builder.Services.AddScoped<BewerbungsbogenPdfService>();
 builder.Services.AddScoped<QstInfoFormularPdfService>();
 builder.Services.AddScoped<NotfallListePdfService>();
+builder.Services.AddScoped<DokumentStrukturPdfService>();
 builder.Services.AddScoped<MtpStundenPdfService>();
 // Swissdec ELM 6.0 (Walter 27.08.2026, docs/swissdec-elm6-konzept.md)
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmTransmitterClient>();

@@ -145,7 +145,7 @@ Globale Suche **⌘K** mit Dateiname oder Bemerkung. Oder einzeln durch die MA s
 
 - **HR → Kontrolle → Lücken** — fehlende Pflicht-Dokumente (Ehepartner, Nachtarbeit …)
 - **HR → Dok-Upload-Protokoll** — wer hat wann hochgeladen
-- **System → Dokument-Struktur** — Kategorien und Typen pflegen
+- **System → Dokument-Struktur** — Kategorien und Typen pflegen; **Drucken** zeigt die ganze Ablage als PDF (Vorschau mit Drucken/Speichern)
 - **System → Dokumenten-Audit** — verdächtige Dateinamen (falsche Filiale?)
 - **System → d.velop Import** — Massenimport alter Akten — siehe [Onboarding](#onboarding)
 

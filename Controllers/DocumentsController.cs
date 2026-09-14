@@ -19,17 +19,19 @@ public class DocumentsController : ControllerBase
     private readonly string _storagePath;
     private readonly OfficeToPdfService _officePdf;
     private readonly EmailService _email;
+    private readonly DokumentStrukturPdfService _strukturPdf;
 
     /// <summary>
     /// Storage-Pfad wird aus appsettings.json (Documents:StoragePath) gelesen.
     /// Default: "data/documents" relativ zum Content-Root.
     /// Auf dem Server via systemd-Environment "Documents__StoragePath=/var/data/hr-system/documents".
     /// </summary>
-    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf, EmailService email)
+    public DocumentsController(AppDbContext db, IConfiguration config, IWebHostEnvironment env, OfficeToPdfService officePdf, EmailService email, DokumentStrukturPdfService strukturPdf)
     {
         _db = db;
         _officePdf = officePdf;
         _email = email;
+        _strukturPdf = strukturPdf;
         var configured = config["Documents:StoragePath"];
         if (string.IsNullOrWhiteSpace(configured))
             configured = Path.Combine(env.ContentRootPath, "data", "documents");
@@ -1669,6 +1671,44 @@ public class DocumentsController : ControllerBase
             }).ToList()
         });
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Druck-PDF der kompletten Taxonomie (Walter 14.09.2026).
+    /// </summary>
+    [HttpGet("admin/taxonomie/pdf")]
+    public async Task<IActionResult> GetAdminTaxonomiePdf()
+    {
+        var kategorien = await _db.DokumentKategorien.AsNoTracking()
+            .OrderBy(k => k.SortOrder).ThenBy(k => k.Name)
+            .ToListAsync();
+        var typen = await _db.DokumentTypen.AsNoTracking()
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Name)
+            .ToListAsync();
+        var usageByTyp = await _db.EmployeeDokumente
+            .GroupBy(d => d.DokumentTypId)
+            .Select(g => new { TypId = g.Key, Anzahl = g.Count() })
+            .ToDictionaryAsync(x => x.TypId, x => x.Anzahl);
+
+        var blocks = kategorien.Select(k => new DokumentStrukturPdfService.KategorieBlock
+        {
+            Name = k.Name,
+            SortOrder = k.SortOrder,
+            Aktiv = k.Aktiv,
+            AnzahlDokumente = typen.Where(t => t.KategorieId == k.Id)
+                .Sum(t => usageByTyp.GetValueOrDefault(t.Id, 0)),
+            Typen = typen.Where(t => t.KategorieId == k.Id).Select(t => new DokumentStrukturPdfService.TypZeile
+            {
+                Name = t.Name,
+                SortOrder = t.SortOrder,
+                Aktiv = t.Aktiv,
+                LinkedFieldCode = t.LinkedFieldCode,
+                AnzahlDokumente = usageByTyp.GetValueOrDefault(t.Id, 0)
+            }).ToList()
+        }).ToList();
+
+        var pdf = _strukturPdf.Generate(blocks);
+        return File(pdf, "application/pdf", $"dokument-struktur_{DateTime.Now:yyyyMMdd}.pdf");
     }
 
     /// <summary>

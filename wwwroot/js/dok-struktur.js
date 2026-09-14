@@ -7,6 +7,10 @@
 // ══════════════════════════════════════════════════════════════════════
 let _dokstruktur = { taxonomy: [], selectedKatId: null, openTypId: null, docsQ: '', docsSkip: 0, docsItems: [], docsTotal: 0 };
 
+async function dokstrukturDrucken() {
+    await previewUrlFetch('/api/documents/admin/taxonomie/pdf', 'dokument-struktur.pdf', ah());
+}
+
 async function loadDokumentStruktur() {
     try {
         const r = await fetch('/api/documents/admin/taxonomie', { headers: ah() });
