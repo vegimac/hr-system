@@ -20,8 +20,22 @@ public class EmployeeVerwarnungController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly HrSystem.Services.VerwarnungPdfService _pdf;
-    public EmployeeVerwarnungController(AppDbContext db, HrSystem.Services.VerwarnungPdfService pdf)
-    { _db = db; _pdf = pdf; }
+    private readonly string _storagePath;
+
+    public EmployeeVerwarnungController(
+        AppDbContext db,
+        HrSystem.Services.VerwarnungPdfService pdf,
+        IConfiguration config,
+        IWebHostEnvironment env)
+    {
+        _db = db;
+        _pdf = pdf;
+        var configured = config["Documents:StoragePath"];
+        if (string.IsNullOrWhiteSpace(configured))
+            configured = Path.Combine(env.ContentRootPath, "data", "documents");
+        _storagePath = configured;
+        Directory.CreateDirectory(_storagePath);
+    }
 
     /// <summary>Die Ankreuz-Gründe des heutigen Papier-Formulars (14.07.2026).</summary>
     public static readonly string[] StandardGruende =
@@ -77,47 +91,14 @@ public class EmployeeVerwarnungController : ControllerBase
     }
 
     /// <summary>
-    /// Dokument-Typ für Verwarnungs-Uploads (Walter 28.07.2026):
-    /// «Mitarbeiterentwicklung › Abmahnung» — nicht mehr eigener Typ «Verwarnung».
+    /// Dokument-Typ für Verwarnungs-Uploads (Walter 28.07.2026 / 14.09.2026):
+    /// «Mitarbeiterentwicklung › Abmahnung» — kein eigener Typ «Verwarnung».
     /// Find-or-create, damit der Upload ohne manuelle Typ-Wahl läuft.
     /// </summary>
     [HttpGet("dokument-typ")]
     public async Task<IActionResult> GetDokumentTyp()
     {
-        // 1) Bevorzugt Abmahnung unter Mitarbeiterentwicklung
-        var typ = await (
-            from t in _db.DokumentTypen.AsNoTracking()
-            join k in _db.DokumentKategorien.AsNoTracking() on t.KategorieId equals k.Id
-            where t.Name.ToLower() == "abmahnung"
-               && k.Name.ToLower().Contains("mitarbeiterentwicklung")
-            orderby t.Id
-            select t
-        ).FirstOrDefaultAsync();
-
-        // 2) Sonst irgendeine Abmahnung
-        if (typ == null)
-            typ = await _db.DokumentTypen.AsNoTracking()
-                .Where(t => t.Name.ToLower() == "abmahnung")
-                .OrderBy(t => t.Id)
-                .FirstOrDefaultAsync();
-
-        if (typ == null)
-        {
-            var kat = await _db.DokumentKategorien
-                .Where(k => k.Aktiv && k.Name.ToLower().Contains("mitarbeiterentwicklung"))
-                .OrderBy(k => k.SortOrder)
-                .FirstOrDefaultAsync();
-            if (kat == null)
-            {
-                kat = new DokumentKategorie { Name = "Mitarbeiterentwicklung", SortOrder = 50, Aktiv = true };
-                _db.DokumentKategorien.Add(kat);
-                await _db.SaveChangesAsync();
-            }
-            typ = new DokumentTyp { KategorieId = kat.Id, Name = "Abmahnung", SortOrder = 10 };
-            _db.DokumentTypen.Add(typ);
-            await _db.SaveChangesAsync();
-        }
-
+        var typ = await EnsureAbmahnungTypAsync();
         return Ok(new { typ.Id, typ.Name, kategorieId = typ.KategorieId });
     }
 
@@ -135,7 +116,9 @@ public class EmployeeVerwarnungController : ControllerBase
                 v.Gruende,
                 v.Beschreibung,
                 v.DokumentId,
-                dokumentName = v.Dokument != null ? v.Dokument.FilenameOriginal : null,
+                dokumentName = v.Dokument != null
+                    ? (v.Dokument.Bemerkung ?? v.Dokument.FilenameOriginal)
+                    : null,
                 v.Storniert,
                 v.StornoGrund,
                 v.ErstelltVon,
@@ -154,9 +137,6 @@ public class EmployeeVerwarnungController : ControllerBase
         var err = Validate(dto, out var stufe);
         if (err != null) return BadRequest(err);
 
-        // Dokument OPTIONAL bei der Erfassung (Walter 15.07.2026 / 14.09.2026):
-        // erfassen → speichern → Formular drucken → unterschreiben → Scan
-        // nachführen. Ohne Dokument zeigt die Zeile «Unterschreiben fehlt».
         if (dto.DokumentId != null)
         {
             var docOk = await _db.EmployeeDokumente
@@ -177,8 +157,26 @@ public class EmployeeVerwarnungController : ControllerBase
             ErstelltAm   = DateTime.Now
         };
         _db.EmployeeVerwarnungen.Add(v);
+
+        // Walter 14.09.2026: das Formular gehört in die MA-Dokumente unter
+        // «Abmahnung». Die Verwarnung speichert nur den Link (DokumentId).
+        if (v.DokumentId == null)
+        {
+            try
+            {
+                var doc = await AblegenFormularAlsAbmahnungAsync(empId, dto, stufe);
+                v.Dokument = doc;
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "DOKUMENT_FEHLGESCHLAGEN",
+                    message = "Das Formular konnte nicht unter «Abmahnung» abgelegt werden: "
+                              + ex.GetBaseException().Message });
+            }
+        }
+
         await _db.SaveChangesAsync();
-        return Ok(new { v.Id });
+        return Ok(new { v.Id, dokumentId = v.DokumentId });
     }
 
     [HttpPut("{id:int}")]
@@ -207,55 +205,23 @@ public class EmployeeVerwarnungController : ControllerBase
         v.Beschreibung = string.IsNullOrWhiteSpace(dto.Beschreibung) ? null : dto.Beschreibung.Trim();
         v.GeaendertAm  = DateTime.Now;
         await _db.SaveChangesAsync();
-        return Ok(new { v.Id });
+        return Ok(new { v.Id, dokumentId = v.DokumentId });
     }
 
     /// <summary>Verwarnungs-Formular als PDF (Walter 15.07.2026 / 14.09.2026) —
-    /// vorausgefüllt aus der gespeicherten Verwarnung. Eine Seite, nur
-    /// angekreuzte Gründe. Speichert nichts — der Scan kommt über Nachführen.</summary>
+    /// Nachdruck. Speichert nichts — die Ablage unter Abmahnung läuft beim
+    /// Speichern der Verwarnung.</summary>
     [HttpPost("{empId:int}/formular-pdf")]
     public async Task<IActionResult> FormularPdf(int empId, [FromBody] VerwarnungDto dto)
     {
-        var e = await _db.Employees.AsNoTracking()
-            .Where(x => x.Id == empId)
-            .Select(x => new { x.FirstName, x.LastName, x.EmployeeNumber })
-            .FirstOrDefaultAsync();
-        if (e == null) return NotFound(new { error = "EMP_NOT_FOUND" });
-
         var err = Validate(dto, out var stufe);
         if (err != null) return BadRequest(err);
 
-        // Filiale des juengsten Vertrags fuer den Briefkopf-Text.
-        var cp = await _db.Employments.AsNoTracking()
-            .Where(em => em.EmployeeId == empId && em.CompanyProfileId != null)
-            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
-            .Select(em => em.CompanyProfile)
-            .FirstOrDefaultAsync();
-
-        string stufeLabel = stufe switch
-        {
-            "VERWARNUNG_2" => "2. Verwarnung",
-            "LETZTE"       => "Letzte Verwarnung (Kündigungsandrohung)",
-            _              => "1. Verwarnung"
-        };
-
         try
         {
-            var input = new HrSystem.Services.VerwarnungFormularInput(
-                CompanyName:      cp?.CompanyName ?? "Schaub Restaurants GmbH",
-                RestaurantName:   cp?.BranchName ?? cp?.FullDisplayName ?? "",
-                MaName:           ($"{e.FirstName} {e.LastName}").Trim(),
-                EmployeeNumber:   e.EmployeeNumber,
-                Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
-                StufeLabel:       stufeLabel,
-                StufeKritisch:    stufe == "LETZTE",
-                AlleGruende:      StandardGruende,
-                GewaehlteGruende: dto.Gruende,
-                Beschreibung:     dto.Beschreibung
-            );
-            var bytes = _pdf.Generate(input);
-            return File(bytes, "application/pdf",
-                $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_"));
+            var built = await BuildFormularAsync(empId, dto, stufe);
+            if (built == null) return NotFound(new { error = "EMP_NOT_FOUND" });
+            return File(built.Value.Bytes, "application/pdf", built.Value.Filename);
         }
         catch (Exception ex)
         {
@@ -291,13 +257,152 @@ public class EmployeeVerwarnungController : ControllerBase
         return null;
     }
 
-    private async Task<string> GetActorNameAsync()
+    private async Task<DokumentTyp> EnsureAbmahnungTypAsync()
+    {
+        var typ = await (
+            from t in _db.DokumentTypen
+            join k in _db.DokumentKategorien on t.KategorieId equals k.Id
+            where t.Name.ToLower() == "abmahnung"
+               && k.Name.ToLower().Contains("mitarbeiterentwicklung")
+            orderby t.Id
+            select t
+        ).FirstOrDefaultAsync();
+
+        if (typ == null)
+            typ = await _db.DokumentTypen
+                .Where(t => t.Name.ToLower() == "abmahnung")
+                .OrderBy(t => t.Id)
+                .FirstOrDefaultAsync();
+
+        if (typ == null)
+        {
+            var kat = await _db.DokumentKategorien
+                .Where(k => k.Aktiv && k.Name.ToLower().Contains("mitarbeiterentwicklung"))
+                .OrderBy(k => k.SortOrder)
+                .FirstOrDefaultAsync();
+            if (kat == null)
+            {
+                kat = new DokumentKategorie { Name = "Mitarbeiterentwicklung", SortOrder = 50, Aktiv = true };
+                _db.DokumentKategorien.Add(kat);
+                await _db.SaveChangesAsync();
+            }
+            typ = new DokumentTyp { KategorieId = kat.Id, Name = "Abmahnung", SortOrder = 10 };
+            _db.DokumentTypen.Add(typ);
+            await _db.SaveChangesAsync();
+        }
+
+        return typ;
+    }
+
+    private async Task<EmployeeDokument> AblegenFormularAlsAbmahnungAsync(int empId, VerwarnungDto dto, string stufe)
+    {
+        var typ = await EnsureAbmahnungTypAsync();
+        var built = await BuildFormularAsync(empId, dto, stufe)
+            ?? throw new InvalidOperationException("Mitarbeiter nicht gefunden.");
+
+        var branch = await ResolveBranchCodeAsync(empId);
+        var empDir = Path.Combine(_storagePath, branch, empId.ToString());
+        Directory.CreateDirectory(empDir);
+        var storageName = Guid.NewGuid().ToString("N") + ".pdf";
+        await System.IO.File.WriteAllBytesAsync(Path.Combine(empDir, storageName), built.Bytes);
+
+        var datum = dto.Datum ?? DateOnly.FromDateTime(DateTime.Today);
+        var bemerkung = $"{StufeKurz(stufe)} vom {datum:dd.MM.yyyy}";
+        var filename = built.Filename;
+        var clash = await _db.EmployeeDokumente
+            .AnyAsync(d => d.EmployeeId == empId && d.FilenameOriginal == filename);
+        if (clash)
+            filename = Path.GetFileNameWithoutExtension(filename) + $"_{DateTime.Now:HHmmss}.pdf";
+
+        var now = DateTime.Now;
+        var doc = new EmployeeDokument
+        {
+            EmployeeId       = empId,
+            DokumentTypId    = typ.Id,
+            BranchCode       = branch,
+            FilenameOriginal = filename,
+            FilenameStorage  = storageName,
+            MimeType         = "application/pdf",
+            GroesseBytes     = built.Bytes.LongLength,
+            Bemerkung        = bemerkung,
+            HochgeladenVon   = GetCurrentUserId(),
+            HochgeladenAm    = now,
+            ErstelltAm       = now,
+            DateiGeaendertAm = now
+        };
+        _db.EmployeeDokumente.Add(doc);
+        return doc;
+    }
+
+    private async Task<(byte[] Bytes, string Filename)?> BuildFormularAsync(int empId, VerwarnungDto dto, string stufe)
+    {
+        var e = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == empId)
+            .Select(x => new { x.FirstName, x.LastName, x.EmployeeNumber })
+            .FirstOrDefaultAsync();
+        if (e == null) return null;
+
+        var cp = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfile)
+            .FirstOrDefaultAsync();
+
+        string stufeLabel = stufe switch
+        {
+            "VERWARNUNG_2" => "2. Verwarnung",
+            "LETZTE"       => "Letzte Verwarnung (Kündigungsandrohung)",
+            _              => "1. Verwarnung"
+        };
+
+        var input = new HrSystem.Services.VerwarnungFormularInput(
+            CompanyName:      cp?.CompanyName ?? "Schaub Restaurants GmbH",
+            RestaurantName:   cp?.BranchName ?? cp?.FullDisplayName ?? "",
+            MaName:           ($"{e.FirstName} {e.LastName}").Trim(),
+            EmployeeNumber:   e.EmployeeNumber,
+            Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
+            StufeLabel:       stufeLabel,
+            StufeKritisch:    stufe == "LETZTE",
+            AlleGruende:      StandardGruende,
+            GewaehlteGruende: dto.Gruende,
+            Beschreibung:     dto.Beschreibung
+        );
+        var bytes = _pdf.Generate(input);
+        var filename = $"Verwarnung_{e.LastName}_{e.FirstName}_{input.Datum:yyyyMMdd}.pdf".Replace(" ", "_");
+        return (bytes, filename);
+    }
+
+    private async Task<string> ResolveBranchCodeAsync(int empId)
+    {
+        var code = await _db.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == empId && em.CompanyProfileId != null)
+            .OrderByDescending(em => em.IsActive).ThenByDescending(em => em.ContractStartDate)
+            .Select(em => em.CompanyProfile!.RestaurantCode)
+            .FirstOrDefaultAsync();
+        var clean = new string((code ?? "").Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+        return string.IsNullOrEmpty(clean) ? "_unknown" : clean;
+    }
+
+    private static string StufeKurz(string stufe) => stufe switch
+    {
+        "VERWARNUNG_2" => "2. Verwarnung",
+        "LETZTE"       => "Letzte Verwarnung",
+        _              => "1. Verwarnung"
+    };
+
+    private int? GetCurrentUserId()
     {
         var idStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (int.TryParse(idStr, out var uid))
+        return int.TryParse(idStr, out var uid) ? uid : null;
+    }
+
+    private async Task<string> GetActorNameAsync()
+    {
+        var uid = GetCurrentUserId();
+        if (uid != null)
         {
             var u = await _db.AppUsers.AsNoTracking()
-                .Where(x => x.Id == uid)
+                .Where(x => x.Id == uid.Value)
                 .Select(x => new { x.FirstName, x.LastName, x.Username })
                 .FirstOrDefaultAsync();
             if (u != null)

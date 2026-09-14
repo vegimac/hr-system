@@ -15899,7 +15899,7 @@ function renderVerwarnungenTab(el) {
                 ${stornoBadge}
                 <span style="flex:1"></span>
                 ${v.dokumentId
-                    ? `<button class="dok-menu-btn" title="Verwarnungsschreiben ansehen (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Doku</button>`
+                    ? `<button class="dok-menu-btn" title="Abmahnung in den MA-Dokumenten (${esc(v.dokumentName || '')})" style="min-width:auto;padding:4px 10px" onclick="vwViewDoc(${v.dokumentId})">👁 Abmahnung</button>`
                     : (!v.storniert ? `<span title="Formular drucken, unterschreiben lassen und den Scan über «Unterschrift nachführen» ablegen" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:10px;background:#fee2e2;color:#991b1b">⚠ Unterschreiben fehlt</span>` : '')}
                 ${menu}
             </div>
@@ -16431,10 +16431,10 @@ async function openVerwarnungModal(id) {
     const titel = !edit ? 'Verwarnung erfassen'
         : (nachfuehren ? 'Unterschrift nachführen' : 'Verwarnung bearbeiten');
     const hinweis = !edit
-        ? 'Speichern legt die Verwarnung an. «Speichern und drucken» öffnet danach das Formular. Nach der Unterschrift den Scan nachführen — er landet in den MA-Dokumenten.'
+        ? 'Das Formular landet unter Mitarbeiterentwicklung › Abmahnung. Die Verwarnung behält nur den Link. «Speichern und drucken» öffnet es danach. Nach der Unterschrift den Scan nachführen.'
         : (nachfuehren
-            ? 'Unterschriebenes Formular hochladen. Der Scan wird in den MA-Dokumenten abgelegt und an diese Verwarnung gehängt.'
-            : 'Angaben anpassen oder den Scan ersetzen.');
+            ? 'Unterschriebenes Formular hochladen. Der Scan landet unter Abmahnung und wird an diese Verwarnung gehängt.'
+            : 'Angaben anpassen oder den Scan ersetzen (ebenfalls unter Abmahnung).');
     const speichernLbl = nachfuehren ? 'Nachführen' : 'Speichern';
     const pill = 'display:flex;align-items:center;gap:7px;background:transparent;border:1px solid rgba(60,55,48,0.22);border-radius:10px;padding:6px 10px;cursor:pointer;font-size:12.5px;color:#3f3f3f';
     const heute = new Date();
@@ -16570,9 +16570,10 @@ async function vwSave(drucken) {
             const datumLbl = datumIso
                 ? `${datumIso.slice(8, 10)}.${datumIso.slice(5, 7)}.${datumIso.slice(0, 4)}`
                 : '';
-            // Walter 28.07.2026: Beschreibung = Stufe (+ Datum), landet in Abmahnung.
+            // Walter 28.07.2026 / 14.09.2026: Bemerkung = Stufe (+ Datum), Typ Abmahnung.
+            // «unterschrieben» im Dateinamen, damit es nicht mit dem Formular-PDF kollidiert.
             const bemerkung = datumLbl ? `${stufeLbl} vom ${datumLbl}` : stufeLbl;
-            const safeName = bemerkung.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Verwarnung';
+            const safeName = ((bemerkung.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Verwarnung') + ' unterschrieben');
             const ext = (file.name && file.name.includes('.'))
                 ? file.name.slice(file.name.lastIndexOf('.'))
                 : '.pdf';
@@ -16619,8 +16620,12 @@ async function vwSave(drucken) {
             const err = await r.json().catch(() => ({}));
             showErr(err.message || err.error || ('HTTP ' + r.status)); return;
         }
+        const saved = await r.json().catch(() => ({}));
         document.getElementById('vwModal')?.remove();
-        if (auchDrucken) await _vwFetchFormular(pdfBody);
+        if (auchDrucken) {
+            if (saved.dokumentId) await vwViewDoc(saved.dokumentId);
+            else await _vwFetchFormular(pdfBody);
+        }
         try { await loadVerwarnungenTab(selectedEmployeeId || window.activeEmpId); } catch (_) {}
     } catch (e) {
         if (document.getElementById('vwAlert')) showErr('Netzwerkfehler: ' + e.message);
