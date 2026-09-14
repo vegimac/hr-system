@@ -249,6 +249,7 @@ public class EmployeeVerwarnungController : ControllerBase
                 Datum:            dto.Datum.HasValue ? dto.Datum.Value.ToDateTime(TimeOnly.MinValue) : DateTime.Today,
                 StufeLabel:       stufeLabel,
                 StufeKritisch:    stufe == "LETZTE",
+                AlleGruende:      StandardGruende,
                 GewaehlteGruende: dto.Gruende,
                 Beschreibung:     dto.Beschreibung
             );

@@ -6,9 +6,9 @@ namespace HrSystem.Services;
 
 /// <summary>
 /// Verwarnungs-Formular als PDF (Walter-Vorgabe 15.07.2026, Ein-Seiten-
-/// Blatt 14.09.2026): Titel VERWARNUNG, Für/Datum, nur die angekreuzten
-/// Gründe (leere Kästchen werden nicht gedruckt), Bemerkung, Unterschriften
-/// Mitarbeiter + Schichtführer. Briefkopf = gelbes Banner wie überall.
+/// Blatt 14.09.2026): Titel VERWARNUNG, Für/Datum, alle 16 Gründe in
+/// zwei Spalten (angekreuzte mit X), Bemerkung, Unterschriften ganz
+/// unten mit Platz zum Schreiben. Briefkopf = gelbes Banner.
 /// Ablauf: erfassen → speichern → Formular drucken → unterschreiben →
 /// Scan nachführen.
 /// </summary>
@@ -20,6 +20,7 @@ public record VerwarnungFormularInput(
     DateTime Datum,
     string StufeLabel,          // «1. Verwarnung» | «2. Verwarnung» | «Letzte Verwarnung (Kündigungsandrohung)»
     bool StufeKritisch,         // LETZTE → roter Stufen-Text
+    IReadOnlyList<string> AlleGruende,
     IReadOnlyList<string> GewaehlteGruende,
     string? Beschreibung
 );
@@ -37,10 +38,13 @@ public class VerwarnungPdfService
     public byte[] Generate(VerwarnungFormularInput d)
     {
         QuestPDF.Settings.License = LicenseType.Community;
-        var gruende = (d.GewaehlteGruende ?? Array.Empty<string>())
+        var alle = (d.AlleGruende ?? Array.Empty<string>())
             .Where(g => !string.IsNullOrWhiteSpace(g))
             .Select(g => g.Trim())
             .ToList();
+        var gewaehlt = new HashSet<string>(
+            (d.GewaehlteGruende ?? Array.Empty<string>()).Select(g => g.Trim()),
+            StringComparer.OrdinalIgnoreCase);
         var bemerkung = KuerzeBemerkung(d.Beschreibung);
 
         return Document.Create(container =>
@@ -81,7 +85,7 @@ public class VerwarnungPdfService
                         });
                     });
 
-                    if (gruende.Count > 0)
+                    if (alle.Count > 0)
                     {
                         col.Item().PaddingTop(12).Table(t =>
                         {
@@ -91,12 +95,12 @@ public class VerwarnungPdfService
                                 c.ConstantColumn(10);
                                 c.RelativeColumn();
                             });
-                            for (int i = 0; i < gruende.Count; i += 2)
+                            for (int i = 0; i < alle.Count; i += 2)
                             {
-                                t.Cell().Element(e => GrundZelle(e, gruende[i]));
+                                t.Cell().Element(e => GrundZelle(e, alle[i], gewaehlt.Contains(alle[i])));
                                 t.Cell();
-                                if (i + 1 < gruende.Count)
-                                    t.Cell().Element(e => GrundZelle(e, gruende[i + 1]));
+                                if (i + 1 < alle.Count)
+                                    t.Cell().Element(e => GrundZelle(e, alle[i + 1], gewaehlt.Contains(alle[i + 1])));
                                 else
                                     t.Cell();
                             }
@@ -117,42 +121,47 @@ public class VerwarnungPdfService
                         }
                     });
 
-                    col.Item().PaddingTop(28).Row(r =>
+                    col.Item().Extend().AlignBottom().Column(fuss =>
                     {
-                        r.RelativeItem().Column(c =>
+                        fuss.Item().Row(r =>
                         {
-                            c.Item().Height(32);
-                            c.Item().Text("Schichtführer / Vorgesetzter").FontSize(10f);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Height(72);
+                                c.Item().Text("Schichtführer / Vorgesetzter").FontSize(10f);
+                            });
+                            r.ConstantItem(40);
+                            r.RelativeItem().Column(c =>
+                            {
+                                c.Item().Height(72);
+                                c.Item().Text("Mitarbeiter").FontSize(10f);
+                            });
                         });
-                        r.ConstantItem(40);
-                        r.RelativeItem().Column(c =>
-                        {
-                            c.Item().Height(32);
-                            c.Item().Text("Mitarbeiter").FontSize(10f);
-                        });
-                    });
 
-                    col.Item().PaddingTop(16).Text(
-                        "Diese Verwarnung wird in der Personalakte abgelegt. Bei wiederholtem " +
-                        "Fehlverhalten müssen arbeitsrechtliche Konsequenzen bis hin zur Kündigung " +
-                        "in Betracht gezogen werden.")
-                        .FontSize(8.5f).FontColor("#6b6152").Italic();
+                        fuss.Item().PaddingTop(14).Text(
+                            "Diese Verwarnung wird in der Personalakte abgelegt. Bei wiederholtem " +
+                            "Fehlverhalten müssen arbeitsrechtliche Konsequenzen bis hin zur Kündigung " +
+                            "in Betracht gezogen werden.")
+                            .FontSize(8.5f).FontColor("#6b6152").Italic();
+                    });
                 });
             });
         }).GeneratePdf();
     }
 
-    private static void GrundZelle(IContainer container, string text)
+    private static void GrundZelle(IContainer container, string text, bool angekreuzt)
     {
-        container.PaddingBottom(5).Row(r =>
+        container.PaddingBottom(4).Row(r =>
         {
             r.ConstantItem(16).AlignMiddle().Element(e =>
             {
                 var box = e.Width(11).Height(11).Border(1.1f).BorderColor(Dark);
-                box.AlignCenter().AlignMiddle().Text("X")
-                    .FontSize(7.5f).Bold().LineHeight(1f);
+                if (angekreuzt)
+                    box.AlignCenter().AlignMiddle().Text("X")
+                        .FontSize(7.5f).Bold().LineHeight(1f);
             });
-            r.RelativeItem().AlignMiddle().Text(text).FontSize(10f).Bold();
+            var label = r.RelativeItem().AlignMiddle().Text(text).FontSize(10f);
+            if (angekreuzt) label.Bold();
         });
     }
 
