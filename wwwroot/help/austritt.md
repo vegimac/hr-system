@@ -7,7 +7,7 @@ Wenn ein Arbeitsverhältnis endet, brauchst du ein klares Datum, die richtigen F
 | Was | Wo |
 |---|---|
 | **Kündigung am / Kündigung per** am MA | Mitarbeiter → Übersicht → Karte **Anstellung** |
-| **Formulare** (Schreiben, Zeugnis, Aufhebung …) | Sidebar → **HR** → Menü Kündigung / Zeugnisse |
+| **Formulare** (Schreiben, Zeugnis, Aufhebung …) | McAdmin (Verwarnung, Aufhebungsvertrag, Arbeitszeugnis) bzw. Sidebar → **HR** → Kündigung / Zeugnisse |
 | **Probezeit-Kündigung** | Mitarbeiter → MA Formulare → **Probezeit** |
 | **Austritts-Feedback** (anonym) | Separater Link für den MA; Auswertung im HR-Bereich |
 

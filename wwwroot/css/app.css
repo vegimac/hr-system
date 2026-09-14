@@ -9818,6 +9818,8 @@ body.theme-dark .kz-menu-item:hover { color: #ffffff; }
 /* Gespräch starten (Icon war «Kandidat an HR»): Quermotiv → volle Kachelbreite */
 .ra-tile img[src*="Kandidat-an-HR.webp"] { width: 110px; height: 110px; }
 .ra-tile img[src*="arbeitszeugnis-bestellen.png"] { width: 110px; height: 110px; }
+.ra-tile img[src*="verwarnung.webp"] { width: 104px; height: 104px; }
+.ra-tile img[src*="aufhebungsvertrag.png"] { width: 104px; height: 104px; }
 body.theme-dark .ra-tile { background: rgba(255,255,255,0.08); color: #f1f5f9; }
 /* Walter 18.08.2026: Sketch-Icons im Dark Mode KRÄFTIGER — stärker invertiert,
    mehr Kontrast + Helligkeit statt der ausgewaschenen 0.88-Invertierung. */

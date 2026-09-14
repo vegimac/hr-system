@@ -17,7 +17,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 | Arbeitsvertrag per SMS schicken | [SMS & Vertrags-Link](#sms) |
 | Kündigung, Zeugnis, Behördenformulare | [HR-Bereich](#hr-hub) |
 | Jahres-Lohnausweis erstellen (Form 11 + Barcode) | [Jahres-Lohnausweis](#lohnausweis) |
-| Bewerbungsformular, Gespräch starten, Arbeitszeugnis bestellen | [McAdmin](#mcadmin) |
+| Bewerbungsformular, Gespräch starten, Arbeitszeugnis, Verwarnung, Aufhebungsvertrag | [McAdmin](#mcadmin) |
 | Lohnabtretung / Pfändung an Behörde | [Lohnabtretungen & Behörden](#lohnabtretungen) |
 | Sollstunden / Ferien / Alter / Fluktuation | [Auswertungen & Reports](#auswertungen) |
 | Fibu-Journal ziehen | [Buchhaltung (Fibu)](#fibu) |
@@ -37,7 +37,7 @@ Schön, dass du da bist. Diese Hilfe erklärt das **ganze Programm** in einfache
 
 ## So ist das Programm aufgebaut
 
-**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen am MA (Probezeit, Umzug, Postfach …) liegen im Tab **MA Formulare**. Zeugnisse und Verwarnung macht HR.
+**Mitarbeiter** sind der Mittelpunkt: Stammdaten, Verträge, Familie, Bank, Bewilligung, QST, Absenzen, Dokumente. Praxis-Aktionen am MA (Probezeit, Umzug, Postfach …) liegen im Tab **MA Formulare**. Verwarnung, Aufhebungsvertrag und Arbeitszeugnis bestellen liegen in [McAdmin](#mcadmin).
 
 **Verträge** sagen, wie viel jemand verdient. Bei Änderungen legst du einen **neuen** Vertrag an (nicht den alten überschreiben).
 
