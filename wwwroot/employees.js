@@ -16408,7 +16408,12 @@ async function _vwLoadGruende() {
 }
 
 async function openVerwarnungModal(id) {
-    if (!selectedEmployeeId) return;
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId) { alert('Kein Mitarbeiter gewählt.'); return; }
+    if (!selectedEmployeeId) {
+        selectedEmployeeId = empId;
+        window.selectedEmployeeId = empId;
+    }
     _vwEditId = id;
     const edit = id ? _vwList.find(v => v.id === id) : null;
     const gruende = await _vwLoadGruende();
@@ -16486,15 +16491,17 @@ async function openVerwarnungModal(id) {
             <div style="display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap">
                 <button onclick="document.getElementById('vwModal').remove()"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-                ${!edit ? `<button type="button" id="vwSaveBtn" onclick="vwSave(false)"
+                ${!edit ? `<button type="button" id="vwSaveBtn"
                         style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
-                <button type="button" id="vwSavePrintBtn" onclick="vwSave(true)"
+                <button type="button" id="vwSavePrintBtn"
                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern und drucken</button>`
-                    : `<button type="button" id="vwSaveBtn" onclick="vwSave(false)"
+                    : `<button type="button" id="vwSaveBtn"
                         style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:10px 18px;cursor:pointer;font-size:13.5px;font-weight:700">${speichernLbl}</button>`}
             </div>
         </div>`;
     document.body.appendChild(ov);
+    ov.querySelector('#vwSaveBtn')?.addEventListener('click', () => vwSave(false));
+    ov.querySelector('#vwSavePrintBtn')?.addEventListener('click', () => vwSaveAndPrint());
 
     ov.querySelectorAll('input[name="vwDocMode"]').forEach(r => r.addEventListener('change', async () => {
         const mode = ov.querySelector('input[name="vwDocMode"]:checked')?.value;
@@ -16614,7 +16621,7 @@ async function vwSave(drucken) {
         }
         document.getElementById('vwModal')?.remove();
         if (auchDrucken) await _vwFetchFormular(pdfBody);
-        await loadVerwarnungenTab(selectedEmployeeId);
+        try { await loadVerwarnungenTab(selectedEmployeeId || window.activeEmpId); } catch (_) {}
     } catch (e) {
         if (document.getElementById('vwAlert')) showErr('Netzwerkfehler: ' + e.message);
         else alert('Netzwerkfehler: ' + e.message);
@@ -16625,6 +16632,8 @@ async function vwSave(drucken) {
 }
 
 // Formular-PDF aus einer bestehenden Verwarnungs-Zeile (Erstdruck nach Speichern / Nachdruck).
+async function vwSaveAndPrint() { return vwSave(true); }
+
 async function vwPrintFormular(id) {
     const v = (_vwList || []).find(x => Number(x.id) === Number(id));
     if (!v) { alert('Verwarnung nicht gefunden — bitte die Liste neu laden.'); return; }
@@ -16636,33 +16645,41 @@ async function vwPrintFormular(id) {
     });
     await _vwFetchFormular(body);
 }
-    const body = JSON.stringify({
-        datum: v.datum ? String(v.datum).slice(0, 10) : null,
-        stufe: v.stufe,
-        gruende: (v.gruende || '').split('\n').filter(Boolean),
-        beschreibung: v.beschreibung || null
-    });
-    await _vwFetchFormular(body);
-}
 
 async function _vwFetchFormular(body) {
+    const empId = selectedEmployeeId || window.activeEmpId;
+    if (!empId) { alert('Kein Mitarbeiter gewählt.'); return; }
     try {
-        const r = await fetch(`/api/verwarnungen/${selectedEmployeeId}/formular-pdf`, {
+        const r = await fetch(`/api/verwarnungen/${empId}/formular-pdf`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
             body
         });
-        if (!r.ok) {
+        const ct = (r.headers.get('Content-Type') || '').toLowerCase();
+        if (!r.ok || ct.includes('json')) {
             const err = await r.json().catch(() => ({}));
             alert(err.message || err.error || ('Formular fehlgeschlagen: HTTP ' + r.status));
             return;
         }
-        const blob = await r.blob();
+        const raw = await r.blob();
+        const pdf = (raw.type && raw.type.toLowerCase().includes('pdf'))
+            ? raw
+            : new Blob([raw], { type: 'application/pdf' });
         const cd = r.headers.get('Content-Disposition') || '';
-        const m = cd.match(/filename="?([^"]+)"?/);
-        await previewFileModal(blob, m ? m[1] : 'Verwarnung.pdf');
+        const m = cd.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+        let name = (m ? decodeURIComponent(m[1]) : 'Verwarnung.pdf').replace(/[/\\]/g, '');
+        if (!/\.pdf$/i.test(name)) name += '.pdf';
+        if (typeof previewFileModal === 'function')
+            await previewFileModal(pdf, name);
+        else
+            await saveBlobAsk(pdf, name);
     } catch (e) { alert('Netzwerkfehler: ' + e.message); }
 }
+
+window.vwSave = vwSave;
+window.vwSaveAndPrint = vwSaveAndPrint;
+window.vwPrintFormular = vwPrintFormular;
+window.openVerwarnungModal = openVerwarnungModal;
 
 // Echtes Löschen (Walter-Entscheid 15.07.2026) — kein Storno-Behalten mehr.
 async function vwDelete(id) {
