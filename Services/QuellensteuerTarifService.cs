@@ -26,7 +26,8 @@ public class QuellensteuerTarifService
     // Metadaten je geladener Datei
     private readonly ConcurrentBag<QstDateiStatus> _dateienStatus = new();
 
-    private bool _loaded;
+    // Welche Tarif-Jahre schon im Speicher sind (nicht: alle Dateien).
+    private readonly HashSet<int> _geladeneJahre = new();
     private readonly object _loadLock = new();
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<QuellensteuerTarifService> _logger;
@@ -73,7 +74,6 @@ public class QuellensteuerTarifService
         decimal istBruttoCHF,
         int? jahr = null)
     {
-        EnsureLoaded();
         var stufe = FindStufe(kanton, tarifCode, kinder, kirchensteuer,
             satzbestimmenderBruttoCHF, ResolveJahr(jahr));
         if (stufe is null) return null;
@@ -104,8 +104,9 @@ public class QuellensteuerTarifService
     /// <summary>Gibt alle verfügbaren Kantone zurück.</summary>
     public IReadOnlyList<string> GetVerfuegbareKantone(int? jahr = null)
     {
-        EnsureLoaded();
-        string prefix = $"{ResolveJahr(jahr)}|";
+        var y = ResolveJahr(jahr);
+        EnsureJahr(y);
+        string prefix = $"{y}|";
         return _tarife.Keys
             .Where(k => k.StartsWith(prefix))
             .Select(k => k.Split('|')[1])
@@ -115,8 +116,9 @@ public class QuellensteuerTarifService
     /// <summary>Gibt alle Tarifkombinationen eines Kantons zurück.</summary>
     public IReadOnlyList<QstTarifInfo> GetTarifKombinationen(string kanton, int? jahr = null)
     {
-        EnsureLoaded();
-        string prefix = $"{ResolveJahr(jahr)}|{kanton.ToUpper()}|";
+        var y = ResolveJahr(jahr);
+        EnsureJahr(y);
+        string prefix = $"{y}|{kanton.ToUpper()}|";
         return _tarife.Keys
             .Where(k => k.StartsWith(prefix))
             .Select(k =>
@@ -146,11 +148,36 @@ public class QuellensteuerTarifService
         return kombis.Count == 0 ? (bool?)null : kombis.Any(t => t.Kirchensteuer);
     }
 
-    /// <summary>Gibt Status aller geladenen Tarifdateien zurück.</summary>
+    /// <summary>
+    /// Dateien im Ordner plus Speicher-Stand. Liest die 75 MB NICHT —
+    /// ungeladene Jahre erscheinen mit ImSpeicher=false.
+    /// </summary>
     public IReadOnlyList<QstDateiStatus> GetDateienStatus()
     {
-        EnsureLoaded();
-        return _dateienStatus.OrderBy(d => d.Jahr).ThenBy(d => d.Kanton).ToList();
+        var geladen = _dateienStatus.ToArray();
+        var byKey = geladen.ToDictionary(
+            d => (d.Jahr, d.Kanton.ToUpperInvariant()),
+            d => d);
+        var result = new List<QstDateiStatus>();
+        var dir = TarifVerzeichnis;
+        if (!Directory.Exists(dir))
+            return geladen.OrderBy(d => d.Jahr).ThenBy(d => d.Kanton).ToList();
+
+        foreach (var file in Directory.GetFiles(dir, "tar*.txt").OrderBy(f => f))
+        {
+            var fname = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
+            var match = Regex.Match(fname, @"^tar(\d{2})([a-z]{2})$");
+            if (!match.Success) continue;
+            int jahr = 2000 + int.Parse(match.Groups[1].Value);
+            string kt = match.Groups[2].Value.ToUpperInvariant();
+            var name = Path.GetFileName(file);
+            if (byKey.TryGetValue((jahr, kt), out var d))
+                result.Add(d);
+            else
+                result.Add(new QstDateiStatus(
+                    jahr, kt, name, 0, 0, 0, default, ImSpeicher: false));
+        }
+        return result;
     }
 
     /// <summary>
@@ -186,23 +213,46 @@ public class QuellensteuerTarifService
         }
 
         if (ergebnis.ImportierteDateien.Count > 0)
-            Reload();
+        {
+            foreach (var y in ergebnis.ImportierteDateien.Select(d => d.Jahr).Distinct())
+                ReloadJahr(y);
+        }
 
         return ergebnis;
     }
 
-    /// <summary>Setzt den Cache zurück und lädt alle Dateien neu.</summary>
+    /// <summary>
+    /// Nur das laufende Kalenderjahr im Hintergrund — nicht alle tar*.txt.
+    /// Vorjahre kommen beim ersten Lohnlauf jener Periode.
+    /// </summary>
+    public void Warmup() => EnsureJahr(DateTime.Now.Year);
+
+    /// <summary>Cache leeren. Jahre werden beim nächsten Bedarf neu gelesen.</summary>
     public void Reload()
     {
         lock (_loadLock)
         {
             _tarife.Clear();
             _dateienStatus.Clear();
-            _loaded = false;
-            LoadAllTarifFiles();
-            _loaded = true;
+            _geladeneJahre.Clear();
         }
-        _logger.LogInformation("QST-Tarife neu geladen: {Count} Kombinationen", _tarife.Count);
+        _logger.LogInformation("QST-Tarif-Cache geleert — Jahre werden bei Bedarf neu gelesen");
+    }
+
+    private void ReloadJahr(int jahr)
+    {
+        lock (_loadLock)
+        {
+            var prefix = $"{jahr}|";
+            foreach (var key in _tarife.Keys.Where(k => k.StartsWith(prefix)).ToList())
+                _tarife.TryRemove(key, out _);
+            var rest = _dateienStatus.Where(d => d.Jahr != jahr).ToList();
+            _dateienStatus.Clear();
+            foreach (var d in rest) _dateienStatus.Add(d);
+            _geladeneJahre.Remove(jahr);
+            LoadJahr(jahr);
+            _geladeneJahre.Add(jahr);
+        }
     }
 
     // ── Internes ─────────────────────────────────────────────────────────
@@ -215,15 +265,13 @@ public class QuellensteuerTarifService
         string kanton, string tarifCode, int kinder, bool kirchensteuer,
         decimal bruttolohnCHF, int jahr)
     {
-        EnsureLoaded();
+        EnsureJahr(jahr);
         string key = $"{jahr}|{kanton.ToUpper()}|{tarifCode.ToUpper()}|{kinder}|{(kirchensteuer ? 'Y' : 'N')}";
 
         if (!_tarife.TryGetValue(key, out var lookup))
         {
-            // Tarifjahr nicht geladen (z.B. Nachberechnung Dezember im Folgejahr, nur
-            // die aktuelle Datei vorhanden): nächstliegendes geladenes Jahr nehmen —
-            // zuerst rückwärts (Vorjahres-Tarif), dann vorwärts. Lieber der Nachbar-
-            // Tarif als gar kein QST-Abzug. (Walter 09.09.2026)
+            // Kein File für dieses Jahr+Kanton: schon geladene Nachbarjahre
+            // (nicht extra einlesen). Lieber der Nachbar-Tarif als gar kein QST.
             lookup = null;
             foreach (var delta in new[] { -1, -2, -3, 1, 2, 3 })
             {
@@ -258,18 +306,18 @@ public class QuellensteuerTarifService
         return result;
     }
 
-    private void EnsureLoaded()
+    /// <summary>Liest nur tar{JJ}*.txt dieses Jahres. Mehrere User teilen den Cache.</summary>
+    private void EnsureJahr(int jahr)
     {
-        if (_loaded) return;
         lock (_loadLock)
         {
-            if (_loaded) return;
-            LoadAllTarifFiles();
-            _loaded = true;
+            if (_geladeneJahre.Contains(jahr)) return;
+            LoadJahr(jahr);
+            _geladeneJahre.Add(jahr);
         }
     }
 
-    private void LoadAllTarifFiles()
+    private void LoadJahr(int jahr)
     {
         string tarifDir = TarifVerzeichnis;
         if (!Directory.Exists(tarifDir))
@@ -278,12 +326,14 @@ public class QuellensteuerTarifService
             return;
         }
 
-        // Alle tar{JJ}{kanton}.txt Dateien laden (z.B. tar26lu.txt, tar27zh.txt)
-        var files = Directory.GetFiles(tarifDir, "tar*.txt");
+        var yy = (jahr % 100).ToString("00");
+        var files = Directory.GetFiles(tarifDir, $"tar{yy}*.txt");
+        var uhr = System.Diagnostics.Stopwatch.StartNew();
         foreach (var file in files)
             ParseTarifFile(file);
 
-        _logger.LogInformation("QST-Tarife bereit: {Comb} Kombinationen", _tarife.Count);
+        _logger.LogInformation("QST-Jahr {Jahr}: {N} Dateien, {Comb} Kombinationen in {Ms} ms",
+            jahr, files.Length, _tarife.Count, uhr.ElapsedMilliseconds);
     }
 
     private void ParseTarifFile(string filePath)
@@ -436,7 +486,8 @@ public record QstDateiStatus(
     int      AnzahlKombinationen,
     int      AnzahlEintraege,
     int      MaxEinkommen,
-    DateTime GeladenAm
+    DateTime GeladenAm,
+    bool     ImSpeicher = true
 );
 
 /// <summary>Ergebnis eines Import-Vorgangs.</summary>

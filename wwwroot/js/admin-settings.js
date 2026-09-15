@@ -805,10 +805,12 @@ function renderQstStatusGrid(dateien) {
                 </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:3px">
+                ${d.imSpeicher ? `
                 <div style="font-size:12px;color:#475569"><span style="color:#94a3b8">Kombinationen:</span> ${d.anzahlKombinationen}</div>
                 <div style="font-size:12px;color:#475569"><span style="color:#94a3b8">Einträge:</span> ${d.anzahlEintraege.toLocaleString('de-CH')}</div>
                 <div style="font-size:12px;color:#475569"><span style="color:#94a3b8">Max. Lohn:</span> CHF ${d.maxEinkommen.toLocaleString('de-CH')}</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px">Geladen: ${d.geladenAm}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">Im Speicher: ${d.geladenAm}</div>` : `
+                <div style="font-size:12px;color:#64748b">liegt bereit — wird beim ersten Lohnlauf ${d.jahr} gelesen</div>`}
             </div>
         </div>
     `).join('');

@@ -5252,7 +5252,12 @@ app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
                 try { using var _r = await http.GetAsync(basis + pfad); } catch { /* egal */ }
             }
         }
-        log.LogInformation("Warmlaufen abgeschlossen in {Ms} ms", sw.ElapsedMilliseconds);
+        log.LogInformation("Warmlaufen HTTP/EF in {Ms} ms — QST-Tarife {Jahr} werden nachgeladen",
+            sw.ElapsedMilliseconds, DateTime.Now.Year);
+        var qstUhr = System.Diagnostics.Stopwatch.StartNew();
+        app.Services.GetRequiredService<QuellensteuerTarifService>().Warmup();
+        log.LogInformation("Warmlaufen abgeschlossen in {Ms} ms (davon QST-Tarife {QstMs} ms)",
+            sw.ElapsedMilliseconds, qstUhr.ElapsedMilliseconds);
     }
     catch (Exception ex) { log.LogWarning(ex, "Warmlaufen abgebrochen nach {Ms} ms", sw.ElapsedMilliseconds); }
 }));

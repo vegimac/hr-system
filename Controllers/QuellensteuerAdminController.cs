@@ -83,7 +83,8 @@ public class QuellensteuerAdminController : ControllerBase
                 d.AnzahlKombinationen,
                 d.AnzahlEintraege,
                 MaxEinkommen   = d.MaxEinkommen,
-                GeladenAm      = d.GeladenAm.ToString("dd.MM.yyyy HH:mm")
+                ImSpeicher     = d.ImSpeicher,
+                GeladenAm      = d.ImSpeicher ? d.GeladenAm.ToString("dd.MM.yyyy HH:mm") : null
             })
         });
     }
@@ -162,7 +163,7 @@ public class QuellensteuerAdminController : ControllerBase
 
     // ── POST /api/admin/quellensteuer/reload ─────────────────────────────
     /// <summary>
-    /// Lädt alle Tarifdateien aus dem Dateisystem neu (ohne Upload).
+    /// Cache leeren. Die Dateien werden beim nächsten Lohnlauf des Jahres neu gelesen.
     /// </summary>
     [HttpPost("reload")]
     public IActionResult Reload()
@@ -172,7 +173,7 @@ public class QuellensteuerAdminController : ControllerBase
         var status = _tarifService.GetDateienStatus();
         return Ok(new
         {
-            Meldung       = $"Cache neu geladen: {status.Count} Dateien.",
+            Meldung       = $"Cache geleert — {status.Count} Dateien liegen bereit, Einlesen pro Jahr beim Lohnlauf.",
             AnzahlDateien = status.Count
         });
     }
