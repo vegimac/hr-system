@@ -39,6 +39,9 @@ function qstBindValidFromHandlers() {
     const vfInp = document.getElementById('qstValidFrom');
     if (vfInp && !vfInp.dataset.qstAutoBound) {
         vfInp.addEventListener('change', async () => {
+            const eaInp = document.getElementById('qstErfahrenAm');
+            if (eaInp && vfInp.value && (!eaInp.value || eaInp.value < vfInp.value))
+                eaInp.value = vfInp.value;
             // Kopf: Adresse, die AM Gültig-ab galt (Wohnort-Historie) —
             // Walter 04.09.2026: sonst lässt sich kein Alt-Eintrag (z.B.
             // frühere Adresse Kanton LU) korrekt erfassen.
@@ -950,6 +953,8 @@ async function openQstEntry(id) {
         return todayIso;
     })();
     document.getElementById('qstValidFrom').value = validFromDefault;
+    const ea = document.getElementById('qstErfahrenAm');
+    if (ea) ea.value = validFromDefault;
     qstUpdateWohnortKopf(validFromDefault);
 
     // Walter-Vorgabe 14.06.2026 (Update): Tarif/Kinder/Kirchensteuer/QstCode
@@ -995,25 +1000,33 @@ async function openQstEntry(id) {
     }
 }
 
-// Komplett-Sperre (Walter 12.08.2026, gleiche Logik wie Verträge):
-// abgeschlossene Versionen (ValidTo gesetzt) und in einem definitiv
-// abgeschlossenen Lohnlauf verwendete Einträge sind unveränderbar —
-// Änderungen laufen IMMER über einen neuen Eintrag. Der Server blockt
-// zusätzlich hart (QST_ABGESCHLOSSEN / LOHN_EDIT_LOCKED).
+// Sperre: Historie (ValidTo) = komplett; in Lohn verwendet = Tarif eingefroren,
+// aber «Erfahren am» bleibt editierbar (Walter 15.09.2026, Wissens-Achse).
 function qstSetLocked(entry) {
     const wrap   = document.getElementById('qstFormWrap');
     const banner = document.getElementById('qstLockBanner');
     const save   = document.getElementById('qstSaveBtn');
-    const locked = !!(entry && (entry.validTo || entry.inLohnVerwendet));
-    if (wrap) wrap.classList.toggle('qst-locked', locked);
-    if (save) save.style.display = locked ? 'none' : '';
+    const histLocked = !!(entry && entry.validTo);
+    const wissensLock = !!(entry && entry.inLohnVerwendet && !entry.validTo);
+    window._qstEntryInLohnVerwendet = wissensLock;
+    window._qstOrigErfahrenAm = entry?.erfahrenAm?.slice(0, 10) ?? entry?.validFrom?.slice(0, 10) ?? '';
+    if (wrap) {
+        wrap.classList.toggle('qst-locked', histLocked);
+        wrap.classList.toggle('qst-wissens-lock', wissensLock);
+    }
+    if (save) save.style.display = histLocked ? 'none' : '';
     if (banner) {
-        banner.style.display = locked ? 'block' : 'none';
-        if (locked) {
-            const grund = entry.validTo
-                ? `abgeschlossen (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)})`
-                : 'in einem definitiv abgeschlossenen Lohnlauf verwendet';
-            banner.innerHTML = `🔒 Diese QST-Version ist ${grund} und kann nicht mehr geändert werden — Änderungen über «+ Neuer Eintrag» in der QST-Liste.`;
+        if (histLocked) {
+            banner.style.display = 'block';
+            banner.innerHTML = `🔒 Diese QST-Version ist abgeschlossen (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)}) und kann nicht mehr geändert werden.`;
+        } else if (wissensLock) {
+            banner.style.display = 'block';
+            const bis = entry.verwendetBis
+                ? `${entry.verwendetBis.slice(5, 7)}.${entry.verwendetBis.slice(0, 4)}`
+                : '…';
+            banner.innerHTML = `🔒 Tarif eingefroren (definitiv abgerechnet bis ${bis}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
+        } else {
+            banner.style.display = 'none';
         }
     }
 }
@@ -1024,6 +1037,7 @@ function populateQstForm(entry) {
     qstSetLocked(entry);
 
     v('qstValidFrom',      entry?.validFrom?.slice(0, 10)  ?? '');
+    v('qstErfahrenAm',     entry?.erfahrenAm?.slice(0, 10) ?? entry?.validFrom?.slice(0, 10) ?? '');
     v('qstValidTo',        entry?.validTo?.slice(0, 10)    ?? '');
     v('qstSteuerkanton',   entry?.steuerkanton             ?? '');
     v('qstGemeinde',       entry?.qstGemeinde              ?? '');
@@ -1175,6 +1189,7 @@ async function saveQstEntry() {
 
     const payload = {
         validFrom:   document.getElementById('qstValidFrom').value || null,
+        erfahrenAm:  document.getElementById('qstErfahrenAm')?.value || null,
         validTo:     document.getElementById('qstValidTo').value   || null,
         steuerkanton:         document.getElementById('qstSteuerkanton').value    || null,
         steuerkantonName:     kantonNames[document.getElementById('qstSteuerkanton').value] ?? null,
@@ -1225,9 +1240,33 @@ async function saveQstEntry() {
     };
 
     if (!payload.validFrom) { resultEl.innerHTML = '<span style="color:#dc2626">Gültig ab ist Pflicht.</span>'; return; }
+    if (!payload.erfahrenAm) { resultEl.innerHTML = '<span style="color:#dc2626">Erfahren am ist Pflicht.</span>'; return; }
+    if (payload.erfahrenAm < payload.validFrom) {
+        resultEl.innerHTML = '<span style="color:#dc2626">«Erfahren am» darf nicht vor «Gültig ab» liegen.</span>';
+        return;
+    }
     // Behördenbewilligung NUR mit Beleg (Walter 29.08.2026, analog Befreiung).
     if (payload.spezielBewilligt && !payload.dokumentId) {
         resultEl.innerHTML = '<span style="color:#dc2626">«Kinderabzug behördlich bewilligt» braucht die Verfügung der Steuerbehörde als Beleg — Dokument im Dokumente-Tab ablegen und oben auswählen.</span>';
+        return;
+    }
+
+    // Tarif eingefroren — nur Wissensdatum nachtragbar.
+    if (qstCurrentEntryId && window._qstEntryInLohnVerwendet) {
+        const ea = payload.erfahrenAm;
+        if (ea === window._qstOrigErfahrenAm) {
+            resultEl.innerHTML = '<span style="color:#8b8b8b">Keine Änderung am «Erfahren am».</span>';
+            return;
+        }
+        const resEa = await fetch(
+            `/api/employees/${qstCurrentEmployeeId}/quellensteuer/${qstCurrentEntryId}/erfahren-am`,
+            { method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ erfahrenAm: ea }) });
+        if (!resEa.ok) {
+            const t = await resEa.text();
+            resultEl.innerHTML = `<span style="color:#dc2626">Fehler: ${t}</span>`;
+            return;
+        }
+        await qstAfterSaveSuccess(await resEa.json(), resultEl);
         return;
     }
 
@@ -1261,9 +1300,14 @@ async function saveQstEntry() {
     }
     if (!res.ok) { resultEl.innerHTML = `<span style="color:#dc2626">Fehler: ${await res.text()}</span>`; return; }
 
-    const saved = await res.json();
+    await qstAfterSaveSuccess(await res.json(), resultEl);
+}
+
+async function qstAfterSaveSuccess(saved, resultEl) {
     const eintrag = saved.eintrag || saved;
     qstCurrentEntryId = eintrag.id;
+    window._qstOrigErfahrenAm = eintrag.erfahrenAm?.slice(0, 10) ?? eintrag.validFrom?.slice(0, 10) ?? '';
+    qstSetLocked(eintrag);
     const korr = saved.korrekturen;
     if (korr && korr.anzahl > 0) {
         const richtung = korr.totalDifferenz > 0 ? 'Nachbelastung' : 'Erstattung';
@@ -1280,15 +1324,10 @@ async function saveQstEntry() {
         resultEl.innerHTML = '<span style="color:#16a34a">✓ Gespeichert</span>';
     }
     await loadQstHistory(qstCurrentEmployeeId);
-    // Tab im Hintergrund aktualisieren
     if (typeof loadQuellensteuerTab === 'function' && qstCurrentEmployeeId)
         loadQuellensteuerTab(qstCurrentEmployeeId);
-    // Offenen Lohnzettel neu rechnen (sonst QST-Änderung erst nach Seitenwechsel sichtbar)
-    if (typeof reloadLohnAfterQstChange === 'function' && qstCurrentEmployeeId) {
+    if (typeof reloadLohnAfterQstChange === 'function' && qstCurrentEmployeeId)
         reloadLohnAfterQstChange(qstCurrentEmployeeId);
-    }
-    // Modal nach kurzer Erfolgsmeldung automatisch schließen — bei
-    // Korrektur-Posten offen lassen, damit HR die Zusammenfassung liest.
     if (!(korr && korr.anzahl > 0)) {
         setTimeout(() => {
             if (typeof closeQstModal === 'function') closeQstModal();

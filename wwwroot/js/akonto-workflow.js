@@ -318,9 +318,10 @@ function _akWfUpdateModeButtons() {
 function akWfOnPageOrBranchChange() {
     if (_akWfMode === 'akonto' && !akontoAktivFuerFiliale()) _akWfMode = 'definitiv';
     _akWfUpdateModeButtons();
-    // Bei Page-Open / Filial-Wechsel: auf älteste offene Periode springen
-    // (Walter-Vorgabe 16.05.2026 — keine Lücken). Asynchron, blockiert nichts.
-    setTimeout(() => lohnSyncToOldestOpen(/*autoJump*/ true), 50);
+    // Banner zur ältesten Lücke aktualisieren — aber NICHT mehr hart dorthin
+    // springen (Walter 15.09.2026: Default ist die nächste Periode nach der
+    // letzten abgeschlossenen, gesetzt in setDefaultLohnPeriode).
+    setTimeout(() => lohnSyncToOldestOpen(/*autoJump*/ false), 50);
     if (_akWfMode === 'akonto') akWfRefresh();
     _checkDefinitivLock();
 }
@@ -350,14 +351,35 @@ function _akWfInstallPeriodListeners() {
 
 // ── Sequenz-Banner + Auto-Sprung auf älteste offene Periode ────────────────
 // Holt von /api/akonto/workflow/oldest-open-period die älteste noch nicht
-// komplett abgeschlossene Periode der Filiale. Bei autoJump=true (Page-Open
-// oder Filial-Wechsel) wird die Auswahl automatisch dorthin gesetzt. Sonst
-// (User hat manuell gewechselt) nur Banner aktualisieren — Walter kann
-// bewusst eine spätere Periode anschauen, Aktionen werden vom Backend aber
-// blockiert.
+// komplett abgeschlossene Periode der Filiale. autoJump bleibt für den
+// Banner-Knopf «→ Zu …»; Filialwechsel springt nicht mehr automatisch in
+// die Lücke (Default setzt setDefaultLohnPeriode). Manuell eine spätere
+// Periode anschauen bleibt erlaubt — Aktionen blockiert das Backend.
 let _lohnSyncInFlight = false;
-async function lohnSyncToOldestOpen(autoJump) {
-    if (_lohnSyncInFlight) return;
+let _lohnSyncQueued = undefined;
+let _lohnOldestOpen = null; // { year, month } — letzte Antwort oldest-open-period
+let _lohnViewYear = null;   // tatsächlich geladene Lohnperiode (nicht nur Select)
+let _lohnViewMonth = null;
+
+function _lohnYmRef(year, month) {
+    return Number(year) * 12 + Number(month);
+}
+
+function _lohnHideSequenceIfOnOldest(year, month) {
+    const banner = document.getElementById('lohnSequenceBanner');
+    if (!banner || !_lohnOldestOpen || !year || !month) return false;
+    if (_lohnYmRef(year, month) <= _lohnYmRef(_lohnOldestOpen.year, _lohnOldestOpen.month)) {
+        banner.style.display = 'none';
+        return true;
+    }
+    return false;
+}
+
+async function lohnSyncToOldestOpen(autoJump, yearHint, monthHint) {
+    if (_lohnSyncInFlight) {
+        _lohnSyncQueued = { autoJump: !!autoJump || !!(_lohnSyncQueued && _lohnSyncQueued.autoJump), yearHint, monthHint };
+        return;
+    }
     _lohnSyncInFlight = true;
     try {
         const branchId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
@@ -368,8 +390,8 @@ async function lohnSyncToOldestOpen(autoJump) {
 
         let oldest = null;
         try {
-            const r = await fetch(`/api/akonto/workflow/oldest-open-period?companyProfileId=${branchId}`,
-                                  { headers: ah() });
+            const r = await fetch(`/api/akonto/workflow/oldest-open-period?companyProfileId=${branchId}&_=${Date.now()}`,
+                                  { headers: ah(), cache: 'no-store' });
             if (r.ok) {
                 const txt = await r.text();
                 if (txt && txt.trim() && txt.trim() !== 'null') oldest = JSON.parse(txt);
@@ -377,10 +399,11 @@ async function lohnSyncToOldestOpen(autoJump) {
         } catch {}
 
         if (!oldest) {
-            // Alles abgeschlossen oder keine Periode → kein Banner.
+            _lohnOldestOpen = null;
             banner.style.display = 'none';
             return;
         }
+        _lohnOldestOpen = { year: Number(oldest.year), month: Number(oldest.month) };
 
         const yInp = document.getElementById('lohnYearSelect');
         const mInp = document.getElementById('lohnMonthSelect');
@@ -399,53 +422,68 @@ async function lohnSyncToOldestOpen(autoJump) {
         if (!akFertig) offen.push('Akonto');
         if (oldest.definitivStatus !== 'abgeschlossen') offen.push('Definitivlauf');
 
-        const curY = parseInt(yInp.value, 10) || 0;
-        const curM = parseInt(mInp.value, 10) || 0;
-        const curRef    = curY * 12 + curM;
-        const oldestRef = oldest.year * 12 + oldest.month;
+        const curY = Number(yearHint) || _lohnViewYear || parseInt(yInp.value, 10) || 0;
+        const curM = Number(monthHint) || _lohnViewMonth || parseInt(mInp.value, 10) || 0;
+        const curRef    = _lohnYmRef(curY, curM);
+        const oldestRef = _lohnYmRef(oldest.year, oldest.month);
 
         if (autoJump && curRef !== oldestRef) {
-            // Hart auf älteste offene springen — verhindert dass Walter eine
-            // spätere Periode aus Versehen wählt.
-            yInp.value = String(oldest.year);
-            mInp.value = String(oldest.month);
-            // Andere Listener (existing loadLohnSlipFromPanel + meine im
-            // mode=akonto) feuern bei dispatchEvent — Banner-Update via
-            // erneutem lohnSyncToOldestOpen kommt von dort.
-            _lohnSyncInFlight = false;   // freigeben damit Re-Entry möglich
-            mInp.dispatchEvent(new Event('change'));
+            _lohnApplyPeriodSelect(oldest.year, oldest.month);
+            _lohnSyncInFlight = false;
+            mInp.dispatchEvent(new Event('change', { bubbles: true }));
             return;
         }
 
         if (curRef > oldestRef) {
-            // User hat eine spätere Periode gewählt — Banner-Warnung.
             banner.style.display = '';
             banner.innerHTML = `
                 <div style="padding:12px 16px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;display:flex;align-items:center;gap:12px;font-size:13px;color:#78350f">
                     <span style="font-size:18px">⚠</span>
                     <div style="flex:1">
-                        <b>Periode ${months[oldest.month]} ${oldest.year}</b> ist noch nicht abgeschlossen
+                        <b>Periode ${months[Number(oldest.month)]} ${oldest.year}</b> ist noch nicht abgeschlossen
                         (${offen.join(' + ')} steht aus). Aktionen in späteren Perioden werden vom System
                         blockiert — bitte zuerst diese Periode fertigstellen.
                     </div>
-                    <button class="btn btn-outline" onclick="lohnJumpToOldestOpen(${oldest.year},${oldest.month})">→ Zu ${months[oldest.month]} ${oldest.year}</button>
+                    <button class="btn btn-outline" onclick="lohnJumpToOldestOpen(${Number(oldest.year)},${Number(oldest.month)})">→ Zu ${months[Number(oldest.month)]} ${oldest.year}</button>
                 </div>`;
         } else {
-            // Aktuelle = älteste offene → kein Banner nötig.
+            // Aktuelle Periode = die offene (oder davor) → Leiste weg.
             banner.style.display = 'none';
         }
     } finally {
         _lohnSyncInFlight = false;
+        if (_lohnSyncQueued !== undefined) {
+            const again = _lohnSyncQueued;
+            _lohnSyncQueued = undefined;
+            lohnSyncToOldestOpen(again.autoJump, again.yearHint, again.monthHint);
+        }
     }
+}
+
+function _lohnApplyPeriodSelect(year, month) {
+    const yInp = document.getElementById('lohnYearSelect');
+    const mInp = document.getElementById('lohnMonthSelect');
+    if (!yInp || !mInp) return;
+    yInp.value = String(year);
+    mInp.value = String(month);
+    if (typeof yInp._lqRefresh === 'function') yInp._lqRefresh();
+    if (typeof mInp._lqRefresh === 'function') mInp._lqRefresh();
 }
 
 function lohnJumpToOldestOpen(year, month) {
     const yInp = document.getElementById('lohnYearSelect');
     const mInp = document.getElementById('lohnMonthSelect');
     if (!yInp || !mInp) return;
-    yInp.value = String(year);
-    mInp.value = String(month);
-    mInp.dispatchEvent(new Event('change'));
+    year = Number(year);
+    month = Number(month);
+    _lohnViewYear = year;
+    _lohnViewMonth = month;
+    const banner = document.getElementById('lohnSequenceBanner');
+    if (banner) banner.style.display = 'none';
+    const already = parseInt(yInp.value, 10) === year && parseInt(mInp.value, 10) === month;
+    if (already) return;
+    _lohnApplyPeriodSelect(year, month);
+    mInp.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 // ── Hauptlader: holt /status, rendert Statusbar + MA-Liste ────────────────

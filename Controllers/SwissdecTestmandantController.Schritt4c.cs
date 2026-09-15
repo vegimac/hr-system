@@ -416,7 +416,7 @@ public partial class SwissdecTestmandantController
                         var q = eintraege.FirstOrDefault(x => x.ValidFrom == ab);
                         if (q == null)
                         {
-                            q = new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = ab, CreatedAt = DateTime.Now };
+                            q = new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = ab, ErfahrenAm = tag1, CreatedAt = DateTime.Now };
                             if (letzter != null)
                             {
                                 q.Steuerkanton = letzter.Steuerkanton; q.SteuerkantonName = letzter.SteuerkantonName; q.QstGemeinde = letzter.QstGemeinde; q.QstGemeindeBfsNr = letzter.QstGemeindeBfsNr;
@@ -431,6 +431,7 @@ public partial class SwissdecTestmandantController
                             _db.EmployeeQuellensteuer.Add(q);
                             foreach (var alt in eintraege.Where(x => x.ValidFrom < ab && (x.ValidTo == null || x.ValidTo >= ab))) alt.ValidTo = ab.AddDays(-1);
                         }
+                        q.ErfahrenAm = tag1;
                         if (code != null)
                         {
                             var m = System.Text.RegularExpressions.Regex.Match(code, @"^([A-Z]{1,2})(\d)([YN])$");

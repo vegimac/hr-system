@@ -289,6 +289,7 @@ public partial class SwissdecTestmandantController
                 {
                     var q = await _db.EmployeeQuellensteuer.FirstOrDefaultAsync(x => x.EmployeeId == emp.Id && x.ValidFrom == tasAb)
                          ?? new EmployeeQuellensteuer { EmployeeId = emp.Id, ValidFrom = tasAb, CreatedAt = DateTime.Now };
+                    q.ErfahrenAm = tasAb;
                     q.Steuerkanton = tasKt; q.QstCode = tasCode;
                     q.TarifCode = m.Success ? m.Groups[1].Value : null;
                     q.AnzahlKinder = m.Success ? int.Parse(m.Groups[2].Value) : 0;

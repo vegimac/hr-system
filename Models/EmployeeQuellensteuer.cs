@@ -16,6 +16,13 @@ public class EmployeeQuellensteuer
     public DateOnly ValidFrom { get; set; }
     public DateOnly? ValidTo  { get; set; }
 
+    /// <summary>
+    /// Ab wann wir diesen Tarif kennen (Walter 15.09.2026). Wirkung bleibt
+    /// <see cref="ValidFrom"/>; der Lohnlauf vor diesem Datum behält den
+    /// alten Code. NULL = gleich wie ValidFrom (Altbestand).
+    /// </summary>
+    public DateOnly? ErfahrenAm { get; set; }
+
     // ── Berechnung ──────────────────────────────────────────────────────────
     /// <summary>Kürzel des Steuerkantons, z.B. "LU", "ZH", "BE"</summary>
     public string? Steuerkanton { get; set; }

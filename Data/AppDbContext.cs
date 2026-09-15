@@ -2726,6 +2726,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.HerleitungJson).HasColumnName("herleitung_json").HasColumnType("jsonb");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
             entity.Property(e => e.Steuerkanton).HasColumnName("steuerkanton").HasMaxLength(10);
             entity.Property(e => e.SteuerkantonName).HasColumnName("steuerkanton_name").HasMaxLength(100);
             entity.Property(e => e.QstGemeinde).HasColumnName("qst_gemeinde").HasMaxLength(100);

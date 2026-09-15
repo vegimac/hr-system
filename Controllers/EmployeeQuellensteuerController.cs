@@ -99,6 +99,7 @@ public class EmployeeQuellensteuerController : ControllerBase
         q.Id, q.EmployeeId,
         validFrom = q.ValidFrom.ToString("yyyy-MM-dd"),
         validTo   = q.ValidTo?.ToString("yyyy-MM-dd"),
+        erfahrenAm = (q.ErfahrenAm ?? q.ValidFrom).ToString("yyyy-MM-dd"),
         q.Steuerkanton, q.SteuerkantonName,
         q.QstGemeinde, q.QstGemeindeBfsNr,
         q.TarifvorschlagQst, q.TarifCode, q.TarifBezeichnung,
@@ -400,11 +401,21 @@ public class EmployeeQuellensteuerController : ControllerBase
         // statt Dublette (Walter-Vorgabe 19.08.2026, Fall Gazale: 2× «1.9. bis …»):
         // alle Versionen mit identischem Startdatum entfernen — der neue Eintrag
         // ersetzt sie. Der Soft-Lock oben schützt bereits abgerechnete Perioden.
+        var verwendetInPre = await GetAbgeschlosseneLohnMonateAsync(employeeId);
         var gleicheStart = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId && q.ValidFrom == dto.ValidFrom)
             .ToListAsync();
         if (gleicheStart.Count > 0)
+        {
+            if (gleicheStart.Any(q => IstVersionVerwendet(q, verwendetInPre)))
+                return Conflict(new
+                {
+                    error   = "QST_ERFahren_NUTZEN",
+                    message = "Es gibt bereits eine QST-Version mit diesem «Gültig ab», die in abgeschlossenen Löhnen verwendet wurde. "
+                            + "Bitte dort «Erfahren am» nachtragen — der Tarif bleibt eingefroren, die Korrektur läuft automatisch."
+                });
             _db.EmployeeQuellensteuer.RemoveRange(gleicheStart);
+        }
 
         // ANDERES (späteres) Gültig-ab → vorherigen offenen Eintrag abschliessen
         // (ValidTo = neues Gültig-ab − 1 Tag)
@@ -420,6 +431,14 @@ public class EmployeeQuellensteuerController : ControllerBase
         dto.EmployeeId = employeeId;
         dto.CreatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
         dto.UpdatedAt  = dto.CreatedAt;
+        if (!dto.ErfahrenAm.HasValue)
+            dto.ErfahrenAm = dto.ValidFrom;
+        if (dto.ErfahrenAm.Value < dto.ValidFrom)
+            return BadRequest(new
+            {
+                error   = "ERFahren_VOR_WIRKUNG",
+                message = "«Erfahren am» darf nicht vor «Gültig ab» liegen."
+            });
         // ValidTo NIE vom Client (Walter 12.08.2026): ein QST-Enddatum
         // entsteht nur systemisch (Folge-Eintrag kappt den Vorgänger,
         // Umzug/Kantonswechsel, Bewilligungswechsel/Befreiung).
@@ -492,13 +511,18 @@ public class EmployeeQuellensteuerController : ControllerBase
         _db.EmployeeQuellensteuer.Add(dto);
         await _db.SaveChangesAsync();
 
-        // K1: bei rückwirkender Erfassung die Korrektur-Posten rechnen.
+        // K1 + Wissens-Achse: Korrektur-Posten für abgeschlossene Monate,
+        // in denen der alte Code noch auf dem Beleg stand.
         object? korrekturen = null;
-        if (istRueckwirkend)
+        var wissensVerzoegerung = QstVersionWahl.LetzterUnbekannterMonat(dto) != null;
+        if (istRueckwirkend || wissensVerzoegerung)
         {
             var actor = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
                         ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            var erg = await _korrektur.ErzeugeKorrekturenAsync(dto, korrekturGrund!.Trim(), actor);
+            var grund = !string.IsNullOrWhiteSpace(korrekturGrund)
+                ? korrekturGrund!.Trim()
+                : $"Gültig ab {dto.ValidFrom:dd.MM.yyyy}, erfahren am {QstVersionWahl.BekanntAb(dto):dd.MM.yyyy}";
+            var erg = await _korrektur.ErzeugeKorrekturenAsync(dto, grund, actor);
             korrekturen = new
             {
                 anzahl = erg.Anzahl,
@@ -510,6 +534,64 @@ public class EmployeeQuellensteuerController : ControllerBase
 
         var result = MapToDto(dto, firstAllowed);
         return Ok(new { eintrag = result, korrekturen });
+    }
+
+    public sealed class ErfahrenAmDto { public DateOnly ErfahrenAm { get; set; } }
+
+    /// <summary>
+    /// «Erfahren am» nachtragen — auch wenn die Version schon in abgeschlossenen
+    /// Löhnen stand (Walter 15.09.2026). Der Tarif bleibt eingefroren; ab dem
+    /// Wissensdatum gilt er im Lohnlauf, davor per qst_korrektur.
+    /// </summary>
+    [HttpPatch("{id:int}/erfahren-am")]
+    public async Task<IActionResult> PatchErfahrenAm(int employeeId, int id, [FromBody] ErfahrenAmDto dto)
+    {
+        var entry = await _db.EmployeeQuellensteuer
+            .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
+        if (entry is null) return NotFound();
+        if (entry.ValidTo != null)
+            return Conflict(new
+            {
+                error   = "QST_ABGESCHLOSSEN",
+                message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist Historie — «Erfahren am» nicht mehr änderbar."
+            });
+        if (dto.ErfahrenAm < entry.ValidFrom)
+            return BadRequest(new
+            {
+                error   = "ERFahren_VOR_WIRKUNG",
+                message = "«Erfahren am» darf nicht vor «Gültig ab» liegen."
+            });
+
+        var alt = QstVersionWahl.BekanntAb(entry);
+        if (dto.ErfahrenAm == alt)
+        {
+            var firstAllowed0 = await GetQstFirstAllowedAsync(await GetEmployeeBranchAsync(employeeId));
+            var verw0 = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+            return Ok(new { eintrag = MapToDto(entry, firstAllowed0, verw0), korrekturen = (object?)null });
+        }
+
+        entry.ErfahrenAm = dto.ErfahrenAm;
+        entry.UpdatedAt  = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Unspecified);
+        await _db.SaveChangesAsync();
+
+        var actor = User.FindFirst(ClaimTypes.Name)?.Value
+                    ?? User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var grund = $"«Erfahren am» nachgetragen: {alt:dd.MM.yyyy} → {dto.ErfahrenAm:dd.MM.yyyy}";
+        var erg   = await _korrektur.ErzeugeKorrekturenAsync(entry, grund, actor);
+        var branchId     = await GetEmployeeBranchAsync(employeeId);
+        var firstAllowed = await GetQstFirstAllowedAsync(branchId);
+        var verwendetIn  = await GetAbgeschlosseneLohnMonateAsync(employeeId);
+        return Ok(new
+        {
+            eintrag = MapToDto(entry, firstAllowed, verwendetIn),
+            korrekturen = new
+            {
+                anzahl = erg.Anzahl,
+                totalDifferenz = erg.TotalDifferenz,
+                vorjahr = erg.Vorjahr,
+                posten = erg.Posten
+            }
+        });
     }
 
     // PUT /api/employees/{employeeId}/quellensteuer/{id}
@@ -583,7 +665,7 @@ public class EmployeeQuellensteuerController : ControllerBase
             {
                 error            = "LOHN_EDIT_LOCKED",
                 message          = $"Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet (bis {bis:MM.yyyy}) und ist eingefroren. " +
-                                   "Änderungen laufen über eine NEUE Version — rückwirkend via Korrektur-Grund (die Differenzen werden automatisch als QST-Korrektur verrechnet).",
+                                   "«Erfahren am» kann noch nachgetragen werden (Wissensdatum); sonst neue Version mit Korrektur-Grund.",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
         }

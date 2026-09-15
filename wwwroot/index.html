@@ -9251,12 +9251,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260912b"></script>
+<script src="js/akonto-workflow.js?v=20260915c"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/branches-detail.js?v=20260910b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
-<script src="js/qst-modal.js?v=20260911a"></script>
+<script src="js/qst-modal.js?v=20260915b"></script>
 <script src="js/users.js?v=20260911a"></script>
 <script src="js/contracts-page.js?v=20260802a"></script>
 <script src="js/documents.js?v=20260908d"></script>
@@ -9271,7 +9271,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260913a"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260915d"></script>
+<script src="js/payroll.js?v=20260915i"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
@@ -10183,10 +10183,15 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  «seit» und Konfession sind NUR ANZEIGE — alles kommt aus den
                  MA-Informationen (Pflege in easy@work bzw. in der MA-Maske).
                  qstReligion bleibt unsichtbarer Datenträger für die Herleitung. -->
-            <div style="display:grid;grid-template-columns:216px minmax(150px,200px) 170px minmax(180px,240px) 1fr;gap:7px 10px">
+            <div style="display:grid;grid-template-columns:216px 216px minmax(150px,200px) 170px minmax(180px,240px) 1fr;gap:7px 10px">
             <div>
                 <label class="qst-lbl">Gültig ab *</label>
                 <input type="date" id="qstValidFrom" class="qst-inp" style="max-width:170px">
+            </div>
+            <div>
+                <label class="qst-lbl">Erfahren am * <span class="qst-ro-hint" title="Ab wann wir den Tarif kannten — davor rechnet der Lohnlauf noch mit dem alten Code">Wissen</span></label>
+                <input type="date" id="qstErfahrenAm" class="qst-inp" style="max-width:170px"
+                       title="Ab wann wir den Tarif kannten. Liegt das nach «Gültig ab», werden abgeschlossene Zwischenmonate per QST-Korrektur nachgezogen.">
             </div>
             <div>
                 <label class="qst-lbl">Zivilstand <span class="qst-ro-hint">am Gültig-ab</span>
@@ -10534,6 +10539,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
    alles ausser der Aktions-Zeile (Abbrechen) wird unklickbar + grau. */
 #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea,button,label) { pointer-events:none !important; }
 #qstModal .qst-locked > div:not(.qst-actions) :is(input,select,textarea) { background:#efece6 !important; color:#646464 !important; box-shadow:none !important; }
+#qstModal .qst-wissens-lock > div:not(.qst-actions) :is(input,select,textarea,button,label) { pointer-events:none !important; }
+#qstModal .qst-wissens-lock > div:not(.qst-actions) :is(input,select,textarea) { background:#efece6 !important; color:#646464 !important; box-shadow:none !important; }
+#qstModal .qst-wissens-lock #qstErfahrenAm { pointer-events:auto !important; background:#fff !important; color:#3f3f3f !important; box-shadow:0 2px 6px rgba(60,55,48,0.13), inset 0 1px 0 rgba(255,255,255,0.9) !important; }
 #qstModal .qst-ro-hint { font-weight:400; font-size:8.5px; color:#94a3b8; letter-spacing:0; text-transform:none; }
 /* Inline-Stammzeile (Walter 29.08.2026): alle Felder der Gültigkeits-Zeile
    auf EINE Höhe — Datumsfelder, Read-only-Pillen und der Liquid-Select-

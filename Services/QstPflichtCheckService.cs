@@ -360,8 +360,16 @@ public class QstPflichtCheckService
         // verheiratet, MÜSSEN die Ehepartner-Angaben komplett sein — sie
         // entscheiden über Befreiung (CH/C) und Tarif B vs. C. Fehlt etwas,
         // blockt der Lohnlauf mit 409 QST_PARTNER_DATEN_FEHLEN.
+        // KS 45 (Walter 15.09.2026, Fall Bolletto): Tarif und Partner-Pflicht
+        // gelten am Monatsanfang. Heirat am 26.3. → März bleibt A0N, Partner-
+        // Angaben erst ab dem Folgemonat Pflicht. Ohne Heiratsdatum bleibt
+        // die Pflicht sofort (wie bei der Ehegatten-Befreiung).
+        DateOnly? qstEheWirksamAb = maritalSince.HasValue
+            ? new DateOnly(maritalSince.Value.Year, maritalSince.Value.Month, 1).AddMonths(1)
+            : null;
+        bool qstEheNochNichtWirksam = qstEheWirksamAb.HasValue && stichtag < qstEheWirksamAb.Value;
         List<string>? partnerMaengel = null;
-        if (verheiratetUngetrennt)
+        if (verheiratetUngetrennt && !qstEheNochNichtWirksam)
         {
             partnerMaengel = new List<string>();
             if (spouse == null)
@@ -406,13 +414,10 @@ public class QstPflichtCheckService
         bool partnerFehlen = partnerMaengel != null;
 
         // ── MA ist QST-pflichtig. Gibt es eine Erfassung am Stichtag? ──
-        var erfassung = await _db.EmployeeQuellensteuer
-            .Where(q => q.EmployeeId == employeeId
-                     && q.ValidFrom <= stichtag
-                     && (q.ValidTo == null || q.ValidTo >= stichtag))
-            .OrderByDescending(q => q.ValidFrom)
-            .ThenByDescending(q => q.Id)
-            .FirstOrDefaultAsync();
+        var erfassungAlle = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= stichtag)
+            .ToListAsync();
+        var erfassung = QstVersionWahl.Waehle(erfassungAlle, stichtag);
         bool hasErfassung = erfassung != null;
 
         // ── Tarif-Plausibilität (Walter-Vorgabe 20.08.2026, nur WARNUNGEN) ──

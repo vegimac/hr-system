@@ -1224,12 +1224,10 @@ public class PayrollController : HrControllerBase
 
         // Diagnostik analog Engine: Überlappung mit der Periode (nicht nur am 1.)
         var periodTo = periodFrom.AddMonths(1).AddDays(-1);
-        var qst = await _db.EmployeeQuellensteuer
-            .Where(q => q.EmployeeId == employeeId
-                     && q.ValidFrom <= periodTo
-                     && (q.ValidTo == null || q.ValidTo >= periodFrom))
-            .OrderByDescending(q => q.ValidFrom)
-            .FirstOrDefaultAsync();
+        var qstAlle = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= periodTo)
+            .ToListAsync();
+        var qst = QstVersionWahl.Waehle(qstAlle, periodTo);
 
         bool isQuellensteuer = !behoerdenBefreit
             && ((!isSchweizer && !bereitsBefreit) || qst != null);

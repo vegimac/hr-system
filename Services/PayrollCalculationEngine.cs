@@ -32,6 +32,7 @@ public class PayrollCalculationEngine
     private readonly UniformDepotService _uniformDepot;
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly QstPflichtCheckService _qstCheck;
+    private readonly QstKorrekturService _qstKorrektur;
 
     public PayrollCalculationEngine(
         AppDbContext db,
@@ -41,7 +42,8 @@ public class PayrollCalculationEngine
         LgavBeitragService lgav,
         UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
-        QstPflichtCheckService qstCheck)
+        QstPflichtCheckService qstCheck,
+        QstKorrekturService qstKorrektur)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -51,6 +53,7 @@ public class PayrollCalculationEngine
         _uniformDepot   = uniformDepot;
         _ferienKuerzung = ferienKuerzung;
         _qstCheck       = qstCheck;
+        _qstKorrektur   = qstKorrektur;
     }
 
     public async Task<IActionResult> CalculateAsync(
@@ -179,6 +182,11 @@ public class PayrollCalculationEngine
         // Lohnlauf (Meldung an die Steuerverwaltung, Kap. 3 Konzept).
         // Positenwahl bewusst über ALLE Filialen (ein Arbeitgeber); die
         // Markierung VERRECHNET passiert erst in ConfirmPayroll (atomar).
+        //
+        // Wissens-Achse (Walter 15.09.2026): Versionen mit «Erfahren am» in
+        // diesem Monat materialisieren hier fehlende K1-Posten (z.B. 4c hat
+        // die Version schon angelegt, die Vormonate waren damals noch offen).
+        await _qstKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
         decimal qstKorrBetrag = 0m;
         string? qstKorrLabel  = null;
         {
@@ -424,12 +432,10 @@ public class PayrollCalculationEngine
             // Überlappung mit der Lohnperiode (nicht nur gültig am 1.):
             // ValidFrom 2.7. muss im Juli-Lauf greifen (Walter 02.08.2026,
             // Ana Petkovic 580104 — sonst keine QST-Zeile trotz Erfassung).
-            qstEinstellung = await _db.EmployeeQuellensteuer
-                .Where(q => q.EmployeeId == employeeId
-                         && q.ValidFrom <= periodTo
-                         && (q.ValidTo == null || q.ValidTo >= periodFrom))
-                .OrderByDescending(q => q.ValidFrom)
-                .FirstOrDefaultAsync();
+            var qstAlle = await _db.EmployeeQuellensteuer
+                .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= periodTo)
+                .ToListAsync();
+            qstEinstellung = QstVersionWahl.Waehle(qstAlle, periodTo);
         }
 
         // QST rechnen wenn der Service sagt „pflichtig" UND ein Tarif erfasst ist.

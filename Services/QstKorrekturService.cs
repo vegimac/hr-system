@@ -42,7 +42,16 @@ public class QstKorrekturService
         CancellationToken ct = default)
     {
         var vonMonat = new DateOnly(neueVersion.ValidFrom.Year, neueVersion.ValidFrom.Month, 1);
-        var bisWirkung = neueVersion.ValidTo; // meist null (offen)
+        // Wissens-Achse (Walter 15.09.2026):
+        //  • Erfahren am NACH Gültig-ab → nur die Zwischenmonate (alter Code
+        //    stand noch auf dem Beleg; Verrechnung im Erfahrungsmonat).
+        //  • Sonst klassisch K1: alle abgeschlossenen Monate ab Gültig-ab
+        //    bis ValidTo (null = offen).
+        var letzterUnbekannt = QstVersionWahl.LetzterUnbekannterMonat(neueVersion);
+        DateOnly? bisMonat = letzterUnbekannt
+            ?? (neueVersion.ValidTo is { } vt
+                ? new DateOnly(vt.Year, vt.Month, 1)
+                : null);
 
         // Alle DEFINITIV abgeschlossenen Snapshots des MA im Wirkungsbereich
         var rows = await (from s in _db.PayrollSnapshots
@@ -61,7 +70,7 @@ public class QstKorrekturService
             {
                 var mStart = new DateOnly(r.Year, r.Month, 1);
                 if (mStart < vonMonat) return false;
-                if (bisWirkung.HasValue && mStart > new DateOnly(bisWirkung.Value.Year, bisWirkung.Value.Month, 1)) return false;
+                if (bisMonat.HasValue && mStart > bisMonat.Value) return false;
                 return true;
             })
             .OrderBy(r => r.Year).ThenBy(r => r.Month)
@@ -89,33 +98,36 @@ public class QstKorrekturService
             var (alterBetrag, basis, satzBasis) = LeseQstZeile(r.SlipJson);
             var effektivAlt = alterBetrag + bereitsVerrechnet;
 
-            // Damals gültige Version (für alter Code / Referenz)
-            var mStichtag = new DateOnly(r.Year, r.Month, 1);
-            var alteVersion = await _db.EmployeeQuellensteuer
-                .Where(q => q.EmployeeId == neueVersion.EmployeeId
-                            && q.Id != neueVersion.Id
-                            && q.ValidFrom <= mStichtag
-                            && (q.ValidTo == null || q.ValidTo >= mStichtag))
-                .OrderByDescending(q => q.ValidFrom)
-                .FirstOrDefaultAsync(ct);
+            // Soll-Tarif am Monatsende — inkl. Wissens-Achse (B0Y mit Erfahren
+            // ab Juni zählt im April noch nicht → A0Y).
+            var mStichtag = new DateOnly(r.Year, r.Month, 1).AddMonths(1).AddDays(-1);
+            var alleVersionen = await _db.EmployeeQuellensteuer
+                .Where(q => q.EmployeeId == neueVersion.EmployeeId)
+                .ToListAsync(ct);
+            var sollVersion = QstVersionWahl.Waehle(alleVersionen, mStichtag);
+            if (sollVersion == null) continue;
 
-            // Neue QST nachrechnen — auf derselben Basis wie damals.
+            // Code auf dem Beleg (Referenz — kann vom Soll abweichen).
+            var aufBelegVersion = QstVersionWahl.Waehle(
+                alleVersionen.Where(q => q.Id != neueVersion.Id), mStichtag);
+
+            // Soll-QST nachrechnen — auf derselben Basis wie damals.
             decimal neuerBetrag;
             var satzBasisEff = satzBasis
-                ?? Math.Max(basis, neueVersion.MindestlohnSatzbestimmung ?? 0m);
+                ?? Math.Max(basis, sollVersion.MindestlohnSatzbestimmung ?? 0m);
             if (satzBasisEff < basis) satzBasisEff = basis;
 
-            if (neueVersion.Prozentsatz.HasValue)
+            if (sollVersion.Prozentsatz.HasValue)
             {
-                neuerBetrag = Math.Round(basis * neueVersion.Prozentsatz.Value / 100m, 2);
+                neuerBetrag = Math.Round(basis * sollVersion.Prozentsatz.Value / 100m, 2);
             }
             else
             {
                 var calc = _tarifService.Berechne(
-                    neueVersion.Steuerkanton ?? "",
-                    neueVersion.TarifCode ?? "",
-                    neueVersion.AnzahlKinder,
-                    neueVersion.Kirchensteuer,
+                    sollVersion.Steuerkanton ?? "",
+                    sollVersion.TarifCode ?? "",
+                    sollVersion.AnzahlKinder,
+                    sollVersion.Kirchensteuer,
                     satzbestimmenderBruttoCHF: satzBasisEff,
                     istBruttoCHF: basis,
                     jahr: r.Year);
@@ -130,13 +142,13 @@ public class QstKorrekturService
             var status = r.Year < heute.Year ? "VORJAHR" : "OFFEN";
             if (status == "VORJAHR") vorjahrCount++;
 
-            string neuerCode = !string.IsNullOrWhiteSpace(neueVersion.TarifCode)
-                ? $"{neueVersion.TarifCode}{neueVersion.AnzahlKinder}{(neueVersion.Kirchensteuer ? 'Y' : 'N')}"
-                : (neueVersion.QstCode ?? "");
-            string? alterCode = alteVersion == null ? null
-                : (!string.IsNullOrWhiteSpace(alteVersion.TarifCode)
-                    ? $"{alteVersion.TarifCode}{alteVersion.AnzahlKinder}{(alteVersion.Kirchensteuer ? 'Y' : 'N')}"
-                    : alteVersion.QstCode);
+            string neuerCode = !string.IsNullOrWhiteSpace(sollVersion.TarifCode)
+                ? $"{sollVersion.TarifCode}{sollVersion.AnzahlKinder}{(sollVersion.Kirchensteuer ? 'Y' : 'N')}"
+                : (sollVersion.QstCode ?? "");
+            string? alterCode = aufBelegVersion == null ? null
+                : (!string.IsNullOrWhiteSpace(aufBelegVersion.TarifCode)
+                    ? $"{aufBelegVersion.TarifCode}{aufBelegVersion.AnzahlKinder}{(aufBelegVersion.Kirchensteuer ? 'Y' : 'N')}"
+                    : aufBelegVersion.QstCode);
 
             var k = new QstKorrektur
             {
@@ -144,7 +156,7 @@ public class QstKorrekturService
                 CompanyProfileId = r.CompanyProfileId,
                 Jahr = r.Year,
                 Monat = r.Month,
-                AlteVersionId = alteVersion?.Id,
+                AlteVersionId = aufBelegVersion?.Id,
                 NeueVersionId = neueVersion.Id,
                 AlterCode = alterCode,
                 NeuerCode = neuerCode,
@@ -170,6 +182,28 @@ public class QstKorrekturService
 
         await _db.SaveChangesAsync(ct);
         return new KorrekturErgebnis(posten.Count, Math.Round(totalDiff, 2), vorjahrCount, posten);
+    }
+
+    /// <summary>
+    /// Materialisiert fehlende K1-Posten für Versionen, deren «Erfahren am»
+    /// in diesem Lohnmonat (oder früher) liegt — z.B. Testmandant-4c hat die
+    /// Version schon angelegt, die Vormonate waren damals noch nicht
+    /// abgeschlossen. Idempotent (OFFEN/VORJAHR werden ersetzt).
+    /// </summary>
+    public async Task EnsureKorrekturenFuerLohnlaufAsync(
+        int employeeId, int year, int month, string? erfasstVon, CancellationToken ct = default)
+    {
+        var periodTo = new DateOnly(year, month, 1).AddMonths(1).AddDays(-1);
+        var versionen = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employeeId)
+            .ToListAsync(ct);
+        foreach (var v in versionen)
+        {
+            if (QstVersionWahl.LetzterUnbekannterMonat(v) == null) continue;
+            if (QstVersionWahl.BekanntAb(v) > periodTo) continue;
+            var grund = $"Gültig ab {v.ValidFrom:dd.MM.yyyy}, erfahren am {QstVersionWahl.BekanntAb(v):dd.MM.yyyy}";
+            await ErzeugeKorrekturenAsync(v, grund, erfasstVon, ct);
+        }
     }
 
     /// <summary>
