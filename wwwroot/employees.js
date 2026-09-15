@@ -4506,6 +4506,12 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
         const kirche   = e.kirchensteuer  ? 'mit Kirchensteuer' : 'ohne Kirchensteuer';
         const pct      = e.prozentsatz    ? ` · ${Number(e.prozentsatz).toFixed(2)} %` : '';
         const gemeinde = e.qstGemeinde    ? ` · ${e.qstGemeinde}` : '';
+        const eaIso    = (e.erfahrenAm || e.validFrom || '').toString().slice(0, 10);
+        const eaStr    = eaIso ? formatDate(eaIso) : '';
+        const eaSpaeter = eaIso && e.validFrom && eaIso.slice(0, 10) > String(e.validFrom).slice(0, 10);
+        const eaHtml   = eaStr
+            ? ` · erfahren ${eaStr}${eaSpaeter ? ' <span title="Wissensdatum nach Gültig-ab — Zwischenmonate per QST-Korrektur" style="color:#b45309;font-weight:600">(versetzt)</span>' : ''}`
+            : '';
 
         html += `
         <div class="emp-family-card" style="border-left:3px solid ${isCurrent ? '#1a1a1a' : '#e2e8f0'};margin-bottom:12px">
@@ -4516,7 +4522,7 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                         <span>${vonStr} bis ${bisStr}</span>
                     </div>
                     <div style="font-size:12px;color:#64748b;margin-top:3px">
-                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}
+                        Kanton <strong>${kanton}</strong> · Code ${codeHtml} · ${kinder} Kinder · ${kirche}${pct}${gemeinde}${eaHtml}
                         <!-- Walter 30.08.2026: Klartext-Erklärung zum Tarif.
                              Rein lokal aus der Tabelle qst_erklaerung — kein
                              externer Dienst, keine Daten nach draussen. -->
