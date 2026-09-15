@@ -549,12 +549,8 @@ public class EmployeeQuellensteuerController : ControllerBase
         var entry = await _db.EmployeeQuellensteuer
             .FirstOrDefaultAsync(q => q.Id == id && q.EmployeeId == employeeId);
         if (entry is null) return NotFound();
-        if (entry.ValidTo != null)
-            return Conflict(new
-            {
-                error   = "QST_ABGESCHLOSSEN",
-                message = $"Diese QST-Version ({entry.ValidFrom:dd.MM.yyyy} – {entry.ValidTo:dd.MM.yyyy}) ist Historie — «Erfahren am» nicht mehr änderbar."
-            });
+        // ValidTo blockiert den Tarif, nicht das Wissensdatum (Walter 15.09.2026,
+        // TF33 Châtelain: B0Y 01.04.–30.04. muss Erfahren am = 01.06. bekommen).
         if (dto.ErfahrenAm < entry.ValidFrom)
             return BadRequest(new
             {

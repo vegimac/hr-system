@@ -1000,31 +1000,31 @@ async function openQstEntry(id) {
     }
 }
 
-// Sperre: Historie (ValidTo) = komplett; in Lohn verwendet = Tarif eingefroren,
-// aber «Erfahren am» bleibt editierbar (Walter 15.09.2026, Wissens-Achse).
+// Tarif-Sperre (ValidTo oder in Lohn verwendet): alles eingefroren ausser
+// «Erfahren am» — Wissensdatum darf immer nachgetragen werden (Walter 15.09.2026).
 function qstSetLocked(entry) {
     const wrap   = document.getElementById('qstFormWrap');
     const banner = document.getElementById('qstLockBanner');
     const save   = document.getElementById('qstSaveBtn');
-    const histLocked = !!(entry && entry.validTo);
-    const wissensLock = !!(entry && entry.inLohnVerwendet && !entry.validTo);
-    window._qstEntryInLohnVerwendet = wissensLock;
+    const tarifFrozen = !!(entry && (entry.validTo || entry.inLohnVerwendet));
+    window._qstEntryInLohnVerwendet = tarifFrozen;
     window._qstOrigErfahrenAm = entry?.erfahrenAm?.slice(0, 10) ?? entry?.validFrom?.slice(0, 10) ?? '';
     if (wrap) {
-        wrap.classList.toggle('qst-locked', histLocked);
-        wrap.classList.toggle('qst-wissens-lock', wissensLock);
+        wrap.classList.remove('qst-locked');
+        wrap.classList.toggle('qst-wissens-lock', tarifFrozen);
     }
-    if (save) save.style.display = histLocked ? 'none' : '';
+    if (save) save.style.display = '';
     if (banner) {
-        if (histLocked) {
+        if (tarifFrozen) {
             banner.style.display = 'block';
-            banner.innerHTML = `🔒 Diese QST-Version ist abgeschlossen (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)}) und kann nicht mehr geändert werden.`;
-        } else if (wissensLock) {
-            banner.style.display = 'block';
-            const bis = entry.verwendetBis
-                ? `${entry.verwendetBis.slice(5, 7)}.${entry.verwendetBis.slice(0, 4)}`
-                : '…';
-            banner.innerHTML = `🔒 Tarif eingefroren (definitiv abgerechnet bis ${bis}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
+            if (entry.validTo) {
+                banner.innerHTML = `🔒 Tarif eingefroren (${qstFmtDe(entry.validFrom)} – ${qstFmtDe(entry.validTo)}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
+            } else {
+                const bis = entry.verwendetBis
+                    ? `${entry.verwendetBis.slice(5, 7)}.${entry.verwendetBis.slice(0, 4)}`
+                    : '…';
+                banner.innerHTML = `🔒 Tarif eingefroren (definitiv abgerechnet bis ${bis}) — «Erfahren am» kann noch nachgetragen werden; Korrektur der Zwischenmonate läuft automatisch im nächsten Lohnlauf.`;
+            }
         } else {
             banner.style.display = 'none';
         }
