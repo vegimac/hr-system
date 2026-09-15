@@ -1937,10 +1937,15 @@ function loadUebersichtTab() {
         // Punkt: offen/laufend = grün, beendet = grau (unabhängig von den Aktions-Buttons)
         const laufend = !_empContractIsEnded(c);
         const metaExtra = [pensum, lohn].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const filCode = empContractBranchCode(c);
+        const filHtml = filCode
+            ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`
+            : '';
         return `<div class="ov-vrow${laufend ? '' : ' archiv'}">
             <span class="ov-vdot${laufend ? ' g' : ''}"></span>
             <span class="emp-contract-model ${contractModelClass(c.employmentModel || '')}">${esc(modelDisplay(c.employmentModel || '–'))}</span>
             <span class="ov-vrole">${esc(c.jobTitle || c.jobGroupCode || 'Vertrag')}</span>
+            ${filHtml}
             <span class="ov-vmeta">${von} – ${bis}${metaExtra}</span>
 <!-- SMS-/Öffnungs-Status entfernt (Walter 10.08.2026): die Info lebt jetzt
      in der ONBOARDING-Auswertung im HR-Hub. loadOvVertragSms bleibt als
@@ -2084,10 +2089,15 @@ function renderEmpContractList(emp) {
             : `<span class="emp-contract-status active">aktiv</span>`;
         const actions = _empContractActionsHtml(emp, c, contracts);
         const metaExtra = [pensum, wage].filter(Boolean).map(t => ' · ' + esc(t)).join('');
+        const filCode = empContractBranchCode(c);
+        const filHtml = filCode
+            ? `<span class="ov-vfil" title="${esc(empContractBranchTitle(c))}">${esc(filCode)}</span>`
+            : '';
         return `<div class="emp-contract-row">
             <div class="emp-contract-main">
                 <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
+                ${filHtml}
                 ${active}
             </div>
             <div class="emp-contract-meta">${from} – ${to}${metaExtra}${c.probationEndDate ? ' · Probezeit bis ' + formatDate(c.probationEndDate) : ''}</div>
@@ -2111,6 +2121,25 @@ function contractModelClass(model) {
         FIX: 'model-badge-fix',
         'FIX-M': 'model-badge-fix-m'
     })[model] || '';
+}
+
+function empContractBranch(c) {
+    const id = c?.companyProfileId;
+    if (id == null || typeof allBranches === 'undefined') return null;
+    return allBranches.find(b => Number(b.id) === Number(id)) || null;
+}
+
+/** Restaurant-Code der Filiale am Vertrag (Walter 15.09.2026, Übertritts-Fälle). */
+function empContractBranchCode(c) {
+    return (empContractBranch(c)?.restaurantCode || '').trim();
+}
+
+function empContractBranchTitle(c) {
+    const b = empContractBranch(c);
+    if (!b) return '';
+    const code = (b.restaurantCode || '').trim();
+    const name = b.city || b.branchName || b.companyName || '';
+    return [code, name].filter(Boolean).join(' – ');
 }
 
 function empContractWageText(c) {
@@ -5384,6 +5413,8 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                     spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-permit" title="Bewilligung Ehepartner">📋 ${label}</span>`;
                 } else if (isCh) {
                     spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-ch" title="CH-Bürger — keine Bewilligung nötig">🇨🇭 CH-Bürger</span>`;
+                } else if (!fmPartnerGiltAlsInDerSchweiz(m)) {
+                    spousePermitBadge = `<span class="fam-tile-badge" title="Lebt nicht in der Schweiz — keine CH-Bewilligung nötig">🌍 Ausland</span>`;
                 } else {
                     spousePermitBadge = `<span class="fam-tile-badge fam-tile-badge-warn" title="Keine Bewilligung erfasst">⚠ Keine Bewilligung</span>`;
                 }
@@ -5408,7 +5439,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 if (m.erwerbstaetig === true) {
                     const agTxt = [m.arbeitgeberName, m.arbeitgeberOrt].filter(Boolean).join(', ');
                     spousePermitBadge += `<span class="fam-tile-badge" style="background:#dcfce7;color:#166534" title="Erwerbstätig${agTxt ? ' bei ' + esc(agTxt) : ''}">💼 erwerbstätig${agTxt ? ' · ' + esc(agTxt) : ''}</span>`;
-                    if (!m.arbeitgeberName && _partnerPflicht)
+                    if (!m.arbeitgeberName && _partnerPflicht && fmPartnerGiltAlsInDerSchweiz(m))
                         spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Arbeitgeber fehlt — blockt den Lohnlauf">⚠ Arbeitgeber fehlt</span>`;
                 } else if (m.erwerbstaetig === false) {
                     spousePermitBadge += `<span class="fam-tile-badge" title="Nicht erwerbstätig">nicht erwerbstätig</span>`;
@@ -5778,7 +5809,8 @@ function fmGetGemKind() {
     return r?.value === 'ja' ? true : r?.value === 'nein' ? false : null;
 }
 function fmErwerbChanged() {
-    // Arbeitgeber-Felder nur bei «Ja» aktiv — bei Nein/offen ausgegraut.
+    // CH-Arbeitgeber-Felder nur bei «Ja» UND Partner in der Schweiz.
+    // Im Ausland (inkl. gleicher Haushalt eines Auslands-MA) komplett weg.
     const aktiv = fmGetErwerb() === true;
     ['fmArbeitgeberName', 'fmArbeitgeberStrasse', 'fmArbeitgeberPlz',
      'fmArbeitgeberOrt', 'fmArbeitgeberKanton', 'fmStellenantritt'].forEach(id => {
@@ -5787,6 +5819,7 @@ function fmErwerbChanged() {
         el.disabled = !aktiv;
         el.style.opacity = aktiv ? '' : '0.5';
     });
+    fmSyncArbeitgeberSichtbarkeit();
     // Konkubinat (Walter 25.08.2026 v2): Einkommensfrage erst bei
     // «Erwerbstätig = Ja» einblenden — bei Nein greift automatisch H1.
     const einkRow = document.getElementById('fmEinkommenRow');
@@ -7092,14 +7125,16 @@ function openFamilyModal(member) {
 
     // Walter-Vorgabe 14.06.2026: NEUE Familienmitglieder (vor allem Kinder)
     // bekommen sinnvolle Defaults vom MA:
-    //   • Lebt in Schweiz   → JA  (Schweizer Familienzulagen-Logik)
+    //   • Lebt in Schweiz   → wie das Land des MA (CH = Ja, Ausland = Nein)
     //   • Nationalität      → wie MA (Mutter/Vater)
     //   • Bewilligung       → wie MA (Mutter/Vater)
     //   • QST ab/bis        → Geburtsdatum bis 18. Geburtstag (siehe fmAutoQstFromDob)
     // Bei bestehenden Einträgen wird der gespeicherte Wert übernommen.
     const _isNewMember = !member;
     document.getElementById('fmLivesInSwitzerland').checked =
-        _isNewMember ? true : (member?.livesInSwitzerland ?? false);
+        _isNewMember
+            ? fmIstLandSchweiz(selectedEmployee?.country)
+            : (member?.livesInSwitzerland ?? false);
     document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
     document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
 
@@ -7419,7 +7454,7 @@ async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
                         [a.zipCode, stripCityCantonSuffix(a.city)].filter(Boolean).join(' '),
                         a.country && a.country.toLowerCase() !== 'schweiz' ? a.country : null,
                     ].filter(Boolean).join(' · ');
-                    opt.textContent = summary || `Adresse #${a.id}`;
+                    opt.dataset.country = a.country || '';
                     select.appendChild(opt);
                 });
                 if (hintEl) {
@@ -7475,18 +7510,52 @@ async function fmRefreshAddressUi(currentAlternativeAddressId, lebtImHaushalt) {
     fmUpdateAuslandHint();
 }
 
-// Auslands-Partner-Hinweis (Walter 25.08.2026, Fall Flüchtlingsfamilien):
-// nur bei Ehepartner sichtbar, der NICHT im Haushalt lebt und dessen
-// «In der Schweiz lebend»-Häkchen leer ist — dann braucht er keine CH-
-// Bewilligung (Server lässt den Lohnlauf-Block entsprechend weg), aber die
-// Erwerbstätig-Frage bleibt tarif-relevant (Auslandseinkommen ⇒ Tarif C).
+// Auslands-Partner-Hinweis (Walter 25.08.2026, Fall Flüchtlingsfamilien;
+// erweitert 15.09.2026: gleicher Haushalt eines im Ausland wohnhaften MA
+// zählt ebenfalls als Ausland — dann kein CH-Arbeitgeber).
+function fmIstLandSchweiz(land) {
+    if (typeof efIstCHAdresse === 'function') return efIstCHAdresse(land ?? 'CH');
+    const l = String(land || 'CH').trim().toUpperCase();
+    return l === '' || l === 'CH' || l === 'SCHWEIZ';
+}
+
+/** Partner gilt für QST-Mängel (Bewilligung / CH-Arbeitgeber) als in der CH. */
+function fmPartnerGiltAlsInDerSchweiz(m) {
+    if (!m) return fmPartnerGiltAlsInDerSchweizAusFormular();
+    if (m.livesInSwitzerland === true) return true;
+    if (m.lebtImHaushalt) return fmIstLandSchweiz(selectedEmployee?.country);
+    return true;
+}
+
+function fmPartnerGiltAlsInDerSchweizAusFormular() {
+    if (document.getElementById('fmLivesInSwitzerland')?.checked) return true;
+    if (document.getElementById('fmAddrSameAsEmp')?.checked)
+        return fmIstLandSchweiz(selectedEmployee?.country);
+    if (document.getElementById('fmAddrAlt')?.checked
+        || document.getElementById('fmAddrSpouse')?.checked) {
+        const sel = document.getElementById('fmAlternativeAddressId');
+        const land = sel?.selectedOptions?.[0]?.dataset?.country;
+        if (land == null || land === '') return true;
+        return fmIstLandSchweiz(land);
+    }
+    return true;
+}
+
+function fmSyncArbeitgeberSichtbarkeit() {
+    const block = document.getElementById('fmArbeitgeberFelder');
+    if (!block) return;
+    const zeigen = fmGetErwerb() === true && fmPartnerGiltAlsInDerSchweizAusFormular();
+    block.style.display = zeigen ? '' : 'none';
+}
+
 function fmUpdateAuslandHint() {
     const hint = document.getElementById('fmAuslandHint');
     if (!hint) return;
-    const istEhepartner = (document.getElementById('fmMemberType')?.value || '') === 'Ehepartner';
-    const inCh   = document.getElementById('fmLivesInSwitzerland')?.checked;
-    const imHaus = document.getElementById('fmAddrSameAsEmp')?.checked;
-    hint.style.display = (istEhepartner && !inCh && !imHaus) ? '' : 'none';
+    const typ = document.getElementById('fmMemberType')?.value || '';
+    const istPartner = typ === 'Ehepartner' || typ === 'Konkubinatspartner';
+    const inCh = fmPartnerGiltAlsInDerSchweizAusFormular();
+    hint.style.display = (istPartner && !inCh) ? '' : 'none';
+    fmSyncArbeitgeberSichtbarkeit();
 }
 
 function fmAddrModeChanged() {

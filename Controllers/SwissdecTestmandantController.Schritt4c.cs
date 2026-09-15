@@ -32,7 +32,7 @@ public partial class SwissdecTestmandantController
         "PersonAdditionalPaymentAfterWithdrawal", "PersonTeleWorkPercentage",
         "PersonSplitCurrentYearIncome", "PersonSplitPreviousYearIncome", "PersonSplitPreviousYearPeriodFrom", "PersonSplitPreviousYearPeriodUntil",
         "PersonAdditionalDeliveryDate", "PersonTAXRectificateOriginalDate", "PersonTAXRectificateOriginalDocID", "PersonTAXRectificateRemark",
-        "PersonWaiveOfPensionDeduct", "PersonTAXTASPeriodForObjection",
+        "PersonTAXTASPeriodForObjection",
     };
     // Abgeleitete Hilfsfelder ohne eigene Bedeutung
     private static readonly HashSet<string> Ignorieren = new(StringComparer.OrdinalIgnoreCase)
@@ -354,6 +354,41 @@ public partial class SwissdecTestmandantController
                 if (!vorschau) await _db.SaveChangesAsync();
             }
 
+            // ── Verzicht auf AHV-Freibetrag 1'400 (Walter 15.09.2026, TF44 Lusser) ──
+            if (Hat("PersonWaiveOfPensionDeduct"))
+            {
+                var neu = V("PersonWaiveOfPensionDeduct");
+                var an = neu is "x" or "X" or "1" or "1.0" or "true" or "True";
+                felder["AHV-Freibetrag"] = an
+                    ? $"Verzicht auf Freibetrag 1'400 ab {tag1:dd.MM.yyyy}"
+                    : $"Verzicht auf Freibetrag endet {vortag:dd.MM.yyyy}";
+                if (!vorschau)
+                {
+                    var ahv = await _db.EmployeeVersicherungCodes
+                        .Where(v => v.EmployeeId == emp.Id && v.Art == EmployeeVersicherungCode.ArtAhv).ToListAsync();
+                    var aktuelle = ahv.Where(v => v.IstAhvFreibetragVerzicht && v.GiltAm(vortag)).ToList();
+                    foreach (var a in aktuelle)
+                        if (a.ValidFrom < tag1) a.ValidTo = vortag;
+                        else _db.EmployeeVersicherungCodes.Remove(a);
+                    foreach (var a in ahv.Where(v => v.IstAhvFreibetragVerzicht && v.ValidFrom == tag1))
+                        if (_db.Entry(a).State != EntityState.Deleted)
+                            _db.EmployeeVersicherungCodes.Remove(a);
+                    if (an)
+                    {
+                        _db.EmployeeVersicherungCodes.Add(new EmployeeVersicherungCode
+                        {
+                            EmployeeId = emp.Id,
+                            Art = EmployeeVersicherungCode.ArtAhv,
+                            Code = EmployeeVersicherungCode.CodeFreibetragVerzicht,
+                            ValidFrom = tag1,
+                            Bemerkung = "Swissdec-Testdaten Mutation",
+                            CreatedAt = DateTime.Now,
+                        });
+                    }
+                    await _db.SaveChangesAsync();
+                }
+            }
+
             // ── Quellensteuer: neuer Eintrag ab Datum ──
             var qstTags = new[] { "PersonTASCode", "PersonTASCodeValidAsOf", "PersonTASCanton", "PersonTASMunicipalityID", "PersonTASCalculationModel", "PersonTASTriggerOfChange", "PersonTASKindOfResidence", "PersonGrantTASCode", "PersonCrossborder", "PersonCrossborderPlaceOfBirth", "PersonCrossborderTaxID", "PersonCrossborderValidAsOf", "PersonOtherActivity", "PersonTotalOtherActivityRate" };
             if (qstTags.Any(Hat))
@@ -437,7 +472,8 @@ public partial class SwissdecTestmandantController
         or "PersonWithdrawalDate" or "PersonAgreedWeeklyHours" or "PersonActivityRateEmployer1" or "PersonContractMonthly" or "PersonContractHourly" or "PersonContractNoTimeConstraint"
         or "PersonContractNoTimeConstraintAnnualWage" or "PersonWorkplace" or "PersonCompanyWorkingTimeModel" or "PersonContractHourlyWagePaidByHour" or "PersonContractHourlyWagePaidByLesson"
         or "PersonHourlyLessonWage" or "PersonActivityRateUnsteady" or "PersonUVGLAACode" or "PersonUVGZLAACCode1" or "PersonUVGZLAACCode2" or "PersonKTGAMCCode1" or "PersonKTGAMCCode2"
-        or "PersonBVGLPPCode1" or "PersonBVGLPPInsured" or "PersonBVGLPPManuallyBase" or "PersonGrantTASCode" or "PersonOtherActivity" or "PersonTotalOtherActivityRate";
+        or "PersonBVGLPPCode1" or "PersonBVGLPPInsured" or "PersonBVGLPPManuallyBase" or "PersonGrantTASCode" or "PersonOtherActivity" or "PersonTotalOtherActivityRate"
+        or "PersonWaiveOfPensionDeduct";
 
     private static void WendeVertragAn(Employment v, Dictionary<string, string?> w, string modell, CompanyProfile? fil)
     {

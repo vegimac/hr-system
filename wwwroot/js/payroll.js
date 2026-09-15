@@ -2087,6 +2087,19 @@ function renderLohnSlip(s, targetEl) {
                 <tbody>${rows}</tbody>
             </table>`;
         })()}
+
+        ${(Array.isArray(s.bemerkungen) && s.bemerkungen.length) ? `
+        <table class="ls-table" style="margin-top:3px">
+            <thead>
+                <tr class="ls-col-hd">
+                    <th style="text-align:left">Bemerkung</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${s.bemerkungen.map(h => `
+                <tr><td class="ls-desc" style="font-style:italic;color:#57534e">${String(h).replace(/</g,'&lt;')}</td></tr>`).join('')}
+            </tbody>
+        </table>` : ''}
     </div>`;
 }
 
@@ -2117,7 +2130,7 @@ async function confirmLohn() {
             hint = 'Bitte im MA-Tab → Quellensteuer den höchsten Tarif erfassen oder die Behörden-Befreiung hinterlegen.';
         } else if (_lohnProb.problem === 'QST_PARTNER') {
             head = 'Bestätigen gesperrt — Ehepartner-Angaben unvollständig (QST).';
-            hint = 'Bitte im MA-Tab → Familie den Ehepartner vervollständigen (Nationalität, Bewilligung, erwerbstätig Ja/Nein, Arbeitgeber).';
+            hint = 'Bitte im MA-Tab → Familie den Ehepartner vervollständigen (Nationalität, erwerbstätig Ja/Nein; Bewilligung und Arbeitgeber nur, wenn der Partner in der Schweiz wohnt).';
         }
         alert(head + '\n\n' + (_lohnProb.message || 'Lohnproblem.') + '\n\n' + hint);
         return;

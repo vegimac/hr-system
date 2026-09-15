@@ -136,6 +136,7 @@ public class PayrollPdfService
                 {
                     fcol.Item().Element(e => RenderSaldiBlock(e, slip));
                     fcol.Item().PaddingTop(12).Element(e => RenderAuszahlungBlock(e, slip));
+                    RenderBelegBemerkungen(fcol, slip);
                     if (!string.IsNullOrWhiteSpace(footerText))
                     {
                         // ~3 Zeilen (9.5pt × 1.2 × 3 ≈ 34pt)
@@ -556,6 +557,30 @@ public class PayrollPdfService
         else c = c.AlignLeft();
         var span = c.Text(text ?? "").FontSize(8.5f);
         if (!string.IsNullOrEmpty(color)) span.FontColor(color);
+    }
+
+    /// <summary>
+    /// MA-spezifische Beleg-Bemerkungen (z.B. Verzicht AHV-Freibetrag).
+    /// Sitzt nach «Auszahlung an», vor dem Perioden-Footer-Text.
+    /// </summary>
+    private static void RenderBelegBemerkungen(ColumnDescriptor col, JsonElement slip)
+    {
+        var bemerkungen = TryGetArray(slip, "bemerkungen");
+        if (!bemerkungen.HasValue) return;
+        var texts = new List<string>();
+        foreach (var b in bemerkungen.Value.EnumerateArray())
+        {
+            if (b.ValueKind != JsonValueKind.String) continue;
+            var t = b.GetString();
+            if (!string.IsNullOrWhiteSpace(t)) texts.Add(t);
+        }
+        if (texts.Count == 0) return;
+        col.Item().PaddingTop(12).Column(c =>
+        {
+            c.Item().Text("Bemerkung").FontSize(8.5f);
+            foreach (var t in texts)
+                c.Item().PaddingTop(2).Text(t).FontSize(8.5f).Italic();
+        });
     }
 
     // ─── Cell-Helper ─────────────────────────────────────────────────

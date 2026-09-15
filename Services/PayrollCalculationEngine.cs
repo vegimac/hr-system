@@ -4834,6 +4834,9 @@ public class PayrollCalculationEngine
         if (eintraege.Any(e => e.IstAhvSonderfall))
             result.RemoveAll(r => r.CategoryCode is "AHV" or "ALV" or "ALVZ");
 
+        // Verzicht auf AHV-Freibetrag (Walter 15.09.2026, TF44 Lusser / AHVG Art. 6bis).
+        PayrollCalculations.WendeAhvFreibetragVerzichtAn(result, eintraege, ueberReferenzalter);
+
         var bvgFix = PayrollCalculations.WaehleBvgFix(eintraege);
         if (bvgFix != null && !ueberReferenzalter)
         {

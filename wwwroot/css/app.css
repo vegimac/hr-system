@@ -4863,6 +4863,12 @@
         .ov-vdot { width: 8px; height: 8px; border-radius: 50%; background: #b9b2a6; flex-shrink: 0; }
         .ov-vdot.g { background: #34a853; }
         .ov-vrole { font-size: 13px; font-weight: 750; color: #1a1a1a; white-space: nowrap; }
+        .ov-vfil {
+            flex-shrink: 0;
+            font-size: 11px; font-weight: 750; color: #3f3f3f; letter-spacing: 0.02em;
+            background: rgba(60,55,48,0.08); border: 1px solid rgba(60,55,48,0.18);
+            border-radius: 7px; padding: 1px 6px; line-height: 1.35;
+        }
         .ov-vmeta { font-size: 12.5px; font-weight: 600; color: #8b8b8b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .ov-drow {
             display: flex; align-items: center; gap: 10px;
@@ -5138,6 +5144,11 @@
         body.theme-dark .ov-fv { color: #f2f5f8; }
         body.theme-dark .ov-vrow, body.theme-dark .ov-drow { background: rgba(255,255,255,.05); border-color: rgba(122,145,165,.2); }
         body.theme-dark .ov-vrole, body.theme-dark .ov-dname { color: #f2f5f8; }
+        body.theme-dark .ov-vfil {
+            color: #e5e7eb;
+            background: rgba(255,255,255,.08);
+            border-color: rgba(122,145,165,.28);
+        }
         body.theme-dark .ov-jump { background: transparent; color: #94a3b8; }
         body.theme-dark .ov-tag.min { background: rgba(255,255,255,.08); }
         body.theme-dark .ov-tag.ok {
@@ -12616,3 +12627,39 @@ body.theme-dark .dokstruktur-docs a { color: #93c5fd; }
         @media (max-width: 900px) {
             .pb-sidebar { flex-basis: 220px; width: 220px; }
         }
+
+        /* AHV-Freibetrag-Verzicht: Wunsch-Maske (Walter 15.09.2026) */
+        .vc-wunsch-box { width: min(520px, calc(100vw - 40px)); }
+        .vc-wunsch-lead {
+            font-size: 13.5px; font-weight: 550; color: #5c574e; line-height: 1.45;
+            margin: 0 0 14px;
+        }
+        .vc-wunsch-cmp {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
+        }
+        .vc-wunsch-tile {
+            border-radius: 12px; padding: 12px 14px;
+            border: 1px solid rgba(60,55,48,0.18); background: transparent;
+        }
+        .vc-wunsch-tile.on {
+            border-color: #3f3f3f;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset;
+        }
+        .vc-wunsch-tile h4 {
+            margin: 0 0 5px; font-size: 10.5px; font-weight: 750;
+            letter-spacing: 0.06em; text-transform: uppercase; color: #8b8b8b;
+        }
+        .vc-wunsch-tile.on h4 { color: #3f3f3f; }
+        .vc-wunsch-tile p {
+            margin: 0; font-size: 13.5px; font-weight: 650; color: #3f3f3f; line-height: 1.35;
+        }
+        .vc-wunsch-err {
+            display: none; font-size: 12.5px; color: #7f1d1d; margin: 8px 0 0;
+        }
+        .vc-wunsch-err.show { display: block; }
+        body.theme-dark .vc-wunsch-lead { color: #cbd5e1; }
+        body.theme-dark .vc-wunsch-tile { border-color: rgba(122,145,165,.28); }
+        body.theme-dark .vc-wunsch-tile.on { border-color: #e5e7eb; }
+        body.theme-dark .vc-wunsch-tile h4 { color: #94a3b8; }
+        body.theme-dark .vc-wunsch-tile.on h4,
+        body.theme-dark .vc-wunsch-tile p { color: #f2f5f8; }

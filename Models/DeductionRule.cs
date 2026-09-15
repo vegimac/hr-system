@@ -60,6 +60,14 @@ public class DeductionRule
     public decimal? FreibetragMonthly { get; set; }
 
     /// <summary>
+    /// Transient: MA wünscht Verzicht auf den AHV-Freibetrag (nach Referenzalter).
+    /// Die Engine setzt das bei einem VERZICHT-Eintrag — der Beleg zeigt dann
+    /// eine Bemerkung statt «(−CHF … Freibetrag)».
+    /// </summary>
+    [NotMapped]
+    public bool AhvFreibetragVerzicht { get; set; }
+
+    /// <summary>
     /// Monatlicher Höchstlohn für die Beitragsbasis (ALV/NBU: CHF 12'350/Mt. =
     /// 148'200/Jahr). Ist gesetzt, wird die Basis auf diesen Wert gedeckelt
     /// (basis = min(basis, MaxBaseMonthly)). NULL = unbegrenzt (AHV/IV/EO).

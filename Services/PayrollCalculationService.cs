@@ -107,6 +107,25 @@ public static class PayrollCalculations
     }
 
     /// <summary>
+    /// Wunsch des MA: Verzicht auf den AHV-Freibetrag 1'400/Mt. ab einem Datum
+    /// (Walter 15.09.2026). Wirkt NUR nach Erreichen des Referenzalters — vorher
+    /// ändert der Eintrag nichts. Die 65+-Satzzeile bleibt, nur der Abzug vom Lohn fällt weg.
+    /// </summary>
+    public static void WendeAhvFreibetragVerzichtAn(
+        List<DeductionRule> deductions, IEnumerable<EmployeeVersicherungCode> eintraege,
+        bool ueberReferenzalter)
+    {
+        if (!ueberReferenzalter) return;
+        if (!eintraege.Any(e => e.IstAhvFreibetragVerzicht)) return;
+        foreach (var r in deductions)
+        {
+            if (!string.Equals(r.CategoryCode, "AHV", StringComparison.OrdinalIgnoreCase)) continue;
+            r.FreibetragMonthly = null;
+            r.AhvFreibetragVerzicht = true;
+        }
+    }
+
+    /// <summary>
     /// BVG-Fixbetrag am Stichtag: bei überlappenden Dubletten (Schritt 4c + 5)
     /// gewinnt die jüngste «ab»-Zeile, dann Lohnart 5050, dann die höchste Id.
     /// (Walter 12.09.2026, TF22 Bucher Februar.)
@@ -433,9 +452,11 @@ public static class PayrollCalculations
 
             totalAbzuege += betrag;
             if (d.CategoryCode == "QST") qstBetragOut += Math.Abs(betrag);
-            string abzugBezeichnung = d.FreibetragMonthly is > 0
-                ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
-                : d.Name;
+            string abzugBezeichnung = d.AhvFreibetragVerzicht
+                ? $"{d.Name} (Verzicht Freibetrag, Wunsch MA)"
+                : d.FreibetragMonthly is > 0
+                    ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
+                    : d.Name;
             // Transparenz: im Dezember ist die ALV/NBU-Basis aufgerollt → kennzeichnen
             if (dezAusgleich) abzugBezeichnung += ausgleichLabel ?? " (kumuliert)";
 
@@ -803,6 +824,9 @@ public static class PayrollCalculations
                 .Where(d => d.CategoryCode == "QST" && !string.IsNullOrWhiteSpace(d.Hinweis))
                 .Select(d => d.Hinweis!)
                 .ToList(),
+            bemerkungen = deductions.Any(d => d.AhvFreibetragVerzicht)
+                ? new List<string> { "Verzicht auf AHV-Freibetrag (Wunsch MA) — Beitrag auf dem vollen Lohn." }
+                : new List<string>(),
             // Schatten-Basen-Vergleich (Swissdec Schritt 2) — komplette Basen
             // fürs Protokoll + Flag-Nachrechnung. Reine Diagnose, kein Einfluss
             // auf Beträge; null wenn kein Katalog übergeben wurde.

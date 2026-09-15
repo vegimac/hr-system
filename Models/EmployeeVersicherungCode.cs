@@ -14,7 +14,7 @@ public class EmployeeVersicherungCode
     public int Id { get; set; }
     public int EmployeeId { get; set; }
 
-    /// <summary>UVG | UVGZ | KTG | BVG | AHV (nur Code SONDERFALL = AHV/ALV-Sonderfall, nicht beitragspflichtig)</summary>
+    /// <summary>UVG | UVGZ | KTG | BVG | AHV (SONDERFALL oder VERZICHT)</summary>
     public string Art { get; set; } = "UVG";
 
     /// <summary>
@@ -25,7 +25,14 @@ public class EmployeeVersicherungCode
     /// </summary>
     public const string ArtAhv = "AHV";
     public const string CodeSonderfall = "SONDERFALL";
+    /// <summary>
+    /// Verzicht auf den AHV-Freibetrag 1'400/Mt. ab Referenzalter (AHVG Art. 6bis /
+    /// Swissdec PersonWaiveOfPensionDeduct). AHV läuft auf dem vollen Lohn; ALV/BVG
+    /// bleiben weg. Ohne Eintrag gilt der Freibetrag automatisch.
+    /// </summary>
+    public const string CodeFreibetragVerzicht = "VERZICHT";
     public bool IstAhvSonderfall => Art == ArtAhv && string.Equals(Code, CodeSonderfall, StringComparison.OrdinalIgnoreCase);
+    public bool IstAhvFreibetragVerzicht => Art == ArtAhv && string.Equals(Code, CodeFreibetragVerzicht, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Lösungscode (SocialInsuranceRate.LoesungsCode). Leer erlaubt, wenn nur ein Fixbetrag (BVG) erfasst wird.</summary>
     public string? Code { get; set; }

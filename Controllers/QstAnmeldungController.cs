@@ -386,11 +386,11 @@ public class QstAnmeldungController : ControllerBase
                 if (ehepartner.Erwerbstaetig == null)
                     Add("Ehepartner: erwerbstätig Ja/Nein", "familie",
                         "Bitte im Familie-Tab beim Ehepartner die Erwerbstätig-Frage beantworten (entscheidet Tarif B oder C).");
-                else if (ehepartner.Erwerbstaetig == true && string.IsNullOrWhiteSpace(ehepartner.ArbeitgeberName))
+                else if (ehepartner.Erwerbstaetig == true
+                         && !await PartnerWohnsitzIstAuslandAsync(ehepartner, emp.Country)
+                         && string.IsNullOrWhiteSpace(ehepartner.ArbeitgeberName))
                     Add("Ehepartner: Arbeitgeber", "familie",
-                        "Der Ehepartner ist erwerbstätig — bitte Arbeitgeber-Name (und Arbeitsort) erfassen. " +
-                        "Bei Erwerbs-/Ersatzeinkommen im Ausland (z.B. Militärsold, Rente) den Sachverhalt " +
-                        "ins Arbeitgeber-Feld schreiben, z.B. «Militärdienst Ukraine (Ersatzeinkommen)».");
+                        "Der Ehepartner ist erwerbstätig und wohnt in der Schweiz — bitte Arbeitgeber-Name (und Arbeitsort) erfassen.");
             }
         }
 
@@ -462,11 +462,25 @@ public class QstAnmeldungController : ControllerBase
     /// CH-Bürger/in — der Schweizer-Block darf dann NICHT greifen.
     /// </summary>
     private static bool WohntImAusland(Employee emp)
+        => !QstPflichtCheckService.IstLandSchweiz(emp.Country);
+
+    private async Task<bool> PartnerWohnsitzIstAuslandAsync(EmployeeFamilyMember spouse, string? maWohnLand)
     {
-        var land = (emp.Country ?? "").Trim();
-        return land.Length > 0
-            && !land.Equals("CH", StringComparison.OrdinalIgnoreCase)
-            && !land.Equals("Schweiz", StringComparison.OrdinalIgnoreCase);
+        string? altLand = null;
+        var altId = spouse.AlternativeAddressId;
+        if (altId != null && !spouse.LebtImHaushalt && !spouse.LivesInSwitzerland)
+        {
+            altLand = await _db.EmployeeAddresses.AsNoTracking()
+                .Where(a => a.Id == altId.Value)
+                .Select(a => a.Country)
+                .FirstOrDefaultAsync();
+        }
+        return QstPflichtCheckService.BestimmePartnerWohnsitz(
+            spouse.LivesInSwitzerland,
+            spouse.LebtImHaushalt,
+            maWohnLand,
+            altId != null,
+            altLand) == QstPflichtCheckService.PartnerWohnsitzArt.Ausland;
     }
 
     // ── Mapping Datenbank → DTO ────────────────────────────────────────────

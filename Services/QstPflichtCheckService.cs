@@ -234,7 +234,7 @@ public class QstPflichtCheckService
         // Einmal bestimmt, zweimal gebraucht (Befreiung + Mängel-Prüfung).
         // CheckAsync läuft im Dashboard pro MA — jeder zusätzliche Roundtrip
         // multipliziert sich, darum gecacht.
-        PartnerWohnsitz? partnerWohnsitzCache = null;
+        PartnerWohnsitzArt? partnerWohnsitzCache = null;
         if (verheiratetUngetrennt)
         {
             spouse = await _db.EmployeeFamilyMembers
@@ -261,9 +261,9 @@ public class QstPflichtCheckService
                 // pflichtig. Unklare Wohnsituation → konservativ ebenfalls
                 // keine Befreiung, dafür ein Hinweis «mit der Behörde klären».
                 // Umschalten über die Konstante UnklarerWohnsitzBefreit.
-                var partnerWohnsitz = partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse);
-                bool wohnsitzBefreit = partnerWohnsitz == PartnerWohnsitz.Schweiz
-                    || (partnerWohnsitz == PartnerWohnsitz.Unklar && UnklarerWohnsitzBefreit);
+                var partnerWohnsitz = partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse, emp.Country);
+                bool wohnsitzBefreit = partnerWohnsitz == PartnerWohnsitzArt.Schweiz
+                    || (partnerWohnsitz == PartnerWohnsitzArt.Unklar && UnklarerWohnsitzBefreit);
 
                 // Walter 04.09.2026 (KS 45): Heiratet ein QST-pflichtiger MA
                 // eine Person mit CH-Pass oder C-Ausweis, endet die Quellen-
@@ -312,7 +312,7 @@ public class QstPflichtCheckService
                 // oder einen gültigen C-Ausweis hat.
                 if (!wohnsitzBefreit && wohnsitzHinweis == null
                     && (string.Equals(spouse.NationalityRef?.Code, "CH", StringComparison.OrdinalIgnoreCase) || spouseHatC))
-                    wohnsitzHinweis = partnerWohnsitz == PartnerWohnsitz.Ausland
+                    wohnsitzHinweis = partnerWohnsitz == PartnerWohnsitzArt.Ausland
                         ? "Der Ehepartner wohnt im Ausland — die Ehegatten-Befreiung (CH/C) gilt deshalb NICHT."
                         : "Wohnsituation des Ehepartners unklar (weder Haushalt noch Häkchen «in der Schweiz lebend» "
                           + "noch Adresse erfasst) — bis zur Klärung mit der Steuerbehörde bleibt der MA pflichtig.";
@@ -370,19 +370,20 @@ public class QstPflichtCheckService
             }
             else
             {
-                // Auslands-Partner (Walter-Vorgabe 25.08.2026, Fall Flüchtlings-
-                // familien: Frau in der Schweiz, Mann in der Ukraine): lebt der
-                // Ehepartner NICHT in der Schweiz, braucht er selbstverständlich
-                // KEINE Schweizer Bewilligung — der Mangel entfällt. «Nicht in
-                // der Schweiz» = nicht im Haushalt des MA + Häkchen «In der
-                // Schweiz lebend» leer + keine CH-Zusatzadresse (leeres Land
-                // gilt vorsichtshalber als CH → Pflicht bleibt). Nationalität
-                // und die Erwerbstätig-Frage bleiben auch dann Pflicht — für
-                // Tarif B vs. C zählt auch Einkommen im AUSLAND (KS 45).
+                // Auslands-Partner: lebt der Ehepartner NICHT in der Schweiz,
+                // braucht er KEINE Schweizer Bewilligung und KEINEN CH-
+                // Arbeitgeber — der Mangel entfällt. «Nicht in der Schweiz» =
+                // Häkchen «In der Schweiz lebend» leer UND entweder gleicher
+                // Haushalt eines im Ausland wohnhaften MA (Walter 15.09.2026,
+                // Fall Rinaldi/Rita Bergamo) ODER eigene Auslands-Adresse
+                // (Flüchtlingsfamilien: Frau in der CH, Mann in der Ukraine).
+                // Leeres Land / unklare Adresse gilt vorsichtshalber als CH.
+                // Nationalität und die Erwerbstätig-Frage bleiben Pflicht —
+                // für Tarif B vs. C zählt auch Einkommen im AUSLAND (KS 45).
                 // Für die Mängel-Prüfung zählt «unklar» weiterhin als Schweiz
                 // (dann bleibt die Bewilligung Pflicht) — für die BEFREIUNG
                 // dagegen nicht, siehe BestimmePartnerWohnsitzAsync.
-                bool partnerInSchweiz = (partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse)) != PartnerWohnsitz.Ausland;
+                bool partnerInSchweiz = (partnerWohnsitzCache ??= await BestimmePartnerWohnsitzAsync(spouse, emp.Country)) != PartnerWohnsitzArt.Ausland;
                 if (spouse.NationalityId == null)
                     partnerMaengel.Add("Nationalität des Ehepartners fehlt");
                 else if (partnerInSchweiz
@@ -751,7 +752,7 @@ public class QstPflichtCheckService
     }
 
     /// <summary>Wohnsituation des Ehepartners — entscheidet über die Ehegatten-Befreiung.</summary>
-    private enum PartnerWohnsitz { Schweiz, Ausland, Unklar }
+    public enum PartnerWohnsitzArt { Schweiz, Ausland, Unklar }
 
     /// <summary>
     /// Walter-Vorgabe 30.08.2026: Die Befreiung über den Ehepartner (CH-Pass
@@ -762,23 +763,59 @@ public class QstPflichtCheckService
     private const bool UnklarerWohnsitzBefreit = false;
 
     /// <summary>
-    /// Schweiz · Ausland · unklar. «Unklar» = weder Haushalt noch Häkchen noch
-    /// Zusatzadresse; eine Zusatzadresse ohne Land gilt als Schweiz.
+    /// CH / Schweiz / Suisse / Svizzera / Switzerland / leer = Schweiz.
+    /// ISO (IT) und Langnamen (ITALY) gelten als Ausland.
     /// </summary>
-    private async Task<PartnerWohnsitz> BestimmePartnerWohnsitzAsync(EmployeeFamilyMember spouse)
+    public static bool IstLandSchweiz(string? land)
     {
-        if (spouse.LebtImHaushalt || spouse.LivesInSwitzerland) return PartnerWohnsitz.Schweiz;
-        if (spouse.AlternativeAddressId == null) return PartnerWohnsitz.Unklar;
+        var l = (land ?? "").Trim().ToLowerInvariant();
+        return l.Length == 0
+            || l == "ch"
+            || l == "switzerland"
+            || l.StartsWith("schweiz")
+            || l.StartsWith("suisse")
+            || l.StartsWith("svizzera")
+            || l.StartsWith("svizzer");
+    }
+
+    /// <summary>
+    /// Schweiz · Ausland · unklar. Gleicher Haushalt übernimmt den Wohnsitz
+    /// des MA (Walter 15.09.2026): MA in Bergamo → Partner ebenfalls Ausland.
+    /// «Unklar» = weder Haushalt noch Häkchen noch Zusatzadresse; eine
+    /// Zusatzadresse ohne Land gilt als Schweiz.
+    /// </summary>
+    public static PartnerWohnsitzArt BestimmePartnerWohnsitz(
+        bool livesInSwitzerland,
+        bool lebtImHaushalt,
+        string? maWohnLand,
+        bool hatAlternativeAdresse,
+        string? alternativeAddressCountry)
+    {
+        if (livesInSwitzerland) return PartnerWohnsitzArt.Schweiz;
+        if (lebtImHaushalt)
+            return IstLandSchweiz(maWohnLand) ? PartnerWohnsitzArt.Schweiz : PartnerWohnsitzArt.Ausland;
+        if (!hatAlternativeAdresse) return PartnerWohnsitzArt.Unklar;
+        return IstLandSchweiz(alternativeAddressCountry)
+            ? PartnerWohnsitzArt.Schweiz
+            : PartnerWohnsitzArt.Ausland;
+    }
+
+    private async Task<PartnerWohnsitzArt> BestimmePartnerWohnsitzAsync(
+        EmployeeFamilyMember spouse, string? maWohnLand)
+    {
+        if (spouse.LivesInSwitzerland || spouse.LebtImHaushalt)
+            return BestimmePartnerWohnsitz(
+                spouse.LivesInSwitzerland, spouse.LebtImHaushalt, maWohnLand, false, null);
+
+        if (spouse.AlternativeAddressId == null)
+            return PartnerWohnsitzArt.Unklar;
 
         var land = await _db.EmployeeAddresses.AsNoTracking()
             .Where(a => a.Id == spouse.AlternativeAddressId.Value)
             .Select(a => a.Country)
             .FirstOrDefaultAsync();
-        var l = (land ?? "").Trim().ToLowerInvariant();
-        return l.Length == 0 || l == "ch" || l.StartsWith("schweiz")
-                             || l.StartsWith("suisse") || l.StartsWith("svizzera")
-            ? PartnerWohnsitz.Schweiz
-            : PartnerWohnsitz.Ausland;
+        return BestimmePartnerWohnsitz(
+            spouse.LivesInSwitzerland, spouse.LebtImHaushalt, maWohnLand, true, land);
     }
 
     /// <summary>Mass-Variante für Dashboard/Lohnlauf-Check: gibt die MA-IDs zurück, bei denen <see cref="QstPflichtCheckResult.IsPflichtOffen"/> = true ist.</summary>

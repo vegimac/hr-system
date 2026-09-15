@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260914a">
+    <link rel="stylesheet" href="css/app.css?v=20260915b">
 </head>
 <body>
 
@@ -9271,7 +9271,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260913a"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260912b"></script>
+<script src="js/payroll.js?v=20260915d"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
@@ -9442,9 +9442,10 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  familien): erscheint nur bei Ehepartner, der nicht in der
                  Schweiz lebt — fmUpdateAuslandHint() in employees.js. -->
             <div id="fmAuslandHint" style="display:none;margin-top:6px;padding:7px 11px;border-radius:10px;background:rgba(255,255,255,0.45);border:1px solid rgba(60,55,48,0.18);font-size:11.5px;color:#646464">
-                🌍 Partner lebt im Ausland: <b>keine Schweizer Bewilligung nötig</b> — es kommt keine Warnung.
-                Wichtig: Erwerbstätigkeit im <b>Ausland</b> zählt für den Tarif trotzdem
-                (erwerbstätig&nbsp;⇒&nbsp;C&nbsp;Doppelverdiener, nicht erwerbstätig&nbsp;⇒&nbsp;B).
+                🌍 Partner lebt im Ausland (gleicher Haushalt wie der MA zählt mit):
+                <b>keine Schweizer Bewilligung</b> und <b>kein CH-Arbeitgeber</b> nötig.
+                Erwerbstätigkeit im <b>Ausland</b> zählt für den Tarif trotzdem
+                (erwerbstätig&nbsp;⇒&nbsp;C, nicht erwerbstätig&nbsp;⇒&nbsp;B).
             </div>
 
             <!-- Gemeinsames Kind mit dem Konkubinatspartner (Walter 25.08.2026,
@@ -9513,7 +9514,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 </label>
                 <div id="fmAddrAltBox" class="fmf-addr-alt-box" style="display:none">
                     <div class="fmf-addr-alt-row">
-                        <select id="fmAlternativeAddressId" class="fmf-select fmf-addr-select">
+                        <select id="fmAlternativeAddressId" class="fmf-select fmf-addr-select" onchange="fmUpdateAuslandHint()">
                             <option value="" data-i18n="fam.addr.choose">— Adresse wählen —</option>
                         </select>
                         <button type="button" class="fmf-addr-add-btn" onclick="openEmployeeAddressModalFromFamily()"
@@ -9541,11 +9542,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                  verheirateten MA den Lohnlauf. -->
             <div id="fmErwerbSection" style="display:none">
                 <div class="emp-section-title" id="fmErwerbTitle">Erwerbstätigkeit Ehepartner</div>
-                <!-- Kompakt in 2 Zeilen (Walter 20.08.2026, analog QST-Anmelde-
-                     formular): Zeile 1 = Frage + Arbeitgeber + Strasse/Nr.,
-                     Zeile 2 = PLZ (mit Ort/Kanton-Auto-Lookup) + Ort + Kanton
-                     + Stellenantritt. -->
-                <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 10px;margin-bottom:6px">
+                <!-- Zeile 1 = Erwerbstätig-Frage; CH-Arbeitgeber nur sichtbar,
+                     wenn der Partner in der Schweiz wohnt. -->
+                <div style="display:grid;grid-template-columns:auto;gap:6px 10px;margin-bottom:6px">
                     <div class="fmf-field">
                         <label class="fmf-label" title="Zählt auch: Ersatzeinkommen wie Rente, Arbeitslosen- oder Militärentschädigung — und Einkommen im AUSLAND (Tarifbestimmung schweizweit, TaxInfo BE). Beispiel Status S: Ehemann in der Ukraine mit Militärsold = Ja → Tarif C.">Erwerbstätig / Ersatzeinkommen? ⓘ</label>
                         <div style="display:flex;gap:6px;align-items:center;min-height:28px">
@@ -9553,38 +9552,45 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="ja" onchange="fmErwerbChanged()"> Ja</label>
                             <label class="zst-pill"><input type="radio" name="fmErwerb" value="nein" onchange="fmErwerbChanged()"> Nein</label>
                         </div>
-                        <div style="font-size:10.5px;color:#8b8b8b;line-height:1.3;margin-top:2px">inkl. Rente/Militärsold,<br>auch im Ausland → Tarif C</div>
-                    </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Arbeitgeber</label>
-                        <input class="fmf-input" id="fmArbeitgeberName" type="text" placeholder="Firma / Arbeitgeber">
-                    </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Strasse / Nr.</label>
-                        <input class="fmf-input" id="fmArbeitgeberStrasse" type="text" placeholder="z.B. Industriestrasse 13">
+                        <div style="font-size:10.5px;color:#8b8b8b;line-height:1.3;margin-top:2px">inkl. Rente/Militärsold, auch im Ausland → Tarif C</div>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:6px 10px">
-                    <div class="fmf-field">
-                        <label class="fmf-label">PLZ</label>
-                        <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665"
-                               oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'fmArbeitgeberOrt', 'fmArbeitgeberKanton', null, 'fmAgPlzHint')">
+                <!-- CH-Arbeitgeber nur, wenn der Partner in der Schweiz wohnt
+                     (Walter 15.09.2026: gleicher Haushalt eines Auslands-MA
+                     = ebenfalls Ausland → Felder weg). -->
+                <div id="fmArbeitgeberFelder">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:6px">
+                        <div class="fmf-field">
+                            <label class="fmf-label">Arbeitgeber</label>
+                            <input class="fmf-input" id="fmArbeitgeberName" type="text" placeholder="Firma / Arbeitgeber">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Strasse / Nr.</label>
+                            <input class="fmf-input" id="fmArbeitgeberStrasse" type="text" placeholder="z.B. Industriestrasse 13">
+                        </div>
                     </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Ort</label>
-                        <input class="fmf-input" id="fmArbeitgeberOrt" type="text" placeholder="z.B. Oftringen" autocomplete="off"
-                               oninput="ortNameSuggest(this, 'fmArbeitgeberPlz', 'fmArbeitgeberOrt', 'fmArbeitgeberKanton')">
+                    <div style="display:grid;grid-template-columns:90px 1fr 90px 160px;gap:6px 10px">
+                        <div class="fmf-field">
+                            <label class="fmf-label">PLZ</label>
+                            <input class="fmf-input" id="fmArbeitgeberPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665"
+                                   oninput="if (this.value.length === 4) plzLookupGeneric(this.value, 'fmArbeitgeberOrt', 'fmArbeitgeberKanton', null, 'fmAgPlzHint')">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Ort</label>
+                            <input class="fmf-input" id="fmArbeitgeberOrt" type="text" placeholder="z.B. Oftringen" autocomplete="off"
+                                   oninput="ortNameSuggest(this, 'fmArbeitgeberPlz', 'fmArbeitgeberOrt', 'fmArbeitgeberKanton')">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Kanton</label>
+                            <input class="fmf-input" id="fmArbeitgeberKanton" type="text" maxlength="2" placeholder="AG">
+                        </div>
+                        <div class="fmf-field">
+                            <label class="fmf-label">Stellenantritt</label>
+                            <input class="fmf-input" id="fmStellenantritt" type="date">
+                        </div>
                     </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Kanton</label>
-                        <input class="fmf-input" id="fmArbeitgeberKanton" type="text" maxlength="2" placeholder="AG">
-                    </div>
-                    <div class="fmf-field">
-                        <label class="fmf-label">Stellenantritt</label>
-                        <input class="fmf-input" id="fmStellenantritt" type="date">
-                    </div>
+                    <div id="fmAgPlzHint" style="font-size:11.5px;margin-top:4px"></div>
                 </div>
-                <div id="fmAgPlzHint" style="font-size:11.5px;margin-top:4px"></div>
                 <!-- Einkommensfrage Konkubinat (Walter 25.08.2026 v2: NACH der
                      Erwerbstätigkeit — erscheint nur bei Typ Konkubinatspartner
                      UND Erwerbstätig = Ja; bei Nein greift automatisch H1). -->
@@ -9760,8 +9766,8 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260914h"></script>
-<script src="js/versicherung-codes.js?v=20260912c"></script>
+<script src="employees.js?v=20260915b"></script>
+<script src="js/versicherung-codes.js?v=20260915b"></script>
 
 <!-- ABSENZ MODAL -->
 <!-- Walter-Vorgabe 27.05.2026: MA-Maske-Stil (ma-modal-box / ma-grid / ma-input). -->

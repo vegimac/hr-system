@@ -49,8 +49,12 @@ public class EmployeeVersicherungCodeController : ControllerBase
         {
             var svCodes = EmployeeVersicherungCode.SvCodesFuer(art);
             var optionen = art == EmployeeVersicherungCode.ArtAhv
-                // AHV/ALV kennt keine Lösungs-Codes in den SV-Sätzen — einzige Abweichung ist der Sonderfall.
-                ? new[] { new { code = EmployeeVersicherungCode.CodeSonderfall, name = "AHV/ALV-Sonderfall – nicht beitragspflichtig (z.B. Versicherung im Ausland, A1)", istStandard = false } }.ToList()
+                // AHV/ALV kennt keine Lösungs-Codes in den SV-Sätzen — Abweichungen: Sonderfall, Freibetrag-Verzicht.
+                ? new[]
+                {
+                    new { code = EmployeeVersicherungCode.CodeSonderfall, name = "AHV/ALV-Sonderfall – nicht beitragspflichtig (z.B. Versicherung im Ausland, A1)", istStandard = false },
+                    new { code = EmployeeVersicherungCode.CodeFreibetragVerzicht, name = "MA wünscht Verzicht auf AHV-Freibetrag 1'400/Mt. (erst ab Referenzalter, voller Lohn)", istStandard = false },
+                }.ToList()
                 : saetze.Where(s => svCodes.Contains(s.Code, StringComparer.OrdinalIgnoreCase))
                 .GroupBy(s => s.LoesungsCode!.ToUpperInvariant())
                 .Select(g => new {
@@ -96,14 +100,14 @@ public class EmployeeVersicherungCodeController : ControllerBase
         var lock1 = await PruefeEditLockAsync(employeeId, dto.ValidFrom);
         if (lock1 != null) return lock1;
 
-        // Vorgänger derselben Art automatisch beenden (Neubeginn − 1 Tag) — Walter-Regel.
-        // Ausnahme «zusätzlich»: mehrere Codes gleichzeitig (Swissdec KTG/UVGZ 11 + 12).
-        var offene = dto.Zusaetzlich ? new List<EmployeeVersicherungCode>() : await _db.EmployeeVersicherungCodes
-            .Where(v => v.EmployeeId == employeeId && v.Art == dto.Art
-                     && (v.ValidTo == null || v.ValidTo >= dto.ValidFrom) && v.ValidFrom < dto.ValidFrom)
-            .ToListAsync();
-        foreach (var o in offene) o.ValidTo = dto.ValidFrom.AddDays(-1);
         var neuCode = Norm(dto.Code);
+        var offeneQ = _db.EmployeeVersicherungCodes
+            .Where(v => v.EmployeeId == employeeId && v.Art == dto.Art
+                     && (v.ValidTo == null || v.ValidTo >= dto.ValidFrom) && v.ValidFrom < dto.ValidFrom);
+        if (dto.Art == EmployeeVersicherungCode.ArtAhv && neuCode != null)
+            offeneQ = offeneQ.Where(v => v.Code == neuCode);
+        var offene = dto.Zusaetzlich ? new List<EmployeeVersicherungCode>() : await offeneQ.ToListAsync();
+        foreach (var o in offene) o.ValidTo = dto.ValidFrom.AddDays(-1);
         var gleich = await _db.EmployeeVersicherungCodes
             .AnyAsync(v => v.EmployeeId == employeeId && v.Art == dto.Art && v.ValidFrom == dto.ValidFrom && v.Code == neuCode);
         if (gleich) return Conflict(new { error = "CODE_BEREITS_AB_DATUM", message = $"Für {dto.Art} gibt es bereits einen Eintrag ab {dto.ValidFrom:dd.MM.yyyy}." });
@@ -115,7 +119,7 @@ public class EmployeeVersicherungCodeController : ControllerBase
             BeitragFixAn = dto.Art == "BVG" && dto.BeitragFixAn is > 0 ? dto.BeitragFixAn : null,
             BeitragFixAg = dto.Art == "BVG" && dto.BeitragFixAg is > 0 ? dto.BeitragFixAg : null,
             Bemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim(),
-            CreatedAt = DateTime.UtcNow, CreatedBy = GetCurrentUserId(),
+            CreatedAt = DateTime.Now, CreatedBy = GetCurrentUserId(),
         };
         UebernehmeBvg(e, dto);
         _db.EmployeeVersicherungCodes.Add(e);
@@ -168,8 +172,12 @@ public class EmployeeVersicherungCodeController : ControllerBase
     private static string? Pruefe(UpsertDto dto)
     {
         if (!Arten.Contains(dto.Art)) return "Art muss UVG, UVGZ, KTG, BVG oder AHV sein.";
-        if (dto.Art == EmployeeVersicherungCode.ArtAhv && !string.Equals(dto.Code?.Trim(), EmployeeVersicherungCode.CodeSonderfall, StringComparison.OrdinalIgnoreCase))
-            return "Bei AHV ist nur der Code SONDERFALL (nicht beitragspflichtig) möglich — Normalfall = kein Eintrag.";
+        if (dto.Art == EmployeeVersicherungCode.ArtAhv)
+        {
+            var ahv = (dto.Code ?? "").Trim().ToUpperInvariant();
+            if (ahv != EmployeeVersicherungCode.CodeSonderfall && ahv != EmployeeVersicherungCode.CodeFreibetragVerzicht)
+                return "Bei AHV nur SONDERFALL (nicht beitragspflichtig) oder VERZICHT (kein Freibetrag 1'400) — Normalfall = kein Eintrag.";
+        }
         if (dto.ValidTo != null && dto.ValidTo < dto.ValidFrom) return "«Gültig bis» liegt vor «Gültig ab».";
         var hatCode = !string.IsNullOrWhiteSpace(dto.Code);
         var hatFix  = dto.Art == "BVG" && (dto.BeitragFixAn is > 0 || dto.BeitragFixAg is > 0);
