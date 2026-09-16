@@ -1447,6 +1447,17 @@ using (var scope = app.Services.CreateScope())
             startLog.LogInformation("Satzart 11: {N} Zeilen nachgezogen in {Ms} ms", satz11, satz11Uhr.ElapsedMilliseconds);
     }
 
+    // ── QST Wissens-Datum VOR dem Schema-Check (Walter 16.09.2026) ────────
+    // Sonst meldet der erste Start «fehlende Spalte» und deploy.sh stoppt,
+    // obwohl das ALTER weiter unten noch käme.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS erfahren_am date;
+        UPDATE employee_quellensteuer SET erfahren_am = valid_from WHERE erfahren_am IS NULL;
+        ALTER TABLE employee_family_member ADD COLUMN IF NOT EXISTS erfahren_am date;
+        ALTER TABLE employee_permit_history ADD COLUMN IF NOT EXISTS erfahren_am date;
+        ALTER TABLE employee_zivilstand_history ADD COLUMN IF NOT EXISTS erfahren_am date;
+    ");
+
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(
         db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
@@ -4881,20 +4892,7 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS herleitung_json jsonb;
     ");
 
-    // ── QST Wissens-Datum (Walter 15.09.2026) ──────────────────────────────
-    // SQL-Kopie: migrations-archive/add_qst_erfahren_am.sql
-    db.Database.ExecuteSqlRaw(@"
-        ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS erfahren_am date;
-        UPDATE employee_quellensteuer SET erfahren_am = valid_from WHERE erfahren_am IS NULL;
-    ");
-
-    // ── Wissens-Datum an den QST-Quellen (Walter 15.09.2026) ───────────────
-    // SQL-Kopie: migrations-archive/add_qst_quellen_erfahren_am.sql
-    db.Database.ExecuteSqlRaw(@"
-        ALTER TABLE employee_family_member ADD COLUMN IF NOT EXISTS erfahren_am date;
-        ALTER TABLE employee_permit_history ADD COLUMN IF NOT EXISTS erfahren_am date;
-        ALTER TABLE employee_zivilstand_history ADD COLUMN IF NOT EXISTS erfahren_am date;
-    ");
+    // erfahren_am liegt oben, unmittelbar vor SchemaCheckService.Pruefe.
 
     // ── K3 MA-Darlehen / Vorschüsse (Walter 29.08.2026) ────────────────────
     // SQL-Kopie: migrations-archive/add_employee_darlehen.sql
