@@ -169,6 +169,7 @@ public class AkontoWorkflowController : HrControllerBase
             .ToListAsync();
 
         return Ok(new {
+            hasPeriode         = periode != null,
             akontoStatus       = periode?.AkontoStatus ?? "OFFEN",
             definitivStatus    = periode?.Status ?? "offen",
             akontoGfStartedAt  = periode?.AkontoGfStartedAt,

@@ -200,11 +200,14 @@ async function lzLoad() {
     ].filter(Boolean);
     const setHtml = (html) => listEls.forEach(el => { el.innerHTML = html; });
     if (listEls.length === 0) return;
+    const empId = _lzCurrentEmpId, y = _lzCurrentYear, m = _lzCurrentMonth;
+    const still = () => _lzCurrentEmpId === empId && _lzCurrentYear === y && _lzCurrentMonth === m;
     setHtml('<div style="padding:12px 0;color:#94a3b8;font-size:13px">Lade…</div>');
-    const periode = `${_lzCurrentYear}-${String(_lzCurrentMonth).padStart(2,'0')}`;
+    const periode = `${y}-${String(m).padStart(2,'0')}`;
     try {
-        const res = await fetch(`/api/lohn-zulagen/${_lzCurrentEmpId}/${periode}`, { headers: ah() });
+        const res = await fetch(`/api/lohn-zulagen/${empId}/${periode}`, { headers: ah() });
         const list = res.ok ? await res.json() : [];
+        if (!still()) return;
         // Liste zwischenspeichern, damit lzEditById() die Bemerkung sauber
         // aufgreifen kann — vermeidet Quoting-Probleme mit Sonderzeichen
         // (Anführungszeichen etc.) die im onclick-Attribut brechen würden.
@@ -235,6 +238,7 @@ async function lzLoad() {
         }).join('');
         setHtml(rowsHtml);
     } catch(e) {
+        if (!still()) return;
         setHtml(`<div style="padding:12px 0;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`);
     }
     // Edit-Sperre für die Buttons anwenden (Walter 19.05.2026): GF darf
@@ -370,32 +374,95 @@ async function initLohnPage() {
         branchLabel.style.color = '#0f172a';
     }
 
-    // Default-Periode setzen (nächste nach letzter abgeschlossener) und Liste laden
-    await setDefaultLohnPeriode(fixedCompanyProfileId);
+    // Monat/Jahr: einmalig Default, danach bleibt die Wahl (auch Filialwechsel).
+    _lohnEnsurePeriodSelects();
+    if (!_lohnReadStoredPeriod()) await setDefaultLohnPeriode(fixedCompanyProfileId);
+    _lohnShowPeriodToolbar();
     if (fixedCompanyProfileId) loadLohnList();
 }
 
-// Default-Periode: nächste nach der letzten definitiv abgeschlossenen
-// (Walter 15.09.2026). Eine ältere Lücke (z. B. Nov 2024 noch offen, Feb 2025
-// schon abgeschlossen) darf beim Filialwechsel nicht mehr die Auswahl
-// kapern — Banner warnt weiter, Hart-Sprung dorthin nicht.
-// Ohne abgeschlossene Periode: älteste offene. Gar keine Perioden: aktueller Monat.
+const _LOHN_MONTH_NAMES = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+function _lohnPeriodLabel(m, y) {
+    return `${_LOHN_MONTH_NAMES[(m | 0) - 1] || m} ${y}`;
+}
+function _lohnReadStoredPeriod() {
+    try {
+        const sm = parseInt(sessionStorage.getItem('lohnPeriodMonth') || '', 10);
+        const sy = parseInt(sessionStorage.getItem('lohnPeriodYear') || '', 10);
+        if (sm >= 1 && sm <= 12 && sy >= 2000) return { month: sm, year: sy };
+    } catch { /* private mode */ }
+    return null;
+}
+function _lohnStorePeriod(m, y) {
+    if (!(m >= 1 && m <= 12 && y >= 2000)) return;
+    try {
+        sessionStorage.setItem('lohnPeriodMonth', String(m));
+        sessionStorage.setItem('lohnPeriodYear', String(y));
+    } catch { /* private mode */ }
+}
+function _lohnApplySelectValue(sel, value) {
+    if (!sel) return;
+    const v = String(value);
+    if (![...sel.options].some(o => o.value === v)) {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = v;
+        sel.appendChild(o);
+        const opts = [...sel.options].sort((a, b) => parseInt(a.value, 10) - parseInt(b.value, 10));
+        sel.innerHTML = '';
+        opts.forEach(x => sel.appendChild(x));
+    }
+    sel.value = v;
+    if (typeof sel._lqRefresh === 'function') sel._lqRefresh();
+}
+
+// Dropdowns einmal füllen — nie mehr per Filialwechsel neu bauen.
+function _lohnEnsurePeriodSelects() {
+    const monthSel = document.getElementById('lohnMonthSelect');
+    const yearSel  = document.getElementById('lohnYearSelect');
+    if (!monthSel || !yearSel) return;
+    const now = new Date();
+    const stored = _lohnReadStoredPeriod();
+    if (monthSel.options.length === 0) {
+        monthSel.innerHTML = _LOHN_MONTH_NAMES.map((n, i) =>
+            `<option value="${i + 1}">${n}</option>`).join('');
+    }
+    if (yearSel.options.length === 0) {
+        const years = [];
+        for (let y = now.getFullYear() - 3; y <= now.getFullYear() + 1; y++) years.push(y);
+        if (stored?.year && !years.includes(stored.year)) years.push(stored.year);
+        years.sort((a, b) => a - b);
+        yearSel.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    }
+    if (stored) {
+        _lohnApplySelectValue(monthSel, stored.month);
+        _lohnApplySelectValue(yearSel, stored.year);
+    }
+    _lohnShowPeriodToolbar();
+}
+
+// Nur beim ersten Besuch ohne gespeicherte Wahl: nächste nach letzter
+// abgeschlossener Periode der aktuellen Filiale. Danach gilt die User-Wahl.
 async function setDefaultLohnPeriode(companyProfileId) {
     const monthSel = document.getElementById('lohnMonthSelect');
     const yearSel  = document.getElementById('lohnYearSelect');
     if (!monthSel || !yearSel) return;
+    _lohnEnsurePeriodSelects();
+    const stored = _lohnReadStoredPeriod();
+    if (stored) {
+        _lohnApplySelectValue(monthSel, stored.month);
+        _lohnApplySelectValue(yearSel, stored.year);
+        return;
+    }
 
-    const now = new Date();
-    let defMonth = now.getMonth() + 1;
-    let defYear  = now.getFullYear();
-    const periodenJahre = new Set();   // alle Jahre mit Lohnperioden dieser Filiale (Walter 11.09.2026)
+    let defMonth = parseInt(monthSel.value, 10) || (new Date().getMonth() + 1);
+    let defYear  = parseInt(yearSel.value, 10)  || new Date().getFullYear();
 
     if (companyProfileId) {
         try {
-            const r = await fetch(`/api/payroll-perioden?companyProfileId=${companyProfileId}`, { headers: ah() });
+            const r = await fetch(`/api/payroll-perioden?companyProfileId=${companyProfileId}`,
+                { headers: ah(), cache: 'no-store' });
             if (r.ok) {
                 const arr = await r.json() || [];
-                arr.forEach(p => { if (p.year) periodenJahre.add(p.year); });
                 const byYm = (a, b) => (a.year - b.year) || (a.month - b.month);
                 const closed = arr.filter(p => p.status === 'abgeschlossen').sort(byYm);
                 const open   = arr.filter(p => p.status !== 'abgeschlossen').sort(byYm);
@@ -409,25 +476,50 @@ async function setDefaultLohnPeriode(companyProfileId) {
                     defYear  = open[0].year;
                 }
             }
-        } catch { /* fallback bleibt aktueller Monat */ }
+        } catch { /* Dropdowns bleiben, kein Sprung auf «heute» */ }
     }
 
-    const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-    monthSel.innerHTML = monthNames.map((m,i) =>
-        `<option value="${i+1}" ${i+1 === defMonth ? 'selected' : ''}>${m}</option>`).join('');
-    // Jahre frei wählbar (Walter 11.09.2026): drei Jahre zurück bis ein Jahr voraus,
-    // plus alle Jahre mit Perioden — so lässt sich jede Filiale/jeder Monat anschauen,
-    // auch ohne bestehende Periode.
-    const yearSet = new Set([now.getFullYear()-3, now.getFullYear()-2, now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1, defYear, ...periodenJahre]);
-    const years   = [...yearSet].sort((a,b) => a - b);
-    yearSel.innerHTML = years.map(y =>
-        `<option value="${y}" ${y === defYear ? 'selected' : ''}>${y}</option>`).join('');
-    if (typeof monthSel._lqRefresh === 'function') monthSel._lqRefresh();
-    if (typeof yearSel._lqRefresh === 'function') yearSel._lqRefresh();
+    _lohnApplySelectValue(monthSel, defMonth);
+    _lohnApplySelectValue(yearSel, defYear);
+    _lohnStorePeriod(defMonth, defYear);
+}
+
+function lohnPeriodChanged() {
+    const m = parseInt(document.getElementById('lohnMonthSelect')?.value, 10);
+    const y = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
+    _lohnStorePeriod(m, y);
+    loadLohnSlipFromPanel();
+}
+
+async function lohnPeriodeAnlegen() {
+    const cid = parseInt(document.getElementById('lohnBranchSelect')?.value, 10) || fixedCompanyProfileId;
+    const y   = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
+    const m   = parseInt(document.getElementById('lohnMonthSelect')?.value, 10);
+    if (!cid || !y || !m) return;
+    const label = _lohnPeriodLabel(m, y);
+    const ok = (typeof liquidConfirm === 'function')
+        ? await liquidConfirm(`Lohnperiode für ${label} anlegen?`, { title: 'Periode anlegen', yesLabel: 'Anlegen', noLabel: 'Abbrechen' })
+        : true;
+    if (!ok) return;
+    const cr = await fetch('/api/payroll-perioden', {
+        method: 'POST',
+        headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyProfileId: cid, year: y, month: m, label: null }),
+    });
+    if (!cr.ok) {
+        const e = await cr.json().catch(() => ({}));
+        alert(e.message || e.error || 'Periode konnte nicht erstellt werden');
+        return;
+    }
+    if (typeof loadLohnList === 'function') await loadLohnList();
+    if (typeof _akWfMode !== 'undefined' && _akWfMode === 'akonto' && typeof akWfRefresh === 'function') {
+        await akWfRefresh();
+    }
 }
 
 async function lohnBranchChanged() {
-    // Filiale aus Hauptmenü synchronisieren
+    const gen = ++_lohnListGen;
+    // Filiale aus Hauptmenü synchronisieren — Monat/Jahr bleiben.
     const branchInput = document.getElementById('lohnBranchSelect');
     const branchLabel = document.getElementById('lohnBranchLabel');
     if (branchInput && fixedCompanyProfileId) branchInput.value = fixedCompanyProfileId;
@@ -436,11 +528,16 @@ async function lohnBranchChanged() {
         branchLabel.textContent = branch ? `${branch.restaurantCode ? branch.restaurantCode + ' – ' : ''}${branch.branchName || branch.companyName}` : '–';
     }
     lzReset();
-    // Periode der neuen Filiale: nächste nach letzter abgeschlossener.
-    await setDefaultLohnPeriode(fixedCompanyProfileId);
+    _lohnEnsurePeriodSelects();
+    if (gen !== _lohnListGen) return;
+    _lohnShowPeriodToolbar();
     loadLohnList();
 }
-function lohnYearChanged()   { loadLohnSlipFromPanel(); }
+function lohnYearChanged() { lohnPeriodChanged(); }
+function _lohnShowPeriodToolbar() {
+    const el = document.getElementById('lohnPeriodToolbar');
+    if (el) el.style.display = 'flex';
+}
 function lzReset() {
     _lzCurrentEmpId = null;
     document.getElementById('lohnZulagenPanel').style.display  = 'none';
@@ -448,7 +545,9 @@ function lzReset() {
     document.getElementById('lohnSlipEmpty').style.display     = 'flex';
     document.getElementById('lohnVertragPanel').style.display  = 'none';
     document.getElementById('lohnVertragEmpty').style.display  = 'block';
-    document.getElementById('lohnPeriodToolbar').style.display = 'none';
+    // Periode-Dropdowns bleiben — sonst ist nach einem fehlgeschlagenen
+    // Filialwechsel kein Monat mehr wählbar («kein Lohn-Monat»).
+    _lohnShowPeriodToolbar();
     // Top-Aktions-Buttons (PDF/Reopen/Bestätigen) parallel ausblenden
     const ta = document.getElementById('lohnTopActions');
     if (ta) ta.style.display = 'none';
@@ -458,6 +557,10 @@ function lzReset() {
 // erhalten. Die Liste ist nach Vorname sortiert; beim Re-Render wird zum
 // ausgewählten MA gescrollt (nicht umgeordnet).
 let _lohnSelectedEmpId = null;
+// Nur die letzte loadLohnList-Antwort darf die Liste beschreiben — sonst
+// überschreibt ein abgebrochener Filialwechsel die neue Liste mit
+// «Fehler: Failed to fetch» (Walter 16.09.2026).
+let _lohnListGen = 0;
 
 // Korrekturlohn für Ausgetretene (Walter Aug 2026): manuell hinzugefügte
 // MA-IDs pro Filiale+Periode (sessionStorage). Zusätzlich werden Kandidaten
@@ -531,6 +634,20 @@ function _lohnWfRenderStatusBar() {
     if (!bar) return;
     const d = _lohnWfData;
     if (!d) { bar.innerHTML = ''; return; }
+
+    if (d.missingPeriode) {
+        const m = parseInt(document.getElementById('lohnMonthSelect')?.value, 10);
+        const y = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
+        bar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
+            <span style="background:#e2e8f0;color:#64748b;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">Keine Lohnperiode</span>
+            <span style="color:#94a3b8">${_lohnPeriodLabel(m, y)}</span>
+            <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">
+                <button class="btn btn-primary btn-sm" onclick="lohnPeriodeAnlegen()">＋ Periode anlegen</button>
+            </span>
+        </div>`;
+        return;
+    }
 
     const meta  = _LOHN_STATUS[d.status] || _LOHN_STATUS.offen;
     const isHr  = (typeof _akIsHr === 'function')
@@ -690,6 +807,8 @@ function _lohnWfRenderStatusBar() {
 async function loadLohnList() {
     const companyId = document.getElementById('lohnBranchSelect').value;
     if (!companyId) return;
+    const gen = ++_lohnListGen;
+    const still = () => gen === _lohnListGen;
 
     const listEl = document.getElementById('lohnEmpList');
     // Walter-Vorgabe 20.05.2026 („genau wie Akonto", kein Sprung nach oben):
@@ -702,37 +821,13 @@ async function loadLohnList() {
     if (!listEl.querySelector('.lohn-emp-row')) {
         listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8">Lade…</div>';
     }
+    _lohnShowPeriodToolbar();
 
     const cid = parseInt(companyId);
     const y   = parseInt(document.getElementById('lohnYearSelect')?.value  || new Date().getFullYear());
     const m   = parseInt(document.getElementById('lohnMonthSelect')?.value || (new Date().getMonth()+1));
     if (typeof _lohnViewYear !== 'undefined') { _lohnViewYear = y; _lohnViewMonth = m; }
     if (typeof _lohnHideSequenceIfOnOldest === 'function') _lohnHideSequenceIfOnOldest(y, m);
-
-    // Uniformen-Depot nachziehen (Walter Aug 2026): Feature kam oft erst NACH
-    // der Lohnbestätigung — einmal pro Filiale+Periode/Session alle Eintritte
-    // belasten und Snapshots neu rechnen (idempotent).
-    try {
-        const depotKey = `lohnDepotEnsured_${cid}_${y}_${m}`;
-        if (!sessionStorage.getItem(depotKey)
-            && (typeof currentUser !== 'undefined')
-            && currentUser
-            && ['admin', 'superuser', 'buchhaltung'].includes(currentUser.role)) {
-            const dr = await fetch(
-                `/api/payroll/ensure-uniform-depots?companyProfileId=${cid}&year=${y}&month=${m}`,
-                { method: 'POST', headers: ah() });
-            if (dr.ok) {
-                const dd = await dr.json();
-                sessionStorage.setItem(depotKey, '1');
-                if (dd.charged > 0 && typeof showToast === 'function') {
-                    showToast(`Uniformen-Depot: ${dd.charged} Eintritt(e) nachgezogen`, 'success');
-                }
-            } else if (dr.status !== 409) {
-                // 409 = Periode abgeschlossen — ok, nicht nochmals versuchen
-                sessionStorage.setItem(depotKey, '1');
-            }
-        }
-    } catch { /* best-effort */ }
 
     try {
         // Snapshots für diese Periode laden — der Snapshot-Status entscheidet
@@ -778,8 +873,63 @@ async function loadLohnList() {
                 }
             }
         } catch {}
+        if (!still()) return;
+
+        if (!_pData?.id) {
+            _lohnWfData = {
+                status: 'offen', periode: null, periodeId: null, snapByEmp: {},
+                gfConfirmed: 0, hrConfirmed: 0, activeTotal: 0, mwUnderpaidCount: 0,
+                missingPeriode: true,
+            };
+            window._currentLohnPeriode = null;
+            listEl.innerHTML = `<div style="padding:28px 16px;text-align:center;color:#94a3b8;font-size:13px">Keine Lohnperiode für ${_lohnPeriodLabel(m, y)}</div>`;
+            _lohnSelectedEmpId = null;
+            lohnCurrentSlip = null;
+            _lzCurrentEmpId = null;
+            const slipCard = document.getElementById('lohnSlipCard');
+            if (slipCard) slipCard.style.display = 'none';
+            const slipEmpty = document.getElementById('lohnSlipEmpty');
+            if (slipEmpty) slipEmpty.style.display = 'flex';
+            const zulagen = document.getElementById('lohnZulagenPanel');
+            if (zulagen) zulagen.style.display = 'none';
+            const vp = document.getElementById('lohnVertragPanel');
+            if (vp) vp.style.display = 'none';
+            const ve = document.getElementById('lohnVertragEmpty');
+            if (ve) ve.style.display = 'block';
+            _lohnWfRenderStatusBar();
+            if (typeof lohnSyncToOldestOpen === 'function') lohnSyncToOldestOpen(false, y, m);
+            return;
+        }
+
         // Kompatibilität: bisheriger Code verwendet confirmedEmpIds für „GF-bestätigt"
         const confirmedEmpIds = gfEmpIds;
+
+        // Uniformen-Depot nachziehen (Walter Aug 2026): Feature kam oft erst NACH
+        // der Lohnbestätigung — einmal pro Filiale+Periode/Session alle Eintritte
+        // belasten und Snapshots neu rechnen (idempotent). Nur wenn die Periode
+        // existiert (sonst kein Lohnlauf in diesem Monat).
+        try {
+            const depotKey = `lohnDepotEnsured_${cid}_${y}_${m}`;
+            if (!sessionStorage.getItem(depotKey)
+                && (typeof currentUser !== 'undefined')
+                && currentUser
+                && ['admin', 'superuser', 'buchhaltung'].includes(currentUser.role)) {
+                const dr = await fetch(
+                    `/api/payroll/ensure-uniform-depots?companyProfileId=${cid}&year=${y}&month=${m}`,
+                    { method: 'POST', headers: ah() });
+                if (dr.ok) {
+                    const dd = await dr.json();
+                    sessionStorage.setItem(depotKey, '1');
+                    if (dd.charged > 0 && typeof showToast === 'function') {
+                        showToast(`Uniformen-Depot: ${dd.charged} Eintritt(e) nachgezogen`, 'success');
+                    }
+                } else if (dr.status !== 409) {
+                    // 409 = Periode abgeschlossen — ok, nicht nochmals versuchen
+                    sessionStorage.setItem(depotKey, '1');
+                }
+            }
+        } catch { /* best-effort */ }
+        if (!still()) return;
 
         // QST-aktive MA-IDs für die Lohnperiode laden (Walter-Vorgabe
         // 18.05.2026): der QST-Shortcut neben dem Modell-Badge erscheint
@@ -895,6 +1045,8 @@ async function loadLohnList() {
                 _lohnCorrSave(cid, y, m);
             }
         } catch { /* best-effort */ }
+
+        if (!still()) return;
 
         // ── _lohnWfData füllen: EINZIGE Quelle für die Statusbar ──────────────
         // Counts werden auf die aktiven MA dieser Filiale bezogen (Denominator
@@ -1104,6 +1256,8 @@ async function loadLohnList() {
         if (typeof _akWfApplyZulagenLock === 'function') _akWfApplyZulagenLock();
         if (typeof lohnSyncToOldestOpen === 'function') lohnSyncToOldestOpen(false, y, m);
     } catch(e) {
+        if (!still()) return;
+        _lohnShowPeriodToolbar();
         listEl.innerHTML = `<div style="padding:20px;color:#dc2626;font-size:13px">Fehler: ${e.message}</div>`;
     }
 }
@@ -1257,27 +1411,7 @@ function showLohnVertragInfo(emp) {
     });
     if (perPanel) {
         perPanel.style.display = 'flex';
-        // Monat/Jahr Dropdowns füllen falls noch leer
-        const monthSel = document.getElementById('lohnMonthSelect');
-        const yearSel  = document.getElementById('lohnYearSelect');
-        if (monthSel && monthSel.options.length === 0) {
-            const monthNames = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-            monthNames.forEach((m, i) => {
-                const o = document.createElement('option');
-                o.value = i + 1; o.textContent = m;
-                monthSel.appendChild(o);
-            });
-            monthSel.value = new Date().getMonth() + 1;
-        }
-        if (yearSel && yearSel.options.length === 0) {
-            const curY = new Date().getFullYear();
-            for (let y = curY + 1; y >= curY - 2; y--) {
-                const o = document.createElement('option');
-                o.value = y; o.textContent = y;
-                yearSel.appendChild(o);
-            }
-            yearSel.value = curY;
-        }
+        _lohnEnsurePeriodSelects();
     }
 }
 
@@ -1288,20 +1422,26 @@ async function loadLohnSlipFromPanel() {
     const year   = parseInt(document.getElementById('lohnYearSelect')?.value);
     const month  = parseInt(document.getElementById('lohnMonthSelect')?.value);
     if (!cid || !year || !month) return;
-    // Die aktuell ausgewählte Mitarbeiter-ID ist in _lohnSelectedEmpId gespeichert
-    // und überlebt das loadLohnList(): die Liste wird neu gerendert (nach Vorname
-    // sortiert), und der selektierte MA bekommt die Active-Klasse + wird in den
-    // sichtbaren Bereich gescrollt.
-    const empId = _lohnSelectedEmpId;
+    // Sofort den alten Beleg ausblenden — sonst bleibt der Vormonat stehen,
+    // während loadLohnList noch alle MA lädt (Walter 16.09.2026).
+    const slipEl = document.getElementById('lohnSlip');
+    const slipCard = document.getElementById('lohnSlipCard');
+    if (slipEl && slipCard && slipCard.style.display !== 'none') {
+        slipEl.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">Lade Periode…</div>';
+    }
     // Single-Refresh: loadLohnList lädt Periode + Snapshots + MA, füllt
     // _lohnWfData und rendert die Statusbar. KEIN separater
     // loadLohnPeriodBanner-Aufruf mehr (das ist nur noch ein Shim hierauf).
     await loadLohnList();
-    // Lohnzettel nur wenn der MA in dieser Periode noch in der Liste steht —
-    // sonst bleibt ein alter Monat hängen (Herz März bei April-Auswahl).
+    // Auswahl NACH dem Listen-Rebuild: der bisherige MA kann in diesem Monat
+    // fehlen (Herz März → April). Dann hat loadLohnList bereits den ersten
+    // verbleibenden MA gesetzt — dessen Beleg laden, nicht den alten.
+    const empId = _lohnSelectedEmpId;
     if (empId && document.querySelector(`#lohnEmpList .lohn-emp-row[data-emp-id="${empId}"]`)) {
         lzInit(empId, cid, year, month);
         loadLohnSlip(empId, cid, year, month);
+    } else {
+        lzReset();
     }
 }
 

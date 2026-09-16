@@ -318,9 +318,8 @@ function _akWfUpdateModeButtons() {
 function akWfOnPageOrBranchChange() {
     if (_akWfMode === 'akonto' && !akontoAktivFuerFiliale()) _akWfMode = 'definitiv';
     _akWfUpdateModeButtons();
-    // Banner zur ältesten Lücke aktualisieren — aber NICHT mehr hart dorthin
-    // springen (Walter 15.09.2026: Default ist die nächste Periode nach der
-    // letzten abgeschlossenen, gesetzt in setDefaultLohnPeriode).
+    // Banner zur ältesten Lücke aktualisieren — aber NICHT hart dorthin
+    // springen (Walter 16.09.2026: Monat/Jahr bleiben beim Filialwechsel).
     setTimeout(() => lohnSyncToOldestOpen(/*autoJump*/ false), 50);
     if (_akWfMode === 'akonto') akWfRefresh();
     _checkDefinitivLock();
@@ -334,6 +333,9 @@ function _akWfInstallPeriodListeners() {
     if (m && !m.dataset.akWfHooked) {
         m.dataset.akWfHooked = '1';
         m.addEventListener('change', () => {
+            const mm = parseInt(m.value, 10);
+            const yy = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
+            if (typeof _lohnStorePeriod === 'function') _lohnStorePeriod(mm, yy);
             lohnSyncToOldestOpen(/*autoJump*/ false);
             if (_akWfMode === 'akonto') akWfRefresh();
             _checkDefinitivLock();
@@ -342,6 +344,9 @@ function _akWfInstallPeriodListeners() {
     if (y && !y.dataset.akWfHooked) {
         y.dataset.akWfHooked = '1';
         y.addEventListener('change', () => {
+            const mm = parseInt(document.getElementById('lohnMonthSelect')?.value, 10);
+            const yy = parseInt(y.value, 10);
+            if (typeof _lohnStorePeriod === 'function') _lohnStorePeriod(mm, yy);
             lohnSyncToOldestOpen(/*autoJump*/ false);
             if (_akWfMode === 'akonto') akWfRefresh();
             _checkDefinitivLock();
@@ -353,8 +358,8 @@ function _akWfInstallPeriodListeners() {
 // Holt von /api/akonto/workflow/oldest-open-period die älteste noch nicht
 // komplett abgeschlossene Periode der Filiale. autoJump bleibt für den
 // Banner-Knopf «→ Zu …»; Filialwechsel springt nicht mehr automatisch in
-// die Lücke (Default setzt setDefaultLohnPeriode). Manuell eine spätere
-// Periode anschauen bleibt erlaubt — Aktionen blockiert das Backend.
+// die Lücke. Monat/Jahr bleiben beim Filialwechsel stehen. Manuell eine
+// spätere Periode anschauen bleibt erlaubt — Aktionen blockiert das Backend.
 let _lohnSyncInFlight = false;
 let _lohnSyncQueued = undefined;
 let _lohnOldestOpen = null; // { year, month } — letzte Antwort oldest-open-period
@@ -627,7 +632,10 @@ function _akWfRenderStatusBar() {
     const bar = document.getElementById('akontoStatusBar');
     if (!bar || !_akWfData) return;
     const d = _akWfData;
-    const meta = _AK_STATUS[d.akontoStatus] || _AK_STATUS.OFFEN;
+    const missingPeriode = d.hasPeriode === false;
+    const meta = missingPeriode
+        ? { label: 'Keine Lohnperiode', color: '#64748b', bg: '#e2e8f0' }
+        : (_AK_STATUS[d.akontoStatus] || _AK_STATUS.OFFEN);
     const isHr = _akIsHr();
     // Counter zeigt den jeweils relevanten Workflow-Schritt:
     //   IN_BEARBEITUNG_GF → GF-Freigabe-Fortschritt
@@ -663,7 +671,9 @@ function _akWfRenderStatusBar() {
     let actions = '';
     switch (d.akontoStatus) {
         case 'OFFEN':
-            actions = `<button class="btn btn-primary btn-sm" onclick="akWfStart()">📅 Akonto vorbereiten</button>`;
+            actions = missingPeriode
+                ? `<button class="btn btn-primary btn-sm" onclick="lohnPeriodeAnlegen()">＋ Periode anlegen</button>`
+                : `<button class="btn btn-primary btn-sm" onclick="akWfStart()">📅 Akonto vorbereiten</button>`;
             break;
         case 'IN_BEARBEITUNG_GF':
             actions = `${perMaFreigeben}${perMaZurueckziehen}
@@ -736,7 +746,12 @@ function _akWfRenderMaList() {
     if (countEl) countEl.textContent = z.length ? `${z.length} MA` : '';
 
     if (!z.length) {
-        if (_akWfData.akontoStatus === 'OFFEN') {
+        const y = parseInt(document.getElementById('lohnYearSelect')?.value, 10);
+        const m = parseInt(document.getElementById('lohnMonthSelect')?.value, 10);
+        const label = (typeof _lohnPeriodLabel === 'function') ? _lohnPeriodLabel(m, y) : `${m}/${y}`;
+        if (_akWfData.hasPeriode === false) {
+            el.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Keine Lohnperiode für ${label}</div>`;
+        } else if (_akWfData.akontoStatus === 'OFFEN') {
             el.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Akonto noch nicht vorbereitet</div>`;
         } else {
             el.innerHTML = `<div style="padding:28px;text-align:center;color:#94a3b8;font-size:13px">Keine berechtigten MA in dieser Periode</div>`;

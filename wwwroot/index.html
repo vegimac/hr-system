@@ -1028,11 +1028,12 @@
                         <div style="font-size:13px;color:#64748b">Filiale: <b id="lohnBranchLabel" style="color:#0f172a">–</b></div>
                         <input type="hidden" id="lohnBranchSelect">
 
-                        <!-- Periode (Monat/Jahr) -->
-                        <div id="lohnPeriodToolbar" style="display:none;align-items:center;gap:8px">
+                        <!-- Periode (Monat/Jahr) — immer sichtbar, unabhängig von der Filiale.
+                             Filialwechsel lässt Monat/Jahr stehen (Walter 16.09.2026). -->
+                        <div id="lohnPeriodToolbar" style="display:flex;align-items:center;gap:8px">
                             <span style="font-size:13px;color:#64748b">Periode:</span>
-                            <select id="lohnMonthSelect" class="f-input" style="height:30px;font-size:13px;padding:2px 8px" onchange="loadLohnSlipFromPanel()"></select>
-                            <select id="lohnYearSelect"  class="f-input" style="height:30px;font-size:13px;padding:2px 8px;max-width:80px" onchange="loadLohnSlipFromPanel()"></select>
+                            <select id="lohnMonthSelect" class="f-input" style="height:30px;font-size:13px;padding:2px 8px" onchange="lohnPeriodChanged()"></select>
+                            <select id="lohnYearSelect"  class="f-input" style="height:30px;font-size:13px;padding:2px 8px;max-width:80px" onchange="lohnPeriodChanged()"></select>
                         </div>
 
                         <!-- Definitiv-Status (Pille + Counter + Bemerkung) — nur Anzeige.
@@ -9251,7 +9252,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260915c"></script>
+<script src="js/akonto-workflow.js?v=20260916a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
 <script src="js/branches-detail.js?v=20260910b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
@@ -9271,7 +9272,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260913a"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260915i"></script>
+<script src="js/payroll.js?v=20260916c"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
