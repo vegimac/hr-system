@@ -51,6 +51,13 @@ public class EmployeeFamilyMember
     public DateTime? QstDeductibleUntil { get; set; }
 
     /// <summary>
+    /// Ab wann wir den QST-Abzug des Kindes kannten (Walter 15.09.2026).
+    /// Wirkung bleibt <see cref="QstDeductibleFrom"/> / Geburt; NULL = gleich
+    /// wie die Wirkung (Altbestand).
+    /// </summary>
+    public DateOnly? ErfahrenAm { get; set; }
+
+    /// <summary>
     /// Aufenthaltsbewilligung des Familienangehörigen (B/C/L/G/F/N) —
     /// referenziert PermitType wie beim MA selbst.
     /// </summary>

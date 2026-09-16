@@ -110,6 +110,7 @@ public partial class SwissdecTestmandantController
                         _db.EmployeePermitHistories.Add(new EmployeePermitHistory
                         {
                             EmployeeId = emp.Id, PermitTypeId = p?.Id, ValidFrom = tag1,
+                            ErfahrenAm = tag1,
                             Note = $"Swissdec-Testdaten Mutation {mon:yyyy-MM} ({V("PersonResidenceCategory")})",
                             CreatedAt = DateTime.Now,
                         });
@@ -132,7 +133,7 @@ public partial class SwissdecTestmandantController
                     {
                         if (!await _db.EmployeeZivilstandHistories.AnyAsync(h => h.EmployeeId == emp.Id) && !string.IsNullOrEmpty(emp.MaritalStatus))
                             _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = emp.Id, Zivilstand = emp.MaritalStatus, GueltigAb = emp.MaritalStatusSince, Bemerkung = "Stand Eintritt (Swissdec-Testdaten)", CreatedAt = DateTime.Now });
-                        _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = emp.Id, Zivilstand = z, GueltigAb = ab, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
+                        _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = emp.Id, Zivilstand = z, GueltigAb = ab, ErfahrenAm = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
                     }
                     emp.MaritalStatus = z; emp.MaritalStatusSince = ab;
                 }
@@ -231,6 +232,7 @@ public partial class SwissdecTestmandantController
                     kind.LastName = V("PersonChild1Lastname") ?? emp.LastName;
                     if (Hat("PersonChild1DateOfBirth")) kind.DateOfBirth = Datum(V("PersonChild1DateOfBirth"))?.ToDateTime(TimeOnly.MinValue);
                     kind.QstDeductibleFrom = von?.ToDateTime(TimeOnly.MinValue); kind.QstDeductibleUntil = bis?.ToDateTime(TimeOnly.MinValue);
+                    kind.ErfahrenAm = tag1;
                     kind.LebtImHaushalt = true; kind.LivesInSwitzerland = emp.Country == "CH"; kind.UpdatedAt = DateTime.Now;
                     if (kind.Id == 0) _db.EmployeeFamilyMembers.Add(kind);
                     await _db.SaveChangesAsync();

@@ -107,7 +107,7 @@ public class QstTarifVorschlagService
             .Where(f => f.EmployeeId == employeeId
                      && f.MemberType  == "Kind"
                      && f.DateOfDeath == null)
-            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner, f.KeineUnterhaltspflicht })
+            .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil, f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung, f.LebtImHaushalt, f.GemeinsamesKindMitPartner, f.KeineUnterhaltspflicht, f.ErfahrenAm })
             .ToListAsync();
 
         // Konkubinatspartner (Walter 25.08.2026, docs/konkubinat-qst-konzept.md):
@@ -155,7 +155,8 @@ public class QstTarifVorschlagService
                 f.InErstausbildung || azKindIds.Contains(f.Id),
                 f.LebtImHaushalt,
                 f.GemeinsamesKindMitPartner,
-                f.KeineUnterhaltspflicht
+                f.KeineUnterhaltspflicht,
+                f.ErfahrenAm
             ))
             .ToList();
 
@@ -235,7 +236,9 @@ public record QstKindInput(
     // Walter-Vorgabe 01.09.2026: keine Unterhaltspflicht (Stiefkind aus
     // früherer Beziehung des Partners / kein Sorgerecht). Die QST-Kinderziffer
     // knüpft an die Unterhaltspflicht an — ein solches Kind zählt NIE.
-    bool      KeineUnterhaltspflicht = false
+    bool      KeineUnterhaltspflicht = false,
+    // Walter 15.09.2026: ab wann wir den Kinderabzug kannten. NULL = gleich wie Wirkung.
+    DateOnly? ErfahrenAm = null
 );
 
 /// <summary>
@@ -529,6 +532,9 @@ public static class QstTarifVorschlagLogic
         //    bewusst VOR allen anderen Prüfungen: Abzugszeitraum, Alter und
         //    Erstausbildung sind dann ohne Bedeutung.
         if (k.KeineUnterhaltspflicht) return false;
+
+        // Wissens-Achse: Kind war am Stichtag noch nicht gemeldet.
+        if (k.ErfahrenAm.HasValue && k.ErfahrenAm.Value > stichtag) return false;
 
         // 1) Explizit gepflegt
         if (k.QstDeductibleFrom.HasValue || k.QstDeductibleUntil.HasValue)

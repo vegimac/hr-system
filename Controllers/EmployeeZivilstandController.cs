@@ -63,7 +63,7 @@ public class EmployeeZivilstandController : ControllerBase
         }
         var gleich = await _db.EmployeeZivilstandHistories.FirstOrDefaultAsync(h => h.EmployeeId == employeeId && h.GueltigAb == ab);
         if (gleich != null) { gleich.Zivilstand = z; gleich.Bemerkung = dto.Bemerkung?.Trim(); }
-        else _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = employeeId, Zivilstand = z, GueltigAb = ab, Bemerkung = dto.Bemerkung?.Trim() });
+        else _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory { EmployeeId = employeeId, Zivilstand = z, GueltigAb = ab, ErfahrenAm = DateOnly.FromDateTime(DateTime.Now), Bemerkung = dto.Bemerkung?.Trim() });
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
     }

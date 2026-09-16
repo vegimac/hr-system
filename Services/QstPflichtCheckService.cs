@@ -149,7 +149,8 @@ public class QstPflichtCheckService
             .Where(h => h.EmployeeId == employeeId
                      && h.PermitType != null
                      && h.PermitType.Code == "C"
-                     && h.ValidFrom <= stichtag)
+                     && h.ValidFrom <= stichtag
+                     && (h.ErfahrenAm ?? h.ValidFrom) <= stichtag)
             .OrderByDescending(h => h.ValidFrom)
             .ThenByDescending(h => h.Id)
             .FirstOrDefaultAsync();
@@ -550,7 +551,7 @@ public class QstPflichtCheckService
             .Select(f => new { f.Id, f.QstDeductibleFrom, f.QstDeductibleUntil,
                                f.DateOfBirth, f.AlternativeAddressId, f.InErstausbildung,
                                f.LebtImHaushalt, f.GemeinsamesKindMitPartner,
-                               f.KeineUnterhaltspflicht })
+                               f.KeineUnterhaltspflicht, f.ErfahrenAm })
             .ToListAsync();
         var kindIds = kinderRaw.Select(f => f.Id).ToList();
         var azKindIds = kindIds.Count == 0
@@ -575,7 +576,8 @@ public class QstPflichtCheckService
                 f.InErstausbildung || azKindIds.Contains(f.Id),
                 f.LebtImHaushalt,
                 f.GemeinsamesKindMitPartner,
-                f.KeineUnterhaltspflicht), stichtag)
+                f.KeineUnterhaltspflicht,
+                f.ErfahrenAm), stichtag)
         }).ToList();
         int berechtigtTotal   = kinderChecked.Count(k => k.Berechtigt);
         int berechtigtHaushalt = kinderChecked.Count(k => k.Berechtigt && k.LebtImHaushalt);

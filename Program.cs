@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 11;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026)
+const int SchemaStand = 12;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -4886,6 +4886,14 @@ using (var scope = app.Services.CreateScope())
     db.Database.ExecuteSqlRaw(@"
         ALTER TABLE employee_quellensteuer ADD COLUMN IF NOT EXISTS erfahren_am date;
         UPDATE employee_quellensteuer SET erfahren_am = valid_from WHERE erfahren_am IS NULL;
+    ");
+
+    // ── Wissens-Datum an den QST-Quellen (Walter 15.09.2026) ───────────────
+    // SQL-Kopie: migrations-archive/add_qst_quellen_erfahren_am.sql
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE employee_family_member ADD COLUMN IF NOT EXISTS erfahren_am date;
+        ALTER TABLE employee_permit_history ADD COLUMN IF NOT EXISTS erfahren_am date;
+        ALTER TABLE employee_zivilstand_history ADD COLUMN IF NOT EXISTS erfahren_am date;
     ");
 
     // ── K3 MA-Darlehen / Vorschüsse (Walter 29.08.2026) ────────────────────

@@ -149,6 +149,8 @@ public class EmployeeFamilyMembersController : ControllerBase
         // Walter 25.08.2026: Konsistenz-Guard — eine erfasste Zusatzadresse
         // bedeutet IMMER «nicht im gleichen Haushalt».
         if (member.AlternativeAddressId != null) member.LebtImHaushalt = false;
+        if (member.MemberType == "Kind" && !member.ErfahrenAm.HasValue)
+            member.ErfahrenAm = DateOnly.FromDateTime(DateTime.Now);
 
         _context.EmployeeFamilyMembers.Add(member);
         await _context.SaveChangesAsync();

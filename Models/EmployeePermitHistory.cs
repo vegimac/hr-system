@@ -17,6 +17,13 @@ public class EmployeePermitHistory
     public int EmployeeId { get; set; }
     public int? PermitTypeId { get; set; }       // NULL = keine Bewilligung mehr (CH-Bürger / Einbürgerung)
     public DateOnly  ValidFrom { get; set; }
+
+    /// <summary>
+    /// Ab wann wir diese Bewilligung kannten (Walter 15.09.2026). C ab 1.11.
+    /// darf den Januar-Lohn nicht befreien, wenn die Meldung erst im November kam.
+    /// NULL = gleich wie ValidFrom.
+    /// </summary>
+    public DateOnly? ErfahrenAm { get; set; }
     // Walter-Vorgabe 01.06.2026: ValidTo = behördliches Ablauf-Datum auf dem Ausweis.
     // Bei normalen Bewilligungs-Einträgen IMMER gesetzt. NULL nur zulässig für
     // CH-Bürger-/Einbürgerungs-Einträge (PermitTypeId IS NULL).

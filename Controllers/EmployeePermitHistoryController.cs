@@ -315,6 +315,7 @@ public class EmployeePermitHistoryController : ControllerBase
             EmployeeId       = employeeId,
             PermitTypeId     = dto.PermitTypeId,
             ValidFrom        = dto.ValidFrom,
+            ErfahrenAm       = DateOnly.FromDateTime(DateTime.Now),
             ValidTo          = dto.ValidTo,
             Note             = dto.Note,
             DokumentId       = dto.DokumentId,

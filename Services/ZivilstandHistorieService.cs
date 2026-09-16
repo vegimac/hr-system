@@ -40,7 +40,9 @@ public class ZivilstandHistorieService
         if (gleich != null) { gleich.Zivilstand = neuN; gleich.Bemerkung = quelle; return; }
         _db.EmployeeZivilstandHistories.Add(new EmployeeZivilstandHistory
         {
-            EmployeeId = employeeId, Zivilstand = neuN, GueltigAb = ab, Bemerkung = quelle,
+            EmployeeId = employeeId, Zivilstand = neuN, GueltigAb = ab,
+            ErfahrenAm = DateOnly.FromDateTime(DateTime.Now),
+            Bemerkung = quelle,
         });
     }
 
@@ -52,7 +54,12 @@ public class ZivilstandHistorieService
             .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
             .ToListAsync();
         EmployeeZivilstandHistory? treffer = null;
-        foreach (var h in hist) if (h.GueltigAb == null || h.GueltigAb <= stichtag) treffer = h;
+        foreach (var h in hist)
+        {
+            // Wirkung und Wissen: verspätet erfahrener Zivilstand zählt erst ab Erfahren am.
+            var bekannt = h.ErfahrenAm ?? h.GueltigAb;
+            if (bekannt == null || bekannt <= stichtag) treffer = h;
+        }
         // Stichtag vor dem ältesten datierten Eintrag → ältester bekannter Stand
         if (treffer == null && hist.Count > 0) treffer = hist[0];
         if (treffer != null) return (treffer.Zivilstand, treffer.GueltigAb, true);

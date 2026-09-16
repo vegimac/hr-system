@@ -1222,6 +1222,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LebtImHaushalt).HasColumnName("lebt_im_haushalt").HasDefaultValue(true);
             entity.Property(e => e.QstDeductibleFrom).HasColumnName("qst_deductible_from").HasColumnType("date");
             entity.Property(e => e.QstDeductibleUntil).HasColumnName("qst_deductible_until").HasColumnType("date");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             entity.Property(e => e.PermitExpiryDate).HasColumnName("permit_expiry_date").HasColumnType("date");
             entity.Property(e => e.ZemisNumber).HasColumnName("zemis_number").HasMaxLength(40);
@@ -1664,6 +1665,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.Zivilstand).HasColumnName("zivilstand");
             entity.Property(e => e.GueltigAb).HasColumnName("gueltig_ab");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
             entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.HasIndex(e => e.EmployeeId);
@@ -3052,6 +3054,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.PermitTypeId).HasColumnName("permit_type_id");
             entity.Property(e => e.ValidFrom).HasColumnName("valid_from").HasColumnType("date");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
             entity.Property(e => e.ValidTo).HasColumnName("valid_to").HasColumnType("date");
             // permit_expiry_date entfernt 01.06.2026 — siehe Models/EmployeePermitHistory.cs.
             entity.Property(e => e.Note).HasColumnName("note");
