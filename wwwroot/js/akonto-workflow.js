@@ -654,7 +654,7 @@ function _akWfRenderStatusBar() {
     //   IN_BEARBEITUNG_GF → GF-Freigabe-Fortschritt (bei nur HR: HR-Bestätigung)
     //   BEI_HR            → HR-Bestätigungs-Fortschritt
     const counts = (nurHr || d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN' || d.akontoStatus === 'AUSBEZAHLT')
-        ? `${d.countHrBestaetigt || 0}/${d.countTotal || 0} HR-bestätigt`
+        ? `${d.countHrBestaetigt || 0}/${d.countTotal || 0} ${nurHr ? 'bestätigt' : 'HR-bestätigt'}`
         : `${d.countFreigegebenGf || 0}/${d.countTotal || 0} freigegeben`;
 
     // Aktionen je Status + Rolle — kompakte Inline-Buttons (Walter 17.05.2026,
@@ -839,17 +839,22 @@ function _akWfRenderMaList() {
         row.onclick = () => akWfSelectMa(r.id);
 
         // Subline: zeigt den höchsten erreichten Schritt
+        const nurHrListe = lohnlaufNurHrFuerFiliale();
         let sublineText, sublineColor;
         if (isAusbezahlt)     { sublineText = 'Akonto ausbezahlt'; sublineColor = '#7c2d12'; }
+        else if (nurHrListe && (hrDone || gfDone)) { sublineText = 'bestätigt'; sublineColor = '#16a34a'; }
         else if (hrDone)      { sublineText = 'HR-bestätigt';      sublineColor = '#6b6152'; }
         else if (gfDone)      { sublineText = 'GF freigegeben';    sublineColor = '#16a34a'; }
         else                  { sublineText = r.employeeNumber || ''; sublineColor = '#94a3b8'; }
 
         // Avatar — bei Doppel-Häkchen (hrDone, isAusbezahlt) zwei ✓ in einem
         // farbigen Kreis, bei nur GF ein einzelnes Häkchen, sonst Initialen.
+        // Nur-HR: ein Schritt → ein grünes ✓, kein Doppelhaken.
         let avatarHtml;
         if (isAusbezahlt) {
             avatarHtml = `<div title="GF freigegeben + HR bestätigt + ausbezahlt" style="width:34px;height:34px;border-radius:50%;background:#fed7aa;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#7c2d12;flex-shrink:0;line-height:1">✓✓</div>`;
+        } else if (nurHrListe && (hrDone || gfDone)) {
+            avatarHtml = `<div title="bestätigt" style="width:34px;height:34px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#166534;flex-shrink:0">✓</div>`;
         } else if (hrDone) {
             avatarHtml = `<div title="GF freigegeben + HR-bestätigt" style="width:34px;height:34px;border-radius:50%;background:#ece9e2;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;color:#6b6152;flex-shrink:0;line-height:1">✓✓</div>`;
         } else if (gfDone) {

@@ -26,7 +26,7 @@ Pro Lohnperiode gibt es **zwei** Workflows, jeder mit eigenem Status und klarer 
 
 **Leere Periode (kein MA mit Vertrag, keine Snapshots — Walter 16.09.2026):** GF und HR sehen denselben Knopf «Lohn abschliessen» (kein «An HR senden», kein Lohnbeleg, kein DTA). Endpoint `POST /api/payroll-perioden/{id}/leer-abschliessen` springt `offen`/`provisorisch_abgeschlossen` direkt auf `abgeschlossen`. Sobald ein MA mit Vertrag oder ein Snapshot existiert, greift der normale Zwei-Schritt.
 
-**Lohnlauf nur HR (Walter 17.09.2026, Filial-Schalter `lohnlauf_nur_hr`):** Default aus = GF + HR wie oben. Bei ein: GF-Buttons unsichtbar; HR bestätigt `BERECHNET` → `HR_BESTAETIGT` in einem Schritt; «An HR senden» entfällt. Erste HR-Bestätigung setzt Definitiv auf `provisorisch_abgeschlossen` (Edit-Sperre) bzw. Akonto auf `BEI_HR`. Status-Map bleibt; nur die GF-Stufe wird übersprungen. Gilt Akonto und Definitiv.
+**Lohnlauf nur HR (Walter 17.09.2026, Filial-Schalter `lohnlauf_nur_hr`):** Default aus = GF + HR wie oben. Bei ein: GF-Buttons unsichtbar; HR bestätigt `BERECHNET` → `HR_BESTAETIGT` in einem Schritt; «An HR senden» entfällt. Erste HR-Bestätigung setzt Definitiv auf `provisorisch_abgeschlossen` (Edit-Sperre) bzw. Akonto auf `BEI_HR`. In der MA-Liste ein grünes ✓ «bestätigt» (kein Doppelhaken). Status-Map bleibt; nur die GF-Stufe wird übersprungen. Gilt Akonto und Definitiv.
 
 **GF-Sperre-Regel (final 19.05.2026):**
 - GF darf seine zwei Buttons („Lohn bestätigen" / „Wieder eröffnen") **NUR** sehen, wenn der Periode-Status `offen` bzw. `IN_BEARBEITUNG_GF` ist.

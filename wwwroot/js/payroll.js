@@ -666,7 +666,7 @@ function _lohnWfRenderStatusBar() {
     // Counter zeigt den jeweils relevanten Schritt (GF-Phase: GF-Fortschritt,
     // HR-Phase: HR-Fortschritt) — analog Akonto-Tab.
     const counts = (nurHr || isProv || isAbg)
-        ? `${hr}/${total} HR-bestätigt`
+        ? `${hr}/${total} ${nurHr ? 'bestätigt' : 'HR-bestätigt'}`
         : `${gf}/${total} bestätigt`;
     const allGf = total > 0 && gf >= total;
     const allHr = total > 0 && hr >= total;
@@ -1165,30 +1165,38 @@ async function loadLohnList() {
             const initials   = ((e.firstName||'')[0]||'') + ((e.lastName||'')[0]||'');
             const modelClass = (m) => ({ MTP:'model-badge-mtp', FLEX:'model-badge-utp', FIX:'model-badge-fix', 'FIX-M':'model-badge-fix-m' })[m] || '';
             // Drei-Stufen-Markierung analog Akonto-Tab:
-            //   HR-bestätigt (✓✓ blau) — wenn HR oder Periode-Abschluss durch
+            //   HR-bestätigt (✓✓) — wenn HR oder Periode-Abschluss durch
             //   GF-bestätigt (✓ grün) — wenn GF freigegeben hat
             //   Offen (Initialen grau) — wenn Snapshot noch BERECHNET ist oder gar nicht existiert
+            // Nur-HR: ein Schritt → ein grünes ✓ «bestätigt», kein Doppelhaken.
             const isHrConfirmed = hrEmpIds.has(Number(e.id));
             const isGfConfirmed = gfEmpIds.has(Number(e.id));
             const isConfirmed   = isGfConfirmed;   // Legacy-Variable für Sortier-/Count-Logik
+            const nurHrListe = typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale();
+            const nurHrDone  = nurHrListe && (isHrConfirmed || isGfConfirmed);
             // Mindestlohn-Warnung (Walter 20.05.2026): ⚠ wenn unter L-GAV.
             const mwWarn = _lohnMwUnderpaid[e.id];
             const mwIcon = mwWarn
                 ? `<span title="${String(mwWarn.message || 'Lohn unter L-GAV-Mindestlohn').replace(/"/g,'&quot;')}" style="color:#dc2626;margin-left:5px;font-size:12px">⚠</span>`
                 : '';
-            const statusIcon = isHrConfirmed ? '✓✓'
+            const statusIcon = nurHrDone ? '✓'
+                              : isHrConfirmed ? '✓✓'
                               : isGfConfirmed ? '✓'
                               : initials.toUpperCase();
-            const statusBg   = isHrConfirmed ? '#ece9e2'
+            const statusBg   = nurHrDone ? '#dcfce7'
+                              : isHrConfirmed ? '#ece9e2'
                               : isGfConfirmed ? '#dcfce7'
                               : '#e2e8f0';
-            const statusFg   = isHrConfirmed ? '#6b6152'
+            const statusFg   = nurHrDone ? '#166534'
+                              : isHrConfirmed ? '#6b6152'
                               : isGfConfirmed ? '#166534'
                               : '#475569';
-            const statusText = isHrConfirmed ? 'HR-bestätigt'
+            const statusText = nurHrDone ? 'bestätigt'
+                              : isHrConfirmed ? 'HR-bestätigt'
                               : isGfConfirmed ? 'GF bestätigt'
                               : (e.employeeNumber || '');
-            const statusTextColor = isHrConfirmed ? '#6b6152'
+            const statusTextColor = nurHrDone ? '#16a34a'
+                                  : isHrConfirmed ? '#6b6152'
                                   : isGfConfirmed ? '#16a34a'
                                   : '#94a3b8';
             const row = document.createElement('div');
@@ -2381,22 +2389,36 @@ async function confirmLohn() {
         await res.json();
         await lohnWfRefresh();
         // Auch wenn der Snapshot-Fetch kurz stale bleibt: Zeile + Zähler
-        // sofort auf GF-bestätigt setzen (letzter MA hat keinen Sprung,
-        // sonst bleibt der Haken unsichtbar).
+        // sofort setzen (letzter MA hat keinen Sprung, sonst bleibt der
+        // Haken unsichtbar). Nur-HR bestätigt in einem Schritt — nicht
+        // wieder auf «GF bestätigt» zurückmalen (sonst ✓✓ erst beim Nächsten).
         const empId = Number(s.employeeId);
-        _lohnMarkRowConfirmed(empId, 'gf');
+        const nurHr = typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale();
+        _lohnMarkRowConfirmed(empId, nurHr ? 'done' : 'gf');
         if (_lohnWfData) {
             const prev = _lohnWfData.snapByEmp?.[empId]
                 || _lohnWfData.snapByEmp?.[s.employeeId]
                 || {};
-            const already = prev.status === 'FREIGEGEBEN_GF'
-                || prev.status === 'HR_BESTAETIGT'
-                || prev.status === 'ABGESCHLOSSEN';
+            const alreadyHr = prev.status === 'HR_BESTAETIGT' || prev.status === 'ABGESCHLOSSEN';
+            const alreadyGf = prev.status === 'FREIGEGEBEN_GF' || alreadyHr;
             _lohnWfData.snapByEmp = _lohnWfData.snapByEmp || {};
-            _lohnWfData.snapByEmp[empId] = { id: prev.id, status: prev.status === 'HR_BESTAETIGT' || prev.status === 'ABGESCHLOSSEN' ? prev.status : 'FREIGEGEBEN_GF' };
-            if (!already) _lohnWfData.gfConfirmed = Math.min(
-                _lohnWfData.activeTotal || 1,
-                (_lohnWfData.gfConfirmed || 0) + 1);
+            const nextStatus = alreadyHr ? prev.status
+                : (nurHr ? 'HR_BESTAETIGT' : 'FREIGEGEBEN_GF');
+            _lohnWfData.snapByEmp[empId] = { id: prev.id, status: nextStatus };
+            if (nurHr) {
+                if (!alreadyHr) {
+                    _lohnWfData.hrConfirmed = Math.min(
+                        _lohnWfData.activeTotal || 1,
+                        (_lohnWfData.hrConfirmed || 0) + 1);
+                    if (!alreadyGf) _lohnWfData.gfConfirmed = Math.min(
+                        _lohnWfData.activeTotal || 1,
+                        (_lohnWfData.gfConfirmed || 0) + 1);
+                }
+            } else if (!alreadyGf) {
+                _lohnWfData.gfConfirmed = Math.min(
+                    _lohnWfData.activeTotal || 1,
+                    (_lohnWfData.gfConfirmed || 0) + 1);
+            }
             _lohnWfRenderStatusBar();
         }
         showToast(isCorr ? 'Korrekturlohn bestätigt ✓' : 'Lohn bestätigt ✓', 'success');
@@ -2417,13 +2439,21 @@ async function confirmLohn() {
 /// Status (Walter-Vorgabe 20.05.2026 — flüssige Akonto-Mechanik). Aktualisiert
 /// nur Avatar-Icon/-Farbe + Untertext. Der Banner-Counter zählt unabhängig
 /// davon die echten Snapshot-Status (siehe loadLohnPeriodBanner).
-///   mode='gf' → grünes ✓  „GF bestätigt"
-///   mode='hr' → blaues ✓✓ „HR-bestätigt"
+///   mode='gf'   → grünes ✓  „GF bestätigt"
+///   mode='hr'   → graues ✓✓ „HR-bestätigt"
+///   mode='done' → grünes ✓  „bestätigt" (Nur-HR, ein Schritt)
 function _lohnMarkRowConfirmed(empId, mode) {
     const row = document.querySelector(`#lohnEmpList .lohn-emp-row[data-emp-id="${empId}"]`);
     if (!row) return;
     const avatar = row.firstElementChild;
     const sub    = row.querySelector('.lohn-emp-nr');
+    const nurHr = mode === 'done'
+        || (typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale());
+    if (nurHr) {
+        if (avatar) { avatar.style.background = '#dcfce7'; avatar.style.color = '#166534'; avatar.textContent = '✓'; }
+        if (sub)    { sub.textContent = 'bestätigt'; sub.style.color = '#16a34a'; }
+        return;
+    }
     if (mode === 'hr') {
         if (avatar) { avatar.style.background = '#ece9e2'; avatar.style.color = '#6b6152'; avatar.textContent = '✓✓'; }
         if (sub)    { sub.textContent = 'HR-bestätigt'; sub.style.color = '#6b6152'; }
@@ -2457,7 +2487,8 @@ function _lohnJumpToNextUnconfirmed(currentEmpId, mode = 'gf') {
         // GF sucht MA ohne jegliches Häkchen.
         : (row => {
             const t = statusText(row);
-            return !(t.startsWith('GF bestätigt') || t.startsWith('HR-bestätigt') || t.startsWith('Lohn bestätigt'));
+            return !(t.startsWith('GF bestätigt') || t.startsWith('HR-bestätigt')
+                || t.startsWith('Lohn bestätigt') || t === 'bestätigt');
           });
     const idx = rows.findIndex(r => Number(r.dataset.empId) === Number(currentEmpId));
     const order = [];
