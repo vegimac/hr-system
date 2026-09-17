@@ -1,0 +1,17 @@
+---
+description: Lohnläufe nur auf dem Testsystem — Prod ohne Lohn bis Walter anders sagt
+alwaysApply: true
+---
+
+# Lohn nur Testsystem (Walter, 18.09.2026)
+
+Walter testet **Löhne / Lohnläufe / QST-Korrekturen / Beleg-Checks** ausschliesslich auf dem **Testsystem** (`test.onecrew.ch`, DB `hr_system_test`).
+
+**Produktiv** (`hrsystem`): bis auf Weiteres **keine Lohnläufe**, keine Lohn-Verifikation, keine Annahme dass dort Perioden/Snapshots/QST-Korrekturen existieren oder geprüft werden müssen.
+
+Folgen für den Agenten:
+
+- Bei «wie viele Löhne falsch?», Korrektur-Zählungen, Beleg-Checks → **nur Test-DB / Testinstanz**
+- Nicht verlangen, dass Prod dieselben Lohnmonate hat
+- Deploy bleibt `./deploy.sh` (both), aber Lohn-Fachchecks = Test
+- Erst wenn Walter explizit «auch Prod» / «Lohn auf Prod» sagt, gilt diese Regel nicht mehr

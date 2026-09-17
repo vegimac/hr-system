@@ -13,9 +13,11 @@ public static class QstVersionWahl
         => q.ErfahrenAm ?? q.ValidFrom;
 
     /// <summary>
-    /// Tarif, den wir am Stichtag kannten. ValidTo zählt hier nicht: eine
-    /// später erfahrene Version mit früherem Gültig-ab darf den alten Code
-    /// in den Zwischenmonaten nicht verdrängen.
+    /// Tarif, den wir am Stichtag kannten (Live-Lohnlauf). ValidTo zählt hier
+    /// nicht: eine später erfahrene Version mit früherem Gültig-ab darf den
+    /// alten Code in den Zwischenmonaten nicht verdrängen.
+    /// ACHTUNG: QST-Korrektur-Posten nutzen NICHT diese Methode für «neu» —
+    /// dort gilt die neue Version rückwirkend (Swissdec CompanyCorrection).
     /// </summary>
     public static EmployeeQuellensteuer? Waehle(
         IEnumerable<EmployeeQuellensteuer> alle, DateOnly stichtag)

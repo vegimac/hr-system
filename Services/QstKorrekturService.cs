@@ -13,13 +13,13 @@ namespace HrSystem.Services;
 /// Prinzipien:
 ///  • Snapshots bleiben eingefroren — alt = QST-Zeile aus dem SlipJson
 ///    (plus bereits verrechnete Korrekturen desselben Monats).
-///  • neu = Nachrechnung mit der neuen Version auf DERSELBEN Basis
-///    (satzBasis aus der Slip-Zeile, sonst max(Basis, Medianlohn neu)).
-///  • Jahresgrenze: Monate aus einem früheren Steuerjahr als dem
-///    Verrechnungsjahr («Erfahren am») → Status VORJAHR (nur via
-///    Steuerverwaltung). Referenz = BekanntAb.Year, NICHT DateTime.Now
-///    (sonst werden Testmandant-2025-Monate im Kalender 2026 falsch
-///    als Vorjahr behandelt — Walter 18.09.2026).
+///  • neu = Nachrechnung mit DER NEUEN Version (Wirkung/Gültig-ab), auf
+///    derselben Basis — Swissdec CompanyCorrection: A0N→B0N rückwirkend,
+///    NICHT «was wir damals schon wussten» (das gilt nur für den Live-
+///    Lohnlauf via QstVersionWahl.Waehle). Walter 18.09.2026, TF34.
+///  • Zwischenmonate: ValidFrom … Vormonat von Erfahren am (sonst bis ValidTo).
+///  • Jahresgrenze: Postenjahr &lt; Jahr von «Erfahren am» → VORJAHR
+///    (Steuerverwaltung). Referenz = BekanntAb.Year, nicht DateTime.Now.
 /// </summary>
 public class QstKorrekturService
 {
@@ -102,16 +102,18 @@ public class QstKorrekturService
             var (alterBetrag, basis, satzBasis) = LeseQstZeile(r.SlipJson);
             var effektivAlt = alterBetrag + bereitsVerrechnet;
 
-            // Soll-Tarif am Monatsende — inkl. Wissens-Achse (B0Y mit Erfahren
-            // ab Juni zählt im April noch nicht → A0Y).
+            // NEU = die rückwirkende Version (Gültig-ab), nicht Waehle(Stichtag).
+            // Live-Lohnlauf kennt B0N im April noch nicht (Waehle) — die
+            // Korrektur im Erfahrungsmonat zieht ihn aber nach (Swissdec
+            // RefXML Juni TF34: Old A0N −425 / New B0N +185 für Apr+Mai).
+            var sollVersion = neueVersion;
             var mStichtag = new DateOnly(r.Year, r.Month, 1).AddMonths(1).AddDays(-1);
             var alleVersionen = await _db.EmployeeQuellensteuer
                 .Where(q => q.EmployeeId == neueVersion.EmployeeId)
                 .ToListAsync(ct);
-            var sollVersion = QstVersionWahl.Waehle(alleVersionen, mStichtag);
-            if (sollVersion == null) continue;
 
-            // Code auf dem Beleg (Referenz — kann vom Soll abweichen).
+            // Alter Code = was wir am Monatsende kannten (ohne die neue Version)
+            // — Referenz fürs Protokoll / Swissdec Old-Block.
             var aufBelegVersion = QstVersionWahl.Waehle(
                 alleVersionen.Where(q => q.Id != neueVersion.Id), mStichtag);
 
