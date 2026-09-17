@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 12;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026)
+const int SchemaStand = 15;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1155,6 +1155,7 @@ using (var scope = app.Services.CreateScope())
          );
         ALTER TABLE IF EXISTS employment ADD COLUMN IF NOT EXISTS thirteenth_salary boolean NOT NULL DEFAULT true;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS akonto_aktiv boolean NOT NULL DEFAULT true;
+        ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS lohnlauf_nur_hr boolean NOT NULL DEFAULT false;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS ferien_auszahlung_monatlich boolean NOT NULL DEFAULT false;
         ALTER TABLE company_profile ADD COLUMN IF NOT EXISTS teilmonat_methode varchar(20) NOT NULL DEFAULT 'TAGESSATZ365';
         -- Schlussabrechnung / Stunden im Lohn, Filial-Schalter (Walter 10.09.2026); Default true = Schaub
@@ -1225,6 +1226,10 @@ using (var scope = app.Services.CreateScope())
         UPDATE lohnposition
            SET zaehlt_als_basis_13ml = false
          WHERE swissdec_lohnart = '1070' AND is_active = true;
+        -- Ortszulage: Zulage, kein Lohn. CSV 1200 = 1/12 nur von 1000 (TF11 Bosshard).
+        UPDATE lohnposition
+           SET zaehlt_als_basis_13ml = false
+         WHERE swissdec_lohnart = '1033' AND is_active = true;
     ");
 
     // Katalog + veröffentlichte Sätze (system-eigene Texte dürfen nachziehen;
@@ -4347,6 +4352,42 @@ using (var scope = app.Services.CreateScope())
         JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
         WHERE NOT EXISTS (SELECT 1 FROM vertragsmodell_lohnschema x
                           WHERE x.modell = 'ALLE' AND x.lohnposition_id = lp.id AND x.art = 'ereignis');
+    ");
+
+    // ── 13. ML auszahlen (Walter 17.09.2026, Swissdec TF11 Bosshard Mai) ──
+    // Auslöser: Pott + aktueller Monat auszahlen, Saldo 0. Betrag ignoriert
+    // (Engine rechnet). Fibu: dieselben 180.1-Zeilen «Saldo-Auszahlung» →
+    // RST-Abbau 2017/2016. 180.2 ist 14. ML — Code nicht wiederverwenden.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO lohnposition (
+            code, bezeichnung, kategorie, typ,
+            ahv_alv_pflichtig, nbuv_pflichtig, ktg_pflichtig, bvg_pflichtig, qst_pflichtig,
+            lohnausweis_code, dreijehnter_ml_pflichtig,
+            zaehlt_als_basis_feiertag, zaehlt_als_basis_ferien, zaehlt_als_basis_13ml,
+            nicht_drucken_wenn_null, nicht_im_vertrag_drucken,
+            sort_order, is_active, created_at
+        )
+        SELECT '180.3', '13. Monatslohn auszahlen', '13. ML', 'ZULAGE',
+               false, false, false, false, false,
+               NULL, false,
+               false, false, false,
+               true, true,
+               181, true, CURRENT_TIMESTAMP
+         WHERE NOT EXISTS (SELECT 1 FROM lohnposition lp WHERE lp.code = '180.3');
+
+        INSERT INTO vertragsmodell_lohnschema (modell, lohnposition_id, art, sort_order)
+        SELECT v.modell, lp.id, v.art, v.sort_order
+          FROM (VALUES
+            ('FIX',   '180.3', 'ereignis', 45),
+            ('FIX-M', '180.3', 'ereignis', 45),
+            ('MTP',   '180.3', 'ereignis', 75),
+            ('FLEX',  '180.3', 'ereignis', 65)
+          ) AS v(modell, code, art, sort_order)
+          JOIN lohnposition lp ON lp.code = v.code AND lp.is_active = true
+         WHERE NOT EXISTS (
+            SELECT 1 FROM vertragsmodell_lohnschema s
+             WHERE s.modell = v.modell AND s.lohnposition_id = lp.id AND s.art = v.art
+         );
     ");
 
     // Basis bei MTP pro Absenz-Typ (Walter-Vorgabe 18.08.2026): GARANTIE

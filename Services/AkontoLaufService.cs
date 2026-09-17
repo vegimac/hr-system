@@ -159,20 +159,17 @@ public class AkontoLaufService
             .FirstOrDefaultAsync(t => t.CompanyProfileId == companyProfileId
                                     && t.Year == year && t.Month == month);
 
-        // Vormonat-PayrollSaldos (Walter Regel 5/6): brauchen wir für die
-        // Ferien-Pott-Berechnung bei UTP/MTP. Wir nehmen pro MA den jüngsten
-        // Saldo vor der aktuellen Periode — egal welche Filiale, weil ein MA
-        // typischerweise nur in einer Filiale Lohn bekommt (Phantom-MA sind
-        // schon oben gefiltert). Bei Periode 01/2026 → letzte Saldo aus 12/2025.
-        var refKey = year * 12 + month;
+        // Vormonat-PayrollSaldos (Walter Regel 5/6 + 17.09.2026): derselbe
+        // Helfer wie Definitiv. Saldi hängen am MA — jüngster Saldo vor der
+        // Periode, egal welche Filiale. Januar liest Dezember.
         var allSaldos = await _db.PayrollSaldos
             .Where(s => empIds.Contains(s.EmployeeId))
             .ToListAsync();
         var lastSaldoByEmp = allSaldos
-            .Where(s => s.PeriodYear * 12 + s.PeriodMonth < refKey)
             .GroupBy(s => s.EmployeeId)
-            .ToDictionary(g => g.Key,
-                          g => g.OrderByDescending(s => s.PeriodYear * 12 + s.PeriodMonth).First());
+            .Select(g => PayrollCalculations.WaehleVormonatsSaldo(g, companyProfileId, year, month))
+            .Where(s => s != null)
+            .ToDictionary(s => s!.EmployeeId);
 
         // LGAV-Auto-Eintrag pro MA (Walter-Vorgabe 19.05.2026): wenn der Filial-
         // Trigger erreicht ist, fügt LgavBeitragService.EnsureAsync eine

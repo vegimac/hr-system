@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260915b">
+    <link rel="stylesheet" href="css/app.css?v=20260917c">
 </head>
 <body>
 
@@ -5495,6 +5495,12 @@
                             </label>
                             <span style="font-size:11.5px;color:#8b8b8b">Monatslohn → Vertrag, Stunden → Stempelzeiten, Lohnarten → Zulagen/Abzüge, 5050 → BVG-Fixbetrag</span>
                         </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+                            <span style="font-weight:700;font-size:12.5px;min-width:190px">Schritt 5c · Lohnläufe verwerfen</span>
+                            <button type="button" class="kd-btn-glass" style="font-size:12.5px;padding:6px 14px;border-radius:10px" onclick="tmSchritt('5c', true)">🔍 Vorschau</button>
+                            <button type="button" class="btn-primary" style="font-size:12.5px;padding:6px 14px" onclick="tmSchritt('5c', false)">🗑 Verwerfen</button>
+                            <span style="font-size:11.5px;color:#8b8b8b">Lohnzettel + Saldi der Muster AG löschen, Perioden wieder offen. Zulagen/5b bleiben. Danach ältesten Monat zuerst neu bestätigen.</span>
+                        </div>
                         <div id="tmErgebnis" style="font-size:12.5px;color:#3f3f3f"></div>
                     </div>
                 </div>
@@ -9252,9 +9258,9 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/roster-absence-import.js?v=20260823a"></script>
 <script src="js/absence-report.js?v=20260831a"></script>
 <script src="js/akonto-lauf.js?v=20260708flex"></script>
-<script src="js/akonto-workflow.js?v=20260916a"></script>
+<script src="js/akonto-workflow.js?v=20260917a"></script>
 <script src="js/dok-audit.js?v=20260816a"></script>
-<script src="js/branches-detail.js?v=20260910b"></script>
+<script src="js/branches-detail.js?v=20260917b"></script>
 <script src="js/branch-modals.js?v=20260704p"></script>
 <script src="js/deductions.js?v=20260704p"></script>
 <script src="js/qst-modal.js?v=20260915c"></script>
@@ -9272,12 +9278,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260913a"></script>
 <script src="js/contracts-edit.js?v=20260908a"></script>
-<script src="js/payroll.js?v=20260916c"></script>
+<script src="js/payroll.js?v=20260917a"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260910a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260915a"></script>
+<script src="js/admin-settings.js?v=20260917a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>
@@ -9291,7 +9297,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260909b"></script>
+<script src="js/swissdec.js?v=20260917c"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

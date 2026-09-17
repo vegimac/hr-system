@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HrSystem.Models;
+using HrSystem.Services;
 using System.Globalization;
 using System.Text.Json;
 
@@ -150,7 +151,13 @@ public partial class SwissdecTestmandantController
                 {
                     if (!await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id))
                         _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = emp.ZipCode, Ort = emp.City, Strasse = emp.Street, KantonCode = emp.CantonCode, GueltigAb = null, Bemerkung = "Stand Eintritt (Swissdec-Testdaten)", CreatedAt = DateTime.Now });
-                    if (!await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == tag1))
+                    // Umzug = QST (Walter 16.09.2026, TF25 Lehmann): existiert schon
+                    // ein Eintrag im Zielkanton (TAS-Datum oder manuell 1.5.), keinen
+                    // zweiten am CSV-Adress-Tag (1.4.) anlegen — sonst würde die
+                    // Korrektur beim nächsten 4c wieder überschrieben.
+                    var schonZiel = !string.IsNullOrWhiteSpace(kt) && await _db.EmployeeWohnortHistories
+                        .AnyAsync(h => h.EmployeeId == emp.Id && h.KantonCode == kt && h.GueltigAb != null);
+                    if (!schonZiel && !await _db.EmployeeWohnortHistories.AnyAsync(h => h.EmployeeId == emp.Id && h.GueltigAb == tag1))
                         _db.EmployeeWohnortHistories.Add(new EmployeeWohnortHistory { EmployeeId = emp.Id, Plz = plz, Ort = ort, Strasse = str, KantonCode = kt, GueltigAb = tag1, Bemerkung = "Swissdec-Testdaten Mutation", CreatedAt = DateTime.Now });
                     emp.Street = str; emp.ZipCode = plz; emp.City = ort; emp.Country = land; emp.CantonCode = kt;
                 }
@@ -405,6 +412,8 @@ public partial class SwissdecTestmandantController
                 var codeNon = string.Equals(code, "NON", StringComparison.OrdinalIgnoreCase);
                 var beenden = (Hat("PersonTASCode") && code == null && Hat("PersonTASCanton") && kt == null) || codeNon;
                 felder["Quellensteuer"] = (beenden ? $"QST-Pflicht endet per {(ab.AddDays(-1)):dd.MM.yyyy}{(codeNon ? " (Code NON)" : "")}: " : $"neuer Eintrag ab {ab:dd.MM.yyyy}: ") + string.Join(" · ", aend);
+                if (!beenden && kt != null && QstKantonswechselService.KantonName(kt) != null)
+                    felder["Umzug = QST"] = $"Wohnort {kt} gilt ab {ab:dd.MM.yyyy} (TAS), nicht ab Adressmutation";
                 if (!vorschau)
                 {
                     var eintraege = await _db.EmployeeQuellensteuer.Where(q => q.EmployeeId == emp.Id).OrderByDescending(q => q.ValidFrom).ToListAsync();
@@ -452,6 +461,25 @@ public partial class SwissdecTestmandantController
                         if (Hat("PersonTASKindOfResidence")) q.IsWochenaufenthalter = V("PersonTASKindOfResidence") == "Weekly";
                         q.HerleitungJson = JsonSerializer.Serialize(new { quelle = "Swissdec-Testdaten Mutation", monat = mon.ToString("yyyy-MM"), ausloeser = V("PersonTASTriggerOfChange"), modell = V("PersonTASCalculationModel") });
                         q.UpdatedAt = DateTime.Now;
+                        // Umzug = QST (Walter 16.09.2026): Wohnort-Historie auf TAS-Datum
+                        // ziehen + Grenzgänger-Flags auf der neuen CH-Version löschen
+                        // (TF25: CSV-Adresse 1.4. Malters, TAS LU erst 1.5.).
+                        if (kt != null && QstKantonswechselService.KantonName(kt) != null)
+                        {
+                            var wohn = await _db.EmployeeWohnortHistories
+                                .Where(h => h.EmployeeId == emp.Id && h.KantonCode == kt && !h.DatumOffen && h.GueltigAb != null)
+                                .OrderByDescending(h => h.GueltigAb)
+                                .FirstOrDefaultAsync();
+                            if (wohn != null && wohn.GueltigAb != ab)
+                            {
+                                wohn.GueltigAb = ab;
+                                wohn.Bemerkung = string.IsNullOrWhiteSpace(wohn.Bemerkung)
+                                    ? "Umzug = QST (TAS-Datum)"
+                                    : wohn.Bemerkung + " · Umzug = QST (TAS-Datum)";
+                            }
+                            var wechsel = new QstKantonswechselService(_db, new LohnEditLockService(_db));
+                            await wechsel.InlandWohnsitzAbAsync(emp.Id, ab);
+                        }
                     }
                     await _db.SaveChangesAsync();
                 }

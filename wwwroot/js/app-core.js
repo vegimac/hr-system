@@ -1608,22 +1608,10 @@ function populateBranchSelector() {
     // Auswahl gar nicht mehr an.
     const unrestricted = currentUser.branches === 'all';
     sel.innerHTML = unrestricted ? '<option value="">Alle Filialen</option>' : '';
-    const visible = (currentUser.branches === 'all'
-        ? allBranches
-        : allBranches.filter(b => currentUser.branches?.some(ub => ub.id === b.id))
-    ).slice().sort((a, b) => parseInt(a.restaurantCode||'9999',10) - parseInt(b.restaurantCode||'9999',10));
-    visible.forEach(b => {
+    sichtbareFilialen().forEach(b => {
         const o = document.createElement('option');
         o.value = b.id;
-        // Walter 04.08.2026: kompakt «058-Oftringen» (Code + Ort) statt
-        // «058 – Filiale Oftringen» — passt ohne Abschneiden in die Pille.
-        // Walter 15.08.2026: Arbeitsort (workLocation) zuerst; Kantons-Zusatz
-        // wie «(AG)» aus dem Ortsnamen entfernen (Reinach statt Reinach (AG)).
-        const ort = (b.workLocation
-            || b.city
-            || String(b.branchName || b.companyName || '').replace(/^Filiale\s+/i, ''))
-            .replace(/\s*\([^)]*\)\s*$/, '');
-        o.textContent = `${b.restaurantCode ? b.restaurantCode + '-' : ''}${ort}`;
+        o.textContent = filialKurzname(b);
         sel.appendChild(o);
     });
     // Auto-Selektion: bei einer oder mehreren sichtbaren Filialen wird die

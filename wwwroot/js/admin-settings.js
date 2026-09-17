@@ -1471,6 +1471,7 @@ function lpSuggestBasisFlags(code, kategorie, typ) {
         '75.1':  { feiertag: true,  ferien: false, ml13: true  },
         '75.2':  { feiertag: true,  ferien: false, ml13: false },
         '180.1': { feiertag: false, ferien: false, ml13: false },
+        '180.3': { feiertag: false, ferien: false, ml13: false },
         '200.1': { feiertag: false, ferien: false, ml13: false },
         '200.5': { feiertag: false, ferien: false, ml13: true  },
     };

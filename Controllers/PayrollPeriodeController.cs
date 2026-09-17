@@ -312,6 +312,8 @@ public class PayrollPeriodeController : ControllerBase
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (periode is null) return NotFound(new { message = "Periode nicht gefunden." });
+        if (await LohnlaufBestaetigung.IstNurHrAsync(_db, periode.CompanyProfileId))
+            return Conflict(new { message = "Diese Filiale bestätigt den Lohnlauf nur durch HR — «An HR senden» entfällt." });
         if (periode.Status == "abgeschlossen")
             return Conflict(new { message = "Periode ist bereits definitiv abgeschlossen." });
         if (periode.Status == "provisorisch_abgeschlossen")
@@ -383,6 +385,58 @@ public class PayrollPeriodeController : ControllerBase
             periodeId  = periode.Id,
             status     = periode.Status,
             finalCount = periode.Snapshots.Count
+        });
+    }
+
+    /// <summary>
+    /// Periode ohne Lohnzettel direkt abschliessen (GF oder HR).
+    /// Status: offen oder provisorisch_abgeschlossen → abgeschlossen.
+    /// Nur wenn kein MA mit Vertrag in der Periode und keine Snapshots.
+    /// Kein Vorab-PDF, kein DTA, kein Postfach-Versand — der Folgemonat
+    /// darf danach in der Sequenz weiterlaufen.
+    /// </summary>
+    [HttpPost("{id}/leer-abschliessen")]
+    public async Task<IActionResult> LeerAbschliessen(int id)
+    {
+        var periode = await _db.PayrollPerioden
+            .Include(p => p.Snapshots)
+            .FirstOrDefaultAsync(p => p.Id == id);
+        if (periode is null) return NotFound(new { message = "Periode nicht gefunden." });
+        if (periode.Status == "abgeschlossen")
+            return Conflict(new { message = "Periode ist bereits abgeschlossen." });
+        if (periode.Status != "offen" && periode.Status != "provisorisch_abgeschlossen")
+            return Conflict(new { message = $"Periode ist im Status «{periode.Status}» — Leer-Abschluss nur aus «offen» oder «provisorisch_abgeschlossen»." });
+
+        if (periode.Snapshots.Count > 0)
+            return BadRequest(new { message = "Periode hat Lohnzettel — bitte den normalen Abschluss über GF und HR verwenden." });
+
+        var periodFromDt = periode.PeriodFrom.ToDateTime(TimeOnly.MinValue);
+        var periodToDt   = periode.PeriodTo.ToDateTime(TimeOnly.MaxValue);
+        var hatMaMitVertrag = await _db.Employees.AnyAsync(e =>
+            e.IsActive
+            && !e.IsPayrollExcluded
+            && e.Employments.Any(emp => emp.CompanyProfileId == periode.CompanyProfileId
+                                     && emp.ContractStartDate <= periodToDt
+                                     && (!emp.ContractEndDate.HasValue
+                                         || emp.ContractEndDate.Value >= periodFromDt)));
+        if (hatMaMitVertrag)
+            return BadRequest(new { message = "Es sind noch Mitarbeitende mit Vertrag in dieser Periode. Bitte zuerst alle Löhne bestätigen." });
+
+        periode.Status           = "abgeschlossen";
+        periode.AbgeschlossenAm  = DateTime.Now;
+        periode.AbgeschlossenVon = GetUserId();
+        periode.Auszahlungsdatum = periode.PeriodTo;
+
+        await AddAuditAsync(periode.Id, GetUserId(), "LEER_ABGESCHLOSSEN",
+                             "Periode ohne Lohnzettel abgeschlossen (kein DTA, kein Lohnbeleg).");
+        await _db.SaveChangesAsync();
+
+        await AkontoDefinitivGuard.TryAbandonMidFlightAsync(_db, periode, GetUserId());
+
+        return Ok(new {
+            message   = $"Periode «{periode.Label}» ohne Lohnzettel abgeschlossen. Folgemonat kann bearbeitet werden.",
+            periodeId = periode.Id,
+            status    = periode.Status
         });
     }
 

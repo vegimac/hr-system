@@ -211,6 +211,9 @@ public class AkontoWorkflowController : HrControllerBase
             .Where(c => c.Id == req.CompanyProfileId).Select(c => (bool?)c.AkontoAktiv).FirstOrDefaultAsync();
         if (akontoAktiv == false)
             return StatusCode(409, new { error = "Diese Filiale führt keinen Akonto-Lohn (Filial-Einstellungen → Akonto-Lohn: nein). Der Lohnlauf geht direkt zum Definitiv." });
+        if (await LohnlaufBestaetigung.IstNurHrAsync(_db, req.CompanyProfileId)
+            && !LohnlaufBestaetigung.IstHr(User))
+            return StatusCode(409, new { error = "Diese Filiale bestätigt den Lohnlauf nur durch HR." });
         if (!DateOnly.TryParseExact(req.Stichtag, "yyyy-MM-dd",
                                     CultureInfo.InvariantCulture, DateTimeStyles.None, out var stichtag))
             return BadRequest(new { error = "Stichtag-Format: JJJJ-MM-TT." });
@@ -421,6 +424,8 @@ public class AkontoWorkflowController : HrControllerBase
         if (z is null) return NotFound();
         if (!await CanAccessBranchAsync(z.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (await LohnlaufBestaetigung.IstNurHrAsync(_db, z.CompanyProfileId))
+            return StatusCode(409, new { error = "Diese Filiale bestätigt den Lohnlauf nur durch HR. Bitte «HR-bestätigen» verwenden." });
 
         var periode = await _db.PayrollPerioden
             .FirstOrDefaultAsync(p => p.CompanyProfileId == z.CompanyProfileId
@@ -603,6 +608,8 @@ public class AkontoWorkflowController : HrControllerBase
                                    && p.Year == req.Year && p.Month == req.Month);
         if (periode is null || periode.AkontoStatus != "IN_BEARBEITUNG_GF")
             return StatusCode(409, new { error = "Periode muss IN_BEARBEITUNG_GF sein." });
+        if (await LohnlaufBestaetigung.IstNurHrAsync(_db, req.CompanyProfileId))
+            return StatusCode(409, new { error = "Diese Filiale bestätigt den Lohnlauf nur durch HR — «An HR senden» entfällt." });
 
         // Alle Lohnblätter müssen FREIGEGEBEN_GF sein (BERECHNET-Reste blockieren).
         var offen = await _db.AkontoZahlungen
@@ -678,19 +685,35 @@ public class AkontoWorkflowController : HrControllerBase
         // HR_FREIGEGEBEN erlauben — solange noch nicht AUSBEZAHLT ist,
         // darf HR einzelne MA noch nachträglich bestätigen (nach einem
         // Zurückziehen / Override). Erst der DTA-Klick sperrt final.
-        if (periode is null
-            || (periode.AkontoStatus != "BEI_HR" && periode.AkontoStatus != "HR_FREIGEGEBEN"))
+        var nurHr = await LohnlaufBestaetigung.IstNurHrAsync(_db, z.CompanyProfileId);
+        var statusOk = periode != null && (
+            periode.AkontoStatus == "BEI_HR"
+            || periode.AkontoStatus == "HR_FREIGEGEBEN"
+            || (nurHr && periode.AkontoStatus == "IN_BEARBEITUNG_GF"));
+        if (!statusOk)
             return StatusCode(409, new { error = "HR-Bestätigung nur möglich solange noch nicht ausbezahlt (aktuell: "
                                                 + (periode?.AkontoStatus ?? "?") + ")." });
         // Idempotenz (Walter-Bug 17.08.2026): Doppelklick / veraltete Liste —
         // schon HR-bestätigt ist kein Fehler, das Ziel ist erreicht.
         if (z.Status == "HR_BESTAETIGT")
             return Ok(new { z.Id, z.Status, schonBestaetigt = true });
-        if (z.Status != "FREIGEGEBEN_GF")
+        if (z.Status != "FREIGEGEBEN_GF" && !(nurHr && z.Status == "BERECHNET"))
             return StatusCode(409, new { error = $"Lohnblatt muss FREIGEGEBEN_GF sein (aktuell: {z.Status})." });
 
+        var nowTs = DateTime.UtcNow;
+        if (nurHr && periode!.AkontoStatus == "IN_BEARBEITUNG_GF")
+        {
+            periode.AkontoStatus   = "BEI_HR";
+            periode.AkontoGfSentAt = nowTs;
+            periode.AkontoGfSentBy = GetUserId();
+        }
+        if (z.Status == "BERECHNET")
+        {
+            z.GfFreigegebenAt ??= nowTs;
+            z.GfFreigegebenBy ??= GetUserId();
+        }
         z.Status     = "HR_BESTAETIGT";
-        z.UpdatedAt  = DateTime.UtcNow;
+        z.UpdatedAt  = nowTs;
         await _db.SaveChangesAsync();
 
         // Auto-Transit: wenn alle MA der Periode HR_BESTAETIGT sind,

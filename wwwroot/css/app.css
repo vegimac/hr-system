@@ -7590,43 +7590,104 @@
             -webkit-backdrop-filter: blur(16px) saturate(130%);
         }
 
-        /* Kompakter Filial-Einstellungen-Tab (Walter-Vorgabe 15.05.2026):
-           möglichst alles ohne Scrollen — engere Gruppentitel, flachere
-           Feld-Karten, dichtere Raster. Scoped, wirkt nur auf diesen Tab.
-           padding-left auf dem Gruppentitel = innerer Abstand der Feld-Karten
-           (1px Rahmen + 8px Padding), damit Titel und Feld-Labels exakt
-           linksbündig stehen (Walter-Vorgabe 15.05.2026). */
-        /* Walter-Vorgabe 27.05.2026: Filial-Einstellungen-Override entfernt —
-           Filial-Tab nutzt jetzt den gleichen Card-Look wie der MA-Tab
-           (graue Sektion-Cards + weisse Wert-Boxen + blauer Akzent-Streifen). */
-        #fil-tab-f-einstellungen .ein-group-title { margin: 12px 0 4px; padding-left: 10px; }
+        /* Filial-Einstellungen: Themen-Gruppen + lesbare Karten
+           (Walter 17.09.2026 — nicht mehr alles in einer flachen Akkordeon-Liste). */
+        #fil-tab-f-einstellungen .ein-tab-lead {
+            margin: 0 0 16px; padding: 0 2px;
+            font-size: 13px; color: #8a8074; line-height: 1.45;
+        }
+        #fil-tab-f-einstellungen .ein-group { margin: 0 0 22px; }
+        #fil-tab-f-einstellungen .ein-group:last-child { margin-bottom: 8px; }
+        #fil-tab-f-einstellungen .ein-group-title {
+            display: block; margin: 0 0 10px; padding: 0 2px;
+            font-family: inherit; font-size: 11px; font-weight: 800; letter-spacing: 0.14em;
+            text-transform: uppercase; color: #8a8074;
+            border: none; background: none; border-radius: 0;
+        }
+        #fil-tab-f-einstellungen .ein-group-body { display: flex; flex-direction: column; gap: 8px; }
+
+        #fil-tab-f-einstellungen .emp-field-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 12px 16px; padding: 4px 0 8px; margin-bottom: 2px;
+        }
+        #fil-tab-f-einstellungen .emp-field-grid .emp-field:only-child { grid-column: 1 / -1; }
+        #fil-tab-f-einstellungen .emp-field-label {
+            font-size: 11px; letter-spacing: 0.04em; margin-bottom: 5px; color: #5c564c;
+        }
+        #fil-tab-f-einstellungen .emp-field-value {
+            min-height: 38px; padding: 6px 12px;
+        }
+        /* Select sitzt in der weissen Wert-Box — inneren Liquid-Button nicht
+           noch einmal einrahmen, sonst wirkt «Wer bestätigt» leer. */
+        #fil-tab-f-einstellungen .emp-field-value:has(select),
+        #fil-tab-f-einstellungen .emp-field-value:has(.lqsel-wrap) {
+            background: transparent; border: none; box-shadow: none;
+            padding: 0; min-height: 0; display: block;
+        }
+        #fil-tab-f-einstellungen .emp-field-value .lqsel-wrap {
+            display: block; width: 100%; min-width: 0; max-width: none;
+        }
+        #fil-tab-f-einstellungen .emp-field-value .lqsel-btn {
+            background: #fff; min-height: 38px; font-size: 13.5px; font-weight: 500;
+            color: #3f3f3f; border: 1px solid #e2ddd3; border-radius: 9px;
+            box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+        }
 
         /* ── Einstellungen-Tab: aufklappbare Abschnitte (Walter 08.09.2026) ── */
-        .ein-sec { border: 1px solid rgba(60,55,48,0.12); border-radius: 12px; background: rgba(255,255,255,0.55);
-            margin: 0 0 8px; overflow: hidden; }
-        .ein-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 12px;
-            padding: 10px 14px; user-select: none; }
+        .ein-sec { border: 1px solid rgba(60,55,48,0.12); border-radius: 14px; background: rgba(255,255,255,0.62);
+            margin: 0; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(60,55,48,0.05); }
+        .ein-sec > summary { list-style: none; cursor: pointer;
+            display: grid; grid-template-columns: minmax(0, 1fr) auto;
+            align-items: center; gap: 8px 16px;
+            padding: 14px 16px; user-select: none; }
         .ein-sec > summary::-webkit-details-marker { display: none; }
         .ein-sec > summary:hover { background: rgba(60,55,48,0.04); }
-        .ein-sec-title { font-size: 11px; font-weight: 800; color: #3f3f3f; text-transform: uppercase; letter-spacing: 0.08em;
-            flex: 0 0 200px; }
-        .ein-sec-sum { flex: 1 1 auto; font-size: 12.5px; color: #6b6152; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ein-sec[open] .ein-sec-sum { color: #a39b8f; }
-        .ein-sec-chev { font-size: 18px; color: #a39b8f; transform: rotate(90deg); transition: transform .15s; line-height: 1; }
+        .ein-sec-head { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+        .ein-sec-title { font-size: 14.5px; font-weight: 700; color: #3f3f3f;
+            text-transform: none; letter-spacing: 0; line-height: 1.25; }
+        .ein-sec-zweck { font-size: 12.5px; font-weight: 400; color: #8a8074; line-height: 1.35; }
+        .ein-sec-aside { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .ein-sec-sum { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px;
+            max-width: 420px; }
+        .ein-chip { font-size: 11.5px; font-weight: 500; color: #5c564c; white-space: nowrap;
+            background: rgba(60,55,48,0.06); border: 1px solid rgba(60,55,48,0.08);
+            border-radius: 999px; padding: 3px 9px; }
+        .ein-sec[open] .ein-sec-sum { display: none; }
+        .ein-sec-chev { font-size: 18px; color: #a39b8f; transform: rotate(90deg);
+            transition: transform .15s; line-height: 1; }
         .ein-sec[open] .ein-sec-chev { transform: rotate(-90deg); }
-        .ein-sec-body { padding: 4px 14px 12px; border-top: 1px solid rgba(60,55,48,0.08); }
-        .ein-sec-body .emp-field-grid { margin-top: 8px; }
+        .ein-sec-body { padding: 6px 16px 16px; border-top: 1px solid rgba(60,55,48,0.08); }
+        .ein-sec-body .emp-field-grid { margin-top: 10px; }
         .ein-hint { font-weight: 400; text-transform: none; color: #94a3b8; letter-spacing: 0; font-size: 11.5px; }
-        .ein-sub { margin-top: 6px; }
+        .ein-sub { margin-top: 8px; }
         .ein-sub > summary { cursor: pointer; font-size: 12px; color: #6b6152; font-weight: 600; }
         .ein-rules { margin-top: 6px; padding: 8px 12px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 9px;
             font-size: 11.5px; color: #78350f; line-height: 1.45; }
+        .ein-akonto-termine {
+            margin-top: 12px; padding: 12px 14px;
+            background: rgba(255,255,255,0.55); border: 1px solid rgba(60,55,48,0.10);
+            border-radius: 12px;
+        }
+        .ein-akonto-termine-head { display: flex; align-items: flex-start; gap: 10px 14px; flex-wrap: wrap; margin-bottom: 10px; }
+        .ein-akonto-termine-title { font-size: 13.5px; font-weight: 700; color: #3f3f3f; }
+        .ein-akonto-termine-sub { font-size: 12px; color: #8a8074; flex: 1 1 180px; padding-top: 2px; }
+        .ein-akonto-termine-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+        .ein-akonto-termine-actions label { font-size: 11.5px; color: #6b6152; font-weight: 600; }
         body.theme-dark .ein-sec { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
         body.theme-dark .ein-sec-title { color: #e2e8f0; }
+        body.theme-dark .ein-sec-zweck { color: #94a3b8; }
         body.theme-dark .ein-sec-sum { color: #cbd5e1; }
+        body.theme-dark .ein-chip { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.1); color: #cbd5e1; }
         body.theme-dark .ein-sec > summary:hover { background: rgba(255,255,255,0.05); }
         body.theme-dark .ein-sec-body { border-top-color: rgba(255,255,255,0.08); }
         body.theme-dark .ein-rules { background: #292524; border-color: #78350f; color: #fde68a; }
+        body.theme-dark #fil-tab-f-einstellungen .ein-group-title { color: #94a3b8; }
+        body.theme-dark #fil-tab-f-einstellungen .emp-field-value .lqsel-btn {
+            background: rgba(255,255,255,0.06); color: #e2e8f0; border-color: rgba(255,255,255,0.12);
+        }
+        body.theme-dark .ein-akonto-termine { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+        body.theme-dark .ein-akonto-termine-title { color: #e2e8f0; }
 
         /* ── Dokumentenverwaltung ─────────────────────────────────────── */
         .dok-toolbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; gap:12px; flex-wrap:wrap; }

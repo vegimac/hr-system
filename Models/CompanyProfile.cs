@@ -337,6 +337,14 @@ public class CompanyProfile
     public bool AkontoAktiv { get; set; } = true;
 
     /// <summary>
+    /// Lohnlauf-Bestätigung nur durch HR, ohne GF-Stufe (Walter 17.09.2026).
+    /// Standard false = GF bestätigt, dann «An HR senden», dann HR (Schaub).
+    /// Bei true bestätigt HR jeden MA in einem Schritt (BERECHNET →
+    /// HR_BESTAETIGT); «An HR senden» entfällt. Gilt für Akonto und Definitiv.
+    /// </summary>
+    public bool LohnlaufNurHr { get; set; }
+
+    /// <summary>
     /// Schlussabrechnung / Stunden im Lohn — drei Filial-Schalter (Walter 10.09.2026).
     /// Standard true = heutiges Schaub-Verhalten. Swissdec-Testmandant: alle false
     /// (das Quality Tool kennt keine CHF-Auszahlung von Tages-/Stunden-Saldi).

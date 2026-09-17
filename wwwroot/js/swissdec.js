@@ -44,7 +44,15 @@ function tmRenderStatus(j) {
 }
 async function tmSchritt(nr, vorschau) {
     const out = document.getElementById('tmErgebnis');
-    if (!vorschau && !(await liquidConfirm(`Schritt ${nr} jetzt ANLEGEN? (Vorschau vorher angeschaut?)`))) return;
+    if (!vorschau) {
+        const msg = String(nr) === '5c'
+            ? 'ALLE Lohnzettel und Saldi der Muster AG werden gelöscht. Perioden werden wieder offen. Zulagen und Stammdaten bleiben. Danach den ältesten Monat zuerst neu bestätigen.'
+            : `Schritt ${nr} jetzt ANLEGEN? (Vorschau vorher angeschaut?)`;
+        const opts = String(nr) === '5c'
+            ? { title: 'Lohnläufe verwerfen', yesLabel: 'Ja, löschen', noLabel: 'Abbrechen' }
+            : { title: 'Frage' };
+        if (!(await liquidConfirm(msg, opts))) return;
+    }
     out.innerHTML = '⏳ …';
     try {
         const qs = [];

@@ -444,8 +444,11 @@ public class PayrollCalculationEngine
         // ohne QST weiter, damit die Vorschau lädt.
         bool isQuellensteuer = qstPflicht.IsQstPflichtig && qstEinstellung != null;
         if (!isQuellensteuer) qstEinstellung = null;
-        // QST bei Wohnsitz Ausland: Arbeitstage CH / effektiv dieses Monats (Walter 11.09.2026)
-        _qstArbeitstage = qstEinstellung == null ? null
+        // QST bei Wohnsitz Ausland: Arbeitstage CH / effektiv dieses Monats (Walter 11.09.2026).
+        // Wohnort-Historie sticht QST-Grenzgänger-Flag: sitzt die Person in der
+        // CH, keine Arbeitstage-Kürzung (TF25 Lehmann: Malters ab 1.5. = Umzug = QST).
+        _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
+        _qstArbeitstage = qstEinstellung == null || _qstWohnsitzSchweiz ? null
             : await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
         _sonderSaetze = qstEinstellung == null ? null
@@ -569,15 +572,9 @@ public class PayrollCalculationEngine
         deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, periodFrom, ueberReferenzalter);
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
-        // Auch hier CompanyProfileId mitfiltern — sonst könnte der Vormonats-
-        // Saldo aus einer anderen Filiale stammen, wenn der MA dort ebenfalls
-        // einen Saldo-Eintrag hat.
-        var (prevYear, prevMonth) = PrevPeriod(year, month);
-        var prevSaldo = await _db.PayrollSaldos
-            .FirstOrDefaultAsync(s => s.EmployeeId       == employeeId
-                                   && s.PeriodYear       == prevYear
-                                   && s.PeriodMonth      == prevMonth
-                                   && s.CompanyProfileId == companyProfileId);
+        // Walter 17.09.2026: Saldi hängen am MA, nicht an der Filiale.
+        // Jüngster Saldo vor dieser Periode — Dezember → Januar und Filialwechsel.
+        var prevSaldo = await VormonatsSaldoAsync(employeeId, companyProfileId, year, month);
         decimal vormonatHourSaldo    = prevSaldo?.HourSaldo        ?? 0;
         decimal vormonatNachtSaldo   = prevSaldo?.NachtSaldo       ?? 0;
         decimal vormonatFerienGeld   = prevSaldo?.FerienGeldSaldo  ?? 0;
@@ -1295,6 +1292,11 @@ public class PayrollCalculationEngine
             .ThenBy(z => z.CreatedAt)
             .ToList();
 
+        // 180.3 «13. Monatslohn auszahlen»: Anwesenheit zahlt Pott + Monat
+        // (FIX/MTP Raster bzw. FLEX stehender Saldo). Betrag ignoriert.
+        // Probezeit/Verfall sticht weiterhin. Fibu: 180.1 «Saldo-Auszahlung».
+        bool zahlt13mlAus = zulagenEntries.Any(z => z.Lohnposition?.Code == Code13mlAuszahlen);
+
         // ── Lohnabtretungen (Lohnpfändung / Sozialamt) laden ─────────────
         // Aktive Zuweisungen für diesen Mitarbeiter im Perioden-Zeitraum.
         // Werden nach Netto vom Lohn abgezogen.
@@ -1427,8 +1429,9 @@ public class PayrollCalculationEngine
 
         foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE" && !IsVortrag(z)))
         {
-            decimal b  = Math.Round(z.Betrag, 2);
             var     lp = z.Lohnposition!;
+            if (lp.Code == Code13mlAuszahlen) continue; // Auslöser, kein Betrag
+            decimal b  = Math.Round(z.Betrag, 2);
 
             bool anyFlag = lp.AhvAlvPflichtig || lp.NbuvPflichtig || lp.KtgPflichtig
                         || lp.BvgPflichtig    || lp.QstPflichtig;
@@ -1492,6 +1495,7 @@ public class PayrollCalculationEngine
         foreach (var z in zulagenEntries.Where(z => z.Lohnposition!.Typ == "ZULAGE" && !IsVortrag(z)))
         {
             var lp2 = z.Lohnposition!;
+            if (lp2.Code == Code13mlAuszahlen) continue; // Auslöser, nicht Extra-Zahlung
             bool anyFlag2 = lp2.AhvAlvPflichtig || lp2.NbuvPflichtig || lp2.KtgPflichtig
                          || lp2.BvgPflichtig    || lp2.QstPflichtig;
             if (anyFlag2) continue; // bereits in zulagenSvLines
@@ -2719,7 +2723,7 @@ public class PayrollCalculationEngine
             // Austritts-Schlussabrechnung (Walter 04.08.2026): beim LETZTEN Lohn
             // wird der komplette 13.-ML-Saldo ausbezahlt statt weiter
             // zurückgestellt — die Verfall-Regel (Probezeit) sticht weiterhin.
-            bool isPayoutMonthMtp = (IsThirteenthPayoutMonth(company, month) || isLetzterLohn)
+            bool isPayoutMonthMtp = (IsThirteenthPayoutMonth(company, month) || isLetzterLohn || zahlt13mlAus)
                                     && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterMtp = 0;
             decimal thirteenthPctForSaldo  = thirteenthPct;   // Wird akkumuliert …
@@ -3303,7 +3307,7 @@ public class PayrollCalculationEngine
                     // als RST-Abbau S 2017/2016 / H 1920 bucht.
                     var (saldoPayoutUtp, saldoPayoutLabelUtp) =
                         ResolveFlexThirteenthSaldoPayout(
-                            probationEndsThisPeriod, isLetzterLohn, month);
+                            probationEndsThisPeriod, isLetzterLohn, month, zahlt13mlAus);
                     if (prevThirteenth > 0 && saldoPayoutUtp)
                     {
                         lohnLines.Add(new {
@@ -3898,37 +3902,45 @@ public class PayrollCalculationEngine
             lohnLines.AddRange(zulagenSvLines);
             totalLohn += zulagenSvTotal;
 
-            // ── 13. Monatslohn: Auszahlung oder Rückstellung je Firmen-Rhythmus ─
-            // Basis = Summe aller Lohnpositionen mit Flag "Basis für 13. Monatslohn"
-            // (ZaehltAlsBasis13ml = true). Voll Daten-getrieben — Walter steuert
-            // pro Lohnposition in der Admin-UI ob sie zählt.
+            // ── 13. Monatslohn FIX/FIX-M: 1/12 der grünen 13.-Basis (Walter 17.09.2026)
+            // L-GAV Art. 12 Ziff. 1 + 3 Satz 1, Swissdec Lohnart 1200. Das Filial-%
+            // (8.33) ist nur der Ein/Aus-Schalter — FLEX/MTP rechnen weiter × 8.33
+            // (Swissdec 1201). Orange McBonus (DreijehnterMlPflichtig) bleibt 12/13.
+            // YTD-Round05, damit 12 Monatslöhne genau einen 13. ergeben.
             // Probezeit überdrückt die Auszahlung — siehe isInProbation oben.
             // Verfall (Austritt ≤ Probezeit) sticht Auszahlungsmonat.
             // Austritts-Schlussabrechnung (Walter 04.08.2026): beim LETZTEN Lohn
             // wird der komplette 13.-ML-Saldo ausbezahlt statt weiter
             // zurückgestellt — die Verfall-Regel (Probezeit) sticht weiterhin.
-            bool isPayoutMonthFix = (IsThirteenthPayoutMonth(company, month) || isLetzterLohn)
+            bool isPayoutMonthFix = (IsThirteenthPayoutMonth(company, month) || isLetzterLohn || zahlt13mlAus)
                                     && !isInProbation && !thirteenthForfeited;
             decimal dreizehnterFix = 0;
             decimal thirteenthPctForSaldoFix  = thirteenthPct;
             decimal prevThirteenthForSaldoFix = prevThirteenth;
             decimal fix13BasisExact = SumByFlag(lp => lp.ZaehltAlsBasis13ml);
             decimal fix13Basis = Math.Round(fix13BasisExact, 2);
+            decimal fix13Accrual = 0m;
+            if (thirteenthPct > 0)
+            {
+                decimal fix13BasisVorMonat = await SummeFix13BasisVorMonatAsync(
+                    employeeId, year, month);
+                fix13Accrual = FixThirteenthMonatszuwachs(
+                    fix13BasisVorMonat + fix13BasisExact, fix13BasisVorMonat);
+            }
             // Display-Werte für Saldi-Sektion im Auszahlungsmonat (FIX/FIX-M)
             decimal? fix13PrevForDisplay    = null;
             decimal? fix13AccrualForDisplay = null;
             decimal? fix13PayoutForDisplay  = null;
             if (thirteenthForfeited && thirteenthPct > 0)
             {
-                decimal currentAccrual = Round05(fix13BasisExact * thirteenthPct / 100m);
-                decimal forfeitedAmt = Math.Round(prevThirteenth + currentAccrual, 2);
+                decimal forfeitedAmt = Math.Round(prevThirteenth + fix13Accrual, 2);
                 if (forfeitedAmt > 0)
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (verfallen — Auflösung in Probezeit)",
                         code    = "180.1",
                         anzahl      = (decimal?)null,
-                        prozent     = (decimal?)thirteenthPct,
+                        prozent     = (decimal?)null,
                         basis       = (decimal?)fix13Basis,
                         betrag      = 0m,
                         accrued     = (decimal?)forfeitedAmt
@@ -3942,24 +3954,22 @@ public class PayrollCalculationEngine
                 // FIX/FIX-M-Auszahlung: identisches Splitting wie MTP. Aktueller
                 // Monatsanteil und Saldo-Auszahlung als getrennte Lohnposition-
                 // Zeilen, damit FIBU/Abacus-Export sie unterscheiden kann.
-                decimal currentAccrualExact = fix13BasisExact * thirteenthPct / 100m;
-                decimal currentAccrual = Round05(currentAccrualExact);
-                dreizehnterFix = Math.Round(prevThirteenth + currentAccrual, 2);
+                dreizehnterFix = Math.Round(prevThirteenth + fix13Accrual, 2);
                 fix13PrevForDisplay    = prevThirteenth;
-                fix13AccrualForDisplay = currentAccrual;
+                fix13AccrualForDisplay = fix13Accrual;
                 fix13PayoutForDisplay  = dreizehnterFix;
-                if (currentAccrual > 0)
+                if (fix13Accrual > 0)
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn (akt. Monat)",
                         code    = "180.1",
                         anzahl      = (decimal?)null,
-                        prozent     = (decimal?)thirteenthPct,
+                        prozent     = (decimal?)null,
                         basis       = (decimal?)fix13Basis,
-                        betrag      = currentAccrual,
-                        accrued     = (decimal?)currentAccrual
+                        betrag      = fix13Accrual,
+                        accrued     = (decimal?)fix13Accrual
                     });
-                    totalLohn += currentAccrual;
+                    totalLohn += fix13Accrual;
                 }
                 if (prevThirteenth > 0)
                 {
@@ -3980,21 +3990,21 @@ public class PayrollCalculationEngine
             else if (thirteenthPct > 0)
             {
                 // Nicht-Auszahlungsmonat: 13.-ML-Zuwachs als reine Berechnungs-Zeile
-                // anzeigen (betrag=0, accrued=currentAccrual) — analog MTP.
-                // So sieht der MA monatlich, wie sich der 13.-ML akkumuliert.
-                decimal currentAccrual = Round05(fix13BasisExact * thirteenthPct / 100m);
-                if (currentAccrual > 0)
+                // anzeigen (betrag=0, accrued=fix13Accrual) — analog MTP.
+                // AccrualForDisplay setzt den Saldo auf 1/12 (nicht Filial-%).
+                if (fix13Accrual > 0)
                 {
                     lohnLines.Add(new {
                         bezeichnung = "13. Monatslohn",
                         code    = "180.1",
                         anzahl      = (decimal?)null,
-                        prozent     = (decimal?)thirteenthPct,
+                        prozent     = (decimal?)null,
                         basis       = (decimal?)fix13Basis,
                         betrag      = 0m,                 // keine Auszahlung
-                        accrued     = (decimal?)currentAccrual
+                        accrued     = (decimal?)fix13Accrual
                     });
                 }
+                fix13AccrualForDisplay = fix13Accrual;
             }
 
             // ── Krankheit: 80%-Gutschrift — SV-Flags aus LP 70.2 (Walter 28.05.2026) ──
@@ -4053,7 +4063,7 @@ public class PayrollCalculationEngine
             //     Zeile verrechnet — reduziert Brutto UND SV-Basen.
             // SV-pflichtig → totalLohn + ALLE delta*-Basen. Betrag jeweils aus
             // den ANGEZEIGTEN (gerundeten) Werten (ExitSettlementBetrag).
-            // 13.-ML-Saldo ist über isPayoutMonthFix (|| isLetzterLohn) oben
+            // 13.-ML-Saldo ist über isPayoutMonthFix (Raster / letzter Lohn / 180.3)
             // bereits komplett ausbezahlt bzw. in der Probezeit verfallen.
             if (isLetzterLohn)
             {
@@ -4250,6 +4260,44 @@ public class PayrollCalculationEngine
     }
 
     /// <summary>
+    /// Summe der 13.-ML-Basen (grünes Häkchen) der Vormonate desselben Jahres
+    /// über ALLE Filialen — für FIX-YTD 1/12. Ein Filialwechsel darf den
+    /// Jahres-13. nicht abschneiden (Walter 17.09.2026, Schaub und Muster AG).
+    /// STORNIERT zählt nicht.
+    /// </summary>
+    private async Task<decimal> SummeFix13BasisVorMonatAsync(
+        int employeeId, int year, int month)
+    {
+        if (month <= 1) return 0m;
+        var slips = await (
+            from s in _db.PayrollSnapshots
+            join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employeeId
+               && p.Year == year
+               && p.Month >= 1 && p.Month < month
+               && s.Status != "STORNIERT"
+            select s.SlipJson
+        ).ToListAsync();
+        // Leerfilter NICHT in SQL: slip_json ist jsonb, «<> ''» wirft 22P02
+        // (Februar-Beleg Bosshard, 17.09.2026).
+        decimal sum = 0m;
+        foreach (var json in slips)
+        {
+            if (string.IsNullOrWhiteSpace(json)) continue;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                sum += LiesBasis13ml(doc.RootElement);
+            }
+            catch (JsonException)
+            {
+                // kaputtes SlipJson: diesen Monat in der YTD-Summe überspringen
+            }
+        }
+        return sum;
+    }
+
+    /// <summary>
     /// Ermittelt den Beginn der ZUSAMMENHÄNGENDEN Krank-/Unfall-Absenz-Kette,
     /// die den übergebenen Absenz-Tag enthält (Walter-Vorgabe 04.08.2026 —
     /// 2-Monats-Grenze der «Feiertagentschädigung auf Lohnersatz»).
@@ -4324,6 +4372,7 @@ public class PayrollCalculationEngine
     /// </summary>
     /// <summary>Arbeitstage CH/effektiv der laufenden Periode (nur bei QST-Pflicht geladen).</summary>
     private EmployeeQstArbeitstage? _qstArbeitstage;
+    private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
 
     /// <summary>
@@ -4354,7 +4403,7 @@ public class PayrollCalculationEngine
         decimal bruttoVoll = bruttolohn;
         string? tageHinweis = null;
         var tage = _qstArbeitstage;
-        if (tage != null && tage.TageEffektiv > 0 && tage.TageCh < tage.TageEffektiv && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
+        if (tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh < tage.TageEffektiv && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
         {
             bruttolohn = Math.Round(bruttoVoll * tage.TageCh / tage.TageEffektiv, 2);
             tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH)";
@@ -4727,13 +4776,9 @@ public class PayrollCalculationEngine
 
             var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
 
-            // Saldi unverändert durchreichen (kein Accrual bei Korrektur)
-            var (prevYear, prevMonth) = PrevPeriod(year, month);
-            var prevSaldo = await _db.PayrollSaldos
-                .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
-                                       && s.PeriodYear == prevYear
-                                       && s.PeriodMonth == prevMonth
-                                       && s.CompanyProfileId == companyProfileId);
+            // Saldi unverändert durchreichen (kein Accrual bei Korrektur).
+            // MA-Saldo, nicht Filial-Saldo: Dezember und frühere Filiale zählen.
+            var prevSaldo = await VormonatsSaldoAsync(employeeId, companyProfileId, year, month);
             // Falls kein Vormonat: aktueller Saldo dieser Periode (falls schon vorhanden)
             var curSaldo = await _db.PayrollSaldos
                 .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
@@ -4903,6 +4948,19 @@ public class PayrollCalculationEngine
     /// zählt als Tag 30 — Eintritt 16.11. → 15 Tage, Eintritt 27.02. → 4 Tage.
     /// </summary>
     /// <summary>Tage/Basis für die Anzeige im Lohnzeilen-Label, passend zur Methode (TAGE30: x von 30).</summary>
+    /// <summary>
+    /// Vormonats-Saldo des MA: jüngster Saldo vor dieser Periode, egal welche
+    /// Filiale (Dezember → Januar und Filialwechsel).
+    /// </summary>
+    private async Task<PayrollSaldo?> VormonatsSaldoAsync(
+        int employeeId, int companyProfileId, int year, int month)
+    {
+        var saldi = await _db.PayrollSaldos
+            .Where(s => s.EmployeeId == employeeId)
+            .ToListAsync();
+        return PayrollCalculations.WaehleVormonatsSaldo(saldi, companyProfileId, year, month);
+    }
+
     internal static (int Tage, int Basis) TeilmonatTageFuerAnzeige(string? methode, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
     {
         if (!string.Equals(methode, "TAGE30", StringComparison.OrdinalIgnoreCase)) return (kalendertage, monatstage);

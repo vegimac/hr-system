@@ -28,6 +28,30 @@ public class QstKantonswechselService
     public static DateOnly FolgeMonatErster(DateOnly umzug)
         => umzug.Day == 1 ? umzug : new DateOnly(umzug.Year, umzug.Month, 1).AddMonths(1);
 
+    /// <summary>
+    /// Wohnsitz Schweiz am Stichtag aus der Wohnort-Historie (Kanton gesetzt).
+    /// Ohne Historie: Employee.Country = CH. Milano ohne Kanton = Ausland.
+    /// </summary>
+    public static async Task<bool> WohnsitzSchweizAmAsync(AppDbContext db, int employeeId, DateOnly stichtag)
+    {
+        var hist = await db.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == employeeId && !h.DatumOffen)
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToListAsync();
+        EmployeeWohnortHistory? treffer = null;
+        foreach (var h in hist)
+            if (h.GueltigAb == null || h.GueltigAb <= stichtag) treffer = h;
+        if (treffer != null)
+        {
+            var kt = (treffer.KantonCode ?? "").Trim().ToUpperInvariant();
+            return kt.Length == 2 && kt != "EX" && KantonName(kt) != null;
+        }
+        var land = await db.Employees.AsNoTracking()
+            .Where(e => e.Id == employeeId).Select(e => e.Country).FirstOrDefaultAsync();
+        var u = (land ?? "").Trim().ToUpperInvariant();
+        return u is "CH" or "CHE" or "SCHWEIZ";
+    }
+
     private async Task<DateOnly?> FirstAllowedAsync(int employeeId)
     {
         var branchId = await _db.Employees.Where(e => e.Id == employeeId)
@@ -41,8 +65,10 @@ public class QstKantonswechselService
     /// Laufende QST-Version per Monatsende beenden + Folge-Version mit neuem
     /// Kanton anlegen. Idempotent: existiert die Folge-Version schon, wird sie
     /// bei abweichendem Umzugsdatum verschoben (<see cref="VerschiebenAsync"/>).
+    /// <paramref name="sperrePruefen"/> false = Swissdec-Testimport (rekonstruiert
+    /// Stammdaten auch in schon gerechneten Monaten).
     /// </summary>
-    public async Task<Ergebnis> SplitAsync(int employeeId, DateOnly umzug, string neuerKanton, string? neuerOrt, string quelle)
+    public async Task<Ergebnis> SplitAsync(int employeeId, DateOnly umzug, string neuerKanton, string? neuerOrt, string quelle, bool sperrePruefen = true)
     {
         neuerKanton = (neuerKanton ?? "").Trim().ToUpperInvariant();
         if (neuerKanton.Length == 0) return new Ergebnis(false, false, false, false, "Neuer Kanton unbekannt.");
@@ -53,7 +79,7 @@ public class QstKantonswechselService
             .Where(q => q.EmployeeId == employeeId && q.Steuerkanton == neuerKanton && q.ValidFrom >= umzug.AddMonths(-2))
             .OrderByDescending(q => q.ValidFrom).FirstOrDefaultAsync();
         if (vorhanden != null)
-            return await VerschiebenAsync(employeeId, vorhanden, folge, neuerKanton);
+            return await VerschiebenAsync(employeeId, vorhanden, folge, neuerKanton, sperrePruefen);
 
         var alt = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employeeId && q.ValidFrom < folge && (q.ValidTo == null || q.ValidTo >= umzug))
@@ -64,11 +90,14 @@ public class QstKantonswechselService
         if (alterKanton == neuerKanton)
             return new Ergebnis(false, false, false, false, $"QST-Version läuft bereits im Kanton {neuerKanton}.", folge, alterKanton, neuerKanton);
 
-        var firstAllowed = await FirstAllowedAsync(employeeId);
-        if (firstAllowed.HasValue && folge < firstAllowed.Value)
-            return new Ergebnis(true, false, false, true,
-                $"QST-Kantonswechsel ab {folge:dd.MM.yyyy} liegt in einer verarbeiteten Lohnperiode (frei ab {firstAllowed:dd.MM.yyyy}) — bitte über eine QST-Korrektur lösen.",
-                folge, alterKanton, neuerKanton);
+        if (sperrePruefen)
+        {
+            var firstAllowed = await FirstAllowedAsync(employeeId);
+            if (firstAllowed.HasValue && folge < firstAllowed.Value)
+                return new Ergebnis(true, false, false, true,
+                    $"QST-Kantonswechsel ab {folge:dd.MM.yyyy} liegt in einer verarbeiteten Lohnperiode (frei ab {firstAllowed:dd.MM.yyyy}) — bitte über eine QST-Korrektur lösen.",
+                    folge, alterKanton, neuerKanton);
+        }
 
         var monatsende = folge.AddDays(-1);
         alt.ValidTo = monatsende;
@@ -121,7 +150,7 @@ public class QstKantonswechselService
     /// Bestätigtes Umzugsdatum weicht von der Annahme ab: Schnittstelle
     /// zwischen Vorgänger (ValidTo) und Folge-Version (ValidFrom) verschieben.
     /// </summary>
-    public async Task<Ergebnis> VerschiebenAsync(int employeeId, EmployeeQuellensteuer neu, DateOnly folge, string neuerKanton)
+    public async Task<Ergebnis> VerschiebenAsync(int employeeId, EmployeeQuellensteuer neu, DateOnly folge, string neuerKanton, bool sperrePruefen = true)
     {
         if (neu.ValidFrom == folge)
             return new Ergebnis(true, false, false, false, $"QST-Kantonswechsel war bereits erfasst ({neuerKanton} ab {folge:dd.MM.yyyy}).", folge, null, neuerKanton);
@@ -132,12 +161,15 @@ public class QstKantonswechselService
             return new Ergebnis(true, false, false, false, $"QST-Version {neuerKanton} ab {neu.ValidFrom:dd.MM.yyyy} besteht — Vorgänger nicht eindeutig, Datum nicht verschoben.", neu.ValidFrom, null, neuerKanton);
 
         // Sperre: verarbeitete Lohnperioden im betroffenen Bereich
-        var firstAllowed = await FirstAllowedAsync(employeeId);
-        var fruehester = folge < neu.ValidFrom ? folge : neu.ValidFrom;
-        if (firstAllowed.HasValue && fruehester < firstAllowed.Value)
-            return new Ergebnis(true, false, false, true,
-                $"Umzugsdatum kann nicht mehr verschoben werden — der Bereich ab {fruehester:dd.MM.yyyy} liegt in einer verarbeiteten Lohnperiode (frei ab {firstAllowed:dd.MM.yyyy}).",
-                neu.ValidFrom, null, neuerKanton);
+        if (sperrePruefen)
+        {
+            var firstAllowed = await FirstAllowedAsync(employeeId);
+            var fruehester = folge < neu.ValidFrom ? folge : neu.ValidFrom;
+            if (firstAllowed.HasValue && fruehester < firstAllowed.Value)
+                return new Ergebnis(true, false, false, true,
+                    $"Umzugsdatum kann nicht mehr verschoben werden — der Bereich ab {fruehester:dd.MM.yyyy} liegt in einer verarbeiteten Lohnperiode (frei ab {firstAllowed:dd.MM.yyyy}).",
+                    neu.ValidFrom, null, neuerKanton);
+        }
 
         vorgaenger.ValidTo = folge.AddDays(-1);
         vorgaenger.UpdatedAt = DateTime.Now;
@@ -146,6 +178,29 @@ public class QstKantonswechselService
         return new Ergebnis(true, false, true, false,
             $"QST-Kantonswechsel auf das bestätigte Datum verschoben: {vorgaenger.Steuerkanton} bis {vorgaenger.ValidTo:dd.MM.yyyy}, {neuerKanton} ab {folge:dd.MM.yyyy}.",
             folge, vorgaenger.Steuerkanton, neuerKanton);
+    }
+
+    /// <summary>
+    /// Nach Umzug in die CH: Grenzgänger-/Ausland-Flags auf der neuen Version
+    /// löschen (sonst bleibt die Arbeitstage-Box aktiv, obwohl der Wohnort CH ist).
+    /// </summary>
+    public async Task InlandWohnsitzAbAsync(int employeeId, DateOnly ab)
+    {
+        var q = _db.EmployeeQuellensteuer.Local
+                    .FirstOrDefault(x => x.EmployeeId == employeeId && x.ValidFrom == ab)
+                ?? await _db.EmployeeQuellensteuer
+                    .Where(x => x.EmployeeId == employeeId && x.ValidFrom == ab)
+                    .FirstOrDefaultAsync();
+        if (q == null) return;
+        q.IsGrenzgaenger = false;
+        q.IsWochenaufenthalter = false;
+        q.WohnsitzAusland = null;
+        q.Wohnsitzstaat = "CH";
+        q.AdresseAusland = null;
+        q.GrenzgaengerSteuerId = null;
+        q.GrenzgaengerGeburtsort = null;
+        q.GrenzgaengerAb = null;
+        q.UpdatedAt = DateTime.Now;
     }
 
     public static string? KantonName(string code) => code switch

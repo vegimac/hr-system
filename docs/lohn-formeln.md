@@ -108,12 +108,18 @@ Ausbezahlte Feiertag-Stunden (Austritt/Sonderfall) = Code 50.1.
 ## 5. 13. Monatslohn
 
 ```
-Aufschlag  = 8.33 % (= 1/12)
-FLEX      : monatlich ausbezahlt (Basis × 8.33 %)                   (180.1 monatlich)
+Basis     = Summe Lohnarten mit ZaehltAlsBasis13ml (grünes Häkchen)
+FLEX/MTP  : Basis × Filial-% (typisch 8.33 %)                       (180.1; Swissdec 1201)
+FIX/FIX-M : 1/12 der Basis, YTD Round05
+            Zuwachs = Round05(Σ Jan–aktuell / 12) − Round05(Σ Jan–Vormonat / 12)
+            (L-GAV Art. 12 Ziff. 1+3 Satz 1, Swissdec 1200; 8.33 % ≠ 1/12)
 MTP/FIX/FIX-M : monatlich in den CHF-Saldo (180.1 Saldo-Akkumulation),
             Auszahlung NUR in konfigurierten Monaten (Filiale, «13. ML-Raster»)
+            oder per Lohnart 180.3 «13. Monatslohn auszahlen» (Betrag ignoriert;
+            Pott + Monat, Saldo 0; Fibu wie Dezember über 180.1 Saldo-Auszahlung)
 SV        : bei FLEX monatlich verbeitragt; bei Saldo-Modellen im Auszahlungsmonat
             (korrekt für AHV/ALV; BVG-Monats-Cap-Thema → Dezember-Klärung offen)
+Orange (DreijehnterMlPflichtig, McBonus): Betrag enthält den 13. schon (12/13+1/13), nicht in den Pott.
 ```
 
 ## 6. Krankheit / Unfall (KTG/UVG)

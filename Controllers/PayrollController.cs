@@ -549,7 +549,11 @@ public class PayrollController : HrControllerBase
         var qst = await _db.EmployeeQuellensteuer.AsNoTracking()
             .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= pt && (q.ValidTo == null || q.ValidTo >= pf))
             .OrderByDescending(q => q.ValidFrom).FirstOrDefaultAsync();
-        bool relevant = qst != null && (!string.IsNullOrWhiteSpace(qst.WohnsitzAusland)
+        // Wohnort der Periode sticht: sitzt die Person in der CH (Kanton in der
+        // Historie), keine Arbeitstage-Box — auch wenn die QST-Version noch
+        // Grenzgänger-Flags trägt (TF25 Lehmann: Malters ab 1.5., TAS LU A0Y).
+        var wohnsitzCh = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, pf);
+        bool relevant = !wohnsitzCh && qst != null && (!string.IsNullOrWhiteSpace(qst.WohnsitzAusland)
             || (!string.IsNullOrWhiteSpace(qst.Wohnsitzstaat) && !string.Equals(qst.Wohnsitzstaat, "CH", StringComparison.OrdinalIgnoreCase))
             || qst.IsGrenzgaenger);
         var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
@@ -1502,6 +1506,10 @@ public class PayrollController : HrControllerBase
     {
         if (!await CanAccessBranchAsync(dto.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        var lohnNurHr = await LohnlaufBestaetigung.IstNurHrAsync(_db, dto.CompanyProfileId);
+        var actorIstHr = LohnlaufBestaetigung.IstHr(User);
+        if (lohnNurHr && !actorIstHr)
+            return Conflict(new { error = "Diese Filiale bestätigt den Lohnlauf nur durch HR." });
         // 0) Sequenz-Pflicht (Walter-Vorgabe 16.05.2026, präzisiert 03.08.2026):
         // Solange Definitiv noch «offen» ist und Akonto in einem Zwischenstatus
         // hängt, blockieren — sonst wäre Netto − Akonto instabil.
@@ -1741,9 +1749,27 @@ public class PayrollController : HrControllerBase
         {
             var actorId = GetUserIdOrNull();
             // akontoPeriode = PayrollPeriode dieser Filiale/Periode (oben geladen)
-            if (akontoPeriode != null
+            // Nur-HR-Filiale: ein Schritt BERECHNET → HR_BESTAETIGT. Die erste
+            // Bestätigung setzt die Periode auf provisorisch (Edit-Sperre),
+            // «An HR senden» entfällt.
+            if (lohnNurHr && actorIstHr)
+            {
+                snapshot.Status = "HR_BESTAETIGT";
+                snapshot.GfFreigegebenAt ??= nowTs;
+                snapshot.GfFreigegebenBy ??= actorId;
+                snapshot.HrBestaetigtAt = nowTs;
+                snapshot.HrBestaetigtBy = actorId;
+                if (akontoPeriode != null
+                    && string.Equals(akontoPeriode.Status, "offen", StringComparison.OrdinalIgnoreCase))
+                {
+                    akontoPeriode.Status = "provisorisch_abgeschlossen";
+                    akontoPeriode.ProvisorischAbgeschlossenAm  = DateTime.UtcNow;
+                    akontoPeriode.ProvisorischAbgeschlossenVon = actorId;
+                }
+            }
+            else if (akontoPeriode != null
                 && string.Equals(akontoPeriode.Status, "provisorisch_abgeschlossen", StringComparison.OrdinalIgnoreCase)
-                && (User.IsInRole("admin") || User.IsInRole("superuser") || User.IsInRole("buchhaltung")))
+                && actorIstHr)
             {
                 snapshot.Status = "HR_BESTAETIGT";
                 snapshot.GfFreigegebenAt ??= nowTs;
@@ -1953,6 +1979,9 @@ public class PayrollController : HrControllerBase
     {
         if (!await CanAccessBranchAsync(dto.CompanyProfileId))
             return StatusCode(403, new { error = "Kein Zugriff auf diese Filiale." });
+        if (await LohnlaufBestaetigung.IstNurHrAsync(_db, dto.CompanyProfileId)
+            && !LohnlaufBestaetigung.IstHr(User))
+            return Conflict(new { error = "Diese Filiale bestätigt den Lohnlauf nur durch HR." });
         // 1) Snapshot finden — primär über Periode-Kontext (Year+Month+Company),
         //    Fallback über die vom Frontend mitgegebene PayrollPeriodeId.
         var snapshot = await _db.PayrollSnapshots

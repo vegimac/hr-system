@@ -1,6 +1,6 @@
 # Swissdec-Abweichungsprotokoll (OneCrew)
 
-Stand 12.09.2026 · Walter: bewusste Differenzen zum Quality Tool **nicht wegbiegen**,
+Stand 17.09.2026 · Walter: bewusste Differenzen zum Quality Tool **nicht wegbiegen**,
 sondern begründen. Dieses Dokument ist die Liste für Zertifizierung und Beleg-Checks.
 
 **Massgeblich sind die Eingaben** (`SWISSCEC/Testmandant/*.csv`). Die Soll-XML
@@ -10,6 +10,8 @@ kein Bug, solange CSV + Gesetz + dieses Protokoll sie tragen.
 
 Status **BEWUSST** = nicht fixen, nicht «in Richtung XML» rechnen.
 Neue Einträge nur nach Walter-Entscheid. Offene Bugs gehören nicht hierher.
+
+**Beleg-Check (Walter 16.09.2026, ABSOLUT):** Sobald CSV und OneCrew in der **Fachlogik** auseinanderlaufen (nicht 1–2 Rp. Rundung) — **sofort warnen**, Beleg nicht still grün machen. Gemeinsam eine Lösung suchen (Filial-Schalter, Lohnart, Stammdaten-Flag), nicht hinterher «bewusst» abstempeln. Anlass: TF11 Bosshard 13. ML. **Formel 17.09.2026:** FIX/FIX-M jetzt 1/12 (Schaub + Muster AG). Ortszulage 1033 zählt nicht zur 13.-Basis (wie Schicht 1070). Auszahlung vor Pensenwechsel: Lohnart **180.3** (CSV 1200 ausserhalb Dezember → Auslöser, Engine zahlt Pott + Monat).
 
 ---
 
@@ -65,6 +67,27 @@ Das Quality Tool wird diese Felder ankreiden. Begründung mitnehmen, nicht die E
 | **Begründung** | Das XML-Feld ist die Statistik-Summe AHV+ALV+NBU, nicht die einzelne AHV-Zeile. Round05 auf UVG/NBU würde TF01 zerlegen. |
 | **Status** | BEWUSST — nicht AHV/NBU auf 5 Rp. drehen, nur um die Summe zu treffen. |
 
+### A6 — TF25 Lehmann: Umzug = QST (Wohnsitz LU ab 1.5., nicht ab 1.4.)
+
+| | |
+|---|---|
+| **Beleg** | TF25 Nadine Lehmann, April/Mai 2025 |
+| **CSV** | **1.4.:** Adresse Milano → Malters, Land ITALY → SWITZERLAND, Wohnkanton EX → LU, Bewilligung G → B, Arbeitsort TI → LU; Arbeitstage CH 9 → 18. **1.5.:** QST-Kanton TI → LU, Code A0N → A0Y, Aufenthalt Daily → leer; Arbeitstage CH 18 → 20. Zusätzlich April `PersonDepartureDate` 25.04.2025, Mai wieder leer (Swissdec-Artefakt, nicht nachbauen). |
+| **Gesetz** | KS 45: Umzug am **1.** des Monats → neuer Kanton ab diesem Tag (0 Tage Tessin im April) → QST LU ab 1.4. Umzug am **2.** oder später → alter Kanton bis Monatsende. |
+| **OneCrew (Walter 16.09.2026)** | **Umzug = QST.** Wohnort-Historie: Milano bis 30.4., Malters LU **ab 1.5.** QST: TI A0N bis 30.4. (Grenzgänger, Arbeitstage-Box April), LU A0Y ab 1.5. (keine Arbeitstage-Box). CSV-Adressdatum 1.4. bewusst nicht nachgezogen. **Vertrag LU bleibt ab 1.4.** (`PersonWorkplace` TI→LU am 1.4.) — Arbeitsort und Wohnsitz dürfen auseinanderfallen. |
+| **Begründung** | Swissdec datiert den TAS-Wechsel erst Mai. Interne Stammdaten Wohnort + QST müssen denselben Schnitt haben, sonst April-Beleg mit LU-Wohnsitz und TI-Grenzgänger-QST. Abweichung zu KS 45 und zum CSV-Adressdatum ist Absicht — nicht «fixen», nicht QST auf den 1.4. vorziehen. Den LU-Vertrag auf den 1.5. zu schieben würde den April-Lohn aus der LU-Filiale nehmen (oder nach TI verschieben) — CSV 1000 April = 12'000 in LU. |
+| **Status** | BEWUSST |
+
+### A7 — Teilmonat: Eintrittstag zählt (TAGE30 21 Tage, nicht Swissdec 20)
+
+| | |
+|---|---|
+| **Beleg** | TF25 Nadine Lehmann + TF26 Marcel Jenzer, Februar 2025, Eintritt **10.02.2025** |
+| **OneCrew** | TAGE30, Monatsende = Tag 30, Eintritt inklusiv: 10.–30. = **21 Tage** → 12'000 × 21/30 = **8'400**. 13. im Pott Round05(8'400/12) = **700.00**. 1001 wird im Teilmonat nicht importiert (sonst doppelt). Dieselbe Zählung wie Eintritt 16.11. = 15 Tage und 27.02. = 4 Tage (TF12 Casanova, CSV dort ebenfalls 4 Tage). |
+| **Swissdec** | 1000 = 12'000, 1001 = −4'000 → Brutto **8'000** (20/30). Quality Tool Jenzer Feb: AHV 424, ALV 88, NBU 128.48, KTG 12 = 3.00, BVG 910, QST R0N 737.14. 13. CSV erst Juni 4'166.65 auf Basis Feb 8'000. |
+| **Begründung** | Am 10. arbeitet die Person. Den Eintrittstag nicht zu zahlen (Tage 1–10 = 10 Tage Abzug) ist in der CSV falsch und widerspricht Swissdecs eigener 27.02.-Regel. OneCrew verbiegt die 30-Tage-Methode nicht. Differenz zeigen, nicht nachbauen. |
+| **Status** | BEWUSST — Swissdec den Fehler zeigen. |
+
 ---
 
 ## II. Wir folgen der CSV, die Soll-XML ist die Falle
@@ -118,3 +141,5 @@ Ankreiden erwartet: F4 (Blanc QST 79.26 vs 80.30). A1 seit 11.09.2026 behoben.
 Nicht ankreiden / andere XML-Felder: NBU ±2 Rp. (A5), KTG/UVGZ, Ferientage (A2/A3), Stundensaldo ohne CHF.
 
 Nächster Eintrag: wenn ein Beleg-Check eine neue **bewusste** Differenz ergibt — hier ergänzen (ID, TF, Monat, OneCrew, Swissdec, Begründung, Status).
+
+Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1.4. / KS 45); A7 (Lehmann/Jenzer Feb Brutto 8'400 vs CSV 8'000, Eintrittstag zählt).

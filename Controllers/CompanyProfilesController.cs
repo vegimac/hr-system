@@ -780,6 +780,21 @@ public class CompanyProfilesController : ControllerBase
         decimal? AkontoProzentHourly,
         bool?    AkontoAktiv = null);
 
+    // PATCH /api/companyprofiles/{id}/lohnlauf-bestaetigung
+    // GF + HR (Default) oder nur HR — gilt für Akonto und Definitiv.
+    [Authorize(Roles = "admin")]
+    [HttpPatch("{id:int}/lohnlauf-bestaetigung")]
+    public async Task<IActionResult> UpdateLohnlaufBestaetigung(int id, [FromBody] LohnlaufBestaetigungDto dto)
+    {
+        var profile = await _context.CompanyProfiles.FindAsync(id);
+        if (profile is null) return NotFound();
+        profile.LohnlaufNurHr = dto.NurHr;
+        await _context.SaveChangesAsync();
+        return Ok(profile);
+    }
+
+    public record LohnlaufBestaetigungDto(bool NurHr);
+
     // POST /api/companyprofiles/{id}/copy-einstellungen-to-all
     // Kopiert den kompletten Einstellungen-Block dieser Filiale auf ALLE
     // anderen Filialen (Walter-Vorgabe 15.05.2026) — Nachtzeiten, Ferien-/
@@ -835,8 +850,8 @@ public class CompanyProfilesController : ControllerBase
             t.AkontoProzentFix     = source.AkontoProzentFix;
             t.AkontoProzentFixM    = source.AkontoProzentFixM;
             t.AkontoProzentHourly  = source.AkontoProzentHourly;
-            // AkontoAktiv bewusst NICHT kopiert: Akonto ja/nein ist eine Eigenschaft
-            // der einzelnen Filiale (Walter 08.09.2026).
+            // AkontoAktiv und LohnlaufNurHr bewusst NICHT kopiert: beides ist
+            // eine Eigenschaft der einzelnen Filiale (Organisation, nicht Tarif).
         }
 
         // ── Akonto-Termine des Jahres kopieren (Upsert pro Ziel/Monat) ──

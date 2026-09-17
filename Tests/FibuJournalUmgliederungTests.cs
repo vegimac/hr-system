@@ -106,6 +106,24 @@ public class FibuJournalUmgliederungTests
     }
 
     [Fact]
+    public void Ml13_Ausloeser1803_ZaehltNicht_SaldoAuszahlungWieDezember()
+    {
+        // 180.3 ist nur Auslöser (Betrag 0). RST-Abbau kommt von 180.1
+        // «Saldo-Auszahlung»; «akt. Monat» bleibt Aufwand.
+        var slip = Slip("""
+        [
+          { "bezeichnung": "13. Monatslohn auszahlen", "code": "180.3", "betrag": 0.00 },
+          { "bezeichnung": "13. Monatslohn (akt. Monat)", "code": "180.1", "betrag": 800.00, "accrued": 800.00 },
+          { "bezeichnung": "13. Monatslohn (Saldo-Auszahlung)", "code": "180.1", "betrag": 3200.00, "accrued": 3200.00 }
+        ]
+        """);
+        var r = FibuJournalService.ExtractBruttoUmgliederung(slip, FamzNamen, KtgNamen, UvgNamen);
+        Assert.Equal(3200.00m, r.Ml13Auszahlung);
+        Assert.Equal(3200.00m, r.AufwandAbzug);
+        Assert.Equal(0m, r.Ml13Verfall);
+    }
+
+    [Fact]
     public void Ml13_Verfall_Betrag0_WertAusAccrued()
     {
         var slip = Slip("""

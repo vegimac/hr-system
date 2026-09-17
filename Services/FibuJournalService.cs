@@ -129,6 +129,10 @@ public class FibuJournalService
     // «13. Monatslohn (akt. Monat)» und die FLEX-Monatszeile «13. Monatslohn»
     // bleiben bewusst Personalaufwand — für sie wird im selben Monat keine RST
     // gebildet (ThirteenthMonthMonthly=0 im Auszahlungsmonat).
+    // Lohnart 180.3 «13. Monatslohn auszahlen» (Walter 17.09.2026) ist nur der
+    // Auslöser (Betrag 0, nicht in lohnLines) — die Auszahlung bleibt 180.1
+    // «Saldo-Auszahlung» / «Nachzahlung nach Probezeit». Kein neues Kontoplan-
+    // Mapping: Position 180 S 2017 Crew / 2016 Mgmt H 1920.
     // ACHTUNG importierte Alt-Saldi (Walter-Entscheidung 04.08.2026): der
     // 906-Vortrag (Mirus «Rückstellungsliste Saldomethode», auch FLEX) hat
     // KEINE OneCrew-RST-Bildungsbuchung — der Bestand stammt aus der Mirus-
@@ -178,6 +182,10 @@ public class FibuJournalService
         decimal famz = 0, ktg = 0, uvg = 0, ausz13 = 0, verfall13 = 0;
         foreach (var line in lines.EnumerateArray())
         {
+            string? code = line.TryGetProperty("code", out var cd) && cd.ValueKind == JsonValueKind.String
+                ? cd.GetString() : null;
+            if (code == PayrollCalculations.Code13mlAuszahlen) continue;
+
             string bez = line.TryGetProperty("bezeichnung", out var bz) && bz.ValueKind == JsonValueKind.String
                 ? (bz.GetString() ?? "") : "";
             if (bez.Length == 0) continue;
@@ -338,6 +346,8 @@ public class FibuJournalService
             ?? maps.FirstOrDefault(m => m.Position == pos && m.Fibukonto == "2014");
         // 13.-ML-Auszahlung aus dem Saldo → Position 180 (S 2017 Crew /
         // 2016 Management+Gerant, H 1920) × Kostenstelle.
+        // 180.3 ist nur Auslöser (nicht in lohnLines); RST-Abbau kommt von
+        // 180.1 «Saldo-Auszahlung» / «Nachzahlung nach Probezeit».
         LohnKontoMapping? Find13MlAuszahlung(string? kst) =>
             maps.FirstOrDefault(m => m.Position == 180 && m.KostenstelleNr == kst && m.Gegenkonto == "1920")
             ?? maps.FirstOrDefault(m => m.Position == 180 && m.Gegenkonto == "1920");

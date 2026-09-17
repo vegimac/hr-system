@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HrSystem.Data;
 using HrSystem.Models;
+using HrSystem.Services;
 
 namespace HrSystem.Controllers;
 

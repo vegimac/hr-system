@@ -252,4 +252,18 @@ public class WorkflowSpecAuditTests
         Assert.Contains("provisorisch_abgeschlossen", block);
         Assert.Contains("FREIGEGEBEN_GF", block);
     }
+
+    [Fact]
+    public void ConfirmPayroll_GuardtLohnlaufNurHr()
+    {
+        var src = ReadAllText("Controllers/PayrollController.cs");
+        var idx = src.IndexOf("public async Task<IActionResult> ConfirmPayroll(", StringComparison.Ordinal);
+        Assert.True(idx > 0, "ConfirmPayroll nicht gefunden.");
+        var nextIdx = src.IndexOf("public async Task<IActionResult>", idx + 1, StringComparison.Ordinal);
+        if (nextIdx < 0) nextIdx = src.Length;
+        var block = src.Substring(idx, nextIdx - idx);
+        Assert.Contains("IstNurHrAsync", block);
+        Assert.Contains("HR_BESTAETIGT", block);
+        Assert.Contains("provisorisch_abgeschlossen", block);
+    }
 }

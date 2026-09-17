@@ -668,9 +668,15 @@ public static class PayrollCalculations
         }
 
         // 13. ML: Rückstellung intern auf 2 Dezimalen; Summe ist Saldo-Wert.
-        // Basis = Summe aller Lohnpositionen mit ZaehltAlsBasis13ml = true
-        // (im Controller via SumByFlag berechnet).
-        decimal thirteenthMonthly     = saldo.ThirteenthPct > 0 ? Math.Round(saldo.Basis13ml * saldo.ThirteenthPct / 100m, 2) : 0;
+        // FLEX/MTP = Filial-% (8.33). FIX/FIX-M = 1/12 YTD (Engine setzt
+        // AccrualForDisplay); %-Feld ist dort nur der Ein/Aus-Schalter.
+        decimal thirteenthMonthly = 0;
+        if (saldo.ThirteenthPct > 0)
+        {
+            thirteenthMonthly = saldo.ThirteenthAccrualForDisplay.HasValue
+                ? saldo.ThirteenthAccrualForDisplay.Value
+                : Math.Round(saldo.Basis13ml * saldo.ThirteenthPct / 100m, 2);
+        }
         decimal thirteenthAccumulated = Math.Round(saldo.PrevThirteenth + thirteenthMonthly, 2);
 
         var monthNames = new[] { "", "Januar", "Februar", "März", "April", "Mai", "Juni",
@@ -768,6 +774,7 @@ public static class PayrollCalculations
             thirteenthPayout            = saldo.ThirteenthPayout,
             thirteenthPrevForDisplay    = saldo.ThirteenthPrevForDisplay,
             thirteenthAccrualForDisplay = saldo.ThirteenthAccrualForDisplay,
+            basis13ml                   = Math.Round(saldo.Basis13ml, 2),
             isInProbation               = saldo.IsInProbation,
             thirteenthForfeited         = saldo.ThirteenthForfeited,
             showFlexThirteenthSaldo     = saldo.ShowFlexThirteenthSaldo,
@@ -1010,6 +1017,14 @@ public static class PayrollCalculations
            && ahvBasisPeriode < mindesteinkommenMonat.Value;
 
     /// <summary>
+    /// Auslöser «13. Monatslohn auszahlen»: Anwesenheit (auch Betrag 0) zahlt
+    /// Pott + aktuellen Monat und leert den Saldo. Betrag ignoriert — die Engine
+    /// rechnet. 180.2 ist 14. ML, nicht wiederverwenden. Fibu bucht den
+    /// RST-Abbau weiter über die 180.1-Zeile «Saldo-Auszahlung» (Kontoplan 180).
+    /// </summary>
+    public const string Code13mlAuszahlen = "180.3";
+
+    /// <summary>
     /// Bestimmt ob in diesem Monat der angesammelte 13.-ML-Saldo ausbezahlt wird.
     /// Primär aus dem CSV-Feld ThirteenthMonthPayoutMonths (z.B. "6,12" für
     /// halbjährlich). Falls leer/null, Legacy-Fallback auf den alten
@@ -1210,6 +1225,71 @@ public static class PayrollCalculations
         => flagBasisExact + auszahlungenOhneCode;
 
     /// <summary>
+    /// FIX/FIX-M (Monatslohn) — L-GAV Art. 12 Ziff. 1 + 3 Satz 1, Swissdec 1200.
+    /// FLEX/MTP (Stundenlohn) bleiben beim Filial-% (8.33, Swissdec 1201).
+    /// </summary>
+    public static bool IstFixMonatslohnModell(string? model)
+        => model is "FIX" or "FIX-M";
+
+    /// <summary>
+    /// FIX/FIX-M 13. ML Jahres-Soll = Round05(Summe der 13.-Basis Jan–aktuell / 12).
+    /// 8.33 % ist NICHT 1/12 (5'000 × 8.33 % × 12 = 4'998). YTD, damit
+    /// 12 × 2'600 Basis = 2'600 Rundung auf den Rappen, nicht 2'599.80.
+    /// </summary>
+    public static decimal FixThirteenthSollYtd(decimal basisSummeYtd)
+        => Round05(basisSummeYtd / 12m);
+
+    /// <summary>
+    /// Monatszuwachs = Jahres-Soll inkl. diesem Monat minus Jahres-Soll bis Vormonat.
+    /// </summary>
+    public static decimal FixThirteenthMonatszuwachs(decimal basisSummeYtd, decimal basisSummeVorMonat)
+        => FixThirteenthSollYtd(basisSummeYtd) - FixThirteenthSollYtd(basisSummeVorMonat);
+
+    /// <summary>
+    /// 13.-Basis aus einem gespeicherten Slip (für FIX-YTD). Neu: Feld
+    /// <c>basis13ml</c>. Fallback: Basis der Lohnzeile 180.1 (alte Slips).
+    /// </summary>
+    public static decimal LiesBasis13ml(JsonElement slip)
+    {
+        if (slip.ValueKind != JsonValueKind.Object) return 0m;
+        if (TryJsonDecimal(slip, "basis13ml", out var stored)
+            || TryJsonDecimal(slip, "Basis13ml", out stored))
+            return stored;
+
+        if (!slip.TryGetProperty("lohnLines", out var lines)
+            && !slip.TryGetProperty("LohnLines", out lines))
+            return 0m;
+        if (lines.ValueKind != JsonValueKind.Array) return 0m;
+
+        foreach (var line in lines.EnumerateArray())
+        {
+            if (line.ValueKind != JsonValueKind.Object) continue;
+            string? code = null;
+            if (line.TryGetProperty("code", out var c) || line.TryGetProperty("Code", out c))
+                code = c.ValueKind == JsonValueKind.String ? c.GetString() : null;
+            if (code != "180.1") continue;
+            if ((TryJsonDecimal(line, "basis", out var basis) || TryJsonDecimal(line, "Basis", out basis))
+                && basis != 0m)
+                return basis;
+        }
+        return 0m;
+    }
+
+    static bool TryJsonDecimal(JsonElement obj, string name, out decimal value)
+    {
+        value = 0m;
+        if (!obj.TryGetProperty(name, out var el)) return false;
+        if (el.ValueKind == JsonValueKind.Number && el.TryGetDecimal(out value)) return true;
+        if (el.ValueKind == JsonValueKind.String
+            && decimal.TryParse(el.GetString(),
+                System.Globalization.NumberStyles.Number,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out value))
+            return true;
+        return false;
+    }
+
+    /// <summary>
     /// FLEX: Auszahlungs-Trigger für den STEHENDEN 13.-ML-Saldo (Probezeit-Pot
     /// + importierter 906-Alt-Saldo aus Mirus) — Walter-Entscheidung 04.08.2026.
     /// Auszahlung NUR in drei Fällen:
@@ -1219,6 +1299,8 @@ public static class PayrollCalculations
     /// <item>Letzter Lohn (Austritts-Schlussabrechnung)
     /// → Label «13. Monatslohn (Saldo-Auszahlung)»</item>
     /// <item>Spätestens Dezember-Lauf → dito «Saldo-Auszahlung»</item>
+    /// <item>Lohnart 180.3 «13. Monatslohn auszahlen» → dito «Saldo-Auszahlung»
+    /// (Walter 17.09.2026, Swissdec TF11 Bosshard Mai vor Pensenwechsel)</item>
     /// </list>
     /// Die zwei Labels sind EXAKT die Muster, die Fibu v3
     /// (FibuJournalService.Ml13AuszahlungPrefixes → ExtractBruttoUmgliederung)
@@ -1228,14 +1310,15 @@ public static class PayrollCalculations
     /// monatlich ausbezahlt). Verfall bei Austritt IN der Probezeit läuft
     /// NICHT hier, sondern über ResolveThirteenthProbationStatus (Forfeited)
     /// VOR diesem Aufruf — er gilt einheitlich für den GANZEN Saldo inkl.
-    /// Alt-Saldo (L-GAV).
+    /// Alt-Saldo (L-GAV). Probezeit und Verfall stichen 180.3.
     /// </summary>
     public static (bool Payout, string Label) ResolveFlexThirteenthSaldoPayout(
-        bool probationEndsThisPeriod, bool isLetzterLohn, int month)
+        bool probationEndsThisPeriod, bool isLetzterLohn, int month,
+        bool triggerAuszahlen = false)
     {
         if (probationEndsThisPeriod)
             return (true, "13. Monatslohn (Nachzahlung nach Probezeit)");
-        if (isLetzterLohn || month == 12)
+        if (isLetzterLohn || month == 12 || triggerAuszahlen)
             return (true, "13. Monatslohn (Saldo-Auszahlung)");
         return (false, "");
     }
@@ -1398,6 +1481,30 @@ public static class PayrollCalculations
 
     public static (int year, int month) PrevPeriod(int year, int month)
         => month == 1 ? (year - 1, 12) : (year, month - 1);
+
+    /// <summary>
+    /// Vormonats-Saldo des Mitarbeiters (Walter 17.09.2026, Schaub und Muster AG).
+    /// Saldi hängen am MA, nicht an der Filiale: der jüngste Saldo vor dieser
+    /// Periode, egal wo er gebucht ist. Januar liest damit den Dezember
+    /// (auch den des Vorjahres, auch aus der anderen Filiale). Liegen in
+    /// derselben Periode zwei Filialen, gewinnt die aktuelle, sonst die
+    /// neuere Zeile. Die Zeile selbst bleibt filial-gebunden (Saldo-Liste/Fibu).
+    /// </summary>
+    public static PayrollSaldo? WaehleVormonatsSaldo(
+        IEnumerable<PayrollSaldo> saldi, int companyProfileId, int year, int month)
+    {
+        var list = saldi as IList<PayrollSaldo> ?? saldi.ToList();
+        int refKey = year * 12 + month;
+        var vor = list.Where(s => s.PeriodYear * 12 + s.PeriodMonth < refKey).ToList();
+        if (vor.Count == 0) return null;
+
+        int juengste = vor.Max(s => s.PeriodYear * 12 + s.PeriodMonth);
+        var inPeriode = vor.Where(s => s.PeriodYear * 12 + s.PeriodMonth == juengste).ToList();
+        return inPeriode
+            .OrderByDescending(s => s.CompanyProfileId == companyProfileId)
+            .ThenByDescending(s => s.Id)
+            .First();
+    }
 
     /// <summary>
     /// Skaliert HoursCredited einer Absenz proportional auf die Anzahl

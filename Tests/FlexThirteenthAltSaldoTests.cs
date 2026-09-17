@@ -88,6 +88,12 @@ public class FlexThirteenthAltSaldoTests
         var (_, saldoAusz)   = PayrollCalculations.ResolveFlexThirteenthSaldoPayout(false, true,  7);
         Assert.Contains(nachzahlung, FibuJournalService.Ml13AuszahlungPrefixes);
         Assert.Contains(saldoAusz,   FibuJournalService.Ml13AuszahlungPrefixes);
+
+        // 180.3 im Mai: gleiches Saldo-Auszahlung-Label → derselbe RST-Abbau.
+        var (_, trigger) = PayrollCalculations.ResolveFlexThirteenthSaldoPayout(
+            false, false, 5, triggerAuszahlen: true);
+        Assert.Equal("13. Monatslohn (Saldo-Auszahlung)", trigger);
+        Assert.Contains(trigger, FibuJournalService.Ml13AuszahlungPrefixes);
     }
 
     // ── 3) Verfall in Probezeit: gilt für den GANZEN Saldo inkl. Alt-Saldo ──

@@ -321,13 +321,16 @@ public class EmploymentsController : ControllerBase
         if (exitDateOnly < startDateOnly)
             return BadRequest(new { error = "Austrittsdatum liegt vor Vertragsbeginn." });
 
-        // Letzten PayrollSaldo laden (höchstes Jahr/Monat)
-        var lastSaldo = await _context.PayrollSaldos
-            .Where(s => s.EmployeeId == employment.EmployeeId
-                     && s.CompanyProfileId == employment.CompanyProfileId)
+        // Letzten PayrollSaldo des MA laden (höchstes Jahr/Monat), egal welche
+        // Filiale — Saldi hängen am Mitarbeiter (Walter 17.09.2026).
+        var lastSaldo = (await _context.PayrollSaldos
+            .Where(s => s.EmployeeId == employment.EmployeeId)
+            .ToListAsync())
             .OrderByDescending(s => s.PeriodYear)
             .ThenByDescending(s => s.PeriodMonth)
-            .FirstOrDefaultAsync();
+            .ThenByDescending(s => s.CompanyProfileId == employment.CompanyProfileId)
+            .ThenByDescending(s => s.Id)
+            .FirstOrDefault();
 
         // Berechnungs-Stichtag: Ende der letzten geschlossenen Periode bzw.
         // Vertragsbeginn (falls noch keine Periode abgerechnet).

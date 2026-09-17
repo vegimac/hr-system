@@ -14,8 +14,13 @@ namespace HrSystem.Controllers;
 ///       1000 Monatslohn → Vertrag (neuer Abschnitt bei Änderung)
 ///       1005 Stundenlohn → Stunden des Monats (Mutation «Anzahl Stunden») als
 ///            Stempelzeiten, gleichmässig auf die Werktage verteilt («Swissdec-Testdaten»)
-///       1160/1161/1162/1163/1200/1201/1202 → rechnet OneCrew selbst (Ferien-%,
-///            Feiertag-%, 13. ML) — nur Soll-Vergleich
+///       1160/1161/1162/1163/1201/1202 → rechnet OneCrew selbst (Ferien-%,
+///            Feiertag-%, 13. ML monatlich) — nur Soll-Vergleich
+///       1200 13. ML Monatslöhner → OneCrew rechnet; ausserhalb des Filial-
+///            Rasters (Muster AG = Dezember) legt 5b den Auslöser 180.3 an
+///            (Betrag 0 — Engine zahlt Pott + Monat, Fibu RST-Abbau wie Dezember)
+///   5c: Lohnzettel + Saldi der Muster AG löschen, Perioden wieder offen
+///            (für Neu-Rechnung 1/12). Stammdaten/Zulagen bleiben.
 ///       5050 BVG-Beitrag → BVG-Fixbetrag am Versicherungs-Eintrag
 ///       alle übrigen → Zulagen/Abzüge der Periode (LohnZulage) auf der Lohnposition
 ///            über das Feld SwissdecLohnart der Lohnposition (Schritt 4b)
@@ -31,6 +36,11 @@ public partial class SwissdecTestmandantController
     public async Task<IActionResult> Schritt5bVorschau([FromQuery] string? monat, [FromQuery] string? nur) => await Schritt5b(true, monat, nur);
     [HttpPost("schritt5b/anlegen")]
     public async Task<IActionResult> Schritt5bAnlegen([FromQuery] string? monat, [FromQuery] string? nur) => await Schritt5b(false, monat, nur);
+
+    [HttpGet("schritt5c/vorschau")]
+    public async Task<IActionResult> Schritt5cVorschau() => await Schritt5c(true);
+    [HttpPost("schritt5c/anlegen")]
+    public async Task<IActionResult> Schritt5cAnlegen() => await Schritt5c(false);
 
     private static readonly DateOnly TmVon = new(2024, 11, 1);
     private static readonly DateOnly TmBis = new(2026, 2, 1);
@@ -61,6 +71,7 @@ public partial class SwissdecTestmandantController
                 ["Feiertag-Tage am Austritt"] = "nicht in CHF auszahlen (Saldo bleibt in Tagen)",
                 ["Stunden-Saldo im Lohn"] = "nicht verrechnen (Soll/Ist nur Anzeige; Quality Tool kennt keine Saldo-Auszahlung)",
                 ["Uniform-Depot"] = "deaktiviert (kein CHF-50-Abzug beim ersten Lohn)",
+                ["Lohnlauf-Bestätigung"] = "nur HR (kein GF-Schritt, Muster AG ohne Restaurant-GF)",
                 ["bisher"] = $"Ferien {f.DefaultVacationPercent5Weeks}/{f.DefaultVacationPercent6Weeks} ab {f.VacationSixWeeksFromAge} · Feiertag {f.DefaultHolidayPercent} · 13. {f.DefaultThirteenthSalaryPercent} ({f.ThirteenthMonthPayoutMonths ?? "–"})",
             };
             aktionen.Add(new Aktion("aktualisieren", "Filiale", $"{f.RestaurantCode} · {f.BranchName}", felder));
@@ -71,6 +82,7 @@ public partial class SwissdecTestmandantController
                 f.ThirteenthMonthPayoutMonths = "12"; f.ThirteenthMonthPayoutsPerYear = 1;
                 f.DefaultVacationWeeks = 4; f.NormalWeeklyHours ??= 42m;
                 f.AkontoAktiv = false;
+                f.LohnlaufNurHr = true;
                 f.FerienAuszahlungMonatlich = true;
                 f.LgavAktiv = false;
                 f.TeilmonatMethode = "TAGE30";
@@ -102,7 +114,8 @@ public partial class SwissdecTestmandantController
         }
         if (!vorschau) await _db.SaveChangesAsync();
         hinweise.Add("Muster AG: 20 Ferientage (8.33 %) bis Alter 59, 30 Tage (13.04 %) ab 60 — gilt für den Stundenlohn-Zuschlag (CSV TF02 Paganini 1160 = 13.04 %). Die 25 Tage ab 50 (Monatslöhner-Tage) haben bei uns kein drittes %-Band; FLEX springt 8.33 → 13.04.");
-        hinweise.Add("13. Monatslohn: Monatslöhner im Dezember (Testdaten 1200 nur im Dezember), Stundenlöhner monatlich (1201) — FLEX rechnet OneCrew ohnehin monatlich.");
+        hinweise.Add("Muster AG: Lohnlauf-Bestätigung nur HR (kein GF-Schritt) — Filial-Einstellungen «Wer bestätigt».");
+        hinweise.Add("13. Monatslohn: Monatslöhner im Dezember (Testdaten 1200 nur im Dezember; 1200 ausserhalb des Rasters → Auslöser 180.3), Stundenlöhner monatlich (1201) — FLEX rechnet OneCrew ohnehin monatlich.");
         return Ok(new SchrittErgebnis("5a · Filial-Einstellungen + Perioden", vorschau, aktionen, hinweise));
     }
 
@@ -158,6 +171,9 @@ public partial class SwissdecTestmandantController
                 .Where(l => l.IsActive && l.SwissdecLohnart != null && l.SwissdecLohnart != "")
                 .OrderBy(l => l.SortOrder).ThenBy(l => l.Id).ToListAsync())
             .GroupBy(l => l.SwissdecLohnart!).ToDictionary(g => g.Key, g => g.First());
+        var lp1803 = await _db.Lohnpositionen.AsNoTracking()
+            .FirstOrDefaultAsync(l => l.IsActive && l.Code == PayrollCalculations.Code13mlAuszahlen);
+        var filialen = await _db.CompanyProfiles.AsNoTracking().ToDictionaryAsync(c => c.Id);
         var aktionen = new List<Aktion>(); var hinweise = new List<string>();
         var fehlendePos = new HashSet<string>();
 
@@ -177,18 +193,28 @@ public partial class SwissdecTestmandantController
 
             var zulagen = new List<string>(); var soll = new List<string>();
 
-            // Arbeitstage effektiv / CH → employee_qst_arbeitstage (Engine wendet sie nur bei Wohnsitz Ausland an)
+            // Arbeitstage effektiv / CH → employee_qst_arbeitstage (nur Wohnsitz Ausland).
+            // Wohnsitz CH in diesem Monat (TF25 Lehmann ab 1.5. Malters, Umzug = QST)
+            // → CSV-Werte nicht übernehmen.
             var tEff = WertImMonat(tageEffJeMonat, fall, m); var tCh = WertImMonat(tageChJeMonat, fall, m);
             if (tEff is > 0 && tCh != null)
             {
-                felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH" + (tCh < tEff ? " → QST-Anteil bei Wohnsitz Ausland" : "");
-                if (!vorschau)
+                var wohnCh = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, emp.Id, m);
+                if (wohnCh)
                 {
-                    var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == emp.Id && a.Year == m.Year && a.Month == m.Month)
-                          ?? new EmployeeQstArbeitstage { EmployeeId = emp.Id, Year = m.Year, Month = m.Month, CreatedAt = DateTime.Now };
-                    at.TageEffektiv = tEff.Value; at.TageCh = tCh.Value; at.Bemerkung = "Swissdec-Testdaten"; at.UpdatedAt = DateTime.Now;
-                    if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
-                    await _db.SaveChangesAsync();
+                    felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH (CSV; Wohnsitz CH → nicht übernommen)";
+                }
+                else
+                {
+                    felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH" + (tCh < tEff ? " → QST-Anteil bei Wohnsitz Ausland" : "");
+                    if (!vorschau)
+                    {
+                        var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == emp.Id && a.Year == m.Year && a.Month == m.Month)
+                              ?? new EmployeeQstArbeitstage { EmployeeId = emp.Id, Year = m.Year, Month = m.Month, CreatedAt = DateTime.Now };
+                        at.TageEffektiv = tEff.Value; at.TageCh = tCh.Value; at.Bemerkung = "Swissdec-Testdaten"; at.UpdatedAt = DateTime.Now;
+                        if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
+                        await _db.SaveChangesAsync();
+                    }
                 }
             }
             foreach (var w in grp.OrderBy(x => x.Code))
@@ -235,6 +261,45 @@ public partial class SwissdecTestmandantController
                     felder["Lektionen"] = $"{lekt?.ToString("0.##") ?? "?"} Lektionen (Lohnart 1006 = {w.Betrag:0.00}) → als Zulage auf Lohnposition 1006";
                     // fällt durch → Zulage
                 }
+                if (w.Code == "1200")
+                {
+                    soll.Add($"{w.Code} {w.Label} {w.Betrag:0.00}");
+                    bool rasterMonat = vertrag?.CompanyProfileId is int cpid
+                        && filialen.TryGetValue(cpid, out var filial)
+                        && PayrollCalculations.IsThirteenthPayoutMonth(filial, m.Month);
+                    if (w.Betrag > 0 && !rasterMonat)
+                    {
+                        zulagen.Add("1200→180.3 13. Monatslohn auszahlen (Auslöser, Betrag ignoriert)");
+                        if (!vorschau)
+                        {
+                            if (lp1803 == null)
+                                probleme.Add("180.3 fehlt (Schema-Stand 14 — Server neu starten)");
+                            else
+                            {
+                                var vorhanden = await _db.LohnZulagen.FirstOrDefaultAsync(z =>
+                                    z.EmployeeId == emp.Id && z.Periode == periodeStr
+                                    && z.LohnpositionId == lp1803.Id && z.Bemerkung == "Swissdec-Testdaten");
+                                if (vorhanden == null)
+                                    _db.LohnZulagen.Add(new LohnZulage
+                                    {
+                                        EmployeeId = emp.Id, Periode = periodeStr,
+                                        LohnpositionId = lp1803.Id, Betrag = 0m,
+                                        Bemerkung = "Swissdec-Testdaten",
+                                        CreatedAt = DateTime.Now, UpdatedAt = DateTime.Now
+                                    });
+                                else { vorhanden.Betrag = 0m; vorhanden.UpdatedAt = DateTime.Now; }
+                            }
+                        }
+                    }
+                    else if (!vorschau && lp1803 != null)
+                    {
+                        var alt = await _db.LohnZulagen.FirstOrDefaultAsync(z =>
+                            z.EmployeeId == emp.Id && z.Periode == periodeStr
+                            && z.LohnpositionId == lp1803.Id && z.Bemerkung == "Swissdec-Testdaten");
+                        if (alt != null) _db.LohnZulagen.Remove(alt);
+                    }
+                    continue;
+                }
                 if (RechnetOneCrew.Contains(w.Code)) { soll.Add($"{w.Code} {w.Label} {w.Betrag:0.00}"); continue; }
                 // 5050 BVG-Beitrag → Fixbetrag
                 if (w.Code == "5050")
@@ -249,11 +314,12 @@ public partial class SwissdecTestmandantController
                     fehlendePos.Add($"{w.Code} {w.Label}"); probleme.Add($"{w.Code} {w.Label}: keine Lohnposition (4b)");
                     continue;
                 }
-                // 1001 Lohnkorrektur (Walter 09.09.2026): Swissdec zahlt im Ein-/Austrittsmonat den
-                // vollen Monatslohn und korrigiert mit 1001 auf den Teilmonat. OneCrew rechnet den
-                // Teilmonat selbst (Filiale: 30-Tage-Methode). Entspricht die Korrektur genau dem
-                // 30-Tage-Anteil, wird sie NICHT importiert (sonst doppelt). Alle anderen 1001
-                // (echte Korrekturen, Nachzahlungen) werden vorzeichenrichtig gebucht.
+                // 1001 Lohnkorrektur (Walter 09.09.2026 / 17.09.2026): Swissdec zahlt im
+                // Ein-/Austrittsmonat den vollen Monatslohn und kürzt mit 1001. OneCrew
+                // rechnet den Teilmonat selbst (TAGE30, Eintrittstag zählt). 1001 im
+                // Teilmonat daher NIE importieren — sonst doppelt, und eine abweichende
+                // Swissdec-Tageszahl (TF25/26 Feb: 20 statt 21) verbiegt den Lohn (A7).
+                // 1001 in einem vollen Monat (echte Korrektur/Nachzahlung) weiter buchen.
                 if (w.Code == "1001" && vertrag != null)
                 {
                     var lohn1000 = grp.Where(x => x.Code == "1000").Select(x => (decimal?)x.Betrag).FirstOrDefault();
@@ -264,16 +330,17 @@ public partial class SwissdecTestmandantController
                     if (teilmonat && monatslohn > 0)
                     {
                         var anteil = PayrollCalculationEngine.TeilmonatAnteil("TAGE30", monatslohn, von, bisD, bisD.DayNumber - von.DayNumber + 1, monatsEnde.Day);
-                        if (Math.Abs((monatslohn + w.Betrag) - anteil) <= 0.05m)
+                        var csvNetto = monatslohn + w.Betrag;
+                        var abweichend = Math.Abs(csvNetto - anteil) > 0.05m;
+                        felder["Lohnkorrektur 1001"] = abweichend
+                            ? $"{w.Betrag:0.00} Teilmonat ({von:dd.MM.}–{bisD:dd.MM.}) → nicht importiert, OneCrew {anteil:0.00} (Eintrittstag zählt), CSV {csvNetto:0.00} (A7)"
+                            : $"{w.Betrag:0.00} = Teilmonat ({von:dd.MM.}–{bisD:dd.MM.}, 30-Tage-Anteil {anteil:0.00}) → nicht importiert, OneCrew rechnet anteilig";
+                        if (!vorschau)
                         {
-                            felder["Lohnkorrektur 1001"] = $"{w.Betrag:0.00} = Teilmonat ({von:dd.MM.}–{bisD:dd.MM.}, 30-Tage-Anteil {anteil:0.00}) → nicht importiert, OneCrew rechnet anteilig";
-                            if (!vorschau)
-                            {
-                                var alt = await _db.LohnZulagen.FirstOrDefaultAsync(z => z.EmployeeId == emp.Id && z.Periode == periodeStr && z.LohnpositionId == lp.Id && z.Bemerkung == "Swissdec-Testdaten");
-                                if (alt != null) _db.LohnZulagen.Remove(alt);   // frühere (falsche) Buchung aufräumen
-                            }
-                            continue;
+                            var alt = await _db.LohnZulagen.FirstOrDefaultAsync(z => z.EmployeeId == emp.Id && z.Periode == periodeStr && z.LohnpositionId == lp.Id && z.Bemerkung == "Swissdec-Testdaten");
+                            if (alt != null) _db.LohnZulagen.Remove(alt);
                         }
+                        continue;
                     }
                 }
                 // Vorzeichen: Zulage-Positionen tragen den Betrag wie geliefert (auch negativ =
@@ -297,9 +364,60 @@ public partial class SwissdecTestmandantController
         hinweise.Insert(0, $"{werte.Count} Lohnzeilen" + (nurMonat != null ? $" im Monat {nurMonat:MM.yyyy}" : $" über {monate.Count} Monate") + $" · {aktionen.Count} Person/Monat-Gruppen.");
         if (fehlendePos.Count > 0) hinweise.Add("Ohne Lohnposition (Schritt 4b prüfen): " + string.Join(", ", fehlendePos.OrderBy(x => x)));
         hinweise.Add("Stempelzeiten: Monatsstunden gleichmässig auf Mo–Fr verteilt, 08:00 Uhr beginnend, Kommentar «Swissdec-Testdaten» — keine Nachtstunden. Bestehende Test-Stempelzeiten des Monats werden ersetzt.");
-        hinweise.Add("Ferien-/Feiertagsvergütung (1160–1163) und 13. Monatslohn (1200–1202) werden nicht importiert — OneCrew rechnet sie; die Soll-Beträge stehen pro Monat zum Vergleich in der Vorschau.");
+        hinweise.Add("Ferien-/Feiertagsvergütung (1160–1163) und 13. Monatslohn (1201/1202) werden nicht importiert — OneCrew rechnet sie. 1200 ausserhalb des Filial-Rasters legt den Auslöser 180.3 an (Betrag 0); die Soll-Beträge stehen pro Monat zum Vergleich in der Vorschau.");
         hinweise.Add("Nach dem Anlegen: Lohnlauf → Filiale → Monat → «Lohn bestätigen» pro MA, dann Vergleich mit den Swissdec-Sollwerten (Quality Tool).");
         return Ok(new SchrittErgebnis("5b · Monatswerte", vorschau, aktionen, hinweise));
+    }
+
+    // ── 5c ──────────────────────────────────────────────────────────────
+    // Bestätigte Lohnzettel + Saldi der Muster AG weg, Perioden wieder offen.
+    // Zulagen/5b, Verträge, Stempelzeiten bleiben. Dann Jan → aktuell neu
+    // bestätigen (1/12 braucht die Vormonate in Reihenfolge).
+    private async Task<IActionResult> Schritt5c(bool vorschau)
+    {
+        if (!IstTestinstanz())
+            return StatusCode(403, new { error = "NUR_TESTINSTANZ", message = "Der Swissdec-Testmandant darf nur auf der Testinstanz geladen werden." });
+        var hs = await _db.Hauptsitze.AsNoTracking().FirstOrDefaultAsync(h => h.Uid == "CHE-999.999.996");
+        if (hs == null) return NotFound(new { error = "HAUPTSITZ_FEHLT", message = "Muster AG fehlt — zuerst Schritt 1." });
+        var filialen = await _db.CompanyProfiles.Where(c => c.HauptsitzId == hs.Id)
+            .OrderBy(c => c.RestaurantCode).ToListAsync();
+        var filialIds = filialen.Select(c => c.Id).ToList();
+        var perioden = await _db.PayrollPerioden.Where(p => filialIds.Contains(p.CompanyProfileId)).ToListAsync();
+        var periodeIds = perioden.Select(p => p.Id).ToList();
+        var snaps = periodeIds.Count == 0
+            ? new List<PayrollSnapshot>()
+            : await _db.PayrollSnapshots.Where(s => periodeIds.Contains(s.PayrollPeriodeId)).ToListAsync();
+        var saldi = await _db.PayrollSaldos.Where(s => filialIds.Contains(s.CompanyProfileId)).ToListAsync();
+
+        var aktionen = new List<Aktion>();
+        var hinweise = new List<string>();
+        foreach (var f in filialen)
+        {
+            var perIds = perioden.Where(p => p.CompanyProfileId == f.Id).Select(p => p.Id).ToHashSet();
+            var nPer = perIds.Count;
+            var nSnap = snaps.Count(s => perIds.Contains(s.PayrollPeriodeId));
+            var nSaldo = saldi.Count(s => s.CompanyProfileId == f.Id);
+            aktionen.Add(new Aktion("aktualisieren", "Lohnlauf",
+                $"{f.RestaurantCode}: {nPer} Perioden → offen, {nSnap} Lohnzettel + {nSaldo} Saldi löschen", new()));
+        }
+        if (!vorschau)
+        {
+            if (snaps.Count > 0) _db.PayrollSnapshots.RemoveRange(snaps);
+            if (saldi.Count > 0) _db.PayrollSaldos.RemoveRange(saldi);
+            foreach (var p in perioden)
+            {
+                p.Status = "offen";
+                p.AbgeschlossenAm = null;
+                p.AbgeschlossenVon = null;
+                p.ProvisorischAbgeschlossenAm = null;
+                p.ProvisorischAbgeschlossenVon = null;
+            }
+            await _db.SaveChangesAsync();
+        }
+        hinweise.Add("Zulagen, Stempelzeiten und Verträge bleiben. 180.3 (Bosshard Mai) bleibt.");
+        hinweise.Add("Danach im Lohnlauf den ÄLTESTEN offenen Monat zuerst bestätigen (Nov 2024 bzw. Eintritt), dann den nächsten — sonst fehlt der 13.-Pott.");
+        hinweise.Add("Stunden-Saldo rot bei FIX (Ist = 0) ist nur Anzeige; Muster AG verrechnet ihn nicht in CHF.");
+        return Ok(new SchrittErgebnis("5c · Lohnläufe verwerfen", vorschau, aktionen, hinweise));
     }
 
     // ── Hilfen 5 ────────────────────────────────────────────────────────

@@ -2173,7 +2173,7 @@
    "ktg": true,
    "bvg": true,
    "qst": true,
-   "ml13": true,
+   "ml13": false,
    "lohnausweis": "I",
    "lohnausweisPeriodizitaet": 0,
    "fibuKonto": "5001",

@@ -728,6 +728,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.LgavBeitragVoll).HasColumnName("lgav_beitrag_voll").HasColumnType("numeric(8,2)").HasDefaultValue(99m);
             entity.Property(e => e.LgavBeitragReduziert).HasColumnName("lgav_beitrag_reduziert").HasColumnType("numeric(8,2)").HasDefaultValue(49.5m);
             entity.Property(e => e.AkontoAktiv).HasColumnName("akonto_aktiv").HasDefaultValue(true);
+            entity.Property(e => e.LohnlaufNurHr).HasColumnName("lohnlauf_nur_hr").HasDefaultValue(false);
             // Schlussabrechnung / Stunden im Lohn (Walter 10.09.2026)
             entity.Property(e => e.FerientageAmAustrittAuszahlen).HasColumnName("ferientage_am_austritt_auszahlen").HasDefaultValue(true);
             entity.Property(e => e.FeiertagstageAmAustrittAuszahlen).HasColumnName("feiertagstage_am_austritt_auszahlen").HasDefaultValue(true);

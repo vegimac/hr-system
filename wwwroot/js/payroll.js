@@ -653,7 +653,9 @@ function _lohnWfRenderStatusBar() {
     const isHr  = (typeof _akIsHr === 'function')
         ? _akIsHr()
         : ((typeof currentUser !== 'undefined' && currentUser?.role)
-            && (currentUser.role === 'admin' || currentUser.role === 'superuser'));
+            && (currentUser.role === 'admin' || currentUser.role === 'superuser' || currentUser.role === 'buchhaltung'));
+    const nurHr = (typeof lohnlaufNurHrFuerFiliale === 'function') && lohnlaufNurHrFuerFiliale();
+    const zurueckLabel = nurHr ? '↩ Zurück zur Bearbeitung' : '↩ Zurück an GF';
     const total = d.activeTotal || 0;
     const gf    = d.gfConfirmed || 0;
     const hr    = d.hrConfirmed || 0;
@@ -663,7 +665,7 @@ function _lohnWfRenderStatusBar() {
 
     // Counter zeigt den jeweils relevanten Schritt (GF-Phase: GF-Fortschritt,
     // HR-Phase: HR-Fortschritt) — analog Akonto-Tab.
-    const counts = (isProv || isAbg)
+    const counts = (nurHr || isProv || isAbg)
         ? `${hr}/${total} HR-bestätigt`
         : `${gf}/${total} bestätigt`;
     const allGf = total > 0 && gf >= total;
@@ -682,9 +684,9 @@ function _lohnWfRenderStatusBar() {
     // ohne «Zurück an GF» (das alle Bestätigungen zurücksetzen würde).
     // HR-Klick setzt serverseitig direkt HR_BESTAETIGT.
     const canConfirmInHr = hasSel && isProv && isHr && selStatus === 'BERECHNET';
-    const perMaConfirm = (hasSel && ((isOffen && selStatus === 'BERECHNET') || canConfirmInHr))
-        ? `<button id="btnLohnBestaetigenWf" class="btn btn-primary btn-sm" onclick="confirmLohn()">${isCorrSel ? '✓ Korrekturlohn bestätigen' : '✓ Lohn bestätigen'}</button>` : '';
-    const perMaReopen = (hasSel && isOffen && selStatus === 'FREIGEGEBEN_GF')
+    const perMaConfirm = (hasSel && ((isOffen && selStatus === 'BERECHNET' && (!nurHr || isHr)) || canConfirmInHr))
+        ? `<button id="btnLohnBestaetigenWf" class="btn btn-primary btn-sm" onclick="confirmLohn()">${isCorrSel ? '✓ Korrekturlohn bestätigen' : (nurHr ? '✓ Lohn bestätigen' : '✓ Lohn bestätigen')}</button>` : '';
+    const perMaReopen = (hasSel && isOffen && !nurHr && selStatus === 'FREIGEGEBEN_GF')
         ? `<button class="btn btn-outline btn-sm" onclick="reopenLohn()" style="color:#b91c1c;border-color:#fecaca">↶ Wieder eröffnen</button>` : '';
 
     // ─ HR Per-MA-Aktionen (nur in provisorisch_abgeschlossen, nur HR) ─
@@ -733,19 +735,33 @@ function _lohnWfRenderStatusBar() {
     if (_skKorrBtn) _skKorrBtn.style.display = saldoKorrOk ? '' : 'none';
     const saldoKorrItem = '';
 
+    const leerBtn = `<button class="btn btn-success btn-sm" onclick="lohnLeerePeriodeAbschliessen()" title="Periode ohne Lohnzettel direkt schliessen — kein Lohnbeleg, kein DTA">Lohn abschliessen</button>`;
+
     let actions = '';
     switch (d.status) {
         case 'offen':
+            if (total === 0) {
+                actions = leerBtn;
+                break;
+            }
+            if (nurHr && !isHr) {
+                actions = `${pdfBtn}${skBtn}${lockPill('🔒 Nur HR bestätigt diese Filiale', '#fef3c7', '#b45309')}`;
+                break;
+            }
             // GF-Phase: jeden MA bestätigen, dann an HR senden.
-            // ⋯-Menü erscheint hier nur für HR (Saldo-Korrektur).
+            // Nur-HR: Bestätigen setzt direkt HR_BESTAETIGT, ohne «An HR senden».
             actions = `${perMaConfirm}${perMaReopen}${pdfBtn}${skBtn}
                 ${buildMoreMenu([
                     menuItem('📅 Std.-Kontrolle alle MA', 'exportStundenkontrolleAllePdf()', { title: 'Stundenkontrollblätter aller MA des Lohnlaufs in einem PDF' }),
                     saldoKorrItem,
                 ])}
-                <button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`;
+                ${nurHr ? '' : `<button class="btn btn-success btn-sm" onclick="lohnAnHrSendenAktuell()" ${allGf ? '' : 'disabled'}>An HR senden →</button>`}`;
             break;
         case 'provisorisch_abgeschlossen':
+            if (total === 0) {
+                actions = leerBtn;
+                break;
+            }
             if (isHr) {
                 // Sekundär-Aktionen ins ⋯-Menü
                 const moreItems = [
@@ -762,7 +778,7 @@ function _lohnWfRenderStatusBar() {
                 // perMaConfirm: Korrekturlohn nachträglich in HR-Phase bestätigen
                 actions = `${perMaConfirm}${hrMaBestaetigen}${hrMaZurueck}${pdfBtn}${skBtn}
                     ${buildMoreMenu(moreItems)}
-                    <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>
+                    <button class="btn btn-outline btn-sm" onclick="lohnZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">${zurueckLabel}</button>
                     <button class="btn btn-success btn-sm" onclick="lohnOpenLohnbelegeModal()" ${allHr ? '' : 'disabled'} title="Alle Lohnbelege ansehen, drucken und an MA versenden">📑 Lohnbelege + DTA</button>`;
             } else {
                 const moreItemsGf = [
@@ -774,6 +790,10 @@ function _lohnWfRenderStatusBar() {
             }
             break;
         case 'abgeschlossen':
+            if (total === 0) {
+                actions = lockPill('🔒 Abgeschlossen — keine Lohnzettel in dieser Periode', '#dcfce7', '#15803d');
+                break;
+            }
             const moreItemsFinal = [
                 menuItem('📥 DTA-File', 'lohnDownloadDtaMa()', { title: 'pain.001-XML für die Bank' }),
                 isHr  ? menuItem('📑 Lohnbelege ansehen', 'lohnOpenLohnbelegeModal()', { title: 'Alle Lohnbelege ansehen / drucken' }) : '',
@@ -798,7 +818,7 @@ function _lohnWfRenderStatusBar() {
     bar.innerHTML = `
         <div title="${trail}" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 4px;font-size:12px">
             <span style="background:${meta.bg};color:${meta.color};padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">${meta.label}</span>
-            ${total > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : ''}
+            ${total > 0 ? `<span style="color:#64748b;white-space:nowrap">${counts}</span>` : (isAbg ? '' : `<span style="color:#64748b;white-space:nowrap">Keine Mitarbeitenden mit Vertrag</span>`)}
             ${d.mwUnderpaidCount > 0 ? `<span title="Diese MA können erst nach Lohnkorrektur bestätigt werden (unter Mindestlohn oder ohne Lohnsumme)" style="color:#b91c1c;background:#fee2e2;padding:2px 9px;border-radius:8px;font-weight:700;font-size:11px;white-space:nowrap">⚠ ${d.mwUnderpaidCount} mit Lohnproblem</span>` : ''}
             <span style="display:inline-flex;gap:6px;flex-wrap:wrap;margin-left:auto">${bemBtn}${actions}</span>
         </div>`;
@@ -1072,7 +1092,10 @@ async function loadLohnList() {
         listEl.innerHTML = '';
         if (active.length === 0) {
             const monthNamesLeer = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-            listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter im ${monthNamesLeer[m-1] || ''} ${y}<div style="font-size:11.5px;margin-top:6px">Periode oben wechseln</div></div>`;
+            const leerHint = (_pData?.status === 'offen' || _pData?.status === 'provisorisch_abgeschlossen')
+                ? 'Periode ohne Lohn über «Lohn abschliessen» schliessen'
+                : 'Periode oben wechseln';
+            listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#94a3b8">Keine Mitarbeiter im ${monthNamesLeer[m-1] || ''} ${y}<div style="font-size:11.5px;margin-top:6px">${leerHint}</div></div>`;
             // Walter 08.09.2026: Periodenauswahl auch ohne MA anzeigen — sonst kommt
             // man aus einer leeren Filiale/Periode nicht mehr heraus (Sackgasse).
             const perTb = document.getElementById('lohnPeriodToolbar');
@@ -2905,7 +2928,9 @@ async function lohnRecomputeSnapshots() {
 async function lohnZurueckAnGf() {
     const p = window._currentLohnPeriode;
     if (!p?.id) { alert('Keine Periode aktiv.'); return; }
-    const grund = prompt('Begründung für GF (warum zurück?):');
+    const grund = prompt(typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale()
+        ? 'Begründung (zurück zur Bearbeitung):'
+        : 'Begründung für GF (warum zurück?):');
     if (grund === null || grund.trim() === '') return;
 
     // Walter-Vorgabe 19.05.2026: Status entscheidet welcher Endpoint:
@@ -3325,6 +3350,26 @@ function lohnAnHrSendenAktuell() {
     const p = window._currentLohnPeriode;
     if (!p?.id) { alert('Keine Periode aktiv.'); return; }
     abschliessePeriode(p.id, p.label);
+}
+
+async function lohnLeerePeriodeAbschliessen() {
+    const p = window._currentLohnPeriode;
+    if (!p?.id) { alert('Keine Periode aktiv.'); return; }
+    const ok = await liquidConfirm(
+        `Periode «${p.label}» ohne Lohnzettel abschliessen?\n\nKein Lohnbeleg, kein DTA — die Periode wird direkt geschlossen, damit der Folgemonat bearbeitet werden kann.`,
+        { title: 'Lohn abschliessen', yesLabel: 'Abschliessen', noLabel: 'Abbrechen' }
+    );
+    if (!ok) return;
+    try {
+        const res = await fetch(`/api/payroll-perioden/${p.id}/leer-abschliessen`, {
+            method: 'POST',
+            headers: { ...ah(), 'Content-Type': 'application/json' }
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.message || 'Fehler'); }
+        const r = await res.json();
+        showToast(r.message, 'success');
+        await lohnWfRefresh();
+    } catch(e) { alert(e.message); }
 }
 
 async function abschliessePeriode(periodeId, label) {

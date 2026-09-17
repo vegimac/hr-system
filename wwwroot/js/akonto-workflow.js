@@ -116,7 +116,7 @@ function askPayoutDate({ title = 'Auszahlungsdatum', message = '', defaultIso = 
 // ── Rolle ermitteln (für Sichtbarkeit der HR-Buttons) ─────────────────────
 function _akIsHr() {
     const r = (typeof currentUser !== 'undefined' && currentUser?.role) ? currentUser.role : '';
-    return r === 'admin' || r === 'superuser';
+    return r === 'admin' || r === 'superuser' || r === 'buchhaltung';
 }
 
 // ── Akonto-Lohn ja/nein pro Filiale (Walter 08.09.2026) ──────────────────
@@ -130,6 +130,17 @@ function akontoAktivFuerFiliale(branchId) {
     const list = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
     const b = list.find(x => String(x.id) === String(id));
     return !b || b.akontoAktiv !== false;
+}
+
+// Lohnlauf-Bestätigung nur HR (Walter 17.09.2026). Default false = GF + HR.
+function lohnlaufNurHrFuerFiliale(branchId) {
+    const id = branchId
+        || (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
+        || (typeof currentBranchId !== 'undefined' && currentBranchId) || null;
+    if (!id) return false;
+    const list = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
+    const b = list.find(x => String(x.id) === String(id));
+    return !!(b && b.lohnlaufNurHr === true);
 }
 
 // ── Modus-Schalter ────────────────────────────────────────────────────────
@@ -637,10 +648,12 @@ function _akWfRenderStatusBar() {
         ? { label: 'Keine Lohnperiode', color: '#64748b', bg: '#e2e8f0' }
         : (_AK_STATUS[d.akontoStatus] || _AK_STATUS.OFFEN);
     const isHr = _akIsHr();
+    const nurHr = lohnlaufNurHrFuerFiliale();
+    const zurueckLabel = nurHr ? '↩ Zurück zur Bearbeitung' : '↩ Zurück an GF';
     // Counter zeigt den jeweils relevanten Workflow-Schritt:
-    //   IN_BEARBEITUNG_GF → GF-Freigabe-Fortschritt
+    //   IN_BEARBEITUNG_GF → GF-Freigabe-Fortschritt (bei nur HR: HR-Bestätigung)
     //   BEI_HR            → HR-Bestätigungs-Fortschritt
-    const counts = (d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN' || d.akontoStatus === 'AUSBEZAHLT')
+    const counts = (nurHr || d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN' || d.akontoStatus === 'AUSBEZAHLT')
         ? `${d.countHrBestaetigt || 0}/${d.countTotal || 0} HR-bestätigt`
         : `${d.countFreigegebenGf || 0}/${d.countTotal || 0} freigegeben`;
 
@@ -651,9 +664,9 @@ function _akWfRenderStatusBar() {
     const sel = (d.zahlungen || []).find(z => z.id === _akWfSelectedId);
 
     // ─ GF Per-MA-Aktionen ─
-    const perMaFreigeben = (d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'BERECHNET')
+    const perMaFreigeben = (!nurHr && d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'BERECHNET')
         ? `<button class="btn btn-primary btn-sm" onclick="akWfFreigeben(${sel.id})">✓ Lohnblatt freigeben</button>` : '';
-    const perMaZurueckziehen = (d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'FREIGEGEBEN_GF')
+    const perMaZurueckziehen = (!nurHr && d.akontoStatus === 'IN_BEARBEITUNG_GF' && sel?.status === 'FREIGEGEBEN_GF')
         ? `<button class="btn btn-outline btn-sm" onclick="akWfZurueckziehen(${sel.id})" style="color:#b91c1c;border-color:#fecaca">↶ Freigabe zurückziehen</button>` : '';
 
     // ─ HR Per-MA-Aktionen (Walter 17.05.2026, erweitert 19.05.2026) ─
@@ -661,7 +674,10 @@ function _akWfRenderStatusBar() {
     // im Zwischen-Status HR_FREIGEGEBEN können einzelne Korrekturen noch
     // gemacht werden, solange der DTA-Klick nicht gefallen ist.
     const hrPhase = (d.akontoStatus === 'BEI_HR' || d.akontoStatus === 'HR_FREIGEGEBEN');
-    const hrMaBestaetigen = (isHr && hrPhase && sel?.status === 'FREIGEGEBEN_GF')
+    const hrMaBestaetigen = (isHr && (
+            (hrPhase && sel?.status === 'FREIGEGEBEN_GF')
+            || (nurHr && (hrPhase || d.akontoStatus === 'IN_BEARBEITUNG_GF') && sel?.status === 'BERECHNET')
+        ))
         ? `<button class="btn btn-primary btn-sm" onclick="akWfHrBestaetigen(${sel.id})">✓ HR-bestätigen</button>` : '';
     const hrMaZurueck = (isHr && hrPhase && sel?.status === 'HR_BESTAETIGT')
         ? `<button class="btn btn-outline btn-sm" onclick="akWfHrZurueckziehen(${sel.id})" style="color:#b91c1c;border-color:#fecaca">↶ HR-Bestätigung zurückziehen</button>` : '';
@@ -671,14 +687,25 @@ function _akWfRenderStatusBar() {
     let actions = '';
     switch (d.akontoStatus) {
         case 'OFFEN':
-            actions = missingPeriode
-                ? `<button class="btn btn-primary btn-sm" onclick="lohnPeriodeAnlegen()">＋ Periode anlegen</button>`
-                : `<button class="btn btn-primary btn-sm" onclick="akWfStart()">📅 Akonto vorbereiten</button>`;
+            if (missingPeriode) {
+                actions = `<button class="btn btn-primary btn-sm" onclick="lohnPeriodeAnlegen()">＋ Periode anlegen</button>`;
+            } else if (nurHr && !isHr) {
+                actions = `<span style="color:#b45309;font-size:11.5px;font-weight:600;background:#fef3c7;padding:3px 9px;border-radius:8px">🔒 Nur HR bestätigt diese Filiale</span>`;
+            } else {
+                actions = `<button class="btn btn-primary btn-sm" onclick="akWfStart()">📅 Akonto vorbereiten</button>`;
+            }
             break;
         case 'IN_BEARBEITUNG_GF':
-            actions = `${perMaFreigeben}${perMaZurueckziehen}
+            if (nurHr && !isHr) {
+                actions = `<span style="color:#b45309;font-size:11.5px;font-weight:600;background:#fef3c7;padding:3px 9px;border-radius:8px">🔒 Nur HR bestätigt diese Filiale</span>`;
+            } else if (nurHr && isHr) {
+                actions = `${hrMaBestaetigen}${hrMaZurueck}
+                           <button class="btn btn-outline btn-sm" onclick="akWfStart()" title="Werte neu berechnen — bestätigte Blätter bleiben">↻ Neu berechnen</button>`;
+            } else {
+                actions = `${perMaFreigeben}${perMaZurueckziehen}
                        <button class="btn btn-outline btn-sm" onclick="akWfStart()" title="Werte neu berechnen — freigegebene Blätter bleiben">↻ Neu berechnen</button>
                        <button class="btn btn-success btn-sm" onclick="akWfAnHrSenden()" ${(d.countFreigegebenGf || 0) < (d.countTotal || 0) ? 'disabled' : ''}>An HR senden →</button>`;
+            }
             break;
         case 'BEI_HR':
             if (isHr) {
@@ -686,7 +713,7 @@ function _akWfRenderStatusBar() {
                 // HR-Freigabe-Pauschal-Knopf nicht mehr — die Periode springt
                 // automatisch auf HR_FREIGEGEBEN sobald alle MA HR-bestätigt sind.
                 actions = `${hrMaBestaetigen}${hrMaZurueck}${hrMaOverride}
-                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">↩ Zurück an GF</button>`;
+                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d">${zurueckLabel}</button>`;
             } else {
                 // GF: nur Anzeige der Sperre
                 actions = `<span style="color:#b45309;font-size:11.5px;font-weight:600;background:#fef3c7;padding:3px 9px;border-radius:8px">🔒 Bei HR — keine Änderungen möglich</span>`;
@@ -698,7 +725,7 @@ function _akWfRenderStatusBar() {
                 // HR-Bestätigung zurückziehen, Override, Neu bestätigen.
                 // Erst der Klick auf "Akonto auszahlen (DTA)" sperrt alles final.
                 actions = `${hrMaBestaetigen}${hrMaZurueck}${hrMaOverride}
-                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d" title="Gesamte Periode zurück an GF (alle Bestätigungen aufheben)">↩ Zurück an GF</button>
+                           <button class="btn btn-outline btn-sm" onclick="akWfZurueckAnGf()" style="color:#b45309;border-color:#fcd34d" title="${nurHr ? 'Gesamte Periode zurück zur Bearbeitung' : 'Gesamte Periode zurück an GF (alle Bestätigungen aufheben)'}">${zurueckLabel}</button>
                            <button class="btn btn-success btn-sm" onclick="akWfAuszahlen()">💰 Akonto auszahlen (DTA)</button>`;
             } else {
                 actions = `<span style="color:#166534;font-size:11.5px;font-weight:600;background:#dcfce7;padding:3px 9px;border-radius:8px">🔒 HR-freigegeben — wartet auf Auszahlung</span>`;
@@ -1486,7 +1513,8 @@ async function akWfAnHrSenden() {
     await _akWfPost('/an-hr-senden', { companyProfileId: branchId, year, month });
 }
 async function akWfZurueckAnGf() {
-    const kommentar = prompt('Begründung für den GF (warum zurück?):');
+    const nurHr = typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale();
+    const kommentar = prompt(nurHr ? 'Begründung (zurück zur Bearbeitung):' : 'Begründung für den GF (warum zurück?):');
     if (kommentar === null || kommentar.trim() === '') return;
     const branchId = fixedCompanyProfileId;
     const year  = parseInt(document.getElementById('lohnYearSelect').value, 10);

@@ -128,12 +128,11 @@ public class StundenkontrollePdfService
                                    && s.PeriodYear == year
                                    && s.PeriodMonth == month);
 
-        var (prevY, prevM) = month == 1 ? (year - 1, 12) : (year, month - 1);
-        var prevSaldo = await _db.PayrollSaldos.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.EmployeeId == employeeId
-                                   && s.CompanyProfileId == companyProfileId
-                                   && s.PeriodYear == prevY
-                                   && s.PeriodMonth == prevM);
+        var prevKandidaten = await _db.PayrollSaldos.AsNoTracking()
+            .Where(s => s.EmployeeId == employeeId)
+            .ToListAsync();
+        var prevSaldo = PayrollCalculations.WaehleVormonatsSaldo(
+            prevKandidaten, companyProfileId, year, month);
 
         var model = employment?.EmploymentModel
                  ?? (slip.HasValue ? GetString(slip.Value, "employmentModel") : null)

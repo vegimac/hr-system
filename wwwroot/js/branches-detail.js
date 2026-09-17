@@ -410,7 +410,9 @@ function renderFilialenDetail(b) {
             <!-- Kein „Einstellungen"-Titel mehr (steht schon im Tab) und keine
                  Buttons hier — die Aktions-Buttons sitzen oben in der
                  Tab-Leiste (Walter-Vorgabe 15.05.2026). -->
-            ${einSec('arbeitszeit', 'Arbeitszeit',
+            <p class="ein-tab-lead">Pro Filiale, nach Thema. Zugeklappt der Stand, aufgeklappt die Felder.</p>
+            ${einGroup('Zeit &amp; Anwesenheit',
+            einSec('arbeitszeit', 'Arbeitszeit',
                 `Nacht ${nightStart}–${nightEnd} · ${b.normalWeeklyHours ?? '–'} h/Woche · max. ${b.maxWeeklyHours != null ? Number(b.maxWeeklyHours) + ' h' : 'keine Grenze'} · Teilmonat ${({TAGESSATZ365:'Tagessatz 365',KALENDERTAGE:'Kalendertage',TAGE30:'30 Tage'})[b.teilmonatMethode || 'TAGESSATZ365']}`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Nacht Beginn</div>
@@ -430,9 +432,9 @@ function renderFilialenDetail(b) {
                         <option value="TAGE30" ${b.teilmonatMethode === 'TAGE30' ? 'selected' : ''}>30-Tage-Methode (jeder Monat 30 Tage)</option>
                     </select></div></div>
             </div>
-            <div class="ein-hint" style="margin-top:2px">Gilt nur für den anteiligen Monatslohn. Taggelder und Absenzen rechnen immer mit dem Kalendertag-Satz (× 12 ÷ 365).</div>`)}
-
-            ${einSec('ferien', 'Ferien &amp; Feiertage',
+            <div class="ein-hint" style="margin-top:2px">Gilt nur für den anteiligen Monatslohn. Taggelder und Absenzen rechnen immer mit dem Kalendertag-Satz (× 12 ÷ 365).</div>`,
+                'Nachtgrenze, Wochenstunden und wie der Teilmonat gerechnet wird') +
+            einSec('ferien', 'Ferien &amp; Feiertage',
                 `Ferien ${b.defaultVacationPercent5Weeks ?? '–'} % · erhöht ${b.defaultVacationPercent6Weeks ?? '–'} % ab ${b.vacationSixWeeksFromAge ?? 50}${Number(b.vacationSixWeeksFromAge ?? 50) >= 99 ? ' (nie)' : ''} · Feiertag ${b.defaultHolidayPercent ?? '–'} % · ${b.ferienAuszahlungMonatlich === true ? 'monatlich ausbezahlt' : 'Ferien-Pott'}`, `
             <div class="emp-field-grid">
                 ${fField('Ferien % Standard', b.defaultVacationPercent5Weeks)}
@@ -453,9 +455,9 @@ function renderFilialenDetail(b) {
                         <option value="false" ${b.autoFerienGeldAuszahlungDezember === false ? 'selected' : ''}>Manuell</option>
                     </select></div></div>
             </div>
-            <div class="ein-hint" style="margin-top:2px">Prozente sind nur Anzeige (L-GAV / Vertrag) · Alter editierbar</div>`)}
-
-            ${einSec('schlussabrechnung', 'Schlussabrechnung &amp; Stunden im Lohn',
+            <div class="ein-hint" style="margin-top:2px">Prozente sind nur Anzeige (L-GAV / Vertrag) · Alter editierbar</div>`,
+                'Prozentsätze und ob FLEX/MTP die Ferien monatlich ausbezahlt bekommen') +
+            einSec('schlussabrechnung', 'Schlussabrechnung &amp; Stunden im Lohn',
                 `Ferien-Tage ${b.ferientageAmAustrittAuszahlen === false ? 'nein' : 'ja'} · Feiertag-Tage ${b.feiertagstageAmAustrittAuszahlen === false ? 'nein' : 'ja'} · Stunden-Saldo ${b.stundenSaldoImLohnVerrechnen === false ? 'nein' : 'ja'}`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Ferien-Tage am Austritt auszahlen</div>
@@ -474,9 +476,11 @@ function renderFilialenDetail(b) {
                         <option value="false" ${b.stundenSaldoImLohnVerrechnen === false ? 'selected' : ''}>Nein (Soll/Ist nur Anzeige)</option>
                     </select></div></div>
             </div>
-            <div class="ein-hint" style="margin-top:2px">Gilt für FIX/FIX-M und MTP. Stundenlohn FLEX ist nie betroffen (dort sind die Stunden der Lohn). Bei «Nein» laufen die Saldi in Tagen/Stunden weiter, es entsteht nur keine CHF-Zeile.</div>`)}
+            <div class="ein-hint" style="margin-top:2px">Gilt für FIX/FIX-M und MTP. Stundenlohn FLEX ist nie betroffen (dort sind die Stunden der Lohn). Bei «Nein» laufen die Saldi in Tagen/Stunden weiter, es entsteht nur keine CHF-Zeile.</div>`,
+                'Was am letzten Lohn in Franken geht – und was als Saldo stehen bleibt'))}
 
-            ${einSec('dreizehnter', '13. Monatslohn',
+            ${einGroup('Lohnlauf',
+            einSec('dreizehnter', '13. Monatslohn',
                 `${b.defaultThirteenthSalaryPercent != null ? Number(b.defaultThirteenthSalaryPercent) + ' %' : 'kein Vorgabe-%'} · ${einTpSummary(b)}`, `
             <div style="display:flex;gap:32px;align-items:flex-start;margin-bottom:5px;flex-wrap:wrap">
                 <div class="emp-field" style="flex:0 0 130px;margin-bottom:0">
@@ -491,9 +495,20 @@ function renderFilialenDetail(b) {
                     <div id="einTpGrid" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px"></div>
                     <div id="einTpHint" style="font-size:11.5px;margin-top:3px"></div>
                 </div>
-            </div>`)}
-
-            ${einSec('akonto', 'Akonto-Lohn',
+            </div>`,
+                'Vorgabe-Prozentsatz und in welchen Monaten ausgezahlt wird') +
+            einSec('lohnbestaetigung', 'Lohnlauf-Bestätigung',
+                b.lohnlaufNurHr ? 'nur HR' : 'GF und HR', `
+            <div class="emp-field-grid">
+                <div class="emp-field"><div class="emp-field-label">Wer bestätigt</div>
+                    <div class="emp-field-value"><select id="einLohnlaufNurHr" class="ef-input">
+                        <option value="false" ${b.lohnlaufNurHr ? '' : 'selected'}>GF und HR (Vier-Augen)</option>
+                        <option value="true"  ${b.lohnlaufNurHr ? 'selected' : ''}>Nur HR</option>
+                    </select></div></div>
+            </div>
+            <div class="ein-hint" style="margin-top:2px">Standard: der GF bestätigt jeden Lohnzettel und sendet an HR, HR bestätigt ein zweites Mal. Bei «Nur HR» entfällt die GF-Stufe — HR bestätigt in einem Schritt (Akonto und Definitiv).</div>`,
+                'Ob der GF jeden Lohnzettel mitbestätigt oder nur HR') +
+            einSec('akonto', 'Akonto-Lohn',
                 b.akontoAktiv === false ? 'kein Akonto – nur Definitivlauf'
                     : `FIX ${Number(b.akontoProzentFix ?? 80).toFixed(0)} % · FIX-M ${Number(b.akontoProzentFixM ?? 90).toFixed(0)} % · FLEX/MTP ${Number(b.akontoProzentHourly ?? 100).toFixed(0)} %`, `
             <div class="emp-field-grid">
@@ -520,27 +535,32 @@ function renderFilialenDetail(b) {
                     <span style="color:#92400e">Ferien-Pott: nur bis Stichtag vollständig abgeschlossene Bezüge — anteilsmässig aus (Vormonats-Saldo + Akkumulation diesen Monat).</span>
                 </div>
             </details>
-            <div id="einAkontoTermineBox" style="margin-top:8px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px">
-                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:7px">
-                    <span style="font-size:13px;font-weight:600;color:#0f172a">Akonto-Termine</span>
-                    <span style="font-size:11.5px;color:#94a3b8">Auszahlungsdatum pro Monat — bei Wochenende/Feiertag von Hand anpassen</span>
-                    <span style="flex:1"></span>
-                    <label style="font-size:11.5px;color:#64748b">Jahr
+            <div id="einAkontoTermineBox" class="ein-akonto-termine">
+                <div class="ein-akonto-termine-head">
+                    <div>
+                        <div class="ein-akonto-termine-title">Akonto-Termine</div>
+                        <div class="ein-akonto-termine-sub">Auszahlungsdatum pro Monat — bei Wochenende/Feiertag von Hand anpassen</div>
+                    </div>
+                    <div class="ein-akonto-termine-actions">
+                    <label>Jahr
                         <select id="einAkontoYear" class="ef-input" style="width:auto;display:inline-block;margin-left:4px" onchange="onAkontoYearChange(${b.id})">
                             ${akontoYearOptions()}
                         </select>
                     </label>
-                    <label style="font-size:11.5px;color:#64748b">Standard-Tag
+                    <label>Standard-Tag
                         <input type="number" id="einAkontoStdTag" class="ef-input" style="width:54px;display:inline-block;margin-left:4px" min="1" max="28" value="23">
                     </label>
                     <button class="btn btn-outline" style="font-size:11.5px;padding:4px 10px" onclick="generateAkontoTermine(${b.id})">↻ Jahr generieren</button>
                     <button class="btn btn-outline" style="font-size:11.5px;padding:4px 10px" onclick="copyAkontoTermineToAll(${b.id})">→ Auf alle Filialen übertragen</button>
-                    <button class="btn btn-primary" style="font-size:11.5px;padding:4px 12px;background:#16a34a" onclick="saveAkontoTermine(${b.id})">💾 Termine speichern</button>
+                    <button class="btn btn-primary" style="font-size:11.5px;padding:4px 12px" onclick="saveAkontoTermine(${b.id})">Termine speichern</button>
+                    </div>
                 </div>
                 <div id="einAkontoTermineGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:5px 10px"></div>
-            </div>`)}
+            </div>`,
+                'Ob es einen Akonto-Lauf gibt, und zu welchem Prozentsatz'))}
 
-            ${einSec('karenz', 'Karenz &amp; BVG-Wartefrist',
+            ${einGroup('Beiträge &amp; Abzüge',
+            einSec('karenz', 'Karenz &amp; BVG-Wartefrist',
                 `${(b.karenzjahrBasis || 'ARBEITSJAHR') === 'KALENDERJAHR' ? 'Kalenderjahr' : 'Arbeitsjahr'} · Krank ${b.karenzTageMax ?? 14} Tage · Unfall ${b.karenzTageMaxUnfall ?? 2} Tage · BVG-Wartefrist ${b.bvgWartefristMonate ?? 3} Mte`, `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Karenzjahr-Basis</div>
@@ -554,9 +574,9 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value"><input type="number" id="einKarenzUnfall" class="ef-input" min="0" max="365" value="${b.karenzTageMaxUnfall ?? 2}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">BVG-Wartefrist (Monate)</div>
                     <div class="emp-field-value"><input type="number" id="einBvgWartefrist" class="ef-input" min="0" max="24" value="${b.bvgWartefristMonate ?? 3}"></div></div>
-            </div>`)}
-
-            ${einSec('lgav', 'L-GAV-Vollzugsbeitrag',
+            </div>`,
+                'Karenztage bei Krank/Unfall und BVG-Wartefrist') +
+            einSec('lgav', 'L-GAV-Vollzugsbeitrag',
                 b.lgavAktiv === false ? 'deaktiviert'
                     : `aktiv · Abzug im ${LGAV_MONTH_LABELS[(b.lgavTriggerMonat ?? 1) - 1]} · CHF ${Number(b.lgavBeitragVoll ?? 99).toFixed(2)} / ${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}`, `
             <div class="emp-field-grid">
@@ -573,9 +593,9 @@ function renderFilialenDetail(b) {
                     <div class="emp-field-value"><input type="number" id="einLgavVoll" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragVoll ?? 99).toFixed(2)}"></div></div>
                 <div class="emp-field"><div class="emp-field-label">Reduzierter Beitrag (CHF)</div>
                     <div class="emp-field-value"><input type="number" id="einLgavRed" class="ef-input" min="0" step="0.05" value="${Number(b.lgavBeitragReduziert ?? 49.5).toFixed(2)}"></div></div>
-            </div>`)}
-
-            ${einSec('uniformdepot', 'Uniform-Depot',
+            </div>`,
+                'Vollzugsbeitrag: Monat und Beträge') +
+            einSec('uniformdepot', 'Uniform-Depot',
                 b.uniformDepotAktiv === false ? 'deaktiviert' : 'aktiv · CHF 50 Abzug beim ersten Lohn (Lohnposition 600.32), Rückgabe beim Austritt', `
             <div class="emp-field-grid">
                 <div class="emp-field"><div class="emp-field-label">Status</div>
@@ -584,15 +604,18 @@ function renderFilialenDetail(b) {
                         <option value="false" ${b.uniformDepotAktiv === false ? 'selected' : ''}>Deaktiviert</option>
                     </select></div></div>
             </div>
-            <div class="ein-hint" style="margin-top:2px">Bei «Deaktiviert» wird kein Depot-Abzug mehr angelegt. Bereits einbehaltene Depots bleiben und werden beim Austritt wie bisher zurückerstattet.</div>`)}
-
-            ${einSec('mindestlohn', 'Mindestlohn Gemeinde / Kanton',
+            <div class="ein-hint" style="margin-top:2px">Bei «Deaktiviert» wird kein Depot-Abzug mehr angelegt. Bereits einbehaltene Depots bleiben und werden beim Austritt wie bisher zurückerstattet.</div>`,
+                'CHF 50 Depot beim ersten Lohn, Rückgabe beim Austritt') +
+            einSec('mindestlohn', 'Mindestlohn Gemeinde / Kanton',
                 'nur falls Gemeinde/Kanton einen eigenen Mindestlohn vorschreibt – übersteuert den L-GAV nach oben', `
-            <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`)}
+            <div id="bmwBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`,
+                'Nur wenn Gemeinde oder Kanton über dem L-GAV liegen'))}
 
-            ${einSec('eaw', 'easy@work Auto-Sync',
+            ${einGroup('Schnittstellen',
+            einSec('eaw', 'easy@work Auto-Sync',
                 'automatischer Stempelzeiten-Import dieser Filiale, täglich um 05:00', `
-            <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`)}
+            <div id="eawAutoBlock"><div style="font-size:12px;color:#94a3b8">Wird geladen…</div></div>`,
+                'Täglicher Stempelzeiten-Import um 05:00'))}
 
             <!-- Periodenregel-Anzeige entfernt (Walter-Vorgabe 15.05.2026):
                  die Lohnperiode ist jetzt immer der Kalendermonat.
@@ -917,6 +940,7 @@ async function saveEinstellungen(branchId) {
     const lgavRed      = Number(g('einLgavRed')?.value);
     const uniformDepotAktiv = g('einUniformDepotAktiv')?.value !== 'false';
     const akontoAktiv         = g('einAkontoAktiv')?.value !== 'false';
+    const lohnlaufNurHr       = g('einLohnlaufNurHr')?.value === 'true';
     const akontoProzent       = Number(g('einAkontoProzent')?.value);
     const akontoProzentFixM   = Number(g('einAkontoProzentFixM')?.value);
     const akontoProzentHourly = Number(g('einAkontoProzentHourly')?.value);
@@ -959,6 +983,7 @@ async function saveEinstellungen(branchId) {
             fetch(`/api/companyprofiles/${branchId}/lgav`,                        { method: 'PATCH', headers: H, body: JSON.stringify({ lgavAktiv, lgavTriggerMonat: lgavMonat, lgavBeitragVoll: lgavVoll, lgavBeitragReduziert: lgavRed }) }),
             fetch(`/api/companyprofiles/${branchId}/thirteenth-payouts`,          { method: 'PATCH', headers: H, body: JSON.stringify({ months: tpMonths, payoutsPerYear: tpMonths.length || 12 }) }),
             fetch(`/api/companyprofiles/${branchId}/akonto-prozent`,              { method: 'PATCH', headers: H, body: JSON.stringify({ akontoProzentFix: akontoProzent, akontoProzentFixM: akontoProzentFixM, akontoProzentHourly: akontoProzentHourly, akontoAktiv }) }),
+            fetch(`/api/companyprofiles/${branchId}/lohnlauf-bestaetigung`,       { method: 'PATCH', headers: H, body: JSON.stringify({ nurHr: lohnlaufNurHr }) }),
             fetch(`/api/companyprofiles/${branchId}/max-weekly-hours`,            { method: 'PATCH', headers: H, body: JSON.stringify({ maxWeeklyHours: maxWeekly, normalWeeklyHours: normalWeekly }) }),
             fetch(`/api/companyprofiles/${branchId}/vacation-six-weeks-from-age`, { method: 'PATCH', headers: H, body: JSON.stringify({ vacationSixWeeksFromAge: vacSixWeeksAge }) }),
             fetch(`/api/companyprofiles/${branchId}/default-thirteenth-percent`,  { method: 'PATCH', headers: H, body: JSON.stringify({ defaultThirteenthSalaryPercent: defaultThirteenth }) }),
@@ -992,6 +1017,7 @@ async function saveEinstellungen(branchId) {
             akontoProzentFixM: akontoProzentFixM,
             akontoProzentHourly: akontoProzentHourly,
             akontoAktiv: (akontoRes && !akontoRes.ok) ? b0AkontoAktiv : akontoAktiv,
+            lohnlaufNurHr,
             vacationSixWeeksFromAge: vacSixWeeksAge,
             defaultThirteenthSalaryPercent: defaultThirteenth,
         };
@@ -1007,7 +1033,7 @@ async function saveEinstellungen(branchId) {
         if (typeof loadFilialen === 'function') loadFilialen();
 
         if (failed > 0) {
-            alert(`${failed} von 11 Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
+            alert(`${failed} von ${results.length} Einstellungs-Gruppen konnten nicht gespeichert werden. Bitte erneut versuchen.`);
         } else if (typeof showToast === 'function') {
             showToast('Einstellungen gespeichert.', 'success');
         }
@@ -3068,16 +3094,36 @@ function einAkontoAktivToggle() {
 // Jeder Abschnitt zeigt zugeklappt eine Kurzfassung der aktuellen Werte, so
 // bleibt der Tab auf einen Blick lesbar. Auf/zu wird pro Abschnitt im Browser
 // gemerkt (localStorage), Standard: zugeklappt.
-function einSec(key, titel, kurz, body) {
+function einGroup(titel, html) {
+    return `<section class="ein-group">
+        <h3 class="ein-group-title">${titel}</h3>
+        <div class="ein-group-body">${html}</div>
+    </section>`;
+}
+function einSec(key, titel, kurz, body, zweck) {
     let open = false;
     try { open = localStorage.getItem('einSec:' + key) === 'open'; } catch {}
+    const chips = String(kurz || '').split(' · ').filter(Boolean)
+        .map(t => `<span class="ein-chip">${t}</span>`).join('');
     return `<details class="ein-sec" data-sec="${key}" ${open ? 'open' : ''} ontoggle="einSecToggled(this)">
-        <summary><span class="ein-sec-title">${titel}</span><span class="ein-sec-sum">${kurz || ''}</span><span class="ein-sec-chev">›</span></summary>
+        <summary>
+            <div class="ein-sec-head">
+                <span class="ein-sec-title">${titel}</span>
+                ${zweck ? `<span class="ein-sec-zweck">${zweck}</span>` : ''}
+            </div>
+            <div class="ein-sec-aside">
+                <span class="ein-sec-sum">${chips}</span>
+                <span class="ein-sec-chev" aria-hidden="true">›</span>
+            </div>
+        </summary>
         <div class="ein-sec-body">${body}</div>
     </details>`;
 }
 function einSecToggled(el) {
     try { localStorage.setItem('einSec:' + el.dataset.sec, el.open ? 'open' : 'closed'); } catch {}
+    if (el.open) {
+        el.querySelectorAll('select').forEach(sel => { if (sel._lqRefresh) sel._lqRefresh(); });
+    }
 }
 function einTpSummary(b) {
     let months = tpParseMonths(b.thirteenthMonthPayoutMonths);
