@@ -1598,8 +1598,26 @@ async function loadAllBranches() {
     } catch { allBranches = []; }
 }
 
+function sichtbareFilialen() {
+    const list = (typeof allBranches !== 'undefined' && Array.isArray(allBranches)) ? allBranches : [];
+    const src = (typeof currentUser !== 'undefined' && currentUser && currentUser.branches === 'all')
+        ? list
+        : list.filter(b => currentUser?.branches?.some(ub => ub.id === b.id));
+    return src.slice().sort((a, b) => parseInt(a.restaurantCode || '9999', 10) - parseInt(b.restaurantCode || '9999', 10));
+}
+
+function filialKurzname(b) {
+    if (!b) return '';
+    const ort = (b.workLocation
+        || b.city
+        || String(b.branchName || b.companyName || '').replace(/^Filiale\s+/i, ''))
+        .replace(/\s*\([^)]*\)\s*$/, '');
+    return `${b.restaurantCode ? b.restaurantCode + '-' : ''}${ort}`;
+}
+
 function populateBranchSelector() {
     const sel = document.getElementById('branchSelect');
+    if (!sel) return;
     // Walter-Vorgabe 22.07.2026 (ersetzt die lowuser-Korrektur vom
     // 14.06.2026): «Alle Filialen» gibt es NUR fuer unbeschraenkte Rollen
     // (branches === 'all', d.h. admin/superuser). GF/lowuser/buchhaltung
@@ -1608,7 +1626,8 @@ function populateBranchSelector() {
     // Auswahl gar nicht mehr an.
     const unrestricted = currentUser.branches === 'all';
     sel.innerHTML = unrestricted ? '<option value="">Alle Filialen</option>' : '';
-    sichtbareFilialen().forEach(b => {
+    const visible = sichtbareFilialen();
+    visible.forEach(b => {
         const o = document.createElement('option');
         o.value = b.id;
         o.textContent = filialKurzname(b);

@@ -4543,7 +4543,10 @@ function renderQuellensteuerTab(el, entries, pflicht, vorschlag, korrekturen) {
                         <button class="fam-tile-doc fam-tile-doc-danger" onclick="qstTarifDokUnlink(${e.id})" title="Verknüpfung lösen">✕</button></span>`
                     : `<button class="fam-tile-doc" style="margin-left:auto;margin-right:8px;flex-shrink:0" onclick="openAusweisDokuModal(${selectedEmployeeId},'qst_tarif',{qstEntryId:${e.id}})" title="Tarifbestätigung der Steuerbehörde verknüpfen">📎 Tarifbestätigung</button>`}
                 ${e.inLohnVerwendet
-                    ? `<span title="Diese QST-Version wurde in definitiv abgeschlossenen Löhnen verwendet und ist eingefroren. Änderungen über «Neue QST-Version» — rückwirkend mit Korrektur-Grund (Differenzen werden als QST-Korrektur verrechnet)." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;flex-shrink:0">🔒 verwendet${e.verwendetBis ? ' bis ' + e.verwendetBis.slice(5, 7) + '/' + e.verwendetBis.slice(0, 4) : ''}</span>`
+                    ? `<span style="display:inline-flex;align-items:center;gap:6px;flex-shrink:0;margin-left:4px">
+                        <span title="Tarif eingefroren (definitiv abgerechnet). «Erfahren am» kann noch nachgetragen werden — Korrektur der Zwischenmonate läuft automatisch." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help">🔒 verwendet${e.verwendetBis ? ' bis ' + e.verwendetBis.slice(5, 7) + '/' + e.verwendetBis.slice(0, 4) : ''}</span>
+                        <button type="button" class="fam-tile-doc" onclick="openQstFromTab(${e.id})" title="Wissensdatum «Erfahren am» nachtragen">Erfahren am</button>
+                       </span>`
                     : `<div class="dok-menu-wrap" style="flex-shrink:0">
                         <button class="dok-menu-btn" onclick="qstToggleMenu(event, ${e.id})" title="Aktionen">⋮</button>
                         <div class="dok-menu" id="qstMenu-${e.id}">
