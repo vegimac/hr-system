@@ -15,8 +15,11 @@ namespace HrSystem.Services;
 ///    (plus bereits verrechnete Korrekturen desselben Monats).
 ///  • neu = Nachrechnung mit der neuen Version auf DERSELBEN Basis
 ///    (satzBasis aus der Slip-Zeile, sonst max(Basis, Medianlohn neu)).
-///  • Jahresgrenze: Monate aus Vorjahren → Status VORJAHR (Verrechnung
-///    nur via Steuerverwaltung, nicht über den Lohnlauf).
+///  • Jahresgrenze: Monate aus einem früheren Steuerjahr als dem
+///    Verrechnungsjahr («Erfahren am») → Status VORJAHR (nur via
+///    Steuerverwaltung). Referenz = BekanntAb.Year, NICHT DateTime.Now
+///    (sonst werden Testmandant-2025-Monate im Kalender 2026 falsch
+///    als Vorjahr behandelt — Walter 18.09.2026).
 /// </summary>
 public class QstKorrekturService
 {
@@ -79,7 +82,8 @@ public class QstKorrekturService
         var posten = new List<object>();
         decimal totalDiff = 0;
         int vorjahrCount = 0;
-        var heute = DateTime.Now;
+        // Laufendes Steuerjahr = Jahr der Kenntnis/Verrechnung, nicht Kalender-heute.
+        var laufendesSteuerjahr = QstVersionWahl.BekanntAb(neueVersion).Year;
 
         foreach (var r in betroffen)
         {
@@ -139,7 +143,7 @@ public class QstKorrekturService
             var diff = Math.Round(neuerBetrag - effektivAlt, 2);
             if (Math.Abs(diff) < 0.05m) continue; // keine relevante Differenz
 
-            var status = r.Year < heute.Year ? "VORJAHR" : "OFFEN";
+            var status = r.Year < laufendesSteuerjahr ? "VORJAHR" : "OFFEN";
             if (status == "VORJAHR") vorjahrCount++;
 
             string neuerCode = !string.IsNullOrWhiteSpace(sollVersion.TarifCode)
