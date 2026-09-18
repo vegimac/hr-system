@@ -22,13 +22,19 @@ function initPeriodenPage() {
     // Filialen füllen (immer neu aufbauen). Vorauswahl folgt dem globalen
     // Filial-Selektor (oben links), nicht selectedCompanyProfile — sonst
     // landet User auf einer anderen Filiale als oben angezeigt.
+    // Anzeige = filialKurzname (wie Sidebar «TI-Bellinzona»), nicht nur branchName.
     branchSel.innerHTML = '<option value="">Filiale wählen…</option>';
     const preselect = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId)
                       ? Number(fixedCompanyProfileId) : null;
-    allBranches.forEach(b => {
+    const list = (typeof sichtbareFilialen === 'function')
+        ? sichtbareFilialen()
+        : (allBranches || []);
+    list.forEach(b => {
         const o = document.createElement('option');
         o.value = b.id;
-        o.textContent = b.branchName || b.companyName || b.name || b.id;
+        o.textContent = (typeof filialKurzname === 'function')
+            ? filialKurzname(b)
+            : (b.branchName || b.companyName || b.name || b.id);
         if (preselect && b.id === preselect) o.selected = true;
         branchSel.appendChild(o);
     });
