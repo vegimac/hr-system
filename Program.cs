@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 15;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026)
+const int SchemaStand = 16;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -217,6 +217,7 @@ builder.Services.AddScoped<LohnEditLockService>();
 // Gesprächsdaten → Mitarbeiter beim Verknüpfen des Kandidaten (Walter 03.09.2026)
 builder.Services.AddScoped<GespraechUebernahmeService>();
 builder.Services.AddScoped<HrSystem.Services.QstKorrekturService>();
+builder.Services.AddScoped<HrSystem.Services.FamzKorrekturService>();
 builder.Services.AddScoped<AbsenceHoursRecalcService>();
 // pain.001-XML-Generator (ISO 20022) für DTA-Zahlungsexport
 builder.Services.AddScoped<Iso20022PainService>();
@@ -1461,6 +1462,29 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE employee_family_member ADD COLUMN IF NOT EXISTS erfahren_am date;
         ALTER TABLE employee_permit_history ADD COLUMN IF NOT EXISTS erfahren_am date;
         ALTER TABLE employee_zivilstand_history ADD COLUMN IF NOT EXISTS erfahren_am date;
+        ALTER TABLE family_member_allowance ADD COLUMN IF NOT EXISTS erfahren_am date;
+        CREATE TABLE IF NOT EXISTS famz_korrektur (
+            id                      serial PRIMARY KEY,
+            employee_id             int NOT NULL,
+            company_profile_id      int NOT NULL,
+            family_member_id        int NOT NULL,
+            allowance_id            int NOT NULL,
+            jahr                    int NOT NULL,
+            monat                   int NOT NULL,
+            alter_betrag            numeric(10,2) NOT NULL DEFAULT 0,
+            neuer_betrag            numeric(10,2) NOT NULL DEFAULT 0,
+            betrag                  numeric(10,2) NOT NULL DEFAULT 0,
+            allowance_type          varchar(20),
+            child_name              varchar(200),
+            status                  varchar(20) NOT NULL DEFAULT 'OFFEN',
+            grund                   text NOT NULL DEFAULT '',
+            verrechnet_periode_id   int,
+            verrechnet_at           timestamp without time zone,
+            created_at              timestamp without time zone NOT NULL DEFAULT NOW(),
+            created_by              varchar(150)
+        );
+        CREATE INDEX IF NOT EXISTS ix_famz_korrektur_emp ON famz_korrektur (employee_id, jahr, monat);
+        CREATE INDEX IF NOT EXISTS ix_famz_korrektur_allowance ON famz_korrektur (allowance_id);
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

@@ -5631,6 +5631,8 @@ function showFamilyDetailPopup(memberId) {
                       row(_t('fam.field.qstFrom','QST ab'),     m.qstDeductibleFrom  ? formatDate(m.qstDeductibleFrom)  : '–')}
                     ${m.keineUnterhaltspflicht ? '' :
                       row(_t('fam.field.qstUntil','QST bis'),   m.qstDeductibleUntil ? formatDate(m.qstDeductibleUntil) : '–')}
+                    ${m.keineUnterhaltspflicht ? '' :
+                      row(_t('fam.field.erfahrenAm','Erfahren am'), m.erfahrenAm ? formatDate(m.erfahrenAm) : '–')}
                 </div>
                 <div style="padding:14px 22px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;gap:8px">
                     <button onclick="closeFamilyDetailPopup();openFamilyModal(${JSON.stringify(m).replace(/"/g, '&quot;')})" style="background:#1a1a1a;color:white;border:none;border-radius:8px;padding:8px 16px;font-size:13px;cursor:pointer;font-weight:600">✎ ${_t('docs.btn.edit','Bearbeiten')}</button>
@@ -7146,6 +7148,16 @@ function openFamilyModal(member) {
             : (member?.livesInSwitzerland ?? false);
     document.getElementById('fmQstFrom').value         = toDateInput(member?.qstDeductibleFrom);
     document.getElementById('fmQstUntil').value        = toDateInput(member?.qstDeductibleUntil);
+    // Erfahren am (Kind): neu = heute; Edit = gespeicherter Wert (Swissdec Marc: 1.7.).
+    const _fmEa = document.getElementById('fmErfahrenAm');
+    if (_fmEa) {
+        if (_isNewMember) {
+            const t = new Date();
+            _fmEa.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+        } else {
+            _fmEa.value = toDateInput(member?.erfahrenAm);
+        }
+    }
 
     // Walter-Vorgabe 20.08.2026: QST-Relevanz-Felder — Ehepartner-Erwerb +
     // Kind-Erstausbildung (+ typ-abhängige Sichtbarkeit).
@@ -7665,6 +7677,7 @@ async function saveFamilyMember() {
         lebtImHaushalt,
         qstDeductibleFrom:      document.getElementById('fmQstFrom').value            || null,
         qstDeductibleUntil:     document.getElementById('fmQstUntil').value           || null,
+        erfahrenAm:             document.getElementById('fmErfahrenAm')?.value         || null,
         permitTypeId:           Number.isFinite(permitTypeId) && permitTypeId > 0 ? permitTypeId : null,
         permitExpiryDate:       document.getElementById('fmPermitExpiry').value       || null,
         zemisNumber:            (document.getElementById('fmZemisNumber').value || '').trim() || null,
@@ -7766,6 +7779,7 @@ async function loadFamilyAllowances(familyMemberId) {
                     <tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:10.5px;letter-spacing:.04em">
                         <th style="padding:6px 8px;text-align:left;font-weight:600">VON</th>
                         <th style="padding:6px 8px;text-align:left;font-weight:600">BIS</th>
+                        <th style="padding:6px 8px;text-align:left;font-weight:600">ERFAHREN</th>
                         <th style="padding:6px 8px;text-align:right;font-weight:600">CHF/MT.</th>
                         <th style="padding:6px 8px;text-align:left;font-weight:600">ART</th>
                         <th style="padding:6px 8px;text-align:right;font-weight:600">AKT.</th>
@@ -7776,6 +7790,7 @@ async function loadFamilyAllowances(familyMemberId) {
                     <tr style="border-bottom:1px solid #f1f5f9">
                         <td style="padding:6px 8px">${formatDate(a.validFrom)}</td>
                         <td style="padding:6px 8px">${a.validTo ? formatDate(a.validTo) : '<span style="color:#16a34a">offen</span>'}</td>
+                        <td style="padding:6px 8px">${a.erfahrenAm ? formatDate(a.erfahrenAm) : '–'}</td>
                         <td style="padding:6px 8px;text-align:right;font-family:ui-monospace,Menlo,Consolas,monospace">${Number(a.monthlyAmount).toFixed(2)}</td>
                         <td style="padding:6px 8px;color:#64748b">${a.allowanceType ? (a.allowanceType + ' — ' + (_ALLOWANCE_TYPE_LABEL[a.allowanceType] || '')) : '–'}</td>
                         <td style="padding:6px 8px;text-align:right">
@@ -7826,6 +7841,14 @@ async function openAllowanceModal(existing) {
     document.getElementById('alId').value            = d.id ?? '';
     document.getElementById('alValidFrom').value     = d.validFrom ?? '';
     document.getElementById('alValidTo').value       = d.validTo   ?? '';
+    const eaEl = document.getElementById('alErfahrenAm');
+    if (eaEl) {
+        if (d.erfahrenAm) eaEl.value = d.erfahrenAm;
+        else if (isNew) {
+            const t = new Date();
+            eaEl.value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+        } else eaEl.value = d.validFrom ?? '';
+    }
     document.getElementById('alMonthlyAmount').value = (d.monthlyAmount ?? '0').toString();
     document.getElementById('alAllowanceType').value = d.allowanceType ?? '';
     document.getElementById('alTarifSatzNr').value   = (d.tarifSatzNr ?? '').toString();
@@ -7857,23 +7880,20 @@ async function openAllowanceModal(existing) {
     }
     document.getElementById('alDeleteBtn').style.display = d.id ? 'inline-block' : 'none';
 
-    // Lohnlauf-Sperre (weich, wie QST): Gültig-ab nicht in definitiv
-    // abgeschlossene Monate. FAK-Entscheid oft älter (z.B. 01.01.2025) —
-    // für den offenen Definitiv-Monat auf FirstAllowed hochsetzen.
+    // «Gültig ab» darf abgeschlossen sein, wenn «Erfahren am» im offenen Monat
+    // liegt (Nachzahlung). ValidFrom nicht mehr hochsetzen.
     const vfInp = document.getElementById('alValidFrom');
-    if (window.lohnEditLock && vfInp && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
+    const eaInp = document.getElementById('alErfahrenAm');
+    if (window.lohnEditLock && typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) {
         const state = await window.lohnEditLock.loadState(fixedCompanyProfileId, { mode: 'contracts' });
-        window.lohnEditLock.applyToDateInput(vfInp, state);
-        if (isNew && state.firstAllowedDate) {
-            const orig = vfInp.value;
-            if (!orig || orig < state.firstAllowedDate) {
-                vfInp.value = state.firstAllowedDate;
-                if (orig && orig < state.firstAllowedDate && errEl) {
-                    errEl.style.color = '#92400e';
-                    errEl.textContent =
-                        `Gültig ab ${window.lohnEditLock.fmtDate(orig)} liegt in einer abgeschlossenen Lohnperiode — auf ${window.lohnEditLock.fmtDate(state.firstAllowedDate)} gesetzt (frühester offener Definitiv-Monat). Der FAK-Entscheid kann älter sein; für den offenen Lohn reicht das.`;
-                }
-            }
+        if (isNew && state.firstAllowedDate && eaInp) {
+            if (!eaInp.value || eaInp.value < state.firstAllowedDate)
+                eaInp.value = state.firstAllowedDate;
+        }
+        if (isNew && state.firstAllowedDate && errEl && vfInp?.value && vfInp.value < state.firstAllowedDate) {
+            errEl.style.color = '#92400e';
+            errEl.textContent =
+                `Gültig ab ${window.lohnEditLock.fmtDate(vfInp.value)} ist abgeschlossen — «Erfahren am» steuert die Nachzahlung (${window.lohnEditLock.fmtDate(eaInp?.value || state.firstAllowedDate)}).`;
         }
     }
 
@@ -8120,6 +8140,7 @@ async function saveAllowance() {
     const id = document.getElementById('alId').value;
     const validFrom = document.getElementById('alValidFrom').value;
     const validTo   = document.getElementById('alValidTo').value;
+    const erfahrenAm = document.getElementById('alErfahrenAm')?.value || null;
     const monthly   = parseFloat(document.getElementById('alMonthlyAmount').value);
     const allowanceType = document.getElementById('alAllowanceType').value || null;
     const satzRaw   = document.getElementById('alTarifSatzNr').value;
@@ -8138,10 +8159,14 @@ async function saveAllowance() {
     if (validTo && validTo < validFrom) {
         err.textContent = 'Gültig bis darf nicht vor Gültig ab liegen.'; return;
     }
+    if (erfahrenAm && erfahrenAm < validFrom) {
+        err.textContent = '«Erfahren am» darf nicht vor «Gültig ab» liegen.'; return;
+    }
 
     const payload = {
         validFrom,
         validTo: validTo || null,
+        erfahrenAm: erfahrenAm || null,
         monthlyAmount: monthly,
         allowanceType,
         tarifSatzNr,
@@ -8183,6 +8208,14 @@ async function saveAllowance() {
             err.style.color = '#dc2626';
             err.textContent = e.message || e.error || 'Fehler beim Speichern.';
             return;
+        }
+        const body = await res.json().catch(() => ({}));
+        const korr = body.korrekturen;
+        if (korr && korr.anzahl > 0) {
+            const art = korr.totalBetrag >= 0 ? 'Nachzahlung' : 'Rückforderung';
+            err.style.color = '#166534';
+            err.textContent = `${korr.anzahl} Korrektur-Posten (${art} ${Number(korr.totalBetrag).toFixed(2)} CHF) — erscheinen im Lohnlauf.`;
+            await new Promise(r => setTimeout(r, 1600));
         }
         closeAllowanceModal();
         loadFamilyAllowances(editingFamilyMemberId);

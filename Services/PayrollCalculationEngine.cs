@@ -33,6 +33,7 @@ public class PayrollCalculationEngine
     private readonly FerienKuerzungService _ferienKuerzung;
     private readonly QstPflichtCheckService _qstCheck;
     private readonly QstKorrekturService _qstKorrektur;
+    private readonly FamzKorrekturService _famzKorrektur;
 
     public PayrollCalculationEngine(
         AppDbContext db,
@@ -43,7 +44,8 @@ public class PayrollCalculationEngine
         UniformDepotService uniformDepot,
         FerienKuerzungService ferienKuerzung,
         QstPflichtCheckService qstCheck,
-        QstKorrekturService qstKorrektur)
+        QstKorrekturService qstKorrektur,
+        FamzKorrekturService famzKorrektur)
     {
         _db             = db;
         _tarifService   = tarifService;
@@ -54,6 +56,7 @@ public class PayrollCalculationEngine
         _ferienKuerzung = ferienKuerzung;
         _qstCheck       = qstCheck;
         _qstKorrektur   = qstKorrektur;
+        _famzKorrektur  = famzKorrektur;
     }
 
     public async Task<IActionResult> CalculateAsync(
@@ -187,6 +190,7 @@ public class PayrollCalculationEngine
         // diesem Monat materialisieren hier fehlende K1-Posten (z.B. 4c hat
         // die Version schon angelegt, die Vormonate waren damals noch offen).
         await _qstKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
+        await _famzKorrektur.EnsureKorrekturenFuerLohnlaufAsync(employeeId, year, month, "Lohnlauf");
         decimal qstKorrBetrag = 0m;
         string? qstKorrLabel  = null;
         {
@@ -1112,6 +1116,9 @@ public class PayrollCalculationEngine
             where m.EmployeeId == employeeId
                && a.ValidFrom <= periodTo
                && (a.ValidTo == null || a.ValidTo >= periodFrom)
+               // Wissens-Achse (Walter 18.09.2026): vor «Erfahren am» keine
+               // laufende FamZ-Zeile — Zwischenmonate kommen als famz_korrektur.
+               && (a.ErfahrenAm == null || a.ErfahrenAm <= periodTo)
             select new {
                 AllowanceId    = a.Id,
                 MonthlyAmount  = a.MonthlyAmount,    // Snapshot zum ValidFrom — Fallback wenn kein Tarif
@@ -1286,6 +1293,44 @@ public class PayrollCalculationEngine
                 Bemerkung      = bemerkung,
                 CreatedAt      = fa.CreatedAt
             });
+        }
+
+        // FamZ-Korrekturen (Nachzahlung / Rückforderung) — gleiche Lohnposition
+        // 190.x, Bemerkung mit Monat + Kind (Walter 18.09.2026, Swissdec 3001).
+        {
+            var famzKorr = await _db.FamzKorrekturen
+                .Where(k => k.EmployeeId == employeeId
+                         && !(k.Jahr == year && k.Monat == month)
+                         && (k.Status == "OFFEN"
+                             || (k.Status == "VERRECHNET"
+                                 && existingPeriod != null
+                                 && k.VerrechnetPeriodeId == existingPeriod.Id)))
+                .OrderBy(k => k.Jahr).ThenBy(k => k.Monat)
+                .ToListAsync();
+            int korrIdx = 0;
+            foreach (var k in famzKorr)
+            {
+                if (Math.Abs(k.Betrag) < 0.05m) continue;
+                bool istAz = string.Equals(k.AllowanceType, "AZ", StringComparison.OrdinalIgnoreCase);
+                bool istGz = string.Equals(k.AllowanceType, "GZ", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(k.AllowanceType, "AdoptZ", StringComparison.OrdinalIgnoreCase);
+                var lp = istGz ? lpGz : istAz ? lpAz : lpKz;
+                if (lp == null) continue;
+                string art = k.Betrag >= 0 ? "Nachzahlung" : "Rückforderung";
+                string mon = $"{k.Monat}/{k.Jahr}";
+                string name = string.IsNullOrWhiteSpace(k.ChildName) ? "" : $" {k.ChildName}";
+                familienzulagenSynth.Add(new LohnZulage
+                {
+                    Id             = FamzSynthIdBase - 500_000 - (++korrIdx),
+                    EmployeeId     = employeeId,
+                    Periode        = periodeStr,
+                    LohnpositionId = lp.Id,
+                    Lohnposition   = lp,
+                    Betrag         = Math.Round(k.Betrag, 2),
+                    Bemerkung      = $"{art} {mon}{name}",
+                    CreatedAt      = k.CreatedAt
+                });
+            }
         }
 
         var zulagenEntries = einmaligeZulagen

@@ -86,6 +86,7 @@ public class AppDbContext : DbContext
     public DbSet<ElmStammdaten>         ElmStammdaten          => Set<ElmStammdaten>();
     public DbSet<Hauptsitz>             Hauptsitze             => Set<Hauptsitz>();
     public DbSet<QstKorrektur>          QstKorrekturen         => Set<QstKorrektur>();
+    public DbSet<FamzKorrektur>         FamzKorrekturen        => Set<FamzKorrektur>();
     public DbSet<EmployeeDarlehen>      EmployeeDarlehen       => Set<EmployeeDarlehen>();
     public DbSet<EmployeeDarlehenRate>  EmployeeDarlehenRaten  => Set<EmployeeDarlehenRate>();
     public DbSet<PayrollLohnAbtretungEntry> PayrollLohnAbtretungEntries => Set<PayrollLohnAbtretungEntry>();
@@ -1304,6 +1305,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TarifSatzNr).HasColumnName("tarif_satz_nr");
             entity.Property(e => e.Note).HasColumnName("note").HasMaxLength(500);
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.ErfahrenAm).HasColumnName("erfahren_am").HasColumnType("date");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at")
                   .HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
@@ -1318,6 +1320,32 @@ public class AppDbContext : DbContext
                   .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => e.FamilyMemberId);
             entity.HasIndex(e => e.DokumentId);
+        });
+
+        modelBuilder.Entity<FamzKorrektur>(entity =>
+        {
+            entity.ToTable("famz_korrektur");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.CompanyProfileId).HasColumnName("company_profile_id");
+            entity.Property(e => e.FamilyMemberId).HasColumnName("family_member_id");
+            entity.Property(e => e.AllowanceId).HasColumnName("allowance_id");
+            entity.Property(e => e.Jahr).HasColumnName("jahr");
+            entity.Property(e => e.Monat).HasColumnName("monat");
+            entity.Property(e => e.AlterBetrag).HasColumnName("alter_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.NeuerBetrag).HasColumnName("neuer_betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Betrag).HasColumnName("betrag").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.AllowanceType).HasColumnName("allowance_type").HasMaxLength(20);
+            entity.Property(e => e.ChildName).HasColumnName("child_name").HasMaxLength(200);
+            entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(20);
+            entity.Property(e => e.Grund).HasColumnName("grund");
+            entity.Property(e => e.VerrechnetPeriodeId).HasColumnName("verrechnet_periode_id");
+            entity.Property(e => e.VerrechnetAt).HasColumnName("verrechnet_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by").HasMaxLength(150);
+            entity.HasIndex(e => new { e.EmployeeId, e.Jahr, e.Monat });
+            entity.HasIndex(e => e.AllowanceId);
         });
 
         // ── EmployeeTimeEntry ──────────────────────────────────────────────

@@ -9632,6 +9632,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                     <label class="fmf-label" data-i18n="fam.field.qstUntil">QST abzugsberechtigt bis</label>
                     <input class="fmf-input" id="fmQstUntil" type="date">
                 </div>
+                <div class="fmf-field" id="fmErfahrenAmField">
+                    <label class="fmf-label" data-i18n="fam.field.erfahrenAm">Erfahren am</label>
+                    <input class="fmf-input" id="fmErfahrenAm" type="date"
+                           title="Ab wann wir vom Kind wussten. Wirkung bleibt «QST ab»; verspätetes Wissen → Tarif erst ab diesem Tag (Zwischenmonate per QST-Korrektur).">
+                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">Wissensdatum — leer = gleich «QST ab»</div>
+                </div>
                 <!-- Kind 18+: Erstausbildung verlängert die Kinderziffer (KS 45).
                      Nur bei MemberType=Kind sichtbar. -->
                 <div class="fmf-field" id="fmErstausbildungField">
@@ -9676,6 +9682,12 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
                 <div class="ma-field">
                     <div class="ma-field-label">Gültig bis <span class="opt">(leer = offen)</span></div>
                     <input type="date" id="alValidTo" class="ma-input">
+                </div>
+                <div class="ma-field">
+                    <div class="ma-field-label">Erfahren am</div>
+                    <input type="date" id="alErfahrenAm" class="ma-input"
+                           title="Wissensdatum: Zwischenmonate = Nachzahlung (zuwenig) bzw. nach Ende = Rückforderung (zuviel).">
+                    <div style="font-size:10.5px;color:#8b8b8b;margin-top:4px;line-height:1.35">Leer = gleich «Gültig ab». Rückwirkend → Korrektur im Lohnlauf.</div>
                 </div>
             </div>
 
@@ -9773,7 +9785,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260918a"></script>
+<script src="employees.js?v=20260918c"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 
 <!-- ABSENZ MODAL -->

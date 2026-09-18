@@ -58,6 +58,13 @@ public class FamilyMemberAllowance
     public int? DokumentId { get; set; }
     public EmployeeDokument? Dokument { get; set; }
 
+    /// <summary>
+    /// Ab wann wir von der Zulage wussten (Walter 18.09.2026).
+    /// Wirkung bleibt <see cref="ValidFrom"/>; NULL = gleich Wirkung.
+    /// Verspätetes Wissen → Nachzahlung für Zwischenmonate (famz_korrektur).
+    /// </summary>
+    public DateOnly? ErfahrenAm { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }

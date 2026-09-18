@@ -20,9 +20,11 @@ public class FamilyMemberAllowancesController : ControllerBase
 {
     private readonly AppDbContext        _db;
     private readonly LohnEditLockService _editLock;
-    public FamilyMemberAllowancesController(AppDbContext db, LohnEditLockService editLock)
+    private readonly FamzKorrekturService _famzKorrektur;
+    public FamilyMemberAllowancesController(
+        AppDbContext db, LohnEditLockService editLock, FamzKorrekturService famzKorrektur)
     {
-        _db = db; _editLock = editLock;
+        _db = db; _editLock = editLock; _famzKorrektur = famzKorrektur;
     }
 
     /// <summary>Findet die Filiale des MA über das FamilyMember → Employee → Employments.</summary>
@@ -229,20 +231,24 @@ public class FamilyMemberAllowancesController : ControllerBase
         if (await UnterhaltspflichtGeprueftAsync(familyMemberId) is IActionResult sperre)
             return sperre;
 
-        // Walter 17.05.2026 / präzisiert 01.08.2026: ValidFrom nicht rückwirkend
-        // in definitiv abgeschlossene Periode (Akonto sperrt nicht — s. GET).
+        // Rückwirkendes «Gültig ab» erlaubt, wenn «Erfahren am» gesetzt ist
+        // (Wissens-Achse → famz_korrektur). Sonst wie bisher Sperre.
         var branchId     = await GetBranchByFamilyMemberAsync(familyMemberId);
         var firstAllowed = branchId.HasValue
             ? await _editLock.GetFirstAllowedDateForContractsAsync(branchId.Value)
             : null;
-        if (firstAllowed.HasValue && dto.ValidFrom!.Value < firstAllowed.Value)
+        var erfahrenAm = dto.ErfahrenAm ?? dto.ValidFrom!.Value;
+        if (firstAllowed.HasValue && dto.ValidFrom!.Value < firstAllowed.Value
+            && erfahrenAm < firstAllowed.Value)
         {
             return Conflict(new {
                 error            = "LOHN_EDIT_LOCKED",
-                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer bereits definitiv abgeschlossenen Lohnperiode. Frühestes erlaubtes «Gültig ab»: {firstAllowed.Value:dd.MM.yyyy}.",
+                message          = $"«Gültig ab {dto.ValidFrom.Value:dd.MM.yyyy}» liegt in einer abgeschlossenen Periode — bitte «Erfahren am» auf frühestens {firstAllowed.Value:dd.MM.yyyy} setzen (Nachzahlung im offenen Monat).",
                 firstAllowedDate = firstAllowed.Value.ToString("yyyy-MM-dd")
             });
         }
+        if (erfahrenAm < dto.ValidFrom!.Value)
+            return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
 
         var (dokOk, dokId, dokErr) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
         if (!dokOk) return BadRequest(new { error = dokErr });
@@ -252,6 +258,7 @@ public class FamilyMemberAllowancesController : ControllerBase
             FamilyMemberId = familyMemberId,
             ValidFrom      = dto.ValidFrom!.Value,
             ValidTo        = dto.ValidTo,
+            ErfahrenAm     = dto.ErfahrenAm,
             MonthlyAmount  = dto.MonthlyAmount ?? 0m,
             AllowanceType  = NormalizeAllowanceType(dto.AllowanceType),
             TarifSatzNr    = dto.TarifSatzNr,
@@ -262,7 +269,13 @@ public class FamilyMemberAllowancesController : ControllerBase
         };
         _db.FamilyMemberAllowances.Add(entry);
         await _db.SaveChangesAsync();
-        return Ok(MapToDto(entry, firstAllowed));
+
+        var actor = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                    ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var korr = await _famzKorrektur.ErzeugeKorrekturenAsync(entry, actor);
+        return Ok(new { eintrag = MapToDto(entry, firstAllowed), korrekturen = new {
+            anzahl = korr.Anzahl, totalBetrag = korr.TotalBetrag, vorjahr = korr.Vorjahr, posten = korr.Posten
+        }});
     }
 
     [HttpPut("{id:int}")]
@@ -285,13 +298,30 @@ public class FamilyMemberAllowancesController : ControllerBase
         var firstAllowedU = branchIdU.HasValue
             ? await _editLock.GetFirstAllowedDateForContractsAsync(branchIdU.Value)
             : null;
-        if (firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value)
+        // Eingefrorene Zulage: ValidFrom/Typ gesperrt, aber ValidTo + ErfahrenAm
+        // bleiben editierbar (Ende + Wissensdatum → Korrekturen).
+        bool eingefroren = firstAllowedU.HasValue && entry.ValidFrom < firstAllowedU.Value;
+        var erfahrenAmU = dto.ErfahrenAm ?? dto.ValidFrom!.Value;
+        if (erfahrenAmU < dto.ValidFrom!.Value)
+            return BadRequest(new { error = "«Erfahren am» darf nicht vor «Gültig ab» liegen." });
+
+        if (eingefroren)
         {
-            return Conflict(new {
-                error            = "LOHN_EDIT_LOCKED",
-                message          = $"Diese Zulage (gültig ab {entry.ValidFrom:dd.MM.yyyy}) liegt in einer definitiv abgeschlossenen Lohnperiode. Bitte einen neuen Eintrag ab frühestens {firstAllowedU:dd.MM.yyyy} anlegen.",
-                firstAllowedDate = firstAllowedU?.ToString("yyyy-MM-dd")
-            });
+            // Nur Bis + Erfahren + Doku + Note ändern — Betrag/Typ/Von bleiben.
+            entry.ValidTo     = dto.ValidTo;
+            entry.ErfahrenAm  = dto.ErfahrenAm;
+            entry.Note        = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note.Trim();
+            var (dokOkF, dokIdF, dokErrF) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
+            if (!dokOkF) return BadRequest(new { error = dokErrF });
+            entry.DokumentId  = dokIdF;
+            entry.UpdatedAt   = DateTime.Now;
+            await _db.SaveChangesAsync();
+            var actorF = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                         ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var korrF = await _famzKorrektur.ErzeugeKorrekturenAsync(entry, actorF);
+            return Ok(new { eintrag = MapToDto(entry, firstAllowedU), korrekturen = new {
+                anzahl = korrF.Anzahl, totalBetrag = korrF.TotalBetrag, vorjahr = korrF.Vorjahr, posten = korrF.Posten
+            }});
         }
 
         var (dokOkU, dokIdU, dokErrU) = await ResolveDokumentIdAsync(familyMemberId, dto.DokumentId);
@@ -299,6 +329,7 @@ public class FamilyMemberAllowancesController : ControllerBase
 
         entry.ValidFrom     = dto.ValidFrom!.Value;
         entry.ValidTo       = dto.ValidTo;
+        entry.ErfahrenAm    = dto.ErfahrenAm;
         entry.MonthlyAmount = dto.MonthlyAmount ?? 0m;
         entry.AllowanceType = NormalizeAllowanceType(dto.AllowanceType);
         entry.TarifSatzNr   = dto.TarifSatzNr;
@@ -306,7 +337,12 @@ public class FamilyMemberAllowancesController : ControllerBase
         entry.DokumentId    = dokIdU;
         entry.UpdatedAt     = DateTime.Now;
         await _db.SaveChangesAsync();
-        return Ok(MapToDto(entry, firstAllowedU));
+        var actorU = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value
+                     ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var korrU = await _famzKorrektur.ErzeugeKorrekturenAsync(entry, actorU);
+        return Ok(new { eintrag = MapToDto(entry, firstAllowedU), korrekturen = new {
+            anzahl = korrU.Anzahl, totalBetrag = korrU.TotalBetrag, vorjahr = korrU.Vorjahr, posten = korrU.Posten
+        }});
     }
 
     [HttpDelete("{id:int}")]
@@ -351,6 +387,7 @@ public class FamilyMemberAllowancesController : ControllerBase
         familyMemberId  = a.FamilyMemberId,
         validFrom       = a.ValidFrom.ToString("yyyy-MM-dd"),
         validTo         = a.ValidTo?.ToString("yyyy-MM-dd"),
+        erfahrenAm      = a.ErfahrenAm?.ToString("yyyy-MM-dd"),
         monthlyAmount   = a.MonthlyAmount,
         allowanceType   = a.AllowanceType,
         tarifSatzNr     = a.TarifSatzNr,
@@ -406,5 +443,7 @@ public record AllowanceDto(
     int?      TarifSatzNr,
     string?   Note,
     // Walter-Vorgabe 19.07.2026: FAK-/Entscheidungsdokument aus dem MA-Dossier.
-    int?      DokumentId
+    int?      DokumentId,
+    // Wissensdatum (Walter 18.09.2026): Nachzahlung/Rückforderung für Zwischenmonate.
+    DateOnly? ErfahrenAm
 );

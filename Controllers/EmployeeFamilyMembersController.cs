@@ -89,6 +89,9 @@ public class EmployeeFamilyMembersController : ControllerBase
         m.LebtImHaushalt,
         m.QstDeductibleFrom,
         m.QstDeductibleUntil,
+        // Wissens-Achse Kind (Walter 15.09.2026 / UI 18.09.2026): Wirkung =
+        // QstDeductibleFrom, Wissen = ErfahrenAm (NULL = gleich Wirkung).
+        m.ErfahrenAm,
         m.PermitTypeId,
         // Walter-Vorgabe 07.06.2026: PermitType-Klartext mitliefern.
         permitType = m.PermitType == null ? null : new {
@@ -184,6 +187,9 @@ public class EmployeeFamilyMembersController : ControllerBase
         existing.AlternativeAddressId = await ValidateAlternativeAddressAsync(employeeId, member.AlternativeAddressId);
         existing.QstDeductibleFrom    = member.QstDeductibleFrom;
         existing.QstDeductibleUntil   = member.QstDeductibleUntil;
+        // Kind: Erfahren am editierbar (Swissdec TF34 Marc: ab 1.5., erfahren 1.7.).
+        // Leer → NULL (= Wissen = Wirkung). Neu ohne Wert: heute (Create-Pfad).
+        existing.ErfahrenAm          = member.ErfahrenAm;
         existing.PermitTypeId         = member.PermitTypeId;
         existing.PermitExpiryDate     = member.PermitExpiryDate;
         existing.ZemisNumber          = string.IsNullOrWhiteSpace(member.ZemisNumber) ? null : member.ZemisNumber.Trim();

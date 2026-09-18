@@ -1889,6 +1889,19 @@ public class PayrollController : HrControllerBase
                 k.VerrechnetAt        = nowTs;
             }
 
+            // FamZ-Korrekturen (Nachzahlung/Rückforderung) ebenfalls VERRECHNET.
+            var offeneFamz = await _db.FamzKorrekturen
+                .Where(k => k.EmployeeId == dto.EmployeeId
+                         && k.Status == "OFFEN"
+                         && !(k.Jahr == dto.Year && k.Monat == dto.Month))
+                .ToListAsync();
+            foreach (var k in offeneFamz)
+            {
+                k.Status              = "VERRECHNET";
+                k.VerrechnetPeriodeId = dto.PayrollPeriodeId;
+                k.VerrechnetAt        = nowTs;
+            }
+
             // ── K3 (Walter 29.08.2026): Darlehens-Raten persistieren ─────────
             // Gleiche Regel wie die Engine-Anzeige: existiert für diese Periode
             // schon eine Rate → BELASSEN (Stabilität bei Re-Confirm nach
