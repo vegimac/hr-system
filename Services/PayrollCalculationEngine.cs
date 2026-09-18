@@ -210,14 +210,13 @@ public class PayrollCalculationEngine
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
-                // Label mit Tarifwechsel (Walter 18.09.2026): «Erstattung Apr/Mai A0N→B0N»
-                // Monat als Mmm (de-CH), nicht als Zahl — Walter 18.09.2026.
+                // Label: «Erstattung Apr/Mai A0N→B0N» — alle Monate als Mmm, nie als Zahl
+                // (Walter 18.09.2026). Feste DE-Kürzel, kein Culture-Lookup (Linux/ICU).
                 static string MonKurz(int jahr, int monat, int refJahr)
                 {
-                    var name = new DateOnly(jahr, monat, 1).ToString("MMM",
-                        System.Globalization.CultureInfo.GetCultureInfo("de-CH"));
-                    if (name.EndsWith('.')) name = name[..^1];
-                    if (name.Length > 3) name = name[..3];
+                    ReadOnlySpan<string> mon = ["", "Jan", "Feb", "Mär", "Apr", "Mai", "Jun",
+                        "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
+                    var name = monat is >= 1 and <= 12 ? mon[monat] : $"?{monat}";
                     return jahr == refJahr ? name : $"{name} {jahr}";
                 }
                 var teile = kPosten
