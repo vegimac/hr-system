@@ -219,7 +219,7 @@ public partial class SwissdecTestmandantController
                     p.LebtImHaushalt = V("PersonPartnerStreet") == null;
                     p.Gender = sex == "female" ? "male" : sex == "male" ? "female" : null;
                     ErgaenzePartnerFuerQst(p, V("PersonTASCode"), V("PersonPartnerNationality"),
-                        V("PersonPartnerResidenceCategory"), natCode, nats, permits);
+                        V("PersonPartnerResidenceCategory"), natCode ?? MaNationalitaetsCode(emp, nats), nats, permits);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -408,6 +408,8 @@ public partial class SwissdecTestmandantController
     /// Swissdec liefert oft nur Name/Adresse + den offiziellen TAS-Code — daraus
     /// füllen wir die Pflichtfelder (Erwerbstätig aus B/C). Nationalität CH nie
     /// erfinden: das wäre eine Ehegatten-Befreiung und würde die QST streichen.
+    /// MA-Nationalität: zuerst Freitext, sonst Code aus NationalityId (4c-Heirat
+    /// hatte oft nur die Id → Partner blieb ohne Nationalität → Lohnlauf-Sperre).
     /// </summary>
     private static void ErgaenzePartnerFuerQst(
         EmployeeFamilyMember p,
@@ -426,8 +428,10 @@ public partial class SwissdecTestmandantController
         if (p.NationalityId == null)
         {
             var code = partnerNatRoh;
+            // CH nie vom MA übernehmen (Ehegatten-Befreiung). Andere ISO-Codes ja.
             if (string.IsNullOrWhiteSpace(code)
-                && !string.Equals(maNatCode, "CH", StringComparison.OrdinalIgnoreCase))
+                && !string.IsNullOrWhiteSpace(maNatCode)
+                && !maNatCode.Equals("CH", StringComparison.OrdinalIgnoreCase))
                 code = maNatCode;
             if (!string.IsNullOrWhiteSpace(code))
                 p.NationalityId = nats.FirstOrDefault(n => n.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.Id;
@@ -440,6 +444,14 @@ public partial class SwissdecTestmandantController
             var pc = MapPermit(partnerPermitRoh, out _) ?? "B";
             p.PermitTypeId = permits.FirstOrDefault(x => x.Code.Equals(pc, StringComparison.OrdinalIgnoreCase))?.Id;
         }
+    }
+
+    /// <summary>ISO-Code des MA: Freitext <c>Nationality</c> oder Lookup über <c>NationalityId</c>.</summary>
+    private static string? MaNationalitaetsCode(Employee emp, IReadOnlyList<Nationality> nats)
+    {
+        if (!string.IsNullOrWhiteSpace(emp.Nationality)) return emp.Nationality.Trim();
+        if (emp.NationalityId == null) return null;
+        return nats.FirstOrDefault(n => n.Id == emp.NationalityId)?.Code;
     }
 
     private static string? MapPermit(string? s, out string? hinweis)

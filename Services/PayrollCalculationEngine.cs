@@ -210,8 +210,16 @@ public class PayrollCalculationEngine
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
-                // Label mit Tarifwechsel (Walter 18.09.2026): «Erstattung 4/5 A0N→B0N»
-                // statt nur Monatsliste — sofort lesbar auf Beleg/PDF.
+                // Label mit Tarifwechsel (Walter 18.09.2026): «Erstattung Apr/Mai A0N→B0N»
+                // Monat als Mmm (de-CH), nicht als Zahl — Walter 18.09.2026.
+                static string MonKurz(int jahr, int monat, int refJahr)
+                {
+                    var name = new DateOnly(jahr, monat, 1).ToString("MMM",
+                        System.Globalization.CultureInfo.GetCultureInfo("de-CH"));
+                    if (name.EndsWith('.')) name = name[..^1];
+                    if (name.Length > 3) name = name[..3];
+                    return jahr == refJahr ? name : $"{name} {jahr}";
+                }
                 var teile = kPosten
                     .GroupBy(k => (
                         Alt: string.IsNullOrWhiteSpace(k.AlterCode) ? "?" : k.AlterCode.Trim(),
@@ -223,7 +231,7 @@ public class PayrollCalculationEngine
                             .Select(x => (x.Jahr, x.Monat))
                             .Distinct()
                             .OrderBy(x => x.Jahr).ThenBy(x => x.Monat)
-                            .Select(x => x.Jahr == year ? $"{x.Monat}" : $"{x.Monat}/{x.Jahr}")
+                            .Select(x => MonKurz(x.Jahr, x.Monat, year))
                             .ToList();
                         var monatsTeil = string.Join("/", monate);
                         return $"{monatsTeil} {g.Key.Alt}→{g.Key.Neu}";

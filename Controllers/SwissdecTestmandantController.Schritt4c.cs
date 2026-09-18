@@ -222,7 +222,7 @@ public partial class SwissdecTestmandantController
                         .Where(q => q.EmployeeId == emp.Id && q.ValidFrom <= tag1 && (q.ValidTo == null || q.ValidTo >= tag1))
                         .OrderByDescending(q => q.ValidFrom).Select(q => q.QstCode).FirstOrDefaultAsync());
                     ErgaenzePartnerFuerQst(p, tas, V("PersonPartnerNationality"), V("PersonPartnerResidenceCategory"),
-                        emp.Nationality, nats, permits);
+                        MaNationalitaetsCode(emp, nats), nats, permits);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -479,6 +479,19 @@ public partial class SwissdecTestmandantController
                             }
                             var wechsel = new QstKantonswechselService(_db, new LohnEditLockService(_db));
                             await wechsel.InlandWohnsitzAbAsync(emp.Id, ab);
+                        }
+                        // Heirat oft einen Monat vor B/C-Tarif (TF23/TF35: Ehe Mai, B0N Juni).
+                        // Ohne Nachzug bleiben Erwerbstätig/Nationalität leer → Lohnlauf-Sperre.
+                        if (code != null)
+                        {
+                            var partner = await _db.EmployeeFamilyMembers
+                                .FirstOrDefaultAsync(m => m.EmployeeId == emp.Id && m.MemberType == "Ehepartner");
+                            if (partner != null)
+                            {
+                                ErgaenzePartnerFuerQst(partner, code, null, null,
+                                    MaNationalitaetsCode(emp, nats), nats, permits);
+                                partner.UpdatedAt = DateTime.Now;
+                            }
                         }
                     }
                     await _db.SaveChangesAsync();

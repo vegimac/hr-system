@@ -79,6 +79,8 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "test" ]; then
         sudo rm -rf /var/www/hr-system-test/*
         sudo tar -xzf ~/hr-system-publish.tar.gz -C /var/www/hr-system-test 2>/dev/null
         sudo chown -R www-data:www-data /var/www/hr-system-test
+        # Mac tar behält oft 600 — nginx/Diagnose brauchen world-readable wwwroot
+        sudo chmod -R a+rX /var/www/hr-system-test/wwwroot
         sudo systemctl start hr-system-test
 
         # Check: HTTP 200 UND Label nicht leer (Prod hätte ein leeres Label —
@@ -140,6 +142,8 @@ if [ "$MODE" = "both" ] || [ "$MODE" = "prod" ]; then
     sudo rm -rf /var/www/hr-system/*
     sudo tar -xzf ~/hr-system-publish.tar.gz -C /var/www/hr-system 2>/dev/null
     sudo chown -R www-data:www-data /var/www/hr-system
+    # Mac tar behält oft 600 — nginx/Diagnose brauchen world-readable wwwroot
+    sudo chmod -R a+rX /var/www/hr-system/wwwroot
     sudo systemctl start hr-system
 
     # Prod-Port zur Laufzeit aus Unit/Env lesen (NICHT hart verdrahten).
