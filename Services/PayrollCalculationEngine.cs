@@ -201,20 +201,33 @@ public class PayrollCalculationEngine
                              || (k.Status == "VERRECHNET"
                                  && existingPeriod != null
                                  && k.VerrechnetPeriodeId == existingPeriod.Id)))
-                .Select(k => new { k.Jahr, k.Monat, k.Differenz })
+                .Select(k => new { k.Jahr, k.Monat, k.Differenz, k.AlterCode, k.NeuerCode })
                 .ToListAsync();
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
-                var monate = kPosten
-                    .Select(k => new { k.Jahr, k.Monat })
-                    .Distinct()
-                    .OrderBy(k => k.Jahr).ThenBy(k => k.Monat)
-                    .Select(k => $"{k.Monat:00}.{k.Jahr}")
+                // Label mit Tarifwechsel (Walter 18.09.2026): «Erstattung 4/5 A0N→B0N»
+                // statt nur Monatsliste — sofort lesbar auf Beleg/PDF.
+                var teile = kPosten
+                    .GroupBy(k => (
+                        Alt: string.IsNullOrWhiteSpace(k.AlterCode) ? "?" : k.AlterCode.Trim(),
+                        Neu: string.IsNullOrWhiteSpace(k.NeuerCode) ? "?" : k.NeuerCode.Trim()))
+                    .OrderBy(g => g.Min(x => x.Jahr * 100 + x.Monat))
+                    .Select(g =>
+                    {
+                        var monate = g
+                            .Select(x => (x.Jahr, x.Monat))
+                            .Distinct()
+                            .OrderBy(x => x.Jahr).ThenBy(x => x.Monat)
+                            .Select(x => x.Jahr == year ? $"{x.Monat}" : $"{x.Monat}/{x.Jahr}")
+                            .ToList();
+                        var monatsTeil = string.Join("/", monate);
+                        return $"{monatsTeil} {g.Key.Alt}→{g.Key.Neu}";
+                    })
                     .ToList();
                 qstKorrLabel = "Quellensteuer-Korrektur "
                     + (qstKorrBetrag >= 0 ? "(Nachbelastung " : "(Erstattung ")
-                    + string.Join(", ", monate) + ")";
+                    + string.Join("; ", teile) + ")";
                 if (Math.Abs(qstKorrBetrag) < 0.05m) { qstKorrBetrag = 0m; qstKorrLabel = null; }
             }
         }
