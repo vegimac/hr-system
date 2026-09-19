@@ -77,6 +77,69 @@ public class QstJahresmodellTests
     }
 
     [Fact]
+    public void Binggeli_Januar_SatzAusNebenerwerbNichtIst()
+    {
+        var r = QstJahresmodell.Rechne(4550.00m, 0m, 1, 10.90m, 6500.00m);
+        Assert.Equal(6500.00m, r.SatzLohn);
+        Assert.Equal(495.95m, r.QstMonat);
+    }
+
+    [Fact]
+    public void Andrey_Januar_Pensum50Plus40()
+    {
+        var r = QstJahresmodell.Rechne(2600.00m, 0m, 1, 7.90m, 4680.00m);
+        Assert.Equal(4680.00m, r.SatzLohn);
+        Assert.Equal(205.40m, r.QstMonat);
+    }
+
+    [Fact]
+    public void MeierChristian_Januar_NebenerwerbUnbekanntAuf100()
+    {
+        var r = QstJahresmodell.Rechne(2000.00m, 0m, 1, 8.50m, 5000.00m);
+        Assert.Equal(5000.00m, r.SatzLohn);
+        Assert.Equal(170.00m, r.QstMonat);
+    }
+
+    [Fact]
+    public void Forster_Januar_SatzVollerLohnNichtChTage()
+    {
+        Assert.Equal(8000.00m, QstJahresmodell.SatzLohn(8000.00m, 1));
+        var aufIst = QstJahresmodell.Rechne(4500.00m, 0m, 1, 10.20m, 8000.00m);
+        Assert.Equal(8000.00m, aufIst.SatzLohn);
+        Assert.Equal(459.00m, aufIst.QstMonat);
+    }
+
+    [Fact]
+    public void Koller_Februar_BonusImSatzDurch12()
+    {
+        var satz = QstJahresmodell.SatzLohn(10000.00m, 2, 30000.00m);
+        Assert.Equal(7500.00m, satz);
+        var r = QstJahresmodell.Rechne(40000.00m, 425.00m, 2, 12.30m, 10000.00m, 30000.00m);
+        Assert.Equal(7500.00m, r.SatzLohn);
+        Assert.Equal(4495.00m, r.QstMonat);
+    }
+
+    [Fact]
+    public void MeierChristian_Februar_SonderzulagePlusHochrechnung()
+    {
+        var satz = QstJahresmodell.SatzLohn(10000.00m, 2, 4500.00m);
+        Assert.Equal(5375.00m, satz);
+        var r = QstJahresmodell.Rechne(8500.00m, 170.00m, 2, 9.20m, 10000.00m, 4500.00m);
+        Assert.Equal(612.00m, r.QstMonat);
+    }
+
+    [Fact]
+    public void LeseSlip_LiestAperiodisch()
+    {
+        var json = """{"totalLohn":35000.00,"abzugLines":[{"categoryCode":"QST","betrag":-4495.00,"basis":35000.00,"satzBasis":5000.00,"satzAperiodisch":30000.00}]}""";
+        var z = QstJahresmodell.LeseSlip(json);
+        Assert.Equal(5000.00m, z.SatzBasis);
+        Assert.Equal(30000.00m, z.SatzAperiodisch);
+        Assert.Equal(5000.00m, QstJahresmodell.SatzDesMonats(z));
+        Assert.Equal(30000.00m, QstJahresmodell.AperiodischDesMonats(z));
+    }
+
+    [Fact]
     public void LeseSlip_GutschriftIstNegativBezahlt()
     {
         var json = """{"totalLohn":3931.55,"abzugLines":[{"categoryCode":"QST","betrag":2039.50,"basis":3931.55}]}""";

@@ -19,12 +19,15 @@ public static class QstJahresmodell
     public readonly record struct SlipZeile(
         decimal QstBezahlt,
         decimal IstBasis,
-        decimal? SatzBasis);
+        decimal? SatzBasis,
+        decimal? SatzAperiodisch = null);
 
     public readonly record struct YtdStand(
         decimal IstBisher,
         decimal BezahltBisher,
-        int NMonate);
+        int NMonate,
+        decimal SatzBisher = 0,
+        decimal AperiodischBisher = 0);
 
     public static bool GiltFuer(string? kanton)
         => QstTarifVorschlagLogic.IstQstJahresmodell(kanton);
@@ -87,19 +90,38 @@ public static class QstJahresmodell
     }
 
     /// <summary>
-    /// Jahressteuer = Satz% × YTD; Monat = Jahressteuer − bereits bezahlt.
-    /// Satz-Lohn = Round05(YTD / n). Mindeststeuer der ESTV-Monatsstufe
-    /// greift hier nicht (sonst läge sie auf dem ganzen YTD).
+    /// Satz-Lohn = Round05(YTD periodisch ÷ n + YTD aperiodisch ÷ 12).
+    /// Periodisch = satzbestimmend (Nebenerwerb hochgerechnet, ohne CH-Tage).
+    /// Aperiodisch (Bonus u.ä.) zählt 1:1 in den Topf, im Satz immer ÷ 12.
+    /// </summary>
+    public static decimal SatzLohn(decimal ytdPeriodic, int nMonate, decimal ytdAperiodisch = 0)
+    {
+        if (nMonate < 1) nMonate = 1;
+        if (ytdPeriodic < 0) ytdPeriodic = 0;
+        if (ytdAperiodisch < 0) ytdAperiodisch = 0;
+        return PayrollCalculations.Round05(ytdPeriodic / nMonate + ytdAperiodisch / 12m);
+    }
+
+    public static decimal SatzDesMonats(SlipZeile z) => z.SatzBasis ?? z.IstBasis;
+
+    public static decimal AperiodischDesMonats(SlipZeile z) => z.SatzAperiodisch ?? 0;
+
+    /// <summary>
+    /// Jahressteuer = Satz% × YTD-IST (CH-Tage-gekürzt, nicht hochgerechnet).
+    /// Monat = Jahressteuer − bereits bezahlt. Mindeststeuer der ESTV-
+    /// Monatsstufe greift hier nicht (sonst läge sie auf dem ganzen YTD).
     /// </summary>
     public static Ergebnis Rechne(
         decimal ytdIst,
         decimal bereitsBezahlt,
         int nMonate,
-        decimal satzPct)
+        decimal satzPct,
+        decimal? ytdSatzPeriodic = null,
+        decimal ytdAperiodisch = 0)
     {
         if (nMonate < 1) nMonate = 1;
         if (ytdIst < 0) ytdIst = 0;
-        var satzLohn = PayrollCalculations.Round05(ytdIst / nMonate);
+        var satzLohn = SatzLohn(ytdSatzPeriodic ?? ytdIst, nMonate, ytdAperiodisch);
         var jahressteuer = Math.Round(ytdIst * satzPct / 100m, 2, MidpointRounding.AwayFromZero);
         var qstMonat = Math.Round(jahressteuer - bereitsBezahlt, 2);
         return new Ergebnis(satzLohn, satzPct, jahressteuer, qstMonat);
@@ -139,8 +161,11 @@ public static class QstJahresmodell
                     decimal? satzBasis = line.TryGetProperty("satzBasis", out var sb)
                         && sb.ValueKind == JsonValueKind.Number
                         ? sb.GetDecimal() : null;
+                    decimal? satzAper = line.TryGetProperty("satzAperiodisch", out var sa)
+                        && sa.ValueKind == JsonValueKind.Number
+                        ? sa.GetDecimal() : null;
                     // Slip: Abzug negativ, Gutschrift positiv → bezahlt = −betrag.
-                    return new SlipZeile(-betrag, basis, satzBasis);
+                    return new SlipZeile(-betrag, basis, satzBasis, satzAper);
                 }
             }
             return new SlipZeile(0, brutto, null);

@@ -156,12 +156,12 @@ Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1
 |---|---|
 | **Beleg** | TF22 Elisabeth Bucher (und alle Monate der fünf Jahresmodell-Kantone) |
 | **OneCrew** | Jahresmodell in `QstJahresmodell` / `ComputeQstDeduction`. Negativ = Rückerstattung. |
-| **Formel (ESTV, Jan–Mai TF22 1–2 Rp. identisch zur XML)** | `satzLohn = YTD_qst / nMonate` (Eintritt bis laufender Monat, Round05). Satz aus derselben ESTV-Datei. `jahressteuer = Satz% × YTD`. `qstMonat = jahressteuer − bereitsAufBelegenDiesesJahres` (**negativ erlaubt**). |
+| **Formel (ESTV)** | Zwei Töpfe: **IST** = steuerbar (CH-Tage, nicht hochgerechnet). **Satz-Lohn** = Round05(YTD periodisch ÷ n + YTD aperiodisch ÷ 12) — periodisch inkl. Nebenerwerb auf dem **vollen** Lohn (`ComputeSatzBruttoForNebenjob`). `jahressteuer = Satz% × YTD-IST`. `qstMonat = jahressteuer − bereits bezahlt` (**negativ erlaubt**). |
 | **Auslöser** | Steuerkanton in **GE, FR, VD, VS, TI** (`QstTarifVorschlagLogic.IstQstJahresmodell`). Die übrigen 21 Kantone Monatsmodell. Swissdec-Flag `Y` bestätigt, steuert nicht. |
 | **YTD** | QST-Basis der Snapshots derselben Person im Kalenderjahr (nicht nur aktueller Monat). Akonto + Definitiv + `QstKorrekturService`-Nachrechnung dieselbe Funktion. |
 | **Tarifdateien** | Testmandant braucht nur TI/VD (plus LU/BE). **GE, FR, VS nicht einlesen** — Engine ist kanton-agnostisch, dieselben Sätze gelten, sobald die Dateien später da sind. |
 | **Juni/Dez XML nicht nachbauen** | Juni ist noch **A0N/ledig** (Heirat gilt ab 1.7., Mutation `ValidAsOf` 2025-07-01). Formel Juni = **+240.80**, XML **−2'039.50** (nullt das YTD). Dezember Formel ~**+174**, XML **−3'987.95** (nullt das Jahr auf ~0). Beides ist SalaryCalculator/XML, nicht KS 45 — CSV hat keine QST-Beträge. Nach dem Bau: Jan–Mai TI gegen XML prüfen; Juni/Dez Abweichung zur XML **kein Bug**, solange die Formel gilt. |
-| **Stand** | Gebaut 19.09.2026. |
-| **Status** | GEBAUT — Belege der fünf Kantone nach Tessin-Reset ab Januar prüfen; Juni/Dez nicht gegen XML grün rechnen |
+| **Stand** | Gebaut 19.09.2026. Satz-Töpfe nachgezogen 20.09.2026 (Nebenerwerb + CH-Tage + Bonus ÷ 12). |
+| **Status** | GEBAUT — Januar der vier Nebenjob-/Grenzgänger-Fälle nach Deploy neu bestätigen. TF29 R0N vs. XML A0N = Swissdec-Frage, nicht nachbauen. 5-Rp.-QST-Rundung offen (1 Rp. bei TF22). |
 
 Ferien-Saldo +2.92 Tage auf denselben Belegen = A2/A3 (Egli), nicht O1.

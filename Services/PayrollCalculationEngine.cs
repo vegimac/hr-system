@@ -2992,7 +2992,7 @@ public class PayrollCalculationEngine
                         satzBruttoMtp = satzKurzMtp;
                 }
             }
-            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp);
+            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig);
             if (qstRule is not null) deductions.Add(qstRule);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -3624,7 +3624,7 @@ public class PayrollCalculationEngine
             decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesUtp.Qst, workedHours, company,
                 einmaligNichtHochrechnen: deltaQstEinmalig);
-            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp);
+            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
             // FLEX: 13. ML standardmässig monatlich. Während Probezeit → Saldo
@@ -4261,7 +4261,7 @@ public class PayrollCalculationEngine
                 if (!satzBruttoFix.HasValue || satzKurzFix > satzBruttoFix.Value)
                     satzBruttoFix = satzKurzFix;
             }
-            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix);
+            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -4468,7 +4468,7 @@ public class PayrollCalculationEngine
         int n = QstJahresmodell.AnzahlMonate(start, periodFrom);
 
         if (month <= 1)
-            return new QstJahresmodell.YtdStand(0, 0, n);
+            return new QstJahresmodell.YtdStand(0, 0, n, 0, 0);
 
         var rows = await (
             from s in _db.PayrollSnapshots
@@ -4481,7 +4481,7 @@ public class PayrollCalculationEngine
             select new { p.Month, s.SlipJson }
         ).ToListAsync();
 
-        decimal ist = 0, bezahlt = 0;
+        decimal ist = 0, bezahlt = 0, satz = 0, aper = 0;
         foreach (var g in rows.GroupBy(r => r.Month))
         {
             var stichtag = new DateOnly(year, g.Key, 1).AddMonths(1).AddDays(-1);
@@ -4493,9 +4493,11 @@ public class PayrollCalculationEngine
                 var z = QstJahresmodell.LeseSlip(r.SlipJson);
                 ist += z.IstBasis;
                 bezahlt += z.QstBezahlt;
+                satz += QstJahresmodell.SatzDesMonats(z);
+                aper += QstJahresmodell.AperiodischDesMonats(z);
             }
         }
-        return new QstJahresmodell.YtdStand(ist, bezahlt, n);
+        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper);
     }
 
     /// <summary>
@@ -4513,7 +4515,8 @@ public class PayrollCalculationEngine
         decimal bruttolohn,
         int companyProfileId,
         DateOnly periodFrom,
-        decimal? satzbestimmenderBrutto = null)
+        decimal? satzbestimmenderBrutto = null,
+        decimal aperiodisch = 0)
     {
         if (einstellung is null || string.IsNullOrEmpty(einstellung.Steuerkanton))
             return null;
@@ -4582,8 +4585,15 @@ public class PayrollCalculationEngine
         }
         else if (jahresmodell)
         {
+            // IST = steuerbar (CH-Tage). Satz = Nebenerwerb-hochgerechnet auf
+            // dem vollen Lohn; Bonus zählt im Satz ÷ 12, nicht ÷ n.
             var ytd = _qstJahresYtd!.Value;
+            decimal monatAperiodisch = Math.Max(0m, aperiodisch);
+            decimal monatPeriodicSatz = satzBrutto - monatAperiodisch;
+            if (monatPeriodicSatz < 0) monatPeriodicSatz = satzBrutto;
             decimal ytdIst = ytd.IstBisher + bruttolohn;
+            decimal ytdPeriodic = ytd.SatzBisher + monatPeriodicSatz;
+            decimal ytdAper = ytd.AperiodischBisher + monatAperiodisch;
             decimal satzFuerJahr;
             if (einstellung.Prozentsatz.HasValue)
             {
@@ -4591,8 +4601,8 @@ public class PayrollCalculationEngine
             }
             else
             {
-                var satzLohnLookup = PayrollCalculations.Round05(
-                    ytdIst / Math.Max(1, ytd.NMonate));
+                var satzLohnLookup = QstJahresmodell.SatzLohn(
+                    ytdPeriodic, ytd.NMonate, ytdAper);
                 satzFuerJahr = _tarifService.GetSteuersatzProzent(
                     einstellung.Steuerkanton!,
                     einstellung.TarifCode ?? "",
@@ -4601,10 +4611,11 @@ public class PayrollCalculationEngine
                     satzLohnLookup,
                     periodFrom.Year) ?? 0m;
             }
-            var jm = QstJahresmodell.Rechne(ytdIst, ytd.BezahltBisher, ytd.NMonate, satzFuerJahr);
+            var jm = QstJahresmodell.Rechne(
+                ytdIst, ytd.BezahltBisher, ytd.NMonate, satzFuerJahr,
+                ytdPeriodic, ytdAper);
             qstBetrag = jm.QstMonat;
             satzPct = jm.SatzPct;
-            satzBrutto = jm.SatzLohn;
             sonderHinweis = $"Jahresmodell, Satz-Lohn {jm.SatzLohn:0.00}";
         }
         else if (einstellung.Prozentsatz.HasValue)
@@ -4655,6 +4666,18 @@ public class PayrollCalculationEngine
                 ? $"{einstellung.TarifCode}{einstellung.AnzahlKinder}{(einstellung.Kirchensteuer ? 'Y' : 'N')}"
                 : (einstellung.QstCode ?? "");
 
+        // Jahresmodell: Slip speichert den MONATS-Satz (periodisch + Bonus
+        // extra), nicht den YTD-Durchschnitt — sonst fehlt der Topf im Februar.
+        decimal slipSatz = satzBrutto;
+        decimal? slipAper = null;
+        if (jahresmodell)
+        {
+            var aper = Math.Max(0m, aperiodisch);
+            var periodic = satzBrutto - aper;
+            slipSatz = periodic >= 0 ? periodic : satzBrutto;
+            if (aper > 0) slipAper = aper;
+        }
+
         return new DeductionRule
         {
             Id               = -99,
@@ -4671,7 +4694,8 @@ public class PayrollCalculationEngine
             ValidFrom        = periodFrom,
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
-            QstSatzBasis     = satzBrutto,  // transient — in die Slip-Zeile (K1 Korrektur)
+            QstSatzBasis     = slipSatz,
+            QstSatzAperiodisch = slipAper,
             BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,
             Hinweis          = sonderHinweis,
         };

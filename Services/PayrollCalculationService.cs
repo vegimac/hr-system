@@ -473,6 +473,7 @@ public static class PayrollCalculations
                               ?? (d.Type == "percent" ? (decimal?)d.Rate : null),
                 basis       = (decimal?)Math.Round(basis, 2),
                 satzBasis   = d.QstSatzBasis,
+                satzAperiodisch = d.QstSatzAperiodisch,
                 betrag,
                 // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
                 // Staffel-Stufe. NULL = kein AG-Anteil.
@@ -505,6 +506,7 @@ public static class PayrollCalculations
                 prozent      = (decimal?)null,
                 basis        = (decimal?)null,
                 satzBasis    = (decimal?)null,
+                satzAperiodisch = (decimal?)null,
                 betrag       = -Math.Round(qstKorrekturBetrag, 2),
                 agBetrag     = (decimal?)null
             });

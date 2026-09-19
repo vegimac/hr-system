@@ -150,6 +150,13 @@ public class DeductionRule
     public decimal? QstSatzBasis { get; set; }
 
     /// <summary>
+    /// Transient: aperiodischer Anteil (Bonus u.ä.) im Jahresmodell — zählt
+    /// satzbestimmend 1:1, im Satz-Lohn ÷ 12. Slip-Feld «satzAperiodisch».
+    /// </summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public decimal? QstSatzAperiodisch { get; set; }
+
+    /// <summary>
     /// Transient (Walter 11.09.2026): abweichende Bemessungsbasis für die Anzeige
     /// im Lohnzettel — QST bei Wohnsitz Ausland: nur der CH-Arbeitstage-Anteil
     /// des Bruttolohns ist steuerbar (Swissdec TaxableEarning).

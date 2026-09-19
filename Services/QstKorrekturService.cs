@@ -259,6 +259,8 @@ public class QstKorrekturService
             ).ToListAsync(ct);
 
             var istByM = new Dictionary<int, decimal>();
+            var satzByM = new Dictionary<int, decimal>();
+            var aperByM = new Dictionary<int, decimal>();
             var altByM = new Dictionary<int, decimal>();
             foreach (var g in slips.GroupBy(x => x.Month))
             {
@@ -266,6 +268,8 @@ public class QstKorrekturService
                 {
                     var z = QstJahresmodell.LeseSlip(row.SlipJson);
                     istByM[g.Key] = istByM.GetValueOrDefault(g.Key) + z.IstBasis;
+                    satzByM[g.Key] = satzByM.GetValueOrDefault(g.Key) + QstJahresmodell.SatzDesMonats(z);
+                    aperByM[g.Key] = aperByM.GetValueOrDefault(g.Key) + QstJahresmodell.AperiodischDesMonats(z);
                     altByM[g.Key] = altByM.GetValueOrDefault(g.Key) + z.QstBezahlt;
                 }
             }
@@ -274,14 +278,18 @@ public class QstKorrekturService
                 if (istByM.ContainsKey(r.Month)) continue;
                 var z = QstJahresmodell.LeseSlip(r.SlipJson);
                 istByM[r.Month] = z.IstBasis;
+                satzByM[r.Month] = QstJahresmodell.SatzDesMonats(z);
+                aperByM[r.Month] = QstJahresmodell.AperiodischDesMonats(z);
                 altByM[r.Month] = z.QstBezahlt;
             }
 
             var betroffenMonate = yg.Select(x => x.Month).ToHashSet();
-            decimal ytd = 0, paidNew = 0;
+            decimal ytdIst = 0, ytdPer = 0, ytdAper = 0, paidNew = 0;
             for (int m = start.Month; m <= maxM; m++)
             {
-                ytd += istByM.GetValueOrDefault(m);
+                ytdIst += istByM.GetValueOrDefault(m);
+                ytdPer += satzByM.GetValueOrDefault(m);
+                ytdAper += aperByM.GetValueOrDefault(m);
                 if (!betroffenMonate.Contains(m))
                 {
                     paidNew += altByM.GetValueOrDefault(m);
@@ -293,12 +301,12 @@ public class QstKorrekturService
                     satzPct = neu.Prozentsatz.Value;
                 else
                 {
-                    var satzLohn = PayrollCalculations.Round05(ytd / Math.Max(1, n));
+                    var satzLohn = QstJahresmodell.SatzLohn(ytdPer, n, ytdAper);
                     satzPct = _tarifService.GetSteuersatzProzent(
                         kanton, neu.TarifCode ?? "", neu.AnzahlKinder, neu.Kirchensteuer,
                         satzLohn, year) ?? 0m;
                 }
-                var jm = QstJahresmodell.Rechne(ytd, paidNew, n, satzPct);
+                var jm = QstJahresmodell.Rechne(ytdIst, paidNew, n, satzPct, ytdPer, ytdAper);
                 map[(year, m)] = jm.QstMonat;
                 paidNew += jm.QstMonat;
             }
