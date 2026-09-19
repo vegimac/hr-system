@@ -402,12 +402,14 @@ public class QstPflichtCheckService
                 if (spouse.Erwerbstaetig == null)
                     partnerMaengel.Add("Erwerbstätig-Frage zum Ehepartner nicht beantwortet");
                 else if (spouse.Erwerbstaetig == true && partnerInSchweiz
-                         && string.IsNullOrWhiteSpace(spouse.ArbeitgeberName))
+                         && !HatArbeitgeberAngabe(spouse.ArbeitgeberName, spouse.ArbeitgeberKanton, spouse.ArbeitgeberOrt))
                     // Arbeitgeber-Pflicht NUR bei Partner in der Schweiz: bei
                     // Erwerbs-/Ersatzeinkommen im AUSLAND (z.B. Status S, Mann
                     // mit Militärsold in der Ukraine — Kevin/TaxInfo BE,
                     // 29.08.2026) gibt es keinen CH-Arbeitgeber; für den Tarif
                     // zählt das Einkommen trotzdem (→ C Doppelverdiener).
+                    // Swissdec PersonPartnerWorkplace ist nur das Kantonskürzel
+                    // (TF22 Bucher: «TI») — Kanton/Ort zählen wie der Name.
                     partnerMaengel.Add("Arbeitgeber des erwerbstätigen Ehepartners fehlt");
             }
             if (partnerMaengel.Count == 0) partnerMaengel = null;
@@ -773,6 +775,16 @@ public class QstPflichtCheckService
     /// CH / Schweiz / Suisse / Svizzera / Switzerland / leer = Schweiz.
     /// ISO (IT) und Langnamen (ITALY) gelten als Ausland.
     /// </summary>
+    /// <summary>
+    /// Erwerbstätiger Partner in der Schweiz: Name, Kanton oder Ort reicht.
+    /// Swissdec liefert oft nur <c>PersonPartnerWorkplace</c> als Kantonskürzel
+    /// (TF22 Bucher: «TI»), keinen Firmennamen.
+    /// </summary>
+    public static bool HatArbeitgeberAngabe(string? name, string? kanton, string? ort) =>
+        !string.IsNullOrWhiteSpace(name)
+        || !string.IsNullOrWhiteSpace(kanton)
+        || !string.IsNullOrWhiteSpace(ort);
+
     public static bool IstLandSchweiz(string? land)
     {
         var l = (land ?? "").Trim().ToLowerInvariant();

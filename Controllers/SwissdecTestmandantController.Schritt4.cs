@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HrSystem.Models;
+using HrSystem.Services;
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -219,7 +220,7 @@ public partial class SwissdecTestmandantController
                     p.LebtImHaushalt = V("PersonPartnerStreet") == null;
                     p.Gender = sex == "female" ? "male" : sex == "male" ? "female" : null;
                     ErgaenzePartnerFuerQst(p, V("PersonTASCode"), V("PersonPartnerNationality"),
-                        V("PersonPartnerResidenceCategory"), natCode ?? MaNationalitaetsCode(emp, nats), nats, permits);
+                        V("PersonPartnerResidenceCategory"), natCode ?? MaNationalitaetsCode(emp, nats), nats, permits, emp.NationalityId);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -279,12 +280,11 @@ public partial class SwissdecTestmandantController
                 var tasAb = Datum(V("PersonTASCodeValidAsOf")) ?? f.Entry;
                 var modellQ = V("PersonTASCalculationModel");
                 var m = Regex.Match(tasCode, @"^([A-Z]{1,2})(\d)([YN])$");
-                felder["Quellensteuer"] = $"Kanton {tasKt} · Code {tasCode} ab {tasAb:dd.MM.yyyy} · Modell {(modellQ == "Y" ? "Jahr" : "Monat")}"
+                felder["Quellensteuer"] = $"Kanton {tasKt} · Code {tasCode} ab {tasAb:dd.MM.yyyy} · Modell {(modellQ == "Y" || QstTarifVorschlagLogic.IstQstJahresmodell(tasKt) ? "Jahr" : "Monat")}"
                     + (V("PersonTASMunicipalityID") != null ? $" · Gemeinde {NummerOhneKomma(V("PersonTASMunicipalityID"))}" : "")
                     + (V("PersonOtherActivity") != null ? $" · Nebenbeschäftigung {Dez(V("PersonTotalOtherActivityRate"))?.ToString("0.#") ?? "?"} %" : "")
                     + (V("PersonTASKindOfResidence") is { } kor ? $" · {kor}" : "")
                     + (V("PersonCrossborderTaxID") != null ? $" · Grenzgänger Steuer-ID {V("PersonCrossborderTaxID")}, {V("PersonCrossborderPlaceOfBirth")}, ab {Datum(V("PersonCrossborderValidAsOf")):dd.MM.yyyy}" : "");
-                if (modellQ == "Y") probleme.Add("QST-Jahresmodell (TI/VD) — Berechnung folgt in Schritt 5.");
                 if (!vorschau)
                 {
                     var q = await _db.EmployeeQuellensteuer.FirstOrDefaultAsync(x => x.EmployeeId == emp.Id && x.ValidFrom == tasAb)
@@ -410,6 +410,9 @@ public partial class SwissdecTestmandantController
     /// erfinden: das wäre eine Ehegatten-Befreiung und würde die QST streichen.
     /// MA-Nationalität: zuerst Freitext, sonst Code aus NationalityId (4c-Heirat
     /// hatte oft nur die Id → Partner blieb ohne Nationalität → Lohnlauf-Sperre).
+    /// Arbeitgeber: Swissdec hat nur den Arbeitskanton (PersonPartnerWorkplace
+    /// «TI») — fehlt der Name, setzen wir «Kanton XY», damit der Lohnlauf nicht
+    /// an einem Firmennamen scheitert, den die Testdaten nicht kennen.
     /// </summary>
     private static void ErgaenzePartnerFuerQst(
         EmployeeFamilyMember p,
@@ -418,7 +421,8 @@ public partial class SwissdecTestmandantController
         string? partnerPermitRoh,
         string? maNatCode,
         IReadOnlyList<Nationality> nats,
-        IReadOnlyList<PermitType> permits)
+        IReadOnlyList<PermitType> permits,
+        int? maNationalityId = null)
     {
         var m = Regex.Match(tasCode ?? "", @"^([A-Z]{1,2})\d[YN]$");
         var tarif = m.Success ? m.Groups[1].Value : null;
@@ -434,7 +438,17 @@ public partial class SwissdecTestmandantController
                 && !maNatCode.Equals("CH", StringComparison.OrdinalIgnoreCase))
                 code = maNatCode;
             if (!string.IsNullOrWhiteSpace(code))
-                p.NationalityId = nats.FirstOrDefault(n => n.Code.Equals(code, StringComparison.OrdinalIgnoreCase))?.Id;
+                p.NationalityId = nats.FirstOrDefault(n =>
+                    n.Code.Equals(code, StringComparison.OrdinalIgnoreCase)
+                    || (!string.IsNullOrWhiteSpace(n.Code2) && n.Code2.Equals(code, StringComparison.OrdinalIgnoreCase)))?.Id;
+            // 4c lädt den MA oft nur mit NationalityId (Freitext leer / Code
+            // nicht im Katalog-Lookup) — dann die Id 1:1 übernehmen, ausser CH.
+            if (p.NationalityId == null && maNationalityId != null)
+            {
+                var maNat = nats.FirstOrDefault(n => n.Id == maNationalityId);
+                if (maNat != null && !maNat.Code.Equals("CH", StringComparison.OrdinalIgnoreCase))
+                    p.NationalityId = maNationalityId;
+            }
         }
 
         var natIstCh = p.NationalityId != null
@@ -443,6 +457,15 @@ public partial class SwissdecTestmandantController
         {
             var pc = MapPermit(partnerPermitRoh, out _) ?? "B";
             p.PermitTypeId = permits.FirstOrDefault(x => x.Code.Equals(pc, StringComparison.OrdinalIgnoreCase))?.Id;
+        }
+
+        if (p.Erwerbstaetig == true
+            && string.IsNullOrWhiteSpace(p.ArbeitgeberName)
+            && (!string.IsNullOrWhiteSpace(p.ArbeitgeberKanton) || !string.IsNullOrWhiteSpace(p.ArbeitgeberOrt)))
+        {
+            p.ArbeitgeberName = !string.IsNullOrWhiteSpace(p.ArbeitgeberKanton)
+                ? (p.ArbeitgeberKanton.Length <= 2 ? "Kanton " + p.ArbeitgeberKanton : p.ArbeitgeberKanton)
+                : p.ArbeitgeberOrt;
         }
     }
 

@@ -13,6 +13,8 @@ Neue Einträge nur nach Walter-Entscheid. Offene Bugs gehören nicht hierher.
 
 **Beleg-Check (Walter 16.09.2026, ABSOLUT):** Sobald CSV und OneCrew in der **Fachlogik** auseinanderlaufen (nicht 1–2 Rp. Rundung) — **sofort warnen**, Beleg nicht still grün machen. Gemeinsam eine Lösung suchen (Filial-Schalter, Lohnart, Stammdaten-Flag), nicht hinterher «bewusst» abstempeln. Anlass: TF11 Bosshard 13. ML. **Formel 17.09.2026:** FIX/FIX-M jetzt 1/12 (Schaub + Muster AG). Ortszulage 1033 zählt nicht zur 13.-Basis (wie Schicht 1070). Auszahlung vor Pensenwechsel: Lohnart **180.3** (CSV 1200 ausserhalb Dezember → Auslöser, Engine zahlt Pott + Monat).
 
+**QST Jahresmodell — kein Grün bis Tessin neu bestätigt (Walter 19.09.2026):** Jahresmodell (ESTV) nur **GE, FR, VD, VS, TI** — die übrigen 21 Kantone Monat. Gebaut 19.09.2026 (`QstJahresmodell`). Juni/Dezember-XML nicht nachbauen. Belege der fünf Kantone erst nach Tessin-Reset ab Januar prüfen.
+
 ---
 
 ## I. Wir rechnen anders als CSV **und** Soll-XML
@@ -143,3 +145,23 @@ Nicht ankreiden / andere XML-Felder: NBU ±2 Rp. (A5), KTG/UVGZ, Ferientage (A2/
 Nächster Eintrag: wenn ein Beleg-Check eine neue **bewusste** Differenz ergibt — hier ergänzen (ID, TF, Monat, OneCrew, Swissdec, Begründung, Status).
 
 Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1.4. / KS 45); A7 (Lehmann/Jenzer Feb Brutto 8'400 vs CSV 8'000, Eintrittstag zählt).
+
+---
+
+## V. Jahresmodell (gebaut — Beleg-Check ab Januar)
+
+### O1 — QST-Jahresmodell GE/FR/VD/VS/TI
+
+| | |
+|---|---|
+| **Beleg** | TF22 Elisabeth Bucher (und alle Monate der fünf Jahresmodell-Kantone) |
+| **OneCrew** | Jahresmodell in `QstJahresmodell` / `ComputeQstDeduction`. Negativ = Rückerstattung. |
+| **Formel (ESTV, Jan–Mai TF22 1–2 Rp. identisch zur XML)** | `satzLohn = YTD_qst / nMonate` (Eintritt bis laufender Monat, Round05). Satz aus derselben ESTV-Datei. `jahressteuer = Satz% × YTD`. `qstMonat = jahressteuer − bereitsAufBelegenDiesesJahres` (**negativ erlaubt**). |
+| **Auslöser** | Steuerkanton in **GE, FR, VD, VS, TI** (`QstTarifVorschlagLogic.IstQstJahresmodell`). Die übrigen 21 Kantone Monatsmodell. Swissdec-Flag `Y` bestätigt, steuert nicht. |
+| **YTD** | QST-Basis der Snapshots derselben Person im Kalenderjahr (nicht nur aktueller Monat). Akonto + Definitiv + `QstKorrekturService`-Nachrechnung dieselbe Funktion. |
+| **Tarifdateien** | Testmandant braucht nur TI/VD (plus LU/BE). **GE, FR, VS nicht einlesen** — Engine ist kanton-agnostisch, dieselben Sätze gelten, sobald die Dateien später da sind. |
+| **Juni/Dez XML nicht nachbauen** | Juni ist noch **A0N/ledig** (Heirat gilt ab 1.7., Mutation `ValidAsOf` 2025-07-01). Formel Juni = **+240.80**, XML **−2'039.50** (nullt das YTD). Dezember Formel ~**+174**, XML **−3'987.95** (nullt das Jahr auf ~0). Beides ist SalaryCalculator/XML, nicht KS 45 — CSV hat keine QST-Beträge. Nach dem Bau: Jan–Mai TI gegen XML prüfen; Juni/Dez Abweichung zur XML **kein Bug**, solange die Formel gilt. |
+| **Stand** | Gebaut 19.09.2026. |
+| **Status** | GEBAUT — Belege der fünf Kantone nach Tessin-Reset ab Januar prüfen; Juni/Dez nicht gegen XML grün rechnen |
+
+Ferien-Saldo +2.92 Tage auf denselben Belegen = A2/A3 (Egli), nicht O1.

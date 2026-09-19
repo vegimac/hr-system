@@ -451,7 +451,7 @@ public static class PayrollCalculations
                 : (decimal?)null;
 
             totalAbzuege += betrag;
-            if (d.CategoryCode == "QST") qstBetragOut += Math.Abs(betrag);
+            if (d.CategoryCode == "QST") qstBetragOut += -betrag;
             string abzugBezeichnung = d.AhvFreibetragVerzicht
                 ? $"{d.Name} (Verzicht Freibetrag, Wunsch MA)"
                 : d.FreibetragMonthly is > 0

@@ -477,6 +477,10 @@ public class PayrollCalculationEngine
                 .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
+        _qstJahresYtd = null;
+        if (isQuellensteuer && QstJahresmodell.GiltFuer(qstEinstellung!.Steuerkanton))
+            _qstJahresYtd = await LadeQstJahresYtdAsync(
+                employee, qstEinstellung, year, month, periodFrom, periodTo);
 
         // ── Abzugsregeln: ausschliesslich aus social_insurance_rate ───────────
         bool usingDefaultDeductions = false;
@@ -4439,6 +4443,60 @@ public class PayrollCalculationEngine
     private EmployeeQstArbeitstage? _qstArbeitstage;
     private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
+    private QstJahresmodell.YtdStand? _qstJahresYtd;
+
+    /// <summary>
+    /// YTD-QST der Vormonate desselben Jahres im selben Jahresmodell-Kanton.
+    /// STORNIERT zählt nicht. JSONB nicht in SQL filtern (22P02).
+    /// </summary>
+    private async Task<QstJahresmodell.YtdStand> LadeQstJahresYtdAsync(
+        Employee employee,
+        EmployeeQuellensteuer einstellung,
+        int year, int month,
+        DateOnly periodFrom, DateOnly periodTo)
+    {
+        var kanton = (einstellung.Steuerkanton ?? "").Trim();
+        var versionen = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == employee.Id && q.ValidFrom <= periodTo)
+            .ToListAsync();
+        DateOnly? eintritt = employee.EntryDate is { } ed && ed.Year > 1
+            ? DateOnly.FromDateTime(ed)
+            : employee.Employments.Count > 0
+                ? employee.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate))
+                : null;
+        var start = QstJahresmodell.ModellStart(year, eintritt, versionen, kanton, periodTo);
+        int n = QstJahresmodell.AnzahlMonate(start, periodFrom);
+
+        if (month <= 1)
+            return new QstJahresmodell.YtdStand(0, 0, n);
+
+        var rows = await (
+            from s in _db.PayrollSnapshots
+            join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+            where s.EmployeeId == employee.Id
+               && p.Year == year
+               && p.Month >= start.Month
+               && p.Month < month
+               && s.Status != "STORNIERT"
+            select new { p.Month, s.SlipJson }
+        ).ToListAsync();
+
+        decimal ist = 0, bezahlt = 0;
+        foreach (var g in rows.GroupBy(r => r.Month))
+        {
+            var stichtag = new DateOnly(year, g.Key, 1).AddMonths(1).AddDays(-1);
+            var v = QstVersionWahl.Waehle(versionen, stichtag);
+            if (v == null || !string.Equals((v.Steuerkanton ?? "").Trim(), kanton, StringComparison.OrdinalIgnoreCase))
+                continue;
+            foreach (var r in g)
+            {
+                var z = QstJahresmodell.LeseSlip(r.SlipJson);
+                ist += z.IstBasis;
+                bezahlt += z.QstBezahlt;
+            }
+        }
+        return new QstJahresmodell.YtdStand(ist, bezahlt, n);
+    }
 
     /// <summary>
     /// Wohnsitz im Ausland (Grenzgänger, internationaler Wochenaufenthalter): steuerbar
@@ -4491,6 +4549,9 @@ public class PayrollCalculationEngine
         decimal qstBetrag;
         decimal? satzPct;
         string? sonderHinweis = null;
+        bool jahresmodell = QstJahresmodell.GiltFuer(einstellung.Steuerkanton)
+                            && vordef == null
+                            && _qstJahresYtd != null;
 
         if (vordef != null)
         {
@@ -4518,6 +4579,33 @@ public class PayrollCalculationEngine
                 }
             }
             else return null;
+        }
+        else if (jahresmodell)
+        {
+            var ytd = _qstJahresYtd!.Value;
+            decimal ytdIst = ytd.IstBisher + bruttolohn;
+            decimal satzFuerJahr;
+            if (einstellung.Prozentsatz.HasValue)
+            {
+                satzFuerJahr = einstellung.Prozentsatz.Value;
+            }
+            else
+            {
+                var satzLohnLookup = PayrollCalculations.Round05(
+                    ytdIst / Math.Max(1, ytd.NMonate));
+                satzFuerJahr = _tarifService.GetSteuersatzProzent(
+                    einstellung.Steuerkanton!,
+                    einstellung.TarifCode ?? "",
+                    einstellung.AnzahlKinder,
+                    einstellung.Kirchensteuer,
+                    satzLohnLookup,
+                    periodFrom.Year) ?? 0m;
+            }
+            var jm = QstJahresmodell.Rechne(ytdIst, ytd.BezahltBisher, ytd.NMonate, satzFuerJahr);
+            qstBetrag = jm.QstMonat;
+            satzPct = jm.SatzPct;
+            satzBrutto = jm.SatzLohn;
+            sonderHinweis = $"Jahresmodell, Satz-Lohn {jm.SatzLohn:0.00}";
         }
         else if (einstellung.Prozentsatz.HasValue)
         {
@@ -4554,7 +4642,8 @@ public class PayrollCalculationEngine
         // Walter-Vorgabe 27.05.2026: bei QST-pflichtigem MA mit erfasstem Tarif
         // IMMER eine Zeile zeigen — auch bei 0.00 (Tarif ohne Mindeststeuer und
         // 0%-Stufe). Sonst denkt der GF, die QST sei «nicht berechnet».
-        if (qstBetrag < 0) qstBetrag = 0;
+        // Jahresmodell (GE/FR/VD/VS/TI): negativ = Rückerstattung, nicht klemmen.
+        if (qstBetrag < 0 && !jahresmodell) qstBetrag = 0;
 
         // Walter-Vorgabe 23.08.2026: der Lohnzettel-Text zeigt IMMER den Code,
         // mit dem tatsächlich gerechnet wird (TarifCode+Kinder+Kirchensteuer) —
@@ -4583,7 +4672,7 @@ public class PayrollCalculationEngine
             SortOrder        = 90,
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
             QstSatzBasis     = satzBrutto,  // transient — in die Slip-Zeile (K1 Korrektur)
-            BasisOverride    = tageHinweis != null ? bruttolohn : null,   // steuerbarer Anteil (Arbeitstage CH)
+            BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,
             Hinweis          = sonderHinweis,
         };
     }

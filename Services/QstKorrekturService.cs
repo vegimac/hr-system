@@ -1,4 +1,3 @@
-using System.Text.Json;
 using HrSystem.Data;
 using HrSystem.Models;
 using Microsoft.EntityFrameworkCore;
@@ -85,6 +84,16 @@ public class QstKorrekturService
         // Laufendes Steuerjahr = Jahr der Kenntnis/Verrechnung, nicht Kalender-heute.
         var laufendesSteuerjahr = QstVersionWahl.BekanntAb(neueVersion).Year;
 
+        var alleVersionen = await _db.EmployeeQuellensteuer
+            .Where(q => q.EmployeeId == neueVersion.EmployeeId)
+            .ToListAsync(ct);
+        var jahresNeu = QstJahresmodell.GiltFuer(neueVersion.Steuerkanton)
+            ? await RechneJahresKorrekturKetteAsync(
+                neueVersion,
+                betroffen.Select(r => (r.Year, r.Month, r.SlipJson)).ToList(),
+                alleVersionen, ct)
+            : null;
+
         foreach (var r in betroffen)
         {
             // Bereits bestehende Posten dieses Monats: OFFEN/VORJAHR ersetzen,
@@ -108,9 +117,6 @@ public class QstKorrekturService
             // RefXML Juni TF34: Old A0N −425 / New B0N +185 für Apr+Mai).
             var sollVersion = neueVersion;
             var mStichtag = new DateOnly(r.Year, r.Month, 1).AddMonths(1).AddDays(-1);
-            var alleVersionen = await _db.EmployeeQuellensteuer
-                .Where(q => q.EmployeeId == neueVersion.EmployeeId)
-                .ToListAsync(ct);
 
             // Alter Code = was wir am Monatsende kannten (ohne die neue Version)
             // — Referenz fürs Protokoll / Swissdec Old-Block.
@@ -123,7 +129,12 @@ public class QstKorrekturService
                 ?? Math.Max(basis, sollVersion.MindestlohnSatzbestimmung ?? 0m);
             if (satzBasisEff < basis) satzBasisEff = basis;
 
-            if (sollVersion.Prozentsatz.HasValue)
+            if (jahresNeu != null)
+            {
+                if (!jahresNeu.TryGetValue((r.Year, r.Month), out neuerBetrag))
+                    continue;
+            }
+            else if (sollVersion.Prozentsatz.HasValue)
             {
                 neuerBetrag = Math.Round(basis * sollVersion.Prozentsatz.Value / 100m, 2);
             }
@@ -140,7 +151,7 @@ public class QstKorrekturService
                 if (calc == null) continue; // Tarif nicht ladbar → Monat auslassen (Hinweis via Anzahl)
                 neuerBetrag = calc.SteuerbetragCHF;
             }
-            if (neuerBetrag < 0) neuerBetrag = 0;
+            if (neuerBetrag < 0 && jahresNeu == null) neuerBetrag = 0;
 
             var diff = Math.Round(neuerBetrag - effektivAlt, 2);
             if (Math.Abs(diff) < 0.05m) continue; // keine relevante Differenz
@@ -213,43 +224,104 @@ public class QstKorrekturService
     }
 
     /// <summary>
+    /// Jahresmodell: Monate der Korrektur-Kette nacheinander mit neuem Tarif
+    /// aufrollen (YTD + n), «bereits bezahlt» = neu berechnete Vormonate.
+    /// </summary>
+    private async Task<Dictionary<(int Jahr, int Monat), decimal>> RechneJahresKorrekturKetteAsync(
+        EmployeeQuellensteuer neu,
+        IReadOnlyList<(int Year, int Month, string SlipJson)> betroffen,
+        List<EmployeeQuellensteuer> versionen,
+        CancellationToken ct)
+    {
+        var map = new Dictionary<(int, int), decimal>();
+        if (betroffen.Count == 0) return map;
+        var kanton = (neu.Steuerkanton ?? "").Trim();
+        var emp = await _db.Employees.AsNoTracking()
+            .Include(e => e.Employments)
+            .FirstOrDefaultAsync(e => e.Id == neu.EmployeeId, ct);
+        DateOnly? eintritt = EintrittVon(emp);
+
+        foreach (var yg in betroffen.GroupBy(r => r.Year))
+        {
+            int year = yg.Key;
+            int maxM = yg.Max(x => x.Month);
+            var periodTo = new DateOnly(year, maxM, 1).AddMonths(1).AddDays(-1);
+            var start = QstJahresmodell.ModellStart(year, eintritt, versionen, kanton, periodTo);
+
+            var slips = await (
+                from s in _db.PayrollSnapshots
+                join p in _db.PayrollPerioden on s.PayrollPeriodeId equals p.Id
+                where s.EmployeeId == neu.EmployeeId
+                   && p.Year == year
+                   && p.Month >= start.Month && p.Month <= maxM
+                   && s.Status != "STORNIERT"
+                select new { p.Month, s.SlipJson }
+            ).ToListAsync(ct);
+
+            var istByM = new Dictionary<int, decimal>();
+            var altByM = new Dictionary<int, decimal>();
+            foreach (var g in slips.GroupBy(x => x.Month))
+            {
+                foreach (var row in g)
+                {
+                    var z = QstJahresmodell.LeseSlip(row.SlipJson);
+                    istByM[g.Key] = istByM.GetValueOrDefault(g.Key) + z.IstBasis;
+                    altByM[g.Key] = altByM.GetValueOrDefault(g.Key) + z.QstBezahlt;
+                }
+            }
+            foreach (var r in yg)
+            {
+                if (istByM.ContainsKey(r.Month)) continue;
+                var z = QstJahresmodell.LeseSlip(r.SlipJson);
+                istByM[r.Month] = z.IstBasis;
+                altByM[r.Month] = z.QstBezahlt;
+            }
+
+            var betroffenMonate = yg.Select(x => x.Month).ToHashSet();
+            decimal ytd = 0, paidNew = 0;
+            for (int m = start.Month; m <= maxM; m++)
+            {
+                ytd += istByM.GetValueOrDefault(m);
+                if (!betroffenMonate.Contains(m))
+                {
+                    paidNew += altByM.GetValueOrDefault(m);
+                    continue;
+                }
+                var n = QstJahresmodell.AnzahlMonate(start, new DateOnly(year, m, 1));
+                decimal satzPct;
+                if (neu.Prozentsatz.HasValue)
+                    satzPct = neu.Prozentsatz.Value;
+                else
+                {
+                    var satzLohn = PayrollCalculations.Round05(ytd / Math.Max(1, n));
+                    satzPct = _tarifService.GetSteuersatzProzent(
+                        kanton, neu.TarifCode ?? "", neu.AnzahlKinder, neu.Kirchensteuer,
+                        satzLohn, year) ?? 0m;
+                }
+                var jm = QstJahresmodell.Rechne(ytd, paidNew, n, satzPct);
+                map[(year, m)] = jm.QstMonat;
+                paidNew += jm.QstMonat;
+            }
+        }
+        return map;
+    }
+
+    private static DateOnly? EintrittVon(Employee? emp)
+    {
+        if (emp?.EntryDate is { } ed && ed.Year > 1)
+            return DateOnly.FromDateTime(ed);
+        if (emp?.Employments is { Count: > 0 })
+            return emp.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate));
+        return null;
+    }
+
+    /// <summary>
     /// Liest die QST-Abzugszeile aus dem eingefrorenen SlipJson:
-    /// (|betrag|, basis, satzBasis?). Ohne QST-Zeile: (0, brutto, null).
+    /// (bezahlt vorzeichenbehaftet, basis, satzBasis?). Ohne QST-Zeile: (0, brutto, null).
     /// </summary>
     private static (decimal betrag, decimal basis, decimal? satzBasis) LeseQstZeile(string slipJson)
     {
-        try
-        {
-            using var doc = JsonDocument.Parse(slipJson);
-            // Root-Feld heisst «totalLohn» (Slip-Struktur PayrollCalculationService)
-            decimal brutto = 0;
-            if (doc.RootElement.TryGetProperty("totalLohn", out var b) && b.ValueKind == JsonValueKind.Number)
-                brutto = b.GetDecimal();
-
-            if (doc.RootElement.TryGetProperty("abzugLines", out var lines)
-                && lines.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var line in lines.EnumerateArray())
-                {
-                    if (line.TryGetProperty("categoryCode", out var cc)
-                        && cc.ValueKind == JsonValueKind.String
-                        && cc.GetString() == "QST")
-                    {
-                        decimal betrag = line.TryGetProperty("betrag", out var be) && be.ValueKind == JsonValueKind.Number
-                            ? Math.Abs(be.GetDecimal()) : 0;
-                        decimal basis = line.TryGetProperty("basis", out var ba) && ba.ValueKind == JsonValueKind.Number
-                            ? ba.GetDecimal() : brutto;
-                        decimal? satzBasis = line.TryGetProperty("satzBasis", out var sb) && sb.ValueKind == JsonValueKind.Number
-                            ? sb.GetDecimal() : null;
-                        return (betrag, basis, satzBasis);
-                    }
-                }
-            }
-            return (0, brutto, null);
-        }
-        catch
-        {
-            return (0, 0, null);
-        }
+        var z = QstJahresmodell.LeseSlip(slipJson);
+        return (z.QstBezahlt, z.IstBasis, z.SatzBasis);
     }
 }

@@ -222,7 +222,7 @@ public partial class SwissdecTestmandantController
                         .Where(q => q.EmployeeId == emp.Id && q.ValidFrom <= tag1 && (q.ValidTo == null || q.ValidTo >= tag1))
                         .OrderByDescending(q => q.ValidFrom).Select(q => q.QstCode).FirstOrDefaultAsync());
                     ErgaenzePartnerFuerQst(p, tas, V("PersonPartnerNationality"), V("PersonPartnerResidenceCategory"),
-                        MaNationalitaetsCode(emp, nats), nats, permits);
+                        MaNationalitaetsCode(emp, nats), nats, permits, emp.NationalityId);
                     p.UpdatedAt = DateTime.Now;
                     if (p.Id == 0) _db.EmployeeFamilyMembers.Add(p);
                     await _db.SaveChangesAsync();
@@ -489,7 +489,7 @@ public partial class SwissdecTestmandantController
                             if (partner != null)
                             {
                                 ErgaenzePartnerFuerQst(partner, code, null, null,
-                                    MaNationalitaetsCode(emp, nats), nats, permits);
+                                    MaNationalitaetsCode(emp, nats), nats, permits, emp.NationalityId);
                                 partner.UpdatedAt = DateTime.Now;
                             }
                         }

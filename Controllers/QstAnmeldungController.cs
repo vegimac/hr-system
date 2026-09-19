@@ -388,7 +388,7 @@ public class QstAnmeldungController : ControllerBase
                         "Bitte im Familie-Tab beim Ehepartner die Erwerbstätig-Frage beantworten (entscheidet Tarif B oder C).");
                 else if (ehepartner.Erwerbstaetig == true
                          && !await PartnerWohnsitzIstAuslandAsync(ehepartner, emp.Country)
-                         && string.IsNullOrWhiteSpace(ehepartner.ArbeitgeberName))
+                         && !QstPflichtCheckService.HatArbeitgeberAngabe(ehepartner.ArbeitgeberName, ehepartner.ArbeitgeberKanton, ehepartner.ArbeitgeberOrt))
                     Add("Ehepartner: Arbeitgeber", "familie",
                         "Der Ehepartner ist erwerbstätig und wohnt in der Schweiz — bitte Arbeitgeber-Name (und Arbeitsort) erfassen.");
             }

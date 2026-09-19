@@ -5448,7 +5448,7 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
                 if (m.erwerbstaetig === true) {
                     const agTxt = [m.arbeitgeberName, m.arbeitgeberOrt].filter(Boolean).join(', ');
                     spousePermitBadge += `<span class="fam-tile-badge" style="background:#dcfce7;color:#166534" title="Erwerbstätig${agTxt ? ' bei ' + esc(agTxt) : ''}">💼 erwerbstätig${agTxt ? ' · ' + esc(agTxt) : ''}</span>`;
-                    if (!m.arbeitgeberName && _partnerPflicht && fmPartnerGiltAlsInDerSchweiz(m))
+                    if (!m.arbeitgeberName && !m.arbeitgeberKanton && !m.arbeitgeberOrt && _partnerPflicht && fmPartnerGiltAlsInDerSchweiz(m))
                         spousePermitBadge += `<span class="fam-tile-badge fam-tile-badge-warn" title="Arbeitgeber fehlt — blockt den Lohnlauf">⚠ Arbeitgeber fehlt</span>`;
                 } else if (m.erwerbstaetig === false) {
                     spousePermitBadge += `<span class="fam-tile-badge" title="Nicht erwerbstätig">nicht erwerbstätig</span>`;

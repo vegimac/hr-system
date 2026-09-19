@@ -621,6 +621,19 @@ public static class QstTarifVorschlagLogic
         new(StringComparer.OrdinalIgnoreCase) { "GE", "NE", "VD", "VS", "TI" };
 
     /// <summary>
+    /// QST-Jahresmodell (ESTV / KS 45): nur GE, FR, VD, VS, TI.
+    /// Die übrigen 21 Kantone rechnen monatlich. Walter 19.09.2026.
+    /// </summary>
+    public static readonly HashSet<string> JahresmodellKantone =
+        new(StringComparer.OrdinalIgnoreCase) { "GE", "FR", "VD", "VS", "TI" };
+
+    public static bool IstQstJahresmodell(string? kanton)
+    {
+        var k = (kanton ?? "").Trim().ToUpperInvariant();
+        return k.Length > 0 && JahresmodellKantone.Contains(k);
+    }
+
+    /// <summary>
     /// K4.4: Y ist im Kanton nur möglich, wenn er NICHT auf der Sperrliste
     /// steht UND die geladene ESTV-Tarifdatei Y-Tarife enthält.
     /// tarifdateiHatY = null (keine Datei geladen) blockt NICHT — die

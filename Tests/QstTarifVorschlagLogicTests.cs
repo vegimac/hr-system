@@ -226,6 +226,29 @@ public class QstTarifVorschlagLogicTests
         Assert.True(QstTarifVorschlagLogic.KirchensteuerImKantonMoeglich("AG", null));
     }
 
+    // Walter 19.09.2026: Jahresmodell nur GE/FR/VD/VS/TI, restliche 21 Monat.
+    [Theory]
+    [InlineData("GE")]
+    [InlineData("FR")]
+    [InlineData("VD")]
+    [InlineData("VS")]
+    [InlineData("TI")]
+    [InlineData("ge")]
+    [InlineData(" fr ")]
+    public void Jahresmodell_NurFuenfKantone(string kanton)
+        => Assert.True(QstTarifVorschlagLogic.IstQstJahresmodell(kanton));
+
+    [Theory]
+    [InlineData("LU")]
+    [InlineData("BE")]
+    [InlineData("ZH")]
+    [InlineData("AG")]
+    [InlineData("NE")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void Jahresmodell_UebrigeKantoneMonat(string? kanton)
+        => Assert.False(QstTarifVorschlagLogic.IstQstJahresmodell(kanton));
+
     // Walter 01.08.2026: Christ-katholisch (auch als Anzeige-Text) → A0Y
     [Theory]
     [InlineData("christ_katholisch")]
