@@ -38,9 +38,9 @@ public partial class SwissdecTestmandantController
     public async Task<IActionResult> Schritt5bAnlegen([FromQuery] string? monat, [FromQuery] string? nur) => await Schritt5b(false, monat, nur);
 
     [HttpGet("schritt5c/vorschau")]
-    public async Task<IActionResult> Schritt5cVorschau() => await Schritt5c(true);
+    public async Task<IActionResult> Schritt5cVorschau([FromQuery] string? nur) => await Schritt5c(true, nur);
     [HttpPost("schritt5c/anlegen")]
-    public async Task<IActionResult> Schritt5cAnlegen() => await Schritt5c(false);
+    public async Task<IActionResult> Schritt5cAnlegen([FromQuery] string? nur) => await Schritt5c(false, nur);
 
     private static readonly DateOnly TmVon = new(2024, 11, 1);
     private static readonly DateOnly TmBis = new(2026, 2, 1);
@@ -373,7 +373,7 @@ public partial class SwissdecTestmandantController
     // Bestätigte Lohnzettel + Saldi der Muster AG weg, Perioden wieder offen.
     // Zulagen/5b, Verträge, Stempelzeiten bleiben. Dann Jan → aktuell neu
     // bestätigen (1/12 braucht die Vormonate in Reihenfolge).
-    private async Task<IActionResult> Schritt5c(bool vorschau)
+    private async Task<IActionResult> Schritt5c(bool vorschau, string? nur)
     {
         if (!IstTestinstanz())
             return StatusCode(403, new { error = "NUR_TESTINSTANZ", message = "Der Swissdec-Testmandant darf nur auf der Testinstanz geladen werden." });
@@ -381,6 +381,9 @@ public partial class SwissdecTestmandantController
         if (hs == null) return NotFound(new { error = "HAUPTSITZ_FEHLT", message = "Muster AG fehlt — zuerst Schritt 1." });
         var filialen = await _db.CompanyProfiles.Where(c => c.HauptsitzId == hs.Id)
             .OrderBy(c => c.RestaurantCode).ToListAsync();
+        var nurSet = NurSet(nur);
+        if (nurSet != null)
+            filialen = filialen.Where(c => nurSet.Contains((c.RestaurantCode ?? "").ToUpperInvariant())).ToList();
         var filialIds = filialen.Select(c => c.Id).ToList();
         var perioden = await _db.PayrollPerioden.Where(p => filialIds.Contains(p.CompanyProfileId)).ToListAsync();
         var periodeIds = perioden.Select(p => p.Id).ToList();
@@ -417,6 +420,7 @@ public partial class SwissdecTestmandantController
         hinweise.Add("Zulagen, Stempelzeiten und Verträge bleiben. 180.3 (Bosshard Mai) bleibt.");
         hinweise.Add("Danach im Lohnlauf den ÄLTESTEN offenen Monat zuerst bestätigen (Nov 2024 bzw. Eintritt), dann den nächsten — sonst fehlt der 13.-Pott.");
         hinweise.Add("Stunden-Saldo rot bei FIX (Ist = 0) ist nur Anzeige; Muster AG verrechnet ihn nicht in CHF.");
+        if (nurSet != null) hinweise.Insert(0, "Nur Filiale " + string.Join(", ", nurSet) + ".");
         return Ok(new SchrittErgebnis("5c · Lohnläufe verwerfen", vorschau, aktionen, hinweise));
     }
 
