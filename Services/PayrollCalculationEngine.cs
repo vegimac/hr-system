@@ -599,7 +599,14 @@ public class PayrollCalculationEngine
         // Versicherungs-Lösungen / Swissdec-Codes (Walter 07.09.2026): Zeilen mit
         // Code gelten nur für MA mit diesem Code (oder als Standard); BVG-Fixbetrag
         // ersetzt die BVG-Prozentzeilen.
-        deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, periodFrom, ueberReferenzalter);
+        // Eintritt mitten im Monat (TF25/26 Lehmann/Jenzer 10.02.2025): die Codes
+        // gelten ab Vertragsbeginn, nicht erst ab dem 1. — am Periodenanfang gäbe es
+        // sonst keinen Eintrag und der Eintrittsmonat liefe auf der Standard-Lösung
+        // (KTG/UVGZ 11 statt 12). Stichtag = Vertragsbeginn, wenn er in der Periode liegt.
+        var codeStichtag = periodFrom;
+        var vertragsbeginn = DateOnly.FromDateTime(emp.ContractStartDate);
+        if (vertragsbeginn > periodFrom && vertragsbeginn <= periodToFull) codeStichtag = vertragsbeginn;
+        deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, codeStichtag, ueberReferenzalter);
 
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
         // Walter 17.09.2026: Saldi hängen am MA, nicht an der Filiale.
