@@ -45,6 +45,12 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 - **Was wir rechnen:** Jeder Beitrag rappengenau (Swissdec-Beispiel TF01: ALV 114.59, KTG 3.77). Die Summe ist dann z.B. 145.41. Betroffen: TF03, 06, 17, 18, 21, 24, 29, 35 — immer 1–2 Rappen.
 - **Frage:** Toleriert das Quality Tool das, oder muss die Statistik-Summe separat gerundet werden?
 
+### 7. TF11 Bosshard, März 2025 — in der CSV fehlt der Lohn zur Mitarbeiterbeteiligung (20'000)
+- **Was in der XML steht:** Lohnausweis «OwnershipRight» (Beteiligungsrechte) **20'000**, AHV-Lohn März 36'550, Bruttolohn Jahr 61'645.
+- **Was in der CSV steht:** kein Lohnartenposten für die 20'000 (kein 1960/1961). Nur der Gegenposten «5210 Ausgleich geldwerte Vorteile» ist mit **20'250** drin (250 Geschäftswagen + 20'000 Beteiligung).
+- **Folge bei uns:** Wir rechnen aus der CSV → AHV-Lohn 16'550, und weil der Ausgleich von 20'250 abgezogen wird, ohne dass die Beteiligung als Lohn drin ist, wird der Nettolohn **negativ (−10'784.60)**. Ab März weichen bei Bosshard alle kumulierten Werte (ALVZ, KTG 12, UVGZ 12, Lohnausweis) um 20'000 ab.
+- **Frage:** Fehlt im CSV-Export die Lohnart für die Mitarbeiterbeteiligung (welche Nummer, welcher Text)? Oder ist das absichtlich eine Falle?
+
 ---
 
 ## B. Fallen in den Testdaten, die wir gefunden haben (nur zur Info)
