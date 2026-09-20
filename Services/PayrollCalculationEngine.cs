@@ -981,13 +981,15 @@ public class PayrollCalculationEngine
         decimal annualFerienTage    = vacationWeeks * 7m;
         decimal ferienTageAccrual   = Math.Round(annualFerienTage / 12m, 4); // monatliche Gutschrift
 
-        // Ein-/Austrittsmonat (Walter 20.09.2026, Swissdec TF21 Meier 15 Tage / TF26 Jenzer 21 Tage):
-        // die Tage-Gutschrift entsteht nur für die Vertragszeit — anteilig nach derselben
-        // Teilmonat-Methode wie der Monatslohn (Schaub TAGESSATZ365, Muster AG TAGE30).
+        // Ein-/Austrittsmonat (Walter 20.09.2026, L-GAV Art. 17): der Kalendermonat zählt
+        // pauschal 30 Tage, jeder Anstellungstag gibt 1/30 des Monatsanspruchs (2.92 bei
+        // 5 Wochen) — IMMER 30-Tage-Methode, unabhängig von der Teilmonat-Methode des
+        // Monatslohns (Schaub rechnet den Lohn TAGESSATZ365, die Ferientage trotzdem /30).
+        // Swissdec TF21 Meier Austritt 15.3. → 15/30, TF26 Jenzer Eintritt 10.2. → 21/30.
         // Vorher lief im Teilmonat ein voller Monat (+2.92) auf; bei Schaub werden die Tage
         // am Austritt ausbezahlt, das war also zu viel Geld. Gilt auch für die Feiertage.
         decimal teilmonatFaktor = isShortPeriod
-            ? Math.Round(TeilmonatAnteil(company.TeilmonatMethode, 1m, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays), 6)
+            ? Math.Round(TeilmonatAnteil("TAGE30", 1m, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays), 6)
             : 1m;
         if (teilmonatFaktor < 1m)
             ferienTageAccrual = Math.Round(ferienTageAccrual * teilmonatFaktor, 4);
