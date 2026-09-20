@@ -474,6 +474,7 @@ public static class PayrollCalculations
                 basis       = (decimal?)Math.Round(basis, 2),
                 satzBasis   = d.QstSatzBasis,
                 satzAperiodisch = d.QstSatzAperiodisch,
+                qstCode     = d.QstTarifCode,
                 betrag,
                 // AG-Anteil (positiv) fürs Fibu-Journal — pro Zeile mit korrekter
                 // Staffel-Stufe. NULL = kein AG-Anteil.

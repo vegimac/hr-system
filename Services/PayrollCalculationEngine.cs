@@ -478,6 +478,8 @@ public class PayrollCalculationEngine
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
         _qstJahresYtd = null;
+        _qstJahresEintritt = null;
+        _qstJahresAustritt = null;
         if (isQuellensteuer && QstJahresmodell.GiltFuer(qstEinstellung!.Steuerkanton))
             _qstJahresYtd = await LadeQstJahresYtdAsync(
                 employee, qstEinstellung, year, month, periodFrom, periodTo);
@@ -4444,6 +4446,8 @@ public class PayrollCalculationEngine
     private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
     private QstJahresmodell.YtdStand? _qstJahresYtd;
+    private DateOnly? _qstJahresEintritt;
+    private DateOnly? _qstJahresAustritt;
 
     /// <summary>
     /// YTD-QST der Vormonate desselben Jahres im selben Jahresmodell-Kanton.
@@ -4464,11 +4468,16 @@ public class PayrollCalculationEngine
             : employee.Employments.Count > 0
                 ? employee.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate))
                 : null;
+        DateOnly? austritt = employee.ExitDate is { } xd && xd.Year > 1
+            ? DateOnly.FromDateTime(xd)
+            : null;
+        _qstJahresEintritt = eintritt;
+        _qstJahresAustritt = austritt;
         var start = QstJahresmodell.ModellStart(year, eintritt, versionen, kanton, periodTo);
         int n = QstJahresmodell.AnzahlMonate(start, periodFrom);
 
         if (month <= 1)
-            return new QstJahresmodell.YtdStand(0, 0, n, 0, 0);
+            return new QstJahresmodell.YtdStand(0, 0, n, 0, 0, 0);
 
         var rows = await (
             from s in _db.PayrollSnapshots
@@ -4482,12 +4491,15 @@ public class PayrollCalculationEngine
         ).ToListAsync();
 
         decimal ist = 0, bezahlt = 0, satz = 0, aper = 0;
+        int tage = 0;
+        var jeCode = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         foreach (var g in rows.GroupBy(r => r.Month))
         {
             var stichtag = new DateOnly(year, g.Key, 1).AddMonths(1).AddDays(-1);
             var v = QstVersionWahl.Waehle(versionen, stichtag);
             if (v == null || !string.Equals((v.Steuerkanton ?? "").Trim(), kanton, StringComparison.OrdinalIgnoreCase))
                 continue;
+            var codeMonat = QstJahresmodell.CodeVon(v);
             foreach (var r in g)
             {
                 var z = QstJahresmodell.LeseSlip(r.SlipJson);
@@ -4495,9 +4507,13 @@ public class PayrollCalculationEngine
                 bezahlt += z.QstBezahlt;
                 satz += QstJahresmodell.SatzDesMonats(z);
                 aper += QstJahresmodell.AperiodischDesMonats(z);
+                var code = !string.IsNullOrWhiteSpace(z.TarifCode) ? z.TarifCode : codeMonat;
+                if (!string.IsNullOrWhiteSpace(code))
+                    jeCode[code] = jeCode.GetValueOrDefault(code) + z.IstBasis;
             }
+            tage += QstJahresmodell.QstTageDesMonats(year, g.Key, eintritt, austritt);
         }
-        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper);
+        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode);
     }
 
     /// <summary>
@@ -4585,38 +4601,54 @@ public class PayrollCalculationEngine
         }
         else if (jahresmodell)
         {
-            // IST = steuerbar (CH-Tage). Satz = Nebenerwerb-hochgerechnet auf
-            // dem vollen Lohn; Bonus zählt im Satz ÷ 12, nicht ÷ n.
+            // IST = steuerbar (CH-Tage). Satz = Nebenerwerb auf vollem Lohn;
+            // Bonus ÷ 12. Je Tarifcode ein Topf (Anhang Y15) — rückwirkende
+            // Umbuchung macht K1, nicht dieser Zweig (sonst doppelt).
             var ytd = _qstJahresYtd!.Value;
             decimal monatAperiodisch = Math.Max(0m, aperiodisch);
             decimal monatPeriodicSatz = satzBrutto - monatAperiodisch;
             if (monatPeriodicSatz < 0) monatPeriodicSatz = satzBrutto;
-            decimal ytdIst = ytd.IstBisher + bruttolohn;
             decimal ytdPeriodic = ytd.SatzBisher + monatPeriodicSatz;
             decimal ytdAper = ytd.AperiodischBisher + monatAperiodisch;
-            decimal satzFuerJahr;
+            int tageMonat = QstJahresmodell.QstTageDesMonats(
+                periodFrom.Year, periodFrom.Month, _qstJahresEintritt, _qstJahresAustritt);
+            int qstTage = ytd.QstTageBisher + tageMonat;
+            var satzLohnLookup = QstJahresmodell.SatzLohnAusTagen(ytdPeriodic, qstTage, ytdAper);
+
+            var codeJetzt = QstJahresmodell.CodeVon(einstellung);
+            var toepfe = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            if (ytd.IstJeCode != null)
+            {
+                foreach (var kv in ytd.IstJeCode)
+                    toepfe[kv.Key] = kv.Value;
+            }
+            if (!string.IsNullOrWhiteSpace(codeJetzt))
+                toepfe[codeJetzt] = toepfe.GetValueOrDefault(codeJetzt) + bruttolohn;
+
             if (einstellung.Prozentsatz.HasValue)
             {
-                satzFuerJahr = einstellung.Prozentsatz.Value;
+                var satzFuerJahr = einstellung.Prozentsatz.Value;
+                var jm = QstJahresmodell.Rechne(
+                    ytd.IstBisher + bruttolohn, ytd.BezahltBisher, ytd.NMonate, satzFuerJahr,
+                    ytdPeriodic, ytdAper);
+                qstBetrag = jm.QstMonat;
+                satzPct = satzFuerJahr;
+                sonderHinweis = $"Jahresmodell, Satz-Lohn {satzLohnLookup:0.00}, manueller Satz";
             }
             else
             {
-                var satzLohnLookup = QstJahresmodell.SatzLohn(
-                    ytdPeriodic, ytd.NMonate, ytdAper);
-                satzFuerJahr = _tarifService.GetSteuersatzProzent(
-                    einstellung.Steuerkanton!,
-                    einstellung.TarifCode ?? "",
-                    einstellung.AnzahlKinder,
-                    einstellung.Kirchensteuer,
-                    satzLohnLookup,
-                    periodFrom.Year) ?? 0m;
+                var t = QstJahresmodell.RechneToepfe(
+                    satzLohnLookup, toepfe,
+                    c => SatzPctFuerJahrescode(einstellung.Steuerkanton!, c, satzLohnLookup, periodFrom.Year),
+                    ytd.BezahltBisher);
+                qstBetrag = t.QstMonat;
+                satzPct = !string.IsNullOrWhiteSpace(codeJetzt) && t.SatzJeCode.TryGetValue(codeJetzt, out var p)
+                    ? p
+                    : t.SatzJeCode.Values.FirstOrDefault();
+                var topfTxt = string.Join(", ", t.SteuerJeCode.Select(kv => $"{kv.Key} {kv.Value:0.00}"));
+                sonderHinweis = $"Jahresmodell, Satz-Lohn {t.SatzLohn:0.00}"
+                    + (t.SteuerJeCode.Count > 1 ? $" · Töpfe {topfTxt}" : "");
             }
-            var jm = QstJahresmodell.Rechne(
-                ytdIst, ytd.BezahltBisher, ytd.NMonate, satzFuerJahr,
-                ytdPeriodic, ytdAper);
-            qstBetrag = jm.QstMonat;
-            satzPct = jm.SatzPct;
-            sonderHinweis = $"Jahresmodell, Satz-Lohn {jm.SatzLohn:0.00}";
         }
         else if (einstellung.Prozentsatz.HasValue)
         {
@@ -4696,9 +4728,17 @@ public class PayrollCalculationEngine
             DisplayRatePercent = satzPct,   // transient, nur für die Anzeige
             QstSatzBasis     = slipSatz,
             QstSatzAperiodisch = slipAper,
+            QstTarifCode     = qstCode,
             BasisOverride    = (tageHinweis != null || jahresmodell) ? bruttolohn : null,
             Hinweis          = sonderHinweis,
         };
+    }
+
+    private decimal SatzPctFuerJahrescode(string kanton, string code, decimal satzLohn, int jahr)
+    {
+        if (!QstJahresmodell.TryParseCode(code, out var tarif, out var kinder, out var kirche))
+            return 0;
+        return _tarifService.GetSteuersatzProzent(kanton, tarif, kinder, kirche, satzLohn, jahr) ?? 0m;
     }
 
     /// <summary>

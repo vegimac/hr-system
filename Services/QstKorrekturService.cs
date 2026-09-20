@@ -240,6 +240,7 @@ public class QstKorrekturService
             .Include(e => e.Employments)
             .FirstOrDefaultAsync(e => e.Id == neu.EmployeeId, ct);
         DateOnly? eintritt = EintrittVon(emp);
+        DateOnly? austritt = AustrittVon(emp);
 
         foreach (var yg in betroffen.GroupBy(r => r.Year))
         {
@@ -284,31 +285,52 @@ public class QstKorrekturService
             }
 
             var betroffenMonate = yg.Select(x => x.Month).ToHashSet();
-            decimal ytdIst = 0, ytdPer = 0, ytdAper = 0, paidNew = 0;
+            decimal ytdPer = 0, ytdAper = 0, paidNew = 0;
+            int qstTage = 0;
+            var toepfe = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+            var neuCode = QstJahresmodell.CodeVon(neu);
             for (int m = start.Month; m <= maxM; m++)
             {
-                ytdIst += istByM.GetValueOrDefault(m);
                 ytdPer += satzByM.GetValueOrDefault(m);
                 ytdAper += aperByM.GetValueOrDefault(m);
+                qstTage += QstJahresmodell.QstTageDesMonats(year, m, eintritt, austritt);
+                var stichtag = new DateOnly(year, m, 1).AddMonths(1).AddDays(-1);
+                var code = neu.ValidFrom <= stichtag
+                    ? neuCode
+                    : QstJahresmodell.CodeVon(QstVersionWahl.Waehle(versionen, stichtag));
+                var istM = istByM.GetValueOrDefault(m);
+                if (!string.IsNullOrWhiteSpace(code) && istM != 0)
+                    toepfe[code] = toepfe.GetValueOrDefault(code) + istM;
                 if (!betroffenMonate.Contains(m))
                 {
                     paidNew += altByM.GetValueOrDefault(m);
                     continue;
                 }
-                var n = QstJahresmodell.AnzahlMonate(start, new DateOnly(year, m, 1));
-                decimal satzPct;
+                var satzLohn = QstJahresmodell.SatzLohnAusTagen(ytdPer, qstTage, ytdAper);
                 if (neu.Prozentsatz.HasValue)
-                    satzPct = neu.Prozentsatz.Value;
+                {
+                    var ytdIst = toepfe.Values.Sum();
+                    var jm = QstJahresmodell.Rechne(
+                        ytdIst, paidNew, Math.Max(1, qstTage / 30), neu.Prozentsatz.Value,
+                        ytdPer, ytdAper);
+                    map[(year, m)] = jm.QstMonat;
+                    paidNew += jm.QstMonat;
+                }
                 else
                 {
-                    var satzLohn = QstJahresmodell.SatzLohn(ytdPer, n, ytdAper);
-                    satzPct = _tarifService.GetSteuersatzProzent(
-                        kanton, neu.TarifCode ?? "", neu.AnzahlKinder, neu.Kirchensteuer,
-                        satzLohn, year) ?? 0m;
+                    var t = QstJahresmodell.RechneToepfe(
+                        satzLohn, toepfe,
+                        c =>
+                        {
+                            if (!QstJahresmodell.TryParseCode(c, out var tarif, out var kinder, out var kirche))
+                                return 0;
+                            return _tarifService.GetSteuersatzProzent(
+                                kanton, tarif, kinder, kirche, satzLohn, year) ?? 0m;
+                        },
+                        paidNew);
+                    map[(year, m)] = t.QstMonat;
+                    paidNew += t.QstMonat;
                 }
-                var jm = QstJahresmodell.Rechne(ytdIst, paidNew, n, satzPct, ytdPer, ytdAper);
-                map[(year, m)] = jm.QstMonat;
-                paidNew += jm.QstMonat;
             }
         }
         return map;
@@ -322,6 +344,9 @@ public class QstKorrekturService
             return emp.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate));
         return null;
     }
+
+    private static DateOnly? AustrittVon(Employee? emp)
+        => emp?.ExitDate is { } xd && xd.Year > 1 ? DateOnly.FromDateTime(xd) : null;
 
     /// <summary>
     /// Liest die QST-Abzugszeile aus dem eingefrorenen SlipJson:

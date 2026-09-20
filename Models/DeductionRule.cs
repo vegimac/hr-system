@@ -156,6 +156,10 @@ public class DeductionRule
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public decimal? QstSatzAperiodisch { get; set; }
 
+    /// <summary>Transient: Tarifcode der QST-Zeile (A0N) — Jahresmodell-Töpfe.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public string? QstTarifCode { get; set; }
+
     /// <summary>
     /// Transient (Walter 11.09.2026): abweichende Bemessungsbasis für die Anzeige
     /// im Lohnzettel — QST bei Wohnsitz Ausland: nur der CH-Arbeitstage-Anteil

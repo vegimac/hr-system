@@ -18,8 +18,8 @@ public class QstJahresmodellTests
         var r = QstJahresmodell.Rechne(5111.00m, 0m, 1, 8.70m);
         Assert.Equal(5111.00m, r.SatzLohn);
         Assert.Equal(8.70m, r.SatzPct);
-        Assert.Equal(444.66m, r.Jahressteuer);
-        Assert.Equal(444.66m, r.QstMonat);
+        Assert.Equal(444.65m, r.Jahressteuer);
+        Assert.Equal(444.65m, r.QstMonat);
     }
 
     [Fact]
@@ -129,6 +129,55 @@ public class QstJahresmodellTests
     }
 
     [Fact]
+    public void QstTage_EintrittZehnter_FebruarIst21()
+        => Assert.Equal(21, QstJahresmodell.QstTageDesMonats(
+            2025, 2, new DateOnly(2025, 2, 10), null));
+
+    [Fact]
+    public void QstTage_AustrittFuenfter_MaerzIst15()
+        => Assert.Equal(15, QstJahresmodell.QstTageDesMonats(
+            2025, 3, new DateOnly(2025, 1, 1), new DateOnly(2025, 3, 15)));
+
+    [Fact]
+    public void SatzLohnAusTagen_GanzerMonatGleichAnzahlMonate()
+    {
+        Assert.Equal(
+            QstJahresmodell.SatzLohn(10000m, 2, 30000m),
+            QstJahresmodell.SatzLohnAusTagen(10000m, 60, 30000m));
+    }
+
+    [Fact]
+    public void Bucher_Juli_ZweiToepfeNichtGanzesJahrAufC()
+    {
+        var svc = CreateTarifService();
+        decimal satzLohn = 4858.25m;
+        var aPct = svc.GetSteuersatzProzent("TI", "A", 0, false, satzLohn, 2025)!.Value;
+        var cPct = svc.GetSteuersatzProzent("TI", "C", 0, false, satzLohn, 2025)!.Value;
+        var toepfe = new Dictionary<string, decimal>
+        {
+            ["A0N"] = 28503.75m,
+            ["C0N"] = 5504.15m,
+        };
+        decimal paid = 444.65m + 371.15m + 407.90m + 480.65m + 335.15m + 240.80m;
+        var t = QstJahresmodell.RechneToepfe(satzLohn, toepfe, c => c == "C0N" ? cPct : aPct, paid);
+        Assert.InRange(t.QstMonat, 509.20m, 509.40m);
+        var einTopf = QstJahresmodell.Rechne(28503.75m + 5504.15m, paid, 7, cPct);
+        Assert.True(Math.Abs(einTopf.QstMonat - 509.30m) > 1m, "Ein Topf C aufs ganze Jahr darf nicht 509.30 treffen");
+    }
+
+    [Fact]
+    public void LeseSlip_LiestCodeUndAperiodisch()
+    {
+        var json = """{"totalLohn":35000.00,"abzugLines":[{"categoryCode":"QST","bezeichnung":"Quellensteuer A0N TI","betrag":-4495.00,"basis":35000.00,"satzBasis":5000.00,"satzAperiodisch":30000.00,"qstCode":"A0N"}]}""";
+        var z = QstJahresmodell.LeseSlip(json);
+        Assert.Equal(5000.00m, z.SatzBasis);
+        Assert.Equal(30000.00m, z.SatzAperiodisch);
+        Assert.Equal("A0N", z.TarifCode);
+        Assert.Equal(5000.00m, QstJahresmodell.SatzDesMonats(z));
+        Assert.Equal(30000.00m, QstJahresmodell.AperiodischDesMonats(z));
+    }
+
+    [Fact]
     public void LeseSlip_LiestAperiodisch()
     {
         var json = """{"totalLohn":35000.00,"abzugLines":[{"categoryCode":"QST","betrag":-4495.00,"basis":35000.00,"satzBasis":5000.00,"satzAperiodisch":30000.00}]}""";
@@ -179,7 +228,7 @@ public class QstJahresmodellTests
     {
         var svc = CreateTarifService();
         decimal ytd = 5111.00m + 4717.85m + 4914.45m + 5307.60m + 4521.30m;
-        decimal paid = 444.66m + 371.14m + 407.89m + 480.63m + 335.14m;
+        decimal paid = 444.65m + 371.15m + 407.90m + 480.65m + 335.15m;
         ytd += 3931.55m;
         var satzLohn = PayrollCalculations.Round05(ytd / 6);
         var satz = svc.GetSteuersatzProzent("TI", "A", 0, false, satzLohn, 2025)!.Value;

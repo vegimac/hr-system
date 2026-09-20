@@ -1,12 +1,13 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using HrSystem.Models;
 
 namespace HrSystem.Services;
 
 /// <summary>
-/// QST-Jahresmodell (ESTV / KS 45): GE, FR, VD, VS, TI.
-/// Satz-Lohn = YTD-Durchschnitt, Steuer = Jahressatz × YTD − bereits bezahlt.
-/// Negativ = Rückerstattung. Walter 19.09.2026, O1.
+/// QST-Jahresmodell (ESTV / KS 45 / Anhang 1): GE, FR, VD, VS, TI.
+/// Satz-Lohn aus periodisch/QST-Tage + aperiodisch÷12; je Tarifcode ein Topf;
+/// Steuer je Topf auf 5 Rp. Negativ = Rückerstattung. Walter 19./20.09.2026, O1.
 /// </summary>
 public static class QstJahresmodell
 {
@@ -16,21 +17,54 @@ public static class QstJahresmodell
         decimal Jahressteuer,
         decimal QstMonat);
 
+    public readonly record struct TopfErgebnis(
+        decimal SatzLohn,
+        decimal Jahressteuer,
+        decimal QstMonat,
+        IReadOnlyDictionary<string, decimal> SteuerJeCode,
+        IReadOnlyDictionary<string, decimal> SatzJeCode);
+
     public readonly record struct SlipZeile(
         decimal QstBezahlt,
         decimal IstBasis,
         decimal? SatzBasis,
-        decimal? SatzAperiodisch = null);
+        decimal? SatzAperiodisch = null,
+        string? TarifCode = null);
 
     public readonly record struct YtdStand(
         decimal IstBisher,
         decimal BezahltBisher,
         int NMonate,
         decimal SatzBisher = 0,
-        decimal AperiodischBisher = 0);
+        decimal AperiodischBisher = 0,
+        int QstTageBisher = 0,
+        IReadOnlyDictionary<string, decimal>? IstJeCode = null);
+
+    private static readonly Regex CodeRx = new(@"^([A-Z]{1,2})(\d)([YN])$", RegexOptions.IgnoreCase);
 
     public static bool GiltFuer(string? kanton)
         => QstTarifVorschlagLogic.IstQstJahresmodell(kanton);
+
+    public static string CodeVon(EmployeeQuellensteuer? q)
+    {
+        if (q == null) return "";
+        if (!string.IsNullOrWhiteSpace(q.TarifCode))
+            return $"{q.TarifCode}{q.AnzahlKinder}{(q.Kirchensteuer ? 'Y' : 'N')}";
+        return (q.QstCode ?? "").Trim();
+    }
+
+    public static bool TryParseCode(string? code, out string tarif, out int kinder, out bool kirche)
+    {
+        tarif = "";
+        kinder = 0;
+        kirche = false;
+        var m = CodeRx.Match((code ?? "").Trim());
+        if (!m.Success) return false;
+        tarif = m.Groups[1].Value.ToUpperInvariant();
+        kinder = int.Parse(m.Groups[2].Value);
+        kirche = m.Groups[3].Value.Equals("Y", StringComparison.OrdinalIgnoreCase);
+        return true;
+    }
 
     /// <summary>
     /// Erster Tag des Monats, ab dem dieser Kanton in der zusammenhängenden
@@ -65,6 +99,35 @@ public static class QstJahresmodell
     }
 
     /// <summary>
+    /// SV-/QST-Tage des Monats (30-Tage-Monat, Ein-/Austritt tagesgenau).
+    /// Anhang 1; bei ganzen Monaten = 30.
+    /// </summary>
+    public static int QstTageDesMonats(int jahr, int monat, DateOnly? eintritt, DateOnly? austritt)
+    {
+        int von = 1, bis = 30;
+        if (eintritt is { } e)
+        {
+            if (e.Year > jahr || (e.Year == jahr && e.Month > monat)) return 0;
+            if (e.Year == jahr && e.Month == monat) von = Math.Min(e.Day, 30);
+        }
+        if (austritt is { } a)
+        {
+            if (a.Year < jahr || (a.Year == jahr && a.Month < monat)) return 0;
+            if (a.Year == jahr && a.Month == monat) bis = Math.Min(a.Day, 30);
+        }
+        return Math.Max(0, bis - von + 1);
+    }
+
+    public static int QstTageKumuliert(
+        int jahr, int vonMonat, int bisMonat, DateOnly? eintritt, DateOnly? austritt)
+    {
+        int s = 0;
+        for (int m = vonMonat; m <= bisMonat; m++)
+            s += QstTageDesMonats(jahr, m, eintritt, austritt);
+        return s;
+    }
+
+    /// <summary>
     /// Beginn der aktuellen Kantons-Kette (ValidFrom der ältesten Version
     /// desselben Kantons ohne Unterbruch). null = keine Version.
     /// </summary>
@@ -90,16 +153,20 @@ public static class QstJahresmodell
     }
 
     /// <summary>
-    /// Satz-Lohn = Round05(YTD periodisch ÷ n + YTD aperiodisch ÷ 12).
-    /// Periodisch = satzbestimmend (Nebenerwerb hochgerechnet, ohne CH-Tage).
-    /// Aperiodisch (Bonus u.ä.) zählt 1:1 in den Topf, im Satz immer ÷ 12.
+    /// Satz-Lohn bei ganzen Monaten: Round05(YTD periodisch ÷ n + YTD aperiodisch ÷ 12).
     /// </summary>
     public static decimal SatzLohn(decimal ytdPeriodic, int nMonate, decimal ytdAperiodisch = 0)
+        => SatzLohnAusTagen(ytdPeriodic, Math.Max(1, nMonate) * 30, ytdAperiodisch);
+
+    /// <summary>
+    /// Anhang 1: (Σ periodisch ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12.
+    /// </summary>
+    public static decimal SatzLohnAusTagen(decimal ytdPeriodic, int qstTage, decimal ytdAperiodisch = 0)
     {
-        if (nMonate < 1) nMonate = 1;
+        if (qstTage < 1) qstTage = 30;
         if (ytdPeriodic < 0) ytdPeriodic = 0;
         if (ytdAperiodisch < 0) ytdAperiodisch = 0;
-        return PayrollCalculations.Round05(ytdPeriodic / nMonate + ytdAperiodisch / 12m);
+        return PayrollCalculations.Round05((ytdPeriodic / qstTage * 360m + ytdAperiodisch) / 12m);
     }
 
     public static decimal SatzDesMonats(SlipZeile z) => z.SatzBasis ?? z.IstBasis;
@@ -107,9 +174,7 @@ public static class QstJahresmodell
     public static decimal AperiodischDesMonats(SlipZeile z) => z.SatzAperiodisch ?? 0;
 
     /// <summary>
-    /// Jahressteuer = Satz% × YTD-IST (CH-Tage-gekürzt, nicht hochgerechnet).
-    /// Monat = Jahressteuer − bereits bezahlt. Mindeststeuer der ESTV-
-    /// Monatsstufe greift hier nicht (sonst läge sie auf dem ganzen YTD).
+    /// Ein Topf: Jahressteuer = Satz% × YTD-IST, auf 5 Rp. Monat = Jahres − bezahlt.
     /// </summary>
     public static Ergebnis Rechne(
         decimal ytdIst,
@@ -122,13 +187,38 @@ public static class QstJahresmodell
         if (nMonate < 1) nMonate = 1;
         if (ytdIst < 0) ytdIst = 0;
         var satzLohn = SatzLohn(ytdSatzPeriodic ?? ytdIst, nMonate, ytdAperiodisch);
-        var jahressteuer = Math.Round(ytdIst * satzPct / 100m, 2, MidpointRounding.AwayFromZero);
-        var qstMonat = Math.Round(jahressteuer - bereitsBezahlt, 2);
-        return new Ergebnis(satzLohn, satzPct, jahressteuer, qstMonat);
+        var t = RechneToepfe(satzLohn, new Dictionary<string, decimal> { ["_"] = ytdIst }, _ => satzPct, bereitsBezahlt);
+        return new Ergebnis(satzLohn, satzPct, t.Jahressteuer, t.QstMonat);
     }
 
     /// <summary>
-    /// QST-Zeile aus SlipJson. QstBezahlt ist vorzeichenbehaftet
+    /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf (5 Rp.).
+    /// Monatsabzug = Σ Töpfe − bereits bezahlt (5 Rp.).
+    /// </summary>
+    public static TopfErgebnis RechneToepfe(
+        decimal satzLohn,
+        IReadOnlyDictionary<string, decimal> istJeCode,
+        Func<string, decimal> satzPctFuerCode,
+        decimal bereitsBezahlt)
+    {
+        var steuer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        var saetze = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        decimal jahres = 0;
+        foreach (var kv in istJeCode.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            if (kv.Value == 0 || string.IsNullOrWhiteSpace(kv.Key)) continue;
+            var pct = satzPctFuerCode(kv.Key);
+            saetze[kv.Key] = pct;
+            var topf = PayrollCalculations.Round05(kv.Value * pct / 100m);
+            steuer[kv.Key] = topf;
+            jahres += topf;
+        }
+        var monat = PayrollCalculations.Round05(jahres - bereitsBezahlt);
+        return new TopfErgebnis(satzLohn, jahres, monat, steuer, saetze);
+    }
+
+    /// <summary>
+    /// QST-Zeile aus SlipJson. QstBezahlt vorzeichenbehaftet
     /// (positiv = Abzug, negativ = Rückerstattung). IST = Bemessung der Zeile.
     /// </summary>
     public static SlipZeile LeseSlip(string? slipJson)
@@ -164,8 +254,17 @@ public static class QstJahresmodell
                     decimal? satzAper = line.TryGetProperty("satzAperiodisch", out var sa)
                         && sa.ValueKind == JsonValueKind.Number
                         ? sa.GetDecimal() : null;
-                    // Slip: Abzug negativ, Gutschrift positiv → bezahlt = −betrag.
-                    return new SlipZeile(-betrag, basis, satzBasis, satzAper);
+                    string? tarif = null;
+                    if (line.TryGetProperty("qstCode", out var qc) && qc.ValueKind == JsonValueKind.String)
+                        tarif = qc.GetString();
+                    if (string.IsNullOrWhiteSpace(tarif)
+                        && line.TryGetProperty("bezeichnung", out var bez)
+                        && bez.ValueKind == JsonValueKind.String)
+                    {
+                        var tm = Regex.Match(bez.GetString() ?? "", @"Quellensteuer\s+([A-Za-z]{1,2}\d[YNyn])");
+                        if (tm.Success) tarif = tm.Groups[1].Value.ToUpperInvariant();
+                    }
+                    return new SlipZeile(-betrag, basis, satzBasis, satzAper, tarif);
                 }
             }
             return new SlipZeile(0, brutto, null);

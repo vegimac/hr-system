@@ -13,7 +13,7 @@ Neue Einträge nur nach Walter-Entscheid. Offene Bugs gehören nicht hierher.
 
 **Beleg-Check (Walter 16.09.2026, ABSOLUT):** Sobald CSV und OneCrew in der **Fachlogik** auseinanderlaufen (nicht 1–2 Rp. Rundung) — **sofort warnen**, Beleg nicht still grün machen. Gemeinsam eine Lösung suchen (Filial-Schalter, Lohnart, Stammdaten-Flag), nicht hinterher «bewusst» abstempeln. Anlass: TF11 Bosshard 13. ML. **Formel 17.09.2026:** FIX/FIX-M jetzt 1/12 (Schaub + Muster AG). Ortszulage 1033 zählt nicht zur 13.-Basis (wie Schicht 1070). Auszahlung vor Pensenwechsel: Lohnart **180.3** (CSV 1200 ausserhalb Dezember → Auslöser, Engine zahlt Pott + Monat).
 
-**QST Jahresmodell — kein Grün bis Tessin neu bestätigt (Walter 19.09.2026):** Jahresmodell (ESTV) nur **GE, FR, VD, VS, TI** — die übrigen 21 Kantone Monat. Gebaut 19.09.2026 (`QstJahresmodell`). Juni/Dezember-XML nicht nachbauen. Belege der fünf Kantone erst nach Tessin-Reset ab Januar prüfen.
+**QST Jahresmodell — kein Grün bis Tessin neu bestätigt (Walter 19.09.2026):** Jahresmodell (ESTV) nur **GE, FR, VD, VS, TI** — die übrigen 21 Kantone Monat. Töpfe/Code + 5 Rp. + QST-Tage 20.09.2026. Juni/Dezember-XML nicht nachbauen. Belege der fünf Kantone erst nach Tessin-Reset ab Januar prüfen.
 
 ---
 
@@ -156,12 +156,14 @@ Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1
 |---|---|
 | **Beleg** | TF22 Elisabeth Bucher (und alle Monate der fünf Jahresmodell-Kantone) |
 | **OneCrew** | Jahresmodell in `QstJahresmodell` / `ComputeQstDeduction`. Negativ = Rückerstattung. |
-| **Formel (ESTV)** | Zwei Töpfe: **IST** = steuerbar (CH-Tage, nicht hochgerechnet). **Satz-Lohn** = Round05(YTD periodisch ÷ n + YTD aperiodisch ÷ 12) — periodisch inkl. Nebenerwerb auf dem **vollen** Lohn (`ComputeSatzBruttoForNebenjob`). `jahressteuer = Satz% × YTD-IST`. `qstMonat = jahressteuer − bereits bezahlt` (**negativ erlaubt**). |
+| **Formel (Anhang 1)** | **IST** = steuerbar (CH-Tage). **Satz-Lohn** = (Σ periodisch ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12. **Je Tarifcode ein Topf**; Steuer je Topf = Satz(Code, Satz-Lohn) × Topf auf **5 Rp.** Monatsabzug = Σ Töpfe − bezahlt. |
 | **Auslöser** | Steuerkanton in **GE, FR, VD, VS, TI** (`QstTarifVorschlagLogic.IstQstJahresmodell`). Die übrigen 21 Kantone Monatsmodell. Swissdec-Flag `Y` bestätigt, steuert nicht. |
 | **YTD** | QST-Basis der Snapshots derselben Person im Kalenderjahr (nicht nur aktueller Monat). Akonto + Definitiv + `QstKorrekturService`-Nachrechnung dieselbe Funktion. |
 | **Tarifdateien** | Testmandant braucht nur TI/VD (plus LU/BE). **GE, FR, VS nicht einlesen** — Engine ist kanton-agnostisch, dieselben Sätze gelten, sobald die Dateien später da sind. |
 | **Juni/Dez XML nicht nachbauen** | Juni ist noch **A0N/ledig** (Heirat gilt ab 1.7., Mutation `ValidAsOf` 2025-07-01). Formel Juni = **+240.80**, XML **−2'039.50** (nullt das YTD). Dezember Formel ~**+174**, XML **−3'987.95** (nullt das Jahr auf ~0). Beides ist SalaryCalculator/XML, nicht KS 45 — CSV hat keine QST-Beträge. Nach dem Bau: Jan–Mai TI gegen XML prüfen; Juni/Dez Abweichung zur XML **kein Bug**, solange die Formel gilt. |
-| **Stand** | Gebaut 19.09.2026. Satz-Töpfe nachgezogen 20.09.2026 (Nebenerwerb + CH-Tage + Bonus ÷ 12). |
-| **Status** | GEBAUT — Januar der vier Nebenjob-/Grenzgänger-Fälle nach Deploy neu bestätigen. TF29 R0N vs. XML A0N = Swissdec-Frage, nicht nachbauen. 5-Rp.-QST-Rundung offen (1 Rp. bei TF22). |
+| **K1 vs. Töpfe** | Engine weist Vormonate nach Kenntnisstand (`QstVersionWahl` / Slip-Code) zu. Rückwirkende Version (B ab 1.4., erfahren im Juni) bucht **nur K1** um — nicht nochmals in der Monats-QST (sonst doppelt, Y40). |
+| **Offen (Daten)** | TF29 CSV R0N vs. XML A0N + CH-Tage — Swissdec, nicht nachbauen. |
+| **Stand** | 1–2 Satz-Töpfe 20.09. morgens. 3 Töpfe/Code + 4 Rundung 5 Rp. + 5 QST-Tage 20.09. abends. |
+| **Status** | GEBAUT — Januar nach Deploy neu bestätigen (alte Slips ohne `qstCode` fallen auf Waehle zurück). |
 
 Ferien-Saldo +2.92 Tage auf denselben Belegen = A2/A3 (Egli), nicht O1.
