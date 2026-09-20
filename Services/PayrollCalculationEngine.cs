@@ -472,6 +472,7 @@ public class PayrollCalculationEngine
         // Wohnort-Historie sticht QST-Grenzgänger-Flag: sitzt die Person in der
         // CH, keine Arbeitstage-Kürzung (TF25 Lehmann: Malters ab 1.5. = Umzug = QST).
         _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
+        _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, periodTo);
         _qstArbeitstage = qstEinstellung == null || _qstWohnsitzSchweiz ? null
             : await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
@@ -3057,7 +3058,8 @@ public class PayrollCalculationEngine
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
-                darlehenSaldoNeu: dlSaldoNeu);
+                darlehenSaldoNeu: dlSaldoNeu,
+                adresseZurPeriode: _adresseZurPeriode);
             return new OkObjectResult(result);
         }
         else if (isUTP)
@@ -3687,7 +3689,8 @@ public class PayrollCalculationEngine
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
-                darlehenSaldoNeu: dlSaldoNeu);
+                darlehenSaldoNeu: dlSaldoNeu,
+                adresseZurPeriode: _adresseZurPeriode);
             return new OkObjectResult(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -4323,7 +4326,8 @@ public class PayrollCalculationEngine
                 qstKorrekturBetrag: qstKorrBetrag, qstKorrekturLabel: qstKorrLabel,
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
-                darlehenSaldoNeu: dlSaldoNeu);
+                darlehenSaldoNeu: dlSaldoNeu,
+                adresseZurPeriode: _adresseZurPeriode);
             return new OkObjectResult(result);
         }
       } // end try
@@ -4449,6 +4453,33 @@ public class PayrollCalculationEngine
     private EmployeeQstArbeitstage? _qstArbeitstage;
     private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
+    /// <summary>
+    /// Wohnadresse am Periodenende aus der Wohnort-Historie (Walter 20.09.2026, Lehmann Feb:
+    /// Beleg zeigte Malters, gewohnt hat sie damals in Italien). null = aktuelle Stammdaten.
+    /// </summary>
+    private (string Strasse, string PlzOrt)? _adresseZurPeriode;
+
+    private async Task<(string Strasse, string PlzOrt)?> AdresseZurPeriodeAsync(Employee employee, DateOnly periodTo)
+    {
+        var hist = await _db.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => h.EmployeeId == employee.Id && !h.DatumOffen)
+            .ToListAsync();
+        if (hist.Count == 0) return null;
+        var sortiert = hist
+            .OrderBy(h => h.GueltigAb == null ? 0 : 1).ThenBy(h => h.GueltigAb).ThenBy(h => h.Id)
+            .ToList();
+        EmployeeWohnortHistory? treffer = null;
+        foreach (var h in sortiert)
+            if (h.GueltigAb == null || h.GueltigAb <= periodTo) treffer = h;
+        if (treffer == null || string.IsNullOrWhiteSpace(treffer.Ort)) return null;
+        bool istAktuell = ReferenceEquals(treffer, sortiert[^1]);
+        if (istAktuell) return null;   // Stammdaten sind die Adresse dieser Periode
+        // Alte Einträge ohne Strasse: lieber keine Strasse als die heutige zum alten Ort.
+        var strasse = (treffer.Strasse ?? "").Trim();
+        var plzOrt = $"{treffer.Plz} {treffer.Ort}".Trim();
+        return (strasse, plzOrt);
+    }
+
     private QstJahresmodell.YtdStand? _qstJahresYtd;
     /// <summary>Vertragsabschnitte für QST-Tage im Jahresmodell (Y1.1: Lücken = 0 Tage).</summary>
     private List<QstJahresmodell.Zeitraum> _qstJahresVertraege = new();
@@ -4602,7 +4633,7 @@ public class PayrollCalculationEngine
             {
                 bruttolohn = gekuerzt;
                 tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH"
-                    + (aperVoll > 0 && ratioAper != ratioMonat ? $", Sonderzahlung Σ {ratioAper:P1}" : "")
+                    + (aperVoll > 0 && ratioAper != ratioMonat ? $", Σ CH {ratioAper * 100m:0.#} %" : "")
                     + ")";
             }
         }

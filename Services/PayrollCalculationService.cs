@@ -288,7 +288,9 @@ public static class PayrollCalculations
         // Vorperiode. Basis = kum(bis inkl.) − kum(bisher). −1 = alte Dezember-Formel.
         decimal ausgleichMonate = 12m,
         decimal ausgleichMonateBisher = -1m,
-        string? ausgleichLabel = null)
+        string? ausgleichLabel = null,
+        // Wohnadresse am Periodenende aus der Wohnort-Historie (null = Stammdaten) — Walter 20.09.2026
+        (string Strasse, string PlzOrt)? adresseZurPeriode = null)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -691,8 +693,8 @@ public static class PayrollCalculations
             employeeId      = employee.Id,
             employeeName    = $"{employee.FirstName} {employee.LastName}",
             salutation      = employee.Salutation,
-            address         = employee.Street?.Trim() ?? "",
-            zipCity         = $"{employee.ZipCode} {employee.City}".Trim(),
+            address         = adresseZurPeriode?.Strasse ?? (employee.Street?.Trim() ?? ""),
+            zipCity         = adresseZurPeriode?.PlzOrt ?? $"{employee.ZipCode} {employee.City}".Trim(),
             companyParentName = company.CompanyName,                       // z.B. "Schaub Restaurants GmbH"
             companyName       = company.BranchName ?? company.CompanyName,  // z.B. "Filiale Oftringen"
             companyAddress    = $"{company.Street} {company.HouseNumber}".Trim(),
