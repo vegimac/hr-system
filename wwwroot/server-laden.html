@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="2">
+    <title>OneCrew — Server am Laden</title>
+    <style>
+        html, body { margin: 0; min-height: 100%; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(165deg, #eeece4 0%, #e7e4db 50%, #dfdcd1 100%);
+            color: #3f3f3f;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: rgba(255,255,255,0.48);
+            border: 1px solid rgba(255,255,255,0.62);
+            box-shadow: 0 10px 28px rgba(60,55,48,0.16), inset 0 1px 0 rgba(255,255,255,0.85);
+            border-radius: 18px;
+            padding: 36px 42px;
+            text-align: center;
+            max-width: 360px;
+        }
+        .glass {
+            font-size: 42px;
+            line-height: 1;
+            display: inline-block;
+            animation: flip 1.8s ease-in-out infinite;
+        }
+        @keyframes flip {
+            0%, 40% { transform: rotate(0deg); }
+            60%, 100% { transform: rotate(180deg); }
+        }
+        @media (prefers-reduced-motion: reduce) { .glass { animation: none; } }
+        h1 { font-size: 20px; font-weight: 600; margin: 16px 0 8px; }
+        p { margin: 0; font-size: 14px; color: #646464; line-height: 1.45; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="glass" aria-hidden="true">⏳</div>
+        <h1>Server am Laden</h1>
+        <p>OneCrew startet nach dem Deploy neu. Die Seite erscheint von selbst, sobald der Server bereit ist.</p>
+    </div>
+    <script>
+        (function () {
+            function check() {
+                fetch('/api/instance-info', { cache: 'no-store' })
+                    .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+                    .then(function (j) {
+                        if (j && j.laden === true) return;
+                        location.href = '/';
+                    })
+                    .catch(function () {});
+            }
+            check();
+            setInterval(check, 1500);
+        })();
+    </script>
+</body>
+</html>

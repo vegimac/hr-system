@@ -5263,6 +5263,9 @@ app.MapGet("/mobil", (HttpContext ctx) => { ctx.Response.Redirect("/mobil.html")
 app.MapGet("/api/instance-info", () => Results.Ok(new
 {
     label = Environment.GetEnvironmentVariable("INSTANCE_LABEL") ?? "",
+    // true, solange Warmlaufen noch läuft — Login-Sanduhr + nginx-502-Seite
+    // warten darauf, nicht nur auf den offenen Port (Walter 20.09.2026).
+    laden         = !AppStartStatus.Bereit,
     // Schema-Pruefung (Walter 31.08.2026): bewusst NUR Ja/Nein und die
     // Anzahl — die Details stehen im Log, hier waeren sie oeffentlich.
     // deploy.sh liest das und bricht ab, bevor Produktiv drankommt.
@@ -5338,6 +5341,7 @@ app.Lifetime.ApplicationStarted.Register(() => _ = Task.Run(async () =>
             sw.ElapsedMilliseconds, qstUhr.ElapsedMilliseconds);
     }
     catch (Exception ex) { log.LogWarning(ex, "Warmlaufen abgebrochen nach {Ms} ms", sw.ElapsedMilliseconds); }
+    finally { AppStartStatus.Bereit = true; }
 }));
 
 app.Run();

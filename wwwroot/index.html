@@ -13,6 +13,47 @@
 </head>
 <body>
 
+<!-- Sanduhr direkt im HTML (kein JS-/CSS-File): nach Deploy ist Kestrel oft
+     noch tot oder am Warmlaufen — der User soll nicht auf ein leeres 502 starren. -->
+<div id="serverLaden" role="status" aria-live="polite" style="position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;background:linear-gradient(165deg,#eeece4 0%,#e7e4db 50%,#dfdcd1 100%);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#3f3f3f">
+    <div style="background:rgba(255,255,255,0.48);border:1px solid rgba(255,255,255,0.62);box-shadow:0 10px 28px rgba(60,55,48,0.16),inset 0 1px 0 rgba(255,255,255,0.85);border-radius:18px;padding:36px 42px;text-align:center;max-width:360px">
+        <div id="serverLadenGlass" aria-hidden="true" style="font-size:42px;line-height:1;display:inline-block">⏳</div>
+        <div style="font-size:20px;font-weight:600;margin:16px 0 8px">Server am Laden</div>
+        <div id="serverLadenUhr" style="font-size:14px;color:#646464;line-height:1.45">OneCrew startet nach dem Deploy neu.</div>
+    </div>
+</div>
+<style>
+@keyframes serverLadenFlip { 0%,40%{transform:rotate(0)} 60%,100%{transform:rotate(180deg)} }
+#serverLadenGlass { animation: serverLadenFlip 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion:reduce) { #serverLadenGlass { animation: none; } }
+</style>
+<script>
+(function () {
+    var box = document.getElementById('serverLaden');
+    if (!box) return;
+    var mussteWarten = false, n = 0;
+    function zeig() { box.style.display = 'flex'; box.removeAttribute('aria-hidden'); }
+    function weg() { box.style.display = 'none'; box.setAttribute('aria-hidden', 'true'); }
+    function plan() {
+        n++;
+        var u = document.getElementById('serverLadenUhr');
+        if (u && n > 4) u.textContent = 'Start dauert noch — Schema und Warmlaufen.';
+        setTimeout(tick, 1500);
+    }
+    function tick() {
+        fetch('/api/instance-info', { cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+            .then(function (j) {
+                if (j && j.laden === true) { mussteWarten = true; zeig(); plan(); return; }
+                if (mussteWarten) { location.reload(); return; }
+                weg();
+            })
+            .catch(function () { mussteWarten = true; zeig(); plan(); });
+    }
+    tick();
+})();
+</script>
+
 <!-- ═══════════════ LOGIN — OneCrew ═══════════════ -->
 <div id="loginScreen">
     <!-- Header: unveränderter Architektur-Sketch (Bogen) + Schriftzug OneCrew,
