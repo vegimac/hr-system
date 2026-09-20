@@ -478,8 +478,7 @@ public class PayrollCalculationEngine
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
         _qstJahresYtd = null;
-        _qstJahresEintritt = null;
-        _qstJahresAustritt = null;
+        _qstJahresVertraege = new();
         if (isQuellensteuer && QstJahresmodell.GiltFuer(qstEinstellung!.Steuerkanton))
             _qstJahresYtd = await LadeQstJahresYtdAsync(
                 employee, qstEinstellung, year, month, periodFrom, periodTo);
@@ -2979,7 +2978,10 @@ public class PayrollCalculationEngine
             // monat hätte sie enthalten). Feriengeld + 13. bewusst NICHT:
             // die fliessen im Pott-Modell auch im Vollmonat nicht zu und
             // heben Satz+Steuer erst im Auszahlungs-/Bezugsmonat.
-            if (isShortPeriod && guaranteedH > 0 && hourlyRate > 0)
+            // Jahresmodell: KEINE Kurzmonat-Hochrechnung — dort annualisieren die
+            // QST-Tage (8'400 ÷ 21 × 360 ÷ 12 = 12'000, Anhang 1 Y31); beides zusammen
+            // ergäbe 17'142.85 (TF25/26 Feb, Claude 20.09.2026).
+            if (isShortPeriod && guaranteedH > 0 && hourlyRate > 0 && _qstJahresYtd == null)
             {
                 var mtpFestDiff = Math.Round(
                     guaranteedH / 7m * (normalPeriodDays - shortPeriodDays) * hourlyRate
@@ -2994,7 +2996,7 @@ public class PayrollCalculationEngine
                         satzBruttoMtp = satzKurzMtp;
                 }
             }
-            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig);
+            var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig, dreizehnterMtp);
             if (qstRule is not null) deductions.Add(qstRule);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -3626,7 +3628,7 @@ public class PayrollCalculationEngine
             decimal? satzBruttoUtp = ComputeSatzBruttoForNebenjob(
                 qstEinstellung, svBasesUtp.Qst, workedHours, company,
                 einmaligNichtHochrechnen: deltaQstEinmalig);
-            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig);
+            var qstRuleUtp = ComputeQstDeduction(qstEinstellung, svBasesUtp.Qst, companyProfileId, periodFrom, satzBruttoUtp, deltaQstEinmalig, dreizehnterUtp);
             if (qstRuleUtp is not null) deductions.Add(qstRuleUtp);
 
             // FLEX: 13. ML standardmässig monatlich. Während Probezeit → Saldo
@@ -4254,7 +4256,9 @@ public class PayrollCalculationEngine
             // periodische Kern wird hochgerechnet; 13. ML/Schlussabrechnung/
             // Zulagen ohne Hochrechnung). Umsetzung: Kurz-Monatslohn in der
             // Satzbasis durch den vollen Monatslohn ersetzen.
-            if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary)
+            // Jahresmodell: keine Kurzmonat-Hochrechnung, die QST-Tage annualisieren
+            // (TF25/26 Feb: 8'400 ÷ 21 × 360 ÷ 12 = 12'000, nicht 17'142.85 — Anhang 1 Y31).
+            if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary && _qstJahresYtd == null)
             {
                 // periodische Zulagen im gleichen Verhältnis hochrechnen (Walter 09.09.2026)
                 var faktorKurz = monthSalary > 0 ? monthSalaryFull / monthSalary : 1m;
@@ -4263,7 +4267,7 @@ public class PayrollCalculationEngine
                 if (!satzBruttoFix.HasValue || satzKurzFix > satzBruttoFix.Value)
                     satzBruttoFix = satzKurzFix;
             }
-            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig);
+            var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig, dreizehnterFix);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
             SortLohnLines();  // Walter-Vorgabe 28.05.2026: Reihenfolge nach Lohnposition.SortOrder
@@ -4446,8 +4450,8 @@ public class PayrollCalculationEngine
     private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
     private QstJahresmodell.YtdStand? _qstJahresYtd;
-    private DateOnly? _qstJahresEintritt;
-    private DateOnly? _qstJahresAustritt;
+    /// <summary>Vertragsabschnitte für QST-Tage im Jahresmodell (Y1.1: Lücken = 0 Tage).</summary>
+    private List<QstJahresmodell.Zeitraum> _qstJahresVertraege = new();
 
     /// <summary>
     /// YTD-QST der Vormonate desselben Jahres im selben Jahresmodell-Kanton.
@@ -4463,16 +4467,12 @@ public class PayrollCalculationEngine
         var versionen = await _db.EmployeeQuellensteuer
             .Where(q => q.EmployeeId == employee.Id && q.ValidFrom <= periodTo)
             .ToListAsync();
-        DateOnly? eintritt = employee.EntryDate is { } ed && ed.Year > 1
-            ? DateOnly.FromDateTime(ed)
-            : employee.Employments.Count > 0
-                ? employee.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate))
-                : null;
-        DateOnly? austritt = employee.ExitDate is { } xd && xd.Year > 1
-            ? DateOnly.FromDateTime(xd)
-            : null;
-        _qstJahresEintritt = eintritt;
-        _qstJahresAustritt = austritt;
+        // Start = frühester Vertrag im Jahr, nicht employee.EntryDate: nach einem
+        // Wiedereintritt (TF41: Austritt 31.3., Eintritt 1.7.) steht dort der neue
+        // Eintritt und der Januar fiele aus den Töpfen (Anhang 1 Y1.1).
+        var vertraege = QstJahresmodell.Vertragszeitraeume(employee);
+        _qstJahresVertraege = vertraege;
+        DateOnly? eintritt = QstJahresmodell.ErsterEintrittImJahr(vertraege, year);
         var start = QstJahresmodell.ModellStart(year, eintritt, versionen, kanton, periodTo);
         int n = QstJahresmodell.AnzahlMonate(start, periodFrom);
 
@@ -4517,7 +4517,22 @@ public class PayrollCalculationEngine
                 if (!string.IsNullOrWhiteSpace(code))
                     jeCode[code] = jeCode.GetValueOrDefault(code) + z.IstBasis;
             }
-            tage += QstJahresmodell.QstTageDesMonats(year, g.Key, eintritt, austritt);
+            tage += QstJahresmodell.QstTageDesMonats(year, g.Key, vertraege);
+        }
+
+        // Arbeitstage CH/effektiv der Vormonate (Wohnsitz Ausland): aperiodische
+        // Zahlungen werden im Jahresmodell mit dem KUMULIERTEN Verhältnis
+        // ausgeschieden (Anhang 1 Y31 «13. Monatslohn CH-Tage kumul.», TF29 Feb 25/40).
+        decimal chBisher = 0, effBisher = 0;
+        if (!_qstWohnsitzSchweiz)
+        {
+            var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
+                .Where(a => a.EmployeeId == employee.Id && a.Year == year
+                         && a.Month >= start.Month && a.Month < month)
+                .Select(a => new { a.TageCh, a.TageEffektiv })
+                .ToListAsync();
+            chBisher = at.Sum(a => a.TageCh);
+            effBisher = at.Sum(a => a.TageEffektiv);
         }
 
         // K1-Posten der Kette zählen als bezahlt: die Töpfe tragen April/Mai schon
@@ -4533,7 +4548,7 @@ public class PayrollCalculationEngine
             .ToListAsync();
         bezahlt += posten.Sum();
 
-        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode);
+        return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode, chBisher, effBisher);
     }
 
     /// <summary>
@@ -4552,7 +4567,8 @@ public class PayrollCalculationEngine
         int companyProfileId,
         DateOnly periodFrom,
         decimal? satzbestimmenderBrutto = null,
-        decimal aperiodisch = 0)
+        decimal aperiodisch = 0,
+        decimal dreizehnter = 0)
     {
         if (einstellung is null || string.IsNullOrEmpty(einstellung.Steuerkanton))
             return null;
@@ -4565,10 +4581,30 @@ public class PayrollCalculationEngine
         decimal bruttoVoll = bruttolohn;
         string? tageHinweis = null;
         var tage = _qstArbeitstage;
-        if (tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh < tage.TageEffektiv && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
+        if (tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
         {
-            bruttolohn = Math.Round(bruttoVoll * tage.TageCh / tage.TageEffektiv, 2);
-            tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH)";
+            // Periodischer Lohn: Verhältnis des Monats. Aperiodisches (Bonus, 13. ML):
+            // im Jahresmodell das kumulierte Verhältnis Σ CH-Tage / Σ Arbeitstage seit
+            // Jahresbeginn (Anhang 1 Y31; TF29 Feb 20'000 × 25/40 = 12'500, nicht × 10/20).
+            // Monatsmodell bleibt beim Monatsverhältnis (Anhang Monat M19.1).
+            decimal ratioMonat = tage.TageCh / tage.TageEffektiv;
+            if (ratioMonat > 1) ratioMonat = 1;
+            decimal aperVoll = Math.Min(bruttoVoll, Math.Max(0m, aperiodisch) + Math.Max(0m, dreizehnter));
+            decimal periodVoll = bruttoVoll - aperVoll;
+            decimal ratioAper = ratioMonat;
+            if (_qstJahresYtd is { } ytdTage && ytdTage.TageEffBisher + tage.TageEffektiv > 0)
+            {
+                ratioAper = (ytdTage.TageChBisher + tage.TageCh) / (ytdTage.TageEffBisher + tage.TageEffektiv);
+                if (ratioAper > 1) ratioAper = 1;
+            }
+            var gekuerzt = Math.Round(periodVoll * ratioMonat + aperVoll * ratioAper, 2);
+            if (gekuerzt < bruttoVoll)
+            {
+                bruttolohn = gekuerzt;
+                tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH"
+                    + (aperVoll > 0 && ratioAper != ratioMonat ? $", Sonderzahlung Σ {ratioAper:P1}" : "")
+                    + ")";
+            }
         }
 
         // ── Satzbestimmender Lohn ──────────────────────────────────────────
@@ -4632,7 +4668,7 @@ public class PayrollCalculationEngine
             decimal ytdPeriodic = ytd.SatzBisher + monatPeriodicSatz;
             decimal ytdAper = ytd.AperiodischBisher + monatAperiodisch;
             int tageMonat = QstJahresmodell.QstTageDesMonats(
-                periodFrom.Year, periodFrom.Month, _qstJahresEintritt, _qstJahresAustritt);
+                periodFrom.Year, periodFrom.Month, _qstJahresVertraege);
             int qstTage = ytd.QstTageBisher + tageMonat;
             var satzLohnLookup = QstJahresmodell.SatzLohnAusTagen(ytdPeriodic, qstTage, ytdAper);
 

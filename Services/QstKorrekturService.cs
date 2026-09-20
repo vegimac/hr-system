@@ -242,15 +242,16 @@ public class QstKorrekturService
         var emp = await _db.Employees.AsNoTracking()
             .Include(e => e.Employments)
             .FirstOrDefaultAsync(e => e.Id == neu.EmployeeId, ct);
-        DateOnly? eintritt = EintrittVon(emp);
-        DateOnly? austritt = AustrittVon(emp);
+        // Verträge statt Eintritt/Austritt am MA: Wiedereintritt setzt die Töpfe nicht zurück (Y1.1).
+        var vertraege = QstJahresmodell.Vertragszeitraeume(emp);
 
         foreach (var yg in betroffen.GroupBy(r => r.Year))
         {
             int year = yg.Key;
             int maxM = yg.Max(x => x.Month);
             var periodTo = new DateOnly(year, maxM, 1).AddMonths(1).AddDays(-1);
-            var start = QstJahresmodell.ModellStart(year, eintritt, versionen, kanton, periodTo);
+            var start = QstJahresmodell.ModellStart(
+                year, QstJahresmodell.ErsterEintrittImJahr(vertraege, year), versionen, kanton, periodTo);
 
             var slips = await (
                 from s in _db.PayrollSnapshots
@@ -296,7 +297,7 @@ public class QstKorrekturService
             {
                 ytdPer += satzByM.GetValueOrDefault(m);
                 ytdAper += aperByM.GetValueOrDefault(m);
-                qstTage += QstJahresmodell.QstTageDesMonats(year, m, eintritt, austritt);
+                qstTage += QstJahresmodell.QstTageDesMonats(year, m, vertraege);
                 var stichtag = new DateOnly(year, m, 1).AddMonths(1).AddDays(-1);
                 var code = neu.ValidFrom <= stichtag
                     ? neuCode
@@ -338,18 +339,6 @@ public class QstKorrekturService
         }
         return map;
     }
-
-    private static DateOnly? EintrittVon(Employee? emp)
-    {
-        if (emp?.EntryDate is { } ed && ed.Year > 1)
-            return DateOnly.FromDateTime(ed);
-        if (emp?.Employments is { Count: > 0 })
-            return emp.Employments.Min(e => DateOnly.FromDateTime(e.ContractStartDate));
-        return null;
-    }
-
-    private static DateOnly? AustrittVon(Employee? emp)
-        => emp?.ExitDate is { } xd && xd.Year > 1 ? DateOnly.FromDateTime(xd) : null;
 
     /// <summary>
     /// Liest die QST-Abzugszeile aus dem eingefrorenen SlipJson:

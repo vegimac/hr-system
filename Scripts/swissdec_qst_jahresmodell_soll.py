@@ -199,6 +199,9 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
 
     zeilen = []
     per_kum, aper_kum, tage_kum = 0.0, 0.0, 0
+    ch_kum, eff_kum = 0.0, 0.0
+    tage_ch = float(tfdata.get("PersonWorkingDaysCH") or 0)
+    tage_eff = float(tfdata.get("PersonEffectiveWorkingDays") or 0)
     toepfe = defaultdict(float)     # code -> QST-Lohn kumuliert (nach aktuellem Kenntnisstand)
     monatslohn = {}                  # monat -> (steuerbarer Lohn)
     bezahlt = 0.0
@@ -213,22 +216,36 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
                 other_rate = mut[ym]["PersonTotalOtherActivityRate"]
             if "PersonActivityRateEmployer1" in mut[ym]:
                 ar1 = float(mut[ym]["PersonActivityRateEmployer1"] or 100)
+            if "PersonWorkingDaysCH" in mut[ym]:
+                tage_ch = float(mut[ym]["PersonWorkingDaysCH"] or 0)
+            if "PersonEffectiveWorkingDays" in mut[ym]:
+                tage_eff = float(mut[ym]["PersonEffectiveWorkingDays"] or 0)
         tage = sv_tage(jahr, m, eintritt, austritt)
         z = wt.get(tf, {}).get(ym, {})
-        per = sum(v for c, v in z.items() if kat[c].get("qst") and c not in APERIODISCH)
+        per = sum(v for c, v in z.items() if kat[c].get("qst") and c not in APERIODISCH and c not in ML13)
+        ml13 = sum(v for c, v in z.items() if c in ML13)
         aper = sum(v for c, v in z.items() if kat[c].get("qst") and c in APERIODISCH)
         if tage == 0 and not z:
             continue
+        # Ausscheidung Auslandtage (Wohnsitz Ausland): periodisch × Monat, Sonderzahlung/13. × Σ CH-Tage / Σ Arbeitstage
+        # (Anhang 1 Y31 «13. Monatslohn CH-Tage kumul.»; Monatsmodell M19.1 nimmt den Monat).
+        ratio_m = 1.0
+        if tage_eff > 0 and 0 <= tage_ch < tage_eff:
+            ratio_m = tage_ch / tage_eff
+        ch_kum += tage_ch if tage_eff > 0 else 0
+        eff_kum += tage_eff
+        ratio_k = (ch_kum / eff_kum) if (eff_kum > 0 and ch_kum < eff_kum) else 1.0
+        basis = round(per * ratio_m + (aper + ml13) * ratio_k + 1e-9, 2)
         # Hochrechnung Nebenerwerb (Y6/Y7/Y10): auf Gesamtpensum, unbekanntes Pensum → 100 %
         faktor = 1.0
         if other == "X" and ar1 < 100:
             gesamt = min(100.0, ar1 + float(other_rate)) if other_rate else 100.0
             faktor = gesamt / ar1
-        per_kum += per * faktor
+        per_kum += (per + ml13) * faktor   # 13. ML im Satz periodisch (Y1/Y23/Y31)
         aper_kum += aper
         tage_kum += tage
         sb = (per_kum / tage_kum * 360 + aper_kum) / 12 if tage_kum else 0.0
-        monatslohn[m] = per + aper
+        monatslohn[m] = basis
         # Töpfe nach Kenntnisstand dieses Monats neu aufbauen (rückwirkende Codes verschieben Löhne)
         toepfe = defaultdict(float)
         for k, lohn in monatslohn.items():
@@ -237,7 +254,8 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
         total_kum = sum(kum.values())
         abzug = r05(total_kum - bezahlt)
         bezahlt = r05(bezahlt + abzug)
-        zeilen.append({"monat": ym, "code": code_fuer(achse, ym, jahr, m), "basis": per + aper, "sb": sb,
+        zeilen.append({"monat": ym, "code": code_fuer(achse, ym, jahr, m), "basis": basis, "sb": sb,
+                       "ratio": (ratio_m, ratio_k) if ratio_m < 1 or ratio_k < 1 else None,
                        "saetze": {c: satz(kanton, jahr, c, sb) for c in toepfe if c}, "toepfe": dict(toepfe),
                        "abzug": abzug, "kum": bezahlt})
     return zeilen
@@ -278,8 +296,8 @@ def main():
         md.append("## %s %s (%s, Modell %s, Pensum AG1 %s%%%s)\n" % (
             tf, d["_name"], kanton, d.get("PersonTASCalculationModel"), d.get("PersonActivityRateEmployer1") or "100",
             ", Nebenerwerb %s%%" % d.get("PersonTotalOtherActivityRate") if d.get("PersonOtherActivity") == "X" else ""))
-        md.append("| Monat | Code | QST-Lohn | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |")
-        md.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---|")
+        md.append("| Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |")
+        md.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|")
         for z in zeilen:
             xe = x.get(z["monat"])
             xs = "%.2f" % xe["sb"] if xe else "—"
@@ -287,8 +305,9 @@ def main():
             diff = "" if xt is None else ("%.2f" % (z["abzug"] - xt) if abs(z["abzug"] - xt) > 0.06 else "✓")
             korr = "; ".join("%s %s %.2f→%s %.2f" % (k[0][5:], k[1], k[3 - 1], k[3], k[4]) for k in xe["korr"]) if xe and xe["korr"] else ""
             saetze = " / ".join("%s %.2f%%" % (c, s * 100) for c, s in sorted(z["saetze"].items()))
-            md.append("| %s | %s | %.2f | %.2f | %s | %s | %.2f | %s | %s | %s |" % (
-                z["monat"][5:], z["code"], z["basis"], z["sb"], xs, saetze, z["abzug"],
+            xb = "%.2f" % xe["basis"] if xe else "—"
+            md.append("| %s | %s | %.2f | %s | %.2f | %s | %s | %.2f | %s | %s | %s |" % (
+                z["monat"][5:], z["code"], z["basis"], xb, z["sb"], xs, saetze, z["abzug"],
                 "%.2f" % xt if xt is not None else "—", diff, korr))
         total_modell = sum(z["abzug"] for z in zeilen)
         total_xml = sum(e["total"] for e in x.values())

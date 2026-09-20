@@ -290,6 +290,46 @@ public class QstJahresmodellTests
         Assert.Equal(1062.00m, falsch.QstMonat);
     }
 
+    [Fact]
+    public void Y11_WiedereintrittSetztStartNichtZurueck_LueckenmonateNullTage()
+    {
+        // Anhang 1 Y1.1 / TF41: Vertrag 1.1.–31.3., Wiedereintritt 1.7. → Start bleibt Januar,
+        // April–Juni 0 QST-Tage, kumuliert 90 → 90 → 120 …
+        var vertraege = new List<QstJahresmodell.Zeitraum>
+        {
+            new(new DateOnly(2025, 1, 1), new DateOnly(2025, 3, 31)),
+            new(new DateOnly(2025, 7, 1), null),
+        };
+        Assert.Equal(new DateOnly(2025, 1, 1), QstJahresmodell.ErsterEintrittImJahr(vertraege, 2025));
+        Assert.Equal(30, QstJahresmodell.QstTageDesMonats(2025, 3, vertraege));
+        Assert.Equal(0, QstJahresmodell.QstTageDesMonats(2025, 4, vertraege));
+        Assert.Equal(0, QstJahresmodell.QstTageDesMonats(2025, 6, vertraege));
+        Assert.Equal(30, QstJahresmodell.QstTageDesMonats(2025, 7, vertraege));
+        Assert.Equal(90, QstJahresmodell.QstTageKumuliertAusVertraegen(2025, 1, 6, vertraege));
+    }
+
+    [Fact]
+    public void QstTage_EintrittUndAustrittTagesgenau_MonatsendeIst30()
+    {
+        // Y31: Eintritt 10.2. → 21 Tage; Austritt 15.6. → 15 Tage; Austritt 28.2. = Monatsende = 30.
+        var v1 = new List<QstJahresmodell.Zeitraum> { new(new DateOnly(2025, 2, 10), new DateOnly(2025, 6, 15)) };
+        Assert.Equal(21, QstJahresmodell.QstTageDesMonats(2025, 2, v1));
+        Assert.Equal(30, QstJahresmodell.QstTageDesMonats(2025, 3, v1));
+        Assert.Equal(15, QstJahresmodell.QstTageDesMonats(2025, 6, v1));
+        Assert.Equal(0, QstJahresmodell.QstTageDesMonats(2025, 7, v1));
+        var v2 = new List<QstJahresmodell.Zeitraum> { new(new DateOnly(2025, 1, 1), new DateOnly(2025, 2, 28)) };
+        Assert.Equal(30, QstJahresmodell.QstTageDesMonats(2025, 2, v2));
+    }
+
+    [Fact]
+    public void Y31_SatzLohnImEintrittsmonat_NurUeberQstTage()
+    {
+        // Jenzer/Lehmann Feb: 8'400 ÷ 21 × 360 ÷ 12 = 12'000 — ohne zusätzliche Kurzmonat-Hochrechnung.
+        Assert.Equal(12000.00m, QstJahresmodell.SatzLohnAusTagen(8400m, 21));
+        // Swissdec-Lohn 8'000 (A7) → 11'428.55 wie RefXML.
+        Assert.Equal(11428.55m, QstJahresmodell.SatzLohnAusTagen(8000m, 21));
+    }
+
     private static string RepoRoot
     {
         get

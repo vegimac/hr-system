@@ -38,7 +38,74 @@ public static class QstJahresmodell
         decimal SatzBisher = 0,
         decimal AperiodischBisher = 0,
         int QstTageBisher = 0,
-        IReadOnlyDictionary<string, decimal>? IstJeCode = null);
+        IReadOnlyDictionary<string, decimal>? IstJeCode = null,
+        decimal TageChBisher = 0,
+        decimal TageEffBisher = 0);
+
+    /// <summary>Vertragsabschnitt (Von inklusiv, Bis inklusiv oder offen).</summary>
+    public readonly record struct Zeitraum(DateOnly Von, DateOnly? Bis);
+
+    /// <summary>
+    /// Vertragsabschnitte des MA über alle Filialen (ein AHV-Arbeitgeber). Rückfall
+    /// auf Eintritt/Austritt am MA, wenn keine Verträge geladen sind.
+    /// </summary>
+    public static List<Zeitraum> Vertragszeitraeume(Employee? emp)
+    {
+        var list = new List<Zeitraum>();
+        if (emp == null) return list;
+        foreach (var e in emp.Employments ?? Enumerable.Empty<Employment>())
+        {
+            if (e.ContractStartDate.Year <= 1) continue;
+            list.Add(new Zeitraum(
+                DateOnly.FromDateTime(e.ContractStartDate),
+                e.ContractEndDate is { } b && b.Year > 1 ? DateOnly.FromDateTime(b) : null));
+        }
+        if (list.Count == 0 && emp.EntryDate is { } ed && ed.Year > 1)
+            list.Add(new Zeitraum(
+                DateOnly.FromDateTime(ed),
+                emp.ExitDate is { } xd && xd.Year > 1 ? DateOnly.FromDateTime(xd) : null));
+        return list;
+    }
+
+    /// <summary>
+    /// Frühester Vertragsbeginn, der ins Lohnjahr hineinreicht — Anhang 1 Y1.1:
+    /// Austritt 31.3. + Wiedereintritt 1.6. setzen die Töpfe NICHT zurück, der
+    /// spätere Eintritt darf den Modell-Start nicht nach hinten schieben (TF41).
+    /// </summary>
+    public static DateOnly? ErsterEintrittImJahr(IEnumerable<Zeitraum> vertraege, int jahr)
+    {
+        var jahrBeginn = new DateOnly(jahr, 1, 1);
+        DateOnly? best = null;
+        foreach (var z in vertraege)
+        {
+            if (z.Bis is { } b && b < jahrBeginn) continue;
+            if (z.Von.Year > jahr) continue;
+            if (best == null || z.Von < best.Value) best = z.Von;
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// QST-Tage des Monats aus der Vertragsdeckung (30-Tage-Monat, Monatsende = Tag 30,
+    /// überlappende Abschnitte zählen einfach). Monate ohne Vertrag = 0 (Y1.1: April/Mai).
+    /// </summary>
+    public static int QstTageDesMonats(int jahr, int monat, IEnumerable<Zeitraum> vertraege)
+    {
+        var gedeckt = new bool[31];
+        foreach (var z in vertraege)
+        {
+            if (z.Von.Year > jahr || (z.Von.Year == jahr && z.Von.Month > monat)) continue;
+            if (z.Bis is { } b && (b.Year < jahr || (b.Year == jahr && b.Month < monat))) continue;
+            int von = 1, bis = 30;
+            if (z.Von.Year == jahr && z.Von.Month == monat) von = Math.Min(z.Von.Day, 30);
+            if (z.Bis is { } b2 && b2.Year == jahr && b2.Month == monat)
+                bis = b2.Day >= DateTime.DaysInMonth(jahr, monat) ? 30 : Math.Min(b2.Day, 30);
+            for (int d = von; d <= bis; d++) gedeckt[d] = true;
+        }
+        int n = 0;
+        for (int d = 1; d <= 30; d++) if (gedeckt[d]) n++;
+        return n;
+    }
 
     private static readonly Regex CodeRx = new(@"^([A-Z]{1,2})(\d)([YN])$", RegexOptions.IgnoreCase);
 
@@ -143,6 +210,16 @@ public static class QstJahresmodell
         int s = 0;
         for (int m = vonMonat; m <= bisMonat; m++)
             s += QstTageDesMonats(jahr, m, eintritt, austritt);
+        return s;
+    }
+
+    public static int QstTageKumuliertAusVertraegen(
+        int jahr, int vonMonat, int bisMonat, IEnumerable<Zeitraum> vertraege)
+    {
+        var liste = vertraege as IList<Zeitraum> ?? vertraege.ToList();
+        int s = 0;
+        for (int m = vonMonat; m <= bisMonat; m++)
+            s += QstTageDesMonats(jahr, m, liste);
         return s;
     }
 
