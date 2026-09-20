@@ -4593,7 +4593,7 @@ public class PayrollCalculationEngine
                 }
                 else
                 {
-                    qstBetrag = Math.Round(bruttolohn * satz.Value / 100m, 2);
+                    qstBetrag = PayrollCalculations.Round05(bruttolohn * satz.Value / 100m);
                     satzPct = satz;
                 }
             }
@@ -4653,7 +4653,7 @@ public class PayrollCalculationEngine
         else if (einstellung.Prozentsatz.HasValue)
         {
             // Manuell überschriebener Prozentsatz — direkt auf IST-Brutto.
-            qstBetrag = Math.Round(bruttolohn * einstellung.Prozentsatz.Value / 100m, 2);
+            qstBetrag = PayrollCalculations.Round05(bruttolohn * einstellung.Prozentsatz.Value / 100m);
             satzPct = einstellung.Prozentsatz;
         }
         else
@@ -4672,7 +4672,9 @@ public class PayrollCalculationEngine
                 istBruttoCHF: bruttolohn,
                 jahr: periodFrom.Year);   // Tarif der Lohnperiode, nicht des Rechen-Tages (Walter 09.09.2026)
             if (qstCalc is null) return null;
-            qstBetrag = qstCalc.SteuerbetragCHF;
+            qstBetrag = qstCalc.MindeststeuerAngewendet
+                ? qstCalc.SteuerbetragCHF
+                : PayrollCalculations.Round05(qstCalc.SteuerbetragCHF);
 
             // Walter-Vorgabe 27.05.2026: bei Mindeststeuer effektiven Satz zeigen
             // (Betrag/Brutto), damit die Zeile auf dem Lohnzettel aufgeht.

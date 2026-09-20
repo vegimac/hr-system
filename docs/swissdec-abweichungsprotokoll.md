@@ -52,14 +52,14 @@ Das Quality Tool wird diese Felder ankreiden. Begründung mitnehmen, nicht die E
 | **Begründung** | OneCrew ist L-GAV Gastronomie (5/6 Wochen). Kein stilles Umbiegen auf das Statistikfeld. Kein Lohn-Effekt, solange Austritts-Tage nicht ausgezahlt werden (Muster AG: Flags aus). |
 | **Status** | BEWUSST (BFS). Scharfe Prüfung von `LeaveEntitlement` = eigener Entscheid, nicht hier «fixen». |
 
-### A4 — SV/QST rappengenau, Lohnzeilen und Netto auf 5 Rp.
+### A4 — SV rappengenau, Lohnzeilen/Netto/QST auf 5 Rp.
 
 | | |
 |---|---|
 | **Beleg** | TF01: ALV 114.59, KTG 3.77, UVGZ 80.63 — wären mit Round05 falsch. |
-| **OneCrew** | Lohnzeilen (Ferien/Feiertag/13. ML) + Netto/Auszahlung = `Round05`. AHV/ALV/UVG/UVGZ/KTG/QST = 2 Dezimalen. |
-| **Swissdec-Richtlinie** | spricht von kaufmännischer 5er-Rundung — gilt bei uns für die Lohnzeilen, nicht für die Beitragssätze. |
-| **Status** | BEWUSST (`docs/claude/fachlogik.md`, 09.09.2026) |
+| **OneCrew** | Lohnzeilen (Ferien/Feiertag/13. ML) + Netto/Auszahlung + **QST** = `Round05`. AHV/ALV/UVG/UVGZ/KTG = 2 Dezimalen. |
+| **Swissdec-Richtlinie** | kaufmännische 5er-Rundung — Lohnzeilen und QST (Anhang 1, Walter 20.09.2026). SV-Beiträge bleiben rappengenau. |
+| **Status** | BEWUSST für SV. QST rappengenau ist **keine** bewusste Abweichung mehr. |
 
 ### A5 — 1–2 Rappen in `SocialContributions` (BFS-Summe)
 
@@ -156,14 +156,14 @@ Ankreiden erwartet zusätzlich: A6 (Lehmann QST/Wohnort ab 1.5. vs CSV-Adresse 1
 |---|---|
 | **Beleg** | TF22 Elisabeth Bucher (und alle Monate der fünf Jahresmodell-Kantone) |
 | **OneCrew** | Jahresmodell in `QstJahresmodell` / `ComputeQstDeduction`. Negativ = Rückerstattung. |
-| **Formel (Anhang 1)** | **IST** = steuerbar (CH-Tage). **Satz-Lohn** = (Σ periodisch ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12. **Je Tarifcode ein Topf**; Steuer je Topf = Satz(Code, Satz-Lohn) × Topf auf **5 Rp.** Monatsabzug = Σ Töpfe − bezahlt. |
+| **Formel (Anhang 1)** | **IST** = steuerbar (CH-Tage). **Satz-Lohn** = (Σ periodisch ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12. **Je Tarifcode ein Topf**; Steuer je Topf = Satz(Code, Satz-Lohn) × Topf auf **5 Rp.** Monatsabzug = Σ Töpfe − bezahlt (**nicht** extra runden). |
 | **Auslöser** | Steuerkanton in **GE, FR, VD, VS, TI** (`QstTarifVorschlagLogic.IstQstJahresmodell`). Die übrigen 21 Kantone Monatsmodell. Swissdec-Flag `Y` bestätigt, steuert nicht. |
 | **YTD** | QST-Basis der Snapshots derselben Person im Kalenderjahr (nicht nur aktueller Monat). Akonto + Definitiv + `QstKorrekturService`-Nachrechnung dieselbe Funktion. |
 | **Tarifdateien** | Testmandant braucht nur TI/VD (plus LU/BE). **GE, FR, VS nicht einlesen** — Engine ist kanton-agnostisch, dieselben Sätze gelten, sobald die Dateien später da sind. |
 | **Juni/Dez XML nicht nachbauen** | Juni ist noch **A0N/ledig** (Heirat gilt ab 1.7., Mutation `ValidAsOf` 2025-07-01). Formel Juni = **+240.80**, XML **−2'039.50** (nullt das YTD). Dezember Formel ~**+174**, XML **−3'987.95** (nullt das Jahr auf ~0). Beides ist SalaryCalculator/XML, nicht KS 45 — CSV hat keine QST-Beträge. Nach dem Bau: Jan–Mai TI gegen XML prüfen; Juni/Dez Abweichung zur XML **kein Bug**, solange die Formel gilt. |
 | **K1 vs. Töpfe** | Engine weist Vormonate nach Kenntnisstand (`QstVersionWahl` / Slip-Code) zu. Rückwirkende Version (B ab 1.4., erfahren im Juni) bucht **nur K1** um — nicht nochmals in der Monats-QST (sonst doppelt, Y40). |
 | **Offen (Daten)** | TF29 CSV R0N vs. XML A0N + CH-Tage — Swissdec, nicht nachbauen. |
-| **Stand** | 1–2 Satz-Töpfe 20.09. morgens. 3 Töpfe/Code + 4 Rundung 5 Rp. + 5 QST-Tage 20.09. abends. |
+| **Stand** | 1–2 Satz-Töpfe 20.09. morgens. 3 Töpfe/Code + QST-Tage 20.09. abends. QST Round05 (Topf ja, Monatsabzug nein; Monatsmodell + Pauschale + K1) 20.09. |
 | **Status** | GEBAUT — Januar nach Deploy neu bestätigen (alte Slips ohne `qstCode` fallen auf Waehle zurück). |
 
 Ferien-Saldo +2.92 Tage auf denselben Belegen = A2/A3 (Egli), nicht O1.

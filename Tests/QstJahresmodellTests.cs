@@ -23,6 +23,14 @@ public class QstJahresmodellTests
     }
 
     [Fact]
+    public void Rechne_MonatsabzugNichtAuf5RpRunden()
+    {
+        var r = QstJahresmodell.Rechne(5111.00m, 100.01m, 1, 8.70m);
+        Assert.Equal(444.65m, r.Jahressteuer);
+        Assert.Equal(344.64m, r.QstMonat);
+    }
+
+    [Fact]
     public void Rechne_Negativ_BleibtRueckerstattung()
     {
         var r = QstJahresmodell.Rechne(1000m, 1500m, 2, 0m);

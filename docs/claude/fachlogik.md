@@ -35,7 +35,8 @@
 
 ### Rundungsregel Lohnabrechnung (Walter 09.09.2026, ABSOLUT — Zertifizierungsbedingung)
 - Lohnzeilen (Ferien-/Feiertagentschädigung, 13. Monatslohn, prozentuale Lohnarten) kaufmännisch auf **5 Rappen** (`Round05`, AwayFromZero). Beleg Swissdec TF01: 8'986.40 × 8.33 % = 748.567 → 748.55.
-- SV-Abzüge (AHV/ALV/UVG/UVGZ/KTG/QST) **rappengenau** (Swissdec-Soll: ALV 114.59, KTG 3.77).
+- SV-Abzüge (AHV/ALV/UVG/UVGZ/KTG) **rappengenau** (Swissdec-Soll: ALV 114.59, KTG 3.77).
+- **QST auf 5 Rappen** (`Round05`, AwayFromZero — Walter 20.09.2026, Swissdec Anhang 1). Jahresmodell: kumulierte Steuer **je Tarifcode-Topf** runden, Monatsabzug = Σ Töpfe − bereits bezahlt (nicht extra runden). Monatsmodell und Pauschale (VR/Mitarbeiterbeteiligung): Monatsbetrag Round05; Mindeststeuer unverändert. Korrektur-Posten: alt/neu je 5 Rp., Differenz daraus. Gilt Schaub und Muster AG; Umstellung am Monatsanfang, bereits bestätigte Belege neu rechnen.
 - Nettolohn und Auszahlungsbetrag wieder auf 5 Rappen (`Round05` in PayrollCalculationService).
 - Gilt produktiv genauso wie im Testmandanten.
 

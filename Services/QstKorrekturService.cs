@@ -109,6 +109,7 @@ public class QstKorrekturService
 
             // Alte QST-Zeile aus dem eingefrorenen Slip
             var (alterBetrag, basis, satzBasis) = LeseQstZeile(r.SlipJson);
+            alterBetrag = PayrollCalculations.Round05(alterBetrag);
             var effektivAlt = alterBetrag + bereitsVerrechnet;
 
             // NEU = die rückwirkende Version (Gültig-ab), nicht Waehle(Stichtag).
@@ -136,7 +137,7 @@ public class QstKorrekturService
             }
             else if (sollVersion.Prozentsatz.HasValue)
             {
-                neuerBetrag = Math.Round(basis * sollVersion.Prozentsatz.Value / 100m, 2);
+                neuerBetrag = PayrollCalculations.Round05(basis * sollVersion.Prozentsatz.Value / 100m);
             }
             else
             {
@@ -149,7 +150,9 @@ public class QstKorrekturService
                     istBruttoCHF: basis,
                     jahr: r.Year);
                 if (calc == null) continue; // Tarif nicht ladbar → Monat auslassen (Hinweis via Anzahl)
-                neuerBetrag = calc.SteuerbetragCHF;
+                neuerBetrag = calc.MindeststeuerAngewendet
+                    ? calc.SteuerbetragCHF
+                    : PayrollCalculations.Round05(calc.SteuerbetragCHF);
             }
             if (neuerBetrag < 0 && jahresNeu == null) neuerBetrag = 0;
 

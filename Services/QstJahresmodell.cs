@@ -193,7 +193,7 @@ public static class QstJahresmodell
 
     /// <summary>
     /// Anhang Y15/Y23: je Code Steuer kumuliert = Satz(Code, Satz-Lohn) × Topf (5 Rp.).
-    /// Monatsabzug = Σ Töpfe − bereits bezahlt (5 Rp.).
+    /// Monatsabzug = Σ Töpfe − bereits bezahlt (nicht extra runden).
     /// </summary>
     public static TopfErgebnis RechneToepfe(
         decimal satzLohn,
@@ -213,7 +213,8 @@ public static class QstJahresmodell
             steuer[kv.Key] = topf;
             jahres += topf;
         }
-        var monat = PayrollCalculations.Round05(jahres - bereitsBezahlt);
+        // Monatsabzug nicht runden — sonst laufen die Töpfe gegen Swissdec (Walter 20.09.2026).
+        var monat = jahres - bereitsBezahlt;
         return new TopfErgebnis(satzLohn, jahres, monat, steuer, saetze);
     }
 
