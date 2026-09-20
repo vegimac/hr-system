@@ -298,7 +298,10 @@ public static class PayrollCalculations
         // ahvFreibetragYtdBasen = Σ AHV-Basen (ungedeckelt) der Freibetrag-Vormonate,
         // ahvFreibetragMonateBisher = Anzahl dieser Vormonate (mit Snapshot).
         decimal? ahvFreibetragYtdBasen = null,
-        int ahvFreibetragMonateBisher = 0)
+        int ahvFreibetragMonateBisher = 0,
+        // Monatsnamen für das Beleg-Label, z.B. «Jan.–Feb.» (Walter 21.09.2026: «wo sehe ich,
+        // dass der Betrag für Januar und Februar gilt?»). null = nur Anzahl.
+        string? ahvFreibetragMonateText = null)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -485,7 +488,7 @@ public static class PayrollCalculations
                 ? $"{d.Name} (Verzicht Freibetrag, Wunsch MA)"
                 : d.FreibetragMonthly is > 0
                     ? (freibetragKumuliert && freibetragAngewendet != d.FreibetragMonthly.Value
-                        ? $"{d.Name} (−CHF {freibetragAngewendet:F2} Freibetrag kumuliert, {ahvFreibetragMonateBisher + 1} Mt.)"
+                        ? $"{d.Name} (−CHF {freibetragAngewendet:F2} Freibetrag {ahvFreibetragMonateText ?? (ahvFreibetragMonateBisher + 1) + " Mt."}, {ahvFreibetragMonateBisher + 1} × {d.FreibetragMonthly:F2})"
                         : $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)")
                     : d.Name;
             // Transparenz: im Dezember ist die ALV/NBU-Basis aufgerollt → kennzeichnen
@@ -1481,6 +1484,19 @@ public static class PayrollCalculations
     /// negativ, wenn ein Monat ohne Lohn den Freibetrag nachholt (Rückerstattung).
     /// Beispiel Aebi: Jan 0, Feb 19'850.60 → Feb-Basis 19'850.60 − 2'800 = 17'050.60.
     /// </summary>
+    /// <summary>Monatsliste als Text: zusammenhängend «Jan.–Feb.», sonst «Jan., März, Mai».</summary>
+    public static string MonateAlsText(IReadOnlyList<int> monate)
+    {
+        string[] n = { "Jan.", "Feb.", "März", "April", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez." };
+        if (monate.Count == 0) return "";
+        if (monate.Count == 1) return n[monate[0] - 1];
+        bool zusammenhaengend = true;
+        for (int i = 1; i < monate.Count; i++) if (monate[i] != monate[i - 1] + 1) { zusammenhaengend = false; break; }
+        return zusammenhaengend
+            ? $"{n[monate[0] - 1]}–{n[monate[^1] - 1]}"
+            : string.Join(", ", monate.Select(m => n[m - 1]));
+    }
+
     public static decimal AhvFreibetragKumuliert(decimal basisMonat, decimal freibetrag, decimal ytdBasen, int monateBisher)
     {
         decimal pflichtigBisher = Math.Max(0m, ytdBasen - freibetrag * monateBisher);

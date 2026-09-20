@@ -45,3 +45,10 @@ public class AhvFreibetragKumuliertTests
         Assert.Equal(0m, PayrollCalculations.AhvFreibetragKumuliert(1000m, 1400m, ytdBasen: 1000m, monateBisher: 1));
     }
 }
+
+public class MonateAlsTextTests
+{
+    [Fact] public void Zusammenhaengend() => Assert.Equal("Jan.–Feb.", PayrollCalculations.MonateAlsText(new[] { 1, 2 }));
+    [Fact] public void MitLuecke() => Assert.Equal("Jan., März", PayrollCalculations.MonateAlsText(new[] { 1, 3 }));
+    [Fact] public void Einzeln() => Assert.Equal("März", PayrollCalculations.MonateAlsText(new[] { 3 }));
+}
