@@ -45,8 +45,11 @@ function tmRenderStatus(j) {
 async function tmSchritt(nr, vorschau) {
     const out = document.getElementById('tmErgebnis');
     if (!vorschau) {
+        const nur5c = document.getElementById('tmNur5c')?.value.trim();
         const msg = String(nr) === '5c'
-            ? 'ALLE Lohnzettel und Saldi der Muster AG werden gelöscht. Perioden werden wieder offen. Zulagen und Stammdaten bleiben. Danach den ältesten Monat zuerst neu bestätigen.'
+            ? (nur5c
+                ? `Lohnzettel und Saldi der Filiale(n) ${nur5c} werden gelöscht, die anderen Filialen bleiben. Perioden dieser Filialen werden wieder offen. Zulagen und Stammdaten bleiben. Danach den ältesten Monat zuerst neu bestätigen.`
+                : 'ALLE Lohnzettel und Saldi der Muster AG werden gelöscht. Perioden werden wieder offen. Zulagen und Stammdaten bleiben. Danach den ältesten Monat zuerst neu bestätigen.')
             : `Schritt ${nr} jetzt ANLEGEN? (Vorschau vorher angeschaut?)`;
         const opts = String(nr) === '5c'
             ? { title: 'Lohnläufe verwerfen', yesLabel: 'Ja, löschen', noLabel: 'Abbrechen' }
@@ -57,9 +60,10 @@ async function tmSchritt(nr, vorschau) {
     try {
         const qs = [];
         // 5b hat eigene Filterfelder in seiner Zeile (Walter 08.09.2026); 4a/4c nutzen die oberen.
-        const nurEl   = document.getElementById(String(nr) === '5b' ? 'tmNur5b'   : 'tmNur');
+        // 5c filtert nach Filial-Code (TI, VD …), nicht nach Testfall (Walter 20.09.2026).
+        const nurEl   = document.getElementById(String(nr) === '5b' ? 'tmNur5b' : String(nr) === '5c' ? 'tmNur5c' : 'tmNur');
         const monatEl = document.getElementById(String(nr) === '5b' ? 'tmMonat5b' : 'tmMonat');
-        if (['4', '4c', '5b'].includes(String(nr)) && nurEl?.value.trim()) qs.push(`nur=${encodeURIComponent(nurEl.value.trim())}`);
+        if (['4', '4c', '5b', '5c'].includes(String(nr)) && nurEl?.value.trim()) qs.push(`nur=${encodeURIComponent(nurEl.value.trim())}`);
         if (['4c', '5b'].includes(String(nr)) && monatEl?.value) qs.push(`monat=${encodeURIComponent(monatEl.value)}`);
         const nur = qs.length ? '?' + qs.join('&') : '';
         const r = await fetch(`/api/swissdec/testmandant/schritt${nr}/${vorschau ? 'vorschau' : 'anlegen'}${nur}`,
