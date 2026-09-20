@@ -37,7 +37,7 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 
 ### 5. Stundenlöhner: 180 oder 182 Stunden pro Monat? (TF18 Blanc, Kanton BE)
 - **Was in der XML steht:** Der satzbestimmende Lohn wird mit **182 h** hochgerechnet (42 h × 52 Wochen ÷ 12) → QST 80.30.
-- **Was wir rechnen:** Nach ESTV / Kreisschreiben 45 mit **180 h** → QST 79.26.
+- **Was wir rechnen:** Nach ESTV / Kreisschreiben 45 mit **180 h** → QST 79.25.
 - **Frage:** Verlangt das Quality Tool 182? Dann widerspricht es dem Kreisschreiben.
 
 ### 6. Rundung der SV-Beiträge — 1–2 Rappen in der Statistik-Summe

@@ -101,11 +101,11 @@ Quality-Tool-XML darf hier abweichen. **Nicht** der Engine anpassen.
 | F1 | QST-Code | Eingabe `PersonTASCode` (Egli Nov: **A0Y** → 36.05) | z.B. **A0N** 34.00 | BEWUSST |
 | F2 | ZG BUR-Nummer | `A38197421` | Januar-2025-XML `A38197423` | BEWUSST |
 | F3 | weitere Fallen | PLZ `3008.00`, doppeltes `Contractual13th`, … | siehe `docs/swissdec-testmandant.md` | BEWUSST |
-| F4 | QST Stundenlöhner: Monat = **180 h** (ESTV) | TF18 Blanc Jan 2025: 35 h, Nebenjob 60 % → satzbestimmend **4'821.42**, B0Y **6.72 %**, QST **79.26** | `AscertainedTaxableEarning` **4'859.35**, QST **80.30** (35 / **182** = 42×52/12) | BEWUSST |
+| F4 | QST Stundenlöhner: Monat = **180 h** (ESTV) | TF18 Blanc Jan 2025: 35 h, Nebenjob 60 % → satzbestimmend **4'821.42**, B0Y **6.72 %**, QST **79.25** (Round05; rappengenau 79.26) | `AscertainedTaxableEarning` **4'859.35**, QST **80.30** (35 / **182** = 42×52/12) | BEWUSST |
 
 Regel: Tarif, BUR, PLZ, QST-Code immer aus Stammdaten/CSV, nie aus der RefXML kopieren.
 
-**F4 — Rechnung (nicht nachbauen):** Kreisschreiben 45 / ESTV rechnet den Stundenlöhner auf **180 Stunden/Monat**. OneCrew: eigenes Pensum = 35/180 = 19.44 %, plus weitere AG 60 % → 79.44 %; 1'179.45 × 79.44 / 19.44 = **4'821.42**; Stufe B0Y BE 6.72 % × 1'179.45 = **79.26**. Die Soll-XML nimmt die Filial-Woche (42 h × 52 / 12 = **182 h**) → 4'859.35 und 6.81 % = 80.30. Code: `EstimatePensumFromStunden` / `ComputeSatzBruttoForNebenjob` (`PayrollCalculationService`). 182 h nur, um die XML zu treffen, wäre falsch.
+**F4 — Rechnung (nicht nachbauen):** Kreisschreiben 45 / ESTV rechnet den Stundenlöhner auf **180 Stunden/Monat**. OneCrew: eigenes Pensum = 35/180 = 19.44 %, plus weitere AG 60 % → 79.44 %; 1'179.45 × 79.44 / 19.44 = **4'821.42**; Stufe B0Y BE 6.72 % × 1'179.45 = 79.26 → **79.25** (QST auf 5 Rp., 20.09.2026). Die Soll-XML nimmt die Filial-Woche (42 h × 52 / 12 = **182 h**) → 4'859.35 und 6.81 % = 80.30. Code: `EstimatePensumFromStunden` / `ComputeSatzBruttoForNebenjob` (`PayrollCalculationService`). 182 h nur, um die XML zu treffen, wäre falsch.
 
 ---
 
@@ -139,7 +139,7 @@ AHV 21, Rundung, Ferien-Tage, QST-aus-Stammdaten gelten **auf beiden** — kein 
 
 ## Kurz fürs Quality Tool (Burri Dez 2024)
 
-Ankreiden erwartet: F4 (Blanc QST 79.26 vs 80.30). A1 seit 11.09.2026 behoben.  
+Ankreiden erwartet: F4 (Blanc QST 79.25 vs 80.30). A1 seit 11.09.2026 behoben.  
 Nicht ankreiden / andere XML-Felder: NBU ±2 Rp. (A5), KTG/UVGZ, Ferientage (A2/A3), Stundensaldo ohne CHF.
 
 Nächster Eintrag: wenn ein Beleg-Check eine neue **bewusste** Differenz ergibt — hier ergänzen (ID, TF, Monat, OneCrew, Swissdec, Begründung, Status).
