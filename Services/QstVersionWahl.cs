@@ -28,6 +28,21 @@ public static class QstVersionWahl
             .ThenByDescending(q => q.Id)
             .FirstOrDefault();
 
+    /// <summary>
+    /// Tarif, der am Stichtag GILT nach dem Wissensstand «bekanntBis» — für die
+    /// Jahresmodell-Töpfe (Walter 20.09.2026, Anhang 1 Y40): eine rückwirkend
+    /// erfasste Version (B ab 1.4., erfahren im Juni) verschiebt April/Mai ab
+    /// dem Juni-Lohnlauf in den B-Topf; der K1-Posten ist der Beleg dazu.
+    /// </summary>
+    public static EmployeeQuellensteuer? WaehleRueckwirkend(
+        IEnumerable<EmployeeQuellensteuer> alle, DateOnly stichtag, DateOnly bekanntBis)
+        => alle
+            .Where(q => q.ValidFrom <= stichtag && BekanntAb(q) <= bekanntBis)
+            .OrderByDescending(q => q.ValidFrom)
+            .ThenByDescending(q => BekanntAb(q))
+            .ThenByDescending(q => q.Id)
+            .FirstOrDefault();
+
     /// <summary>Letzter Monat, der den alten Code noch trug (Vormonat von Erfahren am).</summary>
     public static DateOnly? LetzterUnbekannterMonat(EmployeeQuellensteuer q)
     {

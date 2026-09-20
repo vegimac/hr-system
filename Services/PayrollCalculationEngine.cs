@@ -4495,11 +4495,17 @@ public class PayrollCalculationEngine
         var jeCode = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
         foreach (var g in rows.GroupBy(r => r.Month))
         {
-            var stichtag = new DateOnly(year, g.Key, 1).AddMonths(1).AddDays(-1);
-            var v = QstVersionWahl.Waehle(versionen, stichtag);
-            if (v == null || !string.Equals((v.Steuerkanton ?? "").Trim(), kanton, StringComparison.OrdinalIgnoreCase))
-                continue;
-            var codeMonat = QstJahresmodell.CodeVon(v);
+            // Topf = Tarif, der HEUTE für diesen Monat gilt (rückwirkende Version
+            // eingeschlossen, Anhang 1 Y40) — nicht der Code, der im Slip steht.
+            // Der Slip-Code bleibt nur Rückfall für Monate ohne Version.
+            var codeMonat = QstJahresmodell.TopfCodeFuerMonat(versionen, year, g.Key, periodTo, kanton);
+            if (codeMonat == null)
+            {
+                var stichtag = new DateOnly(year, g.Key, 1).AddMonths(1).AddDays(-1);
+                var v = QstVersionWahl.Waehle(versionen, stichtag);
+                if (v == null || !string.Equals((v.Steuerkanton ?? "").Trim(), kanton, StringComparison.OrdinalIgnoreCase))
+                    continue;
+            }
             foreach (var r in g)
             {
                 var z = QstJahresmodell.LeseSlip(r.SlipJson);
@@ -4507,12 +4513,26 @@ public class PayrollCalculationEngine
                 bezahlt += z.QstBezahlt;
                 satz += QstJahresmodell.SatzDesMonats(z);
                 aper += QstJahresmodell.AperiodischDesMonats(z);
-                var code = !string.IsNullOrWhiteSpace(z.TarifCode) ? z.TarifCode : codeMonat;
+                var code = codeMonat ?? z.TarifCode;
                 if (!string.IsNullOrWhiteSpace(code))
                     jeCode[code] = jeCode.GetValueOrDefault(code) + z.IstBasis;
             }
             tage += QstJahresmodell.QstTageDesMonats(year, g.Key, eintritt, austritt);
         }
+
+        // K1-Posten der Kette zählen als bezahlt: die Töpfe tragen April/Mai schon
+        // unter dem neuen Code, der Posten hat die Differenz eingezogen (oder zieht
+        // sie in dieser Periode via QST_KORR ein) — sonst doppelt (TF31 Dez 1'062 statt 1'035).
+        var posten = await _db.QstKorrekturen
+            .Where(k => k.EmployeeId == employee.Id
+                     && k.Jahr == year
+                     && k.Monat >= start.Month
+                     && k.Monat < month
+                     && k.Status != "VORJAHR")
+            .Select(k => k.Differenz)
+            .ToListAsync();
+        bezahlt += posten.Sum();
+
         return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode);
     }
 
@@ -4602,8 +4622,9 @@ public class PayrollCalculationEngine
         else if (jahresmodell)
         {
             // IST = steuerbar (CH-Tage). Satz = Nebenerwerb auf vollem Lohn;
-            // Bonus ÷ 12. Je Tarifcode ein Topf (Anhang Y15) — rückwirkende
-            // Umbuchung macht K1, nicht dieser Zweig (sonst doppelt).
+            // Bonus ÷ 12. Je Tarifcode ein Topf (Anhang Y15). Rückwirkende
+            // Versionen sitzen bereits im richtigen Topf (Loader, Y40); der
+            // K1-Posten ist der Beleg der Umbuchung und zählt als bezahlt.
             var ytd = _qstJahresYtd!.Value;
             decimal monatAperiodisch = Math.Max(0m, aperiodisch);
             decimal monatPeriodicSatz = satzBrutto - monatAperiodisch;

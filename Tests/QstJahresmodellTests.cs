@@ -251,6 +251,45 @@ public class QstJahresmodellTests
         return new QuellensteuerTarifService(env, NullLogger<QuellensteuerTarifService>.Instance);
     }
 
+    [Fact]
+    public void TopfCode_RueckwirkendeVersion_WandertAbErfahrenMonatInNeuenTopf()
+    {
+        // TF31 Bolletto: A0N ab 1.1., B0N gültig ab 1.4., erfahren am 15.6.
+        var versionen = new List<EmployeeQuellensteuer>
+        {
+            new() { Id = 1, Steuerkanton = "VD", TarifCode = "A", AnzahlKinder = 0, Kirchensteuer = false, ValidFrom = new DateOnly(2025, 1, 1) },
+            new() { Id = 2, Steuerkanton = "VD", TarifCode = "B", AnzahlKinder = 0, Kirchensteuer = false, ValidFrom = new DateOnly(2025, 4, 1), ErfahrenAm = new DateOnly(2025, 6, 15) },
+        };
+        // Mai-Lohnlauf (Wissen bis 31.5.): April noch A0N.
+        Assert.Equal("A0N", QstJahresmodell.TopfCodeFuerMonat(versionen, 2025, 4, new DateOnly(2025, 5, 31), "VD"));
+        // Juni-Lohnlauf (Wissen bis 30.6.): April und Mai im B0N-Topf, März bleibt A0N.
+        Assert.Equal("B0N", QstJahresmodell.TopfCodeFuerMonat(versionen, 2025, 4, new DateOnly(2025, 6, 30), "VD"));
+        Assert.Equal("B0N", QstJahresmodell.TopfCodeFuerMonat(versionen, 2025, 5, new DateOnly(2025, 6, 30), "VD"));
+        Assert.Equal("A0N", QstJahresmodell.TopfCodeFuerMonat(versionen, 2025, 3, new DateOnly(2025, 6, 30), "VD"));
+        // Anderer Kanton → nicht Teil der Kette.
+        Assert.Null(QstJahresmodell.TopfCodeFuerMonat(versionen, 2025, 4, new DateOnly(2025, 6, 30), "TI"));
+    }
+
+    [Fact]
+    public void Bolletto_Dezember_MitUmgebuchtenToepfenUndK1AlsBezahlt()
+    {
+        // Anhang 1 Y23/Y40 + RefXML TF31: A0N Jan–Mär 15'000, B0N Apr–Dez 50'000 (inkl. 13. ML),
+        // Satz-Lohn Dezember 5'416.65. Bezahlt = 3×419 + 2×419 + Juni (117 + K1 −604) + 5×117.
+        var svc = CreateTarifService();
+        decimal satzLohn = 5416.65m;
+        var aPct = svc.GetSteuersatzProzent("VD", "A", 0, false, satzLohn, 2025) ?? throw new InvalidOperationException("tar25vd A0N fehlt");
+        var bPct = svc.GetSteuersatzProzent("VD", "B", 0, false, satzLohn, 2025) ?? throw new InvalidOperationException("tar25vd B0N fehlt");
+        var toepfe = new Dictionary<string, decimal> { ["A0N"] = 15000m, ["B0N"] = 50000m };
+        decimal bezahlt = 3 * 419m + 2 * 419m + 117m + (-604m) + 5 * 117m;
+        var t = QstJahresmodell.RechneToepfe(satzLohn, toepfe, c => c == "B0N" ? bPct : aPct, bezahlt);
+        Assert.Equal(1035.00m, t.QstMonat);
+        // Ohne Umbuchung (April/Mai bleiben im A-Topf, Posten nicht bezahlt) läge Dezember bei 1'062 — falsch.
+        var falsch = QstJahresmodell.RechneToepfe(satzLohn,
+            new Dictionary<string, decimal> { ["A0N"] = 25000m, ["B0N"] = 40000m },
+            c => c == "B0N" ? bPct : aPct, 5 * 419m + 6 * 117m);
+        Assert.Equal(1062.00m, falsch.QstMonat);
+    }
+
     private static string RepoRoot
     {
         get

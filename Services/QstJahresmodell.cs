@@ -53,6 +53,25 @@ public static class QstJahresmodell
         return (q.QstCode ?? "").Trim();
     }
 
+    /// <summary>
+    /// Tarifcode-Topf eines Vormonats nach heutigem Wissensstand (Anhang 1 Y40):
+    /// Version, die am Monatsende gilt und bis «bekanntBis» erfasst wurde —
+    /// rückwirkende Versionen inklusive. null = keine Version oder anderer Kanton
+    /// (Monat gehört nicht zur Kette). Der Slip-Code ist nur Rückfall ohne Version.
+    /// </summary>
+    public static string? TopfCodeFuerMonat(
+        IEnumerable<EmployeeQuellensteuer> versionen,
+        int jahr, int monat, DateOnly bekanntBis, string kanton)
+    {
+        var stichtag = new DateOnly(jahr, monat, 1).AddMonths(1).AddDays(-1);
+        var v = QstVersionWahl.WaehleRueckwirkend(versionen, stichtag, bekanntBis);
+        if (v == null) return null;
+        if (!string.Equals((v.Steuerkanton ?? "").Trim(), (kanton ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+            return null;
+        var code = CodeVon(v);
+        return string.IsNullOrWhiteSpace(code) ? null : code;
+    }
+
     public static bool TryParseCode(string? code, out string tarif, out int kinder, out bool kirche)
     {
         tarif = "";
