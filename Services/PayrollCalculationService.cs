@@ -290,7 +290,15 @@ public static class PayrollCalculations
         decimal ausgleichMonateBisher = -1m,
         string? ausgleichLabel = null,
         // Wohnadresse am Periodenende aus der Wohnort-Historie (null = Stammdaten) — Walter 20.09.2026
-        (string Strasse, string PlzOrt)? adresseZurPeriode = null)
+        (string Strasse, string PlzOrt)? adresseZurPeriode = null,
+        // AHV-Freibetrag kumuliert (Walter 21.09.2026, AHVV Art. 6quater / Swissdec TF16 Aebi
+        // Feb 2025): 1'400 pro Beschäftigungsmonat ab Freibetrag-Beginn, auch angebrochene
+        // Monate; nicht ausgeschöpfter Freibetrag wird im Jahr nachgeholt (Januar ohne Lohn,
+        // Honorar im Februar → 2 × 1'400). null = flache Monatsrechnung (Alt-Aufrufer/Tests).
+        // ahvFreibetragYtdBasen = Σ AHV-Basen (ungedeckelt) der Freibetrag-Vormonate,
+        // ahvFreibetragMonateBisher = Anzahl dieser Vormonate (mit Snapshot).
+        decimal? ahvFreibetragYtdBasen = null,
+        int ahvFreibetragMonateBisher = 0)
     {
         // ── Phase 3 · Etappe 1 (Walter-Vorgabe 18.08.2026) ────────────────
         // Die PRODUKTIVEN SV-Basen kommen aus den Katalog-Flags der Lohn-
@@ -351,8 +359,27 @@ public static class PayrollCalculations
 
             // Freibetrag abziehen (z.B. AHV 65+: CHF 1'400/Mt.)
             // Basis = max(0, Lohn − Freibetrag)
+            decimal freibetragAngewendet = 0m;
+            bool freibetragKumuliert = false;
             if (d.FreibetragMonthly is > 0)
-                basis = Math.Max(0, basis - d.FreibetragMonthly.Value);
+            {
+                if (ahvFreibetragYtdBasen.HasValue)
+                {
+                    // Kumuliert (Aufrollung wie ALV): pflichtig bis inkl. Periode − pflichtig bisher.
+                    // Kann negativ werden (Monat ohne Lohn, Freibetrag des Monats wird nachgeholt).
+                    decimal vor = basis;
+                    basis = AhvFreibetragKumuliert(basis, d.FreibetragMonthly.Value,
+                        ahvFreibetragYtdBasen.Value, ahvFreibetragMonateBisher);
+                    freibetragAngewendet = vor - basis;
+                    freibetragKumuliert = true;
+                }
+                else
+                {
+                    decimal vor = basis;
+                    basis = Math.Max(0, basis - d.FreibetragMonthly.Value);
+                    freibetragAngewendet = vor - basis;
+                }
+            }
 
             // BVG-Versicherungspflicht (Walter-Vorgabe 22.05.2026): nur auf BVG-Sätzen
             // gesetzt. svBases.Bvg = BVG-pflichtiger Monats-Brutto (vor Koordination).
@@ -457,7 +484,9 @@ public static class PayrollCalculations
             string abzugBezeichnung = d.AhvFreibetragVerzicht
                 ? $"{d.Name} (Verzicht Freibetrag, Wunsch MA)"
                 : d.FreibetragMonthly is > 0
-                    ? $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)"
+                    ? (freibetragKumuliert && freibetragAngewendet != d.FreibetragMonthly.Value
+                        ? $"{d.Name} (−CHF {freibetragAngewendet:F2} Freibetrag kumuliert, {ahvFreibetragMonateBisher + 1} Mt.)"
+                        : $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)")
                     : d.Name;
             // Transparenz: im Dezember ist die ALV/NBU-Basis aufgerollt → kennzeichnen
             if (dezAusgleich) abzugBezeichnung += ausgleichLabel ?? " (kumuliert)";
@@ -1444,6 +1473,21 @@ public static class PayrollCalculations
     /// Mehrere/überlappende Verträge (Filialwechsel) zählen pro Tag nur einmal.
     /// (Walter 11.09.2026)
     /// </summary>
+    /// <summary>
+    /// AHV-Freibetrag kumuliert (AHVV Art. 6quater, Walter 21.09.2026 / Swissdec TF16 Aebi):
+    /// Freibetrag = 1'400 × Beschäftigungsmonate ab Freibetrag-Beginn (angebrochene Monate
+    /// zählen voll). Pflichtig bis inkl. Periode = max(0, Σ Basen − Freibetrag × (bisher + 1)),
+    /// pflichtig bisher = max(0, Σ Vormonate − Freibetrag × bisher). Periode = Differenz —
+    /// negativ, wenn ein Monat ohne Lohn den Freibetrag nachholt (Rückerstattung).
+    /// Beispiel Aebi: Jan 0, Feb 19'850.60 → Feb-Basis 19'850.60 − 2'800 = 17'050.60.
+    /// </summary>
+    public static decimal AhvFreibetragKumuliert(decimal basisMonat, decimal freibetrag, decimal ytdBasen, int monateBisher)
+    {
+        decimal pflichtigBisher = Math.Max(0m, ytdBasen - freibetrag * monateBisher);
+        decimal pflichtigTotal  = Math.Max(0m, ytdBasen + basisMonat - freibetrag * (monateBisher + 1));
+        return pflichtigTotal - pflichtigBisher;
+    }
+
     public static decimal BeschaeftigungsMonate(IEnumerable<Employment> employments, int year, int von, int bis, ISet<int>? nurMonate = null)
     {
         decimal summe = 0m;

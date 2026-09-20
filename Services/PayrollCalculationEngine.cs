@@ -133,6 +133,21 @@ public class PayrollCalculationEngine
         ).ToListAsync();
         List<decimal>? ytdSvBasesDez = ytdSnapshots.Select(x => x.SvBasisAhv).ToList();
         var ytdMonate = ytdSnapshots.Select(x => x.Month).ToHashSet();
+        // AHV-Freibetrag kumuliert (Walter 21.09.2026, AHVV Art. 6quater, Swissdec TF16 Aebi Feb 2025):
+        // Vormonate desselben Jahres, in denen der Freibetrag schon galt (ab Folgemonat des
+        // Referenzalters) und die in OneCrew abgerechnet sind — Basen + Anzahl Monate.
+        // Ein Monat mit Snapshot und Lohn 0 (Aebi Januar, Wiedereintritt 15.1.) zählt als
+        // Beschäftigungsmonat und bringt seinen Freibetrag in den Februar.
+        decimal? ahvFreibetragYtd = null;
+        int ahvFreibetragMonateBisher = 0;
+        if (employee.DateOfBirth.HasValue)
+        {
+            var freibetragMonate = ytdSnapshots
+                .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month))
+                .ToList();
+            ahvFreibetragYtd = freibetragMonate.Sum(x => x.SvBasisAhv);
+            ahvFreibetragMonateBisher = freibetragMonate.Select(x => x.Month).Distinct().Count();
+        }
         decimal kapMonateBisher = PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, 1, month - 1, ytdMonate);
         decimal kapMonateTotal  = kapMonateBisher + PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, month, month);
 
@@ -3079,7 +3094,9 @@ public class PayrollCalculationEngine
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
                 darlehenSaldoNeu: dlSaldoNeu,
-                adresseZurPeriode: _adresseZurPeriode);
+                adresseZurPeriode: _adresseZurPeriode,
+                ahvFreibetragYtdBasen: ahvFreibetragYtd,
+                ahvFreibetragMonateBisher: ahvFreibetragMonateBisher);
             return new OkObjectResult(result);
         }
         else if (isUTP)
@@ -3710,7 +3727,9 @@ public class PayrollCalculationEngine
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
                 darlehenSaldoNeu: dlSaldoNeu,
-                adresseZurPeriode: _adresseZurPeriode);
+                adresseZurPeriode: _adresseZurPeriode,
+                ahvFreibetragYtdBasen: ahvFreibetragYtd,
+                ahvFreibetragMonateBisher: ahvFreibetragMonateBisher);
             return new OkObjectResult(result);
         }
         else // FIX / FIX-M – Monatslohn + Stunden-Saldo (Soll/Ist), kein Mehrstunden-Auszahlung
@@ -4350,7 +4369,9 @@ public class PayrollCalculationEngine
                 hatDarlehenSaldo: hatDarlehenSaldo, darlehenVormonat: dlVormonat,
                 darlehenAuszahlung: dlPayoutTotal, darlehenRateBezogen: dlBezogen,
                 darlehenSaldoNeu: dlSaldoNeu,
-                adresseZurPeriode: _adresseZurPeriode);
+                adresseZurPeriode: _adresseZurPeriode,
+                ahvFreibetragYtdBasen: ahvFreibetragYtd,
+                ahvFreibetragMonateBisher: ahvFreibetragMonateBisher);
             return new OkObjectResult(result);
         }
       } // end try
