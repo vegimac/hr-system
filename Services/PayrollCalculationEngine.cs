@@ -3961,7 +3961,10 @@ public class PayrollCalculationEngine
             decimal normalWeekly = company.NormalWeeklyHours ?? 42m;
             // Exakt rechnen (Walter 31.07.2026); Anzeige-Soll erst danach runden.
             decimal weeklySoll   = emp.WeeklyHours ?? (normalWeekly * pct / 100m);
-            int periodDays       = periodTo.DayNumber - periodFrom.DayNumber + 1;
+            // Eintritt mitten im Monat: Soll nur ab Vertragsbeginn (wie MTP über
+            // shortPeriodDays). Vorher zählte periodFrom → voller Monat Soll und
+            // Phantom-Minusstunden (Swissdec TF26 Jenzer Feb: 160 h statt 108.57 h).
+            int periodDays       = isShortPeriod ? shortPeriodDays : normalPeriodDays;
             decimal sollStundenFixExakt = weeklySoll / 7m * periodDays;
             // Absenzen mit Matrix-Wirkung «Soll reduzieren» (FIX): Militär/
             // Zivilschutz (L-GAV Art. 28) + EO Mutter-/Vaterschaft — während
