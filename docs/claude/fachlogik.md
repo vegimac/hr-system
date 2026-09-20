@@ -31,6 +31,7 @@
 ### Teilmonat-Methode pro Filiale (Walter 09.09.2026)
 - `CompanyProfile.TeilmonatMethode` (`teilmonat_methode`): TAGESSATZ365 (Standard, bisher: Lohn × 12 ÷ 365 × Kalendertage), KALENDERTAGE (Tage ÷ Monatstage), TAGE30 (30-Tage-Methode: Tag 31 = 30, Monatsende = 30). Nur anteiliger Monatslohn FIX/FIX-M (`PayrollCalculationEngine.TeilmonatAnteil`); Taggelder/Absenzen/Ferienbezug bleiben 365er-Kalendertag-Satz.
 - Schaub bleibt auf TAGESSATZ365 (Walter-Entscheid); Testmandant TAGE30 (Schritt 5a).
+- **Ferien-/Feiertag-Tage-Gutschrift im Ein-/Austrittsmonat anteilig (Walter 20.09.2026):** derselbe Teilmonat-Faktor wie beim Monatslohn (`TeilmonatAnteil(methode, 1, …)`), vor der UU-Kürzung; voller Monat unverändert 35/12 bzw. 0.5. Vorher lief im Teilmonat ein voller Monat auf — bei Schaub (Ferientage am Austritt ausbezahlt) zu viel Geld.
 - Testmandant 5b: Swissdec-Lohnkorrektur 1001 im Ein-/Austrittsmonat wird **nie** importiert (OneCrew rechnet TAGE30 selbst, Eintrittstag zählt). Weicht die CSV ab (TF25/26 Februar 8'000 vs 8'400) → A7, nicht verbiegen. 1001 in einem vollen Monat (echte Korrektur) weiter vorzeichenrichtig als Zulage.
 
 ### Rundungsregel Lohnabrechnung (Walter 09.09.2026, ABSOLUT — Zertifizierungsbedingung)

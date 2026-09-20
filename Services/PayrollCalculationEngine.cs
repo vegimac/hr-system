@@ -981,6 +981,17 @@ public class PayrollCalculationEngine
         decimal annualFerienTage    = vacationWeeks * 7m;
         decimal ferienTageAccrual   = Math.Round(annualFerienTage / 12m, 4); // monatliche Gutschrift
 
+        // Ein-/Austrittsmonat (Walter 20.09.2026, Swissdec TF21 Meier 15 Tage / TF26 Jenzer 21 Tage):
+        // die Tage-Gutschrift entsteht nur für die Vertragszeit — anteilig nach derselben
+        // Teilmonat-Methode wie der Monatslohn (Schaub TAGESSATZ365, Muster AG TAGE30).
+        // Vorher lief im Teilmonat ein voller Monat (+2.92) auf; bei Schaub werden die Tage
+        // am Austritt ausbezahlt, das war also zu viel Geld. Gilt auch für die Feiertage.
+        decimal teilmonatFaktor = isShortPeriod
+            ? Math.Round(TeilmonatAnteil(company.TeilmonatMethode, 1m, periodEffectiveFrom, periodTo, shortPeriodDays, normalPeriodDays), 6)
+            : 1m;
+        if (teilmonatFaktor < 1m)
+            ferienTageAccrual = Math.Round(ferienTageAccrual * teilmonatFaktor, 4);
+
         // Walter-Vorgabe 27.06.2026: Bei UNBEZAHLTEM URLAUB wird der Ferien-
         // ANSPRUCH in TAGEN für ALLE Modelle anteilig gekürzt — während des
         // unbezahlten Urlaubs entsteht kein Ferienanspruch. Es wird NUR die
@@ -1041,7 +1052,7 @@ public class PayrollCalculationEngine
         decimal feiertagTageGenommen   = 0m;
         if (isFIX)
         {
-            feiertagTageAccrual = 0.5m;
+            feiertagTageAccrual = teilmonatFaktor < 1m ? Math.Round(0.5m * teilmonatFaktor, 4) : 0.5m;
             // UU-Kürzung auf 365tel-Basis (Walter-Vorgabe 27.06.2026): der
             // Jahres-Feiertaganspruch (0.5/Mt × 12 = 6 Tage) / 365 × UU-Tage
             // entfällt — gleiche Logik wie bei den Ferien-Tagen.
@@ -5285,7 +5296,7 @@ public class PayrollCalculationEngine
         return (Math.Max(0, ende - start + 1), 30);
     }
 
-    internal static decimal TeilmonatAnteil(string? methode, decimal monatslohn, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
+    public static decimal TeilmonatAnteil(string? methode, decimal monatslohn, DateOnly von, DateOnly bis, int kalendertage, int monatstage)
     {
         switch ((methode ?? "TAGESSATZ365").ToUpperInvariant())
         {
