@@ -198,6 +198,7 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
         mut[monat][tag] = neu
 
     zeilen = []
+    hinweis = None
     per_kum, aper_kum, tage_kum = 0.0, 0.0, 0
     ch_kum, eff_kum = 0.0, 0.0
     tage_ch = float(tfdata.get("PersonWorkingDaysCH") or 0)
@@ -208,6 +209,14 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
     for m in range(1, 13):
         ym = "%d-%02d" % (jahr, m)
         if ym in mut:
+            # Kantonswechsel / Modellwechsel: ab hier gilt das Jahresmodell dieses Kantons nicht mehr
+            # (TF25 TI→LU ab Mai, TF35 TI→BE ab September = Monatsmodell, andere Tarifdatei).
+            neu_kanton = mut[ym].get("PersonTASCanton")
+            neu_modell = mut[ym].get("PersonTASCalculationModel")
+            if (neu_kanton and neu_kanton != kanton) or (neu_modell and neu_modell != "Y"):
+                hinweis = "ab %s: QST-Kanton %s, Modell %s → nicht mehr Jahresmodell %s, hier nicht geführt" % (
+                    ym[5:], neu_kanton or kanton, neu_modell or "Y", kanton)
+                break
             if "PersonWithdrawalDate" in mut[ym] and mut[ym]["PersonWithdrawalDate"]:
                 austritt = d_parse(mut[ym]["PersonWithdrawalDate"])
             if "PersonOtherActivity" in mut[ym]:
@@ -222,7 +231,13 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
                 tage_eff = float(mut[ym]["PersonEffectiveWorkingDays"] or 0)
         tage = sv_tage(jahr, m, eintritt, austritt)
         z = wt.get(tf, {}).get(ym, {})
-        per = sum(v for c, v in z.items() if kat[c].get("qst") and c not in APERIODISCH and c not in ML13)
+        per = sum(v for c, v in z.items() if kat[c].get("qst") and c not in APERIODISCH and c not in ML13 and c != "1001")
+        if 0 < tage < 30:
+            # Ein-/Austrittsmonat: OneCrew rechnet TAGE30 selbst (Eintrittstag zählt), die CSV-Korrektur 1001
+            # wird nicht importiert (A7, fachlogik «Teilmonat-Methode»). TF25/26 Feb: 12'000 × 21/30 = 8'400.
+            per += r05(z.get("1000", 0.0) * tage / 30) - z.get("1000", 0.0)   # Lohnzeile auf 5 Rp.
+        else:
+            per += z.get("1001", 0.0)
         ml13 = sum(v for c, v in z.items() if c in ML13)
         aper = sum(v for c, v in z.items() if kat[c].get("qst") and c in APERIODISCH)
         if tage == 0 and not z:
@@ -258,7 +273,7 @@ def rechne(tf, jahr, tfdata, mutationen, wt, kat, kanton):
                        "ratio": (ratio_m, ratio_k) if ratio_m < 1 or ratio_k < 1 else None,
                        "saetze": {c: satz(kanton, jahr, c, sb) for c in toepfe if c}, "toepfe": dict(toepfe),
                        "abzug": abzug, "kum": bezahlt})
-    return zeilen
+    return zeilen, hinweis
 
 
 def main():
@@ -277,7 +292,9 @@ def main():
     md = ["# QST-Jahresmodell — Soll nach Anhang 1 vs. RefXML (%d)\n" % jahr,
           "Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, "
           "Steuer kumuliert = Satz(Code, SB) × Topf (5 Rp.), Monatsabzug = Σ Töpfe − bisher abgezogen. "
-          "XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar%s*.txt`.\n" % str(jahr)[2:]]
+          "XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar%s*.txt`. "
+          "Ein-/Austrittsmonat: Monatslohn × Tage/30 (TAGE30, Eintrittstag zählt), CSV-1001 verworfen (A7). "
+          "Kantons-/Modellwechsel beendet die Tabelle (Monatsmodell des neuen Kantons).\n" % str(jahr)[2:]]
     for tf in sorted(tfdata):
         if nur and tf not in nur:
             continue
@@ -288,7 +305,7 @@ def main():
         if not any(m[:4] == str(jahr) for m in wt.get(tf, {})):
             continue
         try:
-            zeilen = rechne(tf, jahr, d, mutationen, wt, kat, kanton)
+            zeilen, hinweis = rechne(tf, jahr, d, mutationen, wt, kat, kanton)
         except KeyError as e:
             md.append("## %s %s — %s\n" % (tf, d["_name"], e))
             continue
@@ -312,6 +329,8 @@ def main():
         total_modell = sum(z["abzug"] for z in zeilen)
         total_xml = sum(e["total"] for e in x.values())
         md.append("| **Jahr** | | | | | | **%.2f** | **%.2f** | | |\n" % (total_modell, total_xml))
+        if hinweis:
+            md.append("_%s._\n" % hinweis)
     out = os.path.join(ROOT, "SWISSCEC/Abgleich/qst_jahresmodell_soll.md")
     open(out, "w", encoding="utf-8").write("\n".join(md))
     print("\n".join(md))

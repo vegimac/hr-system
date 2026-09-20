@@ -35,3 +35,9 @@ Elektronische Lohnmeldung: Konzept + Etappenplan E1–E9 in `docs/swissdec-elm6-
 
 Lebende Liste der **bewussten** Differenzen zum Quality Tool: `docs/swissdec-abweichungsprotokoll.md`.
 Erste Einträge aus dem Beleg-Check Muster AG (u.a. TF07 Burri Dez = AHV 21; TF14 Egli Ferien-Tage; SV rappengenau; CSV vor XML-Falle). Nicht in Richtung Soll-XML biegen.
+
+## Stand 20.09.2026 — Februar TI Beleg-Check (Claude)
+- Februar 2025 TI, 12 Belege gegen CSV + Anhang 1: **alle Beträge grün** (SV rappengenau inkl. Aufrollung Koller/Roos/Forster/Meier Max; QST Jahresmodell alle 12; A5-Rappen bei Meier Chr./Roos; A7 bei Lehmann/Jenzer: 8'400 → QST 1'002.00 / 798.00 statt XML 925.70 / 737.15).
+- **Offen:** Beleg-Adresse TF25 Lehmann (zeigt Malters, Feb = Milano) und TF35 Roos (zeigt Bern, Umzug erst 1.9.2025). Vorab-PDF rendert `slip_json` → nach Deploy von `419d8b8` Februar TI verwerfen (5c `?nur=TI`) und neu bestätigen. Roos braucht in der Wohnort-Historie einen abgeschlossenen Eintrag Bellinzona bis 31.8.2025 (`AdresseZurPeriodeAsync` ignoriert `DatumOffen`, sonst heutige Stammdaten).
+- Soll-Tabelle regeneriert (`Scripts/swissdec_qst_jahresmodell_soll.py`): Ein-/Austrittsmonat jetzt TAGE30 × Monatslohn (Round05), CSV-1001 verworfen (A7); Kantons-/Modellwechsel beendet die Tabelle (TF25 ab Mai LU, TF35 ab Sept BE) statt «Tarif fehlt».
+- März-Soll TF21 (Austritt 15.3.): 1'000 + 13. Pott 416.65 + Abgangsentschädigung 500 (kein UVG/UVGZ) = 1'916.65; SB 5'691.65 (13. ML periodisch × 90/40, QST-Tage 15); A0N 9.7 % → 228.40. TF41 (Austritt 31.3.): ALV 135.85 / ALVZ −11.75 / NBU 198.34 kumuliert; QST 1'650.00; Netto 7'497.55.

@@ -1,6 +1,6 @@
 # QST-Jahresmodell — Soll nach Anhang 1 vs. RefXML (2025)
 
-Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, Steuer kumuliert = Satz(Code, SB) × Topf (5 Rp.), Monatsabzug = Σ Töpfe − bisher abgezogen. XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar25*.txt`.
+Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodisch) ÷ 12; je Tarifcode ein Topf, Steuer kumuliert = Satz(Code, SB) × Topf (5 Rp.), Monatsabzug = Σ Töpfe − bisher abgezogen. XML = Current + Korrekturen desselben Monats. Tarife: `Assets/Quellensteuer/tar25*.txt`. Ein-/Austrittsmonat: Monatslohn × Tage/30 (TAGE30, Eintrittstag zählt), CSV-1001 verworfen (A7). Kantons-/Modellwechsel beendet die Tabelle (Monatsmodell des neuen Kantons).
 
 ## TF17 Binggeli Fritz (TI, Modell Y, Pensum AG1 70.0%, Nebenerwerb 30.0%)
 
@@ -101,18 +101,27 @@ Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodis
 | 12 | C0N | 20500.00 | — | 10291.67 | — | B0N 11.00% / C0N 14.20% | 3978.00 | — |  |  |
 | **Jahr** | | | | | | **14945.00** | **10967.00** | | |
 
-## TF25 Lehmann Nadine — 'Tarif TI 2025 A0Y fehlt'
+## TF25 Lehmann Nadine (TI, Modell M, Pensum AG1 100.0%)
+
+| Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 02 | A0N | 6000.00 | 5714.30 | 12000.00 | 11428.55 | A0N 16.70% | 1002.00 | 925.70 | 76.30 |  |
+| 03 | A0N | 5400.00 | 5400.00 | 12000.00 | 11764.70 | A0N 16.70% | 901.80 | 908.15 | -6.35 |  |
+| 04 | A0N | 10800.00 | 0.00 | 12000.00 | 0.00 | A0N 16.70% | 1803.60 | 0.00 | 1803.60 |  |
+| **Jahr** | | | | | | **3707.40** | **5526.10** | | |
+
+_ab 05: QST-Kanton LU, Modell Y → nicht mehr Jahresmodell TI, hier nicht geführt._
 
 ## TF26 Jenzer Marcel (TI, Modell Y, Pensum AG1 100.0%)
 
 | Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| 02 | R0N | 5714.29 | 5714.30 | 11428.57 | 11428.55 | R0N 12.90% | 737.15 | 737.15 | ✓ |  |
-| 03 | R0N | 5400.00 | 5400.00 | 11764.71 | 11764.70 | R0N 13.20% | 729.95 | 729.95 | ✓ |  |
-| 04 | R0N | 10800.00 | 10800.00 | 11851.85 | 11851.85 | R0N 13.30% | 1447.50 | 1447.50 | ✓ |  |
-| 05 | R0N | 0.00 | 0.00 | 11891.89 | 11891.90 | R0N 13.30% | 0.00 | 0.00 | ✓ |  |
-| 06 | R0N | 6382.53 | 6382.55 | 12896.82 | 12896.80 | R0N 14.00% | 1046.95 | 1046.95 | ✓ |  |
-| **Jahr** | | | | | | **3961.55** | **3961.55** | | |
+| 02 | R0N | 6000.00 | 5714.30 | 12000.00 | 11428.55 | R0N 13.30% | 798.00 | 737.15 | 60.85 |  |
+| 03 | R0N | 5400.00 | 5400.00 | 12000.00 | 11764.70 | R0N 13.30% | 718.20 | 729.95 | -11.75 |  |
+| 04 | R0N | 10800.00 | 10800.00 | 12000.00 | 11851.85 | R0N 13.30% | 1436.40 | 1447.50 | -11.10 |  |
+| 05 | R0N | 0.00 | 0.00 | 12000.00 | 11891.90 | R0N 13.30% | 0.00 | 0.00 | ✓ |  |
+| 06 | R0N | 6382.53 | 6382.55 | 12992.06 | 12896.80 | R0N 14.00% | 1048.95 | 1046.95 | 2.00 |  |
+| **Jahr** | | | | | | **4001.55** | **3961.55** | | |
 
 ## TF29 Forster Moreno (TI, Modell Y, Pensum AG1 60.0%, Nebenerwerb 20.0%)
 
@@ -168,7 +177,21 @@ Modell: SB-Lohn = (Σ periodisch hochgerechnet ÷ QST-Tage × 360 + Σ aperiodis
 | 12 | B1N | 10215.00 | 10215.00 | 5577.92 | 5577.90 | A0N 9.50% / B0N 4.70% / B1N 2.30% | 485.10 | 485.10 | ✓ |  |
 | **Jahr** | | | | | | **2739.50** | **2739.55** | | |
 
-## TF35 Roos Roland — 'Tarif TI 2025 B0Y fehlt'
+## TF35 Roos Roland (TI, Modell Y, Pensum AG1 100.0%)
+
+| Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| 01 | A0N | 5000.00 | 5000.00 | 5000.00 | 5000.00 | A0N 8.50% | 425.00 | 425.00 | ✓ |  |
+| 02 | A0N | 35000.00 | 35000.00 | 7500.00 | 7500.00 | A0N 12.30% | 4495.00 | 4495.00 | ✓ |  |
+| 03 | A0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% | 615.00 | 615.00 | ✓ |  |
+| 04 | A0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% | 615.00 | 615.00 | ✓ |  |
+| 05 | A0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% | 615.00 | 615.00 | ✓ |  |
+| 06 | B0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% / B0N 7.50% | 375.00 | 375.00 | ✓ |  |
+| 07 | B0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% / B0N 7.50% | 375.00 | 375.00 | ✓ |  |
+| 08 | B0N | 5000.00 | 5000.00 | 7500.00 | 7500.00 | A0N 12.30% / B0N 7.50% | 375.00 | 375.00 | ✓ |  |
+| **Jahr** | | | | | | **7890.00** | **9637.10** | | |
+
+_ab 09: QST-Kanton BE, Modell M → nicht mehr Jahresmodell TI, hier nicht geführt._
 
 ## TF41 Meier Max (TI, Modell Y, Pensum AG1 100.0%)
 
