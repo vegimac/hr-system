@@ -1856,7 +1856,7 @@ function renderLohnSlip(s, targetEl) {
             <td class="ls-num">${l.prozent != null ? fmtNum(l.prozent, 3) : ''}</td>
             <td class="ls-num">${l.basis   != null ? fmt(l.basis) : ''}</td>
             <td class="ls-amt"></td>
-            <td class="ls-amt" style="color:#dc2626">${fmt(l.betrag)}</td>
+            <td class="ls-amt" style="color:${Number(l.betrag) > 0 ? '#059669' : '#dc2626'}">${Number(l.betrag) > 0 ? '+' : ''}${fmt(l.betrag)}</td>
         </tr>`).join('');
 
     const salutation = s.salutation === 'Frau' ? 'Frau' : s.salutation === 'Herr' ? 'Herr' : '';
@@ -1897,7 +1897,7 @@ function renderLohnSlip(s, targetEl) {
                 <tr class="ls-total-row">
                     <td colspan="4" class="ls-desc">Total Abzüge</td>
                     <td class="ls-amt"></td>
-                    <td class="ls-amt" style="color:#dc2626">${fmt(s.totalAbzuege)}</td>
+                    <td class="ls-amt" style="color:${Number(s.totalAbzuege) > 0 ? '#059669' : '#dc2626'}">${Number(s.totalAbzuege) > 0 ? '+' : ''}${fmt(s.totalAbzuege)}</td>
                 </tr>
                 ${s.usingDefaultDeductions ? `<tr><td colspan="6" style="font-size:10px;color:#92400e;padding:2px 8px 6px">⚠ Standardsätze AHV 5.3 % / ALV 1.1 % – bitte unter Filialen &gt; Abzüge konfigurieren</td></tr>` : ''}
                 ${(s.qstHinweise || []).map(h => `<tr><td colspan="6" style="font-size:11px;color:#92400e;padding:4px 8px 6px;line-height:1.4">⚠ ${String(h).replace(/</g,'&lt;')}</td></tr>`).join('')}
