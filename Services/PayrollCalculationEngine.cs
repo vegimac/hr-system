@@ -3013,9 +3013,7 @@ public class PayrollCalculationEngine
             // ── Quellensteuer-Abzug (MTP) ─────────────────────────────────
             // Wie UTP: nur Hochrechnen wenn Nebenbeschäftigung gemeldet
             // (siehe ausführlicher Kommentar im UTP-Block).
-            decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
-                qstEinstellung, svBasesMtp.Qst, workedHours, company,
-                einmaligNichtHochrechnen: deltaQstEinmalig);
+            decimal satzBasisMtp = svBasesMtp.Qst;   // Kurzmonat-hochgerechnete Basis, siehe unten
             // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026): bei
             // untermonatigem Ein-/Austritt wird der IST-Betrag besteuert, aber
             // zum SATZ des vollen Monats — nur der PERIODISCHE Kern (Garantie-
@@ -3040,13 +3038,15 @@ public class PayrollCalculationEngine
                 // periodische Zulagen (Kinderzulage) ebenfalls auf den vollen Monat (Walter 09.09.2026)
                 if (shortPeriodDays > 0 && deltaQstPeriodisch > 0)
                     mtpFestDiff += Math.Round(deltaQstPeriodisch * ((decimal)normalPeriodDays / shortPeriodDays - 1m), 2);
-                if (mtpFestDiff > 0)
-                {
-                    var satzKurzMtp = svBasesMtp.Qst + mtpFestDiff;
-                    if (!satzBruttoMtp.HasValue || satzKurzMtp > satzBruttoMtp.Value)
-                        satzBruttoMtp = satzKurzMtp;
-                }
+                if (mtpFestDiff > 0) satzBasisMtp = svBasesMtp.Qst + mtpFestDiff;
             }
+            // Kurzmonat × Nebenerwerb kombiniert (Walter 21.09.2026, wie FIX): erst voller
+            // Monat, dann Gesamtpensum. Ohne Nebenerwerb = Kurzmonat-Basis.
+            decimal? satzBruttoMtp = ComputeSatzBruttoForNebenjob(
+                qstEinstellung, satzBasisMtp, workedHours, company,
+                einmaligNichtHochrechnen: deltaQstEinmalig);
+            if (!satzBruttoMtp.HasValue && satzBasisMtp != svBasesMtp.Qst)
+                satzBruttoMtp = satzBasisMtp;
             var qstRule = ComputeQstDeduction(qstEinstellung, svBasesMtp.Qst, companyProfileId, periodFrom, satzBruttoMtp, deltaQstEinmalig, dreizehnterMtp);
             if (qstRule is not null) deductions.Add(qstRule);
 
@@ -4308,27 +4308,32 @@ public class PayrollCalculationEngine
             // ── Quellensteuer-Abzug (FIX) ─────────────────────────────────
             // Wie UTP: nur Hochrechnen wenn Nebenbeschäftigung gemeldet.
             // Bei FIX wird in der Hochrechnungs-Logik das Pensum genutzt.
-            decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
-                qstEinstellung, svBasesFix.Qst, workedHours: 0, company,
-                pensumPct: emp.EmploymentPercentage,
-                einmaligNichtHochrechnen: deltaQstEinmalig);
-            // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026):
-            // untermonatiger Ein-/Austritt → besteuert wird der IST-Betrag,
-            // satzbestimmend zählt aber der VOLLE Monatslohn (nur der
-            // periodische Kern wird hochgerechnet; 13. ML/Schlussabrechnung/
-            // Zulagen ohne Hochrechnung). Umsetzung: Kurz-Monatslohn in der
-            // Satzbasis durch den vollen Monatslohn ersetzen.
+            // KS 45 Monatsmodell, Kurzmonat (Walter-Vorgabe 21.08.2026): untermonatiger
+            // Ein-/Austritt → besteuert wird der IST-Betrag, satzbestimmend zählt der VOLLE
+            // Monat. Hochgerechnet werden Monatslohn, periodische Zulagen UND der im Monat
+            // ausbezahlte 13. ML (Swissdec Anhang Monat M19 Okt: SB 8'666.67 = (4'000 + 333.33)
+            // × 2; RefXML TF20 Arnold März 2025 — Walter 21.09.2026 «Swissdec-konform, auch
+            // für Schaub»; ersetzt «13. ML nicht hochrechnen» vom 09.09.2026). Einmaliges
+            // (Abgangsentschädigung, Bonus) bleibt 1:1.
+            // Kurzmonat-Faktor und Nebenerwerb-Faktor werden KOMBINIERT: erst auf den vollen
+            // Monat, dann auf das Gesamtpensum (Arnold: (1'000 + 416.65) × 2 × 2.25 + 500 =
+            // 6'874.95 → 13.55 %). Vorher nahm die Engine nur das Maximum beider Rechnungen.
             // Jahresmodell: keine Kurzmonat-Hochrechnung, die QST-Tage annualisieren
             // (TF25/26 Feb: 8'400 ÷ 21 × 360 ÷ 12 = 12'000, nicht 17'142.85 — Anhang 1 Y31).
+            decimal satzBasisFix = svBasesFix.Qst;
             if (isShortPeriod && monthSalaryFull > 0 && monthSalaryFull > monthSalary && _qstJahresYtd == null)
             {
-                // periodische Zulagen im gleichen Verhältnis hochrechnen (Walter 09.09.2026)
                 var faktorKurz = monthSalary > 0 ? monthSalaryFull / monthSalary : 1m;
-                var satzKurzFix = svBasesFix.Qst - monthSalary + monthSalaryFull
-                                + Math.Round(deltaQstPeriodisch * (faktorKurz - 1m), 2);
-                if (!satzBruttoFix.HasValue || satzKurzFix > satzBruttoFix.Value)
-                    satzBruttoFix = satzKurzFix;
+                satzBasisFix = svBasesFix.Qst - monthSalary + monthSalaryFull
+                             + Math.Round(deltaQstPeriodisch * (faktorKurz - 1m), 2)
+                             + Math.Round(dreizehnterFix * (faktorKurz - 1m), 2);
             }
+            decimal? satzBruttoFix = ComputeSatzBruttoForNebenjob(
+                qstEinstellung, satzBasisFix, workedHours: 0, company,
+                pensumPct: emp.EmploymentPercentage,
+                einmaligNichtHochrechnen: deltaQstEinmalig);
+            if (!satzBruttoFix.HasValue && satzBasisFix != svBasesFix.Qst)
+                satzBruttoFix = satzBasisFix;
             var qstRuleFix = ComputeQstDeduction(qstEinstellung, svBasesFix.Qst, companyProfileId, periodFrom, satzBruttoFix, deltaQstEinmalig, dreizehnterFix);
             if (qstRuleFix is not null) deductions.Add(qstRuleFix);
 
