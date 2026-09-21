@@ -226,10 +226,11 @@ public class PayrollPdfService
                     // Negativer Abzug = Rückerstattung (z.B. ALVZ kumuliert nach einem
                     // Bonus-Monat): als «+Betrag» drucken, sonst sieht die Gutschrift
                     // aus wie ein Abzug (Swissdec-Check BE April, Maldini/Arbenz 21.09.2026).
+                    // Im Slip sind Abzüge NEGATIV gespeichert (−318.00), eine Rückerstattung positiv.
                     string betrTxt = !betr.HasValue ? ""
-                                   : betr.Value < 0 ? "+" + CHF(Math.Abs(betr.Value))
-                                   : "-" + CHF(betr.Value);
-                    Cell(t.Cell(), betrTxt, right: true, color: betr.HasValue && betr.Value < 0 ? Green : Red);
+                                   : betr.Value > 0 ? "+" + CHF(betr.Value)
+                                   : "-" + CHF(Math.Abs(betr.Value));
+                    Cell(t.Cell(), betrTxt, right: true, color: betr.HasValue && betr.Value > 0 ? Green : Red);
                 }
 
                 // Slip-Feld heisst totalAbzuege (nicht totalDeductions) —
