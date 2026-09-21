@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 17;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026)
+const int SchemaStand = 18;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1487,6 +1487,28 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS ix_famz_korrektur_allowance ON famz_korrektur (allowance_id);
     ");
 
+    // ── Lohnposition: QST periodisch/einmalig (Walter 21.09.2026, Schema-Stand 18; Platzierung VOR SchemaCheckService.Pruefe, sonst «fehlende Spalte» — Lehre 21.09.2026) ──
+    // Vorher fest im Code (nur Kinder-/Ausbildungs-/Haushaltszulage periodisch).
+    // Seed EINMALIG: Swissdec-Codes nach Lohnposition.SwissdecEinmalig + OneCrew-Kategorie
+    // «Bonus»; alles andere periodisch. Guard: nur wenn die Spalte neu ist (Sentinel-
+    // Spalte qst_periodisch_seed fehlt) — User-Änderungen im UI bleiben danach unberührt.
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch BOOLEAN NOT NULL DEFAULT true;
+    ");
+    {
+        bool seedNoetig = db.Database.SqlQueryRaw<int>(
+            "SELECT COUNT(*) AS \"Value\" FROM information_schema.columns WHERE table_name = 'lohnposition' AND column_name = 'qst_periodisch_seed'")
+            .AsEnumerable().First() == 0;
+        if (seedNoetig)
+        {
+            foreach (var lp in db.Lohnpositionen.ToList())
+                lp.QstPeriodisch = !(Lohnposition.SwissdecEinmalig(lp.SwissdecLohnart)
+                                     || string.Equals(lp.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase));
+            db.SaveChanges();
+            db.Database.ExecuteSqlRaw("ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch_seed BOOLEAN NOT NULL DEFAULT true;");
+        }
+    }
+
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
     HrSystem.Services.SchemaCheckService.Pruefe(
         db, scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
@@ -2790,27 +2812,6 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE lohnposition
         ADD COLUMN IF NOT EXISTS dreijehnter_ml_pflichtig BOOLEAN NOT NULL DEFAULT false;
     ");
-    // ── Lohnposition: QST periodisch/einmalig (Walter 21.09.2026, Schema-Stand 17) ──
-    // Vorher fest im Code (nur Kinder-/Ausbildungs-/Haushaltszulage periodisch).
-    // Seed EINMALIG: Swissdec-Codes nach Lohnposition.SwissdecEinmalig + OneCrew-Kategorie
-    // «Bonus»; alles andere periodisch. Guard: nur wenn die Spalte neu ist (Sentinel-
-    // Spalte qst_periodisch_seed fehlt) — User-Änderungen im UI bleiben danach unberührt.
-    db.Database.ExecuteSqlRaw(@"
-        ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch BOOLEAN NOT NULL DEFAULT true;
-    ");
-    {
-        bool seedNoetig = db.Database.SqlQueryRaw<int>(
-            "SELECT COUNT(*) AS \"Value\" FROM information_schema.columns WHERE table_name = 'lohnposition' AND column_name = 'qst_periodisch_seed'")
-            .AsEnumerable().First() == 0;
-        if (seedNoetig)
-        {
-            foreach (var lp in db.Lohnpositionen.ToList())
-                lp.QstPeriodisch = !(Lohnposition.SwissdecEinmalig(lp.SwissdecLohnart)
-                                     || string.Equals(lp.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase));
-            db.SaveChanges();
-            db.Database.ExecuteSqlRaw("ALTER TABLE lohnposition ADD COLUMN IF NOT EXISTS qst_periodisch_seed BOOLEAN NOT NULL DEFAULT true;");
-        }
-    }
     // Seed: McBonus-Positionen auf dreijehnter_ml_pflichtig = true setzen
     // (Kategorie 'Bonus' oder Bezeichnung enthält 'Bonus'/'Prämie')
     db.Database.ExecuteSqlRaw(@"
