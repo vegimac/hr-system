@@ -61,6 +61,14 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 
 ---
 
+### 9. TF41 Max Meier, Mai 2025 — Quellensteuer auf der Nachzahlung nach Austritt (Jahresmodell Tessin)
+- **Situation:** Meier tritt am 31.3. aus, bekommt im Mai ein Dienstaltersgeschenk von 30'000 und tritt am 1.7. wieder ein. Durch die 30'000 steigt der Satz für das ganze Jahr von 16.5 % auf 18.6 %.
+- **Was in der XML steht:** Mai **5'580** (= 30'000 × 18.6 %, ohne Nachbelastung der Vormonate), Juli **2'910** (= 1'860 + 1'050 Nachbelastung für Januar–März).
+- **Was wir rechnen:** Mai **6'630** (Jahresmodell-Kette sofort: 80'000 × 18.6 % − 8'250 bereits bezahlt), Juli 1'860. Jahrestotal bei beiden 16'740.
+- **Frage:** Ist das Absicht — wird bei einer Nachzahlung nach dem Austritt die Satzänderung auf die Vormonate erst beim nächsten regulären Lohn nachbelastet? Oder darf die Kette sofort nachziehen, wie wir es tun?
+
+---
+
 ## B. Fallen in den Testdaten, die wir gefunden haben (nur zur Info)
 
 Wir wissen, dass Swissdec absichtlich Fehler einbaut, damit niemand die Soll-XML abschreibt. Diese haben wir erkannt und bewusst NICHT übernommen:
