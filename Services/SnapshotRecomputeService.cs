@@ -75,16 +75,23 @@ public class SnapshotRecomputeService
             // Übernahme würde ein Recompute eine angewendete Kürzung stillschweigend
             // zurückdrehen.
             bool kuerzungAngewendet = false;
+            // Korrektur-/Sonderlohn (ausgetretene MA) steht nur im SlipJson («isCorrection»)
+            // — den Recompute bisher immer als Normallohn gerechnet, was ohne Vertrag in der
+            // Periode scheiterte und den Snapshot still stehen liess (TF41 Meier Max Mai;
+            // Claude 21.09.2026). Jetzt im selben Modus neu rechnen wie beim Bestätigen.
+            bool isCorrection = false;
             try
             {
                 var oldNode = JsonNode.Parse(s.SlipJson ?? "{}");
                 var kNode = oldNode?["ferienKuerzungAngewendet"];
                 if (kNode != null) kuerzungAngewendet = kNode.GetValue<bool>();
+                var cNode = oldNode?["isCorrection"];
+                if (cNode != null) isCorrection = cNode.GetValue<bool>();
             }
             catch { /* Alt-Snapshot ohne Feld / defektes JSON → keine Kürzung */ }
 
             var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId,
-                isCorrection: false, ignoreFrozenSnapshot: true);
+                isCorrection: isCorrection, ignoreFrozenSnapshot: true);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
             var json = JsonSerializer.Serialize(ok.Value, Camel);

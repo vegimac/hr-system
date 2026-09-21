@@ -279,8 +279,16 @@ public class PayrollController : HrControllerBase
         int updated = 0;
         foreach (var s in snaps)
         {
+            // Korrekturlohn-Snapshots («isCorrection» im SlipJson) im selben Modus rechnen.
+            bool isCorrection = false;
+            try
+            {
+                var c = JsonNode.Parse(string.IsNullOrWhiteSpace(s.SlipJson) ? "{}" : s.SlipJson)?["isCorrection"];
+                if (c != null) isCorrection = c.GetValue<bool>();
+            }
+            catch { }
             var calc = await _calcEngine.CalculateAsync(s.EmployeeId, year, month, companyProfileId,
-                isCorrection: false, ignoreFrozenSnapshot: true);
+                isCorrection: isCorrection, ignoreFrozenSnapshot: true);
             if (calc is not OkObjectResult ok || ok.Value is null) continue;
 
             JsonNode? fresh;
