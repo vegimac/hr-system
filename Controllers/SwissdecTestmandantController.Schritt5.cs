@@ -343,9 +343,11 @@ public partial class SwissdecTestmandantController
                         continue;
                     }
                 }
-                // Vorzeichen: Zulage-Positionen tragen den Betrag wie geliefert (auch negativ =
-                // Korrektur); Abzugs-Positionen erwarten den Betrag positiv.
-                var betragBuchung = lp.Typ == "ABZUG" ? Math.Abs(w.Betrag) : w.Betrag;
+                // Vorzeichen: Betrag IMMER wie geliefert — auch bei Abzugs-Positionen. Ein
+                // negativer Abzug ist eine Gutschrift (TF11 Bosshard Juni: 5210 Ausgleich
+                // geldwerte Vorteile −19'750 = Storno der März-Beteiligung); die Engine dreht
+                // das Vorzeichen selbst (betrag = −b). Math.Abs machte daraus einen Abzug.
+                var betragBuchung = w.Betrag;
                 zulagen.Add($"{w.Code}→{lp.Code} {lp.Bezeichnung} {betragBuchung:0.00}");
                 if (!vorschau)
                 {

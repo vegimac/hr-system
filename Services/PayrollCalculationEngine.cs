@@ -506,20 +506,23 @@ public class PayrollCalculationEngine
         // CH, keine Arbeitstage-Kürzung (TF25 Lehmann: Malters ab 1.5. = Umzug = QST).
         _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
         _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, periodTo);
-        _qstArbeitstage = qstEinstellung == null || _qstWohnsitzSchweiz ? null
+        // Arbeitstage auch bei Wohnsitz CH laden: die kumulierte CH-Quote der Vormonate
+        // (Auslandzeit im selben Jahr) kürzt den 13. ML weiterhin (TF25 Lehmann Juni).
+        _qstArbeitstage = qstEinstellung == null ? null
             : await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
         // Σ CH-Tage / Σ Arbeitstage der Vormonate im Jahr — für die Ausscheidung von
         // Sonderzahlungen auch im MONATSMODELL (Walter 21.09.2026, «Swissdec respektieren»:
         // RefXML TF28 Arbenz Feb 2025 = 20'000 × 25/40, wie Jahresmodell Y31).
         _qstArbeitstageBisher = null;
-        if (_qstArbeitstage != null)
+        if (qstEinstellung != null)
         {
             var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
                 .Select(a => new { a.TageCh, a.TageEffektiv })
                 .ToListAsync();
-            _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+            if (bisher.Count > 0)
+                _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
         }
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
@@ -4646,7 +4649,6 @@ public class PayrollCalculationEngine
         // Zahlungen werden im Jahresmodell mit dem KUMULIERTEN Verhältnis
         // ausgeschieden (Anhang 1 Y31 «13. Monatslohn CH-Tage kumul.», TF29 Feb 25/40).
         decimal chBisher = 0, effBisher = 0;
-        if (!_qstWohnsitzSchweiz)
         {
             var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .Where(a => a.EmployeeId == employee.Id && a.Year == year
@@ -4711,33 +4713,47 @@ public class PayrollCalculationEngine
         decimal bruttoVoll = bruttolohn;
         string? tageHinweis = null;
         var tage = _qstArbeitstage;
-        if (tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
         {
-            // Periodischer Lohn: Verhältnis des Monats. Aperiodisches (Bonus, 13. ML):
-            // kumuliertes Verhältnis Σ CH-Tage / Σ Arbeitstage seit Jahresbeginn — im
-            // Jahresmodell (Anhang 1 Y31; TF29 Feb 20'000 × 25/40) UND im Monatsmodell
-            // (Walter 21.09.2026: RefXML TF28 Arbenz BE Feb 2025 = 15'500, nicht 13'000;
-            // Anhang Monat M19.1 ist dazu nicht unterscheidbar, die XML ist eindeutig).
-            decimal ratioMonat = tage.TageCh / tage.TageEffektiv;
-            if (ratioMonat > 1) ratioMonat = 1;
+            // Periodischer Lohn: Verhältnis des Monats — NUR bei Wohnsitz Ausland in diesem
+            // Monat. Aperiodisches (Bonus, 13. ML): kumuliertes Verhältnis Σ CH-Tage /
+            // Σ Arbeitstage seit Jahresbeginn — im Jahresmodell (Anhang 1 Y31; TF29 Feb
+            // 20'000 × 25/40) UND im Monatsmodell (Walter 21.09.2026: RefXML TF28 Arbenz BE
+            // Feb 2025 = 15'500, nicht 13'000). Das kumulierte Verhältnis gilt AUCH, wenn die
+            // Person inzwischen in der Schweiz wohnt: der 13. ML wurde teilweise in den
+            // Auslandmonaten verdient (RefXML TF25 Lehmann Juni: Wohnort Malters ab 1.5.,
+            // 13. ML 4'166.65 × 67/84 = 3'323.40; Claude 21.09.2026).
+            bool auslandJetzt = tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung);
+            decimal ratioMonat = 1m;
+            if (auslandJetzt)
+            {
+                ratioMonat = tage!.TageCh / tage.TageEffektiv;
+                if (ratioMonat > 1) ratioMonat = 1;
+            }
             decimal aperVoll = Math.Min(bruttoVoll, Math.Max(0m, aperiodisch) + Math.Max(0m, dreizehnter));
             decimal periodVoll = bruttoVoll - aperVoll;
             decimal ratioAper = ratioMonat;
             (decimal Ch, decimal Eff)? bisher = _qstJahresYtd is { } ytdTage
                 ? (ytdTage.TageChBisher, ytdTage.TageEffBisher)
                 : _qstArbeitstageBisher;
-            if (bisher is { } b && b.Eff + tage.TageEffektiv > 0)
+            // Monat ohne Erfassung bei Wohnsitz CH: zählt als voll in der Schweiz
+            // (Standard 20 Arbeitstage), damit die Kumulation nicht am letzten
+            // Auslandmonat stehen bleibt.
+            decimal chJetzt  = tage?.TageCh ?? (_qstWohnsitzSchweiz ? 20m : 0m);
+            decimal effJetzt = tage?.TageEffektiv ?? (_qstWohnsitzSchweiz ? 20m : 0m);
+            if (bisher is { } b && b.Eff + effJetzt > 0 && (b.Ch < b.Eff || auslandJetzt))
             {
-                ratioAper = (b.Ch + tage.TageCh) / (b.Eff + tage.TageEffektiv);
+                ratioAper = (b.Ch + chJetzt) / (b.Eff + effJetzt);
                 if (ratioAper > 1) ratioAper = 1;
             }
             var gekuerzt = Math.Round(periodVoll * ratioMonat + aperVoll * ratioAper, 2);
             if (gekuerzt < bruttoVoll)
             {
                 bruttolohn = gekuerzt;
-                tageHinweis = $" ({tage.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH"
-                    + (aperVoll > 0 && ratioAper != ratioMonat ? $", Σ CH {ratioAper * 100m:0.#} %" : "")
-                    + ")";
+                tageHinweis = auslandJetzt
+                    ? $" ({tage!.TageCh:0.#} von {tage.TageEffektiv:0.#} Arbeitstagen CH"
+                      + (aperVoll > 0 && ratioAper != ratioMonat ? $", Σ CH {ratioAper * 100m:0.#} %" : "")
+                      + ")"
+                    : $" (13. ML/Sonderzahlung Σ CH {ratioAper * 100m:0.#} % seit Jahresbeginn)";
             }
         }
 
@@ -5230,17 +5246,16 @@ public class PayrollCalculationEngine
                 {
                     _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
                     _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, periodTo);
-                    _qstArbeitstage = _qstWohnsitzSchweiz ? null
-                        : await _db.EmployeeQstArbeitstage.AsNoTracking()
-                            .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+                    _qstArbeitstage = await _db.EmployeeQstArbeitstage.AsNoTracking()
+                        .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
                     _qstArbeitstageBisher = null;
-                    if (_qstArbeitstage != null)
                     {
                         var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
                             .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
                             .Select(a => new { a.TageCh, a.TageEffektiv })
                             .ToListAsync();
-                        _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+                        if (bisher.Count > 0)
+                            _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
                     }
                     _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
                     _qstJahresYtd = null;

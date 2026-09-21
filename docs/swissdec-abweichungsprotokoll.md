@@ -102,6 +102,7 @@ Quality-Tool-XML darf hier abweichen. **Nicht** der Engine anpassen.
 | F2 | ZG BUR-Nummer | `A38197421` | Januar-2025-XML `A38197423` | BEWUSST |
 | F3 | weitere Fallen | PLZ `3008.00`, doppeltes `Contractual13th`, … | siehe `docs/swissdec-testmandant.md` | BEWUSST |
 | F5 | **CSV-Lücke** TF11 Bosshard März 2025: Mitarbeiterbeteiligung 20'000 fehlt als Lohnposten, nur `5210 Ausgleich geldwerte Vorteile` 20'250 vorhanden | **manuell nachgetragen** (Walter 21.09.2026): Zulage «1960 Steuerbare Beteiligungsrechte» 20'000, Bemerkung «CSV-Lücke, XML OwnershipRight 20'000 – Swissdec-Frage 7» — NICHT «Swissdec-Testdaten», sonst räumt 5b sie ab | XML `OwnershipRight` 20'000, AHV März 36'550, Lohnausweis 61'645 | ERGÄNZT (Swissdec gefragt) |
+| F5b | **Spiegel im Juni:** CSV Juni `5210 Ausgleich geldwerte Vorteile` **−19'750** (= −20'000 Storno + 250 Auto), aber wieder KEIN Lohnposten −20'000; XML AHV Jan–Jun 107'100 = ohne die 20'000 | **manuell nachgetragen** (21.09.2026): Zulage «1960» **−20'000**, Bemerkung «Storno Beteiligung März (F5)»; die 5210-Zulage bleibt −19'750 (5b übernimmt Vorzeichen seit 21.09.2026) | XML Juni AHV 11'950, ALVZ −400, SV 965.55 | ERGÄNZT |
 | F4 | QST Stundenlöhner: Monat = **180 h** (ESTV) | TF18 Blanc Jan 2025: 35 h, Nebenjob 60 % → satzbestimmend **4'821.42**, B0Y **6.72 %**, QST **79.25** (Round05; rappengenau 79.26) | `AscertainedTaxableEarning` **4'859.35**, QST **80.30** (35 / **182** = 42×52/12) | BEWUSST |
 
 Regel: Tarif, BUR, PLZ, QST-Code immer aus Stammdaten/CSV, nie aus der RefXML kopieren.
