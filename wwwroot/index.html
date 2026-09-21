@@ -5783,9 +5783,10 @@
                     <h1 class="page-title">OneCrew Lohnpositionen</h1>
                     <p class="page-sub">Aktiver Lohnarten-Katalog — definiert für jede Lohnart, welche Sozialversicherungsabzüge anfallen</p>
                 </div>
-                <button class="btn-primary" onclick="lpOpenForm(null)" style="margin-top:4px">+ Neue Position</button>
                 </div>
+                <!-- Aktions-Button in der 2. Zeile, nicht oben rechts (dort verdeckt ihn #langSwitcher — Walter 21.09.2026) -->
                 <div class="fh-toolbar">
+                    <button class="btn-primary" onclick="lpOpenForm(null)" style="order:99;margin-left:auto">+ Neue Position</button>
                     <select id="lpFilterKat" onchange="lpRender()" style="padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:white">
                         <option value="">Alle Kategorien</option>
                         <option value="Festlohn">Festlohn</option>
