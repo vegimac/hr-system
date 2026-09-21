@@ -525,6 +525,7 @@ public class PayrollCalculationEngine
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
         _qstJahresYtd = null;
         _qstJahresVertraege = new();
+        _qstNachzahlungStandalone = false;
         if (isQuellensteuer && QstJahresmodell.GiltFuer(qstEinstellung!.Steuerkanton))
             _qstJahresYtd = await LadeQstJahresYtdAsync(
                 employee, qstEinstellung, year, month, periodFrom, periodTo);
@@ -4536,6 +4537,12 @@ public class PayrollCalculationEngine
     /// <summary>Σ (CH-Tage, Arbeitstage) der Vormonate im Jahr, Wohnsitz Ausland (Monats- und Jahresmodell).</summary>
     private (decimal Ch, decimal Eff)? _qstArbeitstageBisher;
     private bool _qstWohnsitzSchweiz;
+    /// <summary>
+    /// Nachzahlung nach Austritt (Korrekturlohn): im Jahresmodell nur die Zahlung × Satz,
+    /// KEIN Ausgleich der Vormonate — der kommt im nächsten regulären Lohn über die Kette
+    /// (Swissdec Showcase TF41: Mai 30'000 × 18.6 % = 5'580, Juli 1'860 + 1'050 = 2'910).
+    /// </summary>
+    private bool _qstNachzahlungStandalone;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
     /// <summary>
     /// Wohnadresse am Periodenende aus der Wohnort-Historie (Walter 20.09.2026, Lehmann Feb:
@@ -4818,6 +4825,8 @@ public class PayrollCalculationEngine
                 qstBetrag = jm.QstMonat;
                 satzPct = satzFuerJahr;
                 sonderHinweis = $"Jahresmodell, Satz-Lohn {satzLohnLookup:0.00}, manueller Satz";
+                if (_qstNachzahlungStandalone)
+                    qstBetrag = PayrollCalculations.Round05(bruttolohn * satzFuerJahr / 100m);
             }
             else
             {
@@ -4832,6 +4841,13 @@ public class PayrollCalculationEngine
                 var topfTxt = string.Join(", ", t.SteuerJeCode.Select(kv => $"{kv.Key} {kv.Value:0.00}"));
                 sonderHinweis = $"Jahresmodell, Satz-Lohn {t.SatzLohn:0.00}"
                     + (t.SteuerJeCode.Count > 1 ? $" · Töpfe {topfTxt}" : "");
+                if (_qstNachzahlungStandalone && satzPct.HasValue)
+                {
+                    // Nachzahlung nach Austritt: nur die Zahlung zum neuen Satz (Showcase TF41
+                    // Mai 5'580); die Vormonate zieht der nächste reguläre Lohn nach (Juli 2'910).
+                    qstBetrag = PayrollCalculations.Round05(bruttolohn * satzPct.Value / 100m);
+                    sonderHinweis += " · Nachzahlung nach Austritt: nur die Zahlung, Ausgleich der Vormonate im nächsten Lohn";
+                }
             }
         }
         else if (einstellung.Prozentsatz.HasValue)
@@ -5229,6 +5245,7 @@ public class PayrollCalculationEngine
                     _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
                     _qstJahresYtd = null;
                     _qstJahresVertraege = new();
+                    _qstNachzahlungStandalone = nachzahlungNachAustritt;
                     if (QstJahresmodell.GiltFuer(qstEinstellungKorr.Steuerkanton))
                         _qstJahresYtd = await LadeQstJahresYtdAsync(
                             employee, qstEinstellungKorr, year, month, periodFrom, periodTo);
