@@ -223,7 +223,13 @@ public class PayrollPdfService
                     Cell(t.Cell(), proz.HasValue ? Num(proz, 3) : "", right: true);
                     Cell(t.Cell(), basis.HasValue ? CHF(basis) : "", right: true);
                     Cell(t.Cell(), "", right: true);
-                    Cell(t.Cell(), betr.HasValue ? "-" + CHF(Math.Abs(betr.Value)) : "", right: true, color: Red);
+                    // Negativer Abzug = Rückerstattung (z.B. ALVZ kumuliert nach einem
+                    // Bonus-Monat): als «+Betrag» drucken, sonst sieht die Gutschrift
+                    // aus wie ein Abzug (Swissdec-Check BE April, Maldini/Arbenz 21.09.2026).
+                    string betrTxt = !betr.HasValue ? ""
+                                   : betr.Value < 0 ? "+" + CHF(Math.Abs(betr.Value))
+                                   : "-" + CHF(betr.Value);
+                    Cell(t.Cell(), betrTxt, right: true, color: betr.HasValue && betr.Value < 0 ? Green : Red);
                 }
 
                 // Slip-Feld heisst totalAbzuege (nicht totalDeductions) —
