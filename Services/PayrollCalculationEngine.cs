@@ -519,10 +519,13 @@ public class PayrollCalculationEngine
         {
             var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
-                .Select(a => new { a.TageCh, a.TageEffektiv })
+                .Select(a => new { a.Month, a.TageCh, a.TageEffektiv })
                 .ToListAsync();
-            if (bisher.Count > 0)
-                _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+            // Nur wenn im Jahr überhaupt Auslandtage erfasst sind; CH-Monate ohne Erfassung = 20/20.
+            if (bisher.Any(a => a.TageCh < a.TageEffektiv))
+                _qstArbeitstageBisher = QstJahresmodell.ArbeitstageBisher(
+                    bisher.Select(a => (a.Month, a.TageCh, a.TageEffektiv)),
+                    QstJahresmodell.Vertragszeitraeume(employee), year, month);
         }
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
@@ -4653,10 +4656,12 @@ public class PayrollCalculationEngine
             var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .Where(a => a.EmployeeId == employee.Id && a.Year == year
                          && a.Month >= start.Month && a.Month < month)
-                .Select(a => new { a.TageCh, a.TageEffektiv })
+                .Select(a => new { a.Month, a.TageCh, a.TageEffektiv })
                 .ToListAsync();
-            chBisher = at.Sum(a => a.TageCh);
-            effBisher = at.Sum(a => a.TageEffektiv);
+            // CH-Monate ohne Erfassung = 20/20 (nur relevant, wenn Auslandtage vorkommen).
+            if (at.Any(a => a.TageCh < a.TageEffektiv))
+                (chBisher, effBisher) = QstJahresmodell.ArbeitstageBisher(
+                    at.Select(a => (a.Month, a.TageCh, a.TageEffektiv)), vertraege, year, month);
         }
 
         // K1-Posten der Kette zählen als bezahlt: die Töpfe tragen April/Mai schon
@@ -5252,10 +5257,12 @@ public class PayrollCalculationEngine
                     {
                         var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
                             .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
-                            .Select(a => new { a.TageCh, a.TageEffektiv })
+                            .Select(a => new { a.Month, a.TageCh, a.TageEffektiv })
                             .ToListAsync();
-                        if (bisher.Count > 0)
-                            _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+                        if (bisher.Any(a => a.TageCh < a.TageEffektiv))
+                            _qstArbeitstageBisher = QstJahresmodell.ArbeitstageBisher(
+                                bisher.Select(a => (a.Month, a.TageCh, a.TageEffektiv)),
+                                QstJahresmodell.Vertragszeitraeume(employee), year, month);
                     }
                     _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
                     _qstJahresYtd = null;

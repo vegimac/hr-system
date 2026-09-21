@@ -52,10 +52,16 @@ async function lzLoadQstTage() {
         const d = await r.json();
         if (!d.relevant) return;
         const eff = d.tageEffektiv ?? '', ch = d.tageCh ?? '';
+        // Warnung (Walter 21.09.2026): Wohnsitz Ausland ohne Erfassung → voller Lohn wird
+        // besteuert (sichere Richtung, aber evtl. zu viel). Nach Umzug in die CH ist leer
+        // korrekt (= 20/20), dort keine Warnung.
+        const warn = (!d.wohnsitzCh && eff === '')
+            ? `<div style="margin-bottom:6px;padding:6px 9px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:12px;font-weight:600">⚠ Keine Arbeitstage erfasst — der volle Lohn wird als in der Schweiz erarbeitet besteuert. Falls die Person diesen Monat auch im Ausland gearbeitet hat, Tage eintragen.</div>`
+            : '';
         box.innerHTML = `
-            <div style="font-weight:700;margin-bottom:4px">Quellensteuer — Arbeitstage Schweiz</div>
+            <div style="font-weight:700;margin-bottom:4px">Quellensteuer — Arbeitstage Schweiz</div>${warn}
             <div style="font-size:12px;color:#64748b;margin-bottom:6px">${d.wohnsitzCh
-                ? 'Wohnsitz jetzt in der Schweiz — die Tage zählen nur noch für die Jahres-Quote (13. ML / Sonderzahlungen × Σ CH-Tage seit Jahresbeginn). Leer = 20 von 20.'
+                ? 'Wohnsitz jetzt in der Schweiz — nichts zu erfassen. Die Tage zählen nur noch für die Jahres-Quote (13. ML / Sonderzahlungen × Σ CH-Tage seit Jahresbeginn); leer = voller Monat in der Schweiz. Nur bei einem Teilmonat (Ein-/Austritt) die effektiven Tage eintragen.'
                 : 'Wohnsitz im Ausland: steuerbar ist nur der Anteil der in der Schweiz geleisteten Arbeitstage. Leer = voller Lohn steuerbar.'}</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <label style="font-size:12px">CH <input id="lzQstTageCh" type="number" min="0" max="31" step="0.5" value="${ch}" style="width:64px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px"></label>

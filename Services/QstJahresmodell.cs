@@ -86,6 +86,28 @@ public static class QstJahresmodell
     }
 
     /// <summary>
+    /// Σ Arbeitstage CH / effektiv der Vormonate (bis exklusiv «bisMonat»). Monate mit
+    /// Vertragsdeckung, aber OHNE Erfassung zählen als voll in der Schweiz (20 von 20) —
+    /// erfasst werden nur Auslandmonate (Walter 21.09.2026: kein Nachtragen von CH-Monaten,
+    /// TF25 Lehmann Mai). Teilmonate ohne Erfassung sind damit eine Näherung (20 statt der
+    /// effektiven Tage). Monate ohne Vertrag zählen 0.
+    /// </summary>
+    public static (decimal Ch, decimal Eff) ArbeitstageBisher(
+        IEnumerable<(int Month, decimal TageCh, decimal TageEffektiv)> erfasst,
+        IEnumerable<Zeitraum> vertraege, int jahr, int bisMonatExkl)
+    {
+        var byMonth = erfasst.GroupBy(a => a.Month).ToDictionary(g => g.Key, g => g.First());
+        decimal ch = 0, eff = 0;
+        for (int m = 1; m < Math.Min(bisMonatExkl, 13); m++)
+        {
+            if (byMonth.TryGetValue(m, out var a)) { ch += a.TageCh; eff += a.TageEffektiv; continue; }
+            if (QstTageDesMonats(jahr, m, vertraege) <= 0) continue;
+            ch += 20m; eff += 20m;
+        }
+        return (ch, eff);
+    }
+
+    /// <summary>
     /// QST-Tage des Monats aus der Vertragsdeckung (30-Tage-Monat, Monatsende = Tag 30,
     /// überlappende Abschnitte zählen einfach). Monate ohne Vertrag = 0 (Y1.1: April/Mai).
     /// </summary>
