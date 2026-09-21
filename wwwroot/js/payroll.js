@@ -220,13 +220,20 @@ async function lzLoad() {
             const isAbzug = z.typ === 'ABZUG';
             const bemEsc  = (z.bemerkung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
             const lpBezEsc = (z.lohnpositionBezeichnung ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            // Betrag als WIRKUNG für den MA zeigen (Walter 21.09.2026): Zulage −20'000 →
+            // «− CHF 20'000» rot, Abzug −19'750 → «+ CHF 19'750» grün (Gutschrift). Kein
+            // doppeltes Vorzeichen mehr («+ CHF −20'000»). Die Pille zeigt weiter den Typ.
+            const wirkung = isAbzug ? -Number(z.betrag) : Number(z.betrag);
+            const wirkungTitel = Number(z.betrag) < 0
+                ? (isAbzug ? 'Negativer Abzug = Gutschrift' : 'Negative Zulage = Korrektur')
+                : '';
             return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f1f5f9">
                 <span style="font-size:11px;font-weight:600;padding:2px 7px;border-radius:10px;${isAbzug ? 'background:#fee2e2;color:#991b1b' : 'background:#dcfce7;color:#166534'}">${isAbzug ? '− Abzug' : '+ Zulage'}</span>
                 <div style="flex:1;min-width:0">
                     <div style="font-weight:500;font-size:13px">${lpBezEsc}</div>
                     ${bemEsc ? `<div style="font-size:11px;color:#64748b">${bemEsc}</div>` : ''}
                 </div>
-                <div style="font-weight:600;font-size:13px;font-family:monospace;color:${isAbzug ? '#dc2626' : '#059669'}">${isAbzug ? '−' : '+'} CHF ${Number(z.betrag).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+                <div style="font-weight:600;font-size:13px;font-family:monospace;color:${wirkung < 0 ? '#dc2626' : '#059669'}" title="${wirkungTitel}">${wirkung < 0 ? '−' : '+'} CHF ${Math.abs(wirkung).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
                 <div class="dok-menu-wrap" style="position:relative;flex-shrink:0">
                     <button type="button" class="dok-menu-btn" onclick="dokToggleMenu(event, 'lz-${z.id}')" title="Aktionen">⋮</button>
                     <div class="dok-menu" id="dokMenu-lz-${z.id}">

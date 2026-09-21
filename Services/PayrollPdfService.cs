@@ -239,9 +239,13 @@ public class PayrollPdfService
                             ?? GetDecimal(slip, "totalDeductions");
                 Cell(t.Cell().PaddingTop(4), "Total Abzüge", left: true, bold: true);
                 t.Cell().ColumnSpan(4).PaddingTop(4).Text("");
+                // Total negativ = Abzug (Normalfall); positiv = Netto-Gutschrift (z.B. Storno
+                // eines Ausgleichs, Swissdec TF11 Juni +14'919.64) → «+» drucken.
                 Cell(t.Cell().PaddingTop(4),
-                    totalAbz.HasValue ? "-" + CHF(Math.Abs(totalAbz.Value)) : "",
-                    right: true, bold: true, color: Red);
+                    !totalAbz.HasValue ? ""
+                        : totalAbz.Value > 0 ? "+" + CHF(totalAbz.Value)
+                        : "-" + CHF(Math.Abs(totalAbz.Value)),
+                    right: true, bold: true, color: totalAbz.HasValue && totalAbz.Value > 0 ? Green : Red);
             }
         });
     }
