@@ -223,8 +223,23 @@ public class PayrollCalculationEngine
                              || (k.Status == "VERRECHNET"
                                  && existingPeriod != null
                                  && k.VerrechnetPeriodeId == existingPeriod.Id)))
-                .Select(k => new { k.Jahr, k.Monat, k.Differenz, k.AlterCode, k.NeuerCode })
+                .Select(k => new { k.Jahr, k.Monat, k.Differenz, k.AlterCode, k.NeuerCode, k.NeueVersionId })
                 .ToListAsync();
+            // Wissens-Achse: ein OFFENER Posten wird erst in dem Lohnlauf verrechnet, in dem
+            // die neue Version bekannt ist (Erfahren am ≤ Periodenende) — nie früher.
+            if (kPosten.Count > 0)
+            {
+                var ids = kPosten.Select(k => k.NeueVersionId).Distinct().ToList();
+                var bekannt = await _db.EmployeeQuellensteuer
+                    .Where(q => ids.Contains(q.Id))
+                    .Select(q => new { q.Id, q.ValidFrom, q.ErfahrenAm })
+                    .ToListAsync();
+                var bekanntIds = bekannt
+                    .Where(q => (q.ErfahrenAm ?? q.ValidFrom) <= periodToFull)
+                    .Select(q => q.Id)
+                    .ToHashSet();
+                kPosten = kPosten.Where(k => bekanntIds.Contains(k.NeueVersionId)).ToList();
+            }
             if (kPosten.Count > 0)
             {
                 qstKorrBetrag = Math.Round(kPosten.Sum(k => k.Differenz), 2);
@@ -4638,15 +4653,23 @@ public class PayrollCalculationEngine
         // K1-Posten der Kette zählen als bezahlt: die Töpfe tragen April/Mai schon
         // unter dem neuen Code, der Posten hat die Differenz eingezogen (oder zieht
         // sie in dieser Periode via QST_KORR ein) — sonst doppelt (TF31 Dez 1'062 statt 1'035).
+        // NUR Posten, deren neue Version zum Periodenende schon BEKANNT war (Erfahren am
+        // ≤ periodTo) — sonst zählt der Posten als bezahlt, während der Topf den Monat noch
+        // unter dem alten Code führt (TF34 Rinaldi Mai: Posten April A0N→B0N −240 aus einem
+        // späteren Juni-Lauf zählte mit, Topf noch A → 665 statt 425; Claude 21.09.2026).
+        var bekannteVersionen = versionen
+            .Where(q => QstVersionWahl.BekanntAb(q) <= periodTo)
+            .Select(q => q.Id)
+            .ToHashSet();
         var posten = await _db.QstKorrekturen
             .Where(k => k.EmployeeId == employee.Id
                      && k.Jahr == year
                      && k.Monat >= start.Month
                      && k.Monat < month
                      && k.Status != "VORJAHR")
-            .Select(k => k.Differenz)
+            .Select(k => new { k.Differenz, k.NeueVersionId })
             .ToListAsync();
-        bezahlt += posten.Sum();
+        bezahlt += posten.Where(k => bekannteVersionen.Contains(k.NeueVersionId)).Sum(k => k.Differenz);
 
         return new QstJahresmodell.YtdStand(ist, bezahlt, n, satz, aper, tage, jeCode, chBisher, effBisher);
     }
@@ -4927,10 +4950,19 @@ public class PayrollCalculationEngine
 
             var (periodFrom, periodTo) = CalcPeriod(year, month);
 
-            // Letzter Vertrag dieser Filiale (auch abgelaufen) — Kontext für Modell/Alter.
+            // Vertrag dieser Filiale, der zur Periode passt: der jüngste, der SPÄTESTENS
+            // am Periodenende begonnen hat (auch abgelaufen) — nicht blind der jüngste.
+            // Sonst zieht bei einem Wiedereintritt (TF41 Meier Max: Austritt 31.3., neuer
+            // Vertrag ab 1.7.) der Juli-Vertrag, und die Mai-Nachzahlung gilt nicht als
+            // Nachzahlung nach Austritt (ALV/NBU flach statt Austrittsjahr-Ausgleich).
+            var periodToDt = periodTo.ToDateTime(TimeOnly.MinValue);
             var emp = employee.Employments
-                .Where(e => e.CompanyProfileId == companyProfileId)
+                .Where(e => e.CompanyProfileId == companyProfileId && e.ContractStartDate <= periodToDt)
                 .OrderByDescending(e => e.ContractStartDate)
+                .FirstOrDefault()
+                ?? employee.Employments
+                .Where(e => e.CompanyProfileId == companyProfileId)
+                .OrderBy(e => e.ContractStartDate)
                 .FirstOrDefault();
             if (emp is null)
                 return new NotFoundObjectResult(
@@ -4949,6 +4981,7 @@ public class PayrollCalculationEngine
             var zulagenSvLines = new List<object>();
             decimal zulagenSvTotal = 0;
             decimal deltaAhv = 0, deltaNbuv = 0, deltaKtg = 0, deltaBvg = 0, deltaQst = 0;
+            decimal deltaQstEinmalig = 0;   // aperiodischer Anteil (Jahresmodell: ÷ 12 statt annualisiert)
             var zulagenExtraLines = new List<object>();
             decimal zulagenExtraTotal = 0;
             var lohnposAbzugLines = new List<object>();
@@ -4979,6 +5012,7 @@ public class PayrollCalculationEngine
                     if (lp.KtgPflichtig)    deltaKtg  += b;
                     if (lp.BvgPflichtig)    deltaBvg  += b;
                     if (lp.QstPflichtig)    deltaQst  += b;
+                    if (lp.QstPflichtig && !IstPeriodischeZulage(lp)) deltaQstEinmalig += b;
                 }
                 else
                 {
@@ -5156,6 +5190,55 @@ public class PayrollCalculationEngine
                 deductions = deductions.Where(r => !string.Equals(r.CategoryCode, "BVG", StringComparison.OrdinalIgnoreCase)).ToList();
 
             var svBases = new SvBases(deltaAhv, deltaNbuv, deltaKtg, deltaBvg, deltaQst);
+
+            // ── Quellensteuer auf dem Korrekturlohn (Claude 21.09.2026, Swissdec TF41) ──
+            // Eine Nachzahlung nach Austritt (Dienstaltersgeschenk, Bonus) ist QST-pflichtig
+            // wie jeder Lohn; bisher rechnete der Korrekturlohn gar keine QST («kommt manuell»).
+            // Gleicher Aufbau wie im Hauptpfad: Version nach Wissensstand am Periodenende,
+            // Arbeitstage CH bei Wohnsitz Ausland, Jahresmodell-Töpfe (GE/FR/VD/VS/TI).
+            // Jahresmodell TF41 Mai: Satz-Lohn (30'000 ÷ 90 × 360 + 20'000 + 30'000) ÷ 12 =
+            // 14'166.65 (Lückenmonate = 0 QST-Tage, Anhang 1 Y1.1) → A0N 18.6 % auf
+            // 80'000 − bezahlt 8'250 = 6'630 (Soll-Tabelle; XML 5'580 verschiebt 1'050 in den Juli).
+            if (deltaQst > 0)
+            {
+                var qstPflichtKorr = await _qstCheck.CheckAsync(employeeId, periodTo);
+                EmployeeQuellensteuer? qstEinstellungKorr = null;
+                if (qstPflichtKorr.IsQstPflichtig)
+                {
+                    var qstAlleKorr = await _db.EmployeeQuellensteuer
+                        .Where(q => q.EmployeeId == employeeId && q.ValidFrom <= periodTo)
+                        .ToListAsync();
+                    qstEinstellungKorr = QstVersionWahl.Waehle(qstAlleKorr, periodTo);
+                }
+                if (qstEinstellungKorr != null)
+                {
+                    _qstWohnsitzSchweiz = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, employeeId, periodFrom);
+                    _adresseZurPeriode = await AdresseZurPeriodeAsync(employee, periodTo);
+                    _qstArbeitstage = _qstWohnsitzSchweiz ? null
+                        : await _db.EmployeeQstArbeitstage.AsNoTracking()
+                            .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+                    _qstArbeitstageBisher = null;
+                    if (_qstArbeitstage != null)
+                    {
+                        var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
+                            .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
+                            .Select(a => new { a.TageCh, a.TageEffektiv })
+                            .ToListAsync();
+                        _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+                    }
+                    _sonderSaetze = await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
+                    _qstJahresYtd = null;
+                    _qstJahresVertraege = new();
+                    if (QstJahresmodell.GiltFuer(qstEinstellungKorr.Steuerkanton))
+                        _qstJahresYtd = await LadeQstJahresYtdAsync(
+                            employee, qstEinstellungKorr, year, month, periodFrom, periodTo);
+                    // Monatsmodell: kein satzbestimmender Vollmonat vorhanden → IST = Satzbasis.
+                    var qstRuleKorr = ComputeQstDeduction(
+                        qstEinstellungKorr, deltaQst, companyProfileId, periodFrom,
+                        satzbestimmenderBrutto: null, aperiodisch: deltaQstEinmalig, dreizehnter: 0m);
+                    if (qstRuleKorr is not null) deductions.Add(qstRuleKorr);
+                }
+            }
 
             // Saldi unverändert durchreichen (kein Accrual bei Korrektur).
             // MA-Saldo, nicht Filial-Saldo: Dezember und frühere Filiale zählen.
