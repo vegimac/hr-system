@@ -137,20 +137,20 @@ public partial class SwissdecTestmandantController
         }
         if (!vorschau)
         {
-            foreach (var lp in positionen.Where(p => p.IsActive && (p.SwissdecLohnart == "1006" || p.SwissdecLohnart == "1070" || p.SwissdecLohnart == "1033")))
+            foreach (var lp in positionen.Where(p => p.IsActive && (p.SwissdecLohnart == "1006" || p.SwissdecLohnart == "1070" || p.SwissdecLohnart == "1033" || p.SwissdecLohnart == "1218")))
                 WendeSwissdecBasisFlagsAn(lp);
             await _db.SaveChangesAsync();
             _log.LogInformation("Swissdec-Testmandant Schritt 4b: {Neu} neu, {Z} zugeordnet, {B} bereits, {U} kein Import", neu, zugeordnet, bereits, uebersprungen);
         }
         hinweise.Insert(0, $"{verwendet.Count} Swissdec-Lohnarten in den Testfällen: {bereits} bereits zugeordnet, {zugeordnet} an bestehende OneCrew-Positionen zugeordnet, {neu} neu, {uebersprungen} kein Import.");
         hinweise.Add("Neue Positionen tragen die Swissdec-Nummer als Code und die Pflichten aus dem Musterlohnartenstamm — danach im Lohnpositionen-Dialog editierbar (Feld «Swissdec-Lohnart»). Für die Anzeige beim MA müssen sie im Lohnschema des Vertragsmodells stehen.");
-        hinweise.Add("1006 Lektionenlohn: Ferien-, Feiertag- und 13.-ML-Basis (wie Stundenlohn). 1070 Schichtzulage und 1033 Ortszulage: nicht 13.-ML-Basis (CSV 1200/1201 ohne Zulage; Ortszulage ist Zulage, kein Lohn).");
+        hinweise.Add("1006 Lektionenlohn: Ferien-, Feiertag- und 13.-ML-Basis (wie Stundenlohn). 1070 Schichtzulage, 1033 Ortszulage und 1218 Provision: nicht 13.-ML-Basis (CSV 1200/1201 ohne Zulage; TF38 Dez 13. ML = 3'000 = nur Monatslohn).");
         return Ok(new SchrittErgebnis("4b · Lohnpositionen ↔ Swissdec-Lohnarten", vorschau, aktionen, hinweise));
     }
 
     /// <summary>
     /// CSV-massgebliche Basis-Flags, die der Musterlohnartenstamm nicht kennt
-    /// (Ferien/Feiertag) bzw. bei Schicht (1070) und Ortszulage (1033) widerspricht.
+    /// (Ferien/Feiertag) bzw. bei Schicht (1070), Ortszulage (1033) und Provision (1218) widerspricht.
     /// </summary>
     private static void WendeSwissdecBasisFlagsAn(Lohnposition lp)
     {
@@ -160,7 +160,7 @@ public partial class SwissdecTestmandantController
             lp.ZaehltAlsBasisFeiertag = true;
             lp.ZaehltAlsBasis13ml = true;
         }
-        else if (lp.SwissdecLohnart is "1070" or "1033")
-            lp.ZaehltAlsBasis13ml = false;
+        else if (lp.SwissdecLohnart is "1070" or "1033" or "1218")
+            lp.ZaehltAlsBasis13ml = false;   // 1218 Provision: TF38 Dez 13. ML = 3'000 = nur Monatslohn (Claude 21.09.2026)
     }
 }
