@@ -1540,7 +1540,7 @@
                      Walter 31.08.2026: «Import & Schnittstellen» ist in den Bereich
                      Entwicklung umgezogen (page-entwicklung / entwHubGrp-import). -->
                 <div class="ra-tile-row" id="adminHubCats" style="margin-top:12px;margin-bottom:0">
-                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster, Lohnschema, Absenz-Typen">
+                    <button type="button" class="ra-tile admin-hub-cat" data-cat="lohn" onclick="adminHubShowCat('lohn')" title="Perioden, SV-Sätze, Mindestlöhne, Lohnpositionen, QST, FZ, Saldi, Kontoplan, Lohnraster Mirus, Swissdec-Lohnarten, Basen-Kontrolle, Lohnschema, Absenz-Typen">
                         <img src="img/lohn-stammdaten.webp?v=20260816b" alt="" loading="lazy">
                         <span>Lohn-Stammdaten</span>
                     </button>
@@ -1605,8 +1605,18 @@
                     </div>
                         <div class="admin-card" onclick="showPage('elm-lohnraster')">
                         <img src="img/lohnkat-lohnraster-elm.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Lohnraster (ELM)</div>
-                        <div class="admin-card-desc">Referenzkatalog — Lohnarten per PickList in OneCrew übernehmen</div>
+                        <div class="admin-card-title">Lohnraster Mirus (Referenz)</div>
+                        <div class="admin-card-desc">Mirus-/McDonald's-Raster als Vorlage — Positionen mit OneCrew-Lohnpositionen verknüpfen (Migration)</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('swissdec-lohnarten')">
+                        <img src="img/lohnkat-lohnpositionen.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Swissdec-Lohnarten</div>
+                        <div class="admin-card-desc">Musterlohnartenstamm 1000–6999 (ELM) mit Flags — read-only, Zuordnung über «Swissdec-Lohnart» in den Lohnpositionen</div>
+                    </div>
+                        <div class="admin-card" onclick="showPage('basen-kontrolle')">
+                        <img src="img/lohnkat-kontoplan.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Basen-Kontrolle</div>
+                        <div class="admin-card-desc">SV-Basen aus Lohnarten-Flags nachrechnen und mit der Engine vergleichen (Filiale + Periode)</div>
                     </div>
                         <div class="admin-card" onclick="showPage('lohnschema')">
                         <img src="img/lohnkat-lohnschema.webp?v=20260817a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
@@ -1730,8 +1740,8 @@
             <div class="page liquid-mask fixhead" id="page-elm-lohnraster">
                 <div class="sticky-page-head fh-page-head">
                 <div class="page-head"><div>
-                    <h1 class="page-title">Lohnraster (ELM)</h1>
-                    <p class="page-sub">Dauerhaftes Archiv aller Raster-Positionen. Häkchen ✓ = diese Lohnart ist in OneCrew im Lohn — Häkchen setzen übernimmt sie, Häkchen entfernen löst nur die Zuordnung (löscht nichts). Bereits vorhandene Lohnpositionen werden automatisch per Code erkannt.</p>
+                    <h1 class="page-title">Lohnraster Mirus (Referenz)</h1>
+                    <p class="page-sub">Das Mirus-/McDonald's-Lohnraster (309 Positionen) als Vorlage für die Migration — nicht der Swissdec-Katalog. Häkchen ✓ = diese Position hat ein Gegenstück in OneCrew; Häkchen setzen legt eine OneCrew-Lohnposition an, «mit bestehender verknüpfen…» ordnet eine vorhandene zu, Häkchen entfernen löst nur die Zuordnung (löscht nichts).</p>
                 </div></div>
                 <div class="fh-toolbar">
                     <select id="elrTyp" onchange="elrRender()" style="padding:7px 10px;border-radius:8px;font-size:13px">
@@ -1745,16 +1755,52 @@
                     <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b6152">
                         <input type="checkbox" id="elrNurOffen" onchange="elrRender()"> nur noch nicht übernommene
                     </label>
-                    <span style="width:1px;height:24px;background:rgba(60,55,48,0.18);margin:0 4px"></span>
-                    <select id="elrSchattenMonat" style="padding:7px 8px;border-radius:8px;font-size:13px"></select>
-                    <input id="elrSchattenJahr" type="number" min="2024" max="2100"
-                           style="width:80px;padding:7px 8px;border:1px solid rgba(60,55,48,0.22);border-radius:8px;font-size:13px;background:rgba(255,255,255,0.7)">
-                    <button onclick="elrSchattenReport()" title="Schatten-Basen-Rechner: SV-Basen aus Lohnarten-Flags nachrechnen und mit der Engine vergleichen"
-                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Basen-Kontrolle</button>
                 </div>
                 </div>
                 <div class="page-body fh-body" style="overflow:auto !important">
                     <div id="elrList"></div>
+                </div>
+            </div>
+
+            <!-- Basen-Kontrolle — aus dem Lohnraster herausgelöst (Walter 21.09.2026) -->
+            <div class="page liquid-mask fixhead" id="page-basen-kontrolle">
+                <div class="sticky-page-head fh-page-head">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Basen-Kontrolle</h1>
+                    <p class="page-sub">Schatten-Basen-Rechner: rechnet alle Mitarbeitenden der gewählten Filiale und Periode read-only durch und vergleicht die SV-Basen aus den Lohnarten-Flags mit der Engine. Differenz &gt; 0.05 blockt das Bestätigen (409 BASEN_DIFFERENZ).</p>
+                </div></div>
+                <div class="fh-toolbar">
+                    <select id="elrSchattenMonat" style="padding:7px 8px;border-radius:8px;font-size:13px"></select>
+                    <input id="elrSchattenJahr" type="number" min="2024" max="2100"
+                           style="width:80px;padding:7px 8px;border:1px solid rgba(60,55,48,0.22);border-radius:8px;font-size:13px;background:rgba(255,255,255,0.7)">
+                    <button onclick="elrSchattenReport()" title="SV-Basen aus Lohnarten-Flags nachrechnen und mit der Engine vergleichen"
+                            style="background:#3f3f3f;color:#fff;border:none;border-radius:12px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Nachrechnen</button>
+                    <span style="font-size:12.5px;color:#8b8b8b">Filiale = Sidebar-Auswahl</span>
+                </div>
+                </div>
+                <div class="page-body fh-body" style="overflow:auto !important">
+                    <div style="color:#8b8b8b;font-size:12.5px;padding:20px">Periode wählen und «Nachrechnen» klicken — das Ergebnis öffnet sich als Übersicht pro Mitarbeiter.</div>
+                </div>
+            </div>
+
+            <!-- Swissdec-Lohnarten (Musterlohnartenstamm, read-only) — Walter 21.09.2026 -->
+            <div class="page liquid-mask fixhead" id="page-swissdec-lohnarten">
+                <div class="sticky-page-head fh-page-head">
+                <div class="page-head"><div>
+                    <h1 class="page-title">Swissdec-Lohnarten</h1>
+                    <p class="page-sub">Der Swissdec-Musterlohnartenstamm (ELM 6.0, Lohnarten 1000–6999) mit Beitragsflags, Lohnausweis-Ziffer und Fibu-Konto — read-only aus <code>Assets/Swissdec/SwissdecLohnarten.json</code>. Zuordnung zu OneCrew: Feld «Swissdec-Lohnart» in den Lohnpositionen. «QST Monat» = Vorschlag für neue Positionen (Sonderzahlungen, Austritt, Beteiligungen = kumuliert).</p>
+                </div></div>
+                <div class="fh-toolbar">
+                    <select id="sdlKat" onchange="sdlRender()" style="padding:7px 10px;border-radius:8px;font-size:13px"><option value="">Alle Kategorien</option></select>
+                    <input id="sdlSearch" oninput="sdlRender()" placeholder="Suchen (Code, Bezeichnung)…"
+                           style="padding:7px 12px;border:1px solid rgba(60,55,48,0.22);border-radius:8px;font-size:13px;min-width:260px;background:rgba(255,255,255,0.7)">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b6152">
+                        <input type="checkbox" id="sdlNurZugeordnet" onchange="sdlRender()"> nur in OneCrew zugeordnete
+                    </label>
+                </div>
+                </div>
+                <div class="page-body fh-body" style="overflow:auto !important">
+                    <div id="sdlList"></div>
                 </div>
             </div>
 
@@ -9273,7 +9319,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260917d"></script>
+<script src="js/app-core.js?v=20260921a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9350,7 +9396,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/absenz-kalender.js?v=20260722d"></script>
 <script src="js/audit-log.js?v=20260816c"></script>
 <script src="js/aktive-sitzungen.js?v=20260904a"></script>
-<script src="js/elm-lohnraster.js?v=20260817d"></script>
+<script src="js/elm-lohnraster.js?v=20260921a"></script>
 <script src="js/lohnschema.js?v=20260819d"></script>
 <script src="js/global-search.js?v=20260901a"></script>
 <script src="js/help-panel.js?v=20260816a"></script>

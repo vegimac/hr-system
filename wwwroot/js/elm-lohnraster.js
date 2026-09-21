@@ -11,16 +11,6 @@ let _elrLohnpos = [];
 async function elrInit() {
     const el = document.getElementById('elrList');
     if (el) el.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px;padding:20px">Wird geladen…</div>';
-    // Perioden-Wahl für die Basen-Kontrolle initialisieren (Default: aktueller Monat)
-    const selM = document.getElementById('elrSchattenMonat');
-    if (selM && !selM.options.length) {
-        const mon = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
-        selM.innerHTML = mon.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
-        const now = new Date();
-        selM.value = String(now.getMonth() + 1);
-        const j = document.getElementById('elrSchattenJahr');
-        if (j) j.value = String(now.getFullYear());
-    }
     try {
         const [r1, r2] = await Promise.all([
             fetch('/api/elm-lohnraster', { headers: ah() }),
@@ -306,4 +296,82 @@ function elrDetail(id) {
                 <td style="padding:3px 0;color:#3f3f3f">${_elrEsc(v)}</td>
             </tr>`).join('') + '</table>';
     m.style.display = 'block';
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  BASEN-KONTROLLE — eigene Seite (Walter 21.09.2026, aus dem Lohnraster
+//  herausgelöst; Schatten-Basen-Rechner = elrSchattenReport unverändert)
+// ══════════════════════════════════════════════════════════════════════
+function bkInit() {
+    const selM = document.getElementById('elrSchattenMonat');
+    if (selM && !selM.options.length) {
+        const mon = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+        selM.innerHTML = mon.map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+        const now = new Date();
+        selM.value = String(now.getMonth() + 1);
+        const j = document.getElementById('elrSchattenJahr');
+        if (j) j.value = String(now.getFullYear());
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SWISSDEC-LOHNARTEN — Musterlohnartenstamm read-only (Walter 21.09.2026)
+// ══════════════════════════════════════════════════════════════════════
+let _sdlAll = [];
+let _sdlZuordnung = {};   // Swissdec-Code → [OneCrew-Positionen]
+async function sdlInit() {
+    const el = document.getElementById('sdlList');
+    if (el) el.innerHTML = '<div style="color:#8b8b8b;font-size:12.5px;padding:20px">Wird geladen…</div>';
+    try {
+        const [r1, r2] = await Promise.all([
+            fetch('/api/lohnpositionen/swissdec-lohnarten', { headers: ah() }),
+            fetch('/api/lohnpositionen', { headers: ah() }),
+        ]);
+        _sdlAll = r1.ok ? await r1.json() : [];
+        const lp = r2.ok ? await r2.json() : [];
+        _sdlZuordnung = {};
+        lp.filter(p => p.isActive && p.swissdecLohnart).forEach(p => {
+            (_sdlZuordnung[p.swissdecLohnart] ??= []).push(p);
+        });
+    } catch (e) { if (el) el.textContent = 'Fehler: ' + e.message; return; }
+    const sel = document.getElementById('sdlKat');
+    if (sel && sel.options.length <= 1) {
+        [...new Set(_sdlAll.map(l => l.kategorie).filter(Boolean))].sort().forEach(k => {
+            const o = document.createElement('option'); o.value = k; o.textContent = k; sel.appendChild(o);
+        });
+    }
+    sdlRender();
+}
+// Vorschlag «QST Monat» nach Swissdec-Code — Spiegel von Lohnposition.SwissdecEinmalig (C#)
+function sdlQstMonat(code) {
+    const c = String(code || '');
+    if (/^1[234]/.test(c) || /^15/.test(c) || /^196/.test(c) || /^197/.test(c) || c === '1980') return false;
+    return !['1067', '1168', '3001', '3034'].includes(c);
+}
+function sdlRender() {
+    const el = document.getElementById('sdlList');
+    if (!el) return;
+    const kat = document.getElementById('sdlKat')?.value ?? '';
+    const q   = (document.getElementById('sdlSearch')?.value ?? '').trim().toLowerCase();
+    const nurZu = document.getElementById('sdlNurZugeordnet')?.checked ?? false;
+    const chk = v => v ? '<span style="color:#16a34a">✓</span>' : '<span style="color:#dc2626;opacity:.5">–</span>';
+    const rows = _sdlAll
+        .filter(l => (!kat || l.kategorie === kat)
+                  && (!q || l.code.includes(q) || (l.bezeichnung || '').toLowerCase().includes(q))
+                  && (!nurZu || _sdlZuordnung[l.code]))
+        .sort((a, b) => a.code.localeCompare(b.code));
+    if (!rows.length) { el.innerHTML = '<div style="color:#94a3b8;padding:32px;text-align:center">Keine Einträge</div>'; return; }
+    const th = (t, w) => `<th style="text-align:${w ? 'center' : 'left'};padding:8px 10px;font-size:11.5px;color:#6b6152;position:sticky;top:0;background:#f6f3ee">${t}</th>`;
+    el.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr>${th('Code')}${th('Bezeichnung')}${th('Kategorie')}${th('AHV',1)}${th('UVG',1)}${th('UVGZ',1)}${th('KTG',1)}${th('BVG',1)}${th('QST',1)}${th('QST Monat',1)}${th('13.ML',1)}${th('LA',1)}${th('Fibu',1)}${th('In OneCrew')}</tr></thead>
+        <tbody>${rows.map(l => {
+            const zu = _sdlZuordnung[l.code] || [];
+            const td = (v, c) => `<td style="padding:7px 10px;text-align:${c ? 'center' : 'left'};border-bottom:1px solid rgba(60,55,48,0.08)">${v}</td>`;
+            return `<tr>${td(`<b style="font-family:monospace;color:#6b6152">${l.code}</b>`)}${td(_elrEsc(l.bezeichnung))}${td(`<span style="background:#ece9e2;color:#374151;padding:2px 8px;border-radius:8px;font-size:11.5px">${_elrEsc(l.kategorie || '')}</span>`)}`
+                + `${td(chk(l.ahv), 1)}${td(chk(l.uvg), 1)}${td(chk(l.uvgz), 1)}${td(chk(l.ktg), 1)}${td(chk(l.bvg), 1)}${td(chk(l.qst), 1)}`
+                + `${td(l.qst ? chk(sdlQstMonat(l.code)) : '<span style="color:#cbd5e1">·</span>', 1)}${td(chk(l.ml13), 1)}`
+                + `${td(`<span style="font-family:monospace;color:#6366f1">${_elrEsc(l.lohnausweis || '—')}</span>`, 1)}${td(`<span style="font-family:monospace">${_elrEsc(l.fibuKonto || '—')}</span>`, 1)}`
+                + `${td(zu.length ? zu.map(p => `<b style="color:#166534">${_elrEsc(p.code)}</b> <span style="color:#6b6152">${_elrEsc(p.bezeichnung)}</span>`).join('<br>') : '<span style="color:#b8b2a8">—</span>')}</tr>`;
+        }).join('')}</tbody></table>`;
 }
