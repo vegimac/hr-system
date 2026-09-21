@@ -1422,7 +1422,7 @@ function lpRender() {
             <td style="padding:10px 14px;text-align:center">${chk(l.ktgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.bvgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.qstPflichtig)}</td>
-            <td style="padding:10px 14px;text-align:center" title="${l.qstPeriodisch ? 'QST periodisch' : 'QST einmalig'}">${l.qstPflichtig ? chk(l.qstPeriodisch) : '<span style="color:#cbd5e1">·</span>'}</td>
+            <td style="padding:10px 14px;text-align:center" title="${l.qstPeriodisch ? 'QST im Monat' : 'QST kumuliert seit Jahresbeginn'}">${l.qstPflichtig ? chk(l.qstPeriodisch) : '<span style="color:#cbd5e1">·</span>'}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
