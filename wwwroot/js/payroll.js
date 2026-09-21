@@ -304,7 +304,9 @@ async function lzSave() {
     const bem     = document.getElementById('lzBemerkung').value.trim() || null;
 
     if (!lpId)         { alert('Bitte eine Lohnposition wählen.'); return; }
-    if (!betrag || betrag <= 0) { alert('Bitte einen gültigen Betrag eingeben.'); return; }
+    // Negativ erlaubt (Walter 21.09.2026, Swissdec TF11 Juni): Zulage negativ = Korrektur,
+    // Abzug negativ = Gutschrift. Nur 0 ist sinnlos.
+    if (isNaN(betrag) || betrag === 0) { alert('Bitte einen gültigen Betrag eingeben (ungleich 0; negativ = Korrektur/Gutschrift).'); return; }
 
     const periode = `${_lzCurrentYear}-${String(_lzCurrentMonth).padStart(2,'0')}`;
     try {

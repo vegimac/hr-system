@@ -134,8 +134,10 @@ public class LohnZulagenController : ControllerBase
     {
         if (dto.Periode.Length != 7 || dto.Periode[4] != '-')
             return BadRequest("Periode muss im Format YYYY-MM sein.");
-        if (dto.Betrag <= 0)
-            return BadRequest("Betrag muss grösser als 0 sein.");
+        // Negativ erlaubt (Walter 21.09.2026): Zulage negativ = Korrektur (z.B. 1001 Lohnkorrektur,
+        // Storno einer Beteiligung), Abzug negativ = Gutschrift (Swissdec TF11 Juni 5210 −19'750).
+        if (dto.Betrag == 0)
+            return BadRequest("Betrag darf nicht 0 sein.");
 
         // Lohnlauf-Sperre: keine Zulage in einer in-Verarbeitung-Periode anlegen.
         var locked = await CheckLohnLockAsync(dto.EmployeeId, dto.Periode, dto.CompanyProfileId);
@@ -186,7 +188,7 @@ public class LohnZulagenController : ControllerBase
             .Include(z => z.Lohnposition)
             .FirstOrDefaultAsync(z => z.Id == id);
         if (entry is null) return NotFound();
-        if (dto.Betrag <= 0) return BadRequest("Betrag muss grösser als 0 sein.");
+        if (dto.Betrag == 0) return BadRequest("Betrag darf nicht 0 sein.");
 
         // Lohnlauf-Sperre: keine Änderung in einer in-Verarbeitung-Periode.
         var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode, companyProfileId);
