@@ -494,6 +494,18 @@ public class PayrollCalculationEngine
         _qstArbeitstage = qstEinstellung == null || _qstWohnsitzSchweiz ? null
             : await _db.EmployeeQstArbeitstage.AsNoTracking()
                 .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
+        // Σ CH-Tage / Σ Arbeitstage der Vormonate im Jahr — für die Ausscheidung von
+        // Sonderzahlungen auch im MONATSMODELL (Walter 21.09.2026, «Swissdec respektieren»:
+        // RefXML TF28 Arbenz Feb 2025 = 20'000 × 25/40, wie Jahresmodell Y31).
+        _qstArbeitstageBisher = null;
+        if (_qstArbeitstage != null)
+        {
+            var bisher = await _db.EmployeeQstArbeitstage.AsNoTracking()
+                .Where(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month)
+                .Select(a => new { a.TageCh, a.TageEffektiv })
+                .ToListAsync();
+            _qstArbeitstageBisher = (bisher.Sum(a => a.TageCh), bisher.Sum(a => a.TageEffektiv));
+        }
         _sonderSaetze = qstEinstellung == null ? null
             : await _db.QstSonderkategorieSaetze.AsNoTracking().ToListAsync();
         _qstJahresYtd = null;
@@ -4501,6 +4513,8 @@ public class PayrollCalculationEngine
     /// </summary>
     /// <summary>Arbeitstage CH/effektiv der laufenden Periode (nur bei QST-Pflicht geladen).</summary>
     private EmployeeQstArbeitstage? _qstArbeitstage;
+    /// <summary>Σ (CH-Tage, Arbeitstage) der Vormonate im Jahr, Wohnsitz Ausland (Monats- und Jahresmodell).</summary>
+    private (decimal Ch, decimal Eff)? _qstArbeitstageBisher;
     private bool _qstWohnsitzSchweiz;
     private List<QstSonderkategorieSatz>? _sonderSaetze;
     /// <summary>
@@ -4665,17 +4679,21 @@ public class PayrollCalculationEngine
         if (tage != null && !_qstWohnsitzSchweiz && tage.TageEffektiv > 0 && tage.TageCh >= 0 && IstWohnsitzAusland(einstellung))
         {
             // Periodischer Lohn: Verhältnis des Monats. Aperiodisches (Bonus, 13. ML):
-            // im Jahresmodell das kumulierte Verhältnis Σ CH-Tage / Σ Arbeitstage seit
-            // Jahresbeginn (Anhang 1 Y31; TF29 Feb 20'000 × 25/40 = 12'500, nicht × 10/20).
-            // Monatsmodell bleibt beim Monatsverhältnis (Anhang Monat M19.1).
+            // kumuliertes Verhältnis Σ CH-Tage / Σ Arbeitstage seit Jahresbeginn — im
+            // Jahresmodell (Anhang 1 Y31; TF29 Feb 20'000 × 25/40) UND im Monatsmodell
+            // (Walter 21.09.2026: RefXML TF28 Arbenz BE Feb 2025 = 15'500, nicht 13'000;
+            // Anhang Monat M19.1 ist dazu nicht unterscheidbar, die XML ist eindeutig).
             decimal ratioMonat = tage.TageCh / tage.TageEffektiv;
             if (ratioMonat > 1) ratioMonat = 1;
             decimal aperVoll = Math.Min(bruttoVoll, Math.Max(0m, aperiodisch) + Math.Max(0m, dreizehnter));
             decimal periodVoll = bruttoVoll - aperVoll;
             decimal ratioAper = ratioMonat;
-            if (_qstJahresYtd is { } ytdTage && ytdTage.TageEffBisher + tage.TageEffektiv > 0)
+            (decimal Ch, decimal Eff)? bisher = _qstJahresYtd is { } ytdTage
+                ? (ytdTage.TageChBisher, ytdTage.TageEffBisher)
+                : _qstArbeitstageBisher;
+            if (bisher is { } b && b.Eff + tage.TageEffektiv > 0)
             {
-                ratioAper = (ytdTage.TageChBisher + tage.TageCh) / (ytdTage.TageEffBisher + tage.TageEffektiv);
+                ratioAper = (b.Ch + tage.TageCh) / (b.Eff + tage.TageEffektiv);
                 if (ratioAper > 1) ratioAper = 1;
             }
             var gekuerzt = Math.Round(periodVoll * ratioMonat + aperVoll * ratioAper, 2);
