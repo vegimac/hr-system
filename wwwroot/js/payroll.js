@@ -622,6 +622,17 @@ async function lohnWfRefresh() {
     await loadLohnList();
 }
 
+// «Nur HR»-Flag IMMER für die Filiale der Lohnlauf-Seite (#lohnBranchSelect)
+// auflösen — nicht über fixedCompanyProfileId/currentBranchId, die je nach
+// Zeitpunkt anders stehen können. Sonst rendert die Liste zweistufig (✓✓
+// «HR-bestätigt»), die Statusbar aber einstufig («bestätigt») — Walter-Bug
+// 21.09.2026, letzter MA blieb auf «GF bestätigt».
+function _lohnNurHr() {
+    if (typeof lohnlaufNurHrFuerFiliale !== 'function') return false;
+    const id = document.getElementById('lohnBranchSelect')?.value || null;
+    return lohnlaufNurHrFuerFiliale(id || undefined);
+}
+
 // ── Status-Bar: zeigt Stufe + die nächsten Aktions-Buttons (EINZIGE Stelle) ──
 // Mirror von _akWfRenderStatusBar aus akonto-workflow.js. Rendert die
 // Status-Pille, den Fortschritts-Counter und ALLE Aktionsbuttons abhängig von:
@@ -654,7 +665,7 @@ function _lohnWfRenderStatusBar() {
         ? _akIsHr()
         : ((typeof currentUser !== 'undefined' && currentUser?.role)
             && (currentUser.role === 'admin' || currentUser.role === 'superuser' || currentUser.role === 'buchhaltung'));
-    const nurHr = (typeof lohnlaufNurHrFuerFiliale === 'function') && lohnlaufNurHrFuerFiliale();
+    const nurHr = _lohnNurHr();
     const zurueckLabel = nurHr ? '↩ Zurück zur Bearbeitung' : '↩ Zurück an GF';
     const total = d.activeTotal || 0;
     const gf    = d.gfConfirmed || 0;
@@ -1172,7 +1183,7 @@ async function loadLohnList() {
             const isHrConfirmed = hrEmpIds.has(Number(e.id));
             const isGfConfirmed = gfEmpIds.has(Number(e.id));
             const isConfirmed   = isGfConfirmed;   // Legacy-Variable für Sortier-/Count-Logik
-            const nurHrListe = typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale();
+            const nurHrListe = _lohnNurHr();
             const nurHrDone  = nurHrListe && (isHrConfirmed || isGfConfirmed);
             // Mindestlohn-Warnung (Walter 20.05.2026): ⚠ wenn unter L-GAV.
             const mwWarn = _lohnMwUnderpaid[e.id];
@@ -2393,8 +2404,15 @@ async function confirmLohn() {
         // Haken unsichtbar). Nur-HR bestätigt in einem Schritt — nicht
         // wieder auf «GF bestätigt» zurückmalen (sonst ✓✓ erst beim Nächsten).
         const empId = Number(s.employeeId);
-        const nurHr = typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale();
-        _lohnMarkRowConfirmed(empId, nurHr ? 'done' : 'gf');
+        const nurHr = _lohnNurHr();
+        // Nach lohnWfRefresh() steht der echte Snapshot-Status in _lohnWfData —
+        // danach richten, sonst malt 'gf' eine schon HR-bestätigte Zeile (Admin
+        // in provisorischer Periode bestätigt in EINEM Schritt) wieder auf
+        // «GF bestätigt» zurück; beim letzten MA fehlt der Sprung, der es
+        // korrigiert hätte (Walter-Bug 21.09.2026).
+        const stNow = _lohnWfData?.snapByEmp?.[empId]?.status;
+        const istHrNow = stNow === 'HR_BESTAETIGT' || stNow === 'ABGESCHLOSSEN';
+        _lohnMarkRowConfirmed(empId, nurHr ? 'done' : (istHrNow ? 'hr' : 'gf'));
         if (_lohnWfData) {
             const prev = _lohnWfData.snapByEmp?.[empId]
                 || _lohnWfData.snapByEmp?.[s.employeeId]
@@ -2447,8 +2465,11 @@ function _lohnMarkRowConfirmed(empId, mode) {
     if (!row) return;
     const avatar = row.firstElementChild;
     const sub    = row.querySelector('.lohn-emp-nr');
-    const nurHr = mode === 'done'
-        || (typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale());
+    const nurHr = mode === 'done' || _lohnNurHr();
+    // Nie zurückstufen: eine Zeile, die schon «HR-bestätigt» (✓✓) oder
+    // «bestätigt» zeigt, wird durch ein späteres 'gf' nicht überschrieben.
+    const subNow = (sub?.textContent || '').trim();
+    if (mode === 'gf' && (subNow.startsWith('HR-bestätigt') || subNow === 'bestätigt')) return;
     if (nurHr) {
         if (avatar) { avatar.style.background = '#dcfce7'; avatar.style.color = '#166534'; avatar.textContent = '✓'; }
         if (sub)    { sub.textContent = 'bestätigt'; sub.style.color = '#16a34a'; }
@@ -2959,7 +2980,7 @@ async function lohnRecomputeSnapshots() {
 async function lohnZurueckAnGf() {
     const p = window._currentLohnPeriode;
     if (!p?.id) { alert('Keine Periode aktiv.'); return; }
-    const grund = prompt(typeof lohnlaufNurHrFuerFiliale === 'function' && lohnlaufNurHrFuerFiliale()
+    const grund = prompt(_lohnNurHr()
         ? 'Begründung (zurück zur Bearbeitung):'
         : 'Begründung für GF (warum zurück?):');
     if (grund === null || grund.trim() === '') return;
