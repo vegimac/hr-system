@@ -2876,6 +2876,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.BvgAuf100Rechnen).HasColumnName("bvg_auf_100_rechnen").HasDefaultValue(false);
             entity.Property(e => e.Position13ml).HasColumnName("position_13ml").HasDefaultValue(0);
             entity.Property(e => e.ZaehltFuerTagessatz).HasColumnName("zaehlt_fuer_tagessatz").HasDefaultValue(true);
+            entity.Property(e => e.QstPeriodisch).HasColumnName("qst_periodisch").HasDefaultValue(true);
             entity.Property(e => e.SortOrder).HasColumnName("sort_order").HasDefaultValue(99);
             entity.Property(e => e.IsActive).HasColumnName("is_active").HasDefaultValue(true);
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");

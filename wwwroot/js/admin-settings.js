@@ -1373,7 +1373,7 @@ async function loadLohnpositionen() {
         lpRender();
     } catch {
         document.getElementById('lpTableBody').innerHTML =
-            '<tr><td colspan="14" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
+            '<tr><td colspan="15" style="padding:24px;text-align:center;color:#ef4444">Ladefehler</td></tr>';
     }
 }
 
@@ -1395,7 +1395,7 @@ function lpRender() {
     );
 
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="14" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="15" style="padding:32px;text-align:center;color:#94a3b8">Keine Einträge</td></tr>';
         return;
     }
 
@@ -1422,6 +1422,7 @@ function lpRender() {
             <td style="padding:10px 14px;text-align:center">${chk(l.ktgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.bvgPflichtig)}</td>
             <td style="padding:10px 14px;text-align:center">${chk(l.qstPflichtig)}</td>
+            <td style="padding:10px 14px;text-align:center" title="${l.qstPeriodisch ? 'QST periodisch' : 'QST einmalig'}">${l.qstPflichtig ? chk(l.qstPeriodisch) : '<span style="color:#cbd5e1">·</span>'}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-left:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasisFeiertag)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28)">${chk(l.zaehltAlsBasisFerien)}</td>
             <td style="padding:10px 8px;text-align:center;background:rgba(187,247,208,0.28);border-right:2px solid rgba(22,101,52,0.25)">${chk(l.zaehltAlsBasis13ml)}</td>
@@ -1526,6 +1527,7 @@ function lpOpenForm(id) {
     document.getElementById('lpKtg').checked          = d?.ktgPflichtig ?? true;
     document.getElementById('lpBvg').checked          = d?.bvgPflichtig ?? true;
     document.getElementById('lpQst').checked          = d?.qstPflichtig ?? true;
+    document.getElementById('lpQstPeriodisch').checked = d?.qstPeriodisch ?? true;
     document.getElementById('lpDreijehnter').checked  = d?.dreijehnterMlPflichtig ?? false;
 
     // Bemessungsbasis-Flags
@@ -1568,6 +1570,7 @@ async function lpSave(e) {
         ktgPflichtig:    document.getElementById('lpKtg').checked,
         bvgPflichtig:    document.getElementById('lpBvg').checked,
         qstPflichtig:           document.getElementById('lpQst').checked,
+        qstPeriodisch:          document.getElementById('lpQstPeriodisch').checked,
         dreijehnterMlPflichtig: document.getElementById('lpDreijehnter').checked,
         zaehltAlsBasisFeiertag: document.getElementById('lpBasisFeiertag').checked,
         zaehltAlsBasisFerien:   document.getElementById('lpBasisFerien').checked,

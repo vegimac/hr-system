@@ -128,7 +128,8 @@ public partial class SwissdecTestmandantController
                 Code = lpCode, Bezeichnung = k.Bezeichnung, Kategorie = k.Kategorie, Typ = k.Typ,
                 AhvAlvPflichtig = k.Ahv, NbuvPflichtig = k.Uvg, KtgPflichtig = k.Ktg, BvgPflichtig = k.Bvg, QstPflichtig = k.Qst,
                 ZaehltAlsBasis13ml = k.Ml13, LohnausweisCode = k.Lohnausweis.Length > 0 ? k.Lohnausweis : null,
-                SwissdecLohnart = code, SortOrder = ++maxSort, IsActive = true, CreatedAt = DateTime.Now,   // created_at ohne Zeitzone → lokale Zeit (Npgsql-Kind)
+                SwissdecLohnart = code, QstPeriodisch = !Lohnposition.SwissdecEinmalig(code),
+                SortOrder = ++maxSort, IsActive = true, CreatedAt = DateTime.Now,   // created_at ohne Zeitzone → lokale Zeit (Npgsql-Kind)
             };
             WendeSwissdecBasisFlagsAn(lp);
             _db.Lohnpositionen.Add(lp);

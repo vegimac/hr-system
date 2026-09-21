@@ -83,6 +83,7 @@ public class LohnpositionController : ControllerBase
         item.KtgPflichtig    = dto.KtgPflichtig;
         item.BvgPflichtig    = dto.BvgPflichtig;
         item.QstPflichtig           = dto.QstPflichtig;
+        item.QstPeriodisch          = dto.QstPeriodisch;
         item.DreijehnterMlPflichtig = dto.DreijehnterMlPflichtig;
         item.ZaehltAlsBasisFeiertag = dto.ZaehltAlsBasisFeiertag;
         item.ZaehltAlsBasisFerien   = dto.ZaehltAlsBasisFerien;

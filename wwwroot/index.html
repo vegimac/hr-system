@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneCrew</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/app.css?v=20260917c">
+    <link rel="stylesheet" href="css/app.css?v=20260921a">
 </head>
 <body>
 
@@ -5766,7 +5766,7 @@
                     <table class="fh-table fh-table-head" aria-hidden="true">
                         <colgroup>
                             <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
-                            <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
+                            <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
                             <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
                             <col class="lp-c-la"><col class="lp-c-typ"><col class="lp-c-act">
                         </colgroup>
@@ -5777,6 +5777,7 @@
                             <th class="fh-th-center" title="KTG">KTG</th>
                             <th class="fh-th-center" title="BVG">BVG</th>
                             <th class="fh-th-center" title="Quellensteuer">QST</th>
+                            <th class="fh-th-center" title="QST periodisch: monatlicher Lohn/Zulage — im Kurzmonat hochrechnen, CH-Tage des Monats. Ohne Häkchen = einmalig (Bonus, Abgang, Beteiligung): 1:1 und Σ CH-Tage seit Jahresbeginn">QST per.</th>
                             <th class="fh-th-center lp-th-green lp-th-green-l" title="Basis für Feiertagsentschädigung">FEI</th>
                             <th class="fh-th-center lp-th-green" title="Basis für Ferienentschädigung">FER</th>
                             <th class="fh-th-center lp-th-green lp-th-green-r" title="Basis für 13. Monatslohn">13.ML</th>
@@ -5794,7 +5795,7 @@
                             <table class="fh-table fh-table-body">
                                 <colgroup>
                                     <col class="lp-c-code"><col class="lp-c-name"><col class="lp-c-kat">
-                                    <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
+                                    <col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag"><col class="lp-c-flag">
                                     <col class="lp-c-fei"><col class="lp-c-fer"><col class="lp-c-ml">
                                     <col class="lp-c-la"><col class="lp-c-typ"><col class="lp-c-act">
                                 </colgroup>
@@ -5880,6 +5881,10 @@
                                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
                                         <input type="checkbox" id="lpQst" style="width:15px;height:15px;accent-color:#3f3f3f">
                                         <span>Quellensteuer</span>
+                                    </label>
+                                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px" title="Periodisch = läuft monatlich (Lohn, Zulagen, Kinderzulage): im Kurzmonat/Nebenerwerb auf den Monat hochrechnen, bei Wohnsitz Ausland CH-Tage des Monats. Einmalig (Bonus, Gratifikation, Abgangsentschädigung, Beteiligung, Geburtszulage): satzbestimmend 1:1, Σ CH-Tage seit Jahresbeginn.">
+                                        <input type="checkbox" id="lpQstPeriodisch" style="width:15px;height:15px;accent-color:#3f3f3f">
+                                        <span>QST periodisch (sonst einmalig)</span>
                                     </label>
                                 </div>
                             </div>
@@ -9325,7 +9330,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260918a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260917a"></script>
+<script src="js/admin-settings.js?v=20260921a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>

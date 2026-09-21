@@ -105,6 +105,29 @@ public class Lohnposition
     /// </summary>
     public bool ZaehltFuerTagessatz { get; set; } = true;
 
+    /// <summary>
+    /// QST: periodische Lohnart (Walter 21.09.2026, statt fest im Code). true = läuft
+    /// monatlich (Lohn, Zulagen, Kinderzulage): im Kurzmonat/Nebenerwerb auf den vollen
+    /// Monat hochrechnen, bei Wohnsitz Ausland mit dem CH-Tage-Verhältnis des MONATS
+    /// ausscheiden. false = einmalig (Bonus, Gratifikation, Abgangsentschädigung,
+    /// Beteiligungen, Geburtszulage, VR-Honorar): satzbestimmend 1:1, Ausscheidung mit
+    /// Σ CH-Tage seit Jahresbeginn (Anhang 1 Y31, RefXML TF28/TF29).
+    /// Seed aus dem Swissdec-Katalog: <see cref="SwissdecEinmalig"/>.
+    /// </summary>
+    public bool QstPeriodisch { get; set; } = true;
+
+    /// <summary>Swissdec-Lohnarten, die einmalig (aperiodisch) sind — Seed + Vorschlag in 4b.</summary>
+    public static bool SwissdecEinmalig(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code)) return false;
+        code = code.Trim();
+        if (code.StartsWith("12") || code.StartsWith("13") || code.StartsWith("14")) return true;   // Sonderzahlungen, Austritt/Kapital
+        if (code.StartsWith("15")) return true;                                                     // Honorare
+        if (code.StartsWith("196")) return true;                                                    // Beteiligungsrechte
+        if (code.StartsWith("197") || code == "1980") return true;                                  // vom AG übernommene Beiträge, Weiterbildung
+        return code is "1067" or "1168" or "3001" or "3034";                                        // Überzeit nach Austritt, Ferienauszahlung Austritt, Geburtszulagen
+    }
+
     public int     SortOrder       { get; set; } = 99;
     public bool    IsActive        { get; set; } = true;
     public DateTime CreatedAt      { get; set; } = DateTime.Now;

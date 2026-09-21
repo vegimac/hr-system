@@ -5307,16 +5307,11 @@ public class PayrollCalculationEngine
     }
 
     /// <summary>
-    /// Periodische Zulage im Sinn der QST-Hochrechnung (Kinder-, Ausbildungs-,
-    /// Haushaltszulage): OneCrew 190.1/190.2 bzw. Swissdec 3000/3010/3030.
-    /// Geburts-/Adoptionszulage (190.3, 3034) ist einmalig → nicht hochrechnen.
+    /// Periodische Lohnart im Sinn der QST (Hochrechnung Kurzmonat/Nebenerwerb, CH-Tage-
+    /// Verhältnis des Monats) — Flag <see cref="Lohnposition.QstPeriodisch"/> statt fester
+    /// Code-Liste (bis 21.09.2026 nur 3000/3010/3030 bzw. 190.1/190.2).
     /// </summary>
-    private static bool IstPeriodischeZulage(Lohnposition lp)
-    {
-        var sd = lp.SwissdecLohnart;
-        if (sd == "3000" || sd == "3010" || sd == "3030") return true;
-        return lp.Code == "190.1" || lp.Code == "190.2";
-    }
+    private static bool IstPeriodischeZulage(Lohnposition lp) => lp.QstPeriodisch;   // Flag an der Lohnart (Walter 21.09.2026)
 
     /// <summary>
     /// Anteiliger Monatslohn im Teilmonat nach Filial-Methode (Walter 09.09.2026).
