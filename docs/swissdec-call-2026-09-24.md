@@ -53,6 +53,14 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 
 ---
 
+### 8. TF15 Degelo, März 2025 — ALV-Höchstlohn bei Eintritt am 28. Februar
+- **Situation:** Degelo tritt am 28.2.2025 ein (Stundenlöhner, 1 Tag Februar + ganzer März). Sein Lohn (2'800) liegt weit unter dem ALV-Höchstlohn — die Deckelung greift also nur, wenn der Höchstlohn für den angebrochenen Februar sehr klein gerechnet wird.
+- **Was in der XML steht:** ALV-pflichtiger Lohn März nur **205.83** = 12'350 ÷ 60. Das sieht so aus, als würde der Höchstlohn für Februar UND März zusammen auf einen einzigen Tagessatz über 60 Tage gerechnet.
+- **Was wir rechnen:** Wie bei TF14 Casanova (Eintritt 28.1., dort stimmt es mit der XML überein): angebrochener Monat = Tage ÷ 30 → kumulierte ALV-Basis **1'646.67**, ALV 18.11 / ALVZ 5.77.
+- **Unterschied:** rund 18 Franken ALV+ALVZ. Wir wollen nur die Regel verstehen: Wieso 12'350 ÷ 60 bei Degelo, aber Tage ÷ 30 bei Casanova? Gibt es bei Eintritt am letzten Tag des Monats eine Sonderregel?
+
+---
+
 ## B. Fallen in den Testdaten, die wir gefunden haben (nur zur Info)
 
 Wir wissen, dass Swissdec absichtlich Fehler einbaut, damit niemand die Soll-XML abschreibt. Diese haben wir erkannt und bewusst NICHT übernommen:
