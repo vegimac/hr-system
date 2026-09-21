@@ -564,9 +564,15 @@ public class PayrollController : HrControllerBase
         bool relevant = !wohnsitzCh && qst != null && (!string.IsNullOrWhiteSpace(qst.WohnsitzAusland)
             || (!string.IsNullOrWhiteSpace(qst.Wohnsitzstaat) && !string.Equals(qst.Wohnsitzstaat, "CH", StringComparison.OrdinalIgnoreCase))
             || qst.IsGrenzgaenger);
+        // Auch relevant, wenn die Person FRÜHER im Jahr Auslandtage hatte: die kumulierte
+        // CH-Quote kürzt den 13. ML / Sonderzahlungen weiterhin (TF25 Lehmann Juni 67/84,
+        // Claude 21.09.2026) — dafür müssen auch die CH-Monate erfasst sein (z.B. Austritt 10/10).
+        bool quoteImJahr = qst != null && await _db.EmployeeQstArbeitstage.AsNoTracking()
+            .AnyAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month < month && a.TageCh < a.TageEffektiv);
+        if (quoteImJahr) relevant = true;
         var at = await _db.EmployeeQstArbeitstage.AsNoTracking()
             .FirstOrDefaultAsync(a => a.EmployeeId == employeeId && a.Year == year && a.Month == month);
-        return Ok(new { relevant, tageEffektiv = at?.TageEffektiv, tageCh = at?.TageCh, bemerkung = at?.Bemerkung });
+        return Ok(new { relevant, wohnsitzCh, quoteImJahr, tageEffektiv = at?.TageEffektiv, tageCh = at?.TageCh, bemerkung = at?.Bemerkung });
     }
 
     [HttpPut("qst-arbeitstage")]

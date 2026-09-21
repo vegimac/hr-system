@@ -4735,11 +4735,11 @@ public class PayrollCalculationEngine
             (decimal Ch, decimal Eff)? bisher = _qstJahresYtd is { } ytdTage
                 ? (ytdTage.TageChBisher, ytdTage.TageEffBisher)
                 : _qstArbeitstageBisher;
-            // Monat ohne Erfassung bei Wohnsitz CH: zählt als voll in der Schweiz
-            // (Standard 20 Arbeitstage), damit die Kumulation nicht am letzten
-            // Auslandmonat stehen bleibt.
-            decimal chJetzt  = tage?.TageCh ?? (_qstWohnsitzSchweiz ? 20m : 0m);
-            decimal effJetzt = tage?.TageEffektiv ?? (_qstWohnsitzSchweiz ? 20m : 0m);
+            // Monat ohne Erfassung: zählt als voll in der Schweiz (Standard 20 Arbeitstage),
+            // damit die Kumulation nicht am letzten erfassten Monat stehen bleibt. Bei
+            // Teilmonaten (Austritt) die Tage erfassen — 5b übernimmt sie aus der CSV.
+            decimal chJetzt  = tage?.TageCh ?? 20m;
+            decimal effJetzt = tage?.TageEffektiv ?? 20m;
             if (bisher is { } b && b.Eff + effJetzt > 0 && (b.Ch < b.Eff || auslandJetzt))
             {
                 ratioAper = (b.Ch + chJetzt) / (b.Eff + effJetzt);

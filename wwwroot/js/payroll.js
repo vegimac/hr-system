@@ -54,7 +54,9 @@ async function lzLoadQstTage() {
         const eff = d.tageEffektiv ?? '', ch = d.tageCh ?? '';
         box.innerHTML = `
             <div style="font-weight:700;margin-bottom:4px">Quellensteuer — Arbeitstage Schweiz</div>
-            <div style="font-size:12px;color:#64748b;margin-bottom:6px">Wohnsitz im Ausland: steuerbar ist nur der Anteil der in der Schweiz geleisteten Arbeitstage. Leer = voller Lohn steuerbar.</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px">${d.wohnsitzCh
+                ? 'Wohnsitz jetzt in der Schweiz — die Tage zählen nur noch für die Jahres-Quote (13. ML / Sonderzahlungen × Σ CH-Tage seit Jahresbeginn). Leer = 20 von 20.'
+                : 'Wohnsitz im Ausland: steuerbar ist nur der Anteil der in der Schweiz geleisteten Arbeitstage. Leer = voller Lohn steuerbar.'}</div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <label style="font-size:12px">CH <input id="lzQstTageCh" type="number" min="0" max="31" step="0.5" value="${ch}" style="width:64px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px"></label>
                 <label style="font-size:12px">von <input id="lzQstTageEff" type="number" min="0" max="31" step="0.5" value="${eff}" style="width:64px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px"> Tagen</label>

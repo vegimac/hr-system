@@ -193,28 +193,23 @@ public partial class SwissdecTestmandantController
 
             var zulagen = new List<string>(); var soll = new List<string>();
 
-            // Arbeitstage effektiv / CH → employee_qst_arbeitstage (nur Wohnsitz Ausland).
-            // Wohnsitz CH in diesem Monat (TF25 Lehmann ab 1.5. Malters, Umzug = QST)
-            // → CSV-Werte nicht übernehmen.
+            // Arbeitstage effektiv / CH → employee_qst_arbeitstage — IMMER übernehmen, auch bei
+            // Wohnsitz CH (Claude 21.09.2026): der Monatsanteil greift nur bei Wohnsitz Ausland,
+            // aber die kumulierte CH-Quote fürs 13. ML braucht auch die CH-Monate (TF25 Lehmann
+            // Juni: 10/10 im Austrittsmonat → 67/84 statt 57/74).
             var tEff = WertImMonat(tageEffJeMonat, fall, m); var tCh = WertImMonat(tageChJeMonat, fall, m);
             if (tEff is > 0 && tCh != null)
             {
                 var wohnCh = await QstKantonswechselService.WohnsitzSchweizAmAsync(_db, emp.Id, m);
-                if (wohnCh)
+                felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH"
+                    + (wohnCh ? " (Wohnsitz CH → nur Σ-Quote)" : (tCh < tEff ? " → QST-Anteil bei Wohnsitz Ausland" : ""));
+                if (!vorschau)
                 {
-                    felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH (CSV; Wohnsitz CH → nicht übernommen)";
-                }
-                else
-                {
-                    felder["Arbeitstage"] = $"{tEff:0.#} effektiv · {tCh:0.#} CH" + (tCh < tEff ? " → QST-Anteil bei Wohnsitz Ausland" : "");
-                    if (!vorschau)
-                    {
-                        var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == emp.Id && a.Year == m.Year && a.Month == m.Month)
-                              ?? new EmployeeQstArbeitstage { EmployeeId = emp.Id, Year = m.Year, Month = m.Month, CreatedAt = DateTime.Now };
-                        at.TageEffektiv = tEff.Value; at.TageCh = tCh.Value; at.Bemerkung = "Swissdec-Testdaten"; at.UpdatedAt = DateTime.Now;
-                        if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
-                        await _db.SaveChangesAsync();
-                    }
+                    var at = await _db.EmployeeQstArbeitstage.FirstOrDefaultAsync(a => a.EmployeeId == emp.Id && a.Year == m.Year && a.Month == m.Month)
+                          ?? new EmployeeQstArbeitstage { EmployeeId = emp.Id, Year = m.Year, Month = m.Month, CreatedAt = DateTime.Now };
+                    at.TageEffektiv = tEff.Value; at.TageCh = tCh.Value; at.Bemerkung = "Swissdec-Testdaten"; at.UpdatedAt = DateTime.Now;
+                    if (at.Id == 0) _db.EmployeeQstArbeitstage.Add(at);
+                    await _db.SaveChangesAsync();
                 }
             }
             foreach (var w in grp.OrderBy(x => x.Code))
