@@ -218,3 +218,8 @@ Nächste Schritte:
    Unterlagen: docs/Swissdec-Erstberatung-OneCrew.docx) → danach E1b
    (WS-Security Signierung + Verschlüsselung, CheckInteroperability grün).
 3. **E4:** Declare/GetStatus/Synchronize direkt aus OneCrew (braucht E1b).
+
+
+## Rundung im Export (Walter-Vorgabe 21.09.2026, ABSOLUT)
+
+Jeder CHF-Betrag im ELM-XML wird auf **5 Rappen** gerundet (`PayrollCalculations.Round05`, AwayFromZero) — Lohnsummen, SV-Basen/-Kumulationen, QST, Lohnausweis, BFS-Statistik inkl. `SocialContributions`. Ausnahmen: `BVG-LPP-RegularContribution` (Fixbetrag der Pensionskasse, unverändert übernehmen) und Prozentfelder. Belege und Datenbank bleiben rappengenau; die Rundung ist ein zentraler Schritt im Builder beim Schreiben der Betragsfelder, nicht in der Engine. Verifiziert an den RefXML 2024-11 … 2026-02 (alle Betragsfelder ausser BVG-Fixbetrag/Prozente sind 5-Rp.-Vielfache).
