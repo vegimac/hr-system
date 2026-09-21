@@ -169,6 +169,16 @@ public class QstKorrekturService
                 : (!string.IsNullOrWhiteSpace(aufBelegVersion.TarifCode)
                     ? $"{aufBelegVersion.TarifCode}{aufBelegVersion.AnzahlKinder}{(aufBelegVersion.Kirchensteuer ? 'Y' : 'N')}"
                     : aufBelegVersion.QstCode);
+            // Zweite Korrektur desselben Monats (TF33 Châtelain Juli: Mai erst A0Y→B0Y, dann
+            // B0Y→B1Y): «alt» ist der zuletzt VERRECHNETE Code, nicht der Beleg-Code — so wie
+            // Swissdec den Old-Block schreibt (Claude 21.09.2026). Der Betrag war schon richtig
+            // (effektivAlt), nur die Beschriftung zeigte den Ur-Code.
+            var letzterVerrechnet = bestehende
+                .Where(k => k.Status is "VERRECHNET" or "IN_DARLEHEN" or "GEMELDET")
+                .OrderByDescending(k => k.Id)
+                .Select(k => k.NeuerCode)
+                .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
+            if (letzterVerrechnet != null) alterCode = letzterVerrechnet;
 
             var k = new QstKorrektur
             {
