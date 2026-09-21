@@ -40,11 +40,6 @@ Wo die XML etwas anderes zeigt als CSV + Gesetz, haben wir es bewusst NICHT nach
 - **Was wir rechnen:** Nach ESTV / Kreisschreiben 45 mit **180 h** → QST 79.25.
 - **Frage:** Verlangt das Quality Tool 182? Dann widerspricht es dem Kreisschreiben.
 
-### 6. Rundung der SV-Beiträge — 1–2 Rappen in der Statistik-Summe
-- **Was in der XML steht:** Die Summe AHV+ALV+NBU (Feld «SocialContributions») ist auf 5 Rappen gerundet (z.B. 145.40).
-- **Was wir rechnen:** Jeder Beitrag rappengenau (Swissdec-Beispiel TF01: ALV 114.59, KTG 3.77). Die Summe ist dann z.B. 145.41. Betroffen: TF03, 06, 17, 18, 21, 24, 29, 35 — immer 1–2 Rappen.
-- **Frage:** Toleriert das Quality Tool das, oder muss die Statistik-Summe separat gerundet werden?
-
 ### 7. TF11 Bosshard, März 2025 — in der CSV fehlt der Lohn zur Mitarbeiterbeteiligung (20'000)
 - **Was in der XML steht:** Lohnausweis «OwnershipRight» (Beteiligungsrechte) **20'000**, AHV-Lohn März 36'550, Bruttolohn Jahr 61'645.
 - **Was in der CSV steht:** kein Lohnartenposten für die 20'000 (kein 1960/1961). Nur der Gegenposten «5210 Ausgleich geldwerte Vorteile» ist mit **20'250** drin (250 Geschäftswagen + 20'000 Beteiligung).

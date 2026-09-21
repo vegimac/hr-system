@@ -67,7 +67,7 @@ Das Quality Tool wird diese Felder ankreiden. Begründung mitnehmen, nicht die E
 |---|---|
 | **Beleg** | Burri/Lusser NBU 128.48 vs XML 128.50; Summe −640.48 vs −640.50. Jan 2025: TF03 Pia Lusser AHV+ALV+NBU **440.33** vs XML **440.35**; TF06 Zahnd AHV+ALV+ALVZ+NBU **1'055.44** vs XML **1'055.45**; TF17 Binggeli AHV+ALV+NBU **364.27** vs XML **364.25**; TF18 Blanc AHV+ALV **75.48** vs XML **75.50**; TF24 Utzinger AHV+ALV+NBU **640.48** vs XML **640.50**; TF29 Forster AHV+ALV+NBU **480.36** vs XML **480.35**. |
 | **Begründung** | Das XML-Feld ist die Statistik-Summe AHV+ALV+NBU, nicht die einzelne AHV-Zeile. Round05 auf UVG/NBU würde TF01 zerlegen. |
-| **Status** | BEWUSST — nicht AHV/NBU auf 5 Rp. drehen, nur um die Summe zu treffen. |
+| **Status** | BEWUSST auf dem Beleg — nicht AHV/NBU auf 5 Rp. drehen. **Export-Regel (21.09.2026):** alle 417 `SocialContributions`-Werte der RefXML sind auf 5 Rp. gerundet → der ELM-Builder rundet die BFS-Summe AHV+ALV+ALVZ+NBU mit Round05 (noch zu bauen in den E-Etappen). Call-Frage 6 gestrichen. |
 
 ### A6 — TF25 Lehmann: Umzug = QST (Wohnsitz LU ab 1.5., nicht ab 1.4.)
 
