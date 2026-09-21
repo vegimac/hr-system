@@ -313,7 +313,7 @@ async function lzSave() {
             res = await fetch(`/api/lohn-zulagen/${id}?companyProfileId=${_lzCurrentCompId || ''}`, {
                 method: 'PUT',
                 headers: { ...ah(), 'Content-Type': 'application/json' },
-                body: JSON.stringify({ betrag, bemerkung: bem })
+                body: JSON.stringify({ betrag, bemerkung: bem, lohnpositionId: lpId })
             });
         } else {
             res = await fetch('/api/lohn-zulagen', {

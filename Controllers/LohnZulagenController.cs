@@ -192,6 +192,15 @@ public class LohnZulagenController : ControllerBase
         var locked = await CheckLohnLockAsync(entry.EmployeeId, entry.Periode, companyProfileId);
         if (locked != null) return locked;
 
+        // Lohnart wechseln (Walter 21.09.2026): das Formular zeigte die Position, der
+        // Server hat sie beim Speichern bisher ignoriert (Degelo 1006 → 1006.2 blieb auf 1006).
+        if (dto.LohnpositionId.HasValue && dto.LohnpositionId.Value != entry.LohnpositionId)
+        {
+            var lp = await _db.Lohnpositionen.FirstOrDefaultAsync(l => l.Id == dto.LohnpositionId.Value && l.IsActive);
+            if (lp is null) return BadRequest("Lohnposition nicht gefunden oder inaktiv.");
+            entry.LohnpositionId = lp.Id;
+            entry.Lohnposition   = lp;
+        }
         entry.Betrag    = Math.Round(dto.Betrag, 2);
         entry.Bemerkung = dto.Bemerkung?.Trim();
         entry.UpdatedAt = DateTime.Now;
@@ -243,5 +252,6 @@ public record LohnZulageDto(
 
 public record LohnZulageUpdateDto(
     decimal Betrag,
-    string? Bemerkung
+    string? Bemerkung,
+    int? LohnpositionId = null   // Lohnart wechseln (Walter 21.09.2026, Degelo 1006 → 1006.2) — null = unverändert
 );
