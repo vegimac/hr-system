@@ -200,7 +200,12 @@ public class EawContract
     [JsonPropertyName("deleted_at")]   public string?  DeletedAtRaw { get; set; }
     [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
-    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    // «to» INKLUSIV lesen (Walter-Bug 22.09.2026, MA 1220009): easy speichert das
+    // Ende mal als Tagesende (…-31 22:59:59 → 31.) und mal als exklusive
+    // Mitternacht (…-31 23:00:00 = 1. 00:00 Zürich). ParseSwissDate machte aus der
+    // zweiten Variante einen Tag zu viel (Vertragsende 01.02.2026 statt 31.01.2026).
+    // Die Segment-Grenzen weiter unten rechnen mit einem INKLUSIVEN Ende (To+1 Tag).
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissInclusiveEndDate(ToRaw);
     [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
 }
 
@@ -232,7 +237,9 @@ public class EawPayRate
     [JsonPropertyName("deleted_at")]   public string?  DeletedAtRaw { get; set; }
     [JsonIgnore] public bool IsDeleted => !string.IsNullOrWhiteSpace(DeletedAtRaw);
     [JsonIgnore] public DateOnly? From => EawDateUtil.ParseSwissDate(FromRaw);
-    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissDate(ToRaw);
+    // «to» INKLUSIV lesen — siehe EawContract.To (Walter-Bug 22.09.2026):
+    // Lohnsatz 45606 endet als "2026-01-31 23:00:00" = 01.02. 00:00 Zürich.
+    [JsonIgnore] public DateOnly? To   => EawDateUtil.ParseSwissInclusiveEndDate(ToRaw);
     [JsonIgnore] public DateTime? UpdatedAt => EawDateUtil.ParseTimestamp(UpdatedAtRaw);
 }
 
