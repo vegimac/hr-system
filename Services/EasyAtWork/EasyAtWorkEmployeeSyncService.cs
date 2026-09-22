@@ -2900,6 +2900,15 @@ public class EasyAtWorkEmployeeSyncService
         public int?      JobGroupId;           // aus /positions → job_group
         public string?   JobGroupCode;         // z.B. REST_MANAGER / SHIFT_LEADER_7_PLUS / CREW
         public string?   EmploymentModel;      // FIX / MTP / UTP / FIX-M
+        /// <summary>
+        /// Modell kam aus dem TARIF, nicht aus `amount_type` (Walter 22.09.2026,
+        /// Fall 1220009): «Woche 33.6» + nur Monatstarife = Monatslohn-Vertrag mit
+        /// Pensum. Die Plausibilitätsprüfung «FIX muss Prozent sein» gilt dann nicht
+        /// — sie wäre ein Vorwurf an eine easy-Erfassung, die in easys Oberfläche
+        /// korrekt als «Fix» geführt wird (nur die Vertragsart steckt in type_id,
+        /// die wir noch nicht lesen).
+        /// </summary>
+        public bool      ModellAusTarif;
         public string?   SalaryType;           // monthly / hourly
         public string?   ContractType;
         public string?   JobTitle;
@@ -3085,11 +3094,35 @@ public class EasyAtWorkEmployeeSyncService
                 // MTP mit 17 Std/Woche darf NICHT zu FLEX werden (Fall 580046).
                 bool typSagtMtp = typ.Contains("MTP") || typ.Contains("TPM");
                 bool typSagtFlex = typ.Contains("FLEX") || typ == "UTP";
-                bool isMtp = typSagtMtp
-                             || (!typSagtFlex && string.IsNullOrEmpty(typ)
-                                 && wochenStd.HasValue && wochenStd.Value > 17m);
-                info.EmploymentModel = isMtp ? "MTP" : "FLEX";
-                info.SalaryType = "hourly";
+                // Der TARIF entscheidet, wenn der Typ nichts sagt (Walter-Vorgabe
+                // 22.09.2026, Fall 1220009 Acar-Hasanoglu): «Woche 33.6» + NUR
+                // Monatstarife ist kein Stundenlohn-Vertrag, sondern ein Monatslohn
+                // mit vereinbartem Pensum (33.6 h = 80 %). easy sagt dazu «Fix»,
+                // liefert die Vertragsart aber nur als type_id, die wir (noch) nicht
+                // lesen. Ohne diese Regel fiel das Segment als «Kein Stundenlohn-
+                // Tarif erfasst» heraus und die Abschnitte blieben ohne Lohn.
+                bool nurMonatstarif = string.IsNullOrEmpty(typ)
+                                      && !RateAt("hour", rateDate).HasValue
+                                      && (RateAt("month", rateDate).HasValue || RateAt("fte", rateDate).HasValue);
+                if (nurMonatstarif)
+                {
+                    info.EmploymentModel = "FIX";
+                    info.SalaryType = "monthly";
+                    info.ModellAusTarif = true;
+                    // Wochenstunden sind hier das Pensum. easy liefert es in
+                    // `percentage` gleich mit (33.6 von 42 = 80 %) — nur falls das
+                    // fehlt, aus 42-Stunden-Woche rechnen (L-GAV-Vollzeit).
+                    if (!c.Percentage.HasValue && wochenStd is > 0)
+                        info.EmploymentPercentage = Math.Round(wochenStd.Value / 42m * 100m, 2);
+                }
+                else
+                {
+                    bool isMtp = typSagtMtp
+                                 || (!typSagtFlex && string.IsNullOrEmpty(typ)
+                                     && wochenStd.HasValue && wochenStd.Value > 17m);
+                    info.EmploymentModel = isMtp ? "MTP" : "FLEX";
+                    info.SalaryType = "hourly";
+                }
             }
         }
 
@@ -3166,7 +3199,7 @@ public class EasyAtWorkEmployeeSyncService
             var istMtp   = info.EmploymentModel == "MTP";
             var artText  = $"«{c.AmountType}»";
 
-            if (istFix && !artRoh.StartsWith("percent"))
+            if (istFix && !artRoh.StartsWith("percent") && !info.ModellAusTarif)
             {
                 info.DataError = $"Erfassungsfehler in easy@work: Monatslohn-Vertrag ({info.EmploymentModel}) mit Vertragsart {artText}"
                                + $"{(info.AmountRaw.HasValue ? $" ({info.AmountRaw:0.##})" : "")} erfasst — "

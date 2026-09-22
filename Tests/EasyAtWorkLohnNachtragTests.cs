@@ -102,4 +102,47 @@ public class EasyAtWorkLohnNachtragTests
         var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
         Assert.Equal(4600m, v.MonthlySalary);   // easy sagt 4'750 — der Abschluss-Schutz gewinnt
     }
+
+    [Fact]
+    public void WochenstundenMitMonatstarif_IstMonatslohnVertrag()
+    {
+        // Fall 1220009: easy sagt «Woche 33.6», der Tarif ist aber monatlich —
+        // in easys Oberfläche steht «Fix». Ohne diese Regel fiel das Segment als
+        // «Kein Stundenlohn-Tarif erfasst» heraus (Walter 22.09.2026).
+        var c = new List<EawContract>
+        {
+            new() { Id = 4663, AmountType = "week", Amount = 33.6m, Percentage = 80m,
+                    FromRaw = "2021-06-20 22:00:00", ToRaw = "2022-12-20 22:59:59" },
+        };
+        var r = new List<EawPayRate>
+        {
+            new() { Id = 12060, Type = "month", Rate = 3376.80m,
+                    FromRaw = "2021-06-20 22:00:00", ToRaw = "2022-12-20 22:59:59" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: true);
+        var seg = Assert.Single(tl);
+        Assert.Null(seg.Info.DataError);                       // kein Erfassungsfehler mehr
+        Assert.Equal("FIX-M", seg.Info.EmploymentModel);       // Kader + Monatslohn
+        Assert.Equal(3376.80m, seg.Info.MonthlySalary);
+        Assert.Equal(4221m, seg.Info.MonthlySalaryFte);        // 3'376.80 / 80 × 100
+    }
+
+    [Fact]
+    public void WochenstundenMitStundentarif_BleibtStundenlohn()
+    {
+        var c = new List<EawContract>
+        {
+            new() { Id = 43605, AmountType = "week", Amount = 34m, Percentage = 81m,
+                    FromRaw = "2025-09-30 22:00:00", ToRaw = "2026-07-31 21:59:59" },
+        };
+        var r = new List<EawPayRate>
+        {
+            new() { Id = 77534, Type = "hour", Rate = 20.40m,
+                    FromRaw = "2025-09-30 22:00:00", ToRaw = "2026-07-31 21:59:59" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: false);
+        var seg = Assert.Single(tl);
+        Assert.Equal("MTP", seg.Info.EmploymentModel);
+        Assert.Equal(20.40m, seg.Info.HourlyRate);
+    }
 }

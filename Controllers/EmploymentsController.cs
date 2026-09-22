@@ -798,6 +798,48 @@ public class EmploymentsController : ControllerBase
 
     public record FunktionRekoCommitDto(List<int>? EmploymentIds, int? EmployeeId);
 
+    /// <summary>
+    /// Manuelle Zuordnung EINES Vertragsabschnitts (Walter-Vorgabe 22.09.2026):
+    /// In der Kontrolle «Funktionen prüfen» kann die Funktion je Zeile von Hand
+    /// gesetzt werden — für die Fälle, die der Lohn nicht eindeutig sagt (kein
+    /// Lohn erfasst, Ausbildungsstufe ab II, Lohn über dem Minimum). Nur
+    /// abgelaufene Verträge; der laufende bleibt easy@work vorbehalten.
+    /// </summary>
+    public record FunktionManuellDto(string JobGroupCode);
+
+    [HttpPut("{id:int}/funktion")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> FunktionManuellSetzen(int id, [FromBody] FunktionManuellDto dto)
+    {
+        var code = (dto?.JobGroupCode ?? "").Trim();
+        if (string.IsNullOrEmpty(code))
+            return BadRequest(new { error = "CODE_FEHLT", message = "Keine Funktion gewählt." });
+
+        var em = await _context.Employments.FirstOrDefaultAsync(x => x.Id == id);
+        if (em == null) return NotFound();
+        if (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)
+            return BadRequest(new { error = "NUR_ABGELAUFENE",
+                message = "Nur abgelaufene Verträge können hier gesetzt werden — die Funktion des laufenden Vertrags kommt aus easy@work." });
+
+        var gruppe = await _context.JobGroups.FirstOrDefaultAsync(g => g.Code == code);
+        if (gruppe == null)
+            return BadRequest(new { error = "UNBEKANNTE_FUNKTION", message = $"Funktion «{code}» gibt es nicht." });
+
+        em.JobGroupId = gruppe.Id;
+        em.JobTitle   = gruppe.Code;
+        await _context.SaveChangesAsync();
+        return Ok(new { em.Id, jobGroupCode = gruppe.Code });
+    }
+
+    /// <summary>Wählbare Funktionen für die manuelle Zuordnung.</summary>
+    [HttpGet("funktionen")]
+    public async Task<IActionResult> Funktionen()
+        => Ok(await _context.JobGroups.AsNoTracking()
+            .Where(g => g.IsActive)
+            .OrderBy(g => g.SortOrder)
+            .Select(g => new { g.Id, g.Code })
+            .ToListAsync());
+
     [HttpPost("funktion-rekonstruktion")]
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> FunktionRekonstruktionUebernehmen([FromBody] FunktionRekoCommitDto? dto)

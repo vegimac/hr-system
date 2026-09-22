@@ -8,6 +8,14 @@
 // die in der Vergangenheit geendet haben.
 
 let _frZeilen = [];
+let _frFunktionen = [];
+
+// Anzeige-Namen wie im Zeugnis (ZeugnisWerdegang.FunktionText, männliche Form).
+const FR_LABEL = {
+    CREW: 'Crew', HOST_CT: 'Crew-Trainer', SWING: 'Swing Manager',
+    SHIFT_LEADER_1_6: 'Schichtführer in Ausbildung', SHIFT_LEADER_7_PLUS: 'Schichtführer',
+    ASST_2: 'Assistant Manager', ASST_1: 'Erster Assistant Manager', REST_MANAGER: 'Geschäftsführer',
+};
 
 function _frEsc(t) {
     return String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -24,6 +32,12 @@ async function frRun() {
     st.textContent = 'Prüfe Verträge …';
     document.getElementById('frCommitBtn').style.display = 'none';
     try {
+        if (!_frFunktionen.length) {
+            try {
+                const rf = await fetch('/api/employments/funktionen', { headers: ah(), cache: 'no-store' });
+                if (rf.ok) _frFunktionen = (await rf.json()).map(g => g.code);
+            } catch (_) { /* Dropdown bleibt leer, Vorschau geht trotzdem */ }
+        }
         const r = await fetch('/api/employments/funktion-rekonstruktion', { headers: ah(), cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
@@ -54,6 +68,13 @@ function frRender() {
             <td style="padding:7px 10px;text-align:right;white-space:nowrap">${z.lohn != null ? Number(z.lohn).toLocaleString('de-CH', { minimumFractionDigits: 2 }) : '–'}${z.lohnart === 'hourly' ? ' /h' : ' /Mt.'}</td>
             <td style="padding:7px 10px">${_frEsc(z.alt || '–')}</td>
             <td style="padding:7px 10px">${neu}</td>
+            <td style="padding:7px 10px">
+                <select data-alt="${_frEsc(z.alt || '')}" onchange="frSetzeFunktion(${z.employmentId}, this.value, this)"
+                        style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
+                    <option value="">– von Hand setzen –</option>
+                    ${_frFunktionen.map(c => `<option value="${c}" ${c === (z.alt || '') ? 'selected' : ''}>${FR_LABEL[c] || c}</option>`).join('')}
+                </select>
+            </td>
             <td style="padding:7px 10px"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;background:${sich[0]};color:${sich[1]}">${sich[2]}</span></td>
             <td style="padding:7px 10px;font-size:11.5px;color:#64748b">${_frEsc(z.begruendung)}</td>
         </tr>`;
@@ -67,11 +88,40 @@ function frRender() {
                 <th style="padding:8px 10px;text-align:right">Lohn</th>
                 <th style="padding:8px 10px">gespeichert</th>
                 <th style="padding:8px 10px">aus Lohn</th>
+                <th style="padding:8px 10px">manuell</th>
                 <th style="padding:8px 10px">Sicherheit</th>
                 <th style="padding:8px 10px">Begründung</th>
             </tr></thead>
             <tbody>${rows}</tbody>
         </table></div>`;
+}
+
+// Manuelle Zuordnung EINER Zeile (Walter 22.09.2026): für die Fälle, die der
+// Lohn nicht eindeutig sagt. Schreibt sofort in den Vertragsabschnitt.
+async function frSetzeFunktion(employmentId, code, sel) {
+    if (!code) return;
+    const alt = sel.dataset.alt || '';
+    sel.disabled = true;
+    try {
+        const r = await fetch(`/api/employments/${employmentId}/funktion`, {
+            method: 'PUT', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ jobGroupCode: code })
+        });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try { const j = await r.json(); msg = j.message || j.error || msg; } catch (_) {}
+            throw new Error(msg);
+        }
+        const z = _frZeilen.find(x => x.employmentId === employmentId);
+        if (z) { z.alt = code; z.neu = null; z.sicherheit = 'Manuell'; z.begruendung = 'Von Hand gesetzt.'; }
+        sel.dataset.alt = code;
+        document.getElementById('frAlert').innerHTML =
+            `<div style="background:#dcfce7;border:1px solid #bbf7d0;color:#166534;padding:8px 12px;border-radius:8px;font-size:13px">Funktion gesetzt: ${FR_LABEL[code] || code}.</div>`;
+    } catch (e) {
+        sel.value = alt;
+        document.getElementById('frAlert').innerHTML =
+            `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;font-size:13px">Fehler: ${_frEsc(e.message)}</div>`;
+    } finally { sel.disabled = false; }
 }
 
 async function frCommit() {
