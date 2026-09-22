@@ -88,3 +88,67 @@ public class ZeugnisWerdegangTests
         Assert.Equal("Schichtführer", ZeugnisWerdegang.FunktionText("SHIFT_LEADER_7_PLUS", null, false));
     }
 }
+
+/// <summary>
+/// Funktion aus dem Lohn rekonstruieren (Walter 22.09.2026, Fall 1290025):
+/// easy@work liefert keine Funktions-Historie, der Sync hatte die heutige
+/// Funktion auf alle Abschnitte geschrieben.
+/// </summary>
+public class FunktionAusLohnTests
+{
+    private static readonly FunktionAusLohn.Satz[] Saetze2025 =
+    {
+        new("CREW",                "FLEX",  "hourly",  20.36m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
+        new("HOST_CT",             "FLEX",  "hourly",  21.66m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
+        new("SWING",               "FLEX",  "hourly",  22.36m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
+        new("CREW",                "FIX",   "monthly", 3713m,  new DateOnly(2026,1,1), null, "Ia"),
+        new("SHIFT_LEADER_1_6",    "FIX-M", "monthly", 4300m,  new DateOnly(2026,1,1), null, "Ia"),
+        new("SHIFT_LEADER_7_PLUS", "FIX-M", "monthly", 4600m,  new DateOnly(2026,1,1), null, "Ia"),
+        new("REST_MANAGER",        "FIX-M", "monthly", 6100m,  new DateOnly(2026,1,1), null, "Ia"),
+    };
+
+    [Fact]
+    public void Stundenlohn_TrifftCrewExakt()
+    {
+        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
+            stundenlohn: 20.36m, monatslohn100: null, educationLevelCode: null, Saetze2025);
+        Assert.Equal("CREW", v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
+    }
+
+    [Fact]
+    public void Monatslohn4300_IstSchichtfuehrer()
+    {
+        var v = FunktionAusLohn.Ermittle(new DateOnly(2026, 8, 1), "FIX-M", "monthly",
+            stundenlohn: null, monatslohn100: 4300m, educationLevelCode: null, Saetze2025);
+        Assert.Equal("SHIFT_LEADER_1_6", v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
+    }
+
+    [Fact]
+    public void LohnUeberMinimum_HoechsteDarunter_AberNurUngefaehr()
+    {
+        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
+            stundenlohn: 21.00m, monatslohn100: null, educationLevelCode: null, Saetze2025);
+        Assert.Equal("CREW", v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Ungefaehr, v.Sicherheit);
+    }
+
+    [Fact]
+    public void KeinLohn_Unklar()
+    {
+        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
+            null, null, null, Saetze2025);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Unklar, v.Sicherheit);
+        Assert.Null(v.JobGroupCode);
+    }
+
+    [Fact]
+    public void SchichtfuehrerStufe_NachSechsMonaten()
+    {
+        var start = new DateOnly(2026, 8, 1);
+        Assert.Equal("SHIFT_LEADER_1_6",    FunktionAusLohn.SchichtfuehrerStufe(start, new DateOnly(2026, 8, 1)));
+        Assert.Equal("SHIFT_LEADER_1_6",    FunktionAusLohn.SchichtfuehrerStufe(start, new DateOnly(2027, 1, 31)));
+        Assert.Equal("SHIFT_LEADER_7_PLUS", FunktionAusLohn.SchichtfuehrerStufe(start, new DateOnly(2027, 2, 1)));
+    }
+}

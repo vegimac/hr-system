@@ -434,12 +434,83 @@ public class ArbeitszeugnisController : ControllerBase
                    || string.Equals(e.Gender, "f", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(e.Salutation, "Frau", StringComparison.OrdinalIgnoreCase);
         var stichtag = datum ?? DateOnly.FromDateTime(DateTime.Today);
-        var liste = ZeugnisWerdegang.Baue(e.Employments, female, stichtag, bis);
+
+        // ── Funktion aus dem Lohn gegenprüfen (Walter 22.09.2026) ──────────────
+        // easy@work liefert keine Funktions-Historie; bis zum Sync-Riegel vom
+        // 22.09.2026 wurde die heutige Funktion auf alle Abschnitte geschrieben.
+        // Die Löhne sind dagegen sauber versioniert → daraus den wahren Verlauf
+        // rekonstruieren und, wo er von der gespeicherten Funktion abweicht,
+        // den Abschnitt damit rechnen (die Maske zeigt den Hinweis dazu).
+        var saetze = await _db.MinimumWageRulesNew.AsNoTracking()
+            .Where(r => r.IsActive)
+            .Join(_db.EducationLevels.AsNoTracking(), r => r.EducationLevelId, l => l.Id,
+                  (r, l) => new { r, stufe = l.Code })
+            .Select(x => new FunktionAusLohn.Satz(
+                x.r.JobGroup != null ? x.r.JobGroup.Code : x.r.JobGroupCode,
+                x.r.EmploymentModelCode, x.r.SalaryType, x.r.Amount,
+                DateOnly.FromDateTime(x.r.ValidFrom),
+                x.r.ValidTo.HasValue ? DateOnly.FromDateTime(x.r.ValidTo.Value) : null,
+                x.stufe))
+            .ToListAsync();
+
+        var korrigiert = new List<Employment>();
+        var hinweise = new Dictionary<int, string>();
+        foreach (var em in e.Employments.OrderBy(x => x.ContractStartDate))
+        {
+            var beginn = DateOnly.FromDateTime(em.ContractStartDate);
+            var v = FunktionAusLohn.Ermittle(
+                beginn, em.EmploymentModel, em.SalaryType,
+                em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary,
+                em.EducationLevelCode, saetze);
+            var gespeichert = (em.JobTitle ?? "").Trim();
+            if (string.IsNullOrEmpty(gespeichert) || !saetze.Any(x => string.Equals(x.JobGroupCode, gespeichert, StringComparison.OrdinalIgnoreCase)))
+                gespeichert = em.JobGroupCode ?? "";
+            if (v.JobGroupCode != null && v.Sicherheit != FunktionAusLohn.Sicherheit.Unklar
+                && !string.Equals(v.JobGroupCode, gespeichert, StringComparison.OrdinalIgnoreCase))
+            {
+                hinweise[em.Id] = $"{(string.IsNullOrEmpty(gespeichert) ? "ohne Funktion" : gespeichert)} → {v.JobGroupCode}: {v.Begruendung}";
+                korrigiert.Add(new Employment
+                {
+                    Id = em.Id, EmployeeId = em.EmployeeId, CompanyProfileId = em.CompanyProfileId,
+                    ContractStartDate = em.ContractStartDate, ContractEndDate = em.ContractEndDate,
+                    EmploymentModel = em.EmploymentModel, SalaryType = em.SalaryType,
+                    JobTitle = v.JobGroupCode, JobGroupCode = v.JobGroupCode,
+                });
+                continue;
+            }
+            korrigiert.Add(em);
+        }
+
+        // Schichtführer-Stufe nach Zeit (L-GAV): erste 6 Monate «in Ausbildung».
+        var ersterSl = korrigiert
+            .Where(x => (x.JobTitle ?? "").StartsWith("SHIFT_LEADER", StringComparison.OrdinalIgnoreCase)
+                     || (x.JobGroupCode ?? "").StartsWith("SHIFT_LEADER", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(x => x.ContractStartDate)
+            .FirstOrDefault();
+        if (ersterSl != null)
+        {
+            var start = DateOnly.FromDateTime(ersterSl.ContractStartDate);
+            foreach (var x in korrigiert)
+            {
+                var code = (x.JobTitle ?? x.JobGroupCode ?? "");
+                if (!code.StartsWith("SHIFT_LEADER", StringComparison.OrdinalIgnoreCase)) continue;
+                var stufe = FunktionAusLohn.SchichtfuehrerStufe(start, DateOnly.FromDateTime(x.ContractStartDate));
+                if (!string.Equals(stufe, code, StringComparison.OrdinalIgnoreCase))
+                {
+                    x.JobTitle = stufe; x.JobGroupCode = stufe;
+                    hinweise[x.Id] = $"{code} → {stufe}: erster Schichtführer-Vertrag ab {start:dd.MM.yyyy} (L-GAV 6 Monate).";
+                }
+            }
+        }
+
+        var liste = ZeugnisWerdegang.Baue(korrigiert, female, stichtag, bis);
+        var hinweisText = hinweise.Count == 0 ? null : string.Join(" · ", hinweise.Values.Distinct());
         return Ok(liste.Select(a => new
         {
             von = a.Von.ToString("yyyy-MM-dd"),
             bis = a.Bis?.ToString("yyyy-MM-dd"),
-            a.Funktion, a.Modell, a.ModellText, a.Text
+            a.Funktion, a.Modell, a.ModellText, a.Text,
+            hinweis = hinweisText
         }));
     }
 

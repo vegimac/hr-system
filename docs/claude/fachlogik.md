@@ -515,3 +515,12 @@ Swissdec `CategoryPredefined` — **nicht** in die Tarifauswahl A/B/C/H mischen 
 
 - **«QST Monat» bei neuer Lohnart (Cursor-Review 22.09.2026):** Formular leitet das Häkchen live aus Swissdec-Code (`SwissdecEinmalig`) und Kategorie «Bonus» ab, solange der User es nicht selbst anfasst; der Server setzt es bei Create für einmalige Codes/Bonus immer auf «nein».
 - **Zulagen/Abzüge negativ erfassen (Walter 21.09.2026, Swissdec TF11 Juni):** Maske und `POST/PUT /api/lohn-zulagen` erlauben negative Beträge (nur 0 verboten). Zulage negativ = Korrektur (1001 Lohnkorrektur, Storno Beteiligung 1960 −20'000), Abzug negativ = Gutschrift (5210 −19'750). Die Engine dreht das Vorzeichen bei Abzügen selbst (`betrag = −b`).
+
+
+## Funktion am Vertrag — easy@work liefert KEINE Historie (Walter-Vorgabe 22.09.2026, ABSOLUT)
+
+easy@work gibt die Funktion nur als heutigen Stand: `/customers/{c}/employees/{e}/positions` ist ein reiner Pivot **ohne from/to**, `cf_src_job_code` (JOB_CODE, z.B. SWING1 «Shift Coordinator») ebenso. Eine Funktions-Historie kann deshalb NUR in OneCrew entstehen.
+
+- **Sync-Riegel:** `EasyAtWorkEmployeeSyncService` setzt `JobGroupId`/`JobTitle` ausschliesslich am **aktuellen** Abschnitt (`active` bzw. `existing.IsActive`) — abgelaufene Verträge bleiben unangetastet. Bis 22.09.2026 schrieb der Sync die heutige Funktion auf JEDES Segment; dadurch trugen alle Abschnitte denselben Code (Fall 1290025: 5 × SHIFT_LEADER_1_6, obwohl die Löhne bis 31.07.2026 Crew sind). Folge waren falsche rückwirkende Vertrags-PDF und ein falscher Zeugnis-Werdegang. **Wer am Sync arbeitet: diese Regel nicht aufweichen.**
+- **Altbestand rekonstruieren:** `Services/FunktionAusLohn.cs` rechnet die Funktion aus dem Lohn gegen `minimum_wage_rule_new` (Datum des Vertragsbeginns, Modell, Lohnart, Ausbildungsstufe falls erfasst). Exakter Treffer = sicher; Lohn über dem Minimum = höchste Funktion darunter («ungefähr»); mehrdeutig/kein Satz = «unklar» → gespeicherte Funktion behalten. Zusätzlich `SchichtfuehrerStufe`: die ersten 6 Monate ab dem ersten Schichtführer-Vertrag sind SHIFT_LEADER_1_6, danach 7_PLUS (L-GAV-Zeitregel, nicht Lohnregel).
+- Der Zeugnis-Werdegang (`GET /api/arbeitszeugnis/{empId}/werdegang`) wendet beides an und liefert `hinweis` mit der Begründung; die Maske zeigt sie als gelben Warnhinweis «bitte prüfen». Die Rekonstruktion ändert NICHTS in der Datenbank — sie ist ein Vorschlag fürs Dokument.

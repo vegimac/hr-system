@@ -824,6 +824,12 @@ async function _azLadeWerdegang(employeeId) {
     // Ein einziger Abschnitt sagt nichts aus, was nicht schon im Intro steht →
     // Häkchen nur vorschlagen, wenn es wirklich einen Werdegang gibt.
     const vor = _azWerdegangListe.length > 1;
+    // Hinweis, wenn die Funktion aus dem Lohn rekonstruiert wurde (easy@work hat
+    // keine Funktions-Historie geliefert — Walter 22.09.2026).
+    const hw = _azWerdegangListe.find(w => w.hinweis)?.hinweis;
+    const hwHtml = hw
+        ? `<div style="margin:6px 0 0 22px;padding:6px 9px;border-radius:8px;background:#fdf1dc;border:1px solid #f3d9a4;color:#7c5a10;font-size:11.5px">⚠ Funktion aus dem Lohn rekonstruiert (easy@work liefert keine Funktions-Historie): ${String(hw).replace(/</g, '&lt;')} — bitte prüfen.</div>`
+        : '';
     box.innerHTML = `
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:700;color:#3f3f3f">
             <input type="checkbox" id="azWerdegang" ${vor ? 'checked' : ''} onchange="_azWerdegangToggle()" style="width:15px;height:15px;accent-color:#3f3f3f">
@@ -836,7 +842,7 @@ async function _azLadeWerdegang(employeeId) {
                     <input type="checkbox" class="azWdgZeile" checked value="${String(w.text).replace(/"/g, '&quot;')}" style="width:14px;height:14px;accent-color:#3f3f3f">
                     <span>${String(w.text).replace(/</g, '&lt;')}</span>
                 </label>`).join('')}
-        </div>`;
+        </div>${hwHtml}`;
 }
 function _azWerdegangToggle() {
     const an = document.getElementById('azWerdegang')?.checked;

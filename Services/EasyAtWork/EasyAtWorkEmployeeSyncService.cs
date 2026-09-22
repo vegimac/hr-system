@@ -3573,7 +3573,7 @@ public class EasyAtWorkEmployeeSyncService
                 {
                     existing.EmploymentModel = "FIX-M";
                     existing.SalaryType      = "monthly";
-                    if (jobGroupId != null) { existing.JobGroupId = jobGroupId; existing.JobTitle = jobGroupCode ?? existing.JobTitle; }
+                    if (jobGroupId != null && active) { existing.JobGroupId = jobGroupId; existing.JobTitle = jobGroupCode ?? existing.JobTitle; }
                 }
 
                 // Lokaler Override schützt Vertrag UND Lohn vollständig vor
@@ -3590,7 +3590,15 @@ public class EasyAtWorkEmployeeSyncService
                 if (!string.IsNullOrWhiteSpace(info.EmploymentModel)) existing.EmploymentModel = info.EmploymentModel!;
                 if (!string.IsNullOrWhiteSpace(info.SalaryType))      existing.SalaryType      = info.SalaryType!;
                 if (!string.IsNullOrWhiteSpace(info.ContractType))    existing.ContractType    = info.ContractType;
-                if (jobGroupId != null) { existing.JobGroupId = jobGroupId; existing.JobTitle = jobGroupCode ?? existing.JobTitle; }
+                // ── Funktion NUR am AKTUELLEN Abschnitt (Walter-Bug 22.09.2026, ABSOLUT) ──
+                // easy@work liefert die Funktion OHNE Historie: /positions ist ein reiner
+                // Pivot ohne from/to, cf_src_job_code ebenso. Wer sie auf jedes Segment
+                // schreibt, überschreibt die Vergangenheit mit dem heutigen Stand — ein
+                // rückwirkend gedruckter Vertrag und der Zeugnis-Werdegang werden falsch
+                // (TF-Beispiel 1290025: 5 × SHIFT_LEADER_1_6, obwohl die Löhne bis 31.07.2026
+                // Crew sind). Abgelaufene Abschnitte bleiben deshalb unangetastet — dieselbe
+                // Regel, die weiter unten schon fürs Vertragsmodell gilt.
+                if (jobGroupId != null && active) { existing.JobGroupId = jobGroupId; existing.JobTitle = jobGroupCode ?? existing.JobTitle; }
 
                 var m = existing.EmploymentModel;
                 if (m == "FIX" || m == "FIX-M")
@@ -3812,8 +3820,10 @@ public class EasyAtWorkEmployeeSyncService
                 // contract_end_date konnte gesetzt sein, während is_active alt/falsch blieb.
                 var todayDate = DateOnly.FromDateTime(DateTime.Today);
                 existing.IsActive = !eaw.To.HasValue || eaw.To.Value >= todayDate;
-                // Funktion (JobGroup) ist führend aus easy@work /positions → setzen.
-                if (info.JobGroupId != null)
+                // Funktion (JobGroup) ist führend aus easy@work /positions → setzen,
+                // aber NUR am aktuellen Vertrag (Walter-Bug 22.09.2026): easy liefert
+                // keine Funktions-Historie, sonst wird die Vergangenheit überschrieben.
+                if (info.JobGroupId != null && existing.IsActive)
                 {
                     existing.JobGroupId = info.JobGroupId;
                     existing.JobTitle   = info.JobGroupCode;
