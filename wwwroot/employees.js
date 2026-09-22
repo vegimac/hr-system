@@ -2207,8 +2207,16 @@ function _empContractActionsHtml(emp, c, allContracts) {
         ? `<button type="button" class="dok-menu-item" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
            <button type="button" class="dok-menu-item danger" onclick="contractShareRevoke(${cid})">Link löschen</button>`
         : '';
+    // «Bearbeiten» gibt es auf JEDEM Abschnitt (Walter-Vorgabe 22.09.2026):
+    // die alte Historie (vor 2026) pflegt HR von Hand — easy@work liefert sie
+    // nicht brauchbar, und fürs Arbeitszeugnis muss der Werdegang stimmen.
+    // Gesperrt bleiben auf historischen Abschnitten nur SMS und Link-Reset:
+    // einen abgelaufenen Vertrag verschickt man nicht mehr. Ob der Abschnitt
+    // wirklich änderbar ist, entscheidet der Server (Lohnlauf-Sperre) — er
+    // antwortet mit Klartext im Modal.
     const items = historisch
-        ? `<button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
+        ? `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
         : `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}`;
     return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">

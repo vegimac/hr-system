@@ -734,8 +734,19 @@ async function renderVtDetail(emp) {
                         const startIso = (c.contractStartDate || '').slice(0, 10);
                         const inLohn = c.inLohnVerwendet === true
                                     || (firstAllowed && startIso && startIso < firstAllowed);
+                        // Historie-Korrektur (Walter-Vorgabe 22.09.2026): ein Abschnitt,
+                        // der VOR dem Sperrdatum zu Ende ist und von einem jüngeren
+                        // abgelöst wurde, kann keinen berechenbaren Lohn mehr ändern
+                        // (seine Monate liegen in abgeschlossenen Perioden, die Zukunft
+                        // rechnet mit dem laufenden Vertrag). Er bleibt darum editierbar:
+                        // die Historie vor 2026 pflegt HR von Hand, das Arbeitszeugnis
+                        // hängt daran. Der Server entscheidet dasselbe nochmals.
+                        const endIso = (c.contractEndDate || '').slice(0, 10);
+                        const historieEdit = inLohn && endIso && firstAllowed && endIso < firstAllowed
+                            && contracts.some(o => String(o.contractStartDate || '') > String(c.contractStartDate || ''));
                         if (inLohn) {
                             return `<span title="Dieser Vertrag wurde bereits in einem Lohnlauf verwendet und kann nicht mehr editiert oder gelöscht werden. Für Änderungen einen neuen Vertrag ab dem nächsten freien Datum anlegen — der bestehende wird automatisch beendet." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>
+                                    ${historieEdit ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px" title="Abgeschlossener Abschnitt — eine Korrektur wirkt nur auf Historie und Zeugnis; bereits abgerechnete Löhne bleiben unverändert." onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>` : ''}
                                     ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
                                     <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>`;
                         }

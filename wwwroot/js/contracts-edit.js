@@ -150,6 +150,16 @@ async function openContractEditModal(c, mode = 'edit') {
     document.getElementById('ceModalSub').textContent =
         (empName ? empName + ' · ' : '') + (c.jobTitle ?? '') + ' · ' + (c.employmentModel ?? '');
 
+    // Hinweis bei abgeschlossenen Abschnitten (Walter-Vorgabe 22.09.2026):
+    // die alte Historie wird von Hand gepflegt — der Text sagt, worauf die
+    // Änderung wirkt (Zeugnis/Werdegang) und worauf nicht (abgerechnete Löhne).
+    const histHinweis = document.getElementById('ceHistorieHinweis');
+    if (histHinweis) {
+        const endeIso = c.contractEndDate ? String(c.contractEndDate).slice(0, 10) : '';
+        const heuteIso = new Date().toISOString().slice(0, 10);
+        histHinweis.style.display = (mode === 'edit' && endeIso && endeIso < heuteIso) ? '' : 'none';
+    }
+
     // Felder befüllen — bei 'import'/'new' ID leer lassen
     document.getElementById('ceContractId').value      = mode === 'edit' ? (c.id ?? '') : '';
     document.getElementById('ceEmployeeId').value      = c.employeeId ?? selectedVtEmployee?.id ?? '';

@@ -46,6 +46,24 @@ public class EmploymentsController : ControllerBase
     }
 
     /// <summary>
+    /// Abgelöster Historie-Abschnitt (Walter-Vorgabe 22.09.2026): der Vertrag ist
+    /// VOR dem FirstAllowedDate zu Ende UND es gibt einen jüngeren Vertrag desselben
+    /// MA. Solche Abschnitte dürfen trotz Lohn-Sperre korrigiert werden — sie können
+    /// keinen berechenbaren Lohn mehr verändern, sind aber die Grundlage für
+    /// Arbeitszeugnis und Werdegang.
+    /// </summary>
+    private async Task<bool> IstAbgeloesteHistorieAsync(Employment e, DateOnly? firstAllowed)
+    {
+        if (firstAllowed is null) return false;                  // ohne Sperre gar nicht nötig
+        if (!e.ContractEndDate.HasValue) return false;           // läuft noch
+        if (DateOnly.FromDateTime(e.ContractEndDate.Value) >= firstAllowed.Value) return false;
+        return await _context.Employments
+            .AnyAsync(x => x.EmployeeId == e.EmployeeId
+                        && x.Id != e.Id
+                        && x.ContractStartDate > e.ContractStartDate);
+    }
+
+    /// <summary>
     /// Probezeit-Ende aus Vertragsbeginn + Filial-Probezeit (Walter 29.06.2026):
     /// 14 = 14 Tage, 1/2/3 = Monate. Ende = Beginn + Dauer − 1 Tag, damit die
     /// Probezeit den letzten Tag einschliesst (z.B. 2.1.2026 + 3 Mt. → 1.4.2026,
@@ -578,7 +596,20 @@ public class EmploymentsController : ControllerBase
         DateOnly? firstAllowed = existing.CompanyProfileId.HasValue
             ? await GetFirstAllowedAsync(existing.CompanyProfileId.Value)
             : null;
-        if (IsInLohnVerwendet(existing, firstAllowed))
+        // AUSNAHME Historie-Korrektur (Walter-Vorgabe 22.09.2026): Ein Vertrag,
+        // der VOR dem FirstAllowedDate ZU ENDE ist und von einem neueren
+        // abgelöst wurde, kann keinen berechenbaren Lohn mehr beeinflussen —
+        // seine Monate liegen in abgeschlossenen Perioden (dort gilt der
+        // eingefrorene Snapshot), und offene/künftige Perioden rechnen mit dem
+        // jüngeren Vertrag. Genau diese Abschnitte pflegt HR von Hand: die
+        // easy@work-Historie vor 2026 ist unbrauchbar (mehrere offene Verträge
+        // gleichzeitig, doppelte Tarife), und fürs Arbeitszeugnis muss der
+        // Werdegang stimmen. Die Sperre bleibt damit dort, wo sie gemeint war:
+        // auf dem laufenden bzw. jüngsten Vertrag. Jede Änderung steht im
+        // Audit-Log (AuditSaveChangesInterceptor).
+        var historieKorrektur = await IstAbgeloesteHistorieAsync(existing, firstAllowed);
+
+        if (IsInLohnVerwendet(existing, firstAllowed) && !historieKorrektur)
         {
             return Conflict(new
             {
@@ -587,6 +618,42 @@ public class EmploymentsController : ControllerBase
                                    $"Für Änderungen bitte einen neuen Vertrag ab frühestens {firstAllowed:dd.MM.yyyy} anlegen — der bestehende wird dann automatisch beendet.",
                 firstAllowedDate = firstAllowed?.ToString("yyyy-MM-dd")
             });
+        }
+
+        // Bei der Historie-Korrektur zusätzlich auf Überlappung prüfen: der
+        // Zweck ist eine SAUBERE Zeitachse — ein korrigierter Abschnitt darf
+        // keinen anderen Vertrag desselben MA überdecken (Walter 22.09.2026).
+        if (historieKorrektur)
+        {
+            var neuVon = dto.ContractStartDate != default
+                ? DateOnly.FromDateTime(dto.ContractStartDate)
+                : DateOnly.FromDateTime(existing.ContractStartDate);
+            var neuBis = dto.ContractEndDate.HasValue
+                ? DateOnly.FromDateTime(dto.ContractEndDate.Value)
+                : (DateOnly?)null;
+            if (neuBis.HasValue && neuBis.Value < neuVon)
+                return Conflict(new { error = "VERTRAG_ZEITRAUM",
+                    message = $"Das Vertragsende ({neuBis:dd.MM.yyyy}) liegt vor dem Beginn ({neuVon:dd.MM.yyyy})." });
+
+            var andere = await _context.Employments.AsNoTracking()
+                .Where(x => x.EmployeeId == existing.EmployeeId && x.Id != existing.Id)
+                .Select(x => new { x.ContractStartDate, x.ContractEndDate })
+                .ToListAsync();
+            foreach (var a in andere)
+            {
+                var aVon = DateOnly.FromDateTime(a.ContractStartDate);
+                var aBis = a.ContractEndDate.HasValue ? DateOnly.FromDateTime(a.ContractEndDate.Value) : (DateOnly?)null;
+                bool ueberlappt = (!neuBis.HasValue || aVon <= neuBis.Value)
+                               && (!aBis.HasValue   || neuVon <= aBis.Value);
+                if (ueberlappt)
+                    return Conflict(new
+                    {
+                        error   = "VERTRAG_UEBERLAPPUNG",
+                        message = $"Der Zeitraum {neuVon:dd.MM.yyyy} – {(neuBis.HasValue ? neuBis.Value.ToString("dd.MM.yyyy") : "offen")} "
+                                + $"überschneidet sich mit dem Vertrag {aVon:dd.MM.yyyy} – {(aBis.HasValue ? aBis.Value.ToString("dd.MM.yyyy") : "offen")} "
+                                + "desselben Mitarbeitenden. Bitte zuerst den anderen Abschnitt bereinigen."
+                    });
+            }
         }
 
         // ContractStartDate, ContractEndDate, ContractType etc. sind editierbar —

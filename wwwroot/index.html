@@ -9430,7 +9430,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dvelop-import.js?v=20260711b"></script>
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
-<script src="js/dok-struktur.js?v=20260922a"></script>
+<script src="js/dok-struktur.js?v=20260923a"></script>
 <script src="js/funktion-reko.js?v=20260922d"></script>
 <script src="js/vertrags-historie.js?v=20260922d"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
@@ -9439,7 +9439,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script src="js/austritt.js?v=20260922b"></script>
-<script src="js/contracts-edit.js?v=20260922a"></script>
+<script src="js/contracts-edit.js?v=20260923a"></script>
 <script src="js/payroll.js?v=20260921g"></script>
 <script src="js/fibu.js?v=20260805a"></script>
 <script src="js/dok-protokoll.js?v=20260722d"></script>
@@ -9947,7 +9947,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260922a"></script>
+<script src="employees.js?v=20260923a"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 
 <!-- ABSENZ MODAL -->
@@ -10754,6 +10754,16 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
         <div class="ma-modal-body ce-modal-body">
             <input type="hidden" id="ceContractId">
             <input type="hidden" id="ceEmployeeId">
+
+            <!-- Historie-Korrektur (Walter-Vorgabe 22.09.2026): sagt beim Bearbeiten
+                 eines abgeschlossenen Abschnitts klar, worauf die Änderung wirkt —
+                 auf Historie/Zeugnis, nicht auf bereits abgerechnete Löhne. -->
+            <div id="ceHistorieHinweis" style="display:none;margin:0 0 14px;padding:10px 14px;border-radius:12px;
+                 background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.18);color:#646464;font-size:12.5px;line-height:1.5">
+                🕓 <b style="color:#3f3f3f">Abgeschlossener Abschnitt.</b>
+                Änderungen hier korrigieren die <b>Vertragshistorie</b> (Werdegang im Arbeitszeugnis).
+                Bereits abgerechnete Löhne bleiben unverändert.
+            </div>
 
             <section class="ce-block">
                 <div class="emp-section-title" data-i18n="vt.modal.section.basics">Vertragsgrundlagen</div>
