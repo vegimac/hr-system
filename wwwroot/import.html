@@ -911,11 +911,15 @@ async function vnStart() {
         const paket = ids.slice(i, i + 5);
         st.textContent = `${Math.min(i + paket.length, ids.length)} von ${ids.length} …`;
         try {
-            const r = await fetch('/api/easyatwork/vertraege-neu-holen', {
+            const r = await fetch('/api/easywork/vertraege-neu-holen', {
                 method: 'POST', headers: ah(),
                 body: JSON.stringify({ companyProfileId, employeeIds: paket })
             });
-            if (!r.ok) throw new Error('HTTP ' + r.status);
+            if (!r.ok) {
+                let msg = 'HTTP ' + r.status + (r.status === 404 ? ' (Endpunkt nicht gefunden)' : '');
+                try { const j = await r.json(); msg = j.message || j.error || msg; } catch (_) {}
+                throw new Error(msg);
+            }
             const d = await r.json();
             geaendert += d.geaendert || 0;
             fehler    += d.fehler || 0;
@@ -926,6 +930,8 @@ async function vnStart() {
         }
     }
     st.textContent = `fertig — ${geaendert} mit aktualisierten Verträgen${fehler ? `, ${fehler} Fehler` : ''}`;
+    if (!geaendert && !fehler && !meldungen.length)
+        meldungen.push({ name: 'Hinweis', hinweise: ['Der Lauf hat keine Änderung gemeldet — entweder war alles schon aktuell, oder easy@work liefert für diese Personen nichts.'] });
     btn.disabled = false;
     prot.innerHTML = meldungen.length
         ? `<div style="font-size:13px;font-weight:700;margin-bottom:6px">Protokoll</div>` + meldungen.map(m => {

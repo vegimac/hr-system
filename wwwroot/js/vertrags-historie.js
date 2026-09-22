@@ -120,7 +120,7 @@ async function vhEasyVergleich(employeeId, nummer) {
     if (!ziel || !nummer) return;
     ziel.innerHTML = '<div style="padding:10px 14px;color:#64748b;font-size:12.5px">Lade easy@work …</div>';
     try {
-        const r = await fetch(`/api/easyatwork/debug/employee-dump?companyProfileId=${cid}&number=${encodeURIComponent(nummer)}`,
+        const r = await fetch(`/api/easywork/debug/employee-dump?companyProfileId=${cid}&number=${encodeURIComponent(nummer)}`,
             { headers: ah(), cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
