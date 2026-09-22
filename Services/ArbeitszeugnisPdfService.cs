@@ -52,7 +52,11 @@ public record ArbeitszeugnisInput(
     /// <summary>true = ARBEITSBESTÄTIGUNG (Vorlage «244 Sursee», 15.07.2026):
     /// nur der Bestätigungssatz — «angestellt ist» (aktiv, seit Eintritt)
     /// bzw. «angestellt war» (Von–Bis), abgeleitet aus Bis &lt; Datum.</summary>
-    bool Bestaetigung = false
+    bool Bestaetigung = false,
+    /// <summary>Beruflicher Werdegang (Walter 22.09.2026): fertige Zeilen aus
+    /// <see cref="ZeugnisWerdegang"/>, z.B. «04.09.2024 – 30.09.2025 · Crewmitarbeiterin
+    /// im Stundenlohn». NULL/leer = kein Werdegang-Block (Verhalten wie bisher).</summary>
+    IReadOnlyList<string>? Werdegang = null
 );
 
 public class ArbeitszeugnisPdfService
@@ -273,11 +277,19 @@ public class ArbeitszeugnisPdfService
 
         static int LinesFor(string t, float w) => Math.Max(1, (int)Math.Ceiling(t.Length * 5.6f / w));
 
+        // Werdegang-Zeilen (Walter 22.09.2026) — eigene Bullet-Liste unter dem Intro.
+        var werdegang = (d.Werdegang ?? Array.Empty<string>())
+            .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+        string werdegangIntro = werdegang.Count == 0 ? "" :
+            (zw ? $"{ihrC} beruflicher Werdegang in unserem Betrieb:"
+                : $"Beruflicher Werdegang in unserem Betrieb:");
+
         var absaetze = new List<string>
         {
             $"{anrede} {d.FirstName} {d.LastName}{introRest}",
             aufgabenIntro, schulung
         };
+        if (werdegang.Count > 0) absaetze.Add(werdegangIntro);
         if (zw) absaetze.AddRange(new[] { zwArbeitsmittel, zwBeurteilung, zwAbschluss });
         else    absaetze.AddRange(new[] { beurteilung, austritt, dank });
 
@@ -296,6 +308,7 @@ public class ArbeitszeugnisPdfService
             foreach (var a in absaetze) est += padAbs + LinesFor(a, contentW) * lineH;
             est += 6f;                                              // Bullets-Einstieg
             foreach (var b in aufgaben) est += LinesFor(b, contentW - 28f) * lineH + bulletPad;
+            foreach (var b in werdegang) est += LinesFor(b, contentW - 28f) * lineH + bulletPad;
             // Gruss + Firma + grosszuegiger Unterschriftsraum (ohne Strich).
             float footerH = padGruss + 78f + 5f * lineH;
             if (est + footerH <= availH || tryLh == lhOpts[^1])
@@ -375,6 +388,19 @@ public class ArbeitszeugnisPdfService
                             t.Span($"{d.FirstName} {d.LastName}".Trim()).Bold();
                             t.Span(bestRest);
                         });
+                        if (werdegang.Count > 0)
+                        {
+                            col.Item().PaddingTop(padAbs).PaddingHorizontal(14).Text(werdegangIntro);
+                            col.Item().PaddingTop(6).PaddingLeft(28).Column(c =>
+                            {
+                                foreach (var a in werdegang)
+                                    c.Item().PaddingBottom(bulletPad).Row(r =>
+                                    {
+                                        r.ConstantItem(14).Text("•");
+                                        r.RelativeItem().Text(a);
+                                    });
+                            });
+                        }
                     }
                     else
                     {
@@ -385,6 +411,20 @@ public class ArbeitszeugnisPdfService
                         t.Span($"{d.FirstName} {d.LastName}".Trim()).Bold();
                         t.Span(introRest);
                     });
+
+                    if (werdegang.Count > 0)
+                    {
+                        col.Item().PaddingTop(padAbs).Text(werdegangIntro);
+                        col.Item().PaddingTop(6).PaddingLeft(14).Column(c =>
+                        {
+                            foreach (var a in werdegang)
+                                c.Item().PaddingBottom(bulletPad).Row(r =>
+                                {
+                                    r.ConstantItem(14).Text("•");
+                                    r.RelativeItem().Text(a);
+                                });
+                        });
+                    }
 
                     col.Item().PaddingTop(padAbs).Text(aufgabenIntro);
 

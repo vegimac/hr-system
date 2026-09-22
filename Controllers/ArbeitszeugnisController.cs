@@ -74,6 +74,12 @@ public class ArbeitszeugnisController : ControllerBase
         public int? SignerUserId { get; set; }
         /// <summary>Bemerkung des Erstellers an HR (nur beim Entwurf).</summary>
         public string? Bemerkung { get; set; }
+        /// <summary>Beruflicher Werdegang aufführen (Walter 22.09.2026) — gilt für
+        /// Arbeitszeugnis, Zwischenzeugnis UND Arbeitsbestätigung.</summary>
+        public bool Werdegang { get; set; }
+        /// <summary>Ausgewählte Werdegang-Zeilen (aus GET …/werdegang, im UI abwählbar).
+        /// Leer + Werdegang=true = alle Abschnitte.</summary>
+        public List<string>? WerdegangZeilen { get; set; }
     }
 
     private static readonly System.Text.Json.JsonSerializerOptions JsonOpts = new()
@@ -413,6 +419,30 @@ public class ArbeitszeugnisController : ControllerBase
             .ToList();
     }
 
+    // ── Beruflicher Werdegang (Walter-Vorgabe 22.09.2026) ───────────────────
+    // Vertragsabschnitte als fertige Zeilen für Zeugnis/Bestätigung. Das UI
+    // zeigt sie zum Abwählen; gewählte Zeilen kommen als WerdegangZeilen zurück.
+    [HttpGet("{empId:int}/werdegang")]
+    public async Task<IActionResult> GetWerdegang(int empId, [FromQuery] DateOnly? datum, [FromQuery] DateOnly? bis)
+    {
+        var e = await _db.Employees.AsNoTracking()
+            .Include(x => x.Employments).ThenInclude(em => em.JobGroup)
+            .FirstOrDefaultAsync(x => x.Id == empId);
+        if (e == null) return NotFound();
+        bool female = string.Equals(e.Gender, "female", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(e.Gender, "w", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(e.Gender, "f", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(e.Salutation, "Frau", StringComparison.OrdinalIgnoreCase);
+        var stichtag = datum ?? DateOnly.FromDateTime(DateTime.Today);
+        var liste = ZeugnisWerdegang.Baue(e.Employments, female, stichtag, bis);
+        return Ok(liste.Select(a => new
+        {
+            von = a.Von.ToString("yyyy-MM-dd"),
+            bis = a.Bis?.ToString("yyyy-MM-dd"),
+            a.Funktion, a.Modell, a.ModellText, a.Text
+        }));
+    }
+
     [HttpPost("{empId:int}/pdf")]
     public async Task<IActionResult> GetPdf(int empId, [FromBody] ZeugnisDto dto)
     {
@@ -516,6 +546,19 @@ public class ArbeitszeugnisController : ControllerBase
         var strasse = string.Join(" ", new[] { cp.Street, cp.HouseNumber }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
 
+        // Werdegang (Walter 22.09.2026): gewählte Zeilen aus dem Formular, sonst
+        // alle Abschnitte frisch gebaut. Ohne Häkchen bleibt das PDF wie bisher.
+        List<string>? werdegangZeilen = null;
+        if (dto.Werdegang)
+        {
+            werdegangZeilen = dto.WerdegangZeilen?.Where(z => !string.IsNullOrWhiteSpace(z)).ToList();
+            if (werdegangZeilen == null || werdegangZeilen.Count == 0)
+                werdegangZeilen = ZeugnisWerdegang
+                    .Baue(emps, female, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(bis))
+                    .Select(a => a.Text).ToList();
+            if (werdegangZeilen.Count == 0) werdegangZeilen = null;
+        }
+
         var input = new ArbeitszeugnisInput(
             CompanyName:    cp.CompanyName,
             RestaurantName: cp.BranchName ?? cp.FullDisplayName,
@@ -547,7 +590,8 @@ public class ArbeitszeugnisController : ControllerBase
             Funktion:       string.IsNullOrWhiteSpace(dto.Funktion) ? null : dto.Funktion.Trim(),
             Aufgaben:       dto.Aufgaben,
             Zwischen:       dto.Zwischen,
-            Bestaetigung:   dto.Bestaetigung
+            Bestaetigung:   dto.Bestaetigung,
+            Werdegang:      werdegangZeilen
         );
 
         var bytes = _pdf.Generate(input);

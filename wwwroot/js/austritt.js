@@ -452,6 +452,14 @@ function _azFuelleAusDaten(d) {
     const dr = document.getElementById('azDrive');  if (dr) dr.checked = b.has('drive');
     // Sichtbarkeit nach Funktion, dann die gespeicherten Aufgaben 1:1 setzen.
     azUpdateTaskVisibility();
+    if (typeof d.werdegang === 'boolean') {
+        const cb = document.getElementById('azWerdegang');
+        if (cb) { cb.checked = d.werdegang; _azWerdegangToggle(); }
+        if (Array.isArray(d.werdegangZeilen) && d.werdegangZeilen.length) {
+            const want = new Set(d.werdegangZeilen);
+            document.querySelectorAll('.azWdgZeile').forEach(c => { c.checked = want.has(c.value); });
+        }
+    }
     if (Array.isArray(d.aufgaben)) {
         const want = new Set(d.aufgaben);
         document.querySelectorAll('.azAufgabe').forEach(c => { c.checked = want.has(c.value); });
@@ -545,7 +553,10 @@ function _azSammleDto() {
         // Unterschrift erfolgt von Hand auf dem Ausdruck (kein Bild im PDF).
         abgabe: false,
         signerUserId: parseInt(document.getElementById('azSigner')?.value || '', 10) || null,
-        entwurfId: _azEntwurf?.id || null
+        entwurfId: _azEntwurf?.id || null,
+        // Beruflicher Werdegang (Walter 22.09.2026): Häkchen + gewählte Zeilen.
+        werdegang: document.getElementById('azWerdegang')?.checked ?? false,
+        werdegangZeilen: [...document.querySelectorAll('.azWdgZeile:checked')].map(c => c.value)
     };
 }
 
@@ -751,6 +762,8 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
                 </div>
             </div>
 
+            <div id="azWerdegangBox" style="margin-top:10px"></div>
+
             <div class="az-foot">
             <div id="azAlert"></div>
             <div id="azDiag" style="display:none;font-size:11.5px;color:#8b8b8b;margin-bottom:6px"></div>
@@ -778,11 +791,57 @@ async function openZeugnisModal(employeeId, zwischen = false, best = false, entw
     if (azA) azA.value = _azAustrittVorschlag(emp);
     azQuickTasks();
     azUpdateTaskVisibility();
+    _azLadeWerdegang(employeeId);
     if (entwurf) {
         _azFuelleAusDaten(entwurf.daten);
     } else {
         _azZeigeOffenenEntwurf(employeeId);
     }
+}
+
+// ── Beruflicher Werdegang (Walter-Vorgabe 22.09.2026) ─────────────────────
+// Vertragsabschnitte des MA als abwählbare Zeilen; Häkchen «aufführen» steuert,
+// ob der Block überhaupt ins PDF kommt. Gilt für Zeugnis, Zwischenzeugnis und
+// Arbeitsbestätigung.
+let _azWerdegangListe = [];
+async function _azLadeWerdegang(employeeId) {
+    const box = document.getElementById('azWerdegangBox');
+    if (!box) return;
+    box.innerHTML = '';
+    try {
+        const bis = document.getElementById('azAustritt')?.value || '';
+        const datum = document.getElementById('azDatum')?.value || '';
+        const q = new URLSearchParams();
+        if (datum) q.set('datum', datum);
+        if (bis && !_azZwischen) q.set('bis', bis);
+        const r = await fetch(`/api/arbeitszeugnis/${employeeId}/werdegang?${q}`,
+            { headers: { 'Authorization': `Bearer ${authToken}` }, cache: 'no-store' });
+        if (!r.ok) return;
+        _azWerdegangListe = await r.json();
+    } catch (_) { return; }
+    if (!Array.isArray(_azWerdegangListe) || _azWerdegangListe.length === 0) return;
+    const label = 'font-size:11px;font-weight:700;color:#8b8b8b;text-transform:uppercase;letter-spacing:0.4px';
+    // Ein einziger Abschnitt sagt nichts aus, was nicht schon im Intro steht →
+    // Häkchen nur vorschlagen, wenn es wirklich einen Werdegang gibt.
+    const vor = _azWerdegangListe.length > 1;
+    box.innerHTML = `
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;font-weight:700;color:#3f3f3f">
+            <input type="checkbox" id="azWerdegang" ${vor ? 'checked' : ''} onchange="_azWerdegangToggle()" style="width:15px;height:15px;accent-color:#3f3f3f">
+            Beruflichen Werdegang aufführen
+            <span style="${label};font-weight:600">${_azWerdegangListe.length} Abschnitt${_azWerdegangListe.length === 1 ? '' : 'e'} aus der Vertragshistorie</span>
+        </label>
+        <div id="azWerdegangListe" style="margin-top:6px;padding-left:22px;display:${vor ? 'block' : 'none'}">
+            ${_azWerdegangListe.map((w, i) => `
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:#3f3f3f;padding:2px 0">
+                    <input type="checkbox" class="azWdgZeile" checked value="${String(w.text).replace(/"/g, '&quot;')}" style="width:14px;height:14px;accent-color:#3f3f3f">
+                    <span>${String(w.text).replace(/</g, '&lt;')}</span>
+                </label>`).join('')}
+        </div>`;
+}
+function _azWerdegangToggle() {
+    const an = document.getElementById('azWerdegang')?.checked;
+    const l = document.getElementById('azWerdegangListe');
+    if (l) l.style.display = an ? 'block' : 'none';
 }
 
 // Offener Entwurf dieses MA (eigener oder — für HR — von jemandem): Banner mit «laden».
