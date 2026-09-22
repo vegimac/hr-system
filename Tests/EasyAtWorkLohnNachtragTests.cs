@@ -145,4 +145,38 @@ public class EasyAtWorkLohnNachtragTests
         Assert.Equal("MTP", seg.Info.EmploymentModel);
         Assert.Equal(20.40m, seg.Info.HourlyRate);
     }
+
+    [Fact]
+    public void AbgelaufenerStundentarif_TaeuschtKeinenStundenlohnVertragVor()
+    {
+        // MA 580005 Tomic: bis 31.03.2025 MTP 21.00/h, ab 01.04.2025 Fix mit
+        // Monatstarif 4'295. Die alte Tarifsuche prüfte nur «From ≤ Datum» —
+        // der beendete Stundentarif galt damit auch im April weiter, das Segment
+        // wurde als Stundenlohn-Vertrag gelesen und fiel als «Kein Stundenlohn-
+        // Tarif erfasst» heraus (Abschnitt ohne Lohn).
+        var c = new List<EawContract>
+        {
+            new() { Id = 1, AmountType = "week", Amount = 35m,
+                    FromRaw = "2023-12-31 23:00:00", ToRaw = "2025-03-31 21:59:59" },
+            new() { Id = 2, AmountType = "week", Amount = 42m,
+                    FromRaw = "2025-03-31 22:00:00", ToRaw = "2025-06-06 21:59:59" },
+        };
+        var r = new List<EawPayRate>
+        {
+            new() { Id = 10, Type = "hour",  Rate = 21m,
+                    FromRaw = "2023-12-31 23:00:00", ToRaw = "2025-03-31 21:59:59" },
+            new() { Id = 11, Type = "month", Rate = 4295m,
+                    FromRaw = "2025-03-31 22:00:00", ToRaw = "2025-06-07 21:59:59" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: true);
+
+        var erste = tl.First(x => x.Start == new DateOnly(2024, 1, 1));
+        Assert.Equal("MTP", erste.Info.EmploymentModel);
+        Assert.Equal(21m, erste.Info.HourlyRate);
+
+        var zweite = tl.First(x => x.Start == new DateOnly(2025, 4, 1));
+        Assert.Null(zweite.Info.DataError);
+        Assert.Equal("FIX-M", zweite.Info.EmploymentModel);   // Kader + Monatslohn
+        Assert.Equal(4295m, zweite.Info.MonthlySalary);
+    }
 }

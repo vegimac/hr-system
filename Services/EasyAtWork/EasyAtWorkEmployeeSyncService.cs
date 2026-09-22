@@ -3043,8 +3043,21 @@ public class EasyAtWorkEmployeeSyncService
                      && r.Rate.Value > 1.00m
                      && (r.From ?? DateOnly.MinValue) <= date)
             .OrderByDescending(r => r.From ?? DateOnly.MinValue);
-        decimal?   RateAt(string t, DateOnly date)     => RatesOfType(t, date).Select(r => r.Rate).FirstOrDefault();
-        DateOnly?  RateFromAt(string t, DateOnly date)  => RatesOfType(t, date).Select(r => r.From).FirstOrDefault();
+        // Am Stichtag WIRKLICH gültig — mit Ende (Walter-Bug 22.09.2026, MA 580005
+        // Tomic): die Suche oben prüft nur «From ≤ Datum». Ein längst beendeter
+        // Stundentarif (21.00, bis 31.03.2025) galt damit auch noch im April und
+        // liess das Segment als Stundenlohn-Vertrag erscheinen — obwohl ab 01.04.
+        // nur noch ein Monatstarif (4'295) existiert. Folge: «Kein Stundenlohn-Tarif
+        // erfasst», Segment nicht importiert, Abschnitt ohne Lohn.
+        IEnumerable<EawPayRate> RatesGueltig(string t, DateOnly date) =>
+            RatesOfType(t, date).Where(r => !r.To.HasValue || r.To.Value >= date);
+        decimal?   RateGueltigAt(string t, DateOnly date) => RatesGueltig(t, date).Select(r => r.Rate).FirstOrDefault();
+        // Fallback auf die alte, tolerante Suche: endet ein Tarif ohne Nachfolger
+        // (Lücke in easy), bleibt es beim bisherigen Verhalten statt plötzlich
+        // «kein Lohn» zu melden.
+        decimal?   RateAt(string t, DateOnly date)     => RateGueltigAt(t, date) ?? RatesOfType(t, date).Select(r => r.Rate).FirstOrDefault();
+        DateOnly?  RateFromAt(string t, DateOnly date)  => RatesGueltig(t, date).Select(r => r.From).FirstOrDefault()
+                                                        ?? RatesOfType(t, date).Select(r => r.From).FirstOrDefault();
 
         var info = new HistContractInfo { StartDate = earliestRateFrom, ContractFrom = c?.From, ContractTo = c?.To };
         if (c != null)
@@ -3101,19 +3114,17 @@ public class EasyAtWorkEmployeeSyncService
                 // liefert die Vertragsart aber nur als type_id, die wir (noch) nicht
                 // lesen. Ohne diese Regel fiel das Segment als «Kein Stundenlohn-
                 // Tarif erfasst» heraus und die Abschnitte blieben ohne Lohn.
+                // Für den MODELL-Entscheid zählen nur am Stichtag gültige Tarife:
+                // ein abgelaufener Stundentarif darf keinen Stundenlohn-Vertrag
+                // vortäuschen (Fall 580005). Ein easy-Typ («Fix»/«MTP») sticht weiter.
                 bool nurMonatstarif = string.IsNullOrEmpty(typ)
-                                      && !RateAt("hour", rateDate).HasValue
-                                      && (RateAt("month", rateDate).HasValue || RateAt("fte", rateDate).HasValue);
+                                      && !RateGueltigAt("hour", rateDate).HasValue
+                                      && (RateGueltigAt("month", rateDate).HasValue || RateGueltigAt("fte", rateDate).HasValue);
                 if (nurMonatstarif)
                 {
                     info.EmploymentModel = "FIX";
                     info.SalaryType = "monthly";
-                    info.ModellAusTarif = true;
-                    // Wochenstunden sind hier das Pensum. easy liefert es in
-                    // `percentage` gleich mit (33.6 von 42 = 80 %) — nur falls das
-                    // fehlt, aus 42-Stunden-Woche rechnen (L-GAV-Vollzeit).
-                    if (!c.Percentage.HasValue && wochenStd is > 0)
-                        info.EmploymentPercentage = Math.Round(wochenStd.Value / 42m * 100m, 2);
+                    info.ModellAusTarif = true;   // Pensum wird unten aus den Wochenstunden gerechnet
                 }
                 else
                 {
@@ -3137,7 +3148,15 @@ public class EasyAtWorkEmployeeSyncService
             // easy@work liefert beim Monatslohn den EFFEKTIVEN Pensumslohn (z.B. 2760
             // bei 60%). Bei uns ist MonthlySalaryFte IMMER der 100%-Lohn → hochrechnen.
             // Beispiel: 2760 / 60 × 100 = 4600.
-            var pct = c?.Percentage ?? c?.Amount;
+            // Pensum: normalerweise `percentage` (sonst `amount`, das beim
+            // Prozent-Vertrag das Pensum IST). Kam das Modell aus dem Tarif
+            // (Wochenstunden-Vertrag mit Monatslohn, Walter 22.09.2026), ist
+            // `amount` die WOCHENSTUNDENZAHL — daraus das Pensum rechnen
+            // (33.6 von 42 = 80 %), sonst käme «42 %» statt «100 %» heraus.
+            var pct = c?.Percentage
+                   ?? (info.ModellAusTarif && (c?.Amount ?? c?.WeekHours) is > 0
+                        ? Math.Round((c!.Amount ?? c.WeekHours)!.Value / 42m * 100m, 2)
+                        : c?.Amount);
             info.EmploymentPercentage = pct;
             info.WeeklyHours          = null;
             info.GuaranteedHoursPerWeek = null;
