@@ -3100,6 +3100,18 @@ public class EasyAtWorkEmployeeSyncService
                 info.SalaryType = "hourly";
             }
             else if (amt.StartsWith("month") || amt.StartsWith("percent")) { info.EmploymentModel = "FIX"; info.SalaryType = "monthly"; }
+            // easys eigener Vertragstyp «Fix» sticht die Vertragsart (Walter-Bug
+            // 22.09.2026, MA 580005 Tomic): dort steht «Fix» mit «Woche 42» — die
+            // Wochenstunden sind das PENSUM, der Lohn ein Monatstarif. Vorher fiel
+            // das in den Stundenlohn-Zweig, fand keinen gültigen Stundentarif und
+            // wurde als Erfassungsfehler verworfen (Abschnitt ohne Lohn). Der Name
+            // kommt aus `type_id` (ApplyContractTypeNames), ist also easys Wahrheit.
+            else if (typ.Contains("FIX") || typ.Contains("FULL"))
+            {
+                info.EmploymentModel = "FIX";
+                info.SalaryType      = "monthly";
+                info.ModellAusTarif  = true;   // Pensum aus Wochenstunden, keine «muss Prozent sein»-Prüfung
+            }
             else
             {
                 var wochenStd = c.Amount ?? c.WeekHours;

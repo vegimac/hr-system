@@ -156,9 +156,10 @@ public class EasyAtWorkLohnNachtragTests
         // Tarif erfasst» heraus (Abschnitt ohne Lohn).
         var c = new List<EawContract>
         {
-            new() { Id = 1, AmountType = "week", Amount = 35m,
+            new() { Id = 1, Type = "MTP/TPM", AmountType = "week", Amount = 35m,
                     FromRaw = "2023-12-31 23:00:00", ToRaw = "2025-03-31 21:59:59" },
-            new() { Id = 2, AmountType = "week", Amount = 42m,
+            // easy liefert den Typ-Namen aus type_id: «Fix» mit «Woche 42».
+            new() { Id = 2, Type = "Fix", AmountType = "week", Amount = 42m,
                     FromRaw = "2025-03-31 22:00:00", ToRaw = "2025-06-06 21:59:59" },
         };
         var r = new List<EawPayRate>
