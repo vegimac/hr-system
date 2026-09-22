@@ -171,6 +171,13 @@ public class AppDbContext : DbContext
 
     private void NormalisiereZeitstempel()
     {
+        // Nur beim echten (relationalen) Provider: `GetColumnType()` wirft beim
+        // In-Memory-Provider eine InvalidCastException (InMemoryTypeMapping →
+        // RelationalTypeMapping). Ohne diese Abfrage scheitert JEDER Test, der
+        // SaveChanges auf einer In-Memory-DB aufruft (rund 43 Stück, Claude
+        // 22.09.2026) — die Zeitzonen-Normalisierung ist dort ohnehin gegenstandslos.
+        if (!Database.IsRelational()) return;
+
         foreach (var entry in ChangeTracker.Entries())
         {
             if (entry.State != EntityState.Added && entry.State != EntityState.Modified) continue;

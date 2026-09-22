@@ -3506,6 +3506,35 @@ public class EasyAtWorkEmployeeSyncService
                         existing.ContractEndDate = seg.End.Value.ToDateTime(TimeOnly.MinValue);
                         existing.IsActive = seg.End.Value >= today;
                     }
+                    // Lohn NACHTRAGEN, wenn am alten Abschnitt GAR KEINER steht
+                    // (Walter-Vorgabe 22.09.2026, Fall 1220009 Acar-Hasanoglu):
+                    // Diese Abschnitte stammen aus der Erst-Migration ohne Löhne;
+                    // easy hat sie in `pay_rates` MIT from/to. Ein leeres Feld zu
+                    // füllen ändert keinen abgerechneten Monat — deshalb ist es vom
+                    // Abschluss-Schutz ausgenommen. Steht bereits ein Betrag, bleibt
+                    // er unberührt, auch wenn easy etwas anderes sagt (der Schutz
+                    // gilt weiterhin für ÄNDERUNGEN).
+                    bool ohneLohn = existing.HourlyRate == null
+                                 && existing.MonthlySalary == null
+                                 && existing.MonthlySalaryFte == null;
+                    bool easyHatLohn = info.HourlyRate.HasValue
+                                    || info.MonthlySalary.HasValue
+                                    || info.MonthlySalaryFte.HasValue;
+                    if (ohneLohn && easyHatLohn && !existing.EasyAtWorkManualOverride)
+                    {
+                        existing.HourlyRate       = info.HourlyRate;
+                        existing.MonthlySalary    = info.MonthlySalary;
+                        existing.MonthlySalaryFte = info.MonthlySalaryFte;
+                        // Lohnart/Modell mitziehen: ein Abschnitt ohne Lohn trägt oft
+                        // auch das falsche Modell (Stundenlohn-Zeit als FIX-M geführt).
+                        if (!string.IsNullOrWhiteSpace(info.SalaryType))      existing.SalaryType      = info.SalaryType!;
+                        if (!string.IsNullOrWhiteSpace(info.EmploymentModel)) existing.EmploymentModel = info.EmploymentModel!;
+                        if (info.EmploymentPercentage.HasValue) existing.EmploymentPercentage = info.EmploymentPercentage;
+                        if (info.WeeklyHours.HasValue)          existing.WeeklyHours          = info.WeeklyHours;
+                        cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): "
+                            + $"Vertrag ab {seg.Start:dd.MM.yyyy} hatte keinen Lohn — aus easy@work nachgetragen "
+                            + $"({(info.HourlyRate.HasValue ? $"CHF {info.HourlyRate:0.00}/h" : $"CHF {info.MonthlySalary ?? info.MonthlySalaryFte:0.00}/Mt.")}, {info.EmploymentModel}).");
+                    }
                 }
                 else skippedContracts?.Add(
                     $"Vertrag ab {seg.Start:dd.MM.yyyy} von {emp.FirstName} {emp.LastName} (Nr. {emp.EmployeeNumber}) konnte wegen abgeschlossener Lohnperiode nicht importiert werden.");
