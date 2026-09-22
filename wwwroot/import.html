@@ -418,7 +418,7 @@ body.import-contract-mode .api-contract-card .row-actions { margin-top: 8px; }
         <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             <button class="btn btn-outline" onclick="vnLadeListe()"
                 title="Bestehende Verträge und Löhne aus easy@work nachziehen">⟳ Verträge nachführen</button>
-            <span style="font-size:12.5px;color:#64748b">Verträge und Löhne bestehender Mitarbeitender aus easy@work nachziehen — inklusive Ausgetretener. Keine Stammdaten, nichts wird gelöscht.</span>
+            <span style="font-size:12.5px;color:#64748b">Verträge und Löhne <b>aktiver</b> Mitarbeitender aus easy@work nachziehen (Abschnitte ab 01.01.2026). Keine Stammdaten, nichts wird gelöscht.</span>
         </div>
         <div id="vnPanel" style="display:none;margin-bottom:18px"></div>
 
@@ -820,7 +820,9 @@ async function vnLadeListe() {
             { headers: ah(), cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
-        _vnListe = d.liste || [];
+        // Nur AKTIVE (Walter 22.09.2026): die Historie Ausgetretener kommt nicht
+        // aus easy, die wird am Mitarbeiter von Hand erfasst.
+        _vnListe = (d.liste || []).filter(m => m.aktiv);
         vnRender();
     } catch (e) {
         box.innerHTML = `<div class="alert alert-err">Fehler: ${_vnEsc(e.message)}</div>`;
@@ -858,7 +860,7 @@ function vnRender() {
             <div class="results-header">
                 <div>
                     <div class="results-title">Verträge nachführen (${_vnListe.length} Mitarbeitende)</div>
-                    <div style="font-size:12px;color:#64748b;margin-top:2px">Verträge und Löhne aus easy@work — keine Stammdaten, nichts wird gelöscht. Ausgetretene sind dabei.</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Verträge und Löhne aus easy@work für <b>aktive</b> Mitarbeitende, Abschnitte <b>ab 01.01.2026</b>. Keine Stammdaten, nichts wird gelöscht. Ältere Verträge werden beim Mitarbeiter von Hand erfasst — die easy-Historie ist dafür zu unzuverlässig.</div>
                 </div>
             </div>
             <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:10px;flex-wrap:wrap;align-items:center">

@@ -1443,8 +1443,12 @@ public class EasyAtWorkController : ControllerBase
         if (dto.EmployeeIds is { Count: > 0 })
             kandidaten = kandidaten.Where(id => dto.EmployeeIds.Contains(id)).ToList();
 
+        // NUR aktive MA (Walter-Entscheid 22.09.2026): für die lohnt sich das
+        // Nachführen, weil easy dort gepflegt wird bzw. gepflegt werden kann.
+        // Die Historie Ausgetretener kommt nicht aus easy — sie wird bei Bedarf
+        // (Zeugnis) am Mitarbeiter von Hand erfasst.
         var mas = await _db.Employees.AsNoTracking()
-            .Where(e => kandidaten.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded)
+            .Where(e => kandidaten.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded && e.IsActive)
             .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
             .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
             .ToListAsync(ct);

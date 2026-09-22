@@ -956,7 +956,7 @@ public class EasyAtWorkEmployeeSyncService
             else
             {
                 await SyncEmploymentTimelineAsync(_db, emp, cpId, timeline, jgId, jgCode, eaw.To,
-                    firstAllowed, result.SkippedContracts, result.Notes, ct);
+                    firstAllowed, result.SkippedContracts, result.Notes, HistorieStichtag, ct);
 
                 var contractChanged = _db.ChangeTracker.Entries<Employment>()
                     .Any(e => e.State == EntityState.Added || e.State == EntityState.Modified);
@@ -2766,7 +2766,7 @@ public class EasyAtWorkEmployeeSyncService
                     _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
                         temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
                     await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo,
-                        firstAllowed, res.SkippedContracts, res.Notes, ct);
+                        firstAllowed, res.SkippedContracts, res.Notes, HistorieStichtag, ct);
                 }
                 foreach (var (bemp, iban) in bankWork)
                     await EnsureBankAccountAsync(bemp, iban, ct);
@@ -3495,11 +3495,26 @@ public class EasyAtWorkEmployeeSyncService
     /// IsActive korrigieren; sonst neu anlegen. NICHTS löschen (Historie bleibt).
     /// Schliesst zum Schluss offene Verträge in ANDEREN Filialen (Filialwechsel).
     /// </summary>
+    /// <summary>
+    /// Stichtag für die Vertragshistorie (Walter-Entscheid 22.09.2026): Abschnitte
+    /// mit Beginn VOR diesem Datum pflegt HR in OneCrew von Hand — der Sync legt
+    /// sie weder an noch ändert er sie.
+    ///
+    /// Grund: Die easy@work-Historie ist für die Vergangenheit unbrauchbar —
+    /// mehrere offene Verträge gleichzeitig, doppelte und gelöschte Tarife in
+    /// derselben Periode, Lohnarten, die zum Vertrag nicht passen. Daraus lässt
+    /// sich keine verlässliche Historie ableiten, und ein Arbeitszeugnis mit
+    /// geratenen Angaben ist ein falsches Rechtsdokument. Ab 2026 wird easy
+    /// gepflegt — dort bleibt easy führend.
+    /// </summary>
+    public static readonly DateOnly HistorieStichtag = new(2026, 1, 1);
+
     public static async Task SyncEmploymentTimelineAsync(
         AppDbContext db, Employee emp, int companyProfileId, List<EmploymentSegment> timeline,
         int? jobGroupId, string? jobGroupCode, DateOnly? eawTo,
         DateOnly? firstAllowedDate = null, List<string>? skippedContracts = null,
         List<string>? cleanupNotes = null,
+        DateOnly? historieStichtag = null,
         CancellationToken ct = default)
     {
         if (emp.Id == 0 || timeline == null || timeline.Count == 0) return;
@@ -3548,6 +3563,19 @@ public class EasyAtWorkEmployeeSyncService
                     && e.ContractStartDate == startDt);
             if (existing == null)
                 existing = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
+
+            // Historie-Stichtag (Walter-Entscheid 22.09.2026): Abschnitte vor dem
+            // 01.01.2026 gehören HR — der Sync ÄNDERT sie nicht mehr. Fehlende darf
+            // er weiterhin anlegen (dort gibt es nichts zu überschreiben, und ein
+            // Abschnitt aus easy ist besser als gar keiner). Wer eine alte Zeile von
+            // Hand pflegt, behält sie also; die easy-Historie überschreibt sie nie
+            // wieder mit ihrem Durcheinander (mehrere offene Verträge gleichzeitig,
+            // doppelte und gelöschte Tarife derselben Periode).
+            if (historieStichtag.HasValue && seg.Start < historieStichtag.Value)
+            {
+                var vorhanden = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
+                if (vorhanden != null) { matched.Add(vorhanden); continue; }
+            }
 
             // Abschluss-Schutz (Walter 29.06.2026 / präzisiert 01.08.2026):
             // Verträge/Segmente mit Start vor FirstAllowedDate (nur Definitiv

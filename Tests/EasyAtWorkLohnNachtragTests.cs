@@ -180,4 +180,36 @@ public class EasyAtWorkLohnNachtragTests
         Assert.Equal("FIX-M", zweite.Info.EmploymentModel);   // Kader + Monatslohn
         Assert.Equal(4295m, zweite.Info.MonthlySalary);
     }
+
+    [Fact]
+    public async Task AbschnitteVor2026_WerdenVomSyncNichtAngetastet()
+    {
+        // Walter-Entscheid 22.09.2026: Die easy-Historie ist für die Vergangenheit
+        // unbrauchbar (mehrere offene Verträge, doppelte/gelöschte Tarife). Ein
+        // VORHANDENER Abschnitt vor dem 01.01.2026 wird deshalb nie mehr geändert —
+        // sonst wäre die Handarbeit beim nächsten Lauf weg. (Fehlende darf der Sync
+        // weiterhin anlegen, dort gibt es nichts zu überschreiben.)
+        using var db = NewDb();
+        var emp = await SeedAsync(db);
+        db.Employments.Add(new Employment
+        {
+            EmployeeId = emp.Id, CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2022, 12, 21), ContractEndDate = new DateTime(2024, 12, 31),
+            EmploymentModel = "FIX-M", SalaryType = "monthly", MonthlySalary = 4600m,
+            JobTitle = "SHIFT_LEADER_7_PLUS", IsActive = false,
+        });
+        await db.SaveChangesAsync();
+
+        var (c, r) = EasyDaten();   // easy sagt 4'750 für denselben Zeitraum
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: true);
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(
+            db, emp, 1, tl, 5, "SHIFT_LEADER_7_PLUS", null,
+            historieStichtag: EasyAtWorkEmployeeSyncService.HistorieStichtag);
+        await db.SaveChangesAsync();
+
+        var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.Equal(4600m, v.MonthlySalary);                       // unangetastet
+        Assert.Equal("SHIFT_LEADER_7_PLUS", v.JobTitle);
+        Assert.Equal(new DateTime(2024, 12, 31), v.ContractEndDate); // auch das Ende bleibt
+    }
 }
