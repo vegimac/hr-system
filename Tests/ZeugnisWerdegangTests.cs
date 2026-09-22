@@ -117,6 +117,9 @@ public class FunktionAusLohnTests
     }
 
     [Theory]
+    [InlineData(4200, "SHIFT_LEADER_1_6")]   // Untergrenze
+    [InlineData(4295, "SHIFT_LEADER_1_6")]   // L-GAV erste Stufe 2023–2025
+    [InlineData(4304, "SHIFT_LEADER_1_6")]   // L-GAV erste Stufe 2026
     [InlineData(4300, "SHIFT_LEADER_1_6")]
     [InlineData(4499, "SHIFT_LEADER_1_6")]
     [InlineData(4500, "SHIFT_LEADER_7_PLUS")]   // Walter 22.09.2026: Lücke 4500–4600 gehört zu 7+
@@ -131,11 +134,19 @@ public class FunktionAusLohnTests
         Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
     }
 
+    [Theory]
+    [InlineData(4600)]   // L-GAV zweite Stufe 2023–2025
+    [InlineData(4610)]   // L-GAV zweite Stufe 2026
+    public void ZweiteSchichtfuehrerStufe(double lohn)
+        => Assert.Equal("SHIFT_LEADER_7_PLUS", Mt((decimal)lohn).JobGroupCode);
+
     [Fact]
-    public void MonatslohnUnter4300_IstDatenfehler_KeinVorschlag()
+    public void MonatslohnUnterSchichtfuehrerBereich_KeinVorschlag()
     {
-        // Crew im Monatslohn gibt es bei Schaub nicht (Walter 22.09.2026) — lieber
-        // nichts vorschlagen als aus einer 3'713er-Crew einen Schichtführer machen.
+        // Crew (3'713) / Host (3'943) / Swing (4'070) im Monatslohn gibt es bei Schaub
+        // nicht (Walter 22.09.2026) — lieber nichts vorschlagen als daraus einen
+        // Schichtführer zu machen.
+        Assert.Null(Mt(4070m).JobGroupCode);   // Swing-Monatssatz 2026
         var v = Mt(3713m);
         Assert.Null(v.JobGroupCode);
         Assert.Equal(FunktionAusLohn.Sicherheit.Unklar, v.Sicherheit);

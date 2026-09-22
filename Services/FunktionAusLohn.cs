@@ -25,6 +25,15 @@ public static class FunktionAusLohn
     public const decimal StundenCrewBis = 20.40m;
     /// <summary>Stundenlohn bis und mit diesem Betrag = Crew-Trainer/in (Host CT).</summary>
     public const decimal StundenHostBis = 21.66m;
+    /// <summary>
+    /// Ab diesem Monatslohn (100 %) beginnt der Schichtführer-Bereich. 4'200, NICHT 4'300
+    /// (Walter-Bug 22.09.2026): der L-GAV-Satz der ersten Schichtführer-Stufe ist **4'295**
+    /// (2023–2025) bzw. 4'304 (2026) — mit 4'300 fiel der häufigste Schichtführer-Lohn
+    /// durchs Raster. Untergrenze liegt bewusst über Swing (4'012–4'070) und unter der
+    /// ersten SL-Stufe; ältere Jahre (2021: rund 4'220) sind damit auch erfasst.
+    /// Darunter gibt es bei Schaub keine Monatslöhner — dort lieber kein Vorschlag.
+    /// </summary>
+    public const decimal MonatSlAb = 4200m;
     /// <summary>Monatslohn (100 %) unter diesem Betrag = Schichtführer/in in Ausbildung.</summary>
     public const decimal MonatSl16Unter = 4500m;
     /// <summary>Monatslohn (100 %) unter diesem Betrag = Schichtführer/in; darüber Geschäftsführer/in.</summary>
@@ -81,12 +90,12 @@ public static class FunktionAusLohn
 
         if (monatlich)
         {
-            // Monatslohn = Kader-Bereich. Unter 4'300 (100 %) gibt es bei Schaub keine
+            // Monatslohn = Kader-Bereich. Unter der Untergrenze gibt es bei Schaub keine
             // Monatslöhner (Walter 22.09.2026) — käme trotzdem einer, ist das ein
             // Datenfehler und KEIN Schichtführer-Vorschlag.
-            if (lohn < 4300m)
+            if (lohn < MonatSlAb)
                 return new Vorschlag(null, Sicherheit.Unklar,
-                    $"Monatslohn {lohn:0.00} (100 %) liegt unter dem Schichtführer-Bereich — bitte prüfen.");
+                    $"Monatslohn {lohn:0.00} (100 %) liegt unter dem Schichtführer-Bereich (ab {MonatSlAb:0}) — bitte prüfen.");
 
             var code = lohn < MonatSl16Unter ? "SHIFT_LEADER_1_6"
                      : lohn < MonatSl7Unter  ? "SHIFT_LEADER_7_PLUS"
