@@ -1482,32 +1482,48 @@ public class DashboardService
         // Fall Leonora Cana: Ehemann Schweizer, trotzdem «QST-Pflicht offen» —
         // weil der Zivilstand leer war. Ohne Zivilstand greift weder die
         // Ehegatten-Befreiung noch der richtige Tarif (B/C statt A/H).
-        // Aktive MA mit laufendem Vertrag, Phantom-MA warnen nicht.
+        // Aktive MA mit laufendem ODER künftigem Vertrag, Phantom-MA warnen nicht.
+        //
+        // Reichweite erweitert (Walter-Vorgabe 23.09.2026): Die erste Fassung
+        // verlangte einen Vertrag, der HEUTE schon läuft UND dessen IsActive-Flag
+        // stimmt. Damit blieb die Meldung genau dort aus, wo sie am meisten nützt:
+        // beim neu erfassten MA, der erst nächsten Monat anfängt — die Lücke fällt
+        // dann erst beim ersten Lohnlauf auf. Dazu kommt, dass `employment.IsActive`
+        // im Altbestand unzuverlässig ist (alte Verträge stehen auf true, importierte
+        // laufende gelegentlich auf false — siehe Stolperfalle 7 in CLAUDE.md).
+        // Darum jetzt rein datumsbasiert: es zählt jeder Vertrag, der noch nicht
+        // abgelaufen ist. Ausgetretene (nur beendete Verträge) melden weiterhin nichts.
         if (Enabled("zivilstand_fehlt"))
         {
             var zsQ = _db.Employees.AsNoTracking()
                 .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
                          && (e.MaritalStatus == null || e.MaritalStatus.Trim() == "")
-                         && e.Employments.Any(em => em.IsActive
-                             && em.ContractStartDate <= DateTime.Today
-                             && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+                         && e.Employments.Any(em =>
+                                em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today));
             if (companyProfileId.HasValue)
                 zsQ = zsQ.Where(e => e.Employments.Any(em =>
                     em.CompanyProfileId == companyProfileId.Value
                     && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
             var ohneZs = await zsQ
                 .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
-                                   HatEhepartner = _db.EmployeeFamilyMembers.Any(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null) })
+                                   HatEhepartner = _db.EmployeeFamilyMembers.Any(f => f.EmployeeId == e.Id && f.MemberType == "Ehepartner" && f.DateOfDeath == null),
+                                   // Frühester noch nicht abgelaufener Vertrag — sagt, ob die
+                                   // Person schon arbeitet oder erst eintritt.
+                                   Eintritt = e.Employments
+                                        .Where(em => em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)
+                                        .Min(em => (DateTime?)em.ContractStartDate) })
                 .ToListAsync();
             foreach (var e in ohneZs)
             {
                 var zsName = $"{e.FirstName} {e.LastName}".Trim();
+                var nochNichtDa = e.Eintritt.HasValue && e.Eintritt.Value.Date > DateTime.Today;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "zivilstand_fehlt",
                     Severity = e.HatEhepartner ? "critical" : SeverityState("zivilstand_fehlt", "warning"),
                     Title    = "Zivilstand fehlt",
                     Subtitle = $"{zsName} · Personalnr. {e.EmployeeNumber} · kein Zivilstand erfasst"
+                             + (nochNichtDa ? $" · Eintritt am {e.Eintritt!.Value:dd.MM.yyyy}" : "")
                              + (e.HatEhepartner ? " — Ehepartner ist erfasst, ohne Zivilstand «verheiratet» greift die QST-Befreiung nicht" : ""),
                     EmployeeId     = e.Id,
                     EmployeeNumber = e.EmployeeNumber,

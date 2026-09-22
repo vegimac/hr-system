@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 19;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026)
+const int SchemaStand = 20;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -759,6 +759,12 @@ using (var scope = app.Services.CreateScope())
     // Zivilstand fehlt (Walter 04.09.2026, Fall Leonora Cana: Ehemann CH,
     // trotzdem QST-Pflicht — weil der Zivilstand leer war). Ohne Zivilstand
     // greift weder die Ehegatten-Befreiung noch der richtige Tarif (B/C).
+    // Schema-Stand 20 (23.09.2026): läuft bewusst nochmals an, damit der
+    // Eintrag in der Warnliste auf JEDER Instanz vorhanden ist — fehlt die
+    // Zeile, ist die Warnung zwar aktiv (Enabled() sagt bei fehlender Zeile
+    // ja), aber Walter kann sie unter «Warnungen» weder sehen noch einstellen.
+    // Bestehende Zeilen bleiben unangetastet (DO NOTHING) — enabled/severity
+    // sind User-Felder und werden nie vom Seed überschrieben.
     db.Database.ExecuteSqlRaw(@"
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
