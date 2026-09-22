@@ -778,6 +778,112 @@ public class EmploymentsController : ControllerBase
     }
 
     // ══════════════════════════════════════════════════════════════════════
+    // Vertragshistorie prüfen (Walter-Vorgabe 22.09.2026)
+    // ══════════════════════════════════════════════════════════════════════
+    // Die Historie ist über Monate durch Sync-Fehler durcheinandergeraten
+    // (Funktion überall gleich, Vertragsenden am falschen Tag, Überlappungen
+    // bei Filialwechseln, Abschnitte ohne Lohn). easy@work ist die QUELLE —
+    // korrigiert wird dort, OneCrew holt es beim nächsten Sync. Diese Liste
+    // zeigt, WO etwas nicht stimmt. Sie ändert NICHTS.
+    //
+    // Zuordnung zur Filiale: jeder MA gehört zur Filiale seines JÜNGSTEN
+    // Vertrags (Walter 22.09.2026) — so erscheint jede Person genau einmal,
+    // die angezeigte Historie umfasst aber ALLE Filialen.
+    public record HistorieZeile(int EmploymentId, string Von, string? Bis, int? CompanyProfileId,
+        string? Filiale, string Modell, decimal? Pensum, decimal? Lohn, string Lohnart,
+        string? Funktion, bool Ueberlappung, bool Luecke, bool OhneLohn);
+
+    public record HistorieMa(int EmployeeId, string Name, string? EmployeeNumber,
+        bool Aktiv, int Probleme, List<HistorieZeile> Zeilen);
+
+    [HttpGet("historie-check")]
+    public async Task<IActionResult> HistorieCheck([FromQuery] int companyProfileId,
+        [FromQuery] bool nurProbleme = false)
+    {
+        var filialen = await _context.CompanyProfiles.AsNoTracking()
+            .ToDictionaryAsync(c => c.Id, c => c.BranchName ?? c.FullDisplayName);
+
+        // Alle Verträge der MA, deren JÜNGSTER Vertrag in dieser Filiale liegt.
+        var alle = await _context.Employments.AsNoTracking()
+            .Include(e => e.Employee)
+            .Include(e => e.JobGroup)
+            .Where(e => e.Employee != null && !e.Employee.IsHidden)
+            .Select(e => new
+            {
+                e.Id, e.EmployeeId, e.CompanyProfileId, e.ContractStartDate, e.ContractEndDate,
+                e.EmploymentModel, e.SalaryType, e.EmploymentPercentage,
+                e.HourlyRate, e.MonthlySalary, e.MonthlySalaryFte, e.IsActive,
+                e.JobTitle, jobGroupCode = e.JobGroup != null ? e.JobGroup.Code : null,
+                vorname = e.Employee!.FirstName, nachname = e.Employee.LastName,
+                nummer = e.Employee.EmployeeNumber,
+            })
+            .ToListAsync();
+
+        var proMa = alle.GroupBy(x => x.EmployeeId).ToList();
+        var result = new List<HistorieMa>();
+        foreach (var g in proMa)
+        {
+            var sortiert = g.OrderBy(x => x.ContractStartDate).ToList();
+            var juengster = sortiert.Last();
+            if (juengster.CompanyProfileId != companyProfileId) continue;
+
+            var zeilen = new List<HistorieZeile>();
+            for (int i = 0; i < sortiert.Count; i++)
+            {
+                var v = sortiert[i];
+                bool monatlich = string.Equals(v.SalaryType, "monthly", StringComparison.OrdinalIgnoreCase)
+                                 || v.EmploymentModel is "FIX" or "FIX-M";
+                var lohn = monatlich ? (v.MonthlySalary ?? v.MonthlySalaryFte) : v.HourlyRate;
+
+                // Überlappung: der Vorgänger reicht in diesen Abschnitt hinein.
+                bool ueberlappung = false, luecke = false;
+                if (i > 0)
+                {
+                    var vor = sortiert[i - 1];
+                    var vorEnde = vor.ContractEndDate;
+                    if (vorEnde == null || vorEnde.Value >= v.ContractStartDate)
+                        ueberlappung = true;
+                    else if (vorEnde.Value.AddDays(1) < v.ContractStartDate)
+                        luecke = true;
+                }
+
+                var funktion = !string.IsNullOrWhiteSpace(v.JobTitle) && ZeugnisWerdegang.IstFunktionsCode(v.JobTitle)
+                    ? v.JobTitle : (v.jobGroupCode ?? v.JobTitle);
+
+                zeilen.Add(new HistorieZeile(v.Id,
+                    v.ContractStartDate.ToString("yyyy-MM-dd"),
+                    v.ContractEndDate?.ToString("yyyy-MM-dd"),
+                    v.CompanyProfileId,
+                    v.CompanyProfileId.HasValue && filialen.TryGetValue(v.CompanyProfileId.Value, out var fn) ? fn : null,
+                    v.EmploymentModel, v.EmploymentPercentage, lohn, monatlich ? "monthly" : "hourly",
+                    funktion, ueberlappung, luecke, lohn is not > 0));
+            }
+
+            int probleme = zeilen.Count(z => z.Ueberlappung || z.Luecke || z.OhneLohn);
+            if (nurProbleme && probleme == 0) continue;
+            result.Add(new HistorieMa(g.Key,
+                $"{juengster.vorname} {juengster.nachname}".Trim(), juengster.nummer,
+                sortiert.Any(x => x.IsActive), probleme, zeilen));
+        }
+
+        // Sortierung: Vorname, dann ältester Vertrag zuerst (Walter 22.09.2026).
+        var sortiertMa = result
+            .OrderBy(m => m.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(m => m.Zeilen.FirstOrDefault()?.Von)
+            .ToList();
+
+        return Ok(new
+        {
+            mitarbeiter   = sortiertMa.Count,
+            mitProblemen  = sortiertMa.Count(m => m.Probleme > 0),
+            ueberlappungen = sortiertMa.Sum(m => m.Zeilen.Count(z => z.Ueberlappung)),
+            luecken        = sortiertMa.Sum(m => m.Zeilen.Count(z => z.Luecke)),
+            ohneLohn       = sortiertMa.Sum(m => m.Zeilen.Count(z => z.OhneLohn)),
+            liste = sortiertMa,
+        });
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // Funktions-Rekonstruktion für ABGELAUFENE Verträge (Walter 22.09.2026)
     // ══════════════════════════════════════════════════════════════════════
     // easy@work liefert die Funktion ohne Historie; bis zum Sync-Riegel vom

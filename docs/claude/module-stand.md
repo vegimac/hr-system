@@ -42,3 +42,15 @@ Arbeitszeugnis, Zwischenzeugnis UND Arbeitsbestätigung können die **Vertragshi
 - Endpoint `GET /api/arbeitszeugnis/{empId}/werdegang?datum=&bis=`; DTO-Felder `werdegang` + `werdegangZeilen` (auch im Entwurf gespeichert); PDF-Input `ArbeitszeugnisInput.Werdegang` rendert die Bullet-Liste (beim Zeugnis vor den Aufgaben, bei der Bestätigung nach dem Bestätigungssatz) und zählt in die Einseitigkeits-Schätzung.
 
 - **Dokumentstruktur (Walter 22.09.2026):** Klick auf eine Word-/Excel-Datei in der Typen-Liste öffnet jetzt dieselbe PDF-Vorschau wie im MA-Dokumente-Tab (`/api/documents/preview-pdf/{id}`, LibreOffice); nur Nicht-Office geht über `/preview`. Der Anzeigename bekommt `.pdf`, damit `previewFileModal` rendert statt zum Download anzubieten. (Posteingang bleibt vorerst beim Direkt-Download — `MailboxController` hat keinen Konvertierungs-Endpoint.)
+
+
+## Vertragshistorie prüfen (Walter-Vorgabe 22.09.2026)
+
+System → Kontrolle → **«Vertragshistorie prüfen»** (`page-vertrags-historie`, `GET /api/employments/historie-check?companyProfileId&nurProbleme`). Reine Anzeige, ändert NICHTS.
+
+**Warum:** Die Vertragshistorie ist über Monate durch Sync-Fehler durcheinandergeraten — Funktion auf allen Abschnitten gleich, Vertragsenden am falschen Tag (exklusive Mitternacht), Überlappungen bei Filialwechseln, Abschnitte ohne Lohn. **easy@work ist die Quelle: korrigiert wird dort**, OneCrew holt es beim nächsten Sync. Deshalb kein Reparatur-Werkzeug in OneCrew, sondern eine Fundliste.
+
+- **Filial-Zuordnung:** jeder MA gehört zur Filiale seines **jüngsten** Vertrags → jede Person erscheint genau einmal, die angezeigte Historie umfasst aber ALLE Filialen (Filialwechsel sichtbar).
+- Sortierung: Vorname, dann ältester Vertrag zuerst. Markierungen: **rot** = Überlappung (Vorgänger reicht in den Abschnitt hinein oder ist offen), **gelb** = Lücke davor, **kein Lohn** rot im Betrag.
+- Knopf «easy vergleichen» pro MA: holt `contracts` + `pay_rates` über `GET /api/easyatwork/debug/employee-dump` und stellt sie darunter — so sieht man, ob der Fehler in easy steckt oder nur bei uns (dann genügt ein Sync).
+- Bekannte Ursache einer Überlappung in OneCrew: der Vorgänger wurde auf den Tag vor dem nächsten Vertrag **derselben** Filiale geschlossen und übersah den Wechsel in eine andere Filiale dazwischen (Fall 104/058, 22.09.2026) — Fix im Sync noch offen.

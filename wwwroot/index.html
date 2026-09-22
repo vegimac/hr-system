@@ -1727,6 +1727,11 @@
                         <div class="admin-card-title">Dokumenten-Audit</div>
                         <div class="admin-card-desc">Verdachtsfälle finden — Dateiname enthält andere Filiale als der gespeicherte Branch</div>
                     </div>
+                        <div class="admin-card admin-only-card" onclick="showPage('vertrags-historie')">
+                        <img src="img/kontkat-dok-audit.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Vertragshistorie prüfen</div>
+                        <div class="admin-card-desc">Überlappungen, Lücken und Abschnitte ohne Lohn finden — korrigiert wird in easy@work</div>
+                    </div>
                         <div class="admin-card admin-only-card" onclick="showPage('funktion-reko')">
                         <img src="img/kontkat-dok-audit.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Funktionen prüfen</div>
@@ -6787,6 +6792,35 @@
                 <div id="frResults" style="margin-top:14px"></div>
             </div>
 
+            <!-- ═══ VERTRAGSHISTORIE PRÜFEN (Walter 22.09.2026) ═════════════════
+                 easy@work ist die Quelle — korrigiert wird dort. Diese Liste zeigt
+                 nur, wo etwas nicht stimmt, und ändert selbst nichts. -->
+            <div class="page" id="page-vertrags-historie">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Vertragshistorie prüfen</h1>
+                        <p class="page-sub">Überlappende Verträge, Lücken und Abschnitte ohne Lohn — sortiert nach Vorname, ältester Vertrag zuerst. Jeder Mitarbeitende erscheint bei der Filiale seines jüngsten Vertrags; die Historie zeigt alle Filialen. Korrigiert wird in easy@work, OneCrew holt es beim nächsten Sync. Diese Seite ändert nichts.</p>
+                    </div>
+                </div>
+                <div class="card" style="padding:18px">
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        <select id="vhBranch" style="padding:7px 10px;border-radius:8px;font-size:13px"></select>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#3f3f3f;cursor:pointer">
+                            <input type="checkbox" id="vhNurProbleme" checked style="width:15px;height:15px;accent-color:#3f3f3f">
+                            nur Mitarbeitende mit Problemen
+                        </label>
+                        <button class="btn btn-primary" onclick="vhRun()">🔍 Liste erstellen</button>
+                        <span id="vhStatus" style="font-size:13px;color:#64748b"></span>
+                    </div>
+                    <div style="margin-top:10px;display:flex;gap:14px;font-size:12px;color:#64748b;flex-wrap:wrap">
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#fef2f2;border:1px solid #fecaca;border-radius:2px"></span> Überlappung — zwei Verträge decken denselben Tag ab</span>
+                        <span><span style="display:inline-block;width:10px;height:10px;background:#fffbeb;border:1px solid #fde68a;border-radius:2px"></span> Lücke zwischen zwei Verträgen</span>
+                        <span style="color:#dc2626">kein Lohn am Abschnitt</span>
+                    </div>
+                </div>
+                <div id="vhResults" style="margin-top:14px"></div>
+            </div>
+
             <!-- ═══════════════ D.VELOP DOKUMENTEN-IMPORT ═══════════════ -->
             <div class="page" id="page-dvelop-import">
                 <div class="sticky-page-head">
@@ -9352,7 +9386,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260922a"></script>
+<script src="js/app-core.js?v=20260922b"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9398,6 +9432,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/archive-import.js?v=20260805a"></script>
 <script src="js/dok-struktur.js?v=20260922a"></script>
 <script src="js/funktion-reko.js?v=20260922d"></script>
+<script src="js/vertrags-historie.js?v=20260922a"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
