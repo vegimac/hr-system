@@ -60,6 +60,11 @@ public class LohnpositionController : ControllerBase
     {
         dto.Id        = 0;
         dto.IsActive  = true;
+        // Server-Default (Cursor-Review 22.09.2026): einmalige Swissdec-Codes / Kategorie Bonus sind
+        // nie «QST im Monat» — unabhängig davon, was das Formular schickt.
+        if (Lohnposition.SwissdecEinmalig(dto.SwissdecLohnart)
+            || string.Equals(dto.Kategorie, "Bonus", StringComparison.OrdinalIgnoreCase))
+            dto.QstPeriodisch = false;
         dto.CreatedAt = DateTime.UtcNow;
         _db.Lohnpositionen.Add(dto);
         await _db.SaveChangesAsync();

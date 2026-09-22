@@ -5890,7 +5890,7 @@
                                 <div>
                                     <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Kategorie</label>
                                     <input id="lpKategorie" maxlength="80" placeholder="z.B. Festlohn"
-                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
+                                        style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none" oninput="lpQstPeriodischVorschlag()">
                                 </div>
                                 <div>
                                     <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Lohnausweis-Code</label>
@@ -5900,7 +5900,7 @@
                             </div>
                             <div>
                                 <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:5px">Swissdec-Lohnart <span style="font-weight:400;color:#94a3b8">(Musterlohnartenstamm, z.B. 1005 Stundenlohn, 1161 Feiertagsentschädigung)</span></label>
-                                <input id="lpSwissdec" maxlength="10" list="lpSwissdecListe" placeholder="leer = nicht zugeordnet"
+                                <input id="lpSwissdec" maxlength="10" list="lpSwissdecListe" oninput="lpQstPeriodischVorschlag()" placeholder="leer = nicht zugeordnet"
                                     style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-family:inherit;outline:none">
                                 <datalist id="lpSwissdecListe"></datalist>
                             </div>
@@ -5930,7 +5930,7 @@
                                         <span>Quellensteuer</span>
                                     </label>
                                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px" title="Gesetzt = Lohnart läuft monatlich (Lohn, Zulagen, Kinderzulage): im Kurzmonat/Nebenerwerb auf den Monat hochrechnen, bei Wohnsitz Ausland CH-Tage des Monats. Nicht gesetzt (Bonus, Gratifikation, Abgangsentschädigung, Beteiligung, Geburtszulage): satzbestimmend 1:1, CH-Tage kumuliert seit Jahresbeginn.">
-                                        <input type="checkbox" id="lpQstPeriodisch" style="width:15px;height:15px;accent-color:#3f3f3f">
+                                        <input type="checkbox" id="lpQstPeriodisch" style="width:15px;height:15px;accent-color:#3f3f3f" onchange="this.dataset.manuell='1'">
                                         <span>QST im Monat (sonst kumuliert seit Jahresbeginn)</span>
                                     </label>
                                 </div>
@@ -9377,7 +9377,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/dok-protokoll.js?v=20260722d"></script>
 <script src="js/payroll-perioden.js?v=20260918a"></script>
 <script src="js/sortable-table.js?v=20260704p"></script>
-<script src="js/admin-settings.js?v=20260921b"></script>
+<script src="js/admin-settings.js?v=20260922a"></script>
 <script src="js/admin-data-fix.js?v=20260803a"></script>
 <script src="js/pregnancy-rules.js?v=20260816a"></script>
 <script src="js/minimum-wages.js?v=20260831a"></script>

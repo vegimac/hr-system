@@ -5143,6 +5143,10 @@ public class PayrollCalculationEngine
             decimal ausgleichMonate = 12m;
             decimal ausgleichMonateBisher = -1m;
             string? ausgleichLabel = null;
+            // AHV-Freibetrag kumuliert auch im Korrekturlohn (Cursor-Review 22.09.2026: war flach 1'400).
+            // Nachzahlung nach Austritt: Freibetrag-Monate des Austrittsjahres, die Nachzahlung selbst
+            // bringt KEINEN zusätzlichen Monat (ahvFreibetragKeinNeuerMonat).
+            decimal? ahvFbYtd = null; int ahvFbMonateBisher = 0; string? ahvFbText = null;
             if (nachzahlungNachAustritt)
             {
                 // Beschäftigungsmonate im Austrittsjahr (Teilmonate anteilig) — die Nachzahlung
@@ -5166,6 +5170,31 @@ public class PayrollCalculationEngine
                 ausgleichMonate = Math.Max(1m / 30m, PayrollCalculations.BeschaeftigungsMonate(employee.Employments, svYear, 1, svMonth, snapsAustritt.Select(x => x.Month).ToHashSet()));
                 ausgleichMonateBisher = ausgleichMonate;
                 ausgleichLabel = $" (Nachzahlung, Austrittsjahr {svYear})";
+                if (employee.DateOfBirth.HasValue)
+                {
+                    var fbMonate = snapsAustritt
+                        .Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, svYear, x.Month))
+                        .ToList();
+                    if (fbMonate.Count > 0)
+                    {
+                        ahvFbYtd = fbMonate.Sum(x => x.SvBasisAhv) + snapsNachzahlung.Sum();
+                        ahvFbMonateBisher = fbMonate.Select(x => x.Month).Distinct().Count();
+                        ahvFbText = PayrollCalculations.MonateAlsText(fbMonate.Select(x => x.Month).Distinct().OrderBy(m => m).ToList());
+                    }
+                }
+            }
+            else if (employee.DateOfBirth.HasValue)
+            {
+                // Korrektur im laufenden Anstellungsjahr: wie im Hauptpfad (Vormonate mit Freibetrag + dieser Monat).
+                var ytdKorr = await (
+                    from s2 in _db.PayrollSnapshots
+                    join p2 in _db.PayrollPerioden on s2.PayrollPeriodeId equals p2.Id
+                    where s2.EmployeeId == employeeId && p2.Year == year && p2.Month < month && s2.Status != "STORNIERT"
+                    select new { p2.Month, s2.SvBasisAhv }).ToListAsync();
+                var fbMonate = ytdKorr.Where(x => PayrollCalculations.HatReferenzalterErreicht(employee.Gender, employee.DateOfBirth.Value, year, x.Month)).ToList();
+                ahvFbYtd = fbMonate.Sum(x => x.SvBasisAhv);
+                ahvFbMonateBisher = fbMonate.Select(x => x.Month).Distinct().Count();
+                ahvFbText = PayrollCalculations.MonateAlsText(fbMonate.Select(x => x.Month).Distinct().Append(month).OrderBy(m => m).ToList());
             }
 
             // SV-Regeln (Alter), ohne QST-Auto — Korrekturen kommen manuell (565 etc.).
@@ -5344,7 +5373,11 @@ public class PayrollCalculationEngine
                 ytdSvBasesDezember: ytdAustrittsjahr,
                 ausgleichMonate: ausgleichMonate,
                 ausgleichMonateBisher: ausgleichMonateBisher,
-                ausgleichLabel: ausgleichLabel);
+                ausgleichLabel: ausgleichLabel,
+                ahvFreibetragYtdBasen: ahvFbYtd,
+                ahvFreibetragMonateBisher: ahvFbMonateBisher,
+                ahvFreibetragKeinNeuerMonat: nachzahlungNachAustritt,
+                ahvFreibetragMonateText: ahvFbText);
 
             // isCorrection-Flag auf Result setzen (BuildResult ist anonym)
             var opts = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };

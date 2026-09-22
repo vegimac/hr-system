@@ -20,6 +20,18 @@ public class AhvFreibetragKumuliertTests
     }
 
     [Fact]
+    public void NachzahlungNachAustritt_KeinNeuerFreibetragMonat()
+    {
+        // 2 Anstellungsmonate mit Freibetrag (2 × 1'400), Lohn je 2'000 → 1'200 verbeitragt.
+        // Nachzahlung 5'000 nach Austritt: voll pflichtig (kein dritter Freibetrag).
+        var basis = PayrollCalculations.AhvFreibetragKumuliert(5000m, 1400m, ytdBasen: 4000m, monateBisher: 2, neuerMonat: false);
+        Assert.Equal(5000m, basis);
+        // Nicht ausgeschöpfter Freibetrag der Anstellung wird auf der Nachzahlung nachgeholt.
+        var basis2 = PayrollCalculations.AhvFreibetragKumuliert(5000m, 1400m, ytdBasen: 2000m, monateBisher: 2, neuerMonat: false);
+        Assert.Equal(4200m, basis2);   // 7'000 − 2'800 = 4'200, bisher 0
+    }
+
+    [Fact]
     public void ErsterMonat_WieFlach()
     {
         Assert.Equal(600m, PayrollCalculations.AhvFreibetragKumuliert(2000m, 1400m, 0m, 0));   // Estermann

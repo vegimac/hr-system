@@ -1528,6 +1528,9 @@ function lpOpenForm(id) {
     document.getElementById('lpBvg').checked          = d?.bvgPflichtig ?? true;
     document.getElementById('lpQst').checked          = d?.qstPflichtig ?? true;
     document.getElementById('lpQstPeriodisch').checked = d?.qstPeriodisch ?? true;
+    // Neue Position: «QST Monat» aus Swissdec-Code / Kategorie ableiten (Cursor-Review 22.09.2026:
+    // Default «ja» wäre bei einer Geburtszulage/Bonus im Kurzmonat falsch hochgerechnet).
+    if (!d) lpQstPeriodischVorschlag();
     document.getElementById('lpDreijehnter').checked  = d?.dreijehnterMlPflichtig ?? false;
 
     // Bemessungsbasis-Flags
@@ -2544,6 +2547,22 @@ function atFlexZwToggle() {
 
 // Swissdec-Lohnarten-Katalog für die Auswahlliste im Lohnpositionen-Dialog
 // (Walter 08.09.2026). Einmal laden, danach aus dem Speicher.
+/// Swissdec-Codes, die einmalig/aperiodisch sind — Spiegel von Lohnposition.SwissdecEinmalig (C#).
+function lpSwissdecEinmalig(code) {
+    const c = String(code || '').trim();
+    if (!c) return false;
+    if (/^(12|13|14|15)\d\d$/.test(c)) return true;
+    if (/^(196\d|197\d|1980|1067|1168|3001|3034)$/.test(c)) return true;
+    return false;
+}
+/// «QST im Monat» automatisch setzen, solange der User das Häkchen nicht selbst angefasst hat.
+function lpQstPeriodischVorschlag() {
+    const cb = document.getElementById('lpQstPeriodisch');
+    if (!cb || cb.dataset.manuell === '1') return;
+    const code = document.getElementById('lpSwissdec')?.value || '';
+    const kat  = (document.getElementById('lpKategorie')?.value || '').trim().toLowerCase();
+    cb.checked = !(lpSwissdecEinmalig(code) || kat === 'bonus');
+}
 let _lpSwissdecKatalog = null;
 async function lpLadeSwissdecListe() {
     const dl = document.getElementById('lpSwissdecListe');

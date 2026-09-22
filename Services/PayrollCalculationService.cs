@@ -299,6 +299,9 @@ public static class PayrollCalculations
         // ahvFreibetragMonateBisher = Anzahl dieser Vormonate (mit Snapshot).
         decimal? ahvFreibetragYtdBasen = null,
         int ahvFreibetragMonateBisher = 0,
+        // Nachzahlung nach Austritt (Korrekturlohn): die Zahlung bringt KEINEN neuen
+        // Freibetrag-Monat — Total gegen n Freibeträge der Anstellung, nicht n+1.
+        bool ahvFreibetragKeinNeuerMonat = false,
         // Monatsnamen für das Beleg-Label, z.B. «Jan.–Feb.» (Walter 21.09.2026: «wo sehe ich,
         // dass der Betrag für Januar und Februar gilt?»). null = nur Anzahl.
         string? ahvFreibetragMonateText = null)
@@ -372,7 +375,8 @@ public static class PayrollCalculations
                     // Kann negativ werden (Monat ohne Lohn, Freibetrag des Monats wird nachgeholt).
                     decimal vor = basis;
                     basis = AhvFreibetragKumuliert(basis, d.FreibetragMonthly.Value,
-                        ahvFreibetragYtdBasen.Value, ahvFreibetragMonateBisher);
+                        ahvFreibetragYtdBasen.Value, ahvFreibetragMonateBisher,
+                        neuerMonat: !ahvFreibetragKeinNeuerMonat);
                     freibetragAngewendet = vor - basis;
                     freibetragKumuliert = true;
                 }
@@ -1497,10 +1501,10 @@ public static class PayrollCalculations
             : string.Join(", ", monate.Select(m => n[m - 1]));
     }
 
-    public static decimal AhvFreibetragKumuliert(decimal basisMonat, decimal freibetrag, decimal ytdBasen, int monateBisher)
+    public static decimal AhvFreibetragKumuliert(decimal basisMonat, decimal freibetrag, decimal ytdBasen, int monateBisher, bool neuerMonat = true)
     {
         decimal pflichtigBisher = Math.Max(0m, ytdBasen - freibetrag * monateBisher);
-        decimal pflichtigTotal  = Math.Max(0m, ytdBasen + basisMonat - freibetrag * (monateBisher + 1));
+        decimal pflichtigTotal  = Math.Max(0m, ytdBasen + basisMonat - freibetrag * (monateBisher + (neuerMonat ? 1 : 0)));
         return pflichtigTotal - pflichtigBisher;
     }
 
