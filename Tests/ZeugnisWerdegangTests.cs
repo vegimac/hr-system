@@ -125,8 +125,10 @@ public class FunktionAusLohnTests
     [InlineData(4500, "SHIFT_LEADER_7_PLUS")]   // Walter 22.09.2026: Lücke 4500–4600 gehört zu 7+
     [InlineData(4600, "SHIFT_LEADER_7_PLUS")]
     [InlineData(4999, "SHIFT_LEADER_7_PLUS")]
-    [InlineData(5000, "REST_MANAGER")]
-    [InlineData(6100, "REST_MANAGER")]
+    [InlineData(5150, "SHIFT_LEADER_7_PLUS")]   // Fall 580026: keine GF (L-GAV-RM ab 6'100)
+    [InlineData(5999, "SHIFT_LEADER_7_PLUS")]
+    [InlineData(6000, "REST_MANAGER")]
+    [InlineData(6100, "REST_MANAGER")]          // L-GAV Restaurant Manager 6'100–7'000
     public void Monatslohn_Schwellen(double lohn, string erwartet)
     {
         var v = Mt((decimal)lohn);

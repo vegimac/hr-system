@@ -36,8 +36,14 @@ public static class FunktionAusLohn
     public const decimal MonatSlAb = 4200m;
     /// <summary>Monatslohn (100 %) unter diesem Betrag = Schichtführer/in in Ausbildung.</summary>
     public const decimal MonatSl16Unter = 4500m;
-    /// <summary>Monatslohn (100 %) unter diesem Betrag = Schichtführer/in; darüber Geschäftsführer/in.</summary>
-    public const decimal MonatSl7Unter = 5000m;
+    /// <summary>
+    /// Monatslohn (100 %) unter diesem Betrag = Schichtführer/in; ab hier Geschäftsführer/in.
+    /// 6'000 (Walter 22.09.2026, Fall 580026 Adamovic): die L-GAV-Tabellen führen den
+    /// Restaurant Manager mit **6'100 – 7'000** (2023: 6'500). Zwischen Schichtführer
+    /// (4'600) und GF liegt bei Schaub nichts — Assistant Manager gibt es nicht. Mit der
+    /// früheren 5'000er-Grenze wurde ein Lohn von 5'150 fälschlich zur Geschäftsführung.
+    /// </summary>
+    public const decimal MonatSl7Unter = 6000m;
 
     public enum Sicherheit
     {
