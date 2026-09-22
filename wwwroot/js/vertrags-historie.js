@@ -112,61 +112,6 @@ function vhRender() {
     }).join('');
 }
 
-// Ganze Filiale neu aus easy@work holen (Walter 22.09.2026): ruft für jeden MA
-// denselben Ablauf wie der Einzel-Knopf am Mitarbeiter. Ausgetretene sind dabei —
-// gerade deren Historie brauchen wir für Zeugnisse. Es wird nichts gelöscht.
-async function vhNeuHolen() {
-    const cid = document.getElementById('vhBranch')?.value;
-    const name = document.getElementById('vhBranch')?.selectedOptions?.[0]?.textContent || '';
-    if (!cid) return;
-    const ok = typeof liquidConfirm === 'function'
-        ? await liquidConfirm(`Für alle Mitarbeitenden der Filiale ${name} werden Verträge und Löhne frisch aus easy@work geholt und die Abschnitte nachgeführt. Ausgetretene sind dabei. Es wird nichts gelöscht. Das dauert je nach Filiale ein bis zwei Minuten.`,
-            { title: 'Vertragshistorie neu holen?', yesLabel: 'Starten', noLabel: 'Abbrechen' })
-        : confirm('Vertragshistorie für die ganze Filiale neu holen?');
-    if (!ok) return;
-
-    const st = document.getElementById('vhStatus');
-    const btn = document.getElementById('vhNeuBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'läuft …'; }
-    st.textContent = 'Hole Verträge aus easy@work — bitte Fenster offen lassen …';
-    try {
-        const r = await fetch('/api/easyatwork/vertraege-neu-holen', {
-            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ companyProfileId: parseInt(cid, 10) })
-        });
-        if (!r.ok) {
-            let msg = 'HTTP ' + r.status;
-            try { const j = await r.json(); msg = j.message || j.error || msg; } catch (_) {}
-            throw new Error(msg);
-        }
-        const d = await r.json();
-        const zeilen = (d.meldungen || []).map(m => {
-            const teile = [];
-            if (m.geaendert) teile.push('<span style="color:#15803d;font-weight:600">Verträge aktualisiert</span>');
-            (m.uebersprungen || []).forEach(x => teile.push(`<span style="color:#92400e">${_vhEsc(x)}</span>`));
-            (m.fehler || []).forEach(x => teile.push(`<span style="color:#991b1b">${_vhEsc(x)}</span>`));
-            (m.hinweise || []).forEach(x => teile.push(`<span style="color:#64748b">${_vhEsc(x)}</span>`));
-            return `<div style="padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px">
-                <b>${_vhEsc(m.name)}</b> <span style="color:#94a3b8">${_vhEsc(m.nummer || '')}</span><br>${teile.join('<br>')}</div>`;
-        }).join('');
-        document.getElementById('vhResults').innerHTML = `
-            <div class="card" style="padding:16px">
-                <div style="font-size:14px;font-weight:700;margin-bottom:8px">
-                    ${d.geprueft} Mitarbeitende · ${d.geaendert} mit aktualisierten Verträgen · ${d.unveraendert} unverändert${d.fehler ? ` · ${d.fehler} Fehler` : ''}
-                </div>
-                ${zeilen || '<div style="color:#64748b;font-size:13px">Keine Meldungen.</div>'}
-                <button class="btn btn-primary" style="margin-top:12px" onclick="vhRun()">Liste neu prüfen</button>
-            </div>`;
-        st.textContent = 'Fertig.';
-    } catch (e) {
-        st.textContent = '';
-        document.getElementById('vhResults').innerHTML =
-            `<div class="card" style="padding:14px;color:#991b1b;background:#fef2f2;border:1px solid #fecaca">Fehler: ${_vhEsc(e.message)}</div>`;
-    } finally {
-        if (btn) { btn.disabled = false; btn.textContent = '⟳ Historie aus easy@work neu holen'; }
-    }
-}
-
 // Vergleich mit easy@work: zeigt, ob der Fehler in easy steckt (dort korrigieren)
 // oder nur bei uns (dann genügt ein Sync).
 async function vhEasyVergleich(employeeId, nummer) {

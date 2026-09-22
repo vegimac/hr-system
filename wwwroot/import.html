@@ -409,6 +409,19 @@ body.import-contract-mode .api-contract-card .row-actions { margin-top: 8px; }
         <div id="apiContractPanel" style="display:none;margin-bottom:18px"></div>
         <div id="importEasyEmployeeList" style="margin-bottom:18px"></div>
 
+        <!-- ═══ VERTRÄGE NACHFÜHREN (Walter-Vorgabe 22.09.2026) ═══════════════
+             Bestehende MA: Verträge + Löhne aus easy@work nachziehen. KEINE
+             Stammdaten. Ausgetretene sind dabei (deren Historie brauchen wir
+             für Zeugnisse). Es wird nichts gelöscht — der Sync legt an und
+             korrigiert. Die Liste baut sich aus OneCrew-Daten auf (schnell);
+             easy wird erst beim Lauf befragt. -->
+        <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-outline" onclick="vnLadeListe()"
+                title="Bestehende Verträge und Löhne aus easy@work nachziehen">⟳ Verträge nachführen</button>
+            <span style="font-size:12.5px;color:#64748b">Verträge und Löhne bestehender Mitarbeitender aus easy@work nachziehen — inklusive Ausgetretener. Keine Stammdaten, nichts wird gelöscht.</span>
+        </div>
+        <div id="vnPanel" style="display:none;margin-bottom:18px"></div>
+
         <!-- Doppelte Lohn-MA prüfen — findet Personen mit mehr als einem Lohn-MA
              (genau die, die den easy@work-Sync blockieren). -->
         <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -771,12 +784,154 @@ function onImportBranchChange() {
     rowStates = {};
     const easyList = document.getElementById('importEasyEmployeeList');
     if (easyList) easyList.innerHTML = '';
+    const vnBox = document.getElementById('vnPanel');
+    if (vnBox) { vnBox.style.display = 'none'; vnBox.innerHTML = ''; }
     const apiPanel = document.getElementById('apiContractPanel');
     if (apiPanel) { apiPanel.style.display = 'none'; apiPanel.innerHTML = ''; }
     document.body.classList.remove('import-contract-mode');
     document.getElementById('summaryBar').style.display = 'none';
     document.getElementById('resultsSection').style.display = 'none';
     document.getElementById('uploadSection').style.display = 'none';
+}
+
+// ═══ VERTRÄGE NACHFÜHREN (Walter-Vorgabe 22.09.2026) ══════════════════════
+// Bestehende MA: Verträge + Löhne aus easy@work nachziehen — KEINE Stammdaten.
+// Ausgetretene sind dabei; deren Historie brauchen wir für Zeugnisse. Es wird
+// nichts gelöscht. Die Liste kommt aus OneCrew (schnell), easy wird erst beim
+// Lauf befragt (Walter-Entscheid «Variante A»). Der Lauf geht in kleinen
+// Paketen, damit der Fortschritt sichtbar ist und kein Request ewig hängt.
+let _vnListe = [];
+
+function _vnEsc(t) {
+    return String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function vnLadeListe() {
+    const box = document.getElementById('vnPanel');
+    if (!box) return;
+    box.style.display = 'block';
+    if (!companyProfileId) {
+        box.innerHTML = `<div class="alert alert-err">Bitte zuerst eine Filiale wählen.</div>`;
+        return;
+    }
+    box.innerHTML = `<div class="alert alert-info">⏳ Lade Mitarbeitende…</div>`;
+    try {
+        const r = await fetch(`/api/employments/historie-check?companyProfileId=${companyProfileId}&nurProbleme=false`,
+            { headers: ah(), cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const d = await r.json();
+        _vnListe = d.liste || [];
+        vnRender();
+    } catch (e) {
+        box.innerHTML = `<div class="alert alert-err">Fehler: ${_vnEsc(e.message)}</div>`;
+    }
+}
+
+function vnRender() {
+    const box = document.getElementById('vnPanel');
+    const rows = _vnListe.map(m => {
+        const ohneLohn = m.zeilen.filter(z => z.ohneLohn).length;
+        const ueber    = m.zeilen.filter(z => z.ueberlappung).length;
+        const ampel = (ueber > 0 || ohneLohn > 0)
+            ? `<span style="font-size:11px;font-weight:700;color:#991b1b;background:#fee2e2;padding:2px 8px;border-radius:9px">prüfen</span>`
+            : `<span style="font-size:11px;font-weight:700;color:#166534;background:#dcfce7;padding:2px 8px;border-radius:9px">ok</span>`;
+        return `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:6px 12px"><input type="checkbox" class="vnChk" data-id="${m.employeeId}" data-problem="${ueber + ohneLohn > 0 ? 1 : 0}"></td>
+            <td style="padding:6px 12px">${_vnEsc(m.name)}</td>
+            <td style="padding:6px 12px;color:#64748b">${_vnEsc(m.employeeNumber || '')}</td>
+            <td style="padding:6px 12px">${m.aktiv ? 'aktiv' : '<span style="color:#64748b">ausgetreten</span>'}</td>
+            <td style="padding:6px 12px;text-align:right">${m.zeilen.length}</td>
+            <td style="padding:6px 12px;text-align:right${ohneLohn ? ';color:#dc2626;font-weight:600' : ''}">${ohneLohn || '–'}</td>
+            <td style="padding:6px 12px;text-align:right${ueber ? ';color:#dc2626;font-weight:600' : ''}">${ueber || '–'}</td>
+            <td style="padding:6px 12px">${ampel}</td>
+        </tr>`;
+    }).join('');
+    box.innerHTML = `
+        <div class="results-card">
+            <div class="results-header">
+                <div>
+                    <div class="results-title">Verträge nachführen (${_vnListe.length} Mitarbeitende)</div>
+                    <div style="font-size:12px;color:#64748b;margin-top:2px">Verträge und Löhne aus easy@work — keine Stammdaten, nichts wird gelöscht. Ausgetretene sind dabei.</div>
+                </div>
+            </div>
+            <div style="padding:10px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <button class="btn btn-outline" onclick="vnAuswahl('alle')">alle</button>
+                <button class="btn btn-outline" onclick="vnAuswahl('probleme')">nur zu prüfende</button>
+                <button class="btn btn-outline" onclick="vnAuswahl('keine')">keine</button>
+                <button class="btn btn-primary" id="vnGoBtn" onclick="vnStart()">⟳ Verträge nachführen</button>
+                <span id="vnStatus" style="font-size:12.5px;color:#64748b"></span>
+            </div>
+            <div style="max-height:420px;overflow:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                    <thead><tr style="background:#f8fafc;color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">
+                        <th style="padding:8px 12px"></th>
+                        <th style="padding:8px 12px">Name</th>
+                        <th style="padding:8px 12px">Nr.</th>
+                        <th style="padding:8px 12px">Status</th>
+                        <th style="padding:8px 12px;text-align:right">Abschnitte</th>
+                        <th style="padding:8px 12px;text-align:right">ohne Lohn</th>
+                        <th style="padding:8px 12px;text-align:right">Überlappung</th>
+                        <th style="padding:8px 12px"></th>
+                    </tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            </div>
+            <div id="vnProtokoll" style="padding:12px"></div>
+        </div>`;
+    vnAuswahl('probleme');
+}
+
+function vnAuswahl(was) {
+    document.querySelectorAll('.vnChk').forEach(c => {
+        c.checked = was === 'alle' ? true
+                  : was === 'keine' ? false
+                  : c.dataset.problem === '1';
+    });
+}
+
+async function vnStart() {
+    const ids = [...document.querySelectorAll('.vnChk:checked')].map(c => parseInt(c.dataset.id, 10));
+    if (!ids.length) { alert('Niemand ausgewählt.'); return; }
+    const btn = document.getElementById('vnGoBtn');
+    const st  = document.getElementById('vnStatus');
+    const prot = document.getElementById('vnProtokoll');
+    btn.disabled = true;
+    prot.innerHTML = '';
+    let geaendert = 0, fehler = 0;
+    const meldungen = [];
+    // In Paketen von 5 — Fortschritt sichtbar, keine ewig laufende Anfrage.
+    for (let i = 0; i < ids.length; i += 5) {
+        const paket = ids.slice(i, i + 5);
+        st.textContent = `${Math.min(i + paket.length, ids.length)} von ${ids.length} …`;
+        try {
+            const r = await fetch('/api/easyatwork/vertraege-neu-holen', {
+                method: 'POST', headers: ah(),
+                body: JSON.stringify({ companyProfileId, employeeIds: paket })
+            });
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            const d = await r.json();
+            geaendert += d.geaendert || 0;
+            fehler    += d.fehler || 0;
+            (d.meldungen || []).forEach(m => meldungen.push(m));
+        } catch (e) {
+            fehler += paket.length;
+            meldungen.push({ name: `Paket ${i / 5 + 1}`, fehler: [e.message] });
+        }
+    }
+    st.textContent = `fertig — ${geaendert} mit aktualisierten Verträgen${fehler ? `, ${fehler} Fehler` : ''}`;
+    btn.disabled = false;
+    prot.innerHTML = meldungen.length
+        ? `<div style="font-size:13px;font-weight:700;margin-bottom:6px">Protokoll</div>` + meldungen.map(m => {
+            const teile = [];
+            if (m.geaendert) teile.push('<span style="color:#15803d;font-weight:600">Verträge aktualisiert</span>');
+            (m.uebersprungen || []).forEach(x => teile.push(`<span style="color:#92400e">${_vnEsc(x)}</span>`));
+            (m.fehler || []).forEach(x => teile.push(`<span style="color:#991b1b">${_vnEsc(x)}</span>`));
+            (m.hinweise || []).forEach(x => teile.push(`<span style="color:#64748b">${_vnEsc(x)}</span>`));
+            return `<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px">
+                <b>${_vnEsc(m.name)}</b> <span style="color:#94a3b8">${_vnEsc(m.nummer || '')}</span><br>${teile.join('<br>')}</div>`;
+          }).join('')
+        : '<div style="font-size:12.5px;color:#64748b">Keine Änderungen.</div>';
+    vnLadeListe();
 }
 
 function importBackToEasyEmployeeList() {
