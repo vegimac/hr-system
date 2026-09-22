@@ -829,6 +829,9 @@ public class EmploymentsController : ControllerBase
             var lohn = monatlich ? (em.MonthlySalaryFte ?? em.MonthlySalary) : em.HourlyRate;
             var v = FunktionAusLohn.Ermittle(beginn, em.EmploymentModel, em.SalaryType,
                 em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary, em.EducationLevelCode);
+            // Die 6-Monats-Zeitregel bleibt hier bewusst DRAUSSEN: sie gilt erst ab 2026
+            // (vorher 12 Monate) und ist eine Annahme — in die Datenbank schreiben wir nur,
+            // was der Lohn eindeutig sagt (Walter 22.09.2026).
 
             var alt = !string.IsNullOrWhiteSpace(em.JobTitle) && gruppen.ContainsKey(em.JobTitle!.Trim())
                 ? em.JobTitle!.Trim()
