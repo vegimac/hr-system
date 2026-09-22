@@ -1362,7 +1362,7 @@ const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mind
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
                          'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
-                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten'];
+                         'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
 // Sidebar-Eintrag «Entwicklung» aktiv und bekommen denselben Zurueck-Button

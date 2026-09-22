@@ -777,4 +777,101 @@ public class EmploymentsController : ControllerBase
         });
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Funktions-Rekonstruktion für ABGELAUFENE Verträge (Walter 22.09.2026)
+    // ══════════════════════════════════════════════════════════════════════
+    // easy@work liefert die Funktion ohne Historie; bis zum Sync-Riegel vom
+    // 22.09.2026 wurde die heutige Funktion auf alle Abschnitte geschrieben.
+    // Hier wird sie aus dem LOHN gegen das L-GAV-Raster zurückgerechnet und
+    // — nur bei EXAKTEM Treffer und nur bei Verträgen, die in der
+    // VERGANGENHEIT geendet haben — zurückgeschrieben. Laufende Verträge
+    // fasst der Vorgang NIE an (die sind aus easy@work korrekt).
+    // Änderungen landen über den SaveChanges-Interceptor im Audit-Log.
+    public record FunktionRekoZeile(int EmploymentId, int EmployeeId, string EmployeeName,
+        string? EmployeeNumber, string Von, string? Bis, string Modell, string Lohnart,
+        decimal? Lohn, string? Alt, string? Neu, string Sicherheit, string Begruendung);
+
+    [HttpGet("funktion-rekonstruktion")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> FunktionRekonstruktionVorschau([FromQuery] int? employeeId = null)
+        => Ok(await FunktionRekoAsync(employeeId, uebernehmen: false));
+
+    public record FunktionRekoCommitDto(List<int>? EmploymentIds, int? EmployeeId);
+
+    [HttpPost("funktion-rekonstruktion")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> FunktionRekonstruktionUebernehmen([FromBody] FunktionRekoCommitDto? dto)
+        => Ok(await FunktionRekoAsync(dto?.EmployeeId, uebernehmen: true, dto?.EmploymentIds));
+
+    private async Task<object> FunktionRekoAsync(int? employeeId, bool uebernehmen, List<int>? nurIds = null)
+    {
+        var heute = DateTime.Today;
+        var saetze = await _context.MinimumWageRulesNew.AsNoTracking()
+            .Where(r => r.IsActive)
+            .Join(_context.EducationLevels.AsNoTracking(), r => r.EducationLevelId, l => l.Id,
+                  (r, l) => new { r, stufe = l.Code })
+            .Select(x => new FunktionAusLohn.Satz(
+                x.r.JobGroup != null ? x.r.JobGroup.Code : x.r.JobGroupCode,
+                x.r.EmploymentModelCode, x.r.SalaryType, x.r.Amount,
+                DateOnly.FromDateTime(x.r.ValidFrom),
+                x.r.ValidTo.HasValue ? DateOnly.FromDateTime(x.r.ValidTo.Value) : null,
+                x.stufe))
+            .ToListAsync();
+
+        var gruppen = await _context.JobGroups.AsNoTracking()
+            .ToDictionaryAsync(g => g.Code, g => g.Id, StringComparer.OrdinalIgnoreCase);
+
+        // NUR abgelaufene Verträge (Ende in der Vergangenheit) — Walter-Vorgabe.
+        var q = _context.Employments
+            .Include(e => e.JobGroup)
+            .Include(e => e.Employee)
+            .Where(e => e.ContractEndDate != null && e.ContractEndDate < heute);
+        if (employeeId.HasValue) q = q.Where(e => e.EmployeeId == employeeId.Value);
+        if (nurIds is { Count: > 0 }) q = q.Where(e => nurIds.Contains(e.Id));
+        var vertraege = await q.OrderBy(e => e.EmployeeId).ThenBy(e => e.ContractStartDate).ToListAsync();
+
+        var zeilen = new List<FunktionRekoZeile>();
+        int geaendert = 0;
+        foreach (var em in vertraege)
+        {
+            var beginn = DateOnly.FromDateTime(em.ContractStartDate);
+            bool monatlich = string.Equals(em.SalaryType, "monthly", StringComparison.OrdinalIgnoreCase)
+                             || em.EmploymentModel is "FIX" or "FIX-M";
+            var lohn = monatlich ? (em.MonthlySalaryFte ?? em.MonthlySalary) : em.HourlyRate;
+            var v = FunktionAusLohn.Ermittle(beginn, em.EmploymentModel, em.SalaryType,
+                em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary, em.EducationLevelCode, saetze);
+
+            var alt = !string.IsNullOrWhiteSpace(em.JobTitle) && gruppen.ContainsKey(em.JobTitle!.Trim())
+                ? em.JobTitle!.Trim()
+                : (em.JobGroup?.Code ?? em.JobTitle);
+            bool aenderung = v.JobGroupCode != null
+                          && v.Sicherheit == FunktionAusLohn.Sicherheit.Exakt
+                          && !string.Equals(v.JobGroupCode, alt, StringComparison.OrdinalIgnoreCase);
+
+            zeilen.Add(new FunktionRekoZeile(em.Id, em.EmployeeId,
+                $"{em.Employee?.FirstName} {em.Employee?.LastName}".Trim(),
+                em.Employee?.EmployeeNumber,
+                em.ContractStartDate.ToString("yyyy-MM-dd"),
+                em.ContractEndDate?.ToString("yyyy-MM-dd"),
+                em.EmploymentModel, monatlich ? "monthly" : "hourly", lohn,
+                alt, aenderung ? v.JobGroupCode : null, v.Sicherheit.ToString(), v.Begruendung));
+
+            if (uebernehmen && aenderung)
+            {
+                em.JobTitle = v.JobGroupCode;
+                if (gruppen.TryGetValue(v.JobGroupCode!, out var gid)) em.JobGroupId = gid;
+                geaendert++;
+            }
+        }
+        if (uebernehmen && geaendert > 0) await _context.SaveChangesAsync();
+
+        return new
+        {
+            geprueft   = zeilen.Count,
+            vorschlaege = zeilen.Count(z => z.Neu != null),
+            uebernommen = uebernehmen ? geaendert : 0,
+            zeilen = zeilen.OrderByDescending(z => z.Neu != null).ThenBy(z => z.EmployeeName).ThenBy(z => z.Von),
+        };
+    }
+
 }

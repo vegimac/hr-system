@@ -1727,6 +1727,11 @@
                         <div class="admin-card-title">Dokumenten-Audit</div>
                         <div class="admin-card-desc">Verdachtsfälle finden — Dateiname enthält andere Filiale als der gespeicherte Branch</div>
                     </div>
+                        <div class="admin-card admin-only-card" onclick="showPage('funktion-reko')">
+                        <img src="img/kontkat-dok-audit.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
+                        <div class="admin-card-title">Funktionen prüfen</div>
+                        <div class="admin-card-desc">Funktion abgelaufener Verträge aus dem Lohn zurückrechnen (easy@work liefert keine Historie)</div>
+                    </div>
                         <div class="admin-card" onclick="showPage('datenaufbewahrung')">
                         <img src="img/kontkat-datenaufbewahrung.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">Datenaufbewahrung</div>
@@ -6755,6 +6760,29 @@
                 <div id="dokAuditResults" style="margin-top:14px"></div>
             </div>
 
+            <!-- ═══ FUNKTIONEN PRÜFEN (Walter 22.09.2026) ═══════════════════════
+                 easy@work liefert die Funktion ohne Historie; bis zum Sync-Riegel
+                 vom 22.09.2026 stand auf allen Vertragsabschnitten die heutige
+                 Funktion. Hier wird sie aus dem Lohn zurückgerechnet — NUR für
+                 Verträge, die in der Vergangenheit geendet haben. -->
+            <div class="page" id="page-funktion-reko">
+                <div class="page-header">
+                    <div>
+                        <h1 class="page-title">Funktionen prüfen (abgelaufene Verträge)</h1>
+                        <p class="page-sub">easy@work liefert keine Funktions-Historie — auf alten Vertragsabschnitten steht deshalb oft die heutige Funktion. Hier wird sie aus dem Lohn gegen das L-GAV-Mindestlohnraster zurückgerechnet. Übernommen werden nur eindeutige Treffer, und nur bei Verträgen mit Ende in der Vergangenheit. Laufende Verträge werden nie angefasst.</p>
+                    </div>
+                </div>
+                <div id="frAlert" style="margin-bottom:12px"></div>
+                <div class="card" style="padding:18px">
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        <button class="btn btn-primary" onclick="frRun()">🔍 Vorschau erstellen</button>
+                        <button class="btn btn-outline" id="frCommitBtn" onclick="frCommit()" style="display:none">✓ Vorschläge übernehmen</button>
+                        <span id="frStatus" style="font-size:13px;color:#64748b"></span>
+                    </div>
+                </div>
+                <div id="frResults" style="margin-top:14px"></div>
+            </div>
+
             <!-- ═══════════════ D.VELOP DOKUMENTEN-IMPORT ═══════════════ -->
             <div class="page" id="page-dvelop-import">
                 <div class="sticky-page-head">
@@ -9320,7 +9348,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="js/app-core.js?v=20260921a"></script>
+<script src="js/app-core.js?v=20260922a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20260908a"></script>
@@ -9365,6 +9393,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <!-- bank-import.js entfernt (Walter-Vorgabe 07.06.2026): IBAN kommt jetzt aus easy@work-CSV via Mitarbeiter-Importer. -->
 <script src="js/archive-import.js?v=20260805a"></script>
 <script src="js/dok-struktur.js?v=20260922a"></script>
+<script src="js/funktion-reko.js?v=20260922a"></script>
 <script src="js/programmbegruessung.js?v=20260904a"></script>
 <script src="js/moments.js?v=20260813a"></script>
 <script src="js/webauthn.js?v=20260704p"></script>
