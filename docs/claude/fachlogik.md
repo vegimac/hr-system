@@ -522,6 +522,18 @@ Swissdec `CategoryPredefined` — **nicht** in die Tarifauswahl A/B/C/H mischen 
 easy@work gibt die Funktion nur als heutigen Stand: `/customers/{c}/employees/{e}/positions` ist ein reiner Pivot **ohne from/to**, `cf_src_job_code` (JOB_CODE, z.B. SWING1 «Shift Coordinator») ebenso. Eine Funktions-Historie kann deshalb NUR in OneCrew entstehen.
 
 - **Sync-Riegel:** `EasyAtWorkEmployeeSyncService` setzt `JobGroupId`/`JobTitle` ausschliesslich am **aktuellen** Abschnitt (`active` bzw. `existing.IsActive`) — abgelaufene Verträge bleiben unangetastet. Bis 22.09.2026 schrieb der Sync die heutige Funktion auf JEDES Segment; dadurch trugen alle Abschnitte denselben Code (Fall 1290025: 5 × SHIFT_LEADER_1_6, obwohl die Löhne bis 31.07.2026 Crew sind). Folge waren falsche rückwirkende Vertrags-PDF und ein falscher Zeugnis-Werdegang. **Wer am Sync arbeitet: diese Regel nicht aufweichen.**
-- **Altbestand rekonstruieren:** `Services/FunktionAusLohn.cs` rechnet die Funktion aus dem Lohn gegen `minimum_wage_rule_new` (Datum des Vertragsbeginns, Modell, Lohnart, Ausbildungsstufe falls erfasst). Exakter Treffer = sicher; (Mindestlohn-Sätze IMMER roh laden und erst im Speicher nach `DateOnly` wandeln — `DateOnly.FromDateTime` in der EF-Projektion wirft zur Laufzeit 500, CLAUDE.md Datum/Zeit-Regel 1; Fehler vom 22.09.2026.) Lohn über dem Minimum = höchste Funktion darunter («ungefähr»); mehrdeutig/kein Satz = «unklar» → gespeicherte Funktion behalten. Zusätzlich `SchichtfuehrerStufe`: die ersten 6 Monate ab dem ersten Schichtführer-Vertrag sind SHIFT_LEADER_1_6, danach 7_PLUS (L-GAV-Zeitregel, nicht Lohnregel).
+- **Altbestand rekonstruieren — FESTE Lohn-Schwellen (Walter-Entscheid 22.09.2026, ABSOLUT):** `Services/FunktionAusLohn.cs`. Bewusst NICHT der Treffer im Mindestlohn-Raster (die Sätze ändern jährlich: Crew 20.14 / 20.36 / 20.40), sondern feste Grenzen, die über alle Jahre gleich bleiben:
+
+| Lohnart | Band | Funktion |
+|---|---|---|
+| Stunde | ≤ 20.40 | CREW |
+| Stunde | > 20.40 ≤ 21.66 | HOST_CT |
+| Stunde | > 21.66 | SWING |
+| Monat (100 %) | < 4'300 | **kein Vorschlag** — bei Schaub gibt es keine Monatslöhner darunter, also Datenfehler |
+| Monat (100 %) | 4'300 – 4'499 | SHIFT_LEADER_1_6 |
+| Monat (100 %) | 4'500 – 4'999 | SHIFT_LEADER_7_PLUS |
+| Monat (100 %) | ≥ 5'000 | REST_MANAGER |
+
+  Konstanten `StundenCrewBis`/`StundenHostBis`/`MonatSl16Unter`/`MonatSl7Unter` — bei einer L-GAV-Runde NUR diese anpassen. **Bremse ab Ausbildungsstufe II:** dort verdient auch eine Crew 22.36+ und wäre fälschlich «Swing Manager» — bei Stufe II/IIIa/IIIb/IV gibt es keinen Vorschlag (nur leer, Ia oder Ib lassen die Regel greifen). Assistant Manager kommen bei Schaub nicht vor und sind deshalb nicht im Band. Monatslohn IMMER auf 100 % (`MonthlySalaryFte`). Zusätzlich `SchichtfuehrerStufe`: die ersten 6 Monate ab dem ersten Schichtführer-Vertrag sind SHIFT_LEADER_1_6, danach 7_PLUS (Zeitregel, nicht Lohnregel).
 - **Datenkorrektur:** System → Kontrolle → **«Funktionen prüfen»** (`page-funktion-reko`, admin). Vorschau `GET /api/employments/funktion-rekonstruktion`, Übernahme `POST` — schreibt `job_title` + `job_group_id` NUR bei Verträgen mit **Ende in der Vergangenheit** und NUR bei Sicherheit «Exakt». Laufende Verträge bleiben unangetastet (die kommen korrekt aus easy@work). Änderungen laufen über den Audit-Interceptor ins Aktivitäts-Log.
 - Der Zeugnis-Werdegang (`GET /api/arbeitszeugnis/{empId}/werdegang`) wendet beides an und liefert `hinweis` mit der Begründung; die Maske zeigt sie als gelben Warnhinweis «bitte prüfen». Die Rekonstruktion ändert NICHTS in der Datenbank — sie ist ein Vorschlag fürs Dokument.

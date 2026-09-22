@@ -36,6 +36,9 @@ public static class ZeugnisWerdegang
         "ASST_2", "ASST_1", "REST_MANAGER",
     };
 
+    /// <summary>Ist der Text ein bekannter Funktions-Code (job_group.code)?</summary>
+    public static bool IstFunktionsCode(string? text) => Codes.Contains((text ?? "").Trim());
+
     /// <summary>
     /// Funktionsbezeichnung fürs Zeugnis (weiblich/männlich).
     /// **Quellen-Reihenfolge (Walter 22.09.2026):** `employment.job_title` führt im

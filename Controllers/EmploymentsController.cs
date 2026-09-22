@@ -806,26 +806,7 @@ public class EmploymentsController : ControllerBase
     private async Task<object> FunktionRekoAsync(int? employeeId, bool uebernehmen, List<int>? nurIds = null)
     {
         var heute = DateTime.Today;
-        var saetzeRoh = await _context.MinimumWageRulesNew.AsNoTracking()
-            .Where(r => r.IsActive)
-            .Join(_context.EducationLevels.AsNoTracking(), r => r.EducationLevelId, l => l.Id,
-                  (r, l) => new
-                  {
-                      code = r.JobGroup != null ? r.JobGroup.Code : r.JobGroupCode,
-                      r.EmploymentModelCode, r.SalaryType, r.Amount, r.ValidFrom, r.ValidTo,
-                      stufe = l.Code
-                  })
-            // DateOnly.FromDateTime NIEMALS in der EF-Projektion (CLAUDE.md Datum/Zeit-
-            // Regelwerk Punkt 1): Npgsql kann das nicht übersetzen → HTTP 500 zur Laufzeit.
-            // Roh laden, dann im Speicher umwandeln.
-            .ToListAsync();
-        var saetze = saetzeRoh.Select(x => new FunktionAusLohn.Satz(
-                x.code, x.EmploymentModelCode, x.SalaryType, x.Amount,
-                DateOnly.FromDateTime(x.ValidFrom),
-                x.ValidTo.HasValue ? DateOnly.FromDateTime(x.ValidTo.Value) : null,
-                x.stufe))
-            .ToList();
-
+        
         var gruppen = await _context.JobGroups.AsNoTracking()
             .ToDictionaryAsync(g => g.Code, g => g.Id, StringComparer.OrdinalIgnoreCase);
 
@@ -847,7 +828,7 @@ public class EmploymentsController : ControllerBase
                              || em.EmploymentModel is "FIX" or "FIX-M";
             var lohn = monatlich ? (em.MonthlySalaryFte ?? em.MonthlySalary) : em.HourlyRate;
             var v = FunktionAusLohn.Ermittle(beginn, em.EmploymentModel, em.SalaryType,
-                em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary, em.EducationLevelCode, saetze);
+                em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary, em.EducationLevelCode);
 
             var alt = !string.IsNullOrWhiteSpace(em.JobTitle) && gruppen.ContainsKey(em.JobTitle!.Trim())
                 ? em.JobTitle!.Trim()

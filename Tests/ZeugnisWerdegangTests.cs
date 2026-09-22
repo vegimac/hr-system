@@ -96,49 +96,67 @@ public class ZeugnisWerdegangTests
 /// </summary>
 public class FunktionAusLohnTests
 {
-    private static readonly FunktionAusLohn.Satz[] Saetze2025 =
-    {
-        new("CREW",                "FLEX",  "hourly",  20.36m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
-        new("HOST_CT",             "FLEX",  "hourly",  21.66m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
-        new("SWING",               "FLEX",  "hourly",  22.36m, new DateOnly(2025,1,1), new DateOnly(2025,12,31), "Ia"),
-        new("CREW",                "FIX",   "monthly", 3713m,  new DateOnly(2026,1,1), null, "Ia"),
-        new("SHIFT_LEADER_1_6",    "FIX-M", "monthly", 4300m,  new DateOnly(2026,1,1), null, "Ia"),
-        new("SHIFT_LEADER_7_PLUS", "FIX-M", "monthly", 4600m,  new DateOnly(2026,1,1), null, "Ia"),
-        new("REST_MANAGER",        "FIX-M", "monthly", 6100m,  new DateOnly(2026,1,1), null, "Ia"),
-    };
+    private static FunktionAusLohn.Vorschlag Std(decimal lohn, string? stufe = null)
+        => FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly", lohn, null, stufe);
+    private static FunktionAusLohn.Vorschlag Mt(decimal lohn100)
+        => FunktionAusLohn.Ermittle(new DateOnly(2026, 8, 1), "FIX-M", "monthly", null, lohn100, null);
 
-    [Fact]
-    public void Stundenlohn_TrifftCrewExakt()
+    [Theory]
+    [InlineData(20.14, "CREW")]      // Crew-Satz 2024
+    [InlineData(20.36, "CREW")]      // Crew-Satz 2025
+    [InlineData(20.40, "CREW")]      // Crew-Satz 2026 — Grenze gehört zu Crew
+    [InlineData(20.41, "HOST_CT")]
+    [InlineData(21.66, "HOST_CT")]   // Grenze gehört zu Host
+    [InlineData(21.67, "SWING")]
+    [InlineData(22.36, "SWING")]
+    public void Stundenlohn_Schwellen(double lohn, string erwartet)
     {
-        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
-            stundenlohn: 20.36m, monatslohn100: null, educationLevelCode: null, Saetze2025);
-        Assert.Equal("CREW", v.JobGroupCode);
+        var v = Std((decimal)lohn);
+        Assert.Equal(erwartet, v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
+    }
+
+    [Theory]
+    [InlineData(4300, "SHIFT_LEADER_1_6")]
+    [InlineData(4499, "SHIFT_LEADER_1_6")]
+    [InlineData(4500, "SHIFT_LEADER_7_PLUS")]   // Walter 22.09.2026: Lücke 4500–4600 gehört zu 7+
+    [InlineData(4600, "SHIFT_LEADER_7_PLUS")]
+    [InlineData(4999, "SHIFT_LEADER_7_PLUS")]
+    [InlineData(5000, "REST_MANAGER")]
+    [InlineData(6100, "REST_MANAGER")]
+    public void Monatslohn_Schwellen(double lohn, string erwartet)
+    {
+        var v = Mt((decimal)lohn);
+        Assert.Equal(erwartet, v.JobGroupCode);
         Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
     }
 
     [Fact]
-    public void Monatslohn4300_IstSchichtfuehrer()
+    public void MonatslohnUnter4300_IstDatenfehler_KeinVorschlag()
     {
-        var v = FunktionAusLohn.Ermittle(new DateOnly(2026, 8, 1), "FIX-M", "monthly",
-            stundenlohn: null, monatslohn100: 4300m, educationLevelCode: null, Saetze2025);
-        Assert.Equal("SHIFT_LEADER_1_6", v.JobGroupCode);
-        Assert.Equal(FunktionAusLohn.Sicherheit.Exakt, v.Sicherheit);
+        // Crew im Monatslohn gibt es bei Schaub nicht (Walter 22.09.2026) — lieber
+        // nichts vorschlagen als aus einer 3'713er-Crew einen Schichtführer machen.
+        var v = Mt(3713m);
+        Assert.Null(v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Unklar, v.Sicherheit);
     }
 
     [Fact]
-    public void LohnUeberMinimum_HoechsteDarunter_AberNurUngefaehr()
+    public void AbStufeII_SagtDerLohnNichts()
     {
-        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
-            stundenlohn: 21.00m, monatslohn100: null, educationLevelCode: null, Saetze2025);
-        Assert.Equal("CREW", v.JobGroupCode);
-        Assert.Equal(FunktionAusLohn.Sicherheit.Ungefaehr, v.Sicherheit);
+        // Erfahrene Crew verdient 22.36 (Stufe II) — ohne diese Bremse würde daraus
+        // ein Swing Manager (Walter-Entscheid 22.09.2026, Punkt 4).
+        var v = Std(22.36m, "II");
+        Assert.Null(v.JobGroupCode);
+        Assert.Equal(FunktionAusLohn.Sicherheit.Unklar, v.Sicherheit);
+        // Ia/Ib lassen die Regel greifen.
+        Assert.Equal("SWING", Std(22.36m, "Ia").JobGroupCode);
     }
 
     [Fact]
     public void KeinLohn_Unklar()
     {
-        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly",
-            null, null, null, Saetze2025);
+        var v = FunktionAusLohn.Ermittle(new DateOnly(2025, 2, 1), "FLEX", "hourly", null, null, null);
         Assert.Equal(FunktionAusLohn.Sicherheit.Unklar, v.Sicherheit);
         Assert.Null(v.JobGroupCode);
     }

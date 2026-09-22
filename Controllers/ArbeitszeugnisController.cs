@@ -441,26 +441,7 @@ public class ArbeitszeugnisController : ControllerBase
         // Die Löhne sind dagegen sauber versioniert → daraus den wahren Verlauf
         // rekonstruieren und, wo er von der gespeicherten Funktion abweicht,
         // den Abschnitt damit rechnen (die Maske zeigt den Hinweis dazu).
-        var saetzeRoh = await _db.MinimumWageRulesNew.AsNoTracking()
-            .Where(r => r.IsActive)
-            .Join(_db.EducationLevels.AsNoTracking(), r => r.EducationLevelId, l => l.Id,
-                  (r, l) => new
-                  {
-                      code = r.JobGroup != null ? r.JobGroup.Code : r.JobGroupCode,
-                      r.EmploymentModelCode, r.SalaryType, r.Amount, r.ValidFrom, r.ValidTo,
-                      stufe = l.Code
-                  })
-            // DateOnly.FromDateTime NIEMALS in der EF-Projektion (CLAUDE.md Datum/Zeit-
-            // Regelwerk Punkt 1): Npgsql kann das nicht übersetzen → HTTP 500 zur Laufzeit.
-            // Roh laden, dann im Speicher umwandeln.
-            .ToListAsync();
-        var saetze = saetzeRoh.Select(x => new FunktionAusLohn.Satz(
-                x.code, x.EmploymentModelCode, x.SalaryType, x.Amount,
-                DateOnly.FromDateTime(x.ValidFrom),
-                x.ValidTo.HasValue ? DateOnly.FromDateTime(x.ValidTo.Value) : null,
-                x.stufe))
-            .ToList();
-
+        
         var korrigiert = new List<Employment>();
         var hinweise = new Dictionary<int, string>();
         foreach (var em in e.Employments.OrderBy(x => x.ContractStartDate))
@@ -469,9 +450,11 @@ public class ArbeitszeugnisController : ControllerBase
             var v = FunktionAusLohn.Ermittle(
                 beginn, em.EmploymentModel, em.SalaryType,
                 em.HourlyRate, em.MonthlySalaryFte ?? em.MonthlySalary,
-                em.EducationLevelCode, saetze);
+                em.EducationLevelCode);
+            // Gespeicherte Funktion: job_title, wenn er einen bekannten Code trägt
+            // (Altbestand), sonst die Funktionsgruppe.
             var gespeichert = (em.JobTitle ?? "").Trim();
-            if (string.IsNullOrEmpty(gespeichert) || !saetze.Any(x => string.Equals(x.JobGroupCode, gespeichert, StringComparison.OrdinalIgnoreCase)))
+            if (string.IsNullOrEmpty(gespeichert) || !ZeugnisWerdegang.IstFunktionsCode(gespeichert))
                 gespeichert = em.JobGroupCode ?? "";
             if (v.JobGroupCode != null && v.Sicherheit != FunktionAusLohn.Sicherheit.Unklar
                 && !string.Equals(v.JobGroupCode, gespeichert, StringComparison.OrdinalIgnoreCase))
