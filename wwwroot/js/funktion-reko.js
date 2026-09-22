@@ -79,12 +79,14 @@ function frRender() {
             <td style="padding:7px 10px;text-align:right;white-space:nowrap">${z.lohn != null ? Number(z.lohn).toLocaleString('de-CH', { minimumFractionDigits: 2 }) : '–'}${z.lohnart === 'hourly' ? ' /h' : ' /Mt.'}</td>
             <td style="padding:7px 10px">${_frEsc(z.alt || '–')}</td>
             <td style="padding:7px 10px">${neu}</td>
-            <td style="padding:7px 10px">
-                <select data-alt="${_frEsc(z.alt || '')}" onchange="frSetzeFunktion(${z.employmentId}, this.value, this)"
+            <td style="padding:7px 10px;white-space:nowrap">
+                <select id="frSel-${z.employmentId}" data-alt="${_frEsc(z.alt || '')}"
+                        onchange="frSetzeFunktion(${z.employmentId}, this.value, this)"
                         style="font-size:12px;padding:3px 6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff">
-                    <option value="">– von Hand setzen –</option>
+                    <option value="">– wählen –</option>
                     ${_frFunktionen.map(c => `<option value="${c}" ${c === (z.alt || '') ? 'selected' : ''}>${FR_LABEL[c] || c}</option>`).join('')}
                 </select>
+                <span id="frOk-${z.employmentId}" style="margin-left:6px;font-size:12px;font-weight:700;color:#15803d;display:none">✓ gespeichert</span>
             </td>
             <td style="padding:7px 10px"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;background:${sich[0]};color:${sich[1]}">${sich[2]}</span></td>
             <td style="padding:7px 10px;font-size:11.5px;color:#64748b">${_frEsc(z.begruendung)}</td>
@@ -130,10 +132,20 @@ async function frSetzeFunktion(employmentId, code, sel) {
             throw new Error(msg);
         }
         const z = _frZeilen.find(x => x.employmentId === employmentId);
-        if (z) { z.alt = code; z.neu = null; z.sicherheit = 'Manuell'; z.begruendung = 'Von Hand gesetzt.'; }
+        if (z) { z.alt = code; z.neu = null; z.sicherheit = 'Manuell'; z.begruendung = 'Von Hand gesetzt.'; z.geprueft = true; }
         sel.dataset.alt = code;
-        document.getElementById('frAlert').innerHTML =
-            `<div style="background:#dcfce7;border:1px solid #bbf7d0;color:#166534;padding:8px 12px;border-radius:8px;font-size:13px">Funktion gesetzt: ${FR_LABEL[code] || code}.</div>`;
+        // Rückmeldung DIREKT in der Zeile (Walter 22.09.2026): die Meldung oben am
+        // Seitenkopf sieht man beim Durchscrollen nicht — es wirkte, als würde nichts
+        // gespeichert. Zusätzlich: «erledigt» anhaken und die Spalte «gespeichert»
+        // nachziehen, damit die Zeile ihren neuen Zustand zeigt.
+        const tr = sel.closest('tr');
+        const gespeicherteZelle = tr?.children[4];
+        if (gespeicherteZelle) gespeicherteZelle.innerHTML = `<b>${_frEsc(code)}</b>`;
+        const haken = tr?.querySelector('input[type=checkbox]');
+        if (haken) haken.checked = true;
+        if (tr) { tr.style.background = '#f0fdf4'; tr.style.opacity = '0.6'; }
+        const ok = document.getElementById(`frOk-${employmentId}`);
+        if (ok) { ok.style.display = 'inline'; setTimeout(() => { ok.style.display = 'none'; }, 4000); }
     } catch (e) {
         sel.value = alt;
         document.getElementById('frAlert').innerHTML =
