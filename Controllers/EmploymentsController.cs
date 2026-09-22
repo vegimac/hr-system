@@ -806,17 +806,25 @@ public class EmploymentsController : ControllerBase
     private async Task<object> FunktionRekoAsync(int? employeeId, bool uebernehmen, List<int>? nurIds = null)
     {
         var heute = DateTime.Today;
-        var saetze = await _context.MinimumWageRulesNew.AsNoTracking()
+        var saetzeRoh = await _context.MinimumWageRulesNew.AsNoTracking()
             .Where(r => r.IsActive)
             .Join(_context.EducationLevels.AsNoTracking(), r => r.EducationLevelId, l => l.Id,
-                  (r, l) => new { r, stufe = l.Code })
-            .Select(x => new FunktionAusLohn.Satz(
-                x.r.JobGroup != null ? x.r.JobGroup.Code : x.r.JobGroupCode,
-                x.r.EmploymentModelCode, x.r.SalaryType, x.r.Amount,
-                DateOnly.FromDateTime(x.r.ValidFrom),
-                x.r.ValidTo.HasValue ? DateOnly.FromDateTime(x.r.ValidTo.Value) : null,
-                x.stufe))
+                  (r, l) => new
+                  {
+                      code = r.JobGroup != null ? r.JobGroup.Code : r.JobGroupCode,
+                      r.EmploymentModelCode, r.SalaryType, r.Amount, r.ValidFrom, r.ValidTo,
+                      stufe = l.Code
+                  })
+            // DateOnly.FromDateTime NIEMALS in der EF-Projektion (CLAUDE.md Datum/Zeit-
+            // Regelwerk Punkt 1): Npgsql kann das nicht übersetzen → HTTP 500 zur Laufzeit.
+            // Roh laden, dann im Speicher umwandeln.
             .ToListAsync();
+        var saetze = saetzeRoh.Select(x => new FunktionAusLohn.Satz(
+                x.code, x.EmploymentModelCode, x.SalaryType, x.Amount,
+                DateOnly.FromDateTime(x.ValidFrom),
+                x.ValidTo.HasValue ? DateOnly.FromDateTime(x.ValidTo.Value) : null,
+                x.stufe))
+            .ToList();
 
         var gruppen = await _context.JobGroups.AsNoTracking()
             .ToDictionaryAsync(g => g.Code, g => g.Id, StringComparer.OrdinalIgnoreCase);
