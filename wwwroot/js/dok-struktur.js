@@ -195,11 +195,25 @@ function dokstrukturDocsSearch(typId, value) {
 }
 
 async function dokstrukturPreview(id, filename) {
+    // Word/Excel/PowerPoint werden serverseitig nach PDF gewandelt (LibreOffice)
+    // und im Vorschaufenster gezeigt — wie im MA-Dokumente-Tab (Walter 22.09.2026).
+    // Der Browser kann .doc/.docx nicht anzeigen; ohne Umwandlung landete die Datei
+    // als Download-Dialog statt in der Vorschau.
+    const ext = ((filename || '').toLowerCase().match(/\.[^.]+$/) || [''])[0];
+    const isOffice = ['.doc', '.docx', '.odt', '.rtf', '.xls', '.xlsx', '.ods', '.ppt', '.pptx', '.odp'].includes(ext);
     try {
-        const r = await fetch(`/api/documents/preview/${id}`, { headers: ah() });
-        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const endpoint = isOffice ? `/api/documents/preview-pdf/${id}` : `/api/documents/preview/${id}`;
+        const r = await fetch(endpoint, { headers: ah(), cache: 'no-store' });
+        if (!r.ok) {
+            let msg = 'HTTP ' + r.status;
+            try { const j = await r.json(); if (j && (j.error || j.message)) msg = j.error || j.message; } catch (_) {}
+            throw new Error(msg);
+        }
         const blob = await r.blob();
-        if (typeof previewFileModal === 'function') await previewFileModal(blob, filename);
+        // Beim Office-Dokument zeigt das Fenster das PDF — der Name bekommt
+        // die Endung .pdf, damit das Vorschaufenster es rendert statt anzubieten.
+        const anzeigeName = isOffice ? filename.replace(/\.[^.]+$/, '') + '.pdf' : filename;
+        if (typeof previewFileModal === 'function') await previewFileModal(blob, anzeigeName);
         else window.open(URL.createObjectURL(blob), '_blank');
     } catch (err) { alert('Vorschau fehlgeschlagen: ' + err.message); }
 }
