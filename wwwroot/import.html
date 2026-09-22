@@ -832,8 +832,15 @@ function vnRender() {
     const rows = _vnListe.map(m => {
         const ohneLohn = m.zeilen.filter(z => z.ohneLohn).length;
         const ueber    = m.zeilen.filter(z => z.ueberlappung).length;
-        const ampel = (ueber > 0 || ohneLohn > 0)
-            ? `<span style="font-size:11px;font-weight:700;color:#991b1b;background:#fee2e2;padding:2px 8px;border-radius:9px">prüfen</span>`
+        // Klartext statt «prüfen» (Walter 22.09.2026): man muss sehen, WAS fehlt.
+        // «ohne Lohn» holt der Lauf meist aus easy nach; «Überlappung» muss von
+        // Hand in easy korrigiert werden — deshalb getrennt benannt.
+        const teile = [];
+        if (ohneLohn > 0) teile.push(`${ohneLohn} ohne Lohn`);
+        if (ueber > 0)    teile.push(`${ueber} Überlappung${ueber > 1 ? 'en' : ''}`);
+        const ampel = teile.length
+            ? `<span title="${ohneLohn > 0 ? 'Abschnitte ohne Lohn — der Lauf holt ihn meist aus easy@work. ' : ''}${ueber > 0 ? 'Überlappende Verträge — das muss in easy@work korrigiert werden.' : ''}"
+                     style="font-size:11px;font-weight:700;color:#991b1b;background:#fee2e2;padding:2px 8px;border-radius:9px;white-space:nowrap">${teile.join(' · ')}</span>`
             : `<span style="font-size:11px;font-weight:700;color:#166534;background:#dcfce7;padding:2px 8px;border-radius:9px">ok</span>`;
         return `<tr style="border-bottom:1px solid #f1f5f9">
             <td style="padding:6px 12px"><input type="checkbox" class="vnChk" data-id="${m.employeeId}" data-problem="${ueber + ohneLohn > 0 ? 1 : 0}"></td>
@@ -871,7 +878,7 @@ function vnRender() {
                         <th style="padding:8px 12px;text-align:right">Abschnitte</th>
                         <th style="padding:8px 12px;text-align:right">ohne Lohn</th>
                         <th style="padding:8px 12px;text-align:right">Überlappung</th>
-                        <th style="padding:8px 12px"></th>
+                        <th style="padding:8px 12px">Befund</th>
                     </tr></thead>
                     <tbody>${rows}</tbody>
                 </table>
