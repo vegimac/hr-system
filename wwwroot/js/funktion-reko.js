@@ -9,6 +9,7 @@
 
 let _frZeilen = [];
 let _frFunktionen = [];
+let _frAlle = false;   // false = nur offene (Standard), true = auch geprüfte
 
 // Anzeige-Namen wie im Zeugnis (ZeugnisWerdegang.FunktionText, männliche Form).
 const FR_LABEL = {
@@ -38,11 +39,12 @@ async function frRun() {
                 if (rf.ok) _frFunktionen = (await rf.json()).map(g => g.code);
             } catch (_) { /* Dropdown bleibt leer, Vorschau geht trotzdem */ }
         }
-        const r = await fetch('/api/employments/funktion-rekonstruktion', { headers: ah(), cache: 'no-store' });
+        const r = await fetch(`/api/employments/funktion-rekonstruktion?alle=${_frAlle}`, { headers: ah(), cache: 'no-store' });
         if (!r.ok) throw new Error('HTTP ' + r.status);
         const d = await r.json();
         _frZeilen = d.zeilen || [];
-        st.textContent = `${d.geprueft} abgelaufene Verträge geprüft · ${d.vorschlaege} Vorschläge`;
+        st.textContent = `${d.geprueft} abgelaufene Verträge · ${d.offen} offen · ${d.vorschlaege} Vorschläge`
+                       + (_frAlle ? ' · alle angezeigt' : '');
         if (d.vorschlaege > 0) document.getElementById('frCommitBtn').style.display = '';
         frRender();
     } catch (e) {
@@ -51,9 +53,18 @@ async function frRun() {
     }
 }
 
+function frToggleAlle() {
+    _frAlle = document.getElementById('frAlleChk')?.checked ?? false;
+    frRun();
+}
+
 function frRender() {
     const box = document.getElementById('frResults');
-    if (!_frZeilen.length) { box.innerHTML = '<div class="card" style="padding:18px;color:#64748b">Keine abgelaufenen Verträge gefunden.</div>'; return; }
+    if (!_frZeilen.length) {
+        box.innerHTML = `<div class="card" style="padding:18px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0">
+            ✓ Nichts offen — alle abgelaufenen Verträge sind geprüft oder stimmen mit dem Lohn überein.</div>`;
+        return;
+    }
     const rows = _frZeilen.map(z => {
         const neu = z.neu
             ? `<b style="color:#15803d">${_frEsc(z.neu)}</b>`
@@ -77,6 +88,11 @@ function frRender() {
             </td>
             <td style="padding:7px 10px"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:9px;background:${sich[0]};color:${sich[1]}">${sich[2]}</span></td>
             <td style="padding:7px 10px;font-size:11.5px;color:#64748b">${_frEsc(z.begruendung)}</td>
+            <td style="padding:7px 10px;text-align:center">
+                <input type="checkbox" ${z.geprueft ? 'checked' : ''} title="Geprüft — verschwindet aus der Liste"
+                       onchange="frSetzeGeprueft(${z.employmentId}, this.checked, this)"
+                       style="width:16px;height:16px;accent-color:#3f3f3f;cursor:pointer">
+            </td>
         </tr>`;
     }).join('');
     box.innerHTML = `<div class="card" style="padding:0;overflow:auto">
@@ -91,6 +107,7 @@ function frRender() {
                 <th style="padding:8px 10px">manuell</th>
                 <th style="padding:8px 10px">Sicherheit</th>
                 <th style="padding:8px 10px">Begründung</th>
+                <th style="padding:8px 10px;text-align:center" title="Geprüft — Zeile verschwindet aus der Kontrollliste">erledigt</th>
             </tr></thead>
             <tbody>${rows}</tbody>
         </table></div>`;
@@ -122,6 +139,26 @@ async function frSetzeFunktion(employmentId, code, sel) {
         document.getElementById('frAlert').innerHTML =
             `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;font-size:13px">Fehler: ${_frEsc(e.message)}</div>`;
     } finally { sel.disabled = false; }
+}
+
+// «Erledigt»-Haken (Walter 22.09.2026): setzt employment.funktion_geprueft.
+// Die Zeile verschwindet beim nächsten Aufruf aus der Liste — wer und wann steht
+// im Aktivitäts-Log. Haken wieder entfernen holt sie zurück.
+async function frSetzeGeprueft(employmentId, wert, box) {
+    box.disabled = true;
+    try {
+        const r = await fetch(`/api/employments/${employmentId}/funktion-geprueft?wert=${wert}`,
+            { method: 'PUT', headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        const z = _frZeilen.find(x => x.employmentId === employmentId);
+        if (z) z.geprueft = wert;
+        const tr = box.closest('tr');
+        if (tr) tr.style.opacity = wert ? '0.45' : '';
+    } catch (e) {
+        box.checked = !wert;
+        document.getElementById('frAlert').innerHTML =
+            `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:8px 12px;border-radius:8px;font-size:13px">Fehler: ${_frEsc(e.message)}</div>`;
+    } finally { box.disabled = false; }
 }
 
 async function frCommit() {

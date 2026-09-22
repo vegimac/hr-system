@@ -115,6 +115,16 @@ public class Employment
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// Funktion dieses Abschnitts wurde von einem Menschen geprüft/gesetzt
+    /// (Walter-Vorgabe 22.09.2026). Steuert die Kontrollliste «Funktionen prüfen»:
+    /// geprüfte Abschnitte erscheinen dort nicht mehr. Gesetzt wird das Flag beim
+    /// manuellen Zuordnen und beim Übernehmen eines Lohn-Vorschlags — nie vom Sync.
+    /// </summary>
+    /// Wer und wann steht im Aktivitäts-Log (SaveChanges-Interceptor) — deshalb
+    /// bewusst NUR dieses eine Flag (Walter 22.09.2026).
+    public bool FunktionGeprueft { get; set; }
+
     [JsonIgnore]
     public Employee? Employee { get; set; }
 }

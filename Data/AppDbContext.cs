@@ -335,6 +335,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.WeeklyHours).HasColumnName("weekly_hours");
             entity.Property(e => e.GuaranteedHoursPerWeek).HasColumnName("guaranteed_hours_per_week");
             entity.Property(e => e.ThirteenthSalary).HasColumnName("thirteenth_salary").HasDefaultValue(true);
+            entity.Property(e => e.FunktionGeprueft).HasColumnName("funktion_geprueft");
             entity.Property(e => e.LessonRate).HasColumnName("lesson_rate").HasColumnType("numeric(10,2)");
             entity.Property(e => e.WeeklyLessons).HasColumnName("weekly_lessons").HasColumnType("numeric(6,2)");
             // UVG Art. 1a: NBU-Befreiung < 8 h/Wo. — pro FLEX-Vertrag (Walter 31.07.2026).

@@ -789,12 +789,26 @@ public class EmploymentsController : ControllerBase
     // Änderungen landen über den SaveChanges-Interceptor im Audit-Log.
     public record FunktionRekoZeile(int EmploymentId, int EmployeeId, string EmployeeName,
         string? EmployeeNumber, string Von, string? Bis, string Modell, string Lohnart,
-        decimal? Lohn, string? Alt, string? Neu, string Sicherheit, string Begruendung);
+        decimal? Lohn, string? Alt, string? Neu, string Sicherheit, string Begruendung,
+        bool Geprueft);
 
     [HttpGet("funktion-rekonstruktion")]
     [Authorize(Roles = "admin")]
-    public async Task<IActionResult> FunktionRekonstruktionVorschau([FromQuery] int? employeeId = null)
-        => Ok(await FunktionRekoAsync(employeeId, uebernehmen: false));
+    public async Task<IActionResult> FunktionRekonstruktionVorschau(
+        [FromQuery] int? employeeId = null, [FromQuery] bool alle = false)
+        => Ok(await FunktionRekoAsync(employeeId, uebernehmen: false, alleAnzeigen: alle));
+
+    /// <summary>«Erledigt»-Haken: Funktion dieses Abschnitts ist geprüft (Walter 22.09.2026).</summary>
+    [HttpPut("{id:int}/funktion-geprueft")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> FunktionGeprueftSetzen(int id, [FromQuery] bool wert = true)
+    {
+        var em = await _context.Employments.FirstOrDefaultAsync(x => x.Id == id);
+        if (em == null) return NotFound();
+        em.FunktionGeprueft = wert;
+        await _context.SaveChangesAsync();
+        return Ok(new { em.Id, geprueft = em.FunktionGeprueft });
+    }
 
     public record FunktionRekoCommitDto(List<int>? EmploymentIds, int? EmployeeId);
 
@@ -827,6 +841,7 @@ public class EmploymentsController : ControllerBase
 
         em.JobGroupId = gruppe.Id;
         em.JobTitle   = gruppe.Code;
+        em.FunktionGeprueft = true;   // von Hand gesetzt = geprüft
         await _context.SaveChangesAsync();
         return Ok(new { em.Id, jobGroupCode = gruppe.Code });
     }
@@ -845,7 +860,8 @@ public class EmploymentsController : ControllerBase
     public async Task<IActionResult> FunktionRekonstruktionUebernehmen([FromBody] FunktionRekoCommitDto? dto)
         => Ok(await FunktionRekoAsync(dto?.EmployeeId, uebernehmen: true, dto?.EmploymentIds));
 
-    private async Task<object> FunktionRekoAsync(int? employeeId, bool uebernehmen, List<int>? nurIds = null)
+    private async Task<object> FunktionRekoAsync(int? employeeId, bool uebernehmen,
+        List<int>? nurIds = null, bool alleAnzeigen = false)
     {
         var heute = DateTime.Today;
         
@@ -888,23 +904,34 @@ public class EmploymentsController : ControllerBase
                 em.ContractStartDate.ToString("yyyy-MM-dd"),
                 em.ContractEndDate?.ToString("yyyy-MM-dd"),
                 em.EmploymentModel, monatlich ? "monthly" : "hourly", lohn,
-                alt, aenderung ? v.JobGroupCode : null, v.Sicherheit.ToString(), v.Begruendung));
+                alt, aenderung ? v.JobGroupCode : null, v.Sicherheit.ToString(), v.Begruendung,
+                em.FunktionGeprueft));
 
             if (uebernehmen && aenderung)
             {
                 em.JobTitle = v.JobGroupCode;
                 if (gruppen.TryGetValue(v.JobGroupCode!, out var gid)) em.JobGroupId = gid;
+                // Übernommen = von einem Menschen bestätigt → nicht mehr in der Kontrollliste.
+                em.FunktionGeprueft = true;
                 geaendert++;
             }
         }
         if (uebernehmen && geaendert > 0) await _context.SaveChangesAsync();
 
+        // Standard: nur OFFENE zeigen — geprüfte Abschnitte und solche, bei denen
+        // die gespeicherte Funktion bereits dem Lohn entspricht, gehören nicht in
+        // eine Kontrollliste (Walter 22.09.2026). «alle=true» zeigt alles.
+        var sichtbar = alleAnzeigen
+            ? zeilen
+            : zeilen.Where(z => !z.Geprueft && (z.Neu != null || z.Sicherheit != nameof(FunktionAusLohn.Sicherheit.Exakt))).ToList();
+
         return new
         {
-            geprueft   = zeilen.Count,
-            vorschlaege = zeilen.Count(z => z.Neu != null),
+            geprueft    = zeilen.Count,
+            offen       = sichtbar.Count,
+            vorschlaege = sichtbar.Count(z => z.Neu != null),
             uebernommen = uebernehmen ? geaendert : 0,
-            zeilen = zeilen.OrderByDescending(z => z.Neu != null).ThenBy(z => z.EmployeeName).ThenBy(z => z.Von),
+            zeilen = sichtbar.OrderByDescending(z => z.Neu != null).ThenBy(z => z.EmployeeName).ThenBy(z => z.Von),
         };
     }
 
