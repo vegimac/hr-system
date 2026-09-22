@@ -2207,17 +2207,21 @@ function _empContractActionsHtml(emp, c, allContracts) {
         ? `<button type="button" class="dok-menu-item" onclick="contractShareSendSms(${emp.id}, ${cid}, '${esc(emp.phoneMobile || '')}')">SMS</button>
            <button type="button" class="dok-menu-item danger" onclick="contractShareRevoke(${cid})">Link löschen</button>`
         : '';
-    // «Bearbeiten» gibt es auf JEDEM Abschnitt (Walter-Vorgabe 22.09.2026):
-    // die alte Historie (vor 2026) pflegt HR von Hand — easy@work liefert sie
-    // nicht brauchbar, und fürs Arbeitszeugnis muss der Werdegang stimmen.
-    // Gesperrt bleiben auf historischen Abschnitten nur SMS und Link-Reset:
-    // einen abgelaufenen Vertrag verschickt man nicht mehr. Ob der Abschnitt
-    // wirklich änderbar ist, entscheidet der Server (Lohnlauf-Sperre) — er
-    // antwortet mit Klartext im Modal.
+    // «Bearbeiten» — nur Administrator (Walter-Vorgabe 23.09.2026): Verträge
+    // führt easy@work. Wer dort etwas ändern will, ändert es in easy und holt
+    // es über den Import (laufender Vertrag ohne Lohnlauf direkt; sonst neuer
+    // Vertrag in easy, alten abschliessen, neuen importieren). Von Hand editiert
+    // nur der Admin — das ist auch der Weg für die alte Historie vor 2026, die
+    // easy@work nicht brauchbar liefert. Der Server prüft dasselbe.
+    // Auf historischen Abschnitten fallen zusätzlich SMS und Link-Reset weg:
+    // einen abgelaufenen Vertrag verschickt man nicht mehr.
+    const editItem = darfVertragBearbeiten()
+        ? `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>`
+        : `<div class="dok-menu-item" style="cursor:default;color:#8b8b8b;font-size:12px" title="Verträge werden in easy@work geändert und über den Import geholt.">Änderung über easy@work</div>`;
     const items = historisch
-        ? `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+        ? `${editItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
-        : `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>
+        : `${editItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}`;
     return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>

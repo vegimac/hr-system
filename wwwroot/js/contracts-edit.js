@@ -120,6 +120,16 @@ async function ensureCeStammdatenLoaded() {
 let _ceMode = 'edit';
 
 async function openContractEditModal(c, mode = 'edit') {
+    // Bestehenden Vertrag von Hand ändern darf nur der Administrator
+    // (Walter-Vorgabe 23.09.2026) — sonst läuft die Änderung über easy@work
+    // und den Import. Neu anlegen ('new'/'import') bleibt offen.
+    if (mode === 'edit'
+        && typeof darfVertragBearbeiten === 'function' && !darfVertragBearbeiten()) {
+        alert('Verträge werden in easy@work geändert und dann über den Import geholt.\n\n'
+            + 'Läuft der Vertrag noch und ist kein Lohnlauf darauf gelaufen, kann er in easy@work direkt geändert werden. '
+            + 'Sonst in easy@work einen neuen Vertrag erfassen, den alten abschliessen und beide importieren.');
+        return;
+    }
     await ensureCeStammdatenLoaded();
     _ceMode = mode;
     const modal = document.getElementById('contractEditModal');

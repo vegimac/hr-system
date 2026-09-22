@@ -162,6 +162,25 @@ public class VertragHistorieEditTests
     }
 
     [Fact]
+    public void HandEdit_IstAdminOnly_ImportwegBleibtOffen()
+    {
+        // Walter-Vorgabe 23.09.2026: Verträge führt easy@work. Von Hand ändert
+        // nur der Administrator; der GF ändert in easy und holt den Vertrag über
+        // den Import — dessen Schreibweg muss darum offen bleiben.
+        var put = typeof(EmploymentsController).GetMethod(nameof(EmploymentsController.Update))!;
+        var rollen = put.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+            .Select(a => a.Roles)
+            .ToList();
+        Assert.Contains("admin", Assert.Single(rollen));
+        Assert.DoesNotContain("user", Assert.Single(rollen));
+
+        var importWeg = typeof(EmploymentsController).GetMethod(nameof(EmploymentsController.UpdateAusEasyImport))!;
+        Assert.Empty(importWeg.GetCustomAttributes(
+            typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), false));
+    }
+
+    [Fact]
     public async Task HistorieKorrektur_SchliesstLueckeBisZumFolgevertrag()
     {
         // Der typische Fall: Ende war einen Tag zu früh (easy@work-Intervall).

@@ -576,9 +576,34 @@ public class EmploymentsController : ControllerBase
         return Ok(new { employment, message = "Vertrag wieder geöffnet." });
     }
 
-    // PUT /api/employments/{id} — Vertrag korrigieren (nur der aktive, ohne ContractEndDate)
+    /// <summary>
+    /// PUT /api/employments/{id} — Vertrag von Hand korrigieren.
+    ///
+    /// **Nur admin (Walter-Vorgabe 23.09.2026).** Führende Quelle für Verträge ist
+    /// easy@work: wer als GF (Rolle <c>user</c>) oder HR einen Vertrag ändern will,
+    /// macht das dort und holt ihn hierher — laufender Vertrag ohne Lohnlauf wird in
+    /// easy geändert, sonst neuer Vertrag in easy, alten abschliessen, neuen
+    /// importieren. Von Hand in OneCrew editiert nur der Administrator; das ist auch
+    /// der Weg für die alte Historie vor 2026, die easy nicht brauchbar liefert.
+    ///
+    /// Der Import selbst schreibt über <see cref="UpdateAusEasyImport"/> — gleiche
+    /// Logik, aber für das ganze HR-Team offen, weil dort die easy@work-Daten
+    /// ankommen und nicht Handeingaben.
+    /// </summary>
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, Employment dto)
+    [Authorize(Roles = "admin")]
+    public Task<IActionResult> Update(int id, Employment dto) => UpdateInternAsync(id, dto);
+
+    /// <summary>
+    /// PUT /api/employments/{id}/aus-easy-import — derselbe Schreibweg, aber aus dem
+    /// easy@work-Import (Vertrag mit gleichem Beginn aktualisieren, Vorgänger
+    /// abschliessen). Offen für das HR-Team, damit der GF seinen Import weiterhin
+    /// selbst fahren kann (Walter-Vorgabe 23.09.2026).
+    /// </summary>
+    [HttpPut("{id:int}/aus-easy-import")]
+    public Task<IActionResult> UpdateAusEasyImport(int id, Employment dto) => UpdateInternAsync(id, dto);
+
+    private async Task<IActionResult> UpdateInternAsync(int id, Employment dto)
     {
         var existing = await _context.Employments.FindAsync(id);
         if (existing == null) return NotFound();

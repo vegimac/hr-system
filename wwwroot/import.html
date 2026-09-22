@@ -2270,7 +2270,10 @@ async function updateSameStartContractFromApiRow(row, employeeId, contract) {
     if (!id || !employeeId) return { ok: false, message: 'Bestehender Vertrag konnte nicht eindeutig bestimmt werden.' };
     try {
         const payload = buildApiContractPayloadFromRow(employeeId, row);
-        const res = await fetch(`/api/employments/${id}`, {
+        // Importweg statt Hand-Edit (Walter-Vorgabe 23.09.2026): das normale
+        // PUT ist admin-only, hier kommen easy@work-Daten an — der GF muss
+        // seinen Import weiterhin selbst fahren können.
+        const res = await fetch(`/api/employments/${id}/aus-easy-import`, {
             method: 'PUT',
             headers: ah(),
             body: JSON.stringify(payload)
@@ -2360,7 +2363,9 @@ async function closePreviousContractBeforeApiStart(row, employeeId, targetEmploy
 
         const prevId = Number(objVal(prev, 'id'));
         const payload = buildEmploymentPayloadFromExisting(prev, previousEnd);
-        const upd = await fetch(`/api/employments/${prevId}`, {
+        // Vorgänger abschliessen gehört zum Importweg — siehe oben, admin-only
+        // ist nur das Editieren von Hand.
+        const upd = await fetch(`/api/employments/${prevId}/aus-easy-import`, {
             method: 'PUT',
             headers: ah(),
             body: JSON.stringify(payload)

@@ -629,6 +629,17 @@ function isOpsRole(role) {
 }
 window.isOpsRole = isOpsRole;
 
+/** Darf Verträge von Hand ändern (Walter-Vorgabe 23.09.2026): nur der
+ *  Administrator. Alle anderen ändern den Vertrag in easy@work und holen ihn
+ *  über den Import — laufender Vertrag ohne Lohnlauf direkt, sonst neuer
+ *  Vertrag in easy, alten abschliessen, neuen importieren. Der Server prüft
+ *  dasselbe (PUT /api/employments/{id} ist admin-only). */
+function darfVertragBearbeiten() {
+    const r = (typeof currentUser !== 'undefined' ? currentUser?.role : '') || '';
+    return r === 'admin';
+}
+window.darfVertragBearbeiten = darfVertragBearbeiten;
+
 function updateDashboardShellState(name) {
     const page = document.getElementById('page-' + name);
     document.body.classList.toggle('liquid-shell-active', !!page?.classList.contains('liquid-ui'));

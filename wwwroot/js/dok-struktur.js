@@ -742,7 +742,14 @@ async function renderVtDetail(emp) {
                         // die Historie vor 2026 pflegt HR von Hand, das Arbeitszeugnis
                         // hängt daran. Der Server entscheidet dasselbe nochmals.
                         const endIso = (c.contractEndDate || '').slice(0, 10);
-                        const historieEdit = inLohn && endIso && firstAllowed && endIso < firstAllowed
+                        // Von Hand ändern darf nur der Administrator (Walter-Vorgabe
+                        // 23.09.2026) — alle anderen ändern in easy@work und holen den
+                        // Vertrag über den Import. Serverseitig ist das PUT admin-only.
+                        const darfEdit = typeof darfVertragBearbeiten === 'function'
+                            ? darfVertragBearbeiten()
+                            : currentUser?.role === 'admin';
+                        const easyHinweis = `<span title="Verträge werden in easy@work geändert und über den Import geholt." style="font-size:11px;color:#8b8b8b;padding:4px 8px;cursor:help">Änderung über easy@work</span>`;
+                        const historieEdit = darfEdit && inLohn && endIso && firstAllowed && endIso < firstAllowed
                             && contracts.some(o => String(o.contractStartDate || '') > String(c.contractStartDate || ''));
                         if (inLohn) {
                             return `<span title="Dieser Vertrag wurde bereits in einem Lohnlauf verwendet und kann nicht mehr editiert oder gelöscht werden. Für Änderungen einen neuen Vertrag ab dem nächsten freien Datum anlegen — der bestehende wird automatisch beendet." style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#b91c1c;background:#fee2e2;padding:4px 10px;border-radius:12px;cursor:help;">🔒 In Lohn verwendet</span>
@@ -750,8 +757,10 @@ async function renderVtDetail(emp) {
                                     ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
                                     <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>`;
                         }
-                        // Nicht in Lohn verwendet → Edit + Austritt + PDF + Löschen erlaubt
-                        return `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>
+                        // Nicht in Lohn verwendet → Edit (nur admin) + Austritt + PDF + Löschen
+                        return `${darfEdit
+                                    ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick='openContractEditModal(${JSON.stringify(c).replace(/"/g,"&quot;")})'>${_t('vt.btn.editIcon')}</button>`
+                                    : easyHinweis}
                                 ${isActive ? `<button class="btn btn-outline" style="font-size:12px;padding:3px 12px;border-color:#fca5a5;color:#b91c1c" onclick="openTerminateModal(${emp.id}, ${c.id}, '${c.contractStartDate}')">${_t('vt.btn.terminateIcon')}</button>` : ''}
                                 <button class="btn btn-outline" style="font-size:12px;padding:3px 12px" onclick="downloadContractPdfById(${emp.id}, ${c.id})">${_t('vt.btn.pdf')}</button>
                                 ${(typeof isOpsRole === 'function' ? isOpsRole()
