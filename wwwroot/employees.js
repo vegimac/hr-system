@@ -2081,7 +2081,17 @@ function renderEmpContractList(emp) {
         const model = c.employmentModel || '–';
         const from = c.contractStartDate ? formatDate(c.contractStartDate) : '–';
         const to = c.contractEndDate ? formatDate(c.contractEndDate) : 'offen';
-        const title = c.jobTitle || c.jobGroupCode || c.position || 'Vertrag';
+        // Walter 22.09.2026: IMMER den gespeicherten job_title zeigen (der ist pro
+        // Vertragsabschnitt historisch korrekt). Weicht die Funktionsgruppe
+        // (job_group_id, vom easy@work-Sync oft auf die HEUTIGE Funktion gesetzt)
+        // davon ab, kommt sie klein daneben — damit man den Unterschied sieht,
+        // statt dass die Liste stumm auf die FK-Spalte zurückfällt.
+        const jt = (c.jobTitle || '').trim();
+        const jg = (c.jobGroupCode || '').trim();
+        const title = jt || jg || c.position || 'Vertrag';
+        const titleZusatz = (jt && jg && jt.toUpperCase() !== jg.toUpperCase())
+            ? `<span class="emp-contract-status" title="Funktionsgruppe am Vertrag (job_group_id) — weicht von der gespeicherten Funktion ab">${esc(jg)}</span>`
+            : '';
         const pensum = empContractPensumText(c);
         const wage = empContractWageText(c);
         const active = _empContractIsEnded(c)
@@ -2097,6 +2107,7 @@ function renderEmpContractList(emp) {
             <div class="emp-contract-main">
                 <span class="emp-contract-model ${contractModelClass(model)}">${esc(modelDisplay(model))}</span>
                 <span class="emp-contract-title">${esc(title)}</span>
+                ${titleZusatz}
                 ${filHtml}
                 ${active}
             </div>

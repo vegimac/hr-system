@@ -62,6 +62,26 @@ public class ZeugnisWerdegangTests
     }
 
     [Fact]
+    public void JobTitleMitCodeStichtDieFunktionsgruppe()
+    {
+        // Altbestand: job_title hält den historischen Code pro Abschnitt,
+        // job_group_id wurde vom Sync auf die heutige Funktion gesetzt.
+        var e = E("2024-01-01", null, "FLEX", "SHIFT_LEADER_1_6");
+        e.JobTitle = "CREW";
+        var w = ZeugnisWerdegang.Baue(new[] { e }, female: false, stichtag: new DateOnly(2026, 9, 22));
+        Assert.Equal("seit 01.01.2024 · Crewmitarbeiter", w[0].Text);
+    }
+
+    [Fact]
+    public void FreitextTitelBleibtFreitextNurOhneFunktionsgruppe()
+    {
+        var e = E("2024-01-01", null, "FLEX", "HOST_CT");
+        e.JobTitle = "Shift Coordinator";      // kein bekannter Code → Gruppe gewinnt
+        var w = ZeugnisWerdegang.Baue(new[] { e }, female: false, stichtag: new DateOnly(2026, 9, 22));
+        Assert.Equal("seit 01.01.2024 · Crew-Trainer", w[0].Text);
+    }
+
+    [Fact]
     public void SchichtfuehrerErsetztShiftLeader()
     {
         Assert.Equal("Schichtführerin in Ausbildung", ZeugnisWerdegang.FunktionText("SHIFT_LEADER_1_6", null, true));

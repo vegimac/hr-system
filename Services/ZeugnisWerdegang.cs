@@ -29,10 +29,25 @@ public static class ZeugnisWerdegang
         string ModellText,
         string Text);
 
-    /// <summary>Funktionsbezeichnung fürs Zeugnis (weiblich/männlich).</summary>
+    /// <summary>Bekannte Funktions-Codes (job_group.code).</summary>
+    private static readonly HashSet<string> Codes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CREW", "HOST_CT", "SWING", "SHIFT_LEADER_1_6", "SHIFT_LEADER_7_PLUS",
+        "ASST_2", "ASST_1", "REST_MANAGER",
+    };
+
+    /// <summary>
+    /// Funktionsbezeichnung fürs Zeugnis (weiblich/männlich).
+    /// **Quellen-Reihenfolge (Walter 22.09.2026):** `employment.job_title` führt im
+    /// Altbestand den Funktions-Code PRO Vertragsabschnitt und ist damit historisch
+    /// korrekt; `job_group_id` wird vom easy@work-Sync oft auf die HEUTIGE Funktion
+    /// gesetzt (easy liefert nur eine). Trägt job_title einen bekannten Code, gilt der;
+    /// sonst die Funktionsgruppe; sonst der Freitext («Shift Coordinator»).
+    /// </summary>
     public static string FunktionText(string? jobGroupCode, string? jobTitle, bool female)
     {
-        var code = (jobGroupCode ?? "").Trim().ToUpperInvariant();
+        var titel = (jobTitle ?? "").Trim();
+        var code = Codes.Contains(titel) ? titel.ToUpperInvariant() : (jobGroupCode ?? "").Trim().ToUpperInvariant();
         string w(string m, string f) => female ? f : m;
         return code switch
         {
