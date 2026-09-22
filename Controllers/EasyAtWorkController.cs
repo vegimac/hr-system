@@ -1410,6 +1410,77 @@ public class EasyAtWorkController : ControllerBase
         return Ok(res);
     }
 
+    // ══════════════════════════════════════════════════════════════════════
+    // Vertragshistorie einer ganzen Filiale neu aus easy@work holen
+    // (Walter-Vorgabe 22.09.2026)
+    // ══════════════════════════════════════════════════════════════════════
+    // Ruft für jeden MA der Filiale denselben Ablauf wie der Einzel-Knopf am
+    // Mitarbeiter: Verträge + Tarife + Position frisch holen und die Abschnitte
+    // spiegeln. Nötig, weil jahrelang Segmente still verworfen wurden (Typ
+    // «Fix» mit Wochenstunden, abgelaufene Tarife) und die Historie deshalb
+    // Löcher hat. AUSGETRETENE sind ausdrücklich dabei — gerade deren Historie
+    // brauchen wir für Zeugnisse.
+    //
+    // Läuft bewusst SEQUENZIELL (drei API-Calls pro MA) und meldet pro MA, was
+    // passiert ist. Kein Löschen: `SyncEmploymentTimelineAsync` legt an und
+    // korrigiert, entfernt aber nie einen Abschnitt.
+    public record VertraegeNeuDto(int CompanyProfileId, List<int>? EmployeeIds = null);
+
+    [HttpPost("vertraege-neu-holen")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> VertraegeNeuHolen([FromBody] VertraegeNeuDto dto, CancellationToken ct)
+    {
+        if (dto == null || dto.CompanyProfileId <= 0)
+            return BadRequest(new { error = "FILIALE_FEHLT", message = "Bitte eine Filiale wählen." });
+
+        // MA dieser Filiale: alle mit mindestens einem Vertrag dort, plus die,
+        // deren jüngster Vertrag dort liegt (= Zuordnung der Kontrollliste).
+        var kandidaten = await _db.Employments.AsNoTracking()
+            .Where(e => e.CompanyProfileId == dto.CompanyProfileId)
+            .Select(e => e.EmployeeId)
+            .Distinct()
+            .ToListAsync(ct);
+        if (dto.EmployeeIds is { Count: > 0 })
+            kandidaten = kandidaten.Where(id => dto.EmployeeIds.Contains(id)).ToList();
+
+        var mas = await _db.Employees.AsNoTracking()
+            .Where(e => kandidaten.Contains(e.Id) && !e.IsHidden && !e.IsPayrollExcluded)
+            .OrderBy(e => e.FirstName).ThenBy(e => e.LastName)
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+            .ToListAsync(ct);
+
+        int ok = 0, ohneAenderung = 0, fehler = 0;
+        var meldungen = new List<object>();
+        foreach (var m in mas)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                var res = await _empSync.SyncSingleCoworkEmployeeAsync(m.Id, dto.CompanyProfileId, ct);
+                bool vertraege = res.UpdatedFields.Contains("Verträge");
+                if (vertraege) ok++; else ohneAenderung++;
+                if (vertraege || res.SkippedContracts.Count > 0 || res.Errors.Count > 0)
+                    meldungen.Add(new
+                    {
+                        name = $"{m.FirstName} {m.LastName}".Trim(),
+                        nummer = m.EmployeeNumber,
+                        geaendert = vertraege,
+                        felder = res.UpdatedFields,
+                        uebersprungen = res.SkippedContracts,
+                        hinweise = res.Notes,
+                        fehler = res.Errors,
+                    });
+            }
+            catch (Exception ex)
+            {
+                fehler++;
+                meldungen.Add(new { name = $"{m.FirstName} {m.LastName}".Trim(), nummer = m.EmployeeNumber, fehler = new[] { ex.Message } });
+            }
+        }
+
+        return Ok(new { geprueft = mas.Count, geaendert = ok, unveraendert = ohneAenderung, fehler, meldungen });
+    }
+
     private sealed record DupEmpRow(int Id, string? Number, string? First, string? Last,
         int? EawId, bool Excluded, bool Active, DateTime? Dob);
 
