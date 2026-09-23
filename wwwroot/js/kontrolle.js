@@ -435,7 +435,7 @@ function _kontrolleExportCombiExcel() {
             return s;
         }).join(';')
     ).join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const filename = 'Kontrolle_Ausweis_' + new Date().toISOString().slice(0,10) + '.csv';
     if (typeof saveBlobAsk === 'function') {
         saveBlobAsk(blob, filename);
@@ -722,7 +722,7 @@ function _kontrolleSpouseExportExcel_LEGACY() {
             return s;
         }).join(';')
     ).join('\r\n');
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const filename = 'Kontrolle_Ausweis_Ehegatte_fehlt_' + new Date().toISOString().slice(0,10) + '.csv';
     if (typeof saveBlobAsk === 'function') {
         saveBlobAsk(blob, filename);
@@ -820,7 +820,7 @@ async function kontrolleDossierRefresh() {
         _kontrolleDossier = await r.json();
         kontrolleDossierRender();
     } catch (e) {
-        el.innerHTML = `<div style="padding:14px 18px;color:#b91c1c;font-size:13px">Fehler: ${esc(e.message)}</div>`;
+        el.innerHTML = `<div style="padding:14px 18px;color:#b91c1c;font-size:13px">Fehler: ${_kEsc(e.message)}</div>`;
     }
 }
 
@@ -829,44 +829,50 @@ function kontrolleDossierRender() {
     const d = _kontrolleDossier;
     if (!el || !d) return;
     const nurOffen = !!document.getElementById('kontrolleDossierNurOffen')?.checked;
-    const zeilen = (d.zeilen || []).filter(z => !nurOffen || !z.erledigt);
+    const spalten = d.checkSpalten || [];
+    const hatOffen = z => !z.erledigt || Object.values(z.zellen || {}).some(c => c.status === 'fehlt');
+    const zeilen = (d.zeilen || []).filter(z => !nurOffen || hatOffen(z));
     const kurz = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
-    const th = 'padding:8px 10px;font-size:11px;font-weight:700;color:#646464;text-align:left;border-bottom:1px solid rgba(60,55,48,0.15);vertical-align:bottom';
-    const td = 'padding:7px 10px;font-size:12.5px;border-bottom:1px solid rgba(60,55,48,0.08);white-space:nowrap';
+    // Farben wie die Excel-Checkliste «Personaladministration» (Walter 23.09.2026)
+    const FARBE = { ok: '#92d050', datum: '#92d050', na: '#ffffff', leer: '#ffffff', fehlt: '#ffc7ce',
+                    warn: '#ffeb9c', text: 'transparent', unbekannt: '#e5e7eb' };
+    const TEXT  = { ok: 'OK', na: 'n.a.', fehlt: 'fehlt', leer: '', unbekannt: '?' };
+    const th = 'padding:4px 6px;font-size:11px;font-weight:600;color:#1f2937;text-align:left;vertical-align:bottom;background:#ffe699;border-right:1px solid #fff;white-space:normal;min-width:62px';
+    const td = 'padding:2px 6px;font-size:12px;font-style:italic;white-space:nowrap;border-right:1px solid #fff;border-bottom:1px solid #fff';
     const kopf = `<tr>
-        <th style="${th}">Nr.</th><th style="${th}">Name</th><th style="${th}">Eintritt</th><th style="${th}">Austritt</th>
-        <th style="${th}">Bewilligung</th><th style="${th}">Status</th>
-        ${(d.spalten || []).map(s => `<th style="${th};max-width:110px;white-space:normal">${esc(s.label)}</th>`).join('')}
+        <th style="${th};min-width:30px">Nr.</th><th style="${th};min-width:170px">Name/Vorname</th>
+        <th style="${th}">Eintritt</th><th style="${th}">Austritt</th>
+        ${spalten.map(s => `<th style="${th}" title="Quelle: ${s.quelle === 'keine' ? 'in OneCrew nicht vorhanden' : s.quelle.replace('feld', 'Feld/Verknüpfung').replace('dokument', 'Dokument-Stichwort')}">${_kEsc(s.label)}</th>`).join('')}
+        <th style="${th}">To-do</th>
     </tr>`;
-    const body = zeilen.map(z => {
-        const zellen = (d.spalten || []).map(s => {
-            const f = z.offen?.[s.key];
-            if (!f) return `<td style="${td};color:#15803d;text-align:center">✓</td>`;
-            const tip = f.map(x => `${x.title}${x.subtitle ? ' — ' + x.subtitle : ''}`).join('\n');
-            const rot = f.some(x => x.severity === 'critical');
-            return `<td style="${td};text-align:center;color:${rot ? '#b91c1c' : '#b45309'};font-weight:700" title="${esc(tip)}">✗</td>`;
+    const body = zeilen.map((z, n) => {
+        const zellen = spalten.map(s => {
+            const c = z.zellen?.[s.key] || { status: 'leer' };
+            const txt = c.text ?? TEXT[c.status] ?? '';
+            return `<td style="${td};background:${FARBE[c.status] || '#fff'};${c.status === 'fehlt' ? 'color:#9c0006;font-weight:700' : ''}"${c.tip ? ` title="${_kEsc(c.tip)}"` : ''}>${_kEsc(txt)}</td>`;
         }).join('');
-        const anzahl = Object.values(z.offen || {}).reduce((n, l) => n + l.length, 0);
-        return `<tr style="cursor:pointer" onclick="kontrolleOpenEmployee(${z.employeeId})"
-                    onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background=''">
-            <td style="${td};color:#8b8b8b">${esc(z.employeeNumber || '')}</td>
-            <td style="${td};font-weight:600;color:#3f3f3f">${esc(z.name)}</td>
-            <td style="${td}">${kurz(z.eintritt)}</td>
-            <td style="${td}">${kurz(z.austritt)}</td>
-            <td style="${td}">${z.bewilligung ? esc(z.bewilligung) + (z.bewilligungBis ? ' · ' + kurz(z.bewilligungBis) : '') : ''}</td>
-            <td style="${td}">${z.erledigt
-                ? '<span style="color:#15803d;font-weight:700">✓ erledigt</span>'
-                : `<span style="color:#b91c1c;font-weight:700">${anzahl} offen</span>`}</td>
+        const anzahl = Object.values(z.offen || {}).reduce((k, l) => k + l.length, 0);
+        const todoTip = Object.values(z.offen || {}).flat().map(x => x.title).join('\n');
+        return `<tr style="cursor:pointer" onclick="kontrolleOpenEmployee(${z.employeeId})" title="${_kEsc(z.employeeNumber || '')}">
+            <td style="${td};color:#1d4ed8;text-decoration:underline;font-style:normal;text-align:right">${n + 1}</td>
+            <td style="${td}">${_kEsc(z.name)}</td>
+            <td style="${td};text-align:right">${kurz(z.eintritt)}</td>
+            <td style="${td};text-align:right">${kurz(z.austritt)}</td>
             ${zellen}
+            <td style="${td};font-style:normal;${anzahl ? 'color:#b91c1c;font-weight:700' : 'color:#15803d'}"${todoTip ? ` title="${_kEsc(todoTip)}"` : ''}>${anzahl ? anzahl + ' offen' : '✓'}</td>
         </tr>`;
     }).join('');
+    const ohneQuelle = spalten.filter(s => s.quelle === 'keine').map(s => s.label);
+    const perDokument = spalten.filter(s => s.quelle === 'dokument').map(s => s.label.replace(/\u00AD/g, ''));
     el.innerHTML = `
         <div style="padding:10px 18px;font-size:12.5px;color:#646464">
-            <b style="color:#3f3f3f">${d.anzahlErledigt} von ${d.anzahlMa}</b> Dossiers vollständig erledigt${nurOffen ? ` · angezeigt: ${zeilen.length} mit offenen Punkten` : ''}
+            <b style="color:#3f3f3f">${d.anzahlErledigt} von ${d.anzahlMa}</b> ohne offene To-do-Punkte${nurOffen ? ` · angezeigt: ${zeilen.length} mit offenen Punkten` : ''}
+            ${ohneQuelle.length ? `<br><span style="color:#92400e">«?» = OneCrew führt diese Angabe nicht: ${_kEsc(ohneQuelle.join(', '))}</span>` : ''}
+            ${perDokument.length ? `<br><span style="color:#8b8b8b">Über Dokument-Stichwort erkannt (Typ, Bemerkung oder Dateiname): ${_kEsc(perDokument.join(', '))}</span>` : ''}
         </div>
         ${zeilen.length
-            ? `<table style="width:100%;border-collapse:collapse">${kopf}${body}</table>`
-            : '<div class="emp-placeholder" style="height:80px"><span>Alle Dossiers erledigt ✓</span></div>'}`;
+            ? `<table style="border-collapse:collapse;margin:0 12px 12px">${kopf}${body}</table>`
+            : '<div class="emp-placeholder" style="height:80px"><span>Alles erledigt ✓</span></div>'}`;
 }
 
 /** Export als CSV (Excel öffnet es direkt) — über den «Speichern unter…»-Helfer. */
@@ -875,13 +881,14 @@ function kontrolleDossierCsv() {
     if (!d) return;
     const kurz = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const kopf = ['Nr.', 'Name', 'Eintritt', 'Austritt', 'Bewilligung', 'Bewilligung bis', 'Status', ...(d.spalten || []).map(s => s.label)];
-    const zeilen = (d.zeilen || []).map(z => [
-        z.employeeNumber, z.name, kurz(z.eintritt), kurz(z.austritt), z.bewilligung || '', kurz(z.bewilligungBis),
-        z.erledigt ? 'erledigt' : 'offen',
-        ...(d.spalten || []).map(s => z.offen?.[s.key] ? 'offen' : 'OK'),
+    const TEXT = { ok: 'OK', na: 'n.a.', fehlt: 'fehlt', leer: '', unbekannt: '?' };
+    const spalten = d.checkSpalten || [];
+    const kopf = ['Nr.', 'Personalnr.', 'Name/Vorname', 'Eintritt', 'Austritt', ...spalten.map(s => s.label.replace(/\u00AD/g, '')), 'To-do offen'];
+    const zeilen = (d.zeilen || []).map((z, n) => [
+        n + 1, z.employeeNumber, z.name, kurz(z.eintritt), kurz(z.austritt),
+        ...spalten.map(s => { const c = z.zellen?.[s.key] || {}; return c.text ?? TEXT[c.status] ?? ''; }),
+        Object.values(z.offen || {}).reduce((k, l) => k + l.length, 0),
     ]);
-    const csv = '﻿' + [kopf, ...zeilen].map(r => r.map(q).join(';')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    saveBlobAsk(blob, `Dossier-Uebersicht_${new Date().toISOString().slice(0, 10)}.csv`);
+    const csv = '\uFEFF' + [kopf, ...zeilen].map(r => r.map(q).join(';')).join('\r\n');
+    saveBlobAsk(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `Checkliste_Personaladministration_${new Date().toISOString().slice(0, 10)}.csv`);
 }

@@ -96,12 +96,165 @@ public class KontrollListenController : ControllerBase
             .OrderBy(c => c.sort).ThenBy(c => c.label)
             .ToList();
 
+        // ── Feste Spalten wie die Excel-Checkliste «Personaladministration»
+        //    (Walter-Vorgabe 23.09.2026). Quelle je Spalte:
+        //    feld     = festes Feld/Verknüpfung in OneCrew
+        //    dokument = erkannt über Dokument-Typ/Bemerkung (Stichwort)
+        //    keine    = OneCrew kennt die Angabe nicht → «?» ──
+        var heute = DateOnly.FromDateTime(DateTime.Today);
+        var empFull = await _db.Employees.AsNoTracking()
+            .Where(e => ids.Contains(e.Id))
+            .Select(e => new { e.Id, e.DateOfBirth, e.Street, e.ZipCode, e.City, e.NationalityId, e.MaritalStatus,
+                               e.SocialSecurityNumber, e.Gender, e.IdPassDokumentId, e.ProbezeitEntscheid,
+                               e.ProbezeitGespraech1Am, e.ProbezeitGespraech1DokumentId, e.EntryDate })
+            .ToDictionaryAsync(e => e.Id);
+        var vertraege = (await _db.Employments.AsNoTracking()
+                .Where(v => ids.Contains(v.EmployeeId))
+                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate, v.IsActive, v.ProbationEndDate, v.VertragDokumentId, v.CompanyProfileId })
+                .ToListAsync())
+            .GroupBy(v => v.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(v => v.ContractStartDate).ToList());
+        var permitDoks = (await _db.EmployeePermitHistories.AsNoTracking()
+                .Where(h => ids.Contains(h.EmployeeId))
+                .Select(h => new { h.EmployeeId, h.ValidFrom, h.DokumentId })
+                .ToListAsync())
+            .GroupBy(h => h.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(h => h.ValidFrom).First().DokumentId);
+        var bankDok = (await _db.EmployeeBankAccounts.AsNoTracking()
+                .Where(b => ids.Contains(b.EmployeeId) && b.DokumentId != null)
+                .Select(b => b.EmployeeId).ToListAsync()).ToHashSet();
+        var mitVerfuegbarkeit = (await _db.EmployeeAvailabilities.AsNoTracking()
+                .Where(a => ids.Contains(a.EmployeeId)).Select(a => a.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+        var mitQst = (await _db.EmployeeQuellensteuer.AsNoTracking()
+                .Where(q => ids.Contains(q.EmployeeId)).Select(q => q.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+        // Dokumente: Typ-Name, Typ-Verknüpfung, Bemerkung, Dateiname — für Stichwort-Erkennung
+        var doks = (await (from d in _db.EmployeeDokumente.AsNoTracking()
+                           join t in _db.DokumentTypen.AsNoTracking() on d.DokumentTypId equals t.Id
+                           where ids.Contains(d.EmployeeId)
+                           select new { d.EmployeeId, Typ = t.Name, Code = t.LinkedFieldCode, d.Bemerkung, d.FilenameOriginal })
+                          .ToListAsync())
+            .GroupBy(d => d.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        bool HatCode(int id, params string[] codes)
+            => doks.TryGetValue(id, out var l) && l.Any(d => d.Code != null && codes.Contains(d.Code));
+        bool HatWort(int id, params string[] woerter)
+            => doks.TryGetValue(id, out var l) && l.Any(d => woerter.Any(w =>
+                   (d.Typ ?? "").Contains(w, StringComparison.OrdinalIgnoreCase)
+                || (d.Bemerkung ?? "").Contains(w, StringComparison.OrdinalIgnoreCase)
+                || (d.FilenameOriginal ?? "").Contains(w, StringComparison.OrdinalIgnoreCase)));
+
+        var spaltenDef = new List<(string Key, string Label, string Quelle)>
+        {
+            ("pers",      "Persönliche Daten",                     "feld"),
+            ("vertrag",   "Arbeits­vertrag",                        "feld+dokument"),
+            ("eltern",    "Unterschrift Eltern",                   "dokument"),
+            ("verfueg",   "Verfügbare Arbeitsstunden",             "feld"),
+            ("partnerweb","PartnerWeb",                            "keine"),
+            ("hauptag",   "Erlaubnis Hauptarbeitgeber",            "dokument"),
+            ("pzDatum",   "Probezeitgespräch",                     "feld"),
+            ("pzOk",      "Probezeitgespräch erledigt",            "feld"),
+            ("pass",      "Kopie Pass/ID",                         "feld+dokument"),
+            ("bank",      "Kopie Bankkarte",                       "feld+dokument"),
+            ("bew",       "Arbeits­bewilligung",                    "feld+dokument"),
+            ("bewBis",    "Ablauf Bewilligung",                    "feld"),
+            ("bewTyp",    "Arbeits­bewilligung (Typ)",              "feld"),
+            ("migr",      "Anmeldung Migrationsamt (G/F/S)",       "dokument"),
+            ("ansaess",   "Ansässigkeitsbesch. Grenzgänger",       "dokument"),
+            ("gzZusatz",  "Vertragszusatz Grenzgänger",            "dokument"),
+            ("mutter",    "Mutterschutzinfo",                      "dokument"),
+            ("ahv",       "Soz.-Nr.",                              "feld"),
+            ("qst",       "QST",                                   "feld"),
+            ("stellen",   "Antrag Stellenantritt",                 "dokument"),
+            ("ausbildung","Anerkannte Ausbildung Gastro",          "dokument"),
+            ("hygiene",   "Lebensmittel­hygiene",                   "dokument"),
+            ("sicherheit","Sicherheit",                            "dokument"),
+            ("bewerbung", "Bewerbungs­unterlagen",                  "dokument"),
+        };
+
+        object Z(string status, string? text = null, string? tip = null) => new { status, text, tip };
+
         var zeilen = mas
             .OrderBy(m => m.FirstName ?? "").ThenBy(m => m.LastName ?? "")
             .Select(m =>
             {
                 var meine = offen.Where(a => a.EmployeeId == m.Id).ToList();
                 permits.TryGetValue(m.Id, out var p);
+                empFull.TryGetValue(m.Id, out var ef);
+                vertraege.TryGetValue(m.Id, out var vl);
+                var aktVertrag = vl?.FirstOrDefault(v => v.CompanyProfileId == cp) ?? vl?.FirstOrDefault();
+                string typ = p == null ? "CH" : (p.Code ?? "CH");
+                bool ch = typ == "CH";
+                bool grenz = typ == "G";
+                var zellen = new Dictionary<string, object>();
+
+                // Persönliche Daten
+                var fehlend = new List<string>();
+                if (ef?.DateOfBirth == null) fehlend.Add("Geburtsdatum");
+                if (string.IsNullOrWhiteSpace(ef?.Street) || string.IsNullOrWhiteSpace(ef?.ZipCode) || string.IsNullOrWhiteSpace(ef?.City)) fehlend.Add("Adresse");
+                if (ef?.NationalityId == null) fehlend.Add("Nationalität");
+                if (string.IsNullOrWhiteSpace(ef?.MaritalStatus)) fehlend.Add("Zivilstand");
+                zellen["pers"] = fehlend.Count == 0 ? Z("ok") : Z("fehlt", "fehlt", "Fehlt: " + string.Join(", ", fehlend));
+
+                zellen["vertrag"] = (aktVertrag?.VertragDokumentId != null || HatCode(m.Id, "contract") || HatWort(m.Id, "vertrag"))
+                    ? Z("ok") : Z("fehlt", "fehlt", "Kein unterschriebener Vertrag verknüpft/abgelegt");
+
+                // Eltern: nur wenn beim Eintritt < 18
+                bool minderjaehrig = ef?.DateOfBirth != null && ef.EntryDate != null
+                    && ef.DateOfBirth.Value.AddYears(18) > ef.EntryDate.Value;
+                zellen["eltern"] = !minderjaehrig ? Z("na")
+                    : HatWort(m.Id, "Eltern", "Einverständnis") ? Z("ok") : Z("fehlt", "fehlt", "Minderjährig beim Eintritt — Unterschrift Eltern nicht gefunden");
+
+                zellen["verfueg"] = mitVerfuegbarkeit.Contains(m.Id) ? Z("ok") : Z("fehlt", "fehlt", "Keine Verfügbarkeit aus easy@work");
+                zellen["partnerweb"] = Z("unbekannt", "?", "Diese Angabe führt OneCrew nicht");
+                zellen["hauptag"] = HatWort(m.Id, "Hauptarbeitgeber", "Nebenerwerb", "Zweitjob") ? Z("ok") : Z("na");
+
+                // Probezeit
+                var pzEnde = aktVertrag?.ProbationEndDate;
+                bool pzErledigt = !string.IsNullOrWhiteSpace(ef?.ProbezeitEntscheid)
+                    || ef?.ProbezeitGespraech1DokumentId != null || ef?.ProbezeitGespraech1Am != null;
+                zellen["pzDatum"] = pzEnde == null ? Z("leer")
+                    : Z(pzErledigt || DateOnly.FromDateTime(pzEnde.Value) > heute ? "datum" : "fehlt",
+                        pzEnde.Value.ToString("dd.MM.yyyy"));
+                zellen["pzOk"] = pzErledigt ? Z("ok")
+                    : pzEnde != null && DateOnly.FromDateTime(pzEnde.Value) <= heute ? Z("fehlt", "fehlt", "Probezeit abgelaufen, Gespräch nicht erfasst")
+                    : Z("leer");
+
+                zellen["pass"] = (ef?.IdPassDokumentId != null || HatCode(m.Id, "passport", "id_card"))
+                    ? Z("ok") : Z("fehlt", "fehlt", "Kein Pass/ID verknüpft");
+                zellen["bank"] = (bankDok.Contains(m.Id) || HatCode(m.Id, "bank_card"))
+                    ? Z("ok") : Z("fehlt", "fehlt", "Kein Bankbeleg verknüpft");
+
+                permitDoks.TryGetValue(m.Id, out var permitDok);
+                zellen["bew"] = ch ? Z("na")
+                    : (permitDok != null || HatCode(m.Id, "permit")) ? Z("ok") : Z("fehlt", "fehlt", "Kein Bewilligungs-Scan verknüpft");
+                if (p?.ValidTo is DateOnly bis)
+                    zellen["bewBis"] = Z(bis <= heute ? "fehlt" : bis <= heute.AddDays(60) ? "warn" : "datum", bis.ToString("dd.MM.yyyy"),
+                                         bis <= heute ? "Bewilligung abgelaufen" : bis <= heute.AddDays(60) ? "Läuft in ≤ 60 Tagen ab" : null);
+                else zellen["bewBis"] = Z("leer");
+                zellen["bewTyp"] = Z("text", typ);
+
+                bool migrPflicht = typ is "G" or "F" or "S";
+                zellen["migr"] = HatWort(m.Id, "Migrationsamt", "Migration")
+                    ? Z("ok") : migrPflicht ? Z("fehlt", "fehlt", "Anmeldung Migrationsamt nicht gefunden") : Z("na");
+                zellen["ansaess"] = !grenz ? Z("na") : HatWort(m.Id, "Ansässigkeit") ? Z("ok") : Z("fehlt", "fehlt");
+                zellen["gzZusatz"] = !grenz ? Z("na") : HatWort(m.Id, "Vertragszusatz", "Zusatz Grenz") ? Z("ok") : Z("fehlt", "fehlt");
+
+                bool frau = string.Equals(ef?.Gender, "F", StringComparison.OrdinalIgnoreCase)
+                         || string.Equals(ef?.Gender, "W", StringComparison.OrdinalIgnoreCase)
+                         || (ef?.Gender ?? "").StartsWith("weib", StringComparison.OrdinalIgnoreCase)
+                         || (ef?.Gender ?? "").StartsWith("female", StringComparison.OrdinalIgnoreCase);
+                zellen["mutter"] = !frau ? Z("na") : HatWort(m.Id, "Mutterschutz") ? Z("ok") : Z("fehlt", "fehlt", "Mutterschutz-Info nicht gefunden");
+
+                zellen["ahv"] = !string.IsNullOrWhiteSpace(ef?.SocialSecurityNumber) ? Z("ok") : Z("fehlt", "fehlt", "AHV-Nummer fehlt");
+                zellen["qst"] = meine.Any(a => a.Category == "qst_pflicht_offen") ? Z("fehlt", "fehlt", "QST-Pflicht offen")
+                    : mitQst.Contains(m.Id) ? Z("ok") : Z("na");
+                zellen["stellen"] = HatWort(m.Id, "Stellenantritt")
+                    ? Z("ok") : (typ is "F" or "N") ? Z("fehlt", "fehlt", "Antrag Stellenantritt nicht gefunden") : Z("na");
+                zellen["ausbildung"] = HatWort(m.Id, "Ausbildung", "EFZ", "EBA", "Diplom") ? Z("ok") : Z("na");
+                zellen["hygiene"] = HatWort(m.Id, "Hygiene") ? Z("ok") : Z("fehlt", "fehlt", "Lebensmittelhygiene nicht gefunden");
+                zellen["sicherheit"] = HatWort(m.Id, "Sicherheit", "Erstunterweisung") ? Z("ok") : Z("fehlt", "fehlt", "Sicherheit/Erstunterweisung nicht gefunden");
+                zellen["bewerbung"] = HatWort(m.Id, "Bewerbung") ? Z("ok") : Z("fehlt", "fehlt", "Bewerbungsunterlagen nicht gefunden");
+
                 return new
                 {
                     employeeId     = m.Id,
@@ -112,6 +265,7 @@ public class KontrollListenController : ControllerBase
                     bewilligung    = p == null ? null : (p.Code ?? "CH"),
                     bewilligungBis = p?.ValidTo?.ToString("yyyy-MM-dd"),
                     erledigt       = meine.Count == 0,
+                    zellen,
                     offen          = meine
                         .GroupBy(a => a.Category)
                         .ToDictionary(g => g.Key, g => g.Select(a => new { a.Title, a.Subtitle, a.Severity }).ToList()),
@@ -119,7 +273,8 @@ public class KontrollListenController : ControllerBase
             })
             .ToList();
 
-        return Ok(new { spalten, zeilen, anzahlMa = zeilen.Count, anzahlErledigt = zeilen.Count(z => z.erledigt) });
+        var checkSpalten = spaltenDef.Select(s => new { key = s.Key, label = s.Label, quelle = s.Quelle }).ToList();
+        return Ok(new { checkSpalten, spalten, zeilen, anzahlMa = zeilen.Count, anzahlErledigt = zeilen.Count(z => z.erledigt) });
     }
 
     /// <summary>
