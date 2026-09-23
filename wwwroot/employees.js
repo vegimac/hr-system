@@ -9901,6 +9901,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
     // Karenz sitzt rechts unter dem Tagessatz — immer, Krank/Unfall getrennt.
     const karenzSide = document.getElementById('karenzSidebar');
     if (karenzSide) karenzSide.innerHTML = renderKarenzSidebar(karenzKrankHist, karenzUnfallHist);
+    fkSidebarLaden(employeeId);   // Ferienkürzung pro Dienstjahr (Walter 23.09.2026)
 
     const criticalById = analyzeAbsenceCritical(absences);
     const criticalCount = criticalById.size;
@@ -10255,6 +10256,45 @@ function renderKarenzSidebar(krankHist, unfallHist) {
         renderKarenzCard(krankHist,  { label: 'Krankheits-Karenz', dayLabel: 'Kranktage',  defaultMax: 14 }),
         renderKarenzCard(unfallHist, { label: 'Unfall-Karenz',     dayLabel: 'Unfalltage', defaultMax: 2  }),
     ].join('');
+}
+
+// Karte «Ferienkürzung» unter der Karenz (Walter 23.09.2026): pro Dienstjahr
+// (abgelaufen + laufend) Krankheitstage, Zwölftel, bereits gekürzt, noch
+// möglich — mit Knopf direkt ins Erfassen-Formular für genau dieses Jahr.
+async function fkSidebarLaden(employeeId) {
+    const side = document.getElementById('karenzSidebar');
+    if (!side || !employeeId) return;
+    const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const heute = new Date(), vorJahr = new Date(); vorJahr.setFullYear(heute.getFullYear() - 1);
+    let infos = [];
+    try {
+        infos = await Promise.all([iso(vorJahr), iso(heute)].map(d =>
+            fetch(`/api/absences/employee/${employeeId}/ferienkuerzung-info?datum=${d}`, { headers: ah() })
+                .then(r => r.ok ? r.json() : null)));
+    } catch { return; }
+    if (window.selectedEmployeeId !== employeeId) return;   // schneller MA-Wechsel
+    infos = infos.filter(i => i && i.dienstjahrVon && i.dienstjahrVon !== '0001-01-01'
+                           && (Number(i.tageKrankUnfall) > 0 || Number(i.bereitsGekuerzt) > 0));
+    document.getElementById('fkSideCard')?.remove();
+    if (!infos.length) return;
+    const n2 = v => Number(v || 0).toFixed(2);
+    const kurz = t => _absDatumKurz(t);
+    const zeilen = infos.map((i, k) => {
+        const noch = Number(i.nochMoeglich || 0);
+        const laufend = k === infos.length - 1 && i.dienstjahrBis >= iso(heute);
+        return `<div style="padding:8px 0;${k ? 'border-top:1px solid rgba(146,64,14,0.15);' : ''}">
+            <div style="font-weight:700;color:#3f3f3f">${kurz(i.dienstjahrVon)} – ${kurz(i.dienstjahrBis)} <span style="font-weight:500;color:#8b8b8b">(${laufend ? 'laufend' : 'abgelaufen'})</span></div>
+            <div style="font-size:12.5px;color:#646464">${Number(i.tageKrankUnfall).toFixed(1).replace(/\.0$/, '')} Krankheitstage → <b>${i.zwoelftel}/12</b> = ${n2(i.gesamtTage)} Tage</div>
+            <div style="font-size:12.5px;color:#646464">${Number(i.bereitsGekuerzt) > 0 ? `bereits gekürzt ${n2(i.bereitsGekuerzt)} · ` : ''}${i.verzichtet ? 'nicht kürzen gewählt · ' : ''}noch möglich <b style="color:#92400e">${Math.floor(noch)} Tage</b>${noch % 1 ? ` <span style="color:#8b8b8b">(genau ${n2(noch)})</span>` : ''}</div>
+            ${noch >= 1 ? `<button type="button" onclick="openFerienKuerzungModal(${employeeId}, null, '${i.dienstjahrVon}')"
+                style="margin-top:6px;background:#1a1a1a;color:#fff;border:none;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Kürzung erfassen</button>` : ''}
+        </div>`;
+    }).join('');
+    side.insertAdjacentHTML('beforeend', `
+        <div id="fkSideCard" class="karenz-side-card" style="background:linear-gradient(165deg,#fffbeb,#fef3c7);border-color:#fcd34d">
+            <div class="karenz-side-label" style="color:#92400e">Ferienkürzung</div>
+            ${zeilen}
+        </div>`);
 }
 
 function _todayIsoLocal() {
@@ -11038,7 +11078,7 @@ async function fkLoeschen(employeeId, id) {
     loadAbsenzenTab(employeeId);
 }
 
-async function openFerienKuerzungModal(empId, eintrag) {
+async function openFerienKuerzungModal(empId, eintrag, dienstjahrVon) {
     if (!empId) return;
     const iso = d => d.toISOString().slice(0, 10);
     const heute = new Date();
@@ -11052,8 +11092,9 @@ async function openFerienKuerzungModal(empId, eintrag) {
     infos = infos.filter(i => i && i.dienstjahrVon && i.dienstjahrVon !== '0001-01-01');
     if (!infos.length) { alert('Ohne Eintrittsdatum lässt sich das Dienstjahr nicht bestimmen.'); return; }
     // Vorwahl: beim Bearbeiten das Dienstjahr des Eintrags, sonst das erste mit «noch möglich».
-    let idx = eintrag ? Math.max(0, infos.findIndex(i => i.dienstjahrVon === eintrag.dienstjahrVon))
-                      : Math.max(0, infos.findIndex(i => Number(i.nochMoeglich) > 0));
+    const wunschDj = eintrag?.dienstjahrVon || dienstjahrVon;
+    let idx = wunschDj ? Math.max(0, infos.findIndex(i => i.dienstjahrVon === wunschDj))
+                       : Math.max(0, infos.findIndex(i => Number(i.nochMoeglich) > 0));
     const d = t => _absDatumKurz(t);
     const num = n => Number(n || 0).toFixed(2);
 
