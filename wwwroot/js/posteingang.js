@@ -323,10 +323,11 @@ async function pbLoadList() {
             const title = d.messageBody
                 ? (d.originalFilename || 'Mitteilung')
                 : (d.originalFilename || 'Dokument');
-            // Ablegen: geteilte Postfächer + eigene Box; nicht aus fremdem MA-Postfach-Kontext
-            const canAblage = isOps && d.targetType !== 'EMPLOYEE' && !d.messageBody;
             // Mitteilung MIT Anhang (Walter 05.09.2026): Text + Datei am selben Eintrag.
             const hasFile = !!d.mimeType || (d.fileSizeBytes > 0);
+            // Ablegen: geteilte Postfächer + eigene Box; nicht aus fremdem MA-Postfach-Kontext.
+            // Walter 23.09.2026: auch Mitteilungen MIT Anhang — nur reine Text-Mitteilungen nicht.
+            const canAblage = isOps && d.targetType !== 'EMPLOYEE' && hasFile;
             const previewBtn = d.messageBody
                 ? `<span style="font-weight:600;color:#3f3f3f">💬 ${title}</span>${hasFile ? ` <span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline;font-size:12.5px" onclick="pbOpenPreview(${d.id})">📎 ${d.bemerkung || 'Anhang'}</span>` : ''}`
                 : `<span style="font-weight:600;color:#6b7280;cursor:pointer;text-decoration:underline" title="Vorschau öffnen" onclick="pbOpenPreview(${d.id})">👁 ${title}</span>`;
@@ -646,7 +647,7 @@ function pbOpenMove(d) {
     _pbMoveLoadPreview(d);   // rechts das Dokument (Walter 08.09.2026)
     document.getElementById('pbMoveId').value = d.id;
     document.getElementById('pbMoveFileInfo').innerHTML = `<b>${d.originalFilename}</b>${d.bemerkung ? '<br>' + d.bemerkung : ''}`;
-    document.getElementById('pbMoveBemerkung').value = d.bemerkung || '';
+    document.getElementById('pbMoveBemerkung').value = d.bemerkung || d.messageBody || '';
     document.getElementById('pbMoveAlert').innerHTML = '';
 
     // Filial-Dropdown füllen — Vorauswahl: Herkunfts-Filiale des Dokuments
@@ -788,9 +789,17 @@ async function pbDoMove(e) {
             body: JSON.stringify({ employeeId: emp.id, dokumentTypId: parseInt(typ, 10), bemerkung: bem })
         });
         if (!r.ok) throw new Error(await r.text() || 'HTTP ' + r.status);
+        let respData = null;
+        try { respData = await r.json(); } catch {}
         pbCloseMove();
         await pbLoadList();
         await pbUpdateBadge();
+        // Walter 23.09.2026: nach dem Ablegen wie beim Hochladen im Dokumente-Tab
+        // fragen, ob OneCrew-Benutzer per Mail informiert werden sollen.
+        if (respData?.employeeDokumentId && typeof dokAskNotifyUser === 'function') {
+            dokAskNotifyUser(respData.employeeDokumentId, bem, emp.id,
+                'Das Dokument wurde beim Mitarbeiter abgelegt. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?');
+        }
     } catch (err) {
         document.getElementById('pbMoveAlert').innerHTML = `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Fehler: ${err.message}</div>`;
     }

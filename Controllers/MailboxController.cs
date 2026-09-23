@@ -819,6 +819,10 @@ public class MailboxController : ControllerBase
         var typ = await _db.DokumentTypen.FindAsync(dto.DokumentTypId);
         if (typ is null) return BadRequest(new { error = "Dokument-Typ nicht gefunden." });
 
+        // Mitteilung ohne Anhang hat keine Datei, die man ablegen könnte.
+        if (string.IsNullOrEmpty(doc.StorageFilename))
+            return BadRequest(new { error = "Diese Mitteilung hat keinen Anhang zum Ablegen." });
+
         // Filiale-Code für employee_dokument-Pfad ermitteln
         var company = await _db.CompanyProfiles.FindAsync(doc.CompanyProfileId);
         var branchCode = company?.RestaurantCode ?? "000";
@@ -846,7 +850,11 @@ public class MailboxController : ControllerBase
             FilenameStorage  = newStorageName,
             MimeType         = doc.MimeType ?? "application/octet-stream",
             GroesseBytes     = doc.FileSizeBytes ?? 0,
-            Bemerkung        = string.IsNullOrWhiteSpace(dto.Bemerkung) ? doc.Bemerkung : dto.Bemerkung,
+            // Mitteilung mit Anhang (Walter 23.09.2026): der Mitteilungstext
+            // geht beim Ablegen nicht verloren, er wird zur Bemerkung.
+            Bemerkung        = !string.IsNullOrWhiteSpace(dto.Bemerkung) ? dto.Bemerkung
+                             : !string.IsNullOrWhiteSpace(doc.Bemerkung) ? doc.Bemerkung
+                             : doc.MessageBody,
             HochgeladenVon   = doc.UploadedBy ?? GetCurrentUserId(),
             HochgeladenAm    = doc.UploadedAt != default ? doc.UploadedAt : DateTime.Now,
         };

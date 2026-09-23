@@ -1928,14 +1928,18 @@ function dokNotifyRoleLabel(role) {
     }
 }
 
-async function dokAskNotifyUser(docId, uploadBemerkung) {
+// empId/introText optional (Walter 23.09.2026): der Posteingang ruft den
+// Dialog nach «Ablegen» auf — dort ist _dokState.empId nicht gesetzt.
+async function dokAskNotifyUser(docId, uploadBemerkung, empId, introText) {
     if (!docId) return;
+    empId = empId ?? _dokState.empId;
+    if (!empId) return;
 
     // Kandidaten laden (aktive User mit E-Mail + Filial-Zugang-Info zur
     // Filiale des MA). Bei Fehler den Dialog stillschweigend überspringen.
     let users = [];
     try {
-        const r = await fetch(`/api/documents/notify-candidates?employeeId=${_dokState.empId}`,
+        const r = await fetch(`/api/documents/notify-candidates?employeeId=${empId}`,
             { headers: { 'Authorization': `Bearer ${authToken}` } });
         if (!r.ok) return;
         users = await r.json();
@@ -1977,7 +1981,7 @@ async function dokAskNotifyUser(docId, uploadBemerkung) {
     wrap.innerHTML = `
     <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:460px;width:92%;padding:22px 24px">
         <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:8px">Benutzer benachrichtigen?</div>
-        <div style="font-size:13.5px;color:#646464;line-height:1.5">Das Dokument wurde hochgeladen. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?</div>
+        <div style="font-size:13.5px;color:#646464;line-height:1.5">${esc(introText || 'Das Dokument wurde hochgeladen. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?')}</div>
         <div style="margin-top:14px">
             <label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Empfänger</label>
             <div id="dokNotifyUserList" style="max-height:200px;overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px">${rows}</div>
