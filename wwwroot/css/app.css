@@ -5596,11 +5596,12 @@
             border-collapse: separate;
             border-spacing: 0;
         }
-        #page-mitarbeiter.liquid-employee .abs-col-type { width: 7rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-period { width: 11rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-days { width: 5rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-hours { width: 9rem; }
-        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; min-width: 6rem; }
+        /* Walter 23.09.2026: enger (Datum jetzt dd.mm.yy), damit Doku + ⋮ sichtbar bleiben */
+        #page-mitarbeiter.liquid-employee .abs-col-type { width: 6.5rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-period { width: 8.5rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-days { width: 4.5rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-hours { width: 8rem; }
+        #page-mitarbeiter.liquid-employee .abs-col-notes { width: auto; min-width: 5rem; }
         #page-mitarbeiter.liquid-employee .abs-col-actions { width: 1%; min-width: 5.5rem; }
         /* Aktionszelle = Teil der Zeile (kein sticky-Streifen mit eigener Farbe) —
            gleiches Muster wie .dok-td-actions. Auf schmalen Macs überdeckte der
@@ -5653,7 +5654,7 @@
             box-shadow: 0 2px 8px rgba(60, 55, 48, 0.10);
         }
         #page-mitarbeiter.liquid-employee .abs-notes {
-            max-width: 14rem;
+            max-width: 11rem;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
