@@ -830,6 +830,7 @@ public static class PayrollCalculations
             vacationWeeks      = saldo.VacationWeeks,
             ferienTageAccrual  = Math.Round(saldo.FerienTageAccrual, 4),
             ferienTageGenommen = Math.Round(saldo.FerienTageGenommen, 4),
+            ferienTageGekuerzt = Math.Round(saldo.FerienTageGekuerzt, 4),
             vormonatFerienTage = saldo.VormonatFerienTage,
             ferienTageSaldoNeu = saldo.FerienTageSaldoNeu,
             // Ferien-Geld (nur UTP/MTP, bei FIX immer 0)

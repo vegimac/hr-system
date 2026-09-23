@@ -602,7 +602,7 @@ public class FibuJournalService
                 // Ferien-RST: UTP/MTP in CHF (Ferien-Geld), FIX/FIX-M Tage × Tagessatz.
                 decimal ferienRst = (modelU is "FLEX" or "MTP")
                     ? SlipDec("ferienGeldAccrual") - SlipDec("ferienGeldAuszahlung")
-                    : (SlipDec("ferienTageAccrual") - SlipDec("ferienTageGenommen")) * tagessatz;
+                    : (SlipDec("ferienTageAccrual") - SlipDec("ferienTageGenommen") - SlipDec("ferienTageGekuerzt")) * tagessatz;
                 ferienRst = Math.Round(ferienRst, 2);
                 if (ferienRst != 0)
                 {

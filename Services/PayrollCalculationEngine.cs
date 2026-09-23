@@ -1071,28 +1071,38 @@ public class PayrollCalculationEngine
         {
             ferienTageGenommen += CountAbsenceDaysInPeriod(a, periodFrom, periodTo);
         }
-        decimal ferienTageSaldoNeu = Math.Round(vormonatFerienTage + ferienTageAccrual - ferienTageGenommen, 4);
+        // Absenzbedingte Ferienkürzung (Walter-Vorgabe 23.09.2026): bewusst
+        // von HR erfasste Einträge mit Datum in dieser Periode. Nur in der
+        // Filiale, zu der der Vertrag am Kürzungsdatum gehört (kein doppelter
+        // Abzug bei zwei Filialen im selben Monat); ohne Zuordnung: hier.
+        decimal ferienTageGekuerzt = 0m;
+        {
+            var kuerzungen = await _db.FerienKuerzungen.AsNoTracking()
+                .Where(k => k.EmployeeId == employeeId && !k.Verzicht
+                         && k.Datum >= periodFrom && k.Datum <= periodTo)
+                .ToListAsync();
+            foreach (var k in kuerzungen)
+            {
+                var kDt = k.Datum.ToDateTime(TimeOnly.MinValue);
+                var kCp = await _db.Employments.AsNoTracking()
+                    .Where(e => e.EmployeeId == employeeId && e.CompanyProfileId != null && e.ContractStartDate <= kDt)
+                    .OrderByDescending(e => e.ContractStartDate)
+                    .Select(e => e.CompanyProfileId).FirstOrDefaultAsync();
+                if (kCp == null || kCp == companyProfileId) ferienTageGekuerzt += k.Tage;
+            }
+        }
+        decimal ferienTageSaldoNeu = Math.Round(vormonatFerienTage + ferienTageAccrual - ferienTageGenommen - ferienTageGekuerzt, 4);
 
         // ── Ferienanspruch-Kürzungs-Vorschlag (Art. 329b OR) ──────────────
         // Berechnet kumulierte Abwesenheits-Tage pro Dienstjahr und schlägt
         // ggfs. eine Kürzung vor (1/12 pro vollem Monat über Schwellwert).
         // Operator entscheidet pro Lohnabrechnung ob anwenden.
-        var kuerzungVorschlag = await _ferienKuerzung.CalculateAsync(employeeId, periodTo);
-        // Wenn vorhandener Saldo bereits eine angewendete Kürzung enthält
-        // (aus früherer Periode), wird sie nicht erneut abgezogen — der
-        // ferienTageSaldoNeu hat sie schon drin (über vormonatFerienTage).
-        decimal kuerzungGesamtTage = kuerzungVorschlag.HasKuerzungVorschlag
-            ? Math.Round(kuerzungVorschlag.TotalKuerzung12tel * (vacationWeeks * 7m) / 12m, 2)
-            : 0m;
-        // Walter-Bug 23.09.2026: Der Vorschlag war die GESAMTE Kürzung des
-        // Dienstjahres — wer sie jeden Monat anwendete, kürzte doppelt (April
-        // 2/12 + Mai nochmals 3/12). Jetzt: Gesamt − in diesem Dienstjahr in
-        // früheren Perioden schon angewendete Tage (aus den Lohnbelegen,
-        // alle Filialen, ohne stornierte). Nie negativ.
-        decimal kuerzungBisherTage = kuerzungVorschlag.HasKuerzungVorschlag
-            ? await BereitsAngewendeteFerienKuerzungAsync(employeeId, kuerzungVorschlag.DienstjahrVon, periodFrom)
-            : 0m;
-        decimal kuerzungVorschlagTage = Math.Max(0m, Math.Round(kuerzungGesamtTage - kuerzungBisherTage, 2));
+        // Walter-Vorgabe 23.09.2026: KEIN Vorschlag mit Häkchen mehr im Lohnlauf —
+        // die Kürzung ist ein bewusster HR-Eintrag (ferien_kuerzung, oben als
+        // ferienTageGekuerzt abgezogen). Felder bleiben leer, damit Slip,
+        // ConfirmPayroll und SnapshotRecompute unverändert funktionieren.
+        var kuerzungVorschlag = FerienKuerzungResult.Empty();
+        decimal kuerzungGesamtTage = 0m, kuerzungBisherTage = 0m, kuerzungVorschlagTage = 0m;
 
         // ── Feiertag-Tage-Saldo (nur FIX / FIX-M) ─────────────────────────
         // Monatliche Gutschrift: +0.5 Tage (fix); Abzug bei FEIERTAG-Absenz
@@ -3106,6 +3116,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
+                    FerienTageGekuerzt:          ferienTageGekuerzt,
                     NightHours:           nightHours,
                     NightBonus:           nightBonus,
                     NachtKompStunden:     Math.Round(nachtKompStunden, 2),
@@ -3761,6 +3772,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
+                    FerienTageGekuerzt:          ferienTageGekuerzt,
                     Basis13ml:            basis13ForSaldoUtp,
                     IsInProbation:        isInProbation,
                     ThirteenthForfeited:  thirteenthForfeited,
@@ -4414,6 +4426,7 @@ public class PayrollCalculationEngine
                     FerienKuerzungVorschlagTage: kuerzungVorschlagTage,
                     FerienKuerzungBisherTage:    kuerzungBisherTage,
                     FerienKuerzungGesamtTage:    kuerzungGesamtTage,
+                    FerienTageGekuerzt:          ferienTageGekuerzt,
                     Basis13ml:            fix13BasisExact),
                 lohnAssignments, bankAccounts, usingDefaultDeductions,
                 periodeFooterText: periodeFooterText,
@@ -5535,34 +5548,4 @@ public class PayrollCalculationEngine
         }
     }
 
-    /// <summary>
-    /// Summe der in früheren Perioden desselben Dienstjahres bereits
-    /// angewendeten Ferienkürzung in Tagen (Slip-Feld
-    /// «ferienKuerzungAngewendetTage»). Walter 23.09.2026.
-    /// </summary>
-    private async Task<decimal> BereitsAngewendeteFerienKuerzungAsync(int employeeId, DateOnly dienstjahrVon, DateOnly periodFrom)
-    {
-        var slips = await (
-            from s in _db.PayrollSnapshots.AsNoTracking()
-            join p in _db.PayrollPerioden.AsNoTracking() on s.PayrollPeriodeId equals p.Id
-            where s.EmployeeId == employeeId
-               && s.Status != "STORNIERT"
-               && p.PeriodFrom >= dienstjahrVon
-               && p.PeriodFrom <  periodFrom
-            select s.SlipJson
-        ).ToListAsync();
-        decimal summe = 0m;
-        foreach (var json in slips)
-        {
-            try
-            {
-                var node = System.Text.Json.Nodes.JsonNode.Parse(json ?? "{}");
-                if (node?["ferienKuerzungAngewendet"]?.GetValue<bool>() != true) continue;
-                var t = node["ferienKuerzungAngewendetTage"];
-                if (t != null) summe += t.GetValue<decimal>();
-            }
-            catch { /* defekter Slip → ignorieren */ }
-        }
-        return Math.Round(summe, 2);
-    }
 }

@@ -37,7 +37,7 @@ public class FerienKuerzungService
     public FerienKuerzungService(AppDbContext db) => _db = db;
 
     public async Task<FerienKuerzungResult> CalculateAsync(
-        int employeeId, DateOnly periodEndDate)
+        int employeeId, DateOnly periodEndDate, bool bisDienstjahrEnde = false)
     {
         var employee = await _db.Employees.FindAsync(employeeId);
         if (employee == null || !employee.EntryDate.HasValue)
@@ -56,7 +56,10 @@ public class FerienKuerzungService
         // immer im Dienstjahr, ist also praktisch die massgebende Grenze.
         // (Untergrenze bleibt der Dienstjahr-Beginn jahrVon — Tage vor dem
         //  Arbeitsjahr-Anniversary zählen ohnehin nicht.)
-        var zaehlBis = periodEndDate < jahrBis ? periodEndDate : jahrBis;
+        // bisDienstjahrEnde (Ferienkürzungs-Eintrag, Walter 23.09.2026): alle
+        // ERFASSTEN Krankheitstage des Dienstjahres zählen («bis Ende des letzten
+        // Arztzeugnisses») — HR entscheidet bewusst, keine Annahme darüber hinaus.
+        var zaehlBis = bisDienstjahrEnde ? jahrBis : (periodEndDate < jahrBis ? periodEndDate : jahrBis);
 
         // Absenzen des Dienstjahres bis zum Periodenende laden
         var absences = await _db.Absences
@@ -131,6 +134,49 @@ public class FerienKuerzungService
         return Math.Max(0, volleMonate - karenzMonate);
     }
 
+    /// <summary>
+    /// Rechnung für den Ferienkürzungs-Eintrag (Walter 23.09.2026): Dienstjahr
+    /// von <paramref name="datum"/>, alle erfassten Krankheits-/Unfall-/
+    /// Militär-/Zivilschutztage, Jahresanspruch (5/6 Wochen altersabhängig),
+    /// bereits erfasste Kürzungen desselben Dienstjahres (ohne
+    /// <paramref name="ausserId"/> beim Bearbeiten).
+    /// </summary>
+    /// <param name="datum">irgendein Tag im gewünschten Dienstjahr (auch im abgelaufenen)</param>
+    public async Task<FerienKuerzungInfo> InfoAsync(int employeeId, DateOnly datum, int? ausserId = null)
+    {
+        var r = await CalculateAsync(employeeId, datum, bisDienstjahrEnde: true);
+        if (r.DienstjahrVon == default)
+            return new FerienKuerzungInfo(default, default, 0, 0, 0, 0, 0, 0, 0, false, null);
+
+        var emp = await _db.Employees.AsNoTracking().FirstAsync(e => e.Id == employeeId);
+        var dtDatum = datum.ToDateTime(TimeOnly.MinValue);
+        var cpId = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId && e.CompanyProfileId != null
+                     && e.ContractStartDate <= dtDatum)
+            .OrderByDescending(e => e.ContractStartDate)
+            .Select(e => e.CompanyProfileId).FirstOrDefaultAsync();
+        var company = cpId.HasValue ? await _db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(c => c.Id == cpId.Value) : null;
+        int wochen = 5;
+        if (emp.DateOfBirth.HasValue && company != null
+            && DateOnly.FromDateTime(emp.DateOfBirth.Value).AddYears(company.VacationSixWeeksFromAge) <= datum)
+            wochen = 6;
+        decimal jahresTage = wochen * 7m;
+
+        var eintraege = await _db.FerienKuerzungen.AsNoTracking()
+            .Where(k => k.EmployeeId == employeeId && k.DienstjahrVon == r.DienstjahrVon
+                     && (ausserId == null || k.Id != ausserId))
+            .ToListAsync();
+        decimal bereits = eintraege.Sum(k => k.Tage);
+        var verzicht = eintraege.Where(k => k.Verzicht).OrderByDescending(k => k.ErstelltAm).FirstOrDefault();
+
+        decimal gesamt = Math.Round(r.KuerzungUnverschuldet12tel * jahresTage / 12m, 2);
+        decimal noch   = Math.Max(0m, Math.Round(gesamt - bereits, 2));
+        return new FerienKuerzungInfo(
+            r.DienstjahrVon, r.DienstjahrBis, r.TageKrankUnfall, r.KuerzungUnverschuldet12tel,
+            jahresTage, gesamt, bereits, noch, Math.Floor(noch),
+            verzicht != null, verzicht?.ErstelltAm);
+    }
+
     private static decimal BerechneKuerzung(decimal tage, int schwellwertTage)
     {
         if (tage <= schwellwertTage) return 0m;
@@ -184,3 +230,17 @@ public record FerienKuerzungResult(
 
     public bool HasKuerzungVorschlag => TotalKuerzung12tel > 0;
 }
+
+/// <summary>Rechnung für einen Ferienkürzungs-Eintrag (Walter 23.09.2026).</summary>
+public record FerienKuerzungInfo(
+    DateOnly DienstjahrVon,
+    DateOnly DienstjahrBis,
+    decimal  TageKrankUnfall,      // gewichtet, ohne Ferien (auch «ferienfähige»)
+    decimal  Zwoelftel,            // nach L-GAV-Tabelle
+    decimal  JahresFerienTage,     // 35 / 42
+    decimal  GesamtTage,           // Zwölftel × Jahresanspruch / 12, genau
+    decimal  BereitsGekuerzt,      // Summe erfasster Einträge im Dienstjahr
+    decimal  NochMoeglich,         // genau, Obergrenze
+    decimal  VorschlagGanzeTage,   // abgerundet
+    bool     Verzichtet,
+    DateTime? VerzichtAm);

@@ -50,6 +50,7 @@ public class AppDbContext : DbContext
     public DbSet<FamilyMemberAllowance> FamilyMemberAllowances => Set<FamilyMemberAllowance>();
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
+    public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
     public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
     public DbSet<LohnKontoMapping> LohnKontoMappings => Set<LohnKontoMapping>();
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
@@ -1395,6 +1396,24 @@ public class AppDbContext : DbContext
         });
 
         // ── Absence ────────────────────────────────────────────────────────
+        // Absenzbedingte Ferienkürzung (Walter 23.09.2026)
+        modelBuilder.Entity<FerienKuerzungEintrag>(entity =>
+        {
+            entity.ToTable("ferien_kuerzung");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Datum).HasColumnName("datum");
+            entity.Property(e => e.DienstjahrVon).HasColumnName("dienstjahr_von");
+            entity.Property(e => e.Tage).HasColumnName("tage").HasColumnType("numeric(6,2)");
+            entity.Property(e => e.Verzicht).HasColumnName("verzicht");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId);
+        });
+
         modelBuilder.Entity<Absence>(entity =>
         {
             entity.ToTable("absence");

@@ -9398,7 +9398,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/file-preview.js?v=20260831a"></script>
 <script src="js/employee-lookup-cache.js?v=20260704p"></script>
 <script src="js/action-menu.js?v=20260704p"></script>
-<script src="js/dashboard.js?v=20260909a"></script>
+<script src="js/dashboard.js?v=20260923a"></script>
 <script src="js/session-timeout.js?v=20260904h"></script>
 <script src="js/session-lock.js?v=20260911a"></script>
 <script src="js/wage-adjustment.js?v=20260720a"></script>
@@ -9947,7 +9947,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260923i"></script>
+<script src="employees.js?v=20260923j"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 
 <!-- ABSENZ MODAL -->
@@ -10009,7 +10009,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div class="ma-grid cols-3">
                 <div class="ma-field">
                     <div class="ma-field-label">Abwesenheitstyp</div>
-                    <select id="absTypeSelect" class="ma-select" onchange="renderAbsDayCheckboxes();calcAbsHoursPreview();absFerienfaehigSync()">
+                    <select id="absTypeSelect" class="ma-select" onchange="if(this.value==='FERIEN_KUERZUNG'){closeAbsenceModal();openFerienKuerzungModal(selectedEmployeeId);return;}renderAbsDayCheckboxes();calcAbsHoursPreview();absFerienfaehigSync()">
                         <option value="KRANK">Krankheit</option>
                         <option value="UNFALL">Unfall</option>
                         <option value="SCHULUNG">Schulung / andere Absenz</option>

@@ -9783,6 +9783,12 @@ async function loadAbsenzenTab(employeeId) {
         const karenzKrankHist  = karenzKrankRes  && karenzKrankRes.ok  ? await karenzKrankRes.json()  : [];
         const karenzUnfallHist = karenzUnfallRes && karenzUnfallRes.ok ? await karenzUnfallRes.json() : [];
         const sperrfrist       = sperrRes && sperrRes.ok ? await sperrRes.json() : null;
+        // Absenzbedingte Ferienkürzungen (Walter 23.09.2026) — eigene Tabelle,
+        // in der Liste als Zeilen zwischen den Absenzen.
+        try {
+            const fkRes = await fetch(`/api/absences/employee/${employeeId}/ferienkuerzungen`, { headers: ah() });
+            window._fkCache = { employeeId, list: fkRes.ok ? await fkRes.json() : [] };
+        } catch { window._fkCache = { employeeId, list: [] }; }
         renderAbsenzenList(el, absences, employeeId, karenzKrankHist, sperrfrist, karenzUnfallHist);
     } catch {
         el.innerHTML = '<div class="emp-placeholder"><span>Fehler beim Laden.</span></div>';
@@ -9906,9 +9912,8 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
         : '';
 
     let rows = '';
-    if (absences.length === 0) {
-        rows = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">Keine Absenzen erfasst</td></tr>`;
-    } else {
+    const rowItems = [];   // {d, html} — Absenzen + Ferienkürzungen, nach Datum sortiert
+    {
         absences.forEach(a => {
             const meta   = ABSENCE_LABELS[a.absenceType] ?? { label: a.absenceType, color: '' };
             const critReasons = criticalById.get(a.id) || [];
@@ -9989,7 +9994,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                 ? `<div class="abs-critical-hint">${esc(critReasons.join(' · '))}</div>`
                 : '';
 
-            rows += `<tr class="${isCritical ? 'abs-row-critical' : ''}">
+            rowItems.push({ d: a.dateFrom || '', html: `<tr class="${isCritical ? 'abs-row-critical' : ''}">
                 <td>
                     <span class="abs-type-badge ${a.ferienfaehig ? '' : meta.color}"${typBadgeStyle}>${typBadge}</span>
                     ${critBadge}
@@ -10002,9 +10007,14 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                     ${docBtn}
                     ${actionsHtml}
                 </td>
-            </tr>`;
+            </tr>` });
         });
     }
+    const fkList = (window._fkCache && window._fkCache.employeeId === employeeId) ? window._fkCache.list : [];
+    (fkList || []).forEach(k => rowItems.push({ d: k.datum || '', html: _fkRowHtml(employeeId, k) }));
+    rows = rowItems.length
+        ? rowItems.sort((x, y) => String(y.d).localeCompare(String(x.d))).map(r => r.html).join('')
+        : `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">Keine Absenzen erfasst</td></tr>`;
 
     // Walter 19.07.2026: Info-Panels + Spaltenköpfe FIX ausserhalb Scroll
     // (kein sticky) — nur Datenzeilen scrollen (analog Stempelzeiten/Dokumente).
@@ -10331,7 +10341,9 @@ async function openAbsenceModal(existing, opts) {
     const currentVal = existing?.absenceType ?? 'KRANK';
     sel.innerHTML = typen.map(t =>
         `<option value="${t.code}" ${t.code === currentVal ? 'selected' : ''}>${t.bezeichnung}</option>`
-    ).join('');
+    ).join('')
+        // Walter 23.09.2026: öffnet das eigene Formular (keine echte Absenz-Zeile).
+        + (existing ? '' : '<option value="FERIEN_KUERZUNG">Absenzbedingte Ferienkürzung</option>');
 
     // Aktive Lohnperiode der MA-Filiale ermitteln, um die Datums-Auswahl auf
     // diese Periode zu begrenzen (Walter-Wunsch: nicht versehentlich in eine
@@ -10981,6 +10993,145 @@ function rowMenuToggle(event, prefix, id) {
     }, 10);
 }
 function absToggleMenu(event, id)   { rowMenuToggle(event, 'abs',    id); }
+
+// ══════════════════════════════════════════════════════════════════════
+// Absenzbedingte Ferienkürzung (Walter-Vorgabe 23.09.2026)
+// Bewusster HR-Eintrag statt Häkchen im Lohnlauf. Eigene Tabelle
+// ferien_kuerzung — in der Absenzen-Liste als Zeile. Rechnung serverseitig
+// (L-GAV: ⌊Tage/30⌋−1 ab 60 Tagen, Krank/Unfall/Militär/Zivilschutz, ohne
+// Ferien). Vorschlag = ganze Tage abgerundet, genauer Betrag erlaubt, nie mehr.
+// Dienstjahr (dessen Krankheitstage) und Buchungsdatum (Lohnlauf-Monat) sind
+// getrennt — die Kürzung fürs abgelaufene Dienstjahr wird heute gebucht.
+// ══════════════════════════════════════════════════════════════════════
+function fkToggleMenu(event, id) { rowMenuToggle(event, 'fk', id); }
+
+function _fkRowHtml(employeeId, k) {
+    const tageTxt = k.verzicht ? 'nicht gekürzt' : `${Number(k.tage).toFixed(2).replace(/\.00$/, '')} Tage`;
+    const stdTxt  = k.verzicht
+        ? '<span class="abs-hours-label">bewusst verzichtet</span>'
+        : `<span class="abs-hours-neg">−${Number(k.tage).toFixed(2)} Tage</span> <span class="abs-hours-label">Ferien</span>`;
+    const notiz = `Dienstjahr ab ${_absDatumKurz(k.dienstjahrVon)}${k.bemerkung ? ' · ' + esc(k.bemerkung) : ''}`;
+    const kJson = JSON.stringify(k).replace(/'/g, '&#39;');
+    return `<tr>
+        <td><span class="abs-type-badge" style="background:#fef3c7;color:#92400e;border:1px solid #fcd34d">Ferienkürzung</span></td>
+        <td style="white-space:nowrap">${_absDatumKurz(k.datum)}</td>
+        <td style="white-space:nowrap;color:#475569">${tageTxt}</td>
+        <td>${stdTxt}</td>
+        <td class="abs-notes" title="${esc(notiz)}">${notiz}</td>
+        <td class="abs-actions">
+            <div class="dok-menu-wrap">
+                <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="fkToggleMenu(event, ${k.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
+                <div class="dok-menu" id="fkMenu-${k.id}">
+                    <button class="dok-menu-item" onclick='openFerienKuerzungModal(${employeeId}, ${kJson})'>Bearbeiten</button>
+                    <button class="dok-menu-item danger" onclick="fkLoeschen(${employeeId}, ${k.id})">Löschen</button>
+                </div>
+            </div>
+        </td>
+    </tr>`;
+}
+
+async function fkLoeschen(employeeId, id) {
+    if (!(await liquidConfirm('Diese Ferienkürzung löschen? Der Ferien-Saldo wird im nächsten Lohnlauf wieder erhöht.',
+            { title: 'Ferienkürzung löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const r = await fetch(`/api/absences/ferienkuerzung/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || ('Fehler ' + r.status)); return; }
+    loadAbsenzenTab(employeeId);
+}
+
+async function openFerienKuerzungModal(empId, eintrag) {
+    if (!empId) return;
+    const iso = d => d.toISOString().slice(0, 10);
+    const heute = new Date();
+    const vorJahr = new Date(heute); vorJahr.setFullYear(heute.getFullYear() - 1);
+    const q = eintrag ? `&ausserId=${eintrag.id}` : '';
+    let infos = [];
+    try {
+        infos = await Promise.all([iso(heute), iso(vorJahr)].map(d =>
+            fetch(`/api/absences/employee/${empId}/ferienkuerzung-info?datum=${d}${q}`, { headers: ah() }).then(r => r.ok ? r.json() : null)));
+    } catch {}
+    infos = infos.filter(i => i && i.dienstjahrVon && i.dienstjahrVon !== '0001-01-01');
+    if (!infos.length) { alert('Ohne Eintrittsdatum lässt sich das Dienstjahr nicht bestimmen.'); return; }
+    // Vorwahl: beim Bearbeiten das Dienstjahr des Eintrags, sonst das erste mit «noch möglich».
+    let idx = eintrag ? Math.max(0, infos.findIndex(i => i.dienstjahrVon === eintrag.dienstjahrVon))
+                      : Math.max(0, infos.findIndex(i => Number(i.nochMoeglich) > 0));
+    const d = t => _absDatumKurz(t);
+    const num = n => Number(n || 0).toFixed(2);
+
+    document.getElementById('fkOverlay')?.remove();
+    const wrap = document.createElement('div');
+    wrap.id = 'fkOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:520px;width:94%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:10px">Absenzbedingte Ferienkürzung</div>
+        <label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Dienstjahr</label>
+        <select id="fkDj" class="ma-select" style="width:100%">
+            ${infos.map((i, n) => `<option value="${n}" ${n === idx ? 'selected' : ''}>${d(i.dienstjahrVon)} – ${d(i.dienstjahrBis)}${n === 0 ? ' (laufend)' : ''}</option>`).join('')}
+        </select>
+        <div id="fkInfo" style="margin-top:10px;padding:10px 12px;border-radius:12px;background:rgba(254,243,199,0.55);border:1px solid rgba(217,119,6,0.35);font-size:12.5px;color:#3f3f3f;line-height:1.55"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px">
+            <div><label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Gebucht per (Lohnlauf-Monat)</label>
+                 <input type="date" id="fkDatum" class="ma-input" value="${eintrag?.datum || iso(heute)}"></div>
+            <div><label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Tage kürzen</label>
+                 <input type="number" id="fkTage" class="ma-input" step="0.01" min="0"></div>
+        </div>
+        <div style="margin-top:10px"><label style="display:block;font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">Bemerkung (optional)</label>
+             <input type="text" id="fkBem" class="ma-input" value="${esc(eintrag?.bemerkung || '')}" placeholder="z.B. mitgeteilt am …"></div>
+        <div id="fkStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px;flex-wrap:wrap">
+            <button id="fkAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button id="fkVerzicht" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Nicht kürzen</button>
+            <button id="fkOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Kürzen</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#fkAbbr').onclick = close;
+
+    const zeigeInfo = (setzeTage) => {
+        const i = infos[idx];
+        const noch = Number(i.nochMoeglich || 0);
+        wrap.querySelector('#fkInfo').innerHTML = `
+            Krankheit/Unfall/Militär/Zivilschutz: <b>${Number(i.tageKrankUnfall).toFixed(1)} Tage</b> <span style="color:#8b8b8b">(gewichtet, ohne Ferien)</span><br>
+            Kürzung möglich: <b>${i.zwoelftel}/12</b> von ${i.jahresFerienTage} Tagen = <b>${num(i.gesamtTage)} Tage</b>
+            ${Number(i.bereitsGekuerzt) > 0 ? ` · bereits gekürzt ${num(i.bereitsGekuerzt)}` : ''}<br>
+            <b>Noch möglich: ${num(noch)} Tage</b> · Vorschlag abgerundet: <b>${Number(i.vorschlagGanzeTage)} Tage</b>
+            ${i.verzichtet ? '<br><span style="color:#8b8b8b">Für dieses Dienstjahr wurde bereits «nicht kürzen» gewählt.</span>' : ''}`;
+        const t = wrap.querySelector('#fkTage');
+        t.max = String(noch);
+        if (setzeTage) t.value = eintrag && !eintrag.verzicht && infos[idx].dienstjahrVon === eintrag.dienstjahrVon
+            ? eintrag.tage : Number(i.vorschlagGanzeTage);
+        wrap.querySelector('#fkOk').disabled = noch <= 0;
+        wrap.querySelector('#fkOk').style.opacity = noch <= 0 ? '0.45' : '1';
+    };
+    zeigeInfo(true);
+    wrap.querySelector('#fkDj').onchange = e => { idx = parseInt(e.target.value, 10) || 0; zeigeInfo(true); };
+
+    const speichern = async (verzicht) => {
+        const st = wrap.querySelector('#fkStatus');
+        const tage = parseFloat(wrap.querySelector('#fkTage').value || '0');
+        const noch = Number(infos[idx].nochMoeglich || 0);
+        if (!verzicht && !(tage > 0)) { st.textContent = 'Bitte die Anzahl Tage angeben.'; return; }
+        if (!verzicht && tage > noch + 0.0001) { st.textContent = `Höchstens ${num(noch)} Tage möglich.`; return; }
+        const body = {
+            employeeId: empId,
+            datum: wrap.querySelector('#fkDatum').value,
+            dienstjahr: infos[idx].dienstjahrVon,
+            tage: verzicht ? 0 : tage,
+            verzicht,
+            bemerkung: wrap.querySelector('#fkBem').value.trim() || (verzicht ? 'Bewusst nicht gekürzt' : null),
+        };
+        const url = eintrag ? `/api/absences/ferienkuerzung/${eintrag.id}` : '/api/absences/ferienkuerzung';
+        const r = await fetch(url, { method: eintrag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        close();
+        loadAbsenzenTab(empId);
+        if (typeof showToast === 'function') showToast(verzicht ? '✓ «Nicht kürzen» gespeichert' : `✓ Ferienkürzung ${num(tage)} Tage erfasst`, 'success');
+    };
+    wrap.querySelector('#fkOk').onclick = () => speichern(false);
+    wrap.querySelector('#fkVerzicht').onclick = () => speichern(true);
+}
 
 // Absenzen-Liste: kurzes Datum dd.mm.yy (Walter 23.09.2026, nur diese Tabelle).
 function _absDatumKurz(iso) {

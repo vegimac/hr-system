@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 24;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026)
+const int SchemaStand = 25;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -1538,6 +1538,20 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE absence ADD COLUMN IF NOT EXISTS dokument_id INTEGER;
         -- Ferien während Arbeitsunfähigkeit, ferienfähig (Walter 23.09.2026)
         ALTER TABLE absence ADD COLUMN IF NOT EXISTS ferienfaehig BOOLEAN NOT NULL DEFAULT false;
+        -- Absenzbedingte Ferienkürzung als bewusster HR-Eintrag (Walter 23.09.2026)
+        CREATE TABLE IF NOT EXISTS ferien_kuerzung (
+            id            SERIAL PRIMARY KEY,
+            employee_id   INTEGER NOT NULL REFERENCES employee(id) ON DELETE CASCADE,
+            datum         DATE NOT NULL,
+            dienstjahr_von DATE NOT NULL,
+            tage          NUMERIC(6,2) NOT NULL DEFAULT 0,
+            verzicht      BOOLEAN NOT NULL DEFAULT false,
+            bemerkung     TEXT,
+            dokument_id   INTEGER,
+            erstellt_von  TEXT,
+            erstellt_am   TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
+        );
+        CREATE INDEX IF NOT EXISTS ix_ferien_kuerzung_employee ON ferien_kuerzung(employee_id);
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
@@ -2064,6 +2078,21 @@ using (var scope = app.Services.CreateScope())
         -- unter Warnungen einstellbar. Guard: nur die alte Seed-Zeile umstellen.
         UPDATE dashboard_warning_config SET is_date_based = TRUE, warn_days = 14
             WHERE category = 'austritt_unvollstaendig' AND is_date_based = FALSE AND warn_days IS NULL;
+    ");
+    // To-do «Ferienkürzung möglich» (Walter-Vorgabe 23.09.2026): nur in leere
+    // Zeilen (ON CONFLICT DO NOTHING) — User-Einstellungen bleiben unberührt.
+    db.Database.ExecuteSqlRaw(@"
+        INSERT INTO dashboard_warning_config
+            (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
+        VALUES
+            ('ferienkuerzung_moeglich', 'Ferienkürzung möglich', TRUE, NULL, NULL, 'warning', NULL, FALSE, 24, 90, 'none')
+        ON CONFLICT (category) DO NOTHING;
+        INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
+        ('ferienkuerzung_moeglich',
+         'Über die Ferienkürzung entscheiden',
+         'Wegen Krankheit/Unfall/Militär im Dienstjahr dürfen die Ferien gekürzt werden (L-GAV: erster voller Monat frei, danach 1/12 pro vollem Monat). Mitarbeiter öffnen, Tab «Absenzen», «Absenz erfassen» → «Absenzbedingte Ferienkürzung». Dort steht, wie viele Tage möglich sind. Wollt ihr nicht kürzen, dort «Nicht kürzen» wählen — dann verschwindet der Punkt, bis neue Krankheitstage dazukommen.',
+         140)
+        ON CONFLICT (category) DO NOTHING;
     ");
 
     // Seed: Kader-Flag + Mirus-Aliases (idempotent — UPDATE auch bei bestehenden)

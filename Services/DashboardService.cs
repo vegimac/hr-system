@@ -1065,6 +1065,67 @@ public class DashboardService
             }
         }
 
+        // ── Ferienkürzung möglich (Walter-Vorgabe 23.09.2026) ─────────────
+        // Die Kürzung ist ein bewusster HR-Eintrag (ferien_kuerzung). Meldung,
+        // solange im laufenden oder abgelaufenen Dienstjahr mind. 1 ganzer Tag
+        // gekürzt werden könnte und weder erfasst noch bewusst verzichtet ist.
+        // Ein Verzicht gilt, bis danach neue Krankheitstage erfasst werden.
+        if (Enabled("ferienkuerzung_moeglich"))
+        {
+            var auTypen = new[] { "KRANK", "UNFALL", "MILITAER", "ZIVILSCHUTZ" };
+            var seit = today.AddDays(-760);   // abgelaufenes + laufendes Dienstjahr
+            var auEmpIds = await _db.Absences.AsNoTracking()
+                .Where(a => auTypen.Contains(a.AbsenceType) && a.DateTo >= seit)
+                .Select(a => a.EmployeeId).Distinct().ToListAsync();
+            var fkCandQ = _db.Employees.AsNoTracking()
+                .Where(e => auEmpIds.Contains(e.Id) && e.IsActive && e.EntryDate != null
+                         && !e.IsPayrollExcluded
+                         && !e.EmployeeNumber.ToLower().EndsWith("alt"));
+            if (companyProfileId.HasValue)
+            {
+                fkCandQ = fkCandQ.Where(e =>
+                    e.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value)
+                    || (!e.Employments.Any(em => em.IsActive)
+                        && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                            .Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
+            }
+            var fkCands = await fkCandQ
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .ToListAsync();
+            var fkSvc = new FerienKuerzungService(_db);
+            foreach (var e in fkCands)
+            {
+                foreach (var stichtag in new[] { today.AddYears(-1), today })
+                {
+                    var info = await fkSvc.InfoAsync(e.Id, stichtag);
+                    if (info.DienstjahrVon == default || info.NochMoeglich < 1m) continue;
+                    if (info.Verzichtet)
+                    {
+                        // Verzicht gilt, solange keine AU danach erfasst/geändert wurde.
+                        var letzteAu = await _db.Absences.AsNoTracking()
+                            .Where(a => a.EmployeeId == e.Id && auTypen.Contains(a.AbsenceType)
+                                     && a.DateTo >= info.DienstjahrVon && a.DateFrom <= info.DienstjahrBis)
+                            .MaxAsync(a => (DateTime?)a.UpdatedAt);
+                        if (letzteAu == null || letzteAu <= info.VerzichtAm) continue;
+                    }
+                    var name = $"{e.FirstName} {e.LastName}".Trim();
+                    alerts.Add(new DashboardAlert
+                    {
+                        Category = "ferienkuerzung_moeglich",
+                        Severity = SeverityState("ferienkuerzung_moeglich", "warning"),
+                        Title    = $"Ferienkürzung möglich: {info.VorschlagGanzeTage:0} Tag{(info.VorschlagGanzeTage == 1 ? "" : "e")}",
+                        Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · Dienstjahr {info.DienstjahrVon:dd.MM.yyyy}–{info.DienstjahrBis:dd.MM.yyyy}"
+                                 + $" · {info.TageKrankUnfall:0.#} Krankheitstage → {info.Zwoelftel:0}/12 = {info.GesamtTage:0.00} Tage"
+                                 + (info.BereitsGekuerzt > 0 ? $" · bereits gekürzt {info.BereitsGekuerzt:0.00}" : ""),
+                        TitleKey = "alert.ferienkuerzung.moeglich",
+                        EmployeeId     = e.Id,
+                        EmployeeNumber = e.EmployeeNumber,
+                        EmployeeName   = name
+                    });
+                }
+            }
+        }
+
         var exitPendingQ = _db.Employees
             .Where(e => e.IsActive
                      && e.ExitDate.HasValue
@@ -2407,7 +2468,9 @@ public class DashboardService
             // (05.09.) lagen ALLE Treffer innerhalb der 30-Tage-Sperre und die
             // Todo konnte nie mehr erscheinen.
             var keepCats = new HashSet<string> { "contract_end", "exit_pending_active", "kuendigung_ablauf", "kuendigung_sperrfrist_ende",
-                                                 "arbeitszeugnis_fehlt", "austritt_unvollstaendig", "austritt_datum_mismatch" };
+                                                 "arbeitszeugnis_fehlt", "austritt_unvollstaendig", "austritt_datum_mismatch",
+                                                 // Walter 23.09.2026: Kürzung ändert die Restferien-Auszahlung beim Austritt
+                                                 "ferienkuerzung_moeglich" };
             var filterIds = alerts
                 .Where(a => a.EmployeeId.HasValue && !keepCats.Contains(a.Category))
                 .Select(a => a.EmployeeId!.Value).Distinct().ToList();

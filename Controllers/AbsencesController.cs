@@ -13,12 +13,15 @@ public class AbsencesController : ControllerBase
     private readonly KarenzService       _karenz;
     private readonly SperrfristService   _sperrfrist;
     private readonly LohnEditLockService _editLock;
-    public AbsencesController(AppDbContext db, KarenzService karenz, SperrfristService sperrfrist, LohnEditLockService editLock)
+    private readonly FerienKuerzungService _ferienKuerzung;
+    public AbsencesController(AppDbContext db, KarenzService karenz, SperrfristService sperrfrist, LohnEditLockService editLock,
+                              FerienKuerzungService ferienKuerzung)
     {
         _db         = db;
         _karenz     = karenz;
         _sperrfrist = sperrfrist;
         _editLock   = editLock;
+        _ferienKuerzung = ferienKuerzung;
     }
 
     /// <summary>
@@ -423,6 +426,103 @@ public class AbsencesController : ControllerBase
             : DateOnly.FromDateTime(DateTime.Today);
         var info = await _sperrfrist.ComputeAsync(employeeId, s);
         return Ok(info);
+    }
+
+    // ── Absenzbedingte Ferienkürzung (Walter-Vorgabe 23.09.2026) ─────────
+    // Bewusster HR-Eintrag statt Häkchen im Lohnlauf. Eigene Tabelle (kein
+    // Abwesenheitstag). Obergrenze = «noch möglich» laut Rechnung, genauer
+    // Betrag erlaubt, NIE mehr. Lohn-Sperre wie bei Absenzen (Datum = Monat).
+
+    [HttpGet("employee/{employeeId:int}/ferienkuerzung-info")]
+    public async Task<IActionResult> FerienKuerzungInfo(int employeeId, [FromQuery] string? datum, [FromQuery] int? ausserId)
+    {
+        var d = DateOnly.TryParse(datum, out var p) ? p : DateOnly.FromDateTime(DateTime.Today);
+        return Ok(await _ferienKuerzung.InfoAsync(employeeId, d, ausserId));
+    }
+
+    [HttpGet("employee/{employeeId:int}/ferienkuerzungen")]
+    public async Task<IActionResult> FerienKuerzungen(int employeeId)
+        => Ok(await _db.FerienKuerzungen.AsNoTracking()
+            .Where(k => k.EmployeeId == employeeId)
+            .OrderByDescending(k => k.Datum)
+            .Select(k => new { k.Id, k.EmployeeId, datum = k.Datum.ToString("yyyy-MM-dd"),
+                               dienstjahrVon = k.DienstjahrVon.ToString("yyyy-MM-dd"), k.Tage, k.Verzicht,
+                               k.Bemerkung, k.DokumentId, k.ErstelltVon, k.ErstelltAm })
+            .ToListAsync());
+
+    public class FerienKuerzungDto
+    {
+        public int     EmployeeId { get; set; }
+        public string  Datum      { get; set; } = "";
+        /// <summary>Irgendein Tag im Dienstjahr, das gekürzt wird (Default = Datum).</summary>
+        public string? Dienstjahr { get; set; }
+        public decimal Tage       { get; set; }
+        public bool    Verzicht   { get; set; }
+        public string? Bemerkung  { get; set; }
+    }
+
+    [HttpPost("ferienkuerzung")]
+    public Task<IActionResult> FerienKuerzungAnlegen([FromBody] FerienKuerzungDto dto) => FerienKuerzungSpeichernAsync(null, dto);
+
+    [HttpPut("ferienkuerzung/{id:int}")]
+    public Task<IActionResult> FerienKuerzungAendern(int id, [FromBody] FerienKuerzungDto dto) => FerienKuerzungSpeichernAsync(id, dto);
+
+    private async Task<IActionResult> FerienKuerzungSpeichernAsync(int? id, FerienKuerzungDto dto)
+    {
+        if (!DateOnly.TryParse(dto.Datum, out var datum))
+            return BadRequest(new { error = "DATUM", message = "Datum fehlt oder ist ungültig." });
+        FerienKuerzungEintrag? e = null;
+        if (id.HasValue)
+        {
+            e = await _db.FerienKuerzungen.FirstOrDefaultAsync(k => k.Id == id.Value);
+            if (e == null) return NotFound();
+            var lockAlt = await CheckLohnLockAsync(e.EmployeeId, e.Datum, e.Datum);
+            if (lockAlt != null) return lockAlt;
+        }
+        int empId = e?.EmployeeId ?? dto.EmployeeId;
+        var lockNeu = await CheckLohnLockAsync(empId, datum, datum);
+        if (lockNeu != null) return lockNeu;
+
+        var djStichtag = DateOnly.TryParse(dto.Dienstjahr, out var dj) ? dj : datum;
+        var info = await _ferienKuerzung.InfoAsync(empId, djStichtag, id);
+        if (info.DienstjahrVon == default)
+            return BadRequest(new { error = "EINTRITT", message = "Ohne Eintrittsdatum lässt sich das Dienstjahr nicht bestimmen." });
+        decimal tage = dto.Verzicht ? 0m : Math.Round(dto.Tage, 2);
+        if (!dto.Verzicht)
+        {
+            if (tage <= 0)
+                return BadRequest(new { error = "TAGE", message = "Bitte die Anzahl Tage angeben (oder «nicht kürzen» wählen)." });
+            if (tage > info.NochMoeglich)
+                return BadRequest(new { error = "ZU_VIEL",
+                    message = $"Höchstens {info.NochMoeglich:0.00} Tage möglich (Dienstjahr {info.DienstjahrVon:dd.MM.yyyy}–{info.DienstjahrBis:dd.MM.yyyy}, bereits gekürzt {info.BereitsGekuerzt:0.00})." });
+        }
+
+        if (e == null)
+        {
+            e = new FerienKuerzungEintrag { EmployeeId = empId };
+            _db.FerienKuerzungen.Add(e);
+        }
+        e.Datum       = datum;
+        e.DienstjahrVon = info.DienstjahrVon;
+        e.Tage        = tage;
+        e.Verzicht    = dto.Verzicht;
+        e.Bemerkung   = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        e.ErstelltVon = User.Identity?.Name;
+        e.ErstelltAm  = DateTime.Now;
+        await _db.SaveChangesAsync();
+        return Ok(new { e.Id, datum = e.Datum.ToString("yyyy-MM-dd"), e.Tage, e.Verzicht });
+    }
+
+    [HttpDelete("ferienkuerzung/{id:int}")]
+    public async Task<IActionResult> FerienKuerzungLoeschen(int id)
+    {
+        var e = await _db.FerienKuerzungen.FirstOrDefaultAsync(k => k.Id == id);
+        if (e == null) return NotFound();
+        var lockRes = await CheckLohnLockAsync(e.EmployeeId, e.Datum, e.Datum);
+        if (lockRes != null) return lockRes;
+        _db.FerienKuerzungen.Remove(e);
+        await _db.SaveChangesAsync();
+        return Ok();
     }
 
     // ── DELETE /api/absences/{id} ─────────────────────────────────────────

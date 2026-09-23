@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using HrSystem.Models;
 using HrSystem.Services;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace HrSystem.Tests;
@@ -87,4 +88,61 @@ public class FerienfaehigSperrfristTests
     public void Ferienkuerzung_TeilAu_GewichteteTage()
         // 150 Tage zu 50 % = 75 gewichtete Tage → 1/12
         => Assert.Equal(1, FerienKuerzungService.BerechneKuerzungNachKarenz(75m, karenzMonate: 1));
+}
+
+/// <summary>
+/// Rechnung für den Ferienkürzungs-Eintrag (Walter 23.09.2026) am Beispiel
+/// Gamze Demirel: Eintritt 10.06.2013 → Dienstjahr 10.06.2026–09.06.2027.
+/// </summary>
+public class FerienKuerzungInfoTests
+{
+    private static HrSystem.Data.AppDbContext NewDb([System.Runtime.CompilerServices.CallerMemberName] string t = "")
+        => new(new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<HrSystem.Data.AppDbContext>()
+            .UseInMemoryDatabase("FkInfo_" + t + "_" + Guid.NewGuid()).Options);
+
+    private static async System.Threading.Tasks.Task<int> SeedAsync(HrSystem.Data.AppDbContext db)
+    {
+        var e = new Employee { EmployeeNumber = "580020", FirstName = "Gamze", LastName = "Demirel", IsActive = true,
+                               EntryDate = new DateTime(2013, 6, 10), DateOfBirth = new DateTime(1991, 2, 25) };
+        db.Employees.Add(e);
+        await db.SaveChangesAsync();
+        void A(string typ, DateOnly von, DateOnly bis, decimal pct = 100, bool ff = false)
+            => db.Absences.Add(new Absence { EmployeeId = e.Id, AbsenceType = typ, DateFrom = von, DateTo = bis, Prozent = pct, Ferienfaehig = ff });
+        A("KRANK",  new(2026, 3, 19), new(2026, 6, 30));            // davon 21 Tage ab 10.06.
+        A("FERIEN", new(2026, 7, 1),  new(2026, 7, 25), ff: true);  // zählt NICHT
+        A("KRANK",  new(2026, 7, 26), new(2026, 8, 13));            // 19
+        A("KRANK",  new(2026, 8, 14), new(2026, 8, 31), 50);         // 18 × 0.5 = 9
+        A("KRANK",  new(2026, 9, 1),  new(2026, 9, 30), 50);         // 30 × 0.5 = 15
+        await db.SaveChangesAsync();
+        return e.Id;
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task Gamze_LaufendesDienstjahr_64Tage_Ein_Zwoelftel()
+    {
+        using var db = NewDb();
+        int id = await SeedAsync(db);
+        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23));
+        Assert.Equal(new DateOnly(2026, 6, 10), info.DienstjahrVon);
+        Assert.Equal(64m, info.TageKrankUnfall);
+        Assert.Equal(1m, info.Zwoelftel);
+        Assert.Equal(35m, info.JahresFerienTage);
+        Assert.Equal(2.92m, info.GesamtTage);
+        Assert.Equal(2.92m, info.NochMoeglich);
+        Assert.Equal(2m, info.VorschlagGanzeTage);   // abgerundet
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task BereitsErfassteKuerzung_WirdAbgezogen()
+    {
+        using var db = NewDb();
+        int id = await SeedAsync(db);
+        db.FerienKuerzungen.Add(new FerienKuerzungEintrag { EmployeeId = id, Datum = new DateOnly(2026, 9, 30),
+                                                            DienstjahrVon = new DateOnly(2026, 6, 10), Tage = 2m });
+        await db.SaveChangesAsync();
+        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23));
+        Assert.Equal(2m, info.BereitsGekuerzt);
+        Assert.Equal(0.92m, info.NochMoeglich);
+        Assert.Equal(0m, info.VorschlagGanzeTage);
+    }
 }
