@@ -2139,6 +2139,19 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     opts.push({ ...maOpt('night_work_exam', 'Nachtarbeit: Arztzeugnis', 'oder Verzichtserklärung', emp?.nightWorkExamDokumentId ?? null) });
     opts.push({ ...maOpt('night_work_ausnahme', 'Nachtarbeit: Ausnahmeregelung', 'Tag-/Nachtarbeit', emp?.nightWorkAusnahmeDokumentId ?? null) });
 
+    // ── Vertrag ── unterschriebener Vertrag pro Vertragsabschnitt (neueste zuerst, max. 4)
+    const fmtD = iso => iso ? String(iso).slice(8, 10) + '.' + String(iso).slice(5, 7) + '.' + String(iso).slice(0, 4) : '';
+    (emp?.employments || [])
+        .slice().sort((a, b) => String(b.contractStartDate || '').localeCompare(String(a.contractStartDate || '')))
+        .slice(0, 4)
+        .forEach(v => opts.push({
+            key: 'vertrag' + v.id, gruppe: 'Vertrag', label: 'Unterschriebener Vertrag', zeigeSub: true, maNeuLaden: true,
+            sub: [v.employmentModel, v.jobTitle].filter(Boolean).join(' · ')
+                 + ` · ${fmtD(v.contractStartDate)} – ${v.contractEndDate ? fmtD(v.contractEndDate) : 'offen'}`,
+            current: v.vertragDokumentId ?? null,
+            apply: patchJson(`/api/employees/${empId}/employments/${v.id}/dokument`, { dokumentId: docId }),
+        }));
+
     // ── Familie ── Partner/Kinder nur, wenn erfasst
     const famName = m => `${m.firstName || ''} ${m.lastName || ''}`.trim() + (m.dateOfBirth ? ` · ${jahr(m.dateOfBirth)}` : '');
     const famOpt = (m, label, art) => ({

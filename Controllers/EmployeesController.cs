@@ -1272,6 +1272,26 @@ public class EmployeesController : ControllerBase
     public class BankDokumentDto { public int? DokumentId { get; set; } }
 
     /// <summary>
+    /// Unterschriebenen Vertrag an einen Vertragsabschnitt hängen/lösen
+    /// (Walter 23.09.2026). Hier statt im EmploymentsController: ein Beleg
+    /// ändert keinen Lohn und fällt nicht unter die Lohn-Edit-Sperre.
+    /// </summary>
+    [HttpPatch("{id:int}/employments/{employmentId:int}/dokument")]
+    public async Task<IActionResult> SetVertragDokument(int id, int employmentId, [FromBody] BankDokumentDto dto)
+    {
+        var vertrag = await _context.Employments
+            .FirstOrDefaultAsync(e => e.Id == employmentId && e.EmployeeId == id);
+        if (vertrag == null) return NotFound();
+        if (dto.DokumentId.HasValue
+            && !await _context.EmployeeDokumente.AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id))
+            return BadRequest(new { error = "DOKUMENT_INVALID",
+                message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        vertrag.VertragDokumentId = dto.DokumentId;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = vertrag.Id, vertragDokumentId = vertrag.VertragDokumentId });
+    }
+
+    /// <summary>
     /// Probezeitgespräch 1 oder 2: Durchführungsdatum setzen/löschen
     /// (Walter 20.07.2026). Das ausgefüllte Protokoll wird separat via
     /// ausweis-doku (kind=probezeit_gespraech1|2) verknüpft.

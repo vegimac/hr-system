@@ -2232,12 +2232,22 @@ function _empContractActionsHtml(emp, c, allContracts) {
     const deleteItem = (typeof isOpsRole === 'function' && isOpsRole())
         ? `<button type="button" class="dok-menu-item danger" onclick="empContractDelete(${cid}, ${emp.id})">Löschen</button>`
         : '';
+    // Unterschriebener Vertrag (Walter 23.09.2026): direkt verknüpftes Dokument.
+    const vDok = c.vertragDokumentId;
+    const vertragItems = (vDok
+        ? `<button type="button" class="dok-menu-item" onclick="openDirectDoc(${vDok})">Unterschriebenen Vertrag öffnen</button>`
+        : '')
+        + `<button type="button" class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})">${vDok ? 'Unterschriebenen Vertrag ersetzen' : 'Unterschriebenen Vertrag verknüpfen'}</button>`;
+    const vertragPill = vDok
+        ? `<button type="button" class="emp-field-docbtn" onclick="openDirectDoc(${vDok})" title="Unterschriebener Vertrag verknüpft — klicken zum Öffnen"
+               style="margin-right:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;font-weight:600;line-height:1;font-family:inherit">Unterschrieben ✓</button>`
+        : '';
     const items = historisch
         ? `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${deleteItem}`
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${deleteItem}`
         : `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}${deleteItem}`;
-    return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${smsItems}${deleteItem}`;
+    return `${vertragPill ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${vertragPill}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${vertragPill ? '' : 'margin-left:auto;'}flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
         <div class="dok-menu" id="ctrMenu-${cid}">${items}</div>
     </div>`;
@@ -2920,7 +2930,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
           'probezeit_gespraech1', 'probezeit_gespraech2',
           'lohn_assignment', 'qst_tarif', 'arbeitszeugnis',
           // Direkt verknüpfte Dokumente (Walter 23.09.2026)
-          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde'].includes(kind)) return;
+          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2946,6 +2956,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' ? ['birth_cert']
                       : kind === 'zivilstand'          ? ['marriage_cert']
                       : kind === 'bank_beleg'          ? ['bank_card']
+                      : kind === 'vertrag'             ? ['contract']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2966,6 +2977,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                            ? /(geburt|birth)/i
                        : kind === 'zivilstand'         ? /(ehe|heirat|scheidung|zivilstand|familienausweis|partnerschaft)/i
                        : kind === 'bank_beleg'         ? /(bank|iban|konto|post)/i
+                       : kind === 'vertrag'            ? /(vertrag|contract|flex|mtp|fix)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -3019,6 +3031,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'fam_geburtsurkunde'  ? 'Geburtsurkunde Familienmitglied verknüpfen'
                    : kind === 'zivilstand'          ? 'Zivilstandsdokument verknüpfen'
                    : kind === 'bank_beleg'          ? 'Bankbeleg verknüpfen'
+                   : kind === 'vertrag'             ? 'Unterschriebenen Vertrag verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -3040,7 +3053,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
                         : kind === 'zivilstand'
                             ? 'Wähle das Dokument zum Zivilstand (Eheschein, Familienausweis, Scheidungsurteil …) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg')
+                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag')
                             ? 'Wähle das passende Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
@@ -3163,6 +3176,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         lohnAssignmentId: extra?.lohnAssignmentId || null,
         // Walter 23.09.2026: Bankbeleg pro Konto / Geburtsurkunde Familienmitglied.
         bankAccountId: extra?.bankAccountId || null,
+        employmentId: extra?.employmentId || null,
         familyMemberId: extra?.familyMemberId || null,
         // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
         qstEntryId: extra?.qstEntryId || null
@@ -3249,6 +3263,10 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!ctx.bankAccountId) { alert('Bankkonto-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/bank-accounts/${ctx.bankAccountId}/dokument`;
             body = JSON.stringify({ dokumentId });
+        } else if (kind === 'vertrag') {
+            if (!ctx.employmentId) { alert('Vertrags-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/employments/${ctx.employmentId}/dokument`;
+            body = JSON.stringify({ dokumentId });
         } else if (kind === 'fam_geburtsurkunde') {
             if (!ctx.familyMemberId) { alert('Familienmitglied-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/family/${ctx.familyMemberId}/dokument`;
@@ -3324,7 +3342,7 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         }
         // Nachtarbeit-Belege / Arbeitszeugnis: MA-Detail neu laden.
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
-             || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand') && typeof selectEmployee === 'function') selectEmployee(empId);
+             || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
         if (kind === 'fam_geburtsurkunde' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
         // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,

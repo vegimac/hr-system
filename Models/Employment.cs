@@ -9,6 +9,10 @@ public class Employment
     public int EmployeeId { get; set; }
     public int? CompanyProfileId { get; set; }
 
+    /// <summary>Unterschriebener Vertrag als verknüpftes Dokument (Walter 23.09.2026).
+    /// Wird von Update/easy@work-Sync nie gesetzt — nur über den Verknüpfen-Dialog.</summary>
+    public int? VertragDokumentId { get; set; }
+
     [JsonIgnore]
     public CompanyProfile? CompanyProfile { get; set; }
 
