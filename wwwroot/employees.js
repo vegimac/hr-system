@@ -13449,6 +13449,7 @@ function onAufteilungTypChange() {
 }
 
 function closeBankAccountModal() {
+    window._baAfterSave = null;   // Abbruch → kein Beleg verknüpfen
     const modal = document.getElementById('bankAccountModal');
     if (modal) { modal.style.display = 'none'; modal.dataset.editId = ''; }
 }
@@ -13588,6 +13589,15 @@ async function saveBankAccount() {
             try { const j = await res.json(); if (j.message) msg = j.message; } catch {}
             alert(msg);
             return;
+        }
+        // Beleg aus dem Verknüpfen-Dialog (Walter 23.09.2026): nach dem Anlegen
+        // einer NEUEN Bankverbindung das hochgeladene Dokument daran hängen.
+        const afterSave = !editId ? window._baAfterSave : null;
+        window._baAfterSave = null;
+        if (afterSave) {
+            let neu = null;
+            try { neu = await res.json(); } catch {}
+            if (neu?.id) { try { await afterSave(neu.id); } catch (e) { console.error('baAfterSave', e); } }
         }
         closeBankAccountModal();
         loadBankAccountsTab(selectedEmployeeId);

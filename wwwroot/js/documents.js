@@ -1913,6 +1913,7 @@ async function dokUpload() {
         // Bemerkung dient als Nachricht-Vorschlag.
         await dokAskNotifyUser(respData?.id ?? null, bemerkung);
         if (verkn?.bewilligung) await dokNeueBewilligungMitDok(empIdUpload, respData.id);
+        if (verkn?.neueBank) await dokNeueBankMitDok(empIdUpload, respData.id);
     } catch (err) {
         status.textContent = 'Fehler: ' + err.message;
         status.style.color = '#b91c1c';
@@ -2118,12 +2119,15 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
                     current: emp?.fotoDokumentId ?? null, apply: null, maNeuLaden: true });
     // Bankbeleg pro aktuell gültigem Konto (Walter 23.09.2026)
     const heute = new Date().toISOString().slice(0, 10);
+    // Walter 23.09.2026: «bestehende Bank oder neue Bank» — pro gültigem Konto
+    // eine Zeile, dazu immer «neue Bankverbindung erfassen».
     (bank || []).filter(k => !k.validTo || k.validTo >= heute).forEach(k => opts.push({
-        key: 'bank' + k.id, gruppe: 'Mitarbeiter/in', label: 'Bankbeleg', zeigeSub: true,
+        key: 'bank' + k.id, gruppe: 'Mitarbeiter/in', label: 'Bankbeleg bestehende Bank', zeigeSub: true,
         sub: (k.iban ? '…' + String(k.iban).replace(/\s+/g, '').slice(-4) : '') + (k.bankName ? ' · ' + k.bankName : '') + (k.isHauptbank ? ' · Hauptbank' : ''),
         current: k.dokumentId ?? null,
         apply: patchJson(`/api/employees/${empId}/bank-accounts/${k.id}/dokument`, { dokumentId: docId }),
     }));
+    opts.push({ key: 'banknew', gruppe: 'Mitarbeiter/in', label: 'Bankbeleg neue Bank', sub: 'Bankverbindung erfassen', current: null, apply: null });
     // Nachtarbeit (Walter 23.09.2026): Arztzeugnis/Verzicht + Ausnahmeregelung.
     opts.push({ ...maOpt('night_work_exam', 'Nachtarbeit: Arztzeugnis', 'oder Verzichtserklärung', emp?.nightWorkExamDokumentId ?? null) });
     opts.push({ ...maOpt('night_work_ausnahme', 'Nachtarbeit: Ausnahmeregelung', 'Tag-/Nachtarbeit', emp?.nightWorkAusnahmeDokumentId ?? null) });
@@ -2188,6 +2192,7 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     });
     if (!wahl) return { verknuepft: false, bewilligung: false };
     if (wahl.key === 'bew') return { verknuepft: false, bewilligung: true };
+    if (wahl.key === 'banknew') return { verknuepft: false, neueBank: true };
 
     if (wahl.current && wahl.current !== docId) {
         const ok = await liquidConfirm(
@@ -2244,6 +2249,28 @@ async function dokNeueBewilligungMitDok(empId, docId) {
         && typeof phfOcrPermit === 'function') {
         await phfOcrPermit(docId);
     }
+}
+
+// Neue Bankverbindung mit dem soeben abgelegten Beleg (Walter 23.09.2026):
+// MA öffnen, Bank-Tab zeigen, Formular «Bankverbindung erfassen» öffnen. Nach
+// dem Speichern hängt saveBankAccount den Beleg an das neue Konto.
+async function dokNeueBankMitDok(empId, docId) {
+    if (typeof openBankAccountModal !== 'function') return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    if (typeof switchEmpTab === 'function') switchEmpTab('quellensteuer');
+    await openBankAccountModal(null);
+    window._baAfterSave = async (kontoId) => {
+        const r = await fetch(`/api/employees/${empId}/bank-accounts/${kontoId}/dokument`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: docId }) });
+        if (r.ok && typeof showToast === 'function') showToast('✓ Bankbeleg mit der neuen Bankverbindung verknüpft', 'success');
+    };
 }
 
 // Mitarbeiterfoto mit Ausschnitt (Walter 23.09.2026): quadratischen Bereich
