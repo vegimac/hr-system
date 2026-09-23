@@ -13718,42 +13718,59 @@ async function weitAgLoeschen(employeeId, id) {
 function openWeitererAgModal(employeeId, ag) {
     document.getElementById('weitAgOverlay')?.remove();
     const v = k => esc(ag?.[k] ?? '');
+    // Aufbau wie die Standard-Erfassungsmasken (ov-Standard, z.B. Absenz):
+    // ma-modal-box · ma-grid · ma-field — gleich breite, weisse Felder.
+    const feld = (label, inner, span = 1) =>
+        `<div class="ma-field"${span > 1 ? ` style="grid-column:span ${span}"` : ''}><div class="ma-field-label">${label}</div>${inner}</div>`;
     const wrap = document.createElement('div');
     wrap.id = 'weitAgOverlay';
-    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
-    const lbl = t => `<div style="font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">${t}</div>`;
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px';
     wrap.innerHTML = `
-    <div class="modal" style="max-width:620px;width:94%;padding:22px 24px;border-radius:16px">
-        <div style="font-size:15px;font-weight:800;color:#3f3f3f">${ag ? 'Weiterer Arbeitgeber bearbeiten' : 'Weiterer Arbeitgeber erfassen'}</div>
-        <div style="font-size:12px;color:#8b8b8b;margin:2px 0 12px">Nur Information für die Checkliste — keine Wirkung auf Quellensteuer und Lohn.</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-            <div style="grid-column:1 / 4">${lbl('Name *')}<input id="waName" class="ma-input" value="${v('name')}"></div>
-            <div style="grid-column:1 / 4">${lbl('Strasse')}<input id="waStrasse" class="ma-input" value="${v('strasse')}"></div>
-            <div>${lbl('PLZ')}<input id="waPlz" class="ma-input" value="${v('plz')}"></div>
-            <div>${lbl('Ort')}<input id="waOrt" class="ma-input" value="${v('ort')}"></div>
-            <div>${lbl('Kanton / Land')}<div style="display:flex;gap:6px"><input id="waKanton" class="ma-input" maxlength="2" style="width:60px" value="${v('kanton')}" placeholder="LU"><input id="waLand" class="ma-input" maxlength="2" style="width:60px" value="${esc(ag?.land ?? 'CH')}"></div></div>
-            <div>${lbl('Pensum %')}<input id="waPensum" type="number" step="1" min="0" max="100" class="ma-input" value="${ag?.pensumProzent ?? ''}"></div>
-            <div>${lbl('Stunden / Woche')}<input id="waStunden" type="number" step="0.5" min="0" class="ma-input" value="${ag?.stundenProWoche ?? ''}"></div>
-            <div></div>
-            <div>${lbl('Gültig von')}<input id="waVon" type="date" class="ma-input" value="${ag?.gueltigVon ?? ''}"></div>
-            <div>${lbl('Gültig bis')}<input id="waBis" type="date" class="ma-input" value="${ag?.gueltigBis ?? ''}"></div>
-            <div></div>
-            <label style="grid-column:1 / 4;display:flex;gap:8px;align-items:center;font-size:13px;color:#3f3f3f;cursor:pointer">
-                <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f">
-                Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> (bei uns Nebenerwerb → Erlaubnis nötig)
-            </label>
-            <div style="grid-column:1 / 4">${lbl('Bemerkung')}<input id="waBem" class="ma-input" value="${v('bemerkung')}"></div>
+    <div class="ma-modal-box narrow">
+        <div class="ma-modal-head">
+            <div class="ma-modal-title">${ag ? 'Weiterer Arbeitgeber bearbeiten' : 'Weiterer Arbeitgeber erfassen'}</div>
+            <button class="ma-modal-close" id="waX">✕</button>
         </div>
-        <div id="waStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
-        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
-            <button id="waAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
-            <button id="waOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+        <div class="ma-modal-body">
+            <div style="font-size:12.5px;color:#8b8b8b;margin:-2px 0 10px">Nur Information für die Checkliste — keine Wirkung auf Quellensteuer und Lohn.</div>
+
+            <div class="emp-section-title">Arbeitgeber</div>
+            <div class="ma-grid cols-3">
+                ${feld('Name *', `<input id="waName" class="ma-input" value="${v('name')}" placeholder="z.B. FedEx">`, 3)}
+                ${feld('Strasse', `<input id="waStrasse" class="ma-input" value="${v('strasse')}">`, 3)}
+                ${feld('PLZ', `<input id="waPlz" class="ma-input" value="${v('plz')}">`)}
+                ${feld('Ort', `<input id="waOrt" class="ma-input" value="${v('ort')}">`, 2)}
+                ${feld('Kanton', `<input id="waKanton" class="ma-input" maxlength="2" value="${v('kanton')}" placeholder="z.B. LU">`)}
+                ${feld('Land', `<input id="waLand" class="ma-input" maxlength="2" value="${esc(ag?.land ?? 'CH')}">`)}
+            </div>
+
+            <div class="emp-section-title">Anstellung dort</div>
+            <div class="ma-grid cols-3">
+                ${feld('Pensum %', `<input id="waPensum" type="number" step="1" min="0" max="100" class="ma-input" value="${ag?.pensumProzent ?? ''}">`)}
+                ${feld('Stunden / Woche', `<input id="waStunden" type="number" step="0.5" min="0" class="ma-input" value="${ag?.stundenProWoche ?? ''}">`)}
+                <div></div>
+                ${feld('Gültig von', `<input id="waVon" type="date" class="ma-input" value="${ag?.gueltigVon ?? ''}">`)}
+                ${feld('Gültig bis', `<input id="waBis" type="date" class="ma-input" value="${ag?.gueltigBis ?? ''}">`)}
+                <div></div>
+                <label style="grid-column:span 3;display:flex;gap:10px;align-items:center;font-size:13px;color:#3f3f3f;cursor:pointer;padding:6px 2px">
+                    <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
+                    <span>Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> — bei uns Nebenerwerb, Erlaubnis nötig</span>
+                </label>
+                ${feld('Bemerkung', `<input id="waBem" class="ma-input" value="${v('bemerkung')}">`, 3)}
+            </div>
+            <div id="waStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        </div>
+        <div class="ma-modal-foot">
+            <button class="btn btn-outline" id="waAbbr">Abbrechen</button>
+            <button class="btn btn-primary" id="waOk">Speichern</button>
         </div>
     </div>`;
     document.body.appendChild(wrap);
     const close = () => wrap.remove();
     wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
     wrap.querySelector('#waAbbr').onclick = close;
+    wrap.querySelector('#waX').onclick = close;
+    wrap.querySelector('#waName').focus();
     wrap.querySelector('#waOk').onclick = async () => {
         const g = id => wrap.querySelector('#' + id).value.trim();
         const num = id => { const t = g(id); return t === '' ? null : Number(t); };
