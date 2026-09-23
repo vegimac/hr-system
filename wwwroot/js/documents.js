@@ -2065,7 +2065,8 @@ async function dokAskNotifyUser(docId, uploadBemerkung, empId, introText) {
 // «Mit welcher Angabe verknüpfen?» nach dem Hochladen (Testphase, Walter-
 // Vorgabe 23.09.2026). Schritt Richtung «Dokumente ohne Ordner, direkt an
 // der Info verknüpft». Angebote: Ausweis MA · Ausweis Partner/in · Ausweis
-// Kind (je Kind) · neue Bewilligung · keine. Partner/Kinder nur, wenn in der
+// Kind (je Kind) · Nachtarbeit Arztzeugnis/Ausnahmeregelung · neue
+// Bewilligung · keine. Partner/Kinder nur, wenn in der
 // Familie erfasst. Ist schon ein Ausweis verknüpft → «ersetzen?».
 // Geschrieben wird in die bestehenden Felder (employee.id_pass_dokument_id,
 // employee_family_member.dokument_id — beim Ehepartner zugleich QST-Beleg).
@@ -2117,6 +2118,15 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     (fam || []).filter(m => lebt(m) && m.memberType === 'Kind')
         .sort((a, b) => String(a.dateOfBirth || '').localeCompare(String(b.dateOfBirth || '')))
         .forEach(m => opts.push(famOpt(m, 'Ausweis Kind')));
+    // Nachtarbeit (Walter 23.09.2026): Arztzeugnis/Verzicht + Ausnahmeregelung.
+    const nwOpt = (kind, label, sub, current) => ({
+        key: kind, label, sub, current, nachtarbeit: true,
+        apply: () => fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind, dokumentId: docId }) }),
+    });
+    opts.push(nwOpt('night_work_exam', 'Nachtarbeit: Arztzeugnis', 'oder Verzichtserklärung', emp?.nightWorkExamDokumentId ?? null));
+    opts.push(nwOpt('night_work_ausnahme', 'Nachtarbeit: Ausnahmeregelung', 'Tag-/Nachtarbeit', emp?.nightWorkAusnahmeDokumentId ?? null));
     const ch = (emp?.nationalityCode || '').toUpperCase() === 'CH';
     if (!ch) opts.push({ key: 'bew', label: 'Neue Bewilligung', sub: 'erfassen und Ausweis einlesen', current: null, apply: null });
 
@@ -2163,7 +2173,7 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
 
     if (wahl.current && wahl.current !== docId) {
         const ok = await liquidConfirm(
-            `Bei «${wahl.label}${wahl.sub && wahl.key !== 'ma' ? ' · ' + wahl.sub : ''}» ist bereits «${docName(wahl.current)}» verknüpft.\n\nDurch das neue Dokument ersetzen? Das bisherige bleibt in den Dokumenten.`,
+            `Bei «${wahl.label}${wahl.key.startsWith('fam') ? ' · ' + wahl.sub : ''}» ist bereits «${docName(wahl.current)}» verknüpft.\n\nDurch das neue Dokument ersetzen? Das bisherige bleibt in den Dokumenten.`,
             { title: 'Bestehenden ersetzen?', yesLabel: 'Ersetzen', noLabel: 'Abbrechen' });
         if (!ok) return { verknuepft: false, bewilligung: false };
     }
@@ -2174,7 +2184,10 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
             alert('Verknüpfen fehlgeschlagen: ' + (j.message || j.error || ('HTTP ' + r.status)));
             return { verknuepft: false, bewilligung: false };
         }
-        if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.key !== 'ma' && wahl.sub ? ' · ' + wahl.sub : ''}`, 'success');
+        if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.key.startsWith('fam') ? ' · ' + wahl.sub : ''}`, 'success');
+        // Nachtarbeit-Karte in der MA-Übersicht zeigt den Beleg — neu laden.
+        if (wahl.nachtarbeit && window.selectedEmployeeId === empId && typeof selectEmployee === 'function')
+            selectEmployee(empId);
         return { verknuepft: true, bewilligung: false };
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);
