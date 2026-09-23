@@ -325,19 +325,38 @@ public class DocumentsController : ControllerBase
         var typExists = await _db.DokumentTypen.AnyAsync(t => t.Id == dokumentTypId);
         if (!typExists) return BadRequest("Dokument-Typ nicht gefunden.");
 
-        // Duplikat-Check: gleicher Mitarbeiter + gleicher Original-Dateiname
-        var duplicate = await _db.EmployeeDokumente
-            .Where(d => d.EmployeeId == employeeId && d.FilenameOriginal == file.FileName)
-            .Select(d => new { d.Id, d.HochgeladenAm })
-            .FirstOrDefaultAsync();
-        if (duplicate != null)
+        // Duplikat-Check: gleicher Mitarbeiter + gleicher INHALT (Walter 23.09.2026).
+        // Früher zählte der Dateiname — der Scanner benennt aber alle Belege nach
+        // der Personalnummer («1290090.pdf»), dann blockierte ein AHV-Ausweis den
+        // Upload des Bankbelegs. Jetzt: nur Dateien gleicher Grösse lesen und per
+        // SHA-256 vergleichen — derselbe Name mit anderem Inhalt ist erlaubt.
+        var gleicheGroesse = await _db.EmployeeDokumente
+            .Where(d => d.EmployeeId == employeeId && d.GroesseBytes == file.Length)
+            .ToListAsync();
+        if (gleicheGroesse.Count > 0)
         {
-            return Conflict(new {
-                message    = "Dokument mit diesem Dateinamen ist für diesen Mitarbeiter bereits vorhanden.",
-                duplicateId = duplicate.Id,
-                filename    = file.FileName,
-                hochgeladenAm = duplicate.HochgeladenAm
-            });
+            byte[] neuHash;
+            using (var sha = System.Security.Cryptography.SHA256.Create())
+            using (var st = file.OpenReadStream())
+                neuHash = await sha.ComputeHashAsync(st);
+            foreach (var kand in gleicheGroesse)
+            {
+                var pfad = ResolveFilePath(kand);
+                if (pfad == null || !System.IO.File.Exists(pfad)) continue;
+                byte[] altHash;
+                using (var sha = System.Security.Cryptography.SHA256.Create())
+                using (var st = System.IO.File.OpenRead(pfad))
+                    altHash = await sha.ComputeHashAsync(st);
+                if (!altHash.AsSpan().SequenceEqual(neuHash)) continue;
+                return Conflict(new {
+                    error       = "DUPLIKAT_INHALT",
+                    message     = "Genau diese Datei ist bei diesem Mitarbeiter bereits abgelegt.",
+                    duplicateId = kand.Id,
+                    filename    = kand.FilenameOriginal,
+                    titel       = string.IsNullOrWhiteSpace(kand.Bemerkung) ? kand.FilenameOriginal : kand.Bemerkung,
+                    hochgeladenAm = kand.HochgeladenAm
+                });
+            }
         }
 
         // Branch-Code säubern (nur sichere Zeichen für Pfad: Buchstaben, Zahlen, _, -)

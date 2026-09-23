@@ -1877,7 +1877,14 @@ async function dokUpload() {
         });
         if (!r.ok) {
             const err = await r.text();
-            throw new Error(err || 'HTTP ' + r.status);
+            // Lesbare Meldung statt Roh-JSON (Walter 23.09.2026).
+            let j = null;
+            try { j = JSON.parse(err); } catch {}
+            if (j?.error === 'DUPLIKAT_INHALT') {
+                const am = j.hochgeladenAm ? new Date(j.hochgeladenAm).toLocaleDateString('de-CH') : '';
+                throw new Error(`Genau diese Datei ist schon abgelegt: «${j.titel || j.filename}»${am ? ' vom ' + am : ''}.`);
+            }
+            throw new Error((j && (j.message || j.error)) || err || 'HTTP ' + r.status);
         }
         // Walter-Vorgabe 13.06.2026: optionaler Callback nach erfolgreichem
         // Upload. Nutzen es z.B. die Ausweis-Doku-Verknüpfung und die QST-

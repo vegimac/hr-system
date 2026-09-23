@@ -1150,8 +1150,7 @@ window.i18n = (function () {
         'qsta.dyn.noBranchActive':   { de: 'Keine Filiale aktiv — bitte zuerst Filiale wählen.',
                                         en: 'No active branch — please choose one first.' },
         'qsta.dyn.uploading':        { de: 'Lade hoch…',                 en: 'Uploading…' },
-        'qsta.dyn.alreadyExists':    { de: 'Bereits vorhanden: ein Dokument mit diesem Dateinamen existiert für diesen MA schon.',
-                                        en: 'Already exists: a document with this filename is already on file for this employee.' },
+        'qsta.dyn.alreadyExists':    { de: 'Bereits vorhanden: genau diese Datei ist bei diesem MA schon abgelegt.', en: 'Already exists: this exact file is already stored for this employee.' },
         'qsta.dyn.errUpload':        { de: 'Fehler: {msg}',              en: 'Error: {msg}' },
         'qsta.dyn.uploadOk':         { de: '✓ Erfolgreich abgelegt.',    en: '✓ Saved successfully.' },
         // Validate-Modal Section-Labels
