@@ -791,15 +791,24 @@ async function pbDoMove(e) {
         if (!r.ok) throw new Error(await r.text() || 'HTTP ' + r.status);
         let respData = null;
         try { respData = await r.json(); } catch {}
+        const dateiName = document.querySelector('#pbMoveFileInfo b')?.textContent || '';
         pbCloseMove();
         await pbLoadList();
         await pbUpdateBadge();
-        // Walter 23.09.2026: nach dem Ablegen wie beim Hochladen im Dokumente-Tab
-        // fragen, ob OneCrew-Benutzer per Mail informiert werden sollen.
-        if (respData?.employeeDokumentId && typeof dokAskNotifyUser === 'function') {
-            dokAskNotifyUser(respData.employeeDokumentId, bem, emp.id,
+        const neuId = respData?.employeeDokumentId;
+        if (!neuId) return;
+        // Testphase Walter 23.09.2026: direkt mit einer Angabe verknüpfen
+        // (Ausweis MA/Partner/Kind, neue Bewilligung) — Dialog in documents.js.
+        let verkn = null;
+        if (typeof dokVerknuepfenFragen === 'function')
+            verkn = await dokVerknuepfenFragen(emp.id, neuId, dateiName);
+        // Walter 23.09.2026: wie beim Hochladen im Dokumente-Tab fragen, ob
+        // OneCrew-Benutzer per Mail informiert werden sollen.
+        if (typeof dokAskNotifyUser === 'function')
+            await dokAskNotifyUser(neuId, bem, emp.id,
                 'Das Dokument wurde beim Mitarbeiter abgelegt. Sollen OneCrew-Benutzer per E-Mail darüber informiert werden?');
-        }
+        if (verkn?.bewilligung && typeof dokNeueBewilligungMitDok === 'function')
+            await dokNeueBewilligungMitDok(emp.id, neuId);
     } catch (err) {
         document.getElementById('pbMoveAlert').innerHTML = `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Fehler: ${err.message}</div>`;
     }

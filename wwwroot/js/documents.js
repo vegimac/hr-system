@@ -1896,12 +1896,23 @@ async function dokUpload() {
                 });
             } catch (e) { console.error('afterUpload', e); }
         }
+        const dateiName = fileInput.files[0]?.name || '';
+        const empIdUpload = _dokState.empId;
         closeDokUploadModal();
-        loadEmpDokumente(_dokState.empId);
+        loadEmpDokumente(empIdUpload);
+        // Testphase Walter 23.09.2026: direkt fragen, mit welcher Angabe das
+        // Dokument verknüpft wird — nur wenn der Upload nicht schon aus einem
+        // Verknüpfen-Knopf kam (dort erledigt afterUpload das).
+        let verkn = null;
+        if (typeof afterUpload !== 'function' && respData?.id) {
+            verkn = await dokVerknuepfenFragen(empIdUpload, respData.id, dateiName);
+            if (verkn?.verknuepft) loadEmpDokumente(empIdUpload);
+        }
         // Walter-Vorgabe 04.08.2026: nach erfolgreichem Upload fragen, ob
-        // OneCrew-Benutzer per Mail benachrichtigt werden sollen (fire-and-
-        // forget). Die Upload-Bemerkung dient als Nachricht-Vorschlag.
-        dokAskNotifyUser(respData?.id ?? null, bemerkung);
+        // OneCrew-Benutzer per Mail benachrichtigt werden sollen. Die Upload-
+        // Bemerkung dient als Nachricht-Vorschlag.
+        await dokAskNotifyUser(respData?.id ?? null, bemerkung);
+        if (verkn?.bewilligung) await dokNeueBewilligungMitDok(empIdUpload, respData.id);
     } catch (err) {
         status.textContent = 'Fehler: ' + err.message;
         status.style.color = '#b91c1c';
@@ -2000,7 +2011,9 @@ async function dokAskNotifyUser(docId, uploadBemerkung, empId, introText) {
     document.body.appendChild(wrap);
     document.getElementById('dokNotifyMsg').value = msgVorschlag;
 
-    const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); };
+    let fertig;
+    const zu = new Promise(r => { fertig = r; });
+    const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); fertig(); };
     const onKey = e => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
     wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
@@ -2044,6 +2057,156 @@ async function dokAskNotifyUser(docId, uploadBemerkung, empId, introText) {
             sendBtn.disabled = false;
         }
     };
+    // Aufrufer können warten, bis der Dialog zu ist (Folge-Dialoge danach).
+    await zu;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// «Mit welcher Angabe verknüpfen?» nach dem Hochladen (Testphase, Walter-
+// Vorgabe 23.09.2026). Schritt Richtung «Dokumente ohne Ordner, direkt an
+// der Info verknüpft». Angebote: Ausweis MA · Ausweis Partner/in · Ausweis
+// Kind (je Kind) · neue Bewilligung · keine. Partner/Kinder nur, wenn in der
+// Familie erfasst. Ist schon ein Ausweis verknüpft → «ersetzen?».
+// Geschrieben wird in die bestehenden Felder (employee.id_pass_dokument_id,
+// employee_family_member.dokument_id — beim Ehepartner zugleich QST-Beleg).
+// Nicht beim Massen-Upload und nicht beim d.velop-Import.
+// Liefert { verknuepft, bewilligung } — die Bewilligung startet der Aufrufer
+// (nach dem Benachrichtigen-Dialog) über dokNeueBewilligungMitDok.
+// ══════════════════════════════════════════════════════════════════════
+async function dokVerknuepfenFragen(empId, docId, dateiName) {
+    if (!empId || !docId) return null;
+    const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    let emp = null, fam = [], docs = [];
+    try {
+        const [re, rf, rd] = await Promise.all([
+            fetch(`/api/employees/${empId}`, { headers: ah() }),
+            fetch(`/api/employees/${empId}/family`, { headers: ah() }),
+            fetch(`/api/documents/by-employee/${empId}`, { headers: ah() }),
+        ]);
+        if (re.ok) emp = await re.json();
+        if (rf.ok) fam = await rf.json();
+        if (rd.ok) docs = await rd.json();
+    } catch { /* ohne Daten: nur MA-Ausweis + keine */ }
+    const docName = id => {
+        const d = (docs || []).find(x => x.id === id);
+        return d ? ((d.bemerkung || '').trim() || d.filenameOriginal || 'Dokument') : 'ein anderes Dokument';
+    };
+    const jahr = iso => iso ? String(iso).slice(0, 4) : '';
+    const lebt = m => !m.dateOfDeath;
+
+    // Optionen: { key, label, sub, current, apply }
+    const opts = [];
+    opts.push({
+        key: 'ma', label: 'Ausweis Mitarbeiter/in', sub: 'Pass oder ID',
+        current: emp?.idPassDokumentId ?? null,
+        apply: () => fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: 'id_pass', dokumentId: docId }) }),
+    });
+    const famOpt = (m, label) => ({
+        key: 'fam' + m.id, label,
+        sub: `${m.firstName || ''} ${m.lastName || ''}`.trim() + (m.dateOfBirth ? ` · ${jahr(m.dateOfBirth)}` : ''),
+        current: m.dokumentId ?? null,
+        apply: () => fetch(`/api/employees/${empId}/family/${m.id}/dokument`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: docId }) }),
+    });
+    (fam || []).filter(m => lebt(m) && (m.memberType === 'Ehepartner' || m.memberType === 'Konkubinatspartner'))
+        .forEach(m => opts.push(famOpt(m, 'Ausweis Partner/in')));
+    (fam || []).filter(m => lebt(m) && m.memberType === 'Kind')
+        .sort((a, b) => String(a.dateOfBirth || '').localeCompare(String(b.dateOfBirth || '')))
+        .forEach(m => opts.push(famOpt(m, 'Ausweis Kind')));
+    const ch = (emp?.nationalityCode || '').toUpperCase() === 'CH';
+    if (!ch) opts.push({ key: 'bew', label: 'Neue Bewilligung', sub: 'erfassen und Ausweis einlesen', current: null, apply: null });
+
+    const row = o => `
+        <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer"
+               onmouseover="this.style.background='rgba(255,255,255,0.55)'" onmouseout="this.style.background='transparent'">
+            <input type="radio" name="dokVkOpt" value="${o.key}" style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
+            <span style="font-size:13.5px;color:#3f3f3f;font-weight:600">${esc(o.label)}</span>
+            ${o.sub ? `<span style="font-size:12px;color:#8b8b8b">${esc(o.sub)}</span>` : ''}
+            ${o.current ? `<span style="margin-left:auto;font-size:10.5px;font-weight:700;color:#646464;background:rgba(255,255,255,0.58);border:1px solid rgba(139,139,139,0.3);border-radius:8px;padding:1px 7px">schon verknüpft</span>` : ''}
+        </label>`;
+
+    const wahl = await new Promise(resolve => {
+        document.getElementById('dokVkOverlay')?.remove();
+        const wrap = document.createElement('div');
+        wrap.id = 'dokVkOverlay';
+        wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+        wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:480px;width:92%;padding:22px 24px">
+            <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Mit welcher Angabe verknüpfen?</div>
+            <div style="font-size:13px;color:#646464;line-height:1.5">${dateiName ? `«${esc(dateiName)}» ist gespeichert.` : 'Das Dokument ist gespeichert.'} Gehört es direkt zu einer dieser Angaben?</div>
+            <div style="margin-top:12px;max-height:300px;overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px">
+                ${opts.map(row).join('')}
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+                <button id="dokVkNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Keine Verknüpfung</button>
+                <button id="dokVkOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Verknüpfen</button>
+            </div>
+        </div>`;
+        document.body.appendChild(wrap);
+        const done = v => { wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
+        const onKey = e => { if (e.key === 'Escape') done(null); };
+        document.addEventListener('keydown', onKey);
+        wrap.addEventListener('click', e => { if (e.target === wrap) done(null); });
+        wrap.querySelector('#dokVkNo').onclick = () => done(null);
+        wrap.querySelector('#dokVkOk').onclick = () => {
+            const k = wrap.querySelector('input[name="dokVkOpt"]:checked')?.value;
+            if (!k) { done(null); return; }
+            done(opts.find(o => o.key === k) || null);
+        };
+    });
+    if (!wahl) return { verknuepft: false, bewilligung: false };
+    if (wahl.key === 'bew') return { verknuepft: false, bewilligung: true };
+
+    if (wahl.current && wahl.current !== docId) {
+        const ok = await liquidConfirm(
+            `Bei «${wahl.label}${wahl.sub && wahl.key !== 'ma' ? ' · ' + wahl.sub : ''}» ist bereits «${docName(wahl.current)}» verknüpft.\n\nDurch das neue Dokument ersetzen? Das bisherige bleibt in den Dokumenten.`,
+            { title: 'Bestehenden ersetzen?', yesLabel: 'Ersetzen', noLabel: 'Abbrechen' });
+        if (!ok) return { verknuepft: false, bewilligung: false };
+    }
+    try {
+        const r = await wahl.apply();
+        if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            alert('Verknüpfen fehlgeschlagen: ' + (j.message || j.error || ('HTTP ' + r.status)));
+            return { verknuepft: false, bewilligung: false };
+        }
+        if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.key !== 'ma' && wahl.sub ? ' · ' + wahl.sub : ''}`, 'success');
+        return { verknuepft: true, bewilligung: false };
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+        return { verknuepft: false, bewilligung: false };
+    }
+}
+
+// Neue Bewilligung mit dem soeben abgelegten Dokument erfassen: MA öffnen (falls
+// man z.B. aus dem Posteingang kommt), Bewilligungs-Formular mit diesem Scan
+// daneben öffnen und das Einlesen anbieten. Das Dokument wird beim Speichern
+// automatisch mit dem neuen Bewilligungs-Eintrag verknüpft (_phfOcrDocId).
+async function dokNeueBewilligungMitDok(empId, docId) {
+    if (typeof openPermitHistoryModal !== 'function') return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    try {   // Vorbelegung (Typ/Gültig ab) braucht den Bewilligungs-Verlauf
+        const r = await fetch(`/api/employees/${empId}/permit-history`, { headers: ah() });
+        if (r.ok) _permitHistoryCache = await r.json();
+    } catch {}
+    window._phfPreferDocId = docId;
+    await openPermitHistoryModal(null);
+    window._phfOcrDocId = docId;   // Speichern verknüpft den Scan mit dem neuen Eintrag
+    if (await liquidConfirm('Soll OneCrew die Angaben jetzt aus dem Ausweis einlesen?',
+            { title: 'Bewilligung einlesen', yesLabel: 'Einlesen', noLabel: 'Selbst erfassen' })
+        && typeof phfOcrPermit === 'function') {
+        await phfOcrPermit(docId);
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════

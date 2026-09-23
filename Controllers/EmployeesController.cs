@@ -500,6 +500,9 @@ public class EmployeesController : ControllerBase
             employee.ProbezeitEntscheidAm,
             // Arbeitszeugnis verknüpft (Walter 06.09.2026)
             employee.ArbeitszeugnisDokumentId,
+            // Ausweis MA (Pass/ID) — für «bestehenden ersetzen?» im Verknüpfen-
+            // Dialog nach dem Upload (Walter 23.09.2026).
+            employee.IdPassDokumentId,
             // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
             nightWorkRequiresDocuments,
             nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,

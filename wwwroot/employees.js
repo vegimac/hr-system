@@ -15860,8 +15860,24 @@ async function phfLoadPermitDoc(empId) {
     if (!panel || !empId) return;
     try {
         const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=permit&all=true`, { headers: ah() });
-        const docs = r.ok ? await r.json() : [];
-        if (!Array.isArray(docs) || docs.length === 0) {
+        let docs = r.ok ? await r.json() : [];
+        if (!Array.isArray(docs)) docs = [];
+        // Soeben abgelegter Scan zuerst (Walter 23.09.2026, «neue Bewilligung»
+        // aus dem Verknüpfen-Dialog) — auch wenn sein Dokument-Typ nicht mit
+        // «Bewilligung» verknüpft ist.
+        const prefer = window._phfPreferDocId;
+        window._phfPreferDocId = null;
+        if (prefer) {
+            let d = docs.find(x => x.id === prefer);
+            if (!d) {
+                try {
+                    const ra = await fetch(`/api/documents/by-employee/${empId}`, { headers: ah() });
+                    if (ra.ok) d = (await ra.json()).find(x => x.id === prefer) || null;
+                } catch { /* ohne Metadaten */ }
+            }
+            if (d) docs = [d, ...docs.filter(x => x.id !== prefer)];
+        }
+        if (docs.length === 0) {
             panel.style.display = 'flex';
             document.getElementById('phf-docview').innerHTML =
                 '<div style="color:#8b8b8b;font-size:12.5px;padding:18px;text-align:center">Kein Ausweis-Dokument hinterlegt.<br>Im Dokumente-Tab hochladen (Typ mit Feld-Verknüpfung «Bewilligung»), dann erscheint es hier.</div>';
