@@ -37,7 +37,7 @@ public class FerienKuerzungService
     public FerienKuerzungService(AppDbContext db) => _db = db;
 
     public async Task<FerienKuerzungResult> CalculateAsync(
-        int employeeId, DateOnly periodEndDate, bool bisDienstjahrEnde = false)
+        int employeeId, DateOnly periodEndDate, bool bisDienstjahrEnde = false, DateOnly? zaehlBisMax = null)
     {
         var employee = await _db.Employees.FindAsync(employeeId);
         if (employee == null || !employee.EntryDate.HasValue)
@@ -60,6 +60,8 @@ public class FerienKuerzungService
         // ERFASSTEN Krankheitstage des Dienstjahres zählen («bis Ende des letzten
         // Arztzeugnisses») — HR entscheidet bewusst, keine Annahme darüber hinaus.
         var zaehlBis = bisDienstjahrEnde ? jahrBis : (periodEndDate < jahrBis ? periodEndDate : jahrBis);
+        // Laufendes Dienstjahr (Walter 23.09.2026): nur bis Ende des aktuellen Monats.
+        if (zaehlBisMax.HasValue && zaehlBisMax.Value < zaehlBis) zaehlBis = zaehlBisMax.Value;
 
         // Absenzen des Dienstjahres bis zum Periodenende laden
         var absences = await _db.Absences
@@ -142,11 +144,23 @@ public class FerienKuerzungService
     /// <paramref name="ausserId"/> beim Bearbeiten).
     /// </summary>
     /// <param name="datum">irgendein Tag im gewünschten Dienstjahr (auch im abgelaufenen)</param>
-    public async Task<FerienKuerzungInfo> InfoAsync(int employeeId, DateOnly datum, int? ausserId = null)
+    /// <param name="heute">für Tests; Default = heute</param>
+    public async Task<FerienKuerzungInfo> InfoAsync(int employeeId, DateOnly datum, int? ausserId = null, DateOnly? heute = null)
     {
+        // Walter-Vorgabe 23.09.2026: gekürzt wird nach Ende des Dienstjahres
+        // (bzw. beim Austritt), einmal und vollständig. Abgelaufenes Dienstjahr
+        // = alle erfassten Tage. Laufendes Dienstjahr = Stand bis Ende des
+        // aktuellen Monats (keine Zeugnisse, die schon in die Zukunft reichen).
+        var h = heute ?? DateOnly.FromDateTime(DateTime.Today);
         var r = await CalculateAsync(employeeId, datum, bisDienstjahrEnde: true);
         if (r.DienstjahrVon == default)
-            return new FerienKuerzungInfo(default, default, 0, 0, 0, 0, 0, 0, 0, false, null);
+            return new FerienKuerzungInfo(default, default, 0, 0, 0, 0, 0, 0, 0, false, null, false);
+        bool laufend = r.DienstjahrBis >= h;
+        if (laufend)
+        {
+            var monatsEnde = new DateOnly(h.Year, h.Month, DateTime.DaysInMonth(h.Year, h.Month));
+            r = await CalculateAsync(employeeId, datum, bisDienstjahrEnde: true, zaehlBisMax: monatsEnde);
+        }
 
         var emp = await _db.Employees.AsNoTracking().FirstAsync(e => e.Id == employeeId);
         var dtDatum = datum.ToDateTime(TimeOnly.MinValue);
@@ -174,7 +188,7 @@ public class FerienKuerzungService
         return new FerienKuerzungInfo(
             r.DienstjahrVon, r.DienstjahrBis, r.TageKrankUnfall, r.KuerzungUnverschuldet12tel,
             jahresTage, gesamt, bereits, noch, Math.Floor(noch),
-            verzicht != null, verzicht?.ErstelltAm);
+            verzicht != null, verzicht?.ErstelltAm, laufend);
     }
 
     private static decimal BerechneKuerzung(decimal tage, int schwellwertTage)
@@ -243,4 +257,5 @@ public record FerienKuerzungInfo(
     decimal  NochMoeglich,         // genau, Obergrenze
     decimal  VorschlagGanzeTage,   // abgerundet
     bool     Verzichtet,
-    DateTime? VerzichtAm);
+    DateTime? VerzichtAm,
+    bool     Laufend);             // Dienstjahr läuft noch → Stand bis Ende aktueller Monat

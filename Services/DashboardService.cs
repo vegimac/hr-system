@@ -1090,7 +1090,7 @@ public class DashboardService
                             .Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
             }
             var fkCands = await fkCandQ
-                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.ExitDate })
                 .ToListAsync();
             var fkSvc = new FerienKuerzungService(_db);
             foreach (var e in fkCands)
@@ -1103,6 +1103,12 @@ public class DashboardService
                 {
                     var info = await fkSvc.InfoAsync(e.Id, stichtag);
                     if (info.DienstjahrVon == default || info.NochMoeglich < 1m) continue;
+                    // Walter 23.09.2026: gekürzt wird nach Ende des Dienstjahres —
+                    // laufendes Jahr nur melden, wenn der Austritt in ≤ 45 Tagen kommt
+                    // (dann werden die Restferien ausbezahlt).
+                    if (info.Laufend && !(e.ExitDate.HasValue
+                            && DateOnly.FromDateTime(e.ExitDate.Value) <= today.AddDays(45)))
+                        continue;
                     if (info.Verzichtet)
                     {
                         // Verzicht gilt, solange keine AU danach erfasst/geändert wurde.

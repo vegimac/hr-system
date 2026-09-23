@@ -10281,13 +10281,17 @@ async function fkSidebarLaden(employeeId) {
     const kurz = t => _absDatumKurz(t);
     const zeilen = infos.map((i, k) => {
         const noch = Number(i.nochMoeglich || 0);
-        const laufend = k === infos.length - 1 && i.dienstjahrBis >= iso(heute);
+        const laufend = !!i.laufend;
+        const monat = heute.toLocaleDateString('de-CH', { month: 'long' });
         return `<div style="padding:8px 0;${k ? 'border-top:1px solid rgba(146,64,14,0.15);' : ''}">
-            <div style="font-weight:700;color:#3f3f3f">${kurz(i.dienstjahrVon)} – ${kurz(i.dienstjahrBis)} <span style="font-weight:500;color:#8b8b8b">(${laufend ? 'laufend' : 'abgelaufen'})</span></div>
+            <div style="font-weight:700;color:#3f3f3f">${kurz(i.dienstjahrVon)} – ${kurz(i.dienstjahrBis)} <span style="font-weight:500;color:#8b8b8b">(${laufend ? `laufend · Stand Ende ${monat}` : 'abgelaufen'})</span></div>
             <div style="font-size:12.5px;color:#646464">${Number(i.tageKrankUnfall).toFixed(1).replace(/\.0$/, '')} Krankheitstage → <b>${i.zwoelftel}/12</b> = ${n2(i.gesamtTage)} Tage</div>
             <div style="font-size:12.5px;color:#646464">${Number(i.bereitsGekuerzt) > 0 ? `bereits gekürzt ${n2(i.bereitsGekuerzt)} · ` : ''}${i.verzichtet ? 'nicht kürzen gewählt · ' : ''}noch möglich <b style="color:#92400e">${Math.floor(noch)} Tage</b>${noch % 1 ? ` <span style="color:#8b8b8b">(genau ${n2(noch)})</span>` : ''}</div>
+            ${laufend ? `<div style="font-size:11.5px;color:#8b8b8b;margin-top:3px">Kürzen nach Ende des Dienstjahres oder beim Austritt.</div>` : ''}
             ${noch >= 1 ? `<button type="button" onclick="openFerienKuerzungModal(${employeeId}, null, '${i.dienstjahrVon}')"
-                style="margin-top:6px;background:#1a1a1a;color:#fff;border:none;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Kürzung erfassen</button>` : ''}
+                style="margin-top:6px;${laufend
+                    ? 'background:rgba(255,255,255,0.6);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35)'
+                    : 'background:#1a1a1a;color:#fff;border:none'};border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Kürzung erfassen</button>` : ''}
         </div>`;
     }).join('');
     side.insertAdjacentHTML('beforeend', `
@@ -11138,7 +11142,8 @@ async function openFerienKuerzungModal(empId, eintrag, dienstjahrVon) {
             Kürzung möglich: <b>${i.zwoelftel}/12</b> von ${i.jahresFerienTage} Tagen = <b>${num(i.gesamtTage)} Tage</b>
             ${Number(i.bereitsGekuerzt) > 0 ? ` · bereits gekürzt ${num(i.bereitsGekuerzt)}` : ''}<br>
             <b>Noch möglich: ${num(noch)} Tage</b> · Vorschlag abgerundet: <b>${Number(i.vorschlagGanzeTage)} Tage</b>
-            ${i.verzichtet ? '<br><span style="color:#8b8b8b">Für dieses Dienstjahr wurde bereits «nicht kürzen» gewählt.</span>' : ''}`;
+            ${i.verzichtet ? '<br><span style="color:#8b8b8b">Für dieses Dienstjahr wurde bereits «nicht kürzen» gewählt.</span>' : ''}
+            ${i.laufend ? '<br><span style="color:#92400e">Dienstjahr läuft noch — Stand bis Ende des aktuellen Monats. Normalerweise wird erst nach Ende des Dienstjahres oder beim Austritt gekürzt.</span>' : ''}`;
         const t = wrap.querySelector('#fkTage');
         t.max = String(noch);
         if (setzeTage) t.value = eintrag && !eintrag.verzicht && infos[idx].dienstjahrVon === eintrag.dienstjahrVon

@@ -122,7 +122,7 @@ public class FerienKuerzungInfoTests
     {
         using var db = NewDb();
         int id = await SeedAsync(db);
-        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23));
+        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23), heute: new DateOnly(2026, 9, 23));
         Assert.Equal(new DateOnly(2026, 6, 10), info.DienstjahrVon);
         Assert.Equal(64m, info.TageKrankUnfall);
         Assert.Equal(1m, info.Zwoelftel);
@@ -133,6 +133,40 @@ public class FerienKuerzungInfoTests
     }
 
     [Fact]
+    public async System.Threading.Tasks.Task LaufendesDienstjahr_ZaehltNurBisEndeAktuellerMonat()
+    {
+        // Walter 23.09.2026: Zeugnis reicht bis 31.10. — im September zählen nur Tage bis 30.09.
+        using var db = NewDb();
+        int id = await SeedAsync(db);
+        db.Absences.Add(new Absence { EmployeeId = id, AbsenceType = "KRANK",
+                                      DateFrom = new DateOnly(2026, 10, 1), DateTo = new DateOnly(2026, 10, 31) });
+        await db.SaveChangesAsync();
+        var sept = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23), heute: new DateOnly(2026, 9, 23));
+        Assert.True(sept.Laufend);
+        Assert.Equal(64m, sept.TageKrankUnfall);
+        var okt = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 10, 15), heute: new DateOnly(2026, 10, 15));
+        Assert.Equal(95m, okt.TageKrankUnfall);   // 64 + 31 → 2/12
+        Assert.Equal(2m, okt.Zwoelftel);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task AbgelaufenesDienstjahr_ZaehltAlleTage_InklusiveVorjahr()
+    {
+        // Walter 23.09.2026: 2025 nichts gekürzt → abgelaufenes Dienstjahr voll, auch Nov./Dez. 2025.
+        using var db = NewDb();
+        int id = await SeedAsync(db);
+        db.Absences.Add(new Absence { EmployeeId = id, AbsenceType = "KRANK",
+                                      DateFrom = new DateOnly(2025, 11, 27), DateTo = new DateOnly(2025, 12, 31) });
+        await db.SaveChangesAsync();
+        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2025, 12, 1), heute: new DateOnly(2026, 9, 23));
+        Assert.False(info.Laufend);
+        Assert.Equal(new DateOnly(2025, 6, 10), info.DienstjahrVon);
+        // 35 (27.11.–31.12.25) + 83 (19.03.–09.06.26) = 118 → 2/12
+        Assert.Equal(35m + 83m, info.TageKrankUnfall);
+        Assert.Equal(2m, info.Zwoelftel);
+    }
+
+    [Fact]
     public async System.Threading.Tasks.Task BereitsErfassteKuerzung_WirdAbgezogen()
     {
         using var db = NewDb();
@@ -140,7 +174,7 @@ public class FerienKuerzungInfoTests
         db.FerienKuerzungen.Add(new FerienKuerzungEintrag { EmployeeId = id, Datum = new DateOnly(2026, 9, 30),
                                                             DienstjahrVon = new DateOnly(2026, 6, 10), Tage = 2m });
         await db.SaveChangesAsync();
-        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23));
+        var info = await new FerienKuerzungService(db).InfoAsync(id, new DateOnly(2026, 9, 23), heute: new DateOnly(2026, 9, 23));
         Assert.Equal(2m, info.BereitsGekuerzt);
         Assert.Equal(0.92m, info.NochMoeglich);
         Assert.Equal(0m, info.VorschlagGanzeTage);
