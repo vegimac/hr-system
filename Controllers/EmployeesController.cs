@@ -503,6 +503,11 @@ public class EmployeesController : ControllerBase
             // Ausweis MA (Pass/ID) — für «bestehenden ersetzen?» im Verknüpfen-
             // Dialog nach dem Upload (Walter 23.09.2026).
             employee.IdPassDokumentId,
+            // Direkt verknüpfte Dokumente (Walter 23.09.2026)
+            employee.AhvKarteDokumentId,
+            employee.GeburtsurkundeDokumentId,
+            employee.ZivilstandDokumentId,
+            employee.FotoDokumentId,
             // ArGV1 Art. 30 — für rote «fehlt»-Hinweise auf der Nachtarbeit-Karte
             nightWorkRequiresDocuments,
             nightWorkMaxNightsInSixWeeks = nightWorkMaxNights,
@@ -1198,7 +1203,9 @@ public class EmployeesController : ControllerBase
         if (kind != "id_pass" && kind != "c_ausweis" && kind != "night_work_exam"
             && kind != "night_work_ausnahme"
             && kind != "probezeit_gespraech1" && kind != "probezeit_gespraech2"
-            && kind != "arbeitszeugnis")
+            && kind != "arbeitszeugnis"
+            && kind != "ahv_karte" && kind != "geburtsurkunde"
+            && kind != "zivilstand" && kind != "foto")
             return BadRequest(new { error = "KIND_INVALID", message = "kind ungültig." });
 
         if (dto.DokumentId.HasValue)
@@ -1216,6 +1223,11 @@ public class EmployeesController : ControllerBase
         else if (kind == "probezeit_gespraech1")    emp.ProbezeitGespraech1DokumentId  = dto.DokumentId;
         else if (kind == "probezeit_gespraech2")    emp.ProbezeitGespraech2DokumentId  = dto.DokumentId;
         else if (kind == "arbeitszeugnis")          emp.ArbeitszeugnisDokumentId       = dto.DokumentId;
+        // Direkt verknüpfte Dokumente (Walter 23.09.2026)
+        else if (kind == "ahv_karte")               emp.AhvKarteDokumentId             = dto.DokumentId;
+        else if (kind == "geburtsurkunde")          emp.GeburtsurkundeDokumentId       = dto.DokumentId;
+        else if (kind == "zivilstand")              emp.ZivilstandDokumentId           = dto.DokumentId;
+        else if (kind == "foto")                    emp.FotoDokumentId                 = dto.DokumentId;
         else                                        emp.NightWorkExamDokumentId        = dto.DokumentId;
 
         await _context.SaveChangesAsync();
@@ -1229,9 +1241,35 @@ public class EmployeesController : ControllerBase
             nightWorkAusnahmeDokumentId = emp.NightWorkAusnahmeDokumentId,
             probezeitGespraech1DokumentId = emp.ProbezeitGespraech1DokumentId,
             probezeitGespraech2DokumentId = emp.ProbezeitGespraech2DokumentId,
-            arbeitszeugnisDokumentId = emp.ArbeitszeugnisDokumentId
+            arbeitszeugnisDokumentId = emp.ArbeitszeugnisDokumentId,
+            ahvKarteDokumentId       = emp.AhvKarteDokumentId,
+            geburtsurkundeDokumentId = emp.GeburtsurkundeDokumentId,
+            zivilstandDokumentId     = emp.ZivilstandDokumentId,
+            fotoDokumentId           = emp.FotoDokumentId
         });
     }
+
+    /// <summary>
+    /// Beleg zu einem Bankkonto verknüpfen/lösen (Walter 23.09.2026). Bewusst
+    /// hier und nicht im EmployeeBankAccountsController: ein Beleg ändert
+    /// keinen Lohn und fällt daher nicht unter die Lohn-Edit-Sperre.
+    /// </summary>
+    [HttpPatch("{id:int}/bank-accounts/{bankId:int}/dokument")]
+    public async Task<IActionResult> SetBankDokument(int id, int bankId, [FromBody] BankDokumentDto dto)
+    {
+        var konto = await _context.EmployeeBankAccounts
+            .FirstOrDefaultAsync(b => b.Id == bankId && b.EmployeeId == id);
+        if (konto == null) return NotFound();
+        if (dto.DokumentId.HasValue
+            && !await _context.EmployeeDokumente.AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id))
+            return BadRequest(new { error = "DOKUMENT_INVALID",
+                message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        konto.DokumentId = dto.DokumentId;
+        konto.UpdatedAt  = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = konto.Id, dokumentId = konto.DokumentId });
+    }
+    public class BankDokumentDto { public int? DokumentId { get; set; } }
 
     /// <summary>
     /// Probezeitgespräch 1 oder 2: Durchführungsdatum setzen/löschen

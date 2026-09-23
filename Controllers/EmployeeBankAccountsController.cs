@@ -340,6 +340,7 @@ public class EmployeeBankAccountsController : ControllerBase
         aufteilungWert      = b.AufteilungWert,
         validFrom           = b.ValidFrom.ToString("yyyy-MM-dd"),
         validTo             = b.ValidTo?.ToString("yyyy-MM-dd"),
+        dokumentId          = b.DokumentId,
         // True wenn ValidFrom < FirstAllowedDate (Filiale hat schon einen
         // Lohnlauf für diese oder eine spätere Periode laufen lassen). Bei
         // admin/superuser ist FirstAllowedDate null → immer false.

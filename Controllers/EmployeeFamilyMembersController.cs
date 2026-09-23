@@ -122,6 +122,7 @@ public class EmployeeFamilyMembersController : ControllerBase
         // zeigt damit „📄 Doku verknüpft" am Ehepartner-Eintrag und kann den
         // Beleg im Vorschau-Panel öffnen.
         m.DokumentId,
+        m.GeburtsurkundeDokumentId,
         m.CreatedAt,
         m.UpdatedAt,
         alternativeAddress = alt == null ? null : new {
@@ -266,14 +267,21 @@ public class EmployeeFamilyMembersController : ControllerBase
                     message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
         }
 
-        member.DokumentId = dto.DokumentId;
+        // Art (Walter 23.09.2026): «geburtsurkunde» → eigenes Feld; sonst wie
+        // bisher der Ausweis/Beleg (beim Ehepartner zugleich QST-Beleg).
+        if (string.Equals(dto.Art, "geburtsurkunde", StringComparison.OrdinalIgnoreCase))
+            member.GeburtsurkundeDokumentId = dto.DokumentId;
+        else
+            member.DokumentId = dto.DokumentId;
         member.UpdatedAt  = DateTime.Now;
         await _context.SaveChangesAsync();
-        return Ok(new { id = member.Id, dokumentId = member.DokumentId });
+        return Ok(new { id = member.Id, dokumentId = member.DokumentId, geburtsurkundeDokumentId = member.GeburtsurkundeDokumentId });
     }
 
     public class FamilyMemberDokumentDto
     {
         public int? DokumentId { get; set; }
+        /// <summary>NULL/«ausweis» = Ausweis-Beleg, «geburtsurkunde» = Geburtsurkunde.</summary>
+        public string? Art { get; set; }
     }
 }

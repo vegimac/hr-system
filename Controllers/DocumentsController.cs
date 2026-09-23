@@ -187,7 +187,9 @@ public class DocumentsController : ControllerBase
             .Select(e => new {
                 e.IdPassDokumentId, e.CAusweisDokumentId, e.QstBefreiungDokumentId,
                 e.NightWorkExamDokumentId, e.NightWorkAusnahmeDokumentId,
-                e.ProbezeitGespraech1DokumentId, e.ProbezeitGespraech2DokumentId
+                e.ProbezeitGespraech1DokumentId, e.ProbezeitGespraech2DokumentId,
+                e.ArbeitszeugnisDokumentId,
+                e.AhvKarteDokumentId, e.GeburtsurkundeDokumentId, e.ZivilstandDokumentId, e.FotoDokumentId
             })
             .FirstOrDefaultAsync();
         var permitDocIds = await _db.EmployeePermitHistories.AsNoTracking()
@@ -196,6 +198,12 @@ public class DocumentsController : ControllerBase
         var familyDocIds = await _db.EmployeeFamilyMembers.AsNoTracking()
             .Where(f => f.EmployeeId == employeeId && f.DokumentId != null)
             .Select(f => f.DokumentId!.Value).ToListAsync();
+        var familyGebDocIds = await _db.EmployeeFamilyMembers.AsNoTracking()
+            .Where(f => f.EmployeeId == employeeId && f.GeburtsurkundeDokumentId != null)
+            .Select(f => f.GeburtsurkundeDokumentId!.Value).ToListAsync();
+        var bankDocIds = await _db.EmployeeBankAccounts.AsNoTracking()
+            .Where(b => b.EmployeeId == employeeId && b.DokumentId != null)
+            .Select(b => b.DokumentId!.Value).ToListAsync();
         var pregnancyDokIds = await _db.EmployeePregnancies.AsNoTracking()
             .Where(p => p.EmployeeId == employeeId && p.ArztbestaetigungDokumentId != null)
             .Select(p => p.ArztbestaetigungDokumentId!.Value).ToListAsync();
@@ -218,7 +226,15 @@ public class DocumentsController : ControllerBase
         AddLink(emp?.ProbezeitGespraech1DokumentId, "Probezeitgespräch 1");
         AddLink(emp?.ProbezeitGespraech2DokumentId, "Probezeitgespräch 2");
         foreach (var pid in permitDocIds) AddLink(pid, "Bewilligung (Aufenthalt)");
-        foreach (var fid in familyDocIds) AddLink(fid, "Ehepartner-Beleg");
+        foreach (var fid in familyDocIds) AddLink(fid, "Ausweis Familienmitglied");
+        // Direkt verknüpfte Dokumente (Walter 23.09.2026)
+        AddLink(emp?.ArbeitszeugnisDokumentId, "Arbeitszeugnis");
+        AddLink(emp?.AhvKarteDokumentId,       "AHV-Karte");
+        AddLink(emp?.GeburtsurkundeDokumentId, "Geburtsurkunde");
+        AddLink(emp?.ZivilstandDokumentId,     "Zivilstandsdokument");
+        AddLink(emp?.FotoDokumentId,           "Mitarbeiterfoto");
+        foreach (var gid in familyGebDocIds) AddLink(gid, "Geburtsurkunde Familienmitglied");
+        foreach (var bid in bankDocIds) AddLink(bid, "Bankbeleg");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
         foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");
 
@@ -1562,7 +1578,20 @@ public class DocumentsController : ControllerBase
         if (await _db.EmployeePermitHistories.AnyAsync(h => h.DokumentId == id))
             blockers.Add("Bewilligungs-Eintrag (Aufenthalt)");
         if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.DokumentId == id))
-            blockers.Add("Ehepartner-Ausweis");
+            blockers.Add("Ausweis Familienmitglied (Partner/in, Kind)");
+        // Direkt verknüpfte Dokumente (Walter 23.09.2026)
+        if (await _db.Employees.AnyAsync(e => e.AhvKarteDokumentId == id))
+            blockers.Add("AHV-Karte");
+        if (await _db.Employees.AnyAsync(e => e.GeburtsurkundeDokumentId == id))
+            blockers.Add("Geburtsurkunde MA");
+        if (await _db.Employees.AnyAsync(e => e.ZivilstandDokumentId == id))
+            blockers.Add("Zivilstandsdokument");
+        if (await _db.Employees.AnyAsync(e => e.FotoDokumentId == id))
+            blockers.Add("Mitarbeiterfoto");
+        if (await _db.EmployeeFamilyMembers.AnyAsync(f => f.GeburtsurkundeDokumentId == id))
+            blockers.Add("Geburtsurkunde Familienmitglied");
+        if (await _db.EmployeeBankAccounts.AnyAsync(b => b.DokumentId == id))
+            blockers.Add("Bankbeleg");
         if (await _db.EmployeePregnancies.AnyAsync(p => p.ArztbestaetigungDokumentId == id))
             blockers.Add("Arztbestätigung errechneter Termin (Mutterschaft)");
         if (await _db.EmployeeLohnAssignments.AnyAsync(a => a.DokumentId == id))

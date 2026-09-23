@@ -991,10 +991,19 @@ async function loadEmployeePhoto(empId) {
         _empPhotoUrl = null;
     }
     try {
-        const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=employee_photo`,
-                              { headers: ah() });
-        if (!r.ok) return;  // 404 = kein Foto, einfach Initialen lassen
-        const meta = await r.json();
+        // Direkt verknüpftes Foto (Ausschnitt, Walter 23.09.2026) hat Vorrang;
+        // sonst wie bisher das neueste Dokument vom Typ «Mitarbeiterfoto».
+        const direkt = (typeof selectedEmployee !== 'undefined' && String(selectedEmployee?.id) === String(empId))
+            ? selectedEmployee?.fotoDokumentId : null;
+        let meta;
+        if (direkt) {
+            meta = { id: direkt, mimeType: 'image/jpeg', filenameOriginal: 'Mitarbeiterfoto' };
+        } else {
+            const r = await fetch(`/api/documents/by-field?employeeId=${empId}&code=employee_photo`,
+                                  { headers: ah() });
+            if (!r.ok) return;  // 404 = kein Foto, einfach Initialen lassen
+            meta = await r.json();
+        }
         if (!meta || !meta.id) return;
         if (String(window.selectedEmployeeId ?? selectedEmployeeId) !== String(empId)) return;
         const mime = (meta.mimeType || '').toLowerCase();
@@ -1351,7 +1360,7 @@ function renderEmployeeDetail(emp) {
                             <span style="font-size:22px;line-height:1">🆘</span><div style="min-width:0;white-space:nowrap">${_hcNotfallVal}</div>
                         </div>
                     </div>
-                    ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${linkedDocButton('birth_cert')}` : null)}
+                    ${_hcFact('Geburtstag', emp.dateOfBirth ? `${birthHeader}${directDocButton(emp.geburtsurkundeDokumentId, 'geburtsurkunde', 'birth_cert')}` : null)}
                     ${_hcFact(_t('ma.field.phone','Telefon'), _hcPhoneVal)}
                     ${_hcFact('E-Mail', _hcEmailVal)}
                 </div>
@@ -1755,7 +1764,7 @@ function loadUebersichtTab() {
                     || (typeof ahvQuickPdf === 'function' ? `<button type="button" onclick="ahvQuickPdf(${emp.id})"
                             title="AHV-Anmeldung 318.260 vorbefüllt öffnen (Versicherungsausweis bestellen)"
                             style="height:22px;display:inline-flex;align-items:center;vertical-align:middle;background:#3f3f3f;color:#fff;border:none;border-radius:8px;padding:0 10px;font-size:10.5px;font-weight:600;cursor:pointer;box-shadow:0 1px 4px rgba(60,55,48,0.18);white-space:nowrap">📄 Ausweis bestellen</button>`
-                        : '<span class="ov-empty">–</span>')}</div>
+                        : '<span class="ov-empty">–</span>')}${(emp.ahvNumber ?? emp.socialSecurityNumber) ? directDocButton(emp.ahvKarteDokumentId, 'ahv_karte', 'ahv_card') : ''}</div>
             </div>
 
             <div class="ov-pf"><div class="ov-pfl">${_t('ma.field.letterSalutation','Briefanrede')}</div>
@@ -1797,7 +1806,7 @@ function loadUebersichtTab() {
 
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.maritalStatus','Zivilstand')}</div>
-                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${linkedDocButton('marriage_cert')}
+                <div class="ov-pfv">${formatMaritalStatus(emp.zivilstand ?? emp.maritalStatus) || '–'} ${directDocButton(emp.zivilstandDokumentId, 'zivilstand', 'marriage_cert')}
                     <button type="button" class="qst-warum-btn" style="margin-left:6px;vertical-align:middle;padding:2px 10px;font-size:11px" title="Zivilstand-Historie — Zivilstand mit Gültig-ab (für QST-Alt-Einträge)" onclick="openZivilstandHistorie(${emp.id})">🕘 Historie</button>
                 </div>
             </div>
@@ -1807,7 +1816,7 @@ function loadUebersichtTab() {
             <input id="ov-maidenName" class="ov-softin" type="text" value="${esc(emp.maidenName)}" oninput="ovDirty()"></div>
             <div class="ov-pf">
                 <div class="ov-pfl">${_t('ma.field.nationality','Nationalität')}</div>
-                <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${linkedDocButton('passport')}</div>
+                <div class="ov-pfv">${emp.nationalityName ? `${esc(emp.nationalityName)} <span class="ov-code">(${esc(emp.nationalityCode || '')})</span>` : (esc(emp.nationalityCode ?? emp.nationality) || '–')} ${directDocButton(emp.idPassDokumentId, 'id_pass', 'passport')}</div>
             </div>
             ${istCH
                 ? `<div class="ov-pf ov-pf-zemis-empty" aria-hidden="true"></div>`
@@ -2909,7 +2918,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
     if (!['id_pass', 'c_ausweis', 'spouse', 'behoerden_befreiung', 'permit_history',
           'night_work_exam', 'night_work_ausnahme',
           'probezeit_gespraech1', 'probezeit_gespraech2',
-          'lohn_assignment', 'qst_tarif', 'arbeitszeugnis'].includes(kind)) return;
+          'lohn_assignment', 'qst_tarif', 'arbeitszeugnis',
+          // Direkt verknüpfte Dokumente (Walter 23.09.2026)
+          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2931,6 +2942,10 @@ async function openAusweisDokuModal(empId, kind, extra) {
                       : kind === 'lohn_assignment'     ? ['lohnabtretung', 'pfaendung', 'pfändung']
                       : kind === 'qst_tarif'           ? ['qst', 'quellensteuer', 'tarif']
                       : kind === 'arbeitszeugnis'      ? ['arbeitszeugnis', 'zeugnis', 'schlusszeugnis']
+                      : kind === 'ahv_karte'           ? ['ahv_card']
+                      : kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' ? ['birth_cert']
+                      : kind === 'zivilstand'          ? ['marriage_cert']
+                      : kind === 'bank_beleg'          ? ['bank_card']
                           :                                  []; // behoerden_befreiung: nur Name-Match
     const wantedNamesRx = kind === 'id_pass'           ? /(ident|pass|reisepass|id[\s-]?karte|ausweis)/i
                        : kind === 'c_ausweis'          ? /(aufenthalt|bewilligung|permit|c.{0,3}ausweis)/i
@@ -2946,6 +2961,11 @@ async function openAusweisDokuModal(empId, kind, extra) {
                            ? /(tarif|quellensteuer|qst|steuer)/i
                        : kind === 'arbeitszeugnis'
                            ? /(arbeitszeugnis|schlusszeugnis|zeugnis)/i
+                       : kind === 'ahv_karte'          ? /(ahv|avs|sozialvers|versicherungsausweis)/i
+                       : kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde'
+                           ? /(geburt|birth)/i
+                       : kind === 'zivilstand'         ? /(ehe|heirat|scheidung|zivilstand|familienausweis|partnerschaft)/i
+                       : kind === 'bank_beleg'         ? /(bank|iban|konto|post)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -2994,6 +3014,11 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'lohn_assignment'     ? 'Lohnabtretung: Beleg-Dokument verknüpfen'
                    : kind === 'arbeitszeugnis'      ? 'Arbeitszeugnis verknüpfen'
                    : kind === 'qst_tarif'           ? 'QST-Tarifbestätigung verknüpfen'
+                   : kind === 'ahv_karte'           ? 'AHV-Karte verknüpfen'
+                   : kind === 'geburtsurkunde'      ? 'Geburtsurkunde verknüpfen'
+                   : kind === 'fam_geburtsurkunde'  ? 'Geburtsurkunde Familienmitglied verknüpfen'
+                   : kind === 'zivilstand'          ? 'Zivilstandsdokument verknüpfen'
+                   : kind === 'bank_beleg'          ? 'Bankbeleg verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -3013,6 +3038,10 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle die Tarifbestätigung / Tarifmeldung der Steuerbehörde zu dieser QST-Version — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : kind === 'arbeitszeugnis'
                             ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
+                        : kind === 'zivilstand'
+                            ? 'Wähle das Dokument zum Zivilstand (Eheschein, Familienausweis, Scheidungsurteil …) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
+                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg')
+                            ? 'Wähle das passende Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
     const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -3132,6 +3161,9 @@ async function openAusweisDokuModal(empId, kind, extra) {
         permitHistoryId: extra?.permitHistoryId || null,
         // Walter 02.08.2026: Lohnabtretung-Beleg.
         lohnAssignmentId: extra?.lohnAssignmentId || null,
+        // Walter 23.09.2026: Bankbeleg pro Konto / Geburtsurkunde Familienmitglied.
+        bankAccountId: extra?.bankAccountId || null,
+        familyMemberId: extra?.familyMemberId || null,
         // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
         qstEntryId: extra?.qstEntryId || null
     };
@@ -3213,6 +3245,14 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!laId) { alert('Lohnabtretungs-ID fehlt.'); return; }
             url  = `/api/employee-lohn-assignments/${laId}/dokument`;
             body = JSON.stringify({ dokumentId });
+        } else if (kind === 'bank_beleg') {
+            if (!ctx.bankAccountId) { alert('Bankkonto-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/bank-accounts/${ctx.bankAccountId}/dokument`;
+            body = JSON.stringify({ dokumentId });
+        } else if (kind === 'fam_geburtsurkunde') {
+            if (!ctx.familyMemberId) { alert('Familienmitglied-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/family/${ctx.familyMemberId}/dokument`;
+            body = JSON.stringify({ dokumentId, art: 'geburtsurkunde' });
         } else if (kind === 'spouse') {
             const famId = ctx.spouseFamilyMemberId;
             if (!famId) { alert('Ehepartner-ID fehlt.'); return; }
@@ -3283,7 +3323,10 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             loadLohnAssignmentsTab(empId);
         }
         // Nachtarbeit-Belege / Arbeitszeugnis: MA-Detail neu laden.
-        if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis') && typeof selectEmployee === 'function') selectEmployee(empId);
+        if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
+             || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand') && typeof selectEmployee === 'function') selectEmployee(empId);
+        if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
+        if (kind === 'fam_geburtsurkunde' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
         // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,
         // dann Modal + Anstellung neu zeichnen (Walter 21.07.2026).
         if (kind === 'probezeit_gespraech1' || kind === 'probezeit_gespraech2') {
@@ -5541,6 +5584,15 @@ function renderFamilieTab(el, members, employeeId, allowanceMap = {}, pregnancyD
             if (type === 'Kind' && m.gemeinsamesKindMitPartner === true) {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Gemeinsames Kind mit dem Konkubinatspartner — H1/A0 nach höherem Bruttoeinkommen (nie beide H1)">👪 gemeinsames Kind</span>`;
             }
+            // Belege am Kind (Walter 23.09.2026): Ausweis (nur Anzeige, wenn
+            // verknüpft) + Geburtsurkunde (verknüpfen/öffnen).
+            if (type === 'Kind') {
+                if (m.dokumentId)
+                    spouseDocBtn += `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();openDirectDoc(${m.dokumentId})" title="Verknüpften Ausweis öffnen">🪪 Ausweis ✓</button>`;
+                spouseDocBtn += m.geburtsurkundeDokumentId
+                    ? `<button class="fam-tile-doc fam-tile-doc-ok" onclick="event.stopPropagation();openDirectDoc(${m.geburtsurkundeDokumentId})" title="Verknüpfte Geburtsurkunde öffnen">📄 Geburtsurkunde ✓</button>`
+                    : `<button class="fam-tile-doc" onclick="event.stopPropagation();openAusweisDokuModal(${employeeId},'fam_geburtsurkunde',{familyMemberId:${m.id}})" title="Geburtsurkunde verknüpfen oder hochladen">📄 Geburtsurkunde</button>`;
+            }
             if (type === 'Konkubinatspartner') {
                 spousePermitBadge += `<span class="fam-tile-badge" style="background:#fce7f3;color:#9d174d" title="Konkubinat — befreit NICHT von der QST (auch mit CH/C); H1/A0 läuft über das gemeinsame Kind">💞 Konkubinat</span>`;
             }
@@ -5997,7 +6049,7 @@ function validateAhvField(inputEl, onBlur) {
 // Optional 3. Argument: Field-Code (permit, passport, ahv_card, ...).
 // Wenn ein verknüpftes Dokument für diesen MA existiert, erscheint ein
 // 📎-Button rechts vom Wert. Klick öffnet das neueste Dokument im Preview.
-function linkedDocButton(linkedCode) {
+function linkedDocButton(linkedCode, directKind) {
     if (!linkedCode) return '';
     const hasDoc = window._linkedDocCodes && window._linkedDocCodes.has(linkedCode);
     // Walter-Vorgabe 10.07.2026: «vorhanden» muss klar erkennbar sein —
@@ -6005,8 +6057,12 @@ function linkedDocButton(linkedCode) {
     const styleActive   = "background:#dcfce7;border:1px solid #86efac;color:#15803d";
     const styleInactive = "background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1";
     const tooltip = hasDoc ? 'Dokument vorhanden — klicken zum Öffnen' : 'Noch kein Dokument vorhanden — klicken um hochzuladen';
-    return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}" title="${tooltip}"
-               onclick="openLinkedDoc('${linkedCode}')"
+    // directKind (Walter 23.09.2026): Feld hat eine direkte Verknüpfung, die
+    // noch leer ist — fehlt auch das Typ-Dokument, öffnet der Klick den
+    // Verknüpfen-Dialog statt nur den Dokumente-Tab.
+    const onclickJs = directKind ? `openLinkedDocOrLink('${linkedCode}','${directKind}')` : `openLinkedDoc('${linkedCode}')`;
+    return `<button class="emp-field-docbtn" data-linked-code="${linkedCode}"${directKind ? ` data-direct-kind="${directKind}"` : ''} title="${tooltip}"
+               onclick="${onclickJs}"
                style="margin-left:8px;${hasDoc ? styleActive : styleInactive};border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1;transition:all .15s">
                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -6019,13 +6075,46 @@ function linkedDocButton(linkedCode) {
            </button>`;
 }
 
+// Direkt verknüpftes Dokument (Walter 23.09.2026): Feld am MA zeigt genau EIN
+// Dokument (z.B. employee.ahv_karte_dokument_id). Gesetzt → grüner Knopf, Klick
+// öffnet die Vorschau. Leer → Rückfall auf die alte Typ-Verknüpfung
+// (fallbackCode), sonst grauer Knopf, der den Verknüpfen-Dialog öffnet.
+function directDocButton(docId, kind, fallbackCode) {
+    if (docId) {
+        return `<button class="emp-field-docbtn" title="Dokument verknüpft — klicken zum Öffnen"
+                   onclick="openDirectDoc(${docId})"
+                   style="margin-left:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                   <span>Doku ✓</span>
+               </button>`;
+    }
+    if (fallbackCode) return linkedDocButton(fallbackCode, kind);
+    return `<button class="emp-field-docbtn" title="Noch kein Dokument verknüpft — klicken zum Verknüpfen oder Hochladen"
+               onclick="openAusweisDokuModal(selectedEmployeeId,'${kind}')"
+               style="margin-left:8px;background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;line-height:1">
+               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+               <span>Doku</span>
+           </button>`;
+}
+
+async function openDirectDoc(docId) {
+    if (!docId) return;
+    if (typeof previewUrlFetch === 'function')
+        await previewUrlFetch(`/api/documents/preview/${docId}`, 'Dokument', ah());
+}
+
+function openLinkedDocOrLink(code, kind) {
+    if (window._linkedDocCodes && window._linkedDocCodes.has(code)) return openLinkedDoc(code);
+    openAusweisDokuModal(selectedEmployeeId, kind);
+}
+
 // Nachgeladenes linked-codes-Set → bestehende Doku-Buttons tauschen,
 // OHNE die ganze Übersicht (Verträge/KTG) neu zu bauen.
 function _ovPatchLinkedDocButtons() {
     document.querySelectorAll('.emp-field-docbtn[data-linked-code]').forEach(btn => {
         const code = btn.getAttribute('data-linked-code');
         if (!code) return;
-        const html = linkedDocButton(code);
+        const html = linkedDocButton(code, btn.getAttribute('data-direct-kind') || undefined);
         if (!html) return;
         const tmp = document.createElement('span');
         tmp.innerHTML = html;
@@ -13235,7 +13324,7 @@ function renderBankAccountsList(el, list) {
         }
         return `<tr style="${active ? '' : 'opacity:0.65;'}border-bottom:1px solid #f1f5f9">
             <td style="padding:10px 14px">
-                <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${formatIbanDisplay(b.iban)}${hauptbankBadge}</div>
+                <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600">${formatIbanDisplay(b.iban)}${hauptbankBadge}${_bankBelegPill(employeeId, b)}</div>
                 <div style="font-size:11px;color:#64748b">${b.bankName ?? ''}${b.bic ? ' · ' + b.bic : ''}</div>
                 ${inhaber}
                 ${ref}
@@ -13267,6 +13356,17 @@ function renderBankAccountsList(el, list) {
         </tr></thead>
         <tbody>${rows}</tbody>
     </table>`;
+}
+
+// Beleg pro Bankkonto (Walter 23.09.2026): grün = verknüpft (Klick = Vorschau),
+// gestrichelt = fehlt (Klick = verknüpfen/hochladen).
+function _bankBelegPill(employeeId, b) {
+    const base = 'margin-left:8px;border-radius:6px;padding:2px 7px;cursor:pointer;vertical-align:middle;display:inline-flex;align-items:center;font-family:inherit;font-size:11px;font-weight:600;line-height:1';
+    return b.dokumentId
+        ? `<button class="emp-field-docbtn" title="Bankbeleg verknüpft — klicken zum Öffnen" onclick="openDirectDoc(${b.dokumentId})"
+               style="${base};background:#dcfce7;border:1px solid #86efac;color:#15803d">Beleg ✓</button>`
+        : `<button class="emp-field-docbtn" title="Bankkarte / IBAN-Beleg verknüpfen oder hochladen" onclick="openAusweisDokuModal(${employeeId},'bank_beleg',{bankAccountId:${b.id}})"
+               style="${base};background:#f8f7f4;border:1px dashed #d5d0c6;color:#b3ada1">Beleg</button>`;
 }
 
 function formatIbanDisplay(iban) {

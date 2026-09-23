@@ -223,6 +223,17 @@ public class Employee
     /// </summary>
     public int? ArbeitszeugnisDokumentId { get; set; }
 
+    // Direkt verknüpfte Dokumente (Walter-Vorgabe 23.09.2026, «Dokumente an der
+    // Info statt in Ordnern»). Ersetzen die Typ-Verknüpfung (linked_field_code)
+    // für AHV-Karte, Geburtsurkunde, Zivilstand (Ehe/Scheidung) und Foto.
+    // Plain INTEGER wie arbeitszeugnis_dokument_id; Lösch-Schutz im
+    // DocumentsController.Delete.
+    public int? AhvKarteDokumentId { get; set; }
+    public int? GeburtsurkundeDokumentId { get; set; }
+    public int? ZivilstandDokumentId { get; set; }
+    /// <summary>Foto = zugeschnittenes Bild (Ausschnitt), eigenes Dokument.</summary>
+    public int? FotoDokumentId { get; set; }
+
     /// <summary>
     /// Interne easy@work-Employee-ID (Walter 17.06.2026). Wird beim MA-Sync
     /// gesetzt und erlaubt das Auflösen von edited_by_id-Verweisen aus den

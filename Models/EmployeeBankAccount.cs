@@ -60,6 +60,9 @@ public class EmployeeBankAccount
     public DateOnly  ValidFrom        { get; set; }
     public DateOnly? ValidTo          { get; set; }
 
+    /// <summary>Beleg zu diesem Konto (Bankkarte / IBAN-Bestätigung), Walter 23.09.2026.</summary>
+    public int?      DokumentId       { get; set; }
+
     public DateTime  CreatedAt        { get; set; } = DateTime.UtcNow;
     public DateTime  UpdatedAt        { get; set; } = DateTime.UtcNow;
 

@@ -2078,16 +2078,18 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     if (!empId || !docId) return null;
     const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    let emp = null, fam = [], docs = [];
+    let emp = null, fam = [], docs = [], bank = [];
     try {
-        const [re, rf, rd] = await Promise.all([
+        const [re, rf, rd, rb] = await Promise.all([
             fetch(`/api/employees/${empId}`, { headers: ah() }),
             fetch(`/api/employees/${empId}/family`, { headers: ah() }),
             fetch(`/api/documents/by-employee/${empId}`, { headers: ah() }),
+            fetch(`/api/employee-bank-accounts/employee/${empId}`, { headers: ah() }),
         ]);
         if (re.ok) emp = await re.json();
         if (rf.ok) fam = await rf.json();
         if (rd.ok) docs = await rd.json();
+        if (rb.ok) bank = await rb.json();
     } catch { /* ohne Daten: nur MA-Ausweis + keine */ }
     const docName = id => {
         const d = (docs || []).find(x => x.id === id);
@@ -2096,39 +2098,54 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     const jahr = iso => iso ? String(iso).slice(0, 4) : '';
     const lebt = m => !m.dateOfDeath;
 
-    // Optionen: { key, label, sub, current, apply }
+    // Optionen: { key, gruppe, label, sub, current, apply, zeigeSub, maNeuLaden }
     const opts = [];
-    opts.push({
-        key: 'ma', label: 'Ausweis Mitarbeiter/in', sub: 'Pass oder ID',
-        current: emp?.idPassDokumentId ?? null,
-        apply: () => fetch(`/api/employees/${empId}/ausweis-doku`, {
-            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ kind: 'id_pass', dokumentId: docId }) }),
+    const patchJson = (url, body) => () => fetch(url, {
+        method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const maOpt = (kind, label, sub, current) => ({
+        key: kind, gruppe: 'Mitarbeiter/in', label, sub, current, maNeuLaden: true,
+        apply: patchJson(`/api/employees/${empId}/ausweis-doku`, { kind, dokumentId: docId }),
     });
-    const famOpt = (m, label) => ({
-        key: 'fam' + m.id, label,
-        sub: `${m.firstName || ''} ${m.lastName || ''}`.trim() + (m.dateOfBirth ? ` · ${jahr(m.dateOfBirth)}` : ''),
-        current: m.dokumentId ?? null,
-        apply: () => fetch(`/api/employees/${empId}/family/${m.id}/dokument`, {
-            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ dokumentId: docId }) }),
+    // ── Mitarbeiter/in ──
+    opts.push({ ...maOpt('id_pass', 'Ausweis', 'Pass oder ID', emp?.idPassDokumentId ?? null), key: 'ma' });
+    opts.push(maOpt('ahv_karte', 'AHV-Karte', '', emp?.ahvKarteDokumentId ?? null));
+    opts.push(maOpt('geburtsurkunde', 'Geburtsurkunde', '', emp?.geburtsurkundeDokumentId ?? null));
+    opts.push(maOpt('zivilstand', 'Zivilstandsdokument', 'Ehe, Scheidung, Partnerschaft', emp?.zivilstandDokumentId ?? null));
+    // Foto nur bei Bildern — danach Ausschnitt wählen (eigenes, zugeschnittenes Dokument).
+    const diesesDok = (docs || []).find(x => x.id === docId);
+    if ((diesesDok?.mimeType || '').toLowerCase().startsWith('image/'))
+        opts.push({ key: 'foto', gruppe: 'Mitarbeiter/in', label: 'Mitarbeiterfoto', sub: 'Ausschnitt wählen',
+                    current: emp?.fotoDokumentId ?? null, apply: null, maNeuLaden: true });
+    // Bankbeleg pro aktuell gültigem Konto (Walter 23.09.2026)
+    const heute = new Date().toISOString().slice(0, 10);
+    (bank || []).filter(k => !k.validTo || k.validTo >= heute).forEach(k => opts.push({
+        key: 'bank' + k.id, gruppe: 'Mitarbeiter/in', label: 'Bankbeleg', zeigeSub: true,
+        sub: (k.iban ? '…' + String(k.iban).replace(/\s+/g, '').slice(-4) : '') + (k.bankName ? ' · ' + k.bankName : '') + (k.isHauptbank ? ' · Hauptbank' : ''),
+        current: k.dokumentId ?? null,
+        apply: patchJson(`/api/employees/${empId}/bank-accounts/${k.id}/dokument`, { dokumentId: docId }),
+    }));
+    // Nachtarbeit (Walter 23.09.2026): Arztzeugnis/Verzicht + Ausnahmeregelung.
+    opts.push({ ...maOpt('night_work_exam', 'Nachtarbeit: Arztzeugnis', 'oder Verzichtserklärung', emp?.nightWorkExamDokumentId ?? null) });
+    opts.push({ ...maOpt('night_work_ausnahme', 'Nachtarbeit: Ausnahmeregelung', 'Tag-/Nachtarbeit', emp?.nightWorkAusnahmeDokumentId ?? null) });
+
+    // ── Familie ── Partner/Kinder nur, wenn erfasst
+    const famName = m => `${m.firstName || ''} ${m.lastName || ''}`.trim() + (m.dateOfBirth ? ` · ${jahr(m.dateOfBirth)}` : '');
+    const famOpt = (m, label, art) => ({
+        key: (art === 'geburtsurkunde' ? 'famgeb' : 'fam') + m.id, gruppe: 'Familie', label, zeigeSub: true,
+        sub: famName(m),
+        current: (art === 'geburtsurkunde' ? m.geburtsurkundeDokumentId : m.dokumentId) ?? null,
+        apply: patchJson(`/api/employees/${empId}/family/${m.id}/dokument`,
+                         art === 'geburtsurkunde' ? { dokumentId: docId, art } : { dokumentId: docId }),
     });
     (fam || []).filter(m => lebt(m) && (m.memberType === 'Ehepartner' || m.memberType === 'Konkubinatspartner'))
         .forEach(m => opts.push(famOpt(m, 'Ausweis Partner/in')));
     (fam || []).filter(m => lebt(m) && m.memberType === 'Kind')
         .sort((a, b) => String(a.dateOfBirth || '').localeCompare(String(b.dateOfBirth || '')))
-        .forEach(m => opts.push(famOpt(m, 'Ausweis Kind')));
-    // Nachtarbeit (Walter 23.09.2026): Arztzeugnis/Verzicht + Ausnahmeregelung.
-    const nwOpt = (kind, label, sub, current) => ({
-        key: kind, label, sub, current, nachtarbeit: true,
-        apply: () => fetch(`/api/employees/${empId}/ausweis-doku`, {
-            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ kind, dokumentId: docId }) }),
-    });
-    opts.push(nwOpt('night_work_exam', 'Nachtarbeit: Arztzeugnis', 'oder Verzichtserklärung', emp?.nightWorkExamDokumentId ?? null));
-    opts.push(nwOpt('night_work_ausnahme', 'Nachtarbeit: Ausnahmeregelung', 'Tag-/Nachtarbeit', emp?.nightWorkAusnahmeDokumentId ?? null));
+        .forEach(m => { opts.push(famOpt(m, 'Ausweis Kind')); opts.push(famOpt(m, 'Geburtsurkunde Kind', 'geburtsurkunde')); });
+
+    // ── Bewilligung ──
     const ch = (emp?.nationalityCode || '').toUpperCase() === 'CH';
-    if (!ch) opts.push({ key: 'bew', label: 'Neue Bewilligung', sub: 'erfassen und Ausweis einlesen', current: null, apply: null });
+    if (!ch) opts.push({ key: 'bew', gruppe: 'Bewilligung', label: 'Neue Bewilligung', sub: 'erfassen und Ausweis einlesen', current: null, apply: null });
 
     const row = o => `
         <label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer"
@@ -2148,8 +2165,9 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
         <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);max-width:480px;width:92%;padding:22px 24px">
             <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:6px">Mit welcher Angabe verknüpfen?</div>
             <div style="font-size:13px;color:#646464;line-height:1.5">${dateiName ? `«${esc(dateiName)}» ist gespeichert.` : 'Das Dokument ist gespeichert.'} Gehört es direkt zu einer dieser Angaben?</div>
-            <div style="margin-top:12px;max-height:300px;overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px">
-                ${opts.map(row).join('')}
+            <div style="margin-top:12px;max-height:min(420px,60vh);overflow-y:auto;background:rgba(255,255,255,0.38);border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:5px">
+                ${opts.map((o, i) => (i === 0 || opts[i - 1].gruppe !== o.gruppe
+                    ? `<div style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#8b8b8b;padding:${i === 0 ? '4px' : '10px'} 10px 2px">${esc(o.gruppe)}</div>` : '') + row(o)).join('')}
             </div>
             <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
                 <button id="dokVkNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Keine Verknüpfung</button>
@@ -2173,9 +2191,14 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
 
     if (wahl.current && wahl.current !== docId) {
         const ok = await liquidConfirm(
-            `Bei «${wahl.label}${wahl.key.startsWith('fam') ? ' · ' + wahl.sub : ''}» ist bereits «${docName(wahl.current)}» verknüpft.\n\nDurch das neue Dokument ersetzen? Das bisherige bleibt in den Dokumenten.`,
+            `Bei «${wahl.label}${wahl.zeigeSub ? ' · ' + wahl.sub : ''}» ist bereits «${docName(wahl.current)}» verknüpft.\n\nDurch das neue Dokument ersetzen? Das bisherige bleibt in den Dokumenten.`,
             { title: 'Bestehenden ersetzen?', yesLabel: 'Ersetzen', noLabel: 'Abbrechen' });
         if (!ok) return { verknuepft: false, bewilligung: false };
+    }
+    if (wahl.key === 'foto') {
+        const ok = await dokFotoAusschnitt(empId, diesesDok);
+        if (ok && window.selectedEmployeeId === empId && typeof selectEmployee === 'function') selectEmployee(empId);
+        return { verknuepft: ok, bewilligung: false };
     }
     try {
         const r = await wahl.apply();
@@ -2184,9 +2207,10 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
             alert('Verknüpfen fehlgeschlagen: ' + (j.message || j.error || ('HTTP ' + r.status)));
             return { verknuepft: false, bewilligung: false };
         }
-        if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.key.startsWith('fam') ? ' · ' + wahl.sub : ''}`, 'success');
-        // Nachtarbeit-Karte in der MA-Übersicht zeigt den Beleg — neu laden.
-        if (wahl.nachtarbeit && window.selectedEmployeeId === empId && typeof selectEmployee === 'function')
+        if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.zeigeSub ? ' · ' + wahl.sub : ''}`, 'success');
+        // MA-Übersicht zeigt die Doku-Knöpfe (AHV, Zivilstand, Nachtarbeit …) — neu laden.
+        if ((wahl.maNeuLaden || wahl.key.startsWith('bank') || wahl.key.startsWith('fam'))
+            && window.selectedEmployeeId === empId && typeof selectEmployee === 'function')
             selectEmployee(empId);
         return { verknuepft: true, bewilligung: false };
     } catch (e) {
@@ -2219,6 +2243,115 @@ async function dokNeueBewilligungMitDok(empId, docId) {
             { title: 'Bewilligung einlesen', yesLabel: 'Einlesen', noLabel: 'Selbst erfassen' })
         && typeof phfOcrPermit === 'function') {
         await phfOcrPermit(docId);
+    }
+}
+
+// Mitarbeiterfoto mit Ausschnitt (Walter 23.09.2026): quadratischen Bereich
+// wählen (verschieben + Grösse), clientseitig auf 512×512 zuschneiden, als
+// EIGENES Dokument «Mitarbeiterfoto (Ausschnitt)» ablegen und als Foto am MA
+// verknüpfen. Das Original bleibt unverändert in den Dokumenten.
+async function dokFotoAusschnitt(empId, quelle) {
+    if (!empId || !quelle?.id) return false;
+    let url;
+    try {
+        const r = await fetch(`/api/documents/preview/${quelle.id}`, { headers: ah() });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        url = URL.createObjectURL(await r.blob());
+    } catch (e) { alert('Bild konnte nicht geladen werden: ' + e.message); return false; }
+
+    const blob = await new Promise(resolve => {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.55);z-index:9850;display:flex;align-items:center;justify-content:center';
+        wrap.innerHTML = `
+        <div style="background:#faf8f5;border:1px solid rgba(255,255,255,0.62);border-radius:16px;box-shadow:0 22px 70px rgba(60,55,48,0.22);width:min(560px,94vw);padding:20px 22px">
+            <div style="font-size:15px;font-weight:800;color:#3f3f3f;margin-bottom:4px">Ausschnitt für das Mitarbeiterfoto</div>
+            <div style="font-size:12.5px;color:#646464;margin-bottom:10px">Rahmen verschieben, Grösse mit dem Regler anpassen.</div>
+            <div id="dfaStage" style="position:relative;display:flex;justify-content:center;align-items:center;background:#e7e4db;border-radius:12px;height:min(420px,55vh);overflow:hidden;user-select:none;touch-action:none">
+                <img id="dfaImg" src="${url}" style="max-width:100%;max-height:100%;display:block" draggable="false">
+                <div id="dfaSel" style="position:absolute;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,0.45);cursor:move"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
+                <span style="font-size:12px;color:#646464">Grösse</span>
+                <input id="dfaSize" type="range" min="15" max="100" value="60" style="flex:1;accent-color:#3f3f3f">
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+                <button id="dfaNo" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+                <button id="dfaOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 18px;cursor:pointer;font-size:13.5px;font-weight:700">Übernehmen</button>
+            </div>
+        </div>`;
+        document.body.appendChild(wrap);
+        const img = wrap.querySelector('#dfaImg'), sel = wrap.querySelector('#dfaSel'), stage = wrap.querySelector('#dfaStage');
+        const size = wrap.querySelector('#dfaSize');
+        const st = { x: 0, y: 0, s: 0 };   // Auswahl in Anzeige-Pixeln relativ zum Bild
+        const box = () => {                // Bild-Rechteck relativ zur Bühne
+            const ri = img.getBoundingClientRect(), rs = stage.getBoundingClientRect();
+            return { l: ri.left - rs.left, t: ri.top - rs.top, w: ri.width, h: ri.height };
+        };
+        const clamp = () => {
+            const b = box();
+            st.s = Math.min(st.s, b.w, b.h);
+            st.x = Math.max(0, Math.min(st.x, b.w - st.s));
+            st.y = Math.max(0, Math.min(st.y, b.h - st.s));
+            sel.style.left = (b.l + st.x) + 'px'; sel.style.top = (b.t + st.y) + 'px';
+            sel.style.width = st.s + 'px';        sel.style.height = st.s + 'px';
+        };
+        const setSize = () => {
+            const b = box(), m = Math.min(b.w, b.h);
+            const cx = st.x + st.s / 2, cy = st.y + st.s / 2;
+            st.s = m * parseInt(size.value, 10) / 100;
+            st.x = cx - st.s / 2; st.y = cy - st.s / 2;
+            clamp();
+        };
+        const start = () => {
+            const b = box();
+            st.s = Math.min(b.w, b.h) * 0.6;
+            st.x = (b.w - st.s) / 2; st.y = Math.max(0, (b.h - st.s) / 3);  // Gesicht meist im oberen Drittel
+            clamp();
+        };
+        if (img.complete && img.naturalWidth) start(); else img.onload = start;
+        size.oninput = setSize;
+        let drag = null;
+        sel.addEventListener('pointerdown', e => { drag = { px: e.clientX, py: e.clientY, x: st.x, y: st.y }; sel.setPointerCapture(e.pointerId); });
+        sel.addEventListener('pointermove', e => {
+            if (!drag) return;
+            st.x = drag.x + e.clientX - drag.px; st.y = drag.y + e.clientY - drag.py; clamp();
+        });
+        sel.addEventListener('pointerup', () => { drag = null; });
+        const done = v => { wrap.remove(); resolve(v); };
+        wrap.querySelector('#dfaNo').onclick = () => done(null);
+        wrap.querySelector('#dfaOk').onclick = () => {
+            const b = box(), f = img.naturalWidth / b.w;
+            const c = document.createElement('canvas');
+            c.width = 512; c.height = 512;
+            c.getContext('2d').drawImage(img, st.x * f, st.y * f, st.s * f, st.s * f, 0, 0, 512, 512);
+            c.toBlob(bl => done(bl), 'image/jpeg', 0.9);
+        };
+    });
+    URL.revokeObjectURL(url);
+    if (!blob) return false;
+
+    // Ablage als neues Dokument (gleicher Dokument-Typ wie das Original).
+    const branch = (typeof allBranches !== 'undefined' ? allBranches : [])?.find(b => b.id === fixedCompanyProfileId);
+    const fd = new FormData();
+    fd.append('file', blob, 'Mitarbeiterfoto.jpg');
+    fd.append('employeeId', empId);
+    fd.append('dokumentTypId', quelle.dokumentTypId);
+    fd.append('branchCode', branch?.restaurantCode || '000');
+    fd.append('bemerkung', 'Mitarbeiterfoto (Ausschnitt)');
+    try {
+        const r = await fetch('/api/documents/upload', { method: 'POST', headers: { 'Authorization': `Bearer ${authToken}` }, body: fd });
+        if (!r.ok) throw new Error(await r.text() || 'HTTP ' + r.status);
+        const neu = await r.json();
+        const l = await fetch(`/api/employees/${empId}/ausweis-doku`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ kind: 'foto', dokumentId: neu.id }) });
+        if (!l.ok) throw new Error('Verknüpfen HTTP ' + l.status);
+        if (typeof showToast === 'function') showToast('✓ Mitarbeiterfoto gesetzt', 'success');
+        if (typeof loadEmpDokumente === 'function' && _dokState?.empId === empId) loadEmpDokumente(empId);
+        return true;
+    } catch (e) {
+        alert('Foto konnte nicht gespeichert werden: ' + e.message);
+        return false;
     }
 }
 

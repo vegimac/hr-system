@@ -148,6 +148,9 @@ public class EmployeeFamilyMember
     /// </summary>
     public int? DokumentId { get; set; }
 
+    /// <summary>Geburtsurkunde dieses Familienmitglieds, v.a. Kinder (Walter 23.09.2026).</summary>
+    public int? GeburtsurkundeDokumentId { get; set; }
+
     // Walter-Regel ACHTUNG TIME (vereinheitlicht 04.08.2026): Lokalzeit,
     // Spalten timestamp without time zone — nie UtcNow.
     public DateTime CreatedAt { get; set; } = DateTime.Now;

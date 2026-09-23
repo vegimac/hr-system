@@ -289,6 +289,10 @@ public class AppDbContext : DbContext
             entity.Property(e => e.ProbezeitEntscheid).HasColumnName("probezeit_entscheid");
             entity.Property(e => e.ProbezeitEntscheidAm).HasColumnName("probezeit_entscheid_am").HasColumnType("date");
             entity.Property(e => e.ArbeitszeugnisDokumentId).HasColumnName("arbeitszeugnis_dokument_id");
+            entity.Property(e => e.AhvKarteDokumentId).HasColumnName("ahv_karte_dokument_id");
+            entity.Property(e => e.GeburtsurkundeDokumentId).HasColumnName("geburtsurkunde_dokument_id");
+            entity.Property(e => e.ZivilstandDokumentId).HasColumnName("zivilstand_dokument_id");
+            entity.Property(e => e.FotoDokumentId).HasColumnName("foto_dokument_id");
             entity.Property(e => e.EasyAtWorkEmployeeId).HasColumnName("easyatwork_employee_id");
             entity.Property(e => e.EasyMissingSince).HasColumnName("easy_missing_since").HasColumnType("date");
             // GLOBALER QUERY FILTER: ALLE Employee-Queries blenden hidden MA
@@ -1254,6 +1258,7 @@ public class AppDbContext : DbContext
             // Walter-Vorgabe 13.06.2026: explizite Verknüpfung zum Beleg-Doku
             // dieses Familienmitglieds (Pass / ID / Bewilligung).
             entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
+            entity.Property(e => e.GeburtsurkundeDokumentId).HasColumnName("geburtsurkunde_dokument_id");
             entity.Property(e => e.CreatedAt).HasColumnName("created_at").HasColumnType("timestamp without time zone");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at").HasColumnType("timestamp without time zone");
             entity.HasOne(e => e.Employee).WithMany().HasForeignKey(e => e.EmployeeId);
@@ -2682,6 +2687,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
             entity.Property(e => e.Iban).HasColumnName("iban").HasMaxLength(34);
+            entity.Property(e => e.DokumentId).HasColumnName("dokument_id");
             entity.Property(e => e.Bic).HasColumnName("bic").HasMaxLength(15);
             entity.Property(e => e.BankName).HasColumnName("bank_name").HasMaxLength(200);
             entity.Property(e => e.Kontoinhaber).HasColumnName("kontoinhaber").HasMaxLength(200);
