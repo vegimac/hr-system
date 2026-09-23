@@ -195,6 +195,8 @@ _ab 09: QST-Kanton BE, Modell M → nicht mehr Jahresmodell TI, hier nicht gefü
 
 ## TF41 Meier Max (TI, Modell Y, Pensum AG1 100.0%)
 
+**Mai/Juli — Abweichung zur Spalte «Abzug Modell» ist KEIN Fehler (geprüft 23.09.2026):** Der Mai ist ein **Korrekturlohn** (Dienstaltersgeschenk 30'000, kein periodischer Lohn). Bei einer Nachzahlung besteuert die Engine im Jahresmodell nur die Zahlung selbst (18.6 % × 30'000 = **5'580**) und gleicht die Töpfe im nächsten ordentlichen Lohn aus — der Hinweis steht auf dem Beleg. Der Juli holt das nach: 18.6 % × 90'000 − 13'830 bezahlt = **2'910** (Tabelle: 1'860). Jahrestotal 16'740 in beiden Varianten. Die Tabelle rechnet jeden Monat als regulären Lauf und kennt die Aufteilung nicht.
+
 | Monat | Code | QST-Lohn Modell | QST-Lohn XML | SB-Lohn Modell | SB-Lohn XML | Satz | Abzug Modell | Abzug XML | Diff | XML-Korrekturen |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
 | 01 | A0N | 10000.00 | 10000.00 | 10000.00 | 10000.00 | A0N 14.90% | 1490.00 | 1490.00 | ✓ |  |
