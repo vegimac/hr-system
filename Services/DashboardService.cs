@@ -1095,6 +1095,10 @@ public class DashboardService
             var fkSvc = new FerienKuerzungService(_db);
             foreach (var e in fkCands)
             {
+                // EINE Meldung pro MA (Walter 23.09.2026: vorher je Dienstjahr eine —
+                // sah doppelt aus). Teile: abgelaufenes + laufendes Dienstjahr.
+                var teile = new List<string>();
+                decimal totalTage = 0m;
                 foreach (var stichtag in new[] { today.AddYears(-1), today })
                 {
                     var info = await fkSvc.InfoAsync(e.Id, stichtag);
@@ -1108,21 +1112,23 @@ public class DashboardService
                             .MaxAsync(a => (DateTime?)a.UpdatedAt);
                         if (letzteAu == null || letzteAu <= info.VerzichtAm) continue;
                     }
-                    var name = $"{e.FirstName} {e.LastName}".Trim();
-                    alerts.Add(new DashboardAlert
-                    {
-                        Category = "ferienkuerzung_moeglich",
-                        Severity = SeverityState("ferienkuerzung_moeglich", "warning"),
-                        Title    = $"Ferienkürzung möglich: {info.VorschlagGanzeTage:0} Tag{(info.VorschlagGanzeTage == 1 ? "" : "e")}",
-                        Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · Dienstjahr {info.DienstjahrVon:dd.MM.yyyy}–{info.DienstjahrBis:dd.MM.yyyy}"
-                                 + $" · {info.TageKrankUnfall:0.#} Krankheitstage → {info.Zwoelftel:0}/12 = {info.GesamtTage:0.00} Tage"
-                                 + (info.BereitsGekuerzt > 0 ? $" · bereits gekürzt {info.BereitsGekuerzt:0.00}" : ""),
-                        TitleKey = "alert.ferienkuerzung.moeglich",
-                        EmployeeId     = e.Id,
-                        EmployeeNumber = e.EmployeeNumber,
-                        EmployeeName   = name
-                    });
+                    totalTage += info.VorschlagGanzeTage;
+                    teile.Add($"Dienstjahr {info.DienstjahrVon:dd.MM.yy}–{info.DienstjahrBis:dd.MM.yy}: "
+                            + $"{info.TageKrankUnfall:0.#} Krankheitstage → {info.Zwoelftel:0}/12 → {info.VorschlagGanzeTage:0} Tag{(info.VorschlagGanzeTage == 1 ? "" : "e")}"
+                            + (info.BereitsGekuerzt > 0 ? $" (bereits gekürzt {info.BereitsGekuerzt:0.##})" : ""));
                 }
+                if (teile.Count == 0) continue;
+                var name = $"{e.FirstName} {e.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "ferienkuerzung_moeglich",
+                    Severity = SeverityState("ferienkuerzung_moeglich", "warning"),
+                    Title    = $"Ferienkürzung möglich: {totalTage:0} Tag{(totalTage == 1 ? "" : "e")}",
+                    Subtitle = $"{name} · Personalnr. {e.EmployeeNumber} · " + string.Join(" · ", teile),
+                    EmployeeId     = e.Id,
+                    EmployeeNumber = e.EmployeeNumber,
+                    EmployeeName   = name
+                });
             }
         }
 
