@@ -777,6 +777,11 @@ public class EmploymentsController : ControllerBase
                && per.Status == "abgeschlossen"
                && per.PeriodTo   >= startDateOnly
                && (endDateOnly == null || per.PeriodFrom <= endDateOnly)
+               // Nur Lohnbelege DERSELBEN Filiale (Walter 23.09.2026, Llalloshi):
+               // der Juni-Lohn in Langenthal blockierte das Löschen des
+               // Fehl-Vertrags in Reinach, obwohl dort nie abgerechnet wurde.
+               && (employment.CompanyProfileId == null
+                   || snap.CompanyProfileId == employment.CompanyProfileId)
             select snap.Id
         ).AnyAsync();
 
@@ -818,6 +823,11 @@ public class EmploymentsController : ControllerBase
                && per.Status == "abgeschlossen"
                && per.PeriodTo   >= startDateOnly
                && (endDateOnly == null || per.PeriodFrom <= endDateOnly)
+               // Nur Lohnbelege DERSELBEN Filiale (Walter 23.09.2026, Llalloshi):
+               // der Juni-Lohn in Langenthal blockierte das Löschen des
+               // Fehl-Vertrags in Reinach, obwohl dort nie abgerechnet wurde.
+               && (employment.CompanyProfileId == null
+                   || snap.CompanyProfileId == employment.CompanyProfileId)
             select snap.Id
         ).AnyAsync();
 

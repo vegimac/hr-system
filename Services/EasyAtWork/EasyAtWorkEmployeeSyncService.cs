@@ -280,6 +280,8 @@ public class EasyAtWorkEmployeeSyncService
         public DateOnly? SeniorityDate { get; set; }
         public DateOnly? PregnantMeldedatum { get; set; }
         public DateOnly? PregnantErrechneterTermin { get; set; }
+        /// <summary>«Employeenumber in Payroll system» = «nicht übernehmen» o.ä.</summary>
+        public bool NichtUebernehmen { get; set; }
     }
 
     /// <summary>Vorab PARALLEL geholte easy@work-Detail-Daten pro MA (nur _client-
@@ -671,7 +673,11 @@ public class EasyAtWorkEmployeeSyncService
         //    Filial-Datensatz hängen. Identitäts-Guard: user_id ODER Name
         //    ODER Vorname+Geburtsdatum (Nummern könnten neu vergeben sein). ──
         var eawTodayD = DateOnly.FromDateTime(DateTime.Today);
-        if (eaw.To.HasValue && eaw.To.Value < eawTodayD)
+        // «Nicht übernehmen»-Marke (Walter 23.09.2026): ein markierter Datensatz
+        // zählt wie ein beendeter — es wird ein anderer, AKTIVER Datensatz der
+        // Person gesucht. Gibt es keinen, bricht der Sync unten mit Fehler ab.
+        bool aufgeloestMarkiert = await IstNichtUebernehmenAsync(matchedCustomerId!.Value, eaw.Id, ct);
+        if (aufgeloestMarkiert || (eaw.To.HasValue && eaw.To.Value < eawTodayD))
         {
             var candNumbers = new List<string>();
             void AddCand(string? x)
@@ -719,6 +725,7 @@ public class EasyAtWorkEmployeeSyncService
                      && cand.BirthDate.Value == DateOnly.FromDateTime(emp.DateOfBirth.Value)
                      && string.Equals((cand.FirstName ?? "").Trim(), (emp.FirstName ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
                     if (!sameUser && !sameName && !sameDobFirst) continue;
+                    if (await IstNichtUebernehmenAsync(mapping.EasyAtWorkCustomerId, cand.Id, ct)) continue;
                     aktiv = cand;
                     break;
                 }
@@ -730,6 +737,11 @@ public class EasyAtWorkEmployeeSyncService
                     aktivGefunden = true;
                     break;
                 }
+            }
+            if (!aktivGefunden && aufgeloestMarkiert)
+            {
+                result.Errors.Add($"Der verknüpfte easy@work-Datensatz (Nummer {eaw.Number}) ist als «nicht übernehmen» markiert, und in keiner gemappten Filiale gibt es einen anderen aktiven Datensatz dieser Person — nichts übernommen.");
+                return result;
             }
             if (!aktivGefunden)
                 result.Notes.Add($"Hinweis: der verknüpfte easy@work-Datensatz (Nummer {eaw.Number}) ist seit {eaw.To:dd.MM.yyyy} beendet — über die Nummern {string.Join(", ", candNumbers)} wurde in keiner gemappten Filiale ein aktiver Datensatz gefunden.");
@@ -1769,6 +1781,16 @@ public class EasyAtWorkEmployeeSyncService
             if (IsHansMuster(master.FirstName, master.LastName))
             {
                 hansMusterSkipped++;
+                continue;
+            }
+
+            // «Nicht übernehmen»-Marke (Walter 23.09.2026): Datensatz komplett
+            // übergehen — kein Row, also weder NEU noch UPDATE noch Vertrag.
+            // Tief-Import mit SkipDetailCalls lädt keine Props und sieht die
+            // Marke daher nicht (bewusst — dort geht es um Tempo).
+            if (detailCache.Props.TryGetValue(eaw.Id, out var propsNu) && propsNu.NichtUebernehmen)
+            {
+                res.Notes.Add($"{master.FirstName} {master.LastName} (easy@work Nr. {eaw.Number}): in easy@work als «nicht übernehmen» markiert — übersprungen.");
                 continue;
             }
 
@@ -4612,6 +4634,38 @@ public class EasyAtWorkEmployeeSyncService
         && string.Equals((last  ?? "").Trim(), "muster", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// «Nicht übernehmen»-Marke (Walter-Vorgabe 23.09.2026, Fall Llalloshi: MA
+    /// fälschlich in einer zweiten Filiale erfasst, in easy@work nicht löschbar).
+    /// Steht im benutzerdefinierten Feld «Employeenumber in Payroll system»
+    /// «deleted», «gelöscht» oder ein Text mit «nicht übernehmen», ignoriert
+    /// OneCrew diesen easy@work-Datensatz überall (Stammdaten, Verträge,
+    /// Aktiv-Vorrang, Stempel-Preflight).
+    /// </summary>
+    public static bool IstNichtUebernehmenMarke(string? wert)
+    {
+        var v = (wert ?? "").Trim().ToLowerInvariant();
+        if (v.Length == 0) return false;
+        if (v is "delete" or "deleted" or "gelöscht" or "geloescht") return true;
+        return v.Contains("nicht übernehmen") || v.Contains("nicht uebernehmen");
+    }
+
+    /// <summary>Neueste gesetzte Version des Payroll-Nummer-Felds prüfen.</summary>
+    public static bool IstNichtUebernehmen(IEnumerable<EawProperty> props)
+        => IstNichtUebernehmenMarke(props
+            .Where(p => (p.Key ?? "").ToLowerInvariant().Contains("payroll"))
+            .OrderByDescending(p => p.From ?? DateOnly.MinValue)
+            .Select(p => p.Value)
+            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v)));
+
+    /// <summary>Live-Prüfung eines einzelnen Datensatzes (Einzel-Sync). Fehler beim
+    /// Abruf = nicht markiert — der Sync läuft dann wie bisher.</summary>
+    private async Task<bool> IstNichtUebernehmenAsync(int customerId, int eawEmployeeId, CancellationToken ct)
+    {
+        try { return IstNichtUebernehmen(await _client.GetAllPropertiesAsync(customerId, eawEmployeeId, ct)); }
+        catch { return false; }
+    }
+
+    /// <summary>
     /// Schutz gegen Doppelvergabe derselben easy@work-id (Walter 29.06.2026):
     /// genau das erzeugte die „mehrere Lohn-MA"-Blockade (ein „…alt"-Archiv-MA
     /// trug die id eines aktiven MA). Geht VOR dem Speichern alle getrackten
@@ -4775,6 +4829,7 @@ public class EasyAtWorkEmployeeSyncService
             {
                 Marital = MapMaritalStatus(Pick("marital", "civil", "zivil", "familienstand", "family_status")),
                 Ahv     = FormatAhv(Pick("swiss_national_id", "national_id", "ahv", "avs", "sozialvers")),
+                NichtUebernehmen = IstNichtUebernehmen(props),
             };
 
             // Nachtarbeit-Arztzeugnis (cf_night_work_doctors_note, Walter 30.06.2026):

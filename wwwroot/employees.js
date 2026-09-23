@@ -2218,17 +2218,57 @@ function _empContractActionsHtml(emp, c, allContracts) {
     const editItem = darfVertragBearbeiten()
         ? `<button type="button" class="dok-menu-item" onclick="empContractEdit(${cid}, ${emp.id})">Bearbeiten</button>`
         : `<div class="dok-menu-item" style="cursor:default;color:#8b8b8b;font-size:12px" title="Verträge werden in easy@work geändert und über den Import geholt.">Änderung über easy@work</div>`;
+    // «Löschen» (Walter 23.09.2026, Llalloshi: Fehl-Vertrag in falscher Filiale).
+    // Server prüft Lohnbelege der Filiale des Vertrags; Zwangs-Löschen nur Admin.
+    const deleteItem = (typeof isOpsRole === 'function' && isOpsRole())
+        ? `<button type="button" class="dok-menu-item danger" onclick="empContractDelete(${cid}, ${emp.id})">Löschen</button>`
+        : '';
     const items = historisch
         ? `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>`
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${deleteItem}`
         : `${editItem}
-           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}`;
+           <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${smsItems}${deleteItem}`;
     return `<div class="dok-menu-wrap ov-vmenu" style="margin-left:auto;flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
         <div class="dok-menu" id="ctrMenu-${cid}">${items}</div>
     </div>`;
 }
 function ctrToggleMenu(event, id) { rowMenuToggle(event, 'ctr', id); }
+
+// Vertrag aus dem MA-Detail löschen (Walter 23.09.2026). Gleicher Endpoint wie
+// das Verträge-Modul (deleteContract in contracts-edit.js); der Server prüft,
+// ob in DERSELBEN Filiale ein abgeschlossener Lohnbeleg daran hängt (409).
+// Trotzdem löschen (force) darf nur der Administrator.
+async function empContractDelete(employmentId, employeeId) {
+    if (!(await liquidConfirm('Diesen Vertrag endgültig löschen?',
+            { title: 'Vertrag löschen', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const call = force => fetch(`/api/employments/${employmentId}` + (force ? '?force=true' : ''),
+        { method: 'DELETE', headers: ah() });
+    try {
+        let res = await call(false);
+        if (res.status === 409) {
+            const body = await res.json().catch(() => ({}));
+            if (currentUser?.role !== 'admin') {
+                alert((body.message || 'Vertrag in abgeschlossener Lohnperiode verwendet.')
+                    + '\n\nLöschen kann in diesem Fall nur der Administrator.');
+                return;
+            }
+            if (!(await liquidConfirm((body.message || 'Vertrag in abgeschlossener Lohnperiode verwendet.')
+                    + '\n\nDer Lohnbeleg bleibt bestehen. Trotzdem löschen?',
+                    { title: 'Lohnbeleg vorhanden', yesLabel: 'Trotzdem löschen', noLabel: 'Abbrechen' }))) return;
+            res = await call(true);
+        }
+        if (!res.ok) {
+            const j = await res.json().catch(() => ({}));
+            alert('Löschen fehlgeschlagen: ' + (j.message || j.error || ('HTTP ' + res.status)));
+            return;
+        }
+        if (typeof invalidateEmployeeLookupCache === 'function') invalidateEmployeeLookupCache();
+        if (typeof selectEmployee === 'function') await selectEmployee(employeeId);
+    } catch (e) {
+        alert('Verbindungsfehler: ' + e.message);
+    }
+}
 
 async function openEmpContractPdf(contractId, printAfterOpen) {
     const filename = `Arbeitsvertrag_${contractId}.pdf`;

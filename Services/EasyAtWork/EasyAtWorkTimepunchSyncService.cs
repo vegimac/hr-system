@@ -502,6 +502,30 @@ public class EasyAtWorkTimepunchSyncService
     /// Austritt >= Stichtag bleibt drin — auch MA, die erst mitten im Zeitraum
     /// eingetreten sind (From spielt für diesen Filter keine Rolle).
     /// </summary>
+    /// <summary>
+    /// «Nicht übernehmen»-Marke (Walter-Vorgabe 23.09.2026): Nicht zuordenbare
+    /// easy@work-MA, die in easy@work als «nicht übernehmen» markiert sind, sollen
+    /// den Import nicht blockieren — ihre Stempel werden übersprungen. Geprüft
+    /// wird nur die (kurze) Liste der Nicht-Zuordenbaren, nicht jeder MA.
+    /// Liefert die Anzahl der so übersprungenen Datensätze.
+    /// </summary>
+    private async Task<int> NichtUebernehmenAusMissingAsync(int customerId,
+        Dictionary<int, MissingEmployee> missing, HashSet<int> skipSet, CancellationToken ct)
+    {
+        int n = 0;
+        foreach (var id in missing.Keys.ToList())
+        {
+            List<EawProperty> props;
+            try { props = await _client.GetAllPropertiesAsync(customerId, id, ct); }
+            catch { continue; }
+            if (!EasyAtWorkEmployeeSyncService.IstNichtUebernehmen(props)) continue;
+            missing.Remove(id);
+            skipSet.Add(id);
+            n++;
+        }
+        return n;
+    }
+
     public static List<EawEmployee> FilterRelevantEmployees(IEnumerable<EawEmployee> emps)
         => FilterRelevantEmployees(emps, EmployeeCutoff);
 
@@ -941,6 +965,9 @@ public class EasyAtWorkTimepunchSyncService
                             : $"Personalnummer '{num0}' existiert nicht in Cowork — MA zuerst anlegen/importieren."),
             };
         }
+        var nuSkip = await NichtUebernehmenAusMissingAsync(mapping.EasyAtWorkCustomerId, missingPf, skipSet, ct);
+        if (nuSkip > 0)
+            res.Notes.Add($"{nuSkip} easy@work-MA als «nicht übernehmen» markiert — Stempel übersprungen.");
         // Ambiguous = Datenfehler → IMMER blockieren (auch beim Tief-Import).
         if (ambigPf.Count > 0)
         {
@@ -1604,6 +1631,9 @@ public class EasyAtWorkTimepunchSyncService
                             : $"Personalnummer '{num0}' existiert nicht in Cowork — MA zuerst anlegen/importieren."),
             };
         }
+        var nuSkip = await NichtUebernehmenAusMissingAsync(mapping.EasyAtWorkCustomerId, missingPf, skipSet, ct);
+        if (nuSkip > 0)
+            res.Notes.Add($"{nuSkip} easy@work-MA als «nicht übernehmen» markiert — Stempel übersprungen.");
         res.MissingEmployees   = missingPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
         res.AmbiguousEmployees = ambigPf.Values.OrderBy(m => m.EawEmployeeName ?? "").ToList();
 
