@@ -3574,7 +3574,25 @@ public class EasyAtWorkEmployeeSyncService
             if (historieStichtag.HasValue && seg.Start < historieStichtag.Value)
             {
                 var vorhanden = existingAll.FirstOrDefault(e => !matched.Contains(e) && e.ContractStartDate == startDt);
-                if (vorhanden != null) { matched.Add(vorhanden); continue; }
+                if (vorhanden != null)
+                {
+                    matched.Add(vorhanden);
+                    // Einzige Ausnahme (Walter 23.09.2026, Austritt 19.03.2021 blieb
+                    // leer): ein OFFENES Ende darf gefüllt werden, wenn die Person in
+                    // easy@work ausgetreten ist und der Abschnitt dort spätestens am
+                    // Austritt endet. Sonst blockiert der offene Alt-Vertrag den
+                    // Austritt für immer. Nur Füllen, nie ein gesetztes Ende ändern —
+                    // Handpflege bleibt unangetastet; laufende MA (kein Austritt in
+                    // easy) sind nicht betroffen.
+                    if (vorhanden.ContractEndDate == null && seg.End.HasValue
+                        && eawTo.HasValue && eawTo.Value < today && seg.End.Value <= eawTo.Value)
+                    {
+                        vorhanden.ContractEndDate = endDt;
+                        vorhanden.IsActive = false;
+                        cleanupNotes?.Add($"{emp.FirstName} {emp.LastName} ({emp.EmployeeNumber}): offener Vertrag ab {seg.Start:dd.MM.yyyy} per {seg.End.Value:dd.MM.yyyy} abgeschlossen (Austritt in easy@work {eawTo.Value:dd.MM.yyyy}).");
+                    }
+                    continue;
+                }
             }
 
             // Abschluss-Schutz (Walter 29.06.2026 / präzisiert 01.08.2026):

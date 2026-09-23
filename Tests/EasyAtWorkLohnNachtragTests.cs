@@ -212,4 +212,63 @@ public class EasyAtWorkLohnNachtragTests
         Assert.Equal("SHIFT_LEADER_7_PLUS", v.JobTitle);
         Assert.Equal(new DateTime(2024, 12, 31), v.ContractEndDate); // auch das Ende bleibt
     }
+
+    private static async Task<Employment> OffenerAltvertragAsync(AppDbContext db, Employee emp)
+    {
+        var v = new Employment
+        {
+            EmployeeId = emp.Id, CompanyProfileId = 1,
+            ContractStartDate = new DateTime(2022, 12, 21), ContractEndDate = null,
+            EmploymentModel = "FIX-M", SalaryType = "monthly", MonthlySalary = 4600m,
+            JobTitle = "SHIFT_LEADER_7_PLUS", IsActive = true,
+        };
+        db.Employments.Add(v);
+        await db.SaveChangesAsync();
+        return v;
+    }
+
+    [Fact]
+    public async Task OffenerAltvertrag_WirdBeiAustrittInEasyAbgeschlossen()
+    {
+        // Walter 23.09.2026: Vertrag 13.1.2021 – offen, easy: Ende 18.03.2021,
+        // «Eingestellt bis» 19.03.2021 → Austritt blieb leer, weil der offene
+        // Alt-Vertrag ihn blockierte. Das leere Ende darf gefüllt werden.
+        using var db = NewDb();
+        var emp = await SeedAsync(db);
+        await OffenerAltvertragAsync(db, emp);
+
+        var (c, r) = EasyDaten();
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: true);
+        var notes = new List<string>();
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(
+            db, emp, 1, tl, 5, "SHIFT_LEADER_7_PLUS", new DateOnly(2024, 12, 31),
+            cleanupNotes: notes, historieStichtag: EasyAtWorkEmployeeSyncService.HistorieStichtag);
+        await db.SaveChangesAsync();
+
+        var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.Equal(new DateTime(2024, 12, 31), v.ContractEndDate);
+        Assert.False(v.IsActive);
+        Assert.Equal(4600m, v.MonthlySalary);                       // sonst unangetastet
+        Assert.Contains(notes, n => n.Contains("abgeschlossen"));
+    }
+
+    [Fact]
+    public async Task OffenerAltvertrag_OhneAustrittInEasy_BleibtOffen()
+    {
+        // Läuft die Person in easy weiter (kein «Eingestellt bis»), bleibt der
+        // Alt-Vertrag unangetastet — der Historie-Stichtag gilt dann voll.
+        using var db = NewDb();
+        var emp = await SeedAsync(db);
+        await OffenerAltvertragAsync(db, emp);
+
+        var (c, r) = EasyDaten();
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, AsOf, isKader: true);
+        await EasyAtWorkEmployeeSyncService.SyncEmploymentTimelineAsync(
+            db, emp, 1, tl, 5, "SHIFT_LEADER_7_PLUS", null,
+            historieStichtag: EasyAtWorkEmployeeSyncService.HistorieStichtag);
+        await db.SaveChangesAsync();
+
+        var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
+        Assert.Null(v.ContractEndDate);
+    }
 }
