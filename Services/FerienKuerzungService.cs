@@ -8,10 +8,14 @@ namespace HrSystem.Services;
 /// Berechnet den möglichen Ferienanspruch-Kürzungs-Vorschlag nach Art. 329b OR.
 ///
 /// Regeln:
-///   • Unverschuldet (KRANK, UNFALL, MILITAER, ZIVILSCHUTZ):
-///       Kürzung wenn > 2 Monate (60 Tage) Verhinderung im Dienstjahr.
-///       Ab dem 2. vollen Monat: 1/12 pro vollem Monat.
-///       Beispiel: 95 Tage Krankheit → 95-60 = 35 → ⌊35/30⌋ = 1 voller Monat → 1/12
+///   • Unverschuldet (KRANK, UNFALL, MILITAER, ZIVILSCHUTZ) — L-GAV-Tabelle
+///     (Walter-Vorgabe 23.09.2026, korrigiert — vorher eine Stufe zu spät):
+///       Erster voller Monat = Karenz, danach 1/12 pro weiterem vollen Monat.
+///       Kürzung = ⌊Tage/30⌋ − 1, ab 60 Tagen:
+///         0–59 → 0 · 60–89 → 1/12 · 90–119 → 2/12 · 120–149 → 3/12 …
+///       Beispiel L-GAV: 85 Tage → 1/12. Mehrere Fälle im Dienstjahr werden
+///       addiert, Teil-AU nach Prozent gewichtet. Ferien (auch «ferienfähig»
+///       während Krankheit) zählen NICHT — dort bezieht der MA Ferien.
 ///   • Selbstverschuldet (UNBEZ_URLAUB):
 ///       Kürzung wenn > 1 Monat (30 Tage) Verhinderung.
 ///       Pro vollem Monat ab Schwellwert: 1/12.
@@ -90,7 +94,7 @@ public class FerienKuerzungService
         }
 
         // Kürzungs-Berechnung pro Kategorie
-        decimal kuerzungUnverschuldet = BerechneKuerzung(tageKrankUnfall, schwellwertTage: 60);
+        decimal kuerzungUnverschuldet = BerechneKuerzungNachKarenz(tageKrankUnfall, karenzMonate: 1);
         decimal kuerzungSelbst        = BerechneKuerzung(tageUnbezUrlaub, schwellwertTage: 30);
         decimal kuerzungSchwanger     = BerechneKuerzung(tageMutterschaft, schwellwertTage: 90);
 
@@ -116,6 +120,17 @@ public class FerienKuerzungService
     /// über dem Schwellwert: 1/12.
     /// Beispiel: schwellwert=60, tage=95 → (95-60)/30 = 1.16... → ⌊⌋ = 1 → 1/12
     /// </summary>
+    /// <summary>
+    /// L-GAV-Rechnung (Walter 23.09.2026): die ersten <paramref name="karenzMonate"/>
+    /// vollen Monate sind frei, danach 1/12 pro weiterem vollen Monat (30 Tage).
+    /// karenzMonate=1: 59 → 0 · 60 → 1 · 85 → 1 · 90 → 2 · 150 → 4.
+    /// </summary>
+    public static decimal BerechneKuerzungNachKarenz(decimal tage, int karenzMonate)
+    {
+        int volleMonate = (int)Math.Floor(tage / 30m);
+        return Math.Max(0, volleMonate - karenzMonate);
+    }
+
     private static decimal BerechneKuerzung(decimal tage, int schwellwertTage)
     {
         if (tage <= schwellwertTage) return 0m;

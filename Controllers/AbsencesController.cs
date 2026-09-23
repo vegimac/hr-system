@@ -318,6 +318,8 @@ public class AbsencesController : ControllerBase
             HoursCredited = dto.HoursCredited,
             Prozent       = ClampProzent(dto.Prozent),
             Notes         = dto.Notes,
+            Ferienfaehig  = dto.Ferienfaehig == true
+                            && string.Equals(dto.AbsenceType.Trim(), "FERIEN", StringComparison.OrdinalIgnoreCase),
             CreatedAt     = DateTime.Now,
             UpdatedAt     = DateTime.Now,
         };
@@ -353,6 +355,8 @@ public class AbsencesController : ControllerBase
         absence.HoursCredited = dto.HoursCredited;
         absence.Prozent       = ClampProzent(dto.Prozent);
         absence.Notes         = dto.Notes;
+        if (dto.Ferienfaehig.HasValue) absence.Ferienfaehig = dto.Ferienfaehig.Value;
+        if (absence.AbsenceType != "FERIEN") absence.Ferienfaehig = false;
         absence.UpdatedAt     = DateTime.Now;
 
         await _db.SaveChangesAsync();
@@ -451,6 +455,7 @@ public class AbsencesController : ControllerBase
         prozent         = a.Prozent,
         notes           = a.Notes,
         dokumentId      = a.DokumentId,
+        ferienfaehig    = a.Ferienfaehig,
         createdAt       = a.CreatedAt,
         inLohnVerwendet = inLohnVerwendet,
     };
@@ -474,4 +479,6 @@ public class AbsenceDto
     public decimal HoursCredited { get; set; }
     public decimal? Prozent     { get; set; }   // 1–100, Default 100
     public string? Notes        { get; set; }
+    /// <summary>Nur FERIEN: arbeitsunfähig, aber ferienfähig (Walter 23.09.2026). NULL = unverändert.</summary>
+    public bool?   Ferienfaehig { get; set; }
 }

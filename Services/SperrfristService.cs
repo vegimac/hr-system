@@ -307,7 +307,7 @@ public class SperrfristService
         _    => 180,          // ab 6. Dienstjahr
     };
 
-    private record AuKette(DateOnly Beginn, DateOnly Ende, string Grund, bool GruendeGemischt);
+    public record AuKette(DateOnly Beginn, DateOnly Ende, string Grund, bool GruendeGemischt);
 
     /// <summary>
     /// Sucht die durchgängige Arbeitsunfähigkeits-Kette (KRANK/UNFALL), die
@@ -318,30 +318,44 @@ public class SperrfristService
     /// </summary>
     private async Task<AuKette?> FindeAuKetteAsync(int employeeId, DateOnly stichtag)
     {
-        // Alle Krank/Unfall-Absenzen chronologisch
+        // Alle Krank/Unfall-Absenzen chronologisch — dazu Ferien, die als
+        // «arbeitsunfähig, aber ferienfähig» markiert sind (Walter 23.09.2026):
+        // die AU besteht während dieser Ferien weiter, die Sperrfrist läuft durch.
         var absenzen = await _db.Absences
             .Where(a => a.EmployeeId == employeeId
-                     && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL"))
+                     && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL"
+                         || (a.AbsenceType == "FERIEN" && a.Ferienfaehig)))
             .OrderBy(a => a.DateFrom)
             .ThenBy(a => a.DateTo)
             .ToListAsync();
 
-        if (absenzen.Count == 0) return null;
+        return FindeKette(absenzen, stichtag);
+    }
 
-        // Absenzen zu durchgehenden Blöcken zusammenfassen.
-        // Lücke: DateFrom > vorheriges Bis + 1 → neuer Block (Sperrfrist ab 0).
+    /// <summary>
+    /// Reine Ketten-Logik (testbar, ohne DB). Lücke: DateFrom > vorheriges
+    /// Bis + 1 → neuer Block (Sperrfrist ab 0). Ferienfähige Ferien verlängern
+    /// NUR einen bestehenden Block — sie starten nie selbst einen (ohne
+    /// vorausgehende Krankheit/Unfall gibt es keine AU, die weiterläuft) und
+    /// zählen nicht als eigener Grund.
+    /// </summary>
+    public static AuKette? FindeKette(IEnumerable<Absence> absenzen, DateOnly stichtag)
+    {
         var bloecke = new List<(DateOnly Von, DateOnly Bis, HashSet<string> Typen)>();
-        foreach (var a in absenzen)
+        foreach (var a in absenzen.OrderBy(x => x.DateFrom).ThenBy(x => x.DateTo))
         {
+            bool brueckeFerien = a.AbsenceType == "FERIEN";
+            if (brueckeFerien && !a.Ferienfaehig) continue;
             if (bloecke.Count == 0 || a.DateFrom.DayNumber > bloecke[^1].Bis.DayNumber + 1)
             {
+                if (brueckeFerien) continue;   // Ferien ohne vorausgehende AU → keine Kette
                 bloecke.Add((a.DateFrom, a.DateTo, new HashSet<string> { a.AbsenceType }));
             }
             else
             {
                 var last = bloecke[^1];
                 var bis  = a.DateTo > last.Bis ? a.DateTo : last.Bis;
-                last.Typen.Add(a.AbsenceType);
+                if (!brueckeFerien) last.Typen.Add(a.AbsenceType);
                 bloecke[^1] = (last.Von, bis, last.Typen);
             }
         }

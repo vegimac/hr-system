@@ -1294,6 +1294,26 @@ public class EmployeesController : ControllerBase
     }
 
     /// <summary>
+    /// Ferien als «arbeitsunfähig, aber ferienfähig» markieren (Walter
+    /// 23.09.2026). Ausserhalb der Lohn-Sperre: die Markierung ändert weder
+    /// Stunden noch Lohn, nur die Sperrfrist-Kette nach Art. 336c OR.
+    /// </summary>
+    [HttpPatch("{id:int}/absences/{absenceId:int}/ferienfaehig")]
+    public async Task<IActionResult> SetAbsenzFerienfaehig(int id, int absenceId, [FromBody] FerienfaehigDto dto)
+    {
+        var absenz = await _context.Absences
+            .FirstOrDefaultAsync(a => a.Id == absenceId && a.EmployeeId == id);
+        if (absenz == null) return NotFound();
+        if (absenz.AbsenceType != "FERIEN")
+            return BadRequest(new { error = "NUR_FERIEN", message = "«Ferienfähig» gibt es nur bei Ferien." });
+        absenz.Ferienfaehig = dto.Wert;
+        absenz.UpdatedAt    = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = absenz.Id, ferienfaehig = absenz.Ferienfaehig });
+    }
+    public class FerienfaehigDto { public bool Wert { get; set; } }
+
+    /// <summary>
     /// Unterschriebenen Vertrag an einen Vertragsabschnitt hängen/lösen
     /// (Walter 23.09.2026). Hier statt im EmploymentsController: ein Beleg
     /// ändert keinen Lohn und fällt nicht unter die Lohn-Edit-Sperre.

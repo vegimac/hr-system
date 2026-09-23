@@ -34,6 +34,15 @@ public class Absence
     public int? DokumentId { get; set; }
 
     /// <summary>
+    /// Nur FERIEN (Walter-Vorgabe 23.09.2026): MA ist in dieser Zeit weiterhin
+    /// arbeitsunfähig (Krankheit/Unfall), aber ferienfähig (ärztlich bestätigt)
+    /// und bezieht wirksam Ferien. Wirkung: für die Sperrfrist (Art. 336c OR)
+    /// läuft die AU-Kette durch; für Ferienkürzung, Karenz und Lohn sind es
+    /// normale Ferien. Nie vom Import gesetzt — nur von Hand.
+    /// </summary>
+    public bool Ferienfaehig { get; set; }
+
+    /// <summary>
     /// easy@work-Sync-Schlüssel (Walter 14.08.2026): «A{id}» aus absences,
     /// «O{id}» aus off_times. NULL = manuell/Mirus erfasst (Sync tastet
     /// solche Absenzen nie an).

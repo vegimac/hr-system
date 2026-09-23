@@ -9864,6 +9864,9 @@ function analyzeAbsenceCritical(absences) {
     for (const mid of list) {
         if (!mid.dateFrom || !mid.dateTo) continue;
         if (ABSENCE_AU_TYPES.has(mid.absenceType)) continue;
+        // Ferien «krank, aber ferienfähig» (Walter 23.09.2026): AU läuft weiter,
+        // keine Unterbrechung — kein Kritisch-Hinweis.
+        if (mid.ferienfaehig) continue;
 
         const prev = list.filter(a =>
             ABSENCE_AU_TYPES.has(a.absenceType)
@@ -9913,7 +9916,11 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
             const prozent = Number(a.prozent ?? 100);
             const typBadge = prozent < 100
                 ? `${meta.label} <span style="font-size:10px;opacity:0.85;font-weight:600">${prozent}%</span>`
-                : meta.label;
+                : a.ferienfaehig ? `${meta.label} · ferienfähig` : meta.label;
+            // Ferien während Krankheit, ferienfähig (Walter 23.09.2026): orange.
+            const typBadgeStyle = a.ferienfaehig
+                ? ' style="background:#ffedd5;color:#c2410c;border:1px solid #fdba74" title="Arbeitsunfähig, aber ferienfähig — Sperrfrist läuft durch, zählt als Ferien"'
+                : '';
             // Anzahl Kalendertage von .. bis (inklusive)
             let tageStr = '–';
             if (a.dateFrom && a.dateTo) {
@@ -9970,6 +9977,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                        <div class="dok-menu" id="absMenu-${a.id}">
                            <button class="dok-menu-item" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Bearbeiten</button>
                            <button class="dok-menu-item" onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})">${a.dokumentId ? 'Dokument ersetzen' : 'Dokument verknüpfen'}</button>
+                           ${a.absenceType === 'FERIEN' ? `<button class="dok-menu-item" onclick="absToggleFerienfaehig(${employeeId}, ${a.id}, ${!a.ferienfaehig})">${a.ferienfaehig ? 'Markierung «ferienfähig» entfernen' : 'Als «krank, aber ferienfähig» markieren'}</button>` : ''}
                            <button class="dok-menu-item danger" onclick="deleteAbsence(${a.id})">Löschen</button>
                        </div>
                    </div>`;
@@ -9983,7 +9991,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
 
             rows += `<tr class="${isCritical ? 'abs-row-critical' : ''}">
                 <td>
-                    <span class="abs-type-badge ${meta.color}">${typBadge}</span>
+                    <span class="abs-type-badge ${a.ferienfaehig ? '' : meta.color}"${typBadgeStyle}>${typBadge}</span>
                     ${critBadge}
                 </td>
                 <td style="white-space:nowrap">${_absDatumKurz(a.dateFrom)} – ${_absDatumKurz(a.dateTo)}${critHint}</td>
@@ -10373,6 +10381,9 @@ async function openAbsenceModal(existing, opts) {
     document.getElementById('absDateTo').value        = existing?.dateTo   ?? defaultDate;
     document.getElementById('absProzent').value       = existing?.prozent ?? 100;
     document.getElementById('absNotes').value         = existing?.notes ?? '';
+    const ffCb = document.getElementById('absFerienfaehig');
+    if (ffCb) ffCb.checked = !!existing?.ferienfaehig;
+    absFerienfaehigSync();
     document.getElementById('absModalTitle').textContent = existing ? 'Absenz bearbeiten' : 'Absenz erfassen';
     document.getElementById('absenceModal').dataset.editId = existing?.id ?? '';
 
@@ -10425,6 +10436,23 @@ async function _absApplyContinuationMoFr(type, dateFrom) {
         window._absContinuationHint =
             'Fortsetzung Vormonat erkannt — Mo–Fr markiert, Sa/So frei (wie lange Krankheit).';
     } catch { /* ignore */ }
+}
+
+// Häkchen «arbeitsunfähig, aber ferienfähig» nur bei Ferien (Walter 23.09.2026).
+function absFerienfaehigSync() {
+    const row = document.getElementById('absFerienfaehigRow');
+    const typ = document.getElementById('absTypeSelect')?.value;
+    if (row) row.style.display = typ === 'FERIEN' ? 'flex' : 'none';
+}
+
+// Markierung direkt aus der Liste setzen/entfernen — auch bei abgerechneten
+// Ferien (ändert keinen Lohn, nur die Sperrfrist-Kette).
+async function absToggleFerienfaehig(employeeId, absenceId, wert) {
+    const r = await fetch(`/api/employees/${employeeId}/absences/${absenceId}/ferienfaehig`, {
+        method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wert }) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || ('Fehler ' + r.status)); return; }
+    loadAbsenzenTab(employeeId);
 }
 
 function closeAbsenceModal() {
@@ -10849,6 +10877,7 @@ async function saveAbsence() {
         hoursCredited: hours,
         prozent,
         notes,
+        ferienfaehig:  type === 'FERIEN' && !!document.getElementById('absFerienfaehig')?.checked,
     };
 
     try {

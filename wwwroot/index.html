@@ -9947,7 +9947,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
     </div>
 </div>
 
-<script src="employees.js?v=20260923h"></script>
+<script src="employees.js?v=20260923i"></script>
 <script src="js/versicherung-codes.js?v=20260915b"></script>
 
 <!-- ABSENZ MODAL -->
@@ -10009,7 +10009,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
             <div class="ma-grid cols-3">
                 <div class="ma-field">
                     <div class="ma-field-label">Abwesenheitstyp</div>
-                    <select id="absTypeSelect" class="ma-select" onchange="renderAbsDayCheckboxes();calcAbsHoursPreview()">
+                    <select id="absTypeSelect" class="ma-select" onchange="renderAbsDayCheckboxes();calcAbsHoursPreview();absFerienfaehigSync()">
                         <option value="KRANK">Krankheit</option>
                         <option value="UNFALL">Unfall</option>
                         <option value="SCHULUNG">Schulung / andere Absenz</option>
@@ -10031,6 +10031,13 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 
             <!-- Tagesauswahl (von JS dynamisch befüllt) -->
             <div id="absDayCheckboxes" style="margin-bottom:6px"></div>
+            <!-- Walter 23.09.2026: Ferien während Krankheit/Unfall, ferienfähig.
+                 Nur bei Typ Ferien sichtbar (absFerienfaehigSync). -->
+            <label id="absFerienfaehigRow" style="display:none;align-items:flex-start;gap:10px;margin:4px 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(217,119,6,0.35);background:rgba(254,243,199,0.55);cursor:pointer">
+                <input type="checkbox" id="absFerienfaehig" style="width:16px;height:16px;margin-top:2px;accent-color:#b45309;flex:none">
+                <span style="font-size:13px;color:#3f3f3f;line-height:1.45"><b>Arbeitsunfähig, aber ferienfähig</b> (ärztlich bestätigt)<br>
+                <span style="color:#646464;font-size:12px">Krankheit/Unfall besteht weiter: die Sperrfrist (Art. 336c OR) läuft durch. Für Lohn, Ferienguthaben und Ferienkürzung zählen die Tage als Ferien.</span></span>
+            </label>
 
             <div class="emp-section-title">Ausfall &amp; Bemerkung</div>
             <div class="ma-grid cols-3">
