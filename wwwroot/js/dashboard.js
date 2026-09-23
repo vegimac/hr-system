@@ -88,6 +88,7 @@ const DASH_CATEGORY_META = {
     kuendigung_ablauf:      { i18nKey: 'dash.cat.terminationEnding', label: 'Vertragsende Kündigung', icon: '🚪', color: '#b91c1c' },
     kuendigung_sperrfrist_ende: { i18nKey: 'dash.cat.terminationSperrfrist', label: 'Kündigung möglich (Sperrfrist)', icon: '⚖️', color: '#166534' },
     ferienkuerzung_moeglich: { label: 'Ferienkürzung möglich', icon: '✂️', color: '#b45309' },
+    erlaubnis_hauptarbeitgeber_fehlt: { label: 'Erlaubnis Hauptarbeitgeber fehlt', icon: '🏢', color: '#b45309' },
     exit_pending_active:    { i18nKey: 'dash.cat.exitPendingActive',label: 'Austritt steht bevor',   icon: '🚪', color: '#b91c1c' },
     // Austritts-Abgleich easy@work ↔ OneCrew (Walter 01.09.2026). Ohne Eintrag
     // hier rendert die Sektion zwar (Fallback greift), zeigt aber den rohen
@@ -534,6 +535,7 @@ function dashTodoOnClick(a) {
             case 'contract_end':        return `onclick="dashOpenEmployeeVertrag(${a.employeeId})"`;
             case 'kuendigung_sperrfrist_ende': return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
             case 'ferienkuerzung_moeglich':    return `onclick="dashOpenEmployee(${a.employeeId}, 'absenzen')"`;
+            case 'erlaubnis_hauptarbeitgeber_fehlt': return `onclick="dashOpenEmployeeQst(${a.employeeId})"`;
             case 'kuendigung_ablauf':
             case 'exit_pending_active':
             case 'birthday':

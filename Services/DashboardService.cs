@@ -1065,6 +1065,40 @@ public class DashboardService
             }
         }
 
+        // ── Erlaubnis Hauptarbeitgeber fehlt (Walter-Vorgabe 23.09.2026) ───
+        // Ein gültiger weiterer Arbeitgeber ist Hauptarbeitgeber (bei uns
+        // Nebenerwerb) und seine schriftliche Erlaubnis ist nicht verknüpft.
+        // Quelle: weitere_arbeitgeber (nur Info, NICHT QST/Swissdec).
+        if (Enabled("erlaubnis_hauptarbeitgeber_fehlt"))
+        {
+            var agQ = from a in _db.WeitereArbeitgeber.AsNoTracking()
+                      join e in _db.Employees.AsNoTracking() on a.EmployeeId equals e.Id
+                      where a.IstHauptarbeitgeber && a.ErlaubnisDokumentId == null
+                         && (a.GueltigBis == null || a.GueltigBis >= today)
+                         && e.IsActive && !e.IsPayrollExcluded
+                      select new { a.Name, e.Id, e.FirstName, e.LastName, e.EmployeeNumber, Emp = e };
+            if (companyProfileId.HasValue)
+                agQ = agQ.Where(x =>
+                    x.Emp.Employments.Any(em => em.IsActive && em.CompanyProfileId == companyProfileId.Value)
+                    || (!x.Emp.Employments.Any(em => em.IsActive)
+                        && x.Emp.Employments.OrderByDescending(em => em.ContractStartDate)
+                            .Select(em => em.CompanyProfileId).FirstOrDefault() == companyProfileId.Value));
+            foreach (var x in await agQ.Select(x => new { x.Name, x.Id, x.FirstName, x.LastName, x.EmployeeNumber }).ToListAsync())
+            {
+                var name = $"{x.FirstName} {x.LastName}".Trim();
+                alerts.Add(new DashboardAlert
+                {
+                    Category = "erlaubnis_hauptarbeitgeber_fehlt",
+                    Severity = SeverityState("erlaubnis_hauptarbeitgeber_fehlt", "warning"),
+                    Title    = "Erlaubnis Hauptarbeitgeber fehlt",
+                    Subtitle = $"{name} · Personalnr. {x.EmployeeNumber} · Hauptarbeitgeber: {x.Name}",
+                    EmployeeId     = x.Id,
+                    EmployeeNumber = x.EmployeeNumber,
+                    EmployeeName   = name
+                });
+            }
+        }
+
         // ── Ferienkürzung möglich (Walter-Vorgabe 23.09.2026) ─────────────
         // Die Kürzung ist ein bewusster HR-Eintrag (ferien_kuerzung). Meldung,
         // solange im laufenden oder abgelaufenen Dienstjahr mind. 1 ganzer Tag

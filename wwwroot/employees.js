@@ -13759,6 +13759,9 @@ function openWeitererAgModal(employeeId, ag) {
                 <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
                 <span>Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> — bei uns Nebenerwerb, Erlaubnis nötig</span>
             </label>
+            <div id="waHauptHint" style="display:none;margin:-4px 0 10px 26px;font-size:12px;color:#92400e">
+                Die schriftliche Erlaubnis des Hauptarbeitgebers muss im Dossier liegen — nach dem Speichern kannst du sie gleich verknüpfen oder hochladen.
+            </div>
             ${f('Bemerkung', `<input class="fmf-input" id="waBem" type="text" value="${v('bemerkung')}">`)}
             <div id="waStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
         </div>
@@ -13783,6 +13786,10 @@ function openWeitererAgModal(employeeId, ag) {
     };
     wrap.querySelector('#waArt').onchange = artSync;
     artSync();
+    const hauptSync = () => { wrap.querySelector('#waHauptHint').style.display =
+        wrap.querySelector('#waHaupt').checked && !ag?.erlaubnisDokumentId ? 'block' : 'none'; };
+    wrap.querySelector('#waHaupt').onchange = hauptSync;
+    hauptSync();
     wrap.querySelector('#waOk').onclick = async () => {
         const g = id => wrap.querySelector('#' + id).value.trim();
         const num = id => { const t = g(id); return t === '' ? null : Number(t); };
@@ -13800,8 +13807,15 @@ function openWeitererAgModal(employeeId, ag) {
         const url = ag ? `/api/employees/${employeeId}/weitere-arbeitgeber/${ag.id}` : `/api/employees/${employeeId}/weitere-arbeitgeber`;
         const r = await fetch(url, { method: ag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        const gespeichert = await r.json().catch(() => null);
         close();
         loadWeitereAgTab(employeeId);
+        // Hauptarbeitgeber ohne Erlaubnis → gleich einfordern (Walter 23.09.2026).
+        if (body.istHauptarbeitgeber && gespeichert?.id && !gespeichert.erlaubnisDokumentId) {
+            if (await liquidConfirm(`${body.name} ist Hauptarbeitgeber — die schriftliche Erlaubnis muss im Dossier liegen. Jetzt verknüpfen oder hochladen?`,
+                    { title: 'Erlaubnis Hauptarbeitgeber', yesLabel: 'Jetzt hinterlegen', noLabel: 'Später' }))
+                openAusweisDokuModal(employeeId, 'weitere_ag', { weitereAgId: gespeichert.id });
+        }
     };
 }
 

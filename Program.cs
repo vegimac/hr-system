@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 26;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026)
+const int SchemaStand = 27;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -2106,13 +2106,18 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('ferienkuerzung_moeglich', 'Ferienkürzung möglich', TRUE, NULL, NULL, 'warning', NULL, FALSE, 24, 90, 'none')
+            ('ferienkuerzung_moeglich', 'Ferienkürzung möglich', TRUE, NULL, NULL, 'warning', NULL, FALSE, 24, 90, 'none'),
+            ('erlaubnis_hauptarbeitgeber_fehlt', 'Erlaubnis Hauptarbeitgeber fehlt', TRUE, NULL, NULL, 'warning', NULL, FALSE, 25, 60, 'none')
         ON CONFLICT (category) DO NOTHING;
         INSERT INTO todo_anleitung (category, titel, anleitung, sort_order) VALUES
         ('ferienkuerzung_moeglich',
          'Über die Ferienkürzung entscheiden',
          'Wegen Krankheit/Unfall/Militär im Dienstjahr dürfen die Ferien gekürzt werden (L-GAV: erster voller Monat frei, danach 1/12 pro vollem Monat). Mitarbeiter öffnen, Tab «Absenzen», «Absenz erfassen» → «Absenzbedingte Ferienkürzung». Dort steht, wie viele Tage möglich sind. Wollt ihr nicht kürzen, dort «Nicht kürzen» wählen — dann verschwindet der Punkt, bis neue Krankheitstage dazukommen.',
-         140)
+         140),
+        ('erlaubnis_hauptarbeitgeber_fehlt',
+         'Erlaubnis des Hauptarbeitgebers einholen',
+         'Der Mitarbeiter arbeitet hauptsächlich bei einem anderen Arbeitgeber — bei uns ist es ein Nebenerwerb. Die schriftliche Erlaubnis des Hauptarbeitgebers beim Mitarbeiter einfordern, dann im Tab «Bewilligung QST Bank weit. AG» beim Arbeitgeber auf «Erlaubnis fehlt» klicken und das Dokument verknüpfen oder hochladen.',
+         150)
         ON CONFLICT (category) DO NOTHING;
     ");
 
