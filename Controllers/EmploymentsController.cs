@@ -148,6 +148,7 @@ public class EmploymentsController : ControllerBase
             {
                 e.Id, e.EmployeeId, e.CompanyProfileId,
                 e.VertragDokumentId,
+                e.UnterschriftEltern,
                 e.ContractStartDate, e.ContractEndDate,
                 e.EmploymentModel, e.SalaryType, e.ContractType,
                 e.JobTitle,

@@ -13,6 +13,10 @@ public class Employment
     /// Wird von Update/easy@work-Sync nie gesetzt — nur über den Verknüpfen-Dialog.</summary>
     public int? VertragDokumentId { get; set; }
 
+    /// <summary>Vertrag trägt die Unterschrift der/des Erziehungsberechtigten —
+    /// nötig, solange der MA unter 18 ist (Walter 23.09.2026). Nur von Hand.</summary>
+    public bool UnterschriftEltern { get; set; }
+
     [JsonIgnore]
     public CompanyProfile? CompanyProfile { get; set; }
 

@@ -1402,6 +1402,21 @@ public class EmployeesController : ControllerBase
     }
 
     /// <summary>
+    /// Unterschrift der Erziehungsberechtigten auf dem Vertrag bestätigen/entfernen
+    /// (Walter 23.09.2026). Beleg ändert keinen Lohn → ausserhalb der Lohn-Sperre.
+    /// </summary>
+    [HttpPatch("{id:int}/employments/{employmentId:int}/unterschrift-eltern")]
+    public async Task<IActionResult> SetUnterschriftEltern(int id, int employmentId, [FromBody] FerienfaehigDto dto)
+    {
+        var vertrag = await _context.Employments
+            .FirstOrDefaultAsync(e => e.Id == employmentId && e.EmployeeId == id);
+        if (vertrag == null) return NotFound();
+        vertrag.UnterschriftEltern = dto.Wert;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = vertrag.Id, unterschriftEltern = vertrag.UnterschriftEltern });
+    }
+
+    /// <summary>
     /// Unterschriebenen Vertrag an einen Vertragsabschnitt hängen/lösen
     /// (Walter 23.09.2026). Hier statt im EmploymentsController: ein Beleg
     /// ändert keinen Lohn und fällt nicht unter die Lohn-Edit-Sperre.

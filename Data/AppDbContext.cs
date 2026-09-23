@@ -324,6 +324,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Employment>(entity =>
         {
             entity.ToTable("employment");
+            entity.Property(e => e.UnterschriftEltern).HasColumnName("unterschrift_eltern");
             entity.Property(e => e.VertragDokumentId).HasColumnName("vertrag_dokument_id");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");

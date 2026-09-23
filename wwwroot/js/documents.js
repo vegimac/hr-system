@@ -2253,6 +2253,10 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
             return { verknuepft: false, bewilligung: false };
         }
         if (typeof showToast === 'function') showToast(`✓ Verknüpft: ${wahl.label}${wahl.zeigeSub ? ' · ' + wahl.sub : ''}`, 'success');
+        // Vertrag eines MA unter 18 → Unterschrift Erziehungsberechtigte (Walter 23.09.2026)
+        if (wahl.key.startsWith('vertrag') && typeof istMinderjaehrig === 'function'
+            && istMinderjaehrig(emp?.dateOfBirth) && typeof vertragElternFrage === 'function')
+            await vertragElternFrage(empId, Number(wahl.key.slice('vertrag'.length)), emp?.firstName);
         // MA-Übersicht zeigt die Doku-Knöpfe (AHV, Zivilstand, Nachtarbeit …) — neu laden.
         if ((wahl.maNeuLaden || wahl.key.startsWith('bank') || wahl.key.startsWith('fam'))
             && window.selectedEmployeeId === empId && typeof selectEmployee === 'function')

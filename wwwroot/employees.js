@@ -2241,10 +2241,20 @@ function _empContractActionsHtml(emp, c, allContracts) {
         : '';
     // Unterschriebener Vertrag (Walter 23.09.2026): direkt verknüpftes Dokument.
     const vDok = c.vertragDokumentId;
+    const minderjaehrig = istMinderjaehrig(emp.dateOfBirth);
     const vertragItems = (vDok
         ? `<button type="button" class="dok-menu-item" onclick="openDirectDoc(${vDok})">Unterschriebenen Vertrag öffnen</button>`
         : '')
-        + `<button type="button" class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})">${vDok ? 'Unterschriebenen Vertrag ersetzen' : 'Unterschriebenen Vertrag verknüpfen'}</button>`;
+        + `<button type="button" class="dok-menu-item" onclick="openAusweisDokuModal(${emp.id},'vertrag',{employmentId:${cid}})">${vDok ? 'Unterschriebenen Vertrag ersetzen' : 'Unterschriebenen Vertrag verknüpfen'}</button>`
+        + (minderjaehrig && !historisch
+            ? `<button type="button" class="dok-menu-item" onclick="vertragUnterschriftElternSetzen(${emp.id}, ${cid}, ${!c.unterschriftEltern})">${c.unterschriftEltern ? 'Unterschrift Erziehungsberechtigte entfernen' : 'Unterschrift Erziehungsberechtigte bestätigen'}</button>`
+            : '');
+    const elternPill = minderjaehrig && !historisch
+        ? (c.unterschriftEltern
+            ? `<span title="Unterschrift der Erziehungsberechtigten bestätigt" style="margin-right:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600">Eltern ✓</span>`
+            : `<button type="button" onclick="vertragUnterschriftElternSetzen(${emp.id}, ${cid}, true)" title="Unter 18: Unterschrift der Erziehungsberechtigten auf dem Vertrag bestätigen"
+                   style="margin-right:8px;background:#fef2f2;border:1px dashed #fca5a5;color:#b91c1c;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit">Eltern fehlt</button>`)
+        : '';
     const vertragPill = vDok
         ? `<button type="button" class="emp-field-docbtn" onclick="openDirectDoc(${vDok})" title="Unterschriebener Vertrag verknüpft — klicken zum Öffnen"
                style="margin-right:8px;background:#dcfce7;border:1px solid #86efac;color:#15803d;border-radius:6px;padding:2px 7px;cursor:pointer;font-size:11px;font-weight:600;line-height:1;font-family:inherit">Unterschrieben ✓</button>`
@@ -2254,12 +2264,33 @@ function _empContractActionsHtml(emp, c, allContracts) {
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${deleteItem}`
         : `${editItem}
            <button type="button" class="dok-menu-item" onclick="openEmpContractPdf(${cid}, false)">Drucken</button>${vertragItems}${smsItems}${deleteItem}`;
-    return `${vertragPill ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${vertragPill}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${vertragPill ? '' : 'margin-left:auto;'}flex-shrink:0">
+    const pillen = elternPill + vertragPill;
+    return `${pillen ? `<span style="margin-left:auto;flex-shrink:0;display:inline-flex;align-items:center">${pillen}</span>` : ''}<div class="dok-menu-wrap ov-vmenu" style="${pillen ? '' : 'margin-left:auto;'}flex-shrink:0">
         <button type="button" class="dok-menu-btn" onclick="ctrToggleMenu(event, ${cid})" title="Aktionen" aria-label="Aktionen">⋮</button>
         <div class="dok-menu" id="ctrMenu-${cid}">${items}</div>
     </div>`;
 }
 function ctrToggleMenu(event, id) { rowMenuToggle(event, 'ctr', id); }
+
+// Unterschrift Erziehungsberechtigte (Walter 23.09.2026): nötig, solange der MA
+// unter 18 ist — bestätigt am Vertrag.
+function istMinderjaehrig(dateOfBirthIso) {
+    if (!dateOfBirthIso) return false;
+    const d = new Date(String(dateOfBirthIso).slice(0, 10) + 'T00:00:00');
+    d.setFullYear(d.getFullYear() + 18);
+    return d > new Date();
+}
+async function vertragUnterschriftElternSetzen(employeeId, employmentId, wert, neuLaden = true) {
+    const r = await fetch(`/api/employees/${employeeId}/employments/${employmentId}/unterschrift-eltern`, {
+        method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify({ wert }) });
+    if (!r.ok) { alert('Speichern fehlgeschlagen (' + r.status + ')'); return; }
+    if (neuLaden && typeof selectEmployee === 'function') await selectEmployee(employeeId);
+}
+async function vertragElternFrage(employeeId, employmentId, vorname) {
+    const ja = await liquidConfirm(`${vorname || 'Die Person'} ist noch nicht 18. Trägt der Vertrag die Unterschrift der/des Erziehungsberechtigten?`,
+        { title: 'Unterschrift Erziehungsberechtigte', yesLabel: 'Ja, unterschrieben', noLabel: 'Nein / fehlt' });
+    if (ja) await vertragUnterschriftElternSetzen(employeeId, employmentId, true, false);
+}
 
 // Vertrag aus dem MA-Detail löschen (Walter 23.09.2026). Gleicher Endpoint wie
 // das Verträge-Modul (deleteContract in contracts-edit.js); der Server prüft,
@@ -3289,6 +3320,10 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!ctx.employmentId) { alert('Vertrags-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/employments/${ctx.employmentId}/dokument`;
             body = JSON.stringify({ dokumentId });
+            // Unter 18 → nach dem Speichern nach der Unterschrift der Eltern fragen.
+            if (typeof selectedEmployee !== 'undefined' && String(selectedEmployee?.id) === String(empId)
+                && istMinderjaehrig(selectedEmployee?.dateOfBirth))
+                window._vertragElternNachher = { empId, employmentId: ctx.employmentId, vorname: selectedEmployee.firstName };
         } else if (kind === 'fam_geburtsurkunde') {
             if (!ctx.familyMemberId) { alert('Familienmitglied-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/family/${ctx.familyMemberId}/dokument`;
@@ -3366,6 +3401,11 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
              || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
+        if (kind === 'vertrag' && window._vertragElternNachher) {
+            const n = window._vertragElternNachher; window._vertragElternNachher = null;
+            await vertragElternFrage(n.empId, n.employmentId, n.vorname);
+            if (typeof selectEmployee === 'function') selectEmployee(empId);
+        }
         if (kind === 'absenz' && typeof loadAbsenzenTab === 'function') loadAbsenzenTab(empId);
         if (kind === 'weitere_ag' && typeof loadWeitereAgTab === 'function') loadWeitereAgTab(empId);
         if (kind === 'fam_geburtsurkunde' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);

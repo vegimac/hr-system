@@ -110,7 +110,7 @@ public class KontrollListenController : ControllerBase
             .ToDictionaryAsync(e => e.Id);
         var vertraege = (await _db.Employments.AsNoTracking()
                 .Where(v => ids.Contains(v.EmployeeId))
-                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate, v.IsActive, v.ProbationEndDate, v.VertragDokumentId, v.CompanyProfileId })
+                .Select(v => new { v.EmployeeId, v.ContractStartDate, v.ContractEndDate, v.IsActive, v.ProbationEndDate, v.VertragDokumentId, v.CompanyProfileId, v.UnterschriftEltern })
                 .ToListAsync())
             .GroupBy(v => v.EmployeeId)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(v => v.ContractStartDate).ToList());
@@ -155,7 +155,7 @@ public class KontrollListenController : ControllerBase
         {
             ("pers",      "Persönliche Daten",                     "feld"),
             ("vertrag",   "Arbeits­vertrag",                        "feld+dokument"),
-            ("eltern",    "Unterschrift Eltern",                   "dokument"),
+            ("eltern",    "Unterschrift Eltern",                   "feld"),
             ("verfueg",   "Verfügbare Arbeitsstunden",             "feld"),
             ("partnerweb","PartnerWeb",                            "keine"),
             ("hauptag",   "Erlaubnis Hauptarbeitgeber",            "feld+dokument"),
@@ -206,11 +206,13 @@ public class KontrollListenController : ControllerBase
                 zellen["vertrag"] = (aktVertrag?.VertragDokumentId != null || HatCode(m.Id, "contract") || HatWort(m.Id, "vertrag"))
                     ? Z("ok") : Z("fehlt", "fehlt", "Kein unterschriebener Vertrag verknüpft/abgelegt");
 
-                // Eltern: nur wenn beim Eintritt < 18
-                bool minderjaehrig = ef?.DateOfBirth != null && ef.EntryDate != null
-                    && ef.DateOfBirth.Value.AddYears(18) > ef.EntryDate.Value;
+                // Eltern (Walter 23.09.2026): nur solange der MA HEUTE unter 18 ist;
+                // bestätigt am aktuellen Vertrag (Häkchen «Unterschrift Erziehungsberechtigte»).
+                bool minderjaehrig = ef?.DateOfBirth != null
+                    && DateOnly.FromDateTime(ef.DateOfBirth.Value).AddYears(18) > heute;
                 zellen["eltern"] = !minderjaehrig ? Z("na")
-                    : HatWort(m.Id, "Eltern", "Einverständnis") ? Z("ok") : Z("fehlt", "fehlt", "Minderjährig beim Eintritt — Unterschrift Eltern nicht gefunden");
+                    : aktVertrag?.UnterschriftEltern == true ? Z("ok")
+                    : Z("fehlt", "fehlt", "Unter 18 — Unterschrift der Erziehungsberechtigten am Vertrag nicht bestätigt");
 
                 zellen["verfueg"] = mitVerfuegbarkeit.Contains(m.Id) ? Z("ok") : Z("fehlt", "fehlt", "Keine Verfügbarkeit aus easy@work");
                 zellen["partnerweb"] = Z("unbekannt", "?", "Diese Angabe führt OneCrew nicht");
