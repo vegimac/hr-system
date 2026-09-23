@@ -125,6 +125,14 @@ public class KontrollListenController : ControllerBase
                 .Select(b => b.EmployeeId).ToListAsync()).ToHashSet();
         var mitVerfuegbarkeit = (await _db.EmployeeAvailabilities.AsNoTracking()
                 .Where(a => ids.Contains(a.EmployeeId)).Select(a => a.EmployeeId).Distinct().ToListAsync()).ToHashSet();
+        // Weitere Arbeitgeber (nur Info, Walter 23.09.2026) — aktuell gültige
+        var weitereAg = (await _db.WeitereArbeitgeber.AsNoTracking()
+                .Where(a => ids.Contains(a.EmployeeId)
+                         && (a.GueltigBis == null || a.GueltigBis >= heute)
+                         && (a.GueltigVon == null || a.GueltigVon <= heute))
+                .ToListAsync())
+            .GroupBy(a => a.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.ToList());
         var mitQst = (await _db.EmployeeQuellensteuer.AsNoTracking()
                 .Where(q => ids.Contains(q.EmployeeId)).Select(q => q.EmployeeId).Distinct().ToListAsync()).ToHashSet();
         // Dokumente: Typ-Name, Typ-Verknüpfung, Bemerkung, Dateiname — für Stichwort-Erkennung
@@ -150,7 +158,7 @@ public class KontrollListenController : ControllerBase
             ("eltern",    "Unterschrift Eltern",                   "dokument"),
             ("verfueg",   "Verfügbare Arbeitsstunden",             "feld"),
             ("partnerweb","PartnerWeb",                            "keine"),
-            ("hauptag",   "Erlaubnis Hauptarbeitgeber",            "dokument"),
+            ("hauptag",   "Erlaubnis Hauptarbeitgeber",            "feld+dokument"),
             ("pzDatum",   "Probezeitgespräch",                     "feld"),
             ("pzOk",      "Probezeitgespräch erledigt",            "feld"),
             ("pass",      "Kopie Pass/ID",                         "feld+dokument"),
@@ -206,7 +214,14 @@ public class KontrollListenController : ControllerBase
 
                 zellen["verfueg"] = mitVerfuegbarkeit.Contains(m.Id) ? Z("ok") : Z("fehlt", "fehlt", "Keine Verfügbarkeit aus easy@work");
                 zellen["partnerweb"] = Z("unbekannt", "?", "Diese Angabe führt OneCrew nicht");
-                zellen["hauptag"] = HatWort(m.Id, "Hauptarbeitgeber", "Nebenerwerb", "Zweitjob") ? Z("ok") : Z("na");
+                // Erlaubnis nötig, wenn ein weiterer (gültiger) AG Hauptarbeitgeber ist.
+                weitereAg.TryGetValue(m.Id, out var ags);
+                var haupt = ags?.FirstOrDefault(a => a.IstHauptarbeitgeber);
+                zellen["hauptag"] = ags == null || ags.Count == 0 ? Z("na")
+                    : haupt == null ? Z("na", null, "Wir sind Hauptarbeitgeber · weitere AG: " + string.Join(", ", ags.Select(a => a.Name)))
+                    : (haupt.ErlaubnisDokumentId != null || HatWort(m.Id, "Hauptarbeitgeber"))
+                        ? Z("ok", null, $"Hauptarbeitgeber: {haupt.Name}")
+                        : Z("fehlt", "fehlt", $"{haupt.Name} ist Hauptarbeitgeber — Erlaubnis nicht verknüpft");
 
                 // Probezeit
                 var pzEnde = aktVertrag?.ProbationEndDate;

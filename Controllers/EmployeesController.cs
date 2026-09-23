@@ -1313,6 +1313,94 @@ public class EmployeesController : ControllerBase
     }
     public class FerienfaehigDto { public bool Wert { get; set; } }
 
+    // ── Weitere Arbeitgeber (Walter-Vorgabe 23.09.2026) ──────────────────
+    // NUR Information für die Checkliste Personaladministration. Bewusst
+    // NICHT mit QST/Lohnlauf/Swissdec verbunden (dort bleiben die Felder der
+    // QST-Version die Quelle). Stammdaten → keine Lohn-Edit-Sperre.
+
+    public class WeitererAgDto
+    {
+        public string   Name { get; set; } = "";
+        public string?  Strasse { get; set; }
+        public string?  Plz { get; set; }
+        public string?  Ort { get; set; }
+        public string?  Kanton { get; set; }
+        public string?  Land { get; set; }
+        public decimal? PensumProzent { get; set; }
+        public decimal? StundenProWoche { get; set; }
+        public DateOnly? GueltigVon { get; set; }
+        public DateOnly? GueltigBis { get; set; }
+        public bool     IstHauptarbeitgeber { get; set; }
+        public string?  Bemerkung { get; set; }
+    }
+
+    [HttpGet("{id:int}/weitere-arbeitgeber")]
+    public async Task<IActionResult> WeitereArbeitgeber(int id)
+        => Ok(await _context.WeitereArbeitgeber.AsNoTracking()
+            .Where(a => a.EmployeeId == id)
+            .OrderBy(a => a.GueltigBis != null).ThenByDescending(a => a.GueltigVon)
+            .ToListAsync());
+
+    [HttpPost("{id:int}/weitere-arbeitgeber")]
+    public Task<IActionResult> WeitererAgAnlegen(int id, [FromBody] WeitererAgDto dto) => WeitererAgSpeichernAsync(id, null, dto);
+
+    [HttpPut("{id:int}/weitere-arbeitgeber/{agId:int}")]
+    public Task<IActionResult> WeitererAgAendern(int id, int agId, [FromBody] WeitererAgDto dto) => WeitererAgSpeichernAsync(id, agId, dto);
+
+    private async Task<IActionResult> WeitererAgSpeichernAsync(int id, int? agId, WeitererAgDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { error = "NAME", message = "Name des Arbeitgebers fehlt." });
+        if (dto.GueltigVon.HasValue && dto.GueltigBis.HasValue && dto.GueltigBis < dto.GueltigVon)
+            return BadRequest(new { error = "DATUM", message = "«Gültig bis» liegt vor «Gültig von»." });
+        WeitererArbeitgeber? ag;
+        if (agId.HasValue)
+        {
+            ag = await _context.WeitereArbeitgeber.FirstOrDefaultAsync(a => a.Id == agId.Value && a.EmployeeId == id);
+            if (ag == null) return NotFound();
+        }
+        else
+        {
+            if (!await _context.Employees.AnyAsync(e => e.Id == id)) return NotFound();
+            ag = new WeitererArbeitgeber { EmployeeId = id };
+            _context.WeitereArbeitgeber.Add(ag);
+        }
+        string? T(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+        ag.Name = dto.Name.Trim();
+        ag.Strasse = T(dto.Strasse); ag.Plz = T(dto.Plz); ag.Ort = T(dto.Ort);
+        ag.Kanton = T(dto.Kanton)?.ToUpperInvariant(); ag.Land = T(dto.Land) ?? "CH";
+        ag.PensumProzent = dto.PensumProzent; ag.StundenProWoche = dto.StundenProWoche;
+        ag.GueltigVon = dto.GueltigVon; ag.GueltigBis = dto.GueltigBis;
+        ag.IstHauptarbeitgeber = dto.IstHauptarbeitgeber;
+        ag.Bemerkung = T(dto.Bemerkung);
+        await _context.SaveChangesAsync();
+        return Ok(ag);
+    }
+
+    [HttpDelete("{id:int}/weitere-arbeitgeber/{agId:int}")]
+    public async Task<IActionResult> WeitererAgLoeschen(int id, int agId)
+    {
+        var ag = await _context.WeitereArbeitgeber.FirstOrDefaultAsync(a => a.Id == agId && a.EmployeeId == id);
+        if (ag == null) return NotFound();
+        _context.WeitereArbeitgeber.Remove(ag);
+        await _context.SaveChangesAsync();
+        return Ok();
+    }
+
+    [HttpPatch("{id:int}/weitere-arbeitgeber/{agId:int}/dokument")]
+    public async Task<IActionResult> WeitererAgDokument(int id, int agId, [FromBody] BankDokumentDto dto)
+    {
+        var ag = await _context.WeitereArbeitgeber.FirstOrDefaultAsync(a => a.Id == agId && a.EmployeeId == id);
+        if (ag == null) return NotFound();
+        if (dto.DokumentId.HasValue
+            && !await _context.EmployeeDokumente.AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id))
+            return BadRequest(new { error = "DOKUMENT_INVALID",
+                message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        ag.ErlaubnisDokumentId = dto.DokumentId;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = ag.Id, erlaubnisDokumentId = ag.ErlaubnisDokumentId });
+    }
+
     /// <summary>
     /// Unterschriebenen Vertrag an einen Vertragsabschnitt hängen/lösen
     /// (Walter 23.09.2026). Hier statt im EmploymentsController: ein Beleg

@@ -51,6 +51,7 @@ public class AppDbContext : DbContext
     public DbSet<EmployeeTimeEntry> EmployeeTimeEntries => Set<EmployeeTimeEntry>();
     public DbSet<Absence> Absences => Set<Absence>();
     public DbSet<FerienKuerzungEintrag> FerienKuerzungen => Set<FerienKuerzungEintrag>();
+    public DbSet<WeitererArbeitgeber> WeitereArbeitgeber => Set<WeitererArbeitgeber>();
     public DbSet<PayrollSaldo> PayrollSaldos => Set<PayrollSaldo>();
     public DbSet<LohnKontoMapping> LohnKontoMappings => Set<LohnKontoMapping>();
     public DbSet<KrankheitKarenzSaldo> KrankheitKarenzSaldos => Set<KrankheitKarenzSaldo>();
@@ -1396,6 +1397,30 @@ public class AppDbContext : DbContext
         });
 
         // ── Absence ────────────────────────────────────────────────────────
+        // Weitere Arbeitgeber — nur Info für die Checkliste (Walter 23.09.2026)
+        modelBuilder.Entity<WeitererArbeitgeber>(entity =>
+        {
+            entity.ToTable("weitere_arbeitgeber");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Name).HasColumnName("name");
+            entity.Property(e => e.Strasse).HasColumnName("strasse");
+            entity.Property(e => e.Plz).HasColumnName("plz");
+            entity.Property(e => e.Ort).HasColumnName("ort");
+            entity.Property(e => e.Kanton).HasColumnName("kanton");
+            entity.Property(e => e.Land).HasColumnName("land");
+            entity.Property(e => e.PensumProzent).HasColumnName("pensum_prozent").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.StundenProWoche).HasColumnName("stunden_pro_woche").HasColumnType("numeric(5,2)");
+            entity.Property(e => e.GueltigVon).HasColumnName("gueltig_von");
+            entity.Property(e => e.GueltigBis).HasColumnName("gueltig_bis");
+            entity.Property(e => e.IstHauptarbeitgeber).HasColumnName("ist_hauptarbeitgeber");
+            entity.Property(e => e.ErlaubnisDokumentId).HasColumnName("erlaubnis_dokument_id");
+            entity.Property(e => e.Bemerkung).HasColumnName("bemerkung");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am").HasColumnType("timestamp without time zone");
+            entity.HasIndex(e => e.EmployeeId);
+        });
+
         // Absenzbedingte Ferienkürzung (Walter 23.09.2026)
         modelBuilder.Entity<FerienKuerzungEintrag>(entity =>
         {

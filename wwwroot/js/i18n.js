@@ -253,7 +253,7 @@ window.i18n = (function () {
         'ma.tab.personal':           { de: 'Persönliche<br>Angaben',       en: 'Personal<br>data' },
         'ma.tab.family':             { de: 'Familie<br>Schwanger',         en: 'Family<br>Maternity' },
         'ma.tab.bank':               { de: 'Bank',                         en: 'Bank' },
-        'ma.tab.permitQst':          { de: 'Bewilligung QST<br>Bank',      en: 'Permit WHT<br>Bank' },
+        'ma.tab.permitQst':          { de: 'Bewilligung QST<br>Bank weit. AG', en: 'Permit WHT<br>Bank other empl.' },
         'ma.tab.restAdmin':          { de: 'MA<br>Formulare',               en: 'Employee<br>Forms' },
         'ma.tab.verwarnungen':       { de: 'Verwarnungen',                 en: 'Warnings' },
         'ma.tab.qst':                { de: 'Quellensteuer',                en: 'Withholding tax' },

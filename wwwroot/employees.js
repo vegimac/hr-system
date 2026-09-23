@@ -1385,7 +1385,7 @@ function renderEmployeeDetail(emp) {
         <div class="emp-detail-tabs">
             <div class="emp-tab active" data-tab="uebersicht" onclick="switchEmpTab('uebersicht')" style="line-height:1.2;text-align:center">${_t('ma.tab.overview','Übersicht')}</div>
             <div class="emp-tab"        data-tab="familie"    onclick="switchEmpTab('familie')" style="line-height:1.2;text-align:center">${_t('ma.tab.family','Familie<br>Schwanger')}</div>
-            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank')}</div>
+            <div class="emp-tab"        data-tab="quellensteuer" onclick="switchEmpTab('quellensteuer')" style="line-height:1.2;text-align:center">${_t('ma.tab.permitQst','Bewilligung QST<br>Bank weit. AG')}</div>
             <div class="emp-tab"        data-tab="verwarnungen" onclick="switchEmpTab('verwarnungen')" style="line-height:1.2;text-align:center">${_t('ma.tab.restAdmin','MA<br>Formulare')}</div>
             <div class="emp-tab"        data-tab="stempelzeiten" onclick="switchEmpTab('stempelzeiten')">${_t('ma.tab.timeRecords','Stempelzeiten')}</div>
             <div class="emp-tab"        data-tab="absenzen"   onclick="switchEmpTab('absenzen')" style="line-height:1.2;text-align:center">${_t('ma.tab.absencesKtg','Absenzen /<br>KTG/UVG')}</div>
@@ -1446,6 +1446,13 @@ function renderEmployeeDetail(emp) {
             <div id="bankAccountsContent">
                 <div class="emp-placeholder"><span>Wird geladen…</span></div>
             </div>
+            <!-- Weitere Arbeitgeber (Walter 23.09.2026) — nur Info für die
+                 Checkliste, NICHT mit QST/Lohnlauf/Swissdec verbunden. -->
+            <div class="emp-section-title" style="display:flex;align-items:center;justify-content:space-between;margin-top:18px">
+                <span>Weitere Arbeitgeber</span>
+                <button class="btn-emp-add" onclick="openWeitererAgModal(${emp.id}, null)">+ Weiterer Arbeitgeber</button>
+            </div>
+            <div id="weitereAgContent"></div>
             ` : `
             <div style="margin:0 0 14px;padding:12px 16px;background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;color:#92400e;font-size:13px;line-height:1.55">
                 <strong>⛔ ${_t('ma.phantom.title','MA ohne Lohn')}</strong> — ${_t('ma.phantom.bankDesc','Phantom-MA für easy@work-Zugang. Bankverbindung wird nicht angezeigt — dieser MA hat keinen Vertrag und keine Lohnzahlung.')}
@@ -2498,6 +2505,7 @@ function switchEmpTab(tab) {
         loadQuellensteuerTab(selectedEmployeeId);
         // Bankverwaltung gehoert zu «Bewilligung QST Bank» (Walter 15.07.2026).
         if (!selectedEmployee?.isPayrollExcluded) loadBankAccountsTab(selectedEmployeeId);
+        if (!selectedEmployee?.isPayrollExcluded) loadWeitereAgTab(selectedEmployeeId);
     }
     if (tab === 'verwarnungen'   && selectedEmployeeId) loadVerwarnungenTab(selectedEmployeeId);
     if (tab === 'stempelzeiten'  && selectedEmployeeId) loadStempelzeitenTab(selectedEmployeeId);
@@ -2930,7 +2938,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
           'probezeit_gespraech1', 'probezeit_gespraech2',
           'lohn_assignment', 'qst_tarif', 'arbeitszeugnis',
           // Direkt verknüpfte Dokumente (Walter 23.09.2026)
-          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag', 'absenz'].includes(kind)) return;
+          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag', 'absenz', 'weitere_ag'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2979,6 +2987,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'bank_beleg'         ? /(bank|iban|konto|post)/i
                        : kind === 'vertrag'            ? /(vertrag|contract|flex|mtp|fix)/i
                        : kind === 'absenz'             ? /(arzt|zeugnis|unfall|krank|bescheinigung|spital|suva)/i
+                       : kind === 'weitere_ag'         ? /(hauptarbeitgeber|erlaubnis|nebenerwerb|bewilligung arbeitgeber)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -3034,6 +3043,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'bank_beleg'          ? 'Bankbeleg verknüpfen'
                    : kind === 'vertrag'             ? 'Unterschriebenen Vertrag verknüpfen'
                    : kind === 'absenz'              ? 'Dokument zur Absenz verknüpfen'
+                   : kind === 'weitere_ag'          ? 'Erlaubnis Hauptarbeitgeber verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -3055,7 +3065,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
                         : kind === 'zivilstand'
                             ? 'Wähle das Dokument zum Zivilstand (Eheschein, Familienausweis, Scheidungsurteil …) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag' || kind === 'absenz')
+                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag' || kind === 'absenz' || kind === 'weitere_ag')
                             ? 'Wähle das passende Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
@@ -3180,6 +3190,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         bankAccountId: extra?.bankAccountId || null,
         employmentId: extra?.employmentId || null,
         absenceId: extra?.absenceId || null,
+        weitereAgId: extra?.weitereAgId || null,
         familyMemberId: extra?.familyMemberId || null,
         // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
         qstEntryId: extra?.qstEntryId || null
@@ -3265,6 +3276,10 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         } else if (kind === 'bank_beleg') {
             if (!ctx.bankAccountId) { alert('Bankkonto-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/bank-accounts/${ctx.bankAccountId}/dokument`;
+            body = JSON.stringify({ dokumentId });
+        } else if (kind === 'weitere_ag') {
+            if (!ctx.weitereAgId) { alert('Arbeitgeber-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/weitere-arbeitgeber/${ctx.weitereAgId}/dokument`;
             body = JSON.stringify({ dokumentId });
         } else if (kind === 'absenz') {
             if (!ctx.absenceId) { alert('Absenz-ID fehlt.'); return; }
@@ -3352,6 +3367,7 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
              || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
         if (kind === 'absenz' && typeof loadAbsenzenTab === 'function') loadAbsenzenTab(empId);
+        if (kind === 'weitere_ag' && typeof loadWeitereAgTab === 'function') loadWeitereAgTab(empId);
         if (kind === 'fam_geburtsurkunde' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
         // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,
         // dann Modal + Anstellung neu zeichnen (Walter 21.07.2026).
@@ -13628,6 +13644,135 @@ function renderBankAccountsList(el, list) {
         </tr></thead>
         <tbody>${rows}</tbody>
     </table>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Weitere Arbeitgeber (Walter-Vorgabe 23.09.2026) — NUR Info für die
+// Checkliste («Erlaubnis Hauptarbeitgeber»). Nicht mit QST/Lohnlauf/Swissdec
+// verbunden: dort bleiben die Felder der QST-Version massgebend.
+// ══════════════════════════════════════════════════════════════════════
+function weitAgToggleMenu(event, id) { rowMenuToggle(event, 'weitAg', id); }
+
+async function loadWeitereAgTab(employeeId) {
+    const el = document.getElementById('weitereAgContent');
+    if (!el) return;
+    let liste = [];
+    try {
+        const r = await fetch(`/api/employees/${employeeId}/weitere-arbeitgeber`, { headers: ah() });
+        if (r.ok) liste = await r.json();
+    } catch {}
+    window._weitAgCache = { employeeId, liste };
+    if (!liste.length) {
+        el.innerHTML = '<div style="padding:10px 14px;color:#8b8b8b;font-size:12.5px">Keine weiteren Arbeitgeber erfasst.</div>';
+        return;
+    }
+    const heute = new Date().toISOString().slice(0, 10);
+    const d = iso => iso ? fmtDate(iso) : '';
+    el.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:4px">
+        <thead><tr style="color:#64748b;text-align:left;border-bottom:1px solid #e2e8f0">
+            <th style="padding:8px 14px;font-weight:600">Arbeitgeber</th>
+            <th style="padding:8px 14px;font-weight:600">Pensum</th>
+            <th style="padding:8px 14px;font-weight:600">Gültigkeit</th>
+            <th style="padding:8px 14px;font-weight:600">Rolle</th>
+            <th style="padding:8px 14px"></th>
+        </tr></thead><tbody>
+        ${liste.map(a => {
+            const aktiv = (!a.gueltigBis || a.gueltigBis >= heute) && (!a.gueltigVon || a.gueltigVon <= heute);
+            const ort = [a.plz, a.ort].filter(Boolean).join(' ') + (a.kanton ? ' ' + a.kanton : '');
+            const pensum = [a.pensumProzent != null ? `${Number(a.pensumProzent)} %` : '', a.stundenProWoche != null ? `${Number(a.stundenProWoche)} h/Wo.` : ''].filter(Boolean).join(' · ') || '–';
+            const base = 'margin-left:8px;border-radius:6px;padding:2px 7px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:600;line-height:1';
+            const erlaubnis = !a.istHauptarbeitgeber ? '' : a.erlaubnisDokumentId
+                ? `<button type="button" onclick="openDirectDoc(${a.erlaubnisDokumentId})" title="Erlaubnis Hauptarbeitgeber öffnen" style="${base};background:#dcfce7;border:1px solid #86efac;color:#15803d">Erlaubnis ✓</button>`
+                : `<button type="button" onclick="openAusweisDokuModal(${employeeId},'weitere_ag',{weitereAgId:${a.id}})" title="Erlaubnis des Hauptarbeitgebers verknüpfen oder hochladen" style="${base};background:#fef2f2;border:1px dashed #fca5a5;color:#b91c1c">Erlaubnis fehlt</button>`;
+            const aJson = JSON.stringify(a).replace(/'/g, '&#39;');
+            return `<tr style="${aktiv ? '' : 'opacity:0.6;'}border-bottom:1px solid #f1f5f9">
+                <td style="padding:10px 14px"><div style="font-weight:600">${esc(a.name)}</div>
+                    <div style="font-size:11px;color:#64748b">${esc([a.strasse, ort, a.land && a.land !== 'CH' ? a.land : ''].filter(Boolean).join(', '))}</div>
+                    ${a.bemerkung ? `<div style="font-size:11px;color:#94a3b8">${esc(a.bemerkung)}</div>` : ''}</td>
+                <td style="padding:10px 14px;white-space:nowrap">${pensum}</td>
+                <td style="padding:10px 14px;white-space:nowrap;font-size:12px">${a.gueltigVon ? d(a.gueltigVon) : 'offen'} – ${a.gueltigBis ? d(a.gueltigBis) : 'offen'}</td>
+                <td style="padding:10px 14px;white-space:nowrap">${a.istHauptarbeitgeber
+                    ? '<span style="font-size:11px;font-weight:700;color:#92400e;background:#fef3c7;border-radius:8px;padding:2px 8px">Hauptarbeitgeber</span>'
+                    : '<span style="font-size:11px;color:#64748b">Nebenerwerb dort</span>'}${erlaubnis}</td>
+                <td style="padding:10px 14px;text-align:right">
+                    <div class="dok-menu-wrap" style="display:inline-block">
+                        <button class="dok-menu-btn" onclick="weitAgToggleMenu(event, ${a.id})" title="Aktionen">⋮</button>
+                        <div class="dok-menu" id="weitAgMenu-${a.id}">
+                            <button class="dok-menu-item" onclick='openWeitererAgModal(${employeeId}, ${aJson})'>Bearbeiten</button>
+                            <button class="dok-menu-item danger" onclick="weitAgLoeschen(${employeeId}, ${a.id})">Löschen</button>
+                        </div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('')}
+        </tbody></table>`;
+}
+
+async function weitAgLoeschen(employeeId, id) {
+    if (!(await liquidConfirm('Diesen Arbeitgeber aus der Liste löschen?', { title: 'Weiterer Arbeitgeber', yesLabel: 'Löschen', noLabel: 'Abbrechen' }))) return;
+    const r = await fetch(`/api/employees/${employeeId}/weitere-arbeitgeber/${id}`, { method: 'DELETE', headers: ah() });
+    if (!r.ok) { alert('Löschen fehlgeschlagen (' + r.status + ')'); return; }
+    loadWeitereAgTab(employeeId);
+}
+
+function openWeitererAgModal(employeeId, ag) {
+    document.getElementById('weitAgOverlay')?.remove();
+    const v = k => esc(ag?.[k] ?? '');
+    const wrap = document.createElement('div');
+    wrap.id = 'weitAgOverlay';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(30,27,22,0.45);z-index:9800;display:flex;align-items:center;justify-content:center';
+    const lbl = t => `<div style="font-size:12px;font-weight:700;color:#8b8b8b;margin-bottom:4px">${t}</div>`;
+    wrap.innerHTML = `
+    <div class="modal" style="max-width:620px;width:94%;padding:22px 24px;border-radius:16px">
+        <div style="font-size:15px;font-weight:800;color:#3f3f3f">${ag ? 'Weiterer Arbeitgeber bearbeiten' : 'Weiterer Arbeitgeber erfassen'}</div>
+        <div style="font-size:12px;color:#8b8b8b;margin:2px 0 12px">Nur Information für die Checkliste — keine Wirkung auf Quellensteuer und Lohn.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div style="grid-column:1 / 4">${lbl('Name *')}<input id="waName" class="ma-input" value="${v('name')}"></div>
+            <div style="grid-column:1 / 4">${lbl('Strasse')}<input id="waStrasse" class="ma-input" value="${v('strasse')}"></div>
+            <div>${lbl('PLZ')}<input id="waPlz" class="ma-input" value="${v('plz')}"></div>
+            <div>${lbl('Ort')}<input id="waOrt" class="ma-input" value="${v('ort')}"></div>
+            <div>${lbl('Kanton / Land')}<div style="display:flex;gap:6px"><input id="waKanton" class="ma-input" maxlength="2" style="width:60px" value="${v('kanton')}" placeholder="LU"><input id="waLand" class="ma-input" maxlength="2" style="width:60px" value="${esc(ag?.land ?? 'CH')}"></div></div>
+            <div>${lbl('Pensum %')}<input id="waPensum" type="number" step="1" min="0" max="100" class="ma-input" value="${ag?.pensumProzent ?? ''}"></div>
+            <div>${lbl('Stunden / Woche')}<input id="waStunden" type="number" step="0.5" min="0" class="ma-input" value="${ag?.stundenProWoche ?? ''}"></div>
+            <div></div>
+            <div>${lbl('Gültig von')}<input id="waVon" type="date" class="ma-input" value="${ag?.gueltigVon ?? ''}"></div>
+            <div>${lbl('Gültig bis')}<input id="waBis" type="date" class="ma-input" value="${ag?.gueltigBis ?? ''}"></div>
+            <div></div>
+            <label style="grid-column:1 / 4;display:flex;gap:8px;align-items:center;font-size:13px;color:#3f3f3f;cursor:pointer">
+                <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f">
+                Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> (bei uns Nebenerwerb → Erlaubnis nötig)
+            </label>
+            <div style="grid-column:1 / 4">${lbl('Bemerkung')}<input id="waBem" class="ma-input" value="${v('bemerkung')}"></div>
+        </div>
+        <div id="waStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:14px">
+            <button id="waAbbr" style="background:rgba(255,255,255,0.55);color:#3f3f3f;border:1px solid rgba(139,139,139,0.35);border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Abbrechen</button>
+            <button id="waOk" style="background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:9px 16px;cursor:pointer;font-size:13.5px;font-weight:700">Speichern</button>
+        </div>
+    </div>`;
+    document.body.appendChild(wrap);
+    const close = () => wrap.remove();
+    wrap.addEventListener('click', e => { if (e.target === wrap) close(); });
+    wrap.querySelector('#waAbbr').onclick = close;
+    wrap.querySelector('#waOk').onclick = async () => {
+        const g = id => wrap.querySelector('#' + id).value.trim();
+        const num = id => { const t = g(id); return t === '' ? null : Number(t); };
+        const body = {
+            name: g('waName'), strasse: g('waStrasse'), plz: g('waPlz'), ort: g('waOrt'),
+            kanton: g('waKanton'), land: g('waLand') || 'CH',
+            pensumProzent: num('waPensum'), stundenProWoche: num('waStunden'),
+            gueltigVon: g('waVon') || null, gueltigBis: g('waBis') || null,
+            istHauptarbeitgeber: wrap.querySelector('#waHaupt').checked,
+            bemerkung: g('waBem'),
+        };
+        const st = wrap.querySelector('#waStatus');
+        if (!body.name) { st.textContent = 'Bitte den Namen angeben.'; return; }
+        const url = ag ? `/api/employees/${employeeId}/weitere-arbeitgeber/${ag.id}` : `/api/employees/${employeeId}/weitere-arbeitgeber`;
+        const r = await fetch(url, { method: ag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
+        close();
+        loadWeitereAgTab(employeeId);
+    };
 }
 
 // Beleg pro Bankkonto (Walter 23.09.2026): grün = verknüpft (Klick = Vorschau),
