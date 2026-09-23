@@ -851,7 +851,9 @@ public static class PayrollCalculations
                     kuerzungSelbst12tel        = saldo.FerienKuerzungVorschlag.KuerzungSelbst12tel,
                     kuerzungSchwanger12tel     = saldo.FerienKuerzungVorschlag.KuerzungSchwanger12tel,
                     totalKuerzung12tel         = saldo.FerienKuerzungVorschlag.TotalKuerzung12tel,
-                    vorschlagTage              = saldo.FerienKuerzungVorschlagTage ?? 0
+                    vorschlagTage              = saldo.FerienKuerzungVorschlagTage ?? 0,
+                    bisherTage                 = saldo.FerienKuerzungBisherTage ?? 0,
+                    gesamtTage                 = saldo.FerienKuerzungGesamtTage ?? (saldo.FerienKuerzungVorschlagTage ?? 0)
                   }
                 : null,
 

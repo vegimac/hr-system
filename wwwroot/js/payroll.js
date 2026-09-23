@@ -2131,13 +2131,17 @@ function renderLohnSlip(s, targetEl) {
                                     ${reasonParts.join(' · ')}
                                 </div>
                                 <div style="font-size:11px;color:#78350f;margin-top:3px">
-                                    <strong>Vorschlag</strong>: ${k.totalKuerzung12tel}/12 = <strong>${fmtNum(k.vorschlagTage)} Tage</strong> Kürzung
+                                    ${Number(k.bisherTage) > 0
+                                        ? `Total ${k.totalKuerzung12tel}/12 = ${fmtNum(k.gesamtTage)} Tage · bisher gekürzt ${fmtNum(k.bisherTage)} Tage · <strong>jetzt ${fmtNum(k.vorschlagTage)} Tage</strong>`
+                                        : `<strong>Vorschlag</strong>: ${k.totalKuerzung12tel}/12 = <strong>${fmtNum(k.vorschlagTage)} Tage</strong> Kürzung`}
                                 </div>
                             </div>
-                            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#92400e;cursor:pointer;white-space:nowrap">
+                            ${Number(k.vorschlagTage) > 0 || isApplied
+                                ? `<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#92400e;cursor:pointer;white-space:nowrap">
                                 <input type="checkbox" id="${toggleId}" ${isApplied ? 'checked' : ''} onchange="toggleFerienKuerzung(this, ${k.vorschlagTage})">
                                 Kürzung anwenden
-                            </label>
+                            </label>`
+                                : `<span style="font-size:12px;color:#92400e;white-space:nowrap">✓ bereits vollständig gekürzt</span>`}
                         </div>
                     </td>
                 </tr>`);

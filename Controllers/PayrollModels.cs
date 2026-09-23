@@ -93,6 +93,9 @@ public record SaldoBlock(
     // ── Optional: Ferien-Kürzungs-Vorschlag (Art. 329b OR) ────────────
     FerienKuerzungResult? FerienKuerzungVorschlag = null,
     decimal? FerienKuerzungVorschlagTage = null,
+    // Walter 23.09.2026: Vorschlag = Gesamtkürzung Dienstjahr − bisher angewendet
+    decimal? FerienKuerzungBisherTage = null,
+    decimal? FerienKuerzungGesamtTage = null,
 
     // ── 13.-ML-Basis (für Saldo-Berechnung: Summe aller Lohnpositionen
     //    mit Flag ZaehltAlsBasis13ml = true; via SumByFlag im Controller) ──
