@@ -1444,33 +1444,44 @@ public class DashboardService
         }
 
         // ── 3c.iv) AHV-Nummer fehlt (Walter 06.08.2026, kritisch) ──────────
-        // Aktive MA mit laufendem Vertrag ohne AHV-Nummer — ohne sie sind
-        // SV-Meldungen/Lohnausweis nicht möglich. Phantom-MA und reine
-        // Personaldossiers (kein laufender Vertrag) warnen nicht.
+        // Aktive MA mit laufendem ODER künftigem Vertrag ohne AHV-Nummer — ohne
+        // sie sind SV-Meldungen/Lohnausweis nicht möglich. Phantom-MA und reine
+        // Personaldossiers (nur abgelaufene Verträge) warnen nicht.
+        //
+        // Reichweite erweitert (Walter-Vorgabe 23.09.2026, gleich wie Zivilstand):
+        // «Sowohl Zivilstand wie auch AHV sind immer wichtig, ob QST oder nicht.»
+        // Darum rein datumsbasiert — ein neu erfasster MA mit Eintritt nächsten
+        // Monat meldet ab sofort auch, und das im Altbestand unzuverlässige
+        // `employment.is_active` entscheidet nicht mehr mit (Stolperfalle 7).
         if (Enabled("ahv_nummer_fehlt"))
         {
             var ahvQ = _db.Employees.AsNoTracking()
                 .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
                          && (e.SocialSecurityNumber == null || e.SocialSecurityNumber == "")
-                         && e.Employments.Any(em => em.IsActive
-                             && em.ContractStartDate <= DateTime.Today
-                             && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
+                         && e.Employments.Any(em =>
+                                em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today));
             if (companyProfileId.HasValue)
                 ahvQ = ahvQ.Where(e => e.Employments.Any(em =>
                     em.CompanyProfileId == companyProfileId.Value
                     && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)));
             var ohneAhv = await ahvQ
-                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber })
+                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
+                                   Eintritt = e.Employments
+                                        .Where(em => em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today)
+                                        .Min(em => (DateTime?)em.ContractStartDate) })
                 .ToListAsync();
             foreach (var e in ohneAhv)
             {
                 var anName = $"{e.FirstName} {e.LastName}".Trim();
+                var ahvNochNichtDa = e.Eintritt.HasValue && e.Eintritt.Value.Date > DateTime.Today;
                 alerts.Add(new DashboardAlert
                 {
                     Category = "ahv_nummer_fehlt",
                     Severity = SeverityState("ahv_nummer_fehlt", "critical"),
                     Title    = "AHV-Nummer fehlt",
-                    Subtitle = $"{anName} · Personalnr. {e.EmployeeNumber} · keine AHV-Nummer erfasst — SV-Meldungen/Lohnausweis nicht möglich",
+                    Subtitle = $"{anName} · Personalnr. {e.EmployeeNumber} · keine AHV-Nummer erfasst"
+                             + (ahvNochNichtDa ? $" · Eintritt am {e.Eintritt!.Value:dd.MM.yyyy}" : "")
+                             + " — SV-Meldungen/Lohnausweis nicht möglich",
                     EmployeeId     = e.Id,
                     EmployeeNumber = e.EmployeeNumber,
                     EmployeeName   = anName
