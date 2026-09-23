@@ -9773,6 +9773,20 @@
             box-shadow: 0 6px 16px rgba(60, 55, 48, 0.18);
         }
         #page-todos .todo-pdf:hover { background: #1a1a1a; }
+        /* Kontrollliste — markant oben in der Mitte (Walter 23.09.2026) */
+        #page-todos .todo-kontroll {
+            position: absolute; top: 58px; left: 50%; transform: translateX(-50%); z-index: 3;
+            background: #1a1a1a; color: #fff; border: none; cursor: pointer;
+            font-family: inherit; font-size: 14px; font-weight: 800; letter-spacing: 0.3px;
+            padding: 10px 22px; border-radius: 999px;
+            box-shadow: 0 8px 22px rgba(26, 26, 26, 0.30);
+            transition: transform .1s ease, box-shadow .14s ease;
+        }
+        #page-todos .todo-kontroll:hover {
+            transform: translateX(-50%) translateY(-2px);
+            box-shadow: 0 12px 28px rgba(26, 26, 26, 0.36);
+        }
+        body.theme-dark #page-todos .todo-kontroll { border: 1px solid rgba(165, 215, 255, 0.28); }
         /* «Was ist zu tun?» als Pille neben dem Titel (Walter 30.08.2026) */
         #page-todos .todo-guide {
             display: inline-flex; align-items: center; gap: 7px;
