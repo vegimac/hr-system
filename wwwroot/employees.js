@@ -13718,49 +13718,51 @@ async function weitAgLoeschen(employeeId, id) {
 function openWeitererAgModal(employeeId, ag) {
     document.getElementById('weitAgOverlay')?.remove();
     const v = k => esc(ag?.[k] ?? '');
-    // Aufbau wie die Standard-Erfassungsmasken (ov-Standard, z.B. Absenz):
-    // ma-modal-box · ma-grid · ma-field — gleich breite, weisse Felder.
-    const feld = (label, inner, span = 1) =>
-        `<div class="ma-field"${span > 1 ? ` style="grid-column:span ${span}"` : ''}><div class="ma-field-label">${label}</div>${inner}</div>`;
+    // Gleicher Aufbau + PLZ-Automatik wie «Arbeitgeber» des Ehepartners im
+    // Familie-Formular (family-modal-box · fmf-field) — Walter 23.09.2026.
+    const f = (label, inner) => `<div class="fmf-field"><label class="fmf-label">${label}</label>${inner}</div>`;
     const wrap = document.createElement('div');
     wrap.id = 'weitAgOverlay';
-    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:flex-start;justify-content:center;z-index:2000;overflow-y:auto;padding:40px 16px';
+    wrap.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:2000;padding:24px 16px';
     wrap.innerHTML = `
-    <div class="ma-modal-box narrow">
-        <div class="ma-modal-head">
-            <div class="ma-modal-title">${ag ? 'Weiterer Arbeitgeber bearbeiten' : 'Weiterer Arbeitgeber erfassen'}</div>
-            <button class="ma-modal-close" id="waX">✕</button>
+    <div class="family-modal-box" style="width:min(780px, calc(100vw - 40px))">
+        <div class="family-modal-head">
+            <div class="family-modal-title">${ag ? 'Weiterer Arbeitgeber bearbeiten' : 'Weiterer Arbeitgeber erfassen'}</div>
+            <button class="family-modal-close" id="waX">✕</button>
         </div>
-        <div class="ma-modal-body">
-            <div style="font-size:12.5px;color:#8b8b8b;margin:-2px 0 10px">Nur Information für die Checkliste — keine Wirkung auf Quellensteuer und Lohn.</div>
-
-            <div class="emp-section-title">Arbeitgeber</div>
-            <div class="ma-grid cols-3">
-                ${feld('Name *', `<input id="waName" class="ma-input" value="${v('name')}" placeholder="z.B. FedEx">`, 3)}
-                ${feld('Strasse', `<input id="waStrasse" class="ma-input" value="${v('strasse')}">`, 3)}
-                ${feld('PLZ', `<input id="waPlz" class="ma-input" value="${v('plz')}">`)}
-                ${feld('Ort', `<input id="waOrt" class="ma-input" value="${v('ort')}">`, 2)}
-                ${feld('Kanton', `<input id="waKanton" class="ma-input" maxlength="2" value="${v('kanton')}" placeholder="z.B. LU">`)}
-                ${feld('Land', `<input id="waLand" class="ma-input" maxlength="2" value="${esc(ag?.land ?? 'CH')}">`)}
+        <div class="family-modal-body">
+            <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">Nur Information für die Checkliste — keine Wirkung auf Quellensteuer und Lohn.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-bottom:6px">
+                ${f('Arbeitgeber *', `<input class="fmf-input" id="waName" type="text" placeholder="Firma / Arbeitgeber" value="${v('name')}">`)}
+                ${f('Strasse / Nr.', `<input class="fmf-input" id="waStrasse" type="text" placeholder="z.B. Industriestrasse 13" value="${v('strasse')}">`)}
             </div>
-
-            <div class="emp-section-title">Anstellung dort</div>
-            <div class="ma-grid cols-3">
-                ${feld('Pensum %', `<input id="waPensum" type="number" step="1" min="0" max="100" class="ma-input" value="${ag?.pensumProzent ?? ''}">`)}
-                ${feld('Stunden / Woche', `<input id="waStunden" type="number" step="0.5" min="0" class="ma-input" value="${ag?.stundenProWoche ?? ''}">`)}
-                <div></div>
-                ${feld('Gültig von', `<input id="waVon" type="date" class="ma-input" value="${ag?.gueltigVon ?? ''}">`)}
-                ${feld('Gültig bis', `<input id="waBis" type="date" class="ma-input" value="${ag?.gueltigBis ?? ''}">`)}
-                <div></div>
-                <label style="grid-column:span 3;display:flex;gap:10px;align-items:center;font-size:13px;color:#3f3f3f;cursor:pointer;padding:6px 2px">
-                    <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
-                    <span>Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> — bei uns Nebenerwerb, Erlaubnis nötig</span>
-                </label>
-                ${feld('Bemerkung', `<input id="waBem" class="ma-input" value="${v('bemerkung')}">`, 3)}
+            <div style="display:grid;grid-template-columns:90px 1fr 90px 90px;gap:6px 10px">
+                ${f('PLZ', `<input class="fmf-input" id="waPlz" type="text" inputmode="numeric" maxlength="4" placeholder="4665" value="${v('plz')}"
+                        oninput="if (this.value.length === 4 && typeof plzLookupGeneric === 'function') plzLookupGeneric(this.value, 'waOrt', 'waKanton', null, 'waPlzHint')">`)}
+                ${f('Ort', `<input class="fmf-input" id="waOrt" type="text" placeholder="z.B. Oftringen" autocomplete="off" value="${v('ort')}"
+                        oninput="if (typeof ortNameSuggest === 'function') ortNameSuggest(this, 'waPlz', 'waOrt', 'waKanton')">`)}
+                ${f('Kanton', `<input class="fmf-input" id="waKanton" type="text" maxlength="2" placeholder="AG" value="${v('kanton')}">`)}
+                ${f('Land', `<input class="fmf-input" id="waLand" type="text" maxlength="2" value="${esc(ag?.land ?? 'CH')}">`)}
             </div>
+            <div id="waPlzHint" style="font-size:11.5px;margin-top:4px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px 10px;margin-top:10px">
+                ${f('Pensum angeben als', `<select class="fmf-input" id="waArt">
+                        <option value="prozent" ${ag?.stundenProWoche != null && ag?.pensumProzent == null ? '' : 'selected'}>Stellenprozent</option>
+                        <option value="stunden" ${ag?.stundenProWoche != null && ag?.pensumProzent == null ? 'selected' : ''}>Wochenstunden</option>
+                    </select>`)}
+                ${f('<span id="waWertLabel">Stellenprozent %</span>', `<input class="fmf-input" id="waWert" type="number" min="0" step="1"
+                        value="${ag?.pensumProzent ?? ag?.stundenProWoche ?? ''}">`)}
+                ${f('Gültig von', `<input class="fmf-input" id="waVon" type="date" value="${ag?.gueltigVon ?? ''}">`)}
+                ${f('Gültig bis', `<input class="fmf-input" id="waBis" type="date" value="${ag?.gueltigBis ?? ''}">`)}
+            </div>
+            <label style="display:flex;gap:10px;align-items:center;font-size:13px;color:#3f3f3f;cursor:pointer;margin:12px 0 8px">
+                <input type="checkbox" id="waHaupt" ${ag?.istHauptarbeitgeber ? 'checked' : ''} style="width:16px;height:16px;accent-color:#3f3f3f;flex:none">
+                <span>Dieser Arbeitgeber ist <b>Hauptarbeitgeber</b> — bei uns Nebenerwerb, Erlaubnis nötig</span>
+            </label>
+            ${f('Bemerkung', `<input class="fmf-input" id="waBem" type="text" value="${v('bemerkung')}">`)}
             <div id="waStatus" style="font-size:12px;color:#b91c1c;margin-top:8px"></div>
         </div>
-        <div class="ma-modal-foot">
+        <div class="family-modal-foot">
             <button class="btn btn-outline" id="waAbbr">Abbrechen</button>
             <button class="btn btn-primary" id="waOk">Speichern</button>
         </div>
@@ -13771,19 +13773,30 @@ function openWeitererAgModal(employeeId, ag) {
     wrap.querySelector('#waAbbr').onclick = close;
     wrap.querySelector('#waX').onclick = close;
     wrap.querySelector('#waName').focus();
+    // Entweder Stellenprozent ODER Wochenstunden (Walter 23.09.2026).
+    const artSync = () => {
+        const std = wrap.querySelector('#waArt').value === 'stunden';
+        wrap.querySelector('#waWertLabel').textContent = std ? 'Wochenstunden h' : 'Stellenprozent %';
+        const w = wrap.querySelector('#waWert');
+        w.step = std ? '0.5' : '1';
+        w.max  = std ? '' : '100';
+    };
+    wrap.querySelector('#waArt').onchange = artSync;
+    artSync();
     wrap.querySelector('#waOk').onclick = async () => {
         const g = id => wrap.querySelector('#' + id).value.trim();
         const num = id => { const t = g(id); return t === '' ? null : Number(t); };
         const body = {
             name: g('waName'), strasse: g('waStrasse'), plz: g('waPlz'), ort: g('waOrt'),
             kanton: g('waKanton'), land: g('waLand') || 'CH',
-            pensumProzent: num('waPensum'), stundenProWoche: num('waStunden'),
+            pensumProzent:   g('waArt') === 'prozent' ? num('waWert') : null,
+            stundenProWoche: g('waArt') === 'stunden' ? num('waWert') : null,
             gueltigVon: g('waVon') || null, gueltigBis: g('waBis') || null,
             istHauptarbeitgeber: wrap.querySelector('#waHaupt').checked,
             bemerkung: g('waBem'),
         };
         const st = wrap.querySelector('#waStatus');
-        if (!body.name) { st.textContent = 'Bitte den Namen angeben.'; return; }
+        if (!body.name) { st.textContent = 'Bitte den Arbeitgeber angeben.'; return; }
         const url = ag ? `/api/employees/${employeeId}/weitere-arbeitgeber/${ag.id}` : `/api/employees/${employeeId}/weitere-arbeitgeber`;
         const r = await fetch(url, { method: ag ? 'PUT' : 'POST', headers: { ...ah(), 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         if (!r.ok) { const j = await r.json().catch(() => ({})); st.textContent = j.message || ('Fehler ' + r.status); return; }
