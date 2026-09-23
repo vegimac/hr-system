@@ -10428,6 +10428,7 @@ async function _absApplyContinuationMoFr(type, dateFrom) {
 }
 
 function closeAbsenceModal() {
+    window._absAfterSave = null;   // Abbruch → kein Dokument verknüpfen
     const modal = document.getElementById('absenceModal');
     if (modal) { modal.style.display = 'none'; modal.dataset.editId = ''; }
     window._absEditWorkedDays = [];
@@ -10869,6 +10870,15 @@ async function saveAbsence() {
             } catch {}
             alert(msg);
             return;
+        }
+        // Dokument aus dem Verknüpfen-Dialog (Walter 23.09.2026): nach dem
+        // Anlegen einer NEUEN Absenz das hochgeladene Arztzeugnis daran hängen.
+        const afterSave = !editId ? window._absAfterSave : null;
+        window._absAfterSave = null;
+        if (afterSave) {
+            let neu = null;
+            try { neu = await res.json(); } catch {}
+            if (neu?.id) { try { await afterSave(neu.id); } catch (e) { console.error('absAfterSave', e); } }
         }
         closeAbsenceModal();
         loadAbsenzenTab(selectedEmployeeId);

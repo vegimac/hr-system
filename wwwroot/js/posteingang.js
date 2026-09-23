@@ -811,6 +811,8 @@ async function pbDoMove(e) {
             await dokNeueBewilligungMitDok(emp.id, neuId);
         if (verkn?.neueBank && typeof dokNeueBankMitDok === 'function')
             await dokNeueBankMitDok(emp.id, neuId);
+        if (verkn?.neueAbsenz && typeof dokNeueAbsenzMitDok === 'function')
+            await dokNeueAbsenzMitDok(emp.id, neuId);
     } catch (err) {
         document.getElementById('pbMoveAlert').innerHTML = `<div style="padding:8px;background:#fef2f2;color:#b91c1c;border-radius:6px;font-size:12px">Fehler: ${err.message}</div>`;
     }

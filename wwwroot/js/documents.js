@@ -1921,6 +1921,7 @@ async function dokUpload() {
         await dokAskNotifyUser(respData?.id ?? null, bemerkung);
         if (verkn?.bewilligung) await dokNeueBewilligungMitDok(empIdUpload, respData.id);
         if (verkn?.neueBank) await dokNeueBankMitDok(empIdUpload, respData.id);
+        if (verkn?.neueAbsenz) await dokNeueAbsenzMitDok(empIdUpload, respData.id);
     } catch (err) {
         status.textContent = 'Fehler: ' + err.message;
         status.style.color = '#b91c1c';
@@ -2154,6 +2155,8 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
             apply: patchJson(`/api/employees/${empId}/employments/${v.id}/dokument`, { dokumentId: docId }),
         }));
 
+    // ── Absenz ── neue Absenz gleich mit dem Zeugnis erfassen (Walter 23.09.2026)
+    opts.push({ key: 'absneu', gruppe: 'Absenz', label: 'Neue Absenz erfassen', sub: 'Krankheit, Unfall … mit Von/Bis', current: null, apply: null });
     // ── Absenz ── Dokument 1:1 (z.B. Arztzeugnis): die 5 neuesten, ohne Ferien
     const absLabel = t => (typeof ABSENCE_LABELS !== 'undefined' && ABSENCE_LABELS[t]?.label) || t;
     const kurz = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.${String(iso).slice(2, 4)}` : '';
@@ -2229,6 +2232,7 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     if (!wahl) return { verknuepft: false, bewilligung: false };
     if (wahl.key === 'bew') return { verknuepft: false, bewilligung: true };
     if (wahl.key === 'banknew') return { verknuepft: false, neueBank: true };
+    if (wahl.key === 'absneu')  return { verknuepft: false, neueAbsenz: true };
 
     if (wahl.current && wahl.current !== docId) {
         const ok = await liquidConfirm(
@@ -2308,6 +2312,29 @@ async function dokNeueBankMitDok(empId, docId) {
             method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ dokumentId: docId }) });
         if (r.ok && typeof showToast === 'function') showToast('✓ Bankbeleg mit der neuen Bankverbindung verknüpft', 'success');
+    };
+}
+
+// Neue Absenz mit dem soeben abgelegten Dokument (Walter 23.09.2026): MA
+// öffnen, Absenzen-Tab zeigen und das gewohnte Absenz-Formular öffnen (Typ,
+// Von/Bis, bei MTP/FIX Arbeitstage laut Dienstplan). Nach dem Speichern
+// hängt saveAbsence das Dokument an die neue Absenz.
+async function dokNeueAbsenzMitDok(empId, docId) {
+    if (typeof openAbsenceModal !== 'function') return;
+    if (window.selectedEmployeeId !== empId) {
+        window.activeEmpId = empId;
+        if (typeof showPage === 'function') showPage('mitarbeiter');
+        for (let i = 0; i < 40 && window.selectedEmployeeId !== empId; i++)
+            await new Promise(r => setTimeout(r, 150));
+        if (window.selectedEmployeeId !== empId && typeof selectEmployee === 'function') await selectEmployee(empId);
+    }
+    if (typeof switchEmpTab === 'function') switchEmpTab('absenzen');
+    await openAbsenceModal(null);
+    window._absAfterSave = async (absenzId) => {
+        const r = await fetch(`/api/employees/${empId}/absences/${absenzId}/dokument`, {
+            method: 'PATCH', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dokumentId: docId }) });
+        if (r.ok && typeof showToast === 'function') showToast('✓ Dokument mit der neuen Absenz verknüpft', 'success');
     };
 }
 
