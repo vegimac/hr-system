@@ -29,6 +29,10 @@ public class Absence
 
     public string? Notes { get; set; }
 
+    /// <summary>Verknüpftes Dokument 1:1, z.B. Arztzeugnis (Walter 23.09.2026).
+    /// Nur über den Verknüpfen-Dialog gesetzt — PUT/Importe fassen es nicht an.</summary>
+    public int? DokumentId { get; set; }
+
     /// <summary>
     /// easy@work-Sync-Schlüssel (Walter 14.08.2026): «A{id}» aus absences,
     /// «O{id}» aus off_times. NULL = manuell/Mirus erfasst (Sync tastet

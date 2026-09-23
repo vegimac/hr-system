@@ -2930,7 +2930,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
           'probezeit_gespraech1', 'probezeit_gespraech2',
           'lohn_assignment', 'qst_tarif', 'arbeitszeugnis',
           // Direkt verknüpfte Dokumente (Walter 23.09.2026)
-          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag'].includes(kind)) return;
+          'ahv_karte', 'geburtsurkunde', 'zivilstand', 'bank_beleg', 'fam_geburtsurkunde', 'vertrag', 'absenz'].includes(kind)) return;
 
     if (typeof loadEmpDokumente === 'function') {
         try { await loadEmpDokumente(empId); } catch {}
@@ -2978,6 +2978,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                        : kind === 'zivilstand'         ? /(ehe|heirat|scheidung|zivilstand|familienausweis|partnerschaft)/i
                        : kind === 'bank_beleg'         ? /(bank|iban|konto|post)/i
                        : kind === 'vertrag'            ? /(vertrag|contract|flex|mtp|fix)/i
+                       : kind === 'absenz'             ? /(arzt|zeugnis|unfall|krank|bescheinigung|spital|suva)/i
                        :                                  /(quellensteuer\s*befreiung|qst\s*befreiung|befreiung|bestätig|behörd|ämter)/i;
 
     const tax  = Array.isArray(_dokState.taxonomy) ? _dokState.taxonomy : [];
@@ -3032,6 +3033,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                    : kind === 'zivilstand'          ? 'Zivilstandsdokument verknüpfen'
                    : kind === 'bank_beleg'          ? 'Bankbeleg verknüpfen'
                    : kind === 'vertrag'             ? 'Unterschriebenen Vertrag verknüpfen'
+                   : kind === 'absenz'              ? 'Dokument zur Absenz verknüpfen'
                    :                                  'Behörden-Befreiung verknüpfen';
     const hintText  = kind === 'id_pass'
         ? 'Wähle ein bestehendes Dokument (Pass oder Identitätskarte) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
@@ -3053,7 +3055,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
                             ? 'Wähle das ausgestellte (unterschriebene) Arbeitszeugnis — passende sind oben hervorgehoben. Oder lade das Zeugnis neu hoch.'
                         : kind === 'zivilstand'
                             ? 'Wähle das Dokument zum Zivilstand (Eheschein, Familienausweis, Scheidungsurteil …) — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
-                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag')
+                        : (kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'fam_geburtsurkunde' || kind === 'bank_beleg' || kind === 'vertrag' || kind === 'absenz')
                             ? 'Wähle das passende Dokument — passende sind oben hervorgehoben. Oder lade ein neues hoch.'
                         : 'Wähle das Bestätigungsschreiben der Steuerbehörde — passende sind oben hervorgehoben. Oder lade ein neues hoch.';
 
@@ -3177,6 +3179,7 @@ async function openAusweisDokuModal(empId, kind, extra) {
         // Walter 23.09.2026: Bankbeleg pro Konto / Geburtsurkunde Familienmitglied.
         bankAccountId: extra?.bankAccountId || null,
         employmentId: extra?.employmentId || null,
+        absenceId: extra?.absenceId || null,
         familyMemberId: extra?.familyMemberId || null,
         // Walter 21.08.2026: Tarifbestätigung pro QST-Version.
         qstEntryId: extra?.qstEntryId || null
@@ -3263,6 +3266,10 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
             if (!ctx.bankAccountId) { alert('Bankkonto-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/bank-accounts/${ctx.bankAccountId}/dokument`;
             body = JSON.stringify({ dokumentId });
+        } else if (kind === 'absenz') {
+            if (!ctx.absenceId) { alert('Absenz-ID fehlt.'); return; }
+            url  = `/api/employees/${empId}/absences/${ctx.absenceId}/dokument`;
+            body = JSON.stringify({ dokumentId });
         } else if (kind === 'vertrag') {
             if (!ctx.employmentId) { alert('Vertrags-ID fehlt.'); return; }
             url  = `/api/employees/${empId}/employments/${ctx.employmentId}/dokument`;
@@ -3344,6 +3351,7 @@ async function ausweisDokuVerknuepfen(empId, kind, dokumentId, formInfo) {
         if ((kind === 'night_work_exam' || kind === 'night_work_ausnahme' || kind === 'arbeitszeugnis'
              || kind === 'ahv_karte' || kind === 'geburtsurkunde' || kind === 'zivilstand' || kind === 'vertrag') && typeof selectEmployee === 'function') selectEmployee(empId);
         if (kind === 'bank_beleg' && typeof loadBankAccountsTab === 'function') loadBankAccountsTab(empId);
+        if (kind === 'absenz' && typeof loadAbsenzenTab === 'function') loadAbsenzenTab(empId);
         if (kind === 'fam_geburtsurkunde' && typeof loadFamilieTab === 'function') loadFamilieTab(empId);
         // Probezeitgespräch: vorgeschlagene Datum übernehmen falls noch leer,
         // dann Modal + Anstellung neu zeichnen (Walter 21.07.2026).
@@ -9926,21 +9934,24 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                              <span class="abs-hours-label">${label}</span>`;
             }
 
-            // Krank-/Unfall-Absenzen: direkter Sprung zum Arztzeugnis im
-            // Dokumente-Tab. Walter-Vorgabe 09.06.2026 (final): bleibt prominent
-            // mit Text „Doku" — das ist eine eigene Aktion (Sprung in den Doku-
-            // Tab), nicht „Edit/Delete dieser Zeile", deshalb NICHT ins ⋮-Menü.
-            const docBtn = (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
-                ? `<button type="button" class="abs-dok-btn" title="Arztzeugnis im Dokumente-Tab öffnen"
-                           onclick="openAbsenceArztzeugnis()">
-                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            // Dokument 1:1 pro Absenz (Walter 23.09.2026, ersetzt den Sprung zum
+            // Typ «Arztzeugnis»): verknüpft → grüner Knopf «Doku ✓» (Vorschau);
+            // fehlt es bei Krank/Unfall → «Doku» öffnet den Verknüpfen-Dialog.
+            // Bleibt prominent neben dem ⋮ (eigene Aktion, Walter 09.06.2026).
+            // Andere Absenzen: «Dokument verknüpfen» im ⋮-Menü.
+            const docSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                          <polyline points="14 2 14 8 20 8"/>
                          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>
-                       </svg>
-                       <span>Doku</span>
-                   </button>`
-                : '';
+                       </svg>`;
+            const docBtn = a.dokumentId
+                ? `<button type="button" class="abs-dok-btn" title="Verknüpftes Dokument öffnen"
+                           onclick="openDirectDoc(${a.dokumentId})"
+                           style="background:#dcfce7;border-color:#86efac;color:#15803d">${docSvg}<span>Doku ✓</span></button>`
+                : (a.absenceType === 'KRANK' || a.absenceType === 'UNFALL')
+                    ? `<button type="button" class="abs-dok-btn" title="Arztzeugnis verknüpfen oder hochladen"
+                               onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})">${docSvg}<span>Doku</span></button>`
+                    : '';
 
             // Soft-Lock (Walter Aug 2026): nur wenn Definitiv «abgeschlossen»
             // (DTA) — Flag kommt vom Server (inLohnVerwendet).
@@ -9958,6 +9969,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                        <button type="button" class="dok-menu-btn dok-menu-btn-soft" onclick="absToggleMenu(event, ${a.id})" title="Aktionen" aria-label="Aktionen"><span class="dok-menu-dots" aria-hidden="true"></span></button>
                        <div class="dok-menu" id="absMenu-${a.id}">
                            <button class="dok-menu-item" onclick='openAbsenceModal(${JSON.stringify(a).replace(/'/g,"&#39;")})'>Bearbeiten</button>
+                           <button class="dok-menu-item" onclick="openAusweisDokuModal(${employeeId},'absenz',{absenceId:${a.id}})">${a.dokumentId ? 'Dokument ersetzen' : 'Dokument verknüpfen'}</button>
                            <button class="dok-menu-item danger" onclick="deleteAbsence(${a.id})">Löschen</button>
                        </div>
                    </div>`;
@@ -9974,7 +9986,7 @@ function renderAbsenzenList(el, absences, employeeId, karenzKrankHist = [], sper
                     <span class="abs-type-badge ${meta.color}">${typBadge}</span>
                     ${critBadge}
                 </td>
-                <td>${fmtDate(a.dateFrom)} – ${fmtDate(a.dateTo)}${critHint}</td>
+                <td style="white-space:nowrap">${_absDatumKurz(a.dateFrom)} – ${_absDatumKurz(a.dateTo)}${critHint}</td>
                 <td style="white-space:nowrap;color:#475569;font-variant-numeric:tabular-nums">${tageStr}</td>
                 <td>${hoursCell}</td>
                 <td class="abs-notes">${a.notes ?? ''}</td>
@@ -10930,6 +10942,12 @@ function rowMenuToggle(event, prefix, id) {
     }, 10);
 }
 function absToggleMenu(event, id)   { rowMenuToggle(event, 'abs',    id); }
+
+// Absenzen-Liste: kurzes Datum dd.mm.yy (Walter 23.09.2026, nur diese Tabelle).
+function _absDatumKurz(iso) {
+    const t = String(iso || '').slice(0, 10);
+    return t.length === 10 ? `${t.slice(8, 10)}.${t.slice(5, 7)}.${t.slice(2, 4)}` : '–';
+}
 function permitToggleMenu(event, id){ rowMenuToggle(event, 'permit', id); }
 function qstToggleMenu(event, id)   { rowMenuToggle(event, 'qst',    id); }
 function bankToggleMenu(event, id)  { rowMenuToggle(event, 'bank',   id); }

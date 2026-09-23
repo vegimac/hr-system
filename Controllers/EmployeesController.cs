@@ -1272,6 +1272,28 @@ public class EmployeesController : ControllerBase
     public class BankDokumentDto { public int? DokumentId { get; set; } }
 
     /// <summary>
+    /// Dokument 1:1 an eine Absenz hängen/lösen, z.B. Arztzeugnis (Walter
+    /// 23.09.2026). Hier statt im AbsencesController: ein Beleg ändert weder
+    /// Stunden noch Lohn und fällt daher nicht unter die Lohn-Edit-Sperre —
+    /// auch abgerechnete Absenzen bekommen so noch ihr Zeugnis.
+    /// </summary>
+    [HttpPatch("{id:int}/absences/{absenceId:int}/dokument")]
+    public async Task<IActionResult> SetAbsenzDokument(int id, int absenceId, [FromBody] BankDokumentDto dto)
+    {
+        var absenz = await _context.Absences
+            .FirstOrDefaultAsync(a => a.Id == absenceId && a.EmployeeId == id);
+        if (absenz == null) return NotFound();
+        if (dto.DokumentId.HasValue
+            && !await _context.EmployeeDokumente.AnyAsync(d => d.Id == dto.DokumentId.Value && d.EmployeeId == id))
+            return BadRequest(new { error = "DOKUMENT_INVALID",
+                message = "Das verlinkte Dokument gehört nicht zu diesem Mitarbeiter." });
+        absenz.DokumentId = dto.DokumentId;
+        absenz.UpdatedAt  = DateTime.Now;
+        await _context.SaveChangesAsync();
+        return Ok(new { id = absenz.Id, dokumentId = absenz.DokumentId });
+    }
+
+    /// <summary>
     /// Unterschriebenen Vertrag an einen Vertragsabschnitt hängen/lösen
     /// (Walter 23.09.2026). Hier statt im EmploymentsController: ein Beleg
     /// ändert keinen Lohn und fällt nicht unter die Lohn-Edit-Sperre.

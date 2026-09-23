@@ -2086,18 +2086,20 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
     if (!empId || !docId) return null;
     const esc = t => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    let emp = null, fam = [], docs = [], bank = [];
+    let emp = null, fam = [], docs = [], bank = [], abs = [];
     try {
-        const [re, rf, rd, rb] = await Promise.all([
+        const [re, rf, rd, rb, ra] = await Promise.all([
             fetch(`/api/employees/${empId}`, { headers: ah() }),
             fetch(`/api/employees/${empId}/family`, { headers: ah() }),
             fetch(`/api/documents/by-employee/${empId}`, { headers: ah() }),
             fetch(`/api/employee-bank-accounts/employee/${empId}`, { headers: ah() }),
+            fetch(`/api/absences/employee/${empId}`, { headers: ah() }),
         ]);
         if (re.ok) emp = await re.json();
         if (rf.ok) fam = await rf.json();
         if (rd.ok) docs = await rd.json();
         if (rb.ok) bank = await rb.json();
+        if (ra.ok) abs = await ra.json();
     } catch { /* ohne Daten: nur MA-Ausweis + keine */ }
     const docName = id => {
         const d = (docs || []).find(x => x.id === id);
@@ -2150,6 +2152,20 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
                  + ` · ${fmtD(v.contractStartDate)} – ${v.contractEndDate ? fmtD(v.contractEndDate) : 'offen'}`,
             current: v.vertragDokumentId ?? null,
             apply: patchJson(`/api/employees/${empId}/employments/${v.id}/dokument`, { dokumentId: docId }),
+        }));
+
+    // ── Absenz ── Dokument 1:1 (z.B. Arztzeugnis): die 5 neuesten, ohne Ferien
+    const absLabel = t => (typeof ABSENCE_LABELS !== 'undefined' && ABSENCE_LABELS[t]?.label) || t;
+    const kurz = iso => iso ? `${String(iso).slice(8, 10)}.${String(iso).slice(5, 7)}.${String(iso).slice(2, 4)}` : '';
+    (Array.isArray(abs) ? abs : [])
+        .filter(a => a.absenceType !== 'FERIEN')
+        .sort((a, b) => String(b.dateFrom || '').localeCompare(String(a.dateFrom || '')))
+        .slice(0, 5)
+        .forEach(a => opts.push({
+            key: 'absenz' + a.id, gruppe: 'Absenz', label: absLabel(a.absenceType), zeigeSub: true,
+            sub: `${kurz(a.dateFrom)} – ${kurz(a.dateTo)}`,
+            current: a.dokumentId ?? null,
+            apply: patchJson(`/api/employees/${empId}/absences/${a.id}/dokument`, { dokumentId: docId }),
         }));
 
     // ── Familie ── Partner/Kinder nur, wenn erfasst
@@ -2237,6 +2253,8 @@ async function dokVerknuepfenFragen(empId, docId, dateiName) {
         if ((wahl.maNeuLaden || wahl.key.startsWith('bank') || wahl.key.startsWith('fam'))
             && window.selectedEmployeeId === empId && typeof selectEmployee === 'function')
             selectEmployee(empId);
+        if (wahl.key.startsWith('absenz') && window.selectedEmployeeId === empId && typeof loadAbsenzenTab === 'function')
+            loadAbsenzenTab(empId);
         return { verknuepft: true, bewilligung: false };
     } catch (e) {
         alert('Verbindungsfehler: ' + e.message);

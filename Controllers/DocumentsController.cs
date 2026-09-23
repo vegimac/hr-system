@@ -204,6 +204,9 @@ public class DocumentsController : ControllerBase
         var bankDocIds = await _db.EmployeeBankAccounts.AsNoTracking()
             .Where(b => b.EmployeeId == employeeId && b.DokumentId != null)
             .Select(b => b.DokumentId!.Value).ToListAsync();
+        var absenzDocIds = await _db.Absences.AsNoTracking()
+            .Where(a => a.EmployeeId == employeeId && a.DokumentId != null)
+            .Select(a => a.DokumentId!.Value).ToListAsync();
         var vertragDocIds = await _db.Employments.AsNoTracking()
             .Where(v => v.EmployeeId == employeeId && v.VertragDokumentId != null)
             .Select(v => v.VertragDokumentId!.Value).ToListAsync();
@@ -239,6 +242,7 @@ public class DocumentsController : ControllerBase
         foreach (var gid in familyGebDocIds) AddLink(gid, "Geburtsurkunde Familienmitglied");
         foreach (var bid in bankDocIds) AddLink(bid, "Bankbeleg");
         foreach (var vid in vertragDocIds) AddLink(vid, "Unterschriebener Vertrag");
+        foreach (var aid in absenzDocIds) AddLink(aid, "Absenz");
         foreach (var mid in pregnancyDokIds) AddLink(mid, "Arztbestätigung errechneter Termin");
         foreach (var lid in lohnAbtDokIds) AddLink(lid, "Lohnabtretung / Pfändung");
 
@@ -1617,6 +1621,8 @@ public class DocumentsController : ControllerBase
             blockers.Add("Bankbeleg");
         if (await _db.Employments.AnyAsync(v => v.VertragDokumentId == id))
             blockers.Add("Unterschriebener Vertrag");
+        if (await _db.Absences.AnyAsync(a => a.DokumentId == id))
+            blockers.Add("Absenz (z.B. Arztzeugnis)");
         if (await _db.EmployeePregnancies.AnyAsync(p => p.ArztbestaetigungDokumentId == id))
             blockers.Add("Arztbestätigung errechneter Termin (Mutterschaft)");
         if (await _db.EmployeeLohnAssignments.AnyAsync(a => a.DokumentId == id))

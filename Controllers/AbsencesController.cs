@@ -450,6 +450,7 @@ public class AbsencesController : ControllerBase
         hoursCredited   = a.HoursCredited,
         prozent         = a.Prozent,
         notes           = a.Notes,
+        dokumentId      = a.DokumentId,
         createdAt       = a.CreatedAt,
         inLohnVerwendet = inLohnVerwendet,
     };
