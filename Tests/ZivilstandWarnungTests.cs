@@ -29,7 +29,8 @@ public class ZivilstandWarnungTests
     private static DashboardService Svc(AppDbContext db)
         => new(db, new QstPflichtCheckService(db), new SperrfristService(db));
 
-    private static Employee Ma(int id, string? zivilstand, bool phantom = false, string? ahv = "756.1234.5678.97")
+    private static Employee Ma(int id, string? zivilstand, bool phantom = false, string? ahv = "756.1234.5678.97",
+                              DateTime? austritt = null)
         => new()
         {
             Id = id,
@@ -40,6 +41,7 @@ public class ZivilstandWarnungTests
             IsPayrollExcluded = phantom,
             MaritalStatus = zivilstand,
             SocialSecurityNumber = ahv,
+            ExitDate = austritt,
         };
 
     private static Employment Vertrag(int id, int empId, DateTime von, DateTime? bis, bool istAktivFlag)
@@ -96,6 +98,51 @@ public class ZivilstandWarnungTests
         await db.SaveChangesAsync();
 
         Assert.Empty(await ZivilstandAlertsAsync(db));
+    }
+
+    [Fact]
+    public async Task AustrittErfasst_InnerhalbVon30Tagen_MeldetNicht()
+    {
+        // Globale Austritts-Bedingung (Walter-Vorgabe 21.06.2026): wer ein
+        // Austrittsdatum ≤ heute + 30 Tage hat, bekommt gar keine MA-Warnungen
+        // mehr. Gilt auch für Ausgetretene (Datum in der Vergangenheit).
+        using var db = NewDb();
+        db.Employees.Add(Ma(1, null, ahv: null, austritt: DateTime.Today.AddDays(7)));
+        db.Employments.Add(Vertrag(1, 1, DateTime.Today.AddYears(-2), DateTime.Today.AddDays(7), true));
+        db.Employees.Add(Ma(2, null, ahv: null, austritt: DateTime.Today.AddDays(-5)));
+        db.Employments.Add(Vertrag(2, 2, DateTime.Today.AddYears(-3), null, true));
+        await db.SaveChangesAsync();
+
+        Assert.Empty(await ZivilstandAlertsAsync(db));
+        Assert.Empty(await AhvAlertsAsync(db));
+    }
+
+    [Fact]
+    public async Task VertragLaeuftAus_OhneAustrittsdatum_MeldetWeiterhin()
+    {
+        // Walter-Fall 23.09.2026 (Ristova, Vertragsende 30.09., kein
+        // Austrittsdatum am MA): «Solange ein MA aktiv ist, brauchen wir den
+        // Zivilstand und darum auf die To-do.» Ein Vertragsende allein schweigt
+        // also nicht — erst ein erfasster Austritt tut das (Test oben).
+        using var db = NewDb();
+        db.Employees.Add(Ma(1, null, ahv: null));
+        db.Employments.Add(Vertrag(1, 1, DateTime.Today.AddYears(-2), DateTime.Today.AddDays(7), true));
+        await db.SaveChangesAsync();
+
+        Assert.Single(await ZivilstandAlertsAsync(db));
+        Assert.Single(await AhvAlertsAsync(db));
+    }
+
+    [Fact]
+    public async Task AustrittWeitInDerZukunft_MeldetWeiterhin()
+    {
+        using var db = NewDb();
+        db.Employees.Add(Ma(1, null, ahv: null, austritt: DateTime.Today.AddDays(90)));
+        db.Employments.Add(Vertrag(1, 1, DateTime.Today.AddYears(-1), DateTime.Today.AddDays(90), true));
+        await db.SaveChangesAsync();
+
+        Assert.Single(await ZivilstandAlertsAsync(db));
+        Assert.Single(await AhvAlertsAsync(db));
     }
 
     [Fact]

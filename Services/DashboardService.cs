@@ -1453,6 +1453,11 @@ public class DashboardService
         // Darum rein datumsbasiert — ein neu erfasster MA mit Eintritt nächsten
         // Monat meldet ab sofort auch, und das im Altbestand unzuverlässige
         // `employment.is_active` entscheidet nicht mehr mit (Stolperfalle 7).
+        //
+        // Austretende fängt die GLOBALE Austritts-Bedingung weiter unten ab
+        // (Walter-Vorgabe 21.06.2026): wer ein Austrittsdatum ≤ heute + 30 Tage
+        // hat, bekommt gar keine MA-Warnungen mehr. Hier darum bewusst KEINE
+        // zweite Austritts-Prüfung — sonst gäbe es zwei Wahrheiten.
         if (Enabled("ahv_nummer_fehlt"))
         {
             var ahvQ = _db.Employees.AsNoTracking()
@@ -1504,6 +1509,12 @@ public class DashboardService
         // laufende gelegentlich auf false — siehe Stolperfalle 7 in CLAUDE.md).
         // Darum jetzt rein datumsbasiert: es zählt jeder Vertrag, der noch nicht
         // abgelaufen ist. Ausgetretene (nur beendete Verträge) melden weiterhin nichts.
+        // Gemeldet wird, SOLANGE der MA aktiv ist (Walter-Entscheid 23.09.2026) —
+        // ein Vertrag, der diesen Monat endet, ist kein Grund zu schweigen.
+        // Austretende mit erfasstem Austrittsdatum fängt die GLOBALE
+        // Austritts-Bedingung weiter unten ab (Walter-Vorgabe 21.06.2026:
+        // Austritt ≤ heute + 30 Tage ⇒ keine MA-Warnungen mehr). Hier darum
+        // bewusst KEINE zweite Austritts-Prüfung.
         if (Enabled("zivilstand_fehlt"))
         {
             var zsQ = _db.Employees.AsNoTracking()
