@@ -48,6 +48,81 @@ public class KontrollListenController : ControllerBase
     }
 
     /// <summary>
+    /// Dossier-Übersicht pro Filiale (Walter-Vorgabe 23.09.2026): alle aktiven
+    /// MA der Filiale, pro MA «alles erledigt» = KEIN offener Punkt auf der
+    /// To-do-Liste (DashboardService.BuildAsync — dieselbe Logik, keine eigene
+    /// Doppel-Prüfung). Spalten = To-do-Kategorien mit mind. einem offenen Punkt
+    /// in dieser Filiale; reine Info-Kategorien (Geburtstag, Jubiläum,
+    /// Mindestlohn ok) zählen nicht.
+    /// </summary>
+    [HttpGet("dossier")]
+    public async Task<IActionResult> Dossier([FromQuery] int companyProfileId)
+    {
+        var guard = await GuardBranchAsync(companyProfileId);
+        if (guard != null) return guard;
+
+        var cp = companyProfileId;
+        var mas = await _db.Employees.AsNoTracking()
+            .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
+                     && !e.EmployeeNumber.ToLower().EndsWith("alt")
+                     && (e.Employments.Any(em => em.IsActive && em.CompanyProfileId == cp)
+                         || (!e.Employments.Any(em => em.IsActive)
+                             && e.Employments.OrderByDescending(em => em.ContractStartDate)
+                                 .Select(em => em.CompanyProfileId).FirstOrDefault() == cp)))
+            .Select(e => new { e.Id, e.EmployeeNumber, e.FirstName, e.LastName, e.EntryDate, e.ExitDate })
+            .ToListAsync();
+        var ids = mas.Select(m => m.Id).ToHashSet();
+
+        // Jüngste Bewilligung pro MA (Info-Spalte wie in der Excel-Liste)
+        var permits = (await _db.EmployeePermitHistories.AsNoTracking()
+                .Where(h => ids.Contains(h.EmployeeId))
+                .Select(h => new { h.EmployeeId, h.ValidFrom, h.ValidTo, Code = h.PermitType != null ? h.PermitType.Code : null })
+                .ToListAsync())
+            .GroupBy(h => h.EmployeeId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(h => h.ValidFrom).First());
+
+        var svc = HttpContext.RequestServices.GetRequiredService<DashboardService>();
+        var data = await svc.BuildAsync(cp);
+        var nurInfo = new HashSet<string> { "birthday", "anniversary", "minimum_wage_ok" };
+        var offen = data.Alerts
+            .Where(a => a.EmployeeId.HasValue && ids.Contains(a.EmployeeId.Value) && !nurInfo.Contains(a.Category))
+            .ToList();
+
+        var cfg = await _db.DashboardWarningConfigs.AsNoTracking()
+            .ToDictionaryAsync(c => c.Category, c => new { c.Label, c.SortOrder });
+        var spalten = offen.Select(a => a.Category).Distinct()
+            .Select(c => new { key = c, label = cfg.TryGetValue(c, out var x) && !string.IsNullOrWhiteSpace(x.Label) ? x.Label : c,
+                               sort = cfg.TryGetValue(c, out var y) ? y.SortOrder : 999 })
+            .OrderBy(c => c.sort).ThenBy(c => c.label)
+            .ToList();
+
+        var zeilen = mas
+            .OrderBy(m => m.FirstName ?? "").ThenBy(m => m.LastName ?? "")
+            .Select(m =>
+            {
+                var meine = offen.Where(a => a.EmployeeId == m.Id).ToList();
+                permits.TryGetValue(m.Id, out var p);
+                return new
+                {
+                    employeeId     = m.Id,
+                    employeeNumber = m.EmployeeNumber,
+                    name           = $"{m.FirstName} {m.LastName}".Trim(),
+                    eintritt       = m.EntryDate?.ToString("yyyy-MM-dd"),
+                    austritt       = m.ExitDate?.ToString("yyyy-MM-dd"),
+                    bewilligung    = p == null ? null : (p.Code ?? "CH"),
+                    bewilligungBis = p?.ValidTo?.ToString("yyyy-MM-dd"),
+                    erledigt       = meine.Count == 0,
+                    offen          = meine
+                        .GroupBy(a => a.Category)
+                        .ToDictionary(g => g.Key, g => g.Select(a => new { a.Title, a.Subtitle, a.Severity }).ToList()),
+                };
+            })
+            .ToList();
+
+        return Ok(new { spalten, zeilen, anzahlMa = zeilen.Count, anzahlErledigt = zeilen.Count(z => z.erledigt) });
+    }
+
+    /// <summary>
     /// MA, die QST-pflichtig wären, aber durch den Ehegatten befreit
     /// werden könnten — und für die noch KEIN Ehegatten-Ausweis hinterlegt
     /// ist (Dokument-Typ mit linked_field_code='spouse').

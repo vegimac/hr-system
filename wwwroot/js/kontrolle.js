@@ -17,6 +17,7 @@ function kontrolleInit() {
 
 /** Alle Kontroll-Listen neu laden (globaler Knopf, Walter 22.07.2026). */
 function kontrolleRefreshAll() {
+    kontrolleDossierRefresh();
     kontrolleEmployeeRefresh();
     kontrolleSpouseRefresh();
     kontrollePermitRefresh();
@@ -794,4 +795,93 @@ function _kEsc(s) {
     return String(s ?? '').replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
     }[c]));
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Dossier-Übersicht pro Filiale (Walter-Vorgabe 23.09.2026)
+// «Erledigt» = für den MA steht NICHTS auf der To-do-Liste. Die Prüfung
+// macht der Server über die To-do-Logik (keine eigene Doppel-Prüfung).
+// ══════════════════════════════════════════════════════════════════════
+let _kontrolleDossier = null;
+
+async function kontrolleDossierRefresh() {
+    const el = document.getElementById('kontrolleDossierList');
+    if (!el) return;
+    const cp = typeof fixedCompanyProfileId !== 'undefined' ? fixedCompanyProfileId : null;
+    if (!cp) {
+        _kontrolleDossier = null;
+        el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Bitte oben links eine Filiale wählen.</span></div>';
+        return;
+    }
+    el.innerHTML = '<div class="emp-placeholder" style="height:90px"><span>Lade Liste…</span></div>';
+    try {
+        const r = await fetch(`/api/kontrolle/dossier?companyProfileId=${cp}`, { headers: ah() });
+        if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.message || ('HTTP ' + r.status)); }
+        _kontrolleDossier = await r.json();
+        kontrolleDossierRender();
+    } catch (e) {
+        el.innerHTML = `<div style="padding:14px 18px;color:#b91c1c;font-size:13px">Fehler: ${esc(e.message)}</div>`;
+    }
+}
+
+function kontrolleDossierRender() {
+    const el = document.getElementById('kontrolleDossierList');
+    const d = _kontrolleDossier;
+    if (!el || !d) return;
+    const nurOffen = !!document.getElementById('kontrolleDossierNurOffen')?.checked;
+    const zeilen = (d.zeilen || []).filter(z => !nurOffen || !z.erledigt);
+    const kurz = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+    const th = 'padding:8px 10px;font-size:11px;font-weight:700;color:#646464;text-align:left;border-bottom:1px solid rgba(60,55,48,0.15);vertical-align:bottom';
+    const td = 'padding:7px 10px;font-size:12.5px;border-bottom:1px solid rgba(60,55,48,0.08);white-space:nowrap';
+    const kopf = `<tr>
+        <th style="${th}">Nr.</th><th style="${th}">Name</th><th style="${th}">Eintritt</th><th style="${th}">Austritt</th>
+        <th style="${th}">Bewilligung</th><th style="${th}">Status</th>
+        ${(d.spalten || []).map(s => `<th style="${th};max-width:110px;white-space:normal">${esc(s.label)}</th>`).join('')}
+    </tr>`;
+    const body = zeilen.map(z => {
+        const zellen = (d.spalten || []).map(s => {
+            const f = z.offen?.[s.key];
+            if (!f) return `<td style="${td};color:#15803d;text-align:center">✓</td>`;
+            const tip = f.map(x => `${x.title}${x.subtitle ? ' — ' + x.subtitle : ''}`).join('\n');
+            const rot = f.some(x => x.severity === 'critical');
+            return `<td style="${td};text-align:center;color:${rot ? '#b91c1c' : '#b45309'};font-weight:700" title="${esc(tip)}">✗</td>`;
+        }).join('');
+        const anzahl = Object.values(z.offen || {}).reduce((n, l) => n + l.length, 0);
+        return `<tr style="cursor:pointer" onclick="kontrolleOpenEmployee(${z.employeeId})"
+                    onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background=''">
+            <td style="${td};color:#8b8b8b">${esc(z.employeeNumber || '')}</td>
+            <td style="${td};font-weight:600;color:#3f3f3f">${esc(z.name)}</td>
+            <td style="${td}">${kurz(z.eintritt)}</td>
+            <td style="${td}">${kurz(z.austritt)}</td>
+            <td style="${td}">${z.bewilligung ? esc(z.bewilligung) + (z.bewilligungBis ? ' · ' + kurz(z.bewilligungBis) : '') : ''}</td>
+            <td style="${td}">${z.erledigt
+                ? '<span style="color:#15803d;font-weight:700">✓ erledigt</span>'
+                : `<span style="color:#b91c1c;font-weight:700">${anzahl} offen</span>`}</td>
+            ${zellen}
+        </tr>`;
+    }).join('');
+    el.innerHTML = `
+        <div style="padding:10px 18px;font-size:12.5px;color:#646464">
+            <b style="color:#3f3f3f">${d.anzahlErledigt} von ${d.anzahlMa}</b> Dossiers vollständig erledigt${nurOffen ? ` · angezeigt: ${zeilen.length} mit offenen Punkten` : ''}
+        </div>
+        ${zeilen.length
+            ? `<table style="width:100%;border-collapse:collapse">${kopf}${body}</table>`
+            : '<div class="emp-placeholder" style="height:80px"><span>Alle Dossiers erledigt ✓</span></div>'}`;
+}
+
+/** Export als CSV (Excel öffnet es direkt) — über den «Speichern unter…»-Helfer. */
+function kontrolleDossierCsv() {
+    const d = _kontrolleDossier;
+    if (!d) return;
+    const kurz = iso => iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : '';
+    const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const kopf = ['Nr.', 'Name', 'Eintritt', 'Austritt', 'Bewilligung', 'Bewilligung bis', 'Status', ...(d.spalten || []).map(s => s.label)];
+    const zeilen = (d.zeilen || []).map(z => [
+        z.employeeNumber, z.name, kurz(z.eintritt), kurz(z.austritt), z.bewilligung || '', kurz(z.bewilligungBis),
+        z.erledigt ? 'erledigt' : 'offen',
+        ...(d.spalten || []).map(s => z.offen?.[s.key] ? 'offen' : 'OK'),
+    ]);
+    const csv = '﻿' + [kopf, ...zeilen].map(r => r.map(q).join(';')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    saveBlobAsk(blob, `Dossier-Uebersicht_${new Date().toISOString().slice(0, 10)}.csv`);
 }

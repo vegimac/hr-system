@@ -2832,6 +2832,29 @@
                 </div>
                 <div id="kontrolleAlert" style="margin-bottom:12px"></div>
 
+                <!-- Walter-Vorgabe 23.09.2026: Dossier-Übersicht pro Filiale —
+                     «erledigt» = kein offener Punkt auf der To-do-Liste. -->
+                <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #3f3f3f">
+                    <div style="padding:14px 18px;border-bottom:1px solid rgba(60,55,48,0.12);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                        <div>
+                            <div style="font-size:15px;font-weight:700;color:#3f3f3f">Dossier-Übersicht aktive Mitarbeitende</div>
+                            <div style="font-size:12.5px;color:#646464;margin-top:2px">
+                                Pro MA der gewählten Filiale: <b>✓ erledigt</b> = kein offener Punkt auf der To-do-Liste.
+                                Spalten = To-do-Punkte, die in dieser Filiale noch offen sind.
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <label style="font-size:12.5px;color:#3f3f3f;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                <input type="checkbox" id="kontrolleDossierNurOffen" onchange="kontrolleDossierRender()" style="accent-color:#3f3f3f"> nur offene
+                            </label>
+                            <button type="button" class="btn btn-outline" onclick="kontrolleDossierCsv()" style="font-size:12px">📊 Excel (CSV)</button>
+                        </div>
+                    </div>
+                    <div id="kontrolleDossierList" style="padding:0;overflow-x:auto">
+                        <div class="emp-placeholder" style="height:120px"><span>Lade Liste…</span></div>
+                    </div>
+                </div>
+
                 <!-- Walter-Vorgabe 13.06.2026: MA-Ausweis-Sektion ZUERST,
                      Ehegatten-Ausweis darunter. -->
                 <div class="card" style="padding:0;margin-top:14px;border-left:4px solid #dc2626">
@@ -9405,7 +9428,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/permit-import.js?v=20260704p"></script>
 <script src="js/hr-review-import.js?v=20260704p"></script>
 <script src="js/qst-import.js?v=20260704p"></script>
-<script src="js/kontrolle.js?v=20260909a"></script>
+<script src="js/kontrolle.js?v=20260923a"></script>
 <script src="js/nationen.js?v=20260816a"></script>
 <script src="js/swiss-locations.js?v=20260816a"></script>
 <script src="js/family-children-import.js?v=20260704p"></script>
