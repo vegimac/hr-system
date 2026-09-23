@@ -123,6 +123,27 @@ public class DeductionRule
     /// <summary>Lohnband ab (Monat) — nur Basis über diesem Wert ist pflichtig.</summary>
     [NotMapped] public decimal? BandVonMonthly { get; set; }
 
+    /// <summary>
+    /// Gültig ab der Versicherungslösung DIESES Mitarbeitenden (Walter-Fall 23.09.2026,
+    /// TF03 Pia Lusser: KTG 12 bis 31.05., KTG 11 ab 01.06.). Nur gesetzt, wenn der Code
+    /// aus einem versionierten `employee_versicherung_code`-Eintrag kommt.
+    /// </summary>
+    [NotMapped] public DateOnly? LoesungAb { get; set; }
+
+    /// <summary>
+    /// Eigene Aufroll-Basis dieser Lösung: YTD-Basen NUR der Monate, in denen sie galt.
+    /// NULL = die gemeinsame YTD-Liste des Lohnlaufs (Normalfall, kein Wechsel im Jahr).
+    /// Siehe `LoesungAb` — ohne diese Einschränkung zöge der kumulierte Höchstlohn Monate
+    /// mit einer ANDEREN Lösung mit hinein.
+    /// </summary>
+    [NotMapped] public List<decimal>? YtdBasenEigen { get; set; }
+
+    /// <summary>Beschäftigungsmonate seit <see cref="LoesungAb"/> inkl. laufendem Monat.</summary>
+    [NotMapped] public decimal? AusgleichMonateEigen { get; set; }
+
+    /// <summary>Beschäftigungsmonate seit <see cref="LoesungAb"/> bis zum Vormonat.</summary>
+    [NotMapped] public decimal? AusgleichMonateBisherEigen { get; set; }
+
     public DateOnly ValidFrom { get; set; } = new DateOnly(2026, 1, 1);
     public DateOnly? ValidTo { get; set; }
 

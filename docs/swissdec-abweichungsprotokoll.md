@@ -80,6 +80,17 @@ Das Quality Tool wird diese Felder ankreiden. Begründung mitnehmen, nicht die E
 | **Begründung** | Swissdec datiert den TAS-Wechsel erst Mai. Interne Stammdaten Wohnort + QST müssen denselben Schnitt haben, sonst April-Beleg mit LU-Wohnsitz und TI-Grenzgänger-QST. Abweichung zu KS 45 und zum CSV-Adressdatum ist Absicht — nicht «fixen», nicht QST auf den 1.4. vorziehen. Den LU-Vertrag auf den 1.5. zu schieben würde den April-Lohn aus der LU-Filiale nehmen (oder nach TI verschieben) — CSV 1000 April = 12'000 in LU. |
 | **Status** | BEWUSST |
 
+### A8 — Aufrollung endet beim Wechsel der Versicherungslösung
+
+| | |
+|---|---|
+| **Beleg** | TF03 Pia Lusser, Juni/Juli 2025 — KTG 12 bis 31.05., **KTG 11 ab 01.06.** |
+| **Vorher (Bug)** | Der kumulierte Höchstlohn von KTG 11 rollte über ALLE Monate: YTD Jan–Jun 69'400 (inkl. Dienstaltersgeschenk 34'000 im Februar, damals KTG 12) gegen 7 × 10'000 → Juli-Basis **10'000**, Abzug **130.90** bei einem Monatslohn von 1'500. Juni ebenso. |
+| **Jetzt** | Jede Lösung bringt ihre eigene Aufroll-Basis mit (`DeductionRule.LoesungAb` / `YtdBasenEigen` / `AusgleichMonate(Bisher)Eigen`, gesetzt in `WendeVersicherungsCodesAnAsync`): gezählt werden nur Monate ab `employee_versicherung_code.valid_from`. Juli-Basis **1'500** → **19.64**. |
+| **Begründung** | Die Aufrollung kennt pro Monat nur EINE AHV-Basis aus dem Snapshot, nicht die Lösung, die damals galt. Der kumulierte Höchstlohn gehört zur Police — Monate unter einer anderen Lösung (anderer Satz, anderes Band, ggf. anderer Versicherer) dürfen nicht mitzählen. Betrifft alle gedeckelten/gebänderten Lösungen (KTG 11/12, UVGZ 11/12); ALV/NBU sind nicht betroffen, die laufen über das ganze Jahr. |
+| **Wirkung Schaub** | Gleiche Engine, also auch produktiv — greift nur, wenn ein MA die Lösung mitten im Jahr wechselt. |
+| **Status** | BEHOBEN 23.09.2026 · Tests `Tests/LoesungsWechselAufrollungTests.cs` |
+
 ### A7 — Teilmonat: Eintrittstag zählt (TAGE30 21 Tage, nicht Swissdec 20)
 
 | | |

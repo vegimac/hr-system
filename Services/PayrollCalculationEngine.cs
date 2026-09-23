@@ -660,6 +660,21 @@ public class PayrollCalculationEngine
         if (vertragsbeginn > periodFrom && vertragsbeginn <= periodToFull) codeStichtag = vertragsbeginn;
         deductions = await WendeVersicherungsCodesAnAsync(deductions, employeeId, codeStichtag, ueberReferenzalter);
 
+        // Eigene Aufroll-Basis für Lösungen, die ERST IM LAUFENDEN JAHR begonnen haben
+        // (Walter-Fall 23.09.2026, TF03 Pia Lusser: KTG 11 ab 01.06.). Nur dann weicht
+        // etwas ab — läuft die Lösung schon seit dem Vorjahr, gilt die gemeinsame
+        // YTD-Liste unverändert. Der Wechselmonat zählt ganz: die Lösung gilt für den
+        // ganzen Lohnlauf dieses Monats, Teilmonate gibt es hier nicht.
+        foreach (var r in deductions)
+        {
+            if (r.LoesungAb is not { } ab || ab.Year != year || ab.Month <= 1) continue;
+            r.YtdBasenEigen = ytdSnapshots.Where(x => x.Month >= ab.Month).Select(x => x.SvBasisAhv).ToList();
+            r.AusgleichMonateBisherEigen = PayrollCalculations.BeschaeftigungsMonate(
+                employee.Employments, year, ab.Month, month - 1, ytdMonate);
+            r.AusgleichMonateEigen = r.AusgleichMonateBisherEigen
+                + PayrollCalculations.BeschaeftigungsMonate(employee.Employments, year, month, month);
+        }
+
         // ── Vormonat-Saldo ─────────────────────────────────────────────────
         // Walter 17.09.2026: Saldi hängen am MA, nicht an der Filiale.
         // Jüngster Saldo vor dieser Periode — Dezember → Januar und Filialwechsel.
@@ -5443,6 +5458,21 @@ public class PayrollCalculationEngine
         }
 
         var result = ApplyVersicherungsCodes(deductions, codes);
+
+        // Gültigkeitsbeginn der Lösung an die Regel hängen (Walter-Fall 23.09.2026,
+        // TF03 Pia Lusser): Wechselt der MA im Jahr die Versicherungslösung, darf der
+        // kumulierte Höchstlohn nur die Monate ab diesem Datum aufrollen. Ohne die
+        // Marke kennt die Aufrollung nur die AHV-Basis pro Monat, nicht die Lösung,
+        // die damals galt. Mehrere Einträge derselben Art/Code → der jüngste gewinnt
+        // (die Liste ist nach ValidFrom absteigend sortiert).
+        foreach (var r in result)
+        {
+            var art = EmployeeVersicherungCode.ArtFuerSvCode(r.CategoryCode);
+            if (art == null || string.IsNullOrWhiteSpace(r.LoesungsCode)) continue;
+            var eintrag = eintraege.FirstOrDefault(e => e.Art == art
+                && string.Equals((e.Code ?? "").Trim(), r.LoesungsCode!.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (eintrag != null) r.LoesungAb = eintrag.ValidFrom;
+        }
 
         // AHV/ALV-Sonderfall (Walter 09.09.2026, Muster AG TF14): nicht beitragspflichtig →
         // AHV/IV/EO, ALV und ALVZ (AN und AG) fallen weg; UVG/UVGZ/KTG/BVG/QST unverändert.

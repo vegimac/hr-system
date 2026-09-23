@@ -429,11 +429,20 @@ public static class PayrollCalculations
             {
                 decimal cap = d.MaxBaseMonthly is > 0 ? d.MaxBaseMonthly.Value : decimal.MaxValue / 24m;
                 decimal Band(decimal b) => Math.Max(0m, Math.Min(b, cap) - von);
-                if (ytdSvBasesDezember is not null)   // kumulierte Höchstlohn-Methode
+                // Wechselt die Versicherungslösung mitten im Jahr (TF03 Pia Lusser:
+                // KTG 12 bis 31.05., KTG 11 ab 01.06.), bringt die Regel ihre EIGENE
+                // Aufroll-Basis mit — nur die Monate, in denen sie galt. Sonst zöge der
+                // kumulierte Höchstlohn Monate mit der alten Lösung mit hinein (Walter
+                // 23.09.2026: KTG 11 rechnete im Juli auf 10'000 statt auf 1'500, weil
+                // Januar–Mai unter KTG 12 plus das Dienstaltersgeschenk mitzählten).
+                var ytdListe     = d.YtdBasenEigen ?? ytdSvBasesDezember;
+                var monateTotal  = d.AusgleichMonateEigen ?? ausgleichMonate;
+                var monateBisher = d.AusgleichMonateBisherEigen ?? ausgleichMonateBisher;
+                if (ytdListe is not null)   // kumulierte Höchstlohn-Methode
                 {
                     decimal flach    = Band(basis);
-                    decimal ytdGross = ytdSvBasesDezember.Sum();
-                    if (ausgleichMonateBisher >= 0m)
+                    decimal ytdGross = ytdListe.Sum();
+                    if (monateBisher >= 0m)
                     {
                         // Swissdec-Richtlinien (Aufrollmethode): kumulierter Höchstlohn =
                         // Σ Monats-Höchstlöhne der Beschäftigungsmonate (Teilmonat anteilig,
@@ -442,8 +451,8 @@ public static class PayrollCalculations
                         // Beispiel Aebi Dez 2024 (Austritt 20.12.): Nov 12'958.35 → ALV 12'350 +
                         // ALVZ 608.35; Dez 9'395 bei Höchstlohn 20/30 × 12'350 → ALV 8'233.33,
                         // ALVZ 1'161.67 (RefXML: 8'233.35 / 1'161.65).
-                        decimal kumBisher = Math.Max(0m, Math.Min(ytdGross, cap * ausgleichMonateBisher) - von * ausgleichMonateBisher);
-                        decimal kumTotal  = Math.Max(0m, Math.Min(ytdGross + basis, cap * ausgleichMonate) - von * ausgleichMonate);
+                        decimal kumBisher = Math.Max(0m, Math.Min(ytdGross, cap * monateBisher) - von * monateBisher);
+                        decimal kumTotal  = Math.Max(0m, Math.Min(ytdGross + basis, cap * monateTotal) - von * monateTotal);
                         // Darf negativ sein: eine spätere Korrektur senkt die YTD-Basis
                         // unter das schon Verbeitragte → Rückerstattung (TF07 Burri Feb:
                         // Nachzahlung 15'000 → 5'500, ALV/NBU Januar anteilig zurück).
@@ -451,8 +460,8 @@ public static class PayrollCalculations
                     }
                     else
                     {
-                        decimal ytdGedeckelt = ytdSvBasesDezember.Sum(Band);
-                        decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * ausgleichMonate) - von * ausgleichMonate);
+                        decimal ytdGedeckelt = ytdListe.Sum(Band);
+                        decimal jahresBand   = Math.Max(0m, Math.Min(ytdGross + basis, cap * monateTotal) - von * monateTotal);
                         basis = jahresBand - ytdGedeckelt;
                     }
                     // Kennzeichnen nur, wenn die Kumulation etwas gegenüber der flachen
