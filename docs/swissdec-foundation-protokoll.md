@@ -24,6 +24,22 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 Ein Teil der Punkte wird **vom Experten im Gespräch** geprüft (`CHECKED_BY_EXPERT`), nicht
 automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf «wie habt ihr das gelöst?».
 
+## Reihenfolge — wichtig (Stand 24.09.2026)
+
+- **Die Gruppen sind gesperrt und werden nacheinander freigeschaltet.** Im Werkzeug trägt jede
+  Gruppe ausser F01 ein Schloss-Symbol. Vermutung: F01 muss vollständig sein, bevor es weitergeht —
+  wir sind bei 3 von 6.
+- **Das Transmitter-Zertifikat erstellen wir SELBST unter F07 «SUA-Zertifikat»** (Auskunft aus der
+  Beratung an Walter). F07 ist noch nicht aktiv.
+- **F07 kommt vor F05** (ebenfalls aus der Beratung): erst das Zertifikat, dann die Übermittlung.
+- Daraus folgt unsere Arbeitsreihenfolge: **F01 fertigstellen → F02 (WS-Security, sobald das
+  Zertifikat da ist) → F07 → F05**. Alles, was Krypto braucht (F02_02–F02_11, vermutlich auch
+  Teile von F03), hängt am Zertifikat aus F07 — also nicht an Swissdec, sondern an unserem
+  Fortschritt.
+
+**Nächster Schritt:** F01_04, F01_05 und F01_06 anschauen — sie sind die letzten offenen Punkte
+der einzigen freigeschalteten Gruppe.
+
 ---
 
 ## F01 — Verbindung
@@ -227,8 +243,10 @@ es fehlt die Krypto-Hälfte.
 Verschlüsseln, Prüfen) samt Tests mit einem selbst erzeugten Testschlüssel, sowie einheitliche
 Fehlermeldungen für die acht Fälle. Scharf prüfen lässt sich erst mit dem echten Zertifikat.
 
-**Frage an Swissdec:** Wann bekommen wir das Transmitter-Zertifikat? Ohne das ist F02 (27 von 90
-Punkten) nicht abschliessbar — und F03 Interoperabilität hängt vermutlich ebenfalls daran.
+**Woher das Zertifikat kommt (Auskunft aus der Beratung, 24.09.2026):** Wir erstellen es **selbst
+unter F07 «SUA-Zertifikat»** (20 Prüfpunkte). F07 ist im Werkzeug noch gesperrt — vermutlich müssen
+die vorangehenden Gruppen zuerst erledigt sein. F02 ist damit **nicht von Swissdec abhängig**,
+sondern von unserem eigenen Fortschritt bis F07.
 
 ---
 
