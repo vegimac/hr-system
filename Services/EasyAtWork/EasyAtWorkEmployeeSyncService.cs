@@ -903,6 +903,7 @@ public class EasyAtWorkEmployeeSyncService
             // In easy@work (noch) aktiv → Person aktiv, KEIN Austrittsdatum.
             if (!emp.IsActive) { emp.IsActive = true; result.UpdatedFields.Add("Aktiv"); }
             if (emp.ExitDate.HasValue) { emp.ExitDate = null; result.UpdatedFields.Add("Austrittsdatum"); }
+            if (KuendigungZuruecknehmen(emp)) result.UpdatedFields.Add("Kündigung");
         }
         else
         {
@@ -915,6 +916,7 @@ public class EasyAtWorkEmployeeSyncService
             if (hasOpenContract)
             {
                 if (emp.ExitDate.HasValue) { emp.ExitDate = null; result.UpdatedFields.Add("Austrittsdatum"); }
+                if (KuendigungZuruecknehmen(emp)) result.UpdatedFields.Add("Kündigung");
                 if (!emp.IsActive) { emp.IsActive = true; result.UpdatedFields.Add("Aktiv"); }
             }
             else
@@ -2511,6 +2513,7 @@ public class EasyAtWorkEmployeeSyncService
                         {
                             existingByEawId.IsActive = true;
                             existingByEawId.ExitDate = null;
+                            KuendigungZuruecknehmen(existingByEawId);
                             reactivated = true;
                         }
                         else if (existingByEawId.IsActive && existingByEawId.ExitDate.HasValue)
@@ -2522,7 +2525,11 @@ public class EasyAtWorkEmployeeSyncService
                             bool clearIt = !eaw.To.HasValue
                                 || await _db.Employments.AnyAsync(em => em.EmployeeId == existingByEawId.Id
                                         && (em.ContractEndDate == null || em.ContractEndDate >= DateTime.Today), ct);
-                            if (clearIt) existingByEawId.ExitDate = null;
+                            if (clearIt)
+                            {
+                                existingByEawId.ExitDate = null;
+                                KuendigungZuruecknehmen(existingByEawId);
+                            }
                         }
                         // 4) Als EXISTING markieren, NICHT als neuen Employee anlegen.
                         row.Status = "EXISTING";
@@ -2630,6 +2637,7 @@ public class EasyAtWorkEmployeeSyncService
                         // In dieser Filiale laut easy@work noch aktiv → Person reaktivieren.
                         emp.IsActive = true;
                         emp.ExitDate = null;
+                        KuendigungZuruecknehmen(emp);
                     }
                     else if (eaw.To.HasValue && eaw.To.Value < activeAt)
                     {
@@ -2648,6 +2656,7 @@ public class EasyAtWorkEmployeeSyncService
                         if (hasOpenContract)
                         {
                             if (emp.ExitDate.HasValue) emp.ExitDate = null;
+                            KuendigungZuruecknehmen(emp);
                             if (!emp.IsActive) emp.IsActive = true;
                         }
                         else
@@ -2660,7 +2669,10 @@ public class EasyAtWorkEmployeeSyncService
                     // hier unbefristet ist (nahtloser Filialwechsel: Austritt alte Filiale =
                     // Eintritt neue Filiale → gleiches Datum blieb als Austritt stehen).
                     if (emp.IsActive && !eaw.To.HasValue && emp.ExitDate.HasValue)
+                    {
                         emp.ExitDate = null;
+                        KuendigungZuruecknehmen(emp);
+                    }
                     // Phantom-MA (Supervisor): Stammdaten ja, aber NIE Vertrag/Bank
                     // anlegen (Walter 08.07.2026).
                     if (!emp.IsPayrollExcluded)
@@ -2835,7 +2847,10 @@ public class EasyAtWorkEmployeeSyncService
                 // als Austrittsdatum, sofern kein Vertrag darueber hinaus laeuft.
                 bool exitChanged = false;
                 foreach (var (temp2, _, _, _, _, tEawTo2) in timelineWork)
+                {
                     if (await ApplyExitAfterContractSyncAsync(temp2, tEawTo2, ct)) exitChanged = true;
+                    if (await KuendigungNachNeuemVertragAufhebenAsync(temp2, ct)) exitChanged = true;
+                }
                 if (exitChanged) await _db.SaveChangesAsync(ct);
 
                 // Probezeit wenn noch KEINE auf irgendeinem Vertrag (Walter 02.08.2026):
@@ -3373,6 +3388,58 @@ public class EasyAtWorkEmployeeSyncService
             if (!prev.To.HasValue || prev.To.Value >= nextFrom)
                 prev.ToRaw = nextFrom.AddDays(-1).ToString("yyyy-MM-dd");
         }
+    }
+
+    /// <summary>
+    /// Erledigte Kündigung aufheben (Walter-Vorgabe 24.09.2026, Fall Simona Dan).
+    ///
+    /// Beginnt ein Vertrag NACH dem Tag, auf den gekündigt wurde, ist die Kündigung
+    /// Geschichte — die Person arbeitet wieder. Genau das passiert beim Wiedereintritt
+    /// und beim Übertritt in eine andere Filiale: «Gekündigt per 31.07.2026» blieb
+    /// stehen, obwohl seit dem 22.09. ein neuer Vertrag läuft, und die Maske meldete
+    /// weiterhin eine Kündigung.
+    ///
+    /// Bewusst an den NEUEN VERTRAG geknüpft und nicht ans Austrittsdatum: easy@work
+    /// kennt keine Kündigung, nur ein «Eingestellt bis». Eine laufende, noch nicht
+    /// vollzogene Kündigung (MA arbeitet bis Ende Monat, kein neuer Vertrag danach)
+    /// darf der Sync NIE anfassen — sie wird in OneCrew von Hand gepflegt.
+    ///
+    /// Läuft NACH der Vertrags-Timeline, weil erst dann der neue Vertrag da ist.
+    /// </summary>
+    private async Task<bool> KuendigungNachNeuemVertragAufhebenAsync(Employee emp, CancellationToken ct)
+    {
+        if (!emp.KuendigungPer.HasValue) return false;
+        var gekuendigtPer = emp.KuendigungPer.Value.Date;
+        var neuerVertrag = await _db.Employments
+            .AnyAsync(em => em.EmployeeId == emp.Id && em.ContractStartDate > gekuendigtPer, ct);
+        if (!neuerVertrag) return false;
+        return KuendigungZuruecknehmen(emp);
+    }
+
+    /// <summary>
+    /// Kündigungsangaben löschen, wenn ein Austritt zurückgenommen wird
+    /// (Walter-Vorgabe 24.09.2026, Fall Simona Dan).
+    ///
+    /// «Gekündigt am», «Kündigung per», «Kündigung durch» und der Austrittsgrund
+    /// gehören zum BEENDETEN Vertrag. Wird der Mitarbeitende wieder aktiv — sei es
+    /// als Wiedereintritt oder beim Filialwechsel —, ist seine frühere Kündigung
+    /// erledigt. Blieb sie stehen, zeigte die Maske weiterhin «Gekündigt per
+    /// 31.07.2026», obwohl längst ein neuer Vertrag läuft.
+    ///
+    /// Wird NUR zusammen mit dem Entfernen des Austrittsdatums aufgerufen — eine
+    /// laufende, noch nicht vollzogene Kündigung (MA arbeitet bis Ende Monat) bleibt
+    /// dadurch unangetastet.
+    /// </summary>
+    private static bool KuendigungZuruecknehmen(Employee emp)
+    {
+        if (emp.KuendigungAusgesprochenAm == null && emp.KuendigungPer == null
+            && emp.KuendigungDurch == null && emp.Austrittsgrund == null)
+            return false;
+        emp.KuendigungAusgesprochenAm = null;
+        emp.KuendigungPer             = null;
+        emp.KuendigungDurch           = null;
+        emp.Austrittsgrund            = null;
+        return true;
     }
 
     /// <summary>
