@@ -3340,6 +3340,33 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
+    /// Ein-Tages-Lücke zwischen Tarif- und Vertragsende schliessen (Walter-Bug
+    /// 24.09.2026, MA 580101 Vogt): easy@work zeigt bei beiden «bis 31.10.»,
+    /// speichert den Vertrag aber als Tagesende (…-31 22:59:59 UTC) und den Tarif
+    /// als Tagesanfang (…-30 23:00:00 UTC = 31.10. 00:00 Zürich). Die inklusive
+    /// Lesung macht aus dem Tarif-Ende den 30.10. → der 31.10. hätte Vertrag ohne
+    /// Tarif und würde als eigener Ein-Tages-Vertrag importiert. Regel: endet ein
+    /// Tarif GENAU einen Tag vor dem Vertrag, in dem er liegt, und deckt kein
+    /// anderer Tarif diesen Tag, gilt das Vertragsende auch für den Tarif.
+    /// Bewusst nur 1 Tag — grössere Abweichungen sind echte Erfassungsfehler.
+    /// </summary>
+    public static void GleicheTarifendeAnVertragsendeAn(List<EawContract>? contracts, List<EawPayRate>? rates)
+    {
+        if (contracts == null || rates == null) return;
+        foreach (var r in rates.Where(r => !r.IsDeleted && r.From.HasValue && r.To.HasValue).ToList())
+        {
+            var tag = r.To!.Value.AddDays(1);
+            bool andererTarif = rates.Any(x => !ReferenceEquals(x, r) && !x.IsDeleted && x.From.HasValue
+                && x.From.Value <= tag && (!x.To.HasValue || x.To.Value >= tag));
+            if (andererTarif) continue;
+            bool vertragEndetEinenTagSpaeter = contracts.Any(c => !c.IsDeleted && c.From.HasValue
+                && c.From.Value <= r.To.Value && c.To.HasValue && c.To.Value == tag);
+            if (vertragEndetEinenTagSpaeter)
+                r.ToRaw = tag.ToString("yyyy-MM-dd");
+        }
+    }
+
+    /// <summary>
     /// STRICT-Validierung der easy@work-Verträge eines MA (Walter-Vorgabe
     /// 08.07.2026): Verträge dürfen sich NICHT überschneiden — auch nicht um
     /// einen Tag (Ende 1.4. + neuer Beginn 1.4. ist falsch; korrekt wäre Ende
@@ -3408,6 +3435,7 @@ public class EasyAtWorkEmployeeSyncService
         rates     ??= new();
         SchliesseVorgaengerAmTagVorNachfolger(contracts);
         SchliesseVorgaengerTarifeAmTagVorNachfolger(rates);
+        GleicheTarifendeAnVertragsendeAn(contracts, rates);
 
         static bool CApplies(EawContract c, DateOnly d) => !c.IsDeleted && c.From.HasValue && c.From.Value <= d && (!c.To.HasValue || c.To.Value >= d);
         static bool RApplies(EawPayRate r, DateOnly d)  => !r.IsDeleted && r.From.HasValue && r.From.Value <= d && (!r.To.HasValue || r.To.Value >= d);

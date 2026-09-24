@@ -271,4 +271,27 @@ public class EasyAtWorkLohnNachtragTests
         var v = Assert.Single(await db.Employments.Where(x => x.EmployeeId == emp.Id).ToListAsync());
         Assert.Null(v.ContractEndDate);
     }
+
+    [Fact]
+    public void TarifEndeEinenTagVorVertragsende_KeinEinTagesVertrag()
+    {
+        // Walter-Bug 24.09.2026 (MA 580101 Vogt): easy zeigt bei Vertrag UND Tarif
+        // «bis 31.10.», speichert aber Vertrag = Tagesende, Tarif = Tagesanfang (UTC).
+        var c = new List<EawContract>
+        {
+            new() { Id = 45767, AmountType = "week", Amount = 17m,
+                    FromRaw = "2026-05-03 22:00:00", ToRaw = "2026-10-31 22:59:59" },
+        };
+        var r = new List<EawPayRate>
+        {
+            new() { Id = 72604, Type = "hour", Rate = 16.85m,
+                    FromRaw = "2026-05-03 22:00:00", ToRaw = "2026-10-30 23:00:00" },
+        };
+        var tl = EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, new DateOnly(2026, 9, 24));
+        var s = Assert.Single(tl);
+        Assert.Equal(new DateOnly(2026, 5, 4), s.Start);
+        Assert.Equal(new DateOnly(2026, 10, 31), s.End);
+        Assert.Equal(16.85m, s.Info.HourlyRate);
+        Assert.False(s.EasyAtWorkManualOverride);
+    }
 }
