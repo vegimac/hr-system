@@ -2320,7 +2320,11 @@ public class EasyAtWorkEmployeeSyncService
             var positionByEaw = new ConcurrentDictionary<int, string?>();
             // Vertragstyp-Katalog einmal pro Filiale (type_id → Name). Walter 02.08.2026.
             Dictionary<int, string> contractTypesById = new();
-            if (rowsToProcess.Count > 0 && !req.SkipContracts)
+            // Auch dann laden, wenn nur die Timeline-Liste Zeilen hat (Walter 24.09.2026):
+            // Hing die Bedingung allein an rowsToProcess, blieben Verträge und Löhne
+            // ungeladen — die Timeline war leer und der Vertrag wurde STILL nicht
+            // geschrieben, ohne Zeile in «übersprungene Verträge».
+            if ((rowsToProcess.Count > 0 || rowsForTimeline.Count > 0) && !req.SkipContracts)
             {
                 try { contractTypesById = await _client.GetContractTypesByIdAsync(mapping.EasyAtWorkCustomerId, ct); }
                 catch (Exception ex) { _log.LogWarning(ex, "Contract-Types für Customer {Id} nicht abrufbar — Fallback Stunden-Heuristik", mapping.EasyAtWorkCustomerId); }
@@ -2787,6 +2791,18 @@ public class EasyAtWorkEmployeeSyncService
                     var timeline   = BuildEmploymentTimeline(tContracts, tRates, activeAt, tIsKader, filialRegeln);
                     _log.LogInformation("easy@work-Sync MA {Num}: contracts={C}, payRates={R}, timeline={T}",
                         temp.EmployeeNumber, tContracts.Count, tRates.Count, timeline.Count);
+                    // Kein Abschnitt ableitbar ⇒ es entsteht KEIN Vertrag. Das war bisher
+                    // stumm: der MA wurde importiert, blieb aber ohne Anstellung, und auf
+                    // dem Bildschirm stand kein Grund (Walter 24.09.2026, Fall Simona Dan
+                    // beim Übertritt nach Reinach). Jetzt steht der Grund in der Liste
+                    // «übersprungene Verträge», mit den Zahlen aus easy@work.
+                    if (timeline.Count == 0)
+                    {
+                        res.SkippedContracts.Add(
+                            $"{temp.FirstName} {temp.LastName} ({temp.EmployeeNumber}): kein Vertragsabschnitt ableitbar — "
+                            + $"easy@work lieferte {tContracts.Count} Vertrag/Verträge und {tRates.Count} Lohnstufe(n) "
+                            + "für diese Filiale. Bitte Vertrag UND Lohn in easy@work prüfen.");
+                    }
                     await SyncEmploymentTimelineAsync(_db, temp, req.CompanyProfileId, timeline, tJgId, tJgCode, tEawTo,
                         firstAllowed, res.SkippedContracts, res.Notes, HistorieStichtag, ct);
                 }

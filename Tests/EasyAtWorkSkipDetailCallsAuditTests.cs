@@ -33,8 +33,14 @@ public class EasyAtWorkSkipDetailCallsAuditTests
 
         // Detail-Fetch-Block: beginnt mit der Mengen-Bedingung + Tiefenimport-Gate
         // (SkipContracts ist erlaubt — SkipDetailCalls wäre verboten).
-        var fetchStart = src.IndexOf("if (rowsToProcess.Count > 0 && !req.SkipContracts)", StringComparison.Ordinal);
-        Assert.True(fetchStart > 0, "Detail-Fetch-Block (if (rowsToProcess.Count > 0 && !req.SkipContracts)) nicht gefunden.");
+        // Seit 24.09.2026 zählt auch die Timeline-Liste: hing der Block allein an
+        // rowsToProcess, blieben Verträge ungeladen und der Vertrag wurde still
+        // nicht geschrieben. Der Anker ist darum das Tiefenimport-Gate am Ende.
+        const string anker = "&& !req.SkipContracts)";
+        var fetchStart = src.IndexOf("rowsForTimeline.Count > 0) " + anker, StringComparison.Ordinal);
+        Assert.True(fetchStart > 0,
+            "Detail-Fetch-Block nicht gefunden — er muss rowsToProcess ODER rowsForTimeline abdecken "
+            + "und mit !req.SkipContracts enden.");
 
         // Das optionale Gate MUSS innerhalb des Detail-Fetch existieren …
         var gate = src.IndexOf("if (!req.SkipDetailCalls)", fetchStart, StringComparison.Ordinal);
