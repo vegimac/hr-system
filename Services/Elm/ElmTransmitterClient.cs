@@ -94,6 +94,9 @@ public class ElmTransmitterClient
         public string? FaultCode { get; init; }
         /// <summary>Klartext des Faults, z.B. «security requirements not met».</summary>
         public string? FaultText { get; init; }
+
+        /// <summary>Nachgerechnete Interoperabilitäts-Antwort (Foundation F03); NULL = keine geprüft.</summary>
+        public ElmInterop.Befund? Interop { get; init; }
     }
 
     /// <summary>
@@ -232,16 +235,22 @@ public class ElmTransmitterClient
     /// Interoperabilitäts-Test: Umlaute (Encoding) + zwei Beträge, die der
     /// Empfänger verarbeitet zurückgibt — beweist die ganze SOAP-Strecke.
     /// </summary>
-    public async Task<ElmCallResult> CheckInteroperabilityAsync(string url, int versatzSekunden = 0, CancellationToken ct = default)
+    public async Task<ElmCallResult> CheckInteroperabilityAsync(string url, decimal zweiterOperand,
+        int versatzSekunden = 0, CancellationToken ct = default)
     {
         var body = new XElement(Sdst + "CheckInteroperability",
             UserAgent(),
-            // Vorgegebene Testreihe aus dem XSD-Kommentar («use following
-            // UmlautString») — prüft das Encoding von Sonderzeichen.
-            new XElement(Ep + "UmlautString", "ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ"),
-            new XElement(Ep + "FirstOperand", "1234.55"),
-            new XElement(Ep + "SecondOperand", "8765.40"),
+            // Zeichenkette und erste Zahl sind FEST vorgegeben (Foundation F03_01) —
+            // sie dürfen nie aus der Oberfläche kommen.
+            new XElement(Ep + "UmlautString", ElmInterop.UmlautString),
+            new XElement(Ep + "FirstOperand", ElmInterop.Betrag(ElmInterop.FirstOperand)),
+            // Der zweite Operand ist wählbar (F03_02), aber immer mit zwei
+            // Nachkommastellen formatiert (F03_03).
+            new XElement(Ep + "SecondOperand", ElmInterop.Betrag(zweiterOperand)),
             new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)));
-        return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
+
+        var r = MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
+        // Die Antwort wird nachgerechnet, nicht geglaubt (F03_04/F03_05).
+        return r with { Interop = ElmInterop.Pruefe(r.ResponseXml, zweiterOperand) };
     }
 }

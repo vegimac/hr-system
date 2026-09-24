@@ -217,7 +217,7 @@ async function _elmCall(pfad, label) {
         const r = await fetch(`/api/elm/${pfad}`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url, versatzSekunden: _elmVersatz() })
+            body: JSON.stringify({ url, versatzSekunden: _elmVersatz(), zweiterOperand: _elmOperand2() })
         });
         const antwort = await r.json();
         if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c">Fehler: ${esc(antwort?.message || antwort?.error || ('HTTP ' + r.status))}</div>`; return; }
@@ -246,6 +246,7 @@ async function _elmCall(pfad, label) {
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
             ${_elmTlsBlock(j)}
             ${faultBlock}
+            ${_elmInteropBlock(antwort, j)}
             ${_elmZeitBlock(j)}
             ${j.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
                 <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(j.responseXml)}</pre>` : ''}
@@ -322,6 +323,55 @@ function _elmZeitBlock(j) {
     return simHinweis + `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
             <b>✗ Systemzeit weicht ab</b> — unsere Uhr geht <b>${esc(_elmZeitDauer(j.diffSekunden))} ${vor ? 'vor' : 'nach'}</b>
             (zulässig ist höchstens 1 Minute). Bitte die Systemzeit des Servers prüfen, bevor Meldungen übermittelt werden.
+            ${zeilen}
+        </div>`;
+}
+
+/**
+ * Interoperabilität (Foundation-Test F03, Walter 24.09.2026).
+ *
+ * F03_02: Der zweite Operand ist wählbar — geprüft wird mit 0.01, 0.00 und
+ * −999'000'000'000.00. F03_03: Er wird IMMER mit zwei Nachkommastellen gesendet;
+ * das Formatieren macht der Server (ElmInterop.Betrag), hier wird nur gelesen.
+ */
+function _elmOperand2() {
+    return (document.getElementById('elmOperand2')?.value || '0.01').trim();
+}
+
+/** Einen der drei Prüfwerte ins Feld setzen. */
+function elmSetOperand(wert) {
+    const el = document.getElementById('elmOperand2');
+    if (el) el.value = wert;
+}
+
+/**
+ * Ergebnis der Nachrechnung darstellen (F03_01, F03_04, F03_05).
+ *
+ * Wichtig: Grün gibt es NUR, wenn der Server alles nachgerechnet und bestätigt
+ * hat. Verfälscht der Empfänger die Umlaute oder die Zahl — das stellt Swissdec
+ * in den RefApps absichtlich ein —, steht hier rot, WAS nicht stimmt.
+ */
+function _elmInteropBlock(antwort, j) {
+    const b = j.interop;
+    if (!b) return '';
+    const fmt = (z) => (z == null ? '—' : String(z));
+    const zeilen = `<div style="margin-top:6px;font-size:12px;line-height:1.7">
+            Gesendet: <b>${esc(antwort.umlautString || '')}</b> ·
+            1. Operand <b>${esc(antwort.ersterOperand || '')}</b> (fest) ·
+            2. Operand <b>${esc(antwort.zweiterOperand || '')}</b><br>
+            Zurück: Umlaute <b>${esc(b.umlautEcho || '—')}</b> ·
+            Addition <b>${esc(fmt(b.addition))}</b> (erwartet ${esc(fmt(b.erwarteteAddition))}) ·
+            Subtraktion <b>${esc(fmt(b.subtraktion))}</b> (erwartet ${esc(fmt(b.erwarteteSubtraktion))})
+        </div>`;
+    if (b.ok) {
+        return `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                <b>✓ ${esc(b.meldung)}</b>${zeilen}
+            </div>`;
+    }
+    const liste = (b.abweichungen || []).map(t => `<li>${esc(t)}</li>`).join('');
+    return `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+            <b>✗ ${esc(b.meldung)}</b>
+            ${liste ? `<ul style="margin:6px 0 0 18px;padding:0">${liste}</ul>` : ''}
             ${zeilen}
         </div>`;
 }

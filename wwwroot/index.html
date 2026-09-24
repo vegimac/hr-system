@@ -5527,6 +5527,21 @@
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
                             <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>
                             <button type="button" class="btn-secondary" onclick="elmCheckInterop()">🔤 CheckInteroperability</button>
+                            <!-- Foundation F03_02/F03_03 (Walter 24.09.2026): Der zweite Operand ist die
+                                 EINZIGE Eingabe dieses Aufrufs — die Umlaut-Zeichenkette und die erste Zahl
+                                 (9.99E11) stehen fest im Programm. Geprüft wird mit 0.01, 0.00 und
+                                 −999'000'000'000.00; gesendet wird immer mit zwei Nachkommastellen. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
+                                2. Operand
+                                <input type="text" id="elmOperand2" value="0.01"
+                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:150px;text-align:right"
+                                       title="Zweiter Operand für CheckInteroperability. Wird immer mit zwei Nachkommastellen gesendet (Swissdec F03_03).">
+                            </label>
+                            <span style="display:flex;gap:4px">
+                                <button type="button" onclick="elmSetOperand('0.01')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.01</button>
+                                <button type="button" onclick="elmSetOperand('0.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">0.00</button>
+                                <button type="button" onclick="elmSetOperand('-999000000000.00')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:9px;padding:4px 9px;font-size:11.5px;font-weight:600;color:#3f3f3f;cursor:pointer">−999'000'000'000.00</button>
+                            </span>
                             <!-- Foundation F01_03: simulierte Verstellung der Serveruhr. Der Wert gilt für
                                  die GESENDETE Zeit und für die Vergleichsbasis — ab 60 Sekunden muss die
                                  Fehlermeldung erscheinen. Gilt nur für den einzelnen Aufruf. -->
@@ -9517,7 +9532,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260924e"></script>
+<script src="js/swissdec.js?v=20260924f"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

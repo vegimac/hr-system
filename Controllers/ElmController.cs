@@ -45,7 +45,8 @@ public class ElmController : ControllerBase
     /// Testinfrastruktur liefert im Lauf der Zertifizierung wechselnde
     /// Receiver-Adressen (Walter 24.09.2026).
     /// </summary>
-    public record ElmZielDto(string? Ziel, string? Url = null, int? VersatzSekunden = null);
+    public record ElmZielDto(string? Ziel, string? Url = null, int? VersatzSekunden = null,
+        string? ZweiterOperand = null);
 
     /// <summary>
     /// Simulierter Zeitversatz für den Foundation-Test F01_03 (Walter 24.09.2026):
@@ -118,8 +119,15 @@ public class ElmController : ControllerBase
             return BadRequest(new { error = "ZIEL_UNBEKANNT",
                 message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben "
                         + "(unverschlüsseltes http ist nicht zulässig)." });
-        var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, Versatz(dto), ct);
-        return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
+        // Der zweite Operand ist die einzige Eingabe dieses Aufrufs (Foundation F03_02);
+        // unlesbar ⇒ 0.01, der erste Vorschlag aus der Prüfliste.
+        var zweiter = ElmInterop.LiesBetrag(dto.ZweiterOperand) ?? 0.01m;
+        var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, zweiter, Versatz(dto), ct);
+        return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
+                        ersterOperand = ElmInterop.Betrag(ElmInterop.FirstOperand),
+                        zweiterOperand = ElmInterop.Betrag(zweiter),
+                        umlautString = ElmInterop.UmlautString,
+                        ergebnis = r });
     }
 
     /// <summary>

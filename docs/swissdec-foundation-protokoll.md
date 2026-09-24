@@ -9,41 +9,61 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 ## Stand
 
-Die Zahlen der Übersicht sind **Einzelprüfungen**, nicht Prüfpunkte: F01 besteht aus drei
-Punkten (F01_01 bis F01_03) mit zusammen sechs Checks. Entsprechend sind die 27 bei F02 die
-Unterzeilen der elf Punkte F02_01 bis F02_11.
+Die Zahlen der Übersicht sind **Einzelprüfungen** (Zeilen im Werkzeug inkl. TOOL_SETTING /
+PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unten
+(Walter kopiert 24.09.2026).
 
 | Gruppe | Checks | erledigt | Stand |
 |---|---:|---:|---|
-| F01 Verbindung | 6 | **6** | ✅ **Gruppe abgeschlossen 24.09.2026** — alle drei Punkte grün |
-| F02 Sicherheit | 27 | 1 | F02_01 erledigt · Krypto-Schicht für F02_02–F02_11 gebaut, wartet aufs Zertifikat |
-| F03 Interoperabilität | 12 | 0 | offen |
-| F04 Archivierung | 3 | 0 | offen |
-| F05 Übermittlung | 8 | 0 | offen |
-| F06 Validierung | 1 | 0 | offen |
-| F07 SUA-Zertifikat | 20 | 0 | offen |
-| F08 Prozesse | 13 | 0 | offen |
-| **Total** | **90** | **7** | |
+| F01 Verbindung | 6 | **6** | ✅ abgeschlossen 24.09.2026 |
+| F02 Sicherheit | 27 | 1 | F02_01 fertig · `ElmWsSecurity` gebaut · ERP-Schlüssel selbst erzeugen (F07-Kontext) |
+| F03 Interoperabilität | 12 | 12 (gebaut) | ✅ gebaut 24.09.2026 · scharfe Prüfung braucht F02-Signatur |
+| F04 Archivierung | 3 | 0 | offen (signiert/unverschlüsselt archivieren + SignatureConfirmation) |
+| F05 Übermittlung | 8 | 0 | offen · **Expertin: erst nach F07** |
+| F06 Validierung | 1 | 0 | offen (PlausibilityRules / Distributor-Ablehnung) |
+| F07 SUA-Zertifikat | 20 | 0 | **nächster Bau** · Zertifikate selbst in Foundation (Expertin 24.09.) |
+| F08 Prozesse | 13 | 0 | offen (GetStatus, DialogMessages, Sync/Async) |
+| **Total** | **90** | **7 belegt · 12 gebaut** | |
 
-Ein Teil der Punkte wird **vom Experten im Gespräch** geprüft (`CHECKED_BY_EXPERT`), nicht
-automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf «wie habt ihr das gelöst?».
+«gebaut» heisst: Der Code steht und ist mit nachgebauten Antworten getestet, vorführen lässt
+er sich aber erst, wenn der Aufruf durchkommt (F03 braucht die Signatur aus F02).
 
-## Reihenfolge — wichtig (Stand 24.09.2026)
+Fast alles ist `CHECKED_BY_EXPERT` — der Experte prüft im Gespräch; dieses Protokoll ist die
+Antwort auf «wie habt ihr das gelöst?».
 
-- **F01 ist seit dem 24.09.2026 vollständig abgeschlossen** (6 von 6 Checks, grüner Haken an der
-  Gruppe). Die übrigen Gruppen trugen im Werkzeug zunächst ein Schloss-Symbol; F02 liess sich
-  danach öffnen.
-- **Das Transmitter-Zertifikat erstellen wir SELBST unter F07 «SUA-Zertifikat»** (Auskunft aus der
-  Beratung an Walter). F07 ist noch nicht aktiv.
-- **F07 kommt vor F05** (ebenfalls aus der Beratung): erst das Zertifikat, dann die Übermittlung.
-- Daraus folgt unsere Arbeitsreihenfolge: **F01 fertigstellen → F02 (WS-Security, sobald das
-  Zertifikat da ist) → F07 → F05**. Alles, was Krypto braucht (F02_02–F02_11, vermutlich auch
-  Teile von F03), hängt am Zertifikat aus F07 — also nicht an Swissdec, sondern an unserem
-  Fortschritt.
+## Zwei Zertifikate (wichtig — Stand Expertin itserv 24.09.2026)
 
-**Nächster Schritt:** F02 abarbeiten. F02_01 ist erledigt; F02_02 bis F02_11 brauchen die
-WS-Security-Schicht (signieren, verschlüsseln, prüfen) — bauen lässt sie sich mit einem selbst
-erzeugten Testschlüssel, scharf wird sie mit dem Zertifikat aus F07.
+**Auskunft Expertin (Walter, Call/Mail 24.09.2026 morgens):**
+
+> Alles können wir **selbst in den Foundation-Tests erstellen**. Das geschieht unter
+> **Punkt 7 (F07)**. **F07 vor F05** machen, damit das Zertifikat für die Übermittlung da ist.
+
+| Zertifikat | Zweck | Woher laut Expertin |
+|---|---|---|
+| **ERP / Transmitter** | WS-Security (signieren + verschlüsseln), jede Op. ausser Ping | **selbst erzeugen** im Foundation-Kontext (nicht von Swissdec per Post) |
+| **SUA** | Unternehmens-Ausweis; zweite Signatur («doppelt») | **F07**-Prozess: RegisterOrganization → … → SignCertificate |
+
+Frühere Doku («Swissdec stellt das Transmitter-Zertifikat erst nach Zertifizierung aus») gilt für die
+**Produktion**. Im Foundation-/RefApps-Testlauf erzeugen und installieren **wir** die Schlüssel
+selbst — Ort dafür laut Expertin: **F07**.
+
+WSDL-Hinweis bleibt: `RegisterOrganizationAuthentication` muss mit dem **ERP-Zertifikat**
+signiert sein. Praktisch heisst das: In F07 (bzw. vor dem ersten Register-Aufruf) legen wir in
+OneCrew ein ERP-Schlüsselpaar an, speichern es, und nutzen es dann für F02/F03/F07/F05.
+
+## Reihenfolge (Expertin itserv 24.09.2026)
+
+1. **F01** ✅ fertig.
+2. **F07 vor F05** — Zertifikat(e) selbst anlegen / SUA-Flow durchspielen.
+3. Parallel bzw. sobald ERP-Schlüssel da: **F02_02–11** (CheckInterop signiert+verschlüsselt)
+   und **F03** (Operanden / Response-Prüfung).
+4. **F04** Archiv · **F06** Plausibilität · **F08** Prozesse.
+5. **F05** Übermittlung — erst wenn Zertifikat aus F07 vorhanden.
+
+**Salär / Quality-Tool:** zurückgestellt, bis Foundation grün ist.
+
+**Nächster konkreter Schritt:** F07 in OneCrew bauen — ERP-Schlüssel selbst erzeugen + speichern,
+dann SUA: RegisterOrganization → Synchronize (Status) → SignCertificate → Renew → Doppel-Signatur.
 
 ---
 
@@ -289,35 +309,187 @@ sondern von unserem eigenen Fortschritt bis F07.
 
 ---
 
-## F03 Interoperabilität · F04 Archivierung · F05 Übermittlung · F06 Validierung · F07 SUA-Zertifikat · F08 Prozesse
+## F03 — Interoperabilität (12 Punkte) ✅ gebaut 24.09.2026
 
-Noch nicht bearbeitet. **Was voraussichtlich hilft, wenn die Punkte kommen:**
+`CheckInteroperability` ist eine Rechenprobe über den ganzen Weg: Wir senden eine
+vorgegebene Zeichenkette mit Umlauten und eine vorgegebene Zahl, der Empfänger schickt
+beides zurück und rechnet damit. Stimmt etwas nicht, liegt es am Encoding oder am
+Zahlenformat.
 
-- **Sicherheit:** JWT mit Rollen, secure-by-default (jeder Endpunkt verlangt Login und HR-Rolle),
-  Sicherheits-Header, zweite Prüfung per Authenticator pro Benutzer, Sperrbildschirm,
-  Passwortwechsel-Zwang, vollständiges Audit-Log über alle Schreibzugriffe.
-- **Archivierung:** Lohnbelege liegen als Snapshot samt `slip_json` fest; Perioden sind nach dem
-  definitiven Abschluss gesperrt; Dokumente mit Zeitstempel und Zugriffsprotokoll.
-- **Validierung:** XML wird beim Erzeugen gegen die ELM-6.0-Schemas geprüft
-  (`Services/Elm/ElmXmlValidator.cs`).
-- **Übermittlung:** noch offen — Etappe E4 (Declare / GetStatus / Synchronize) ist nicht gebaut.
-- **SUA-Zertifikat:** hängt am Transmitter-Zertifikat, das Swissdec erst im Zertifizierungsprozess
-  ausstellt.
+**Gefundener Fehler bei uns (24.09.2026):** Unser Aufruf sendete als ersten Operanden
+`1234.55`. Das XSD gibt den Wert aber fest vor — «use following value for the FirstOperand:
+999000000000.00 (999 Milliarden)» — und F03_01 verlangt genau diese Konstante. Korrigiert.
+
+**Was jetzt gilt:**
+
+| Feld | Wert | Herkunft |
+|---|---|---|
+| `UmlautString` | `ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ` | fest im Programm (F03_01) |
+| `FirstOperand` | `999000000000.00` | fest im Programm (F03_01) |
+| `SecondOperand` | wählbar, drei Knöpfe `0.01` / `0.00` / `−999'000'000'000.00` | Eingabe (F03_02) |
+
+**Zahlformat (F03_03):** Das Schema verlangt `[\-]?[0-9]+\.[0-9]{2}` — Punkt als Trenner,
+immer genau zwei Nachkommastellen. Die Eingabe darf mit Komma und Tausendertrennern
+erfolgen (Schweizer Tastatur); `ElmInterop.LiesBetrag` liest sie, rundet auf zwei Stellen,
+und `ElmInterop.Betrag` formatiert beim Senden. Ein Wert wie `12.345` geht also als
+`12.35` hinaus, nie als `12.345`.
+
+**Die Antwort wird nachgerechnet, nicht geglaubt (F03_04/F03_05).** Swissdec verfälscht in
+den RefApps absichtlich die Antwort («Tamper UmlautString», «Tamper FirstOperand»); wer sie
+bloss anzeigt, fällt durch. `ElmInterop.Pruefe` prüft darum fünf Dinge und bestätigt die
+Interoperabilität nur, wenn alle fünf stimmen:
+
+1. `UmlautStringIsCorrect` = true (der Empfänger bestätigt unsere Sendung),
+2. `FirstOperandIsCorrect` = true,
+3. der zurückgegebene `UmlautString` ist exakt `äëöüáéóúàèòùâêôû` (dieselbe Kette in
+   Kleinbuchstaben — so steht es im XSD-Kommentar),
+4. `AdditionResult` = FirstOperand + SecondOperand,
+5. `SubtractionResult` = FirstOperand − SecondOperand,
+
+je Betrag zusätzlich das Zahlformat. Beim dritten Prüfwert ist das Ergebnis besonders
+aufschlussreich: Addition `0.00`, Subtraktion `1998000000000.00` — wer intern mit
+`float` statt `decimal` rechnet, sieht es hier.
+
+Bei einer Abweichung steht rot auf dem Bildschirm, WAS nicht stimmt (erwartet/erhalten je
+Zeile), und der Satz «Interoperabilität NICHT bestätigt».
+
+**Dateien:** `Services/Elm/ElmInterop.cs` (neu), `ElmTransmitterClient.CheckInteroperabilityAsync`,
+`ElmController.CheckInteroperability`, `wwwroot/js/swissdec.js` (`_elmInteropBlock`, `elmSetOperand`),
+Feld `elmOperand2` in `index.html`. Tests: `Tests/ElmInteropTests.cs` (30).
+
+**Offen:** Scharf vorführen lässt sich F03 erst, wenn der Aufruf durchkommt — CheckInteroperability
+wird ohne WS-Security-Signatur mit «Client.security» abgewiesen (F02). Die Prüflogik steht
+und ist mit nachgebauten Antworten belegt; sie wartet nur auf das Zertifikat.
 
 ---
 
-## Offene Fragen an Swissdec
+## F03–F08 — Kurzstand (Details im Katalog unten)
 
-Die inhaltlichen Fragen zum Testmandanten stehen separat in
-`docs/swissdec-call-2026-09-24.md` (sieben Fragen, als PDF verschickbar).
-Zum Foundation-Test selbst offen:
-
-1. Welche Punkte prüft der Experte im Gespräch, welche laufen automatisch?
-2. Braucht es für F05 Übermittlung bereits das Transmitter-Zertifikat, oder genügt der
-   Refapps-Weg?
-3. Wird die Statistik-Domäne der Monatsmeldung zusammen mit der Quellensteuer geprüft?
+| # | Was gebaut werden muss | Vorhanden? |
+|---|---|---|
+| **F03** | CheckInterop mit festem FirstOperand/UmlautString; SecondOperand wählbar (0.01 / 0.00 / −999'000'000'000.00); immer 2 Nachkommastellen; Response prüfen (Umlaut klein, Operanden); Tamper-Varianten melden | ✅ **gebaut 24.09.2026** — `ElmInterop` + UI + 30 Tests (siehe Abschnitt F03) |
+| **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | fehlt |
+| **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | Sample-XML vorhanden · Client/UI fehlt (E4) |
+| **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | fehlt |
+| **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | Sample `RegisterOrganizationAuthentication.xml` · `SignCertificate` in Common.xsd · Client/UI fehlt |
+| **F08** | Sync-Übermittlung mit Quittungen; GetStatus(JobKey); Stories; DialogMessage (manuell/Reply/Confirm/Random/Complete) | fehlt |
 
 ---
 
-*Pflege: nach jedem erledigten Prüfpunkt hier ergänzen — Anforderung im Wortlaut, unsere Lösung,
-Code-Stellen, Tests, Datum. Bei Prüfpunkten, die wir bewusst anders lösen, die Begründung dazu.*
+## Vollständiger Katalog (Walter 24.09.2026 aus dem Werkzeug)
+
+Wortlaut der Prüfpunkte — Referenz. Lösungsdetails stehen oben (F01/F02) bzw. werden
+nach Erledigung pro Punkt ergänzt.
+
+### F01 Verbindung
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F01_01_1 | CONFIGURATION | URL-Handhabung beim TX — Experte: «nur SuperAdmin / Entwicklung» ✅ |
+| F01_02_1 | PING | Ping korrekt empfangen ✅ |
+| F01_02_2 | UI | TX stellt Erfolgsmeldung dar ✅ |
+| F01_03_0 | TOOL_SETTING | RefApps «Fake Ping Time» |
+| F01_03_1 | PING | Ping mit falscher Systemzeit empfangen ✅ (Simulation + Fake) |
+| F01_03_2 | UI | TX stellt Fehlermeldung dar ✅ |
+
+### F02 Sicherheit
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F02_01_1 | CHECK_INTEROP | CheckInterop über TLS ✅ |
+| F02_02_1 | CHECK_INTEROP | Request-Nutzdaten verschlüsselt |
+| F02_03_0/1/2 | TOOL+INTEROP+UI | Tamper Encryption → Fehlermeldung |
+| F02_04_0/1/2 | TOOL+INTEROP+UI | Enable Encryption aus → Fehlermeldung |
+| F02_05_1 | CHECK_INTEROP | Request signiert |
+| F02_06_0/1/2 | TOOL+INTEROP+UI | Tamper Signature → Fehlermeldung |
+| F02_07_0/1/2 | TOOL+INTEROP+UI | Enable Signature aus → Fehlermeldung |
+| F02_08_0/1/2 | TOOL+INTEROP+UI | Use unknown Key → Fehlermeldung |
+| F02_09_0/1/2 | TOOL+INTEROP+UI | signierter SOAP-Fault anzeigen |
+| F02_10_0/1/2 | TOOL+INTEROP+UI | unsignierter SOAP-Fault anzeigen |
+| F02_11_0/1/2 | TOOL+INTEROP+UI | Fault mit ungültiger Signatur **zurückweisen** |
+
+### F03 Interoperabilität
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F03_01_0/1 | INTEROP+UI | CheckInterop senden; Response handhaben/anzeigen |
+| F03_02_1 | INTEROP | SecondOperand = **0.01** |
+| F03_02_2 | INTEROP | SecondOperand = **0.00** |
+| F03_02_3 | INTEROP | SecondOperand = **−999'000'000'000.00** |
+| F03_03_1 | INTEROP | immer zwei Nachkommastellen |
+| F03_04_0/1/2 | TOOL+INTEROP+UI | Tamper UmlautString → Interop **nicht** bestätigt |
+| F03_05_0/1/2 | TOOL+INTEROP+UI | Tamper FirstOperand → Interop **nicht** bestätigt |
+
+Konstante im Request (Schema): Operand1 = `9.99E11`, UmlautString =
+`ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ` (Antwort erwartet Kleinbuchstaben-Variante).
+
+### F04 Archivierung
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F04_01_1 | VALIDATOR | Requests/Responses signiert **und unverschlüsselt** archiviert |
+| F04_01_2 | UI | manuelle Prüfung der Archiv-Dateien im ERP |
+| F04_02_1 | SIGNATURE_CONFIRMATION | SignatureConfirmation in der Response im Archiv |
+
+### F05 Übermittlung
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F05_01_1 | SUBSCRIBE_ORG | SubscribeOrganization-Request |
+| F05_02_1 | ADDRESSEE | genau **ein** Adressat |
+| F05_03_1 | ADDRESSEES | **mehr als ein** Adressat (`ProcessedByDistributor=1`) |
+| F05_04_1 | DECLARE | Declare mit gewählter Adressatenauswahl |
+| F05_05_1 | DECLARATION_ID | DeclarationId im Synchronize gespiegelt |
+| F05_06_1 | SUBSTITUTION | Substitution-Tag mit DeclarationId der Ursprungsmeldung |
+| F05_07_1 | REQUEST_ID | jede RequestID eindeutig (Wiederholung = Fehler) |
+| F05_08_1 | TEST_CASE | vollständiger Prozess mit `<TestCase/>` |
+
+### F06 Validierung
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F06_01_1 | PLAUSIBILITY | Verletzung der PlausibilityRules → Fehlermeldung beim TX |
+
+### F07 SUA-Zertifikat
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F07_01_1 | REGISTER_ORG | RegisterOrganization erfolgreich |
+| F07_02_0/1/2 | TOOL+REG+UI | Register → Fault → anzeigen |
+| F07_03_0/1/2 | TOOL+SYNC+UI | Synchronize → **Processing** anzeigen |
+| F07_04_0/1/2 | TOOL+SYNC+UI | Synchronize → **Registered** anzeigen |
+| F07_05_0/1/2 | TOOL+SYNC+UI | Synchronize → **Rejected** anzeigen |
+| F07_06_0/1/2 | TOOL+SIGN+UI | ReceivedState=Verified → **SignCertificate** + Ergebnis anzeigen |
+| F07_07_0/1 | TOOL+RENEW | Renew + weiterer Request **doppelt signiert** mit neuem Zertifikat |
+| F07_08_0/1 | TOOL+DOUBLE | SUA installiert (AB-18) → CheckInterop **doppelt signiert** |
+
+### F08 Prozesse
+
+| ID | Typ | Erwartet |
+|---|---|---|
+| F08_01_1 | SYNCHRON | synchrone Übermittlung → gesammelte Quittungen in der Response |
+| F08_02_1 | GET_STATUS | GetStatus mit JobKey nach Declare |
+| F08_02_2 | PROCESSED | Fall `ProcessedByDistributor=false` korrekt handhaben |
+| F08_03_1 | STORY | synchronisierte Stories korrekt |
+| F08_04_1 | UI | Dialog-Funktionalität (z.B. BFS) manuell bedienbar |
+| F08_05_1 | REPLY_DIALOG | Dialog im nächsten Synchronize mit Pflichtfeldern beantworten |
+| F08_06_1 | CONFIRM_DIALOG | DialogMessage mit Error im nächsten Synchronize quittieren |
+| F08_07_0/1/2 | TOOL+GET+UI | RandomDialogMessage empfangen und darstellen |
+| F08_08_0/1/2 | TOOL+GET+UI | CompleteDialogMessage-Felder darstellen |
+
+---
+
+## Offene Fragen (Foundation)
+
+1. ~~Woher kommt das ERP-Zertifikat?~~ → **geklärt 24.09.2026 (Expertin itserv):** selbst in
+   Foundation erstellen, unter **F07**; **F07 vor F05**.
+2. Braucht Subscribe/Declare (F05) zwingend schon SUA, oder reicht das ERP-Zertifikat allein?
+   (Expertin: F07 vor F05 «um das Zertifikat zu haben» — vermutlich SUA und/oder beides.)
+3. Ist «AB-18» in F07_08_0 eine interne Prüfnummer (= SUA installiert) oder ein separates Dokument?
+
+Fachfragen Testmandant bleiben in `docs/swissdec-call-2026-09-24.md` (zurückgestellt).
+
+---
+
+*Pflege: nach jedem erledigten Prüfpunkt oben ergänzen — Anforderung, Lösung, Code, Tests,
+Datum. Katalog unten nur bei Werkzeug-Änderungen anfassen.*
