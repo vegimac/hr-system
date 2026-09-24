@@ -65,20 +65,36 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             OnlyActive       = true,   // ABSOLUT: inaktive MA werden nie angefasst
         }, ct);
 
-        // Nur die relevanten Zeilen: neue MA + Updates aktiver MA.
+        // Relevante Zeilen: neue MA, Änderungen an aktiven MA — UND Mitarbeitende,
+        // deren Stammdaten zwar stimmen, denen in DIESER Filiale aber die Anstellung
+        // fehlt (Walter-Bug 24.09.2026, Fall Simona Dan).
+        //
+        // Warum das nötig ist: Beim Übertritt von Filiale A nach B ist der MA-Datensatz
+        // schon da und die Stammdaten stimmen bereits — die Zeile ist also UNCHANGED und
+        // fiel aus dieser Liste heraus. Damit konnte man sie nicht anwählen, ohne Auswahl
+        // gibt es keinen Commit, und ohne Commit entsteht der Vertrag der neuen Filiale
+        // nie. Der MA blieb unsichtbar, weil die Filial-Liste über die Anstellungen geht.
+        // «wird nachgeholt» sagt genau das: MA vorhanden, Anstellung dieser Filiale fehlt.
+        bool AnstellungFehlt(EasyAtWorkEmployeeSyncService.EmployeePreviewRow r)
+            => r.Status == "UNCHANGED" && r.EmploymentInfo == "wird nachgeholt";
+
         var rows = res.Rows
-            .Where(r => r.Status == "NEW" || r.Status == "UPDATE")
+            .Where(r => r.Status == "NEW" || r.Status == "UPDATE" || AnstellungFehlt(r))
             .Select(r => new
             {
                 r.Number,
                 r.FirstName,
                 r.LastName,
                 r.Status,
-                r.Reason,
+                Reason = AnstellungFehlt(r)
+                    ? "Mitarbeiter ist bereits erfasst, hat in dieser Filiale aber noch keinen Vertrag — "
+                    + "typisch beim Übertritt aus einer anderen Filiale. Anwählen, um den Vertrag zu holen."
+                    : r.Reason,
                 changedFields = r.Diffs.Where(d => d.WillSet).Select(d => d.Field).ToList(),
                 r.EmploymentInfo,
                 r.PossibleReentry,
                 r.ReentryEmployeeNumber,
+                vertragFehlt = AnstellungFehlt(r),
             })
             .OrderBy(r => r.Status == "NEW" ? 0 : 1)
             .ThenBy(r => r.FirstName).ThenBy(r => r.LastName)
@@ -95,6 +111,7 @@ public class EasyAtWorkNeuzugangController : HrControllerBase
             rows,
             countNew    = res.CountNew,
             countUpdate = res.CountUpdate,
+            countVertragFehlt = rows.Count(r => r.vertragFehlt),
             conflicts,
             phantomSkipped = res.CountPhantomSkipped,
             notes = res.Notes,

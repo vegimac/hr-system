@@ -14979,14 +14979,19 @@ async function empImportFromEasyApi() {
         }
         body.innerHTML = `
             ${_empEasySeqBanner(j.numberSequence)}
-            <div style="font-size:12.5px;color:#646464;margin-bottom:8px">${j.countNew} neu · ${j.countUpdate} mit Änderungen — abwählen, was (noch) nicht übernommen werden soll:</div>
+            <div style="font-size:12.5px;color:#646464;margin-bottom:8px">${j.countNew} neu · ${j.countUpdate} mit Änderungen${j.countVertragFehlt ? ` · ${j.countVertragFehlt} ohne Vertrag in dieser Filiale` : ''} — abwählen, was (noch) nicht übernommen werden soll:</div>
             ${rows.map((x, i) => {
                 const isNew = x.status === 'NEW';
-                const badge = isNew
+                // Übertritt: MA schon erfasst, Vertrag dieser Filiale fehlt noch
+                // (Walter-Bug 24.09.2026) — eigene Marke, damit man ihn nicht mit
+                // einer Stammdaten-Änderung verwechselt.
+                const badge = x.vertragFehlt
+                    ? '<span style="font-size:10.5px;font-weight:700;background:#fdf1dc;color:#7c5a10;border:1px solid #f3d9a4;border-radius:10px;padding:2px 8px">VERTRAG FEHLT</span>'
+                    : isNew
                     ? '<span style="font-size:10.5px;font-weight:700;background:#e7f0e7;color:#3f5540;border:1px solid #b8ccb8;border-radius:10px;padding:2px 8px">NEU</span>'
                     : '<span style="font-size:10.5px;font-weight:700;background:#ece9e2;color:#6b6152;border:1px solid #d0c8b8;border-radius:10px;padding:2px 8px">UPDATE</span>';
-                const detail = isNew
-                    ? esc(x.employmentInfo || 'wird neu angelegt')
+                const detail = (isNew || x.vertragFehlt)
+                    ? esc(x.reason || x.employmentInfo || 'wird neu angelegt')
                     : esc((x.changedFields || []).join(', ') || x.reason || 'Änderungen');
                 const reentry = x.possibleReentry
                     ? `<div style="font-size:11.5px;color:#92400e;margin-top:2px">⚠ Möglicher Wiedereintritt (bestehende Nr. ${esc(x.reentryEmployeeNumber || '?')})</div>` : '';
