@@ -23,10 +23,16 @@ public class WebStampBriefPdfService
     private const string Dark = "#1a1a1a";
 
     // Seitenränder (mm). Links 22 wie die übrigen OneCrew-Briefe.
-    private const float RandOben = 12, RandLinks = 22, RandRechts = 20, RandUnten = 15;
+    // RandOben 9 statt 12 (Walter 24.09.2026): alles 3 mm höher — sonst schaute bei ganz
+    // nach unten gerutschtem Brief die Ortschaft der Filiale oben ins Fenster.
+    private const float RandOben = 9, RandLinks = 22, RandRechts = 20, RandUnten = 15;
 
-    /// <summary>Oberkante Sichtfenster ab Papierkante (mm) — Schweizer C5/C4-Fenstercouvert.</summary>
-    public const float FensterObenMm = 45;
+    /// <summary>
+    /// Oberkante des Adressbereichs ab Papierkante (mm). 42 statt 45 (Walter 24.09.2026,
+    /// im eigenen Couvert geprüft): Kopf, Absender und Adresse stehen 3 mm höher; über der
+    /// Adresse bleiben im Fenster rund 1,7 cm frei für die Frankatur.
+    /// </summary>
+    public const float FensterObenMm = 42;
     public const float FensterHoeheMm = 45;
     /// <summary>Freier Streifen oben im Fenster für die Frankatur der Post (mm).</summary>
     public const float FrankierStreifenMm = 15;

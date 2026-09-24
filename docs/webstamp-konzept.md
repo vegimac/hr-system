@@ -70,14 +70,16 @@ Tabellen (Schema-Stand 30): `webstamp_setting` (Singleton), `webstamp_auftrag`
 
 ## Fenster-Masse
 
-Adresse links ab 22 mm (rechts ab 118 mm), Fenster-Oberkante 45 mm, 15 mm frei
-über der Adresse für die Frankatur. Ob die Post Adresse und Fenster erkennt,
+Adresse links ab 22 mm (rechts ab 118 mm), Adressbereich ab 42 mm (Seitenrand oben 9 mm),
+15 mm frei über der Adresse für die Frankatur → Adresse beginnt bei 57 mm. Ob die Post Adresse und Fenster erkennt,
 meldet die Vorschau pro Sendung (`window`, `state`, `reason`). Passen die Masse
 nicht, in `WebStampBriefPdfService` anpassen.
 
 **Von Hand geprüft (Walter 24.09.2026):** Ausdruck in 100 % im eigenen
 Fenstercouvert (Fenster links): über der Adresse knapp 2 cm frei im Fenster,
-links ca. 0,5 cm vom Fensterrand bis zum ersten Buchstaben — passt. Offen bleibt
+links ca. 0,5 cm vom Fensterrand bis zum ersten Buchstaben. Bei ganz nach unten
+gerutschtem Brief schaute die Ortschaft der Filiale knapp ins Fenster → alles um 3 mm
+nach oben (Rand oben 12 → 9 mm, Adressbereich 45 → 42 mm). Offen bleibt
 nur die Bestätigung durch die Post-Vorschau (braucht die Application-ID).
 
 ## Nächste Schritte
