@@ -36,6 +36,12 @@ public class ElmTransmitterClient
         /// <summary>Foundation-Test F01_03: Abweichung über einer Minute.</summary>
         public bool ZeitAbweichung => DiffSekunden.HasValue && Math.Abs(DiffSekunden.Value) > ZeitToleranzSekunden;
 
+        /// <summary>
+        /// Simulierter Zeitversatz dieses Aufrufs in Sekunden (0 = normal).
+        /// Nur für den Foundation-Test F01_03 — siehe <see cref="PingAsync"/>.
+        /// </summary>
+        public int VersatzSekunden { get; init; }
+
         /// <summary>SOAP-Fault-Code aus der Antwort, z.B. «Client.security».</summary>
         public string? FaultCode { get; init; }
         /// <summary>Klartext des Faults, z.B. «security requirements not met».</summary>
@@ -81,27 +87,34 @@ public class ElmTransmitterClient
     /// Verglichen wird über <see cref="DateTimeOffset"/>, also inklusive
     /// Zeitzonen-Versatz: «10:49+02:00» und «08:49Z» sind derselbe Moment.
     /// </summary>
-    public static ElmCallResult MitZeitvergleich(ElmCallResult r)
+    /// <param name="versatzSekunden">
+    /// Simulierte Verstellung unserer Serveruhr (Foundation-Test F01_03, Walter 24.09.2026).
+    /// Der Wert gilt für die GESENDETE Zeit UND für die Vergleichsbasis — nur so verhält sich
+    /// das Programm wie mit einer echt falsch gehenden Uhr und zeigt ab 60 Sekunden den Fehler.
+    /// 0 = normaler Betrieb.
+    /// </param>
+    public static ElmCallResult MitZeitvergleich(ElmCallResult r, int versatzSekunden = 0)
     {
-        if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
+        if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r with { VersatzSekunden = versatzSekunden };
         try
         {
             var doc = XDocument.Parse(r.ResponseXml);
             var el = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "SystemDateTime");
-            if (el == null) return r;
+            if (el == null) return r with { VersatzSekunden = versatzSekunden };
             if (!DateTimeOffset.TryParse(el.Value,
                     System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.RoundtripKind, out var fern))
-                return r;
-            var hier = DateTimeOffset.Now;
+                return r with { VersatzSekunden = versatzSekunden };
+            var hier = DateTimeOffset.Now.AddSeconds(versatzSekunden);
             return r with
             {
                 DistributorZeit = fern,
                 LokaleZeit      = hier,
                 DiffSekunden    = Math.Round((hier - fern).TotalSeconds, 1),
+                VersatzSekunden = versatzSekunden,
             };
         }
-        catch { return r; }   // unlesbare Antwort ändert nichts am Aufruf-Ergebnis
+        catch { return r with { VersatzSekunden = versatzSekunden }; }   // unlesbare Antwort ändert nichts am Ergebnis
     }
 
     /// <summary>UserAgent gemäss UserAgentType (alle Felder Pflicht).</summary>
@@ -153,20 +166,23 @@ public class ElmTransmitterClient
     /// F01_03 «Systemzeit»: die Antwort wird gleich auf den Zeitunterschied
     /// zwischen Empfänger und uns geprüft.
     /// </summary>
-    public async Task<ElmCallResult> PingAsync(string url, CancellationToken ct = default)
+    public async Task<ElmCallResult> PingAsync(string url, int versatzSekunden = 0, CancellationToken ct = default)
     {
         var body = new XElement(Sdst + "Ping",
             UserAgent(),
-            new XElement(Ep + "SystemDateTime",
-                DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
-        return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct)));
+            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)));
+        return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
     }
+
+    /// <summary>Unsere Systemzeit im Swissdec-Format, optional simuliert verstellt.</summary>
+    private static string UnsereZeit(int versatzSekunden) =>
+        DateTime.Now.AddSeconds(versatzSekunden).ToString("yyyy-MM-ddTHH:mm:ss.fffzzz");
 
     /// <summary>
     /// Interoperabilitäts-Test: Umlaute (Encoding) + zwei Beträge, die der
     /// Empfänger verarbeitet zurückgibt — beweist die ganze SOAP-Strecke.
     /// </summary>
-    public async Task<ElmCallResult> CheckInteroperabilityAsync(string url, CancellationToken ct = default)
+    public async Task<ElmCallResult> CheckInteroperabilityAsync(string url, int versatzSekunden = 0, CancellationToken ct = default)
     {
         var body = new XElement(Sdst + "CheckInteroperability",
             UserAgent(),
@@ -175,8 +191,7 @@ public class ElmTransmitterClient
             new XElement(Ep + "UmlautString", "ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ"),
             new XElement(Ep + "FirstOperand", "1234.55"),
             new XElement(Ep + "SecondOperand", "8765.40"),
-            new XElement(Ep + "SystemDateTime",
-                DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
-        return MitFault(await PostAsync(url, Envelope(body), ct));
+            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)));
+        return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
     }
 }

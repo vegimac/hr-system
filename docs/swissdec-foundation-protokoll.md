@@ -124,7 +124,17 @@ Systemzeit und unlesbare Antwort ändern nichts.
 **Für die Vorführung:** Sobald Swissdec die «Fake Ping Time» gesetzt hat, einmal auf «📡 Ping»
 drücken — der rote Kasten mit der bezifferten Abweichung erscheint sofort.
 
-**So wird es vorgeführt:** In der **RefApps-Receiver-App** die Einstellung **«Fake Ping Time»**
+**Eigener Test ohne Swissdec (Walter-Idee 24.09.2026):** Neben den Knöpfen steht ein Feld
+**«Test: Systemzeit verstellen (Sek.)»**. Der Wert verstellt die Zeit, die wir **senden**, UND
+unsere **Vergleichsbasis** — das Programm verhält sich damit wie mit einer falsch gehenden
+Serveruhr. Ab 60 Sekunden erscheint die rote Fehlermeldung mit der bezifferten Abweichung; darüber
+steht ein gelber Hinweis «Simulierter Zeitversatz aktiv: +120 Sekunden», damit niemand eine
+Simulation für eine echte Messung hält. Der Wert gilt nur für den einzelnen Aufruf und wird nirgends
+gespeichert (Grenze ±24 Stunden). Nützlicher Nebeneffekt: Weil die verstellte Zeit auch im
+gesendeten `SystemDateTime` steht, sieht man zugleich, ob der Empfänger seinerseits eine Abweichung
+des Absenders meldet.
+
+**So wird es von Swissdec vorgeführt:** In der **RefApps-Receiver-App** die Einstellung **«Fake Ping Time»**
 setzen (das ist der Prüfschritt F01_03_0, ein Werkzeug-Setting auf Swissdec-Seite), danach in OneCrew
 auf «📡 Ping» drücken. Die falsche Zeit kommt in der Antwort zurück, und der rote Kasten zeigt die
 bezifferte Abweichung. **Ohne diese Einstellung ist der Fall nicht auslösbar** — der Empfänger

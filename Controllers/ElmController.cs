@@ -45,7 +45,18 @@ public class ElmController : ControllerBase
     /// Testinfrastruktur liefert im Lauf der Zertifizierung wechselnde
     /// Receiver-Adressen (Walter 24.09.2026).
     /// </summary>
-    public record ElmZielDto(string? Ziel, string? Url = null);
+    public record ElmZielDto(string? Ziel, string? Url = null, int? VersatzSekunden = null);
+
+    /// <summary>
+    /// Simulierter Zeitversatz für den Foundation-Test F01_03 (Walter 24.09.2026):
+    /// Der Wert verstellt die Zeit, die wir SENDEN, und zugleich unsere
+    /// Vergleichsbasis — das Programm verhält sich also wie mit einer falsch
+    /// gehenden Serveruhr und muss ab 60 Sekunden die Fehlermeldung zeigen.
+    /// Gilt nur für diesen einen Aufruf, wird nirgends gespeichert. Grenze
+    /// ±24 Stunden, damit kein Unsinn ins XML gerät.
+    /// </summary>
+    private static int Versatz(ElmZielDto? dto)
+        => Math.Clamp(dto?.VersatzSekunden ?? 0, -86400, 86400);
 
     private static bool UrlOk(string? url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var u)
@@ -94,7 +105,7 @@ public class ElmController : ControllerBase
         if (ziel == null)
             return BadRequest(new { error = "ZIEL_UNBEKANNT",
                 message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
-        var r = await _client.PingAsync(ziel.Value.Url!, ct);
+        var r = await _client.PingAsync(ziel.Value.Url!, Versatz(dto), ct);
         return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }
 
@@ -106,7 +117,7 @@ public class ElmController : ControllerBase
         if (ziel == null)
             return BadRequest(new { error = "ZIEL_UNBEKANNT",
                 message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
-        var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, ct);
+        var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, Versatz(dto), ct);
         return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }
 

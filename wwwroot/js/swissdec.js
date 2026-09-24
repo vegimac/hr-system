@@ -217,7 +217,7 @@ async function _elmCall(pfad, label) {
         const r = await fetch(`/api/elm/${pfad}`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url, versatzSekunden: _elmVersatz() })
         });
         const antwort = await r.json();
         if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c">Fehler: ${esc(antwort?.message || antwort?.error || ('HTTP ' + r.status))}</div>`; return; }
@@ -270,6 +270,12 @@ function _elmZeitDauer(sek) {
     return rest ? `${min} Min. ${rest} Sek.` : `${min} Minuten`;
 }
 
+/** Eingestellter Test-Versatz in Sekunden (leer/ungültig = 0). */
+function _elmVersatz() {
+    const v = parseInt(document.getElementById('elmVersatz')?.value, 10);
+    return Number.isFinite(v) ? v : 0;
+}
+
 function _elmZeitBlock(j) {
     if (j.diffSekunden == null) return '';
     const uhr = (iso) => {
@@ -279,13 +285,18 @@ function _elmZeitBlock(j) {
     const zeilen = `<div style="margin-top:4px;font-size:12px">
             Empfänger: <b>${esc(uhr(j.distributorZeit))}</b> · hier: <b>${esc(uhr(j.lokaleZeit))}</b>
         </div>`;
+    const simHinweis = j.versatzSekunden
+        ? `<div style="background:#fdf1dc;border:1px solid #f3d9a4;color:#7c5a10;border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12.5px">
+               ⚠ <b>Simulierter Zeitversatz aktiv:</b> ${j.versatzSekunden > 0 ? '+' : ''}${esc(String(j.versatzSekunden))} Sekunden.
+               Gesendete Zeit und Vergleichsbasis sind verstellt — das ist ein Test, keine echte Abweichung.
+           </div>` : '';
     if (!j.zeitAbweichung) {
-        return `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+        return simHinweis + `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px">
             <b>✓ Systemzeit stimmt überein</b> — Abweichung ${esc(_elmZeitDauer(j.diffSekunden))} (Toleranz 1 Minute).
             ${zeilen}
         </div>`;
     }
-    return `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+    return simHinweis + `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
             <b>✗ Systemzeit weicht ab</b> — unsere Uhr geht <b>${esc(_elmZeitDauer(j.diffSekunden))} ${vor ? 'vor' : 'nach'}</b>
             (zulässig ist höchstens 1 Minute). Bitte die Systemzeit des Servers prüfen, bevor Meldungen übermittelt werden.
             ${zeilen}

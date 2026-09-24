@@ -5524,9 +5524,19 @@
                         <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">
                             Nur für den Super-Admin erreichbar — ein Admin kann sich den Bereich «Entwicklung» weder selbst geben noch zuteilen (Swissdec F01_01).
                         </div>
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
                             <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>
                             <button type="button" class="btn-secondary" onclick="elmCheckInterop()">🔤 CheckInteroperability</button>
+                            <!-- Foundation F01_03: simulierte Verstellung der Serveruhr. Der Wert gilt für
+                                 die GESENDETE Zeit und für die Vergleichsbasis — ab 60 Sekunden muss die
+                                 Fehlermeldung erscheinen. Gilt nur für den einzelnen Aufruf. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;margin-left:8px">
+                                Test: Systemzeit verstellen
+                                <input type="number" id="elmVersatz" value="0" step="10" min="-86400" max="86400"
+                                       style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:100px;text-align:right"
+                                       title="Sekunden. Verstellt die gesendete Zeit UND unsere Vergleichsbasis — ab 60 Sekunden muss die Fehlermeldung kommen (Swissdec F01_03).">
+                                <span style="color:#8b8b8b">Sek.</span>
+                            </label>
                         </div>
                         <div id="elmResult" style="font-size:12.5px"></div>
                     </div>
@@ -9507,7 +9517,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260924c"></script>
+<script src="js/swissdec.js?v=20260924d"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>

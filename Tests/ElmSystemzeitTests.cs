@@ -139,6 +139,50 @@ public class ElmSystemzeitTests
         Assert.Equal("missing signature", r.FaultText);
     }
 
+    // ── Simulierter Zeitversatz (Walter-Idee 24.09.2026) ─────────────────
+    // Der Versatz verstellt die GESENDETE Zeit und die Vergleichsbasis, damit sich
+    // das Programm wie mit einer falsch gehenden Serveruhr verhält — sonst liesse
+    // sich F01_03 ohne Swissdecs «Fake Ping Time» gar nicht vorführen.
+
+    [Theory]
+    [InlineData(90)]       // simuliert: unsere Uhr geht 1.5 Minuten vor
+    [InlineData(-120)]     // simuliert: unsere Uhr geht 2 Minuten nach
+    public void Versatz_UeberEinerMinute_LoestFehlermeldungAus(int versatz)
+    {
+        var r = ElmTransmitterClient.MitZeitvergleich(
+            new ElmTransmitterClient.ElmCallResult(true, 200, 30, "<req/>",
+                Antwort(DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")), null),
+            versatz);
+        Assert.True(r.ZeitAbweichung);
+        Assert.Equal(versatz, r.VersatzSekunden);
+        Assert.InRange(Math.Abs(r.DiffSekunden!.Value), Math.Abs(versatz) - 5, Math.Abs(versatz) + 5);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(30)]
+    [InlineData(-59)]
+    public void Versatz_InnerhalbEinerMinute_BleibtStill(int versatz)
+    {
+        var r = ElmTransmitterClient.MitZeitvergleich(
+            new ElmTransmitterClient.ElmCallResult(true, 200, 30, "<req/>",
+                Antwort(DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")), null),
+            versatz);
+        Assert.False(r.ZeitAbweichung);
+    }
+
+    [Fact]
+    public void Versatz_BleibtAuchOhneSystemzeitInDerAntwort_Sichtbar()
+    {
+        // Damit die Oberfläche den Hinweis «Simulation aktiv» auch dann zeigt,
+        // wenn der Empfänger keine Zeit zurückgibt.
+        var ohne = "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\"><soap:Body/></soap:Envelope>";
+        var r = ElmTransmitterClient.MitZeitvergleich(
+            new ElmTransmitterClient.ElmCallResult(true, 200, 10, "<req/>", ohne, null), 120);
+        Assert.Equal(120, r.VersatzSekunden);
+        Assert.Null(r.DiffSekunden);
+    }
+
     [Fact]
     public void ErfolgreicheAntwort_HatKeinenFault()
     {
