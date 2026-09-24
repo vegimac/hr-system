@@ -30,28 +30,58 @@ public class ElmController : ControllerBase
         _db = db;
     }
 
-    public record ElmUrlDto(string Url);
+    /// <summary>
+    /// Der Aufrufer wählt nur noch ein ZIEL («test» / «prod»), keine URL mehr
+    /// (Foundation-Test F01_01, Walter 24.09.2026). Die Adressen stehen fest
+    /// in <see cref="ElmEndpunkte"/>.
+    /// </summary>
+    public record ElmZielDto(string Ziel);
 
-    private static bool UrlOk(string? url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var u)
-        && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp);
+    /// <summary>
+    /// Nur der Superadmin darf die Swissdec-Testumgebung ansprechen
+    /// (Foundation-Test F01_01): die Rolle «admin» allein genügt NICHT —
+    /// dieselbe Grenze wie beim Bereich «Entwicklung» im UI.
+    /// </summary>
+    private async Task<bool> IstSuperAdminAsync()
+    {
+        var id = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (!int.TryParse(id, out var userId)) return false;
+        return await _db.AppUsers.AsNoTracking()
+            .AnyAsync(u => u.Id == userId && u.IsSuperAdmin);
+    }
+
+    private IActionResult NurSuperAdmin()
+        => StatusCode(403, new { error = "NUR_SUPERADMIN",
+             message = "Die Swissdec-Verbindung ist dem Superadmin vorbehalten." });
+
+    /// <summary>Wählbare Ziele fürs UI — Name + Adresse, rein zur Anzeige.</summary>
+    [HttpGet("endpunkte")]
+    public async Task<IActionResult> Endpunkte()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(ElmEndpunkte.Alle.Select(z => new { z.Schluessel, z.Name, z.Url, z.IstTest }));
+    }
 
     [HttpPost("ping")]
-    public async Task<IActionResult> Ping([FromBody] ElmUrlDto dto, CancellationToken ct)
+    public async Task<IActionResult> Ping([FromBody] ElmZielDto dto, CancellationToken ct)
     {
-        if (!UrlOk(dto.Url))
-            return BadRequest(new { error = "URL_INVALID", message = "Bitte eine gültige Endpoint-URL angeben." });
-        var r = await _client.PingAsync(dto.Url.Trim(), ct);
-        return Ok(r);
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ElmEndpunkte.Finde(dto?.Ziel);
+        if (ziel == null)
+            return BadRequest(new { error = "ZIEL_UNBEKANNT", message = "Bitte «test» oder «prod» wählen." });
+        var r = await _client.PingAsync(ziel.Url, ct);
+        return Ok(new { ziel = ziel.Schluessel, ziel.Name, ziel.Url, ergebnis = r });
     }
 
     [HttpPost("check-interoperability")]
-    public async Task<IActionResult> CheckInteroperability([FromBody] ElmUrlDto dto, CancellationToken ct)
+    public async Task<IActionResult> CheckInteroperability([FromBody] ElmZielDto dto, CancellationToken ct)
     {
-        if (!UrlOk(dto.Url))
-            return BadRequest(new { error = "URL_INVALID", message = "Bitte eine gültige Endpoint-URL angeben." });
-        var r = await _client.CheckInteroperabilityAsync(dto.Url.Trim(), ct);
-        return Ok(r);
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ElmEndpunkte.Finde(dto?.Ziel);
+        if (ziel == null)
+            return BadRequest(new { error = "ZIEL_UNBEKANNT", message = "Bitte «test» oder «prod» wählen." });
+        var r = await _client.CheckInteroperabilityAsync(ziel.Url, ct);
+        return Ok(new { ziel = ziel.Schluessel, ziel.Name, ziel.Url, ergebnis = r });
     }
 
     /// <summary>
