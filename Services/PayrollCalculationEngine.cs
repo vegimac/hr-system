@@ -731,9 +731,12 @@ public class PayrollCalculationEngine
         DateOnly arbeitsjahrVon = periodFrom, arbeitsjahrBis = periodFrom;
         // Arbeitsjahr-Anker = Betriebszugehörigkeit (Walter 24.09.2026) — muss mit
         // dem KarenzService übereinstimmen, sonst rechnen die beiden verschieden.
-        if (krankAbsenzen.Any() && employee.DienstalterMassgebend.HasValue)
+        var dienstAnker = Dienstalter.Massgebend(employee,
+            await _db.Employments.AsNoTracking().Where(e => e.EmployeeId == employeeId).ToListAsync(),
+            periodFrom);
+        if (krankAbsenzen.Any() && dienstAnker.HasValue)
         {
-            var hired = DateOnly.FromDateTime(employee.DienstalterMassgebend.Value);
+            var hired = dienstAnker.Value;
             int yd = periodFrom.Year - hired.Year;
             if (new DateOnly(periodFrom.Year, hired.Month, hired.Day) > periodFrom) yd--;
             arbeitsjahrVon = new DateOnly(hired.Year + yd, hired.Month, hired.Day);
@@ -1834,8 +1837,8 @@ public class PayrollCalculationEngine
                 .ToList();
             if (milAbs.Count > 0)
             {
-                var eintrittD = employee.DienstalterMassgebend.HasValue
-                    ? DateOnly.FromDateTime(employee.DienstalterMassgebend.Value)
+                var eintrittD = dienstAnker.HasValue
+                    ? dienstAnker.Value
                     : new DateOnly(periodFrom.Year, 1, 1);   // Fallback: Kalenderjahr
 
                 // Vor-Diensttage im laufenden Arbeitsjahr (beide Typen, VOR der

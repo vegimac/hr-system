@@ -1661,51 +1661,6 @@ public class DashboardService
             }
         }
 
-        // ── Betriebszugehörigkeit prüfen (Walter-Vorgabe 24.09.2026) ───────
-        // Beim Übertritt in eine andere Filiale und beim Wiedereintritt vergibt
-        // easy@work ein NEUES «Datum der Betriebszugehörigkeit» — der Eintritt
-        // springt nach vorn, und der Mitarbeitende fällt zurück ins erste
-        // Dienstjahr. Das trifft Lohnfortzahlung, Karenz und Sperrfrist.
-        // Gemeldet wird, wenn es Verträge gibt, die deutlich VOR dem Eintritt
-        // beginnen, und noch niemand entschieden hat, ob die frühere Zeit
-        // weiterzählt (dienstalter_seit ist leer). Der Entscheid gehört HR —
-        // OneCrew setzt nichts von selbst (Walter 24.09.2026).
-        if (Enabled("dienstalter_pruefen"))
-        {
-            // 60 Tage Abstand: kleine Verschiebungen (Vertrag beginnt ein paar
-            // Tage vor dem erfassten Eintritt) sind Alltag und keine Meldung wert.
-            var dienstGrenze = DateTime.Today;
-            var daQ = _db.Employees.AsNoTracking()
-                .Where(e => e.IsActive && !e.IsHidden && !e.IsPayrollExcluded
-                         && e.DienstalterSeit == null
-                         && e.EntryDate != null
-                         && e.Employments.Any(em => em.ContractEndDate == null || em.ContractEndDate >= dienstGrenze)
-                         && e.Employments.Any(em => em.ContractStartDate < e.EntryDate!.Value.AddDays(-60)));
-            if (companyProfileId.HasValue)
-                daQ = daQ.Where(e => e.Employments.Any(em =>
-                    em.CompanyProfileId == companyProfileId.Value
-                    && (em.ContractEndDate == null || em.ContractEndDate >= dienstGrenze)));
-            var daListe = await daQ
-                .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber, e.EntryDate,
-                                   Frueheste = e.Employments.Min(em => (DateTime?)em.ContractStartDate) })
-                .ToListAsync();
-            foreach (var e in daListe)
-            {
-                var daName = $"{e.FirstName} {e.LastName}".Trim();
-                alerts.Add(new DashboardAlert
-                {
-                    Category = "dienstalter_pruefen",
-                    Severity = SeverityState("dienstalter_pruefen", "warning"),
-                    Title    = "Betriebszugehörigkeit prüfen",
-                    Subtitle = $"{daName} · Personalnr. {e.EmployeeNumber} · Eintritt {e.EntryDate:dd.MM.yyyy}, "
-                             + $"aber Verträge seit {e.Frueheste:dd.MM.yyyy} — zählt die frühere Zeit für die Dienstjahre weiter?",
-                    EmployeeId     = e.Id,
-                    EmployeeNumber = e.EmployeeNumber,
-                    EmployeeName   = daName
-                });
-            }
-        }
-
         // ── 3c.v) Umzugsdatum bestätigen (Walter 08.08.2026) ───────────────
         // easy@work hat eine neue Adresse mit PLZ/Ort-Wechsel geliefert —
         // Walter muss das echte Umzugsdatum bestätigen (erst dann läuft die

@@ -216,46 +216,39 @@ public class EmployeesController : ControllerBase
     public record DienstalterDto(DateTime? DienstalterSeit, string? Bemerkung);
 
     /// <summary>
-    /// Vorschlag für die Betriebszugehörigkeit: der früheste Vertragsbeginn
-    /// dieses Mitarbeitenden über ALLE Filialen. Dient dem To-do
-    /// «dienstalter_pruefen» als Ein-Klick-Antwort.
+    /// Was gilt als Betriebszugehörigkeit — und warum (Walter-Vorgabe 24.09.2026).
+    ///
+    /// Gerechnet, nicht gefragt: Wir gehen von der heutigen Anstellung rückwärts
+    /// durch die Vertragskette, solange ein Abschnitt lückenlos an den nächsten
+    /// anschliesst. Beim nahtlosen Übertritt Filiale A → B zählt das alte Datum
+    /// weiter; nach einem Unterbruch beginnt alles neu. Die Antwort liefert
+    /// zusätzlich die grösste Lücke, damit die Maske erklären kann, warum.
     /// </summary>
     [HttpGet("{id:int}/dienstalter-vorschlag")]
     public async Task<IActionResult> GetDienstalterVorschlag(int id)
     {
-        var emp = await _context.Employees.AsNoTracking()
-            .Where(e => e.Id == id)
-            .Select(e => new { e.Id, e.EntryDate, e.DienstalterSeit, e.DienstalterBemerkung })
-            .FirstOrDefaultAsync();
+        var emp = await _context.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
         if (emp == null) return NotFound();
 
         var abschnitte = await _context.Employments.AsNoTracking()
             .Where(em => em.EmployeeId == id)
-            .Select(em => new { em.ContractStartDate, em.ContractEndDate, em.CompanyProfileId })
             .OrderBy(em => em.ContractStartDate)
             .ToListAsync();
 
-        var frueheste = abschnitte.Count > 0 ? abschnitte[0].ContractStartDate : (DateTime?)null;
-        // Grösste Lücke zwischen zwei Abschnitten — sie ist der Grund, warum das
-        // ein HR-Entscheid ist und kein Automatismus (Walter 24.09.2026).
-        int? groessteLueckeTage = null;
-        for (var i = 1; i < abschnitte.Count; i++)
-        {
-            var vorEnde = abschnitte[i - 1].ContractEndDate;
-            if (!vorEnde.HasValue) continue;
-            var tage = (int)(abschnitte[i].ContractStartDate.Date - vorEnde.Value.Date).TotalDays - 1;
-            if (tage > 0 && (groessteLueckeTage == null || tage > groessteLueckeTage)) groessteLueckeTage = tage;
-        }
+        var heute      = DateOnly.FromDateTime(DateTime.Today);
+        var gerechnet  = Dienstalter.Massgebend(emp, abschnitte, heute);
+        var kette      = Dienstalter.NahtloseKetteStart(abschnitte, heute);
 
         return Ok(new
         {
-            eintritt          = emp.EntryDate,
-            dienstalterSeit   = emp.DienstalterSeit,
-            bemerkung         = emp.DienstalterBemerkung,
-            vorschlag         = frueheste,
-            anzahlAbschnitte  = abschnitte.Count,
-            groessteLueckeTage,
-            filialen          = abschnitte.Select(a => a.CompanyProfileId).Distinct().Count()
+            eintritt           = emp.EntryDate,
+            dienstalterSeit    = emp.DienstalterSeit,      // Handeingabe (sticht die Rechnung)
+            bemerkung          = emp.DienstalterBemerkung,
+            gerechnet,                                      // was ohne Handeingabe gilt
+            nahtloseKette      = kette,                     // NULL = kein nahtloser Vorgänger
+            groessteLueckeTage = Dienstalter.GroessteLueckeTage(abschnitte),
+            anzahlAbschnitte   = abschnitte.Count,
+            filialen           = abschnitte.Select(a => a.CompanyProfileId).Distinct().Count()
         });
     }
 

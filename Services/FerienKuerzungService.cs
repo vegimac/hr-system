@@ -40,13 +40,16 @@ public class FerienKuerzungService
         int employeeId, DateOnly periodEndDate, bool bisDienstjahrEnde = false, DateOnly? zaehlBisMax = null)
     {
         var employee = await _db.Employees.FindAsync(employeeId);
-        // Dienstjahr ab Betriebszugehörigkeit (Walter 24.09.2026), nicht ab dem
-        // aktuellen Eintritt — sonst beginnt es beim Übertritt neu.
-        if (employee == null || !employee.DienstalterMassgebend.HasValue)
-            return FerienKuerzungResult.Empty();
+        if (employee == null) return FerienKuerzungResult.Empty();
+        // Dienstjahr ab Betriebszugehörigkeit (Walter 24.09.2026): beim nahtlosen
+        // Übertritt läuft es weiter, nach einem Unterbruch beginnt es neu.
+        var abschnitte = await _db.Employments.AsNoTracking()
+            .Where(e => e.EmployeeId == employeeId).ToListAsync();
+        var anker = Dienstalter.Massgebend(employee, abschnitte, periodEndDate);
+        if (!anker.HasValue) return FerienKuerzungResult.Empty();
 
-        // Dienstjahr-Grenzen bestimmen (anniversary-based ab Eintritt)
-        var hired = DateOnly.FromDateTime(employee.DienstalterMassgebend!.Value);
+        // Dienstjahr-Grenzen bestimmen (anniversary-based ab Betriebszugehörigkeit)
+        var hired = anker.Value;
         var (jahrVon, jahrBis) = GetDienstjahr(hired, periodEndDate);
 
         // Walter-Vorgabe 21.05.2026: Für die Ferien-Kürzung dürfen NUR Absenztage

@@ -93,8 +93,12 @@ public class SperrfristService
         // Dienstjahre zählen ab der Betriebszugehörigkeit, nicht ab dem aktuellen
         // Eintritt (Walter 24.09.2026): Beim Übertritt/Wiedereintritt vergibt
         // easy@work ein neues Eintrittsdatum — die Staffelung darf davon nicht
-        // zurückfallen. DienstalterMassgebend = gesetztes Dienstalter, sonst Eintritt.
-        if (employee is null || !employee.DienstalterMassgebend.HasValue)
+        // zurückfallen — beim NAHTLOSEN Übertritt läuft die Kette weiter.
+        var abschnitteAlle = employee is null
+            ? new List<Employment>()
+            : await _db.Employments.AsNoTracking().Where(e => e.EmployeeId == employeeId).ToListAsync();
+        var dienstAnker = employee is null ? null : Dienstalter.Massgebend(employee, abschnitteAlle, stichtag);
+        if (employee is null || !dienstAnker.HasValue)
         {
             return Empty("KEIN_EINTRITT",
                 "Kein Eintrittsdatum hinterlegt — Sperrfrist nicht berechenbar.");
@@ -104,7 +108,7 @@ public class SperrfristService
         //   dienstDatum = Betriebszugehörigkeit → Länge der Sperrfrist (Dienstjahr)
         //   entryDate   = AKTUELLER Eintritt    → Probezeit des laufenden Vertrags
         // Beim Übertritt beginnt die Probezeit neu, die Dienstjahre aber nicht.
-        var dienstDatum = DateOnly.FromDateTime(employee.DienstalterMassgebend!.Value);
+        var dienstDatum = dienstAnker.Value;
         var entryDate   = employee.EntryDate.HasValue
             ? DateOnly.FromDateTime(employee.EntryDate.Value)
             : dienstDatum;

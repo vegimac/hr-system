@@ -90,12 +90,6 @@ public class Employee
     /// <summary>Warum das Dienstalter abweicht (z.B. «Übertritt Sursee → Reinach»).</summary>
     public string? DienstalterBemerkung { get; set; }
 
-    /// <summary>
-    /// Für die Dienstjahre massgebendes Datum: das bewusst gesetzte
-    /// Dienstalter, sonst der Eintritt. Jede Berechnung, die nach Dienstjahren
-    /// staffelt, nimmt DIESES Datum — nie <see cref="EntryDate"/> direkt.
-    /// </summary>
-    public DateTime? DienstalterMassgebend => DienstalterSeit ?? EntryDate;
 
     /// <summary>Kündigung ausgesprochen am (Walter 16.07.2026) — wird beim
     /// Erstellen des Kündigungsschreibens gesetzt, beim Kündigungsrückzug

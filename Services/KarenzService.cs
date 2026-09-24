@@ -75,7 +75,8 @@ public class KarenzService
     /// Berechnet das Karenzjahr (Von/Bis inkl.), in das ein bestimmtes Datum fällt.
     /// </summary>
     public (DateOnly Von, DateOnly Bis) ComputeKarenzjahr(
-        DateOnly datum, Employee employee, CompanyProfile profile)
+        DateOnly datum, Employee employee, CompanyProfile profile,
+        IEnumerable<Models.Employment>? abschnitte = null)
     {
         if ((profile.KarenzjahrBasis ?? "ARBEITSJAHR").Equals("KALENDERJAHR",
                 StringComparison.OrdinalIgnoreCase))
@@ -84,17 +85,18 @@ public class KarenzService
                     new DateOnly(datum.Year, 12, 31));
         }
 
-        // ARBEITSJAHR — Anker ist die Betriebszugehörigkeit (Walter 24.09.2026),
-        // also das gesetzte Dienstalter, sonst der Eintritt. Beim Wiedereintritt
-        // dürfen die Karenztage nicht auf ein neues Arbeitsjahr zurückfallen.
-        if (!employee.DienstalterMassgebend.HasValue)
+        // ARBEITSJAHR — Anker ist die Betriebszugehörigkeit (Walter 24.09.2026):
+        // beim NAHTLOSEN Übertritt läuft das Arbeitsjahr weiter, beim Wiedereintritt
+        // nach einem Unterbruch beginnt es neu. Siehe Dienstalter.
+        var anker = Dienstalter.Massgebend(employee, abschnitte, datum);
+        if (!anker.HasValue)
         {
             // Ohne Eintrittsdatum fallen wir auf Kalenderjahr zurück.
             return (new DateOnly(datum.Year, 1, 1),
                     new DateOnly(datum.Year, 12, 31));
         }
 
-        var hired = DateOnly.FromDateTime(employee.DienstalterMassgebend!.Value);
+        var hired = anker.Value;
 
         int yd = datum.Year - hired.Year;
         var anniversaryInSameYear = SafeAnniversary(datum.Year, hired.Month, hired.Day);
