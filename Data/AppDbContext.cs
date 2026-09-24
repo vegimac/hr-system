@@ -134,6 +134,8 @@ public class AppDbContext : DbContext
     public DbSet<SmtpSetting>               SmtpSettings                => Set<SmtpSetting>();
     public DbSet<MailBounce>                MailBounces                 => Set<MailBounce>();
     public DbSet<EcallSetting>              EcallSettings               => Set<EcallSetting>();
+    public DbSet<WebStampSetting>           WebStampSettings            => Set<WebStampSetting>();
+    public DbSet<WebStampAuftrag>           WebStampAuftraege           => Set<WebStampAuftrag>();
     public DbSet<VersandKategorieSetting>   VersandKategorien           => Set<VersandKategorieSetting>();
     public DbSet<MailLog>                   MailLogs                    => Set<MailLog>();
     public DbSet<GruppenMailLog>            GruppenMailLogs             => Set<GruppenMailLog>();
@@ -3265,6 +3267,43 @@ public class AppDbContext : DbContext
             entity.Property(e => e.TestRedirectTo).HasColumnName("test_redirect_to");
             entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
                   .HasColumnType("timestamp without time zone");
+        });
+
+        // ── WebStamp — Briefpost über die Post (Walter 24.09.2026) ─────────
+        modelBuilder.Entity<WebStampSetting>(entity =>
+        {
+            entity.ToTable("webstamp_setting");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.Umgebung).HasColumnName("umgebung");
+            entity.Property(e => e.ApplicationId).HasColumnName("application_id");
+            entity.Property(e => e.KundenId).HasColumnName("kunden_id");
+            entity.Property(e => e.PasswordEncrypted).HasColumnName("password_encrypted");
+            entity.Property(e => e.ProduktNummer).HasColumnName("produkt_nummer");
+            entity.Property(e => e.FensterRechts).HasColumnName("fenster_rechts");
+            entity.Property(e => e.UpdatedAt).HasColumnName("updated_at")
+                  .HasColumnType("timestamp without time zone");
+        });
+        modelBuilder.Entity<WebStampAuftrag>(entity =>
+        {
+            entity.ToTable("webstamp_auftrag");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.ErstelltAm).HasColumnName("erstellt_am")
+                  .HasColumnType("timestamp without time zone");
+            entity.Property(e => e.ErstelltVon).HasColumnName("erstellt_von");
+            entity.Property(e => e.Umgebung).HasColumnName("umgebung");
+            entity.Property(e => e.Art).HasColumnName("art");
+            entity.Property(e => e.EmployeeId).HasColumnName("employee_id");
+            entity.Property(e => e.Empfaenger).HasColumnName("empfaenger");
+            entity.Property(e => e.Betreff).HasColumnName("betreff");
+            entity.Property(e => e.ProduktNummer).HasColumnName("produkt_nummer");
+            entity.Property(e => e.Referenz).HasColumnName("referenz");
+            entity.Property(e => e.Ok).HasColumnName("ok");
+            entity.Property(e => e.OrderId).HasColumnName("order_id");
+            entity.Property(e => e.Preis).HasColumnName("preis").HasColumnType("numeric(10,2)");
+            entity.Property(e => e.Meldung).HasColumnName("meldung");
+            entity.Property(e => e.BriefPdf).HasColumnName("brief_pdf");
         });
 
         // ── VersandKategorieSetting — Freigabe-Matrix Mail/SMS ────────────

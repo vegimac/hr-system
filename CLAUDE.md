@@ -241,6 +241,8 @@ Vor JEDER Arbeit am Lohnlauf/Akonto/Perioden/DTA die Datei lesen (ABSOLUT — ve
 
 ## Konventionen
 
+- **Briefpost über WebStamp der Post (Walter 24.09.2026, Schema-Stand 30):** System → Kommunikation → «Briefpost (WebStamp)» (`page-briefpost`, `js/briefpost.js`, `WebStampController`, nur admin). OneCrew erstellt das PDF, die Post frankiert/druckt/verschickt (Druck- und Versandservice). **Testphase: `new_order` NUR gegen die Testumgebung** (`WebStampEndpunkte.BestellungErlaubt`) — erst nach Abnahme + Integrationsvertrag der Post aufheben. Druckservice nur ohne Barcode (kein Einschreiben). Nachricht NIE loggen (Passwort + PDF). Details: `docs/webstamp-konzept.md`.
+
 - **KEINE scharfen Lohnläufe (Walter-Vorgabe 23.09.2026, gilt bis Walter etwas anderes sagt):** OneCrew hat noch keine produktiven Lohnläufe. Korrekturen an Lohn-/Ferien-/Sperrfrist-Logik gelten für ALLE Perioden — nicht fragen «nur künftige Lohnläufe?», alles korrigieren.
 
 - **Weitere Arbeitgeber = NUR Info für die Checkliste (Walter-Vorgabe 23.09.2026):** Tabelle `weitere_arbeitgeber` (Schema-Stand 26), Sektion unter «Bankverbindung» im Tab «Bewilligung QST Bank weit. AG». **Bewusst NICHT mit QST/Lohnlauf/Swissdec verbunden** — dort bleiben die Felder der QST-Version (`WeitereBeschaftigungen`, `GesamtpensumWeitereAg`, `WeitereAg*`) die Quelle; keine Übernahme, keine Synchronisation, Swissdec-Tests nicht anfassen. Verwendung: Checkliste-Spalte «Erlaubnis Hauptarbeitgeber» (fehlt, wenn ein gültiger weiterer AG Hauptarbeitgeber ist und `erlaubnis_dokument_id` fehlt).

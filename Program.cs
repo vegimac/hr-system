@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 29;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026)
+const int SchemaStand = 30;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung (24.09.2026) · 30: webstamp_setting + webstamp_auftrag Briefpost (24.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -204,6 +204,8 @@ builder.Services.AddScoped<MtpStundenPdfService>();
 // Swissdec ELM 6.0 (Walter 27.08.2026, docs/swissdec-elm6-konzept.md)
 builder.Services.AddSingleton<HrSystem.Services.Elm.ElmEinstellungen>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmTransmitterClient>();
+builder.Services.AddSingleton<HrSystem.Services.WebStamp.WebStampClient>();      // Briefpost über WebStamp (24.09.2026)
+builder.Services.AddScoped<HrSystem.Services.WebStamp.WebStampBriefPdfService>();
 builder.Services.AddSingleton<HrSystem.Services.Elm.ElmXmlValidator>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmZertifikatStore>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmSuaService>();
@@ -1584,6 +1586,36 @@ using (var scope = app.Services.CreateScope())
         -- unabhängig sein. NULL = kein abweichender Stand, dann gilt entry_date.
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS dienstalter_seit DATE;
         ALTER TABLE employee ADD COLUMN IF NOT EXISTS dienstalter_bemerkung TEXT;
+        -- Briefpost über WebStamp der Post (Walter 24.09.2026): Zugangsdaten
+        -- (Singleton, Passwort AES) + Protokoll jeder Vorschau/Bestellung.
+        CREATE TABLE IF NOT EXISTS webstamp_setting (
+            id                 integer PRIMARY KEY,
+            umgebung           text NOT NULL DEFAULT 'test',
+            application_id     text,
+            kunden_id          text,
+            password_encrypted text,
+            produkt_nummer     integer,
+            fenster_rechts     boolean NOT NULL DEFAULT false,
+            updated_at         timestamp without time zone NOT NULL DEFAULT now()
+        );
+        CREATE TABLE IF NOT EXISTS webstamp_auftrag (
+            id             SERIAL PRIMARY KEY,
+            erstellt_am    timestamp without time zone NOT NULL DEFAULT now(),
+            erstellt_von   integer,
+            umgebung       text NOT NULL DEFAULT 'test',
+            art            text NOT NULL,
+            employee_id    integer REFERENCES employee(id) ON DELETE SET NULL,
+            empfaenger     text NOT NULL DEFAULT '',
+            betreff        text NOT NULL DEFAULT '',
+            produkt_nummer integer NOT NULL DEFAULT 0,
+            referenz       text,
+            ok             boolean NOT NULL DEFAULT false,
+            order_id       integer,
+            preis          numeric(10,2),
+            meldung        text,
+            brief_pdf      bytea
+        );
+        CREATE INDEX IF NOT EXISTS ix_webstamp_auftrag_employee ON webstamp_auftrag(employee_id);
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.

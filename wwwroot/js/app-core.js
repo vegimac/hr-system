@@ -1372,7 +1372,7 @@ function roleName(r) {
 const _adminSubPages = ['benutzer','filialen','sv-saetze','lohnpositionen','mindestloehne','kontoplan','warnungen',
                          'qst-tarife','fz-tarife','absenz-typen','behoerden','globale-daten','banken','nationen','swiss-locations','audit-log','aktive-sitzungen',
                          'perioden','dokumentstruktur','archiv-import','dvelop-import',
-                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','moment-texte','filial-onboarding','postfach-backfill',
+                         'permit-import','hr-review-import','qst-import','family-children-import','stammdaten-import','saldo-vortrag-import','saldo-vortrag-import-stunden','mirus-address-compare','smtp-settings','ecall','briefpost','moment-texte','filial-onboarding','postfach-backfill',
                          'saldo-vortrag','dok-audit','pregnancy-rules','datenaufbewahrung','daten-fix','aerzte','easyatwork','elm-lohnraster','lohnschema','hauptsitze','basen-kontrolle','swissdec-lohnarten','funktion-reko','vertrags-historie'];
 
 // Unterseiten des Bereichs «Entwicklung» (Walter 31.08.2026): sie halten den
@@ -1575,6 +1575,7 @@ function showPage(name) {
     if (name === 'absenz-kalender') akalInit();
     if (name === 'smtp-settings') smtpLoad();
     if (name === 'ecall') ecallLoad();
+    if (name === 'briefpost' && typeof wstLoad === 'function') wstLoad();
     if (name === 'lse-export')   lseInit();
 
     // fixhead-Seiten: Versatz für sticky Spaltentitel messen (Walter 22.07.2026).
