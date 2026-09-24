@@ -75,10 +75,18 @@ Adresse links ab 22 mm (rechts ab 118 mm), Fenster-Oberkante 45 mm, 15 mm frei
 meldet die Vorschau pro Sendung (`window`, `state`, `reason`). Passen die Masse
 nicht, in `WebStampBriefPdfService` anpassen.
 
+**Von Hand geprüft (Walter 24.09.2026):** Ausdruck in 100 % im eigenen
+Fenstercouvert (Fenster links): über der Adresse knapp 2 cm frei im Fenster,
+links ca. 0,5 cm vom Fensterrand bis zum ersten Buchstaben — passt. Offen bleibt
+nur die Bestätigung durch die Post-Vorschau (braucht die Application-ID).
+
 ## Nächste Schritte
 
-1. Zugang Testumgebung erhalten → Ping, Login prüfen, Produkte laden, Vorschau.
-2. Fenster-Masse anhand der Vorschau bestätigen.
+1. Application-ID der Post erhalten (Mail an webservice.webstamp@swisspost.ch).
+   Kunden-ID 21661779 + Webservice-Passwort sind in OneCrew gespeichert, Ping ✓.
+   Die Kunden-ID gehört zum PRODUKTIVEN Konto → Umgebung «Produktiv» wählen;
+   dort ist nur die kostenlose Vorschau möglich (Bestellsperre).
+2. Login prüfen, Produkte laden, Vorschau — Fenster-Erkennung durch die Post bestätigen.
 3. Einbau in die Abläufe (Kündigung, Behördenkorrespondenz, Mitteilung): Knopf
    «per Post senden», PDF-Kopie ins Personaldossier.
 4. Abnahme durch die Post, dann Echtbetrieb freischalten.
