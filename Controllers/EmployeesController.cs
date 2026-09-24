@@ -172,6 +172,93 @@ public class EmployeesController : ControllerBase
     }
     public record NotfallDto(int? FamilyMemberId, string? Name, string? Beziehung, string? Telefon);
 
+    /// <summary>
+    /// Betriebszugehörigkeit setzen (Walter-Vorgabe 24.09.2026).
+    ///
+    /// Beim Übertritt in eine andere Filiale und beim Wiedereintritt vergibt
+    /// easy@work ein neues Eintrittsdatum — die Dienstjahre fielen damit auf
+    /// null zurück. HR entscheidet hier, ab wann sie zählen; OneCrew setzt das
+    /// nie von selbst. Leeres Datum = Entscheid «zählt neu», dann gilt wieder
+    /// der Eintritt.
+    ///
+    /// Bewusst ein EIGENER Endpunkt, nicht Teil von Update(): sonst würde der
+    /// easy@work-Re-Import den Entscheid bei jedem Lauf wieder wegräumen —
+    /// dieselbe Falle wie beim Notfallkontakt.
+    /// </summary>
+    [HttpPatch("{id:int}/dienstalter")]
+    public async Task<IActionResult> SetDienstalter(int id, [FromBody] DienstalterDto dto)
+    {
+        var emp = await _context.Employees.FindAsync(id);
+        if (emp == null) return NotFound();
+
+        if (dto.DienstalterSeit.HasValue)
+        {
+            var datum = dto.DienstalterSeit.Value.Date;
+            if (datum > DateTime.Today)
+                return BadRequest(new { error = "DIENSTALTER_ZUKUNFT",
+                    message = "Die Betriebszugehörigkeit kann nicht in der Zukunft beginnen." });
+            // Später als der Eintritt wäre keine Betriebszugehörigkeit, sondern
+            // ein Widerspruch — dann gehört der Eintritt korrigiert.
+            if (emp.EntryDate.HasValue && datum > emp.EntryDate.Value.Date)
+                return BadRequest(new { error = "DIENSTALTER_NACH_EINTRITT",
+                    message = $"Die Betriebszugehörigkeit kann nicht nach dem Eintritt "
+                            + $"({emp.EntryDate.Value:dd.MM.yyyy}) beginnen." });
+            emp.DienstalterSeit = datum;
+        }
+        else
+        {
+            emp.DienstalterSeit = null;
+        }
+        emp.DienstalterBemerkung = string.IsNullOrWhiteSpace(dto.Bemerkung) ? null : dto.Bemerkung.Trim();
+        await _context.SaveChangesAsync();
+        return Ok(new { ok = true, dienstalterSeit = emp.DienstalterSeit, bemerkung = emp.DienstalterBemerkung });
+    }
+    public record DienstalterDto(DateTime? DienstalterSeit, string? Bemerkung);
+
+    /// <summary>
+    /// Vorschlag für die Betriebszugehörigkeit: der früheste Vertragsbeginn
+    /// dieses Mitarbeitenden über ALLE Filialen. Dient dem To-do
+    /// «dienstalter_pruefen» als Ein-Klick-Antwort.
+    /// </summary>
+    [HttpGet("{id:int}/dienstalter-vorschlag")]
+    public async Task<IActionResult> GetDienstalterVorschlag(int id)
+    {
+        var emp = await _context.Employees.AsNoTracking()
+            .Where(e => e.Id == id)
+            .Select(e => new { e.Id, e.EntryDate, e.DienstalterSeit, e.DienstalterBemerkung })
+            .FirstOrDefaultAsync();
+        if (emp == null) return NotFound();
+
+        var abschnitte = await _context.Employments.AsNoTracking()
+            .Where(em => em.EmployeeId == id)
+            .Select(em => new { em.ContractStartDate, em.ContractEndDate, em.CompanyProfileId })
+            .OrderBy(em => em.ContractStartDate)
+            .ToListAsync();
+
+        var frueheste = abschnitte.Count > 0 ? abschnitte[0].ContractStartDate : (DateTime?)null;
+        // Grösste Lücke zwischen zwei Abschnitten — sie ist der Grund, warum das
+        // ein HR-Entscheid ist und kein Automatismus (Walter 24.09.2026).
+        int? groessteLueckeTage = null;
+        for (var i = 1; i < abschnitte.Count; i++)
+        {
+            var vorEnde = abschnitte[i - 1].ContractEndDate;
+            if (!vorEnde.HasValue) continue;
+            var tage = (int)(abschnitte[i].ContractStartDate.Date - vorEnde.Value.Date).TotalDays - 1;
+            if (tage > 0 && (groessteLueckeTage == null || tage > groessteLueckeTage)) groessteLueckeTage = tage;
+        }
+
+        return Ok(new
+        {
+            eintritt          = emp.EntryDate,
+            dienstalterSeit   = emp.DienstalterSeit,
+            bemerkung         = emp.DienstalterBemerkung,
+            vorschlag         = frueheste,
+            anzahlAbschnitte  = abschnitte.Count,
+            groessteLueckeTage,
+            filialen          = abschnitte.Select(a => a.CompanyProfileId).Distinct().Count()
+        });
+    }
+
     [HttpGet("lookup")]
     public async Task<IActionResult> GetLookup()
     {
@@ -466,6 +553,10 @@ public class EmployeesController : ControllerBase
             // Verknüpfung mit Live-Daten aus employee_family_member.
             notfallKontakt,
             employee.EntryDate,
+            // Betriebszugehörigkeit (Walter 24.09.2026): getrennt vom Eintritt,
+            // weil easy@work beim Übertritt ein neues Eintrittsdatum vergibt.
+            employee.DienstalterSeit,
+            employee.DienstalterBemerkung,
             employee.ExitDate,
             // Kündigungs-Daten (Walter 16.07.2026): vom Kündigungsschreiben
             // gesetzt, vom Rückzug gelöscht; in der Anstellungs-Zeile editierbar.

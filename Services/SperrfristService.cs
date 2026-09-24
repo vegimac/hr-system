@@ -90,13 +90,24 @@ public class SperrfristService
     public async Task<SperrfristInfo> ComputeAsync(int employeeId, DateOnly stichtag)
     {
         var employee = await _db.Employees.FindAsync(employeeId);
-        if (employee is null || !employee.EntryDate.HasValue)
+        // Dienstjahre zählen ab der Betriebszugehörigkeit, nicht ab dem aktuellen
+        // Eintritt (Walter 24.09.2026): Beim Übertritt/Wiedereintritt vergibt
+        // easy@work ein neues Eintrittsdatum — die Staffelung darf davon nicht
+        // zurückfallen. DienstalterMassgebend = gesetztes Dienstalter, sonst Eintritt.
+        if (employee is null || !employee.DienstalterMassgebend.HasValue)
         {
             return Empty("KEIN_EINTRITT",
                 "Kein Eintrittsdatum hinterlegt — Sperrfrist nicht berechenbar.");
         }
 
-        var entryDate = DateOnly.FromDateTime(employee.EntryDate.Value);
+        // Zwei verschiedene Daten, bewusst getrennt (Walter 24.09.2026):
+        //   dienstDatum = Betriebszugehörigkeit → Länge der Sperrfrist (Dienstjahr)
+        //   entryDate   = AKTUELLER Eintritt    → Probezeit des laufenden Vertrags
+        // Beim Übertritt beginnt die Probezeit neu, die Dienstjahre aber nicht.
+        var dienstDatum = DateOnly.FromDateTime(employee.DienstalterMassgebend!.Value);
+        var entryDate   = employee.EntryDate.HasValue
+            ? DateOnly.FromDateTime(employee.EntryDate.Value)
+            : dienstDatum;
 
         // Aktives Employment holen (für Probezeit-Info)
         var employment = await _db.Employments
@@ -117,7 +128,7 @@ public class SperrfristService
             }
         }
 
-        int dienstjahr = ComputeDienstjahr(entryDate, stichtag);
+        int dienstjahr = ComputeDienstjahr(dienstDatum, stichtag);
 
         // ── In Probezeit? ──────────────────────────────────────────────────
         if (probezeitEnde.HasValue && stichtag <= probezeitEnde.Value)
@@ -216,14 +227,14 @@ public class SperrfristService
         // dem Maximum.
         //
         // Inklusiv-Zählung: 1. Sperrtag = AU-Beginn, n-ter = Beginn+(n-1).
-        int dienstjahrBeiAu = ComputeDienstjahr(entryDate, auKette.Beginn);
+        int dienstjahrBeiAu = ComputeDienstjahr(dienstDatum, auKette.Beginn);
         int sperrfristAmBeginn = SperrfristTageFuerDienstjahr(dienstjahrBeiAu);
 
         DateOnly sperrfristEnde = auKette.Beginn.AddDays(sperrfristAmBeginn - 1);
 
         int? sperrfristHoechstens = null;
         // Liegt der berechnete Sperrfrist-Endpunkt in einem höheren Dienstjahr?
-        int dienstjahrAmEnde = ComputeDienstjahr(entryDate, sperrfristEnde);
+        int dienstjahrAmEnde = ComputeDienstjahr(dienstDatum, sperrfristEnde);
         if (dienstjahrAmEnde > dienstjahrBeiAu)
         {
             int hoehere = SperrfristTageFuerDienstjahr(dienstjahrAmEnde);

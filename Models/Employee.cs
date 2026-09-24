@@ -67,6 +67,36 @@ public class Employee
     public DateTime? EntryDate { get; set; }
     public DateTime? ExitDate { get; set; }
 
+    /// <summary>
+    /// Beginn der Betriebszugehörigkeit (Walter-Vorgabe 24.09.2026).
+    ///
+    /// Beim Übertritt in eine andere Filiale und beim Wiedereintritt vergibt
+    /// easy@work ein NEUES «Datum der Betriebszugehörigkeit» — damit fiele der
+    /// Mitarbeitende zurück ins erste Dienstjahr. Das trifft die Lohnfortzahlung
+    /// bei Krankheit, die Karenz, die Sperrfrist nach Art. 336c und den
+    /// L-GAV-Beitrag.
+    ///
+    /// Darum zwei Felder: <see cref="EntryDate"/> bleibt der AKTUELLE Eintritt
+    /// (Probezeit, Vertrag, Onboarding), dieses Feld trägt die Zeit, ab der die
+    /// Dienstjahre zählen. NULL = kein abweichender Stand, dann gilt der Eintritt.
+    ///
+    /// Gesetzt wird es NIE vom Import, sondern nur von HR — über das To-do
+    /// «dienstalter_pruefen», das meldet, wenn es ältere Verträge gibt als der
+    /// Eintritt. Bei einem Wiedereintritt mit Unterbruch ist es ein Entscheid,
+    /// kein Automatismus (Walter 24.09.2026).
+    /// </summary>
+    public DateTime? DienstalterSeit { get; set; }
+
+    /// <summary>Warum das Dienstalter abweicht (z.B. «Übertritt Sursee → Reinach»).</summary>
+    public string? DienstalterBemerkung { get; set; }
+
+    /// <summary>
+    /// Für die Dienstjahre massgebendes Datum: das bewusst gesetzte
+    /// Dienstalter, sonst der Eintritt. Jede Berechnung, die nach Dienstjahren
+    /// staffelt, nimmt DIESES Datum — nie <see cref="EntryDate"/> direkt.
+    /// </summary>
+    public DateTime? DienstalterMassgebend => DienstalterSeit ?? EntryDate;
+
     /// <summary>Kündigung ausgesprochen am (Walter 16.07.2026) — wird beim
     /// Erstellen des Kündigungsschreibens gesetzt, beim Kündigungsrückzug
     /// gelöscht. NICHT das Austrittsdatum (das kann früher liegen).</summary>

@@ -16,7 +16,7 @@ using System.Text;
 // Tabelle, Seed), SchemaStand um 1 erhöhen — sonst läuft es nicht, der
 // Schema-Check schlägt fehl und deploy.sh bricht vor Prod ab (gewollt).
 // Layout/Menü/JS/CSS ändern den Stand NICHT.
-const int SchemaStand = 28;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026)
+const int SchemaStand = 29;  // 2: teilmonat_methode (09.09.2026) · 3: Schlussabrechnungs-Schalter · 4: uniform_depot_aktiv (10.09.2026) · 5: app_user.totp_* Zweite Prüfung · 6: employee_qst_arbeitstage (11.09.2026) · 7: qst_sonderkategorie (11.09.2026) · 8: qst_sonderkategorie_satz.code + ESTV Satzart 11 (12.09.2026) · 9: Muster AG Ferien 13.04 % ab 60 + Lektionen 1006-Basen (12.09.2026) · 10: BVG-Fix-Dubletten aufräumen (12.09.2026) · 11: employee_quellensteuer.erfahren_am (15.09.2026) · 12: erfahren_am Kind/Bewilligung/Zivilstand (15.09.2026) · 13: Ortszulage 1033 nicht 13.-ML-Basis (17.09.2026) · 14: 180.3 13. ML auszahlen (17.09.2026) · 15: lohnlauf_nur_hr Filial-Schalter (17.09.2026) · 16: family_member_allowance.erfahren_am + famz_korrektur (18.09.2026) · 17: lohnposition.qst_periodisch (21.09.2026) · 18: dito, Block vor den Schema-Check verschoben (21.09.2026) · 19: employment.funktion_geprueft (22.09.2026) · 20: Warnliste-Eintrag zivilstand_fehlt sicherstellen (23.09.2026) · 21: direkt verknüpfte Dokumente AHV-Karte/Geburtsurkunde/Zivilstand/Foto/Bankbeleg (23.09.2026) · 22: employment.vertrag_dokument_id (23.09.2026) · 23: absence.dokument_id (23.09.2026) · 24: absence.ferienfaehig (23.09.2026) · 25: ferien_kuerzung (23.09.2026) · 26: weitere_arbeitgeber (23.09.2026) · 27: To-do erlaubnis_hauptarbeitgeber_fehlt (23.09.2026) · 28: employment.unterschrift_eltern (23.09.2026) · 29: employee.dienstalter_seit/-bemerkung + To-do dienstalter_pruefen (24.09.2026)
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -772,7 +772,8 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO dashboard_warning_config
             (category, label, enabled, warn_days, escalate_days, severity_base, severity_escalated, is_date_based, sort_order, todo_priority, warn_color)
         VALUES
-            ('zivilstand_fehlt', 'Zivilstand fehlt', TRUE, NULL, NULL, 'warning', NULL, FALSE, 29, 18, 'red')
+            ('zivilstand_fehlt', 'Zivilstand fehlt', TRUE, NULL, NULL, 'warning', NULL, FALSE, 29, 18, 'red'),
+            ('dienstalter_pruefen', 'Betriebszugehörigkeit prüfen', TRUE, NULL, NULL, 'warning', NULL, FALSE, 30, 19, 'orange')
         ON CONFLICT (category) DO NOTHING;
     ");
 
@@ -1578,6 +1579,12 @@ using (var scope = app.Services.CreateScope())
             erstellt_am           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS ix_weitere_arbeitgeber_employee ON weitere_arbeitgeber(employee_id);
+        -- Betriebszugehörigkeit getrennt vom Eintritt (Walter 24.09.2026):
+        -- easy@work vergibt beim Übertritt/Wiedereintritt ein neues Datum; die
+        -- Dienstjahre (Lohnfortzahlung, Karenz, Sperrfrist, L-GAV) müssen davon
+        -- unabhängig sein. NULL = kein abweichender Stand, dann gilt entry_date.
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS dienstalter_seit DATE;
+        ALTER TABLE employee ADD COLUMN IF NOT EXISTS dienstalter_bemerkung TEXT;
     ");
 
     // Schema-Check läuft IMMER — auch wenn das Start-SQL übersprungen wurde.
@@ -1762,6 +1769,10 @@ using (var scope = app.Services.CreateScope())
          'Zivilstand nachtragen',
          'Mitarbeiter öffnen, Tab «Übersicht», bei den Personalien den Zivilstand wählen und speichern. Ohne Zivilstand greift weder die Ehegatten-Befreiung noch der richtige QST-Tarif.',
          245),
+        ('dienstalter_pruefen',
+         'Entscheiden, ab wann die Dienstjahre zählen',
+         'Der Mitarbeitende hat ältere Verträge als sein Eintrittsdatum — typisch nach einem Übertritt in eine andere Filiale oder einem Wiedereintritt. Mitarbeiter öffnen, Tab «Übersicht», Feld «Dienstalter seit»: zählt die frühere Zeit weiter, das alte Datum eintragen; beginnt sie neu, den Eintritt bestätigen. Davon hängen Lohnfortzahlung bei Krankheit, Karenztage und die Sperrfrist ab.',
+         248),
         ('availability_missing',
          'Verfügbarkeit erfassen',
          'Mögliche Tage und Zeiten beim Mitarbeitenden abfragen und im System eintragen.',

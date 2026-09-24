@@ -84,15 +84,17 @@ public class KarenzService
                     new DateOnly(datum.Year, 12, 31));
         }
 
-        // ARBEITSJAHR — Anker ist das Eintrittsdatum.
-        if (!employee.EntryDate.HasValue)
+        // ARBEITSJAHR — Anker ist die Betriebszugehörigkeit (Walter 24.09.2026),
+        // also das gesetzte Dienstalter, sonst der Eintritt. Beim Wiedereintritt
+        // dürfen die Karenztage nicht auf ein neues Arbeitsjahr zurückfallen.
+        if (!employee.DienstalterMassgebend.HasValue)
         {
             // Ohne Eintrittsdatum fallen wir auf Kalenderjahr zurück.
             return (new DateOnly(datum.Year, 1, 1),
                     new DateOnly(datum.Year, 12, 31));
         }
 
-        var hired = DateOnly.FromDateTime(employee.EntryDate.Value);
+        var hired = DateOnly.FromDateTime(employee.DienstalterMassgebend!.Value);
 
         int yd = datum.Year - hired.Year;
         var anniversaryInSameYear = SafeAnniversary(datum.Year, hired.Month, hired.Day);

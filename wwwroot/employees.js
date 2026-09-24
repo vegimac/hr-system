@@ -1859,6 +1859,7 @@ function loadUebersichtTab() {
             <div class="ov-anst-top">
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.entryDate','Eintritt')}</div><div class="ov-pfv">${emp.entryDate ? formatDate(emp.entryDate) : '<span class="ov-empty">–</span>'}</div></div>
                 <div class="ov-pf ov-anst-datum"><div class="ov-pfl">${_t('ma.detail.exitDate','Austritt')}</div><div class="ov-pfv">${emp.exitDate ? formatDate(emp.exitDate) : '<span class="ov-empty">–</span>'}</div></div>
+                ${_ovDienstalterRowHtml(emp)}
                 ${_ovArbeitszeugnisRowHtml(emp)}
                 <div class="ov-pf ov-anst-tog"><div class="ov-pfl">L-GAV</div><div class="ov-pfv">${yesNoToggle('ov-lgavPflichtig', !!emp.lgavPflichtig)}</div></div>
             </div>
@@ -18290,4 +18291,112 @@ async function fmOcrAusweisRun(docId) {
     } catch (e) {
         if (body) body.innerHTML = `<div style="color:#b91c1c;font-size:13px;padding:8px 0">Fehler: ${String(e.message || e).replace(/</g,'&lt;')}</div>`;
     }
+}
+
+
+// ── Betriebszugehörigkeit (Walter-Vorgabe 24.09.2026) ───────────────────────
+// Beim Übertritt in eine andere Filiale und beim Wiedereintritt vergibt
+// easy@work ein NEUES Eintrittsdatum. Die Dienstjahre dürfen davon nicht
+// zurückfallen — sie steuern Lohnfortzahlung, Karenz und Sperrfrist. Darum
+// zwei Felder: «Eintritt» bleibt der aktuelle Eintritt, «Dienstalter seit»
+// trägt die Zeit, ab der gezählt wird. Gesetzt wird es NUR hier von Hand;
+// der easy@work-Import fasst es nie an.
+function _ovDienstalterRowHtml(emp) {
+    const gesetzt = !!emp.dienstalterSeit;
+    const wert = gesetzt
+        ? formatDate(emp.dienstalterSeit)
+        : (emp.entryDate ? `<span style="color:#8b8b8b">wie Eintritt</span>` : '<span class="ov-empty">–</span>');
+    const titel = gesetzt && emp.dienstalterBemerkung ? ` title="${esc(emp.dienstalterBemerkung)}"` : '';
+    return `<div class="ov-pf ov-anst-datum"${titel}>
+        <div class="ov-pfl">Dienstalter seit</div>
+        <div class="ov-pfv" style="display:flex;align-items:center;gap:6px">
+            ${wert}
+            <button type="button" onclick="ovDienstalterModal(${emp.id})"
+                    title="Ab wann zählen die Dienstjahre? (Lohnfortzahlung, Karenz, Sperrfrist)"
+                    style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.22);border-radius:8px;padding:1px 7px;font-size:11px;color:#3f3f3f;cursor:pointer">ändern</button>
+        </div>
+    </div>`;
+}
+
+let _ovDienstalterEmpId = null;
+
+async function ovDienstalterModal(empId) {
+    _ovDienstalterEmpId = empId;
+    let j = null;
+    try {
+        const r = await fetch(`/api/employees/${empId}/dienstalter-vorschlag`, { headers: ah(), cache: 'no-store' });
+        if (r.ok) j = await r.json();
+    } catch (e) { /* ohne Vorschlag geht es auch */ }
+
+    const fmt = (iso) => iso ? formatDate(iso) : '–';
+    const lueckeText = (j && j.groessteLueckeTage)
+        ? `<div style="background:#fdf1dc;border:1px solid #f3d9a4;color:#7c5a10;border-radius:10px;padding:9px 12px;margin-bottom:10px;font-size:12.5px">
+               Zwischen zwei Verträgen liegt eine Lücke von <b>${j.groessteLueckeTage} Tagen</b>.
+               Bei einem echten Unterbruch beginnen die Dienstjahre neu — bei einem Übertritt ohne Unterbruch laufen sie weiter.
+               Das ist ein Entscheid, den nur HR treffen kann.
+           </div>`
+        : '';
+    const vorschlag = j && j.vorschlag ? j.vorschlag.slice(0, 10) : '';
+
+    const box = document.createElement('div');
+    box.className = 'modal';
+    box.id = 'ovDienstalterModal';
+    box.style.display = 'flex';
+    box.innerHTML = `
+        <div class="ma-modal-box" style="max-width:560px">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">Betriebszugehörigkeit</div>
+            <p style="font-size:12.5px;color:#646464;margin:0 0 12px">
+                Ab welchem Datum zählen die Dienstjahre? Davon hängen die Lohnfortzahlung bei
+                Krankheit, die Karenztage und die Sperrfrist nach Art. 336c ab. Der <b>Eintritt</b>
+                bleibt davon unberührt — er gilt weiter für Probezeit und Vertrag.
+            </p>
+            ${lueckeText}
+            <div style="font-size:12.5px;line-height:1.9;margin-bottom:12px">
+                Eintritt (aktueller Vertrag): <b>${fmt(j && j.eintritt)}</b><br>
+                Frühester Vertrag im Unternehmen: <b>${fmt(j && j.vorschlag)}</b>
+                ${j && j.anzahlAbschnitte ? `<span style="color:#8b8b8b"> · ${j.anzahlAbschnitte} Vertragsabschnitte in ${j.filialen} Filiale(n)</span>` : ''}
+            </div>
+            <label style="font-size:12px;color:#475569;display:block;margin-bottom:10px">Dienstalter seit
+                <input type="date" id="ovDaDatum" value="${(j && j.dienstalterSeit) ? j.dienstalterSeit.slice(0,10) : ''}"
+                       style="display:block;width:100%;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:7px 9px;font-size:13px;margin-top:4px;box-shadow:0 2px 6px rgba(60,55,48,0.13)">
+            </label>
+            <label style="font-size:12px;color:#475569;display:block;margin-bottom:14px">Bemerkung (warum)
+                <input type="text" id="ovDaBemerkung" placeholder="z.B. Übertritt Sursee → Reinach"
+                       value="${esc((j && j.bemerkung) || '')}"
+                       style="display:block;width:100%;background:#fff;border:1px solid rgba(255,255,255,0.95);border-radius:10px;padding:7px 9px;font-size:13px;margin-top:4px;box-shadow:0 2px 6px rgba(60,55,48,0.13)">
+            </label>
+            <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">
+                ${vorschlag ? `<button type="button" onclick="document.getElementById('ovDaDatum').value='${vorschlag}'"
+                        style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">Frühesten Vertrag übernehmen</button>` : ''}
+                <button type="button" onclick="ovDienstalterSpeichern(true)"
+                        style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">Zählt neu ab Eintritt</button>
+                <button type="button" onclick="ovDienstalterModalSchliessen()"
+                        style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:12px;padding:7px 13px;font-size:12.5px;font-weight:600;color:#3f3f3f;cursor:pointer">Abbrechen</button>
+                <button type="button" onclick="ovDienstalterSpeichern(false)"
+                        style="background:#3f3f3f;border:none;border-radius:12px;padding:7px 15px;font-size:12.5px;font-weight:600;color:#fff;cursor:pointer">Speichern</button>
+            </div>
+        </div>`;
+    document.body.appendChild(box);
+}
+
+function ovDienstalterModalSchliessen() {
+    document.getElementById('ovDienstalterModal')?.remove();
+}
+
+/** leeren=true → Entscheid «Dienstjahre zählen neu», Feld wird geleert. */
+async function ovDienstalterSpeichern(leeren) {
+    const empId = _ovDienstalterEmpId;
+    const datum = leeren ? null : (document.getElementById('ovDaDatum')?.value || null);
+    const bem   = document.getElementById('ovDaBemerkung')?.value || null;
+    try {
+        const r = await fetch(`/api/employees/${empId}/dienstalter`, {
+            method: 'PATCH',
+            headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dienstalterSeit: datum, bemerkung: bem })
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { alert(j?.message || 'Speichern fehlgeschlagen'); return; }
+        ovDienstalterModalSchliessen();
+        if (typeof selectEmployee === 'function') selectEmployee(empId);
+    } catch (e) { alert('Speichern fehlgeschlagen: ' + e.message); }
 }
