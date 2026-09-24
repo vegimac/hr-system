@@ -6,13 +6,11 @@ using System.Linq;
 namespace HrSystem.Services.EasyAtWork;
 
 /// <summary>
-/// Datums-Diagnose (Walter-Vorgabe 24.09.2026, «ein für allemal lösen»):
-/// easy@work speichert ein UI-Datum als UTC-Zeitpunkt, und zwar je nach Objekt
-/// und Eingabeweg als Tagesanfang, Tagesende oder exklusive Mitternacht. Diese
-/// Klasse schreibt NICHTS — sie ordnet jeden Roh-Wert einer Speicherart zu und
-/// meldet Stellen, an denen die Umrechnung einen Tag danebenliegen könnte
-/// (Fälle 1220009 und 580101). Grundlage für die zentrale Umrechnung und die
-/// Support-Anfrage bei easy@work.
+/// Datums-Diagnose (Walter-Vorgabe 24.09.2026): ordnet jeden easy@work-Roh-Wert
+/// von Vertrag und Lohnsatz einer Speicherart zu (00:00 / 23:59:59 Zürich, nur
+/// Datum …) und meldet, wo Vertrag und Lohnsatz am Rand einen Tag auseinander-
+/// liegen. Lesung: UTC → Zürich, dann den Kalendertag — 00:00 und 23:59:59
+/// meinen beide diesen Tag. Schreibt NICHTS.
 /// </summary>
 public static class EasyAtWorkDatumDiagnose
 {
@@ -50,8 +48,8 @@ public static class EasyAtWorkDatumDiagnose
 
     /// <summary>
     /// Prüft die Verträge und Lohnsätze EINES MA. Gelöschte Einträge werden wie
-    /// im Sync übergangen. Die Befunde beziehen sich auf die Rohdaten VOR den
-    /// Korrekturen des Syncs; ob eine Korrektur greift, steht im Befundtext.
+    /// im Sync übergangen. Die Befunde beziehen sich auf die Rohdaten; der
+    /// Befundtext sagt, was der Sync daraus macht.
     /// </summary>
     public static MaErgebnis Pruefe(List<EawContract>? contracts, List<EawPayRate>? rates)
     {
@@ -76,10 +74,10 @@ public static class EasyAtWorkDatumDiagnose
         foreach (var c in cs) { Erfasse("Vertrag von", c.FromRaw, c.From); Erfasse("Vertrag bis", c.ToRaw, c.To); }
         foreach (var r in rs) { Erfasse("Lohnsatz von", r.FromRaw, r.From); Erfasse("Lohnsatz bis", r.ToRaw, r.To); }
 
-        // 1) Vertrag, der nach dem Einlesen nur einen Tag dauert (Fall 580101).
+        // 1) Vertrag, der nur einen Tag dauert.
         foreach (var c in cs.Where(c => c.From.HasValue && c.To.HasValue && c.To.Value <= c.From.Value))
             befunde.Add(new("VERTRAG_EIN_TAG",
-                $"Vertrag {c.From:dd.MM.yyyy}–{c.To:dd.MM.yyyy} dauert höchstens einen Tag — vermutlich ein Umrechnungs-Rest.",
+                $"Vertrag {c.From:dd.MM.yyyy}–{c.To:dd.MM.yyyy} dauert höchstens einen Tag — bitte in easy@work prüfen.",
                 $"from={c.FromRaw} · to={c.ToRaw}"));
 
         // 2) Aufeinanderfolgende Verträge mit einem Tag Lücke oder Überlappung.
@@ -110,11 +108,11 @@ public static class EasyAtWorkDatumDiagnose
                 int d = c.To!.Value.DayNumber - rTo.DayNumber;
                 if (d == 1)
                     befunde.Add(new("LOHNSATZ_ENDE_1_TAG_FRUEHER",
-                        $"Lohnsatz endet {rTo:dd.MM.yyyy}, Vertrag {c.To:dd.MM.yyyy} — der Sync gleicht das seit 24.09.2026 automatisch an.",
+                        $"Lohnsatz endet {rTo:dd.MM.yyyy}, Vertrag {c.To:dd.MM.yyyy} — der Tag ohne Lohnsatz bleibt im selben Employment.",
                         $"Lohnsatz to={r.ToRaw} · Vertrag to={c.ToRaw}"));
                 else if (d == -1)
                     befunde.Add(new("LOHNSATZ_ENDE_1_TAG_SPAETER",
-                        $"Lohnsatz endet {rTo:dd.MM.yyyy}, Vertrag schon {c.To:dd.MM.yyyy} — nicht automatisch angeglichen.",
+                        $"Lohnsatz endet {rTo:dd.MM.yyyy}, Vertrag schon {c.To:dd.MM.yyyy} — der Tag nach Vertragsende ergibt kein Employment.",
                         $"Lohnsatz to={r.ToRaw} · Vertrag to={c.ToRaw}"));
             }
         }

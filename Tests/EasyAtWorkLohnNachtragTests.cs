@@ -275,8 +275,8 @@ public class EasyAtWorkLohnNachtragTests
     [Fact]
     public void TarifEndeEinenTagVorVertragsende_KeinEinTagesVertrag()
     {
-        // Walter-Bug 24.09.2026 (MA 580101 Vogt): easy zeigt bei Vertrag UND Tarif
-        // «bis 31.10.», speichert aber Vertrag = Tagesende, Tarif = Tagesanfang (UTC).
+        // MA 580101 Vogt: Vertrag 23:59:59, Tarif 00:00 Zürich — beide der 31.10.2026
+        // (Walter-Vorgabe 24.09.2026). Ein Segment, ohne ToRaw zu verbiegen.
         var c = new List<EawContract>
         {
             new() { Id = 45767, AmountType = "week", Amount = 17m,
@@ -293,5 +293,44 @@ public class EasyAtWorkLohnNachtragTests
         Assert.Equal(new DateOnly(2026, 10, 31), s.End);
         Assert.Equal(16.85m, s.Info.HourlyRate);
         Assert.False(s.EasyAtWorkManualOverride);
+        Assert.Equal("2026-10-30 23:00:00", r[0].ToRaw);
+    }
+
+    [Fact]
+    public void Fall750041_BeideEnden20Januar_EinSegment()
+    {
+        var c = new List<EawContract> { new() { Id = 1, AmountType = "week", Amount = 17m,
+                    FromRaw = "2024-05-31 22:00:00", ToRaw = "2025-01-20 22:59:59" } };
+        var r = new List<EawPayRate>  { new() { Id = 2, Type = "hour", Rate = 20m,
+                    FromRaw = "2024-05-31 22:00:00", ToRaw = "2025-01-19 23:00:00" } };
+        var s = Assert.Single(EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, new DateOnly(2026, 9, 24)));
+        Assert.Equal(new DateOnly(2025, 1, 20), s.End);
+    }
+
+    [Fact]
+    public void Fall750006_LohnsatzEinenTagLaenger_KeinEmploymentAm10Februar()
+    {
+        var c = new List<EawContract> { new() { Id = 1, AmountType = "week", Amount = 17m,
+                    FromRaw = "2024-05-31 22:00:00", ToRaw = "2025-02-09 22:59:59" } };
+        var r = new List<EawPayRate>  { new() { Id = 2, Type = "hour", Rate = 20m,
+                    FromRaw = "2024-05-31 22:00:00", ToRaw = "2025-02-09 23:00:00" } };
+        var s = Assert.Single(EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, new DateOnly(2026, 9, 24)));
+        Assert.Equal(new DateOnly(2025, 2, 9), s.End);
+        Assert.Equal(new DateOnly(2025, 2, 10), r[0].To);   // Lohnsatz-Datum bleibt, wie easy es liefert
+    }
+
+    [Fact]
+    public void Fall750035_LohnsatzBeginntEinenTagSpaeter_EinEmploymentAbVertragsbeginn()
+    {
+        var c = new List<EawContract> { new() { Id = 1, AmountType = "week", Amount = 17m,
+                    FromRaw = "2024-04-08 22:00:00" } };
+        var r = new List<EawPayRate>  { new() { Id = 2, Type = "hour", Rate = 20m,
+                    FromRaw = "2024-04-09 22:00:00" } };
+        var s = Assert.Single(EasyAtWorkEmployeeSyncService.BuildEmploymentTimeline(c, r, new DateOnly(2026, 9, 24)));
+        Assert.Equal(new DateOnly(2024, 4, 9), s.Start);
+        Assert.Null(s.End);
+        Assert.Equal(20m, s.Info.HourlyRate);
+        Assert.False(s.EasyAtWorkManualOverride);
+        Assert.Equal(new DateOnly(2024, 4, 10), r[0].From);
     }
 }

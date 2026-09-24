@@ -27,31 +27,24 @@ public class EasyAtWorkDatumDiagnoseTests
     }
 
     [Fact]
-    public void Fall580101_LohnsatzEndetEinenTagFrueher()
+    public void Fall580101_BeideEnden31Oktober_KeinBefund()
     {
+        // Vertrag = 23:59:59, Lohnsatz = 00:00 Zürich — beide der 31.10.2026.
         var c = new List<EawContract> { new() { FromRaw = "2026-06-30 22:00:00", ToRaw = "2026-10-31 22:59:59" } };
         var r = new List<EawPayRate>  { new() { FromRaw = "2026-06-30 22:00:00", ToRaw = "2026-10-30 23:00:00" } };
         var erg = EasyAtWorkDatumDiagnose.Pruefe(c, r);
-        Assert.Contains(erg.Befunde, b => b.Code == "LOHNSATZ_ENDE_1_TAG_FRUEHER");
+        Assert.Empty(erg.Befunde);
         Assert.Equal(4, erg.Werte.Count);
     }
 
     [Fact]
-    public void Fall1220009_ExklusiveMitternacht_SauberAngeschlossen()
+    public void Fall1220009_LohnsatzEndetEinenTagNachDemVertrag()
     {
-        // Vertrag bis 31.01. als exklusive Mitternacht, Folgevertrag ab 01.02.
-        var c = new List<EawContract>
-        {
-            new() { FromRaw = "2025-05-31 22:00:00", ToRaw = "2026-01-31 23:00:00" },
-            new() { FromRaw = "2026-01-31 23:00:00" },
-        };
-        var r = new List<EawPayRate>
-        {
-            new() { FromRaw = "2025-05-31 22:00:00", ToRaw = "2026-01-31 23:00:00" },
-            new() { FromRaw = "2026-01-31 23:00:00" },
-        };
+        // Echte Werte: Vertrag 31758 bis 31.01.2026, Lohnsatz 45606 bis 01.02.2026.
+        var c = new List<EawContract> { new() { FromRaw = "2024-12-31 23:00:00", ToRaw = "2026-01-31 22:59:59" } };
+        var r = new List<EawPayRate>  { new() { FromRaw = "2024-12-31 23:00:00", ToRaw = "2026-01-31 23:00:00" } };
         var erg = EasyAtWorkDatumDiagnose.Pruefe(c, r);
-        Assert.Empty(erg.Befunde);
+        Assert.Contains(erg.Befunde, b => b.Code == "LOHNSATZ_ENDE_1_TAG_SPAETER");
     }
 
     [Fact]

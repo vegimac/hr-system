@@ -3340,33 +3340,6 @@ public class EasyAtWorkEmployeeSyncService
     }
 
     /// <summary>
-    /// Ein-Tages-Lücke zwischen Tarif- und Vertragsende schliessen (Walter-Bug
-    /// 24.09.2026, MA 580101 Vogt): easy@work zeigt bei beiden «bis 31.10.»,
-    /// speichert den Vertrag aber als Tagesende (…-31 22:59:59 UTC) und den Tarif
-    /// als Tagesanfang (…-30 23:00:00 UTC = 31.10. 00:00 Zürich). Die inklusive
-    /// Lesung macht aus dem Tarif-Ende den 30.10. → der 31.10. hätte Vertrag ohne
-    /// Tarif und würde als eigener Ein-Tages-Vertrag importiert. Regel: endet ein
-    /// Tarif GENAU einen Tag vor dem Vertrag, in dem er liegt, und deckt kein
-    /// anderer Tarif diesen Tag, gilt das Vertragsende auch für den Tarif.
-    /// Bewusst nur 1 Tag — grössere Abweichungen sind echte Erfassungsfehler.
-    /// </summary>
-    public static void GleicheTarifendeAnVertragsendeAn(List<EawContract>? contracts, List<EawPayRate>? rates)
-    {
-        if (contracts == null || rates == null) return;
-        foreach (var r in rates.Where(r => !r.IsDeleted && r.From.HasValue && r.To.HasValue).ToList())
-        {
-            var tag = r.To!.Value.AddDays(1);
-            bool andererTarif = rates.Any(x => !ReferenceEquals(x, r) && !x.IsDeleted && x.From.HasValue
-                && x.From.Value <= tag && (!x.To.HasValue || x.To.Value >= tag));
-            if (andererTarif) continue;
-            bool vertragEndetEinenTagSpaeter = contracts.Any(c => !c.IsDeleted && c.From.HasValue
-                && c.From.Value <= r.To.Value && c.To.HasValue && c.To.Value == tag);
-            if (vertragEndetEinenTagSpaeter)
-                r.ToRaw = tag.ToString("yyyy-MM-dd");
-        }
-    }
-
-    /// <summary>
     /// STRICT-Validierung der easy@work-Verträge eines MA (Walter-Vorgabe
     /// 08.07.2026): Verträge dürfen sich NICHT überschneiden — auch nicht um
     /// einen Tag (Ende 1.4. + neuer Beginn 1.4. ist falsch; korrekt wäre Ende
@@ -3417,6 +3390,8 @@ public class EasyAtWorkEmployeeSyncService
         public int?      EasyAtWorkPayRateId;    // Herkunfts-PayRate (easy@work)
         public DateTime? EasyAtWorkUpdatedAt;    // max(contract.updated_at, pay_rate.updated_at)
         public bool      EasyAtWorkManualOverride; // true bei Platzhalterlohn rate<=1
+        public bool      OhneLohnsatz;           // an diesem Abschnitt gilt kein easy-Lohnsatz
+        [System.Text.Json.Serialization.JsonIgnore] public EawContract? Vertrag; // Herkunfts-Contract (Objekt)
     }
 
     /// <summary>
@@ -3435,7 +3410,6 @@ public class EasyAtWorkEmployeeSyncService
         rates     ??= new();
         SchliesseVorgaengerAmTagVorNachfolger(contracts);
         SchliesseVorgaengerTarifeAmTagVorNachfolger(rates);
-        GleicheTarifendeAnVertragsendeAn(contracts, rates);
 
         static bool CApplies(EawContract c, DateOnly d) => !c.IsDeleted && c.From.HasValue && c.From.Value <= d && (!c.To.HasValue || c.To.Value >= d);
         static bool RApplies(EawPayRate r, DateOnly d)  => !r.IsDeleted && r.From.HasValue && r.From.Value <= d && (!r.To.HasValue || r.To.Value >= d);
@@ -3500,7 +3474,36 @@ public class EasyAtWorkEmployeeSyncService
                 //      darf vom Sync weder geleert noch das Modell gekippt werden.
                 EasyAtWorkManualOverride = rAt == null
                     || (rAt.Rate.HasValue && rAt.Rate.Value <= 1.00m),
+                OhneLohnsatz = rAt == null,
+                Vertrag = cAt,
             });
+        }
+
+        // Ein easy-Vertrag = ein Employment (Walter-Vorgabe 24.09.2026): Der Vertrag
+        // bestimmt Anfang und Ende, der Lohnsatz nur den Lohn darin. Liegen Von/Bis
+        // von Vertrag und Lohnsatz am Rand auseinander (750035: Vertrag ab 09.04.,
+        // Lohnsatz ab 10.04.), bleibt der Tag ohne Lohnsatz im selben Employment —
+        // er wird dem angrenzenden Abschnitt desselben Vertrags zugeschlagen, statt
+        // einen Ein-Tages-Vertrag zu erzeugen. Kein easy-Datum wird umgeschrieben.
+        // Hat der Vertrag gar keinen Lohnsatz (vertraulicher Lohn), bleibt alles wie es ist.
+        for (int k = 0; k < segments.Count; k++)
+        {
+            var s0 = segments[k];
+            if (!s0.OhneLohnsatz) continue;
+            var next = k + 1 < segments.Count ? segments[k + 1] : null;
+            var prev = k > 0 ? segments[k - 1] : null;
+            if (next != null && !next.OhneLohnsatz && s0.End.HasValue
+                && ReferenceEquals(next.Vertrag, s0.Vertrag) && next.Start == s0.End.Value.AddDays(1))
+            {
+                next.Start = s0.Start;
+                segments.RemoveAt(k); k--;
+            }
+            else if (prev != null && !prev.OhneLohnsatz && prev.End.HasValue
+                && ReferenceEquals(prev.Vertrag, s0.Vertrag) && s0.Start == prev.End.Value.AddDays(1))
+            {
+                prev.End = s0.End;
+                segments.RemoveAt(k); k--;
+            }
         }
 
         // Direkt angrenzende, inhaltlich identische Segmente zusammenführen.
