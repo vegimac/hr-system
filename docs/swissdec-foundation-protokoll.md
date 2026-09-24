@@ -21,7 +21,7 @@ PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unt
 | F04 Archivierung | 3 | 0 | offen (signiert/unverschlüsselt archivieren + SignatureConfirmation) |
 | F05 Übermittlung | 8 | 0 | offen · **Expertin: erst nach F07** |
 | F06 Validierung | 1 | 0 | offen (PlausibilityRules / Distributor-Ablehnung) |
-| F07 SUA-Zertifikat | 20 | 0 | **nächster Bau** · Zertifikate selbst in Foundation (Expertin 24.09.) |
+| F07 SUA-Zertifikat | 20 | 0 | **im Bau (Walter/Cursor)** · Bauanleitung im Abschnitt F07 |
 | F08 Prozesse | 13 | 0 | offen (GetStatus, DialogMessages, Sync/Async) |
 | **Total** | **90** | **7 belegt · 12 gebaut** | |
 
@@ -360,6 +360,88 @@ Feld `elmOperand2` in `index.html`. Tests: `Tests/ElmInteropTests.cs` (30).
 **Offen:** Scharf vorführen lässt sich F03 erst, wenn der Aufruf durchkommt — CheckInteroperability
 wird ohne WS-Security-Signatur mit «Client.security» abgewiesen (F02). Die Prüflogik steht
 und ist mit nachgebauten Antworten belegt; sie wartet nur auf das Zertifikat.
+
+---
+
+## F07 — SUA-Zertifikat: Bauanleitung (Recherche 24.09.2026)
+
+**Wird von Walter mit Cursor gebaut.** Hier steht, was aus den Schemas und dem Beispiel-XML
+hervorgeht, damit die Suche nicht zweimal gemacht werden muss.
+
+### Ablauf in drei Schritten
+
+**1 · `RegisterOrganizationAuthentication`** — meldet das Unternehmen an.
+**Enthält NOCH KEINEN Zertifikatsantrag** (Beleg: `samples/RegisterOrganizationAuthentication.xml`).
+Inhalt: `RequestContext` · `Job/Addressee` (mit `addresseeID`, `AddresseeIdentification`,
+`ProcessByDistributor`) · `RegisterOrganization` mit `Institution` (z.B. `UVG-LAA` mit
+`addresseeIDRef`), `CompanyDescription` (Name, Adresse, `UID-BFS/UID` = `CHE-123.456.789`)
+und `Contact/Name`. Attribut `schemaVersion` ist Pflicht.
+
+Antwort (`Addressees/Addressee`) ist eine Auswahl aus **`Processing`** / **`Error`** /
+**`Success`**. Bei Erfolg kommen die zwei Dinge, die den ganzen weiteren Verlauf tragen:
+
+* `AddresseeContext/CertificateRequestID`
+* `Credentials/{Key, Password}`
+
+Beides muss gespeichert werden — ohne sie findet man den Fall nicht wieder.
+
+**2 · `SynchronizeRegisterOrganizationAuthentication`** — Statusabfrage UND Antrag in einem.
+Aufbau: `Sender/UID-BFS` · `Addressee` · `Case`:
+
+```
+Case
+ ├ CaseContext      ← Credentials (Key/Password) + CertificateRequestID (+ TestCase)
+ ├ ReceivedState    ← optional: der Zustand, den wir zuletzt gesehen haben (Quittierung)
+ ├ SignCertificate  ← optional: Creation, StoryID, PEM (der CSR), OneTimePassword
+ └ RenewCertificate ← optional: Creation, StoryID, PEM — OHNE OneTimePassword
+```
+
+Antwort: `Error` oder `…Consumer/Case` mit `CaseContext`, **`State`**, optional `Quittance`
+und optional `Certificate`.
+
+**Die Zustände sind kleingeschrieben** (`RegisterOrganizationAuthenticationStateType`):
+`processing` · `registered` · `rejected` · `verified` · `expired`.
+Achtung: **`expired` ist ein sechster Zustand**, den die Prüfliste (F07_03–F07_06) nicht nennt —
+er muss trotzdem angezeigt werden, sonst steht der Benutzer vor einem leeren Bildschirm.
+
+**3 · Zertifikat holen.** Erst bei `State = verified` wird der Antrag mitgeschickt
+(`SignCertificate` mit CSR + Einmalpasswort). Die Antwort ist `CertificateSignResponseType`:
+`SubjectDN` · `IssuerDN` · `NotBefore` · `NotAfter` · **`PEM` (base64-kodiert)**.
+
+### Der Subject-DN kommt vom Empfänger, nicht von uns
+
+`Quittance/X509Subject` liefert `CommonName`, `OrganizationName`, `LocalityName`,
+`StateOrProvinceName`, `CountryName` und optional `BusinessCategory`. **Der CSR ist mit genau
+diesen Werten zu bauen** — ein selbst ausgedachter DN wird beim Signieren abgelehnt. Vor der
+Quittung kennen wir sie nicht; darum: erst Register + Synchronize bis `verified`, dann CSR.
+
+### Stolperstelle: wohin mit dem privaten Schlüssel
+
+**Nicht ins Programmverzeichnis.** `deploy.sh` macht auf dem Server `rm -rf /var/www/hr-system/*`
+und packt das Publish-Paket neu aus — alles dort ist nach dem nächsten Deploy weg. Muster im
+Haus ist `Documents:StoragePath` (`/var/data/hr-system/documents`, gesetzt über die
+systemd-Umgebung). Für die Schlüssel also dasselbe: eigener Pfad ausserhalb von `/var/www`,
+Rechte 600, und **auf beiden Servern** einrichten (Test + Prod).
+
+### Was schon da ist und nicht neu gebaut werden muss
+
+| Vorhanden | Wo |
+|---|---|
+| Signieren / Verschlüsseln / Prüfen (WS-Security) | `Services/Elm/ElmWsSecurity.cs` — `Signiere(doc, zert)` genügt für den Register-Aufruf |
+| SOAP-Umschlag, Versand, TLS-Nachweis, Fault-Auswertung, Zeitvergleich | `Services/Elm/ElmTransmitterClient.cs` (`Envelope`, `PostAsync`, `MitFault`, `MitZeitvergleich`) |
+| Ziel-Adressen + https-Zwang | `Services/Elm/ElmEndpunkte.cs` |
+| Superadmin-Schranke für alle ELM-Endpunkte | `ElmController.NurSuperAdmin()` |
+| Nachrechnen der Interop-Antwort | `Services/Elm/ElmInterop.cs` |
+
+`RegisterOrganizationAuthentication` muss **mit dem ERP-Zertifikat signiert** sein — das
+Schlüsselpaar dafür erzeugen wir laut Expertin selbst (siehe Abschnitt «Zwei Zertifikate»).
+
+### Prüfpunkte, die daraus folgen
+
+F07_02 verlangt einen **Fault** beim Register (RefApps-Einstellung) — die Fault-Anzeige steht
+seit 24.09. F07_03/04/05 sind die drei Zustände, F07_06 das Signieren bei `verified`,
+F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
+**Doppelsignatur** von CheckInteroperability mit ERP- **und** SUA-Zertifikat.
 
 ---
 
