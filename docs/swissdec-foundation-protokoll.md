@@ -11,7 +11,7 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 | Gruppe | Punkte | erledigt | Stand |
 |---|---:|---:|---|
-| F01 Verbindung | 6 | 3 | F01_01, F01_02 grün · F01_03 gebaut, wartet auf «Fake Ping Time» |
+| F01 Verbindung | 6 | 3 | F01_01, F01_02 grün · F01_03 gebaut und **am 24.09.2026 belegt** (Versatz +600 s) |
 | F02 Sicherheit | 27 | 0 | offen |
 | F03 Interoperabilität | 12 | 0 | offen |
 | F04 Archivierung | 3 | 0 | offen |
@@ -133,6 +133,19 @@ Simulation für eine echte Messung hält. Der Wert gilt nur für den einzelnen A
 gespeichert (Grenze ±24 Stunden). Nützlicher Nebeneffekt: Weil die verstellte Zeit auch im
 gesendeten `SystemDateTime` steht, sieht man zugleich, ob der Empfänger seinerseits eine Abweichung
 des Absenders meldet.
+
+**Beleg (Lauf vom 24.09.2026, Versatz +600 Sekunden):** HTTP 200, Antwort der RefApps mit
+`SystemDateTime 2026-09-24T11:08:59.231+02:00`. Anzeige in OneCrew:
+«⚠ Simulierter Zeitversatz aktiv: +600 Sekunden» und darunter
+«✗ Systemzeit weicht ab — unsere Uhr geht **10 Minuten vor** (zulässig ist höchstens 1 Minute).
+Bitte die Systemzeit des Servers prüfen, bevor Meldungen übermittelt werden.
+Empfänger: 24.9.2026, 11:08:59 · hier: 24.9.2026, 11:18:59.»
+
+**Nebenbefund zur Gegenrichtung (24.09.2026):** Die RefApps **spiegeln unseren gesendeten
+Zeitstempel nicht** und melden ihn auch nicht als Fehler — trotz eines um 10 Minuten falschen
+`SystemDateTime` in der Anfrage kam eine normale `PingResponse` mit HTTP 200 und der echten
+Empfängerzeit zurück. Die Prüfung der Absenderzeit findet also (zumindest in der Testinfrastruktur)
+nicht statt; F01_03 zielt ausschliesslich auf unsere Seite.
 
 **So wird es von Swissdec vorgeführt:** In der **RefApps-Receiver-App** die Einstellung **«Fake Ping Time»**
 setzen (das ist der Prüfschritt F01_03_0, ein Werkzeug-Setting auf Swissdec-Seite), danach in OneCrew
