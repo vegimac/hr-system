@@ -16,7 +16,7 @@ Unterzeilen der elf Punkte F02_01 bis F02_11.
 | Gruppe | Checks | erledigt | Stand |
 |---|---:|---:|---|
 | F01 Verbindung | 6 | **6** | ✅ **Gruppe abgeschlossen 24.09.2026** — alle drei Punkte grün |
-| F02 Sicherheit | 27 | 1 | F02_01 erledigt · F02_02–F02_11 brauchen WS-Security (Transmitter-Zertifikat) |
+| F02 Sicherheit | 27 | 1 | F02_01 erledigt · Krypto-Schicht für F02_02–F02_11 gebaut, wartet aufs Zertifikat |
 | F03 Interoperabilität | 12 | 0 | offen |
 | F04 Archivierung | 3 | 0 | offen |
 | F05 Übermittlung | 8 | 0 | offen |
@@ -220,7 +220,44 @@ gesichert.» **Erwartet:** «TX sendet CheckInterop über einen TLS-gesicherten 
 **Tests:** `Tests/ElmAdressierungTests.cs` — https zulässig, http/ftp/leer abgewiesen, beide Ziele
 https, nur TLS 1.2/1.3 freigeschaltet.
 
-### F02_02 – F02_11 ⛔ blockiert durch das fehlende Transmitter-Zertifikat
+### F02_02 – F02_11 🔧 Krypto-Schicht gebaut 24.09.2026, wartet auf das Zertifikat
+
+**Gebaut:** `Services/Elm/ElmWsSecurity.cs` — die vollständige WS-Security-Schicht nach
+`SecurityTransmitter_d.pdf`:
+
+- **Signieren:** Body **und** Timestamp (mit `Expires`, Schutz gegen Wiedereinspielen), Zertifikat
+  als Base64-`BinarySecurityToken` mit **direkter** `SecurityTokenReference`, `mustUnderstand="1"`,
+  Algorithmen **exc-c14n / RSA-SHA256 / SHA256**.
+- **Verschlüsseln:** Body-**Inhalt** mit frischem AES-256-CBC-Schlüssel, dieser via **RSA-OAEP** mit
+  dem Empfängerzertifikat; der `EncryptedKey` liegt im Security-Header und verweist über eine
+  `ReferenceList` auf die Daten. Reihenfolge **erst signieren, dann verschlüsseln**.
+- **Prüfen:** entschlüsseln, Signatur verifizieren, Zertifikat beurteilen. Das Ergebnis ist ein
+  **Befund** mit eigener Meldung je Fall: `SignaturFehlt`, `SignaturUngueltig`, `ZertifikatFehlt`,
+  `ZertifikatNichtVertrauenswuerdig`, `VerschluesselungFehlt`, `EntschluesselungFehlgeschlagen`.
+  Eine ungültige Signatur wird **nicht akzeptiert** (Richtlinie Kap. 3.3.1 Punkt 7) — genau das
+  verlangt F02_11.
+- Eingehend bewusst grosszügig bei den Algorithmen (der Distributor darf andere verwenden),
+  ausgehend streng nach Vorgabe.
+
+**Zwei Fallen, die dabei aufgefallen sind** (für den nächsten, der das anfasst):
+1. Eine frisch im Speicher gebaute Nachricht kanonisiert anders als dieselbe Nachricht nach dem
+   Serialisieren — die Signatur wäre beim Empfänger ungültig gewesen, obwohl niemand etwas
+   verändert hat. Darum wird der DOM **vor** dem Signieren einmal durch Text und zurück geschickt.
+2. `EncryptedXml.DecryptDocument` findet den WS-Security-Schlüssel nicht (er liegt im Header, nicht
+   im `KeyInfo` der Daten). Die Entschlüsselung holt ihn deshalb selbst.
+
+**Tests:** `Tests/ElmWsSecurityTests.cs` (12) — signierte Nachricht enthält alle geforderten Teile,
+eigene Signatur wird als gültig erkannt, **verfälschte Nachricht wird zurückgewiesen**, fremdes
+Zertifikat fällt auf, fehlende Signatur wird gemeldet, Verschlüsselung verbirgt den Inhalt
+tatsächlich, Ver- und Entschlüsseln im Durchlauf, fehlende Verschlüsselung wird gemeldet, ein
+gekipptes Zeichen im Chiffrat wird erkannt, fehlender privater Schlüssel meldet Klartext, Ping
+bleibt aussen vor. Die Tests erzeugen ihre Zertifikate selbst — sie laufen ohne Swissdec.
+
+**Was noch fehlt:** das **Transmitter-Zertifikat** (kommt aus F07) und die Verdrahtung in
+CheckInteroperability, sobald es da ist. Ohne Zertifikat läuft der Aufruf unverändert unsigniert —
+die RefApps weisen ihn dann wie gehabt mit `Client.security` ab.
+
+### Ursprüngliche Einschätzung (überholt)
 
 | Punkt | Verlangt | Was wir dafür bauen müssen |
 |---|---|---|
