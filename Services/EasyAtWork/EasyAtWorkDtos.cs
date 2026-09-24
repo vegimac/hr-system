@@ -36,6 +36,20 @@ public static class EawDateUtil
     }
 
     /// <summary>
+    /// Roh-Timestamp (UTC) als Zürcher Lokalzeit samt Sommerzeit-Kennung —
+    /// für die Datums-Diagnose (Walter 24.09.2026). Null, wenn nicht lesbar.
+    /// </summary>
+    public static (DateTime Lokal, bool Sommerzeit)? ToSwissLocal(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s)) return null;
+        if (!DateTime.TryParse(s, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var utc))
+            return null;
+        var local = TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), SwissTz);
+        return (local, SwissTz.IsDaylightSavingTime(local));
+    }
+
+    /// <summary>
     /// Intervall-«to» als exklusives Mitternacht lesen: Zürich 00:00 → Vortag
     /// (UI-Bis). End-of-day (21:59:59) bleibt das Kalenderdatum.
     /// ACHTUNG: easy@work speichert «to» inkonsistent (mal inklusiv, mal

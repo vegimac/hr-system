@@ -367,6 +367,145 @@ public class EasyAtWorkController : ControllerBase
     }
 
     /// <summary>
+    /// Datums-Diagnose (Walter-Vorgabe 24.09.2026): liest für alle MA der
+    /// Filiale (aktiv oder Austritt ab 2025) Verträge und Lohnsätze aus easy@work
+    /// und meldet, wo die UTC-Umrechnung einen Tag danebenliegen könnte. Dazu
+    /// eine Übersicht, wie easy@work «von»/«bis» je Objekt speichert (Tagesanfang,
+    /// Tagesende, nur Datum …), mit Beispielen — Material für die Support-Anfrage
+    /// und die zentrale Umrechnung. Schreibt NICHTS.
+    /// </summary>
+    [HttpGet("debug/datum-diagnose")]
+    public async Task<IActionResult> DatumDiagnose([FromQuery] int companyProfileId, CancellationToken ct)
+    {
+        var mapping = await _db.EasyAtWorkBranchMappings.AsNoTracking()
+            .FirstOrDefaultAsync(m => m.CompanyProfileId == companyProfileId, ct);
+        if (mapping == null)
+            return BadRequest(new { error = "NO_MAPPING", message = "Filiale hat kein easy@work-Mapping." });
+        int customerId = mapping.EasyAtWorkCustomerId;
+
+        List<EawEmployee> eawList;
+        try { eawList = await _client.GetAllEmployeesIncludingInactiveAsync(customerId, ct); }
+        catch (Exception ex) { return StatusCode(502, new { error = "EAW_LIST_FAILED", message = ex.Message }); }
+        var stichtag = new DateOnly(2025, 1, 1);
+        var mas = eawList.Where(e => e.To == null || e.To.Value >= stichtag).ToList();
+
+        // Was easy@work selbst über seine Datumsfelder sagt (_dates / _business_dates).
+        var meta = new Dictionary<string, object>();
+        var probe = mas.FirstOrDefault();
+        if (probe != null)
+        {
+            foreach (var (name, pfad) in new[] {
+                ("Vertrag",  $"customers/{customerId}/employees/{probe.Id}/contracts"),
+                ("Lohnsatz", $"customers/{customerId}/employees/{probe.Id}/pay_rates") })
+            {
+                try
+                {
+                    var (st, body) = await _client.GetRawAsync(pfad, ct);
+                    var gefunden = new Dictionary<string, string>();
+                    if (st == 200 && !string.IsNullOrWhiteSpace(body))
+                        SucheDatumsMeta(JsonSerializer.Deserialize<JsonElement>(body), gefunden, 0);
+                    meta[name] = gefunden.Count > 0 ? gefunden : "keine _dates/_business_dates-Angabe in der Antwort";
+                }
+                catch (Exception ex) { meta[name] = "Fehler: " + ex.Message; }
+            }
+        }
+
+        var gate = new SemaphoreSlim(4);
+        var ergebnisse = await Task.WhenAll(mas.Select(async e =>
+        {
+            await gate.WaitAsync(ct);
+            try
+            {
+                var cTask = _client.GetContractsAsync(customerId, e.Id, ct);
+                var rTask = _client.GetPayRatesAsync(customerId, e.Id, ct);
+                var c = (await cTask)?.Data ?? new();
+                var r = (await rTask)?.Data ?? new();
+                return (e, erg: EasyAtWorkDatumDiagnose.Pruefe(c, r), fehler: (string?)null);
+            }
+            catch (Exception ex)
+            {
+                return (e, erg: new EasyAtWorkDatumDiagnose.MaErgebnis(new(), new()), fehler: ex.Message);
+            }
+            finally { gate.Release(); }
+        }));
+
+        // Speicherarten je Feld zählen, getrennt nach Sommer-/Winterzeit, mit Beispielen.
+        var formate = ergebnisse
+            .SelectMany(x => x.erg.Werte.Select(w => (x.e, w)))
+            .GroupBy(t => (t.w.Feld, t.w.Art))
+            .OrderBy(g => g.Key.Feld).ThenByDescending(g => g.Count())
+            .Select(g => new
+            {
+                feld = g.Key.Feld,
+                art = g.Key.Art,
+                anzahl = g.Count(),
+                sommer = g.Count(t => t.w.Sommerzeit),
+                winter = g.Count(t => !t.w.Sommerzeit && t.w.Art != EasyAtWorkDatumDiagnose.NurDatum),
+                beispiele = g.GroupBy(t => t.w.Sommerzeit).SelectMany(s => s.Take(2)).Take(4).Select(t => new
+                {
+                    nummer = t.e.Number, name = $"{t.e.FirstName} {t.e.LastName}".Trim(),
+                    roh = t.w.Roh, zuerich = t.w.Lokal, gelesen = t.w.Gelesen,
+                }),
+            }).ToList();
+
+        var auffaellig = ergebnisse
+            .Where(x => x.erg.Befunde.Count > 0 || x.fehler != null)
+            .OrderBy(x => x.e.FirstName).ThenBy(x => x.e.LastName)
+            .Select(x => new
+            {
+                nummer = x.e.Number,
+                name = $"{x.e.FirstName} {x.e.LastName}".Trim(),
+                fehler = x.fehler,
+                befunde = x.erg.Befunde.Select(b => new { code = b.Code, text = b.Text, roh = b.Roh }),
+            }).ToList();
+
+        // OneCrew-Seite: bereits importierte Verträge, die nur einen Tag dauern.
+        var einTag = await _db.Employments.AsNoTracking()
+            .Where(v => v.CompanyProfileId == companyProfileId && v.ContractEndDate != null
+                     && v.ContractEndDate.Value.Date <= v.ContractStartDate.Date)
+            .Join(_db.Employees.AsNoTracking(), v => v.EmployeeId, m => m.Id, (v, m) => new
+            {
+                nummer = m.EmployeeNumber, name = m.FirstName + " " + m.LastName,
+                v.ContractStartDate, v.ContractEndDate,
+            })
+            .ToListAsync(ct);
+
+        return Ok(new
+        {
+            customerId,
+            geprueft = mas.Count,
+            mitBefund = auffaellig.Count(a => a.befunde.Any()),
+            easyMeta = meta,
+            formate,
+            auffaellig,
+            oneCrewEinTagesVertraege = einTag
+                .OrderBy(v => v.name)
+                .Select(v => new { v.nummer, v.name,
+                    von = v.ContractStartDate.ToString("dd.MM.yyyy"),
+                    bis = v.ContractEndDate!.Value.ToString("dd.MM.yyyy") }),
+        });
+    }
+
+    private static void SucheDatumsMeta(JsonElement el, Dictionary<string, string> ziel, int tiefe)
+    {
+        if (tiefe > 4) return;
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var p in el.EnumerateObject())
+            {
+                if ((p.Name == "_dates" || p.Name == "_business_dates") && !ziel.ContainsKey(p.Name))
+                    ziel[p.Name] = p.Value.GetRawText();
+                else
+                    SucheDatumsMeta(p.Value, ziel, tiefe + 1);
+            }
+        }
+        else if (el.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var x in el.EnumerateArray().Take(2)) SucheDatumsMeta(x, ziel, tiefe + 1);
+        }
+    }
+
+    /// <summary>
     /// Notfallkontakte-Probe (Walter 26.08.2026): easy@work führt unter
     /// «Mein Unternehmen → Notfallkontakte» eine Liste (Employee, Name,
     /// Beziehung, Telefon) — es gibt aber keine öffentliche API-Doku. Diese

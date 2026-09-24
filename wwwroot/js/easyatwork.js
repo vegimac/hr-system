@@ -2282,3 +2282,62 @@ async function eawHrProbeDeep() {
         const dbox = document.getElementById('eawHrDossier'); if (dbox) dbox.innerHTML = '';
     } catch (e) { _eawHrOut('Verbindungsfehler: ' + e.message, true); }
 }
+
+// Datums-Diagnose (Walter 24.09.2026): wie speichert easy@work «von»/«bis»
+// (Tagesanfang / Tagesende / nur Datum …) und wo liegt die UTC-Umrechnung
+// einen Tag daneben? Read-only. Grundlage für Support-Anfrage + zentrale Regel.
+async function eawDatumDiagnose() {
+    const out = document.getElementById('eawDatumDiagResult');
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    if (!cpId) { if (out) out.innerHTML = '<div style="color:#b91c1c;padding:8px">Bitte zuerst oben eine Filiale wählen.</div>'; return; }
+    const e = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    out.innerHTML = '<div style="color:#64748b;padding:8px">⏳ Verträge und Lohnsätze werden aus easy@work gelesen…</div>';
+    try {
+        const r = await fetch(`/api/easywork/debug/datum-diagnose?companyProfileId=${cpId}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c;padding:8px">Fehler: ${e(j?.message || j?.error || ('HTTP ' + r.status))}</div>`; return; }
+        const th = 'text-align:left;padding:6px 8px;border-bottom:1px solid #e2e8f0;color:#64748b;font-weight:600';
+        const td = 'padding:6px 8px;border-bottom:1px solid #f1f5f9;vertical-align:top';
+        const mono = 'font-family:ui-monospace,Menlo,monospace;font-size:11.5px';
+
+        const formate = (j.formate || []).map(f => `<tr>
+            <td style="${td}">${e(f.feld)}</td><td style="${td}">${e(f.art)}</td>
+            <td style="${td};text-align:right">${f.anzahl}</td>
+            <td style="${td};text-align:right">${f.sommer}</td><td style="${td};text-align:right">${f.winter}</td>
+            <td style="${td};${mono}">${(f.beispiele || []).map(b =>
+                `${e(b.nummer)} · ${e(b.roh)} → ${e(b.zuerich)} → gelesen ${e(b.gelesen)}`).join('<br>')}</td></tr>`).join('');
+
+        const auff = (j.auffaellig || []).map(a => `<tr>
+            <td style="${td};white-space:nowrap">${e(a.nummer)}</td><td style="${td}">${e(a.name)}</td>
+            <td style="${td}">${a.fehler ? `<span style="color:#b91c1c">Abruf fehlgeschlagen: ${e(a.fehler)}</span>` : ''}
+                ${(a.befunde || []).map(b => `<div style="margin-bottom:4px">${e(b.text)}${b.roh ? `<div style="${mono};color:#64748b">${e(b.roh)}</div>` : ''}</div>`).join('')}</td></tr>`).join('');
+
+        const einTag = (j.oneCrewEinTagesVertraege || []).map(v =>
+            `<tr><td style="${td}">${e(v.nummer)}</td><td style="${td}">${e(v.name)}</td><td style="${td}">${e(v.von)} – ${e(v.bis)}</td></tr>`).join('');
+
+        const meta = Object.entries(j.easyMeta || {}).map(([k, v]) =>
+            `<div><b>${e(k)}:</b> <span style="${mono}">${e(typeof v === 'string' ? v : JSON.stringify(v))}</span></div>`).join('');
+
+        out.innerHTML = `
+            <div style="padding:8px 0 12px;line-height:1.6">
+                <b>${j.geprueft}</b> MA geprüft · <b style="color:${j.mitBefund ? '#b45309' : '#15803d'}">${j.mitBefund}</b> mit Auffälligkeiten
+                · <b>${(j.oneCrewEinTagesVertraege || []).length}</b> Ein-Tages-Verträge in OneCrew
+            </div>
+            <h4 style="margin:8px 0 6px;font-size:13.5px">Was easy@work selbst angibt</h4>
+            <div style="line-height:1.6;margin-bottom:12px">${meta || '–'}</div>
+            <h4 style="margin:8px 0 6px;font-size:13.5px">So speichert easy@work «von»/«bis»</h4>
+            <div style="overflow:auto"><table style="width:100%;border-collapse:collapse">
+                <thead><tr><th style="${th}">Feld</th><th style="${th}">Speicherart</th><th style="${th};text-align:right">Anzahl</th>
+                <th style="${th};text-align:right">Sommer</th><th style="${th};text-align:right">Winter</th><th style="${th}">Beispiele (Nr. · roh → Zürich → gelesen)</th></tr></thead>
+                <tbody>${formate || `<tr><td style="${td}" colspan="6">–</td></tr>`}</tbody></table></div>
+            <h4 style="margin:16px 0 6px;font-size:13.5px">Auffällige Mitarbeitende</h4>
+            <div style="overflow:auto"><table style="width:100%;border-collapse:collapse">
+                <thead><tr><th style="${th}">Nr.</th><th style="${th}">Name</th><th style="${th}">Befund</th></tr></thead>
+                <tbody>${auff || `<tr><td style="${td}" colspan="3">Keine Auffälligkeiten 🎉</td></tr>`}</tbody></table></div>
+            ${einTag ? `<h4 style="margin:16px 0 6px;font-size:13.5px">Ein-Tages-Verträge in OneCrew</h4>
+            <table style="width:100%;border-collapse:collapse"><thead><tr><th style="${th}">Nr.</th><th style="${th}">Name</th><th style="${th}">Vertrag</th></tr></thead>
+                <tbody>${einTag}</tbody></table>` : ''}`;
+    } catch (err) {
+        out.innerHTML = `<div style="color:#b91c1c;padding:8px">Verbindungsfehler: ${e(err.message)}</div>`;
+    }
+}

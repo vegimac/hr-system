@@ -5094,6 +5094,18 @@
                         <div id="eawAbsSyncResult" style="margin-top:12px;font-size:12.5px;color:#0f172a"></div>
                     </div>
 
+                    <!-- Datums-Diagnose UTC (Walter 24.09.2026) -->
+                    <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
+                        <h3 style="margin:0 0 6px;font-size:15px;color:#0f172a">🕐 Datums-Diagnose (UTC)</h3>
+                        <p style="color:#64748b;font-size:13px;margin:0 0 12px;line-height:1.5">
+                            Liest für alle MA der Filiale (aktiv oder Austritt ab 2025) Verträge und Lohnsätze aus easy@work und zeigt, wie easy@work «von»/«bis» speichert und wo die Umrechnung einen Tag danebenliegen könnte. Nur zum Anschauen — schreibt nichts. Filiale = globaler Selektor. Dauert je nach Filiale 1–2 Minuten.
+                        </p>
+                        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                            <button class="btn-primary" onclick="eawDatumDiagnose()">🕐 Diagnose starten</button>
+                        </div>
+                        <div id="eawDatumDiagResult" style="margin-top:12px;font-size:12.5px;color:#0f172a"></div>
+                    </div>
+
                     <!-- API-Dump (Diagnose): alle Roh-Felder eines MA ansehen (Walter 22.06.2026) -->
                     <div style="margin-top:24px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">
                         <h3 style="margin:0 0 6px;font-size:15px;color:#0f172a">🔬 API-Dump für einen Mitarbeiter</h3>
@@ -9478,7 +9490,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/minimum-wages.js?v=20260831a"></script>
 <script src="js/kontoplan.js?v=20260805a"></script>
 <script src="js/warning-config.js?v=20260821b"></script>
-<script src="js/easyatwork.js?v=20260910a"></script>
+<script src="js/easyatwork.js?v=20260924a"></script>
 <script src="js/employee-merge.js?v=20260705b"></script>
 <script src="js/sollstunden-report.js?v=20260803b"></script>
 <script src="js/ferien-report.js?v=20260803i"></script>
