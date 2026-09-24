@@ -230,10 +230,21 @@ async function _elmCall(pfad, label) {
         const okBadge = j.ok
             ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-weight:700">✓ Antwort erhalten</span>`
             : `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ ${esc(j.error || 'fehlgeschlagen')}</span>`;
+        // Grund im Klartext, wenn der Empfänger den Aufruf mit einem SOAP-Fault
+        // abweist (HTTP 500) — «Client.security» statt nur «HTTP 500».
+        const faultBlock = (j.faultCode || j.faultText)
+            ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                   <b>Abgewiesen${j.faultCode ? ' — ' + esc(j.faultCode) : ''}</b>
+                   ${j.faultText ? `<div style="margin-top:3px">${esc(j.faultText)}</div>` : ''}
+                   ${/security/i.test((j.faultCode || '') + ' ' + (j.faultText || ''))
+                       ? '<div style="margin-top:4px;font-size:12px">Erwartet ohne Transmitter-Zertifikat: ab dieser Operation verlangt Swissdec eine WS-Security-Signatur.</div>' : ''}
+               </div>`
+            : '';
         out.innerHTML = `
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
+            ${faultBlock}
             ${_elmZeitBlock(j)}
             ${j.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
                 <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(j.responseXml)}</pre>` : ''}

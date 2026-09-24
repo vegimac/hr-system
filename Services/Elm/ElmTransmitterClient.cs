@@ -35,6 +35,35 @@ public class ElmTransmitterClient
         public double? DiffSekunden { get; init; }
         /// <summary>Foundation-Test F01_03: Abweichung über einer Minute.</summary>
         public bool ZeitAbweichung => DiffSekunden.HasValue && Math.Abs(DiffSekunden.Value) > ZeitToleranzSekunden;
+
+        /// <summary>SOAP-Fault-Code aus der Antwort, z.B. «Client.security».</summary>
+        public string? FaultCode { get; init; }
+        /// <summary>Klartext des Faults, z.B. «security requirements not met».</summary>
+        public string? FaultText { get; init; }
+    }
+
+    /// <summary>
+    /// SOAP-Fault aus der Antwort lesen. Ein abgewiesener Aufruf kommt mit HTTP 500
+    /// und einem Fault-Element — der Grund steht dort im Klartext und gehört auf den
+    /// Bildschirm, statt nur «HTTP 500» zu zeigen (Walter 24.09.2026).
+    /// Deckt SOAP 1.1 (faultcode/faultstring) und 1.2 (Code/Value, Reason/Text) ab.
+    /// </summary>
+    public static ElmCallResult MitFault(ElmCallResult r)
+    {
+        if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
+        try
+        {
+            var doc = XDocument.Parse(r.ResponseXml);
+            var fault = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "Fault");
+            if (fault == null) return r;
+            string? Wert(params string[] namen) => fault.Descendants()
+                .FirstOrDefault(e => namen.Contains(e.Name.LocalName) && !e.HasElements)?.Value.Trim();
+            var code = Wert("faultcode", "Value");
+            var text = Wert("faultstring", "Text");
+            if (code == null && text == null) return r;
+            return r with { FaultCode = code, FaultText = text };
+        }
+        catch { return r; }
     }
 
     /// <summary>
@@ -130,14 +159,14 @@ public class ElmTransmitterClient
             UserAgent(),
             new XElement(Ep + "SystemDateTime",
                 DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
-        return MitZeitvergleich(await PostAsync(url, Envelope(body), ct));
+        return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct)));
     }
 
     /// <summary>
     /// Interoperabilitäts-Test: Umlaute (Encoding) + zwei Beträge, die der
     /// Empfänger verarbeitet zurückgibt — beweist die ganze SOAP-Strecke.
     /// </summary>
-    public Task<ElmCallResult> CheckInteroperabilityAsync(string url, CancellationToken ct = default)
+    public async Task<ElmCallResult> CheckInteroperabilityAsync(string url, CancellationToken ct = default)
     {
         var body = new XElement(Sdst + "CheckInteroperability",
             UserAgent(),
@@ -148,6 +177,6 @@ public class ElmTransmitterClient
             new XElement(Ep + "SecondOperand", "8765.40"),
             new XElement(Ep + "SystemDateTime",
                 DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
-        return PostAsync(url, Envelope(body), ct);
+        return MitFault(await PostAsync(url, Envelope(body), ct));
     }
 }

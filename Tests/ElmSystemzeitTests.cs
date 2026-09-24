@@ -96,4 +96,54 @@ public class ElmSystemzeitTests
     [Fact]
     public void Toleranz_IstEineMinute()
         => Assert.Equal(60, ElmTransmitterClient.ZeitToleranzSekunden);
+
+    // ── SOAP-Fault im Klartext (Walter 24.09.2026) ────────────────────────
+    // Ein abgewiesener Aufruf kommt mit HTTP 500; der Grund steht im Fault und
+    // gehört auf den Bildschirm — «Client.security» statt nur «HTTP 500».
+
+    [Fact]
+    public void Fault_Soap11_WirdGelesen()
+    {
+        const string xml = """
+            <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+              <soap:Body>
+                <soap:Fault>
+                  <faultcode>soap:Client.security</faultcode>
+                  <faultstring>security requirements not met</faultstring>
+                </soap:Fault>
+              </soap:Body>
+            </soap:Envelope>
+            """;
+        var r = ElmTransmitterClient.MitFault(
+            new ElmTransmitterClient.ElmCallResult(false, 500, 34, "<req/>", xml, "HTTP 500 Internal Server Error"));
+        Assert.Contains("Client.security", r.FaultCode);
+        Assert.Equal("security requirements not met", r.FaultText);
+    }
+
+    [Fact]
+    public void Fault_Soap12_WirdGelesen()
+    {
+        const string xml = """
+            <env:Envelope xmlns:env="http://www.w3.org/2003/05/soap-envelope">
+              <env:Body>
+                <env:Fault>
+                  <env:Code><env:Value>env:Sender</env:Value></env:Code>
+                  <env:Reason><env:Text xml:lang="en">missing signature</env:Text></env:Reason>
+                </env:Fault>
+              </env:Body>
+            </env:Envelope>
+            """;
+        var r = ElmTransmitterClient.MitFault(
+            new ElmTransmitterClient.ElmCallResult(false, 500, 20, "<req/>", xml, "HTTP 500"));
+        Assert.Equal("env:Sender", r.FaultCode);
+        Assert.Equal("missing signature", r.FaultText);
+    }
+
+    [Fact]
+    public void ErfolgreicheAntwort_HatKeinenFault()
+    {
+        var r = ElmTransmitterClient.MitFault(Pruefe(DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
+        Assert.Null(r.FaultCode);
+        Assert.Null(r.FaultText);
+    }
 }

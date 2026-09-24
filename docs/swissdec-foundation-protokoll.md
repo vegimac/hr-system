@@ -124,11 +124,29 @@ Systemzeit und unlesbare Antwort ändern nichts.
 **Für die Vorführung:** Sobald Swissdec die «Fake Ping Time» gesetzt hat, einmal auf «📡 Ping»
 drücken — der rote Kasten mit der bezifferten Abweichung erscheint sofort.
 
+**So wird es vorgeführt:** In der **RefApps-Receiver-App** die Einstellung **«Fake Ping Time»**
+setzen (das ist der Prüfschritt F01_03_0, ein Werkzeug-Setting auf Swissdec-Seite), danach in OneCrew
+auf «📡 Ping» drücken. Die falsche Zeit kommt in der Antwort zurück, und der rote Kasten zeigt die
+bezifferte Abweichung. **Ohne diese Einstellung ist der Fall nicht auslösbar** — der Empfänger
+antwortet sonst mit seiner echten Zeit, und wir zeigen korrekt den grünen Kasten.
+
+### Fehlermeldungen bei abgewiesenen Aufrufen (24.09.2026)
+
+Aus demselben Anlass ergänzt: Weist der Empfänger einen Aufruf ab, kommt HTTP 500 mit einem
+**SOAP-Fault**. Bisher stand auf dem Bildschirm nur «HTTP 500». Jetzt wird der Fault gelesen
+(`ElmTransmitterClient.MitFault`, SOAP 1.1 und 1.2) und als roter Kasten angezeigt: Code plus
+Klartext, z.B. «Abgewiesen — Client.security · security requirements not met». Bei
+sicherheitsbezogenen Faults steht zusätzlich die Einordnung dabei, dass ab dieser Operation eine
+WS-Security-Signatur mit dem Transmitter-Zertifikat verlangt wird. Das dürfte auch für die Gruppen
+F05 (Übermittlung) und F08 (Prozesse) nützlich sein, wo die Darstellung von Rückmeldungen geprüft wird.
+
 ### F01_04 – F01_06 — offen
 
 Noch nicht angeschaut. **Was dazu schon steht:** CheckInteroperability ist gebaut (Umlaut-Kette
 `ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ` plus zwei Beträge) und wird erwartungsgemäss mit `Client.security` abgewiesen,
-solange das Transmitter-Zertifikat fehlt.
+solange das Transmitter-Zertifikat fehlt — die Antwort der RefApps ist dabei selbst WS-Security-
+signiert (BinarySecurityToken + ds:Signature), was den Fault von einem echten Serverfehler
+unterscheidet.
 
 ---
 
