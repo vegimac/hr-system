@@ -72,6 +72,40 @@ public class ElmAdressierungTests
             "Anlegen und Ändern müssen beide über den Entwicklungs-Schutz laufen.");
     }
 
+    // ── F02_01 Transportsicherheit (Walter 24.09.2026) ───────────────────
+    // «Der Übermittlungskanal muss verschlüsselt sein.» Unverschlüsseltes http
+    // wird abgewiesen — auch von Hand eingetragen.
+
+    [Theory]
+    [InlineData("https://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6")]
+    [InlineData("https://distributor.swissdec.ch/services/elm/SalaryDeclaration/V6")]
+    public void HttpsAdressen_SindZulaessig(string url) => Assert.True(ElmEndpunkte.IstSicher(url));
+
+    [Theory]
+    [InlineData("http://test.swissdec.ch/refapps/stable/receiver/services/elm/SalaryDeclaration/V6")]
+    [InlineData("http://localhost:8080/elm")]
+    [InlineData("ftp://test.swissdec.ch/elm")]
+    [InlineData("test.swissdec.ch/elm")]
+    [InlineData("")]
+    [InlineData(null)]
+    public void UnverschluesseltOderUnsinn_WirdAbgewiesen(string? url)
+        => Assert.False(ElmEndpunkte.IstSicher(url));
+
+    [Fact]
+    public void BeideHinterlegtenZiele_SindHttps()
+        => Assert.All(ElmEndpunkte.Alle, z => Assert.True(ElmEndpunkte.IstSicher(z.Url)));
+
+    [Fact]
+    public void TransmitterErlaubtNurTls12Und13()
+    {
+        var code = File.ReadAllText(Path.Combine(ProjektWurzel(), "Services", "Elm", "ElmTransmitterClient.cs"));
+        Assert.Contains("SslProtocols.Tls12", code);
+        Assert.Contains("SslProtocols.Tls13", code);
+        // Keine alten, gebrochenen Versionen freischalten.
+        Assert.DoesNotContain("SslProtocols.Tls11", code);
+        Assert.DoesNotContain("SslProtocols.Ssl3", code);
+    }
+
     private static int Anzahl(string text, string teil)
     {
         int n = 0, i = 0;

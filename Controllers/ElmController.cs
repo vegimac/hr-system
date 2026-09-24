@@ -58,9 +58,8 @@ public class ElmController : ControllerBase
     private static int Versatz(ElmZielDto? dto)
         => Math.Clamp(dto?.VersatzSekunden ?? 0, -86400, 86400);
 
-    private static bool UrlOk(string? url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var u)
-        && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp);
+    // Nur https (Foundation F02_01 «Transportsicherheit») — siehe ElmEndpunkte.IstSicher.
+    private static bool UrlOk(string? url) => ElmEndpunkte.IstSicher(url);
 
     /// <summary>Adresse + Anzeigename aus dem DTO: Schlüssel bevorzugt, sonst freie URL.</summary>
     private static (string? Url, string Name)? ZielAufloesen(ElmZielDto? dto)
@@ -104,7 +103,8 @@ public class ElmController : ControllerBase
         var ziel = ZielAufloesen(dto);
         if (ziel == null)
             return BadRequest(new { error = "ZIEL_UNBEKANNT",
-                message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
+                message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben "
+                        + "(unverschlüsseltes http ist nicht zulässig)." });
         var r = await _client.PingAsync(ziel.Value.Url!, Versatz(dto), ct);
         return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }
@@ -116,7 +116,8 @@ public class ElmController : ControllerBase
         var ziel = ZielAufloesen(dto);
         if (ziel == null)
             return BadRequest(new { error = "ZIEL_UNBEKANNT",
-                message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
+                message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben "
+                        + "(unverschlüsseltes http ist nicht zulässig)." });
         var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, Versatz(dto), ct);
         return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }

@@ -19,7 +19,52 @@ namespace HrSystem.Services.Elm;
 /// </summary>
 public class ElmTransmitterClient
 {
-    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(40) };
+    /// <summary>
+    /// Nachweis der Transportsicherheit (Foundation-Test F02_01, Walter 24.09.2026):
+    /// welches TLS ausgehandelt wurde, mit welcher Chiffre und welchem Serverzertifikat.
+    /// </summary>
+    public record TlsInfo(string Protokoll, string Chiffre, string Zertifikat, string Aussteller, DateTime GueltigBis);
+
+    /// <summary>Details der zuletzt aufgebauten Verbindung im aktuellen Aufruf-Kontext.</summary>
+    private static readonly AsyncLocal<TlsInfo?> _tls = new();
+
+    /// <summary>
+    /// Eigener Handler, damit wir den Sicherheitsnachweis führen können:
+    ///  • `SslOptions` erlaubt ausschliesslich TLS 1.2 und 1.3 — ältere, gebrochene
+    ///    Versionen (SSL 3, TLS 1.0/1.1) sind damit ausgeschlossen.
+    ///  • `PlaintextStreamFilter` läuft NACH dem Handshake und bekommt den fertigen
+    ///    `SslStream` — dort lesen wir Protokoll, Chiffre und Serverzertifikat ab.
+    ///  • `PooledConnectionLifetime = 0` erzwingt für jeden manuellen Test eine frische
+    ///    Verbindung, sonst käme beim zweiten Klick eine wiederverwendete ohne Handshake
+    ///    (und damit ohne Nachweis). Bei zwei Aufrufen pro Tag ist das unproblematisch.
+    /// </summary>
+    private static readonly HttpClient _http = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.Zero,
+        SslOptions = new System.Net.Security.SslClientAuthenticationOptions
+        {
+            EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12
+                                | System.Security.Authentication.SslProtocols.Tls13,
+        },
+        PlaintextStreamFilter = (ctx, _) =>
+        {
+            if (ctx.PlaintextStream is System.Net.Security.SslStream ssl)
+            {
+                var zert = ssl.RemoteCertificate as System.Security.Cryptography.X509Certificates.X509Certificate2
+                           ?? (ssl.RemoteCertificate != null
+                               ? new System.Security.Cryptography.X509Certificates.X509Certificate2(ssl.RemoteCertificate)
+                               : null);
+                _tls.Value = new TlsInfo(
+                    ssl.SslProtocol.ToString(),
+                    ssl.NegotiatedCipherSuite.ToString(),
+                    zert?.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, false) ?? "—",
+                    zert?.GetNameInfo(System.Security.Cryptography.X509Certificates.X509NameType.SimpleName, true) ?? "—",
+                    zert?.NotAfter ?? default);
+            }
+            return ValueTask.FromResult(ctx.PlaintextStream);
+        },
+    })
+    { Timeout = TimeSpan.FromSeconds(40) };
 
     private static readonly XNamespace Soap = "http://schemas.xmlsoap.org/soap/envelope/";
     private static readonly XNamespace Sdst = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types";
@@ -41,6 +86,9 @@ public class ElmTransmitterClient
         /// Nur für den Foundation-Test F01_03 — siehe <see cref="PingAsync"/>.
         /// </summary>
         public int VersatzSekunden { get; init; }
+
+        /// <summary>Ausgehandelte Transportsicherheit (Foundation F02_01).</summary>
+        public TlsInfo? Tls { get; init; }
 
         /// <summary>SOAP-Fault-Code aus der Antwort, z.B. «Client.security».</summary>
         public string? FaultCode { get; init; }
@@ -140,6 +188,7 @@ public class ElmTransmitterClient
     private static async Task<ElmCallResult> PostAsync(string url, string envelope, CancellationToken ct)
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
+        _tls.Value = null;   // Nachweis dieses Aufrufs, nicht des vorherigen
         try
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, url);
@@ -151,13 +200,14 @@ public class ElmTransmitterClient
             string pretty = body;
             try { pretty = XDocument.Parse(body).ToString(); } catch { /* Rohtext lassen */ }
             return new ElmCallResult(res.IsSuccessStatusCode, (int)res.StatusCode, sw.ElapsedMilliseconds,
-                envelope, pretty, res.IsSuccessStatusCode ? null : $"HTTP {(int)res.StatusCode} {res.ReasonPhrase}");
+                envelope, pretty, res.IsSuccessStatusCode ? null : $"HTTP {(int)res.StatusCode} {res.ReasonPhrase}")
+                { Tls = _tls.Value };
         }
         catch (Exception ex)
         {
             sw.Stop();
             return new ElmCallResult(false, 0, sw.ElapsedMilliseconds, envelope, "",
-                ex.GetBaseException().Message);
+                ex.GetBaseException().Message) { Tls = _tls.Value };
         }
     }
 

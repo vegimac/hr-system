@@ -30,6 +30,15 @@ public static class ElmEndpunkte
         new("prod", "Produktiver Distributor",              ProdUrl, false),
     };
 
+    /// <summary>
+    /// Nur verschlüsselte Adressen sind zulässig (Foundation-Test F02_01 «Transportsicherheit»,
+    /// Walter 24.09.2026): «Der Übermittlungskanal muss verschlüsselt sein. Alle Verbindungen sind
+    /// mittels TLS gesichert.» Eine `http://`-Adresse wird darum abgewiesen — auch wenn sie ein
+    /// Super-Admin von Hand einträgt.
+    /// </summary>
+    public static bool IstSicher(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u) && u.Scheme == Uri.UriSchemeHttps;
+
     /// <summary>Ziel-Schlüssel → Eintrag; unbekannt oder leer ⇒ null (Aufrufer antwortet mit 400).</summary>
     public static Ziel? Finde(string? schluessel)
         => Alle.FirstOrDefault(z => string.Equals(z.Schluessel, (schluessel ?? "").Trim(),

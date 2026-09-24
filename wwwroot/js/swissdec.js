@@ -244,6 +244,7 @@ async function _elmCall(pfad, label) {
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
+            ${_elmTlsBlock(j)}
             ${faultBlock}
             ${_elmZeitBlock(j)}
             ${j.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
@@ -268,6 +269,28 @@ function _elmZeitDauer(sek) {
     const std = Math.floor(min / 60);
     if (std >= 1) return `${std} Std. ${min % 60} Min.`;
     return rest ? `${min} Min. ${rest} Sek.` : `${min} Minuten`;
+}
+
+/**
+ * Nachweis der Transportsicherheit (Foundation F02_01, Walter 24.09.2026):
+ * zeigt, welches TLS für diesen Aufruf ausgehandelt wurde, mit welcher Chiffre
+ * und welchem Serverzertifikat.
+ */
+function _elmTlsBlock(j) {
+    const t = j.tls;
+    if (!t) return '';
+    const bis = t.gueltigBis ? new Date(t.gueltigBis).toLocaleDateString('de-CH') : '—';
+    const alt = /Tls1[01]|Ssl/i.test(t.protokoll || '');
+    const farben = alt
+        ? 'background:#fef2f2;border:1px solid #fecaca;color:#991b1b'
+        : 'background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540';
+    return `<div style="${farben};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+            <b>🔒 Verbindung verschlüsselt — ${esc(t.protokoll || '?')}</b>
+            <div style="margin-top:3px;font-size:12px">
+                Chiffre: ${esc(t.chiffre || '—')} · Serverzertifikat: <b>${esc(t.zertifikat || '—')}</b>
+                (Aussteller ${esc(t.aussteller || '—')}, gültig bis ${esc(bis)})
+            </div>
+        </div>`;
 }
 
 /** Eingestellter Test-Versatz in Sekunden (leer/ungültig = 0). */

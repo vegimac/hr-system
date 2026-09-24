@@ -12,14 +12,14 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 | Gruppe | Punkte | erledigt | Stand |
 |---|---:|---:|---|
 | F01 Verbindung | 6 | 3 | F01_01, F01_02 grün · F01_03 gebaut und **am 24.09.2026 belegt** (Versatz +600 s) |
-| F02 Sicherheit | 27 | 0 | offen |
+| F02 Sicherheit | 27 | 1 | F02_01 erledigt · F02_02–F02_11 brauchen WS-Security (Transmitter-Zertifikat) |
 | F03 Interoperabilität | 12 | 0 | offen |
 | F04 Archivierung | 3 | 0 | offen |
 | F05 Übermittlung | 8 | 0 | offen |
 | F06 Validierung | 1 | 0 | offen |
 | F07 SUA-Zertifikat | 20 | 0 | offen |
 | F08 Prozesse | 13 | 0 | offen |
-| **Total** | **90** | **3** | |
+| **Total** | **90** | **4** | |
 
 Ein Teil der Punkte wird **vom Experten im Gespräch** geprüft (`CHECKED_BY_EXPERT`), nicht
 automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf «wie habt ihr das gelöst?».
@@ -173,7 +173,66 @@ unterscheidet.
 
 ---
 
-## F02 Sicherheit · F03 Interoperabilität · F04 Archivierung · F05 Übermittlung · F06 Validierung · F07 SUA-Zertifikat · F08 Prozesse
+## F02 — Sicherheit (27 Punkte)
+
+Die Gruppe ist **ein zusammenhängender Block: WS-Security**. Ausser F02_01 läuft jeder Punkt über
+**CheckInteroperability** und setzt voraus, dass wir Nachrichten **signieren und verschlüsseln** und
+die Antworten des Empfängers **prüfen**. Das geht erst mit dem **Transmitter-Zertifikat**, das
+Swissdec im Zertifizierungsprozess ausstellt (eigene CA; es gibt keinen öffentlichen Test-Keystore —
+`docs/swissdec/SecurityTransmitter_d.pdf` Kap. 3).
+
+### F02_01 Transportsicherheit ✅ erledigt 24.09.2026
+
+**Anforderung:** «Der Übermittlungskanal muss verschlüsselt sein. Alle Verbindungen sind mittels TLS
+gesichert.» **Erwartet:** «TX sendet CheckInterop über einen TLS-gesicherten Kanal.»
+
+**Unsere Lösung:**
+- **Nur `https` ist zulässig.** `ElmEndpunkte.IstSicher` weist jede `http://`-Adresse ab — auch eine
+  von Hand eingetragene; die Antwort ist 400 mit Klartext. Beide hinterlegten Ziele sind https.
+- **Nur TLS 1.2 und 1.3.** Der Transmitter benutzt einen eigenen `SocketsHttpHandler` mit
+  `EnabledSslProtocols = Tls12 | Tls13`; SSL 3 und TLS 1.0/1.1 sind ausgeschlossen.
+- **Nachweis auf dem Bildschirm:** Nach jedem Aufruf steht über der Antwort ein grüner Kasten
+  «🔒 Verbindung verschlüsselt — Tls13 · Chiffre TLS_AES_256_GCM_SHA384 · Serverzertifikat …
+  (Aussteller …, gültig bis …)». Die Angaben kommen aus der **tatsächlich aufgebauten Verbindung**
+  (`PlaintextStreamFilter` liest den fertigen `SslStream`), nicht aus einer Vermutung. Eine alte
+  TLS-Version würde den Kasten rot färben.
+
+**Code:** `Services/Elm/ElmTransmitterClient.cs` (Handler + `TlsInfo`) · `Services/Elm/ElmEndpunkte.cs`
+(`IstSicher`) · `wwwroot/js/swissdec.js` (`_elmTlsBlock`)
+**Tests:** `Tests/ElmAdressierungTests.cs` — https zulässig, http/ftp/leer abgewiesen, beide Ziele
+https, nur TLS 1.2/1.3 freigeschaltet.
+
+### F02_02 – F02_11 ⛔ blockiert durch das fehlende Transmitter-Zertifikat
+
+| Punkt | Verlangt | Was wir dafür bauen müssen |
+|---|---|---|
+| F02_02 WS-Verschlüsselung | Alle Requests ausser Ping sind verschlüsselt | XML-Encryption der Nutzdaten mit dem Empfängerzertifikat |
+| F02_03 Verfälschte Verschlüsselung | Falsch verschlüsselte Antwort erkennen und melden | Entschlüsselung + Fehlerbehandlung mit klarer Meldung |
+| F02_04 Unverschlüsselte Antwort | Fehlende Verschlüsselung der Antwort erkennen | Pflicht-Prüfung «Antwort muss verschlüsselt sein» |
+| F02_05 WS-Signatur | Alle Requests ausser Ping sind signiert | XML-Signatur (Reihenfolge Signatur → Verschlüsselung) |
+| F02_06 Verfälschte Signatur | Verfälschte Antwortsignatur erkennen | Signaturprüfung der Antwort |
+| F02_07 Unsignierte Antwort | Fehlende Signatur erkennen | Pflicht-Prüfung «Antwort muss signiert sein» |
+| F02_08 Falsches Zertifikat | Antwort mit unbekanntem Schlüssel erkennen | Zertifikats-/Vertrauensprüfung gegen die Swissdec-CA |
+| F02_09 Signierter SOAP-Fault | Signierten Fault anzeigen | Fault-Anzeige (steht seit 24.09.) + Signaturprüfung |
+| F02_10 Unsignierter SOAP-Fault | Unsignierten Fault anzeigen | Fault-Anzeige (steht) |
+| F02_11 Verfälschter SOAP-Fault | Fault mit ungültiger Signatur **zurückweisen** | Signaturprüfung; Fault verwerfen statt anzeigen |
+
+Bei jedem dieser Punkte stellt Swissdec vorher eine RefApps-Einstellung um
+(`Tamper Encryption`, `Enable Encryption` aus, `Tamper Signature`, `Enable Signature` aus,
+`Use unknown Key`, SOAP-Fault-Varianten) — die Prüfung ist also immer: **erkennen und dem Benutzer
+zeigen**. Die Anzeige-Hälfte haben wir seit dem 24.09. (SOAP-Fault im Klartext, F02_09/F02_10);
+es fehlt die Krypto-Hälfte.
+
+**Was ohne Zertifikat schon vorbereitet werden kann:** die WS-Security-Schicht selbst (Signieren,
+Verschlüsseln, Prüfen) samt Tests mit einem selbst erzeugten Testschlüssel, sowie einheitliche
+Fehlermeldungen für die acht Fälle. Scharf prüfen lässt sich erst mit dem echten Zertifikat.
+
+**Frage an Swissdec:** Wann bekommen wir das Transmitter-Zertifikat? Ohne das ist F02 (27 von 90
+Punkten) nicht abschliessbar — und F03 Interoperabilität hängt vermutlich ebenfalls daran.
+
+---
+
+## F03 Interoperabilität · F04 Archivierung · F05 Übermittlung · F06 Validierung · F07 SUA-Zertifikat · F08 Prozesse
 
 Noch nicht bearbeitet. **Was voraussichtlich hilft, wenn die Punkte kommen:**
 
