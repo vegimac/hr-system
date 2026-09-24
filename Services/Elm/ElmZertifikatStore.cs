@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
+using System.Xml;
 using Microsoft.Extensions.Configuration;
 
 namespace HrSystem.Services.Elm;
@@ -116,6 +117,38 @@ public class ElmZertifikatStore
         var p = Path.Combine(_root, EmpfaengerDatei);
         File.WriteAllBytes(p, derOderPem);
         VersucheRechte600(p);
+    }
+
+    /// <summary>
+    /// RefApps liefert sein Zertifikat in jeder signierten Antwort als
+    /// BinarySecurityToken — einmal übernehmen, dann können wir verschlüsseln.
+    /// </summary>
+    public bool UebernehmeEmpfaengerAusAntwort(XmlDocument antw)
+    {
+        if (HatEmpfaengerZertifikat()) return false;
+        var z = ElmWsSecurity.ZertifikatAusAntwort(antw);
+        if (z == null) return false;
+        SpeichereEmpfaenger(z.RawData);
+        return true;
+    }
+
+    /// <summary>
+    /// Eingebettetes RefApps-Receiver-Zertifikat (Assets), Fallback wenn noch
+    /// keines gespeichert ist — sonst scheitert der erste Register-Aufruf.
+    /// </summary>
+    public static X509Certificate2? LadeRefAppsEmpfaengerFallback()
+    {
+        foreach (var kandidat in new[]
+                 {
+                     Path.Combine(AppContext.BaseDirectory, "Assets", "Swissdec", "RefApps-Receiver.cer"),
+                     Path.Combine(Directory.GetCurrentDirectory(), "Assets", "Swissdec", "RefApps-Receiver.cer"),
+                 })
+        {
+            if (!File.Exists(kandidat)) continue;
+            try { return X509CertificateLoader.LoadCertificateFromFile(kandidat); }
+            catch { /* nächster Pfad */ }
+        }
+        return null;
     }
 
     // ── SUA-Zertifikat (nach SignCertificate) ────────────────────────────────

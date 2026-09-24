@@ -91,7 +91,7 @@ public class ElmSuaService
             dto.ContractIdentity ?? "ContractIdentity",
             dto.AlsTestfall);
 
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), ct);
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), _store, ct);
         var (requestId, key, password) = ParseRegisterAntwort(call.ResponseXml);
 
         ElmSuaFall? fall = null;
@@ -162,7 +162,7 @@ public class ElmSuaService
         }
 
         var body = BaueSynchronizeBody(fall, signBlock);
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), ct);
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), _store, ct);
 
         var geparst = ParseSynchronizeAntwort(call.ResponseXml);
         if (geparst.State != null)

@@ -108,13 +108,20 @@ public class ElmTransmitterClient
     /// SOAP senden mit WS-Security: signieren mit ERP-Zertifikat, optional
     /// verschlüsseln mit Empfängerzertifikat (Foundation F02/F07). Antwort wird
     /// entschlüsselt und die Signatur geprüft, sofern unser Zertifikat da ist.
+    /// Fehlt das Empfängerzertifikat, wird es aus dem BinarySecurityToken der
+    /// Antwort übernommen (RefApps liefert es in jeder signierten Antwort).
     /// </summary>
     public async Task<ElmCallResult> PostGesichertAsync(
         string url, XElement body,
         X509Certificate2 erpZertifikat,
         X509Certificate2? empfaengerZertifikat,
+        ElmZertifikatStore? store = null,
         CancellationToken ct = default)
     {
+        // RefApps-Receiver-Zertifikat aus Assets, falls noch keines hinterlegt
+        // (sonst lehnt RefApps mit Client.security ab — Signatur allein reicht nicht).
+        empfaengerZertifikat ??= store?.LadeEmpfaenger() ?? ElmZertifikatStore.LadeRefAppsEmpfaengerFallback();
+
         var envelopeXml = Envelope(body);
         var doc = new XmlDocument { PreserveWhitespace = true };
         // Einmal serialisieren und neu laden — sonst kanonisiert die Signatur anders
@@ -134,12 +141,31 @@ public class ElmTransmitterClient
         {
             var antw = new XmlDocument { PreserveWhitespace = true };
             antw.LoadXml(r.ResponseXml);
-            // Wenn wir nicht verschlüsselt haben, verlangen wir auch keine Verschlüsselung zurück
-            // (sonst blockiert der erste Register-Versuch ohne Empfängerzertifikat).
-            var verschlPflicht = empfaengerZertifikat != null;
+
+            // Empfängerzertifikat aus der Antwort lernen (nächster Aufruf verschlüsselt).
+            store?.UebernehmeEmpfaengerAusAntwort(antw);
+
+            // SOAP-Faults der RefApps sind oft mit rsa-sha1 signiert — die fachliche
+            // Ablehnung (Client.security) ist wichtiger als unsere Signaturprüfung.
+            var istFault = antw.GetElementsByTagName("Fault", "http://schemas.xmlsoap.org/soap/envelope/").Count > 0
+                        || antw.GetElementsByTagName("Fault").Count > 0;
+            var verschlPflicht = empfaengerZertifikat != null && !istFault;
             var pruef = ElmWsSecurity.Pruefe(antw, erpZertifikat,
                 verschluesselungPflicht: verschlPflicht,
-                signaturPflicht: true);
+                signaturPflicht: !istFault);
+
+            // Klartext-Hinweis, wenn RefApps «nicht signiert» meldet und wir
+            // ohne Verschlüsselung gesendet haben (häufigste Ursache).
+            if (empfaengerZertifikat == null
+                && (r.FaultCode?.Contains("security", StringComparison.OrdinalIgnoreCase) == true
+                    || r.FaultText?.Contains("not been signed", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                pruef = new ElmWsSecurity.PruefErgebnis(
+                    ElmWsSecurity.Befund.VerschluesselungFehlt,
+                    "Request war vermutlich nicht verschlüsselt. Empfängerzertifikat fehlt oder wurde "
+                    + "gerade aus der Antwort übernommen — bitte «Registrieren» erneut drücken.");
+            }
+
             var klartext = antw.OuterXml;
             try { klartext = XDocument.Parse(klartext).ToString(); } catch { /* roh lassen */ }
             return r with { ResponseXml = klartext, Security = pruef };
