@@ -204,6 +204,8 @@ builder.Services.AddScoped<MtpStundenPdfService>();
 // Swissdec ELM 6.0 (Walter 27.08.2026, docs/swissdec-elm6-konzept.md)
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmTransmitterClient>();
 builder.Services.AddSingleton<HrSystem.Services.Elm.ElmXmlValidator>();
+builder.Services.AddScoped<HrSystem.Services.Elm.ElmZertifikatStore>();
+builder.Services.AddScoped<HrSystem.Services.Elm.ElmSuaService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmAnnualDeclarationBuilder>();
 builder.Services.AddScoped<AuswertungenReportPdfService>();
 builder.Services.AddScoped<ProbezeitberichtPdfService>();

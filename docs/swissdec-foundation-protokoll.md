@@ -21,7 +21,7 @@ PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unt
 | F04 Archivierung | 3 | 0 | offen (signiert/unverschlüsselt archivieren + SignatureConfirmation) |
 | F05 Übermittlung | 8 | 0 | offen · **Expertin: erst nach F07** |
 | F06 Validierung | 1 | 0 | offen (PlausibilityRules / Distributor-Ablehnung) |
-| F07 SUA-Zertifikat | 20 | 0 | **im Bau (Walter/Cursor)** · Bauanleitung im Abschnitt F07 |
+| F07 SUA-Zertifikat | 20 | 0 | **gebaut 24.09.2026 (UI+Client)** · noch gegen RefApps vorzuführen |
 | F08 Prozesse | 13 | 0 | offen (GetStatus, DialogMessages, Sync/Async) |
 | **Total** | **90** | **7 belegt · 12 gebaut** | |
 
@@ -443,6 +443,24 @@ seit 24.09. F07_03/04/05 sind die drei Zustände, F07_06 das Signieren bei `veri
 F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
 **Doppelsignatur** von CheckInteroperability mit ERP- **und** SUA-Zertifikat.
 
+### Gebaut 24.09.2026 (Walter + Cursor)
+
+| Baustein | Wo |
+|---|---|
+| ERP erzeugen/laden, SUA speichern, Fall (RequestID+Credentials), Empfänger-.cer | `Services/Elm/ElmZertifikatStore.cs` — Pfad `Swissdec:CertStoragePath` bzw. neben Documents |
+| Register / Synchronize / Sign / Renew + CSR aus Subject-DN | `Services/Elm/ElmSuaService.cs` |
+| Signiert (+ optional verschlüsselt) senden | `ElmTransmitterClient.PostGesichertAsync` |
+| API (Superadmin) | `GET/POST /api/elm/sua/*` in `ElmController` |
+| UI-Karte «F07 · SUA-Zertifikat» | `wwwroot/index.html` + `js/swissdec.js` |
+| Tests | `Tests/ElmSuaTests.cs` (9) |
+
+**Noch offen nach dem Bau:** gegen RefApps vorführen (F07_01–08); Empfängerzertifikat aus der
+RefApps-UI hinterlegen, sonst nur Signatur ohne Verschlüsselung; F07_08 Doppel-Signatur
+(CheckInterop mit ERP+SUA) — `ElmWsSecurity` signiert heute mit einem Zertifikat.
+
+**Server:** `Swissdec__CertStoragePath=/var/data/hr-system/swissdec-certs` (Test:
+`…-test/swissdec-certs`) in der systemd-Umgebung setzen — analog Documents.
+
 ---
 
 ## F03–F08 — Kurzstand (Details im Katalog unten)
@@ -453,7 +471,7 @@ F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
 | **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | fehlt |
 | **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | Sample-XML vorhanden · Client/UI fehlt (E4) |
 | **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | fehlt |
-| **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | Sample `RegisterOrganizationAuthentication.xml` · `SignCertificate` in Common.xsd · Client/UI fehlt |
+| **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | ✅ Client+UI 24.09. · RefApps-Vorführung + Doppel-Signatur offen |
 | **F08** | Sync-Übermittlung mit Quittungen; GetStatus(JobKey); Stories; DialogMessage (manuell/Reply/Confirm/Random/Complete) | fehlt |
 
 ---

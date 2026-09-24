@@ -1,4 +1,6 @@
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace HrSystem.Services.Elm;
@@ -97,6 +99,55 @@ public class ElmTransmitterClient
 
         /// <summary>Nachgerechnete Interoperabilitäts-Antwort (Foundation F03); NULL = keine geprüft.</summary>
         public ElmInterop.Befund? Interop { get; init; }
+
+        /// <summary>WS-Security-Prüfung der Antwort (F02 / F07); NULL = nicht geprüft.</summary>
+        public ElmWsSecurity.PruefErgebnis? Security { get; init; }
+    }
+
+    /// <summary>
+    /// SOAP senden mit WS-Security: signieren mit ERP-Zertifikat, optional
+    /// verschlüsseln mit Empfängerzertifikat (Foundation F02/F07). Antwort wird
+    /// entschlüsselt und die Signatur geprüft, sofern unser Zertifikat da ist.
+    /// </summary>
+    public async Task<ElmCallResult> PostGesichertAsync(
+        string url, XElement body,
+        X509Certificate2 erpZertifikat,
+        X509Certificate2? empfaengerZertifikat,
+        CancellationToken ct = default)
+    {
+        var envelopeXml = Envelope(body);
+        var doc = new XmlDocument { PreserveWhitespace = true };
+        // Einmal serialisieren und neu laden — sonst kanonisiert die Signatur anders
+        // als beim Empfänger (Falle aus ElmWsSecurity-Kommentar).
+        doc.LoadXml(XDocument.Parse(envelopeXml).ToString(SaveOptions.DisableFormatting));
+
+        ElmWsSecurity.Signiere(doc, erpZertifikat);
+        if (empfaengerZertifikat != null)
+            ElmWsSecurity.Verschluessele(doc, empfaengerZertifikat);
+
+        var gesichert = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" + doc.OuterXml;
+        var r = await PostAsync(url, gesichert, ct);
+        r = MitFault(r);
+
+        if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
+        try
+        {
+            var antw = new XmlDocument { PreserveWhitespace = true };
+            antw.LoadXml(r.ResponseXml);
+            // Wenn wir nicht verschlüsselt haben, verlangen wir auch keine Verschlüsselung zurück
+            // (sonst blockiert der erste Register-Versuch ohne Empfängerzertifikat).
+            var verschlPflicht = empfaengerZertifikat != null;
+            var pruef = ElmWsSecurity.Pruefe(antw, erpZertifikat,
+                verschluesselungPflicht: verschlPflicht,
+                signaturPflicht: true);
+            var klartext = antw.OuterXml;
+            try { klartext = XDocument.Parse(klartext).ToString(); } catch { /* roh lassen */ }
+            return r with { ResponseXml = klartext, Security = pruef };
+        }
+        catch
+        {
+            return r;
+        }
     }
 
     /// <summary>

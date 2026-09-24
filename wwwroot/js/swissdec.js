@@ -11,6 +11,7 @@ function swissdecInit() {
     if (y && !y.value) y.value = new Date().getFullYear();
     elmStammLoad();
     tmInit();
+    suaStatusLaden();
 }
 
 // ── Testmandant «Muster AG» (Walter 07.09.2026) — nur Testinstanz ──────────
@@ -455,4 +456,194 @@ function tmFuelleMonate() {
         opts.push(`<option value="${y}-${String(m).padStart(2, '0')}">${namen[m - 1]} ${y}</option>`);
     }
     sel.innerHTML = opts.join('');
+}
+
+// ── Foundation F07 SUA-Zertifikat (Walter/Cursor 24.09.2026) ─────────────────
+
+async function suaStatusLaden() {
+    const el = document.getElementById('suaStatus');
+    if (!el) return;
+    try {
+        const r = await fetch('/api/elm/sua/status', { headers: ah() });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) {
+            el.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Status nicht ladbar')}</span>`;
+            return;
+        }
+        const erp = j.erp || {};
+        const fall = j.fall;
+        const hs = j.hauptsitz;
+        if (hs) {
+            const uidEl = document.getElementById('suaUid');
+            const firmaEl = document.getElementById('suaFirma');
+            if (uidEl && !uidEl.value && hs.uid) uidEl.value = hs.uid;
+            if (firmaEl && !firmaEl.value && hs.name) firmaEl.value = hs.name;
+            if (document.getElementById('suaOrt') && !document.getElementById('suaOrt').value && hs.ort)
+                document.getElementById('suaOrt').value = hs.ort;
+            if (document.getElementById('suaPlz') && !document.getElementById('suaPlz').value && hs.plz)
+                document.getElementById('suaPlz').value = hs.plz;
+        }
+        const stateFarbe = {
+            processing: '#92400e', registered: '#1d4ed8', verified: '#166534',
+            rejected: '#b91c1c', expired: '#7c3aed'
+        };
+        const st = (fall?.letzterState || '').toLowerCase();
+        el.innerHTML =
+            `<div><b>Ablage:</b> <code style="font-size:11px">${esc(j.certPfad || '—')}</code></div>`
+            + `<div style="margin-top:4px"><b>ERP:</b> ${erp.vorhanden
+                ? `✓ ${esc(erp.subject || '')} · bis ${erp.notAfter ? new Date(erp.notAfter).toLocaleDateString('de-CH') : '—'}`
+                : '<span style="color:#b45309">noch keines — zuerst erzeugen</span>'}</div>`
+            + `<div style="margin-top:2px"><b>Empfänger-Zert.:</b> ${j.empfaengerZertifikat ? '✓ hinterlegt' : '— (ohne nur Signatur, Verschlüsselung fehlt)'}</div>`
+            + `<div style="margin-top:2px"><b>SUA:</b> ${j.sua ? '✓ gespeichert' : '— noch keines'}</div>`
+            + (fall
+                ? `<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f6f3ee;border:1px solid #e7e1d8">
+                     <b>Laufender Fall</b> · RequestID <code>${esc(fall.certificateRequestId || '')}</code>
+                     · Status <b style="color:${stateFarbe[st] || '#3f3f3f'}">${esc(fall.letzterState || 'noch keiner')}</b>
+                     ${fall.subject ? `<div style="margin-top:3px;font-size:12px;color:#64748b">Subject: ${esc([fall.subject.commonName, fall.subject.organizationName, fall.subject.localityName, fall.subject.countryName].filter(Boolean).join(', '))}</div>` : ''}
+                   </div>`
+                : '<div style="margin-top:4px;color:#8b8b8b">Kein laufender SUA-Fall.</div>');
+    } catch (e) {
+        el.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`;
+    }
+}
+
+async function suaErpErzeugen() {
+    if (!(await liquidConfirm(
+        'Neues ERP-/Transmitter-Zertifikat erzeugen und speichern? Ein vorhandenes wird überschrieben.',
+        { title: 'ERP-Zertifikat', yesLabel: 'Erzeugen', noLabel: 'Abbrechen' }))) return;
+    const out = document.getElementById('suaResult');
+    out.innerHTML = '⏳ …';
+    try {
+        const r = await fetch('/api/elm/sua/erp-erzeugen', { method: 'POST', headers: ah() });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
+        out.innerHTML = `<span style="color:#166534">✓ ${esc(j.message || 'Erzeugt.')}</span>`;
+        suaStatusLaden();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+}
+
+async function suaEmpfaengerUpload() {
+    const f = document.getElementById('suaEmpfFile')?.files?.[0];
+    if (!f) return;
+    const fd = new FormData();
+    fd.append('datei', f);
+    const out = document.getElementById('suaResult');
+    out.innerHTML = '⏳ Empfängerzertifikat speichern…';
+    try {
+        const headers = {};
+        try { const t = localStorage.hrToken; if (t) headers.Authorization = 'Bearer ' + t; } catch (_) {}
+        const r = await fetch('/api/elm/sua/empfaenger-zertifikat', { method: 'POST', headers, body: fd });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Upload fehlgeschlagen')}</span>`; return; }
+        out.innerHTML = `<span style="color:#166534">✓ ${esc(j.message || 'Gespeichert.')}</span>`;
+        suaStatusLaden();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+}
+
+function _suaZielBody(extra) {
+    const url = (document.getElementById('elmUrl')?.value || '').trim();
+    return Object.assign({ url }, extra || {});
+}
+
+async function suaRegister() {
+    const out = document.getElementById('suaResult');
+    out.innerHTML = '⏳ Registrieren…';
+    try {
+        const body = _suaZielBody({
+            uid: document.getElementById('suaUid')?.value,
+            companyName: document.getElementById('suaFirma')?.value,
+            contactName: document.getElementById('suaKontakt')?.value,
+            zip: document.getElementById('suaPlz')?.value,
+            city: document.getElementById('suaOrt')?.value,
+            addresseeIdentification: document.getElementById('suaAddressee')?.value,
+            alsTestfall: true,
+        });
+        const r = await fetch('/api/elm/sua/register', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
+        _suaZeigeErgebnis(j);
+        suaStatusLaden();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+}
+
+async function suaSynchronize() {
+    await _suaSync(false);
+}
+async function suaSignieren() {
+    const otp = (document.getElementById('suaOtp')?.value || '').trim();
+    if (!otp) {
+        document.getElementById('suaResult').innerHTML =
+            '<span style="color:#b45309">Einmalpasswort eintragen (nach Status verified).</span>';
+        return;
+    }
+    await _suaSync(false, otp);
+}
+async function suaRenew() {
+    if (!(await liquidConfirm('SUA-Zertifikat erneuern (RenewCertificate)?', { title: 'Erneuern', yesLabel: 'Erneuern', noLabel: 'Abbrechen' }))) return;
+    await _suaSync(true);
+}
+
+async function _suaSync(renew, otp) {
+    const out = document.getElementById('suaResult');
+    out.innerHTML = renew ? '⏳ Erneuern…' : (otp ? '⏳ Signieren…' : '⏳ Status…');
+    try {
+        const body = _suaZielBody({ oneTimePassword: otp || null, renew: !!renew });
+        const r = await fetch('/api/elm/sua/synchronize', {
+            method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
+        _suaZeigeErgebnis(j);
+        suaStatusLaden();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+}
+
+function _suaZeigeErgebnis(j) {
+    const out = document.getElementById('suaResult');
+    const e = j.ergebnis || {};
+    const meldung = j.meldung
+        ? `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px"><b>${esc(j.meldung)}</b></div>`
+        : '';
+    const state = j.state
+        ? `<div style="margin-bottom:6px">Status: <b>${esc(j.state)}</b></div>` : '';
+    // Wiederverwenden der Anzeige aus dem Ping/Interop-Block
+    const fake = {
+        ok: e.ok, error: e.error, httpStatus: e.httpStatus, dauerMs: e.dauerMs,
+        faultCode: e.faultCode, faultText: e.faultText, tls: e.tls,
+        responseXml: e.responseXml, requestXml: e.requestXml,
+        diffSekunden: e.diffSekunden, distributorZeit: e.distributorZeit,
+        lokaleZeit: e.lokaleZeit, zeitAbweichung: e.zeitAbweichung, versatzSekunden: e.versatzSekunden,
+        security: e.security,
+    };
+    out.innerHTML = meldung + state;
+    // TLS/Fault/XML darunter anhängen
+    const tmp = document.createElement('div');
+    tmp.id = '_suaTmpOut';
+    out.appendChild(tmp);
+    // schreibe in tmp wie _elmCall
+    const sec = fake.security
+        ? `<div style="background:${fake.security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${fake.security.ok ? '#b8ccb8' : '#fecaca'};color:${fake.security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+             <b>WS-Security:</b> ${esc(fake.security.meldung || '')}</div>`
+        : '';
+    const okBadge = fake.ok
+        ? `<span style="background:#dcfce7;color:#166534;padding:2px 10px;border-radius:8px;font-weight:700">✓ Antwort</span>`
+        : `<span style="background:#fee2e2;color:#b91c1c;padding:2px 10px;border-radius:8px;font-weight:700">✗ ${esc(fake.error || 'fehlgeschlagen')}</span>`;
+    const faultBlock = (fake.faultCode || fake.faultText)
+        ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+               <b>Abgewiesen${fake.faultCode ? ' — ' + esc(fake.faultCode) : ''}</b>
+               ${fake.faultText ? `<div style="margin-top:3px">${esc(fake.faultText)}</div>` : ''}
+           </div>` : '';
+    tmp.innerHTML = `<div style="margin-bottom:8px">${okBadge}
+            <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms</span></div>
+        ${_elmTlsBlock(fake)}
+        ${sec}
+        ${faultBlock}
+        ${fake.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
+            <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.responseXml)}</pre>` : ''}
+        <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage</summary>
+            <pre style="background:#f6f3ee;border:1px solid #e7e1d8;padding:10px 12px;border-radius:10px;max-height:280px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(fake.requestXml || '')}</pre></details>`;
 }

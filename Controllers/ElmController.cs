@@ -22,11 +22,16 @@ public class ElmController : ControllerBase
 {
     private readonly ElmTransmitterClient _client;
     private readonly ElmAnnualDeclarationBuilder _builder;
+    private readonly ElmSuaService _sua;
+    private readonly ElmZertifikatStore _store;
     private readonly AppDbContext _db;
-    public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder, AppDbContext db)
+    public ElmController(ElmTransmitterClient client, ElmAnnualDeclarationBuilder builder,
+        ElmSuaService sua, ElmZertifikatStore store, AppDbContext db)
     {
         _client = client;
         _builder = builder;
+        _sua = sua;
+        _store = store;
         _db = db;
     }
 
@@ -277,5 +282,91 @@ public class ElmController : ControllerBase
 
         await _db.SaveChangesAsync(ct);
         return Ok(s);
+    }
+
+    // ── Foundation F07: SUA-Zertifikat (Walter/Cursor 24.09.2026) ─────────
+
+    [HttpGet("sua/status")]
+    public async Task<IActionResult> SuaStatus(CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        return Ok(await _sua.StatusAsync(ct));
+    }
+
+    [HttpPost("sua/erp-erzeugen")]
+    public async Task<IActionResult> SuaErpErzeugen()
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        try { return Ok(_sua.ErzeugeErp()); }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "ERP_FEHLER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    public record ElmSuaRegisterBody(
+        string? Ziel, string? Url,
+        string? Uid, string? CompanyName, string? ContactName,
+        string? Zip, string? City, string? AddresseeIdentification,
+        string? InsuranceName, string? CustomerIdentity, string? ContractIdentity,
+        bool AlsTestfall = true);
+
+    [HttpPost("sua/register")]
+    public async Task<IActionResult> SuaRegister([FromBody] ElmSuaRegisterBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null)
+            return BadRequest(new { error = "ZIEL_UNBEKANNT",
+                message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben." });
+        try
+        {
+            var r = await _sua.RegisterAsync(ziel.Value.Url!, new ElmSuaRegisterDto(
+                dto.Uid, dto.CompanyName, dto.ContactName, dto.Zip, dto.City,
+                dto.AddresseeIdentification, dto.InsuranceName, dto.CustomerIdentity,
+                dto.ContractIdentity, dto.AlsTestfall), ct);
+            return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
+                state = r.State, meldung = r.Meldung, fall = r.Fall, suaVorhanden = r.SuaVorhanden,
+                ergebnis = r.Call });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "SUA_REGISTER", message = ex.GetBaseException().Message });
+        }
+    }
+
+    public record ElmSuaSyncBody(string? Ziel, string? Url, string? OneTimePassword, bool Renew = false);
+
+    [HttpPost("sua/synchronize")]
+    public async Task<IActionResult> SuaSynchronize([FromBody] ElmSuaSyncBody dto, CancellationToken ct)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        var ziel = ZielAufloesen(new ElmZielDto(dto.Ziel, dto.Url));
+        if (ziel == null)
+            return BadRequest(new { error = "ZIEL_UNBEKANNT",
+                message = "Bitte «test» oder «prod» wählen oder eine gültige https-Adresse eingeben." });
+        try
+        {
+            var r = await _sua.SynchronizeAsync(ziel.Value.Url!, dto.OneTimePassword, dto.Renew, ct);
+            return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
+                state = r.State, meldung = r.Meldung, fall = r.Fall, suaVorhanden = r.SuaVorhanden,
+                ergebnis = r.Call });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "SUA_SYNC", message = ex.GetBaseException().Message });
+        }
+    }
+
+    [HttpPost("sua/empfaenger-zertifikat")]
+    public async Task<IActionResult> SuaEmpfaengerZertifikat(IFormFile? datei)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        if (datei == null || datei.Length == 0)
+            return BadRequest(new { error = "DATEI_FEHLT", message = "Bitte eine .cer / .pem Datei wählen." });
+        await using var ms = new MemoryStream();
+        await datei.CopyToAsync(ms);
+        _store.SpeichereEmpfaenger(ms.ToArray());
+        return Ok(new { ok = true, message = "Empfängerzertifikat gespeichert — ab jetzt werden Requests verschlüsselt." });
     }
 }
