@@ -5509,18 +5509,20 @@
                             <br><b>Hinweis:</b> CheckInteroperability wird zurzeit mit «Client.security» abgewiesen — das ist korrekt so: ab dieser Operation verlangt Swissdec
                             eine WS-Security-Signatur mit dem Transmitter-Zertifikat, das erst über die Swissdec-Erstberatung/Zertifizierung erhältlich ist (E1b).
                         </p>
-                        <!-- Foundation-Test F01_01 «Adressierung» (Walter 24.09.2026): die Adresse darf der
-                             Endbenutzer NICHT verändern. Darum kein Eingabefeld mehr — nur die Wahl zwischen
-                             zwei fest im Server hinterlegten Zielen (Services/Elm/ElmEndpunkte.cs), die URL
-                             daneben ist reine Anzeige. Zugriff zusätzlich nur für den Superadmin. -->
-                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-                            <span style="font-size:12px;color:#475569;font-weight:600">Ziel</span>
+                        <!-- Foundation-Test F01_01 «Adressierung» (Walter 24.09.2026): Die Schranke ist die
+                             PERSON, nicht das Feld — diese Seite liegt im Bereich «Entwicklung», den nur der
+                             Super-Admin vergeben kann, und die Endpunkte prüfen IsSuperAdmin serverseitig.
+                             Darum bleibt die freie Eingabe: die Testinfrastruktur liefert wechselnde
+                             Receiver-Adressen. Die beiden Knöpfe füllen die bekannten Adressen ein. -->
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:6px">
+                            <label style="font-size:12px;color:#475569;display:flex;flex-direction:column;gap:4px;flex:1;min-width:420px">Endpoint-URL
+                                <input type="text" id="elmUrl" style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 10px;font-size:13px;width:100%" placeholder="https://…/services/elm/SalaryDeclaration/V6">
+                            </label>
                             <button type="button" data-elm-ziel="test" onclick="elmSetZiel('test')" style="background:#3f3f3f;border:none;border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#fff;cursor:pointer" title="Refapps Receiver der Testinfrastruktur (ELMv6) — unser Übungsplatz">Refapps Receiver (Test)</button>
                             <button type="button" data-elm-ziel="prod" onclick="elmSetZiel('prod')" style="background:rgba(255,255,255,0.55);border:1px solid rgba(60,55,48,0.25);border-radius:10px;padding:6px 12px;font-size:12px;font-weight:600;color:#3f3f3f;cursor:pointer" title="Produktiver Distributor — nimmt ohne Zertifikat nur Ping an">Prod-Distributor</button>
                         </div>
                         <div style="font-size:12px;color:#8b8b8b;margin-bottom:10px">
-                            Adresse: <span id="elmZielUrl" style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace">—</span>
-                            <span style="margin-left:6px">· fest hinterlegt, nicht veränderbar (Swissdec F01_01)</span>
+                            Nur für den Super-Admin erreichbar — ein Admin kann sich den Bereich «Entwicklung» weder selbst geben noch zuteilen (Swissdec F01_01).
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                             <button type="button" class="btn-primary" onclick="elmPing()">📡 Ping</button>

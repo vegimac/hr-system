@@ -101,22 +101,21 @@ Erste Einträge aus dem Beleg-Check Muster AG (u.a. TF07 Burri Dez = AHV 21; TF1
 
 ## Foundation-Test (Swissdec, ab 24.09.2026)
 
+**Protokoll: `docs/swissdec-foundation-protokoll.md`** — dort steht pro Prüfpunkt, was verlangt ist,
+wie wir es gelöst haben, welche Code-Stellen und Tests dazugehören. Nach JEDEM erledigten Punkt dort
+ergänzen (Walter-Vorgabe 24.09.2026: «damit ich beim nächsten Call weiss, was wir wie gemacht haben»).
+
 Vor der eigentlichen Zertifizierung läuft der **Foundation-Test** — 90 Prüfpunkte in acht Gruppen:
 **F01 Verbindung (6) · F02 Sicherheit (27) · F03 Interoperabilität (12) · F04 Archivierung (3) ·
 F05 Übermittlung (8) · F06 Validierung (1) · F07 SUA-Zertifikat (20) · F08 Prozesse (13)**.
 Ein Teil wird vom Experten im Gespräch geprüft (`CHECKED_BY_EXPERT`), nicht automatisch.
 
-**F01_01 «Adressierung» — erledigt 24.09.2026.** Verlangt: «Das Sendersystem ist für die korrekte
-Adressierung des Distributors verantwortlich… Die URL kann vom Endbenutzer nicht beliebig verändert
-werden.» Umsetzung in OneCrew:
-- Die beiden zulässigen Adressen stehen fest im Code (`Services/Elm/ElmEndpunkte.cs`): Refapps
-  Receiver (Test) und produktiver Distributor. **Kein** Überschreiben zur Laufzeit — auch nicht über
-  Einstellungen oder appsettings; eine geänderte Swissdec-Adresse ist ein Deploy.
-- API und UI wählen nur noch ein **Ziel** (`test` / `prod`), nie eine URL: `POST /api/elm/ping` und
-  `check-interoperability` nehmen `{ ziel }`, `GET /api/elm/endpunkte` liefert die Adressen zur
-  Anzeige. Das frühere Eingabefeld `elmUrl` ist entfernt.
-- **Zugriff nur Superadmin:** `ElmController` prüft zusätzlich zur Rolle `admin` das Flag
-  `app_user.is_super_admin` (403 `NUR_SUPERADMIN`) — dieselbe Grenze wie beim Bereich «Entwicklung»
-  im UI, der die Swissdec-Seite enthält.
-- Tests: `Tests/ElmAdressierungTests.cs` (nur zwei feste Ziele, alles andere abgewiesen, Controller
-  nimmt keine URL aus dem Request).
+**F01_01 «Adressierung» — erledigt 24.09.2026.** Verlangt: «… Die URL kann vom Endbenutzer nicht
+beliebig verändert werden.» Gelöst über die **Person, nicht das Feld**: Die Swissdec-Seite liegt im
+Bereich «Entwicklung»; diesen Bereich kann **nur ein Super-Admin vergeben**
+(`UsersController.AreasMitEntwicklungsSchutz` — beim Anlegen UND Ändern; ein Admin kann ihn sich weder
+selbst geben noch entziehen), und `ElmController` prüft auf allen drei Verbindungs-Endpunkten
+zusätzlich `app_user.is_super_admin` (403 `NUR_SUPERADMIN`). Die offiziellen Adressen stehen fest in
+`Services/Elm/ElmEndpunkte.cs` (zwei Knöpfe füllen sie ein); die **freie Eingabe bleibt bewusst offen**,
+weil die Testinfrastruktur wechselnde Receiver-Adressen liefert und ohnehin nur der Super-Admin
+hinkommt. Tests: `Tests/ElmAdressierungTests.cs`.

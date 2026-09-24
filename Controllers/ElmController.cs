@@ -31,11 +31,35 @@ public class ElmController : ControllerBase
     }
 
     /// <summary>
-    /// Der Aufrufer wählt nur noch ein ZIEL («test» / «prod»), keine URL mehr
-    /// (Foundation-Test F01_01, Walter 24.09.2026). Die Adressen stehen fest
-    /// in <see cref="ElmEndpunkte"/>.
+    /// Ziel des Aufrufs: entweder ein Schlüssel der hinterlegten Adressen
+    /// («test» / «prod», siehe <see cref="ElmEndpunkte"/>) ODER eine frei
+    /// eingegebene URL.
+    ///
+    /// Foundation-Test F01_01 verlangt, dass die Adresse nicht vom ENDBENUTZER
+    /// verändert werden kann. Die Schranke dafür ist hier die Person, nicht das
+    /// Feld: die Swissdec-Seite liegt im Bereich «Entwicklung», den nur ein
+    /// Super-Admin vergeben kann (`UsersController.AreasMitEntwicklungsSchutz`),
+    /// und beide Aufrufe unten prüfen `IsSuperAdmin` zusätzlich serverseitig.
+    /// Ein normaler Admin kommt also weder an die Seite noch an den Endpunkt.
+    /// Für den Super-Admin bleibt das freie Feld bewusst offen — die Swissdec-
+    /// Testinfrastruktur liefert im Lauf der Zertifizierung wechselnde
+    /// Receiver-Adressen (Walter 24.09.2026).
     /// </summary>
-    public record ElmZielDto(string Ziel);
+    public record ElmZielDto(string? Ziel, string? Url = null);
+
+    private static bool UrlOk(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var u)
+        && (u.Scheme == Uri.UriSchemeHttps || u.Scheme == Uri.UriSchemeHttp);
+
+    /// <summary>Adresse + Anzeigename aus dem DTO: Schlüssel bevorzugt, sonst freie URL.</summary>
+    private static (string? Url, string Name)? ZielAufloesen(ElmZielDto? dto)
+    {
+        var treffer = ElmEndpunkte.Finde(dto?.Ziel);
+        if (treffer != null) return (treffer.Url, treffer.Name);
+        var frei = (dto?.Url ?? "").Trim();
+        if (UrlOk(frei)) return (frei, "Eigene Adresse");
+        return null;
+    }
 
     /// <summary>
     /// Nur der Superadmin darf die Swissdec-Testumgebung ansprechen
@@ -66,22 +90,24 @@ public class ElmController : ControllerBase
     public async Task<IActionResult> Ping([FromBody] ElmZielDto dto, CancellationToken ct)
     {
         if (!await IstSuperAdminAsync()) return NurSuperAdmin();
-        var ziel = ElmEndpunkte.Finde(dto?.Ziel);
+        var ziel = ZielAufloesen(dto);
         if (ziel == null)
-            return BadRequest(new { error = "ZIEL_UNBEKANNT", message = "Bitte «test» oder «prod» wählen." });
-        var r = await _client.PingAsync(ziel.Url, ct);
-        return Ok(new { ziel = ziel.Schluessel, ziel.Name, ziel.Url, ergebnis = r });
+            return BadRequest(new { error = "ZIEL_UNBEKANNT",
+                message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
+        var r = await _client.PingAsync(ziel.Value.Url!, ct);
+        return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }
 
     [HttpPost("check-interoperability")]
     public async Task<IActionResult> CheckInteroperability([FromBody] ElmZielDto dto, CancellationToken ct)
     {
         if (!await IstSuperAdminAsync()) return NurSuperAdmin();
-        var ziel = ElmEndpunkte.Finde(dto?.Ziel);
+        var ziel = ZielAufloesen(dto);
         if (ziel == null)
-            return BadRequest(new { error = "ZIEL_UNBEKANNT", message = "Bitte «test» oder «prod» wählen." });
-        var r = await _client.CheckInteroperabilityAsync(ziel.Url, ct);
-        return Ok(new { ziel = ziel.Schluessel, ziel.Name, ziel.Url, ergebnis = r });
+            return BadRequest(new { error = "ZIEL_UNBEKANNT",
+                message = "Bitte «test» oder «prod» wählen oder eine gültige Adresse eingeben." });
+        var r = await _client.CheckInteroperabilityAsync(ziel.Value.Url!, ct);
+        return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url, ergebnis = r });
     }
 
     /// <summary>

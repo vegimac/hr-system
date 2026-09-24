@@ -174,28 +174,22 @@ async function elmStammSave() {
     }
 }
 
-// Ziel der Verbindung — «test» (Refapps Receiver) oder «prod» (Distributor).
-// Die ADRESSEN stehen im Server (Services/Elm/ElmEndpunkte.cs) und sind hier
-// bewusst nicht mehr eingebbar: Foundation-Test F01_01 verlangt, dass die URL
-// vom Endbenutzer nicht verändert werden kann (Walter 24.09.2026).
-let _elmZiel = 'test';
-
-function elmSetZiel(ziel) {
-    _elmZiel = ziel === 'prod' ? 'prod' : 'test';
-    try { localStorage.setItem('elmZiel', _elmZiel); } catch (e) { /* egal */ }
-    document.querySelectorAll('[data-elm-ziel]').forEach(b => {
-        const aktiv = b.getAttribute('data-elm-ziel') === _elmZiel;
-        b.style.background = aktiv ? '#3f3f3f' : 'rgba(255,255,255,0.55)';
-        b.style.color      = aktiv ? '#fff' : '#3f3f3f';
-        b.style.border     = aktiv ? 'none' : '1px solid rgba(60,55,48,0.25)';
-    });
-    const anz = document.getElementById('elmZielUrl');
-    if (anz) anz.textContent = _elmZielUrls[_elmZiel] || '—';
-}
-
+// Die bekannten Adressen holt das UI beim Server (Services/Elm/ElmEndpunkte.cs)
+// und füllt sie per Knopf ins Feld. Frei eintippen bleibt erlaubt: die Swissdec-
+// Testinfrastruktur liefert wechselnde Receiver-Adressen. Die Schranke für
+// Foundation-Test F01_01 ist die PERSON — die Seite liegt im Bereich
+// «Entwicklung» (nur Super-Admin), und die Endpunkte prüfen das nochmals
+// serverseitig (Walter 24.09.2026).
 let _elmZielUrls = {};
 
-/** Adressen beim Server holen (nur Anzeige) und Auswahl wiederherstellen. */
+function elmSetZiel(ziel) {
+    const url = _elmZielUrls[ziel === 'prod' ? 'prod' : 'test'];
+    const el = document.getElementById('elmUrl');
+    if (el && url) el.value = url;
+    try { if (url) localStorage.setItem('elmEndpointUrl', url); } catch (e) { /* egal */ }
+}
+
+/** Adressen beim Server holen und zuletzt benutzte URL wiederherstellen. */
 async function elmLadeZiele() {
     try {
         const r = await fetch('/api/elm/endpunkte', { headers: ah(), cache: 'no-store' });
@@ -204,20 +198,26 @@ async function elmLadeZiele() {
             _elmZielUrls = {};
             liste.forEach(z => { _elmZielUrls[z.schluessel] = z.url; });
         }
-    } catch (e) { /* Anzeige bleibt leer */ }
-    let gespeichert = 'test';
-    try { gespeichert = localStorage.getItem('elmZiel') || 'test'; } catch (e) { /* egal */ }
-    elmSetZiel(gespeichert);
+    } catch (e) { /* Knöpfe bleiben ohne Wirkung, Feld bleibt frei */ }
+    const el = document.getElementById('elmUrl');
+    if (el && !el.value) {
+        let letzte = '';
+        try { letzte = localStorage.getItem('elmEndpointUrl') || ''; } catch (e) { /* egal */ }
+        el.value = letzte || _elmZielUrls.test || '';
+    }
 }
 
 async function _elmCall(pfad, label) {
     const out = document.getElementById('elmResult');
+    const url = (document.getElementById('elmUrl')?.value || '').trim();
+    if (!url) { if (out) out.innerHTML = '<div style="color:#b91c1c">Bitte eine Endpoint-URL eintragen oder einen der beiden Knöpfe benutzen.</div>'; return; }
+    try { localStorage.setItem('elmEndpointUrl', url); } catch (e) { /* egal */ }
     if (out) out.innerHTML = `<div style="color:#64748b">⏳ ${label} läuft…</div>`;
     try {
         const r = await fetch(`/api/elm/${pfad}`, {
             method: 'POST',
             headers: { ...ah(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ziel: _elmZiel })
+            body: JSON.stringify({ url })
         });
         const antwort = await r.json();
         if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c">Fehler: ${esc(antwort?.message || antwort?.error || ('HTTP ' + r.status))}</div>`; return; }

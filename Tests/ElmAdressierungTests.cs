@@ -39,21 +39,44 @@ public class ElmAdressierungTests
         => Assert.Null(ElmEndpunkte.Finde(eingabe));
 
     /// <summary>
-    /// Der Controller darf keine URL mehr aus dem Request übernehmen. Der Test liest
-    /// die Datei, weil genau das die Regressionsgefahr ist: ein neuer Endpunkt, der
-    /// wieder `dto.Url` an den Transmitter reicht.
+    /// Die eigentliche Schranke für F01_01 ist die PERSON (Walter-Entscheid
+    /// 24.09.2026): frei eingeben darf nur der Super-Admin. Der Test liest die
+    /// Dateien, weil genau dort die Regressionsgefahr liegt — ein neuer Endpunkt
+    /// ohne Super-Admin-Prüfung oder ein Admin, der sich den Bereich «Entwicklung»
+    /// selbst zuteilt.
     /// </summary>
     [Fact]
-    public void ControllerNimmtKeineUrlAusDemRequest()
+    public void ElmEndpunkte_NurFuerSuperAdmin()
     {
-        var pfad = Path.Combine(ProjektWurzel(), "Controllers", "ElmController.cs");
-        var code = File.ReadAllText(pfad);
-        Assert.DoesNotContain("dto.Url", code);
-        Assert.DoesNotContain("ElmUrlDto", code);
-        // Ziel-Auflösung ist der einzige Weg zu einer Adresse.
-        Assert.Contains("ElmEndpunkte.Finde", code);
-        // Superadmin-Schranke steht auf jedem Aufruf.
-        Assert.Contains("IstSuperAdminAsync", code);
+        var code = File.ReadAllText(Path.Combine(ProjektWurzel(), "Controllers", "ElmController.cs"));
+        Assert.Contains("NUR_SUPERADMIN", code);
+        // Jeder Verbindungs-Einstieg prüft zuerst den Super-Admin.
+        foreach (var methode in new[] { "Endpunkte(", "Ping(", "CheckInteroperability(" })
+        {
+            var start = code.IndexOf(methode, StringComparison.Ordinal);
+            Assert.True(start > 0, $"Methode {methode} nicht gefunden.");
+            var rumpf = code.Substring(start, Math.Min(600, code.Length - start));
+            Assert.True(rumpf.Contains("IstSuperAdminAsync"),
+                $"Super-Admin-Prüfung fehlt in {methode} — Swissdec F01_01.");
+        }
+    }
+
+    [Fact]
+    public void BereichEntwicklung_VergibtNurDerSuperAdmin()
+    {
+        var code = File.ReadAllText(Path.Combine(ProjektWurzel(), "Controllers", "UsersController.cs"));
+        // Anlegen UND Ändern laufen über den Schutz — kein direktes JoinAreas(req.AllowedAreas) mehr.
+        Assert.DoesNotContain("JoinAreas(req.AllowedAreas)", code);
+        // Definition + zwei Aufrufe (Create und Update).
+        Assert.True(Anzahl(code, "AreasMitEntwicklungsSchutz(") >= 3,
+            "Anlegen und Ändern müssen beide über den Entwicklungs-Schutz laufen.");
+    }
+
+    private static int Anzahl(string text, string teil)
+    {
+        int n = 0, i = 0;
+        while ((i = text.IndexOf(teil, i, StringComparison.Ordinal)) >= 0) { n++; i += teil.Length; }
+        return n;
     }
 
     private static string ProjektWurzel()

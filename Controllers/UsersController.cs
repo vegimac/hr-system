@@ -119,6 +119,33 @@ public class UsersController : ControllerBase
     private static string? JoinAreas(List<string>? areas) =>
         areas == null ? null : string.Join(",", areas);
 
+    /// <summary>
+    /// Bereich «Entwicklung» darf NUR ein Super-Admin vergeben (Walter 24.09.2026,
+    /// Swissdec Foundation-Test F01_01). Dort liegt die Swissdec-Seite mit dem
+    /// Verbindungstest — wer den Bereich verteilen könnte, käme an die Testumgebung.
+    /// Ein normaler Admin/Superuser darf ihn also weder setzen noch entfernen:
+    /// die bestehende Vergabe des bearbeiteten Benutzers bleibt unverändert stehen.
+    /// </summary>
+    private const string BereichEntwicklung = "entwicklung";
+
+    private static List<string> AreasMitEntwicklungsSchutz(
+        List<string>? gewuenscht, bool callerIstSuperAdmin, string? bisherigeAreas)
+    {
+        var liste = (gewuenscht ?? new List<string>())
+            .Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()).ToList();
+        if (callerIstSuperAdmin) return liste;
+
+        bool hatteEntwicklung = (bisherigeAreas ?? "")
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Any(a => string.Equals(a.Trim(), BereichEntwicklung, StringComparison.OrdinalIgnoreCase));
+        liste.RemoveAll(a => string.Equals(a, BereichEntwicklung, StringComparison.OrdinalIgnoreCase));
+        if (hatteEntwicklung) liste.Add(BereichEntwicklung);
+        return liste;
+    }
+
+    private async Task<bool> CallerIstSuperAdminAsync(int callerId) =>
+        await _context.AppUsers.Where(u => u.Id == callerId).Select(u => u.IsSuperAdmin).FirstOrDefaultAsync();
+
     // Session-Policy-Validierung (Walter-Vorgabe 21.06.2026): leer = Rollen-
     // Default, sonst 5–1440 Minuten.
     private static string? ValidateSessionPolicy(int? idle, int? max)
@@ -147,6 +174,11 @@ public class UsersController : ControllerBase
         if (await _context.AppUsers.AnyAsync(u => u.Email == req.Email))
             return BadRequest(new { message = "Diese E-Mail ist bereits vergeben." });
 
+        // «Entwicklung» nur vom Super-Admin (siehe AreasMitEntwicklungsSchutz).
+        var callerIdCreate = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var areasCreate = AreasMitEntwicklungsSchutz(
+            req.AllowedAreas, await CallerIstSuperAdminAsync(callerIdCreate), null);
+
         var user = new AppUser
         {
             Username  = req.Username,
@@ -163,7 +195,7 @@ public class UsersController : ControllerBase
             ReceivesMirusChangeDigest = req.ReceivesMirusChangeDigest ?? false,
             IdleTimeoutMinutes = req.IdleTimeoutMinutes,
             MaxSessionMinutes  = req.MaxSessionMinutes,
-            AllowedAreas = JoinAreas(req.AllowedAreas),
+            AllowedAreas = JoinAreas(areasCreate),
             // Zweite Prüfung (Walter 11.09.2026): nur das Häkchen — QR/Secret
             // richtet der Benutzer beim ersten Login selbst ein.
             TotpRequired = req.TotpRequired ?? false,
@@ -242,7 +274,10 @@ public class UsersController : ControllerBase
             user.IdleTimeoutMinutes = req.IdleTimeoutMinutes;
             user.MaxSessionMinutes  = req.MaxSessionMinutes;
         }
-        user.AllowedAreas       = JoinAreas(req.AllowedAreas);
+        // «Entwicklung» bleibt dem Super-Admin vorbehalten (siehe AreasMitEntwicklungsSchutz):
+        // ein normaler Admin kann den Bereich weder vergeben noch wegnehmen.
+        user.AllowedAreas       = JoinAreas(
+            AreasMitEntwicklungsSchutz(req.AllowedAreas, callerIsSuper, user.AllowedAreas));
 
         // Zweite Prüfung (Walter 11.09.2026): Häkchen pro Benutzer. Beim
         // Abwählen bleibt ein vorhandenes Secret stehen (erneutes Anhaken =
