@@ -30,6 +30,15 @@ public class ElmTransmitterClient
     /// <summary>Details der zuletzt aufgebauten Verbindung im aktuellen Aufruf-Kontext.</summary>
     private static readonly AsyncLocal<TlsInfo?> _tls = new();
 
+    private readonly ElmZertifikatStore _store;
+    private readonly ElmEinstellungen _einst;
+
+    public ElmTransmitterClient(ElmZertifikatStore store, ElmEinstellungen einstellungen)
+    {
+        _store = store;
+        _einst = einstellungen;
+    }
+
     /// <summary>
     /// Eigener Handler, damit wir den Sicherheitsnachweis führen können:
     ///  • `SslOptions` erlaubt ausschliesslich TLS 1.2 und 1.3 — ältere, gebrochene
@@ -110,17 +119,18 @@ public class ElmTransmitterClient
     /// entschlüsselt und die Signatur geprüft, sofern unser Zertifikat da ist.
     /// Fehlt das Empfängerzertifikat, wird es aus dem BinarySecurityToken der
     /// Antwort übernommen (RefApps liefert es in jeder signierten Antwort).
+    /// Vor dem Verschlüsseln wird die signierte Klartext-Nachricht archiviert (F04).
     /// </summary>
     public async Task<ElmCallResult> PostGesichertAsync(
         string url, XElement body,
         X509Certificate2 erpZertifikat,
         X509Certificate2? empfaengerZertifikat,
-        ElmZertifikatStore? store = null,
+        string archivName = "request",
         CancellationToken ct = default)
     {
         // RefApps-Receiver-Zertifikat aus Assets, falls noch keines hinterlegt
         // (sonst lehnt RefApps mit Client.security ab — Signatur allein reicht nicht).
-        empfaengerZertifikat ??= store?.LadeEmpfaenger() ?? ElmZertifikatStore.LadeRefAppsEmpfaengerFallback();
+        empfaengerZertifikat ??= _store.LadeEmpfaenger() ?? ElmZertifikatStore.LadeRefAppsEmpfaengerFallback();
 
         var envelopeXml = Envelope(body);
         var doc = new XmlDocument { PreserveWhitespace = true };
@@ -129,6 +139,9 @@ public class ElmTransmitterClient
         doc.LoadXml(XDocument.Parse(envelopeXml).ToString(SaveOptions.DisableFormatting));
 
         ElmWsSecurity.Signiere(doc, erpZertifikat);
+        // F04: signiert und UNVERSCHLÜSSELT archivieren (vor dem Encrypt).
+        _store.ArchiviereKlartext(archivName + "-request", doc.OuterXml);
+
         if (empfaengerZertifikat != null)
             ElmWsSecurity.Verschluessele(doc, empfaengerZertifikat);
 
@@ -143,7 +156,7 @@ public class ElmTransmitterClient
             antw.LoadXml(r.ResponseXml);
 
             // Empfängerzertifikat aus der Antwort lernen (nächster Aufruf verschlüsselt).
-            store?.UebernehmeEmpfaengerAusAntwort(antw);
+            _store.UebernehmeEmpfaengerAusAntwort(antw);
 
             // SOAP-Faults der RefApps sind oft mit rsa-sha1 signiert — die fachliche
             // Ablehnung (Client.security) ist wichtiger als unsere Signaturprüfung.
@@ -154,26 +167,81 @@ public class ElmTransmitterClient
                 verschluesselungPflicht: verschlPflicht,
                 signaturPflicht: !istFault);
 
-            // Klartext-Hinweis, wenn RefApps «nicht signiert» meldet und wir
-            // ohne Verschlüsselung gesendet haben (häufigste Ursache).
-            if (empfaengerZertifikat == null
-                && (r.FaultCode?.Contains("security", StringComparison.OrdinalIgnoreCase) == true
-                    || r.FaultText?.Contains("not been signed", StringComparison.OrdinalIgnoreCase) == true))
-            {
-                pruef = new ElmWsSecurity.PruefErgebnis(
-                    ElmWsSecurity.Befund.VerschluesselungFehlt,
-                    "Request war vermutlich nicht verschlüsselt. Empfängerzertifikat fehlt oder wurde "
-                    + "gerade aus der Antwort übernommen — bitte «Registrieren» erneut drücken.");
-            }
+            var deutung = DeuteSicherheitsFault(r);
+            if (deutung != null) pruef = deutung;
 
             var klartext = antw.OuterXml;
             try { klartext = XDocument.Parse(klartext).ToString(); } catch { /* roh lassen */ }
+            _store.ArchiviereKlartext(archivName + "-response", klartext);
             return r with { ResponseXml = klartext, Security = pruef };
         }
         catch
         {
             return r;
         }
+    }
+
+    /// <summary>
+    /// Einen abgewiesenen Aufruf deuten — aber nur so weit, wie die Antwort es hergibt
+    /// (Walter 24.09.2026).
+    ///
+    /// Vorgeschichte: Die erste Fassung fasste mehrere ganz verschiedene Ablehnungen unter
+    /// «Fault 100 — Zertifikat nicht von der Swissdec-CA» zusammen, darunter auch «has not
+    /// been signed», was das genaue Gegenteil bedeutet (gar keine Signatur). Damit zeigte
+    /// der Bildschirm eine Ursache an, die gar nicht belegt war. Ein numerischer Code 100
+    /// existiert im Standard ohnehin nicht: `FaultCodeType` kennt nur NOT_accepted,
+    /// NOT_plausible und NOT_valid.
+    ///
+    /// Darum jetzt: drei belegbare Fälle, und sonst NICHTS — dann bleibt der Fault-Text
+    /// des Empfängers stehen, statt durch eine Vermutung ersetzt zu werden.
+    /// Gibt NULL zurück, wenn sich nichts sicher sagen lässt.
+    /// </summary>
+    public static ElmWsSecurity.PruefErgebnis? DeuteSicherheitsFault(ElmCallResult r)
+    {
+        var text = ((r.FaultCode ?? "") + " " + (r.FaultText ?? "")).ToLowerInvariant();
+        if (text.Trim().Length == 0) return null;
+
+        bool Enthaelt(params string[] teile) => teile.Any(t => text.Contains(t));
+
+        // 1) Unser Zertifikat wird nicht anerkannt. Laut Sicherheitsrichtlinie
+        //    (SecurityTransmitter_d.pdf, Kap. 5.3) prüft der Distributor den
+        //    mitgeschickten öffentlichen Schlüssel gegen das Swissdec-CA-Zertifikat.
+        if (Enthaelt("non-certified", "not certified", "unknown ca", "untrusted",
+                     "certificate path", "certpath", "certificate is not", "invalid certificate"))
+        {
+            return new ElmWsSecurity.PruefErgebnis(
+                ElmWsSecurity.Befund.ZertifikatNichtVertrauenswuerdig,
+                "Der Empfänger erkennt unser Zertifikat nicht an. Er prüft den mitgeschickten "
+                + "öffentlichen Schlüssel gegen das Swissdec-CA-Zertifikat — ein selbst erzeugtes "
+                + "Zertifikat besteht diese Prüfung nicht.");
+        }
+
+        // 2) Gar nicht signiert — etwas anderes als ein nicht anerkanntes Zertifikat.
+        if (Enthaelt("not been signed", "not signed", "missing signature", "no signature"))
+        {
+            return new ElmWsSecurity.PruefErgebnis(
+                ElmWsSecurity.Befund.SignaturFehlt,
+                "Der Empfänger hat in unserem Aufruf keine Signatur gefunden. Das ist etwas "
+                + "anderes als ein abgelehntes Zertifikat — hier fehlt die Unterschrift ganz.");
+        }
+
+        // 3) Verschlüsselung: entweder fehlt sie oder sie liess sich nicht lesen.
+        if (Enthaelt("not been encrypted", "not encrypted", "missing encryption"))
+        {
+            return new ElmWsSecurity.PruefErgebnis(
+                ElmWsSecurity.Befund.VerschluesselungFehlt,
+                "Der Empfänger erwartet einen verschlüsselten Aufruf. Fehlt sein Zertifikat bei uns, "
+                + "können wir nicht verschlüsseln — es wird aus der ersten Antwort übernommen, "
+                + "danach bitte erneut senden.");
+        }
+        if (Enthaelt("decrypt", "decryption"))
+        {
+            return new ElmWsSecurity.PruefErgebnis(
+                ElmWsSecurity.Befund.EntschluesselungFehlgeschlagen,
+                "Der Empfänger konnte unseren Aufruf nicht entschlüsseln.");
+        }
+
+        return null;   // Kein Urteil — der Fault-Text spricht für sich.
     }
 
     /// <summary>
@@ -300,7 +368,10 @@ public class ElmTransmitterClient
     {
         var body = new XElement(Sdst + "Ping",
             UserAgent(),
-            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)));
+            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)),
+            // Auf den Testsystemen zwingend — ohne sie ordnen die RefApps die
+            // Übermittlung keinem Benutzer zu (Walter 24.09.2026).
+            _einst.MonitoringElement(Ep));
         return MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
     }
 
@@ -324,10 +395,33 @@ public class ElmTransmitterClient
             // Der zweite Operand ist wählbar (F03_02), aber immer mit zwei
             // Nachkommastellen formatiert (F03_03).
             new XElement(Ep + "SecondOperand", ElmInterop.Betrag(zweiterOperand)),
-            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)));
+            new XElement(Ep + "SystemDateTime", UnsereZeit(versatzSekunden)),
+            _einst.MonitoringElement(Ep));
 
-        var r = MitFault(MitZeitvergleich(await PostAsync(url, Envelope(body), ct), versatzSekunden));
+        var r = MitFault(MitZeitvergleich(
+            await PostGesichertOderKlarAsync(url, body, "check-interop", ct), versatzSekunden));
         // Die Antwort wird nachgerechnet, nicht geglaubt (F03_04/F03_05).
         return r with { Interop = ElmInterop.Pruefe(r.ResponseXml, zweiterOperand) };
+    }
+
+    /// <summary>
+    /// Mit ERP-Zertifikat: signiert+verschlüsselt (F02/F03). Ohne: Klartext
+    /// (nur Diagnose — RefApps lehnt mit Fault 100 ab).
+    /// </summary>
+    private async Task<ElmCallResult> PostGesichertOderKlarAsync(
+        string url, XElement body, string archivName, CancellationToken ct)
+    {
+        var erp = _store.LadeErp();
+        if (erp == null)
+        {
+            var r = MitFault(await PostAsync(url, Envelope(body), ct));
+            return r with
+            {
+                Error = (r.Error != null ? r.Error + " · " : "")
+                      + "Kein ERP-Zertifikat hinterlegt — Request ging unsigniert. "
+                      + "Bitte Swissdec-.pfx importieren (F07-Karte)."
+            };
+        }
+        return await PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), archivName, ct);
     }
 }

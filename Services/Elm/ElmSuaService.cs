@@ -24,13 +24,27 @@ public class ElmSuaService
     private readonly ElmTransmitterClient _client;
     private readonly ElmZertifikatStore _store;
     private readonly AppDbContext _db;
+    private readonly ElmEinstellungen _einst;
+    private readonly ElmXmlValidator _validator;
 
-    public ElmSuaService(ElmTransmitterClient client, ElmZertifikatStore store, AppDbContext db)
+    public ElmSuaService(ElmTransmitterClient client, ElmZertifikatStore store, AppDbContext db,
+        ElmEinstellungen einstellungen, ElmXmlValidator validator)
     {
         _client = client;
         _store = store;
         _db = db;
+        _einst = einstellungen;
+        _validator = validator;
     }
+
+    /// <summary>Versicherungszweige laut Schema (`InstitutionDomainType`).</summary>
+    public static readonly string[] Domains = { "UVG-LAA", "UVGZ-LAAC", "KTG-AMC", "BVG-LPP" };
+
+    public const string StandardDomain = "UVG-LAA";
+
+    /// <summary>Unbekannter Zweig ⇒ Standard, damit nie ein ungültiger Wert ins XML kommt.</summary>
+    public static string DomainOderStandard(string? wert)
+        => Domains.Contains((wert ?? "").Trim().ToUpperInvariant()) ? wert!.Trim().ToUpperInvariant() : StandardDomain;
 
     public record SuaErgebnis(
         ElmTransmitterClient.ElmCallResult Call,
@@ -50,6 +64,7 @@ public class ElmSuaService
         return new
         {
             certPfad = _store.RootPfad,
+            monitoringId = _einst.MonitoringId,
             erp = _store.ErpInfo(),
             empfaengerZertifikat = _store.HatEmpfaengerZertifikat(),
             sua = _store.HatSuaZertifikat(),
@@ -64,8 +79,23 @@ public class ElmSuaService
         return new
         {
             ok = true,
-            message = "ERP-/Transmitter-Zertifikat erzeugt und gespeichert (ausserhalb des Deploy-Verzeichnisses).",
+            message = "ERP-/Transmitter-Zertifikat erzeugt und gespeichert (ausserhalb des Deploy-Verzeichnisses). "
+                + "Selbst signiert — gegen RefApps braucht es noch das Swissdec-.pfx (Import).",
             erp = _store.ErpInfo(),
+            subject = z.Subject,
+        };
+    }
+
+    /// <summary>Swissdec-TX-.pfx importieren (ersetzt selbst signiertes ERP).</summary>
+    public object ImportiereErpPfx(byte[] pfxBytes, string? passwort)
+    {
+        var z = _store.ImportiereErpPfx(pfxBytes, passwort);
+        var info = _store.ErpInfo();
+        return new
+        {
+            ok = true,
+            message = "Swissdec-.pfx importiert — CheckInterop / Register können gegen RefApps laufen.",
+            erp = info,
             subject = z.Subject,
         };
     }
@@ -84,14 +114,22 @@ public class ElmSuaService
         if (uid.Length == 0 || name.Length == 0 || kontakt.Length == 0)
             throw new InvalidOperationException("UID, Firmenname und Kontakt sind Pflicht.");
 
+        var domain = DomainOderStandard(dto.Domain);
         var body = BaueRegisterBody(uid, name, kontakt, addresseeId,
-            dto.Zip ?? "6000", dto.City ?? "Luzern",
+            dto.Zip ?? "6000", dto.City ?? "Luzern", domain,
             dto.InsuranceName ?? "Test Versicherer",
             dto.CustomerIdentity ?? "CustomerIdentity",
             dto.ContractIdentity ?? "ContractIdentity",
             dto.AlsTestfall);
+        PruefeSchema(body, "Register");
 
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), _store, ct);
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), "sua-register", ct);
+        var abgewiesen = ElmTransmitterClient.DeuteSicherheitsFault(call);
+        if (abgewiesen != null)
+        {
+            return new SuaErgebnis(call, null, abgewiesen.Meldung, _store.LadeFall(),
+                _store.HatSuaZertifikat());
+        }
         var (requestId, key, password) = ParseRegisterAntwort(call.ResponseXml);
 
         ElmSuaFall? fall = null;
@@ -107,6 +145,8 @@ public class ElmSuaService
                 AddresseeIdentification = addresseeId,
                 Uid = uid,
                 CompanyName = name,
+                AlsTestfall = dto.AlsTestfall,
+                Domain = domain,
                 LetzterState = null,
                 UpdatedAt = DateTime.Now,
             };
@@ -162,7 +202,14 @@ public class ElmSuaService
         }
 
         var body = BaueSynchronizeBody(fall, signBlock);
-        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), _store, ct);
+        PruefeSchema(body, "Synchronize");
+        var call = await _client.PostGesichertAsync(url, body, erp, _store.LadeEmpfaenger(), "sua-sync", ct);
+        var abgewiesen = ElmTransmitterClient.DeuteSicherheitsFault(call);
+        if (abgewiesen != null)
+        {
+            return new SuaErgebnis(call, fall.LetzterState, abgewiesen.Meldung, fall,
+                _store.HatSuaZertifikat());
+        }
 
         var geparst = ParseSynchronizeAntwort(call.ResponseXml);
         if (geparst.State != null)
@@ -190,9 +237,11 @@ public class ElmSuaService
 
     // ── XML bauen ────────────────────────────────────────────────────────────
 
-    private static XElement BaueRegisterBody(
+    /// <summary>Öffentlich, damit die Tests die Meldung gegen die Schemas prüfen können.</summary>
+    public XElement BaueRegisterBody(
         string uid, string companyName, string contact, string addresseeId,
-        string zip, string city, string insurance, string customerId, string contractId, bool testCase)
+        string zip, string city, string domain, string insurance, string customerId, string contractId,
+        bool testCase)
     {
         var addresseeRef = "#addressee";
         return new XElement(Sdst + "RegisterOrganizationAuthentication",
@@ -207,11 +256,14 @@ public class ElmSuaService
                 new XElement(Sdc + "Addressee",
                     new XAttribute("addresseeID", addresseeRef),
                     new XElement(Ep + "AddresseeIdentification", addresseeId),
-                    new XElement(Ep + "ProcessByDistributor", true),
-                    testCase ? new XElement(Ep + "TestCase") : null)),
+                    new XElement(Ep + "ProcessByDistributor", true)),
+                // TestCase ist ein GESCHWISTER des Addressee im Job und gehört in den
+                // Container-Namensraum (sdc). Im Addressee gibt es das Element nicht —
+                // dort macht es die Meldung schema-ungültig (Walter 24.09.2026).
+                testCase ? new XElement(Sdc + "TestCase") : null),
             new XElement(Sdc + "RegisterOrganization",
                 new XElement(Sd + "Institution",
-                    new XElement(Sd + "UVG-LAA",
+                    new XElement(Sd + domain,
                         new XAttribute("addresseeIDRef", addresseeRef),
                         new XElement(C + "InsuranceCompanyName", insurance),
                         new XElement(C + "CustomerIdentity", customerId),
@@ -225,15 +277,19 @@ public class ElmSuaService
                 new XElement(Sdc + "Contact", new XElement(C + "Name", contact))));
     }
 
-    private static XElement BaueSynchronizeBody(ElmSuaFall fall, XElement? signOrRenew)
+    /// <summary>Öffentlich, damit die Tests die Meldung gegen die Schemas prüfen können.</summary>
+    public XElement BaueSynchronizeBody(ElmSuaFall fall, XElement? signOrRenew)
     {
-        var caseEl = new XElement(C + "Case",
+        var caseEl = new XElement(Sdc + "Case",
             new XElement(C + "CaseContext",
                 new XElement(Ep + "Credentials",
                     new XElement(Ep + "Key", fall.CredentialKey),
                     new XElement(Ep + "Password", fall.CredentialPassword)),
                 new XElement(C + "CertificateRequestID", fall.CertificateRequestId),
-                new XElement(Ep + "TestCase")),
+                // Nur wenn die Anmeldung wirklich ein Testfall war — und dann im
+                // c-Namensraum. Ein fest gesetztes TestCase hiesse: nie ein Zertifikat
+                // (Richtlinie Anhang C.2.1.2, Walter 24.09.2026).
+                fall.AlsTestfall ? new XElement(C + "TestCase") : null),
             fall.LetzterState != null
                 ? new XElement(C + "ReceivedState", fall.LetzterState)
                 : null,
@@ -250,14 +306,33 @@ public class ElmSuaService
             RequestContext(fall.CompanyName ?? "OneCrew"),
             new XElement(Ep + "Sender",
                 new XElement(Ep + "UID-BFS", new XElement(Ep + "UID", fall.Uid ?? ""))),
+            // Der Addressee des Synchronize ist ein ANDERER Typ als der im Register
+            // (InstitutionAddresseeType): kein addresseeID, kein ProcessByDistributor,
+            // dafür der Versicherungszweig.
             new XElement(Sdc + "Addressee",
-                new XAttribute("addresseeID", fall.AddresseeId ?? "#addressee"),
                 new XElement(Ep + "AddresseeIdentification", fall.AddresseeIdentification ?? "1234"),
-                new XElement(Ep + "ProcessByDistributor", true)),
+                new XElement(Sd + "Domain", fall.Domain ?? StandardDomain)),
             caseEl);
     }
 
-    private static XElement RequestContext(string companyName) =>
+    /// <summary>
+    /// Vor dem Senden gegen die ELM-Schemas prüfen (Walter 24.09.2026).
+    ///
+    /// Anlass: Die erste Fassung schickte `TestCase` an der falschen Stelle und den
+    /// Synchronize-Addressee im Aufbau des Register-Addressee — beides schema-ungültig,
+    /// beides erst am abgewiesenen Aufruf sichtbar. Der Distributor prüft als Erstes die
+    /// Validität; eine ungültige Meldung verlässt uns also gar nicht erst.
+    /// </summary>
+    private void PruefeSchema(XElement body, string was)
+    {
+        var fehler = _validator.Validate(body.ToString());
+        if (fehler.Count == 0) return;
+        throw new InvalidOperationException(
+            $"Die {was}-Meldung entspricht nicht dem ELM-Schema und wurde NICHT gesendet: "
+            + string.Join(" · ", fehler.Take(3)));
+    }
+
+    private XElement RequestContext(string companyName) =>
         new(Ep + "RequestContext",
             new XElement(Ep + "UserAgent",
                 new XElement(Ep + "Producer", "Schaub Restaurants GmbH"),
@@ -268,7 +343,10 @@ public class ElmSuaService
             new XElement(Ep + "CompanyName", companyName),
             new XElement(Ep + "TransmissionDate", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
             new XElement(Ep + "RequestID", Guid.NewGuid().ToString("N")),
-            new XElement(Ep + "LanguageCode", "de"));
+            new XElement(Ep + "LanguageCode", "de"),
+            // Auf den Testsystemen zwingend: ordnet die Übermittlung in der
+            // Referenzapplikation dem richtigen Benutzer zu (Walter 24.09.2026).
+            _einst.MonitoringElement(Ep));
 
     /// <summary>CSR aus Empfänger-Subject — DN nicht selbst erfinden (Bauanleitung).</summary>
     public static (XElement Block, RSA Key) BaueSignBlock(ElmSuaSubject subject, string oneTimePassword)
@@ -395,7 +473,8 @@ public record ElmSuaRegisterDto(
     string? Zip,
     string? City,
     string? AddresseeIdentification,
+    string? Domain,
     string? InsuranceName,
     string? CustomerIdentity,
     string? ContractIdentity,
-    bool AlsTestfall = true);
+    bool AlsTestfall = false);

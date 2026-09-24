@@ -304,12 +304,33 @@ public class ElmController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Swissdec-TX-.pfx importieren (Foundation: selbst signiertes ERP reicht
+    /// gegen RefApps nicht — Fault 100). Multipart: datei + optional passwort.
+    /// </summary>
+    [HttpPost("sua/erp-pfx")]
+    public async Task<IActionResult> SuaErpPfxImport(IFormFile? datei, [FromForm] string? passwort)
+    {
+        if (!await IstSuperAdminAsync()) return NurSuperAdmin();
+        if (datei == null || datei.Length == 0)
+            return BadRequest(new { error = "DATEI_FEHLT", message = "Bitte die von Swissdec gelieferte .pfx wählen." });
+        await using var ms = new MemoryStream();
+        await datei.CopyToAsync(ms);
+        try { return Ok(_sua.ImportiereErpPfx(ms.ToArray(), passwort)); }
+        catch (Exception ex)
+        {
+            return BadRequest(new { error = "PFX_IMPORT", message = ex.GetBaseException().Message });
+        }
+    }
+
     public record ElmSuaRegisterBody(
         string? Ziel, string? Url,
         string? Uid, string? CompanyName, string? ContactName,
         string? Zip, string? City, string? AddresseeIdentification,
-        string? InsuranceName, string? CustomerIdentity, string? ContractIdentity,
-        bool AlsTestfall = true);
+        string? Domain, string? InsuranceName, string? CustomerIdentity, string? ContractIdentity,
+        // Standard bewusst FALSE: Ein Testfall lässt sich laut Richtlinie (Anhang C.2.1.2)
+        // «starten, jedoch nicht abschliessen» — er liefert NIE ein Zertifikat.
+        bool AlsTestfall = false);
 
     [HttpPost("sua/register")]
     public async Task<IActionResult> SuaRegister([FromBody] ElmSuaRegisterBody dto, CancellationToken ct)
@@ -323,7 +344,7 @@ public class ElmController : ControllerBase
         {
             var r = await _sua.RegisterAsync(ziel.Value.Url!, new ElmSuaRegisterDto(
                 dto.Uid, dto.CompanyName, dto.ContactName, dto.Zip, dto.City,
-                dto.AddresseeIdentification, dto.InsuranceName, dto.CustomerIdentity,
+                dto.AddresseeIdentification, dto.Domain, dto.InsuranceName, dto.CustomerIdentity,
                 dto.ContractIdentity, dto.AlsTestfall), ct);
             return Ok(new { name = ziel.Value.Name, url = ziel.Value.Url,
                 state = r.State, meldung = r.Meldung, fall = r.Fall, suaVorhanden = r.SuaVorhanden,

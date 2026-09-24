@@ -237,15 +237,19 @@ async function _elmCall(pfad, label) {
             ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
                    <b>Abgewiesen${j.faultCode ? ' — ' + esc(j.faultCode) : ''}</b>
                    ${j.faultText ? `<div style="margin-top:3px">${esc(j.faultText)}</div>` : ''}
-                   ${/security/i.test((j.faultCode || '') + ' ' + (j.faultText || ''))
-                       ? '<div style="margin-top:4px;font-size:12px">Erwartet ohne Transmitter-Zertifikat: ab dieser Operation verlangt Swissdec eine WS-Security-Signatur.</div>' : ''}
+                   ${_elmFaultHinweis(j)}
                </div>`
+            : '';
+        const secBlock = j.security
+            ? `<div style="background:${j.security.ok ? '#e7f0e7' : '#fef2f2'};border:1px solid ${j.security.ok ? '#b8ccb8' : '#fecaca'};color:${j.security.ok ? '#3f5540' : '#991b1b'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                 <b>WS-Security:</b> ${esc(j.security.meldung || '')}</div>`
             : '';
         out.innerHTML = `
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
             ${_elmTlsBlock(j)}
+            ${secBlock}
             ${faultBlock}
             ${_elmInteropBlock(antwort, j)}
             ${_elmZeitBlock(j)}
@@ -256,6 +260,24 @@ async function _elmCall(pfad, label) {
     } catch (e) {
         if (out) out.innerHTML = `<div style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
+}
+
+/** Fault-100 / fehlendes Zertifikat — Klartext statt nur Client.security. */
+function _elmFaultHinweis(j) {
+    const blob = ((j.faultCode || '') + ' ' + (j.faultText || '') + ' ' + (j.responseXml || '')
+        + ' ' + (j.security?.meldung || '')).toLowerCase();
+    if (/non-certified|descriptioncode>\s*100|fault 100/.test(blob)
+        || (j.security && /Fault 100/i.test(j.security.meldung || ''))) {
+        return '<div style="margin-top:6px;font-size:12.5px;line-height:1.4">'
+            + '<b>Was fehlt:</b> Das ERP-Zertifikat muss von der Swissdec-CA kommen. '
+            + 'Selbst signiert zählt nicht. Sobald das .pfx da ist: F07-Karte → '
+            + '«Swissdec-.pfx importieren», dann CheckInterop / Registrieren erneut.</div>';
+    }
+    if (/security/i.test((j.faultCode || '') + ' ' + (j.faultText || ''))) {
+        return '<div style="margin-top:4px;font-size:12px">WS-Security (Signatur/Verschlüsselung) verlangt — '
+            + 'ERP-.pfx hinterlegen und erneut senden.</div>';
+    }
+    return '';
 }
 
 /**
@@ -488,12 +510,21 @@ async function suaStatusLaden() {
             rejected: '#b91c1c', expired: '#7c3aed'
         };
         const st = (fall?.letzterState || '').toLowerCase();
+        const erpHinweis = !erp.vorhanden
+            ? '<span style="color:#b45309">noch keines — Swissdec-.pfx importieren (oder zum Üben selbst erzeugen)</span>'
+            : (erp.selbstSigniert
+                ? `⚠ selbst signiert · ${esc(erp.subject || '')} · bis ${erp.notAfter ? new Date(erp.notAfter).toLocaleDateString('de-CH') : '—'}
+                   <div style="margin-top:2px;color:#b45309;font-size:12px">Gegen RefApps: Swissdec-.pfx importieren (sonst Fault 100).</div>`
+                : `✓ ${esc(erp.subject || '')} · Aussteller ${esc(erp.issuer || '—')} · bis ${erp.notAfter ? new Date(erp.notAfter).toLocaleDateString('de-CH') : '—'}`);
         el.innerHTML =
-            `<div><b>Ablage:</b> <code style="font-size:11px">${esc(j.certPfad || '—')}</code></div>`
-            + `<div style="margin-top:4px"><b>ERP:</b> ${erp.vorhanden
-                ? `✓ ${esc(erp.subject || '')} · bis ${erp.notAfter ? new Date(erp.notAfter).toLocaleDateString('de-CH') : '—'}`
-                : '<span style="color:#b45309">noch keines — zuerst erzeugen</span>'}</div>`
-            + `<div style="margin-top:2px"><b>Empfänger-Zert.:</b> ${j.empfaengerZertifikat ? '✓ hinterlegt' : '— (ohne nur Signatur, Verschlüsselung fehlt)'}</div>`
+            `<div><b>Ablage:</b> <code style="font-size:11px">${esc(j.certPfad || '—')}</code></div>` +
+            // Ohne MonitoringID ordnen die RefApps die Übermittlung keinem Benutzer zu —
+            // laut Richtlinie auf den Testsystemen zwingend (Walter 24.09.2026).
+            (j.monitoringId
+                ? `<div><b>MonitoringID:</b> <code style="font-size:11px">${esc(j.monitoringId)}</code></div>`
+                : `<div style="color:#b45309"><b>MonitoringID fehlt</b> — auf den Swissdec-Testsystemen zwingend. Server: <code style="font-size:11px">Swissdec__MonitoringId=…</code></div>`)
+            + `<div style="margin-top:4px"><b>ERP:</b> ${erpHinweis}</div>`
+            + `<div style="margin-top:2px"><b>Empfänger-Zert.:</b> ${j.empfaengerZertifikat ? '✓ hinterlegt' : '— (Fallback Assets / aus Antwort)'}</div>`
             + `<div style="margin-top:2px"><b>SUA:</b> ${j.sua ? '✓ gespeichert' : '— noch keines'}</div>`
             + (fall
                 ? `<div style="margin-top:6px;padding:8px 10px;border-radius:10px;background:#f6f3ee;border:1px solid #e7e1d8">
@@ -509,8 +540,8 @@ async function suaStatusLaden() {
 
 async function suaErpErzeugen() {
     if (!(await liquidConfirm(
-        'Neues ERP-/Transmitter-Zertifikat erzeugen und speichern? Ein vorhandenes wird überschrieben.',
-        { title: 'ERP-Zertifikat', yesLabel: 'Erzeugen', noLabel: 'Abbrechen' }))) return;
+        'Neues selbst signiertes ERP-Zertifikat erzeugen? Gegen RefApps braucht ihr danach trotzdem das Swissdec-.pfx. Vorhandenes wird überschrieben.',
+        { title: 'ERP selbst erzeugen', yesLabel: 'Erzeugen', noLabel: 'Abbrechen' }))) return;
     const out = document.getElementById('suaResult');
     out.innerHTML = '⏳ …';
     try {
@@ -518,6 +549,36 @@ async function suaErpErzeugen() {
         const j = await r.json().catch(() => null);
         if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Fehler')}</span>`; return; }
         out.innerHTML = `<span style="color:#166534">✓ ${esc(j.message || 'Erzeugt.')}</span>`;
+        suaStatusLaden();
+    } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
+}
+
+async function suaErpPfxImport() {
+    const f = document.getElementById('suaPfxFile')?.files?.[0];
+    if (!f) {
+        document.getElementById('suaResult').innerHTML =
+            '<span style="color:#b45309">Bitte zuerst die .pfx-Datei wählen (von Swissdec / itserv).</span>';
+        return;
+    }
+    if (!(await liquidConfirm(
+        'Swissdec-.pfx importieren und als ERP-/Transmitter-Zertifikat speichern? Ein vorhandenes wird ersetzt.',
+        { title: 'PFX importieren', yesLabel: 'Importieren', noLabel: 'Abbrechen' }))) return;
+    const fd = new FormData();
+    fd.append('datei', f);
+    const pwd = document.getElementById('suaPfxPwd')?.value || '';
+    if (pwd) fd.append('passwort', pwd);
+    const out = document.getElementById('suaResult');
+    out.innerHTML = '⏳ PFX importieren…';
+    try {
+        const headers = {};
+        try { const t = localStorage.hrToken; if (t) headers.Authorization = 'Bearer ' + t; } catch (_) {}
+        const r = await fetch('/api/elm/sua/erp-pfx', { method: 'POST', headers, body: fd });
+        const j = await r.json().catch(() => null);
+        if (!r.ok) { out.innerHTML = `<span style="color:#b91c1c">${esc(j?.message || 'Import fehlgeschlagen')}</span>`; return; }
+        out.innerHTML = `<span style="color:#166534">✓ ${esc(j.message || 'Importiert.')}</span>
+            <div style="margin-top:4px;font-size:12px;color:#64748b">${esc(j.subject || '')}</div>`;
+        const pwdEl = document.getElementById('suaPfxPwd');
+        if (pwdEl) pwdEl.value = '';
         suaStatusLaden();
     } catch (e) { out.innerHTML = `<span style="color:#b91c1c">${esc(e.message)}</span>`; }
 }
@@ -556,7 +617,10 @@ async function suaRegister() {
             zip: document.getElementById('suaPlz')?.value,
             city: document.getElementById('suaOrt')?.value,
             addresseeIdentification: document.getElementById('suaAddressee')?.value,
-            alsTestfall: true,
+            domain: document.getElementById('suaDomain')?.value,
+            // Nur wenn bewusst angehakt: Ein Testfall wird laut Richtlinie nie
+            // abgeschlossen und liefert darum nie ein Zertifikat.
+            alsTestfall: !!document.getElementById('suaTestfall')?.checked,
         });
         const r = await fetch('/api/elm/sua/register', {
             method: 'POST', headers: { ...ah(), 'Content-Type': 'application/json' },
@@ -636,6 +700,7 @@ function _suaZeigeErgebnis(j) {
         ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
                <b>Abgewiesen${fake.faultCode ? ' — ' + esc(fake.faultCode) : ''}</b>
                ${fake.faultText ? `<div style="margin-top:3px">${esc(fake.faultText)}</div>` : ''}
+               ${_elmFaultHinweis(fake)}
            </div>` : '';
     tmp.innerHTML = `<div style="margin-bottom:8px">${okBadge}
             <span style="color:#64748b;margin-left:8px">HTTP ${fake.httpStatus || '—'} · ${fake.dauerMs || '—'} ms</span></div>

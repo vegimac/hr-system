@@ -24,6 +24,21 @@ public class ElmZertifikatStore
     private const string EmpfaengerDatei = "empfaenger.cer";
     private const string FallDatei = "sua-fall.json";
 
+    /// <summary>
+    /// Klartext für Fault 100 / «non-certified digital certificate» —
+    /// selbst signiertes ERP zählt bei RefApps nicht; Swissdec-.pfx nötig.
+    /// </summary>
+    /// <summary>
+    /// Hinweis, wenn der Empfänger unser Zertifikat ablehnt. Bewusst ohne erfundenen
+    /// Fehlercode — «Fault 100» gibt es im ELM-Standard nicht (Walter 24.09.2026).
+    /// </summary>
+    public const string ZertifikatAbgelehntHinweis =
+        "Der Empfänger erkennt unser Zertifikat nicht an. Laut Sicherheitsrichtlinie prüft "
+        + "der Distributor unseren öffentlichen Schlüssel gegen das Swissdec-CA-Zertifikat — "
+        + "ein selbst erzeugtes Zertifikat besteht das nicht. Liegt ein von Swissdec "
+        + "ausgestelltes .pfx vor, hier importieren; sonst bei Swissdec nachfragen, woher das "
+        + "Transmitter-Zertifikat für den Foundation-Test kommt.";
+
     private readonly string _root;
 
     public ElmZertifikatStore(IConfiguration config)
@@ -86,19 +101,72 @@ public class ElmZertifikatStore
             X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
     }
 
+    /// <summary>
+    /// Swissdec-TX-.pfx importieren (ersetzt selbst signiertes ERP).
+    /// Passwort wird mitgespeichert — gleiches Muster wie ErzeugeErp.
+    /// </summary>
+    public X509Certificate2 ImportiereErpPfx(byte[] pfxBytes, string? passwort)
+    {
+        if (pfxBytes == null || pfxBytes.Length == 0)
+            throw new InvalidOperationException("PFX-Datei ist leer.");
+        var pwd = passwort ?? "";
+        X509Certificate2 zert;
+        try
+        {
+            zert = X509CertificateLoader.LoadPkcs12(pfxBytes, pwd,
+                X509KeyStorageFlags.Exportable | X509KeyStorageFlags.PersistKeySet);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException(
+                "PFX lässt sich nicht öffnen — Passwort prüfen. " + ex.GetBaseException().Message, ex);
+        }
+        if (!zert.HasPrivateKey)
+            throw new InvalidOperationException("PFX enthält keinen privaten Schlüssel.");
+
+        var pfxPfad = Path.Combine(_root, ErpDatei);
+        File.WriteAllBytes(pfxPfad, pfxBytes);
+        File.WriteAllText(Path.Combine(_root, ErpPasswortDatei), pwd);
+        VersucheRechte600(pfxPfad);
+        VersucheRechte600(Path.Combine(_root, ErpPasswortDatei));
+        return zert;
+    }
+
     public object ErpInfo()
     {
         var z = LadeErp();
         if (z == null) return new { vorhanden = false, pfad = _root };
+        var selbstSigniert = string.Equals(z.Subject, z.Issuer, StringComparison.OrdinalIgnoreCase);
         return new
         {
             vorhanden = true,
             pfad = _root,
             subject = z.Subject,
+            issuer = z.Issuer,
+            selbstSigniert,
             notBefore = z.NotBefore,
             notAfter = z.NotAfter,
             thumbprint = z.Thumbprint,
         };
+    }
+
+    /// <summary>
+    /// Foundation F04 — signierten Klartext (Request vor Encrypt / Response nach Decrypt)
+    /// unter <c>archiv/</c> ablegen. Best-effort, nie Aufruf abbrechen.
+    /// </summary>
+    public void ArchiviereKlartext(string name, string xml)
+    {
+        try
+        {
+            var dir = Path.Combine(_root, "archiv");
+            Directory.CreateDirectory(dir);
+            var sicher = string.Join("_", (name ?? "msg").Split(Path.GetInvalidFileNameChars()));
+            var datei = Path.Combine(dir,
+                $"{DateTime.Now:yyyyMMdd-HHmmss}-{sicher}.xml");
+            File.WriteAllText(datei, xml ?? "", Encoding.UTF8);
+            VersucheRechte600(datei);
+        }
+        catch { /* Archiv best-effort */ }
     }
 
     // ── Empfängerzertifikat (für WS-Encryption) ──────────────────────────────
@@ -226,6 +294,22 @@ public class ElmSuaFall
     public string? CompanyName { get; set; }
     /// <summary>Subject-DN-Teile aus der Quittung (für den CSR).</summary>
     public ElmSuaSubject? Subject { get; set; }
+
+    /// <summary>
+    /// Wurde der Fall als TESTFALL angemeldet? Muss gemerkt werden, weil jedes
+    /// folgende Synchronize dieselbe Marke tragen muss wie die Anmeldung.
+    /// ACHTUNG (Richtlinie Anhang C.2.1.2): Ein Testfall lässt sich «starten, jedoch
+    /// nicht abschliessen» — statt der Quittung kommt immer ein Fehlercode. Wer hier
+    /// blind TRUE setzt, bekommt NIE ein Zertifikat.
+    /// </summary>
+    public bool AlsTestfall { get; set; }
+
+    /// <summary>
+    /// Versicherungszweig des Empfängers (UVG-LAA / UVGZ-LAAC / KTG-AMC / BVG-LPP).
+    /// Das Synchronize verlangt ihn im Addressee (`sd:Domain`) — dort ist der Addressee
+    /// ein ANDERER Typ als im Register (kein addresseeID, kein ProcessByDistributor).
+    /// </summary>
+    public string? Domain { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
 }
 

@@ -21,7 +21,7 @@ PREREQUISITE). Vollständiger Wortlaut: Abschnitt «Vollständiger Katalog» unt
 | F04 Archivierung | 3 | 0 | offen (signiert/unverschlüsselt archivieren + SignatureConfirmation) |
 | F05 Übermittlung | 8 | 0 | offen · **Expertin: erst nach F07** |
 | F06 Validierung | 1 | 0 | offen (PlausibilityRules / Distributor-Ablehnung) |
-| F07 SUA-Zertifikat | 20 | 0 | **gebaut 24.09.2026 (UI+Client)** · noch gegen RefApps vorzuführen |
+| F07 SUA-Zertifikat | 20 | 0 | Client+UI gebaut · **XML am 24.09. korrigiert** (4 Schema-Fehler + MonitoringID) · wartet auf Zertifikatsfrage |
 | F08 Prozesse | 13 | 0 | offen (GetStatus, DialogMessages, Sync/Async) |
 | **Total** | **90** | **7 belegt · 12 gebaut** | |
 
@@ -454,12 +454,98 @@ F07_07 die Erneuerung (`RenewCertificate`, ohne Einmalpasswort) und F07_08 die
 | UI-Karte «F07 · SUA-Zertifikat» | `wwwroot/index.html` + `js/swissdec.js` |
 | Tests | `Tests/ElmSuaTests.cs` (9) |
 
-**Noch offen nach dem Bau:** gegen RefApps vorführen (F07_01–08); Empfängerzertifikat aus der
-RefApps-UI hinterlegen, sonst nur Signatur ohne Verschlüsselung; F07_08 Doppel-Signatur
+**Noch offen nach dem Bau:** gegen RefApps vorführen (F07_01–08); **Swissdec-.pfx**
+(statt selbst signiert) importieren — sonst Fault 100; F07_08 Doppel-Signatur
 (CheckInterop mit ERP+SUA) — `ElmWsSecurity` signiert heute mit einem Zertifikat.
+
+**Vorbereitet für den Schlüssel (24.09.2026, offline):**
+
+| Baustein | Wo |
+|---|---|
+| CheckInterop signiert+verschlüsselt (wie Register) | `CheckInteroperabilityAsync` → `PostGesichertOderKlarAsync` |
+| Swissdec-.pfx Import | `POST /api/elm/sua/erp-pfx` + UI «.pfx importieren» |
+| Fault-100 Klartext | `ElmZertifikatStore.Fault100Hinweis` + UI `_elmFaultHinweis` |
+| F04-Archiv (signierter Klartext) | `archiv/` unter CertStoragePath via `ArchiviereKlartext` |
+| Selbst-signiert-Warnung im Status | `ErpInfo.selbstSigniert` |
+
+Sobald das .pfx von Swissdec/itserv da ist: F07-Karte → importieren → CheckInterop →
+Register. Kein weiterer Code nötig für F02_02+ / F03 / F07_01.
 
 **Server:** `Swissdec__CertStoragePath=/var/data/hr-system/swissdec-certs` (Test:
 `…-test/swissdec-certs`) in der systemd-Umgebung setzen — analog Documents.
+
+---
+
+### Korrektur 24.09.2026 — vier schema-ungültige Meldungen + fehlende MonitoringID
+
+Der erste Anlauf gegen die RefApps scheiterte. Die Meldungen wurden gegen die ELM-Schemas
+gehalten (`ElmXmlValidator`, lag bereit, war nur nicht benutzt) — dabei kamen vier Fehler
+heraus, jeder für sich ein Abweisungsgrund, denn der Distributor prüft als Erstes die Validität.
+
+| # | Was falsch war | Richtig |
+|---|---|---|
+| 1 | `<ep:TestCase/>` **im** Addressee des Register | `<sdc:TestCase/>` als Geschwister nach `</sdc:Addressee>`, direkt unter `<sdc:Job>` |
+| 2 | Synchronize-Addressee wie der Register-Addressee gebaut (`addresseeID`, `ProcessByDistributor`) | Anderer Typ (`InstitutionAddresseeType`): nur `AddresseeIdentification` + `<sd:Domain>` |
+| 3 | `<c:Case>` | `<sdc:Case>` |
+| 4 | `TestCase` im Synchronize **fest verdrahtet** | nur, wenn die Anmeldung wirklich ein Testfall war |
+
+**Fehler 4 ist der schwerste**, und er hat mit dem Zertifikat nichts zu tun. Richtlinie
+Anhang C.2.1.2 im Wortlaut:
+
+> «Aus Sicherheitsgründen kann der SUA-Prozess als Testfall gestartet, **jedoch nicht
+> abgeschlossen werden**. […] anstelle der positiven Quittung [wird] ein spezifischer
+> Fehlercode zurückgegeben.»
+
+Mit dauernd gesetzter Testmarke kommt also **nie** ein Zertifikat — auch mit einwandfreiem
+Schlüssel nicht. Das Häkchen steht jetzt standardmässig AUS und trägt im UI den Hinweis
+«kein Zertifikat möglich».
+
+**Fünftens fehlte die `MonitoringID`** in allen Aufrufen (Ping, CheckInterop, Register,
+Synchronize). Richtlinie: «Diese ID wird verwendet, um auf den Swissdec Testsystemen den
+Softwarehersteller zu identifizieren. Die MonitoringID ist für die Verwendung der
+Testsysteme **zwingend**» — in der Referenzapplikation ordnet sie die Übermittlung dem
+Benutzer zu. Sie steht jetzt im `RequestContext` (bzw. als letztes Element bei Ping und
+CheckInterop) und kommt aus `Swissdec:MonitoringId`. **In der Produktion leer lassen.**
+
+**Damit das nicht wiederkehrt:** Jede Register-/Synchronize-Meldung wird VOR dem Senden
+gegen die Schemas geprüft (`PruefeSchema`) — eine ungültige Meldung verlässt uns gar nicht
+mehr, sondern kommt als Klartext-Fehler zurück. Dazu 25 Tests in
+`Tests/ElmSuaSchemaTests.cs`, die jede Variante (mit/ohne Testfall, alle vier
+Versicherungszweige, mit SignCertificate, mit Renew) gegen die echten Schemas halten.
+
+### Korrektur an der Bauanleitung: selbst signiert reicht NICHT
+
+Meine Aussage weiter oben, wir könnten das ERP-Zertifikat einfach selbst erzeugen, war zu
+optimistisch. `SecurityTransmitter_d.pdf` (liegt bei uns unter `docs/swissdec/`) sagt in
+Kapitel 5.3:
+
+> «Auf Seiten des Distributors wird der mitgeschickte öffentliche Schlüssel **gegen das
+> Swissdec CA-Zertifikat geprüft** und die Signatur verifiziert.»
+
+und in Kapitel 3.3.1: «es dürfen nur Zertifikate von **offiziellen Certificate Authorities**
+zum Einsatz kommen». Kapitel 3.1/3.2: Swissdec ist die CA für die ERP-Hersteller und stellt
+das Zertifikat **nach bestandener Zertifizierung** aus.
+
+Das widerspricht der Auskunft aus der Beratung («alles selbst unter F07»). **Offene Frage an
+Swissdec:**
+
+> Woher bekommen wir für den Foundation-Test das ERP-/Transmitter-Zertifikat? Die
+> Sicherheitsrichtlinie sagt, der Distributor prüfe unseren öffentlichen Schlüssel gegen die
+> Swissdec-CA und Swissdec stelle das Zertifikat erst nach der Zertifizierung aus. In der
+> Beratung hiess es, wir erstellten es unter F07 selbst. Was gilt im Testlauf — und falls
+> Swissdec es liefert: wie wird es angefordert?
+
+**Kein erfundener Fehlercode mehr.** Die frühere Deutung «Fault 100 = Zertifikat nicht von
+der Swissdec-CA» ist entfernt: Einen numerischen Code 100 gibt es im Standard nicht
+(`FaultCodeType` kennt nur `NOT_accepted`, `NOT_plausible`, `NOT_valid`), und die Erkennung
+griff auch bei «has not been signed» — das bedeutet das Gegenteil, nämlich gar keine
+Signatur. `DeuteSicherheitsFault` unterscheidet jetzt vier belegbare Fälle (Zertifikat nicht
+anerkannt · Signatur fehlt · Verschlüsselung fehlt · nicht entschlüsselbar) und urteilt sonst
+**nicht**, sondern lässt den Fault-Text des Empfängers stehen.
+
+**Server:** neben `Swissdec__CertStoragePath` neu auch
+`Swissdec__MonitoringId=<unsere Test-ID>` in der systemd-Umgebung setzen — auf **Test**,
+nicht auf Prod.
 
 ---
 
@@ -468,10 +554,10 @@ RefApps-UI hinterlegen, sonst nur Signatur ohne Verschlüsselung; F07_08 Doppel-
 | # | Was gebaut werden muss | Vorhanden? |
 |---|---|---|
 | **F03** | CheckInterop mit festem FirstOperand/UmlautString; SecondOperand wählbar (0.01 / 0.00 / −999'000'000'000.00); immer 2 Nachkommastellen; Response prüfen (Umlaut klein, Operanden); Tamper-Varianten melden | ✅ **gebaut 24.09.2026** — `ElmInterop` + UI + 30 Tests (siehe Abschnitt F03) |
-| **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | fehlt |
+| **F04** | Jeder Request/Response **signiert und unverschlüsselt** archivieren; SignatureConfirmation in der Response prüfen | 🟡 Archiv unter `archiv/` gebaut · SignatureConfirmation-Prüfung noch offen |
 | **F05** | SubscribeOrganization; 1 vs. n Addressees; Declare mit Empfängerwahl; DeclarationId spiegeln; Substitution; eindeutige RequestID; `<TestCase/>` | Sample-XML vorhanden · Client/UI fehlt (E4) |
 | **F06** | PlausibilityRules-Verletzung → Distributor-Fehler dem User zeigen | fehlt |
-| **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | ✅ Client+UI 24.09. · RefApps-Vorführung + Doppel-Signatur offen |
+| **F07** | RegisterOrganization → Synchronize (Processing/Registered/Rejected) → SignCertificate (Verified) → Renew → doppelte Signatur (ERP+SUA) auf CheckInterop | ✅ Client+UI · PFX-Import bereit · RefApps wartet auf Swissdec-.pfx · F07_08 offen |
 | **F08** | Sync-Übermittlung mit Quittungen; GetStatus(JobKey); Stories; DialogMessage (manuell/Reply/Confirm/Random/Complete) | fehlt |
 
 ---
@@ -497,10 +583,10 @@ nach Erledigung pro Punkt ergänzt.
 | ID | Typ | Erwartet |
 |---|---|---|
 | F02_01_1 | CHECK_INTEROP | CheckInterop über TLS ✅ |
-| F02_02_1 | CHECK_INTEROP | Request-Nutzdaten verschlüsselt |
+| F02_02_1 | CHECK_INTEROP | Request-Nutzdaten verschlüsselt | 🟡 Client bereit (PostGesichert) · wartet auf Swissdec-.pfx |
 | F02_03_0/1/2 | TOOL+INTEROP+UI | Tamper Encryption → Fehlermeldung |
 | F02_04_0/1/2 | TOOL+INTEROP+UI | Enable Encryption aus → Fehlermeldung |
-| F02_05_1 | CHECK_INTEROP | Request signiert |
+| F02_05_1 | CHECK_INTEROP | Request signiert | 🟡 Client bereit · wartet auf Swissdec-.pfx |
 | F02_06_0/1/2 | TOOL+INTEROP+UI | Tamper Signature → Fehlermeldung |
 | F02_07_0/1/2 | TOOL+INTEROP+UI | Enable Signature aus → Fehlermeldung |
 | F02_08_0/1/2 | TOOL+INTEROP+UI | Use unknown Key → Fehlermeldung |

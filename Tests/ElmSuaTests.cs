@@ -92,4 +92,106 @@ public class ElmSuaTests
         var wieder = ElmSuaService.PemAusBase64(alsPemText);
         Assert.Contains("BEGIN CERTIFICATE", wieder);
     }
+
+    [Fact]
+    public void AbgelehntesZertifikat_WirdErkannt()
+    {
+        var r = new ElmTransmitterClient.ElmCallResult(false, 500, 10, "<req/>",
+            "<Fault><faultcode>Client.security</faultcode>"
+            + "<faultstring>non-certified digital certificate</faultstring></Fault>",
+            "HTTP 500")
+        {
+            FaultCode = "Client.security",
+            FaultText = "non-certified digital certificate",
+        };
+        var deutung = ElmTransmitterClient.DeuteSicherheitsFault(r);
+        Assert.NotNull(deutung);
+        Assert.Equal(ElmWsSecurity.Befund.ZertifikatNichtVertrauenswuerdig, deutung!.Befund);
+        Assert.Contains("Swissdec", ElmZertifikatStore.ZertifikatAbgelehntHinweis);
+    }
+
+    [Fact]
+    public void ImportiereErpPfx_SpeichertUndLaedtMitPrivatemSchluessel()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "elm-pfx-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var store = new ElmZertifikatStore(new MiniConfig(tmp));
+
+            using var rsa = RSA.Create(2048);
+            var req = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                "CN=Swissdec-Test, O=Test, C=CH", rsa,
+                HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using var selbst = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddYears(1));
+            var pwd = "geheim-test";
+            var pfx = selbst.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Pfx, pwd);
+
+            var importiert = store.ImportiereErpPfx(pfx, pwd);
+            Assert.True(importiert.HasPrivateKey);
+            Assert.Contains("Swissdec-Test", importiert.Subject);
+
+            var geladen = store.LadeErp();
+            Assert.NotNull(geladen);
+            Assert.True(geladen!.HasPrivateKey);
+            Assert.Equal(importiert.Thumbprint, geladen.Thumbprint);
+
+            var json = System.Text.Json.JsonSerializer.Serialize(store.ErpInfo());
+            Assert.Contains("\"vorhanden\":true", json);
+            Assert.Contains("\"selbstSigniert\":true", json);
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, true); } catch { /* temp */ }
+        }
+    }
+
+    [Fact]
+    public void ArchiviereKlartext_SchreibtUnterArchiv()
+    {
+        var tmp = Path.Combine(Path.GetTempPath(), "elm-arch-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tmp);
+        try
+        {
+            var store = new ElmZertifikatStore(new MiniConfig(tmp));
+            store.ArchiviereKlartext("check-interop-request", "<Envelope>test</Envelope>");
+            var dateien = Directory.GetFiles(Path.Combine(tmp, "archiv"), "*.xml");
+            Assert.Single(dateien);
+            Assert.Contains("test", File.ReadAllText(dateien[0]));
+        }
+        finally
+        {
+            try { Directory.Delete(tmp, true); } catch { /* temp */ }
+        }
+    }
+
+    /// <summary>Nur CertStoragePath — ohne Memory-Config-Paket.</summary>
+    private sealed class MiniConfig : Microsoft.Extensions.Configuration.IConfiguration
+    {
+        private readonly string _pfad;
+        public MiniConfig(string pfad) => _pfad = pfad;
+        public string? this[string key]
+        {
+            get => key == "Swissdec:CertStoragePath" ? _pfad : null;
+            set { }
+        }
+        public IEnumerable<Microsoft.Extensions.Configuration.IConfigurationSection> GetChildren() =>
+            Array.Empty<Microsoft.Extensions.Configuration.IConfigurationSection>();
+        public Microsoft.Extensions.Primitives.IChangeToken GetReloadToken() => new NoopToken();
+        public Microsoft.Extensions.Configuration.IConfigurationSection GetSection(string key) =>
+            throw new NotSupportedException();
+
+        private sealed class NoopToken : Microsoft.Extensions.Primitives.IChangeToken
+        {
+            public bool HasChanged => false;
+            public bool ActiveChangeCallbacks => false;
+            public IDisposable RegisterChangeCallback(Action<object?> callback, object? state) =>
+                Empty.Instance;
+            private sealed class Empty : IDisposable
+            {
+                public static readonly Empty Instance = new();
+                public void Dispose() { }
+            }
+        }
+    }
 }

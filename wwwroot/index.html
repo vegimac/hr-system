@@ -5561,20 +5561,28 @@
                         <div style="font-weight:700;font-size:14px;margin-bottom:4px">F07 · SUA-Zertifikat</div>
                         <p style="font-size:12.5px;color:#64748b;margin:0 0 10px">
                             Expertin itserv: Zertifikate <b>selbst in Foundation</b> erzeugen, <b>F07 vor F05</b>.
-                            Ablauf: 1) ERP-Schlüssel erzeugen · 2) Registrieren · 3) Status abfragen
+                            Ablauf: 1) ERP erzeugen <i>oder</i> Swissdec-.pfx importieren · 2) Registrieren · 3) Status
                             (processing / registered / verified / rejected / expired) · 4) bei
-                            <b>verified</b> mit Einmalpasswort signieren. Der Subject-DN kommt aus der
-                            Quittung des Empfängers — nicht selbst erfinden.
-                            Schlüssel liegen ausserhalb von <code>/var/www</code> (überleben Deploy).
+                            <b>verified</b> mit Einmalpasswort signieren. Subject-DN aus der Quittung —
+                            nicht selbst erfinden. Schlüssel ausserhalb von <code>/var/www</code>.
+                            <br><b>Wichtig:</b> Gegen RefApps braucht das ERP ein von der Swissdec-CA
+                            signiertes .pfx (sonst Fault 100). Selbst erzeugen reicht nur zum lokalen Üben.
                         </p>
                         <div id="suaStatus" style="font-size:12.5px;margin-bottom:10px;color:#64748b">⏳ Status laden…</div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
-                            <button type="button" class="btn-primary" onclick="suaErpErzeugen()">🔑 ERP-Zertifikat erzeugen</button>
+                            <button type="button" class="btn-secondary" onclick="suaErpErzeugen()">🔑 ERP selbst erzeugen</button>
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
+                                Swissdec-.pfx
+                                <input type="file" id="suaPfxFile" accept=".pfx,.p12" style="font-size:12px">
+                            </label>
+                            <input type="password" id="suaPfxPwd" placeholder="PFX-Passwort" autocomplete="new-password"
+                                   style="background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;width:140px">
+                            <button type="button" class="btn-primary" onclick="suaErpPfxImport()">📥 .pfx importieren</button>
                             <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer">
                                 Empfänger-.cer
                                 <input type="file" id="suaEmpfFile" accept=".cer,.pem,.crt,.der" style="font-size:12px" onchange="suaEmpfaengerUpload()">
                             </label>
-                            <span style="font-size:11.5px;color:#8b8b8b">(optional — für WS-Verschlüsselung; aus RefApps-UI)</span>
+                            <span style="font-size:11.5px;color:#8b8b8b">(Empfänger optional — sonst aus Assets/Antwort)</span>
                         </div>
                         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">
                             <label style="font-size:11.5px;color:#475569">UID (CHE-…)
@@ -5595,10 +5603,25 @@
                             <label style="font-size:11.5px;color:#475569">Adressat-Nr.
                                 <input type="text" id="suaAddressee" value="1234" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="AddresseeIdentification (RefApps-Test oft 1234)">
                             </label>
+                            <label style="font-size:11.5px;color:#475569">Versicherungszweig
+                                <select id="suaDomain" style="display:block;width:100%;background:#fff;border:1px solid #e2ddd3;border-radius:9px;padding:6px 8px;font-size:13px;margin-top:3px" title="sd:Domain — der Zweig des adressierten Versicherers. Das Synchronize verlangt ihn zwingend.">
+                                    <option value="UVG-LAA">UVG (Unfall)</option>
+                                    <option value="UVGZ-LAAC">UVGZ (Unfall-Zusatz)</option>
+                                    <option value="KTG-AMC">KTG (Krankentaggeld)</option>
+                                    <option value="BVG-LPP">BVG (Pensionskasse)</option>
+                                </select>
+                            </label>
                         </div>
                         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
                             <button type="button" class="btn-primary" onclick="suaRegister()">📤 Registrieren (F07_01)</button>
                             <button type="button" class="btn-secondary" onclick="suaSynchronize()">🔄 Status abfragen</button>
+                            <!-- Standard AUS: Ein Testfall lässt sich laut Richtlinie (Anhang C.2.1.2)
+                                 «starten, jedoch nicht abschliessen» — er liefert NIE ein Zertifikat. -->
+                            <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px;cursor:pointer"
+                                   title="Nur zum Prüfen, ob eine Anmeldung möglich wäre. Ein Testfall wird nie abgeschlossen — es kommt statt der Quittung immer ein Fehlercode zurück.">
+                                <input type="checkbox" id="suaTestfall">
+                                nur als Testfall (kein Zertifikat möglich)
+                            </label>
                             <label style="font-size:12px;color:#475569;display:flex;align-items:center;gap:6px">
                                 Einmalpasswort
                                 <input type="text" id="suaOtp" autocomplete="one-time-code"
@@ -9587,7 +9610,7 @@ body.theme-dark #behoerdeModal .be-sb-list { border-color:#334155; background:#1
 <script src="js/fluktuation-report.js?v=20260726e"></script>
 <script src="js/wochenstunden-report.js?v=20260825b"></script>
 <script src="js/mtp-stunden-report.js?v=20260825d"></script>
-<script src="js/swissdec.js?v=20260924g"></script>
+<script src="js/swissdec.js?v=20260924i"></script>
 <script src="js/hauptsitze.js?v=20260901a"></script>
 <script src="js/exit-survey-report.js?v=20260726h"></script>
 <script src="js/absenz-kalender.js?v=20260722d"></script>
