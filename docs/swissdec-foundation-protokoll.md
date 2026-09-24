@@ -9,9 +9,13 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 ## Stand
 
-| Gruppe | Punkte | erledigt | Stand |
+Die Zahlen der Übersicht sind **Einzelprüfungen**, nicht Prüfpunkte: F01 besteht aus drei
+Punkten (F01_01 bis F01_03) mit zusammen sechs Checks. Entsprechend sind die 27 bei F02 die
+Unterzeilen der elf Punkte F02_01 bis F02_11.
+
+| Gruppe | Checks | erledigt | Stand |
 |---|---:|---:|---|
-| F01 Verbindung | 6 | 3 | F01_01, F01_02 grün · F01_03 gebaut und **am 24.09.2026 belegt** (Versatz +600 s) |
+| F01 Verbindung | 6 | **6** | ✅ **Gruppe abgeschlossen 24.09.2026** — alle drei Punkte grün |
 | F02 Sicherheit | 27 | 1 | F02_01 erledigt · F02_02–F02_11 brauchen WS-Security (Transmitter-Zertifikat) |
 | F03 Interoperabilität | 12 | 0 | offen |
 | F04 Archivierung | 3 | 0 | offen |
@@ -19,16 +23,16 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 | F06 Validierung | 1 | 0 | offen |
 | F07 SUA-Zertifikat | 20 | 0 | offen |
 | F08 Prozesse | 13 | 0 | offen |
-| **Total** | **90** | **4** | |
+| **Total** | **90** | **7** | |
 
 Ein Teil der Punkte wird **vom Experten im Gespräch** geprüft (`CHECKED_BY_EXPERT`), nicht
 automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf «wie habt ihr das gelöst?».
 
 ## Reihenfolge — wichtig (Stand 24.09.2026)
 
-- **Die Gruppen sind gesperrt und werden nacheinander freigeschaltet.** Im Werkzeug trägt jede
-  Gruppe ausser F01 ein Schloss-Symbol. Vermutung: F01 muss vollständig sein, bevor es weitergeht —
-  wir sind bei 3 von 6.
+- **F01 ist seit dem 24.09.2026 vollständig abgeschlossen** (6 von 6 Checks, grüner Haken an der
+  Gruppe). Die übrigen Gruppen trugen im Werkzeug zunächst ein Schloss-Symbol; F02 liess sich
+  danach öffnen.
 - **Das Transmitter-Zertifikat erstellen wir SELBST unter F07 «SUA-Zertifikat»** (Auskunft aus der
   Beratung an Walter). F07 ist noch nicht aktiv.
 - **F07 kommt vor F05** (ebenfalls aus der Beratung): erst das Zertifikat, dann die Übermittlung.
@@ -37,8 +41,9 @@ automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf 
   Teile von F03), hängt am Zertifikat aus F07 — also nicht an Swissdec, sondern an unserem
   Fortschritt.
 
-**Nächster Schritt:** F01_04, F01_05 und F01_06 anschauen — sie sind die letzten offenen Punkte
-der einzigen freigeschalteten Gruppe.
+**Nächster Schritt:** F02 abarbeiten. F02_01 ist erledigt; F02_02 bis F02_11 brauchen die
+WS-Security-Schicht (signieren, verschlüsseln, prüfen) — bauen lässt sie sich mit einem selbst
+erzeugten Testschlüssel, scharf wird sie mit dem Zertifikat aus F07.
 
 ---
 
@@ -179,13 +184,10 @@ sicherheitsbezogenen Faults steht zusätzlich die Einordnung dabei, dass ab dies
 WS-Security-Signatur mit dem Transmitter-Zertifikat verlangt wird. Das dürfte auch für die Gruppen
 F05 (Übermittlung) und F08 (Prozesse) nützlich sein, wo die Darstellung von Rückmeldungen geprüft wird.
 
-### F01_04 – F01_06 — offen
+### F01 abgeschlossen
 
-Noch nicht angeschaut. **Was dazu schon steht:** CheckInteroperability ist gebaut (Umlaut-Kette
-`ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ` plus zwei Beträge) und wird erwartungsgemäss mit `Client.security` abgewiesen,
-solange das Transmitter-Zertifikat fehlt — die Antwort der RefApps ist dabei selbst WS-Security-
-signiert (BinarySecurityToken + ds:Signature), was den Fault von einem echten Serverfehler
-unterscheidet.
+Die Gruppe hat **drei Punkte mit sechs Einzelprüfungen** — F01_04 bis F01_06 gibt es nicht. Alle
+sechs sind grün; der Experte hat zu F01_01 vermerkt: «Ist nur mit SuperAdmin erreichbar.»
 
 ---
 
