@@ -11,7 +11,7 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 
 | Gruppe | Punkte | erledigt | Stand |
 |---|---:|---:|---|
-| F01 Verbindung | 6 | 1 | F01_01 grün (vom Experten geprüft) |
+| F01 Verbindung | 6 | 3 | F01_01, F01_02 grün · F01_03 gebaut, wartet auf «Fake Ping Time» |
 | F02 Sicherheit | 27 | 0 | offen |
 | F03 Interoperabilität | 12 | 0 | offen |
 | F04 Archivierung | 3 | 0 | offen |
@@ -19,7 +19,7 @@ Testlauf im Swissdec-Werkzeug: «Testlauf — keine Zertifizierungswirkung»
 | F06 Validierung | 1 | 0 | offen |
 | F07 SUA-Zertifikat | 20 | 0 | offen |
 | F08 Prozesse | 13 | 0 | offen |
-| **Total** | **90** | **1** | |
+| **Total** | **90** | **3** | |
 
 Ein Teil der Punkte wird **vom Experten im Gespräch** geprüft (`CHECKED_BY_EXPERT`), nicht
 automatisch — dafür ist dieses Protokoll gedacht: es liefert die Antwort auf «wie habt ihr das gelöst?».
@@ -71,12 +71,64 @@ Einstiegen, Entwicklungs-Schutz beim Anlegen und Ändern von Benutzern.
 **Falls der Experte nachfragt:** Wir können die freie Eingabe jederzeit abschalten und nur noch die
 beiden hinterlegten Ziele zulassen — die Umschaltung ist eine Zeile in `ElmController.ZielAufloesen`.
 
-### F01_02 – F01_06 — offen
+### F01_02 Erreichbarkeit ✅ erledigt 24.09.2026
 
-Noch nicht angeschaut. **Was wir dazu schon haben:** Ping und CheckInteroperability laufen
-(`ElmTransmitterClient`, SOAP 1.1, leere SOAPAction). Ping ist ausschliesslich manuell auslösbar —
-nie automatisiert, nie zyklisch (Transmitter-Richtlinien Kap. 4). CheckInteroperability wird
-erwartungsgemäss mit `Client.security` abgewiesen, solange das Transmitter-Zertifikat fehlt.
+**Anforderung:** «Die Erreichbarkeit des Distributors muss geprüft werden. Dazu wird eine einfache
+Anfrage (PING) an den Distributor gesendet. Die Rückantwort bestätigt die Erreichbarkeit.»
+**Erwartet:** Ping korrekt empfangen (F01_02_1) · «TX stellt Erfolgsmeldung dar» (F01_02_2).
+
+**Unsere Lösung:** Knopf «📡 Ping» auf der Swissdec-Seite. Der Aufruf ist SOAP 1.1 mit leerer
+SOAPAction; gesendet werden UserAgent (Producer, Name, Version, StandardVersion, Certificate) und
+unsere Systemzeit. Die Antwort erscheint sofort als **grüne Erfolgsmeldung** «✓ Antwort erhalten»
+mit HTTP-Status und Laufzeit in Millisekunden, darunter das vollständige Antwort-XML und
+aufklappbar die gesendete Anfrage.
+
+**Beleg (Lauf vom 24.09.2026 gegen die RefApps):** Antwort `PingResponse` mit
+`Producer swissdec`, `Name swissdec refapps`, `Version 4.0.88 … RefApps stable`,
+`StandardVersion 6.0`, `SystemDateTime 2026-09-24T10:49:16.393+02:00`.
+
+**Wichtig und eingehalten:** Der Ping wird **ausschliesslich von Hand** ausgelöst — kein
+Hintergrunddienst, kein Zeitplan, keine Wiederholung (Transmitter-Richtlinien Kap. 4).
+
+**Code:** `Services/Elm/ElmTransmitterClient.PingAsync` · `wwwroot/js/swissdec.js` (`elmPing`)
+
+### F01_03 Systemzeit ✅ gebaut 24.09.2026 — wartet auf die Prüfung
+
+**Anforderung:** «Eine Differenz zwischen der Systemzeit des Distributors und der Systemzeit des
+Absenders wird detektiert und dem Benutzer angegeben.»
+**Erwartet:** «Die Systemzeit des Distributors wird mit der lokalen Systemzeit verglichen. Bei einer
+Abweichung >1 Minute wird der Zeitunterschied in Form einer Fehlermeldung dargestellt.»
+Ablauf im Test: Swissdec stellt in den RefApps eine falsche Zeit ein («Fake Ping Time», F01_03_0),
+der Ping muss korrekt ankommen (F01_03_1) und unser Programm die Abweichung anzeigen (F01_03_2).
+
+**Unsere Lösung:** Jede Ping-Antwort wird ausgewertet
+(`ElmTransmitterClient.MitZeitvergleich`): `SystemDateTime` wird gelesen und über
+`DateTimeOffset` mit unserer Zeit verglichen — also inklusive Zeitzonen-Versatz, «10:49+02:00» und
+«08:49Z» sind derselbe Moment und keine Abweichung. Toleranz **60 Sekunden**
+(`ZeitToleranzSekunden`, entspricht der Vorgabe «>1 Minute»).
+
+Anzeige direkt über dem Antwort-XML:
+- **innerhalb der Toleranz** — grüner Kasten «✓ Systemzeit stimmt überein — Abweichung 0.4 Sekunden
+  (Toleranz 1 Minute)», darunter beide Zeitpunkte im Klartext.
+- **über der Toleranz** — roter Kasten «✗ Systemzeit weicht ab — unsere Uhr geht 1 Min. 30 Sek. vor
+  (zulässig ist höchstens 1 Minute). Bitte die Systemzeit des Servers prüfen, bevor Meldungen
+  übermittelt werden.», ebenfalls mit beiden Zeitpunkten. Der Unterschied wird also **beziffert**,
+  nicht nur gemeldet, und die Richtung steht dabei (vor/nach).
+
+**Code:** `Services/Elm/ElmTransmitterClient.cs` (`MitZeitvergleich`, `ZeitToleranzSekunden`) ·
+`wwwroot/js/swissdec.js` (`_elmZeitBlock`)
+**Tests:** `Tests/ElmSystemzeitTests.cs` — gleiche Zeit, 30 und 45 Sekunden (still), 90 Sekunden und
+eine Stunde (Meldung mit korrekter Grösse), Zeitzonen-Versatz ist keine Abweichung, Antwort ohne
+Systemzeit und unlesbare Antwort ändern nichts.
+
+**Für die Vorführung:** Sobald Swissdec die «Fake Ping Time» gesetzt hat, einmal auf «📡 Ping»
+drücken — der rote Kasten mit der bezifferten Abweichung erscheint sofort.
+
+### F01_04 – F01_06 — offen
+
+Noch nicht angeschaut. **Was dazu schon steht:** CheckInteroperability ist gebaut (Umlaut-Kette
+`ÄËÖÜÁÉÓÚÀÈÒÙÂÊÔÛ` plus zwei Beträge) und wird erwartungsgemäss mit `Client.security` abgewiesen,
+solange das Transmitter-Zertifikat fehlt.
 
 ---
 

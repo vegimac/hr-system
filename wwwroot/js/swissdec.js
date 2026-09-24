@@ -234,6 +234,7 @@ async function _elmCall(pfad, label) {
             ${zielZeile}
             <div style="margin-bottom:8px">${okBadge}
                 <span style="color:#64748b;margin-left:8px">HTTP ${j.httpStatus || '—'} · ${j.dauerMs} ms</span></div>
+            ${_elmZeitBlock(j)}
             ${j.responseXml ? `<div style="font-weight:700;margin:6px 0 4px">Antwort</div>
                 <pre style="background:#1f2937;color:#d1fae5;padding:10px 12px;border-radius:10px;max-height:340px;overflow:auto;font-size:11px;white-space:pre-wrap">${esc(j.responseXml)}</pre>` : ''}
             <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Gesendete Anfrage anzeigen</summary>
@@ -241,6 +242,43 @@ async function _elmCall(pfad, label) {
     } catch (e) {
         if (out) out.innerHTML = `<div style="color:#b91c1c">Verbindungsfehler: ${esc(e.message)}</div>`;
     }
+}
+
+/**
+ * Systemzeit-Vergleich für den Foundation-Test F01_03 (Walter 24.09.2026):
+ * «Die Systemzeit des Distributors wird mit der lokalen Systemzeit verglichen.
+ * Bei einer Abweichung >1 Minute wird der Zeitunterschied in Form einer
+ * Fehlermeldung dargestellt.» Bis eine Minute grüne Bestätigung, darüber rot.
+ */
+function _elmZeitDauer(sek) {
+    const s = Math.abs(sek);
+    if (s < 60) return `${s.toFixed(1)} Sekunden`;
+    const min = Math.floor(s / 60), rest = Math.round(s % 60);
+    const std = Math.floor(min / 60);
+    if (std >= 1) return `${std} Std. ${min % 60} Min.`;
+    return rest ? `${min} Min. ${rest} Sek.` : `${min} Minuten`;
+}
+
+function _elmZeitBlock(j) {
+    if (j.diffSekunden == null) return '';
+    const uhr = (iso) => {
+        try { return new Date(iso).toLocaleString('de-CH'); } catch (e) { return String(iso || ''); }
+    };
+    const vor = j.diffSekunden > 0;   // positiv = unsere Uhr geht vor
+    const zeilen = `<div style="margin-top:4px;font-size:12px">
+            Empfänger: <b>${esc(uhr(j.distributorZeit))}</b> · hier: <b>${esc(uhr(j.lokaleZeit))}</b>
+        </div>`;
+    if (!j.zeitAbweichung) {
+        return `<div style="background:#e7f0e7;border:1px solid #b8ccb8;color:#3f5540;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+            <b>✓ Systemzeit stimmt überein</b> — Abweichung ${esc(_elmZeitDauer(j.diffSekunden))} (Toleranz 1 Minute).
+            ${zeilen}
+        </div>`;
+    }
+    return `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+            <b>✗ Systemzeit weicht ab</b> — unsere Uhr geht <b>${esc(_elmZeitDauer(j.diffSekunden))} ${vor ? 'vor' : 'nach'}</b>
+            (zulässig ist höchstens 1 Minute). Bitte die Systemzeit des Servers prüfen, bevor Meldungen übermittelt werden.
+            ${zeilen}
+        </div>`;
 }
 
 function elmPing() { _elmCall('ping', 'Ping'); }

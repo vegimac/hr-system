@@ -25,7 +25,55 @@ public class ElmTransmitterClient
     private static readonly XNamespace Sdst = "urn:ch:swissdec:elm:v6:20260306:salarydeclaration:service:types";
     private static readonly XNamespace Ep   = "urn:ch:swissdec:basis:v1:20260306:components";
 
-    public record ElmCallResult(bool Ok, int HttpStatus, long DauerMs, string RequestXml, string ResponseXml, string? Error);
+    public record ElmCallResult(bool Ok, int HttpStatus, long DauerMs, string RequestXml, string ResponseXml, string? Error)
+    {
+        /// <summary>Systemzeit des Empfängers aus der Antwort (NULL = keine gelesen).</summary>
+        public DateTimeOffset? DistributorZeit { get; init; }
+        /// <summary>Unsere Systemzeit im Moment des Vergleichs.</summary>
+        public DateTimeOffset? LokaleZeit { get; init; }
+        /// <summary>Lokale Zeit minus Empfängerzeit in Sekunden (positiv = wir gehen vor).</summary>
+        public double? DiffSekunden { get; init; }
+        /// <summary>Foundation-Test F01_03: Abweichung über einer Minute.</summary>
+        public bool ZeitAbweichung => DiffSekunden.HasValue && Math.Abs(DiffSekunden.Value) > ZeitToleranzSekunden;
+    }
+
+    /// <summary>
+    /// Toleranz für den Systemzeit-Vergleich (Foundation-Test F01_03, Walter 24.09.2026):
+    /// «Bei einer Abweichung &gt;1 Minute wird der Zeitunterschied in Form einer Fehlermeldung
+    /// dargestellt.»
+    /// </summary>
+    public const int ZeitToleranzSekunden = 60;
+
+    /// <summary>
+    /// Systemzeit des Empfängers aus der Ping-Antwort lesen und mit unserer
+    /// vergleichen. Die Antwort führt &lt;SystemDateTime&gt; im Basis-Namensraum
+    /// (dort als Default-Namensraum deklariert) — wir suchen den lokalen Namen,
+    /// damit auch eine abweichende Präfix-Schreibweise gefunden wird.
+    /// Verglichen wird über <see cref="DateTimeOffset"/>, also inklusive
+    /// Zeitzonen-Versatz: «10:49+02:00» und «08:49Z» sind derselbe Moment.
+    /// </summary>
+    public static ElmCallResult MitZeitvergleich(ElmCallResult r)
+    {
+        if (string.IsNullOrWhiteSpace(r.ResponseXml)) return r;
+        try
+        {
+            var doc = XDocument.Parse(r.ResponseXml);
+            var el = doc.Descendants().FirstOrDefault(e => e.Name.LocalName == "SystemDateTime");
+            if (el == null) return r;
+            if (!DateTimeOffset.TryParse(el.Value,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var fern))
+                return r;
+            var hier = DateTimeOffset.Now;
+            return r with
+            {
+                DistributorZeit = fern,
+                LokaleZeit      = hier,
+                DiffSekunden    = Math.Round((hier - fern).TotalSeconds, 1),
+            };
+        }
+        catch { return r; }   // unlesbare Antwort ändert nichts am Aufruf-Ergebnis
+    }
 
     /// <summary>UserAgent gemäss UserAgentType (alle Felder Pflicht).</summary>
     private static XElement UserAgent() => new(Ep + "UserAgent",
@@ -71,14 +119,18 @@ public class ElmTransmitterClient
         }
     }
 
-    /// <summary>Erreichbarkeits-Test (UC018) — Zeitvergleich Transmitter/Distributor.</summary>
-    public Task<ElmCallResult> PingAsync(string url, CancellationToken ct = default)
+    /// <summary>
+    /// Erreichbarkeits-Test (UC018) — Foundation F01_02 «Erreichbarkeit» und
+    /// F01_03 «Systemzeit»: die Antwort wird gleich auf den Zeitunterschied
+    /// zwischen Empfänger und uns geprüft.
+    /// </summary>
+    public async Task<ElmCallResult> PingAsync(string url, CancellationToken ct = default)
     {
         var body = new XElement(Sdst + "Ping",
             UserAgent(),
             new XElement(Ep + "SystemDateTime",
                 DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")));
-        return PostAsync(url, Envelope(body), ct);
+        return MitZeitvergleich(await PostAsync(url, Envelope(body), ct));
     }
 
     /// <summary>
