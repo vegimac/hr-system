@@ -1273,6 +1273,103 @@ public class EasyAtWorkController : ControllerBase
         return Ok(res);
     }
 
+    /// <summary>
+    /// «Warum kommt dieser Mitarbeiter nicht?» (Walter 24.09.2026, Fall Simona Dan).
+    ///
+    /// Der Import lief, der MA fehlte, und auf dem Bildschirm stand nichts — weil
+    /// mehrere Pfade ihn stumm übergehen können: gar nicht in der easy@work-Liste,
+    /// als «nicht übernehmen» markiert, als «MA ohne Lohn» geführt, oder er kam als
+    /// UPDATE statt als NEU und wurde in der Neuzugangs-Liste darum nie gezeigt.
+    ///
+    /// Diese Diagnose fährt die Vorschau für die Filiale und sagt für EINEN MA, was
+    /// mit ihm passiert ist — inklusive der Frage, ob in OneCrew eine Anstellung
+    /// dieser Filiale existiert (ohne die erscheint er in der MA-Liste nicht).
+    /// Read-only.
+    /// </summary>
+    [HttpGet("debug/warum-fehlt")]
+    [Authorize(Roles = "admin")]
+    public async Task<IActionResult> WarumFehlt(int companyProfileId, string nummer,
+        bool onlyActive = true, CancellationToken ct = default)
+    {
+        if (!_client.IsConfigured) return StatusCode(503, new { error = "EAW_NOT_CONFIGURED" });
+        var such = (nummer ?? "").Trim();
+        if (such.Length == 0)
+            return BadRequest(new { error = "NUMMER_FEHLT", message = "Bitte die Personalnummer angeben." });
+
+        var res = await _empSync.PreviewAsync(new Services.EasyAtWork.EasyAtWorkEmployeeSyncService.SyncRequest
+        {
+            CompanyProfileId = companyProfileId,
+            OnlyActive       = onlyActive,
+        }, ct);
+
+        var zeile = res.Rows.FirstOrDefault(r =>
+            string.Equals((r.Number ?? "").Trim(), such, StringComparison.OrdinalIgnoreCase));
+        var skip = res.Uebersprungen.FirstOrDefault(u =>
+            string.Equals((u.Nummer ?? "").Trim(), such, StringComparison.OrdinalIgnoreCase));
+
+        // Was weiss OneCrew über diese Nummer — und hat der MA in DIESER Filiale
+        // eine Anstellung? Ohne Anstellung erscheint er in der Filial-Liste nicht,
+        // auch wenn der Stammdatensatz längst da ist.
+        var coEmp = await _db.Employees.AsNoTracking()
+            .Where(e => e.EmployeeNumber == such)
+            .Select(e => new { e.Id, e.FirstName, e.LastName, e.EmployeeNumber,
+                               e.EasyAtWorkEmployeeId, e.IsActive, e.IsHidden, e.IsPayrollExcluded, e.EntryDate })
+            .FirstOrDefaultAsync(ct);
+
+        object? anstellungen = null;
+        bool? inDieserFiliale = null;
+        if (coEmp != null)
+        {
+            var ems = await _db.Employments.AsNoTracking()
+                .Where(em => em.EmployeeId == coEmp.Id)
+                .OrderBy(em => em.ContractStartDate)
+                .Select(em => new { em.Id, em.CompanyProfileId, em.ContractStartDate, em.ContractEndDate,
+                                    em.EmploymentModel, em.IsActive })
+                .ToListAsync(ct);
+            anstellungen    = ems;
+            inDieserFiliale = ems.Any(em => em.CompanyProfileId == companyProfileId);
+        }
+
+        var befund =
+            skip != null      ? $"Übergangen: {skip.Grund}"
+          : zeile == null && coEmp == null
+                              ? "Diese Nummer kommt in der easy@work-Liste dieser Filiale nicht vor und ist in OneCrew unbekannt. "
+                              + "Bitte prüfen, ob der MA in easy@work in DIESER Filiale erfasst und aktiv ist."
+          : zeile == null     ? "In der easy@work-Liste dieser Filiale nicht gefunden — der MA existiert in OneCrew aber bereits. "
+                              + "Möglich: in easy@work unter einer anderen Nummer geführt, oder nicht in dieser Filiale aktiv."
+          : zeile.Status == "CONFLICT" ? $"Als Konflikt gemeldet: {zeile.Reason}"
+          : zeile.Status == "NEW"      ? "Erscheint als NEUER MA — er kann importiert werden."
+          : zeile.Status == "UPDATE"   ? "Erscheint als ÄNDERUNG an einem bestehenden MA, nicht als Neuzugang. "
+                                       + "In der Neuzugangs-Liste taucht er darum nicht auf."
+          :                              "Erscheint als UNVERÄNDERT — die Stammdaten stimmen bereits überein.";
+
+        if (inDieserFiliale == false)
+            befund += " In OneCrew gibt es für diese Filiale KEINE Anstellung — darum fehlt der MA in der Filial-Liste. "
+                    + "Der Vertrag aus easy@work wurde also nicht übernommen; der Grund steht unter «uebersprungeneVertraege».";
+
+        return Ok(new
+        {
+            gesucht = such,
+            befund,
+            zeile = zeile == null ? null : new
+            {
+                zeile.Status, zeile.Reason, zeile.Number, zeile.FirstName, zeile.LastName,
+                zeile.EawEmployeeId, zeile.CoworkEmployeeId, zeile.SupersededDuplicate,
+                zeile.PossibleReentry, zeile.NumberChangeFrom, zeile.NumberChangeTo,
+                zeile.EmploymentInfo
+            },
+            uebersprungen          = skip,
+            inOneCrew              = coEmp,
+            anstellungen,
+            anstellungInDieserFiliale = inDieserFiliale,
+            uebersprungeneVertraege = res.SkippedContracts,
+            nummernKonflikte        = res.NumberConflicts,
+            alleUebersprungenen     = res.Uebersprungen,
+            zeilenGesamt            = res.Rows.Count,
+            hinweise                = res.Notes
+        });
+    }
+
     /// <summary>Commit: INSERTet NEW-MA + UPDATEt ausgewählte UPDATE-MA in employee.
     /// Onboarding-Werkzeug — nur Admin (Walter-Vorgabe 08.07.2026).</summary>
     [HttpPost("sync/employees/commit")]

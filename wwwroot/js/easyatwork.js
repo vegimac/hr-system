@@ -2341,3 +2341,47 @@ async function eawDatumDiagnose() {
         out.innerHTML = `<div style="color:#b91c1c;padding:8px">Verbindungsfehler: ${e(err.message)}</div>`;
     }
 }
+
+
+// «Warum fehlt dieser Mitarbeiter?» (Walter 24.09.2026, Fall Simona Dan beim
+// Übertritt nach Reinach). Mehrere Pfade können einen MA stumm übergehen —
+// diese Prüfung nennt den konkreten Grund statt eines leeren Bildschirms.
+async function eawWarumFehlt() {
+    const out  = document.getElementById('eawWarumResult');
+    const cpId = (typeof fixedCompanyProfileId !== 'undefined' && fixedCompanyProfileId) ? fixedCompanyProfileId : '';
+    const nr   = (document.getElementById('eawWarumNummer')?.value || '').trim();
+    if (!cpId) { out.innerHTML = '<div style="color:#b91c1c;padding:8px">Bitte zuerst oben eine Filiale wählen.</div>'; return; }
+    if (!nr)   { out.innerHTML = '<div style="color:#b91c1c;padding:8px">Bitte eine Personalnummer eingeben.</div>'; return; }
+    const e = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const d = (iso) => iso ? new Date(iso).toLocaleDateString('de-CH') : '–';
+    out.innerHTML = '<div style="color:#64748b;padding:8px">⏳ Vorschau für die Filiale wird gefahren — das dauert etwas…</div>';
+    try {
+        const r = await fetch(`/api/easywork/debug/warum-fehlt?companyProfileId=${cpId}&nummer=${encodeURIComponent(nr)}`, { headers: ah() });
+        const j = await r.json();
+        if (!r.ok) { out.innerHTML = `<div style="color:#b91c1c;padding:8px">Fehler: ${e(j?.message || j?.error || ('HTTP ' + r.status))}</div>`; return; }
+
+        const vertraege = (j.uebersprungeneVertraege || []).filter(t => String(t).includes(nr));
+        const anst = (j.anstellungen || []).map(a =>
+            `<li>Filiale ${e(a.companyProfileId)} · ${d(a.contractStartDate)} – ${a.contractEndDate ? d(a.contractEndDate) : 'offen'} · ${e(a.employmentModel || '')}</li>`).join('');
+
+        out.innerHTML = `
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:10px">
+                <b>Befund:</b> ${e(j.befund)}
+            </div>
+            ${j.zeile ? `<div style="margin-bottom:8px">In der Vorschau: <b>${e(j.zeile.status)}</b>${j.zeile.reason ? ' — ' + e(j.zeile.reason) : ''}
+                ${j.zeile.numberChangeTo ? `<br>Personalnummer würde von ${e(j.zeile.numberChangeFrom)} auf ${e(j.zeile.numberChangeTo)} wechseln.` : ''}
+                ${j.zeile.employmentInfo ? `<br>Vertrag: ${e(j.zeile.employmentInfo)}` : ''}</div>` : ''}
+            ${vertraege.length ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                <b>Übersprungener Vertrag:</b><ul style="margin:6px 0 0 18px;padding:0">${vertraege.map(t => `<li>${e(t)}</li>`).join('')}</ul></div>` : ''}
+            ${j.inOneCrew ? `<div style="margin-bottom:8px">In OneCrew: MA #${e(j.inOneCrew.id)} ${e(j.inOneCrew.firstName)} ${e(j.inOneCrew.lastName)}
+                · easy@work-ID ${e(j.inOneCrew.easyAtWorkEmployeeId ?? '–')} · Eintritt ${d(j.inOneCrew.entryDate)}
+                ${j.inOneCrew.isPayrollExcluded ? ' · <b>MA ohne Lohn</b>' : ''}</div>` : ''}
+            ${anst ? `<div style="margin-bottom:8px">Anstellungen:<ul style="margin:4px 0 0 18px;padding:0">${anst}</ul></div>` : ''}
+            ${(j.nummernKonflikte || []).length ? `<div style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                ${j.nummernKonflikte.map(t => e(t)).join('<br>')}</div>` : ''}
+            <details style="margin-top:6px"><summary style="cursor:pointer;color:#64748b;font-size:12px">Alle Hinweise der Vorschau (${(j.hinweise || []).length})</summary>
+                <pre style="background:#f8fafc;border:1px solid #e2e8f0;padding:10px;border-radius:8px;max-height:260px;overflow:auto;font-size:11px;white-space:pre-wrap">${e((j.hinweise || []).join('\n'))}</pre></details>`;
+    } catch (ex) {
+        out.innerHTML = `<div style="color:#b91c1c;padding:8px">Verbindungsfehler: ${e(ex.message)}</div>`;
+    }
+}

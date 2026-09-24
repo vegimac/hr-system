@@ -184,6 +184,16 @@ public class EasyAtWorkEmployeeSyncService
         /// die es ersetzt.
         /// </summary>
         public int CountPhantomSkipped { get; set; }
+
+        /// <summary>
+        /// MA, die GAR KEINE Zeile bekommen haben — mit Grund (Walter 24.09.2026).
+        /// Vorher verschwanden sie stumm: kein NEU, kein UPDATE, kein Konflikt, und
+        /// auf dem Bildschirm stand nichts. Wer hier steht, wurde bewusst übergangen;
+        /// die Diagnose «Warum kommt der MA nicht?» liest genau diese Liste.
+        /// </summary>
+        public List<SkipInfo> Uebersprungen { get; set; } = new();
+
+        public record SkipInfo(int EawId, string? Nummer, string Name, string Grund);
     }
 
     // ────────────────────────── Public API ──────────────────────────
@@ -1781,6 +1791,9 @@ public class EasyAtWorkEmployeeSyncService
             if (IsHansMuster(master.FirstName, master.LastName))
             {
                 hansMusterSkipped++;
+                res.Uebersprungen.Add(new SyncResult.SkipInfo(eaw.Id, eaw.Number,
+                    $"{master.FirstName} {master.LastName}".Trim(),
+                    "Test-/Platzhalter-Datensatz «Hans Muster» — wird nie importiert."));
                 continue;
             }
 
@@ -1791,6 +1804,9 @@ public class EasyAtWorkEmployeeSyncService
             if (detailCache.Props.TryGetValue(eaw.Id, out var propsNu) && propsNu.NichtUebernehmen)
             {
                 res.Notes.Add($"{master.FirstName} {master.LastName} (easy@work Nr. {eaw.Number}): in easy@work als «nicht übernehmen» markiert — übersprungen.");
+                res.Uebersprungen.Add(new SyncResult.SkipInfo(eaw.Id, eaw.Number,
+                    $"{master.FirstName} {master.LastName}".Trim(),
+                    "In easy@work als «nicht übernehmen» markiert."));
                 continue;
             }
 
@@ -1865,6 +1881,10 @@ public class EasyAtWorkEmployeeSyncService
             if (co != null && co.IsPayrollExcluded)
             {
                 phantomUebersprungen++;
+                res.Uebersprungen.Add(new SyncResult.SkipInfo(eaw.Id, eaw.Number,
+                    $"{master.FirstName} {master.LastName}".Trim(),
+                    $"In OneCrew als «MA ohne Lohn» (Supervisor) geführt — MA #{co.Id}. "
+                    + "Solche Datensätze werden weder angelegt noch geändert."));
                 continue;
             }
 
